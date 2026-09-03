@@ -3202,8 +3202,9 @@ would flatten into one string.
 - Consumes: `ProjectRow`'s root button.
 - Produces:
   - `useRovingFocus(container: Ref<HTMLElement | null>, selector: string)` returning
-    `{ activeIndex: Ref<number>; onKeydown(event: KeyboardEvent): boolean; reset(): void; focusFirst(): void }`
-    — `onKeydown` answers whether it CONSUMED the key.
+    `{ activeIndex: Ref<number>; onKeydown(event: KeyboardEvent): boolean; syncFromFocus(event: FocusEvent): void; clamp(length: number): void; focusFirst(): void }`
+    — `onKeydown` answers whether it CONSUMED the key, and `syncFromFocus` is what keeps the
+    index pointing at the row that actually has focus rather than the last one an arrow moved to.
   - `ProjectRow` gains prop `tabbable?: boolean` (default `true`), driving `tabindex`.
 
 - [ ] **Step 1: Write the failing keyboard test**
@@ -3533,6 +3534,7 @@ import { ref, type Ref } from 'vue';
 export interface RovingFocus {
 	activeIndex: Ref<number>;
 	onKeydown: (event: KeyboardEvent) => boolean;
+	syncFromFocus: (event: FocusEvent) => void;
 	clamp: (length: number) => void;
 	focusFirst: () => void;
 }
@@ -3556,6 +3558,25 @@ export function useRovingFocus(container: Ref<HTMLElement | null>, selector: str
 
 	return {
 		activeIndex,
+
+		/**
+		 * **The index follows the FOCUS, and without this it followed only its own arrows.**
+		 * `activeIndex` was written by `focusAt` and `clamp` alone, so a row focused any other
+		 * way — a click, a Tab into the middle of the list, a programmatic focus — left it
+		 * pointing at the previously active row. Two things broke together: an arrow then moved
+		 * relative to that stale row (click row 3 with the index at 0, press ArrowDown, land on
+		 * row 2), and the `tabindex="0"` stayed on row 1, so the clicked row was `-1` and
+		 * shift-tabbing back into the list returned to the wrong place.
+		 *
+		 * ONE listener on the CONTAINER (`@focusin`), not one per row: `focusin` bubbles, a
+		 * per-row binding is a list that goes stale at the next row kind, and this one call site
+		 * covers every path focus can arrive by — the arrows included, where it is a harmless
+		 * write of the value `focusAt` just set.
+		 */
+		syncFromFocus(event: FocusEvent): void {
+			const index = members().indexOf(event.target as HTMLElement);
+			if (index !== -1) activeIndex.value = index;
+		},
 
 		onKeydown(event: KeyboardEvent): boolean {
 			// A modified arrow belongs to the host — Obsidian binds several — so only the bare
@@ -3748,9 +3769,14 @@ existing house style uses; a `defineExpose({ focus: () => input.value?.focus() }
 assertion reads.
 
 Bind, on the `Projects` group's `<ul>`: `ref="activeList"`,
-`@keydown="(e) => onListKeydown(e, activeRoving)"`, and
-`:tabbable="index === activeRoving.activeIndex.value"` on each row in it. The same three on the
-`Completed` group's `<ul>` with `completedList` and `completedRoving`. On the filter:
+`@keydown="(e) => onListKeydown(e, activeRoving)"`, `@focusin="activeRoving.syncFromFocus"`, and
+`:tabbable="index === activeRoving.activeIndex.value"` on each row in it. The same four on the
+`Completed` group's `<ul>` with `completedList` and `completedRoving`.
+
+**`@focusin` and not `@focus`**: `focus` does not bubble, so a handler on the `<ul>` would never
+hear a row take it, and the binding would read as present while doing nothing. It goes on the
+same element as `@keydown` for the same reason that one does — the container is what both the
+arrows and the focus are about, and a per-row binding is a list that goes stale. On the filter:
 `@cancel="onFilterCancel"` and `@keydown="onFilterKeydown"` — which means `ProjectFilter` must
 re-emit its input's `keydown` beside the `cancel` it already emits, since the arrows are the
 list's business and Escape's two meanings are too.
@@ -5157,20 +5183,18 @@ free, and it is why no second refresh path is added: a `resolveStored()` call si
 `hydrate()` is a list of callers that goes stale at the fourth one.
 
 **Running on every hydrate makes `resolveStored` concurrently callable, which it was not at
-mount, so it needs the request ticket `store.hydrate` already carries.** Two hydrates can be in
-flight at once — the create path awaits its own while the rebuild subscription fires — and both
-resolutions end in a bare assignment to `stored` and `storedPlan`, so the slower earlier one
-overwrites the newer: a just-opened plan's context replaced by the one before it, with nothing to
-say it happened. Take a ticket at entry and drop the result if it is no longer current:
+mount, so it carries the request ticket `store.hydrate` already has** — written into the block
+below rather than described above it. Two hydrates can be in flight at once — the create path
+awaits its own while the rebuild subscription fires — and without the ticket both resolutions end
+in bare assignments to `stored` and `storedPlan`, so the slower earlier one overwrites the newer:
+a just-opened plan's context replaced by the one before it, with nothing to say it happened.
+Worse than stale, the two fields are written at different awaits, so an interleaving can leave
+`storedPlan` describing a different context than `stored` holds — the group then vanishes or
+offers the wrong work.
 
-```typescript
-let resolveTicket = 0;
-```
-
-and inside `resolveStored`, capture `const ticket = ++resolveTicket;` first, then guard every
-assignment with `if (ticket !== resolveTicket) return;`. This is the same shape `ProjectStore
-.hydrate` and `InspectorStore` already use, and the reason CLAUDE.md gives for it: a store two
-things hydrate needs a ticket, or the slower earlier read wins.
+This is the same shape `ProjectStore.hydrate` and `InspectorStore` already use, and the reason
+CLAUDE.md gives for it: a store two things hydrate needs a ticket, or the slower earlier read
+wins.
 
 ```typescript
 /**
@@ -5190,8 +5214,14 @@ things hydrate needs a ticket, or the slower earlier read wins.
  * whose plans could not be read is treated as a miss — the group is an offer, and an offer that
  * might open a dead editor is worse than no offer.
  */
+let resolveTicket = 0;
+
 async function resolveStored(): Promise<void> {
+	// Taken BEFORE the first await, and compared before every assignment below: this runs on
+	// every hydrate, and two hydrates can be in flight at once.
+	const ticket = ++resolveTicket;
 	const resume = await context.continueContext();
+	if (ticket !== resolveTicket) return;
 	stored.value = resume;
 	if (resume === null) {
 		storedPlan.value = 'gone';
@@ -5202,6 +5232,7 @@ async function resolveStored(): Promise<void> {
 		return;
 	}
 	const plans = await context.queries.listPlansByProject(resume.projectId);
+	if (ticket !== resolveTicket) return;
 	// The matched plan is KEPT, not counted: the row names it.
 	const found = isErr(plans)
 		? undefined
@@ -5350,7 +5381,8 @@ figure it quotes is cited to a file that already recorded one. This task is wher
 - Modify: `tests/harness/fixture.ts`
 - Modify: `tests/harness/page.ts`
 - Modify: `tests/harness/accessibility.test.ts`
-- Modify: `scripts/entryShots.mjs` (the three fixed shots Steps 2–3 add)
+- Modify: `scripts/harness-shot.mjs` (the three fixed shots Steps 2–3 add to its SHOTS array)
+- Modify: `tests/build/harness-shot.test.ts` (its fixed-shot list and count)
 - Modify: `styles/project-list.css` (the threshold, once it is measured)
 
 - [ ] **Step 1: Give the harness fixture the ranges §9 names**
@@ -5385,11 +5417,33 @@ rather than pushing the pane wide, with a long typed query — inspects a block 
 screen. A URL-seeded query is the same state the user reaches by typing, arrived at by the one
 route a headless runner has.
 
-Then add **three fixed shots** in `scripts/entryShots.mjs`'s own set: `home-stress` on
-`?projects=30` at the default width, `home-stress-narrow` on `?projects=30` at **460**, and
-`home-no-match-narrow` on `?projects=30&q=` plus a deliberately long query that matches nothing,
-at **460**. The third is narrow because item 7 asks about wrapping and pane width, which is where
-a long create action can only be judged. The fixed shots are the only ones that carry a width of
+Then add **three fixed shots** to the `SHOTS` array in `scripts/harness-shot.mjs`, each
+`{ name, query, selector: PROJECT_VIEW }` plus `width: 460` on the narrow two:
+
+| name | query | width |
+|---|---|---|
+| `home-stress` | `?projects=30` | default |
+| `home-stress-narrow` | `?projects=30` | 460 |
+| `home-no-match-narrow` | `?projects=30&q=` + a long query matching nothing | 460 |
+
+The third is narrow because item 7 asks about wrapping and pane width, which is where a long
+create action can only be judged. `project-detail-narrow` is the exact precedent for the shape,
+including why a narrow view belongs in the fixed set rather than behind a `--width` invocation.
+
+**`scripts/entryShots.mjs` is NOT where these go, and two rounds of this plan said it was.**
+That module defines no fixed set at all: `resolveShots(argv, fixedShots, env)` *receives* the
+array and returns it for an argumentless run, and `harness-shot.mjs` is what passes `SHOTS` in.
+The mistake came from reading `resolveShots`'s own error — "the fixed shots carry their own"
+width — as evidence that the shots live beside the sentence about them, without opening the file
+that defines them. It survived a round because the staging fix that followed added
+`scripts/entryShots.mjs` to this task's Files list, which made the wrong file look accounted for.
+**A citation is only as good as the file it was read from**, and an error message is a claim
+about another module, not that module.
+
+Extend the existing assertion in **`tests/build/harness-shot.test.ts`** — `it('still defines the
+fifteen fixed shots, so an argumentless run is unchanged')`, which names every shot in a list —
+so the three new names are in it and its own count reads **eighteen**. Not
+`tests/harness/harness.test.ts`, which asserts nothing about this set. The fixed shots are the only ones that carry a width of
 their own — which is what `resolveShots` refuses a bare `--width` for — and this surface's whole
 narrow composition is a container query on the pane, so a 460px capture of the real view is the
 only thing that can show it. Extend `tests/harness/harness.test.ts`'s existing assertion about
@@ -5400,10 +5454,9 @@ the set.
 
 **The Home surface itself must be one of the 460px shots**, and the fixed set is where it
 belongs: `?projects=30` drives the REAL view through the real data path, where a prototype would
-draw a hand-built copy of it. `resolveShots`'s own error says the fixed shots "carry their own"
-width, which is the mechanism — add three entries to that set: `home-stress` at the default width
-and `home-stress-narrow` at 460, both on `?projects=30`, and `home-no-match-narrow` at 460 on
-`?projects=30` with the seeded query that matches nothing.
+draw a hand-built copy of it. A fixed shot carries its own
+width, which is why `resolveShots` refuses a bare `--width` — the three entries Step 2 adds to
+`SHOTS` are what this step captures.
 
 **`prototype:StatusTicks` does not substitute for it and never could**: that prototype holds ten
 tick strips and nothing else — no filter, no foot line, no `Completed` disclosure, no Continue
@@ -5500,7 +5553,8 @@ the filter's label association, heading order (`<h2>` then `<h3>`), and ARIA att
 Run: `npm run check`
 
 ```bash
-git add tests/harness/ scripts/entryShots.mjs styles/project-list.css
+git add tests/harness/ tests/build/harness-shot.test.ts scripts/harness-shot.mjs \
+  styles/project-list.css
 git commit -m "$(cat <<'EOF'
 Capture the Home surface at both widths and fix what it showed
 
@@ -5685,14 +5739,18 @@ Run against the spec after writing the plan, section by section.
 declares under `Modify:` or `Create:` and never stages is a step that reads as complete and
 leaves its change uncommitted — and the failure is invisible to any gate, because the plan is
 prose and `npm run check` never reads it. Codex found two instances (`ProjectDetailState.vue` in
-Task 11, `scripts/entryShots.mjs` in Task 12); auditing the whole plan rather than the two
+Task 11, the capture registry in Task 12 — which a later round found was the wrong FILE, so
+staging it made the real one look accounted for); auditing the whole plan rather than the two
 reported found a **third nobody had named**, `styles/forms.css` in Task 9. That is this
 repository's own recurring lesson arriving in a planning document: a partial fix reads exactly
 like a complete one, and "I fixed the case in the report" is not "I fixed the class".
 
-The audit is a comparison anyone can re-run: for each `## Task`, collect every path in its
-`Modify:`/`Create:` lines and require each to be covered by a path in that task's own `git add`,
-either exactly or by directory prefix. It reports zero as this plan stands. Re-run it after any
+The audit is a comparison anyone can re-run: for each `## Task`, collect every **path-shaped**
+backticked token in its `Modify:`/`Create:` lines — one containing a `/` or a file extension —
+and require each to be covered by a path in that task's own `git add`, either exactly or by
+directory prefix. Path-shaped rather than every backticked token, because a Files line may
+legitimately name a symbol in its parenthetical, and a check that reports one as a missing file
+teaches its next reader to ignore it. It reports zero as this plan stands. Re-run it after any
 edit that adds a file to a task, because the two lists are two statements of one fact and they
 drift the moment only one of them is updated.
 

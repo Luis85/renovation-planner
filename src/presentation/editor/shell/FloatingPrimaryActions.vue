@@ -1,20 +1,21 @@
 <script setup lang="ts">
 /**
  * Select and Add, floating over the canvas (M01, component library §6). Select is the safe
- * state and says so with `aria-pressed`; Add opens the menu Task 18 mounts, through the ONE
- * `openAdd` event — the menu is the root's to own, because it has to close on Escape before
- * the canvas hears the key.
+ * state and says so with `aria-pressed`; Add opens Task 17's menu through the ONE `openAdd`
+ * event — the menu is the root's to own, because it has to close on Escape before the canvas
+ * hears the key.
  *
- * Add is `disabled` and carries no `aria-haspopup` until Task 17 builds the menu it would
- * announce — a live, focusable button whose click reached nothing and whose ARIA promised a
- * menu that never opened would be exactly the live-control-that-does-nothing slice 14's own
- * amendment refuses. The emit and the root's binding stay wired now so Task 17 only flips
- * these two attributes and supplies the real handler.
+ * Add is live now: `aria-haspopup="menu"` names what pressing it does, and `aria-expanded`
+ * (the `addOpen` prop, bound to `PlanEditorRoot`'s own `addMenuOpen`) says whether it is
+ * currently open — both were withheld through Task 13, when this button opened nothing and
+ * either attribute would have promised a menu that never arrived, exactly what slice 14's
+ * live-control-that-does-nothing amendment refuses.
  */
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 
 const runtime = useEditorRuntime();
+const props = defineProps<{ addOpen: boolean }>();
 const emit = defineEmits<{ openAdd: [] }>();
 </script>
 
@@ -33,12 +34,12 @@ const emit = defineEmits<{ openAdd: [] }>();
 		>
 			{{ tr('editor.primary.select') }}
 		</button>
-		<!-- Task 17 enables this: flips `disabled` off, adds `aria-haspopup="menu"` back, wires the real menu. -->
 		<button
 			type="button"
 			class="rp-primary-actions__button"
 			data-rp-action="add"
-			disabled
+			aria-haspopup="menu"
+			:aria-expanded="props.addOpen"
 			@click="emit('openAdd')"
 		>
 			{{ tr('editor.primary.add') }}

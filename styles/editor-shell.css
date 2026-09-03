@@ -169,3 +169,93 @@
 	border-color: var(--interactive-accent);
 	font-weight: var(--bold-weight);
 }
+
+/*
+ * Task 17's Add menu — anchored above `.rp-primary-actions` rather than beside it, since Add
+ * is the group's second button and a menu opening downward from it would draw off the pane's
+ * bottom edge. `.rp-plan-canvas` is the nearest `position: relative` ancestor
+ * (`.rp-plan-overlay`, its immediate parent, is `display: contents` and generates no box of
+ * its own — see `editor.css`), which is what this resolves its `absolute` against.
+ */
+.rp-add-menu {
+	position: absolute;
+	left: 50%;
+	bottom: calc(var(--size-4-4) + var(--size-4-12));
+	transform: translateX(-50%);
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	width: min(20rem, calc(100% - var(--size-4-8)));
+	max-height: min(24rem, calc(100% - var(--size-4-12)));
+	padding: var(--size-4-2);
+	border-radius: var(--radius-m);
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+	overflow-y: auto;
+}
+
+.rp-add-menu__search {
+	width: 100%;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: var(--background-modifier-form-field);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+.rp-add-menu__group h3 {
+	margin: var(--size-4-2) 0 var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--bold-weight);
+	color: var(--text-muted);
+	text-transform: uppercase;
+}
+
+.rp-add-menu__item {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	width: 100%;
+	padding: var(--size-4-1) var(--size-4-2);
+	text-align: left;
+	color: var(--text-normal);
+	background-color: transparent;
+	border: none;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-add-menu__item:hover,
+.rp-add-menu__item:focus-visible {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-add-menu__item:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.rp-add-menu__item-description {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/* `aria-disabled`, never `disabled`: an unsupported entry stays reachable, so this is colour
+   and cursor only — `DialogHost.vue`'s own header states the reason this plugin keeps that
+   invariant everywhere a control can be "here, but not yet". */
+.rp-add-menu__item--unsupported {
+	cursor: default;
+}
+
+.rp-add-menu__item--unsupported .rp-add-menu__item-label,
+.rp-add-menu__item--unsupported .rp-add-menu__item-description {
+	color: var(--text-faint);
+}
+
+.rp-add-menu__reason {
+	font-size: var(--font-ui-smaller);
+	font-style: italic;
+	color: var(--text-faint);
+}

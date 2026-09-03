@@ -29,6 +29,7 @@ import FloatingPrimaryActions from './shell/FloatingPrimaryActions.vue';
 import EntityInspector from './shell/EntityInspector.vue';
 import PropertyLayerPanel from './shell/PropertyLayerPanel.vue';
 import StatusBar from './shell/StatusBar.vue';
+import AddMenu from './add/AddMenu.vue';
 
 const context = usePlanEditorContext();
 // The return value is USED now, not discarded: `activeToolId` is what displaces the empty
@@ -107,6 +108,31 @@ const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value
 const root = ref<HTMLElement | null>(null);
 const { tokens, refresh } = useThemeTokens(root, context.onThemeChange);
 const backgroundStatus = ref<BackgroundStatus>('none');
+
+/**
+ * Task 17's Add menu — owned HERE rather than by `FloatingPrimaryActions`, for the same
+ * reason `DialogHost` sits at this level and not inside whatever opens a dialog: the menu
+ * has to close on Escape before the canvas's own `EditorSurface.onKeyDown` ever sees the key
+ * (`AddMenu`'s own `@keydown.stop` is what does that), and a component nested inside the
+ * button that opens it could not sit ABOVE that button in the DOM the way focus return and
+ * an outside-click check both need.
+ *
+ * `addButton` is resolved from the DOM at the moment Add is pressed rather than held as a
+ * template ref on `FloatingPrimaryActions` itself: that component's job is the two buttons,
+ * not exposing its internals to a parent, and by the time this handler runs the button is
+ * already in the DOM — `FloatingPrimaryActions` only mounts once `PlanCanvas` does, which is
+ * the same `status === 'ready'` gate this handler's own caller is behind. `root` is cast
+ * rather than optional-chained for the same reason: it is this component's own outermost
+ * element, bound unconditionally before any button inside it could be clickable, so there is
+ * nothing left for that branch to decide — see `AddMenu.vue`'s own casts for the same shape.
+ */
+const addMenuOpen = ref(false);
+const addButton = ref<HTMLElement | null>(null);
+
+function onOpenAdd(): void {
+	addButton.value = (root.value as HTMLElement).querySelector<HTMLElement>('[data-rp-action="add"]');
+	addMenuOpen.value = true;
+}
 
 function hydrate(): void {
 	void projectStore.hydrate(context.queries, context.planId);
@@ -215,8 +241,15 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					overlay
 					@action="onEmptyStateAction()"
 				/>
-				<!-- Task 18 replaces this handler with the real Add menu. -->
-				<FloatingPrimaryActions @open-add="() => {}" />
+				<FloatingPrimaryActions
+					:add-open="addMenuOpen"
+					@open-add="onOpenAdd"
+				/>
+				<AddMenu
+					v-if="addMenuOpen"
+					:anchor="addButton"
+					@close="addMenuOpen = false"
+				/>
 			</PlanCanvas>
 			<ViewFailure
 				v-else-if="failure !== null"

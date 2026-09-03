@@ -517,6 +517,38 @@ describe('axe against the mounted view', () => {
 	});
 
 	/**
+	 * Task 17's Add menu, OPEN — the surface with the most new ARIA any one task in this file
+	 * has added (`role="menu"`, `role="group"`, `role="menuitem"`, a roving `tabindex`, an
+	 * `aria-describedby` on every unsupported item). `AddMenu.vue`'s own header explains why
+	 * its search `<input>` sits outside `role="menu"` (an ARIA-spec argument, not a measured
+	 * fix) and why each group's `<h3>` carries `role="presentation"` — THAT one this case is
+	 * what found: scanned with a plain `<h3>`, it reported `aria-required-children` ("Element
+	 * has children which are not allowed: h3"), because `menu`'s allowed-owned-elements
+	 * computation reaches through `group` to the heading same as it would an unadorned
+	 * `<input>`. Green here is what proves the fix rather than the ARIA reading alone.
+	 *
+	 * The presence assertion is this file's usual reason: `violations` is `[]` on a subtree
+	 * containing nothing at all, so proving the menu is really open is what makes green mean
+	 * something.
+	 */
+	it('reports no semantic violations on the plan editor with the Add menu open', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			await mounted.wrapper.find('button[data-rp-action="add"]').trigger('click');
+			await flushPromises();
+
+			expect(mounted.wrapper.find('[role="menu"]').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
 	 * **The last action-carrying empty state no axe scan reached** — and BOTH this branch and
 	 * `main` added a case for it independently, which is why this docblock carries two
 	 * arguments rather than one.

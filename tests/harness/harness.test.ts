@@ -55,9 +55,17 @@ interface Script {
 	readonly kind: ts.ScriptKind;
 }
 
-const stylesOf = (file: string, text: string): string[] =>
+interface StyleBlock {
+	readonly content: string;
+	readonly src: string | undefined;
+}
+
+const stylesOf = (file: string, text: string): StyleBlock[] =>
 	file.endsWith('.vue')
-		? parseSfc(text, { filename: file }).descriptor.styles.map((block) => block.content)
+		? parseSfc(text, { filename: file }).descriptor.styles.map((block) => ({
+				content: block.content,
+				src: block.src,
+			}))
 		: [];
 
 const scriptsOf = (file: string, text: string): Script[] => {
@@ -107,9 +115,22 @@ const importUrlsOf = (filename: string, code: Buffer): string[] => {
  * `obsidian.css` contains a literal `*\/` inside preserved upstream prose, which closes a
  * comment in any conformant parser, so a stricter extractor throws on it. **Reuse was not
  * tidiness here — the copy would have been wrong on a real file in the tree.**
+ *
+ * **Two narrowings I added and then had to take back out, both reported in one round.** The
+ * first version kept only `content`, and `<style scoped src="./theme.css">` puts the dependency
+ * in `src` with the content EMPTY — measured, not assumed. The second filtered the parsed URLs
+ * with `.endsWith('.css')`, which discards `@import './theme'` and
+ * `@import url('https://…/theme')`; both load a stylesheet, and `importsIn` — the extractor this
+ * one now shares — never filtered by extension at all.
+ *
+ * So ANY `@import` the CSS parser finds counts, and a `src` counts on its own. The rule this
+ * keeps arriving at: **the parser has already decided the thing is an import; a suffix test
+ * after it can only throw that answer away.** It is the JS side's `.css` check that is the
+ * exception, and it is one because a module graph carries every kind of specifier while a
+ * permitted style block carries only stylesheets.
  */
-const styleImportsStylesheet = (file: string, css: string): boolean =>
-	importUrlsOf(file, Buffer.from(css)).some((url) => url.endsWith('.css'));
+const styleImportsStylesheet = (file: string, block: StyleBlock): boolean =>
+	block.src !== undefined || importUrlsOf(file, Buffer.from(block.content)).length > 0;
 
 /**
  * Does this module import a stylesheet? Asked of the TypeScript PARSER, not of a pattern.
@@ -143,7 +164,7 @@ const styleImportsStylesheet = (file: string, css: string): boolean =>
  * only at runtime.
  */
 const importsStylesheet = (file: string, text: string): boolean =>
-	stylesOf(file, text).some((css) => styleImportsStylesheet(file, css)) ||
+	stylesOf(file, text).some((block) => styleImportsStylesheet(file, block)) ||
 	scriptsOf(file, text).some((script) => {
 		const source = ts.createSourceFile(
 			file,

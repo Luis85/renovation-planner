@@ -357,6 +357,22 @@ interface ProjectSummary {
 	 * "needs recalculating" clause must subtract them and point them at diagnostics instead.
 	 */
 	unreadableReferents: number;
+	/**
+	 * Rows whose asset or zone was DELETED — `missingTarget` on the row, a subset of `stale`,
+	 * and the OTHER thing a recalculation cannot fix.
+	 *
+	 * It exists because introducing `recalculable` removed the only qualifier these rows had.
+	 * Taking them out of "needs recalculating" was right — the command refuses them — but the
+	 * strip then said nothing about them at all while their persisted cost stayed in the total.
+	 * **Removing a false claim is not the same as reporting the truth**, and the silence was the
+	 * worse of the two, because a wrong instruction is at least visible.
+	 *
+	 * Counted apart from `unreadableReferents` because the two say different things to a user: a
+	 * note that could not be READ points at diagnostics, a target that is GONE points at
+	 * reassigning or deleting the requirement. That distinction is the same one
+	 * `RequirementInspectorDTO` already draws between `isErr` and `ok(null)`.
+	 */
+	missingTargets: number;
 	/** `ListPlansByProject`'s own count, passed through. */
 	unreadablePlans: number;
 	/**

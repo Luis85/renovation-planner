@@ -171,7 +171,9 @@ const staleCount = 3;
  */
 const unreadableReferentCount = 1;
 /** Supplied by the query, not `stale - unreadableReferents` — see `ProjectEstimate`'s prop. */
-const recalculableCount = 2;
+const recalculableCount = 1;
+/** Deleted asset or zone — a recalculation cannot fix these either, and they say something else. */
+const missingTargetCount = 1;
 const unsummableCount = 1;
 /**
  * Supplied, never derived. subtracting every exclusion category double-counts a row caught by two
@@ -257,6 +259,7 @@ const summedCount = 23;
 				:stale="staleCount"
 				:recalculable="recalculableCount"
 				:unreadable-referents="unreadableReferentCount"
+				:missing-targets="missingTargetCount"
 				:unsummable="unsummableCount"
 			/>
 

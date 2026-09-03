@@ -117,6 +117,16 @@ const props = withDefaults(
 		 * Separated from `stale` because recalculating them cannot succeed.
 		 */
 		unreadableReferents?: number;
+		/**
+		 * Rows whose asset or zone was DELETED — the other thing a recalculation cannot fix, and
+		 * a separate badge because it points somewhere else: a note that could not be READ points
+		 * at diagnostics, a target that is GONE points at reassigning or deleting the row.
+		 *
+		 * Introducing `recalculable` took these rows out of "needs recalculating", correctly, and
+		 * left them with no qualifier at all while their cost stayed in the amount. Removing a
+		 * false claim is not the same as reporting the truth.
+		 */
+		missingTargets?: number;
 		/** Figures the total cannot take, because their currency is not the project's. */
 		unsummable?: number;
 	}>(),
@@ -126,8 +136,12 @@ const props = withDefaults(
 		summed: 23,
 		rooms: 11,
 		stale: 3,
-		recalculable: 2,
+		// 3 stale = 1 fixable + 1 unreadable referent + 1 deleted target. The specimen has to add
+		// up: a capture caught this reading `2` beside those two, which is four obstacles for
+		// three rows — the demo state asserting something the query could never produce.
+		recalculable: 1,
 		unreadableReferents: 1,
+		missingTargets: 1,
 		unsummable: 1,
 	},
 );
@@ -170,6 +184,17 @@ const provenance = computed(() => {
  * have moved, a slash for one the total cannot take — so the only thing that varies is `d`, and
  * a shared `<circle>` is a fact about the icon set rather than an accident of the collapse.
  */
+/**
+ * Number agreement is done inline here, and that is a PROTOTYPE affordance rather than the
+ * shipped answer. A capture read "1 need recalculating" and "1 reference something deleted" —
+ * both wrong, both invisible to every gate, since jsdom is perfectly happy with bad grammar.
+ *
+ * Promotion cannot copy this: `t` takes interpolation parameters (slice 19) and has no PLURAL
+ * mechanism at all, so a real implementation needs either two keys per message or a plural rule
+ * in the locale layer — and German, which this plugin ships, does not have the same plural
+ * categories as English. That is a decision for whoever promotes these strings, and naming it
+ * here is cheaper than letting the ternaries travel into `en.ts` as though they were the design.
+ */
 const flags = computed(() => {
 	// **Only the rows a recalculation could actually fix**, which is a count the QUERY supplies
 	// rather than one this component derives. `stale` includes both obstacles — an unreadable
@@ -186,7 +211,7 @@ const flags = computed(() => {
 			health: 'stale',
 			key: 'stale',
 			d: 'M12 7v5l3 2',
-			text: `${props.recalculable} need recalculating`,
+			text: `${props.recalculable} ${props.recalculable === 1 ? 'needs' : 'need'} recalculating`,
 		},
 		{
 			// Points at the diagnostics door rather than at a remedy. WHICH note failed is
@@ -197,6 +222,13 @@ const flags = computed(() => {
 			key: 'unreadable',
 			d: 'M12 8v4m0 3.5v.5',
 			text: `${props.unreadableReferents} could not be read — see diagnostics`,
+		},
+		{
+			when: props.missingTargets > 0,
+			health: 'excluded',
+			key: 'missing',
+			d: 'M8 8l8 8m0-8l-8 8',
+			text: `${props.missingTargets} ${props.missingTargets === 1 ? 'references' : 'reference'} something deleted`,
 		},
 		{
 			// The two above survive `amount === null` and this one does not, which is the

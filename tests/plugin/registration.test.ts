@@ -191,6 +191,22 @@ describe('both ways in', () => {
 		expect(workspace.leaves).toHaveLength(1);
 		expect(workspace.revealed).toHaveLength(2);
 	});
+
+	/**
+	 * §2's own command, with no ribbon beside it: a plain callback exactly like the other two
+	 * above, driven through `plugin.commands` the same way — `openAssetLibrary`'s own
+	 * `revealView` call, composed directly on the plugin rather than through
+	 * `RenovationProjectDeps.openAssetLibrary`, which `renovationProjectOpenSeams.test.ts` and
+	 * `renovationProjectWiring.test.ts` already drive for the other door.
+	 */
+	it('opens the asset library from its own command', async () => {
+		const command = plugin.commands.find((c) => c.id === 'open-asset-library');
+
+		command?.callback?.();
+		await settle();
+
+		expect(workspace.getLeavesOfType(ASSET_LIBRARY_VIEW)).toHaveLength(1);
+	});
 });
 
 describe('the composition root', () => {

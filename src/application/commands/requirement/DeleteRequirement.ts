@@ -19,7 +19,18 @@ export interface DeleteRequirementInput {
 	readonly expected?: EntityVersion;
 }
 
-/** The one plain removal in the requirement family — `remove-references` resolves through it. */
+/**
+ * The exposed plain removal in the requirement family, constructed once at
+ * `slice10Composition.ts:174`.
+ *
+ * **`remove-references` does NOT resolve through it**, and an earlier version of this line said
+ * it did. `deleteResolution.ts:221` binds `removeRequirement` straight to
+ * `requirements.delete` on the raw port and publishes `RequirementDeleted` itself; nothing in
+ * that engine reaches this command. `RequirementDeleted`'s own docblock retracts the same claim
+ * and gives the reason — a resolution engine dispatching the very command whose delete it is
+ * compensating around would be a second entry point into the thing it is unwinding. This half
+ * of the contradiction outlived that correction.
+ */
 export class DeleteRequirementCommand
 	implements
 		Command<DeleteRequirementInput, Result<{ requirementId: RequirementId }, ReferenceError | RepositoryError>>

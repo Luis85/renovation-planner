@@ -2296,14 +2296,18 @@ of them." The rules that lasted:
   What it costs was traced rather than taken from the report: the project IS created, under
   the PREVIOUS default project folder; `ProjectCreated` reaches the retired root's bus, so the
   rebound tree never hears it; and `VaultChangeAdapter` indexes the note while publishing
-  nothing, `projectIndexRebuilt()` having exactly one publisher that `saveSettings` runs
-  BEFORE the rebind. The rebound list is stale until the leaf is reopened.
+  nothing, the publisher that matters on this path being the full scan, which `saveSettings`
+  runs BEFORE the rebind. The rebound list is stale until the leaf is reopened. (This said
+  `projectIndexRebuilt()` had "exactly one publisher" until the publishing increment gave the
+  create-zone adapter a refused-reverse-lookup fallback that raises it too — a second publisher
+  off this path, so the conclusion stands and only the count was wrong.)
 - **The half of a staleness that no COMMAND can raise, and the docblock that called it
   unfixable was pointing at the fix.** `projectListChangeSource` gained `ProjectCreated` in
   one round and still missed every project note added by hand, copied in, or arriving through
   sync: `VaultChangeAdapter` is the SOLE index writer for those, and it held no `EventBus` at
-  all, while `ProjectIndexRebuilt` has exactly one publisher (layout-ready and a settings
-  swap). A mounted pane drew the vault it had read at mount, indefinitely. The module's own
+  all, while `ProjectIndexRebuilt` had exactly one publisher at the time (layout-ready and a
+  settings swap; the publishing increment later added a second, the create-zone adapter's
+  refused-reverse-lookup fallback). A mounted pane drew the vault it had read at mount, indefinitely. The module's own
   paragraph had recorded the delete case in prose — "there is no `ProjectDeleted` to add here
   until something raises one" — which reads as a survey of the ground and was actually a
   description of the missing publisher one layer down. `ProjectIndexEntryChanged` is that

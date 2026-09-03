@@ -170,12 +170,16 @@ export class ReversibleCreateZoneCommand {
 	 * A restore is a write, and until this existed it was a write nobody heard. Two events,
 	 * because they answer two different questions and neither subsumes the other.
 	 *
-	 * `ZoneCreated` is what the plain command would have raised, and it is filtered by every
-	 * consumer to the ZONE's project. That is right for the zone and insufficient for its
-	 * dependents: nothing subscribes to `ZoneCreated` at all today (the cascade handlers are
-	 * `onZoneGeometryChanged`, `onAssetPriceOverrideChanged` and `onAssetUpdated`), so a
-	 * dependent in ANOTHER project — a hand-edited requirement whose `origin.zoneId` sits
-	 * here — keeps a `missingTarget` badge a fresh read would already have cleared.
+	 * `ZoneCreated` is what the plain command would have raised. Its one consumer is
+	 * `PLAN_CHANGE_EVENTS` (`planChangeSource.ts:29`), driving `onPlanChanged`, and it filters
+	 * by PLAN id — narrower than the project. Two earlier sentences here were wrong and both
+	 * are worth naming, because the conclusion they supported is right and survives either way:
+	 * this said "nothing subscribes to `ZoneCreated` at all today", which confused "no CASCADE
+	 * handler subscribes" (true — they are `onZoneGeometryChanged`, `onAssetPriceOverrideChanged`
+	 * and `onAssetUpdated`) with "nothing does"; and it said every consumer filters to the
+	 * zone's PROJECT, where the real one filters by plan. So a dependent in ANOTHER project — a
+	 * hand-edited requirement whose `origin.zoneId` sits here — still keeps a `missingTarget`
+	 * badge a fresh read would already have cleared, which is what the second event is for.
 	 *
 	 * So the surviving dependents get `RequirementInvalidated`, which carries the
 	 * requirement's own id and claims a recalculation is OWED. That is truthful rather than a

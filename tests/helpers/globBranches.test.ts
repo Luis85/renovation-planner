@@ -92,6 +92,50 @@ describe('expandGlobBranches', () => {
 		const branches: string[] = [];
 		expect(expandGlobBranches('../{a(x),b}.ts', branches)).toBe(false);
 	});
+
+	/**
+	 * `?(a|b)` and `*(a|b)` match ZERO occurrences as well as one — this file's fourth
+	 * consecutive-round finding of the same shape, and this time about what a single PATTERN can
+	 * expand to rather than which specifier forms reach the check at all. Both need the empty
+	 * branch; `@()` and `+()` must NOT gain one, which the next two `it`s hold rather than assume.
+	 */
+	it.each([
+		['?', '../?(a).ts', ['../a.ts', '../.ts']],
+		['*', '../*(a).ts', ['../a.ts', '../.ts']],
+	])('expands %s(...) into its listed alternative AND the empty match', (_operator, pattern, expected) => {
+		const branches: string[] = [];
+		expect(expandGlobBranches(pattern, branches)).toBe(true);
+		expect(branches).toEqual(expected);
+	});
+
+	/**
+	 * The narrowing this fix must hold: `@()` matches EXACTLY one of its alternatives and `+()`
+	 * matches ONE OR MORE, so neither ever produces an empty match. A fix that added the empty
+	 * branch to every group uniformly — "any optional-looking group escapes" — would pass the
+	 * `?()`/`*()` cases above and turn both of these red, which is the point of holding them here
+	 * rather than trusting the narrower one above to cover it.
+	 */
+	it.each([
+		['@', '../@(a).ts', ['../a.ts']],
+		['+', '../+(a).ts', ['../a.ts']],
+	])('expands %s(...) into only its listed alternative, never an empty match', (_operator, pattern, expected) => {
+		const branches: string[] = [];
+		expect(expandGlobBranches(pattern, branches)).toBe(true);
+		expect(branches).toEqual(expected);
+	});
+
+	/**
+	 * `!(a|b)` matches anything EXCEPT `a` or `b` — an unconstrained, unenumerable set that can
+	 * contain `/` or `..`. Substituting the negated alternatives themselves (this function's
+	 * behaviour before this case existed) checks exactly the two strings `!()` is defined to
+	 * REFUSE, which is under-refusing at its most direct: the one case reachable at runtime was
+	 * the one case never checked. Reported as an escape immediately, with no attempt to parse the
+	 * group's content — there is nothing a literal substitution could safely produce.
+	 */
+	it('reports false for a negated extglob rather than substituting the negated alternatives', () => {
+		const branches: string[] = [];
+		expect(expandGlobBranches('../!(a|b).ts', branches)).toBe(false);
+	});
 });
 
 describe('resolvesOutsideRoots', () => {

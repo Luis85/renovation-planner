@@ -36,15 +36,58 @@ export const MAX_GLOB_BRANCHES = 8;
 const EXTGLOB_PREFIX = '@?*+!';
 
 /**
- * Expands every `{a,b}` and `@(a|b)` group in `pattern` into `branches`, recursively — a nested
- * group inside one alternative is found on the recursive call over THAT branch, since
- * substituting one alternative leaves the rest of the pattern, any inner group included,
- * untouched.
+ * Every construct this expander recognises, and what each one's alternatives EXPAND TO — written
+ * here because the answer is one level below `isBoundableSpecifier`'s own enumeration in
+ * `harness.test.ts` (that one is about specifier FORMS; this one is about what a single glob
+ * PATTERN's construct can match), and this predicate has now been found unbounded on one more
+ * form in each of four consecutive review rounds. An enumeration that goes stale is the same
+ * defect as no enumeration; this one is written against the code beside it rather than from
+ * memory, and it says where it stops being complete rather than implying it never does:
+ *
+ * - **`{a,b}` (brace)** — each listed alternative, exactly once. Complete: a brace has no
+ *   optional or repeating form in any glob dialect this file targets.
+ * - **`@(a|b)`** — each listed alternative, exactly once. Complete, by extglob's own definition
+ *   ("exactly one of the patterns").
+ * - **`?(a|b)`** — each listed alternative once, PLUS the empty string (zero occurrences).
+ *   Complete for BOUNDING purposes: "zero or one" has exactly two shapes, and both are produced.
+ * - **`*(a|b)`** — each listed alternative once, PLUS the empty string. NOT a complete
+ *   enumeration of what `*()` can match (two-or-more repeated occurrences are real matches this
+ *   does not produce) — declared complete only for the narrower question this function answers,
+ *   because the reasoning is asymmetric rather than exhaustive: repeating an alternative can only
+ *   ADD literal path segments, which can only push a resolved path DEEPER, never further outside
+ *   the roots than the zero-occurrence branch already reaches. The empty branch is the genuine
+ *   worst case for escaping upward; every repetition beyond one alternative is safe to leave
+ *   unexpanded precisely because it cannot be worse than a case already checked.
+ * - **`+(a|b)`** — each listed alternative once, no empty branch. Same asymmetry as `*()` from
+ *   the other side: the minimum is ONE occurrence, already the alternative itself, and every
+ *   additional repetition only adds segments. Adding an empty branch here would be wrong in the
+ *   OTHER direction — it would check a match `+()` cannot actually produce.
+ * - **`!(a|b)`** — NOT enumerable at all, and not attempted: negation's true match set is
+ *   everything EXCEPT the listed alternatives, which is unconstrained (it can contain `/`, `..`,
+ *   anything). Substituting the negated alternatives themselves — this function's behaviour
+ *   before this paragraph was added — checks exactly the strings `!()` is defined to REFUSE,
+ *   which is under-refusing at its most direct: the one case actually reachable at runtime is the
+ *   one case never checked. `expandGlobBranches` reports an escape immediately on finding a `!(`
+ *   group, without attempting to parse its content at all.
+ * - **Anything not opened by `{` or one of `EXTGLOB_PREFIX`'s five characters** — not a group;
+ *   left as literal text for `resolvesOutsideRoots`'s own wildcard elision (`*`, `?`, `[]`) to
+ *   handle, or resolved verbatim if it is ordinary path text.
+ * - **An unclosed group, or a branch count exceeding `MAX_GLOB_BRANCHES`** — reports an escape;
+ *   see this function's own return-value contract below.
+ */
+type ExtglobOperator = '@' | '?' | '*' | '+' | '!';
+
+/**
+ * Expands every `{a,b}` group and every bounded extglob group in `pattern` into `branches`,
+ * recursively — a nested group inside one alternative is found on the recursive call over THAT
+ * branch, since substituting one alternative leaves the rest of the pattern, any inner group
+ * included, untouched. The docblock above states what each construct expands to; this function
+ * is that table implemented.
  *
  * Answers `false` — "cannot be bounded, treat the whole pattern as escaping" — for an unclosed
- * group or for more than `MAX_GLOB_BRANCHES` branches, per this predicate's whole glob posture:
- * an unrecognised or unbounded construct moves a pattern toward "counts", never toward "proven
- * safe". `escapesTheRoots` is this function's only caller.
+ * group, for a `!(…)` negation, or for more than `MAX_GLOB_BRANCHES` branches, per this
+ * predicate's whole glob posture: an unrecognised or unbounded construct moves a pattern toward
+ * "counts", never toward "proven safe". `escapesTheRoots` is this function's only caller.
  *
  * One pass finds the leftmost group's matching close AND splits its interior on the group's own
  * separator (`,` for braces, `|` for extglobs) — both are the same "am I at depth zero" question
@@ -56,6 +99,10 @@ export function expandGlobBranches(pattern: string, branches: string[]): boolean
 		const isBrace = pattern[i] === '{';
 		const isExtglob = pattern[i] === '(' && i > 0 && EXTGLOB_PREFIX.includes(pattern[i - 1]);
 		if (!isBrace && !isExtglob) continue;
+		const operator: ExtglobOperator | undefined = isExtglob
+			? (pattern[i - 1] as ExtglobOperator)
+			: undefined;
+		if (operator === '!') return false;
 
 		const start = isBrace ? i : i - 1;
 		const closeChar = isBrace ? '}' : ')';
@@ -81,6 +128,7 @@ export function expandGlobBranches(pattern: string, branches: string[]): boolean
 		}
 		if (end < 0) return false;
 		alternatives.push(pattern.slice(last, end));
+		if (operator === '?' || operator === '*') alternatives.push('');
 
 		const before = pattern.slice(0, start);
 		const after = pattern.slice(end + 1);

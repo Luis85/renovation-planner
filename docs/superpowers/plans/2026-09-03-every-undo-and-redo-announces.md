@@ -286,6 +286,8 @@ MSG
 
 ## Task 2: The exposed removal announces, and the editor bundle carries a bus
 
+> **IMPLEMENTED** — commit `71826d0`. Reviewed: spec ✅, one Important finding open (the refusal case drives a LOAD refusal, not a delete refusal), fix round pending. Do NOT re-execute these steps; the code, the interface member and the test file all exist.
+
 **Files:**
 - Modify: `src/application/commands/requirement/DeleteRequirement.ts`
 - Modify: `src/plugin/slice10Composition.ts:174`

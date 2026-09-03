@@ -1284,6 +1284,10 @@ MSG
 
 ## Task 7: The override adapters' undo announces the cost it moved
 
+> **DONE** — commit `715c817`, gate exit 0 (5305 passed, 99.35/99.09/99.55/98.22).
+> Mutation check on the third case confirmed red without the equality guard. Review pending.
+> Start at Task 8.
+
 **Files:**
 - Modify: `src/application/commands/requirement/reversible-override-commands.ts`
 - Modify: `src/presentation/editor/inspector-wiring.ts` (both override construction sites)

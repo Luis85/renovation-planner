@@ -22,12 +22,15 @@ import { defer } from '../../helpers/async';
 
 type DesignAnswer = Awaited<ReturnType<AssetLibraryQueryServices['getDesign']>>;
 type ReferencingAnswer = Awaited<ReturnType<AssetLibraryQueryServices['listReferencing']>>;
+type OverridingAnswer = Awaited<ReturnType<AssetLibraryQueryServices['listOverridingProjects']>>;
 
 const ASSET = createAssetId();
 const OTHER = createAssetId();
 
 const READ_FAILED = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'boom' } as const;
 const NOT_FOUND = { category: 'Reference', code: 'asset.not-found', message: 'gone' } as const;
+
+const OTHER_PROJECT = 'project-2' as ProjectId;
 
 const KITCHEN: ReferencingGroup = {
 	projectId: 'project-1' as ProjectId,
@@ -164,6 +167,52 @@ describe('AssetSelectionStore selection', () => {
 		expect(store.designStatus).toBe('ready');
 	});
 
+	/**
+	 * The other direction of §11 item 6, and the one that needs the region's gate rather than a
+	 * section's own: the OVERRIDE read succeeded and holds real marks, and the groups they belong
+	 * on could not be read. Handing a caller a mark set with no rows to put it on is a fact about
+	 * nothing, so the whole region blanks.
+	 */
+	it('blanks the override marks when the groups they belong on could not be read', async () => {
+		const store = useAssetSelectionStore();
+
+		await store.select(
+			ASSET,
+			queries({
+				listReferencing: () => Promise.resolve(err(READ_FAILED)),
+				listOverridingProjects: () => Promise.resolve(ok([OTHER_PROJECT])),
+			}),
+		);
+
+		expect(store.usedInStatus).toBe('failed');
+		expect(store.overriding).toEqual([]);
+		expect(store.usedIn).toEqual([]);
+	});
+
+	/**
+	 * A selection CHANGE takes its blank moment, where a §5.4 refresh does not: the subject has
+	 * been replaced, so holding one asset's figures under another asset's name while the reads
+	 * are out is the *silently wrong panel* every store here is written against.
+	 * `InspectorStore.hydrateFrom` states the same rule — a blank moment is a truer answer than
+	 * a confident wrong one.
+	 */
+	it('blanks both regions while a newly selected asset is still being read', async () => {
+		const slow = defer<DesignAnswer>();
+		const store = useAssetSelectionStore();
+		await store.select(ASSET, queries());
+
+		const pending = store.select(OTHER, queries({ getDesign: () => slow.promise }));
+
+		expect(store.designStatus).toBe('loading');
+		expect(store.design).toBeNull();
+		expect(store.usedInStatus).toBe('loading');
+
+		slow.resolve(ok(assetDesign({ assetId: OTHER })));
+		await pending;
+
+		expect(store.designStatus).toBe('ready');
+	});
+
 	it('drops a late answer for a selection the user has left — its failures too', async () => {
 		const slow = defer<DesignAnswer>();
 		const store = useAssetSelectionStore();
@@ -221,16 +270,62 @@ describe('AssetSelectionStore invalidation', () => {
 		expect(store.usedIn).toEqual([KITCHEN]);
 	});
 
-	it('re-reads Used in for a price override and leaves the design alone', async () => {
+	/**
+	 * The `usage` channel's whole point, and the half a two-section join loses: a price override
+	 * moved in some project cannot alter which requirements reference this asset, so
+	 * `ListRequirementsReferencing` — which reaches EVERY requirement note in the vault — must
+	 * not re-run for it, and the design read must not either.
+	 */
+	it('re-reads the override marks alone for a price override', async () => {
 		const doors = counted();
 		const store = useAssetSelectionStore();
 		await store.select(ASSET, doors);
 
 		await store.applyChange({ ...QUIET, usage: [ASSET] }, doors);
 
-		expect(doors.listReferencing).toHaveBeenCalledTimes(2);
 		expect(doors.listOverridingProjects).toHaveBeenCalledTimes(2);
+		expect(doors.listReferencing).toHaveBeenCalledTimes(1);
 		expect(doors.getDesign).toHaveBeenCalledTimes(1);
+	});
+
+	/**
+	 * §5.5's named harm, checked on the trigger a join would have delivered it on: *Used in*
+	 * flapping back into loading and disabling `Delete` while somebody works next door. The
+	 * groups are already drawn, so re-reading the marks beside them must leave the region
+	 * `ready` — a section that already holds an answer does not go back to `loading` for the
+	 * tick a refresh is out.
+	 */
+	it('never flaps Used in back into loading while the marks re-read', async () => {
+		const slow = defer<OverridingAnswer>();
+		const store = useAssetSelectionStore();
+		await store.select(ASSET, queries());
+
+		const refresh = store.applyChange(
+			{ ...QUIET, usage: [ASSET] },
+			queries({ listOverridingProjects: () => slow.promise }),
+		);
+
+		expect(store.usedInStatus).toBe('ready');
+		expect(store.usedIn).toEqual([KITCHEN]);
+
+		slow.resolve(ok([OTHER_PROJECT]));
+		await refresh;
+
+		expect(store.usedInStatus).toBe('ready');
+		expect(store.overriding).toEqual([OTHER_PROJECT]);
+	});
+
+	it('restarts the whole region when a replaced entry arrives, marks included', async () => {
+		const doors = counted();
+		const store = useAssetSelectionStore();
+		await store.select(ASSET, doors);
+
+		await store.applyChange({ ...QUIET, replaced: [ASSET], usage: [ASSET] }, doors);
+
+		// `usage` never restates what a replacement already implies: the marks are re-read once,
+		// by the wider restart, rather than once by each arm.
+		expect(doors.listOverridingProjects).toHaveBeenCalledTimes(2);
+		expect(doors.listReferencing).toHaveBeenCalledTimes(2);
 	});
 
 	it('restarts BOTH reads when the selected entry is replaced', async () => {
@@ -339,9 +434,11 @@ describe('AssetSelectionStore invalidation', () => {
 
 		await store.refreshDesign(doors);
 		await store.refreshUsedIn(doors);
+		await store.refreshOverriding(doors);
 
 		expect(doors.getDesign).not.toHaveBeenCalled();
 		expect(doors.listReferencing).not.toHaveBeenCalled();
+		expect(doors.listOverridingProjects).not.toHaveBeenCalled();
 	});
 
 	it('rebuilds to its opening state, invalidating a read still in flight', async () => {

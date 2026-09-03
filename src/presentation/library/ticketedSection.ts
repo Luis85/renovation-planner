@@ -42,7 +42,15 @@ export function createTicketedSection<T, E>(empty: T): TicketedSection<T, E> {
 
 	async function run(read: () => Promise<Result<T, E>>): Promise<void> {
 		const ticket = ++generation;
-		status.value = 'loading';
+		// **`'loading'` only when there is nothing to draw** — the guard
+		// `RenovationProjectStore.hydrate` states for the identical reason, met here at the
+		// section rather than at the view. A §5.4 REFRESH re-reads a section that already holds
+		// an answer, and flipping it to `loading` for the tick that read is out is precisely the
+		// harm §5.5 names against the per-selection-cycle spelling: *Used in* flapping back into
+		// loading and disabling `Delete` while somebody works next door. A selection CHANGE gets
+		// its blank moment from `clear()` instead, which its caller runs first — a truer answer
+		// than one asset's figures held under another asset's name.
+		if (status.value !== 'ready') status.value = 'loading';
 		error.value = null;
 
 		const answered = await read();

@@ -4,31 +4,37 @@ import type { AssetId } from '../../domain/asset/AssetId';
 import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueries';
 
 /**
- * Rule 3 of the design spec's §5.3, and the third of §5.5's three ticket seams, in the one
- * module that owns both — a mark cache bounded by what is ON SCREEN, and a generation per
- * asset so a late answer cannot overwrite a fresh one.
+ * Rule 3 of the design spec's §5.3 and the invalidation half of §5.4, in the one module that
+ * owns both — a mark cache bounded by what is ON SCREEN, and a generation per asset so a late
+ * answer cannot overwrite a fresh one.
  *
- * §5.3's four rules, and where each lives here:
- * - a mark is requested when its row **enters the viewport, in batches** — `request` takes the
- *   set a caller has just seen enter and issues ONE `listOutlines` for whatever of it is not
- *   already known;
+ * §5.3's rules, and where each lives here:
+ * - a mark is requested when its row **enters the viewport, in batches** — `setVisible` takes
+ *   the set now on screen and issues ONE `listOutlines` for whatever of it is not already known;
  * - a row **never waits** — nothing here is awaited by a render: `markFor` answers `null` for
  *   an asset nothing has read yet, which is §3.4's *not yet read* state, and the row draws it;
  * - nothing already in flight is **cancelled** when a row leaves, and nothing further is
- *   requested for it — there is no `release` door at all, which is what makes that rule
- *   unbreakable rather than merely observed;
- * - **invalidation drops the cached value and the viewport decides when it is re-read** —
- *   `invalidate` forgets and re-arms, and never issues a read of its own. A row on screen
- *   re-requests on its next viewport pass; a row that is not re-requests when it next enters,
- *   and never before. Reading eagerly here would re-read every asset a burst of synced notes
- *   names, which is the bound this whole seam exists to keep.
+ *   requested for it — there is no cancellation door at all, which makes that rule unbreakable
+ *   rather than merely observed.
+ *
+ * **§5.4's own sentence is the reason this module remembers what is visible at all**: *"A row on
+ * screen re-requests IMMEDIATELY; a row that is not … re-requests when it next enters the
+ * viewport, and never before."* An `IntersectionObserver` fires no further callback for a row
+ * that never leaves the screen, so a design in `invalidate` that merely forgot the value and
+ * waited for "the next viewport pass" would blank a visible mark to *not yet read* and leave it
+ * there until the user scrolled it out and back — for the life of the view, which is the exact
+ * guarantee §5.4 exists to give. Reading eagerly for EVERY invalidated id is the opposite error:
+ * a burst of synced notes would read every sidecar it names. So the visible set is held here and
+ * `invalidate` re-requests exactly its intersection with it, which is a fact the caller already
+ * has to supply for `setVisible` and would otherwise have to remember to supply twice.
  *
  * **There is no timer and no microtask coalescing, and the batch boundary is the CALLER's
  * call.** That is what an `IntersectionObserver` callback already gives — it delivers an array
  * of entries per callback rather than one per row — so a scheduler here would be a second
  * batching mechanism layered over one that already exists, and it would put every test of this
- * module on a hop whose count is a fact about today's implementation. `request` is idempotent
- * against what it already holds, so a caller may hand it the whole visible set on every pass.
+ * module on a hop count that is a fact about today's implementation. `setVisible` is idempotent
+ * against what it already holds and against what is in flight, so it is called with the whole
+ * visible set on every pass.
  *
  * Not a Pinia store: it holds no cross-view state and needs no devtools identity. It is created
  * by `AssetLibraryStore`, which is what a view actually reaches, and tested through it.
@@ -36,9 +42,14 @@ import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueri
 export interface ViewportMarks {
 	/** The cached outline, or `null` for §3.4's *not yet read* — never a promise. */
 	markFor(assetId: AssetId): AssetOutline | null;
-	/** The rows that have just entered the viewport. Already-known and in-flight ids are dropped. */
-	request(assetIds: readonly AssetId[], queries: AssetLibraryQueryServices): Promise<void>;
-	invalidate(assetIds: readonly AssetId[]): void;
+	/**
+	 * The rows now IN the viewport — the whole set, not the ones that just entered. Unknown ids
+	 * are read in one batch; known and in-flight ones are dropped; the set is remembered, because
+	 * it is what decides which invalidated marks re-read at once.
+	 */
+	setVisible(assetIds: readonly AssetId[], queries: AssetLibraryQueryServices): Promise<void>;
+	/** Forget these marks, and re-read at once exactly the ones a row is currently showing. */
+	invalidate(assetIds: readonly AssetId[], queries: AssetLibraryQueryServices): Promise<void>;
 	reset(): void;
 }
 
@@ -65,10 +76,12 @@ export function createViewportMarks(): ViewportMarks {
 	 * has given up on is still in flight.
 	 */
 	const inFlight = new Set<AssetId>();
+	/** What is on screen — §5.4's *immediately* is a question about this set and nothing else. */
+	let visible: ReadonlySet<AssetId> = new Set();
 
 	const generationOf = (assetId: AssetId): number => generations.get(assetId) ?? 0;
 
-	async function request(
+	async function read(
 		assetIds: readonly AssetId[],
 		queries: AssetLibraryQueryServices,
 	): Promise<void> {
@@ -91,7 +104,7 @@ export function createViewportMarks(): ViewportMarks {
 		}
 	}
 
-	function invalidate(assetIds: readonly AssetId[]): void {
+	function forget(assetIds: readonly AssetId[]): void {
 		for (const assetId of assetIds) {
 			generations.set(assetId, generationOf(assetId) + 1);
 			marks.value.delete(assetId);
@@ -101,15 +114,29 @@ export function createViewportMarks(): ViewportMarks {
 
 	return {
 		markFor: (assetId) => marks.value.get(assetId) ?? null,
-		request,
-		invalidate,
+
+		setVisible(assetIds, queries) {
+			visible = new Set(assetIds);
+			return read(assetIds, queries);
+		},
+
+		invalidate(assetIds, queries) {
+			forget(assetIds);
+			return read(
+				assetIds.filter((assetId) => visible.has(assetId)),
+				queries,
+			);
+		},
+
 		/**
 		 * Everything forgotten, in-flight reads included — which is why this bumps rather than
 		 * merely clearing: a read still out would otherwise land on the rebuilt cache and
-		 * repopulate a mark for a view that has been torn down and reopened.
+		 * repopulate a mark for a view that has been torn down and reopened. The visible set goes
+		 * with it, so nothing re-reads on the way down.
 		 */
 		reset(): void {
-			invalidate([...inFlight]);
+			visible = new Set();
+			forget([...inFlight]);
 			marks.value = new Map();
 		},
 	};

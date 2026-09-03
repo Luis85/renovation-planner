@@ -4048,6 +4048,7 @@ action in the palette, which is where the stranger looks.
 
 **Files:**
 - Modify: `src/plugin/RenovationPlannerPlugin.ts`
+- Modify: `src/presentation/views/RenovationProjectView.ts` — gains `openNewProjectDialog()`
 - Modify: `src/presentation/views/ProjectList.vue`
 - Modify: `src/presentation/views/ViewRoot.vue`
 - Modify: `styles/project-list.css`, `styles/forms.css`
@@ -4286,10 +4287,29 @@ In `src/plugin/RenovationPlannerPlugin.ts`, beside the other `addCommand` calls:
 ```
 
 `newProject()` reveals the Renovation project view through the same `revealView` door every
-other input uses — ONE action, every input — and then asks it to open the form. Follow
-`openProjectDetail`'s existing shape for how a command reaches a view; if the view has no door
-for "open the create dialog", add one to `RenovationProjectView` beside `sync`, and route the
-pane's own header button through it too, so there is one function rather than two.
+other input uses — ONE action, every input — and then asks it to open the form:
+
+```typescript
+	private async newProject(): Promise<void> {
+		const leaf = await revealView(this.app.workspace, RENOVATION_PROJECT_VIEW);
+		const view = leaf.view;
+		if (view instanceof RenovationProjectView) await view.openNewProjectDialog();
+	}
+```
+
+wrapped at the call site in `runDetached` like every other detached door, since `addCommand`'s
+callback returns nothing and a fault in it otherwise reaches nobody.
+
+`RenovationProjectView` gains `openNewProjectDialog()` beside `sync`, which forwards to the Vue
+tree's existing `onCreateProject` — the handler `ViewRoot` already has, with its
+`dialogs.current !== null` guard and its re-hydrate. **The pane's own header button routes
+through the same handler it already does**, so this adds a door to the view and not a second way
+to open the form.
+
+**This must be written out rather than left as "follow the existing shape", because the
+alternative passes the test.** A build that reveals the view and stops satisfies every assertion
+about the command's id, name and hotkeys — and the dialog is the command's entire purpose, so the
+one thing it exists to do would be the one thing nothing checks.
 
 - [ ] **Step 8: Extend the registration test**
 
@@ -4304,7 +4324,28 @@ Add to `tests/plugin/registration.test.ts`:
 		// the user already had there.
 		expect(command?.hotkeys).toBeUndefined();
 	});
+
+	it('opens the creation dialog, not merely the view', async () => {
+		// The metadata case above passes against a build that reveals the pane and stops, and
+		// the dialog is the whole point of the command. INVOKE the callback and assert the
+		// door was reached.
+		const opened: string[] = [];
+		const view = makeRenovationProjectView();
+		view.openNewProjectDialog = async () => {
+			opened.push('dialog');
+		};
+		workspace.setLeafView(view);
+
+		plugin.commands.find((c) => c.id === 'new-project')?.callback?.();
+		await settle();
+
+		expect(opened).toEqual(['dialog']);
+	});
 ```
+
+Follow the file's existing shape for `workspace.setLeafView` or whatever `FakeWorkspace` already
+offers to put a view behind a revealed leaf — `openProjectDetail`'s own registration case is the
+precedent, and if there is no such helper this case adds one rather than reaching into the fake.
 
 - [ ] **Step 9: Run the full gate and commit**
 
@@ -5465,6 +5506,8 @@ figure it quotes is cited to a file that already recorded one. This task is wher
 **Files:**
 - Modify: `tests/harness/fixture.ts`
 - Modify: `tests/harness/page.ts`
+- Modify: `src/presentation/views/ProjectList.vue` — the `?q=` seed's other end
+- Modify: `src/presentation/views/ProjectFilter.vue` — takes the seed as its starting value
 - Modify: `tests/harness/accessibility.test.ts`
 - Modify: `scripts/harness-shot.mjs` (the four fixed shots Steps 2–3 add to its SHOTS array)
 - Modify: `tests/build/harness-shot.test.ts` (its fixed-shot list and count)
@@ -5495,7 +5538,12 @@ address this surface with no `view` parameter at all, and making a bare root mea
 would break them while the test asserting they exist kept passing.
 
 Give `tests/harness/page.ts` a **`?q=` parameter** that seeds the filter's initial query, and have
-`ProjectFilter` take that seed as its starting value. Without it the no-match state is
+`ProjectFilter` take that seed as its starting value. **This reaches `src/`, which is why this
+task's Files list names two components**: the query is a local `ref` in `ProjectList` (Task 6), so
+`page.ts` cannot seed a controlled filter from outside — `ProjectList` has to accept an initial
+query and pass it down. Staging only the harness would leave the `home-no-match-narrow` route
+starting empty and photographing ordinary results while its name and the checklist both claimed
+otherwise. Without it the no-match state is
 unreachable by any capture: `harness-shot` navigates and screenshots, it types nothing, so both
 shots below sit at an empty query forever and checklist item 7 — does the create action wrap
 rather than pushing the pane wide, with a long typed query — inspects a block that is never on
@@ -5621,27 +5669,29 @@ round at both widths, one fix batch, one confirming round, and stop.
 
 - [ ] **Step 7: Extend the accessibility scan**
 
-`tests/harness/accessibility.test.ts` grades the mounted surface with axe-core in jsdom. Add a
-case mounting this surface POPULATED — the existing project case scans the empty state — and
-assert the elements are actually in the scanned DOM before trusting the pass:
+`tests/harness/accessibility.test.ts` grades the mounted surface with axe-core in jsdom, and it
+**already has a populated case** — the one asserting `.rp-project-list__row` and
+`.rp-project-list__overlap`. Extend THAT one with this surface's new controls rather than adding
+a mount beside it:
 
 ```typescript
-	it('grades the populated project list', async () => {
-		const { contentEl } = mountHarness();
-		await flushPromises();
-
-		// ASSERT WHAT WAS SCANNED. `mountHarness` is synchronous and voids `onOpen`, so a scan
-		// taken one tick early finds zero elements under every rule bucket — a pass that is
-		// true of an empty subtree and indistinguishable from a pass on a compliant one.
-		expect(contentEl.querySelector('.rp-project-list__row')).not.toBeNull();
-		expect(contentEl.querySelector('.rp-project-filter__input')).not.toBeNull();
-		expect(contentEl.querySelector('.rp-project-list__completed')).not.toBeNull();
-
-		const results = await axe.run(contentEl);
-
-		expect(results.violations).toEqual([]);
-	});
+		expect(view.contentEl.querySelector('.rp-project-filter__input')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-project-list__completed')).not.toBeNull();
 ```
+
+**Do not reach for `mountHarness` here, and the reasons are three separate facts about it**, each
+checked in `tests/harness/mount.ts` rather than assumed:
+
+- it takes a **required** `root: HTMLElement`, so a bare `mountHarness()` does not typecheck;
+- it returns `{ leafEl, view }` — there is no `contentEl` to destructure, only `view.contentEl`;
+- its bare path calls `makeView()` with **no argument**, which is deliberately the empty default
+  (its own comment says so), so it renders the empty state and every populated assertion fails.
+
+The existing populated case is built the way it is for exactly this reason: it constructs
+`makeView({ …queries })` directly and awaits `onOpen`, which `mountHarness` voids. An earlier
+draft of this step wrote a fresh `mountHarness()` mount and would have failed on all three counts
+at once — the same "cite the file you have not opened" mistake round eight already paid for, in
+the next task along.
 
 **Read that file's header before widening the claim.** It cannot measure contrast, focus
 visibility or hit-target size — jsdom has no rendering engine for any of the three — and it does
@@ -5654,6 +5704,7 @@ Run: `npm run check`
 
 ```bash
 git add tests/harness/ tests/build/harness-shot.test.ts scripts/harness-shot.mjs \
+  src/presentation/views/ProjectList.vue src/presentation/views/ProjectFilter.vue \
   styles/project-list.css
 git commit -m "$(cat <<'EOF'
 Capture the Home surface at both widths and fix what it showed
@@ -5850,7 +5901,15 @@ backticked token in its `Modify:`/`Create:` lines — one containing a `/` or a 
 and require each to be covered by a path in that task's own `git add`, either exactly or by
 directory prefix. Path-shaped rather than every backticked token, because a Files line may
 legitimately name a symbol in its parenthetical, and a check that reports one as a missing file
-teaches its next reader to ignore it. It reports zero as this plan stands. Re-run it after any
+teaches its next reader to ignore it. It reports zero as this plan stands.
+
+**What it cannot see, stated so nobody reads a clean run as a complete one: a file a task NEEDS
+and never DECLARES.** The audit compares the Files list against the `git add`, so a step whose
+prose reaches a module the list never mentions passes untouched — which is exactly how Task 12's
+`?q=` seed came to require `ProjectList.vue` and `ProjectFilter.vue` with neither declared nor
+staged, and how Task 9's `openNewProjectDialog()` came to need `RenovationProjectView.ts`. Both
+were found by reading, not by the audit. The check holds the Files list and the `git add`
+together; keeping the Files list honest against the prose above it is still a reader's job. Re-run it after any
 edit that adds a file to a task, because the two lists are two statements of one fact and they
 drift the moment only one of them is updated.
 

@@ -170,7 +170,7 @@ composition. The relocation of the `New asset` action. The keyboard model and th
 
 | # | Region | Present when |
 |---|---|---|
-| 1 | Header — title + `New project` | status is `ready` |
+| 1 | Header — title + `New project` | status is `ready` **and** the vault holds at least one project |
 | 2 | Filter line | status is `ready` **and** the vault holds at least one project |
 | 3 | `Continue` group | a stored context resolves to a project that still exists |
 | 4 | `Projects` group | at least one project is not `COMPLETE`/`AS_BUILT` and passes the filter |
@@ -184,6 +184,13 @@ composition. The relocation of the `New asset` action. The keyboard model and th
 Regions 1–5 do not render during loading or failure. Region 6 is **additive** and sits above
 the groups, never replacing them — a partial read still shows what loaded, which is the rule
 `ViewRoot` already keeps.
+
+**Region 1 is absent from the empty state, and that is a ruling rather than an omission.** The
+empty state's own action already *is* `New project` — it is the verb of its sentence, per slice
+14's registry — so a header carrying a second one puts two identical actions on a pane that has
+exactly one thing to do. The vault-holds-at-least-one-project condition on regions 1 and 2 is
+what states this; an implementation has one authoritative behaviour and there is no state in
+which both buttons render.
 
 Region 7 is present in **both** the empty state and the populated state, which is the change
 that removes today's duplication: `ProjectList`'s header button and `ViewRoot`'s
@@ -285,9 +292,31 @@ The launcher's grammar, without the autofocus that would make it hostile:
 | `Esc` | filter, empty | returns focus to the first row |
 | `Mod+N` | anywhere in the pane | opens `New project` |
 
-**Tab stops are three, not thirty:** the filter, the list (roving `tabindex`, so the list is
-one stop and arrows move within it), and the foot line. A vault of thirty projects must not
-cost thirty tabs to walk past.
+**Roving `tabindex` applies to the row lists and to nothing else.** Its purpose is to bound an
+*unbounded* set, not to minimise stops: a vault of thirty projects must not cost thirty tabs to
+walk past, and everything else on this surface is a small bounded set that has no such problem.
+
+So the tab sequence, in DOM order, is every independent action plus one stop per row list:
+
+`New project` → the filter → `Continue` → `Open` → the `Projects` list *(one stop, arrows
+move within it)* → the `Completed` `<summary>` → the `Completed` list, when expanded *(one
+stop)* → `New asset`.
+
+In the filtered-to-nothing state the two list stops are replaced by `Clear filter` and
+`New project named "…"`, which are ordinary stops like any other action.
+
+**Every visible control is reachable by Tab alone.** `Mod+N` and the arrow keys are
+accelerators over that sequence and never a substitute for part of it — a control reachable
+only by a shortcut fails `PRODUCT.md`'s full-keyboard-support requirement, which this document
+binds itself to. An earlier draft of this section said "three tab stops, not thirty" and was
+exactly that failure: it left the header's `New project`, the `Completed` `<summary>` and both
+Continue actions off the sequence while the same document promised a visible focus indicator at
+every stop.
+
+The Continue row's two actions are ordinary tab stops rather than members of a roving group,
+which is the other half of why that row sits **outside** the `Projects` list rather than at the
+top of it: a roving list whose first item contains two of its own controls is the composite
+that would force a grid pattern onto everything below it.
 
 Rows stay ordinary `<button>` elements. A `role="listbox"` was considered and refused: a
 listbox option may not contain its own controls, and the row's facts and warning are content
@@ -371,6 +400,37 @@ producer states the answer.
 { dateStyle: 'medium' })`, not a relative time. Relative time needs a live ticker, makes every
 test time-dependent, and `Last opened yesterday` is a wireframe's nicety rather than a
 requirement.
+
+#### Freshness is part of the commission, and the two fields answer differently
+
+A field the surface never re-reads is a field that lies. `createProjectListChangeSource`
+today subscribes to `ProjectIndexRebuilt` and `ProjectCreated`, and admits
+`ProjectIndexEntryChanged` **only** where the changed entry's `entityType` is
+`renovation-project` — so a plan created in another leaf, or a plan note arriving through
+sync, reaches the index and not this list. Commissioning the two fields without commissioning
+their invalidation would ship a count and an order that go stale in ordinary use.
+
+The filter is not the bug, and widening it wholesale would be. That module's own docblock
+records why it exists: without it "a synced plan or a burst of zone notes would make this view
+re-read every project note in the vault, once per note". The two fields therefore get two
+different answers, and the difference follows from what each one is:
+
+- **`planCount` is invalidated by events.** Add `PlanCreated` and `PlanDeleted` to the
+  category list, and admit `plan` beside `renovation-project` in the entry filter. Bounded on
+  purpose: a project has a handful of plans and a user creates them one at a time, so this is
+  nothing like the zone burst the filter was written against. Zones, assets and requirements
+  stay excluded, and a builder may not widen the filter past `plan` to make some other number
+  work.
+- **`lastWorked` is captured at hydrate and the order is frozen for the life of the mount.**
+  It moves on *every* write to *any* owned note, which is precisely the burst no subscription
+  should carry — and re-sorting a list under a user's cursor because a background leaf saved a
+  zone is worse than a date that is a few minutes old. The view remounts per navigation, so
+  returning from a project re-reads and re-orders; a rebuild and a create already re-read
+  through the existing subscription. **Ordering must not change without a re-mount or one of
+  those events**, which makes the staleness bounded and visible rather than a race.
+
+This is the one place the spec asks for a change to an existing application-layer module. It is
+named here so it is scheduled with the fields rather than discovered by whoever builds the row.
 
 ### Reserved, and not to be invented
 
@@ -563,11 +623,24 @@ Nothing here is built by this document. When it is:
 1. **Prototype first**, in `src/prototypes/`, against the real assembled stylesheet — the
    standing requirement `Prototype a screen in the harness before it is built`. A
    template-only mock composing the real row is enough to answer the layout questions.
-2. **Capture and look**: `npm run harness-shot` at the default width **and** `-- --width=460`,
-   in both colour schemes, against the fixtures of section 9's ranges. Spacing, wrapping,
-   overflow, hit size and the tick strip's legibility are measurements no gate in this
-   repository performs; a capture read by eye is the only instrument that reaches them. Every
-   layout defect this surface has ever had was found this way and by nothing else.
+2. **Capture and look.** Two commands, and they are not interchangeable:
+
+   - `npm run harness-shot` — the fixed set, which already includes the project surface in
+     both schemes plus `?phone`.
+   - `npm run harness-shot prototype:<id> -- --width=460` — the narrow capture. **The entry id
+     is required**: `resolveShots` throws `--width applies to a named entry, and the fixed
+     shots carry their own` for a bare `--width`, and the `--` separator is required because
+     npm otherwise claims the flag as its own config and captures at the default width
+     silently, with two PNGs written and exit 0.
+
+   The narrow capture is the one that matters here and `?phone` does not substitute for it:
+   `?phone` is a **body class**, answering what the plugin does when it believes it is on a
+   phone, while section 6's narrow row is a **container query** on the pane's own width. They
+   are different questions and only the second is this surface's.
+
+   Spacing, wrapping, overflow, hit size and the tick strip's legibility are measurements no
+   gate in this repository performs; a capture read by eye is the only instrument that reaches
+   them. Every layout defect this surface has ever had was found this way and by nothing else.
 3. **Commission the two DTO fields** before the row is built to this spec, so the row is never
    built against placeholders it then has to be rebuilt around.
 4. **Write the manual case** for what only a live vault can verify — contrast, the focus ring,

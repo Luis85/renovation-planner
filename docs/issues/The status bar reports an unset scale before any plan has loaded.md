@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 30
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -66,6 +66,19 @@ Add status-bar cases for a never-settling load, `ok(null)`, and a failed read. E
 that the uncalibrated sentence is absent while the existing loaded uncalibrated fixture still
 shows it. That contrast discriminates truthful unknown handling from removing the scale state
 entirely.
+
+## What closed it
+
+**2026-09-04.** `scaleText` now reads `status` beside `plan.calibration` (R9): the sentence is
+withheld unless `ProjectStore.status === 'ready'` with a loaded plan, and `null` is never
+relabelled "uncalibrated" — it means the span is not drawn at all
+(`src/presentation/editor/shell/StatusBar.vue`). Holding test:
+`tests/presentation/editor/shell/statusBar.test.ts` › 'the scale sentence is a fact about a
+LOADED plan' › 'is withheld while the read has not settled', 'is withheld for a plan that does
+not resolve', and 'is withheld after a failed read' — each proved against the contrast case
+'says the scale is not set for an uncalibrated plan', which still shows the sentence for a
+loaded, uncalibrated plan. Commit "fix(editor): the status bar withholds the scale until a plan
+is loaded, and a missing plan clears the stale flag".
 
 ## References
 

@@ -53,6 +53,7 @@ interface HydrationMissingRefs {
 	readonly zones: Ref<ReadonlyMap<string, ZoneDto>>;
 	readonly unreadableZones: Ref<number>;
 	readonly status: Ref<ProjectStoreStatus>;
+	readonly stale: Ref<boolean>;
 }
 
 /**
@@ -61,6 +62,9 @@ interface HydrationMissingRefs {
  * fields either way: a plan whose project is gone is a plan nothing owns, the same
  * dangling state as a missing plan, drawn the same way. `GetPlan` cannot see the second
  * case; only the project read can.
+ *
+ * And `stale`, because a flag saying the content on screen is out of date is false once
+ * there is no content on screen.
  */
 function markMissing(refs: HydrationMissingRefs): void {
 	refs.project.value = null;
@@ -68,6 +72,7 @@ function markMissing(refs: HydrationMissingRefs): void {
 	refs.zones.value = new Map();
 	refs.unreadableZones.value = 0;
 	refs.status.value = 'missing';
+	refs.stale.value = false;
 }
 
 /**
@@ -181,7 +186,7 @@ export const useProjectStore = defineStore('project', () => {
 		const superseded = (): boolean => request !== latestHydration;
 		const keepOnFailure = options?.keepPreviousOnFailure === true;
 		const failureRefs: HydrationFailureRefs = { status, error, stale };
-		const missingRefs: HydrationMissingRefs = { project, plan, zones, unreadableZones, status };
+		const missingRefs: HydrationMissingRefs = { project, plan, zones, unreadableZones, status, stale };
 		// A RE-hydration does not blank the editor. The root mounts its canvas on `ready`, so
 		// dropping to `loading` here would unmount the Konva stage and build a fresh one on
 		// every committed command — the whole canvas flashing because one background

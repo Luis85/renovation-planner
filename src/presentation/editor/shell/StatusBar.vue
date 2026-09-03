@@ -42,7 +42,7 @@ import SaveStateIndicator from '../save-state/SaveStateIndicator.vue';
  */
 const props = defineProps<{ activeToolId?: ToolId | null }>();
 
-const { plan } = storeToRefs(useProjectStore());
+const { plan, status } = storeToRefs(useProjectStore());
 const { viewport, pointerWorld } = storeToRefs(useEditorStore());
 const { layoutMode } = storeToRefs(useWorkspaceStore());
 
@@ -60,14 +60,16 @@ const { layoutMode } = storeToRefs(useWorkspaceStore());
 const showsConstraintHint = computed(() => constrainsAngle(props.activeToolId ?? null));
 
 /**
- * Task 20: whether `PlanDto.calibration` is set — a fact plain enough to state as one of
- * two fixed sentences rather than as a number, since the scale ITSELF (what one background
- * pixel is worth in world millimetres) is not something a homeowner reads usefully off a
- * status bar.
+ * Task 20's scale state, WITHHELD unless a plan is loaded (R9, 2026-09-04). "Not set" is a fact
+ * about a loaded plan; while the read is in flight the system does not know, and after a
+ * missing or failed read there is no plan whose scale could be reported — so `null` here means
+ * the span is not drawn, never that `null` was relabelled "uncalibrated".
  */
-const scaleText = computed(() =>
-	tr(plan.value?.calibration ? 'editor.status.scale.calibrated' : 'editor.status.scale.uncalibrated'),
-);
+const scaleText = computed(() => {
+	const loaded = status.value === 'ready' ? plan.value : null;
+	if (loaded === null) return null;
+	return tr(loaded.calibration ? 'editor.status.scale.calibrated' : 'editor.status.scale.uncalibrated');
+});
 
 /**
  * Task 20's pan-override reminder, under the same "a modifier nothing mentions is a feature
@@ -121,7 +123,10 @@ const pointerText = computed(() => {
 			role="group"
 			:aria-label="tr('editor.measurements')"
 		>
-			<span class="rp-editor-scale">{{ scaleText }}</span>
+			<span
+				v-if="scaleText !== null"
+				class="rp-editor-scale"
+			>{{ scaleText }}</span>
 			<span>{{ tr('editor.zoom') }} {{ zoomPercent }}</span>
 			<span
 				v-if="layoutMode !== 'constrained'"

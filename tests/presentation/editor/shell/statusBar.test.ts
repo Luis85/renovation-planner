@@ -5,10 +5,11 @@
  * beside the angle-constraint hint this file's sibling case already covers.
  */
 import { describe, expect, it } from 'vitest';
+import { err } from '../../../../src/core/result/Result';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useWorkspaceStore } from '../../../../src/presentation/stores/WorkspaceStore';
-import { mountPlanEditorCanvas, settle } from '../../../helpers/editor';
-import { FIXTURE_PLAN } from '../../../helpers/planFixtures';
+import { mountPlanEditor, mountPlanEditorCanvas, settle } from '../../../helpers/editor';
+import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../../helpers/planFixtures';
 import { activateTool } from '../../../helpers/planEditorRig';
 
 const CALIBRATION = {
@@ -66,5 +67,32 @@ describe('StatusBar', () => {
 		await settle();
 		expect(harness.wrapper.find('.rp-editor-pan-hint').exists()).toBe(false);
 		harness.wrapper.unmount();
+	});
+});
+
+describe('the scale sentence is a fact about a LOADED plan', () => {
+	it('is withheld while the read has not settled', async () => {
+		const harness = await mountPlanEditor({
+			queries: { ...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), getPlan: () => new Promise(() => {}) },
+		});
+		expect(harness.wrapper.find('.rp-editor-scale').exists()).toBe(false);
+		harness.unmount();
+	});
+
+	it('is withheld for a plan that does not resolve', async () => {
+		const harness = await mountPlanEditor({ plan: null });
+		expect(harness.wrapper.find('.rp-editor-scale').exists()).toBe(false);
+		harness.unmount();
+	});
+
+	it('is withheld after a failed read', async () => {
+		const harness = await mountPlanEditor({
+			queries: {
+				...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+				getPlan: () => Promise.resolve(err({ category: 'Persistence', code: 'plan.read-failed', message: 'boom' } as const)),
+			},
+		});
+		expect(harness.wrapper.find('.rp-editor-scale').exists()).toBe(false);
+		harness.unmount();
 	});
 });

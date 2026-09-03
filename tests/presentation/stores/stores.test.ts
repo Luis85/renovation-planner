@@ -332,6 +332,23 @@ describe('ProjectStore hydration', () => {
 		expect(store.error).toEqual(READ_FAILED);
 		expect(store.stale).toBe(true);
 	});
+
+	it('a plan that goes missing after a stale re-read blanks the stale flag with the content', async () => {
+		const store = useProjectStore();
+		await store.hydrate(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), FIXTURE_PLAN.id);
+		await store.hydrate(
+			{ ...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), getProject: () => Promise.resolve(err(READ_FAILED)) },
+			FIXTURE_PLAN.id,
+			{ keepPreviousOnFailure: true },
+		);
+		expect(store.stale).toBe(true);
+
+		await store.hydrate(fakeQueries(null, []), FIXTURE_PLAN.id);
+
+		expect(store.status).toBe('missing');
+		expect(store.plan).toBeNull();
+		expect(store.stale).toBe(false);
+	});
 });
 
 describe('EditorStore, the ephemeral half', () => {

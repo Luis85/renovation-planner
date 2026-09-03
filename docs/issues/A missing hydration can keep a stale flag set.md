@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 20
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -65,6 +65,17 @@ Add one store test that hydrates successfully, fails a keep-previous refresh to 
 `stale === true`, then returns `ok(null)` from either the plan or project read and asserts
 `status === 'missing'`, `plan === null`, and `stale === false`. That sequence discriminates the
 fix from the existing isolated missing and stale cases.
+
+## What closed it
+
+**2026-09-04.** `HydrationMissingRefs` now carries `stale`, and `markMissing` sets it to `false`
+alongside the content it blanks — a flag saying the content on screen is out of date is false
+once there is no content on screen. Holding test: `tests/presentation/stores/stores.test.ts` ›
+'ProjectStore hydration' › 'a plan that goes missing after a stale re-read blanks the stale flag
+with the content', which hydrates successfully, fails a keep-previous refresh to establish
+`stale === true`, then returns `ok(null)` from the project read and asserts
+`status === 'missing'`, `plan === null` and `stale === false`. Commit "fix(editor): the status
+bar withholds the scale until a plan is loaded, and a missing plan clears the stale flag".
 
 ## References
 

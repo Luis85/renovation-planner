@@ -57,6 +57,9 @@ guidance region's announce-once case in
 `tests/presentation/editor/shell/floorInspector.test.ts` plus the pointer readout being a plain
 `computed` that announces nothing.
 
+**2026-09-04** — criterion 5 evidence gains: the scale sentence is withheld while loading,
+missing or failed (`statusBar.test.ts`, 2026-09-04).
+
 What remains: grid and snapping appear in neither bar, because neither exists as a setting
 (spec §5.6), so criterion 1 is unmet by decision; criterion 3 has no subject, because there is no
 View menu to keep an omitted control reachable through, and spec §5.6 says why — nothing would be

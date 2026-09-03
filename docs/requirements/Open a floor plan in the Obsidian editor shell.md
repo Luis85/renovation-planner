@@ -140,8 +140,6 @@ Remains, and each is recorded at the Task that owns it:
   and step 1 of [[Open a floor and select a room]] asserts only that they are present and
   disabled with an empty history; the Undo and redo PBI is not advanced here.
 - [[Unsupported layout can preserve an interrupted canvas gesture]]
-- [[A missing hydration can keep a stale flag set]]
-- [[The status bar reports an unset scale before any plan has loaded]]
 - [[The warning model cannot carry its contract's severity]]
 - [[The warning live-region contract and implementation describe different semantics]]
 - [[The toolbar-key retirement contract conflicts with the Asset Designer]]

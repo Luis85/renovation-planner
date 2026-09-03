@@ -1211,6 +1211,24 @@ git add -A && git commit -m "feat: the asset mark, the asset row and the categor
 - Consumes: Tasks 8, 10, 12.
 - Produces: the mounted surface Task 16 attaches its focus manager to and Task 17 captures.
 
+**The store's API is exactly this, and three of its members are traps if you assume the obvious
+thing.** `useAssetLibraryStore()` exposes `visibleEntries`, `total`, `unreadable`, `status`,
+`error`, `query`, `searching`, `emptyStateKey`, `hydrate`, `applyChange`, `reset`, `markFor`,
+`setVisibleMarks`, `invalidateMarks` — measured from the shipped store rather than described.
+
+- **`entries` is NOT exported.** Rows come from `visibleEntries`, which is already filtered AND
+  ordered by name under the resolved language. Do not sort it again and do not reach for an
+  unfiltered list: there isn't one, deliberately, so that this task cannot forget §6.1's order.
+- **`total` is §3.6's count**, and it counts READABLE entries only, by ruling — a note this build
+  cannot read is not an asset yet, and its count is already carried by the unreadable strip. Do
+  not add the unreadable count into it.
+- **Never call `applyListing`.** `hydrate` owns that backstop itself, deliberately, so no view has
+  to remember it.
+- **`query` is writable and `searching` is derived from it.** Bind the search field to `query`;
+  do not keep a second copy of the search term in the component. `emptyStateKey` reads `searching`
+  through the store, so a component holding its own term silently draws `noAssets` — the
+  create-a-duplicate invitation — where the user should see `noMatches`.
+
 **Four shell regions**, which is the Asset designer's count rather than the Plan editor's five — a library has nothing to layer.
 
 **The toolbar is one search field and one `New asset` button. Nothing else** — no sort control, no view switcher, no filter menu. The shelves *are* the filter, which is the whole argument for this structure. `New asset` opens the existing `NewAssetForm` through the existing `DialogHost`, unchanged.

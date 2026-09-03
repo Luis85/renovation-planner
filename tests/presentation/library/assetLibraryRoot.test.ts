@@ -436,7 +436,12 @@ describe('AssetLibraryRoot, shelves and selection', () => {
 
 		await field().setValue('Oak');
 		await settle();
-		expect(root.find('.rp-al-results').exists()).toBe(true);
+		// The region's EXISTENCE stopped discriminating the moment it became permanent — it is
+		// true before the search, after it and after the clear alike. Its CONTENT is what moves,
+		// so that is what both ends of this case read.
+		expect(root.get('.rp-al-results').text()).toBe(
+			tr('view.asset-library.search.results', { count: '1' }),
+		);
 
 		await field().trigger('keydown', { key: 'Escape' });
 		await settle();

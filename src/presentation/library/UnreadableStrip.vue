@@ -34,6 +34,19 @@
 	names no announcement; the one announcement §6.1 DOES ask for — the search result count — is
 	a persistent, always-drawn region in `AssetLibraryRoot.vue`, written into on each keystroke.
 
+	**That rule is a CLASS this tree has not swept, and saying so is what stops this comment
+	reading as though it had been.** Measured across `src/presentation/**/*.vue` (comments
+	stripped, so a prose mention does not count): TEN `role="status"` regions sit behind a
+	`v-if`/`v-else-if` and therefore appear together with their content — four in
+	`PlanEditorRoot.vue`, three in `AssetDesignerRoot.vue`, two in `ProjectDetail.vue`, one in
+	`ViewRoot.vue`'s own partial-read notice, which is this strip's exact twin. Two are
+	unconditional and correct: `StatusBar.vue`'s, and the search-count region beside this one.
+	Fixing the twin alone was offered and declined — it is one of ten, and a partial fix that
+	reads like a complete one is this repository's oldest recorded defect. The remedy is slice
+	13's persistent-region shape applied as a sweep with its own review, and it is neither this
+	component's to make nor this task's; what belongs here is the measurement, so the next author
+	inherits a number rather than an impression.
+
 	`rp-al-repair` beside the shared `rp-view-notice`: the strip's three-part rows are this
 	surface's own layout, and `styles/view.css`'s `.rp-view-notice` was written for a single
 	`<p>`. Declaring the row rules under a library-specific class leaves the shared one untouched

@@ -118,9 +118,24 @@
 	container: rp-al-shelves / inline-size;
 }
 
+/*
+ * §6.1's announcement. DRAWN ALWAYS and empty when nothing is being searched for — see
+ * `AssetLibraryRoot.vue`'s `matchCount` for why a live region may not appear with its content —
+ * so its box has to cost nothing in the render it is silent in.
+ *
+ * That is what the missing vertical padding buys, and it is a correction: this rule was promoted
+ * with `padding: 0 var(--size-4-3) var(--size-4-2)`, written for a region that only existed
+ * while it had something to say, and a permanent 8px band above the shelves is what it became.
+ * Horizontal padding only now, with `margin: 0` — an empty `<p>` generates no line box, so a
+ * silent region is zero-height — and the separation the announcement needs BELOW it comes from
+ * `.rp-al-shelves`'s own `padding-top`, which is there in both renders.
+ *
+ * jsdom lays nothing out, so no gate here can measure either the old gap or this fix; the
+ * instrument is `npm run harness` and an eye.
+ */
 .rp-al-results {
 	margin: 0;
-	padding: 0 var(--size-4-3) var(--size-4-2);
+	padding: 0 var(--size-4-3);
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 }

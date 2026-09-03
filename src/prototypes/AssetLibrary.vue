@@ -494,8 +494,12 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
  * to build in `AssetLibraryRoot.vue`) — the rule that hid `.rp-al-shelves` there moved out with
  * every other promoted class above, for the identical reason.
  *
- * `.rp-al--inspecting` is GONE from this file entirely, and this paragraph described it as a
- * "remaining flag" for a commit after the template stopped setting it. There is no narrow
+ * `.rp-al--inspecting` is gone from this file's MARKUP and from its rules — it survives only in
+ * prose, here and at three points above it (lines 199, 458 and 460 as this was written), which
+ * is why a `grep` still finds the name four times — and this
+ * paragraph described it as a "remaining flag" for a commit after the template stopped setting
+ * it. An earlier draft of this correction said "gone from this file entirely", which is the same
+ * overstatement one round later and in the sentence written to fix it. There is no narrow
  * composition demonstrated anywhere now — not here, and not in the shipped root until Task 16.
  * That is the honest state and it is a LOSS rather than a neutral tidy-up: the behaviour was
  * visible in a capture and is now visible nowhere.

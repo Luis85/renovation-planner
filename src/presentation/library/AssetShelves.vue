@@ -13,16 +13,30 @@
 	**The two-group derivation, verbatim from §3.2**: every category the build declares, in
 	`ASSET_CATEGORY_LABELS`'s own key order — which is the order `NewAssetForm`'s `<select>`
 	renders, because that control iterates the same Record (`NewAssetForm.vue`'s `CATEGORIES`),
-	so the category a user picked in the form is in the position they picked it from. **That
-	Record and not `ASSET_CATEGORIES`**, which is a correction rather than a detail: for one
-	review round this derivation read the ARRAY while this paragraph claimed the Record. The two
-	agree today, so nothing was visibly wrong — and a category inserted at a different position
-	in one of them would have parted the shelves from the form silently, with the shelf-order
-	test asserting against the code's source rather than the spec's. One source now, and
-	`assetLibraryRoot.test.ts` compares the shelf order against the form's own rendered control
-	rather than against either list. ALL of them, including the ones holding nothing — then every category the passed-in `entries` actually name that the build does not
-	declare, ordered by `localeCompare` under the resolved language and kept AS WRITTEN, never
-	case-folded or retitled. Group 2 is UNREACHABLE in today's code — an unrecognised category
+	so the category a user picked in the form is in the position they picked it from — ALL of
+	them, including the ones holding nothing, then every category the passed-in `entries`
+	actually name that the build does not declare, ordered by `localeCompare` under the resolved
+	language and kept AS WRITTEN, never case-folded or retitled.
+
+	**That Record and not `ASSET_CATEGORIES`**, which is a correction rather than a detail: for
+	one review round this derivation read the ARRAY while this paragraph claimed the Record. The
+	two agree today, so nothing was visibly wrong — and a category inserted at a different
+	position in one of them would have parted the shelves from the form silently.
+
+	**Two tests hold it and they ask DIFFERENT questions**, which is worth spelling out because
+	an earlier draft of this paragraph got both of them wrong in one sentence — it named
+	`assetLibraryRoot.test.ts` as the file comparing the shelves against the form, which is the
+	wrong file AND the opposite of what that file does:
+	- `assetLibraryRootDoors.test.ts` opens `NewAssetForm` over the shelves and compares the
+	  shelf headings against the control's own rendered `<option>` labels. That is §3.2's
+	  literal claim, and it is the only case that catches a FORM-side reorder.
+	- `assetLibraryRoot.test.ts` asserts the shelf list against `ASSET_CATEGORIES` — the
+	  independent domain array — deliberately, so that it is a drift detector between the two
+	  vocabularies as well as a shelf-list assertion. Measured: moving a populated category
+	  inside `ASSET_CATEGORY_LABELS` reddens that case and NOT the form comparison, because both
+	  surfaces read the Record and move together.
+
+	Group 2 is UNREACHABLE in today's code — an unrecognised category
 	never becomes an `Asset` at all (`kebabEnum(ASSET_CATEGORIES)` answers `z.NEVER` and
 	`Asset.create` refuses independently), so such a note is skipped by `listAll()` and lands in
 	the unreadable strip instead — and the derivation stays general anyway: it is simpler than

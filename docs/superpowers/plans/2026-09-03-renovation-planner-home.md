@@ -1335,6 +1335,7 @@ const ticks = computed(() => {
 	<button
 		type="button"
 		class="rp-project-list__row rp-project-row"
+		:data-project-id="project.id"
 		@click="$emit('open', project.id)"
 	>
 		<!-- The half that gives way. `title` is what makes a truncated name readable at all,
@@ -2502,39 +2503,71 @@ function findMatch(
 	// O(name.length²) comparisons, and it runs on every MISS, which is every keystroke of every
 	// query that does not match: a vault of long names would block the caret while typing.
 	//
-	// The gate is that **every expansion these two locales have is non-ASCII**. Measured in node
-	// rather than assumed, which is this plan's own round-four lesson: over the 40-character
-	// alphabet `a–z 0–9 space - _ .`, in `en` and `de` alike, there is NO pair where one ASCII
-	// character compares equal to two at base sensitivity — zero hits out of 64,000 — while
-	// `ß`/`ss`, `æ`/`ae` and `ﬃ`/`ffi` are equal in both. So when the name and the needle are
-	// both pure ASCII, pass 1 is already complete and pass 2 can only burn cycles.
+	// Two measurements bound it, both taken in node rather than asserted — this plan's own
+	// round-four lesson, where a ratio bound derived from ONE pair had to be withdrawn:
 	//
-	// **State the bound at its real width**: that is a measurement at 1-vs-2 over that alphabet,
-	// not a proof over every ASCII substring of every width. It is paired with a test that runs
-	// the probe, so adding a locale whose expansions are ASCII fails there rather than silently
-	// returning a miss — which is the failure mode either way, never a crash.
-	if (isAscii(name) && isAscii(needle)) return null;
+	//   1. Every expansion these locales have is NON-ASCII. Over the 40-character alphabet
+	//      `a–z 0–9 space - _ .`, in `en` and `de` alike, there is no pair where one ASCII
+	//      character compares equal to two at base sensitivity — zero hits out of 64,000 —
+	//      while `ß`/`ss`, `æ`/`ae` and `ﬃ`/`ffi` are equal in both.
+	//   2. No single character expands by more than TWO units: the widest is `ﬃ`/`ffi`
+	//      (1 against 3), measured across `ß æ œ ﬁ ﬂ ﬀ ﬃ ﬄ Æ Œ ẞ`, and it compounds linearly
+	//      (`ﬃﬃ`/`ffiffi` is a delta of 4).
+	//
+	// So a span can differ from the needle in width by at most twice the number of non-ASCII
+	// characters involved, and `slack` is that budget. **This replaces an earlier ASCII-only
+	// gate, which is the shape of fix this branch keeps having to widen**: that gate skipped
+	// pass 2 only when BOTH strings were ASCII, so `Küche` — a German name, which is the data
+	// the collator exists for — still ran the full quadratic scan on every ASCII miss. The
+	// window subsumes it: with no non-ASCII anywhere the budget is 0, the loop runs only at
+	// `needle.length`, and pass 1 has already tried that.
+	//
+	// **State the bound at its real width**: measurement 1 is at 1-vs-2 over that alphabet, not
+	// a proof over every ASCII substring of every width, and measurement 2 covers the
+	// expansions these two locales are known to have rather than all of Unicode. Both are
+	// pinned by a test that re-runs the probes, so a locale whose expansions are ASCII or wider
+	// than 2 fails there. The failure mode either way is a missed match, never a crash.
+	const slack = 2 * (nonAscii(name) + nonAscii(needle));
+	if (slack === 0) return null;
 
-	// Pass 2: every other width, shortest first at each position.
+	// Pass 2: every other width within the budget, shortest first at each position.
+	const lowest = Math.max(1, needle.length - slack);
+	const highest = needle.length + slack;
 	for (let at = 0; at < name.length; at += 1) {
-		for (let width = 1; at + width <= name.length; width += 1) {
+		for (let width = lowest; width <= highest && at + width <= name.length; width += 1) {
 			if (width !== needle.length && equals(at, width)) return { at, width };
 		}
 	}
 	return null;
 }
 
-/** Cheap enough to run per row per keystroke; `i < 128` is the whole test. */
-function isAscii(value: string): boolean {
-	for (let i = 0; i < value.length; i += 1) if (value.charCodeAt(i) > 127) return false;
-	return true;
+/** Cheap enough to run per row per keystroke; `> 127` is the whole test. */
+function nonAscii(value: string): number {
+	let count = 0;
+	for (let i = 0; i < value.length; i += 1) if (value.charCodeAt(i) > 127) count += 1;
+	return count;
 }
 ```
+
+**The window was driven against the real expansions before it was written down**, in node, and
+these are the cases it must keep — put each in `projectFilter.test.ts` rather than leaving the
+measurement in a commit message:
+
+| name | query | found by | span |
+|---|---|---|---|
+| `Straße` | `strasse` | pass 2 | width 6 — the round-three defect |
+| `Aeon` | `æon` | pass 2 | width 4, needle shorter than the span |
+| `Waffle` | `ﬄ` | pass 2 | width 3 at offset 2, needle shorter |
+| `ﬃx` | `ffix` | pass 2 | width 2, needle LONGER than the span |
+| `Küche` | `kuche` | pass 1 | equal width; the slack is not even needed |
+
+The last two matter most: they run the window in both directions, which is what a bound stated
+as `needle.length ± slack` has to survive. A one-directional draft passes the first three.
 
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `npx vitest run tests/presentation/views/projectFilter.test.ts`
-Expected: PASS, 8 cases.
+Expected: PASS, 13 cases.
 
 - [ ] **Step 5: Write the failing filter-line test**
 
@@ -3361,7 +3394,7 @@ would flatten into one string.
 - Consumes: `ProjectRow`'s root button.
 - Produces:
   - `useRovingFocus(container: Ref<HTMLElement | null>, selector: string)` returning
-    `{ activeIndex: Ref<number>; onKeydown(event: KeyboardEvent): boolean; syncFromFocus(event: FocusEvent): void; clamp(length: number): void; focusFirst(): void }`
+    `{ activeIndex: Ref<number>; onKeydown(event: KeyboardEvent): boolean; syncFromFocus(event: FocusEvent): void; reconcile(ids: readonly string[]): void; focusFirst(): void }`
     — `onKeydown` answers whether it CONSUMED the key, and `syncFromFocus` is what keeps the
     index pointing at the row that actually has focus rather than the last one an arrow moved to.
   - `ProjectRow` gains prop `tabbable?: boolean` (default `true`), driving `tabindex`.
@@ -3705,16 +3738,26 @@ export interface RovingFocus {
 	activeIndex: Ref<number>;
 	onKeydown: (event: KeyboardEvent) => boolean;
 	syncFromFocus: (event: FocusEvent) => void;
-	clamp: (length: number) => void;
+	reconcile: (ids: readonly string[]) => void;
 	focusFirst: () => void;
 }
 
 export function useRovingFocus(container: Ref<HTMLElement | null>, selector: string): RovingFocus {
 	const activeIndex = ref(0);
+	/**
+	 * WHICH ROW the index means, so a filtered list can put the tab stop back on it. A plain
+	 * local rather than a `ref`: nothing renders it, and making it reactive would re-run the
+	 * consumers that read `activeIndex`.
+	 */
+	let activeKey: string | null = null;
 
 	function members(): HTMLElement[] {
 		const root = container.value;
 		return root === null ? [] : Array.from(root.querySelectorAll<HTMLElement>(selector));
+	}
+
+	function keyOf(element: HTMLElement | undefined): string | null {
+		return element?.dataset.projectId ?? null;
 	}
 
 	function focusAt(index: number): void {
@@ -3723,6 +3766,7 @@ export function useRovingFocus(container: Ref<HTMLElement | null>, selector: str
 		// bottom reads as the pane having scrolled somewhere the user did not ask to go.
 		const next = Math.max(0, Math.min(index, all.length - 1));
 		activeIndex.value = next;
+		activeKey = keyOf(all[next]);
 		all[next]?.focus();
 	}
 
@@ -3731,7 +3775,7 @@ export function useRovingFocus(container: Ref<HTMLElement | null>, selector: str
 
 		/**
 		 * **The index follows the FOCUS, and without this it followed only its own arrows.**
-		 * `activeIndex` was written by `focusAt` and `clamp` alone, so a row focused any other
+		 * `activeIndex` was written by `focusAt` and `reconcile` alone, so a row focused any other
 		 * way — a click, a Tab into the middle of the list, a programmatic focus — left it
 		 * pointing at the previously active row. Two things broke together: an arrow then moved
 		 * relative to that stale row (click row 3 with the index at 0, press ArrowDown, land on
@@ -3744,8 +3788,11 @@ export function useRovingFocus(container: Ref<HTMLElement | null>, selector: str
 		 * write of the value `focusAt` just set.
 		 */
 		syncFromFocus(event: FocusEvent): void {
-			const index = members().indexOf(event.target as HTMLElement);
-			if (index !== -1) activeIndex.value = index;
+			const all = members();
+			const index = all.indexOf(event.target as HTMLElement);
+			if (index === -1) return;
+			activeIndex.value = index;
+			activeKey = keyOf(all[index]);
 		},
 
 		onKeydown(event: KeyboardEvent): boolean {
@@ -3764,13 +3811,29 @@ export function useRovingFocus(container: Ref<HTMLElement | null>, selector: str
 		},
 
 		/**
-		 * Keep the active index inside a list that just got shorter — the filter is what makes
-		 * this necessary, and the failure without it is silent and total: an index past the end
-		 * leaves the group with NO member carrying `tabindex="0"`, so the whole list stops being
-		 * reachable by Tab for the rest of the mount, with nothing on screen to say why.
+		 * Keep the tab stop on the SAME ROW when the list changes under it — which is what the
+		 * filter does on every keystroke.
+		 *
+		 * An index-only clamp is not enough, and the case it misses is ordinary rather than
+		 * exotic: with `[A, B, C]` and B active at index 1, a query matching only `[B, C]`
+		 * leaves 1 in range, so nothing is clamped and **C** silently becomes the tab stop while
+		 * B is the row the user was on. Tabbing back into the results then lands past the row
+		 * they left. Clamping still matters for the shorter case — an index past the end leaves
+		 * the group with NO member carrying `tabindex="0"`, so it stops being Tab-reachable at
+		 * all — so this does both: follow the id when it survived, clamp when it did not.
+		 *
+		 * `ids` rather than a length, and rather than reading the DOM: this runs from a
+		 * `watch` on the filtered list, BEFORE Vue has patched the rows, so `members()` would
+		 * still answer the old ones.
 		 */
-		clamp(length: number): void {
-			if (activeIndex.value > length - 1) activeIndex.value = Math.max(0, length - 1);
+		reconcile(ids: readonly string[]): void {
+			const surviving = activeKey === null ? -1 : ids.indexOf(activeKey);
+			if (surviving !== -1) {
+				activeIndex.value = surviving;
+				return;
+			}
+			activeIndex.value = Math.min(Math.max(activeIndex.value, 0), Math.max(0, ids.length - 1));
+			activeKey = ids[activeIndex.value] ?? null;
 		},
 
 		focusFirst(): void {
@@ -3837,8 +3900,8 @@ const completedOpen = ref(false);
  * (3) does not move, and the sole active row is left at `tabindex="-1"` — so Tab skips the
  * `Projects` group for the rest of the mount, silently, with nothing on screen to say why.
  */
-watch(active, (rows) => activeRoving.clamp(rows.length));
-watch(completed, (rows) => completedRoving.clamp(rows.length));
+watch(active, (rows) => activeRoving.reconcile(rows.map((row) => row.id)));
+watch(completed, (rows) => completedRoving.reconcile(rows.map((row) => row.id)));
 
 /**
  * The launcher's keyboard ENTRY, and the reason no autofocus is needed: a printable character
@@ -4100,10 +4163,16 @@ Expected: PASS.
 
 - [ ] **Step 7: Mutation-check the three guards**
 
-Change `watch(active, …)` to `watch(matching, (rows) => activeRoving.clamp(rows.length))`.
-Expected: the own-rows clamp case goes RED — the sole active row is left at `tabindex="-1"`.
+Change `watch(active, …)` to `watch(matching, (rows) => activeRoving.reconcile(rows.map((r) => r.id)))`.
+Expected: the own-rows case goes RED — the sole active row is left at `tabindex="-1"`.
 This is the mutation that matters most, because it is the version the plan shipped first and
 every other case in the file passes against it.
+
+Then replace `reconcile`'s body with the index-only clamp it started as
+(`if (activeIndex.value > ids.length - 1) activeIndex.value = Math.max(0, ids.length - 1)`).
+Expected: the follow-the-row case goes RED — `[A, B, C]` with B active, filtered to `[B, C]`,
+leaves the tab stop on **C**. Every other keyboard case passes against that version, which is
+why this mutation has to be run rather than reasoned about.
 
 Restore it, then delete the `event.key === ' '` carve-out.
 Expected: the Space case goes RED.
@@ -5475,22 +5544,30 @@ async function resolveStored(): Promise<void> {
 	const ticket = ++resolveTicket;
 	const resume = await context.continueContext();
 	if (ticket !== resolveTicket) return;
-	stored.value = resume;
+
+	// RESOLVED INTO LOCALS, and both refs committed together at the end. The ticket keeps two
+	// concurrent resolutions from interleaving; it does nothing about the window INSIDE one,
+	// and an earlier draft assigned `stored` here and left the previous `storedPlan` standing
+	// across the plan lookup below. For the length of that await the row then described a
+	// context that never existed — project B with plan A — and, worse, it was clickable: the
+	// row emits from `stored`, so a click resumed B's not-yet-validated plan id, opening the
+	// dead editor this validation exists to prevent. The pair is one fact and is written once.
+	let plan: PlanSummaryDto | 'none' | 'gone';
 	if (resume === null) {
-		storedPlan.value = 'gone';
-		return;
+		plan = 'gone';
+	} else if (resume.planId === null) {
+		plan = 'none';
+	} else {
+		const plans = await context.queries.listPlansByProject(resume.projectId);
+		if (ticket !== resolveTicket) return;
+		// The matched plan is KEPT, not counted: the row names it.
+		plan = (isErr(plans)
+			? undefined
+			: plans.value.plans.find((p) => p.id === resume.planId)) ?? 'gone';
 	}
-	if (resume.planId === null) {
-		storedPlan.value = 'none';
-		return;
-	}
-	const plans = await context.queries.listPlansByProject(resume.projectId);
-	if (ticket !== resolveTicket) return;
-	// The matched plan is KEPT, not counted: the row names it.
-	const found = isErr(plans)
-		? undefined
-		: plans.value.plans.find((plan) => plan.id === resume.planId);
-	storedPlan.value = found ?? 'gone';
+
+	stored.value = resume;
+	storedPlan.value = plan;
 }
 ```
 

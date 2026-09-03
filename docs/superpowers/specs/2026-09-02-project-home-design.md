@@ -11,6 +11,110 @@ the authority and this one is the earlier measurement.
 (progressive disclosure); Prototype design spec §10 (routing contract), §A.10 (Project Home
 wireframe); editor implementation plan §3 (no hard-coded counts in production UI).
 
+## Amendment 1 — this document is being built as TWO increments, and increment 1 has landed
+
+**Date:** 2026-09-03. **Plan:** `.superpowers/sdd/2026-09-03-every-undo-and-redo-announces/`
+(fourteen numbered tasks plus one review-driven task, R7). Written here rather than only in the
+plan, because a reader arriving at this spec after the split would otherwise take the whole of
+Decision 7 as unbuilt.
+
+**Increment 1 built the PUBLISHING half and two read-model foundations, and nothing that
+subscribes.** What landed:
+
+- **Decision 7's undo/redo category** — *The undo/redo path publishes nothing at all, and that
+  is a category*, in full. Every reversible adapter and every compensated delete sequence now
+  announces on both directions, with the two carve-outs that section already names:
+  `ReversibleSetPlanBackground.undo()`, which stays deliberately silent for the reason its own
+  property 3 gives, and the helpers whose CALLERS publish. Both are held by a census
+  (`tests/application/events/reversibleWritePathCensus.test.ts` for behaviour,
+  `reversibleWritePathDiscovery.test.ts` for a per-class tripwire) rather than by prose.
+- **Decision 2's row-builder delegation** — `buildRequirementRow` extracted, so the summary and
+  `GetRequirementsForZone` cannot derive a row differently.
+- **The walk is project-scoped** — a tolerant, project-scoped requirement listing
+  (`listTolerantly`), the foundation the project-scoped walk needs.
+
+**Deliberately NOT built, and therefore still specified rather than done:** everything in
+Decision 7 that SUBSCRIBES (`projectSummaryChangeSource`, its three lists and its coalescing);
+Decisions 1, 3, 4, 5, 6 and 8 entire; and the `RequirementInspectorDTO` tolerance additions.
+Those are increment 2.
+
+### The carried obligation, stated as an obligation rather than as prose
+
+**`RequirementDeleted` and `RequirementRestored` are published by six production call sites
+between them and subscribed to by NOTHING.** Measured on the increment's final commit:
+`grep -rn "requirementDeleted(" src/` outside `Requirement.events.ts` prints three
+(`deleteResolution.ts`, `reversible-assign-asset-command.ts`, `DeleteRequirement.ts`),
+`requirementRestored(` prints three (`deleteResolution.ts`, `undoDeleteResolution.ts`,
+`recoverInterruptedSequences.ts`), and
+`grep -rn "'RequirementDeleted'\|'RequirementRestored'" src/ --include=*.ts` outside that module
+prints nothing at all.
+
+That is **exactly the state this document describes as "a feature that reads correct in every
+file"** — a publisher, a payload and a subscriber list can each be right about everything they
+name while the two halves never meet. It is recorded here because this spec's own hardest-won
+lesson is that *a deferral recorded in prose is a deferral nothing fires*, and this is a
+deferral recorded in prose.
+
+So the obligation has a falsifier and an exit:
+
+- **Increment 2 must make `projectSummaryChangeSource` subscribe to both events**, or they are
+  published to nobody and the Overview goes stale on exactly the gestures this increment taught
+  the vault to announce.
+- **If increment 2 is abandoned, Tasks 12 and 13 stay and the two events should be REVERTED**
+  rather than left standing. An event with no listener is what a later reader deletes as dead,
+  and deleting it silently takes six publishers with it.
+
+### Everything else increment 2 inherits, so nothing is rediscovered
+
+1. `RequirementInspectorDTO` gains `projectId`, `referentsUnreadable`, and
+   `unitCost.projectOverride: Money | null | 'unresolved'`; the builder tolerates a failed
+   referent read; `projectOverrides` tolerates a refused `listByProject`.
+2. `recalculable` is defined from `RecalculateRequirementCommand`'s EXTRACTED precondition
+   check — not re-derived — and `blocked` gets its own badge.
+3. `GetProjectSummary`'s three walks are each rooted at the project, none reached through
+   another.
+4. `RenovationProjectView.getState` must SERIALIZE `section`, not only parse it.
+5. `AssetPriceList` has exactly ONE production render site and the split must place it, or the
+   per-project price editor is deleted. Measured rather than cited by line, since a line number
+   rots and a name does not: `grep -rn "AssetPriceList" src/` prints one import and one
+   `<AssetPriceList` tag, both in `presentation/views/ProjectDetail.vue` (at line 154 today),
+   plus two prose mentions in sibling modules.
+6. **A parked comment-accuracy batch** on
+   `src/application/commands/requirement/reversible-assign-asset-command.ts`, three findings from
+   Task 6's review, deferred only because editing `src/` would have made the tree non-quiet
+   during a sibling task's gate: an *"only in this arm"* comment whose guarantee is actually
+   held by the discriminated union — stronger than the test it implies, and its named mutation
+   does not even compile; a `RequirementCreated`-over-`RequirementRestored` reason that is
+   correct but lives in another event's docblock, invisible at the publish site; and a
+   stale-revision comment asserting a production consequence the reviewer measured as currently
+   UNREACHABLE in the Obsidian repository (it refuses only in `VersionedStore`'s monotonic
+   counter, which is what the test drove), so the sentence must name the store it was measured
+   against. The fix itself stands; only the prose over-claims.
+7. **A latent hole in `tests/harness/harness.test.ts`'s closure check**: the walk excludes
+   `*.test.ts` from `scanned` while the closure check ACCEPTS imports targeting such a file, so
+   a stylesheet imported by a helper named `*.test.ts` would pass the reachability assertion
+   VACUOUSLY. Measured latent rather than live — 17 such files exist under `tests/helpers` and
+   `tests/harness`, none imported by a non-test module. The cheap close is a TRIPWIRE (fail if
+   any file under the roots ending `.test.ts` is imported by a scanned module), not the full
+   import traversal proposed for it.
+8. **Two leftovers from Task 8's re-review**, neither blocking: its report body still asserts a
+   TS2353 claim its own later retraction withdraws, 230 lines above that retraction (correct in
+   place, per this repository's convention); and the second test split left a one-way seam
+   pointer between the two files where the first split left one at both ends.
+
+### One residual that is NOT this document's, and not increment 2's either
+
+**PRE-EXISTING on `main`, older than this plan, and the most consequential thing the review
+process surfaced: a successfully recalculated reassignment cannot be rolled back at all.**
+`recalculateInline` returns `Result<unknown>` with no revision, while `repointAndMarkStale`
+returns its own save's — and that is what `applyResolutionToRequirement` records in
+`SequenceProgress`. `recalculateInline` then saves AGAIN, bumping past the recorded expectation,
+so on the `reassign` arm `compensate`'s restore presents a stale expected version and is
+REFUSED. Nothing to do with announcements, and not fixed here: the fix returns and records the
+recalculation's revision, which changes a shared `ResolutionOps` signature and the compensation
+engine's progress accounting — a correctness change deserving its own increment, cases and
+review. Raised to the user and unanswered at the time of writing.
+
 ## Why this, and why now
 
 Design slice 21 gave the Renovation Project pane a detail state: one project, its status, an

@@ -3384,6 +3384,119 @@ bullet's own grep:
 `grep -rn "_MIGRATIONS: \(readonly \)\?Migration\[\] = " src/infrastructure/persistence/migration/`
 printed seven lines at this merge and every one of them ends `= [];`.
 
+**Every undo and redo was invisible to every subscriber, and it was ONE defect wearing many
+faces.** The forward commands publish. The reversible adapters restore snapshots through the
+repository PORTS — a boundary this file already carves out and gives a reason for, one section
+up: *"the boundary stops at the repository PORTS … because the reversible adapters restore
+snapshots through them"*. That carve-out is about GUARDING. Publishing simply travelled through
+it unexamined, so a user pressing Undo moved the vault and told nobody: no cascade, no leaf
+refresh, no read model. **When a boundary is carved out for one reason, ask what ELSE travels
+through the carve-out** — the reason stated is rarely the only thing the hole admits.
+
+The mechanical half is one missing collaborator rather than an oversight per adapter: the
+adapters are constructed in `presentation/`, one per gesture, out of shared stateless parts, and
+had no `EventBus` to reach. `PlanEditorCommandServices.events` is REQUIRED now — per the
+`CascadeDeps.notify` precedent, so a composition that forgets it does not compile rather than
+announcing into nothing. The rules that came out of it:
+
+- **A sweep's own FILTER can be a sample, and so can its METRIC, and so can the ENUMERATION
+  under a correct count.** Six versions of one instrument, each correction real and each measured
+  with an instrument blind to the next: a sample of adapters; a census whose FILTER
+  (`UndoableCommand|Reversible`) answered *"every reversible adapter"* rather than *"every write
+  path that publishes nothing"*; a METRIC counting literal `publish(` syntax, which attributed a
+  cost override's announcement to the file its shared helper lives in; an enumeration keyed by
+  MODULE, so a new adapter class added to an already-dispositioned file left the key set
+  unchanged; a scope bounded to `src/application/**`, which cannot see
+  `ReversibleMoveZoneCommand` in `presentation/`; and inheritance, since
+  `ReversibleOverrideBase` declares the `execute`/`undo` its two subclasses only inherit.
+  **Each coarse unit was in the half of the instrument that had stopped being examined**, which
+  is the durable form: when a check has a DISCOVERY half and a JUDGEMENT half, the discovery
+  half is where the next one is.
+- **"The body contains a `publish(`" is not "this path publishes", so the remedy is two
+  instruments and not a better regex.** `tests/application/events/reversibleWritePathDiscovery.test.ts`
+  does the one thing text is reliable at — finding which CLASSES exist — and
+  `reversibleWritePathCensus.test.ts` DRIVES each direction and looks at what came out. Measured
+  in the edit that wrote this sentence: the discovery file dispositions **40** classes
+  (`grep -oE "'src/[^']+\.ts::[A-Za-z_]+':" | sort -u | wc -l`), of which **11** carry
+  behavioural rows and **29** are `notAnAdapter` with a stated reason; `CENSUS_TABLE`
+  (`tests/helpers/reversibleWriteCensusTable.ts`) holds **22** rows — 11 `execute`, 11 `undo`
+  (`grep -c "direction: 'execute'"` and the same for `'undo'`). The table lives in a plain
+  module rather than being exported from either `.test.ts`, because vitest registers a test
+  file's whole suite on IMPORT and a cross-file import would silently run every one of its
+  assertions twice.
+- **State what the tripwire cannot see, because "a new adapter cannot be added silently" is
+  false as written.** It cannot be added silently *in the shapes the scan covers*, and the scan
+  is deliberately crude: it reads `class` KEYWORDS line by line under `src/**`, so it is blind
+  to a class EXPRESSION (`const X = class {}`), a declaration whose `class` keyword is not on
+  the same line as its modifier, a `.vue` file (`sourceFilesUnder` takes `.ts` only), an adapter
+  that is not a class at all, a class reaching `undo` by neither its own file's text nor an
+  `extends` chain, and — the one most likely to bite — a NEW DIRECTION added to a class that
+  already has a disposition, since the cross-check only verifies the directions a disposition
+  already NAMES. **Six blind spots, written in that file's own header**
+  (`sed -n '/What the walk cannot see/,/Two things worth keeping/p' | grep -c "^ \* - "` prints
+  6), because three of them were found by a review round AFTER the first draft of that list
+  claimed to be complete.
+- **Minting an event has two ends, and every file can be right about the end it names.**
+  `RequirementDeleted` and `RequirementRestored` were minted here with publishers, payloads, a
+  census row and a domain-event test each — **and no subscriber anywhere.** Measured in this
+  edit: `grep -rn "requirementDeleted(" src/` outside the factory's own module prints three
+  production sites (`deleteResolution.ts`, `reversible-assign-asset-command.ts`,
+  `DeleteRequirement.ts`), `requirementRestored(` prints three (`deleteResolution.ts`,
+  `undoDeleteResolution.ts`, `recoverInterruptedSequences.ts`), and
+  `grep -rn "'RequirementDeleted'\|'RequirementRestored'" src/ --include=*.ts` outside that
+  module prints **nothing**. Nobody listens. That is DELIBERATE and it is half a feature: the
+  subscriber is `projectSummaryChangeSource`, which is increment 2's, and
+  `docs/superpowers/specs/2026-09-02-project-home-design.md`'s Amendment 1 carries the
+  obligation. **If increment 2 is abandoned, the honest move is to REVERT rather than to leave
+  two events published to nobody** — an event with no listener is exactly what a later reader
+  deletes as dead, and deleting it takes the publishers with it.
+- **"Every undo and redo announces" is true of the paths this increment TOUCHED, and there is
+  one deliberate silence.** `ReversibleSetPlanBackground.undo()` restores straight through
+  `PlanRepository.save` and publishes nothing, by the decision its own property 3 states — a
+  background reference is one field on one note with nothing cascading off it. That is held as a
+  BEHAVIOURAL census row rather than as a comment: making that `undo()` publish turns the row
+  red. Its `execute()` is not part of the carve-out and never was — it delegates to the wrapped
+  `SetPlanBackgroundCommand`, which published `PlanBackgroundChanged` before this increment
+  began. The sweep's original table conflated the two under one row, which is why the census
+  names a (module, DIRECTION) pair rather than a module. And the silence costs nothing today for
+  a second reason worth knowing before anyone "fixes" it: `grep -rn "\.undo(" src/` reaches no
+  caller of this adapter's, because the background picker is a plugin COMMAND that never enters
+  `CommandHistory`.
+- **The metric defect above is still live as a READING HABIT, and it caught the author of this
+  very section.** Verifying the previous bullet with
+  `grep -n "publish\|PlanBackgroundChanged" src/application/commands/plan/SetPlanBackground.ts`
+  printed NOTHING, which reads exactly like a silent command — and that file publishes on line
+  107, through `savePlan(this.plans, this.events, updated.value, loaded.version,
+  planBackgroundChanged)`. The word `publish` never appears, and the event is named by its
+  lower-case FACTORY. So the instrument that produced the third layer of this defect reproduced
+  it, one bullet after being written down, against a file already known to publish. **A rule
+  recorded is not a rule reached for; ask the shared helper what it does before reading a
+  grep's silence as an answer.**
+- **A count is only as complete as the question it counts over.** Replacing a sample with a
+  census fixed the sampling of ADAPTERS and left the sampling of the FILTER, and the second was
+  invisible *precisely because the first had been announced as a sweep*. A completed correction
+  is the best available camouflage for the layer beneath it.
+
+Two residuals are named here rather than left to be re-found, because neither is this
+increment's to fix and both read as its defect if met cold:
+
+- **PRE-EXISTING, and the most consequential thing this branch surfaced: a successfully
+  recalculated reassignment cannot be rolled back at all.** `recalculateInline` returns no
+  revision, while `repointAndMarkStale` returns its own save's — and that is what
+  `applyResolutionToRequirement` records in `SequenceProgress`. The inline recalculation then
+  saves AGAIN, bumping past the recorded expectation, so `compensate`'s restore presents a stale
+  version and is REFUSED. Older than this plan, nothing to do with announcements, and the fix
+  changes a shared `ResolutionOps` signature plus the engine's progress accounting — its own
+  increment, cases and review.
+- **A LATENT hole in `tests/harness/harness.test.ts`'s closure check**, measured rather than
+  asserted: the walk excludes `*.test.ts` from `scanned` while the closure check ACCEPTS imports
+  targeting such a file, so a stylesheet imported by a helper named `*.test.ts` would be loaded
+  by Vite, absent from `importers`, and the reachability assertion would pass VACUOUSLY. It is
+  latent and not live — 17 such files exist under `tests/helpers` and `tests/harness` and none
+  is imported by a non-test module — and the cheap close is a TRIPWIRE (fail if any file under
+  the roots ending `.test.ts` is imported by a scanned module), not the full import traversal
+  that was proposed for it.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was

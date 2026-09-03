@@ -108,6 +108,7 @@ subject.calibration = null;
 declare const completion: PolygonCompletion;
 declare const report: (error: AppError) => void;
 const deps: DrawPolygonToolDeps = {
+	id: 'draw-polygon',
 	completion,
 	// @ts-expect-error `DrawPolygonToolDeps` names no Zone: a default name is the completion's.
 	nextZoneName: () => 'Zone 1',

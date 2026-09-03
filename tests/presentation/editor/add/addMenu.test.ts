@@ -231,17 +231,25 @@ describe('the Add menu', () => {
 	});
 
 	/**
-	 * A press inside the menu, or on the Add button that opened it, genuinely reaches
-	 * `onDocumentPointerDown` and takes its "inside"/"on the anchor" early-returns — CAPTURE
-	 * is what makes that true. Both elements sit inside `EditorSurface`'s `.rp-plan-overlay`,
-	 * whose own `@pointerdown.stop` (Task 8) is a BUBBLE-phase listener; the menu's own
-	 * listener runs on `document` with `{ capture: true }` (review round 1's fix — see
-	 * `AddMenu.vue`'s docblock), which fires on the way DOWN to the target, before that
-	 * bubble-phase `stopPropagation()` ever gets a chance to run. Before that fix this case
-	 * passed for the wrong reason: the press never reached the listener at all, so it would
-	 * have passed just as well with the "inside"/"on the anchor" checks deleted outright.
+	 * A press inside the menu genuinely reaches `onDocumentPointerDown` and takes its "inside"
+	 * early-return — CAPTURE is what makes that true. Both the menu and the anchor sit inside
+	 * `EditorSurface`'s `.rp-plan-overlay`, whose own `@pointerdown.stop` (Task 8) is a
+	 * BUBBLE-phase listener; the menu's own listener runs on `document` with `{ capture: true }`
+	 * (review round 1's fix — see `AddMenu.vue`'s docblock), which fires on the way DOWN to the
+	 * target, before that bubble-phase `stopPropagation()` ever gets a chance to run. Before that
+	 * fix this case passed for the wrong reason: the press never reached the listener at all, so
+	 * it would have passed just as well with the "inside" check deleted outright.
+	 *
+	 * **The anchor half is now a TOGGLE, the WAI-ARIA menu-button pattern `AddMenu.vue` cites**,
+	 * which is what the whole-branch review's item 6 corrected: `onOpenAdd` used to set
+	 * `addMenuOpen` unconditionally, so a second press did nothing, under a comment that already
+	 * (wrongly) claimed it toggled. The DOWN half of that second press still must not close the
+	 * menu on its own — `onDocumentPointerDown`'s anchor exclusion still applies, and asserting
+	 * it here is what keeps this case discriminating a close-via-toggle from a close-via-outside-
+	 * press, which would look identical if only the end state were checked — the actual close
+	 * comes from the anchor's own `click` handler, which is the second half below.
 	 */
-	it('a press inside the menu, or on the button that opened it, does not close the menu', async () => {
+	it('a press inside the menu does not close it, and a second press on the button that opened it toggles it closed', async () => {
 		const harness = await mountPlanEditorCanvas();
 		await openAdd(harness);
 		await settle();
@@ -252,11 +260,16 @@ describe('the Add menu', () => {
 		await settle();
 		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(true);
 
-		harness.wrapper
-			.find('button[data-rp-action="add"]')
-			.element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+		const addButton = harness.wrapper.find('button[data-rp-action="add"]');
+		addButton.element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
 		await settle();
 		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(true);
+
+		await addButton.trigger('click');
+		await settle();
+
+		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(false);
+		expect(addButton.attributes('aria-expanded')).toBe('false');
 	});
 
 	/**

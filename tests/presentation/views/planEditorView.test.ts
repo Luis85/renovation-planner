@@ -348,6 +348,42 @@ describe('mount and unmount', () => {
 		await view.onClose();
 	});
 
+		it('logs a fault rather than throwing or swallowing it when revealing the leaf rejects', async () => {
+			const leaf = new FakeLeaf();
+			const errors: Array<[string, (Record<string, unknown> & { cause?: unknown }) | undefined]> = [];
+			const commands = unavailablePlanEditorCommands();
+			const view = new PlanEditorView(leaf as never, {
+				...deps(),
+				commands: {
+					...commands,
+					logger: {
+						...commands.logger,
+						error: (event, context) => errors.push([event, context]),
+					},
+				},
+			});
+			openViews.push(view);
+			await view.setState({ planId: FIXTURE_PLAN.id }, {} as never);
+			await view.onOpen();
+			await settle();
+			resizeTo(sizedShellRoot(view.contentEl), 320, 800);
+			await settle();
+
+			const cause = new Error('revealLeaf rejected');
+			(view as unknown as { app: { workspace: { revealLeaf: () => Promise<void> } } }).app.workspace.revealLeaf =
+				() => Promise.reject(cause);
+
+			const action = view.contentEl.querySelector<HTMLButtonElement>('.rp-unsupported-width__action');
+			expect(action).not.toBeNull();
+
+			expect(() => action?.click()).not.toThrow();
+			await settle();
+
+			expect(errors).toHaveLength(1);
+			expect(errors[0]?.[0]).toBe('plan-editor.focus-leaf-failed');
+			expect(errors[0]?.[1]).toMatchObject({ cause });
+		});
+
 	/**
 	 * `PlanEditorContext.closeLeaf`, at the seam that supplies it.
 	 *

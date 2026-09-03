@@ -288,16 +288,32 @@ describe('the persistent warning strip', () => {
 		store.stale = true;
 		await settle();
 
-		let items = harness.wrapper.findAll('.rp-warning-strip__item[role="status"]');
+		let items = harness.wrapper.findAll('.rp-warning-strip__item');
 		expect(items).toHaveLength(2);
 		expect(items.map((item) => item.attributes('data-rp-warning'))).toStrictEqual(['stale', 'unreadable-zones']);
 
 		store.stale = false;
 		await settle();
 
-		items = harness.wrapper.findAll('.rp-warning-strip__item[role="status"]');
+		items = harness.wrapper.findAll('.rp-warning-strip__item');
 		expect(items).toHaveLength(1);
 		expect(items[0].attributes('data-rp-warning')).toBe('unreadable-zones');
+	});
+
+	/**
+	 * The live region is the CONTAINER, not an item — `.rp-warning-strip` renders
+	 * unconditionally and carries `role="status"` whether or not anything is inside it, which
+	 * is what `docs/components/Toast.md`'s "explicitly not on a container that appears" asks
+	 * for: the region is already in the document before the first warning's text lands in it.
+	 * An empty `role="status"` is valid and this is the case that proves the region precedes
+	 * its content rather than arriving WITH the first warning.
+	 */
+	it('carries its live region on the container even with no warnings at all', async () => {
+		const harness = await mountCanvas();
+		await settle();
+
+		expect(harness.wrapper.find('.rp-warning-strip[role="status"]').exists()).toBe(true);
+		expect(harness.wrapper.findAll('.rp-warning-strip__item')).toHaveLength(0);
 	});
 });
 

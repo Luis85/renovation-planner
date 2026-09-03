@@ -255,8 +255,16 @@ function onKeydown(event: KeyboardEvent): void {
  * names this component's own root, bound before `onMounted` registers this listener, so it is
  * never null while the listener can run. `props.anchor` is the one genuinely nullable member
  * of this function — see its own prop doc — and is EXCLUDED here rather than closed on:
- * pressing the button that opened this menu is its own gesture (today, toggling it back
- * open), not an outside press asking to close it.
+ * pressing the button that opened this menu is its own gesture — the WAI-ARIA menu-button
+ * pattern this file cites, where a second press of the button TOGGLES the menu
+ * (`PlanEditorRoot.onOpenAdd` flips `addMenuOpen`) — not an outside press asking to close it.
+ *
+ * **The exclusion is what makes the toggle work at all, and the ORDER is why.** This listener
+ * runs in the CAPTURE phase, ahead of the anchor's own `click` handler; without the exclusion,
+ * a second press on the anchor would be read as an outside press HERE first and close the menu
+ * — and then the click that follows would toggle `addMenuOpen` back open, one frame later. The
+ * user would see the menu flicker rather than close, on every second press. Excluding the
+ * anchor leaves that toggle entirely to the click handler that owns it.
  */
 function onDocumentPointerDown(event: Event): void {
 	const target = event.target as Node;

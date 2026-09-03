@@ -24,7 +24,6 @@
  * `editor.zone.default-name` in the source file's reading order. They stayed in `en.ts`.
  */
 export const editorEn = {
-	'editor.layers': 'Layers',
 	'editor.toolbar.pan': 'Pan',
 	'editor.toolbar.undo': 'Undo',
 	'editor.toolbar.redo': 'Redo',

@@ -146,7 +146,7 @@ const addButton = ref<HTMLElement | null>(null);
 
 function onOpenAdd(): void {
 	addButton.value = (root.value as HTMLElement).querySelector<HTMLElement>('[data-rp-action="add"]');
-	addMenuOpen.value = true;
+	addMenuOpen.value = !addMenuOpen.value;
 }
 
 function hydrate(): void {

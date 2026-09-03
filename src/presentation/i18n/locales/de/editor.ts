@@ -11,7 +11,6 @@ import type { editorEn } from '../en/editor';
  * (`...editorDe`).
  */
 export const editorDe: Record<keyof typeof editorEn, string> = {
-	'editor.layers': 'Ebenen',
 	'editor.toolbar.pan': 'Verschieben',
 	'editor.toolbar.undo': 'Rückgängig',
 	'editor.toolbar.redo': 'Wiederholen',

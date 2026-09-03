@@ -291,11 +291,10 @@ export const useProjectStore = defineStore('project', () => {
 	}
 
 	/**
-	 * `project` is hydrated now, beside `plan`, populated here so a later task's context bar
-	 * and floor summary can name the project without a second query — `fallow`'s
-	 * `unused-store-member` check no longer flags it as it did before this hydration existed,
-	 * because this store's own test suite reads `store.project` directly; there is still no
-	 * `src/` consumer.
+	 * `project` is hydrated now, beside `plan`, so a caller can name the project without a
+	 * second query — `EditorContextBar.vue` reads it for the `Project › Floor` crumb and
+	 * `useFloorSummary.ts` reads it to build the floor summary both `FloorInspector` and
+	 * `UnsupportedWidthNotice` render from.
 	 */
 	return {
 		project,

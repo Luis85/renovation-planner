@@ -259,3 +259,48 @@
 	font-style: italic;
 	color: var(--text-faint);
 }
+
+/*
+ * Task 18's temporary task banner — the top edge's counterpart to `.rp-primary-actions` at the
+ * bottom, resolved against the same `.rp-plan-canvas` ancestor for the reason given above it.
+ */
+.rp-task-banner {
+	position: absolute;
+	top: var(--size-4-2);
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-1) var(--size-4-2);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+}
+
+.rp-task-banner span {
+	color: var(--text-muted);
+}
+
+.rp-task-banner button {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-task-banner button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-task-banner button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}

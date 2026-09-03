@@ -178,6 +178,16 @@ export const en = {
 	'editor.calibrate.distance.measured': 'Measured on the background:',
 	'editor.calibrate.recalibrate.title': 'Rescale the zones on this plan?',
 	'editor.calibrate.recalibrate.message': 'This plan already has zones drawn on it. Setting the scale rescales every one of them. You can undo it.',
+	// Task 18's temporary task banner: names the active creation task over the canvas and
+	// offers the same Cancel `routeEscape` (Task 9) already gives a keyboard user through
+	// Escape. `draw-room` names the TASK, not the `draw-polygon` tool id — the same
+	// distinction `editor.add.room.label` already draws for the menu entry that starts it.
+	'editor.task.banner': 'Current task',
+	'editor.task.draw-room.name': 'Adding a room',
+	'editor.task.draw-room.instruction': 'Click to place corners; click the first corner to finish.',
+	'editor.task.calibrate.name': 'Setting the scale',
+	'editor.task.calibrate.instruction': 'Click two points a known distance apart.',
+	'editor.task.cancel': 'Cancel',
 	'background.no-plan-open': 'Open a plan editor first.',
 	'background.unsupported': 'Only PNG, JPEG and PDF files can be a plan background.',
 	'zone.status.planned': 'Planned',

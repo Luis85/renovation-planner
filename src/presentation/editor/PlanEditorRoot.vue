@@ -30,6 +30,7 @@ import EntityInspector from './shell/EntityInspector.vue';
 import PropertyLayerPanel from './shell/PropertyLayerPanel.vue';
 import StatusBar from './shell/StatusBar.vue';
 import AddMenu from './add/AddMenu.vue';
+import TemporaryToolBanner from './shell/TemporaryToolBanner.vue';
 
 const context = usePlanEditorContext();
 // The return value is USED now, not discarded: `activeToolId` is what displaces the empty
@@ -241,6 +242,7 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					overlay
 					@action="onEmptyStateAction()"
 				/>
+				<TemporaryToolBanner />
 				<FloatingPrimaryActions
 					:add-open="addMenuOpen"
 					@open-add="onOpenAdd"

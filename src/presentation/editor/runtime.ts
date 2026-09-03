@@ -37,6 +37,7 @@ import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispat
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
+import { routeEscape } from './escapeRouting';
 
 /**
  * One Plan Editor leaf's live machinery (design slice 8): the history and its refresh
@@ -65,6 +66,15 @@ export interface EditorRuntime {
 	 * watch below and a finished polygon's completion.
 	 */
 	readonly returnToSelect: () => void;
+	/**
+	 * Task 18's Cancel button — `routeEscape` (Task 9), called with `panning: false` over the
+	 * SAME deps `EditorSurface.onKeyDown`'s Escape branch already builds, so a mouse user's
+	 * Cancel and a keyboard user's Escape decide the outcome through one function rather than
+	 * two answers to the same question. `panning` is always `false` here because a banner
+	 * button lives in the canvas overlay slot, which `.rp-plan-overlay` already keeps a
+	 * pointer press out of the camera — there is no gesture for this door to interrupt.
+	 */
+	readonly cancelActiveTask: () => void;
 	/**
 	 * The reactive proxy over this leaf's `RenderState` (SDD §19's transient visuals).
 	 * Tools write plain fields; the InteractionLayer reads them reactively.
@@ -392,6 +402,35 @@ function registerSelectionRetirement(
 	);
 }
 
+/**
+ * Task 18's Cancel button, pulled out of `buildRuntime` for its 100-line `max-lines-per-function`
+ * budget — the same reason `selectAndFrameOn`/`registerSelectionRetirement` above are module-scope
+ * rather than local closures. Built over the identical deps `EditorSurface.onKeyDown`'s Escape
+ * branch already passes to `routeEscape`, so a mouse user's Cancel and a keyboard user's Escape
+ * decide the outcome through one function rather than two answers to the same question.
+ * `panning` is always `false`: a banner button lives in the canvas overlay slot, which
+ * `.rp-plan-overlay` already keeps a pointer press out of the camera, so there is no gesture for
+ * this door to interrupt.
+ */
+function createCancelActiveTask(
+	toolManager: ToolManager,
+	activeToolId: Ref<ToolId | null>,
+	setTool: (id: ToolId | null) => void,
+	selection: ReturnType<typeof useSelectionStore>,
+): () => void {
+	return (): void => {
+		routeEscape({
+			panning: false,
+			activeToolId: activeToolId.value,
+			hasDraft: () => toolManager.activeToolHasDraft(),
+			cancelGesture: () => toolManager.cancelGesture(),
+			setTool,
+			hasSelection: selection.selectedIds.length > 0,
+			clearSelection: () => selection.clear(),
+		});
+	};
+}
+
 function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const editor = useEditorStore();
 	const projectStore = useProjectStore();
@@ -508,6 +547,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const { activeToolId } = storeToRefs(editor);
 	const setTool = createToolSwitch(toolManager, activeToolId);
 	const returnToSelect = (): void => setTool('select');
+	const cancelActiveTask = createCancelActiveTask(toolManager, activeToolId, setTool, selection);
 
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect });
 
@@ -595,6 +635,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		activeToolId,
 		setTool,
 		returnToSelect,
+		cancelActiveTask,
 		undo,
 		redo,
 		canUndo,

@@ -1427,24 +1427,28 @@ rule here can override one there at equal specificity.
 }
 
 /*
- * TEN CELLS, drawn from `currentColor` so no colour literal enters this sheet and a themed
- * vault keeps its theme. No hue at any cell: the status WORD beside them is the second channel,
- * and PRD's accessibility section and SDD §85 both refuse a status carried by colour.
+ * TEN CELLS, at the two tokens the design spec's §6 names: reached cells `--text-normal`,
+ * unreached `--text-faint`. No hue at either end — the status WORD beside them is the second
+ * channel, and PRD's accessibility section and SDD §85 both refuse a status carried by colour.
  *
- * A reached cell and an unreached one differ in OPACITY of the same colour rather than in two
- * colours, which is what keeps `currentColor` sufficient — the strip is `aria-hidden`, so the
- * distinction is doing decorative work over a channel that is already complete.
+ * **`currentColor` plus an opacity was the first spelling and it produced NEITHER end of that
+ * contract.** These cells sit inside `.rp-project-list__status`, which is `--text-muted`, so
+ * `currentColor` inherited the muted grey and the two states came out as that one colour at 100%
+ * and at 25% — a strip whose reached cells were dimmer than the `--text-normal` the spec asks
+ * for and whose unreached ones bore no relation to `--text-faint`. A theme moving `--text-faint`
+ * relative to `--text-muted` moved nothing here at all. Naming the two tokens is not a colour
+ * literal — a `var()` on an Obsidian token is exactly what SDD §84's check asks to see, so
+ * nothing about the themed-vault half is given up by writing the contract down.
  */
 .rp-project-row__tick {
 	width: 3px;
 	height: var(--size-2-3);
 	border-radius: 1px;
-	background-color: currentColor;
-	opacity: 0.25;
+	background-color: var(--text-faint);
 }
 
 .rp-project-row__tick--reached {
-	opacity: 1;
+	background-color: var(--text-normal);
 }
 
 /*
@@ -4098,13 +4102,28 @@ defineEmits<{ open: [projectId: string]; openNote: [projectId: string] }>();
  */
 import { opensNote } from './platformModifier';
 
-/** A modifier-click opens the NOTE, a plain click NAVIGATES. */
+/**
+ * A modifier-click opens the NOTE, a PLAIN click navigates, and a click carrying any OTHER
+ * modifier does neither.
+ *
+ * That third arm is the one an earlier draft did not have, and its absence undid the whole
+ * argument in the header above. `opensNote` answers only for the platform's own key, so on macOS
+ * a **Ctrl-click — the platform's secondary-click gesture** — fell straight through to the
+ * ordinary navigation: a user reaching for a context menu was moved into the project instead.
+ * Refusing the modifier this door does not claim is what the paragraph beside `opensNote`
+ * already promised, and it holds the same way for `Alt` and `Shift`, neither of which this
+ * surface claims either.
+ *
+ * `Enter` reaches this handler too, as the button's own native activation, so a `Ctrl+Enter` on
+ * macOS is refused here for the same reason rather than needing a second guard in `onKeydown`.
+ */
 function onClick(event: MouseEvent): void {
 	if (opensNote(event)) {
 		event.preventDefault();
 		emit('openNote', props.project.id);
 		return;
 	}
+	if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
 	emit('open', props.project.id);
 }
 
@@ -4134,8 +4153,20 @@ function onKeydown(event: KeyboardEvent): void {
 }
 ```
 
-`ProjectList` re-emits `openNote` beside `open` from every row, including the Continue row's
-`Open`. `ViewRoot` binds it to the door that already exists:
+`ProjectList` widens to `defineEmits<{ open: [projectId: string]; openNote: [projectId: string];
+create: [initialName: string]; createAsset: [] }>()` and re-emits `openNote` beside `open` from
+every project row, in both groups — `@open-note="$emit('openNote', project.id)"` wherever
+`@open` is already bound.
+
+**The Continue row is not one of those rows and does not inherit this**, which is a note about
+ORDERING rather than a caveat: it does not exist until Task 11, and when it arrives it is a
+different component with its own `Open` control. That task adds the same emit to it explicitly.
+This sentence claimed the Continue row's `Open` was already covered here for a round, while that
+component declared no such emit at all — so a `Mod+click` on it opened the detail state, which is
+the ProjectRow fall-through defect fixed above, surviving in the sibling described as sharing the
+fix.
+
+`ViewRoot` binds it to the door that already exists:
 
 ```typescript
 /**
@@ -4152,6 +4183,12 @@ async function onOpenNote(id: string): Promise<void> {
 	if ((await context.openProject(id)) === 'missing') await hydrate();
 }
 ```
+
+and — the step the first draft of this task left out, which is the whole
+guard-nobody-dispatches-through shape this repository already has a section on — **binds it**:
+`<ProjectList … @open-note="onOpenNote">`, beside the `@open` and `@create` already there. A
+handler written, tested in isolation and bound to nothing is the accelerator silently not
+existing, with every unit case green.
 
 Cases in `projectListKeyboard.test.ts` and `projectRow.test.ts`:
 
@@ -4190,6 +4227,22 @@ Cases in `projectListKeyboard.test.ts` and `projectRow.test.ts`:
 
 		expect(wrapper.emitted('openNote')).toEqual([['p1']]);
 		expect(wrapper.emitted('open')).toEqual([['p1']]);
+	});
+
+	it('does NEITHER for a modifier this door does not claim', async () => {
+		// `Platform.isMacOS` is false in the mock, so `Meta` is the key `opensNote` rejects here.
+		// The gesture that matters is its mirror image: on macOS `Ctrl+click` is the secondary
+		// click, and falling through to `open` would move the user into a project they were
+		// asking a context menu about. `Alt` and `Shift` are refused for the same reason —
+		// this surface claims neither.
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('click', { metaKey: true });
+		await wrapper.find('.rp-project-list__row').trigger('click', { altKey: true });
+		await wrapper.find('.rp-project-list__row').trigger('click', { shiftKey: true });
+
+		expect(wrapper.emitted('openNote')).toBeUndefined();
+		expect(wrapper.emitted('open')).toBeUndefined();
 	});
 ```
 
@@ -5224,7 +5277,8 @@ its own controls is the composite that would force a grid pattern onto everythin
   `context.continueContext`, `context.rememberContinue`.
 - Produces:
   - `ContinueRow` props `{ project: ProjectSummaryDto; planId: string | null }`, emits
-    `{ resume: []; open: [] }`.
+    `{ resume: []; open: []; openNote: [] }` — payload-less, because the mount site below
+    already holds the project and supplies the id when it re-emits.
   - `ProjectList` prop `continueProject?: { project: ProjectSummaryDto; planId: string | null } | null`
     and emits `{ resume: [context: ContinueContext] }`.
 
@@ -5307,6 +5361,31 @@ describe('ContinueRow', () => {
 		expect(wrapper.emitted('open')).toHaveLength(1);
 	});
 
+	it('opens the note from Open on the platform modifier, and on nothing else', async () => {
+		const wrapper = row('plan-1');
+		const open = wrapper.find('.rp-continue__open');
+
+		await open.trigger('click', { ctrlKey: true });
+		await open.trigger('auxclick', { button: 1 });
+		// `Platform.isMacOS` is false in the mock, so `Meta` is the rejected key here — standing
+		// for macOS's `Ctrl`, where the same fall-through would hijack the secondary click.
+		await open.trigger('click', { metaKey: true });
+
+		expect(wrapper.emitted('openNote')).toHaveLength(2);
+		expect(wrapper.emitted('open')).toBeUndefined();
+	});
+
+	it('gives Continue no modifier gesture at all', async () => {
+		// Resume restores a CONTEXT, and a note is not one. A modifier here would have to mean
+		// something this row has never been asked to define, so it means nothing.
+		const wrapper = row('plan-1');
+
+		await wrapper.find('.rp-continue__resume').trigger('click', { ctrlKey: true });
+
+		expect(wrapper.emitted('openNote')).toBeUndefined();
+		expect(wrapper.emitted('resume')).toHaveLength(1);
+	});
+
 	it('still offers both actions when the context names no plan', () => {
 		// Continue on a project is a real gesture: it goes to the detail state, same as Open,
 		// and the row does not become a different shape for it.
@@ -5351,6 +5430,7 @@ import { computed } from 'vue';
 import type { PlanSummaryDto, ProjectSummaryDto } from '../read-models/PlanDto';
 import { statusLabel } from './statusLabel';
 import { currentLanguage, tr } from '../i18n/strings';
+import { opensNote } from './platformModifier';
 
 const props = defineProps<{
 	project: ProjectSummaryDto;
@@ -5358,7 +5438,38 @@ const props = defineProps<{
 	/** The resolved plan this will resume, or `null` when the context names the project alone. */
 	plan: PlanSummaryDto | null;
 }>();
-defineEmits<{ resume: []; open: [] }>();
+const emit = defineEmits<{ resume: []; open: []; openNote: [] }>();
+
+/**
+ * `Open` takes the SAME three-arm gesture every other row's target takes — platform modifier
+ * opens the note, plain activates, anything else does neither — through the same `opensNote`
+ * predicate, so this pane has one gesture vocabulary rather than one per component.
+ *
+ * It had only the middle arm for a round, under a sentence in this plan claiming `openNote` came
+ * "from every row, including the Continue row's Open". It did not: this row declared no such
+ * emit, so a `Mod+click` here opened the detail state — the ProjectRow fall-through defect, in
+ * the sibling that had been described as already fixed.
+ *
+ * **`Continue` deliberately takes none of it.** Resume restores a context — the plan editor when
+ * one names a plan — and a note is not a context; a modifier there would have to mean something
+ * this row has not been asked to define.
+ */
+function onOpen(event: MouseEvent): void {
+	if (opensNote(event)) {
+		event.preventDefault();
+		emit('openNote');
+		return;
+	}
+	if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+	emit('open');
+}
+
+/** The middle button, which fires `auxclick` and never `click`. `2` is the context menu's. */
+function onOpenAux(event: MouseEvent): void {
+	if (event.button !== 1) return;
+	event.preventDefault();
+	emit('openNote');
+}
 
 /**
  * An ABSOLUTE short date, never a relative time (§8). A relative time needs a live ticker,
@@ -5404,7 +5515,8 @@ const worked = computed(() => {
 		<button
 			type="button"
 			class="rp-continue__open"
-			@click="$emit('open')"
+			@click="onOpen"
+			@auxclick="onOpenAux"
 		>
 			{{ tr('view.project.continue.open') }}
 		</button>
@@ -5510,6 +5622,7 @@ const props = defineProps<{
 						:plan="continueProject.plan"
 						@resume="$emit('resume', { projectId: continueProject.project.id, planId: continueProject.planId })"
 						@open="$emit('open', continueProject.project.id)"
+						@open-note="$emit('openNote', continueProject.project.id)"
 					/>
 				</li>
 			</ul>

@@ -291,6 +291,15 @@ width. A threshold validated only in English is not validated.
   (`--size-4-6`, already the shipped value), and the two-line narrow row exceeds it.
 - Middle-click and modifier-click open the project's note, matching the keyboard accelerator
   below. Undiscoverable on their own — the key legend is where they are discovered.
+- **The modifier is the platform's own and no other**, which is a rule about the keys this
+  surface *declines* as much as the one it claims. `⌘` on macOS, `Ctrl` elsewhere — the legend
+  says which — and a press carrying any OTHER modifier does **neither** thing: not the note, and
+  not the navigation either. Falling back to the plain navigation is the failure this rule exists
+  to name: on macOS `Ctrl+click` **is** the secondary-click gesture, so a user reaching for a
+  context menu would be moved into a project instead. `Alt` and `Shift` are declined on the same
+  ground — this surface has not been asked to define them, so they mean nothing here.
+- **The Continue row's `Open` takes the same vocabulary**, being a target for the same
+  destination. Its `Continue` does not: that restores a *context*, and a note is not one.
 
 ### Keyboard
 

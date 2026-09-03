@@ -17,9 +17,12 @@ import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import type { Loaded } from '../../src/application/ports/versioning';
 import type { Project } from '../../src/domain/project/Project';
 import type { Plan } from '../../src/domain/plan/Plan';
+import { Decimal } from 'decimal.js';
 import { recorder } from './logger';
 import { expectOk, RecordingEventBus } from './domain';
-import { makePlan, makeProject } from './entities';
+import { makeAsset, makePlan, makeProject, makeZone } from './entities';
+import type { ZoneId } from '../../src/domain/zone/ZoneId';
+import type { RequirementId } from '../../src/domain/requirement/RequirementId';
 
 /**
  * The slice-10 collaborators the zone commands grew, wired to in-memory doubles — what
@@ -173,4 +176,38 @@ export async function requirementFixture(
 		assign: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides }),
 		recalculate,
 	};
+}
+
+/**
+ * `requirementFixture()` plus one Requirement already linking a zone to an asset —
+ * `overrides.test.ts` and `reversibleOverrides.test.ts` both build this exact shape
+ * (a 10 m² zone, an asset with a 10% waste factor, assigned), so it lives here rather
+ * than as a byte-for-byte copy in each of them.
+ */
+export async function assignedRequirementFixture(): Promise<
+	RequirementFixture & { readonly zoneId: ZoneId; readonly requirementId: RequirementId }
+> {
+	const w = await requirementFixture();
+	const zoneEntity = expectOk(
+		await w.zones.save(
+			expectOk(
+				makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }).withGeometry({
+					points: TEN_SQUARE_METERS,
+				}),
+			),
+			'absent',
+		),
+	);
+	const assetEntity = expectOk(
+		await w.assets.save(
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
+			'absent',
+		),
+	);
+	const assigned = await w.assign.execute({
+		zoneId: zoneEntity.entity.id,
+		assetId: assetEntity.entity.id,
+	});
+	if (!assigned.ok) throw new Error(String(assigned.error));
+	return { ...w, zoneId: zoneEntity.entity.id, requirementId: assigned.value.requirement.id };
 }

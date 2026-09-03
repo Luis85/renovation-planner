@@ -3,6 +3,7 @@ import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { AppError } from '../../../core/errors/AppError';
 import { effectiveValue } from '../../../core/derived/DerivedValue';
 import type { EventBus } from '../../../core/events/EventBus';
+import type { Money } from '../../../core/money/Money';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
@@ -23,7 +24,17 @@ import type {
  * `CommandHistory.run()` hold it without importing downward.
  */
 
-type Snapshot = { readonly entity: Requirement; readonly postVersion: EntityVersion };
+type Snapshot = {
+	readonly entity: Requirement;
+	readonly postVersion: EntityVersion;
+	/**
+	 * The effective cost `run()` itself last wrote — the value undo is moving AWAY from,
+	 * never the pre-edit `entity`'s own figure, which is the value undo restores TO.
+	 * Recomputed on every successful `run()`, redo included, so a second undo/redo round
+	 * reports the figure that round actually produced rather than the first round's.
+	 */
+	readonly writtenEffectiveCost: Money;
+};
 
 /**
  * Shared mechanics of the two override adapters. Declared as a PAIR of small subclasses
@@ -45,11 +56,19 @@ type Snapshot = { readonly entity: Requirement; readonly postVersion: EntityVers
  *
  * `undo()` restores through the repository port, past the command whose `execute()`
  * already announces its own write — so it was silent on the one figure the read model
- * cares about most: the effective cost. It reads the live requirement's effective cost
- * BEFORE the restore write, then hands both figures to `publishIfEffectiveCostChanged`
- * after the write succeeds — the same helper `SetRequirementQuantityOverrideCommand.write`
- * calls for its own forward write, so an unmoved figure (a cost override undone back to a
- * value equal to what was already calculated) is truthfully silent rather than a gap.
+ * cares about most: the effective cost. The snapshot carries `writtenEffectiveCost`
+ * alongside the pre-edit entity for exactly this: it is the effective figure `run()`
+ * itself just produced (recomputed on every successful call, redo included, never derived
+ * from `entity` — that field is the PRE-edit value the restore is about to WRITE, the
+ * opposite of what undo is moving away from). No repository round trip is needed to learn
+ * it: whenever the restore's compare-and-swap lets `save()` succeed, the live entity IS
+ * what this adapter's own last write produced, so `run()`'s own returned entity already
+ * holds the answer. `publishIfEffectiveCostChanged` is handed both figures after the
+ * restore succeeds — the same helper `SetRequirementQuantityOverrideCommand.write`
+ * (`SetRequirementQuantityOverride.ts`) and `SetRequirementCostOverrideCommand.write`
+ * (`SetRequirementCostOverride.ts`) each call for their own forward write, so an unmoved
+ * figure (a cost override undone back to a value equal to what was already calculated) is
+ * truthfully silent rather than a gap.
  */
 // Internal by construction: the two exported adapters below are its only subclasses, and
 // `export`ing it to clear the leak traded those two findings for an `unused-exports` one —
@@ -87,13 +106,23 @@ abstract class ReversibleOverrideBase<TInput> {
 			}
 			const ran = await this.run(input);
 			if (!ran.ok) return ran;
-			// Captured ONCE, after the first successful write — redo reuses it.
-			this.snapshot = { entity: before.value.entity, postVersion: ran.value.version };
+			// Captured ONCE, after the first successful write — redo reuses the pre-edit
+			// `entity`. `writtenEffectiveCost` is NOT captured once: see the field's own
+			// docblock on `Snapshot`.
+			this.snapshot = {
+				entity: before.value.entity,
+				postVersion: ran.value.version,
+				writtenEffectiveCost: effectiveValue(ran.value.requirement.estimatedCost),
+			};
 			return ok('wrote');
 		}
 		const ran = await this.run(input);
 		if (!ran.ok) return ran;
-		this.snapshot = { ...this.snapshot, postVersion: ran.value.version };
+		this.snapshot = {
+			...this.snapshot,
+			postVersion: ran.value.version,
+			writtenEffectiveCost: effectiveValue(ran.value.requirement.estimatedCost),
+		};
 		return ok('wrote');
 	}
 
@@ -102,23 +131,12 @@ abstract class ReversibleOverrideBase<TInput> {
 		if (!captured) {
 			return err({ category: 'Domain', code: 'undo.before-execute', message: 'Nothing to undo yet.' });
 		}
-		// `previous` lives in the LIVE requirement, read before the restore write moves
-		// it — the snapshot's own `entity` is the value the restore is about to WRITE, not
-		// the one undo is moving away from. Falling back to the snapshot's own figure when
-		// the live read comes back empty costs nothing real: the restore below re-presents
-		// `captured.postVersion` against a repository that no longer holds this id, which
-		// `isErr(saved)` catches before this fallback value is ever published.
-		const live = await this.requirements.getById(captured.entity.id);
-		if (isErr(live)) return err(live.error);
-		const previous = live.value === null
-			? effectiveValue(captured.entity.estimatedCost)
-			: effectiveValue(live.value.entity.estimatedCost);
 		// Whole-entity conditional restore; `null` overrides are VALUES inside the
 		// snapshot, so "reset to calculated" undoes back to the typed figure.
 		const saved = await this.requirements.save(captured.entity, captured.postVersion);
 		if (isErr(saved)) return err(saved.error);
 		this.snapshot = { ...captured, postVersion: saved.value.version };
-		await publishIfEffectiveCostChanged(this.events, saved.value.entity, previous);
+		await publishIfEffectiveCostChanged(this.events, saved.value.entity, captured.writtenEffectiveCost);
 		return ok('wrote');
 	}
 

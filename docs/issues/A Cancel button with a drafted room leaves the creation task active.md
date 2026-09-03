@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Start one creation task from Add]]"
 order: 10
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -66,6 +66,17 @@ changing Escape's separately specified precedence unless that contract is delibe
 Change the drafted-room banner test to require `activeToolId === 'select'`, a null sketch and an
 absent banner. Amend the PBI and [[Run one temporary creation task from Add]] closing evidence so
 they no longer cite the current keep-active assertion.
+
+## What closed it
+
+**2026-09-04.** `createCancelActiveTask` no longer delegates to `routeEscape`: Cancel now
+discards whatever the tool holds (`toolManager.cancelGesture()`) and returns to Select
+(`setTool('select')`) in one gesture, never touching the selection — the ruling recorded as R7.
+Holding test: `tests/presentation/editor/shell/temporaryToolBanner.test.ts` › TemporaryToolBanner
+› 'Cancel returns to Select whether or not a draft exists, and a drafted room is discarded with
+it', plus the sibling 'Cancel under Select is a no-op: nothing to leave, and the selection is
+untouched'. Commit "fix(banner): Cancel leaves the creation task — clear the draft and return to
+Select".
 
 ## References
 

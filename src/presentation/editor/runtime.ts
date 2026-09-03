@@ -38,7 +38,6 @@ import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispat
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
-import { routeEscape } from './escapeRouting';
 
 /**
  * One Plan Editor leaf's live machinery (design slice 8): the history and its refresh
@@ -68,12 +67,9 @@ export interface EditorRuntime {
 	 */
 	readonly returnToSelect: () => void;
 	/**
-	 * Task 18's Cancel button — `routeEscape` (Task 9), called with `panning: false` over the
-	 * SAME deps `EditorSurface.onKeyDown`'s Escape branch already builds, so a mouse user's
-	 * Cancel and a keyboard user's Escape decide the outcome through one function rather than
-	 * two answers to the same question. `panning` is always `false` here because a banner
-	 * button lives in the canvas overlay slot, which `.rp-plan-overlay` already keeps a
-	 * pointer press out of the camera — there is no gesture for this door to interrupt.
+	 * Task 18's Cancel button. NOT `routeEscape` (R7, 2026-09-04): Cancel LEAVES the active
+	 * creation task in one gesture — discard any draft, return to Select — where Escape steps
+	 * back through the nearest interaction instead. See `createCancelActiveTask` below.
 	 */
 	readonly cancelActiveTask: () => void;
 	/**
@@ -465,31 +461,23 @@ function registerSelectionRetirement(
 }
 
 /**
- * Task 18's Cancel button, pulled out of `buildRuntime` for its 100-line `max-lines-per-function`
- * budget — the same reason `selectAndFrameOn`/`registerSelectionRetirement` above are module-scope
- * rather than local closures. Built over the identical deps `EditorSurface.onKeyDown`'s Escape
- * branch already passes to `routeEscape`, so a mouse user's Cancel and a keyboard user's Escape
- * decide the outcome through one function rather than two answers to the same question.
- * `panning` is always `false`: a banner button lives in the canvas overlay slot, which
- * `.rp-plan-overlay` already keeps a pointer press out of the camera, so there is no gesture for
- * this door to interrupt.
+ * Task 18's Cancel button. NOT `routeEscape` (R7, 2026-09-04): Escape steps back through the
+ * nearest interaction — a draft first, then the tool, then the selection — while Cancel means
+ * LEAVE THIS TASK, which is what the PBI's criterion 7 and its main flow step 6 say a
+ * cancellation does. So it discards whatever the tool holds and returns to Select in one gesture,
+ * and it never touches the selection, which no cancellation of a creation task is about.
+ * Under Select (or with no tool) there is no task to leave, and it does nothing.
  */
 function createCancelActiveTask(
 	toolManager: ToolManager,
 	activeToolId: Ref<ToolId | null>,
 	setTool: (id: ToolId | null) => void,
-	selection: ReturnType<typeof useSelectionStore>,
 ): () => void {
 	return (): void => {
-		routeEscape({
-			panning: false,
-			activeToolId: activeToolId.value,
-			hasDraft: () => toolManager.activeToolHasDraft(),
-			cancelGesture: () => toolManager.cancelGesture(),
-			setTool,
-			hasSelection: selection.selectedIds.length > 0,
-			clearSelection: () => selection.clear(),
-		});
+		const tool = activeToolId.value;
+		if (tool === null || tool === 'select') return;
+		toolManager.cancelGesture();
+		setTool('select');
 	};
 }
 
@@ -609,7 +597,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const { activeToolId } = storeToRefs(editor);
 	const setTool = createToolSwitch(toolManager, activeToolId);
 	const returnToSelect = (): void => setTool('select');
-	const cancelActiveTask = createCancelActiveTask(toolManager, activeToolId, setTool, selection);
+	const cancelActiveTask = createCancelActiveTask(toolManager, activeToolId, setTool);
 
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect });
 

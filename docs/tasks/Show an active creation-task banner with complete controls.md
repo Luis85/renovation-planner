@@ -46,7 +46,7 @@ An active creation task is always visible, understandable and controllable witho
 `select`. Criterion 1 is `tests/presentation/editor/shell/temporaryToolBanner.test.ts`'s 'is
 absent under Select and names the task under a creation tool' and 'names the calibrate task under
 the calibrate tool' — a name and one instruction, both from the locale table. Criterion 5 is its
-Cancel case, which retires the banner by returning to Select.
+Cancel case: Cancel retires the banner by returning to Select, discarding any draft.
 
 The banner's only control is Cancel. So criterion 2's FINISH is unmet: a polygon finishes by
 clicking its own first corner and nothing in the banner says so. Criterion 3's REMOVE LAST is

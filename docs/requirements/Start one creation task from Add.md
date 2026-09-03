@@ -122,8 +122,9 @@ rather than by the menu) and 'focus leaving the menu for another control in the 
 retires it, and nothing else moves'; criterion 6 is 'an unsupported item is
 aria-disabled with its reason and Enter on it changes nothing'; criterion 7's default half is
 `tests/presentation/editor/tools/drawPolygonTool.test.ts`'s `onCompleted` cases bound to
-`returnToSelect`, and `tests/presentation/editor/shell/temporaryToolBanner.test.ts` for the cancel
-half.
+`returnToSelect`, and `tests/presentation/editor/shell/temporaryToolBanner.test.ts`'s 'Cancel
+returns to Select whether or not a draft exists, and a drafted room is discarded with it' for the
+cancel half.
 
 **2026-09-04** — criterion 3's close half no longer depends on where focus rests: it used to be
 provable only by dispatching Escape on the menu element itself, and Tab moving focus out of the
@@ -143,5 +144,4 @@ Remains:
   and nothing else, so Add stays live over content the last read-back could not confirm; the same
   residue [[Inspect a selected room]] records for Delete.
 
-- [[A Cancel button with a drafted room leaves the creation task active]]
 - [[The manual keymap claim points to a step that never invokes the keymap]]

@@ -5,6 +5,8 @@ import type { Command } from '../Command';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { EntityVersion } from '../../ports/versioning';
+import type { EventBus } from '../../../core/events/EventBus';
+import { requirementDeleted } from '../../../domain/requirement/Requirement.events';
 import { loadRequirement } from './loadRequirement';
 
 export interface DeleteRequirementInput {
@@ -22,7 +24,10 @@ export class DeleteRequirementCommand
 	implements
 		Command<DeleteRequirementInput, Result<{ requirementId: RequirementId }, ReferenceError | RepositoryError>>
 {
-	constructor(private readonly requirements: RequirementRepository) {}
+	constructor(
+		private readonly requirements: RequirementRepository,
+		private readonly events: EventBus,
+	) {}
 
 	async execute(
 		input: DeleteRequirementInput,
@@ -34,6 +39,15 @@ export class DeleteRequirementCommand
 			input.expected ?? loaded.value.version,
 		);
 		if (isErr(deleted)) return deleted;
+		// AFTER the write, per SDD §32 — an event is a statement that something happened.
+		// The project comes off the entity this command has already loaded, so nothing is
+		// re-read to supply it.
+		await this.events.publish(
+			requirementDeleted({
+				requirementId: input.requirementId,
+				projectId: loaded.value.entity.projectId,
+			}),
+		);
 		return ok({ requirementId: input.requirementId });
 	}
 }

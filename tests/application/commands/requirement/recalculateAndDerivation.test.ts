@@ -137,7 +137,7 @@ describe('DeleteRequirementCommand error propagation', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new DeleteRequirementCommand(requirements).execute({ requirementId: w.requirementId }),
+			await new DeleteRequirementCommand(requirements, w.events).execute({ requirementId: w.requirementId }),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -148,7 +148,7 @@ describe('DeleteRequirementCommand error propagation', () => {
 			delete: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new DeleteRequirementCommand(requirements).execute({ requirementId: w.requirementId }),
+			await new DeleteRequirementCommand(requirements, w.events).execute({ requirementId: w.requirementId }),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});

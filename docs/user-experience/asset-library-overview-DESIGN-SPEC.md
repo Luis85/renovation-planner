@@ -728,9 +728,18 @@ A user who has just moved their library needs one place that says where it lande
 | **Loading** | The shell, with a loading line in the shelves region. Never a spinner over an empty pane. **Held until the index scan has run** — see below |
 | **Empty** — no assets at all | `EmptyState` with a new registry entry `assetLibrary.noAssets`, headline, body, and an action button wired to `New asset`. Replaces the shelves region, not the shell: the toolbar and status bar stay |
 | **No matches** — search returns nothing | `assetLibrary.noMatches`, with an action that **clears the search field**. An action that restores the previous view, not one that creates something |
-| **Some unreadable** | The additive `.rp-view-notice` strip above the shelves, mirroring `view.project.some-unreadable`. The shelves still draw. Requires the list query to answer `{ assets, unreadable }`, the shape `ProjectListResult` already has |
+| **Some unreadable** | The additive `.rp-view-notice` strip above the shelves, and the strip **lists the paths** with an `Open note` beside each. The shelves still draw |
 | **Failed** — the whole read refused | `ViewFailure`, with a retry, except where `viewHydrationOrigin` says otherwise |
 | **Failed, unrecoverable** — `settings.unrecovered` | `ViewFailure` with **no retry button**: nothing was composed to re-run, so a retry is a live control that does nothing, which is the failure mode slice 14's own amendment refuses |
+
+**A count alone strands exactly the notes that need a human.** Two of the three unreadable
+sources (§5.1a) carry no usable id — a `no-id` note and a duplicate-id loser — so neither can be
+SELECTED, and the selection-level state that offers `Open note` is unreachable for them by
+construction. With a count-only notice the user is told *three could not be read* and given no way
+to learn which three or open any of them: the repair path this document argued for two sections
+earlier, withheld from the only rows that cannot reach it another way. The strip names each path
+and offers `Open note` per row, which needs nothing the read model does not already carry — it is
+what `UnreadableEntry.path` is FOR, and the first version of that field had nowhere to be shown.
 
 **An empty answer before the index has been scanned is not an empty vault, and on this surface
 that mistake invites the exact duplicate the feature exists to prevent.** Obsidian restores its
@@ -1061,9 +1070,17 @@ What differs per seam is only what makes two requests **the same request**:
   `RenovationProjectStore.hydrate`'s `latestHydration`. It is refreshed by events rather than by a
   gesture, so two arriving close together is the ordinary case rather than the fast-fingers one.
 
-- **The selection reads** are ticketed on a **monotonically increasing generation, one per
-  selection CYCLE** — bumped once when a selection begins and once when §5.4's refresh restarts
-  it, never once per read. A selection starts TWO independent reads (`GetAssetDesign` and
+- **The selection reads** are ticketed on **one generation per READ KIND**, and a selection
+  CHANGE bumps both together while a §5.4 refresh bumps only the read it actually invalidates.
+  Two spellings were tried before this one and each broke a different half. *Per read start*
+  makes the second read of a selection invalidate the first, so the section holding the older
+  ticket waits for a result nothing will deliver — **loading for ever**. *Per selection cycle*
+  fixes that and over-restarts: §5.4 refreshes the inspector's ASSET data, and rerunning the
+  cycle drags `ListRequirementsReferencing` — a scan of every requirement in the vault — along
+  with every geometry, height or background edit a designer leaf makes, flapping *Used in* back
+  into loading and disabling `Delete` while somebody works next door. A geometry change cannot
+  alter usage. **The unit of invalidation is the read, and the unit of restart is the gesture**,
+  which are different questions and were being answered with one counter. A selection starts TWO independent reads (`GetAssetDesign` and
   `ListRequirementsReferencing`, §3.5), and a counter bumped per read start makes the second
   invalidate the first: both answers are required, so the section holding the older ticket waits
   for a result that will now be discarded — **loading for ever, on the ordinary path**. That was
@@ -1253,6 +1270,7 @@ view.asset-library.none             view.asset-library.shape.loading
 view.asset-library.shape.gone       view.asset-library.shape.read-failed  (interpolated: {path})
 view.asset-library.clearance.unscaled
 view.asset-library.loading          view.asset-library.some-unreadable  (interpolated: {count})
+view.asset-library.some-unreadable.open-note
 view.asset-library.note-unreadable  (interpolated: {path})
 view.asset-library.asset-gone
 view.asset-library.shape.unusable-id
@@ -2415,6 +2433,30 @@ selection state could open the excluded note rather than the canonical one. The 
 `assetId: null`, for the reason already written one paragraph up: it is unreachable by id **by
 construction**, which is what losing means. No new field — **at most one entry carries any given
 id** is the property, and the existing rule already implied it.
+
+A fortieth round found three, and the ticket rule took its **third** spelling — the first two each
+broke a different half, which is worth recording as a shape rather than as an embarrassment.
+
+**Per read start** made the second read of a selection invalidate the first, so a section waited
+for a result nothing would deliver: loading for ever. **Per selection cycle** fixed that and
+over-restarted — §5.4 refreshes the inspector's ASSET data, and rerunning the whole cycle drags
+`ListRequirementsReferencing`, a scan of every requirement in the vault, along with every
+geometry, height or background edit a designer leaf makes, flapping *Used in* into loading and
+disabling `Delete` while somebody works next door. A geometry change cannot alter usage. **The
+unit of invalidation is the READ and the unit of restart is the GESTURE**, and one counter was
+answering both questions.
+
+**A count alone stranded exactly the notes that need a human.** Two of the three unreadable
+sources carry no usable id — a `no-id` note and a duplicate-id loser — so neither can be selected,
+and the selection state offering `Open note` is unreachable for them by construction. The user was
+told *three could not be read* with no way to learn which three: the repair path argued for two
+sections earlier, withheld from the only rows that cannot reach it another way. The strip names
+each path with `Open note` beside it, which is what `UnreadableEntry.path` was for and had nowhere
+to be shown.
+
+**And the overflow guard went to the mark and not to the dimensions beside it.** Finite vertices
+spanning an infinite extent made the row draw nothing while the inspector printed
+`Infinity × … mm` as a measurement. Same file pair, adjacent derivations, one round apart.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

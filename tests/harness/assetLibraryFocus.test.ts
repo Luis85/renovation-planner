@@ -71,6 +71,16 @@ describe('the asset library mock’s derived geometry', () => {
 		expect(path).toBe('');
 	});
 
+	it('withholds an overflowing extent rather than printing Infinity', () => {
+		// The mark got this guard first and the dimensions beside it did not, so the row drew
+		// nothing while the inspector printed `Infinity × … mm` as a measurement.
+		const overflowing = { ...ASSETS[0], outline: [
+			{ x: -1e308, y: 0 }, { x: 1e308, y: 0 },
+			{ x: 1e308, y: 1e-300 }, { x: -1e308, y: 1e-300 },
+		] };
+		expect(shapeDimensions(overflowing)).toBeNull();
+	});
+
 	it('never prints a positive extent as zero, at any scale', () => {
 		const tiny = { ...ASSETS[0], outline: [
 			{ x: 0, y: 0 }, { x: 1e-6, y: 0 }, { x: 1e-6, y: 1e-6 }, { x: 0, y: 1e-6 },

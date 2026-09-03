@@ -42,6 +42,14 @@ export function shapeDimensions(asset: CatalogueAsset | null): string | null {
 	// and `Number(...)` drops the trailing zeros so the ordinary whole-millimetre case still
 	// reads `1200 × 190`. The Asset designer shows its derived dimensions unrounded; this row is
 	// the same measurement and had been quietly disagreeing with it.
+	// **Guarded here as well as in `markPath`, which is where the guard went first.** Finite
+	// vertices can span an infinite extent, `boundsOf` hands back `Infinity`, and `millimetres`
+	// formats it as the literal string — so the row's mark correctly drew nothing while the
+	// inspector beside it printed `Infinity × … mm` as a measurement. The round that fixed the
+	// mark did not look one function over, in the same pair of files. `null` withholds the row;
+	// the real surface answers with §3.5's extent-overflow refusal, which a fixture that sets
+	// `ShapeState` by hand cannot represent.
+	if (!Number.isFinite(rawWidth) || !Number.isFinite(rawDepth)) return null;
 	const width = millimetres(rawWidth);
 	const depth = millimetres(rawDepth);
 	// The unit is WITHHELD while this group's capture is pending, exactly as the clearance's is.

@@ -85,12 +85,21 @@ tested today.
 | --- | --- | --- |
 | `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 96 |
 | `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 39 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 108 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 114 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 12 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 9 |
 
-**264 steps across FOURTEEN cases, and this paragraph has now proved itself a FIFTH time — at
-the merge it predicted, in the shape it predicted.** The per-project price override branch
+**270 steps across FIFTEEN cases, and this paragraph has now proved itself a SIXTH time — this
+time in the commit that ADDED the case, which is a shape the previous five did not have.** The
+asset library increment appended [[Open the Asset Library]] to the `## Cases` list below and left
+this paragraph reading 264 across fourteen, so the file contradicted itself within one commit
+rather than across a merge. `obsidian` moved 108 → 114 with it; the other four verdicts did not
+move. Re-run of both greps below against the current tree, taken in the edit that wrote this.
+
+**The remedy is no longer a more careful paragraph.** Five previous corrections were each careful
+and each went stale, so a sixth careful sentence predicts a seventh staleness. What changes here is
+that the greps are the authority and this prose is a snapshot of them — read the number by running
+them, and treat any figure written above as the day it was taken. Earlier account follows.** The per-project price override branch
 measured 239 across thirteen and the asset designer branch measured 243 across thirteen; both
 were correct on the day and neither is correct now, because each had counted a tree without the
 other's case in it ([[Price a shared asset for one project]] and [[Design an Asset]]

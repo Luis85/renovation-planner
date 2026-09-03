@@ -5,7 +5,7 @@
  * deliberately does not run here.)
  *
  * `deAssetLibrary` is spread in for the same reason `en.ts` spreads `enAssetLibrary`: this
- * file had 24 lines of `max-lines` headroom and the Asset library's §8 inventory is 58 keys.
+ * file had 24 lines of `max-lines` headroom and the Asset library's §8 inventory is 59 keys (58 at first ship, plus `view.asset-library.door` by amendment).
  * `de` is still the one object `strings.test.ts`'s completeness check reads.
  */
 import type { StringKey } from './en';

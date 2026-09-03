@@ -14,6 +14,23 @@ import { isErr } from '../../../src/core/result/Result';
 const amountsIn = (value: string): string[] => value.match(/\d[\d.,]*\d|\d/g) ?? [];
 
 /**
+ * §8's Asset library inventory, as it appears in a locale table.
+ *
+ * THREE prefixes, not two. The first draft of the case below filtered `view.` and `empty.` alone
+ * and answered 58 — because `command.open-asset-library` is §8's inventory too and carries
+ * neither. It caught its own filter on its first run, which is the whole argument for pinning a
+ * count rather than describing one: a wrong description reads exactly like a right one, and a
+ * wrong assertion goes red.
+ */
+const assetLibraryKeys = (table: Record<string, string>): string[] =>
+	Object.keys(table).filter(
+		(key) =>
+			key.startsWith('view.asset-library.') ||
+			key.startsWith('empty.asset-library.') ||
+			key === 'command.open-asset-library',
+	);
+
+/**
  * The currency is irrelevant to the question and any valid code answers it: `AMOUNT_PATTERN` is
  * the half under test and it never sees the currency.
  */
@@ -211,5 +228,24 @@ describe('interpolation', () => {
 		for (const [key, german] of Object.entries(de) as [StringKey, string][]) {
 			expect(holesIn(german), `de.ts holes for ${key}`).toEqual(holesIn(en[key]));
 		}
+	});
+
+	/**
+	 * The Asset library's key count, PINNED rather than described.
+	 *
+	 * This number lived in prose in four docblocks and went stale SIX times on the branch that
+	 * introduced it — once fifteen lines above the very comment announcing the key that had just
+	 * changed it. Every correction was careful and every one went stale, so a seventh careful
+	 * sentence predicts an eighth staleness; the remedy is an assertion, which cannot.
+	 *
+	 * It is a RANGE-free exact count on purpose. A `toBeGreaterThan` would pass through exactly
+	 * the additions this exists to make deliberate: §8's inventory is a closed list the spec
+	 * states, so a 60th key is a spec amendment somebody makes rather than a gap somebody fills,
+	 * and this case is where they find that out. Both locales are counted because an incomplete
+	 * `de.ts` is permitted by the type and would otherwise drift silently.
+	 */
+	it('pins the Asset library inventory at 59 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(59);
+		expect(assetLibraryKeys(de)).toHaveLength(59);
 	});
 });

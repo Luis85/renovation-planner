@@ -744,7 +744,8 @@ interface CatalogueEntryDto {
   height: number | null; notes: string | null;
   background: AssetBackgroundRef | null;
 }
-interface CatalogueListing { entries: readonly CatalogueEntryDto[]; unreadable: readonly AssetId[]; }
+interface UnreadableEntry { assetId: AssetId; path: string; }
+interface CatalogueListing { entries: readonly CatalogueEntryDto[]; unreadable: readonly UnreadableEntry[]; }
 ```
 
 `ListAssets` exists and answers `Asset[]` for the assign picker. It is **not** reused: it returns
@@ -789,8 +790,17 @@ than something a query can paper over. It is small, it has a precedent to copy, 
 belongs in this document is that a spec claiming a layer is untouched is a spec somebody plans
 against.
 
-**And it carries the IDS, not only the count** — one field wider than the project precedent, for a
-reason this surface has and the project list does not. A selection here names one asset, and a
+**And it carries a DESCRIPTOR per unreadable note — `{ assetId, path }` — not only a count** — wider than the project precedent, for a
+reason this surface has and the project list does not.
+
+**And each entry carries the note's PATH, not only its id**, which the round that added the ids
+did not think through: `view.asset-library.note-unreadable` interpolates a name, and there is no
+name to interpolate. The `CatalogueEntryDto` was discarded — that is what "unreadable" means — and
+`ProjectIndexEntry` stores no display name either, so the only things available are the id and the
+path the index already holds. **The path is also the better of the two**: it is the file a user has
+to open to repair the frontmatter, and `Open note` needs it regardless, so the state's copy and
+its one action want the same value. An id would have been an opaque string in a sentence asking
+somebody to go and fix something. A selection here names one asset, and a
 listing that omits the unreadable ones cannot say whether the selected id is *unreadable* or
 *absent*: both arrive as "no entry". Those want opposite answers. An absent asset is gone and there
 is nothing to do about it; an unreadable one has a note **on disk**, and opening that note is
@@ -1030,7 +1040,7 @@ Every gesture reachable without a pointer, per PRODUCT.md's binding WCAG 2.2 AA 
 | `Tab` | Moves through: search, `New asset`, each **collapsible** shelf header, each row of an expanded shelf, the inspector's fields and actions |
 | `Enter` / `Space` on a collapsible shelf header | Toggles the shelf |
 | `Enter` / `Space` on a row | Selects it into the inspector |
-| `↑` / `↓` within a shelf | Moves between rows, wrapping into the next shelf's header at the ends |
+| `↑` / `↓` within a shelf | Moves between rows, wrapping into the next **focusable** header at the ends — empty shelves are skipped, having no header to focus |
 | `Escape` in the search field | Clears it |
 | `Escape` in an inspector field | Resyncs that one field (`useFieldCommit.onCancel`) — one field, not the panel, exactly as the Plan editor's Inspector already behaves |
 
@@ -1155,7 +1165,7 @@ view.asset-library.none             view.asset-library.shape.loading
 view.asset-library.shape.gone       view.asset-library.shape.read-failed  (interpolated: {path})
 view.asset-library.clearance.unscaled
 view.asset-library.loading          view.asset-library.some-unreadable  (interpolated: {count})
-view.asset-library.note-unreadable  (interpolated: {name})
+view.asset-library.note-unreadable  (interpolated: {path})
 view.asset-library.asset-gone
 view.asset-library.shape.unusable-id
 view.asset-library.shape.extent-overflow
@@ -2124,6 +2134,24 @@ dimensions, with no such ceiling.
 
 Both pinned and watched failing against their mutations — the first reporting `'0 × 0 mm'` where a
 micron-scale footprint is real, the second the `RangeError` itself.
+
+A thirty-first round found two, and both are the round before it stopping one row short.
+
+**The `note-unreadable` copy interpolates a name that nothing can supply.** An unreadable note has
+no `CatalogueEntryDto` — that is what unreadable means — and `ProjectIndexEntry` stores no display
+name, so the state introduced to stop an existing asset reading as *gone* could not fill its own
+sentence. The listing carries `{ assetId, path }` per unreadable note now rather than a bare id.
+**The path is the better value anyway**, which is the part worth keeping: it is the file a user
+must open to repair the frontmatter, and `Open note` needs it regardless — the state's copy and
+its one action want the same thing, and an id would have been an opaque string in a sentence
+asking somebody to go and fix something.
+
+**And §6.2's arrow row still wrapped into "the next shelf's header".** The round before had just
+scoped Tab and Enter/Space to *collapsible* headers, in the same table, two rows up — and left
+this one, where an empty shelf's non-interactive `<h3>` is exactly what `moveFocus` skips by
+collecting only buttons. **Third appearance of that one heading** (the post-delete fallback, the
+Tab and Enter rows, now the arrows), and the second time a fix has covered the rows its report
+named and not the row beside them.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

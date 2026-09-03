@@ -1822,6 +1822,16 @@ MSG
 
 ## Task 10: Crash recovery announces, and `RecoveryDeps.events` is required
 
+**Four undefined names in this task, not one.** Beside `recoveryRig`, the snippets call
+`interruptedDeleteAnyway(...)`, `interruptedRemoveReferences(...)` and
+`interruptedWithMovedCost(...)`; grep-verified, none of the four exists in `src/` or `tests/`.
+They are marker-state builders you write — each one seeds a `SequenceMarker` whose `progress`
+puts the recovery on the arm its name describes — and the assertions below are the contract for
+what each must produce. Read them together before writing any of the four, because the split
+that matters (a `written` entry restores and raises `RequirementRestored`, an `'absent'` one
+inserts and raises `RequirementCreated`) is a property of the marker you build, not of the
+recovery code under test: a builder that emits only one kind makes half the cases vacuous.
+
 **The rig in the snippet below DOES NOT EXIST — you are writing it, and the snippet is its
 contract rather than a call to something already there.** Grep-verified across `src/` and
 `tests/`. This plan invents a rig in four separate tasks and names none of them as new; Task 7
@@ -2392,6 +2402,17 @@ MSG
 ---
 
 ## Task 12: `RequirementRepository.listByProject`
+
+**`this.listTolerantly(ids)` does not exist and this plan never defines it.** One occurrence,
+no definition, and `ObsidianRequirementRepository` has no such helper today — grep-verified.
+It is yours to write, and its contract is the paragraph directly beneath the snippet: SKIP AND
+COUNT rather than propagate, which is the whole difference from `listByZone` and the reason
+this task exists at all. `listByZone` returns on the first unreadable note, and Task 12's
+premise is that one malformed note anywhere in the vault must not fault a project-wide walk.
+So `listTolerantly` reads each id, skips one it cannot read, counts the skip once, and returns
+the rest — and `listByZone` must be left exactly as it is, because `DeleteZoneCommand` relies
+on its strict error. Do not "share" one implementation between them; that is the widening this
+task was specified to avoid.
 
 > **Increment 2 foundation.** This ships with unit tests and no production caller. Read the
 > *Why this is increment 1 of two* section above before starting.

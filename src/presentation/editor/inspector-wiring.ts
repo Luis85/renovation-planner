@@ -123,6 +123,7 @@ export function createInspector(
 							zones: context.commands.zones,
 							assets: context.commands.requirementEdits.assets,
 							locks: context.commands.requirementEdits.locks,
+							events: context.commands.events,
 						},
 						{ zoneId: edit.zoneId, assetId: edit.assetId },
 					);

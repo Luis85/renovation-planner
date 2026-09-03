@@ -263,7 +263,7 @@ function makeAdapter(w: Awaited<ReturnType<typeof requirementFixture>> & { zoneI
 	});
 	return new ReversibleAssignAssetCommand(
 		assign,
-		{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks },
+		{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks, events: w.events },
 		{ zoneId: w.zoneId as never, assetId: w.assetId as never },
 	);
 }

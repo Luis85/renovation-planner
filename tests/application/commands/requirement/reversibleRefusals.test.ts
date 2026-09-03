@@ -71,7 +71,7 @@ describe('ReversibleAssignAssetCommand refusals', () => {
 		const w = await wiredWithLink();
 		const adapter = new ReversibleAssignAssetCommand(
 			w.assign,
-			{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks },
+			{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks, events: w.events },
 			{ zoneId: w.zoneId, assetId: 'asset-none' as never },
 		);
 		const error = expectErr(await adapter.execute());
@@ -83,7 +83,7 @@ describe('ReversibleAssignAssetCommand refusals', () => {
 		const otherZone = await freshZone(w);
 		const adapter = new ReversibleAssignAssetCommand(
 			w.assign,
-			{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks },
+			{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks, events: w.events },
 			{ zoneId: otherZone.entity.id, assetId: w.assetId },
 		);
 		const executed = await adapter.execute();
@@ -105,7 +105,7 @@ describe('ReversibleAssignAssetCommand refusals', () => {
 		const otherZone = await freshZone(w);
 		const adapter = new ReversibleAssignAssetCommand(
 			w.assign,
-			{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks },
+			{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks, events: w.events },
 			{ zoneId: otherZone.entity.id, assetId: w.assetId },
 		);
 		expectOk(await adapter.execute());
@@ -122,7 +122,7 @@ describe('ReversibleAssignAssetCommand refusals', () => {
 		const otherZone = await freshZone(w);
 		const adapter = new ReversibleAssignAssetCommand(
 			w.assign,
-			{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks },
+			{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks, events: w.events },
 			{ zoneId: otherZone.entity.id, assetId: w.assetId },
 		);
 		const executed = await adapter.execute();

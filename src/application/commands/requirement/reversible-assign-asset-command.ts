@@ -6,8 +6,10 @@ import type {
 } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import { UNIT_KIND } from '../../../core/units/MeasurementUnit';
+import type { EventBus } from '../../../core/events/EventBus';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
+import { requirementCreated, requirementDeleted } from '../../../domain/requirement/Requirement.events';
 import type { AssetRepository } from '../../ports/AssetRepository';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
@@ -66,6 +68,14 @@ export interface ReversibleAssignDeps {
 	readonly zones: ZoneRepository;
 	readonly assets: AssetRepository;
 	readonly locks: ReferenceLocks;
+	/**
+	 * The bus BOTH silent halves announce on. `execute()`'s first call needs none — the
+	 * plain `AssignAssetCommand` it dispatches publishes `RequirementCreated` itself — but
+	 * `redoCreate` writes straight through `requirements.save`, past that command, and
+	 * `undo` writes straight through `requirements.delete`: neither had a bus to reach
+	 * until this adapter was constructed in `presentation/` with nowhere to get one.
+	 */
+	readonly events: EventBus;
 }
 
 export class ReversibleAssignAssetCommand {
@@ -111,6 +121,11 @@ export class ReversibleAssignAssetCommand {
 		// recalculation landed since is a conflict, not a casualty.
 		const deleted = await this.deps.requirements.delete(recorded.snapshot.id, recorded.version);
 		if (isErr(deleted)) return err(deleted.error);
+		// Only in this arm: a 'found' outcome wrote nothing, so there is nothing this
+		// undo removed, and announcing here would report a deletion that never happened.
+		await this.deps.events.publish(
+			requirementDeleted({ requirementId: recorded.snapshot.id, projectId: recorded.snapshot.projectId }),
+		);
 		return ok('wrote');
 	}
 
@@ -152,6 +167,16 @@ export class ReversibleAssignAssetCommand {
 			// Only the ID is carried over; validity was just re-established.
 			const saved = await this.deps.requirements.save(recorded.snapshot, 'absent');
 			if (isErr(saved)) return err(saved.error);
+			// The recorded VERSION must move to this save's own — the snapshot's own id is
+			// stable across redo, but a stale version here is what a bare publish-without-fix
+			// would leave standing: on execute -> undo -> redo -> undo, the second undo would
+			// present the FIRST execute's version as `expected`, the delete would refuse as an
+			// external modification, and no RequirementDeleted would follow it because the
+			// write never happened.
+			this.outcome = { kind: 'created', snapshot: recorded.snapshot, version: saved.value.version };
+			await this.deps.events.publish(
+				requirementCreated({ requirementId: saved.value.entity.id, projectId: saved.value.entity.projectId }),
+			);
 			return ok({ requirementId: saved.value.entity.id, outcome: 'wrote' });
 		} finally {
 			release();

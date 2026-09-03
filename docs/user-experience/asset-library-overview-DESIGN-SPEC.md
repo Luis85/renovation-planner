@@ -486,9 +486,15 @@ Four sections, in this order:
      or this row's promise to name the file, and not both. Adding a field to `BaseError` is a
      change to every error in the plugin for one row's benefit; printing the developer message is
      the raw-`Error.message`-in-a-notice defect `NOTICE_TEXT_BAN` exists to refuse. So the path
-     rides on **this surface's own read model** instead: the query already derives it — that is
-     what `AssetGeometryStore.pathFor` does — and hands back `sidecarPath` beside the refusal,
-     which an interpolated key then names. It is absent for `unusable-id` by construction, since
+     rides on **this surface's own read model**, and getting it there is a **port change** — which
+     the first version of this paragraph got wrong. It said the query "already derives it — that is
+     what `AssetGeometryStore.pathFor` does", and the query cannot reach that method: it holds the
+     `AssetGeometrySidecar` PORT, whose `read` answers `Result<AssetGeometrySnapshot,
+     RepositoryError>`, and `pathFor` is private to the store. So the port's refusal carries a
+     `sidecarPath` — the store has it at the moment it refuses — and `GetAssetDesign` passes it
+     through for an interpolated key to name. **The same shape as §5.1a**: a surface needing a
+     distinction the port does not draw is a port change, not something a query can paper over.
+     This document has now made that mistake twice and had it caught by review both times. It is absent for `unusable-id` by construction, since
      no path could be derived, and that row does not promise one. Reported by a review bot against
      a promise this document made one round earlier.
 
@@ -1975,6 +1981,34 @@ Written as *an entry leaving the listing* rather than as *`AssetDeleted`*, becau
 produce the identical staleness and raise no delete event — a note becoming unreadable, which
 §5.1a moves out of `entries`, and a hand-edited id changing which asset a row IS. The report named
 the deletion; **a rule was cheaper than the list and covers the two it did not name.**
+
+A twenty-sixth round found four, and two of them are remedies this document proposed that could
+not be implemented as written.
+
+**The path remedy named a private method the query cannot reach.** One round earlier §3.5 said the
+query "already derives it — that is what `AssetGeometryStore.pathFor` does". It does not: the query
+holds the `AssetGeometrySidecar` PORT, whose `read` answers `Result<AssetGeometrySnapshot,
+RepositoryError>`, and `pathFor` is private to the store. So the remedy for a promise the error
+shape could not keep was itself a promise the port could not keep. It is a port change now — the
+refusal carries `sidecarPath`, which the store has at the moment it refuses — **the same shape as
+§5.1a**, and the second time this document has answered "the port does not draw this distinction"
+with a query-level fix.
+
+**And §5.3's bound had not carried into the paragraph immediately after it.** *"The shelf batch is
+bound to expanded shelves"* — the bound replaced several rounds ago, still being described two
+paragraphs below the section that replaced it, where a builder following it would read every
+sidecar in a large shelf and might never batch the flat search list at all. That is now the
+**fifth** instance of one section outliving another's change, and the third inside §5.
+
+**The post-delete chain dropped past a perfectly good neighbour while searching.** §6.1 replaces
+every shelf with the flat Results list, so the shelf row that rule names is not mounted, and the
+chain fell straight to the search field with another matching result on screen. The destination is
+*the next row the user can actually see*, and which list holds that row depends on the state — the
+rule was written as though one list existed.
+
+**The unselected-inspector prompt had no key** — the one sentence the wide layout shows when
+nothing is selected, missing from an inventory that calls itself exhaustive. Third key found
+missing there; §8's own note about being the section most exposed to drift keeps earning itself.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

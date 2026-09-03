@@ -91,6 +91,14 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.inspector.linked.documents': 'Dokumente',
 	'editor.inspector.linked.photos': 'Fotos',
 	'editor.inspector.linked.notes': 'Notizen',
+	// „Bibliothekspreis" für den geteilten Katalogpreis, „Projektpreis" für den eigenen Preis
+	// dieses Projekts. Kein „Material" und kein „Asset": ein Asset heißt in dieser Oberfläche
+	// `Objekt` (siehe `editor.inspector.requirement.asset`). Kamen mit dem Preis-Override-Increment
+	// auf `main` und wurden beim Merge in den Editor-Foundation-Branch hierher verschoben.
+	'editor.inspector.price-library': 'Bibliothekspreis',
+	'editor.inspector.price-project': 'Projektpreis',
+	'editor.inspector.price-in-force': 'Aktiv',
+	'editor.inspector.price-derived-from': 'Berechnet aus',
 	'editor.zone.default-name': 'Zone',
 	'editor.canvas': 'Grundriss-Zeichenfläche',
 	'editor.status': 'Status',

@@ -83,6 +83,18 @@ export interface EditorHarness {
 	 */
 	readonly changeCatalogue: () => void;
 	/**
+	 * Fire the injected price-change subscription, as `SetAssetPriceOverride` in another leaf
+	 * would. Its own door for the same reason `changeCatalogue` is: the library's price and
+	 * this project's own price are two of the unit-cost block's three inputs, and a driver that
+	 * could only fire one could not show that both are wired.
+	 */
+	readonly changeProjectPrices: () => void;
+	/**
+	 * Fire the injected requirement-figures subscription for ONE requirement, as the
+	 * recalculation cascade would. It takes the id because the consumer filters on it.
+	 */
+	readonly changeRequirementFigures: (requirementId: string) => void;
+	/**
 	 * Fire the injected vault-file subscription for one path, as Obsidian's `create`, `modify`,
 	 * `delete` or `rename` would. Its own door and not an alias of `changePlan`: the whole point
 	 * of this source is that a background file moves without the subject being re-read, so a
@@ -191,6 +203,8 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	let focusedLeaf = 0;
 	const planListeners = new Set<() => void>();
 	const catalogueListeners = new Set<() => void>();
+	const priceListeners = new Set<() => void>();
+	const figureListeners = new Set<(requirementId: string) => void>();
 	const fileListeners = new Set<(path: string) => void>();
 
 	// `plan` is `PlanDto | null | undefined` here: `undefined` means the option was
@@ -218,6 +232,18 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		onCatalogueChanged: (listener) => {
 			catalogueListeners.add(listener);
 			return () => catalogueListeners.delete(listener);
+		},
+		// Their OWN sets too, for the reason above: the price door, the catalogue door and the
+		// figure door fire on different events, and the whole argument for these sources is that
+		// one of them cannot stand in for another. A fixture that aliased any two could not tell
+		// a build that had merged them back from one that had not.
+		onProjectPricesChanged: (listener) => {
+			priceListeners.add(listener);
+			return () => priceListeners.delete(listener);
+		},
+		onRequirementFiguresChanged: (listener) => {
+			figureListeners.add(listener);
+			return () => figureListeners.delete(listener);
 		},
 		// Its OWN set again, for the reason the catalogue door gives: this one carries a PATH and
 		// fires for files no domain event ever mentions.
@@ -281,6 +307,14 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		},
 		changeCatalogue: () => {
 			for (const listener of catalogueListeners) listener();
+		},
+		changeProjectPrices: () => {
+			for (const listener of priceListeners) listener();
+		},
+		// Takes the id the real source delivers, because the consumer FILTERS on it — a driver
+		// that made one up could not exercise the filter it exists to drive.
+		changeRequirementFigures: (requirementId: string) => {
+			for (const listener of figureListeners) listener(requirementId);
 		},
 		changeFile: (path: string) => {
 			for (const listener of fileListeners) listener(path);

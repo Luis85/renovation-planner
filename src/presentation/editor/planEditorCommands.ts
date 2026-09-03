@@ -228,6 +228,7 @@ export function unavailablePlanEditorCommands(): PlanEditorCommandServices {
 				events,
 				locks,
 				projects: refusingPort(),
+				overrides: refusingPort(),
 			}),
 			setQuantityOverride: new SetRequirementQuantityOverrideCommand(refusingPort(), events, locks),
 			setCostOverride: new SetRequirementCostOverrideCommand(refusingPort(), events, locks),

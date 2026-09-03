@@ -6,6 +6,7 @@ import { InMemoryPlanRepository } from '../../../../src/infrastructure/persisten
 import { InMemoryProjectRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryAssetRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { InMemoryRequirementRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
+import { InMemoryAssetPriceOverrideRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { ReferenceLocks } from '../../../../src/application/reference/ReferenceLocks';
 import type { ZoneRepository } from '../../../../src/application/ports/ZoneRepository';
 import type { ZoneId } from '../../../../src/domain/zone/ZoneId';
@@ -37,6 +38,7 @@ async function wired(projectName = 'Renovation') {
 	const zones: ZoneRepository = new InMemoryZoneRepository();
 	const assets = new InMemoryAssetRepository();
 	const requirements = new InMemoryRequirementRepository();
+	const overrides = new InMemoryAssetPriceOverrideRepository();
 	const events = new RecordingEventBus();
 	const project = expectOk(await projects.save(makeProject({ name: projectName }), 'absent'));
 	const plan = expectOk(
@@ -50,6 +52,7 @@ async function wired(projectName = 'Renovation') {
 		zones,
 		assets,
 		requirements,
+		overrides,
 		events,
 		locks: new ReferenceLocks(),
 	};
@@ -110,6 +113,7 @@ function makeCommand(w: Wired) {
 		events: w.events,
 		locks: w.locks,
 		projects: w.projects,
+		overrides: w.overrides,
 	});
 }
 

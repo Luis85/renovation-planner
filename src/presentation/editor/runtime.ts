@@ -25,6 +25,7 @@ import { SelectTool } from './tools/select-tool';
 import { withEditorStateRefresh } from './tools/with-editor-state-refresh';
 import { wrapDispatcher } from './tools/wrap-dispatcher';
 import { useSaveStateStore } from './save-state/save-state-store';
+import { singleFlight } from '../composables/single-flight';
 import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { knownDistanceSupplier } from './shell/knownDistance';
@@ -249,48 +250,109 @@ function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): vo
  * for a note added by hand or arriving through sync. The picker now hears what it is
  * about and nothing else.
  *
- * **COALESCED, because hearing the right events is not the same as hearing few of them.**
- * A library migration renames every catalogue note one at a time and `VaultChangeAdapter`
- * announces each rename, so moving N assets delivers N events — and an unconditional read
- * per event is N vault-wide scans in every open editor, for a change of paths. Never more
- * than one read is in flight; a burst arriving during one collapses into exactly one more
- * after it. That the reads cannot OVERLAP is the second property, and it is what removes
- * the stale-overwrite race this repository has already recorded twice (`ProjectStore.hydrate`
- * and `InspectorStore` both carry a request ticket for it): an older scan cannot finish
- * after a newer one and put a deleted asset back, because there is never an older scan
- * still running. Both halves were reported in review against the commit that introduced
- * the first — `onPlanChanged` did not carry the entry event, so the old wiring could not
- * see a migration at all.
+ * **COALESCED, because hearing the right events is not the same as hearing few of them.** A
+ * library migration renames every catalogue note one at a time and `VaultChangeAdapter`
+ * announces each rename, so moving N assets delivers N events — and an unconditional read per
+ * event is N vault-wide scans in every open editor, for a change of paths. `singleFlight`
+ * (`presentation/composables/single-flight.ts`) is what makes that affordable, and its own
+ * header carries the mechanism and the reason it sits beside a request ticket rather than
+ * instead of one. Both halves were reported in review against the commit that introduced the
+ * first — `onPlanChanged` did not carry the entry event, so the old wiring could not see a
+ * migration at all.
  *
- * The trailing read is a REQUEST rather than a queue: ten events during one scan buy one
- * more scan, not ten. What that gives up is knowing which event the final read answers,
- * which nothing here needs — the read is a full catalogue snapshot either way.
+ * It MOVED out of this file when the project pane's price section became its second caller: one
+ * function with two callers cannot drift the way two hand-spelled copies can.
  */
+
+/**
+ * Is the requirement this event names one the Inspector is currently DRAWING?
+ *
+ * **It FAILS OPEN on an empty snapshot, and that is the whole of the function.** An
+ * id-membership test over an empty set admits nothing, and the rows are legitimately empty in
+ * two states that are not "this zone has no requirements": while the first read for a
+ * selection is still in flight (`hydrateFrom` clears them and then awaits two queries), and
+ * after a transient rows-query failure on a first hydrate, where there is nothing to preserve
+ * and `[]` is incomplete rather than empty. No flag tells those apart from a genuinely empty
+ * zone, and a filter exists to SKIP work — so the safe direction under uncertainty is to do
+ * the work. Without this arm a figure event landing in the hydration window is dropped, the
+ * read settles with the old provenance, and the stale row stands for the life of the
+ * selection: this increment turning a self-healing fault into a permanent one.
+ *
+ * The cost is bounded and is named rather than waved past: a selected zone that genuinely has
+ * no requirements re-reads once per recalculation event anywhere in the vault — one query
+ * against a zone with no rows, and the price of not tracking completeness in a second flag
+ * that could itself go stale.
+ */
+function drawsRequirement(
+	rows: readonly { readonly requirementId: string }[],
+	requirementId: string,
+): boolean {
+	return rows.length === 0 || rows.some((row) => row.requirementId === requirementId);
+}
+
 function createAssetOptionsLoader(
 	context: PlanEditorContext,
 	assetOptionsRef: Ref<readonly { readonly id: string; readonly name: string }[]>,
 ): () => void {
-	let running = false;
-	let requestedAgain = false;
-	const run = async (): Promise<void> => {
-		running = true;
-		try {
-			do {
-				requestedAgain = false;
-				const options = await context.queries.listAssets();
-				if (options.ok) assetOptionsRef.value = options.value;
-			} while (requestedAgain);
-		} finally {
-			running = false;
-		}
-	};
-	return (): void => {
-		if (running) {
-			requestedAgain = true;
-			return;
-		}
-		void run();
-	};
+	return singleFlight(async () => {
+		const options = await context.queries.listAssets();
+		if (options.ok) assetOptionsRef.value = options.value;
+	});
+}
+
+/**
+ * The three doors this leaf re-reads on, and the two loaders behind them.
+ *
+ * Extracted from `buildRuntime` because that function's `max-lines-per-function` budget is 100
+ * and wiring the second and third doors took it to 101 — the same budget that pushed
+ * `commitField` and then `inspector-wiring.ts` out of this file. A coherent seam rather than a
+ * convenient one: everything here is "something outside this leaf changed, read it again".
+ */
+function subscribeToChangedFigures(
+	context: PlanEditorContext,
+	// The store's shape rather than its type: naming it would mean naming `createInspector`'s
+	// return, and these two members are the whole of what this function needs.
+	inspector: {
+		readonly requirements: readonly { readonly requirementId: string }[];
+		refresh(): Promise<void>;
+	},
+	assetOptionsRef: Ref<readonly { readonly id: string; readonly name: string }[]>,
+): void {
+	const reloadAssetOptions = createAssetOptionsLoader(context, assetOptionsRef);
+	reloadAssetOptions();
+
+	/**
+	 * The Inspector's rows, re-read on every input the unit-cost block draws — the library
+	 * price, this project's own price, and the provenance the figures were derived from.
+	 *
+	 * THREE doors and one loader. `unitCost` has three inputs and two of the events fire
+	 * BEFORE the figure they move: `EventBus.publish` delivers to every handler without
+	 * ordering them, so re-reading on the price or the catalogue event races the recalculation
+	 * cascade rather than following it, and the block would settle showing the new price beside
+	 * the OLD provenance with nothing to correct it. `onRequirementFiguresChanged` is the door
+	 * that means "this requirement's STORED figures moved", which is what closes that.
+	 *
+	 * `singleFlight` is what makes hearing all three affordable: the ticket inside
+	 * `InspectorStore` orders reads and was never a rate limit — both its queries run to
+	 * completion before it consults the ticket — so a project-wide cascade of ten requirements
+	 * would otherwise buy ten pairs of vault reads and nine discarded answers. Here a burst
+	 * during one read buys exactly one more. The two mechanisms stay because neither does the
+	 * other's job: the ticket cannot stop a read starting, and the loader cannot order reads it
+	 * did not issue (a fresh mount, a navigation).
+	 */
+	const reloadInspector = singleFlight(() => inspector.refresh());
+	onBeforeUnmount(
+		context.onCatalogueChanged(() => {
+			reloadAssetOptions();
+			reloadInspector();
+		}),
+	);
+	onBeforeUnmount(context.onProjectPricesChanged(reloadInspector));
+	onBeforeUnmount(
+		context.onRequirementFiguresChanged((requirementId) => {
+			if (drawsRequirement(inspector.requirements, requirementId)) reloadInspector();
+		}),
+	);
 }
 
 /**
@@ -619,14 +681,13 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
 
-	// The assign picker's options, hydrated at mount and re-read on the catalogue's OWN
-	// subscription rather than on the plan's. The disposal matters for the reason it does at
-	// `PlanEditorRoot`'s `hydrate`: Obsidian reuses a view, so a listener outliving its Vue
-	// tree writes into a retired one.
+	// The assign picker's options and the Inspector's rows, hydrated at mount and re-read on the
+	// three doors that carry what they draw — the catalogue's, the price's and the recalculation
+	// cascade's, rather than on the plan's. Every disposal matters for the reason it does at
+	// `PlanEditorRoot`'s `hydrate`: Obsidian reuses a view, so a listener outliving its Vue tree
+	// writes into a retired one.
 	const assetOptionsRef = ref<readonly { readonly id: string; readonly name: string }[]>([]);
-	const reloadAssetOptions = createAssetOptionsLoader(context, assetOptionsRef);
-	reloadAssetOptions();
-	onBeforeUnmount(context.onCatalogueChanged(reloadAssetOptions));
+	subscribeToChangedFigures(context, inspector, assetOptionsRef);
 
 	return {
 		dispatcher: wrappedDispatcher,

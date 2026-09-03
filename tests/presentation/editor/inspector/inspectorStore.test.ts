@@ -138,12 +138,21 @@ describe('InspectorStore', () => {
 		});
 
 		/**
-		 * A FAILED requirements read empties the panel rather than leaving the previous
-		 * zone's rows on screen under the new zone's name. The two halves of the store
-		 * disagreeing about which zone they describe is the one thing the shared request
-		 * ticket exists to prevent, and a failure must not reintroduce it.
+		 * **The two call sites answer a failed rows read DIFFERENTLY, on purpose, and the pair is
+		 * asserted together so that neither half reads as an oversight.**
+		 *
+		 * This case used to say "empties the rows, on hydrate and on refresh alike", which was
+		 * the same rule `dto` has never followed one line above it: `refresh()` keeps the
+		 * previous `dto` on a failed read — "a refresh that cannot confirm a change is not
+		 * evidence the entity is gone" — and blanked the field beside it for the identical class
+		 * of failure. One rule, two fields.
+		 *
+		 * `hydrateFrom` is the opposite question rather than the same one asked twice: the
+		 * SELECTION changed, so the rows it still holds are about a different zone and are simply
+		 * wrong. A blank moment is a truer answer than a confident wrong panel — which is the
+		 * defect this store's own cached-read argument exists to prevent.
 		 */
-		it('an unreadable requirements query empties the rows, on hydrate and on refresh alike', async () => {
+		it('keeps the rows when a refresh cannot read them, and drops them when the selection changes', async () => {
 			const id = zoneId(1);
 			const rows = [{ requirementId: 'requirement-1' }] as unknown as readonly RequirementInspectorDTO[];
 			let answer: RequirementsAnswer = ok(rows);
@@ -157,12 +166,43 @@ describe('InspectorStore', () => {
 
 			answer = err({ category: 'Persistence', code: 'vault.unreadable', message: 'no' });
 			await store.refresh();
-			expect(store.requirements).toEqual([]);
+			expect(store.requirements).toStrictEqual(rows);
 
-			// And the same on a fresh selection, which takes the other of the two call sites.
+			// The other call site, and the other answer.
 			await store.hydrateFrom([]);
 			await store.hydrateFrom([id]);
 			expect(store.requirements).toEqual([]);
+		});
+
+		/**
+		 * **The rows are cleared BEFORE the awaits, not after them**, which is what makes the
+		 * window itself honest rather than only its outcome. `hydrateFrom` records the new
+		 * selection and then awaits two queries; the two other branches (`length === 0`,
+		 * `length > 1`) both assign `[]` before returning and this one did not, so from the moment
+		 * the user selected zone B until B's reads settled the panel showed zone A's requirements
+		 * under zone B's name.
+		 *
+		 * Asserted MID-FLIGHT, because after the await both builds agree: the read overwrites the
+		 * rows either way, and a case that only looked at the end state would pass against the
+		 * defect.
+		 */
+		it('drops the previous zone rows before the new selection reads, not after', async () => {
+			const rows = [{ requirementId: 'requirement-1' }] as unknown as readonly RequirementInspectorDTO[];
+			const { deps } = stubDeps(ok(makeFields(zoneId(1))), {
+				execute: () => Promise.resolve(ok(rows)),
+			});
+			const store = createInspectorStoreDefinition(deps)();
+
+			await store.hydrateFrom([zoneId(1)]);
+			expect(store.requirements).toStrictEqual(rows);
+
+			// Asserted SYNCHRONOUSLY, before either of zone B's reads has settled — which is the
+			// whole case. After the await both builds agree, because the read overwrites the rows
+			// either way, so an end-state assertion would pass against the defect.
+			const inFlight = store.hydrateFrom([zoneId(2)]);
+			expect(store.requirements).toEqual([]);
+
+			await inFlight;
 		});
 
 		it('several ids produce `multiple`, and the query is never called', async () => {

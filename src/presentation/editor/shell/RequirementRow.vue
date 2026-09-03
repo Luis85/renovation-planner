@@ -30,6 +30,7 @@ import { trError } from '../../i18n/toUserMessage';
 import { reportDispatchFailure } from '../report-failure';
 import { tr } from '../../i18n/strings';
 import FieldError from '../../components/FieldError.vue';
+import UnitCostFigures from './UnitCostFigures.vue';
 
 const props = defineProps<{
 	row: RequirementInspectorDTO;
@@ -262,6 +263,13 @@ async function resetCost(): Promise<void> {
 					<span>({{ row.cost.calculated.amount }})</span>
 				</template>
 			</dd>
+
+			<!-- The unit price the two figures above were computed FROM, drawn as their sibling
+			     rather than as a third idea: the same dt/dd pairs, the same badge, one level up.
+			     Its own component because inline it took this template past its cognitive
+			     complexity budget — see `UnitCostFigures.vue`, which also carries the precedence
+			     rule the mark follows. -->
+			<UnitCostFigures :unit-cost="row.unitCost" />
 		</dl>
 
 		<!-- Each input commits on blur AND on Enter: "blur/enter" is the boundary

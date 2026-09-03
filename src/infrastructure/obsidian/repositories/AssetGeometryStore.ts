@@ -4,7 +4,7 @@ import type { AssetId } from '../../../domain/asset/AssetId';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
-import { checkExpectedVersion } from './versionCheck';
+import { checkExpectedVersion } from '../../../application/ports/versioning';
 import { ensureFolder, fileStatAt, persistenceError } from './noteIo';
 import { assetSidecarPathFor, parentOf, usableAsFilename } from './paths';
 import type { AssetGeometryDTO } from '../../persistence/dto/assetGeometry';

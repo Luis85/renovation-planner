@@ -85,9 +85,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'sample.zone.living-room': 'Wohnzimmer',
 	'sample.zone.terrace': 'Terrasse',
 	'sample.zone.garden': 'Garten',
-	// Three keys that are not `editor.*` but happened to sit inside the moved block's reading
-	// order — see `de/editor.ts`'s own header (and `en/editor.ts`'s) for why they stayed.
+	// Keys that are not `editor.*` but sit where the moved block used to be read — see
+	// `de/editor.ts`'s own header (and `en/editor.ts`'s) for why they stayed.
 	'sequence.marker-clear-failed': 'Das Löschen wurde gespeichert, aber der Wiederherstellungseintrag konnte nicht aus dem Vault entfernt werden. Er wird beim nächsten Öffnen dieses Vaults entfernt.',
+	'asset-price.cleanup-failed': 'Das Objekt wurde gelöscht, aber eine Preisnotiz dafür konnte nicht aus dem Vault entfernt werden. Löschen Sie sie von Hand, falls Sie sie finden.',
 	'cascade.stale-marker-failed': 'Eine Anforderung konnte nicht als veraltet markiert werden. Ihre Werte können falsch sein, bis sie neu berechnet wird.',
 	'cascade.aborted': 'Mit dieser Änderung verknüpfte Anforderungen konnten nicht aktualisiert werden. Ihre Werte können veraltet sein.',
 	'background.no-plan-open': 'Zuerst einen Grundriss-Editor öffnen.',
@@ -156,7 +157,26 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Dieser Eintrag wurde zwischenzeitlich an anderer Stelle geändert. Bitte neu laden und erneut versuchen.',
 	'error.suffix.external-modification':
 		'Dieser Eintrag wurde außerhalb des Plugins bearbeitet. Bitte neu laden und erneut versuchen.',
+	// Die Absagen des Preisbereichs, nach dem exakten `AppError.code` ihrer Fundstellen benannt.
+	// Zwei davon überschreiben absichtlich einen Suffix-Eintrag: `toUserMessage` fragt zuerst
+	// `hasLocaleKey(error.code)`, und auf dieser Oberfläche gibt es nichts neu zu laden.
+	'asset-price.currency-mismatch': 'Ein Preis muss in der Währung des Projekts angegeben sein.',
+	'asset-price.revision-conflict':
+		'Dieser Preis wurde an anderer Stelle geändert. Verwerfen Sie Ihre Eingabe, um den aktuellen zu sehen.',
+	'asset-price.external-modification':
+		'Dieser Preis wurde außerhalb des Plugins bearbeitet. Verwerfen Sie Ihre Eingabe, um den aktuellen zu sehen.',
+	'asset-price.project-not-found': 'Dieses Projekt ist nicht mehr vorhanden.',
+	'asset-price.asset-not-found': 'Dieses Objekt ist nicht mehr vorhanden.',
+	'asset-price.write-failed': 'Der Preis konnte nicht gespeichert werden.',
+	'asset-price.delete-failed': 'Der Preis konnte nicht entfernt werden.',
+	'asset-price.entity-invalid': 'Diese Preisnotiz konnte nicht gelesen werden.',
+	'asset-price.frontmatter-invalid': 'Diese Preisnotiz konnte nicht gelesen werden.',
+	'asset-price.negative-unit-cost': 'Ein Preis kann nicht negativ sein.',
 	'error.suffix.migration-failed': 'Diese Notiz konnte nicht in das aktuelle Format umgewandelt werden.',
+	'error.suffix.schema-version-malformed':
+		'Die Version dieser Notiz konnte nicht gelesen werden, daher wurde sie nicht geöffnet.',
+	'error.suffix.project-folder-unresolved':
+		'Diese Notiz konnte nicht gespeichert werden, weil der Ordner des zugehörigen Projekts nicht gefunden wurde.',
 	'error.category.domain': 'Die Projektdaten sind ungültig.',
 	'error.category.validation': 'Diese Daten haben nicht die erwartete Form.',
 	'error.category.persistence': 'Der Vault konnte nicht gelesen oder geschrieben werden.',
@@ -229,6 +249,42 @@ export const de: Partial<Record<StringKey, string>> = {
 	'view.project.currency': 'Kalkuliert in {currency}',
 	'view.project.plans-title': 'Grundrisse',
 	'view.project.create-plan': 'Neuer Grundriss',
+	// Der Preisbereich eines Projekts. Ein Asset heißt hier `Objekt`, niemals `Material` —
+	// `tests/presentation/i18n/strings.test.ts` weist diesen Wert zurück, und Slice 14 hat ihn
+	// vierzig Zeilen unter dem Kommentar wieder eingeführt, das seine Entfernung festhielt.
+	'view.project.prices-title': 'Objektpreise',
+	'view.project.price-catalogue': 'Bibliothekspreis',
+	'view.project.price-yours': 'Dieses Projekt',
+	'view.project.price-set': 'Preis festlegen',
+	'view.project.price-clear': 'Bibliothekspreis verwenden',
+	'view.project.no-assets': 'Die Bibliothek enthält noch keine Objekte',
+	// Zeigt die FORM, statt sie zu beschreiben — genau wie die englische Fassung, und aus
+	// demselben Grund: „ein gültiger Geldbetrag“ sagt niemandem, dass `.5` und `1e3` zu den
+	// zurückgewiesenen Schreibweisen gehören.
+	//
+	// **Der Dezimalpunkt wird NICHT lokalisiert, und das ist der ganze Zweck dieses
+	// Schlüssels statt eine Nachlässigkeit.** `AMOUNT_PATTERN` in `core/money/Money.ts`
+	// akzeptiert allein den Punkt — gemessen, nicht vermutet: `"19.50"` wird angenommen,
+	// `"19,50"` mit `money.invalid-amount` zurückgewiesen. Ein lokalisiertes `19,50` würde
+	// also genau die Schreibweise vorschlagen, die `validatePrice` ablehnt, und die
+	// Benutzerin in eine Schleife schicken: eintippen, abgelehnt, dasselbe Beispiel wieder
+	// lesen. Diese Zeile hat einmal `19,50` gesagt und wurde erst bei der abschließenden
+	// Durchsicht des Increments gefunden — kein Gate rendert `de.ts`, und die beiden Prüfungen
+	// in `strings.test.ts` fragten damals nach Begriffen und Platzhaltern, nicht nach
+	// Beispielen. Sie ändert sich, wenn das Eingabefeld eines Tages ein Komma annimmt — und
+	// `tests/presentation/i18n/strings.test.ts` fragt jetzt genau danach.
+	'view.project.price-invalid': 'Geben Sie einen Preis wie 19.50 ein',
+	'view.project.price-negative': 'Ein Preis kann nicht negativ sein.',
+	'view.project.price-scope':
+		'Ein hier festgelegter Preis gilt für jede Anforderung in diesem Projekt, die das Objekt verwendet',
+	// Zwei Sätze für zwei Zustände, die `AssetPriceRowDto` bewusst auseinanderhält: der eine
+	// benennt eine Löschung, der andere nur eine fehlgeschlagene Lektüre der Notiz. Ein
+	// gemeinsamer Schlüssel würde einer Person sagen, ihr Objekt sei fort, obwohl seine Notiz
+	// heute lediglich nicht gelesen werden kann.
+	'view.project.price-orphan': 'Dieses Objekt ist nicht mehr in der Bibliothek',
+	'view.project.price-unreadable':
+		'Die Notiz zu diesem Objekt konnte nicht gelesen werden. Der Preis kann hier erst wieder '
+		+ 'festgelegt werden, wenn die Notiz repariert ist.',
 	'form.new-plan.title': 'Neuer Grundriss',
 	'form.new-plan.name': 'Name',
 	// SIEZEN, wie jeder andere Fließtext in dieser Datei ('Erstellen Sie eines, um zu beginnen.',

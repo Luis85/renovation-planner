@@ -38,6 +38,11 @@ import { cancelResultFor, useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import type { CreatePlanInput } from '../../application/commands/plan/CreatePlan';
+import type { ProjectId } from '../../domain/project/ProjectId';
+import type { AssetId } from '../../domain/asset/AssetId';
+import { isErr, ok } from '../../core/result/Result';
+import { singleFlight } from '../composables/single-flight';
+import type { AssetPriceCommitResult, AssetPriceEdit } from './assetPriceEdit';
 
 /**
  * WHICH project this mount draws. A prop rather than a read of `context.projectId`, and never
@@ -53,6 +58,8 @@ const {
 	project,
 	plans,
 	unreadablePlans,
+	assetPrices,
+	assetPricesError,
 	status,
 	error,
 	emptyStateKey,
@@ -76,6 +83,36 @@ const newPlanBusy = ref(false);
 function hydrate(): Promise<void> {
 	return detail.hydrate(context.queries, props.projectId, context.indexScanCompleted());
 }
+
+/**
+ * The price section's read, and its own function rather than a third read inside `hydrate`.
+ *
+ * The two answer different questions on different occasions: `hydrate` is "which project is this
+ * and what plans does it have", re-run on a rebuilt index and on this project's plans moving,
+ * while this one is "what does this project pay", re-run on the catalogue and on a price moving.
+ * Folding them together would re-read every asset note in the vault on every plan gesture, which
+ * is the cost `createAssetCatalogueChangeSource` was written to stop paying on the other surface.
+ */
+function hydratePrices(): Promise<void> {
+	return detail.hydratePrices(context.queries, props.projectId);
+}
+
+/**
+ * The ONE trailing single-flight loader behind BOTH price subscriptions, and it is not belt and
+ * braces beside the store's own ticket.
+ *
+ * The producer that needs it is a SYNC, or a library move: `ProjectIndexEntryChanged` fires once
+ * per note, both sources are subscribed to it, and each callback runs a full `listAll` plus
+ * `listByProject`. A vault syncing a large catalogue would otherwise launch one whole price-list
+ * scan per arriving note, all concurrent, every one but the last discarded by the ticket AFTER
+ * its reads had already happened. The ticket orders reads it did not issue — a fresh mount, a
+ * navigation racing a refresh — and only the loader can stop a read STARTING; two mechanisms,
+ * two jobs, and neither does the other's.
+ *
+ * ONE loader shared by the two subscriptions rather than one each, because a burst that mixes
+ * asset notes and price notes is still one sync, and two loaders would answer it with two scans.
+ */
+const reloadPrices = singleFlight(hydratePrices);
 
 /**
  * `null` for a normal render — `PlanList` drawing this project's plans — or the resolved props
@@ -104,6 +141,15 @@ const emptyState = computed(() => {
  * already lives in, and the two are the same kind of claim about a read.
  */
 const failureMessage = computed(() => (error.value === null ? null : trError(error.value)));
+
+/**
+ * The mapped sentence for a price read that failed, or `null`. Its own computed rather than a
+ * second arm of the one above, because the two replace different regions: that one replaces the
+ * whole detail state, and this one replaces the price list while the project stays drawn.
+ */
+const assetPricesFailure = computed(() =>
+	assetPricesError.value === null ? null : trError(assetPricesError.value),
+);
 
 /**
  * **An open dialog is retired whenever this state becomes `'gone'`, from ANY producer.**
@@ -225,8 +271,75 @@ async function onCreatePlan(): Promise<void> {
 	await hydrate();
 }
 
+/**
+ * The price section's ONE write path — the seam `AssetPriceCommitResult` exists for.
+ *
+ * It brands both ids here, at the boundary, which is the same assertion every other edge of this
+ * view makes (`createRenovationProjectQueries` states it for `as ProjectId` at its own doors):
+ * the project id is this mount's own subject and the asset id came from a row this query built.
+ * `expected` arrives ALREADY branded, because the row constructs it from its frozen snapshot
+ * rather than passing a value through — see `AssetPriceEdit`.
+ *
+ * **`settled` is what the command established about the pair**, and it is the whole reason this
+ * returns more than a `DispatchResult`: `DispatchOutcome` is `'wrote' | 'no-write'` and carries
+ * no entity, so without this channel a queued clear built while a set was still in flight would
+ * submit `'absent'` against the pair the set had just created and refuse. `null` on a refusal, so
+ * the row's snapshot stays exactly where it was.
+ *
+ * The re-read after a successful write is awaited rather than left to
+ * `onProjectPricesChanged`: that subscription is what keeps the section true when somebody ELSE
+ * writes, and relying on it here would make this gesture's own refresh depend on the event bus
+ * round trip — a price the user just set appearing, or not, according to delivery order.
+ */
+async function commitAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitResult> {
+	const projectId = props.projectId as ProjectId;
+	const assetId = edit.assetId as AssetId;
+	if (edit.kind === 'clear') {
+		const result = await context.commands.clearAssetPriceOverride.execute({
+			projectId,
+			assetId,
+			expected: edit.expected,
+		});
+		if (isErr(result)) return { dispatch: result, settled: null };
+		await hydratePrices();
+		// `'absent'` whether or not a note was actually removed: either way the pair now HAS no
+		// override, which is what an expectation states. `cleared` is what says whether anything
+		// moved, and it is the honest `DispatchOutcome` — a clear on a pair with no override
+		// writes nothing and announces nothing, by that command's own design.
+		return {
+			dispatch: ok(result.value.cleared ? 'wrote' : 'no-write'),
+			settled: 'absent',
+		};
+	}
+	const result = await context.commands.setAssetPriceOverride.execute({
+		projectId,
+		assetId,
+		unitCost: edit.unitCost,
+		expected: edit.expected,
+	});
+	if (isErr(result)) return { dispatch: result, settled: null };
+	await hydratePrices();
+	// `'wrote'` for every accepted set, including the command's own no-op arm (a price re-typed
+	// to the value it already holds), which its result does not distinguish from an update:
+	// `created` is false for both. Nothing on this surface reads the outcome — there is no save
+	// indicator here and `useFieldCommit` asks only whether the `Result` is an error — so the
+	// distinction has no consumer to be wrong for, and inventing one from the version would be a
+	// second derivation of a fact the command already declines to report.
+	return {
+		dispatch: ok('wrote'),
+		settled: { id: result.value.override.id, version: result.value.version },
+	};
+}
+
 onMounted(() => {
 	void hydrate();
+	// Through the LOADER rather than calling `hydratePrices` directly, so there is ONE mechanism
+	// rather than two: a burst arriving while the mount's own read is still in flight then
+	// collapses into that read plus one trailing one. Called directly, the mount's read sits
+	// OUTSIDE the loader's window and a sync landing on it buys a third scan — measured, the
+	// burst case reports 3 where 2 is asserted. `reloadAssetOptions()` in `runtime.ts` is called
+	// at setup for the same reason.
+	reloadPrices();
 });
 
 /**
@@ -250,6 +363,33 @@ onBeforeUnmount(
 		void hydrate();
 	}),
 );
+
+/**
+ * Two more subscriptions, both about the PRICE section and neither about the project itself.
+ *
+ * `onCatalogueChanged` is the shared library moving — an asset renamed, repriced, added by hand
+ * or arriving through sync — and it is REUSED rather than duplicated: a source covering both
+ * halves of this section's question would be a second copy of an event list that goes stale.
+ *
+ * `onProjectPricesChanged` is this project's own price moving, and it NARROWS. The source cannot
+ * do that for us: its other caller is the Plan Editor, which holds a PLAN id and would need an
+ * async read to resolve a project, so a filtered source would charge the caller that cannot pay.
+ * It reports which project changed instead and each caller decides — and without deciding, a
+ * price set in project A re-read the whole catalogue in every open pane for project B.
+ *
+ * **`null` is a MATCH, never a miss**, and that arm is load-bearing rather than defensive: it is
+ * how the index event arrives, because `ProjectIndexEntryChangedPayload` carries `entityId` and
+ * `entityType` and no project id at all. That event is the half no COMMAND can raise — a price
+ * note added by hand, copied in, or arriving through sync — so treating "cannot say" as a miss
+ * would make exactly those invisible to this pane for the life of the leaf.
+ */
+onBeforeUnmount(context.onCatalogueChanged(reloadPrices));
+
+onBeforeUnmount(
+	context.onProjectPricesChanged((projectId) => {
+		if (projectId === null || projectId === props.projectId) reloadPrices();
+	}),
+);
 </script>
 
 <template>
@@ -259,6 +399,10 @@ onBeforeUnmount(
 		:plans="plans"
 		:unreadable-plans="unreadablePlans"
 		:empty-state="emptyState"
+		:asset-prices="assetPrices"
+		:asset-prices-failure="assetPricesFailure"
+		:commit-asset-price="commitAssetPrice"
+		:logger="context.commands.logger"
 		@back="context.navigate(null)"
 		@open-note="() => void onOpenNote()"
 		@open-plan="(planId) => void context.openPlan(planId)"

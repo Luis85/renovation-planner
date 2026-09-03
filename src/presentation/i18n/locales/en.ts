@@ -54,9 +54,10 @@ export const en = {
 	'sample.zone.living-room': 'Living room',
 	'sample.zone.terrace': 'Terrace',
 	'sample.zone.garden': 'Garden',
-	// Three keys that are not `editor.*` but happened to sit inside the moved block's reading
-	// order — see `en/editor.ts`'s own header for why they stayed here rather than moving.
+	// Keys that are not `editor.*` but sit where the moved block used to be read — see
+	// `en/editor.ts`'s own header for why they stayed here rather than moving.
 	'sequence.marker-clear-failed': 'The delete was saved, but its recovery record could not be cleared from the vault. It is cleared the next time this vault opens.',
+	'asset-price.cleanup-failed': 'The asset was deleted, but a price note for it could not be removed from the vault. Delete it by hand if you find it.',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
 	'cascade.aborted': 'Requirements linked to this change could not be updated. Their figures may be out of date.',
 	'background.no-plan-open': 'Open a plan editor first.',
@@ -136,7 +137,54 @@ export const en = {
 		'This note was written by a newer version of this plugin. Update the plugin to open it.',
 	'error.suffix.revision-conflict': 'This entry changed elsewhere in the meantime. Reload and try again.',
 	'error.suffix.external-modification': 'This entry was edited outside the plugin. Reload and try again.',
+	// The price section's own refusals, keyed by the exact `AppError.code` their RAISE SITES
+	// mint. `toUserMessage` asks `hasLocaleKey(error.code)` FIRST and only then walks
+	// `CODE_SUFFIX_KEYS`, so a code listed here beats a suffix that also matches it — which is
+	// deliberate for two of them and stated where each sits.
+	//
+	// Three `asset-price.*` codes get NO entry, and that absence is a decision rather than an
+	// omission, exactly as `project.negative-amount` already is: `asset-price.duplicate-pair` is
+	// a logger warning, `asset-price.orphaned-by-asset-delete` has its own notice, and
+	// `asset-price.pre-write-invalid` has no user-facing door at all.
+	'asset-price.currency-mismatch': "A price has to be in the project's own currency.",
+	// OVERRIDES `error.suffix.revision-conflict`, which says "Reload and try again". There is
+	// nothing to reload on this surface, and the row's expectation is FROZEN for exactly as long
+	// as the draft is — so a refresh cannot help and the DISCARD is the gesture that unsticks the
+	// field. Say so where the entry is, or the next reader deletes it as a duplicate of the
+	// suffix.
+	'asset-price.revision-conflict':
+		'This price was changed elsewhere. Discard your entry to see the current one.',
+	// OVERRIDES `error.suffix.external-modification` for the same reason, one cause along: the
+	// suffix names a reload this surface does not have.
+	'asset-price.external-modification':
+		'This price was edited outside the plugin. Discard your entry to see the current one.',
+	'asset-price.project-not-found': 'That project is no longer there.',
+	'asset-price.asset-not-found': 'That asset is no longer there.',
+	'asset-price.write-failed': 'The price could not be saved.',
+	'asset-price.delete-failed': 'The price could not be removed.',
+	'asset-price.entity-invalid': 'That price note could not be read.',
+	'asset-price.frontmatter-invalid': 'That price note could not be read.',
+	// Unreachable while the field validator holds — the row refuses a negative draft before it
+	// dispatches — and localized anyway. That is a different kind of unreachability from
+	// `project.negative-amount`'s, which no caller can set at all: a code held out of reach by a
+	// GUARD degrades to the wrong sentence the day the guard moves, and this costs two strings.
+	'asset-price.negative-unit-cost': 'A price cannot be negative.',
 	'error.suffix.migration-failed': 'This note could not be converted to the current format.',
+	// TWO more suffixes, and the instrument that found them is
+	// `grep -rno '\${spec\.kind}\.[a-z-]*\|\${kind}\.[a-z-]*' src/infrastructure/`, which
+	// reports FOUR shared raise sites: `migration-failed` and `schema-version-unsupported`
+	// above, and these two. With them the class is closed, which is a claim that grep can be
+	// re-run against.
+	//
+	// Both are SUFFIXES rather than per-kind entries because each is raised from ONE site
+	// parameterised by kind, so a direct `asset-price.` entry would answer it for one kind and
+	// leave `plan.`, `zone.` and the rest on the generic category sentence — which is where they
+	// were until this row: measured, `schema-version-malformed` appeared nowhere in this file.
+	// PRE-EXISTING, and one row fixes it for every kind.
+	'error.suffix.schema-version-malformed':
+		"This note's version could not be read, so it was not opened.",
+	'error.suffix.project-folder-unresolved':
+		'This note could not be saved, because the folder of the project it belongs to could not be found.',
 	'error.category.domain': 'Something about the project data is invalid.',
 	'error.category.validation': 'This data is not in the expected form.',
 	'error.category.persistence': 'The vault could not be read or written.',
@@ -241,6 +289,39 @@ export const en = {
 	'view.project.currency': 'Priced in {currency}',
 	'view.project.plans-title': 'Plans',
 	'view.project.create-plan': 'New plan',
+	// The project's own price section (the per-project price override increment). An override is
+	// per-(project, asset), so `price-scope` is the DISCLOSURE that justifies this affordance
+	// living on the project surface rather than on the Inspector's requirement row: one edit here
+	// moves every requirement in the project on that asset. It renders ONCE, with the section —
+	// repeated per row it would read as a per-row consequence, which is the opposite of what it
+	// says. Nothing but the rendering case in `assetPriceList.test.ts` can see that it is
+	// rendered at all: `I18N_LITERAL_BAN` fires at a literal, never at an absent one.
+	'view.project.prices-title': 'Asset prices',
+	'view.project.price-catalogue': 'Library price',
+	'view.project.price-yours': 'This project',
+	'view.project.price-set': 'Set a price',
+	'view.project.price-clear': 'Use the library price',
+	'view.project.no-assets': 'The library has no assets yet',
+	// The VALIDATOR's message, and it needs a key of its own: `useFieldCommit.validate` returns a
+	// resolved string, so the alternatives were a literal (which `I18N_LITERAL_BAN` refuses) or
+	// the requirement row's parse key, which tells the user to reset to a calculated figure this
+	// control does not have. `money.invalid-amount` is not the answer either — it has no locale
+	// entry, so it falls back to the generic Validation sentence. The copy SHOWS the shape rather
+	// than describing it, because "a valid monetary amount" does not tell a user that `.5` and
+	// `1e3` are among the forms `createMoney` refuses.
+	'view.project.price-invalid': 'Enter a price like 19.50',
+	'view.project.price-negative': 'A price cannot be negative.',
+	'view.project.price-scope':
+		'A price set here applies to every requirement in this project that uses the asset',
+	// TWO sentences for two states `AssetPriceRowDto` deliberately keeps apart, and they must not
+	// share a key: `assetStatus: 'orphan'` and `assetStatus: 'unreadable'` both carry a null
+	// `assetName` and a null `catalogue`, so a component branching on nullness alone would tell a
+	// user their asset is GONE when its note merely would not parse today. One names a deletion,
+	// the other names a read that failed, and the two commit to opposite remedies.
+	'view.project.price-orphan': 'This asset is no longer in the library',
+	'view.project.price-unreadable':
+		"This asset's note could not be read, so its price can't be changed here. "
+		+ 'Fix the note to set a price again.',
 	// Design slice 21's creation form. One field, so one label — `background` and `layers` are
 	// both optional on `CreatePlanInput` and this form sends neither: slice 5's background is
 	// its own command, and a plan without one is a state the editor already draws.

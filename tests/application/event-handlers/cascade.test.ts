@@ -10,6 +10,7 @@ import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryAssetRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { InMemoryRequirementRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
+import { InMemoryAssetPriceOverrideRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
 import { assetUpdated } from '../../../src/domain/asset/Asset.events';
 import { zoneGeometryChanged } from '../../../src/domain/zone/Zone.events';
@@ -61,6 +62,7 @@ async function wired() {
 	const zones = new InMemoryZoneRepository();
 	const assets = new InMemoryAssetRepository();
 	const requirements = new InMemoryRequirementRepository();
+	const overrides = new InMemoryAssetPriceOverrideRepository();
 	const events = recordingBus();
 	const logger = silentLogger();
 
@@ -80,8 +82,8 @@ async function wired() {
 	);
 
 	const locks = new ReferenceLocks();
-	const assign = new AssignAssetCommand({ zones, assets, requirements, events, locks, projects });
-	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, events, projects);
+	const assign = new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides });
+	const recalculate = new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides });
 	const deps = {
 		requirements,
 		events,
@@ -91,9 +93,9 @@ async function wired() {
 	};
 
 	return {
-		project, plan, zones, assets, requirements, events, logger,
+		project, plan, zones, assets, requirements, overrides, events, logger,
 		zone, asset, assign, recalculate, deps,
-		readModel: new GetRequirementsForZone(requirements, zones, assets, projects),
+		readModel: new GetRequirementsForZone({ requirements, zones, assets, projects, overrides, logger }),
 	};
 }
 
@@ -132,7 +134,7 @@ describe('the recalculation cascade', () => {
 
 	it('recalculates every linked requirement after a unitCost change, and none stays current at the old price', async () => {
 		const w = await wired();
-		registerOnAssetUpdated(w.events, { ...w.deps, assets: w.assets });
+		registerOnAssetUpdated(w.events, { ...w.deps, assets: w.assets, overrides: w.overrides });
 		const assigned = await w.assign.execute({ zoneId: w.zone.entity.id, assetId: w.asset.entity.id });
 		if (!assigned.ok) throw new Error('unexpected failure');
 
@@ -173,6 +175,7 @@ describe('the recalculation cascade', () => {
 			...gone.deps,
 			logger,
 			assets: { ...gone.assets, getById: () => Promise.resolve({ ok: true, value: null }) } as never,
+			overrides: gone.overrides,
 		});
 		await gone.assign.execute({ zoneId: gone.zone.entity.id, assetId: gone.asset.entity.id });
 		await gone.events.publish(
@@ -191,6 +194,7 @@ describe('the recalculation cascade', () => {
 						error: { category: 'Persistence', code: 'test.injected', message: 'unreadable' },
 					}),
 			} as never,
+			overrides: faulted.overrides,
 		});
 		await faulted.assign.execute({ zoneId: faulted.zone.entity.id, assetId: faulted.asset.entity.id });
 		await faulted.events.publish(

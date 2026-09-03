@@ -215,10 +215,19 @@ export function harnessDeps(): PlanEditorDeps {
 		},
 		// Nothing writes on this page, so nothing ever changes a plan under it.
 		onPlanChanged: () => () => undefined,
-		// The harness holds a fixed fixture and publishes no domain events, so both change
-		// doors are honestly inert here rather than merely unimplemented.
+		// The harness holds a fixed fixture and publishes no domain events, so all four change
+		// doors are honestly inert here rather than merely unimplemented. **Measured rather than
+		// assumed for the two price doors**: this page holds no `EventBus`, every WRITE in
+		// `commands` refuses with `settings.unrecovered`, and nothing on it can set a price or
+		// recalculate anything — so binding the real `createProjectPricesChangeSource` /
+		// `createRequirementFiguresChangeSource` to a bus with no publisher would be
+		// indistinguishable from these callbacks at every observable point, while importing
+		// `application/events` into a page that cannot reach it. A door that cannot fire is
+		// better spelled as one than dressed up as one that could.
 		onCatalogueChanged: () => () => undefined,
-		// Inert for the reason the two doors above are: the browser harness has no Obsidian and
+		onProjectPricesChanged: () => () => undefined,
+		onRequirementFiguresChanged: () => () => undefined,
+		// Inert for the reason the doors above are: the browser harness has no Obsidian and
 		// therefore no vault to raise a file event, and its background is a fixture rather than a
 		// file. §55 is why this page refuses a background outright.
 		onVaultFileChanged: () => () => undefined,

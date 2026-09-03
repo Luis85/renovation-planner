@@ -120,6 +120,20 @@ export const editorEn = {
 	'editor.inspector.linked.documents': 'Documents',
 	'editor.inspector.linked.photos': 'Photos',
 	'editor.inspector.linked.notes': 'Notes',
+	// §89's "beside what it replaced" at the INPUT level: the shared library's unit price, this
+	// project's own, and the price the row's figures were actually derived from. `price-in-force`
+	// is the §85 non-colour channel — a WORD beside the figure, so a screen reader reads it and a
+	// user who cannot tell the two colours apart still knows which figure is being used.
+	//
+	// `editor.inspector.*`, with this surface's other keys. The task brief spelled these four
+	// `view.inspector.*`; `view.*` everywhere else means the Renovation Project view, so that
+	// prefix would have named the wrong surface. Ruled on rather than assumed. (Arrived with the
+	// per-project price override increment on `main`; moved here when that branch merged into
+	// the editor-foundation branch, whose Task 20 had already split the `editor.*` keys out.)
+	'editor.inspector.price-library': 'Library price',
+	'editor.inspector.price-project': 'Project price',
+	'editor.inspector.price-in-force': 'In force',
+	'editor.inspector.price-derived-from': 'Derived from',
 	'editor.zone.default-name': 'Zone',
 	'editor.canvas': 'Plan canvas',
 	'editor.status': 'Status',

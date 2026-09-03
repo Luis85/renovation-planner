@@ -29,7 +29,8 @@ export interface RuntimeVersions {
  *
  * Declared beside the port that reports them, the same way `ENTITY_TYPES` is declared
  * beside the port that indexes by it. It is a hand-written list, and drift is the price:
- * a seventh entity kind has to be added here before its repository can record a refusal.
+ * an eighth entity kind has to be added here before its repository can record a refusal —
+ * `asset-price` was the seventh, added the day its own repository needed to record one.
  * That drift fails at COMPILE time, at the record call site — which is the loud end.
  *
  * It is deliberately NOT `EntityType` from `ProjectIndex`: that vocabulary is the
@@ -37,7 +38,14 @@ export interface RuntimeVersions {
  * migration kind (`zone`) the read path already carries, and it has a member
  * (`plan-geometry`) that is a sidecar rather than a note.
  */
-export type DiagnosticEntityKind = 'project' | 'plan' | 'zone' | 'asset' | 'requirement' | 'plan-geometry';
+export type DiagnosticEntityKind =
+	| 'project'
+	| 'plan'
+	| 'zone'
+	| 'asset'
+	| 'requirement'
+	| 'asset-price'
+	| 'plan-geometry';
 
 /**
  * One content-free validation finding: WHICH entity refused (opaque id), and WHY

@@ -55,6 +55,7 @@ async function wiredAssetWithLink() {
 		events: w.events,
 		locks: w.locks,
 		logger: silentLogger(),
+		overrides: w.overrides,
 	});
 	return {
 		...w,
@@ -78,6 +79,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
+				overrides: w.overrides,
 			}).execute({ assetId: w.assetId as never }),
 		);
 		expect(error.code).toBe('test.injected-failure');
@@ -125,6 +127,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
+				overrides: w.overrides,
 			}).execute({
 				assetId: w.assetId,
 				resolution: 'reassign',
@@ -165,6 +168,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
+				overrides: w.overrides,
 			}).execute({
 				assetId: w.assetId,
 				resolution: 'reassign',
@@ -203,6 +207,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
+				overrides: w.overrides,
 			}).execute({
 				assetId: w.assetId,
 				resolution: 'reassign',
@@ -235,6 +240,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
+				overrides: w.overrides,
 			}).execute({
 				assetId: w.assetId,
 				resolution: 'reassign',
@@ -273,6 +279,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
+				overrides: w.overrides,
 			}).execute({
 				assetId: w.assetId,
 				resolution: 'delete-anyway',
@@ -315,6 +322,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 				events: w.events,
 				locks: w.locks,
 				logger: silentLogger(),
+				overrides: w.overrides,
 			}).execute({
 				assetId: w.assetId,
 				resolution: 'delete-anyway',

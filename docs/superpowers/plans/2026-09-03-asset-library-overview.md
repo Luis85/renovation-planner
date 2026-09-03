@@ -1377,6 +1377,26 @@ first fix as the whole job.
 - Consumes: Tasks 4, 9, 10.
 - Produces: the panel Task 16's narrow composition swaps to.
 
+**THE INSPECTOR'S SUBJECT IS THE ROOT'S OWN `selectedId`, HANDED DOWN AS A PROP — never
+`context.assetId`.** Read this before writing a line, because the two are live sources that
+disagree by design and reaching for the wrong one is invisible to every gate. Task 13 shipped
+`selectedId` as a local `ref` in `AssetLibraryRoot.vue`, seeded from `context.assetId` at setup
+and re-assigned by a `watch` on it, while `onSelect` writes ONLY the local ref: the context is
+`DeepReadonly` and no component may write it. So after a user clicks a row, `selectedId` names
+the clicked asset and `context.assetId.value` still names whatever the leaf was restored with.
+An inspector subscribing to the context would show the restored asset forever and never follow a
+click — and it would contradict the marked row beside it, since `AssetRow`'s `selected` prop
+comes from `selectedId`. One source for the mark and the panel, or they disagree the first time
+anyone clicks.
+
+That divergence is HALF A MECHANISM rather than a defect to fix here: the missing write-back
+into Obsidian's view state is folded into Task 16, which owns the context member it needs. Do
+not attempt it from this task — a write through the context slot is a compile error on purpose.
+
+**This also gives §6.3's `''` sentinel its second consumer**, which Task 13's report records as
+honestly unheld until now: `''` means nothing selected, `null` after `selectionOf`, and the
+inspector's resting state is what that value draws.
+
 **The `<dl>` is the two-column grid `.rp-designer-inspector-fields` and `.rp-editor-inspector-fields` already are.** A user moving between the Plan editor, the Asset designer and this surface must not be able to tell that three people wrote them.
 
 **Four sections, in this order: Definition, Shape, Used in, Actions.**
@@ -1521,12 +1541,43 @@ git add -A && git commit -m "feat: the asset library stylesheet and its containe
 
 **Files:**
 - Create: `src/presentation/library/shelfFocus.ts`
-- Modify: `src/presentation/library/AssetLibraryRoot.vue`, `AssetInspector.vue`
-- Test: `tests/presentation/library/shelfFocus.test.ts`, `assetLibraryKeyboard.test.ts`
+- Modify: `src/presentation/library/AssetLibraryRoot.vue`, `AssetInspector.vue`, `AssetLibraryView.ts`, `AssetLibraryContext.ts`
+- Test: `tests/presentation/library/shelfFocus.test.ts`, `assetLibraryKeyboard.test.ts`, `assetLibraryViewState.test.ts`
 
 **Interfaces:**
 - Consumes: Tasks 12–15.
 - Produces: nothing any other task imports.
+
+**THIS TASK ALSO CLOSES THE WRITE-BACK INTO OBSIDIAN'S VIEW STATE, folded in by ruling
+mid-execution.** Task 13 shipped only the READ half of §6.3 and said so in
+`AssetLibraryRoot.vue`'s header and its report: `expandedCategories` is seeded from
+`context.expanded` once at setup, `selectedId` starts from `context.assetId`, and **neither
+ever reaches `AssetLibraryView.getState()`**. So a restored leaf opens on the selection and
+expansion it was saved with, and a selection or an expansion made in THIS session does not
+survive a leaf reopen — half a mechanism, whose other half is what §6.3's three-way parse and
+Task 11's `getState`/`setState` pair exist for. It is folded here rather than given its own task
+because this task already re-enters the root, and a separate task would be a second entry into
+the same two files for one seam.
+
+It cannot be done from inside a component, and that is a deliberate design rather than an
+obstacle: `AssetLibraryContext.assetId`/`expanded` are `DeepReadonly<Ref<T>>` precisely so a
+component write is a compile error (`assetLibraryContext.test-d.ts` is the proof), and
+`AssetLibraryView` is the one writer. **The route Task 13's report recorded is a context member
+the view supplies** — a `publishViewState(assetId, expanded)` callback beside the two refs,
+which writes the view's own `assetIdRef`/`expandedRef` and asks Obsidian to record the state.
+Two things it must get right, both of them already paid for elsewhere in this repository:
+- **`rebind` remounts the tree**, so the re-seed after a settings save is what stops a
+  selection being thrown away by a save the user made while an asset was open — the
+  `ProjectDetailState` lesson, and the reason the refs are the VIEW's fields constructed once.
+- **A write must not fight the `watch`.** `AssetLibraryRoot` watches `context.assetId` and
+  assigns `selectedId` from it; publishing on select makes that watch fire with the value it
+  already holds, which is idempotent and must be ASSERTED as such rather than assumed — a
+  publish that re-entered would be an infinite loop no type can see.
+
+Test both halves separately: a click reaches `getState()`, AND a `rebind()` preserves the
+selection made before it. The second is what the round-1 probe on Task 13 used (selected = 1
+against 0 when reverted) and it is the case that would redden if a later author moved the refs
+back inside `mount()`.
 
 **One focus manager over the shelves region, never a handler per shelf.** Headers and rows already alternate in DOM order, so *the next focusable thing in this region* IS *the next row, or the next shelf's header when the rows run out* — the wrap falls out rather than being written. A per-shelf handler would have to be told about its siblings, which is a list, and a list goes stale where a rule does not.
 

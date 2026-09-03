@@ -4212,7 +4212,7 @@ the duplication being removed showing up as a test edit, which is what it should
 
 ```bash
 git add src/plugin/RenovationPlannerPlugin.ts src/presentation/views/ \
-  styles/project-list.css tests/
+  styles/project-list.css styles/forms.css tests/
 git commit -m "$(cat <<'EOF'
 Give New asset one home, and New project a real command
 
@@ -5272,7 +5272,8 @@ Run: `npm run check`
 
 ```bash
 git add src/presentation/views/ContinueRow.vue src/presentation/views/ProjectList.vue \
-  src/presentation/views/ViewRoot.vue styles/project-list.css tests/presentation/views/
+  src/presentation/views/ViewRoot.vue src/presentation/views/ProjectDetailState.vue \
+  styles/project-list.css tests/presentation/views/
 git commit -m "$(cat <<'EOF'
 Offer to continue where the user was
 
@@ -5312,6 +5313,7 @@ figure it quotes is cited to a file that already recorded one. This task is wher
 - Modify: `tests/harness/fixture.ts`
 - Modify: `tests/harness/page.ts`
 - Modify: `tests/harness/accessibility.test.ts`
+- Modify: `scripts/entryShots.mjs` (the two fixed shots Steps 2–3 add)
 - Modify: `styles/project-list.css` (the threshold, once it is measured)
 
 - [ ] **Step 1: Give the harness fixture the ranges §9 names**
@@ -5449,7 +5451,7 @@ the filter's label association, heading order (`<h2>` then `<h3>`), and ARIA att
 Run: `npm run check`
 
 ```bash
-git add tests/harness/ styles/project-list.css
+git add tests/harness/ scripts/entryShots.mjs styles/project-list.css
 git commit -m "$(cat <<'EOF'
 Capture the Home surface at both widths and fix what it showed
 
@@ -5506,8 +5508,13 @@ The steps, each with what to look for:
    and models no host keymap, so this step is the only instrument for it.
 7. **`Ctrl+P` with the pane focused** still opens Obsidian's command palette — the surface must
    not swallow host shortcuts.
-8. **The `new-project` command** appears in the palette under its translated name, is bindable
-   in Settings → Hotkeys, and the pane's key legend names whatever the user bound.
+8. **The `new-project` command** appears in the palette under its translated name and is bindable
+   in Settings → Hotkeys; bind it and confirm the binding invokes it. The pane's key legend must
+   **not** name a New project shortcut — the command ships with no default hotkey, and Obsidian's
+   hotkey registry is internal, so a legend clause for it would either advertise a dead key on a
+   fresh install or claim a binding this build cannot read. An earlier draft of this step asked
+   for the legend to "name whatever the user bound", which the amendment below rules out as
+   unbuildable: a step that can only fail on a correct implementation.
 9. **Continue**: open a project, open one of its plans, come back — Continue offers that plan and
    restores it. Then delete that project's note in the file explorer and reopen the pane: the
    Continue group is ABSENT, with no placeholder and no error.
@@ -5624,6 +5631,21 @@ Run against the spec after writing the plan, section by section.
 | §13 Constraints 1–5 | 10 (1), 1 (2), 12 (3), global (4), 9 (5) |
 | §14 Open decisions | Locked at the head of this plan; 9 and 10 build them; 13 amends the spec |
 | §15 Build order | Phases A→F follow it: fields before the row (item 3), prototype and capture (1, 2), manual case (4), one finish pass (5) |
+
+**Every task's `git add` is checked against its own Files list, mechanically.** A file a task
+declares under `Modify:` or `Create:` and never stages is a step that reads as complete and
+leaves its change uncommitted — and the failure is invisible to any gate, because the plan is
+prose and `npm run check` never reads it. Codex found two instances (`ProjectDetailState.vue` in
+Task 11, `scripts/entryShots.mjs` in Task 12); auditing the whole plan rather than the two
+reported found a **third nobody had named**, `styles/forms.css` in Task 9. That is this
+repository's own recurring lesson arriving in a planning document: a partial fix reads exactly
+like a complete one, and "I fixed the case in the report" is not "I fixed the class".
+
+The audit is a comparison anyone can re-run: for each `## Task`, collect every path in its
+`Modify:`/`Create:` lines and require each to be covered by a path in that task's own `git add`,
+either exactly or by directory prefix. It reports zero as this plan stands. Re-run it after any
+edit that adds a file to a task, because the two lists are two statements of one fact and they
+drift the moment only one of them is updated.
 
 Two gaps are deliberate and named where they occur rather than left to be found:
 

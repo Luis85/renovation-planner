@@ -786,6 +786,18 @@ The contract, so a builder does not invent one:
 
 - The library subscribes to `AssetDesignChanged` and `GeometrySidecarChanged` **unfiltered**, and
   invalidates the mark for the asset each event names.
+- **`AssetDesignChanged` also refreshes that asset's CATALOGUE entry, not only its mark** — and
+  this is the arm that is easy to miss, because the event's name says *design*. Two of the five
+  design commands write the NOTE: `SetAssetHeight` writes `height`, which §3.5 draws in the
+  **Definition** section, and `SetAssetBackground` writes the background keys behind the **Spec
+  sheet** row. Both are `CatalogueEntryDto` fields (§5.1), and both commands publish
+  `assetDesignChanged` and nothing else — verified at their raise sites. Nor does the vault
+  supply a compensating signal: `VaultChangeAdapter` checks the echo window BEFORE announcing, by
+  design, precisely so this plugin's own writes do not fire a second refresh per save. So without
+  this arm a peer leaf's height edit leaves the number on screen stale **for the life of the
+  view**, and a re-picked spec sheet leaves the old filename — indefinitely, and worst on a
+  corrupt sidecar, where the design read refuses and only the catalogue half could have been
+  refreshed at all. Reported by a review bot.
 - Invalidation is **per asset**, never per shelf and never whole-view: a shelf-wide refetch turns
   one peer's edit into a read of every sidecar in that category, which is the cost §5.3's whole
   bound exists to avoid.
@@ -1666,6 +1678,34 @@ five that needed no new rule: clearing also restores the selection, so on a narr
 inspector swaps back in and its Back control is the destination, and everywhere else that control
 is not laid out and the existing fallback takes the search field. **That is the argument for the
 ordered chain paying out** — the previous four each needed a fix, and this one needed a call.
+
+A twentieth round found three, and the first is the sharpest self-inflicted finding on this
+branch.
+
+**The ordered fallback I described as "paying out" was unreachable from the day it shipped.** It
+queries `.rp-al-search__input` from `bodyEl` — and the search input is in the **toolbar**, which is
+`.rp-al-body`'s SIBLING, so the lookup returned `null` every time. The chain's last link, written
+across rounds sixteen, seventeen and nineteen as the thing that makes a focus rule survive an
+absent target, could never fire. A template ref replaces it: a ref cannot be scoped wrong, and it
+does not go stale against a class rename either. **The lesson is not about scope.** Four fixes and
+three paragraphs went into that chain, each arguing it was general, and none of them checked that
+its final step could reach the element it names — *an argument about a mechanism is not a test of
+it*, and I had a running prototype the whole time.
+
+**An asset id builds a CSS selector, and the schema permits ids that break one.** `[data-asset-id="…"]`
+is interpolated raw; `AssetFrontmatterSchemaV1` validates ids as `z.string().min(1)`, so a
+hand-authored one holding a quote or a backslash makes `querySelector` **throw** rather than miss.
+Generated ULIDs are safe — and this surface exists to show the notes people typed. `CSS.escape`.
+
+**And `AssetDesignChanged` had to refresh the catalogue entry, not only the mark.** The event's
+name says *design*, which is why the arm was missed: two of the five design commands write the
+NOTE. `SetAssetHeight` writes `height`, drawn in §3.5's **Definition** section; `SetAssetBackground`
+writes the keys behind the **Spec sheet** row. Both publish `assetDesignChanged` and nothing else,
+and the vault supplies no compensating signal — `VaultChangeAdapter` checks the echo window before
+announcing, by design, so this plugin's own writes never raise `ProjectIndexEntryChanged`. Without
+the arm, a peer's height edit leaves a stale number for the life of the view, and it is worst on a
+corrupt sidecar, where the design read refuses and the catalogue half was the only one that could
+have been refreshed.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

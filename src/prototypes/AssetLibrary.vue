@@ -130,6 +130,7 @@ watch(query, (now) => { showSelection.value = now.trim() === ''; });
 
 const shelvesEl = ref<HTMLElement | null>(null);
 const bodyEl = ref<HTMLElement | null>(null);
+const searchEl = ref<HTMLInputElement | null>(null);
 
 /**
  * MOVE FOCUS WHEN THE PANE SWAPS, and only then.
@@ -167,7 +168,13 @@ async function focusAfterSwap(selector: string, swapped: () => boolean): Promise
 	// inspector gone too. The search field is the fallback rather than a shelf header: it is the
 	// one control present in every state this function can run in.
 	if (target !== null && target.offsetParent !== null) target.focus();
-	else bodyEl.value?.querySelector<HTMLElement>('.rp-al-search__input')?.focus();
+	// A REF, not a query from `bodyEl`: the search input lives in the toolbar, which is
+	// `.rp-al-body`'s SIBLING — so the first spelling of this fallback searched a subtree that
+	// cannot contain its target and returned `null` every time. It was written as the last link
+	// of an ordered chain and was unreachable from the day it shipped; reported by a review bot
+	// one round after that chain was described here as paying out. A ref cannot be scoped wrong,
+	// and it does not go stale against a class rename either.
+	else searchEl.value?.focus();
 }
 
 /** The narrow layout is the one that withdraws the shelves. Only true while they are withdrawn. */
@@ -225,7 +232,11 @@ function back(): void {
 	const category = ASSETS.find((a) => a.id === leaving)?.category;
 	if (category !== undefined && !expanded.value.has(category)) toggle(category);
 	selectedId.value = null;
-	if (leaving !== null) void focusAfterSwap(`[data-asset-id="${leaving}"]`, () => swappingOut);
+	// `CSS.escape`: an asset id is `z.string().min(1)` in the frontmatter schema, so a
+	// hand-authored one holding a quote or a backslash builds an invalid selector and
+	// `querySelector` THROWS rather than missing. Generated ULIDs are safe; a note somebody
+	// typed is not, and this surface exists to show the notes people typed.
+	if (leaving !== null) void focusAfterSwap(`[data-asset-id="${CSS.escape(leaving)}"]`, () => swappingOut);
 }
 
 /**
@@ -305,6 +316,7 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
 			<label class="rp-al-search">
 				<span class="rp-al-search__label">Search the library</span>
 				<input
+					ref="searchEl"
 					v-model="query"
 					type="search"
 					class="rp-al-search__input"

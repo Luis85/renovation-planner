@@ -1,7 +1,7 @@
 /*
  * The Plan Editor shell — SDD §60's five regions, as ordinary DOM around a canvas.
  *
- * Only the CANVAS is Konva. The toolbar, the two side panels and the status bar are
+ * Only the CANVAS is Konva. The context bar, the two side panels and the status bar are
  * regular elements styled the way `view.css` styles the project surface: Obsidian
  * variables only, so a themed vault stays themed (§84), and no colour literal anywhere —
  * `scripts/styles-assemble.mjs` fails the build on one.

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ok, type Result } from '../../../src/core/result/Result';
+import { isErr, ok, type Result } from '../../../src/core/result/Result';
 import {
 	undoDeleteResolution,
 	type Compensation,
@@ -11,6 +11,7 @@ import { InMemoryRequirementRepository } from '../../../src/infrastructure/persi
 import type { Requirement } from '../../../src/domain/requirement/Requirement';
 import type { RequirementId } from '../../../src/domain/requirement/RequirementId';
 import type { Expected, Loaded } from '../../../src/application/ports/versioning';
+import { createEventBus, type EventBus } from '../../../src/core/events/EventBus';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
 import { createZoneId } from '../../../src/domain/zone/ZoneId';
@@ -88,7 +89,7 @@ interface Wiring {
 /** An entity half that records rather than touching a repository — the zone is not this file's subject. */
 function recordingEntity(
 	repo: InMemoryRequirementRepository,
-	options: { failRestore?: boolean; failCompensation?: boolean } = {},
+	options: { failRestore?: boolean; failCompensation?: boolean; events?: EventBus } = {},
 ): Wiring & { counts: { restores: number; compensations: number } } {
 	const counts = { restores: 0, compensations: 0 };
 	const compensation: Compensation = () => {
@@ -101,6 +102,7 @@ function recordingEntity(
 		entityId: String(ZONE),
 		logger: recorder,
 		requirements: repo,
+		events: options.events ?? createEventBus(),
 		restoreEntity: (): Promise<Result<Compensation, ReturnType<typeof injectedPersistenceError>>> => {
 			counts.restores += 1;
 			if (options.failRestore) {
@@ -261,5 +263,114 @@ describe('undoDeleteResolution', () => {
 		// compensation's own failure is a diagnostic nobody can act on in the return type.
 		expect(error.code).toBe('test.injected-failure');
 		expect(lines.map((line) => line.event)).toContain('sequence.undo-compensation.failed');
+	});
+
+	it('announces a written restore even when no figure moved', async () => {
+		// delete-anyway: the resolution marked the referent stale; the undo marks it current
+		// again and changes no cost. The cost helper is correctly silent, so this event is the
+		// only signal there is.
+		const repo = new InMemoryRequirementRepository();
+		const [one] = await seed(repo, 1);
+		if (one === undefined) throw new Error('seed failed');
+		const rewritten = expectOk(await repo.save(one.entity, one.version));
+		const events = createEventBus();
+		const wiring = recordingEntity(repo, { events });
+		const seen: unknown[] = [];
+		events.subscribe('RequirementRestored', (event) => {
+			seen.push(event);
+		});
+		// COLLECTED, never thrown. `createEventBus`'s `deliver` wraps every handler in a `.catch`
+		// and swallows what it caught, so a throwing subscriber asserts NOTHING — `publish`
+		// still resolves and the case passes whether or not the forbidden event was emitted.
+		const costs: unknown[] = [];
+		events.subscribe('CostEstimateChanged', (event) => {
+			costs.push(event);
+		});
+
+		expectOk(
+			await undoDeleteResolution(
+				wiring.ops,
+				{
+					affectedBefore: [one],
+					affectedAfter: [{ id: one.entity.id, outcome: 'written', version: rewritten.version }],
+				},
+				new ReferenceLocks(),
+			),
+		);
+
+		expect(seen).toEqual([
+			{
+				type: 'RequirementRestored',
+				payload: { requirementId: one.entity.id, projectId: one.entity.projectId },
+			},
+		]);
+		expect(costs).toEqual([]);
+	});
+
+	it('announces a requirement put back from absent as a creation', async () => {
+		// remove-references DELETED the referent, so the undo inserts it: a creation, not a
+		// restore, and the two say different things to a subscriber.
+		const repo = new InMemoryRequirementRepository();
+		const [one] = await seed(repo, 1);
+		if (one === undefined) throw new Error('seed failed');
+		await repo.delete(one.entity.id, one.version);
+		const events = createEventBus();
+		const wiring = recordingEntity(repo, { events });
+		const seen: string[] = [];
+		events.subscribe('RequirementCreated', () => {
+			seen.push('created');
+		});
+		events.subscribe('RequirementRestored', () => {
+			seen.push('restored');
+		});
+
+		expectOk(
+			await undoDeleteResolution(
+				wiring.ops,
+				{ affectedBefore: [one], affectedAfter: [{ id: one.entity.id, outcome: 'deleted' }] },
+				new ReferenceLocks(),
+			),
+		);
+
+		expect(seen).toEqual(['created']);
+	});
+
+	// The rollback path: a partial failure leaves the vault as the delete left it, so it must
+	// not leave subscribers believing a restore stood.
+	it('announces nothing for a restore that was rolled back', async () => {
+		const repo = new Faulty();
+		const seeded = await seed(repo, 2);
+		const [first, second] = seeded;
+		if (first === undefined || second === undefined) throw new Error('seed failed');
+		const events = createEventBus();
+		const wiring = recordingEntity(repo, { events });
+		const seen: unknown[] = [];
+		events.subscribe('RequirementRestored', (event) => {
+			seen.push(event);
+		});
+
+		const afterFirst = expectOk(await repo.save(first.entity, first.version));
+		const afterSecond = expectOk(await repo.save(second.entity, second.version));
+		// Walked in reverse: save 1 restores `second` and succeeds, save 2 restores `first`
+		// and fails, which rolls `second`'s restore back before anything is published.
+		repo.arm([2]);
+
+		expect(
+			isErr(
+				await undoDeleteResolution(
+					wiring.ops,
+					{
+						affectedBefore: [first, second],
+						affectedAfter: [
+							{ id: first.entity.id, outcome: 'written', version: afterFirst.version },
+							{ id: second.entity.id, outcome: 'written', version: afterSecond.version },
+						],
+					},
+					new ReferenceLocks(),
+				),
+			),
+		).toBe(true);
+
+		expect(seen).toEqual([]);
 	});
 });

@@ -179,6 +179,7 @@ export class ReversibleDeleteZoneCommand {
 				entityId: this.input.zoneId,
 				logger: this.undoDeps.logger,
 				requirements: this.undoDeps.requirements,
+				events: this.undoDeps.events,
 				restoreEntity: async () => {
 					const written = await restoreZone(this.zones, this.ledger, snapshot);
 					if (isErr(written)) return written;

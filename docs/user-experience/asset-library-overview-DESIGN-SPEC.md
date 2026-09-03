@@ -644,6 +644,11 @@ the panel they were working in gone.
 **A deletion is a `back()` that cannot return to its row.** The inspector withdraws to its resting
 state and focus goes to the **next row in the shelf the asset was in**, falling back in order to:
 
+- **the next result row**, when a search is running — §6.1 replaces every shelf with the flat
+  Results list, so the shelf row this rule names is not mounted at all and the chain would drop
+  straight past it to the search field, losing a keyboard user's position while a perfectly good
+  neighbour is on screen. The destination is *the next row the user can actually see*, and which
+  list holds that row depends on the state;
 - **the search field** otherwise — which is every remaining case rather than a rare one.
 
 **The shelf's own heading was the middle step here and it has been REMOVED, because it could never
@@ -847,11 +852,14 @@ tighter than the rule it replaces. **The prototype cannot demonstrate it** — e
 comes from a fixture with no I/O — so this one is specified and unphotographed, which §12 records
 rather than leaves implied.
 
-**The inspector does not read through this batch, and cannot.** The shelf batch is bound to
-expanded shelves and carries an OUTLINE and a state, which is all a 20px mark needs. The
-inspector needs more and needs it in cases the batch never covers:
+**The inspector does not read through this batch, and cannot.** The batch is bound to the
+VIEWPORT (§5.3 — this sentence said *expanded shelves*, the bound that section replaced several
+rounds earlier, and went on saying it two paragraphs below the replacement) and carries an
+OUTLINE and a state, which is all a 20px mark needs. The inspector needs more, and needs it in
+cases the batch never covers:
 
-- a restored view state can name an `assetId` whose shelf is **collapsed**, so no batch has run
+- a restored view state can name an `assetId` that has never been on screen — its shelf collapsed,
+  or simply scrolled past — so no batch has run
   for it and `CatalogueEntryDto` carries no shape data at all — the panel would draw a valid
   selection with no dimensions and no shape state;
 - §3.4 sends the clearance's extent to the inspector precisely because it is mush at 20px, and an
@@ -1116,7 +1124,9 @@ no list, because the gaps read as deliberate:
 
 ```
 view.asset-library.title            command.open-asset-library
-view.asset-library.search           view.asset-library.search.results   (interpolated: {count})
+view.asset-library.search.label     view.asset-library.search.placeholder
+view.asset-library.search.results   (interpolated: {count})
+view.asset-library.unselected
 view.asset-library.assets           (interpolated: {count})
 view.asset-library.used-in          view.asset-library.used-in.none
 view.asset-library.used-in.project  (interpolated: {name}, {count})
@@ -1982,6 +1992,19 @@ produce the identical staleness and raise no delete event — a note becoming un
 §5.1a moves out of `entries`, and a hand-edited id changing which asset a row IS. The report named
 the deletion; **a rule was cheaper than the list and covers the two it did not name.**
 
+**Three of the twenty-sixth round's four fixes never landed, and I said they had.** The script
+applying them threw at an assertion before writing the file; I re-ran only the edit that had
+failed, committed, resolved all four threads and reported all four as addressed — on the PR and in
+the record below. The next round found one of the three still open, which is the only reason it
+came to light. Applied now, with the round's own account left standing above as written so that
+the gap between what was claimed and what shipped is legible rather than tidied away.
+
+**This is worse than any finding on the branch**, and its shape is worth more than the three
+edits: a batched edit that fails part-way is a partial fix that reads as a complete one, and a
+resolved review thread is the record everyone else trusts. *Verify the file, not the exit status
+of the thing that was supposed to change it* — every claim of "addressed" here should have been a
+`grep` for the text I had just written, and none of them was.
+
 A twenty-sixth round found four, and two of them are remedies this document proposed that could
 not be implemented as written.
 
@@ -2034,6 +2057,18 @@ had been quietly disagreeing with it.
 and neither was reachable through any fixture, capture or gate here. They are pinned now by the
 same test file the focus chain got, for the same reason: the argument that a derivation is
 correct is not a test of it.
+
+A twenty-eighth round found one more missing key — the search control's **placeholder**, distinct
+from its accessible label, where the inventory carried a single `view.asset-library.search` for
+both. That is the fourth key found missing there, and chasing it is what exposed the unapplied
+edits above: the sweep for it read the inventory and found `view.asset-library.unselected` absent,
+a key the previous round's account says was added.
+
+**So the inventory got the derivation it should have had from the start.** Every rendered literal
+in the four mock components — text nodes across newlines, placeholders, titles, aria-labels — was
+extracted mechanically and checked against the list, rather than read off the screen. The label
+and the placeholder are separate keys now, `.unselected` is present, and the two strings the mock
+does not draw at all (`Delete`, the notes label) were already there.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

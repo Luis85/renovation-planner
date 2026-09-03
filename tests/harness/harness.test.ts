@@ -1207,13 +1207,15 @@ describe('the browser harness', () => {
 			predicate: (entry: (typeof scanned)[number]) => boolean,
 		): string[] => scanned.filter((entry) => predicate(entry)).map((entry) => entry.file);
 
-		// **This file is at 449 counted lines against its 450 `max-lines` cap.** A seventh list
-		// here — or any other addition to this file — faces an EXTRACTION to `tests/helpers/`,
-		// not a squeeze: `escapesTheRoots`'s glob branch expansion and `importsATestFile` both
-		// left for `globBranches.ts` under exactly this pressure, and a compaction taken to buy
-		// headroom on this branch was reversed in review. A budget bought back by reformatting
-		// is a budget already spent. Stated here rather than in a review artifact so the next
-		// author makes a decision instead of a discovery.
+		// **This file has effectively no `max-lines` headroom left, so a SEVENTH list here faces
+		// an EXTRACTION to `tests/helpers/`, not a squeeze** — the predicate goes there and this
+		// block keeps its one `named` call, which is how `escapesTheRoots`'s glob expansion and
+		// `importsATestFile` both left. A compaction taken to buy headroom on this branch was
+		// reversed in review: a budget bought back by reformatting is a budget already spent.
+		// Deliberately no NUMBER here — the count is a fact about the moment it was taken and no
+		// gate reads this comment; `npx eslint tests/harness/harness.test.ts` is what answers it.
+		// The note is sited at the addition it can actually see, and claims nothing about an
+		// addition made elsewhere in the file, which would never pass this line.
 		const importers = named(({ file, blocks, scans }) => importsStylesheet(file, blocks, scans));
 		const escapees = named(({ file, scans }) =>
 			scans.some((scan) => scan.relative.some((specifier) => escapesTheRoots(file, specifier))),

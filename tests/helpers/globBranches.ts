@@ -92,10 +92,12 @@ type ExtglobOperator = '@' | '?' | '*' | '+' | '!';
  * repetition count would need its own branch, unboundedly), or for more than
  * `MAX_GLOB_BRANCHES` branches, per this predicate's whole glob posture: an unrecognised or
  * unbounded construct moves a pattern toward "counts", never toward "proven safe".
- * Two callers besides its own direct test: `harness.test.ts`'s `escapesTheRoots`, and
- * `importsATestFile` below — measured with `grep -rn 'expandGlobBranches(' src tests` in the
- * edit that added the second, because this sentence said "only caller" until then and a
- * caller LIST is a fact about routing that a review round changes.
+ * Three callers besides its own direct test: `harness.test.ts`'s `escapesTheRoots`,
+ * `importsATestFile` below, and ITSELF — the recursive call that substitutes one alternative and
+ * re-scans the result, which is how a nested group is reached at all. Measured with
+ * `grep -rn 'expandGlobBranches(' src tests` in the edit that corrected it; this sentence said
+ * "only caller" until `importsATestFile` existed, then omitted the recursion, and a caller LIST
+ * is a fact about routing that every review round can change.
  *
  * One pass finds the leftmost group's matching close AND splits its interior on the group's own
  * separator (`,` for braces, `|` for extglobs) — both are the same "am I at depth zero" question
@@ -265,13 +267,25 @@ export const resolvesOutsideRoots = (
  * file — legal under `moduleResolution: "bundler"` — is NOT matched, and is left that way rather
  * than added: `.test.js` is also a real, SCANNED file name in this tree's own walk (`MODULE`
  * admits `.js` and the exclusion is `.test.ts` only), so matching it would report a module that
- * is not in fact outside the scan. Measured before choosing, with
- * `grep -rnE "(from|import) '[^']*\.test(\.ts|\.js)?'" src tests/harness tests/helpers`: no
- * module under the three roots IMPORTS such a specifier today, in any of the three spellings, so
- * this is a tripwire over an empty set either way and the narrower reading is the one that
- * cannot cry wolf. (The same grep WITHOUT the `from`/`import` keyword prints eight hits, every
- * one a string literal in a test BODY — this module's own cases below included — which is why
- * the keyword is part of the measurement rather than a tidier pattern.)
+ * is not in fact outside the scan.
+ *
+ * **Measured before choosing, and measured WIDE on purpose.** A pattern keyed on `from `/`import `
+ * cannot see `import('./x.test.ts')`, an `import.meta.glob` argument, a double-quoted specifier or
+ * an unspaced `import"./x"`, so the instrument is every QUOTED STRING under the roots that ends in
+ * one of the three spellings — a superset of the import specifiers the claim is about, which is
+ * the direction that cannot miss one:
+ *
+ * ```
+ * grep -rnE "['\"][^'\"]*\.test(\.ts|\.js)?['\"]" src tests/harness tests/helpers
+ * ```
+ *
+ * It prints **seven LINES** (eight MATCHES — the `'./*.test.ts'` bullet below carries two on one
+ * line, which is why the two numbers differ and why this says which it is counting). Five are
+ * argument literals in `globBranches.test.ts`'s cases for this very function; one is
+ * `harness.test.ts:1188`, `sources()`'s own `endsWith('.test.ts')` argument — the exclusion this
+ * predicate exists to compensate for, not a test body at all; and one is inside THIS docblock. So
+ * **not one of the seven is an import specifier**: the tripwire is over an empty set in every
+ * spelling either way, and the narrower reading is the one that cannot cry wolf.
  */
 const TEST_FILE = /\.test(?:\.ts)?$/;
 
@@ -302,6 +316,17 @@ const TEST_FILE = /\.test(?:\.ts)?$/;
  *   `'./*.ts'` elide to text that is not, however many `*.test.ts` files they really match. Same
  *   direction as every other elision here — conservative about UPWARD traversal, silent about
  *   what a wildcard's real matches are named.
+ * - **A TEMPLATE-form specifier whose suffix lives in a substitution.** `scanScript`'s `collect`
+ *   builds a `templateSkeleton` for `` import(`./a${x}`) ``, drops every `${…}` and pushes the
+ *   result as an ORDINARY (non-glob) specifier — so such a specifier IS offered here, partially
+ *   spelled. `` import(`./globBranches${suffix}`) `` with `suffix = '.test.ts'` elides to
+ *   `'./globBranches'`, misses `TEST_FILE` and is a false negative. Same shape as the glob bullet
+ *   above and a DIFFERENT path, which is why it is its own row rather than left to be read into
+ *   that one: the glob bullet is scoped to `resolveBranch`'s `*`/`?`/`[]` elision, and the
+ *   not-in-the-source bullet below does not cover a skeleton that is offered. Conservative in the
+ *   same direction as every other elision here, and `templateSkeleton`'s own docblock argues why
+ *   dropping the substitution is the safe half for the question it was written for — UPWARD
+ *   traversal — which is not this question.
  * - **An unboundable pattern answers `false` here, not `true`** — the opposite posture from
  *   `escapesTheRoots`, and deliberately so rather than by oversight: `expandGlobBranches`
  *   refusing a pattern is exactly the case `escapesTheRoots` already reports as an escape, so

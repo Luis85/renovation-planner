@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
@@ -17,7 +17,58 @@ export default defineConfig({
 	},
 	test: {
 		environment: 'node',
-		include: ['tests/**/*.test.ts'],
+		// TWO PROJECTS, and the split is a COST decision rather than a taxonomy.
+		//
+		// `tests/build/` is 36 files that boot a type-aware ESLint eleven times over, and
+		// `tests/helpers/eslint.ts` says what one boot costs (~3s idle, 17.8s seen under full
+		// parallel load). Every boot is paid AGAIN per file, because vitest gives each test
+		// file its own module registry — so the module-level `new ESLint(...)` that file
+		// exists to share is shared within a file and nowhere else. Turning isolation off for
+		// that directory alone shares them across files in a worker: 34.6s to 20.8s measured,
+		// 36 of 36 still passing.
+		//
+		// **Only that directory, and that bound is measured rather than cautious.**
+		// `--no-isolate` over the WHOLE suite halves it (121.8s to 61.3s) and is not a flag
+		// anybody may safely flip: three runs produced three DISJOINT failure sets — four
+		// files, a different three under coverage, a different three again with the first
+		// four excluded — so which files break depends on worker scheduling, and quarantining
+		// the observed ones is whack-a-mole. Four families of module-level state cause it
+		// (Konva's `stages` registry, a `npm_package_version` mutation, `@napi-rs/canvas`'s
+		// install against a reused jsdom global, and the harness `import.meta.glob`
+		// registry). `tests/build/` holds none of them, and its own numbers say why it is the
+		// safe half: 605ms of environment across all 36 files, against 82s for the rest.
+		//
+		// WHAT THE SPLIT COSTS, said out loud rather than left to be discovered: a file in
+		// `tests/build/` no longer proves anything about its own isolation, so a leak between
+		// two of those files now reads as a pass. Nothing there asserts one today — every
+		// leak-detection case the whole-suite experiment broke lives under
+		// `tests/presentation/` or `tests/harness/`, which stay isolated.
+		//
+		// `exclude` spreads `configDefaults.exclude` rather than replacing it: a project's
+		// `exclude` OVERRIDES the default rather than adding to it, so naming only
+		// `tests/build/**` would put `node_modules/**` back in scope.
+		//
+		// AND THERE IS NO `include` BESIDE THIS KEY, which is the one thing here a reader is
+		// likely to put back. With `extends: true` a project's `include` MERGES with the root's
+		// rather than replacing it, so a root `include: ['tests/**/*.test.ts']` gives the
+		// `build` project every file in `tests/` on top of its own — measured, and it does not
+		// fail: the run reports 688 files and 9520 tests, every file collected twice, the whole
+		// suite once under `isolate: false`, and two cases red from leakage in a directory that
+		// was never meant to be there. Discovery belongs to the projects now.
+		projects: [
+			{
+				extends: true,
+				test: { name: 'build', include: ['tests/build/**/*.test.ts'], isolate: false },
+			},
+			{
+				extends: true,
+				test: {
+					name: 'suite',
+					include: ['tests/**/*.test.ts'],
+					exclude: [...configDefaults.exclude, 'tests/build/**'],
+				},
+			},
+		],
 		coverage: {
 			provider: 'v8',
 			// `.vue` as well as `.ts`: the floors are ratcheted and they are one of the four

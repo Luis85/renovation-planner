@@ -279,13 +279,22 @@ export const resolvesOutsideRoots = (
  * grep -rnE "['\"][^'\"]*\.test(\.ts|\.js)?['\"]" src tests/harness tests/helpers
  * ```
  *
- * It prints **seven LINES** (eight MATCHES — the `'./*.test.ts'` bullet below carries two on one
- * line, which is why the two numbers differ and why this says which it is counting). Five are
- * argument literals in `globBranches.test.ts`'s cases for this very function; one is
- * `harness.test.ts:1188`, `sources()`'s own `endsWith('.test.ts')` argument — the exclusion this
- * predicate exists to compensate for, not a test body at all; and one is inside THIS docblock. So
- * **not one of the seven is an import specifier**: the tripwire is over an empty set in every
- * spelling either way, and the narrower reading is the one that cannot cry wolf.
+ * **The claim is the CONCLUSION, and this docblock deliberately quotes no count.** Every hit that
+ * command finds is a literal in a test's arguments, an argument to `sources()`'s own
+ * `endsWith(...)` exclusion — the very thing this predicate compensates for — or an example
+ * written in a docblock. **Not one is an import specifier**, in any spelling the widened
+ * instrument can see, so the tripwire is over an empty set and the narrower reading of
+ * `TEST_FILE` is the one that cannot cry wolf.
+ *
+ * A count is left out because it would be **UNSTABLE BY CONSTRUCTION, not merely stale**: the
+ * command searches quoted strings under the roots, this file is under the roots, so every example
+ * literal anyone writes in this comment changes the answer it reports about itself. That is not a
+ * hypothetical — a previous revision stated a figure correctly, and the same edit's own new prose
+ * invalidated it by adding four more literals, which is this predicate's documented failure mode
+ * arriving inside the fix for it. Correcting the digits would schedule the next wrong number for
+ * whoever edits this paragraph. **If a figure is ever wanted here, the only honest one comes from
+ * an instrument that EXCLUDES the file it is quoted in** (`--exclude=globBranches.ts`), and that
+ * exclusion has to be part of the command rather than a caveat under it.
  */
 const TEST_FILE = /\.test(?:\.ts)?$/;
 

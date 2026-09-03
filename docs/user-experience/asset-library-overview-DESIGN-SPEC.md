@@ -1588,6 +1588,7 @@ no list, because the gaps read as deliberate:
 
 ```
 view.asset-library.title            command.open-asset-library
+view.asset-library.door             (the two in-app doors' button label)
 view.asset-library.search.label     view.asset-library.search.placeholder
 view.asset-library.search.results   (interpolated: {count})
 view.asset-library.unselected
@@ -1598,6 +1599,17 @@ view.asset-library.used-in.vault-root
 view.asset-library.open-designer    view.asset-library.open-note
 view.asset-library.back             view.asset-library.delete
 view.asset-library.shape            view.asset-library.footprint
+
+**Amendment (Task 11 review): `view.asset-library.door` is the 59th key, and the inventory was 58.**
+§2 bolds **Assets** as the door's label in the same role it bolds **New asset** — so it is literal
+copy this section owes a key for, and it had none. Task 11 shipped both doors rendering
+`view.asset-library.title` instead, which is a defensible thing to do with no key available and the
+wrong thing to leave: one string then labels a workspace TAB and two BUTTONS in both locales, so
+nobody can retitle the tab without silently retitling the doors. Its German is `Objekte`, per the
+term this plugin's UI already pins (`Material` is refused; the German UI says `Objekt`).
+Recorded as an amendment rather than edited in silently, because Task 8 asserted this inventory at
+exactly 58 keys against this section — so a 59th is a decision somebody made, not a gap somebody
+filled.
 view.asset-library.clearance        view.asset-library.spec-sheet
 view.asset-library.none             view.asset-library.shape.loading
 view.asset-library.shape.gone       view.asset-library.shape.read-failed  (interpolated: {path})

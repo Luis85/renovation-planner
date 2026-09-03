@@ -91,6 +91,19 @@ describe('the asset library mock’s derived geometry', () => {
 		expect(() => shapeDimensions({ ...ASSETS[0], outline: many })).not.toThrow();
 	});
 
+	it('announces the shape as well as the state', () => {
+		// A measured tile and a measured radiator both said "Measured footprint" until the
+		// extent was added — the outline that tells them apart is inside the `aria-hidden` SVG,
+		// so browsing by screen reader gave one sentence for every measured asset.
+		const wrapper = mountLibrary();
+		const spoken = [...wrapper.element.querySelectorAll('.rp-al-mark__state')]
+			.map((el) => el.textContent);
+		const measured = spoken.filter((t) => t?.startsWith('Measured footprint'));
+		expect(measured.length).toBeGreaterThan(1);
+		expect(new Set(measured).size).toBe(measured.length);
+		wrapper.unmount();
+	});
+
 	it('keeps a fractional extent out of the whole-millimetre trap', () => {
 		const asset = { ...ASSETS[0], outline: [
 			{ x: 0, y: 0 }, { x: 1200.4, y: 0 }, { x: 1200.4, y: 189.6 }, { x: 0, y: 189.6 },

@@ -13,6 +13,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ASSETS, markPath, type CatalogueAsset, type ShapeState } from './assetLibraryFixture';
+import { shapeDimensions } from './assetShapeFields';
 
 /**
  * Defaulted like every region in this tree, so the mark draws as a specimen on the harness
@@ -55,6 +56,26 @@ const STATE_WORDS: Readonly<Record<ShapeState, string>> = {
 	pending: 'Shape not read yet',
 	unreadable: 'Shape file could not be read',
 };
+
+/**
+ * The state AND the shape, because the state alone does not distinguish two rows.
+ *
+ * `STATE_WORDS` on its own announced "Measured footprint" for a 600 × 600 tile and for a
+ * 1200 × 190 radiator alike — the outline that tells them apart visually stays inside the
+ * `aria-hidden` SVG, so a screen-reader user browsing the shelf heard one sentence for every
+ * measured asset and had to select each row to learn which was which. Same defect as the round
+ * before, one layer down: the mark carries a fact, and a fact only in pixels is no fact at all.
+ * The extent is what a mark is FOR at 20px — nobody reads an outline at that size either; they
+ * read *long and thin* against *square*.
+ *
+ * `shapeDimensions` withholds the unit for an unscaled outline, so this recites no placeholder
+ * number as a measurement — the same rule §3.5's own rows follow.
+ */
+const spokenMark = computed((): string => {
+	const words = STATE_WORDS[props.asset.shape];
+	const extent = shapeDimensions(props.asset);
+	return extent === null ? words : `${words}, ${extent}`;
+});
 </script>
 
 <template>
@@ -86,7 +107,7 @@ const STATE_WORDS: Readonly<Record<ShapeState, string>> = {
 			<path d="M5.5 5.5 L14.5 14.5 M14.5 5.5 L5.5 14.5" />
 		</template>
 	</svg>
-	<span class="rp-al-mark__state">{{ STATE_WORDS[asset.shape] }}</span>
+	<span class="rp-al-mark__state">{{ spokenMark }}</span>
 </template>
 
 <style scoped>

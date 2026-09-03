@@ -300,13 +300,20 @@ a rule this section always held — see §12:
 | No shape yet | **nothing**. An empty slot is the one thing no other state can be mistaken for, and a drawn box for *there is no shape* is scaffolding pretending to be data |
 | **Unreadable** | a **struck box** — the only state that draws a box at all, so nothing can confuse it with a square footprint. The box says a shape *was asked for and could not be had*; the cross says the row will not get one without repair |
 
-**Every mark carries its state in words, visually hidden beside it.** The drawing is
+**Every mark carries its state AND its extent in words, visually hidden beside it.** The drawing is
 `aria-hidden` — an outline announces nothing — and the first version justified that by saying the
 state is written out in the inspector. It is, and only AFTER the row is selected: while BROWSING,
 which is what this surface is for, a screen-reader user had no access to the state at all. §3.4's
 own argument is that the mark carries a fact no colour could; a fact carried only in pixels is
 that same failure through the other eye. The text sits in the mark rather than in the row's
 accessible name, which is the asset's name and should not become a sentence.
+
+**The state alone is not enough**, which was the first version and needed one more round to say:
+*Measured footprint* is what a 600 × 600 tile and a 1200 × 190 radiator both announced, and the
+outline that tells them apart is precisely what stays hidden. The extent is what the mark is FOR
+at 20px — nobody reads an outline at that size either; they read *long and thin* against *square*.
+The unit is withheld for an unscaled outline exactly as the inspector's rows withhold it, so
+nothing recites a placeholder number as a measurement.
 
 
 The third state is not a skeleton animation; it is what the row draws before its shape arrives,
@@ -858,6 +865,14 @@ So `UnreadableEntry.assetId` is `AssetId | null` and the scan carries the exclud
 alongside the repository's skipped ids. The null arm is not a gap: a note with no usable id cannot
 be SELECTED, because nothing can name it — it can only be counted and listed, and its path is what
 `Open note` needs regardless.
+
+**A duplicate-id LOSER carries `assetId: null` for that same reason**, and stating it avoids the
+ambiguity the third source otherwise creates: the loser and the index winner share an id, so if
+both appeared with it, an id-keyed lookup would find two descriptors and the `in unreadable` state
+could open the excluded note instead of the canonical one. The loser is unreachable by id **by
+construction** — that is what losing means — exactly like a `no-id` note, so the existing rule
+already answers it and no discriminating field is needed. **At most one entry in `unreadable`
+carries any given id**, and that is the property a selection resolves against.
 
 `ObsidianAssetRepository.list` already HAS the ids at the point it skips them — it records each
 one to the diagnostics ledger — so this is a wider return rather than new bookkeeping. The status
@@ -2383,6 +2398,23 @@ on this branch has been an omission; these two are regressions, and the differen
 mechanical remedies that worked earlier — derive the list, grep the edit back — check that a
 change LANDED, not that it was safe. Nothing here reads a repaired table as a table, or a ticket
 rule as a state machine.
+
+A thirty-ninth round found two, and both are the round before them stopping one step short — the
+pattern this document has now counted rather than described.
+
+**The mark's text alternative gave the state and not the shape.** Every measured asset announced
+*Measured footprint*, so a screen-reader user browsing a shelf heard one sentence for a 600 × 600
+tile and a 1200 × 190 radiator alike, and had to select each row to tell them apart. The outline
+that discriminates them is exactly what stays inside the `aria-hidden` SVG. The extent is what a
+mark is FOR at that size — nobody reads an outline at 20px either. Pinned by a case that requires
+the measured rows to announce DISTINCT sentences, watched failing against the state-only version.
+
+**And the third unreadable source made an id ambiguous.** A duplicate-id loser and the index
+winner share an id, so with both in `unreadable` an id-keyed lookup finds two descriptors and the
+selection state could open the excluded note rather than the canonical one. The loser carries
+`assetId: null`, for the reason already written one paragraph up: it is unreachable by id **by
+construction**, which is what losing means. No new field — **at most one entry carries any given
+id** is the property, and the existing rule already implied it.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

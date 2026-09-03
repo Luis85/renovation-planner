@@ -658,14 +658,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 		const persistence = this.root.persistence;
 		if (!persistence || !this.vaultStack) return;
 
-		persistence.index.rebuild(
-			buildProjectIndexEntries({
-				vault: this.vaultStack.vault,
-				metadataCache: this.vaultStack.metadataCache,
-				echo: persistence.vaultDeps.echo,
-				logger: this.root.logger,
-			}),
-		);
+		// Both halves of one scan, in one call: the entries and the notes of ours the scan could
+		// not index. A rebuild that replaced only the first would leave a repair surface naming
+		// collisions the vault no longer has.
+		const scan = buildProjectIndexEntries({
+			vault: this.vaultStack.vault,
+			metadataCache: this.vaultStack.metadataCache,
+			echo: persistence.vaultDeps.echo,
+			logger: this.root.logger,
+		});
+		persistence.index.rebuild(scan.entries, scan.exclusions);
 
 		// Set BEFORE the announce, so a subscriber re-hydrating on that event already sees a
 		// completed scan. Announcing first would leave the very re-read this flag exists for

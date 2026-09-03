@@ -116,3 +116,37 @@ export function geometrySidecarChanged(
 ): GeometrySidecarChanged {
 	return { type: 'GeometrySidecarChanged', payload };
 }
+
+/**
+ * ONE note the index could NOT hold changed — it became excluded, stopped being excluded, or
+ * was excluded for a different reason.
+ *
+ * **A third index event rather than a payload on `ProjectIndexEntryChanged`, because that one
+ * cannot represent this mutation.** Its payload declares `entityId: EntityId<string>`,
+ * required, and a `no-id` descriptor has no id by definition — that is what excluded it. The
+ * asset domain events refuse it for the same reason. So "announce an exclusion like any other
+ * change" named a mechanism with no room for the fact, and a surface listing the notes a user
+ * has to repair would have gone on being stale exactly as it was before the event existed.
+ *
+ * **Keyed by PATH**, which is the only stable identifier such a note has, and carrying the
+ * entity TYPE so a subscriber can filter — the index is one global id namespace, so an asset
+ * library listening for its own broken notes would otherwise re-read on every project note
+ * anybody mistyped. The reason is deliberately NOT carried: a subscriber re-reads
+ * `listExclusions()` for the current set, exactly as `ProjectIndexEntryChanged` leaves the
+ * entry itself to be re-read, and a payload that carried the reason would be a second copy of
+ * the descriptor free to disagree with the index.
+ */
+export interface ProjectIndexExclusionChangedPayload {
+	readonly path: string;
+	readonly entityType: EntityType;
+}
+
+export interface ProjectIndexExclusionChanged extends DomainEvent<'ProjectIndexExclusionChanged'> {
+	readonly payload: ProjectIndexExclusionChangedPayload;
+}
+
+export function projectIndexExclusionChanged(
+	payload: ProjectIndexExclusionChangedPayload,
+): ProjectIndexExclusionChanged {
+	return { type: 'ProjectIndexExclusionChanged', payload };
+}

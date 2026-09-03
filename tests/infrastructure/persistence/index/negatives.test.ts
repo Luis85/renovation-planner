@@ -293,7 +293,7 @@ describe('index builder negatives', () => {
 		const orphanSidecar = `Renovation/Geometry/${createPlanId()}.rpgeo`;
 		stack.vault.entries.set(orphanSidecar, '{}');
 
-		const entries = buildProjectIndexEntries({
+		const { entries } = buildProjectIndexEntries({
 			vault: stack.vault as never,
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
@@ -333,7 +333,7 @@ describe('duplicate frontmatter ids', () => {
 		const copyPath = 'Renovation/Kitchen renovation 1.md';
 		stack.vault.entries.set(copyPath, stack.vault.entries.get(original) ?? '');
 
-		const entries = buildProjectIndexEntries({
+		const { entries } = buildProjectIndexEntries({
 			vault: stack.vault as never,
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
@@ -419,7 +419,7 @@ describe('duplicate sidecar basenames', () => {
 		// this case once asserted "either way" while reading one order twice.
 		const reportOf = (): Record<string, unknown> => {
 			stack.logged.length = 0;
-			const entries = scan();
+			const { entries } = scan();
 			expect(entries.find((entry) => entry.id === planId)?.geometrySidecarPath).toBe(original);
 			const warning = stack.logged.find((line) => line.event === 'persistence.index.sidecar-duplicate');
 			expect(warning).toBeDefined();
@@ -480,7 +480,7 @@ describe('duplicate sidecar basenames', () => {
 		stack.vault.entries.set('Loose/Geometry/pl-rootless.rpgeo', '{}');
 		stack.vault.entries.set('Loose Backup/Geometry/pl-rootless.rpgeo', '{}');
 
-		const entries = buildProjectIndexEntries({
+		const { entries } = buildProjectIndexEntries({
 			vault: stack.vault as never,
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
@@ -507,7 +507,7 @@ describe('duplicate sidecar basenames', () => {
 		stack.vault.entries.set('Loose/Geometry/pl-loose.rpgeo', '{}');
 		stack.vault.entries.set('Loose Backup/Geometry/pl-loose.rpgeo', '{}');
 
-		const entries = buildProjectIndexEntries({
+		const { entries } = buildProjectIndexEntries({
 			vault: stack.vault as never,
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
@@ -716,7 +716,7 @@ describe('the index scan does not run the fail-closed gate', () => {
 			(stack.vault.entries.get(poisonedPath) ?? '').replace('schema-version: 1', 'schema-version: 99'),
 		);
 
-		const entries = buildProjectIndexEntries({
+		const { entries } = buildProjectIndexEntries({
 			vault: stack.vault as never,
 			metadataCache: stack.metadataCache as never,
 			echo: stack.echo,
@@ -737,7 +737,7 @@ describe('the index scan does not run the fail-closed gate', () => {
 
 		// The refusal is where it belongs — at the read of that one entity, with the rest of
 		// the project loading through the very index this scan built.
-		stack.index.rebuild(entries);
+		stack.index.rebuild(entries, []);
 		expect(expectErr(await stack.plans.getById(planId)).code).toBe('plan.schema-version-unsupported');
 		expectOk(await stack.projects.getById(projectId));
 		expectOk(await stack.zones.getById(zoneId));

@@ -121,7 +121,8 @@ export const stackFoundation = (hosts: StackHosts, projectFolder: string): Stack
 		deps,
 		projectFolder,
 		rebuildIndex() {
-			index.rebuild(buildProjectIndexEntries({ vault, metadataCache, echo, logger }));
+			const scan = buildProjectIndexEntries({ vault, metadataCache, echo, logger });
+			index.rebuild(scan.entries, scan.exclusions);
 		},
 	};
 };

@@ -2,7 +2,7 @@ import type { MetadataCache, TFile, Vault } from 'obsidian';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
-import { ENTITY_TYPES, type EntityType, type ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
+import { ENTITY_TYPES, type EntityType, type ExcludedNote, type ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type { Logger } from '../../../application/ports/Logger';
 import { frontmatterOf } from '../../obsidian/repositories/noteIo';
 import { parentOf, sidecarPathFor } from '../../obsidian/repositories/paths';
@@ -77,8 +77,20 @@ function warnOnDuplicate(logger: Logger, previous: ProjectIndexEntry | undefined
 	});
 }
 
-/** Pass one: every note of ours in the vault, keyed by its declared id. */
-function collectNotes(input: ScanInput, entries: Map<string, ProjectIndexEntry>): void {
+/**
+ * Pass one: every note of ours in the vault, keyed by its declared id — and, beside it, every
+ * note of ours this pass could NOT key, with the reason it could not.
+ *
+ * The two collections are filled in one walk because the reason is only available HERE. A
+ * `no-id` note is diagnosable from its own frontmatter, but a `duplicate-id` loser is not: its
+ * frontmatter is entirely valid and the defect is a collision with another file, so
+ * reconstructing that afterwards would mean re-reading every other note in the vault.
+ */
+function collectNotes(
+	input: ScanInput,
+	entries: Map<string, ProjectIndexEntry>,
+	exclusions: ExcludedNote[],
+): void {
 	for (const file of input.vault.getMarkdownFiles()) {
 		// Through `frontmatterOf`, the one spelling every note read in this plugin takes —
 		// and in THIS caller the echo half of it answers nothing, which is worth saying
@@ -99,10 +111,25 @@ function collectNotes(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
 				path: file.path,
 				reason: 'a note of this plugin must declare a non-empty id',
 			});
+			// The warn is for a developer reading a log; the descriptor is for the user who has
+			// to repair the note. `ref.type` is free here — `entityRefOf` validated it on the
+			// line above the id check — and it is the only point at which an excluded note's
+			// type is known without a second read of the frontmatter.
+			exclusions.push({ path: file.path, entityType: ref.type, reason: 'no-id' });
 			continue;
 		}
 
-		warnOnDuplicate(input.logger, entries.get(ref.id), ref.id, file.path);
+		const displaced = entries.get(ref.id);
+		warnOnDuplicate(input.logger, displaced, ref.id, file.path);
+		if (displaced !== undefined) {
+			// Last-writer-wins is deliberate and untouched (see `warnOnDuplicate`). What was
+			// missing is that the loser landed in NEITHER collection: unreachable by id, absent
+			// from the index, and named only in a log line nobody reads. The descriptor takes
+			// `displaced.type` and never `ref.type` — this map is keyed by id with no type in the
+			// key, so an asset note and a project note declaring one id collide here, and taking
+			// the arriving note's type would file the excluded one under whatever displaced it.
+			exclusions.push({ path: displaced.path, entityType: displaced.type, reason: 'duplicate-id' });
+		}
 		entries.set(ref.id, {
 			id: ref.id as EntityId<string>,
 			type: ref.type,
@@ -266,6 +293,21 @@ function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
 }
 
 /**
+ * What one scan of the vault produces: the entries the index will hold, and the notes of ours
+ * it could not hold.
+ *
+ * A pair rather than two functions, because both answers come out of the same single walk and
+ * one of them is not derivable from the other afterwards — and a RETURNED pair rather than an
+ * out-parameter on `ScanInput`, because that bundle is what both passes READ and a mutable
+ * output array in it is a fourth thing a caller has to remember to supply and to consume.
+ * `ProjectIndex.rebuild` takes both together for the same reason.
+ */
+export interface ProjectIndexScan {
+	entries: ProjectIndexEntry[];
+	exclusions: ExcludedNote[];
+}
+
+/**
  * The full scan that populates the Project Index (SDD §47). Runs from
  * `onLayoutReady` — NOT `onload`: a vault-wide scan there competes with workspace
  * restoration on the main thread, and `MetadataCache` is incomplete until layout-ready,
@@ -317,10 +359,11 @@ function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
  * Two named passes rather than one body: the sidecar join can only run once every note
  * entry exists, so the ORDER here is the contract, and it is worth being able to read.
  */
-export function buildProjectIndexEntries(input: ScanInput): ProjectIndexEntry[] {
+export function buildProjectIndexEntries(input: ScanInput): ProjectIndexScan {
 	const entries = new Map<string, ProjectIndexEntry>();
+	const exclusions: ExcludedNote[] = [];
 
-	collectNotes(input, entries);
+	collectNotes(input, entries, exclusions);
 	joinSidecars(input, entries);
 
 	// §67's `info` — a notable state transition, content-free: the index was REBUILT and
@@ -328,5 +371,5 @@ export function buildProjectIndexEntries(input: ScanInput): ProjectIndexEntry[] 
 	// is the one-line summary a developer reads first.
 	input.logger.info('persistence.index.rebuilt', { entries: entries.size });
 
-	return [...entries.values()];
+	return { entries: [...entries.values()], exclusions };
 }

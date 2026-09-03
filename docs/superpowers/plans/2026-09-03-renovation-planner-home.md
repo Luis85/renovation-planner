@@ -2169,6 +2169,20 @@ describe('matchesQuery', () => {
 		expect(matchesQuery('Ähre', 'ahre', de)).toBe(true);
 	});
 
+	it('matches a LIGATURE, where one code unit equals three', () => {
+		// The measurement that killed the ratio bound: `compare('ﬃ', 'ffi')` is 0 in both
+		// locales, so a 1-unit window has to be tried against a 6-unit query. Any `minWidth`
+		// derived from the query's length never tries it.
+		expect(matchesQuery('Oﬃce', 'office', en)).toBe(true);
+		expect(matchesQuery('Oﬃce', 'ffi', en)).toBe(true);
+	});
+
+	it('matches the other single-unit ligatures the collator equates', () => {
+		// Measured, all 0 under base sensitivity: æ/ae, œ/oe, ﬁ/fi, ﬂ/fl, ﬀ/ff.
+		expect(matchesQuery('Æther', 'aether', de)).toBe(true);
+		expect(matchesQuery('Œuvre', 'oeuvre', de)).toBe(true);
+	});
+
 	it('matches an expansion that makes the query LONGER than the name', () => {
 		// Measured, not assumed: base sensitivity treats `ß` and `ss` as equal, so a 6-unit
 		// name is matched by a 7-unit query. A window sized from the query — and the
@@ -2310,19 +2324,33 @@ export function splitMatch(
  * user typing the ordinary ASCII spelling of a street name found nothing. That is the failure
  * the collator was chosen to prevent, arriving through the search that uses it.
  *
- * **Bounded, so this stays a filter and not a scan.** Widths run from half the query's length
- * to twice it, which covers every expansion `Intl` exposes for the locales this plugin ships:
- * `ß`/`ss` is 1:2 and nothing in `de` or `en` goes further — `ä`/`ae` is measurably NOT equal
- * under base sensitivity, so that pair needs no width at all. Worst case is
- * `name.length × query.length × 2` short comparisons for one row.
+ * **There is NO ratio bound, and an earlier draft asserting one was measurably wrong.** That
+ * draft ran widths from half the query's length to twice it, "which covers every expansion
+ * `Intl` exposes for the locales this plugin ships" — generalised from a single measurement of
+ * `ä`/`ae`, which is not even a ligature. Measured properly, in `de` and `en` alike:
  *
- * **Measure it against the 30-row fixture before trusting the bound** (Task 12). If a keystroke
- * ever feels slow, the fix is an `includes` fast path — which answers the overwhelmingly common
- * case, since most queries match without any expansion — not a narrower band, because narrowing
- * it is what this paragraph exists to record undoing.
+ * ```
+ * compare('ﬃ', 'ffi')  // 0   — ONE code unit equals THREE
+ * compare('æ', 'ae')   // 0   — and so do ﬁ/fi, ﬂ/fl, ﬀ/ff, œ/oe
+ * compare('ä', 'ae')   // -1  — the one pair the old bound was derived from
+ * ```
  *
- * The SHORTEST window at the earliest position wins, so the highlight covers what actually
- * matched rather than the first longer span that happens to contain it.
+ * So `Oﬃce` typed as `office` needs a 1-unit window against a 6-unit query, which `minWidth`
+ * of 3 never tried. **A bound derived from one example is a bound derived from nothing**, and
+ * the honest algorithm searches every width the name can offer.
+ *
+ * **TWO PASSES, so removing the bound does not make this a scan.** The first tries the
+ * no-expansion width at every position — the overwhelmingly common case, and O(name.length).
+ * Only when that finds nothing does the second walk every other width, which is O(name.length²)
+ * and runs on the rare query that needs it. Measured intent, to be confirmed in Task 12 against
+ * the 30-row fixture: a single-pass walk of all widths is roughly `name.length²/2` collator
+ * comparisons per row per keystroke, which at thirty rows is where a keystroke starts to be
+ * felt.
+ *
+ * **What the two-pass order costs, stated rather than hidden:** the first pass wins even when
+ * an expansion match starts EARLIER in the name, so the highlight can land on the later of two
+ * genuine matches. It is cosmetic — both are real matches and the row is shown either way — and
+ * the alternative is paying the quadratic pass on every keystroke to place a highlight.
  */
 function findMatch(
 	name: string,
@@ -2332,13 +2360,19 @@ function findMatch(
 	const needle = query.trim();
 	if (needle.length === 0) return { at: 0, width: 0 };
 
-	const minWidth = Math.max(1, Math.ceil(needle.length / 2));
-	const maxWidth = needle.length * 2;
+	const equals = (at: number, width: number): boolean =>
+		collator.compare(name.slice(at, at + width), needle) === 0;
 
-	for (let at = 0; at + minWidth <= name.length; at += 1) {
-		const widest = Math.min(maxWidth, name.length - at);
-		for (let width = minWidth; width <= widest; width += 1) {
-			if (collator.compare(name.slice(at, at + width), needle) === 0) return { at, width };
+	// Pass 1: no expansion. Case and diacritics still differ, which is why it is the collator
+	// answering rather than `includes`.
+	for (let at = 0; at + needle.length <= name.length; at += 1) {
+		if (equals(at, needle.length)) return { at, width: needle.length };
+	}
+
+	// Pass 2: every other width, shortest first at each position.
+	for (let at = 0; at < name.length; at += 1) {
+		for (let width = 1; at + width <= name.length; width += 1) {
+			if (width !== needle.length && equals(at, width)) return { at, width };
 		}
 	}
 	return null;
@@ -3256,6 +3290,25 @@ describe('ProjectList keyboard', () => {
 		);
 	});
 
+	it('hands Escape to an expanded Completed group when there are no active rows', async () => {
+		// The sibling of the ArrowDown case above, and the one the first fix missed: Escape in
+		// an already-empty filter asked `active` alone, so on a vault of only completed
+		// projects the arrows worked and Escape did nothing.
+		const wrapper = mount(ProjectList, {
+			props: { projects: [project('Attic', { status: 'COMPLETE' })] },
+			attachTo: document.body,
+		});
+		await wrapper.find('.rp-project-list__completed > summary').trigger('click');
+		const input = wrapper.find('.rp-project-filter__input');
+		await input.trigger('focus');
+
+		await input.trigger('keydown', { key: 'Escape' });
+
+		expect(document.activeElement).toBe(
+			wrapper.findAll('.rp-project-list__completed .rp-project-list__row')[0].element,
+		);
+	});
+
 	it('does NOT enter a collapsed Completed group', async () => {
 		// Moving focus onto a row the user cannot see is worse than not moving. The summary is
 		// an ordinary tab stop and opening it is the gesture that makes those rows reachable.
@@ -3574,16 +3627,33 @@ function onListKeydown(event: KeyboardEvent, roving: RovingFocus): void {
 function onFilterKeydown(event: KeyboardEvent): void {
 	if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
 	if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+	if (focusFirstRow()) event.preventDefault();
+}
 
+/**
+ * Move focus to the first row the user can actually reach, and say whether there was one.
+ *
+ * **A FUNCTION rather than the same two branches written twice**, because it was written twice
+ * and the second copy was wrong. `onFilterKeydown` gained the `Completed` fall-through and
+ * `onFilterCancel` — three lines below it, asking the identical question for Escape — kept
+ * `active.value.length > 0` alone, so on a vault of only completed projects the arrows entered
+ * the group and Escape did nothing. A partial fix that reads exactly like a complete one, in
+ * the sibling door, which is this repository's oldest recorded shape.
+ *
+ * `Projects` first, then `Completed` only while it is EXPANDED: focus must not move to a row
+ * the user cannot see. `false` means there is nowhere to go — an empty vault, or a query
+ * filtered to nothing — and both callers leave the caret where it is.
+ */
+function focusFirstRow(): boolean {
 	if (active.value.length > 0) {
-		event.preventDefault();
 		activeRoving.focusFirst();
-		return;
+		return true;
 	}
 	if (completedOpen.value && completed.value.length > 0) {
-		event.preventDefault();
 		completedRoving.focusFirst();
+		return true;
 	}
+	return false;
 }
 
 /**
@@ -3597,7 +3667,9 @@ function onFilterCancel(): void {
 		query.value = '';
 		return;
 	}
-	if (active.value.length > 0) activeRoving.focusFirst();
+	// The SAME question the arrows ask, asked through the same function — see `focusFirstRow`
+	// for why this is not two branches written out twice.
+	focusFirstRow();
 }
 ```
 
@@ -4732,10 +4804,19 @@ Append to `styles/project-list.css`:
  * `cursor: pointer` of its own and no hover background — the row itself is NOT the target here,
  * its two buttons are, and a row-wide hover would promise a click that does nothing.
  */
-.rp-project-list__continue .rp-continue {
+.rp-project-list__continue .rp-project-list .rp-continue {
 	justify-content: space-between;
 	gap: var(--size-4-2);
 	cursor: default;
+}
+
+/*
+ * The row itself is not a target here — its two BUTTONS are — so the hover background
+ * `list-row.css` gives every row is taken back off. A row-wide hover promises a click that does
+ * nothing.
+ */
+.rp-project-list__continue .rp-project-list .rp-continue:hover {
+	background-color: transparent;
 }
 
 .rp-project-list__continue .rp-continue__resume,
@@ -4784,12 +4865,31 @@ const props = defineProps<{
 			<h3 class="rp-project-list__group-title">
 				{{ tr('view.project.group.continue') }}
 			</h3>
-			<ContinueRow
-				:project="continueProject.project"
-				:plan-id="continueProject.planId"
-				@resume="$emit('resume', { projectId: continueProject.project.id, planId: continueProject.planId })"
-				@open="$emit('open', continueProject.project.id)"
-			/>
+			<!--
+				INSIDE a `.rp-project-list` `<ul>`, exactly like the other two groups, and that is
+				load-bearing rather than tidy: every shared row declaration in `list-row.css` and
+				`forms.css` is scoped `.rp-project-list .rp-project-list__row` — the descendant
+				selector that beats Obsidian's own `button:not(.clickable-icon)` — so a row
+				rendered outside that ancestor gets none of `display: flex`, the width, the
+				padding, the 24px minimum height or the name's truncation, and the "same armature
+				as every other row" claim would be false in the one place it is made.
+
+				It also puts the row inside the container query, so the Continue row narrows with
+				its siblings instead of being the one row that does not.
+
+				A list of ONE is the right shape rather than a concession: the group is zero-or-one
+				by design, and `<li>` is what `<ul>` may contain.
+			-->
+			<ul class="rp-project-list">
+				<li>
+					<ContinueRow
+						:project="continueProject.project"
+						:plan-id="continueProject.planId"
+						@resume="$emit('resume', { projectId: continueProject.project.id, planId: continueProject.planId })"
+						@open="$emit('open', continueProject.project.id)"
+					/>
+				</li>
+			</ul>
 		</section>
 ```
 
@@ -4798,6 +4898,26 @@ widening the emits with `resume: [context: ContinueContext]`.
 **The Continue group is not filtered.** It is an ACTION rather than a member of the index, so a
 query that excludes its project still leaves it offered — and its own row says which project it
 is, so nothing is ambiguous. Add a case pinning that, because the opposite is the reflex.
+
+Add one more, in `projectListGroups.test.ts`, because `continueRow.test.ts` mounts the row
+standalone and therefore cannot see the thing that matters here:
+
+```typescript
+	it('renders the Continue row INSIDE a .rp-project-list, like every other row', () => {
+		const wrapper = mount(ProjectList, {
+			props: { projects: MIXED, continueProject: { project: MIXED[1], planId: null } },
+		});
+
+		// Every shared row declaration is scoped `.rp-project-list .rp-project-list__row` — the
+		// descendant selector that beats Obsidian's own `button:not(.clickable-icon)`. Outside
+		// that ancestor the row gets no flex, no width, no padding and no 24px floor, and the
+		// "same armature" claim is false in the one place it is made. jsdom resolves no CSS, so
+		// this asserts the STRUCTURE the selector needs rather than the result.
+		expect(wrapper.find('.rp-project-list__continue .rp-project-list .rp-continue').exists()).toBe(
+			true,
+		);
+	});
+```
 
 - [ ] **Step 6: Resolve it in the view**
 
@@ -5027,12 +5147,33 @@ existing account of why the bare root must go on meaning the project view — th
 address this surface with no `view` parameter at all, and making a bare root mean something else
 would break them while the test asserting they exist kept passing.
 
+Then add **two fixed shots** in `scripts/entryShots.mjs`'s own set, both on `?projects=30`: one
+at the default width and one at **460**. The fixed shots are the only ones that carry a width of
+their own — which is what `resolveShots` refuses a bare `--width` for — and this surface's whole
+narrow composition is a container query on the pane, so a 460px capture of the real view is the
+only thing that can show it. Extend `tests/harness/harness.test.ts`'s existing assertion about
+which fixed shots exist, so a later edit dropping one fails there rather than quietly reducing
+the set.
+
 - [ ] **Step 3: Capture both widths in both schemes**
 
+**The Home surface itself must be one of the 460px shots**, and the fixed set is where it
+belongs: `?projects=30` drives the REAL view through the real data path, where a prototype would
+draw a hand-built copy of it. `resolveShots`'s own error says the fixed shots "carry their own"
+width, which is the mechanism — add two entries to that set, `home-stress` at the default width
+and `home-stress-narrow` at 460, both on `?projects=30`.
+
+**`prototype:StatusTicks` does not substitute for it and never could**: that prototype holds ten
+tick strips and nothing else — no filter, no foot line, no `Completed` disclosure, no Continue
+controls, no overrunning name and no translated status words. It answers exactly one of step 4's
+questions (can ten cells be counted at a glance) and none of the other seven. An earlier draft of
+this step listed it as the narrow capture, which would have left every 460px condition in the
+checklist below uninspected while reading as though the capture had been taken.
+
 ```bash
-npm run harness-shot
-npm run harness-shot prototype:StatusTicks -- --width=460
-npm run harness-shot prototype:StatusTicks
+npm run harness-shot                                        # the fixed set, now including the two Home shots
+npm run harness-shot prototype:StatusTicks                  # the ten strips, wide
+npm run harness-shot prototype:StatusTicks -- --width=460   # and narrow, for the strip alone
 ```
 
 **The `--` is load-bearing.** npm claims a bare `--width` as its own config; `resolveShots`
@@ -5346,6 +5487,30 @@ The other two are narrowings rather than defects: the arrows now work from the f
 table always said, and `Completed` gets its own roving controller because §7's sequence names it
 as one stop.
 
+**Fourth round, and three of its four are the third round's own repairs.** The pattern is now
+the finding: every round on this branch has broken something the round before it fixed, and the
+common shape is a fix applied at the door being looked at rather than at the question being
+asked.
+
+- **The ratio bound on the collation window was FALSE, and it was asserted from one
+  measurement.** `compare('ﬃ', 'ffi')` is `0` — one code unit equal to three — and so are
+  `æ`/`ae`, `œ`/`oe`, `ﬁ`/`fi`, `ﬂ`/`fl`, `ﬀ`/`ff`. The bound had been derived from `ä`/`ae`,
+  which is not a ligature and is measurably *not* equal, so the one pair it tested was the one
+  pair that proved nothing about the class. **A bound derived from one example is a bound
+  derived from nothing**; there is no ratio bound now, and the cost is paid by a two-pass search
+  rather than by an assumption.
+- **Escape kept the blind spot the arrows had just lost**, three lines away in the sibling
+  function. The fix went to the door in the report and not to the question, which is the
+  partial-fix shape this repository has paid for repeatedly. `focusFirstRow` is now one function
+  both doors ask.
+- **The Continue row was rendered outside `.rp-project-list`**, so every shared row declaration
+  — scoped as a descendant to beat Obsidian's own button rule — missed it. The row that the
+  design calls "the same armature as every other row" was the one row with no armature at all,
+  and only reading the selector's scope against the markup could see it.
+- **The 460px capture pointed at `prototype:StatusTicks`**, which holds ten tick strips and none
+  of the filter, foot line, disclosure, Continue controls or long names the checklist beneath it
+  inspects. A capture step that cannot see what it asks about reads exactly like one that can.
+
 **Third round, on the fixes themselves.** Four more, all real, and two of them are defects the
 second round's own repairs introduced or left standing — which is this repository's recorded
 pattern for review rounds on one branch, arriving on schedule:
@@ -5357,8 +5522,10 @@ pattern for review rounds on one branch, arriving on schedule:
   `hauptstrasse` — the ordinary ASCII spelling — found nothing. **The failure the collator was
   chosen to prevent, arriving through the search that uses it.** The window's width varies now
   and `splitMatch` highlights the matched SPAN rather than the query's length, which are
-  different numbers whenever an expansion fired. Measured that `ä`/`ae` is *not* equal, which is
-  what bounds the band.
+  different numbers whenever an expansion fired. *(This round then bounded the varying width at
+  a 1:2 ratio, on the strength of `ä`/`ae` measuring not-equal. The fourth round proved that
+  bound false — see below. The correction is left visible rather than edited away, because the
+  mistake was generalising a class from one example, and hiding it would hide that.)*
 - **The filter's new arrow handler returned whenever `Projects` was empty**, leaving a vault of
   only completed projects unreachable by keyboard. A fix written for the common case, blind to
   the case that made the group exist.

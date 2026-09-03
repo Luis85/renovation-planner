@@ -176,6 +176,36 @@ describe('the asset library mock’s focus chain', () => {
 		wrapper.unmount();
 	});
 
+	it('leaves focus alone when Escape clears a search field that was already empty', async () => {
+		// `Escape` is documented as clearing the field and nothing else. With the field
+		// already empty it changes no state, so moving focus is a gesture the key never
+		// promised — and the unconditional handoff sent it to the inspector's Back control
+		// on a narrow pane. The button path is untouched by the guard: `Clear search` only
+		// exists inside the no-matches state, which cannot draw while the query is empty.
+		const wrapper = mountLibrary();
+		const input = wrapper.find('.rp-al-search__input');
+		const field = input.element as HTMLInputElement;
+		field.focus();
+
+		// **Asserted on the MECHANISM, not on where focus lands**, and that is forced rather
+		// than stylistic. `focusAfterSwap` only focuses its target when
+		// `target.offsetParent !== null`, and jsdom answers `null` for every element — so the
+		// handoff always falls through to the search field, which is where focus already is.
+		// The outcome is identical with the defect and without it; measured, by writing the
+		// obvious `document.activeElement` version first and watching it pass against the
+		// mutation. What differs is whether the handoff RUNS at all, so that is what this
+		// watches. The browser-side half — that focus really would move to the Back control
+		// on a narrow pane — is unreachable from jsdom and belongs to the manual case.
+		const handoff = vi.spyOn(field, 'focus');
+		await input.trigger('keydown', { key: 'Escape' });
+		await settle();
+
+		expect(handoff).not.toHaveBeenCalled();
+		expect(document.activeElement).toBe(field);
+		handoff.mockRestore();
+		wrapper.unmount();
+	});
+
 	it('builds a row selector that survives an id holding selector syntax', async () => {
 		// `AssetFrontmatterSchemaV1` validates an id as `z.string().min(1)`, so this is a note a
 		// user can really write, and this surface exists to show the notes people wrote. Driven

@@ -211,6 +211,13 @@ function select(id: string): void {
  * written it as a chain rather than as a named target.
  */
 function clearSearch(): void {
+	// **Nothing to clear is nothing to announce.** `Escape` reaches here from the field
+	// itself, where an already-empty query means no state changes at all — and the
+	// unconditional move below then yanked focus to the inspector's Back control for a key
+	// documented only to clear the field. The guard costs the button path nothing: `Clear
+	// search` lives inside the no-matches state, which cannot be drawn while the query is
+	// empty, so every press of it passes this line. Reported by a review bot.
+	if (query.value === '') return;
 	query.value = '';
 	void focusAfterSwap('.rp-al-inspector__back', () => true);
 }

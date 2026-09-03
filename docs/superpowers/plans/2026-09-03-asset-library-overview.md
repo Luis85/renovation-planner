@@ -347,7 +347,9 @@ Expected: FAIL — `listExclusions is not a function` on the first two, then ass
 
 - [ ] **Step 4: Implement, in this order**
 
-The port first (`ExcludedNote`, `ExclusionReason`, the three members), then the index implementation, then `collectNotes`'s two exclusion arms, then the event, then `VaultChangeAdapter`. `collectNotes`'s duplicate arm reads the displaced entry BEFORE `entries.set` overwrites it:
+The port first (`ExcludedNote`, `ExclusionReason`, the three members), then the index implementation, then `collectNotes`'s two exclusion arms, then the event, then `VaultChangeAdapter`.
+
+**And the bridge from the scan to the index, which this step originally left out.** Pushing a descriptor into a scan-local array reaches nothing: `buildProjectIndexEntries` returned only entries and `RenovationPlannerPlugin.startPersistence` passed only that to `index.rebuild`, so the FULL SCAN's exclusions never arrived and the repair strip would have been empty on every fresh load — with the incremental door working perfectly and hiding it. So the scan returns `{ entries, exclusions }`, `rebuild` takes both, and `startPersistence` is part of this task rather than a later one. The exclusions are a REQUIRED second argument rather than a second method, because a rebuild that replaces one collection and not the other is a rebuild that leaves the strip describing the previous vault. Reported by a review bot against this plan. `collectNotes`'s duplicate arm reads the displaced entry BEFORE `entries.set` overwrites it:
 
 ```ts
 // inside collectNotes, replacing the bare warnOnDuplicate call at line 100
@@ -1189,9 +1191,13 @@ it('draws the shelves beside the unreadable strip, never instead of them', async
 
 it('offers Open note per row, and withholds it for a future-schema refusal', async () => {
     const root = await mountRoot({ unreadable: [
-        { assetId: 'a', path: 'x.md', reason: 'read-failed', code: 'migration.future-schema' },
+        { assetId: 'a', path: 'x.md', reason: 'read-failed', code: 'asset.schema-version-unsupported' },
         { assetId: null, path: 'y.md', reason: 'no-id', code: null },
     ] });
+    // `asset.schema-version-unsupported` is what `MigrationRunner.migrateToLatest` really
+    // raises (`${kind}.schema-version-unsupported`, MigrationRunner.ts:106). Seed it through
+    // the repository rather than as a literal: a builder can satisfy an invented code while
+    // still drawing `Open note` for every real future-version asset.
     const rows = root.findAll('.rp-view-notice li');
     expect(rows[0]!.find('button').exists()).toBe(false);
     expect(rows[1]!.find('button').exists()).toBe(true);

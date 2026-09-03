@@ -562,8 +562,19 @@ Four sections, in this order:
 
      | The selected id is | The panel says | Actions |
      | --- | --- | --- |
-     | in `unreadable` | the note could not be read, and names it | **`Open note` alone** — the raw note is where broken frontmatter is repaired, exactly as the designer is where a damaged shape is |
+     | in `unreadable`, with a REPAIRABLE code | the note could not be read, and names it | **`Open note` alone** — the raw note is where broken frontmatter is repaired, exactly as the designer is where a damaged shape is |
+     | in `unreadable`, code `<kind>.schema-version-unsupported` | the note was written by a newer build, and names it | **none** — see below |
      | in neither | the asset is gone, with a way back | none |
+
+     **The future-schema row is the §4 correction arriving here**, and it had to be made twice
+     because these are two separate contracts over one condition: §4's strip lists every
+     unreadable note, this table describes the one that is SELECTED, and a rule qualified in the
+     first reads as unqualified in the second. `MigrationRunner` raises
+     `` `${kind}.schema-version-unsupported` `` — `asset.schema-version-unsupported` for a note of
+     this catalogue — and the remedy is to upgrade the plugin, so `Open note` invites an edit that
+     cannot repair anything. *An action that cannot work is worse than no action*, which is
+     §3.5's own rule for `asset-geometry.unusable-id`, applied to the door one level up. Reported
+     by a review bot, one round after the same qualification landed in §4 and not here.
 
      `Open designer` and `Delete` are withdrawn for an unreadable note and the reason differs per
      action: the designer needs a shape for an asset the catalogue could not parse, and `Delete`

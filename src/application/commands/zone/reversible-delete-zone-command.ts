@@ -8,6 +8,8 @@ import type { ZoneRepository } from '../../ports/ZoneRepository';
 import type { Loaded } from '../../ports/versioning';
 import type { Zone } from '../../../domain/zone/Zone';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
+import type { EventBus } from '../../../core/events/EventBus';
+import { zoneCreated } from '../../../domain/zone/Zone.events';
 import { referenceError } from '../../errors';
 import type { WriteLedger } from '../../editor/WriteLedger';
 import type { Logger } from '../../ports/Logger';
@@ -25,12 +27,20 @@ export type DeleteCommand = Command<
 /**
  * What the undo half needs and the delete half does not: the Requirements the resolution
  * touched are restored through the port, under the same two lock levels the forward
- * sequence took, and a compensation that also fails is logged rather than returned.
+ * sequence took, a compensation that also fails is logged rather than returned, and the
+ * bus the restored zone is announced on once the whole undo succeeds.
  */
 export interface DeleteZoneUndoDeps {
 	readonly requirements: RequirementRepository;
 	readonly locks: ReferenceLocks;
 	readonly logger: Logger;
+	/**
+	 * The bus this adapter's `undo` announces on. Its `execute` needs none: that half
+	 * dispatches the plain `DeleteZoneCommand`, on the first call and on every redo alike,
+	 * and that command publishes `ZoneDeleted` itself. The restore is the half that goes
+	 * straight to the repository port, which is where the whole undo/redo path was silent.
+	 */
+	readonly events: EventBus;
 }
 
 // The same factory and the same CATEGORY as the sibling create adapter's. These two used
@@ -57,14 +67,22 @@ function nothingToUndo(): ReferenceError {
  * **`undo()`** is the one inverse here that bypasses the command layer entirely:
  * deletion has no "delete the opposite thing" replay, so the snapshot is restored
  * directly through `restoreZone` — `zones.save(zone, 'absent')` plus the ledger record,
- * shared with the create adapter's redo, which needs the identical half. That publishes nothing — a restore is
- * not a creation, and announcing it as one would drive every `ZoneCreated` subscriber with
- * an event describing something that did not happen. This sentence named slice 13's save
- * tracking as one of those subscribers; slice 13 landed with a decorator over the command
- * DISPATCHER that subscribes to nothing, so the example is WITHDRAWN rather than left
- * standing — the argument for restoring silently does not rest on it. The editor refresh
- * (this slice's post-command decorator) re-reads state instead of listening for events. `'absent'` because undo DELETED the note at this ID: if a note
- * is there now, it is somebody else's, and overwriting it is not an undo.
+ * shared with the create adapter's redo, which needs the identical half. `'absent'`
+ * because undo DELETED the note at this ID: if a note is there now, it is somebody
+ * else's, and overwriting it is not an undo.
+ *
+ * **It announces the restore now, and only once the whole undo has succeeded.**
+ * `execute()` needs no bus of its own: the plain `DeleteZoneCommand` it dispatches
+ * publishes `ZoneDeleted` on the first call and on every redo alike, so that half was
+ * never silent. This restore was — `restoreZone` writes straight through the repository
+ * port, past every command, so nothing published `ZoneCreated` for it. The publish sits
+ * AFTER `undoDeleteResolution` returns `ok`, never inside `restoreEntity`: that callback
+ * runs first and its write is compensated by `removeAgain` when a later Requirement
+ * restore fails, so publishing there would announce a zone the rollback goes on to delete
+ * again one step later — an event stream cannot retract. The cross-project dependents a
+ * restore can leave stale are deliberately not reached from here: they come back through
+ * `undoDeleteResolution`'s own per-referent Requirement restores, each of which is
+ * `RequirementInvalidated`'s to announce, not this zone event's.
  *
  * **This is the one reversible adapter that takes NEITHER half of the `WriteLedger`
  * generation guard, and the absence is a measurement rather than an oversight** — its four
@@ -178,7 +196,17 @@ export class ReversibleDeleteZoneCommand {
 		// and this one did not, with nothing marking the difference as deliberate. Advanced
 		// only on SUCCESS: a rolled-back undo deleted the note again, so the pre-delete
 		// snapshot is still what a retry has to restore.
-		if (restored.value !== null) this.snapshot = restored.value;
+		if (restored.value !== null) {
+			this.snapshot = restored.value;
+			// After `undoDeleteResolution` returned ok, never inside `restoreEntity`. That
+			// callback runs FIRST and its write is compensated by `removeAgain` when a later
+			// requirement restore fails — so publishing there would announce a zone that the
+			// rollback deletes again one step later, and an event stream cannot retract.
+			const zone = restored.value.entity;
+			await this.undoDeps.events.publish(
+				zoneCreated({ zoneId: zone.id, planId: zone.planId, projectId: zone.projectId }),
+			);
+		}
 		return ok('wrote');
 	}
 

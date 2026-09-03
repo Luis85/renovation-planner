@@ -18,7 +18,7 @@ import type { Loaded } from '../../src/application/ports/versioning';
 import type { Project } from '../../src/domain/project/Project';
 import type { Plan } from '../../src/domain/plan/Plan';
 import { recorder } from './logger';
-import { expectOk } from './domain';
+import { expectOk, RecordingEventBus } from './domain';
 import { makePlan, makeProject } from './entities';
 
 /**
@@ -43,12 +43,18 @@ export function makeDeleteZoneCommand(
  * The undo half `ReversibleDeleteZoneCommand` grew in slice 10 — the Requirements a
  * resolution touched are restored through these. Defaulted for the pre-slice-10 tests,
  * whose zones have no referents and whose undo therefore collapses to one write.
+ *
+ * `events` defaults to a fresh `RecordingEventBus`, which only records and never delivers
+ * — fine for a caller not asserting on the restore's announcement, and NOT the bus to hand
+ * a case that subscribes to hear it (use a dispatching one, e.g. `dispatchingEventBus()`,
+ * for that).
  */
 export function zoneUndoDeps(
 	requirements: RequirementRepository = new InMemoryRequirementRepository(),
 	locks: ReferenceLocks = new ReferenceLocks(),
+	events: EventBus = new RecordingEventBus(),
 ): DeleteZoneUndoDeps {
-	return { requirements, locks, logger: recorder };
+	return { requirements, locks, logger: recorder, events };
 }
 
 /**

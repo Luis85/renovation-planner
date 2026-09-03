@@ -108,6 +108,7 @@ export function createInspector(
 							requirements: context.commands.requirementEdits.requirements,
 							locks: context.commands.requirementEdits.locks,
 							logger: context.commands.logger,
+							events: context.commands.events,
 						},
 					);
 				case 'assign': {

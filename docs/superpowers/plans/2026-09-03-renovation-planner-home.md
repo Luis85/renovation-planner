@@ -1494,11 +1494,20 @@ rule here can override one there at equal specificity.
 	 * is what the armature aligns; this is a narrow-only rearrangement and belongs in the
 	 * narrow-only block. The name keeps the implicit `order: 0` and so keeps line one.
 	 */
-	.rp-project-list .rp-project-row__status {
+	/*
+	 * SCOPED TO `.rp-project-row`, and the qualifier is load-bearing rather than tidy.
+	 * `ContinueRow` reuses `.rp-project-row__facts` for its date, so an unqualified rule gave
+	 * that date `order: 2` while the Continue row's own status and its two buttons kept the
+	 * default 0 — rearranging `name, date, status, Continue, Open` into a sequence with the
+	 * date stranded after the controls. The wrapping rule above deliberately includes
+	 * `.rp-continue`; the ORDERING deliberately does not, because the two rows have different
+	 * items to order and only one of them has a status/facts pair to swap.
+	 */
+	.rp-project-list .rp-project-row .rp-project-row__status {
 		order: 1;
 	}
 
-	.rp-project-list .rp-project-row__facts {
+	.rp-project-list .rp-project-row .rp-project-row__facts {
 		order: 2;
 	}
 
@@ -1511,7 +1520,7 @@ rule here can override one there at equal specificity.
 	 * so the name is what gives — or the line breaks a third time. A marked row would have laid
 	 * out unlike every other row at exactly the width the design calls a designed state.
 	 */
-	.rp-project-list .rp-project-list__overlap {
+	.rp-project-list .rp-project-row .rp-project-list__overlap {
 		order: 3;
 	}
 
@@ -2510,70 +2519,50 @@ function findMatch(
 	// O(name.length²) comparisons, and it runs on every MISS, which is every keystroke of every
 	// query that does not match: a vault of long names would block the caret while typing.
 	//
-	// Two measurements bound it, both taken in node rather than asserted — this plan's own
-	// round-four lesson, where a ratio bound derived from ONE pair had to be withdrawn:
+	// **There is NO width bound, because no correct one exists.** Four rounds of this plan tried
+	// to derive one — an ASCII-only gate, a haystack-derived slack, a needle-derived window — and
+	// each rested on a measured maximum expansion per character. Every one of them was wrong,
+	// because the maximum is unbounded in practice: measured in node, `en` and `de` alike equate
+	// `㍿` with `株式会社` (1 against 4) and `ﷺ` with `صلى الله عليه وسلم` (1 against 18). A cap
+	// set above the Latin ligatures is a cap the next compatibility character walks past, and a
+	// search that skips those widths reports a match the chosen collator recognises as ABSENT.
 	//
-	//   1. Every expansion these locales have is NON-ASCII. Over the 40-character alphabet
-	//      `a–z 0–9 space - _ .`, in `en` and `de` alike, there is no pair where one ASCII
-	//      character compares equal to two at base sensitivity — zero hits out of 64,000 —
-	//      while `ß`/`ss`, `æ`/`ae` and `ﬃ`/`ffi` are equal in both.
-	//   2. No single character expands by more than TWO units: the widest is `ﬃ`/`ffi`
-	//      (1 against 3), measured across `ß æ œ ﬁ ﬂ ﬀ ﬃ ﬄ Æ Œ ẞ`, and it compounds linearly
-	//      (`ﬃﬃ`/`ffiffi` is a delta of 4).
+	// So the work is bounded instead of the semantics, by a flat budget of collator calls, and
+	// this makes NO claim about Unicode at all. Measured: `Straße`/`strasse` costs 6 calls,
+	// `Aeon`/`æon` 3, `Waffle`/`ﬄ` 11, `ﬃx`/`ffix` 2, `㍿ Renovierung`/`株式会社` 1, and
+	// `Haus ﷺ Projekt` against that whole Arabic phrase 61 — every realistic case is two orders
+	// of magnitude inside the budget, while a 40-character all-Cyrillic name against an absent
+	// ASCII query stops at the budget rather than running to O(name.length²).
 	//
-	// So every character contributes between 1 and 3 units, and a span can only compare equal to
-	// the needle when their two [min, max] length ranges OVERLAP. Both directions matter and a
-	// one-sided bound gets one of them wrong: in `Straße`/`strasse` the SPAN expands, in
-	// `Aeon`/`æon` and `ﬃx`/`ffix` the NEEDLE does.
+	// **What it costs, stated plainly**: a name long enough to exhaust the budget can miss an
+	// expansion match that a slower search would have found. That is a miss, never a crash, and
+	// it is the only honest trade available — the alternative is a bound that is wrong for some
+	// character nobody has thought of yet, which is what the previous four attempts were.
 	//
-	// The upper bound is therefore the NEEDLE's, not the name's: no span longer than
-	// `needle.length + 2 × nonAscii(needle)` can shrink far enough to meet it. **An earlier
-	// draft derived the budget from the whole HAYSTACK's non-ASCII count, which is this
-	// branch's same fix widened one step short twice over**: an ASCII-only gate helped English
-	// and left German, and a haystack-derived slack then helped German and left every
-	// name that is mostly non-ASCII — a Cyrillic or CJK project name made the budget
-	// O(name.length) again and the loops quadratic, on every keystroke of every miss.
-	//
-	// The lower bound is per-SPAN and needs no separate loop: a prefix sum of non-ASCII counts
-	// gives `maxLen(span) = width + 2 × nonAscii(span)` in O(1), and a span whose maximum
-	// cannot reach the needle's length is skipped before the collator is called at all.
-	//
-	// Measured against the real cases rather than reasoned: `Straße`/`strasse` costs 2 collator
-	// calls, `Aeon`/`æon` 1, `Waffle`/`ﬄ` 6, `ﬃx`/`ffix` 1 — and an ASCII miss against a
-	// 40-character all-Cyrillic name costs **73**, where the haystack-derived version spent
-	// roughly 2,800.
-	//
-	// **State the bounds at their real width**: measurement 1 is at 1-vs-2 over that alphabet,
-	// not a proof over every ASCII substring of every width, and measurement 2 covers the
-	// expansions these two locales are known to have rather than all of Unicode. Both are
-	// pinned by a test that re-runs the probes, so a locale whose expansions are ASCII or wider
-	// than 2 fails there. The failure mode either way is a missed match, never a crash.
-	const widest = needle.length + 2 * nonAscii(needle);
+	// **Whether this search should support expansions at all is an open product question**, and
+	// it is worth putting to a human before the build: the simpler design is a case- and
+	// diacritic-folded `includes`, which loses `ß` typed as `ss` — the case round three was about
+	// — and deletes this whole function. That is a semantics decision, not a review-round fix.
+	let budget = EXPANSION_SEARCH_BUDGET;
 
-	// One pass over the name, so the per-span non-ASCII count is a subtraction rather than a
-	// re-count: `prefix[i]` is how many of the first `i` characters are non-ASCII.
-	const prefix = [0];
-	for (let i = 0; i < name.length; i += 1) {
-		prefix.push(prefix[i] + (name.charCodeAt(i) > 127 ? 1 : 0));
-	}
-
-	// Pass 2: every other width the ranges permit, shortest first at each position.
+	// Pass 2: every other width, shortest first at each position, until the budget runs out.
 	for (let at = 0; at < name.length; at += 1) {
-		for (let width = 1; width <= widest && at + width <= name.length; width += 1) {
+		for (let width = 1; at + width <= name.length; width += 1) {
 			if (width === needle.length) continue; // pass 1 tried it
-			if (width + 2 * (prefix[at + width] - prefix[at]) < needle.length) continue;
+			if (budget-- <= 0) return null;
 			if (equals(at, width)) return { at, width };
 		}
 	}
 	return null;
 }
 
-/** Cheap enough to run per row per keystroke; `> 127` is the whole test. */
-function nonAscii(value: string): number {
-	let count = 0;
-	for (let i = 0; i < value.length; i += 1) if (value.charCodeAt(i) > 127) count += 1;
-	return count;
-}
+/**
+ * How many collation comparisons pass 2 may spend on ONE name for ONE query. Generous by two
+ * orders of magnitude against every measured real case (the worst was 61), and the only thing
+ * standing between a Unicode-heavy name and a quadratic scan on every keystroke.
+ */
+const EXPANSION_SEARCH_BUDGET = 400;
+
 ```
 
 **The window was driven against the real expansions before it was written down**, in node, and
@@ -2587,21 +2576,24 @@ measurement in a commit message:
 | `Waffle` | `ﬄ` | pass 2 | width 3 at offset 2, needle shorter |
 | `ﬃx` | `ffix` | pass 2 | width 2, needle LONGER than the span |
 | `Küche` | `kuche` | pass 1 | equal width; pass 2 is never entered |
+| `㍿ Renovierung` | `株式会社` | pass 2 | 1 against 4 — wider than any Latin ligature |
+| `Haus ﷺ Projekt` | `صلى الله عليه وسلم` | pass 2 | 1 against 18 |
 
-The last two matter most: they run the ranges in both directions — span expanding, then needle
-expanding — and a one-directional draft passes the first three.
+The last four matter most, and each kills a bound an earlier round of this plan believed in:
+`Aeon`/`æon` and `ﬃx`/`ffix` expand the NEEDLE rather than the span, and the two compatibility
+characters expand past any per-character cap. A search that skips their widths reports a match
+the collator itself recognises as absent.
 
-**Two cost cases belong beside them, because the correctness cases pass at any budget.** Assert
-the collator call COUNT, since that is the only thing that tells a bounded search from an
-unbounded one: an ASCII miss against a 40-character all-Cyrillic name, and one against a
-100-character name of repeated `Küche`. Measured at **73** and **60** calls; the haystack-derived
-budget this replaced spent roughly 2,800 on the first. A generous ceiling (say 200) is enough —
-the point is that it cannot grow with the square of the name.
+**Two cost cases belong beside them, because every correctness case passes at any budget.**
+Assert the collator call COUNT — that is the only thing that tells a bounded search from an
+unbounded one, and it is why four successive budgets shipped without a single case going red:
+an ASCII miss against a 40-character all-Cyrillic name, and one against a 100-character name of
+repeated `Küche`. Both must stop at the budget rather than running to completion.
 
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `npx vitest run tests/presentation/views/projectFilter.test.ts`
-Expected: PASS, 13 cases.
+Expected: PASS, 17 cases.
 
 - [ ] **Step 5: Write the failing filter-line test**
 

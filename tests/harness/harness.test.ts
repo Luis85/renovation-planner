@@ -60,15 +60,22 @@ interface StyleBlock {
 	readonly src: string | undefined;
 }
 
-const stylesOf = (file: string, text: string): StyleBlock[] =>
-	file.endsWith('.vue')
-		? parseSfc(text, { filename: file }).descriptor.styles.map((block) => ({
-				content: block.content,
-				src: block.src,
-			}))
-		: [];
+interface Blocks {
+	readonly styles: readonly StyleBlock[];
+	readonly scripts: readonly Script[];
+}
 
 /**
+ * Both halves of one SFC parse. They were two functions, each calling `parseSfc` on the same
+ * text and throwing half the descriptor away.
+ *
+ * **Merged for clarity, and explicitly NOT as the fix for the timeout below** — a claim this
+ * docblock made for one commit and could not defend. A cold pass of `parseSfc` over the 52
+ * prototypes costs 122ms and a WARM one costs 1.1ms, so the duplicate was buying back about a
+ * millisecond of a 760ms scan, not the 122ms first measured: the number was real and it was a
+ * fact about JIT warm-up, not about the second call. One parse answering both questions is
+ * worth having on its own terms; it is not worth reporting as a saving.
+ *
  * A TEMPLATE is executable too, and that is not a technicality: Vue compiles
  * `@click="import('./theme.css')"` into render code containing a live
  * `onClick: $event => (import('./theme.css'))` — measured, not assumed — so a template-only SFC
@@ -79,12 +86,17 @@ const stylesOf = (file: string, text: string): StyleBlock[] =>
  * the same move this file has now made three times. The generated code is plain JS, so it is
  * handed the JS script kind rather than the SFC's own `lang`.
  */
-const scriptsOf = (file: string, text: string): Script[] => {
+const blocksOf = (file: string, text: string): Blocks => {
 	if (!file.endsWith('.vue')) {
-		return [{ content: text, kind: KIND_BY_EXTENSION.get(path.extname(file)) ?? ts.ScriptKind.TS }];
+		return {
+			styles: [],
+			scripts: [
+				{ content: text, kind: KIND_BY_EXTENSION.get(path.extname(file)) ?? ts.ScriptKind.TS },
+			],
+		};
 	}
 	const { descriptor } = parseSfc(text, { filename: file });
-	const blocks: Script[] = [descriptor.script, descriptor.scriptSetup]
+	const scripts: Script[] = [descriptor.script, descriptor.scriptSetup]
 		.filter((block): block is NonNullable<typeof block> => block !== null)
 		.map((block) => ({
 			content: block.content,
@@ -96,9 +108,12 @@ const scriptsOf = (file: string, text: string): Script[] => {
 			filename: file,
 			source: descriptor.template.content,
 		});
-		blocks.push({ content: rendered.code, kind: ts.ScriptKind.JS });
+		scripts.push({ content: rendered.code, kind: ts.ScriptKind.JS });
 	}
-	return blocks;
+	return {
+		styles: descriptor.styles.map((block) => ({ content: block.content, src: block.src })),
+		scripts,
+	};
 };
 
 /**
@@ -178,6 +193,52 @@ const importUrlsOf = (filename: string, code: Buffer): string[] => {
 const styleImportsStylesheet = (file: string, block: StyleBlock): boolean =>
 	block.src !== undefined || importUrlsOf(file, Buffer.from(block.content)).length > 0;
 
+/** The JS half of the question below, so that `importsStylesheet` reads as the pair it is. */
+const scriptImportsStylesheet = (file: string, script: Script): boolean => {
+	const source = ts.createSourceFile(
+		file,
+		script.content,
+		ts.ScriptTarget.Latest,
+		false,
+		script.kind,
+	);
+	let found = false;
+	const visit = (node: ts.Node): void => {
+		if (found) return;
+		if (
+			(ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+			node.moduleSpecifier !== undefined &&
+			namesStylesheet(node.moduleSpecifier)
+		) {
+			found = true;
+			return;
+		}
+		if (ts.isCallExpression(node) && node.arguments[0] !== undefined) {
+			const callee = node.expression;
+			// `import('…')` — the callee IS the keyword, not an identifier.
+			const isDynamicImport = callee.kind === ts.SyntaxKind.ImportKeyword;
+			// `import.meta.glob('./themes/*.css')` — Vite turns each match into a dynamic
+			// import, so a glob naming stylesheets loads them. The callee is a property
+			// access ending in `glob` over an `import.meta` meta-property, which the
+			// dynamic-import test above cannot see: its `.kind` is `PropertyAccessExpression`.
+			// `entries.ts` already uses this primitive, so it is house vocabulary rather than
+			// an exotic input — the walk simply could not see the one shape the harness itself
+			// is built on.
+			const isGlob =
+				ts.isPropertyAccessExpression(callee)
+				&& callee.name.text === 'glob'
+				&& callee.expression.getText(source).startsWith('import.meta');
+			if ((isDynamicImport || isGlob) && namesStylesheet(node.arguments[0])) {
+				found = true;
+				return;
+			}
+		}
+		ts.forEachChild(node, visit);
+	};
+	ts.forEachChild(source, visit);
+	return found;
+};
+
 /**
  * Does this module import a stylesheet? Asked of the TypeScript PARSER, not of a pattern.
  *
@@ -209,52 +270,13 @@ const styleImportsStylesheet = (file: string, block: StyleBlock): boolean =>
  * source at all — held in an identifier, or assembled by concatenation — whose value exists
  * only at runtime.
  */
-const importsStylesheet = (file: string, text: string): boolean =>
-	stylesOf(file, text).some((block) => styleImportsStylesheet(file, block)) ||
-	scriptsOf(file, text).some((script) => {
-		const source = ts.createSourceFile(
-			file,
-			script.content,
-			ts.ScriptTarget.Latest,
-			false,
-			script.kind,
-		);
-		let found = false;
-		const visit = (node: ts.Node): void => {
-			if (found) return;
-			if (
-				(ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-				node.moduleSpecifier !== undefined &&
-				namesStylesheet(node.moduleSpecifier)
-			) {
-				found = true;
-				return;
-			}
-			if (ts.isCallExpression(node) && node.arguments[0] !== undefined) {
-				const callee = node.expression;
-				// `import('…')` — the callee IS the keyword, not an identifier.
-				const isDynamicImport = callee.kind === ts.SyntaxKind.ImportKeyword;
-				// `import.meta.glob('./themes/*.css')` — Vite turns each match into a dynamic
-				// import, so a glob naming stylesheets loads them. The callee is a property
-				// access ending in `glob` over an `import.meta` meta-property, which the
-				// dynamic-import test above cannot see: its `.kind` is `PropertyAccessExpression`.
-				// `entries.ts` already uses this primitive, so it is house vocabulary rather than
-				// an exotic input — the walk simply could not see the one shape the harness itself
-				// is built on.
-				const isGlob =
-					ts.isPropertyAccessExpression(callee)
-					&& callee.name.text === 'glob'
-					&& callee.expression.getText(source).startsWith('import.meta');
-				if ((isDynamicImport || isGlob) && namesStylesheet(node.arguments[0])) {
-					found = true;
-					return;
-				}
-			}
-			ts.forEachChild(node, visit);
-		};
-		ts.forEachChild(source, visit);
-		return found;
-	});
+const importsStylesheet = (file: string, text: string): boolean => {
+	const { styles, scripts } = blocksOf(file, text);
+	return (
+		styles.some((block) => styleImportsStylesheet(file, block))
+		|| scripts.some((script) => scriptImportsStylesheet(file, script))
+	);
+};
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
@@ -282,6 +304,34 @@ function harnessGrowthSelectors(): string[] {
 
 	return rules.filter(([, selector, body]) => selector.includes('.rp-harness-leaf') && body.includes('flex: 1')).map(([, selector]) => selector.trim());
 }
+
+/**
+ * This one case parses the whole reachable tree with three real parsers, so it is a
+ * static-analysis sweep wearing a unit test's clothes, and vitest's 5000ms default is a budget
+ * written for the latter. It timed out at that default on `verify (windows-latest, 22)` —
+ * measured there, not predicted.
+ *
+ * **Where the cost actually is, because it decided what NOT to do about it.** The case takes
+ * about 760ms on a quiet Linux machine, and warm medians for the three stages total about
+ * 186ms of that (`ts.createSourceFile` 138ms over 391 modules, `compileTemplate` 47ms over 52
+ * prototypes, `parseSfc` and lightningcss under 2ms between them). The rest is first-pass JIT
+ * warm-up of the parsers themselves — a cost paid per WORKER, not per file. So the obvious
+ * cheapening, a text pre-filter skipping the 416 of 443 files whose source cannot contain a
+ * stylesheet specifier at all, would have cut the small half: the first `.css`-bearing file
+ * still warms TypeScript. It was measured before it was declined, and it would have bought a
+ * heuristic in front of the parser — whose failure mode is the silent pass this file has now
+ * paid for eleven times — for the minority of the runtime.
+ *
+ * So the budget is the fix. Thirty seconds is roughly forty times the local figure, well past
+ * the six-fold parallel-contention factor this repository has already measured on that runner,
+ * and far enough from a real regression's shape to still fail on one.
+ *
+ * What it cannot measure is whether the VALUE suits a runner nobody here has: the same
+ * unmeasurable this repository's `settleUntil` deadline carries, and the same answer — a
+ * deadline that only a genuine regression trips, rather than a tick count that encodes one
+ * machine's speed.
+ */
+const WHOLE_TREE_SCAN_MS = 30_000;
 
 /** Module scope because it captures nothing per-call; `unicorn/consistent-function-scoping`. */
 const readText = (file: string): string => readFileSync(file, 'utf8');
@@ -689,7 +739,7 @@ describe('the browser harness', () => {
 		);
 
 		expect({ importers, linkers, styleBlocks }).toEqual({ importers: [], linkers: [], styleBlocks: [] });
-	});
+	}, WHOLE_TREE_SCAN_MS);
 
 	/**
 	 * Round 8's item 5 — the route no source pattern can ever see, at any width: a stylesheet

@@ -73,6 +73,12 @@ function regionInheritingFocus(next: LayoutMode): 'layers' | 'inspector' | null 
  * The focus move waits for `nextTick` because the region it targets does not exist yet: the
  * persistent panels are what the `full` branch renders, and Vue's re-render is asynchronous, so
  * at the moment `setLayoutMode` returns the DOM still holds the overlay this call just closed.
+ *
+ * `(aside as HTMLElement).focus()` has no null arm because `PlanEditorRoot` fills both the
+ * `panel` and `inspector` slots unconditionally, so the region exists once `full` renders. A
+ * standalone mount of this shell with an empty slot, resized out of `constrained` with that
+ * overlay open, is the one shape that would throw — and no such caller exists (R10 refuses an
+ * unreachable guard).
  */
 function measure(): void {
 	const next = layoutModeFor((root.value as HTMLElement).clientWidth);

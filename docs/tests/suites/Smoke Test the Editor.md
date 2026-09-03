@@ -416,6 +416,9 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   subtracted from `layoutMode.ts`'s 900/400 JUDGEMENTS; step 9 for whether Electron honours the
   `.focus()` the overlay's close path demonstrably calls, and, since the same date, whether Tab
   from the reopened overlay's last control leaves it for the canvas without trapping focus (R3);
-  and step 10 for whether `focusLeaf()` visibly brings the tab forward. What NO step here reaches,
-  and no gate either, is whether the unsupported-width notice scrolls sideways — a measurement no
-  layout engine in this repository performs and no expected result in this case asks for.
+  and step 10 for whether `focusLeaf()` visibly brings the tab forward. The unsupported-width
+  notice's own horizontal-overflow question is answered at 320 px by `npm run harness-shot`'s
+  `plan-editor-unsupported` measure (2026-09-04), not by any step here; what neither that capture
+  nor any step here reaches is the 460 px `constrained` width, and whether a REAL Obsidian leaf
+  scrolls at either width — the capture runs in a headless Chromium, not in Obsidian's own leaf
+  chrome.

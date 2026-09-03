@@ -61,7 +61,9 @@ withdrawn or superseded work, and leave open only work that remains actionable.
 reconciled against `bc6ca060`: measured at the current tree, the plan carries 106 `- [ ]` boxes
 (six more than this note's own 100, added by later work on the branch before this task), of
 which 105 are now ticked. Every ticked box was spot-checked against its own task's Files block
-(`ls`/`grep` per task; the PR description records every wave shipped) — all 25 tasks executed,
+(`ls`/`grep` per task — Task 19's Files block names the bare filename `PlanEditorView.ts` with no
+directory, and the deliverable it spot-checks against is `src/presentation/views/PlanEditorView.ts`,
+which carries `focusLeaf`; the PR description records every wave shipped) — all 25 tasks executed,
 including Task 5 (the rebase gate), which the orchestrator ran rather than a subagent, and
 nothing was withdrawn. The one box left open is Task 25's Step 4, "Invoke
 `superpowers:finishing-a-development-branch`", because this branch remains active for further

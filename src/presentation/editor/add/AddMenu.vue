@@ -4,8 +4,10 @@
  * there is no `DialogHost` framework caller here, no `inert` on the background and no focus
  * trap by Tab, because this menu does not block interaction with the rest of the editor the
  * way a dialog must. It is a `role="menu"` with roving `tabindex` instead (WAI-ARIA's own
- * pattern), a search box that filters it live, and Escape/outside-click doors that close it
- * and hand focus back to the button that opened it.
+ * pattern), a search box that filters it live, and three doors that close it and hand focus
+ * back to the button that opened it (since 2026-09-04): Escape — owned by the ROOT's
+ * capture-phase listener rather than by this component, see below — an outside press, and
+ * focus leaving the menu's own boundary (`onFocusOut`).
  *
  * **The search input sits OUTSIDE `role="menu"`, not above the groups inside it.** `menu`'s
  * ARIA role permits only `menuitem`/`menuitemradio`/`menuitemcheckbox`/`group` as children,

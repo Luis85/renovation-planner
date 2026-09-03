@@ -482,6 +482,13 @@ function registerSelectionRetirement(
  * cancellation does. So it discards whatever the tool holds and returns to Select in one gesture,
  * and it never touches the selection, which no cancellation of a creation task is about.
  * Under Select (or with no tool) there is no task to leave, and it does nothing.
+ *
+ * `cancelGesture()` runs BEFORE `setTool('select')`, deliberately unlike `routeEscape`'s
+ * no-draft arm (R2), which relies on `setTool`'s own outgoing-tool `deactivate()` and calls no
+ * `cancelGesture()` at all (see `escapeRouting.ts`'s "Do not 'restore' the `cancelGesture()`
+ * call" note). Cancel states the discard explicitly because it is user intent independent of
+ * the tool-switch contract, so a tool whose `deactivate` stops cancelling does not silently
+ * change what Cancel means.
  */
 function createCancelActiveTask(
 	toolManager: ToolManager,

@@ -427,7 +427,7 @@ is built in waves so that its only conflict-free work runs first:
 | components (jsdom) | context bar breadcrumb and undo/redo flags; floating actions pressed state; Add menu keyboard traversal, search, Escape, focus return, one activation per choice, unsupported entries inert; Escape precedence at each level; list row selects and frames; Room Inspector shares the id with the selection; unavailable rows render no count; warning strip shows two conditions at once and retires one without the other; shell modes move panels without remounting the canvas (asserted on element identity) |
 | accessibility (axe) | plan editor in `full`; Add menu open; `constrained` with the overlay open; `constrained` with the drawer open; Room Inspector with a selection; `unsupported` |
 | build | strings complete in both locales; every new stylesheet class declared; no `editor.toolbar.*` key in either locale and no reference under `src/` |
-| harness | four fixed shots read by eye at 1280 and 460 |
+| harness | every fixed shot in `scripts/harness-shot.mjs`'s `SHOTS`, read by eye (the Plan Editor's at 1280, 460 and 320 px; `plan-editor-unsupported` also measures horizontal overflow) (2026-09-04) |
 | manual | `docs/tests/cases/Open a floor and select a room.md`: focus behaviour of overlay and drawer, Obsidian keymap interaction with the menu, the real leaf at sidebar width |
 
 Coverage floors are the binding constraint (`vitest.config.ts`); every new arm ships with its test

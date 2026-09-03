@@ -47,13 +47,13 @@ import { resolveShots } from './entryShots.mjs';
 const OUT_DIR = 'harness-shots';
 const VIEWPORT = { width: 1280, height: 800 };
 // Each surface's own mount point, which is what "the view has drawn" means here — not
-// merely that the page loaded. Per shot rather than one constant, because the two
-// surfaces draw different elements and a shot that waited for the WRONG one would time
+// merely that the page loaded. Per shot rather than one constant, because each surface
+// draws different elements and a shot that waited for the WRONG one would time
 // out on a page that had rendered perfectly.
 const PROJECT_VIEW = '.renovation-planner-view';
 const ASSET_DESIGNER_VIEW = '.renovation-asset-designer-view';
 // The harness's own picker. Present from the first paint and with nothing async under it — the
-// index at `?index` opens no entry — so unlike the two surfaces above there is no "has it really
+// index at `?index` opens no entry — so unlike the surfaces above there is no "has it really
 // drawn" question to answer here beyond the element existing.
 const HARNESS_INDEX = '.rp-harness-index';
 // The Plan Editor's own HYDRATED resting state (R14, closing "Three plan-editor captures can

@@ -258,6 +258,11 @@ export class SelectTool implements EditorTool {
 		const context = this.context;
 		this.gesture = null;
 		if (context !== null) context.renderState.previewPolygon = null;
+		// Deliberately clears neither hover field, unlike `activate`/`deactivate`/`pointerDown`
+		// above: a cancelled drag leaves the pointer still resting over its target, so the
+		// prediction (`hoveredObjectId`/`hoveredTargetKind`) is still true. R8's "cleared
+		// together at every site" means "every site that clears one clears both" — this site
+		// satisfies that by clearing neither.
 	}
 
 	/**

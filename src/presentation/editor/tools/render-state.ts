@@ -77,7 +77,7 @@ export class RenderState {
 	 * announced as an ordinary body hit.
 	 *
 	 * **A SECOND field rather than a richer `hoveredObjectId`** (R8, 2026-09-04): every reader
-	 * of the id — the `InteractionLayer`'s outline, the retirement watcher, three tool tests —
+	 * of the id — the `InteractionLayer`'s outline, the retirement watcher, its tool tests —
 	 * asks only "which id", and widening the field into an object would have moved all of them
 	 * for one consumer's benefit. The price is that the two are written and cleared TOGETHER at
 	 * every site, which is stated here because nothing in any gate can enforce it: an id with a

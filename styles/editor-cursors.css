@@ -13,7 +13,7 @@
 /*
  * WHAT THE POINTER IS ABOUT TO DO, as the one thing on this canvas that says so.
  *
- * `PlanCanvas.vue` binds exactly ONE of these at a time, from a computed that resolves the
+ * `EditorSurface.vue` binds exactly ONE of these at a time, from a computed that resolves the
  * precedence itself — see `cursorClass` there. That is deliberate rather than incidental:
  * expressing "the camera outranks the active tool" as source order in this file would make
  * a correct rule depend on where it was pasted, and nothing in any gate reads CSS ordering.

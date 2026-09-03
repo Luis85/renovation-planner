@@ -653,7 +653,7 @@ describe('the headless harness capture script', () => {
 		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*query: '\?view=plan-editor&add/);
 		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*selector: '\.rp-add-menu'/);
 		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*width: 460/);
-		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' below
+		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' above
 		// for why a bare `PLAN_EDITOR_VIEW` wait is exactly the defect being refused here.
 		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
 	});

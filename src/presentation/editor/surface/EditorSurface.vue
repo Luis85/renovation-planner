@@ -810,8 +810,8 @@ const NO_MODIFIERS: ModifierSource = {
  *
  * What it deliberately does NOT do is either of the two things its callers disagree about: the
  * re-issued pointer move (`onBlur` alone, and FIRST — see below) and what becomes of the
- * remembered position. Both are stated at each door, because each door answers differently —
- * `onBlur`, above, and `onBeforeUnmount`, below.
+ * remembered position. Both are stated at each door, because each door answers differently
+ * — both below: `onBlur` first, `onBeforeUnmount` last.
  */
 function releaseInterruptedInputs(): void {
 	swallowedPointers.clear();

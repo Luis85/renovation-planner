@@ -238,41 +238,71 @@ describe('the queued gate', () => {
 	});
 
 	/**
-	 * The platform primitive the put-back rests on, measured rather than assumed.
+	 * The platform primitive the put-back rests on, and the reason it has to be guarded.
 	 *
-	 * A review bot's second round found the fix for its first was the same race one step on:
-	 * `reclaimIfStale` moved the lock aside and only THEN judged it, so `LOCK` sat claimable
-	 * while a live lock was in the reclaimer's hands. The close is to occupy the path with an
-	 * empty placeholder and put the lock back ON TOP of it — which is only atomic because
-	 * `rename` replaces an existing EMPTY directory in one step. That is a libuv/POSIX fact
-	 * this repository has no business assuming, and if it ever stops holding the put-back
-	 * degrades to the windowed path in silence, with every other case here still green.
+	 * `putBack` returns a live lock by renaming it over the placeholder `reclaimIfStale` put
+	 * up, which is only atomic because `rename` replaces an existing EMPTY directory in one
+	 * step. That is a libuv/POSIX fact this repository has no business assuming: if it ever
+	 * stops holding, the put-back degrades to the windowed remove-then-retry path in silence,
+	 * with every other case here still green.
+	 *
+	 * The same fact is double-edged, which is what a third review round found. A lock is empty
+	 * for the instant between `claim`'s `mkdirSync` and its `writeFileSync`, so an unguarded
+	 * put-back does not merely fail against a third process's brand-new claim — it SUCCEEDS,
+	 * landing on top of it, after which that process writes its nonce into the directory we
+	 * moved there and two gates run. `putBack` therefore attempts the rename only against a
+	 * placeholder it owns. Both halves are asserted, because the guard reads as belt-and-braces
+	 * until the second one is on the page.
 	 *
 	 * POSIX only, and the skip is the finding rather than an omission: Windows `MoveFileEx`
 	 * cannot rename onto an existing directory at all, which is why `putBack` carries a
 	 * remove-then-retry arm and why the residue it names is platform-shaped.
 	 *
-	 * What this case does NOT reach, said plainly because the case it replaced pretended
-	 * otherwise: the interleaving itself. Exposing it needs a holder to release between two
-	 * adjacent syscalls in another process, which no test here can drive — a two-waiter race
-	 * was tried and passed against BOTH the un-occupied and the un-arbitrated build, so it
-	 * certified the gap rather than closing it. The holder nonce below is what actually
-	 * bounds the consequence, and that one is mutation-checked.
+	 * What this does NOT reach, said plainly because the case it replaced pretended otherwise:
+	 * the interleaving itself. Exposing it needs a holder to release between two adjacent
+	 * syscalls in another process, which no test here can drive — a two-waiter race was tried
+	 * and passed against BOTH the un-occupied and the un-arbitrated build, so it certified the
+	 * gap rather than closing it. The nonce case below is the mutation-checked one.
 	 */
-	it.skipIf(process.platform === 'win32')('can put a lock back atomically, over its own placeholder', () => {
+	it.skipIf(process.platform === 'win32')('can put a lock back over its own placeholder, and over anyone else’s', () => {
 		const aside = path.join(workspace, 'primitive.aside');
 		const target = path.join(workspace, 'primitive.lock');
 
-		mkdirSync(aside);
-		writeFileSync(path.join(aside, 'holder'), 'live holder\n');
-		mkdirSync(target);
+		const displaced = (): void => {
+			rmSync(aside, { recursive: true, force: true });
+			rmSync(target, { recursive: true, force: true });
+			mkdirSync(aside);
+			writeFileSync(path.join(aside, 'holder'), 'displaced holder\n');
+		};
 
+		// Our own placeholder: what the put-back is for, and the reason it is atomic.
+		displaced();
+		mkdirSync(target);
 		renameSync(aside, target);
 
 		expect(existsSync(aside)).toBe(false);
-		expect(readFileSync(path.join(target, 'holder'), 'utf8')).toBe('live holder\n');
+		expect(readFileSync(path.join(target, 'holder'), 'utf8')).toBe('displaced holder\n');
+
+		// A third process's claim, one statement before it writes its nonce. Indistinguishable
+		// from the placeholder above, which is why `occupied` and not a `try` is the guard.
+		displaced();
+		mkdirSync(target);
+		renameSync(aside, target);
+
+		expect(readFileSync(path.join(target, 'holder'), 'utf8')).toBe('displaced holder\n');
+
+		// Once it HAS its nonce, the same call is refused — so the hazard is exactly the width
+		// of that one gap, and nothing wider.
+		displaced();
+		mkdirSync(target);
+		writeFileSync(path.join(target, 'holder'), 'third party\n');
+
+		expect(() => {
+			renameSync(aside, target);
+		}).toThrow(/ENOTEMPTY/);
 
 		rmSync(target, { recursive: true, force: true });
+		rmSync(aside, { recursive: true, force: true });
 	});
 
 	/**

@@ -79,35 +79,45 @@ const isStale = (target) => {
 };
 
 /**
- * Return a live lock we should not have moved, without ever leaving the path free.
+ * Return a live lock we should not have moved — touching `LOCK` only while it is OURS.
  *
- * `renameSync` replaces an existing EMPTY directory atomically — measured on this platform,
- * not assumed — so while our placeholder is still standing the lock goes back and the path
- * is never once unoccupied. Windows cannot rename onto an existing directory at all, so
- * there the placeholder is removed first; that directory is OURS rather than a holder's, so
- * removing it takes nobody's lock, and the gap it opens is the residue named below.
+ * `occupied` is the whole of the safety here, and the first version of this function read it
+ * one statement too late. It tried the rename FIRST and consulted `occupied` only in the
+ * failure arm, under a docblock already saying that an unoccupied `LOCK` "is somebody's real
+ * lock and must not be touched" — the rule stated correctly beside code that broke it, which
+ * is the shape this repository keeps paying for.
  *
- * `occupied` is false only when a third process claimed the path in the instant between our
- * two calls. Then `LOCK` is somebody's real lock and must not be touched, so the live lock
- * we are holding has nowhere to go and is dropped — which is safe rather than merely
- * unavoidable, because a release checks its own nonce and so cannot delete the claimant's.
+ * What made that fatal rather than merely untidy is the same platform fact the occupied path
+ * relies on. `renameSync` replaces an existing EMPTY directory, and a lock is empty for the
+ * instant between `claim`'s `mkdirSync` and its `writeFileSync` — so an unguarded put-back
+ * lands ON a third process's brand-new claim, which then writes its nonce into the directory
+ * we moved there and two gates run. Measured, not reasoned: `rename` onto a foreign empty
+ * lock succeeds and leaves the displaced holder's file in place.
+ *
+ * So the rename is attempted only against our own placeholder. Windows cannot rename onto an
+ * existing directory at all, so there the placeholder is removed first — still ours, so that
+ * removal takes nobody's lock. With no placeholder, `LOCK` belongs to somebody else and is
+ * left entirely alone: the live lock in our hands is dropped, and the displaced holder is
+ * protected by the nonce its own release checks rather than by anything done here.
  */
 const putBack = (aside, occupied) => {
-	try {
-		renameSync(aside, LOCK);
-		return;
-	} catch {
-		// Windows, or a placeholder we never got. Both are decided by `occupied` below.
-	}
-
 	if (occupied) {
+		try {
+			renameSync(aside, LOCK);
+
+			return;
+		} catch {
+			// Windows, which cannot rename onto a directory even when it is empty.
+		}
+
 		rmSync(LOCK, { recursive: true, force: true });
 
 		try {
 			renameSync(aside, LOCK);
+
 			return;
 		} catch {
-			// Claimed inside the gap this branch exists to admit.
+			// Claimed inside the gap that removal opens, on that platform alone.
 		}
 	}
 

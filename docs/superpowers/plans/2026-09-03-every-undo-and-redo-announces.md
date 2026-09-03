@@ -1864,6 +1864,14 @@ MSG
 
 ## Task 10: Crash recovery announces, and `RecoveryDeps.events` is required
 
+> **DONE** — commits `c595a2c` + `c87c3fb` (one docblock fix round). Gate exit 0 (5323
+> passed, 99.36/99.09/99.55/98.28); CI green on `c595a2c`. Review APPROVED the behaviour and
+> every invariant was independently mutation-verified — both pre-read arms proven unable to
+> gate the restore, the written/`'absent'` split held in both directions, and the two
+> self-reported vacuous cases each shown to discriminate. The one blocking finding was a false
+> clause the COMPLEXITY EXTRACTION had introduced into a fresh docblock, contradicted by
+> `recoverOne`'s own docblock and by a green existing test.
+
 **Four undefined names in this task, not one.** Beside `recoveryRig`, the snippets call
 `interruptedDeleteAnyway(...)`, `interruptedRemoveReferences(...)` and
 `interruptedWithMovedCost(...)`; grep-verified, none of the four exists in `src/` or `tests/`.
@@ -1925,7 +1933,7 @@ than a payload.** `CostEstimateChanged` requires `previous: Money` and `current:
 supplies `current` and never `previous`. So recovery **reads the live requirement before it
 saves**, which is where `previous` actually lives. That read stays only to serve the cost event.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 it('announces a status-only restore, which no cost event can carry', async () => {
@@ -1996,12 +2004,12 @@ it('announces nothing for a marker describing a completed sequence', async () =>
 });
 ```
 
-- [ ] **Step 2: Run and watch fail**
+- [x] **Step 2: Run and watch fail**
 
 Run: `npx vitest run tests/application/reference/recovery.test.ts`
 Expected: FAIL — `RecoveryDeps` has no `events`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 export interface RecoveryDeps {
@@ -2106,12 +2114,12 @@ Then `src/plugin/RenovationPlannerPlugin.ts:693`:
 
 Check the exact bus accessor with `grep -n "eventBus" src/plugin/composition-root.ts`.
 
-- [ ] **Step 4: Run and watch pass**
+- [x] **Step 4: Run and watch pass**
 
 Run: `npx vitest run tests/application/reference/recovery.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check

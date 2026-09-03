@@ -1705,11 +1705,26 @@ Each of these is a thing a reader will reasonably expect, refused for a stated r
    number in between is a judgement nobody has made. It belongs to whoever ships §84's
    configuration surface, because that is the change that makes the vocabulary long enough to
    matter.
-6. **Whether `Used in` marks the projects that override the price** once §89's override exists
-   (§3.5). This is the only screen where *"your correction will not reach these three"* could be
-   said, which is an argument for it; it is also a project-scoped fact on a vault-wide surface,
-   which is the argument against. Not this document's to settle, and not a builder's to settle
-   silently.
+6. **Whether `Used in` marks the projects that override the price — SETTLED: it does.** This was
+   open while §89's override did not exist. It exists now: `AssetPriceOverride` is a domain
+   entity with its own repository, and `listByAsset(assetId)` is already the exact lookup, so the
+   cost is one read on a selection that performs two.
+
+   The argument against — a project-scoped fact on a vault-wide surface — turns out to be weak,
+   because *Used in* is ALREADY a project-scoped roll-up on a vault-wide surface; that is what
+   the section IS. The argument for is the surface's own central claim. [[Asset definitions and
+   categories]] is *"the price lives on the definition and the reference stays a reference, so a
+   price correction reaches every room it was used in"*, and §3.5 puts *Used in* above the price
+   field precisely so the blast radius is on screen before the edit. For a project holding an
+   override the correction does NOT reach it — so an unmarked row is that claim being false by
+   omission, in the one place the document argues it is true.
+
+   The alternative is to keep the surface silent and weaken the price-edit copy so it no longer
+   promises what it cannot deliver. That is worse: it degrades the feature for every project to
+   avoid admitting an exception in a few.
+
+   **A printed mark and a word, never a tint** — the same rule every other state on this surface
+   keeps.
 7. **Whether the geometry-event subscription widens the shared catalogue source or adds a
    fourth one** (§5.4). The picker shares `createAssetCatalogueChangeSource` and would pay for
    any widening of it — re-reading every asset note on a design event it has no use for — so the

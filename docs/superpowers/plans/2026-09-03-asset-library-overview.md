@@ -849,6 +849,10 @@ export interface AssetLibraryQueryServices {
 	listOutlines(assetIds: readonly AssetId[]): Promise<ReadonlyMap<AssetId, AssetOutline>>;
 	getDesign(assetId: AssetId): Promise<Result<AssetDesignDto, AssetDesignError>>;
 	listReferencing(assetId: AssetId): Promise<Result<readonly ReferencingGroup[], RepositoryError>>;
+	/** Which projects hold a price override for this asset — §11.6, settled after main
+	 *  brought §89's override into existence. Marks the Used in rows the price edit
+	 *  will NOT reach. */
+	listOverridingProjects(assetId: AssetId): Promise<Result<readonly ProjectId[], RepositoryError>>;
 }
 export function unavailableAssetLibraryQueries(): AssetLibraryQueryServices;
 export function createAssetLibraryQueries(...): AssetLibraryQueryServices;
@@ -1257,7 +1261,7 @@ The section has **its own three states**, because `GetAssetDesign` returns the s
 
 **Neither the in-flight state nor the refused one may state an ABSENCE.** `None` is only valid once a read has actually answered.
 
-**3. Used in** — per-project groups, loaded on selection. Each row: project name, requirement count, and the project's path **wherever the query supplies one**. "Supplied" is tested against `undefined`, never truthiness: `''` is a supplied answer — a project whose `Project.md` sits at the vault root — and it renders `view.asset-library.used-in.vault-root`, a root label rather than nothing. **The row's key is `projectId`, never the name-and-path pair**: two projects can share both.
+**3. Used in** — per-project groups, loaded on selection. **A group whose project holds a price override for this asset carries a printed mark and a word** — `listByAsset(assetId)` on `AssetPriceOverrideRepository` is the exact lookup and it is one read on a selection that already performs two. Ruled mid-execution when `main` brought §89's override into existence: an unmarked row makes the Definition section's own claim — *a price correction reaches every room it was used in* — false by omission, directly above the field that makes the correction. Never a tint alone. Each row: project name, requirement count, and the project's path **wherever the query supplies one**. "Supplied" is tested against `undefined`, never truthiness: `''` is a supplied answer — a project whose `Project.md` sits at the vault root — and it renders `view.asset-library.used-in.vault-root`, a root label rather than nothing. **The row's key is `projectId`, never the name-and-path pair**: two projects can share both.
 
 It has its own three states too. On a refusal, **`Delete` is unavailable while the usage read has not succeeded**, with the reason shown on the control; Edit stays available.
 

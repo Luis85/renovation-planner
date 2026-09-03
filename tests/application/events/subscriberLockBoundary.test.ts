@@ -27,6 +27,16 @@ import path from 'node:path';
  * It is also blind to a registration spelled anything but `.subscribe(` — a bare
  * `subscribe(...)` reached off a destructured binding, or a wrapper under another name.
  *
+ * **And it is falsifiable per ARM, not per TOKEN — measured, and disclosed rather than
+ * closed.** Each arm has an anchor, so deleting or breaking a whole arm reddens that arm's own
+ * assertion; the individual alternatives INSIDE an arm have none. Dropping `|withLevel2` from
+ * `helper`, or `|beginSession(` from `door`, is silent — all three assertions still pass,
+ * because each dropped token's file-set is a subset of the `ReferenceLocks` set and no anchor
+ * exercises it. Dropping `|acquire(` does redden, but only because that is the token its own
+ * anchor happens to pin. Closing this means an anchor per TOKEN, five for a tripwire whose
+ * header already calls itself deliberately crude; the convention here is to state what a guard
+ * does not reach rather than to grow it until it reaches everything.
+ *
  * **BOTH halves of this instrument are guarded, because it has two.** The discovery half is
  * the file scan, guarded by `finds the subscriber modules at all` — a scan reaching nothing
  * looks exactly like a clean tree. The JUDGEMENT half is `namesALock`, and it fails the same
@@ -67,8 +77,11 @@ const LOCK_PATTERNS = {
  * locks through the arm it stands for — the forward delete-resolution engine, whose locked
  * region this whole rule is about; the asset-design shape writer, which locks through the
  * wrapper; and the price-override command, which takes the door directly and whose publish
- * reaches a live subscriber under the lock it is still holding. If an arm cannot recognise ITS
- * anchor, it can recognise nothing.
+ * reaches a live subscriber under the lock it is still holding. What an anchor buys is
+ * narrower than it reads: it makes each arm falsifiable AS AN ARM, so an arm deleted or broken
+ * outright reddens its own assertion instead of riding on a sibling's match. It does not check
+ * an arm's BREADTH — an arm narrowed to match only its own anchor passes every assertion here,
+ * measured.
  *
  * Typed off `LOCK_PATTERNS`, so an arm added without an anchor and an anchor orphaned by a
  * deleted arm are each a BUILD error rather than a quietly weaker control.
@@ -103,7 +116,7 @@ describe('subscriber modules and the reference locks', () => {
 		expect(sources('src').filter((file) => namesALock(file)).length).toBeGreaterThan(5);
 	});
 
-	it('no module registering a subscriber reaches ReferenceLocks', () => {
+	it('no module registering a subscriber names a reference lock', () => {
 		expect(registrars().filter((file) => namesALock(file))).toEqual([]);
 	});
 });

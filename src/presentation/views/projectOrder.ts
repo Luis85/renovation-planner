@@ -48,8 +48,10 @@ export function nameCollator(language: string): Intl.Collator {
 
 /**
  * `lastWorked` descending, ties and nulls to name ascending. STABLE, so a re-hydrate never
- * reshuffles equal rows: `Array.prototype.sort` is required to be stable since ES2019, and a
- * copy is taken because the caller's array is the store's own.
+ * reshuffles equal rows: `Array.prototype.toSorted` carries the same stability guarantee
+ * `Array.prototype.sort` has had since ES2019, and returns a NEW array rather than sorting in
+ * place — which is what is actually taken here, deliberately, because the caller's array is
+ * the store's own.
  *
  * **`sortKeys` is what makes the order FROZEN, and without it the spec's own guarantee is
  * false.** §8 says "ordering must not change without a re-mount or one of those events", and
@@ -64,6 +66,14 @@ export function nameCollator(language: string): Intl.Collator {
  * new to this mount and is inserted with its live value, so a created or synced project still
  * lands in its correct place; every project already on screen keeps the key it arrived with.
  *
+ * **The map never EVICTS, and that is a stated consequence rather than an unexamined one.** A
+ * project deleted and re-created under the same id within one mount is not "absent from the
+ * map" — its id is still there, holding whatever `lastWorked` it carried before deletion — so
+ * the re-created project inherits that frozen key rather than being treated as new. Consistent
+ * with "captured on sight and never rewritten," and left as-is: the map's whole life is one
+ * mount, this is the same id reappearing rather than session-spanning staleness, and evicting
+ * on delete would need a delete EVENT this module has no subscription to receive.
+ *
  * **Chosen over distinguishing structural plan changes from modifications**, which was the other
  * remedy on the table: `ProjectIndexEntryChangedPayload` carries `entityType` and nothing about
  * what happened to the entry, so that route needs a widened event before it can be written at
@@ -76,12 +86,13 @@ export function orderProjects(
 	collator: Intl.Collator,
 	sortKeys: Map<string, string | null>,
 ): ProjectSummaryDto[] {
-	// SEEDED BEFORE THE SORT, not lazily inside the comparator. `Array.prototype.sort` does not
-	// call a comparator at all for a list of one, so a vault with a single project never
-	// captured its key — and the freeze then failed in the case it exists for: that project's
-	// mtime moves during a later hydrate, a second project arrives, and the FIRST comparison
-	// records the already-updated value as though it were the mount's. Capturing on sight is
-	// the rule; `sort` deciding which elements to look at is not a schedule to hang it on.
+	// SEEDED BEFORE THE SORT, not lazily inside the comparator. `Array.prototype.toSorted`
+	// (like `sort`) does not call a comparator at all for a list of one, so a vault with a
+	// single project never captured its key — and the freeze then failed in the case it
+	// exists for: that project's mtime moves during a later hydrate, a second project
+	// arrives, and the FIRST comparison records the already-updated value as though it were
+	// the mount's. Capturing on sight is the rule; a sort deciding which elements to look at
+	// is not a schedule to hang it on.
 	for (const project of projects) {
 		if (!sortKeys.has(project.id)) sortKeys.set(project.id, project.lastWorked);
 	}

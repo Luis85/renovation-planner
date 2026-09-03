@@ -108,6 +108,30 @@ describe('project-list.css', () => {
 		expect(bodyOf('.rp-project-row__tick--reached')).toContain('background-color: var(--text-normal)');
 	});
 
+	/**
+	 * Fix round 1's finding: `display: inline` on the shared `.rp-project-list__group-title`
+	 * rule made its own `padding-block-end` a no-op for BOTH callers, under a comment claiming
+	 * real space below the heading. The base rule is a plain block box now, and only the
+	 * `<summary>` caller — the one that actually needs to sit on the disclosure triangle's own
+	 * line — gets `inline`, with its own `padding-block-end` reset to `0` explicitly rather than
+	 * left inherited and dead. Asserted as a PAIR: a build that put `inline` back on the base
+	 * rule, or dropped the override's explicit reset, satisfies "declares the class" while
+	 * reintroducing the exact defect this fixes.
+	 */
+	it('keeps the shared group-title block, so its bottom padding is real space', () => {
+		const base = bodyOf('.rp-project-list__group-title');
+		expect(base).not.toContain('display: inline');
+		expect(base).toMatch(/padding:\s*0\s+var\(--size-4-2\)\s+var\(--size-2-2\)/);
+	});
+
+	it('sets the group title inline only inside the summary it shares the line with', () => {
+		const summaryTitle = bodyOf('.rp-project-list__completed > summary .rp-project-list__group-title');
+		expect(summaryTitle).toContain('display: inline');
+		// Reset rather than inherited: an inline box cannot apply this anyway, so a left-over
+		// non-zero value here would be exactly the dead declaration this fix removes elsewhere.
+		expect(summaryTitle).toContain('padding-block-end: 0');
+	});
+
 	it('is assembled into the shipped sheet', () => {
 		expect(readFileSync('styles/index.css', 'utf8')).toContain('project-list.css');
 	});

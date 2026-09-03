@@ -175,12 +175,21 @@
 	margin-block-start: var(--size-4-4);
 }
 
+/*
+ * BLOCK by default, which is what makes `padding-block-end` below a real gap before the `<ul>`
+ * that follows — the `Projects` heading is a plain `<h3>`, sibling of nothing but that list.
+ *
+ * Fix round 1 found this rule ALSO applied `display: inline` unconditionally, for the OTHER
+ * caller below (the heading inside `<summary>`) — and vertical padding on an inline box
+ * contributes no layout space, so `padding-block-end` was a declaration doing nothing for
+ * EITHER caller: nothing for this one because it never needed `inline` in the first place, and
+ * nothing for the summary one because `inline` cancelled it. The comment above claimed the
+ * spacing anyway. Split in two rather than dropped, because the claim was right for this
+ * heading and only needed the block box it always should have had.
+ */
 .rp-project-list__group-title {
 	margin: 0;
 	padding: 0 var(--size-4-2) var(--size-2-2);
-	/* An `<h3>` inside a `<summary>` is a block child of a list-item-styled box; `display:
-	   inline` keeps it on the disclosure triangle's own line rather than dropping below it. */
-	display: inline;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-semibold);
@@ -195,6 +204,22 @@
 .rp-project-list__completed > summary {
 	min-height: var(--size-4-6);
 	cursor: pointer;
+}
+
+/*
+ * SCOPED to the one caller that needs it: an `<h3>` inside a `<summary>` is a block child of a
+ * list-item-styled box, and `display: inline` is what keeps it on the disclosure triangle's own
+ * line rather than dropping below it. `padding-block-end` is reset to `0` here rather than left
+ * at the base rule's value, which an inline box cannot apply anyway — a declaration that
+ * contributes nothing is the same defect as a comment claiming space that is not there, so the
+ * override says so explicitly instead of leaving a dead value to be found again. There is no
+ * "space below the heading" question inside a `<summary>` to answer either way: the `<ul>` this
+ * group draws is a SIBLING of the whole `<summary>`, not of this heading, and the summary row's
+ * own height is `min-height` above, not this padding.
+ */
+.rp-project-list__completed > summary .rp-project-list__group-title {
+	display: inline;
+	padding-block-end: 0;
 }
 
 .rp-project-list__completed > summary:focus-visible {

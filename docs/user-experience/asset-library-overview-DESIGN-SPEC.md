@@ -238,6 +238,27 @@ A configured eighth category (§84) joins group 1 the day the vocabulary declare
 to this surface. A category somebody typed appears in group 2 with no edit either. A literal seven
 is the one arrangement that could answer neither.
 
+**Group 2 is UNREACHABLE in today's code, and the derivation is still the right shape.** An
+unknown category never becomes an `Asset` at all: `AssetFrontmatterSchemaV1` validates
+`category` through `kebabEnum(ASSET_CATEGORIES)`, which returns `z.NEVER` on an unrecognised
+value, and `Asset.create` independently refuses one through `isAssetCategory`. So such a note is
+SKIPPED by `AssetRepository.listAll()` and lands in §4's unreadable strip rather than on a shelf —
+which is §1a's finding, stated there as a cost and repeated here because this is the section a
+builder implements from.
+
+Two consequences, and neither is "drop group 2". **The derivation stays general** — shelves are
+the declared vocabulary unioned with whatever categories the listing actually names — because
+that is simpler than special-casing group 1 and it is the whole argument of this section: the day
+§84 opens the vocabulary, group 2 populates with no edit here. **What must NOT be written is a
+test claiming group 2 works**, or copy promising it: a case seeded with an unknown category
+cannot reach the shelf list at all, so it would assert something unreachable and pass for the
+wrong reason.
+
+Closing it is a persistence-and-domain change — keeping the raw category through both refusals —
+and it belongs to §84's configuration surface rather than to a browsing one. Reported by a review
+bot against `ListCatalogueEntries`, whose `category: string` is necessary for the eventual fix and
+sufficient for none of it.
+
 The two groups differ in exactly one property, and it needs saying out loud because it looks like
 an inconsistency: **a declared shelf can be empty and an undeclared one cannot.** The only evidence
 an undeclared category exists is an asset sitting in it, so "draw the empty ones too" applies to

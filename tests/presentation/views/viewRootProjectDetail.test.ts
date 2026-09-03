@@ -243,11 +243,16 @@ describe('ViewRoot in the detail state', () => {
 	 * **Task 11's half of Continue that nothing else writes.** `ProjectDetailState` is the ONLY
 	 * path in the app that opens a plan, and therefore the only thing that can ever store a
 	 * non-null `planId` — the list row's own `rememberContinue` always writes `planId: null`.
-	 * BEFORE the open rather than after: `openPlan` is fire-and-forget, so a case asserting
-	 * ordering via call order on one spy would not discriminate a build that swapped the two
-	 * statements — asserted instead by making `openPlan` never resolve and reading
-	 * `rememberContinue`'s call regardless, which is watched failing with the call removed,
-	 * because every other case in this file passes without it.
+	 *
+	 * `openPlan` is made to never resolve, and that is NOT what discriminates a bare swap of the
+	 * two statements in `onOpenPlan` — both are synchronous (`void context.openPlan(...)` is
+	 * never awaited), so a plain call-order assertion on the two spies would already catch that.
+	 * What the never-resolving promise pins is the mutation a call-order assertion cannot see:
+	 * `onOpenPlan` rewritten to `await context.openPlan(planId)` BEFORE calling
+	 * `rememberContinue` — the "resolve, then remember" ordering the comment above this one is
+	 * actually about. With `openPlan` stuck pending, that rewrite would leave `rememberContinue`
+	 * still uncalled when this case's assertion runs, which is exactly what it is watched failing
+	 * against.
 	 */
 	it('remembers the plan before opening it', async () => {
 		const rememberContinue = vi.fn<(context: { projectId: string; planId: string | null }) => void>();

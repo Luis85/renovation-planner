@@ -165,6 +165,15 @@ const continueProject = computed(() => {
  * group then vanishes or offers the wrong work. This is the same shape `ProjectStore.hydrate` and
  * `InspectorStore` already use: a store two things hydrate needs a ticket, or the slower earlier
  * read wins.
+ *
+ * **No `try`/`catch` here, and `hydrate()` — which this now runs inside — is called as `void
+ * hydrate()` at three sites**, none of which awaits a rejection. That is safe only because both
+ * doors this function can throw through already refuse to: `ContinueContextStore.read` (behind
+ * `context.continueContext`) catches everything and resolves `null` rather than rejecting, and
+ * `listPlansByProject` is a guarded query, mapped to a resolved `Result` rather than a thrown
+ * fault. The safety belongs to those two callees, not to this function — a fourth caller reaching
+ * an unguarded door here would be an unhandled rejection reaching nobody, exactly the shape
+ * `hydrate()`'s own callers already have to reason about.
  */
 let resolveTicket = 0;
 

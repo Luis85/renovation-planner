@@ -109,8 +109,15 @@ describe('ProjectList groups', () => {
 	 * index, so a query that excludes its project still leaves it offered — and its own row
 	 * says which project it is, so nothing is ambiguous. The opposite is the reflex, so this
 	 * pins it rather than leaving it to be assumed.
+	 *
+	 * The filter has to actually be DRIVEN, not merely absent from the mount: `query` is this
+	 * component's own internal `ref('')`, written only by `ProjectFilter`'s `@update:query`, so
+	 * a case that never types anything leaves `matchesQuery` passing everything and would read
+	 * identically whether or not the Continue group were filtered — pinning nothing. `zzzz`
+	 * matches none of `MIXED`, which is what makes `Projects` empty the CONTRAST this case is
+	 * about: Continue stands while the index-backed group it sits beside does not.
 	 */
-	it('offers the Continue row regardless of the filter', () => {
+	it('offers the Continue row regardless of the filter', async () => {
 		const wrapper = mount(ProjectList, {
 			props: {
 				projects: MIXED,
@@ -119,7 +126,10 @@ describe('ProjectList groups', () => {
 			},
 		});
 
+		await wrapper.get('.rp-project-filter__input').setValue('zzzz');
+
 		expect(wrapper.find('.rp-project-list__continue').exists()).toBe(true);
+		expect(wrapper.find('.rp-project-list__group--projects').exists()).toBe(false);
 	});
 
 	it('renders the Continue row INSIDE a .rp-project-list, like every other row', () => {

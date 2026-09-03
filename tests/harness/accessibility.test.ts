@@ -162,7 +162,7 @@ function detailDeps(over: { projectId: string; plans: readonly PlanSummaryDto[] 
 			...base.queries,
 			getProject: () =>
 				Promise.resolve(
-					ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false }),
+					ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null }),
 				),
 			listPlansByProject: () => Promise.resolve(ok({ plans: over.plans, unreadable: 0 })),
 		},
@@ -318,7 +318,7 @@ describe('axe against the mounted view', () => {
 				listProjects: () =>
 					Promise.resolve(
 						ok({
-							projects: [{ id: 'p1', name: 'Kitchen refit', status: 'IDEA', currency: 'EUR', libraryOverlap: true }],
+							projects: [{ id: 'p1', name: 'Kitchen refit', status: 'IDEA', currency: 'EUR', libraryOverlap: true, planCount: 0, lastWorked: null }],
 							unreadable: 0,
 						}),
 					),

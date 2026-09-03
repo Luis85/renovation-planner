@@ -51,6 +51,8 @@ const PROJECT: ProjectSummaryDto = {
 	status: 'Planning',
 	currency: 'EUR',
 	libraryOverlap: false,
+	planCount: 0,
+	lastWorked: null,
 };
 
 const answering = (

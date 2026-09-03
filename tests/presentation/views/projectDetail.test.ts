@@ -19,6 +19,8 @@ const PROJECT: ProjectSummaryDto = {
 	status: 'IDEA',
 	currency: 'EUR',
 	libraryOverlap: false,
+	planCount: 0,
+	lastWorked: null,
 };
 
 describe('ProjectDetail', () => {

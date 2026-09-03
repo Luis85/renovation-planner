@@ -53,6 +53,7 @@ import { GetProject } from '../../src/application/queries/GetProject';
 import { ListPlansByProject } from '../../src/application/queries/ListPlansByProject';
 import { ListProjects } from '../../src/application/queries/ListProjects';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { IndexProjectListFacts } from '../../src/infrastructure/obsidian/repositories/IndexProjectListFacts';
 import { IndexLibraryOverlaps } from '../../src/infrastructure/obsidian/repositories/IndexLibraryOverlaps';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
@@ -182,7 +183,14 @@ export const defaultRenovationProjectDeps = (
 	// an object incapable of saying anything else. This file is a fake held to a contract; the
 	// standing rule is that it must not be thinner, kinder, harsher or faster than the real
 	// thing, and "always empty by construction" is thinner.
-	const overlaps = new IndexLibraryOverlaps(new InMemoryProjectIndex(), DEFAULT_SETTINGS.libraryFolder);
+	const index = new InMemoryProjectIndex();
+	const overlaps = new IndexLibraryOverlaps(index, DEFAULT_SETTINGS.libraryFolder);
+	// The REAL facts adapter over that SAME empty index, for the reason stated just above and
+	// with one addition: sharing the index is what makes these two describe one world rather
+	// than two empty ones that could diverge. Nothing here seeds the INDEX — `seed` reaches the
+	// repositories — so `entries()` is empty, no path is ever stat'd and the vault stand-in
+	// beside it is never called: an honest zero for the right reason rather than a stubbed one.
+	const listFacts = new IndexProjectListFacts(index, { getAbstractFileByPath: () => null });
 	// Design slice A10's catalogue side. Built here beside the other repositories so the two
 	// asset commands below share ONE world: a form that creates an asset and then writes its
 	// footprint must find, in the sidecar, the very asset the create put in the repository.
@@ -202,10 +210,11 @@ export const defaultRenovationProjectDeps = (
 	// requires a `logger` beside it.
 	const defaults: RenovationProjectDeps = {
 		queries: createRenovationProjectQueries(
-			new ListProjects(projects, overlaps),
+			new ListProjects(projects, overlaps, listFacts),
 			new GetProject(projects),
 			new ListPlansByProject(plans),
 			overlaps,
+			listFacts,
 		),
 		commands: {
 			createProject: new CreateProjectCommand(projects, events, DEFAULT_SETTINGS.defaultCurrency),

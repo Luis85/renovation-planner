@@ -3,6 +3,7 @@ import type { Currency } from '../core/money/Money';
 import { ObsidianAssetRepository } from '../infrastructure/obsidian/repositories/ObsidianAssetRepository';
 import { ObsidianRequirementRepository } from '../infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import { IndexLibraryOverlaps } from '../infrastructure/obsidian/repositories/IndexLibraryOverlaps';
+import { IndexProjectListFacts } from '../infrastructure/obsidian/repositories/IndexProjectListFacts';
 import { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
 import { AssetGeometryStore } from '../infrastructure/obsidian/repositories/AssetGeometryStore';
 import { ObsidianAssetGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
@@ -77,6 +78,10 @@ export function composeRepositories(
 		// argument to `composeGuarded`, which already sits at `max-params`: this is the
 		// bundle built from `deps.index` and the library setting, and both are already here.
 		overlaps: new IndexLibraryOverlaps(deps.index, libraryFolder),
+		// The Home surface's two commissioned row facts, composed here beside `overlaps` for
+		// the reason that line gives: this is the bundle built from `deps.index`, and the vault
+		// is already in scope. A `Pick` of it is what travels, not the whole `Vault`.
+		listFacts: new IndexProjectListFacts(deps.index, vault.vault),
 		// The CreateProjectCommand's own currency argument. Bundled into this return rather
 		// than a sixth composeGuarded parameter — composeGuarded already takes `repositories`
 		// whole and destructures it, the same grouping SessionCollaborators argues for above.

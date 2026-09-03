@@ -34,13 +34,13 @@ import ProjectList from '../../../src/presentation/views/ProjectList.vue';
 import { en } from '../../../src/presentation/i18n/locales/en';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
-const KITCHEN: ProjectSummaryDto = { id: 'p1', name: 'Kitchen', status: 'IDEA', currency: 'EUR', libraryOverlap: false };
+const KITCHEN: ProjectSummaryDto = { id: 'p1', name: 'Kitchen', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null };
 
 const listOf = (...projects: readonly ProjectSummaryDto[]) => mount(ProjectList, { props: { projects } });
 
 describe('the §83 library-overlap marker on a project row', () => {
 	it('marks a row whose project overlaps the library', () => {
-		const list = listOf({ ...KITCHEN, libraryOverlap: true });
+		const list = listOf({ ...KITCHEN, libraryOverlap: true, planCount: 0, lastWorked: null });
 
 		expect(list.find('.rp-project-list__overlap').exists()).toBe(true);
 	});
@@ -57,7 +57,7 @@ describe('the §83 library-overlap marker on a project row', () => {
 	 * a string that merely happens to be non-empty.
 	 */
 	it('carries a word beside the mark, not a colour alone', () => {
-		const list = listOf({ ...KITCHEN, libraryOverlap: true });
+		const list = listOf({ ...KITCHEN, libraryOverlap: true, planCount: 0, lastWorked: null });
 
 		expect(list.get('.rp-project-list__overlap').text()).toBe(en['view.project.library-overlap']);
 	});
@@ -73,6 +73,8 @@ describe('the §83 library-overlap marker on a project row', () => {
 			status: 'IDEA',
 			currency: 'EUR',
 			libraryOverlap: true,
+			planCount: 0,
+			lastWorked: null,
 		});
 
 		const rows = list.findAll('.rp-project-list__row');

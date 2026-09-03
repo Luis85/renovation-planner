@@ -14,10 +14,10 @@ import { t } from '../../../src/presentation/i18n/strings';
 // this file is about, and an ordinary row is the state they all describe. The marked row
 // has its own file (`projectListOverlap.test.ts`).
 const PROJECTS = [
-	{ id: 'p1', name: 'Kitchen', status: 'IDEA', currency: 'EUR', libraryOverlap: false },
+	{ id: 'p1', name: 'Kitchen', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null },
 	// 'PLANNING' is not a member of `ProjectStatus` — deliberately, so this fixture exercises
 	// both the recognised and the unrecognised branch of the status label at once.
-	{ id: 'p2', name: 'Bathroom', status: 'PLANNING', currency: 'EUR', libraryOverlap: false },
+	{ id: 'p2', name: 'Bathroom', status: 'PLANNING', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null },
 ];
 
 describe('ProjectList', () => {

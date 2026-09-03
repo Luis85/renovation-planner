@@ -1,3 +1,4 @@
+import type { ProjectRowFacts } from '../../application/ports/ProjectListFacts';
 import type { Point } from '../../core/geometry/Point';
 import type { PlanBackgroundRef } from '../../domain/plan/PlanBackgroundRef';
 import type { Calibration } from '../../domain/plan/Calibration';
@@ -81,6 +82,20 @@ export interface ProjectSummaryDto {
 	 * as the drag lands. `IndexLibraryOverlaps` carries the mechanism.
 	 */
 	readonly libraryOverlap: boolean;
+	/**
+	 * How many plans this project has (Home spec §8). REQUIRED rather than optional, for the
+	 * reason `libraryOverlap` states one field up: an absent field and a zero read identically
+	 * at the site that renders them, so every producer of a summary states the answer.
+	 */
+	readonly planCount: number;
+	/**
+	 * ISO 8601, the most recent modification time across the project's own notes, or `null`
+	 * when the vault could answer for none of them.
+	 *
+	 * An ABSOLUTE date at the render, never a relative one: a relative time needs a live ticker
+	 * and makes every test time-dependent.
+	 */
+	readonly lastWorked: string | null;
 }
 
 /**
@@ -127,13 +142,19 @@ export function toZoneDto(zone: Zone): ZoneDto {
  * configured library folder (`LibraryOverlaps`), and an entity carrying it would be an entity
  * carrying a fact about a setting.
  */
-export function toProjectSummaryDto(project: Project, libraryOverlap: boolean): ProjectSummaryDto {
+export function toProjectSummaryDto(
+	project: Project,
+	libraryOverlap: boolean,
+	facts: ProjectRowFacts,
+): ProjectSummaryDto {
 	return {
 		id: project.id,
 		name: project.name,
 		status: project.status,
 		currency: project.currency,
 		libraryOverlap,
+		planCount: facts.planCount,
+		lastWorked: facts.lastWorked,
 	};
 }
 

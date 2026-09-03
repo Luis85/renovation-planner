@@ -12,6 +12,7 @@ import { GetProject } from '../../../src/application/queries/GetProject';
 import { ListPlansByProject } from '../../../src/application/queries/ListPlansByProject';
 import { ListProjects } from '../../../src/application/queries/ListProjects';
 import type { LibraryOverlaps } from '../../../src/application/ports/LibraryOverlaps';
+import type { ProjectListFacts, ProjectRowFacts } from '../../../src/application/ports/ProjectListFacts';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
@@ -32,6 +33,13 @@ import {
 import { createProjectId, type ProjectId } from '../../../src/domain/project/ProjectId';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makePlan, makeProject, makeZone } from '../../helpers/entities';
+
+/** What `toProjectSummaryDto` is handed where the case is not about either Home fact. */
+const NO_ROW_FACTS: ProjectRowFacts = { planCount: 0, lastWorked: null };
+
+/** A last-worked stamp distinctive enough that a passed-through one is unmistakable. */
+const WORKED = '2026-08-14T00:00:00.000Z';
+
 
 describe('mapping an entity to a read model', () => {
 	it('flattens a plan, background reference and all', () => {
@@ -100,12 +108,14 @@ describe('mapping an entity to a read model', () => {
 	it('summarises a project down to what a header needs', () => {
 		const project = makeProject({ name: 'Barn conversion' });
 
-		expect(toProjectSummaryDto(project, false)).toEqual({
+		expect(toProjectSummaryDto(project, false, NO_ROW_FACTS)).toEqual({
 			id: project.id,
 			name: 'Barn conversion',
 			status: project.status,
 			currency: project.currency,
 			libraryOverlap: false,
+			planCount: 0,
+			lastWorked: null,
 		});
 	});
 
@@ -123,8 +133,8 @@ describe('mapping an entity to a read model', () => {
 	it('carries the caller own overlap answer rather than deriving one', () => {
 		const project = makeProject({ name: 'Barn conversion' });
 
-		expect(toProjectSummaryDto(project, true).libraryOverlap).toBe(true);
-		expect(toProjectSummaryDto(project, false).libraryOverlap).toBe(false);
+		expect(toProjectSummaryDto(project, true, NO_ROW_FACTS).libraryOverlap).toBe(true);
+		expect(toProjectSummaryDto(project, false, NO_ROW_FACTS).libraryOverlap).toBe(false);
 	});
 });
 
@@ -307,21 +317,33 @@ describe('the plan editor query boundary', () => {
  */
 const NO_OVERLAPS: LibraryOverlaps = { overlapping: () => [] };
 
+/**
+ * The Home surface's facts port, answering what the REAL adapter answers over an empty
+ * Project Index: one entry per id asked about, with nothing counted and nothing dated. Not a
+ * sparse map and not an empty one — the port's contract is an entry per id, and a stub that
+ * broke it would make the `?? NO_FACTS` fallback below look load-bearing when it is not.
+ */
+const NO_FACTS: ProjectListFacts = {
+	factsFor: (ids) => new Map(ids.map((id) => [id, { planCount: 0, lastWorked: null }])),
+};
+
+
 describe('the renovation project query boundary', () => {
 	it('answers every project as a DTO, not as an entity', async () => {
 		const projects = new InMemoryProjectRepository();
 		const project = makeProject({ name: 'Barn conversion' });
 		expectOk(await projects.save(project, 'absent'));
 		const queries = createRenovationProjectQueries(
-			new ListProjects(projects, NO_OVERLAPS),
+			new ListProjects(projects, NO_OVERLAPS, NO_FACTS),
 			new GetProject(projects),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_FACTS,
 		);
 
 		const found = expectOk(await queries.listProjects());
 
-		expect(found.projects).toEqual([toProjectSummaryDto(project, false)]);
+		expect(found.projects).toEqual([toProjectSummaryDto(project, false, NO_ROW_FACTS)]);
 		// Flat and serializable all the way down — no domain method survived the boundary.
 		expect(JSON.parse(JSON.stringify(found))).toEqual(found);
 	});
@@ -342,10 +364,11 @@ describe('the renovation project query boundary', () => {
 		expectOk(await projects.save(overlapping, 'absent'));
 		expectOk(await projects.save(ordinary, 'absent'));
 		const queries = createRenovationProjectQueries(
-			new ListProjects(projects, { overlapping: () => [overlapping.id] }),
+			new ListProjects(projects, { overlapping: () => [overlapping.id] }, NO_FACTS),
 			new GetProject(projects),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_FACTS,
 		);
 
 		const found = expectOk(await queries.listProjects());
@@ -358,10 +381,11 @@ describe('the renovation project query boundary', () => {
 	it('answers an empty vault with an empty list and no refusals, not an error', async () => {
 		const projects = new InMemoryProjectRepository();
 		const queries = createRenovationProjectQueries(
-			new ListProjects(projects, NO_OVERLAPS),
+			new ListProjects(projects, NO_OVERLAPS, NO_FACTS),
 			new GetProject(projects),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_FACTS,
 		);
 
 		expect(expectOk(await queries.listProjects())).toEqual({ projects: [], unreadable: 0 });
@@ -375,7 +399,7 @@ describe('the renovation project query boundary', () => {
 	it('answers a failed read with isErr, never with an empty list', async () => {
 		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
 
-		const result = await createRenovationProjectQueries(failing as never, undefined as never, undefined as never, NO_OVERLAPS).listProjects();
+		const result = await createRenovationProjectQueries(failing as never, undefined as never, undefined as never, NO_OVERLAPS, NO_FACTS).listProjects();
 
 		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
 	});
@@ -406,10 +430,11 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 		const projects = new InMemoryProjectRepository();
 		const saved = expectOk(await projects.save(makeProject({ name: 'Hallway' }), 'absent'));
 		const queries = createRenovationProjectQueries(
-			new ListProjects(projects, NO_OVERLAPS),
+			new ListProjects(projects, NO_OVERLAPS, NO_FACTS),
 			new GetProject(projects),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_FACTS,
 		);
 
 		const found = expectOk(await queries.getProject(saved.entity.id));
@@ -424,6 +449,8 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 			status: saved.entity.status,
 			currency: saved.entity.currency,
 			libraryOverlap: false,
+			planCount: 0,
+			lastWorked: null,
 		});
 	});
 
@@ -444,10 +471,11 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 		const projects = new InMemoryProjectRepository();
 		const saved = expectOk(await projects.save(makeProject({ name: 'Hallway' }), 'absent'));
 		const queries = createRenovationProjectQueries(
-			new ListProjects(projects, NO_OVERLAPS),
+			new ListProjects(projects, NO_OVERLAPS, NO_FACTS),
 			new GetProject(projects),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			{ overlapping: () => [saved.entity.id] },
+			NO_FACTS,
 		);
 
 		const found = expectOk(await queries.getProject(saved.entity.id));
@@ -463,10 +491,11 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 	 */
 	it('passes a missing project through as ok(null)', async () => {
 		const queries = createRenovationProjectQueries(
-			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
+			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS, NO_FACTS),
 			new GetProject(new InMemoryProjectRepository()),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_FACTS,
 		);
 
 		const found = expectOk(await queries.getProject('project-01JNOPE'));
@@ -479,10 +508,11 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 		const projectId = 'project-01JAAA' as ProjectId;
 		expectOk(await plans.save(makePlan({ projectId, name: 'Ground floor' }), 'absent'));
 		const queries = createRenovationProjectQueries(
-			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
+			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS, NO_FACTS),
 			new GetProject(new InMemoryProjectRepository()),
 			new ListPlansByProject(plans),
 			NO_OVERLAPS,
+			NO_FACTS,
 		);
 
 		const listed = expectOk(await queries.listPlansByProject(projectId));
@@ -499,10 +529,11 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 	it('answers a failed project read with isErr, never as a missing project', async () => {
 		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
 		const queries = createRenovationProjectQueries(
-			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
+			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS, NO_FACTS),
 			failing as never,
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_FACTS,
 		);
 
 		const result = await queries.getProject('project-01JAAA');
@@ -510,14 +541,98 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
 	});
 
+	/**
+	 * The Home surface's two commissioned facts reach the DTO from the port rather than from
+	 * anywhere else. Both fields, because a mapping that carried one and hard-coded the other
+	 * passes a case that reads only the one it carried.
+	 */
+	it('carries planCount and lastWorked onto every summary', async () => {
+		const projects = new InMemoryProjectRepository();
+		expectOk(await projects.save(makeProject({ name: 'Hallway' }), 'absent'));
+		const facts: ProjectListFacts = {
+			factsFor: (ids) => new Map(ids.map((id) => [id, { planCount: 3, lastWorked: WORKED }])),
+		};
+		const queries = createRenovationProjectQueries(
+			new ListProjects(projects, NO_OVERLAPS, facts),
+			new GetProject(projects),
+			new ListPlansByProject(new InMemoryPlanRepository()),
+			NO_OVERLAPS,
+			facts,
+		);
+
+		const found = expectOk(await queries.listProjects());
+
+		expect(found.projects[0]?.planCount).toBe(3);
+		expect(found.projects[0]?.lastWorked).toBe(WORKED);
+	});
+
+	/**
+	 * The SINGLE-project door asks the port too. A hard-coded `{ planCount: 0, lastWorked:
+	 * null }` here passes every case that only reads the LIST, which is why this asserts on
+	 * the door that would have kept the lie — and on WHICH id was asked about, because a door
+	 * asking for the wrong project would answer a plausible number about somebody else's.
+	 */
+	it('asks the facts port at the single-project door too', async () => {
+		const projects = new InMemoryProjectRepository();
+		const saved = expectOk(await projects.save(makeProject({ name: 'Hallway' }), 'absent'));
+		let asked: readonly string[] = [];
+		const facts: ProjectListFacts = {
+			factsFor: (ids) => {
+				asked = ids;
+				return new Map(ids.map((id) => [id, { planCount: 7, lastWorked: WORKED }]));
+			},
+		};
+		const queries = createRenovationProjectQueries(
+			new ListProjects(projects, NO_OVERLAPS, NO_FACTS),
+			new GetProject(projects),
+			new ListPlansByProject(new InMemoryPlanRepository()),
+			NO_OVERLAPS,
+			facts,
+		);
+
+		const found = expectOk(await queries.getProject(saved.entity.id));
+
+		expect(asked).toEqual([saved.entity.id]);
+		expect(found?.planCount).toBe(7);
+		expect(found?.lastWorked).toBe(WORKED);
+	});
+
+	/**
+	 * `ReadonlyMap.get` answers `V | undefined`, so BOTH doors carry a fallback the port's own
+	 * contract forbids reaching — "one entry per id asked about, never a sparse map". The
+	 * branch exists because the TYPE requires it, not because a compliant port can produce it,
+	 * and a fallback nothing drives is a fallback nobody would notice going wrong. A sparse
+	 * port is what drives it: zero and null, never a refusal, because a row with an unknown
+	 * plan count still has a name, a status and a currency worth drawing.
+	 */
+	it('draws a row for a project the facts port left out at either door', async () => {
+		const projects = new InMemoryProjectRepository();
+		const saved = expectOk(await projects.save(makeProject({ name: 'Hallway' }), 'absent'));
+		const sparse: ProjectListFacts = { factsFor: () => new Map() };
+		const queries = createRenovationProjectQueries(
+			new ListProjects(projects, NO_OVERLAPS, sparse),
+			new GetProject(projects),
+			new ListPlansByProject(new InMemoryPlanRepository()),
+			NO_OVERLAPS,
+			sparse,
+		);
+
+		const listed = expectOk(await queries.listProjects());
+		const one = expectOk(await queries.getProject(saved.entity.id));
+
+		expect(listed.projects[0]).toMatchObject({ name: 'Hallway', planCount: 0, lastWorked: null });
+		expect(one).toMatchObject({ name: 'Hallway', planCount: 0, lastWorked: null });
+	});
+
 	/** The `isErr` branch of `listPlansByProject` — the same distinction, one door over. */
 	it('answers a failed plans read with isErr, never as an empty list', async () => {
 		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
 		const queries = createRenovationProjectQueries(
-			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
+			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS, NO_FACTS),
 			new GetProject(new InMemoryProjectRepository()),
 			failing as never,
 			NO_OVERLAPS,
+			NO_FACTS,
 		);
 
 		const result = await queries.listPlansByProject('project-01JAAA');

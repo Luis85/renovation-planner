@@ -26,6 +26,7 @@ import type {
 } from '../application/commands/plan/SetPlanBackground';
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import type { LibraryOverlaps } from '../application/ports/LibraryOverlaps';
+import type { ProjectListFacts } from '../application/ports/ProjectListFacts';
 import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
 import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
 import { createVaultFileChangeSource } from '../infrastructure/obsidian/vault/vaultFileChanges';
@@ -213,6 +214,14 @@ export interface PersistenceServices
 	 * compared. One instrument, so the two surfaces cannot disagree about one project.
 	 */
 	readonly overlaps: LibraryOverlaps;
+	/**
+	 * The Home surface's plan count and last-worked time (§8), exposed for the reason
+	 * `overlaps` states one field up and answered by the same instrument at both doors:
+	 * `ListProjects` takes it for the list, and `createRenovationProjectQueries` takes it so
+	 * the single-project door states facts it actually asked for rather than a zero it never
+	 * counted.
+	 */
+	readonly listFacts: ProjectListFacts;
 	readonly defaultCurrency: Currency;
 	/**
 	 * The read side the Plan Editor actually consumes: slice 4's queries mapped into
@@ -289,7 +298,7 @@ function composeGuarded(
 	files: VaultFileProbe,
 	diagnostics: { versions: RuntimeVersions; migrations: MigrationRunner; ledger: DiagnosticsLedger },
 ) {
-	const { projects, plans, zones, assets, assetGeometry, requirements, overlaps, defaultCurrency } = repositories;
+	const { projects, plans, zones, assets, assetGeometry, requirements, overlaps, listFacts, defaultCurrency } = repositories;
 	const { events: eventBus, logger, recalculate, locks, markers } = wiring;
 	const map = VAULT_EXCEPTION_MAPPER;
 	const deleteZone = new DeleteZoneCommand({
@@ -304,7 +313,7 @@ function composeGuarded(
 	});
 	const editor = guardedEditorServices(
 		{ projects, plans, zones, deleteZone },
-		{ eventBus, files, logger, map, overlaps },
+		{ eventBus, files, logger, map, overlaps, listFacts },
 		diagnostics,
 	);
 	return {
@@ -414,6 +423,7 @@ export function createCompositionRoot(
 			locks,
 			files,
 			overlaps: repositories.overlaps,
+			listFacts: repositories.listFacts,
 			defaultCurrency: repositories.defaultCurrency,
 			...guarded,
 			planEditorQueries: createPlanEditorQueries({
@@ -634,6 +644,7 @@ export function renovationProjectDeps(
 					persistence.queries.getProject,
 					persistence.listPlansByProject,
 					persistence.overlaps,
+					persistence.listFacts,
 				)
 			: unavailableRenovationProjectQueries(),
 		commands: persistence

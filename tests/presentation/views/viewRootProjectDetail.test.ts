@@ -44,6 +44,8 @@ const PROJECT: ProjectSummaryDto = {
 	status: 'IDEA',
 	currency: 'EUR',
 	libraryOverlap: false,
+	planCount: 0,
+	lastWorked: null,
 };
 
 /** A read that was really attempted and really failed — never `ok(null)`, which means "gone". */
@@ -196,7 +198,7 @@ describe('ViewRoot in the detail state', () => {
 			projectId: null,
 			navigate,
 			openProject,
-			projects: [{ id: 'project-1', name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false }],
+			projects: [{ id: 'project-1', name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null }],
 		});
 		await flushPromises();
 

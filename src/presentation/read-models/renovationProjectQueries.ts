@@ -1,5 +1,6 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { LibraryOverlaps } from '../../application/ports/LibraryOverlaps';
+import type { ProjectListFacts, ProjectRowFacts } from '../../application/ports/ProjectListFacts';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { Query } from '../../application/queries/Query';
 import type { GetProjectInput } from '../../application/queries/GetProject';
@@ -104,11 +105,26 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
  * entities and the mapping to `ProjectSummaryDto` happens here — the same division
  * `createPlanEditorQueries` draws for `getPlan` and `findZonesByPlan`.
  */
+/**
+ * What a project the facts port did not answer for gets, at BOTH doors.
+ *
+ * A compliant port never produces it — `ProjectListFacts.factsFor` states one entry per id
+ * asked about, never a sparse map — so this exists because `ReadonlyMap.get` is typed
+ * `V | undefined` and the branch has to go somewhere, not because either door is likelier to
+ * miss than the other. `readModels.test.ts` drives a deliberately sparse port through both,
+ * so the arm is exercised rather than merely present.
+ *
+ * Zero and null rather than a refusal: the detail state draws neither field today, and a row
+ * with an unknown plan count still has a name, a status and a currency worth drawing.
+ */
+const NO_FACTS: ProjectRowFacts = { planCount: 0, lastWorked: null };
+
 export function createRenovationProjectQueries(
 	listProjects: Query<void, Result<ProjectListResult, RepositoryError>>,
 	getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>,
 	listPlansByProject: Query<ListPlansByProjectInput, Result<PlanListResult, RepositoryError>>,
 	overlaps: LibraryOverlaps,
+	facts: ProjectListFacts,
 ): RenovationProjectQueryServices {
 	return {
 		async listProjects() {
@@ -121,7 +137,11 @@ export function createRenovationProjectQueries(
 			const overlapping = new Set<string>(found.value.overlapping);
 			return ok({
 				projects: found.value.projects.map((project) =>
-					toProjectSummaryDto(project, overlapping.has(project.id)),
+					toProjectSummaryDto(
+						project,
+						overlapping.has(project.id),
+						found.value.facts.get(project.id) ?? NO_FACTS,
+					),
 				),
 				unreadable: found.value.unreadable,
 			});
@@ -149,7 +169,16 @@ export function createRenovationProjectQueries(
 			// one-element ask — synchronous, and the same instrument the list query reaches
 			// through `ListProjects`, rather than a second derivation that could disagree with it.
 			const [overlapping] = overlaps.overlapping([found.value.entity.id]);
-			return ok(toProjectSummaryDto(found.value.entity, overlapping !== undefined));
+			// ASKED rather than fabricated, exactly as `libraryOverlap` is one line up and for
+			// the reason that comment gives: this door answers the same DTO type, so a
+			// hard-coded `{ planCount: 0, lastWorked: null }` here would be a statement about a
+			// project this function never counted — safe today only because the detail state
+			// draws neither field, and a defect with no failing test in front of it the day it
+			// does. One instrument for both doors, so the two cannot disagree about a project.
+			const rowFacts = facts.factsFor([found.value.entity.id]).get(found.value.entity.id);
+			return ok(
+				toProjectSummaryDto(found.value.entity, overlapping !== undefined, rowFacts ?? NO_FACTS),
+			);
 		},
 
 		async listPlansByProject(projectId) {

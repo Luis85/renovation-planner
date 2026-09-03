@@ -144,25 +144,44 @@ const bodyEl = ref<HTMLElement | null>(null);
  * the wrong instrument: §7's ladder is a CONTAINER query, so it answers about the PANE's width
  * and a split leaf's viewport can be much wider. `offsetParent === null` is the browser's own
  * answer to "is this laid out", which is exactly the question.
+ *
+ * **WHICH MOMENT it is asked at differs by direction, and asking it at one moment for both was
+ * the previous version's defect.** The narrow layout is the one that hides the SHELVES, so that
+ * is the only element whose visibility answers — and it is hidden at opposite ends of the two
+ * gestures. Opening an asset hides them, so the forward swap is visible only AFTER the render;
+ * Back reveals them, so by the time the same check ran it read "the shelves are laid out" and
+ * returned, every time, in every layout. True, and it is the swap having already happened: the
+ * row the user came from was never focused, which is precisely the promise this function exists
+ * to keep. So the answer is passed IN, and `back` takes it before it mutates anything.
+ *
+ * Reported by a review bot, one round after the guard it is correcting was added for the other
+ * direction — the shape this repository already has a name for: a fix written against the case
+ * in front of its author reads exactly like a fix for the class.
  */
-async function focusAfterSwap(selector: string): Promise<void> {
+async function focusAfterSwap(selector: string, swapped: () => boolean): Promise<void> {
 	await nextTick();
-	if (shelvesEl.value !== null && shelvesEl.value.offsetParent !== null) return;
+	if (!swapped()) return;
 	bodyEl.value?.querySelector<HTMLElement>(selector)?.focus();
+}
+
+/** The narrow layout is the one that withdraws the shelves. Only true while they are withdrawn. */
+function shelvesWithdrawn(): boolean {
+	return shelvesEl.value !== null && shelvesEl.value.offsetParent === null;
 }
 
 function select(id: string): void {
 	const swappingIn = !inspecting.value;
 	selectedId.value = id;
 	showSelection.value = true;
-	if (swappingIn) void focusAfterSwap('.rp-al-inspector__back');
+	if (swappingIn) void focusAfterSwap('.rp-al-inspector__back', shelvesWithdrawn);
 }
 
 /** The mirror: leaving the inspector returns focus to the row it was opened from. */
 function back(): void {
 	const leaving = selectedId.value;
+	const swappingOut = shelvesWithdrawn();
 	selectedId.value = null;
-	if (leaving !== null) void focusAfterSwap(`[data-asset-id="${leaving}"]`);
+	if (leaving !== null) void focusAfterSwap(`[data-asset-id="${leaving}"]`, () => swappingOut);
 }
 
 /**

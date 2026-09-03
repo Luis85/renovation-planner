@@ -73,18 +73,6 @@ const dimensions = computed((): string | null => {
 });
 
 /**
- * The clearance's own extent, and the facing in degrees.
- *
- * §3.4 sends the clearance, the anchor and the facing here precisely because they are mush at
- * 20px — and the first version of this panel drew none of them, so a promise made in two
- * sections of the specification had a representation in neither. Reported by a review bot.
- *
- * **The anchor is a word rather than a coordinate pair**, which is the one row worth arguing:
- * `(340, 0)` in millimetres tells a renovator nothing without the drawing to read it against,
- * and the surface that can show it meaningfully is one click away. The facing is an angle and
- * reads as one, so it prints.
- */
-/**
  * The clearance's extent — and its unit WITHHELD while its own capture is pending.
  *
  * `AssetShape` carries `clearancePending` independently of `footprintPending`, so a typed
@@ -97,6 +85,23 @@ const clearance = computed((): string => {
 	if (asset?.clearance === undefined) return 'None';
 	const [width, depth] = asset.clearance;
 	return `${width} × ${depth}${asset.clearancePending === true ? '' : ' mm'}`;
+});
+
+/**
+ * The spec sheet's own name, from the reference's path.
+ *
+ * §3.5's Shape inventory asks for the file's NAME and the row is omitted when there is none —
+ * so the basename is the whole of what this computes, and the `page` a PDF reference carries is
+ * deliberately dropped. That page is what the Asset designer needs to open the right sheet;
+ * printing it in a definition list would be inventing a row the inventory does not ask for.
+ *
+ * `split('/')` rather than a path helper: an Obsidian vault path is `/`-separated on every
+ * platform, which is the one thing `normalizePath` guarantees about it.
+ */
+const specSheet = computed((): string | null => {
+	const path = props.asset?.background?.path;
+	if (path === undefined) return null;
+	return path.split('/').at(-1) ?? path;
 });
 
 /**
@@ -184,14 +189,6 @@ const shapeNotes = computed((): readonly string[] => {
 				<dd class="rp-al-fields__value">
 					{{ asset.sku ?? '—' }}
 				</dd>
-				<template v-if="asset.heightMm !== null">
-					<dt class="rp-al-fields__key">
-						Height
-					</dt>
-					<dd class="rp-al-fields__value rp-al-fields__num">
-						{{ asset.heightMm }} mm
-					</dd>
-				</template>
 			</dl>
 			<p
 				v-if="asset.notes !== null"
@@ -218,6 +215,22 @@ const shapeNotes = computed((): readonly string[] => {
 				<dd class="rp-al-fields__value rp-al-fields__num">
 					{{ clearance }}
 				</dd>
+				<template v-if="asset.heightMm !== null">
+					<dt class="rp-al-fields__key">
+						Height
+					</dt>
+					<dd class="rp-al-fields__value rp-al-fields__num">
+						{{ asset.heightMm }} mm
+					</dd>
+				</template>
+				<template v-if="specSheet !== null">
+					<dt class="rp-al-fields__key">
+						Spec sheet
+					</dt>
+					<dd class="rp-al-fields__value">
+						{{ specSheet }}
+					</dd>
+				</template>
 			</dl>
 			<p
 				v-for="note in shapeNotes"

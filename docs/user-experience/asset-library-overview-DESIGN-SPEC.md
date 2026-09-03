@@ -667,9 +667,10 @@ ledger it beat would have had to read every sidecar on open, or drop the mark.
 
 ### 5.4 Keeping a loaded mark honest
 
-A mark is fetched once per shelf expansion and then **held**, which is a cache, and a cache with
-no invalidation is a surface that quietly goes stale. Another designer leaf editing a footprint,
-a calibration, a background or a height is the ordinary case — two leaves on one vault is what
+A mark is fetched once when its row first enters the viewport and then **held for the life of the
+view** (§5.3), which is a cache, and a cache with no invalidation is a surface that quietly goes
+stale. Another designer leaf editing a footprint, a calibration, a background or a height is the
+ordinary case — two leaves on one vault is what
 this plugin's own `WriteLedger` generation counter exists for — and an out-of-band sidecar edit
 arriving through sync is the other.
 
@@ -680,7 +681,9 @@ it has no reason to hear `AssetDesignChanged` or `GeometrySidecarChanged`.
 `createAssetDesignChangeSource` carries both and takes an `assetId`, because the designer watches
 one asset. **This surface watches many and draws their shapes**, which is a third shape neither
 source has, and that is a real gap rather than a wiring detail: without it a footprint corrected
-in a designer leaf goes on drawing its old outline here until the shelf is collapsed and reopened.
+in a designer leaf goes on drawing its old outline here **for the life of the view** — collapsing
+and reopening the shelf does not repair it, because the cache §5.3 specifies is not bound to the
+expansion.
 
 The contract, so a builder does not invent one:
 
@@ -942,31 +945,28 @@ Each of these is a thing a reader will reasonably expect, refused for a stated r
 2. **Whether a shelf's expansion state is per leaf or per vault.** Per leaf follows Obsidian's view
    state and is what §6.3 specifies; per vault would be a setting, and settings here write through
    `saveSettings` on every change, which rebinds every view.
-3. **What happens to a selected asset that is deleted in another leaf.** The project detail state's
-   answer is a screen saying so with a way back, and nothing redirects on its own. The same answer
-   probably applies to the inspector — probably is not a specification.
-4. **Whether `Delete` belongs on this surface at all.** It is specified here because the *Used in*
+3. **Whether `Delete` belongs on this surface at all.** It is specified here because the *Used in*
    read the gesture needs is already on screen. The argument against is that a browsing surface with
    a destructive action one Tab from a row is a surface people will be careful on.
-5. **The ceiling on drawing empty shelves** (§3.2). Right at seven, wrong at twenty-five, and the
+4. **The ceiling on drawing empty shelves** (§3.2). Right at seven, wrong at twenty-five, and the
    number in between is a judgement nobody has made. It belongs to whoever ships §84's
    configuration surface, because that is the change that makes the vocabulary long enough to
    matter.
-6. **Whether `Used in` marks the projects that override the price** once §89's override exists
+5. **Whether `Used in` marks the projects that override the price** once §89's override exists
    (§3.5). This is the only screen where *"your correction will not reach these three"* could be
    said, which is an argument for it; it is also a project-scoped fact on a vault-wide surface,
    which is the argument against. Not this document's to settle, and not a builder's to settle
    silently.
-7. **Whether the geometry-event subscription widens the shared catalogue source or adds a
+6. **Whether the geometry-event subscription widens the shared catalogue source or adds a
    fourth one** (§5.4). The picker shares `createAssetCatalogueChangeSource` and would pay for
    any widening of it — re-reading every asset note on a design event it has no use for — so the
    cheap edit is the one with a cost on a surface this document does not own.
-8. **Whether the requirement event vocabulary grows** (§3.5) — `assetId` on the payload, and a
+7. **Whether the requirement event vocabulary grows** (§3.5) — `assetId` on the payload, and a
    `RequirementDeleted` sibling. Together they are what would let *Used in* be live instead of a
    snapshot; without them it can grow a row it will not lose, and the only alternative refresh is
    a vault-wide scan per assignment. A domain-layer addition with consequences past this surface,
    and not a view's to introduce.
-9. **Whether this surface ships a Bases view beside it** (§2a). The epic's Definition of Done is
+8. **Whether this surface ships a Bases view beside it** (§2a). The epic's Definition of Done is
    not discharged by a plugin view, and *"reachable through Bases"* has at least three readings —
    a `.base` file this plugin writes, a documented recipe, or nothing at all on the grounds that a
    user's own Bases view over `type: renovation-asset` already works. Picking one is a product
@@ -1289,6 +1289,50 @@ Worth keeping from the fix: **whether the swap happened is asked of the DOM, not
 `matchMedia` is the wrong instrument, because §7's ladder is a CONTAINER query — it answers about
 the pane's width, and a split leaf's viewport can be far wider. `offsetParent === null` is the
 browser's own answer to *is this laid out*, which is the question actually being asked.
+
+A thirteenth round found four, and every one of them is one section contradicting another rather
+than a defect a picture could show — which is now the dominant shape of this document's findings
+and is worth naming as such.
+
+**The fix for the eleventh round's focus defect was correct in one direction and dead in the
+other**, which is this repository's oldest recurring shape arriving inside a fix for it. The guard
+returns early when the shelves are laid out, because at full width no swap happens and focus must
+not move. Opening an asset *hides* the shelves, so that reads correctly; Back *reveals* them, so
+the same check ran after the reveal, read "laid out", and returned — every time, in every layout,
+so the row the user came from was never focused. The swap answer is passed in now, and `back`
+takes it before it mutates anything. **When a fix guards two gestures, run the mutation for the
+one you were not looking at**; the whole suite is silent about both, since jsdom lays nothing out.
+
+**Two rows of §3.5's Shape inventory had no representation in the prototype**, one of them a row
+§5.1's DTO carries a whole `AssetBackgroundRef` expressly to supply. `CatalogueAsset` had no
+background field at all, so the *Spec sheet* row could not be drawn, and *Height* was drawn in
+the definition list above rather than in Shape where the inventory puts it. The second was not
+reported and was found by reading the inventory against the template — which is the check the
+report itself models. Reading that block also turned up an orphaned docblock: the paragraph
+arguing the anchor should be a word rather than a coordinate pair still sat above `clearance`,
+three rounds after §3.5 removed both rows it describes. Nothing in any gate reads whether a
+docblock still belongs to what follows it.
+
+**§5.4's opening sentence still carried the per-shelf cache §5.3 replaced** — *"fetched once per
+shelf expansion and then held"* — beside invalidation rules the round before had already rebound
+to the viewport, and its closing clause promised that collapsing and reopening a shelf repairs a
+stale outline, which under the specified cache it does not. **This is the same neighbour-section
+drift as the round before it, in the section that round edited**, which makes it the fourth
+instance and the sharpest: correcting a passage is exactly the moment nobody re-reads the
+paragraph above it.
+
+**And §11 carried an open item §3.5 had already closed.** *What happens to a selected asset
+deleted in another leaf* was listed as unsettled — *"probably is not a specification"* — while
+§3.5's refusal table normatively maps `asset.not-found` to a gone screen with a way back and
+withdraws `Open designer`. A builder reading §11 would have waited for a decision that §3.5 had
+made. The item is removed rather than the mapping made provisional, because the mapping follows
+the project detail state's own decided answer and there is nothing left to decide.
+
+**The pattern, stated once for whoever edits this next.** Of thirteen rounds' findings, the ones
+a capture caught have stopped arriving and the ones a *reader* catches have not. A specification
+is a set of promises that reference each other, and every edit to one section is an unchecked
+claim about the others — no gate in this repository can see one, `npm run check` is green through
+all of them, and the only instrument is somebody reading the two passages together.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

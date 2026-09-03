@@ -54,6 +54,7 @@
  * state that only exists for 80ms in production is a state nobody ever looks at hard enough to
  * notice it is indistinguishable from its neighbour.
  */
+import type { AssetBackgroundRef } from '../domain/asset/Asset';
 import type { Point } from '../core/geometry/Point';
 
 export type ShapeState = 'measured' | 'unscaled' | 'none' | 'pending' | 'unreadable';
@@ -107,6 +108,18 @@ export interface CatalogueAsset {
 	 * designer, which draws them, rather than to a definition list that can only spell them.
 	 */
 	readonly clearancePending?: boolean;
+	/**
+	 * The spec sheet a shape was traced from, and the REAL `AssetBackgroundRef` rather than a
+	 * boolean — §5.1's DTO carries the whole reference for the reason a review round found by
+	 * reading the two against each other: §3.5's Shape inventory asks the row to print the
+	 * file's NAME, which a boolean cannot supply, and nothing else in §5 hands one over.
+	 *
+	 * Imported rather than redeclared, exactly as `Point` is: a mock whose reference is the type
+	 * `SetAssetBackground` really writes is a mock whose row promotes unchanged. What the row
+	 * shows is the basename alone — the `page` a PDF reference carries belongs to the designer,
+	 * which opens the sheet, and printing it here would be inventing past the inventory.
+	 */
+	readonly background?: AssetBackgroundRef;
 	readonly usedIn: readonly UsedIn[];
 }
 
@@ -148,6 +161,7 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		unitCost: '34.95', currency: 'EUR', waste: '+8%', supplier: 'Holzhandel Nord', sku: 'EIC-1200-190',
 		heightMm: 22, notes: 'Brushed, matt lacquered. Confirm batch before ordering.',
 		shape: 'measured', outline: box(1200, 190),
+		background: { path: 'Renovation/Library/Sheets/eiche-diele-1200.pdf', kind: 'pdf', page: 2 },
 		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 3 }, { project: 'Garden studio', requirements: 1 }],
 	},
 	{
@@ -178,6 +192,7 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		unitCost: '245.00', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Küchenhaus Adler', sku: 'BC-600',
 		heightMm: 720, notes: 'Traced from the supplier sheet before the sheet was calibrated.',
 		shape: 'unscaled', outline: box(600, 580), clearance: [600, 1180], clearancePending: true,
+		background: { path: 'Renovation/Library/Sheets/adler-bc-600.png', kind: 'image', page: null },
 		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 4 }],
 	},
 	{

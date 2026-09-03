@@ -1682,7 +1682,7 @@ hydrate already fires from Task 2's events, and nowhere else.
 - Produces:
   - `COMPLETED_STATUSES: ReadonlySet<string>` — `{'COMPLETE', 'AS_BUILT'}`.
   - `isCompleted(project: ProjectSummaryDto): boolean`
-  - `orderProjects(projects: readonly ProjectSummaryDto[], collator: Intl.Collator): ProjectSummaryDto[]`
+  - `orderProjects(projects: readonly ProjectSummaryDto[], collator: Intl.Collator, sortKeys: Map<string, string | null>): ProjectSummaryDto[]`
   - `nameCollator(language: string): Intl.Collator` — `sensitivity: 'base'`, reused by Task 6.
 
 - [ ] **Step 1: Write the failing order test**
@@ -1721,6 +1721,7 @@ describe('orderProjects', () => {
 				project({ name: 'Newer', lastWorked: '2026-08-01T00:00:00.000Z' }),
 			],
 			collator,
+			new Map(),
 		);
 
 		expect(ordered.map((p) => p.name)).toEqual(['Newer', 'Older']);
@@ -1731,6 +1732,7 @@ describe('orderProjects', () => {
 		const ordered = orderProjects(
 			[project({ name: 'Bathroom', lastWorked: same }), project({ name: 'Attic', lastWorked: same })],
 			collator,
+			new Map(),
 		);
 
 		expect(ordered.map((p) => p.name)).toEqual(['Attic', 'Bathroom']);
@@ -1746,6 +1748,7 @@ describe('orderProjects', () => {
 				project({ name: 'Dated', lastWorked: '2020-01-01T00:00:00.000Z' }),
 			],
 			collator,
+			new Map(),
 		);
 
 		expect(ordered.map((p) => p.name)).toEqual(['Dated', 'Attic', 'Zed']);
@@ -1754,15 +1757,20 @@ describe('orderProjects', () => {
 	it('is stable, so a re-hydrate never reshuffles equal rows', () => {
 		const equal = [project({ name: 'Same', id: 'a' }), project({ name: 'Same', id: 'b' })];
 
-		expect(orderProjects(equal, collator).map((p) => p.id)).toEqual(['a', 'b']);
-		expect(orderProjects(orderProjects(equal, collator), collator).map((p) => p.id)).toEqual(['a', 'b']);
+		// A FRESH map per call here: this case is about the comparator's stability, not about the
+		// per-mount freeze, and sharing one would make the second call trivially agree with the
+		// first for the wrong reason.
+		expect(orderProjects(equal, collator, new Map()).map((p) => p.id)).toEqual(['a', 'b']);
+		expect(
+			orderProjects(orderProjects(equal, collator, new Map()), collator, new Map()).map((p) => p.id),
+		).toEqual(['a', 'b']);
 	});
 
 	it('does not mutate its input', () => {
 		// The store hands it `projects.value`, a readonly array by declaration and a live Pinia
 		// ref underneath. An in-place `.sort()` would reorder the store from a computed.
 		const input = [project({ name: 'B' }), project({ name: 'A' })];
-		orderProjects(input, collator);
+		orderProjects(input, collator, new Map());
 
 		expect(input.map((p) => p.name)).toEqual(['B', 'A']);
 	});
@@ -1771,6 +1779,7 @@ describe('orderProjects', () => {
 		const ordered = orderProjects(
 			[project({ name: 'Zimmer' }), project({ name: 'Ähre' })],
 			nameCollator('de'),
+			new Map(),
 		);
 
 		// Base sensitivity: `Ä` collates with `A`, so it leads. A raw `<` comparison on the
@@ -1848,19 +1857,47 @@ export function nameCollator(language: string): Intl.Collator {
  * reshuffles equal rows: `Array.prototype.sort` is required to be stable since ES2019, and a
  * copy is taken because the caller's array is the store's own.
  */
+/**
+ * **`sortKeys` is what makes the order FROZEN, and without it the spec's own guarantee is
+ * false.** §8 says "ordering must not change without a re-mount or one of those events", and
+ * every hydrate recomputes `lastWorked` from live mtimes — so sorting on the DTO field directly
+ * re-sorts the mounted rows whenever anything the project owns is written. Task 2 admits
+ * `renovation-plan` to the entry filter for `planCount`, which makes a plan note MERELY MODIFIED
+ * — edited in another leaf, or arriving through sync — a hydrate, and the row would move under
+ * the user's cursor for a change that altered no count and no name.
+ *
+ * The caller therefore holds a per-mount `Map<projectId, lastWorked>`, captured the first time
+ * each project is seen and never rewritten, and passes it here. A project absent from the map is
+ * new to this mount and is inserted with its live value, so a created or synced project still
+ * lands in its correct place; every project already on screen keeps the key it arrived with.
+ *
+ * **Chosen over distinguishing structural plan changes from modifications**, which was the other
+ * remedy on the table: `ProjectIndexEntryChangedPayload` carries `entityType` and nothing about
+ * what happened to the entry, so that route needs a widened event before it can be written at
+ * all — and it would still leave `lastWorked` re-sorting on a project-note modification, which is
+ * the same defect through the arm that was never in question. Freezing the key closes both arms
+ * and needs no new payload.
+ */
 export function orderProjects(
 	projects: readonly ProjectSummaryDto[],
 	collator: Intl.Collator,
+	sortKeys: Map<string, string | null>,
 ): ProjectSummaryDto[] {
+	const keyOf = (project: ProjectSummaryDto): string | null => {
+		if (!sortKeys.has(project.id)) sortKeys.set(project.id, project.lastWorked);
+		return sortKeys.get(project.id) ?? null;
+	};
 	return [...projects].sort((left, right) => {
+		const leftKey = keyOf(left);
+		const rightKey = keyOf(right);
 		// A null is UNDATED, not "worked on at the epoch": it sorts to the tail rather than to
 		// the head, and among nulls the name decides.
-		if (left.lastWorked !== right.lastWorked) {
-			if (left.lastWorked === null) return 1;
-			if (right.lastWorked === null) return -1;
+		if (leftKey !== rightKey) {
+			if (leftKey === null) return 1;
+			if (rightKey === null) return -1;
 			// ISO 8601 in UTC sorts lexicographically, which is the whole reason the DTO carries
 			// a string rather than a number: no parse, no timezone, no `Invalid Date`.
-			return left.lastWorked < right.lastWorked ? 1 : -1;
+			return leftKey < rightKey ? 1 : -1;
 		}
 		return collator.compare(left.name, right.name);
 	});
@@ -1981,7 +2018,14 @@ import { currentLanguage } from '../i18n/strings';
  */
 const collator = nameCollator(currentLanguage());
 
-const ordered = computed(() => orderProjects(props.projects, collator));
+/**
+ * The per-mount sort keys — see `orderProjects`. A plain `Map` rather than a `ref`: it is read
+ * inside the computed and never rendered, and making it reactive would re-run the sort on the
+ * very writes the freeze exists to ignore.
+ */
+const sortKeys = new Map<string, string | null>();
+
+const ordered = computed(() => orderProjects(props.projects, collator, sortKeys));
 const active = computed(() => ordered.value.filter((project) => !isCompleted(project)));
 const completed = computed(() => ordered.value.filter(isCompleted));
 ```
@@ -2143,6 +2187,7 @@ the launcher its keyboard entry instead.
 - Create: `src/presentation/views/projectFilter.ts`
 - Create: `src/presentation/views/ProjectFilter.vue`
 - Modify: `src/presentation/views/ProjectList.vue`
+- Modify: `src/presentation/views/ViewRoot.vue` — region 6 moves into `ProjectList`
 - Modify: `styles/project-list.css`
 - Modify: `src/presentation/views/ProjectRow.vue`
 - Test: `tests/presentation/views/projectFilter.test.ts`
@@ -2780,6 +2825,18 @@ above the groups **under `v-if="projects.length > 0"`**, passing `:shown="matchi
 `:total="projects.length"`, with `@update:query="query = $event"`; leave `@cancel` unhandled until
 Task 8, which is where Escape's two meanings are built.
 
+**Region 6 moves into this component in the same step, and it must.** `ViewRoot.vue` renders
+`.rp-view-notice` AFTER `<ProjectList>`, which was correct while the list was a bare `<ul>` — and
+these tasks move the header, the filter, Continue, both groups, the no-match block and the foot
+line inside it. Left where it is, the partial-read notice draws BELOW the entire surface, where
+§5 requires it above the groups: the sentence explaining that some projects could not be read
+would sit under thirty rows of the ones that could. Pass `:unreadable="unreadable"` into
+`ProjectList` and render the strip between the filter and the first group, dropping the `<p>`
+from `ViewRoot`. Assert the DOM ORDER rather than mere presence — `.rp-view-notice` before
+`.rp-project-list__group`, read off `wrapper.html()` or by index over a query of both — because a
+notice rendered anywhere at all satisfies a presence check, which is exactly how it came to be in
+the wrong place.
+
 **The guard is the spec's region 2 condition ("at least one project loaded"), and it is
 load-bearing rather than defensive.** `selectRenovationProjectEmptyState` answers `null` on
 `unreadable > 0` before it looks at the length, so a vault whose every project note is unreadable
@@ -2797,6 +2854,7 @@ Run: `npm run check`
 
 ```bash
 git add src/presentation/views/projectFilter.ts src/presentation/views/ProjectFilter.vue \
+  src/presentation/views/ViewRoot.vue \
   src/presentation/views/ProjectRow.vue src/presentation/views/ProjectList.vue \
   styles/project-list.css tests/presentation/views/
 git commit -m "$(cat <<'EOF'
@@ -3277,16 +3335,27 @@ describe('ProjectList keyboard', () => {
 		expect(document.activeElement).toBe(rows[0].element);
 	});
 
-	it('opens the focused project on Enter', async () => {
+	it('opens the project the row is for when it is activated', async () => {
 		const wrapper = list();
 
-		await wrapper.findAll('.rp-project-list__row')[1].trigger('keydown', { key: 'Enter' });
+		await wrapper.findAll('.rp-project-list__row')[1].trigger('click');
 
-		// A `<button>` activates on Enter natively; this asserts the row is one, so nothing
-		// reimplements activation and nothing has to.
 		expect(wrapper.emitted('open')).toEqual([['Bathroom']]);
 	});
 
+	/**
+	 * **Bare Enter is NOT asserted here, and adding a handler for it would be a defect.** A row
+	 * is a `<button>`, so the browser activates it on Enter natively — but VTU's
+	 * `trigger('keydown')` dispatches the event and performs no native activation, which is the
+	 * same jsdom limitation Task 13 records for `Mod+↵`. An earlier draft of this case fired
+	 * `keydown` with `Enter` and expected `open`; `ProjectRow.onKeydown` deliberately ignores
+	 * bare Enter, so it asserted something that cannot happen in this environment and would have
+	 * failed Task 8's own gate.
+	 *
+	 * The remedy is NOT to make `onKeydown` handle Enter: in a real browser that fires beside
+	 * the native activation and the row opens twice. The click above covers the wiring; bare
+	 * Enter is the manual case's, where a real browser is doing the activating.
+	 */
 	it('seeds the filter from a printable character typed at the list', async () => {
 		const wrapper = list();
 		const rows = wrapper.findAll('.rp-project-list__row');
@@ -4433,7 +4502,8 @@ describe('ContinueContextStore', () => {
 		// An unqueued read is answered the previous file — and the context is read once per
 		// mount, so that stale answer is the whole mount's, not an instant's.
 		const io = adapter();
-		let release = (): void => {};
+		const noop = (): void => {};
+		let release = noop;
 		const plain = io.write;
 		io.write = (path, data) =>
 			new Promise((resolve) => {
@@ -4446,6 +4516,14 @@ describe('ContinueContextStore', () => {
 
 		const writing = s.write({ projectId: 'p1', planId: 'plan-1' });
 		const reading = s.read();
+		// `KeyedQueues.run` starts every task through `tail.then(task, task)`, so even the FIRST
+		// one runs in a microtask rather than synchronously: immediately after `write()` the
+		// adapter has not been entered and `release` is still the no-op above, so calling it here
+		// would resolve nothing and `await writing` would hang. Yield a macrotask turn and then
+		// ASSERT the task really started, so the wait's sufficiency is checked rather than
+		// assumed — a counted number of microtask hops is a fact about today's implementation.
+		await settle();
+		expect(release).not.toBe(noop);
 		release();
 		await writing;
 
@@ -4457,11 +4535,11 @@ describe('ContinueContextStore', () => {
 		// flight together because `rememberContinue` discards its promise, and an adapter that
 		// finishes them out of order lets the older project-only context erase the newer one.
 		const io = adapter();
-		const settle: (() => void)[] = [];
+		const releases: (() => void)[] = [];
 		const plain = io.write;
 		io.write = (path, data) =>
 			new Promise((resolve) => {
-				settle.push(() => {
+				releases.push(() => {
 					void plain(path, data);
 					resolve();
 				});
@@ -4471,10 +4549,17 @@ describe('ContinueContextStore', () => {
 		const first = s.write({ projectId: 'p1', planId: null });
 		const second = s.write({ projectId: 'p1', planId: 'plan-1' });
 		// The queue means the second write has not even STARTED yet, which is the property:
-		// releasing them in the order they were queued is the only order available.
-		settle[0]();
+		// releasing them in the order they were queued is the only order available. Each release
+		// waits for its own task to have ENTERED the adapter first — `KeyedQueues.run` defers
+		// through `tail.then`, so neither entry has happened yet at this line, and the second
+		// cannot happen until the first resolves.
+		await settle();
+		expect(releases).toHaveLength(1);
+		releases[0]();
 		await first;
-		settle[1]();
+		await settle();
+		expect(releases).toHaveLength(2);
+		releases[1]();
 		await second;
 
 		expect(await s.read()).toEqual({ projectId: 'p1', planId: 'plan-1' });
@@ -5381,7 +5466,7 @@ figure it quotes is cited to a file that already recorded one. This task is wher
 - Modify: `tests/harness/fixture.ts`
 - Modify: `tests/harness/page.ts`
 - Modify: `tests/harness/accessibility.test.ts`
-- Modify: `scripts/harness-shot.mjs` (the three fixed shots Steps 2–3 add to its SHOTS array)
+- Modify: `scripts/harness-shot.mjs` (the four fixed shots Steps 2–3 add to its SHOTS array)
 - Modify: `tests/build/harness-shot.test.ts` (its fixed-shot list and count)
 - Modify: `styles/project-list.css` (the threshold, once it is measured)
 
@@ -5417,18 +5502,33 @@ rather than pushing the pane wide, with a long typed query — inspects a block 
 screen. A URL-seeded query is the same state the user reaches by typing, arrived at by the one
 route a headless runner has.
 
-Then add **three fixed shots** to the `SHOTS` array in `scripts/harness-shot.mjs`, each
+Then add **four fixed shots** to the `SHOTS` array in `scripts/harness-shot.mjs`, each
 `{ name, query, selector: PROJECT_VIEW }` plus `width: 460` on the narrow two:
 
 | name | query | width |
 |---|---|---|
 | `home-stress` | `?projects=30` | default |
-| `home-stress-narrow` | `?projects=30` | 460 |
+| `home-stress-light` | `?projects=30&theme=light` | default |
+| `home-stress-narrow` | `?projects=30&theme=light` | 460 |
 | `home-no-match-narrow` | `?projects=30&q=` + a long query matching nothing | 460 |
 
-The third is narrow because item 7 asks about wrapping and pane width, which is where a long
-create action can only be judged. `project-detail-narrow` is the exact precedent for the shape,
-including why a narrow view belongs in the fixed set rather than behind a `--width` invocation.
+**Four rather than the three an earlier draft listed, and the scheme of each is reasoned rather
+than paired by habit.** `project-detail-narrow`'s own comment sets the precedent — two shots hold
+both palettes rather than three holding one twice, because width and scheme are independent when
+nothing on the surface changes colour with the palette. That reasoning does not survive intact
+here: **the lifecycle tick strip is `--text-normal` against `--text-faint`, and it is DROPPED at
+narrow** (§6), so it exists only in a wide shot. Three shots with a single default-scheme wide
+one would never photograph the strip in light at all, which is the one element on this surface
+whose legibility is a contrast question. Hence a wide shot per scheme.
+
+The two narrow shots stay single-scheme for the precedent's own reason: what they are for is
+wrapping, the two-line row and the create action's width, none of which moves with the palette.
+Light is the one they take, because that is the scheme a contrast regression breaches first —
+`project-detail-narrow` measured and recorded exactly that.
+
+The last is narrow because item 7 asks about wrapping and pane width, which is where a long
+create action can only be judged. `project-detail-narrow` is also the shape precedent, including
+why a narrow view belongs in the fixed set rather than behind a `--width` invocation.
 
 **`scripts/entryShots.mjs` is NOT where these go, and two rounds of this plan said it was.**
 That module defines no fixed set at all: `resolveShots(argv, fixedShots, env)` *receives* the
@@ -5442,7 +5542,7 @@ about another module, not that module.
 
 Extend the existing assertion in **`tests/build/harness-shot.test.ts`** — `it('still defines the
 fifteen fixed shots, so an argumentless run is unchanged')`, which names every shot in a list —
-so the three new names are in it and its own count reads **eighteen**. Not
+so the four new names are in it and its own count reads **nineteen**. Not
 `tests/harness/harness.test.ts`, which asserts nothing about this set. The fixed shots are the only ones that carry a width of
 their own — which is what `resolveShots` refuses a bare `--width` for — and this surface's whole
 narrow composition is a container query on the pane, so a 460px capture of the real view is the
@@ -5455,7 +5555,7 @@ the set.
 **The Home surface itself must be one of the 460px shots**, and the fixed set is where it
 belongs: `?projects=30` drives the REAL view through the real data path, where a prototype would
 draw a hand-built copy of it. A fixed shot carries its own
-width, which is why `resolveShots` refuses a bare `--width` — the three entries Step 2 adds to
+width, which is why `resolveShots` refuses a bare `--width` — the four entries Step 2 adds to
 `SHOTS` are what this step captures.
 
 **`prototype:StatusTicks` does not substitute for it and never could**: that prototype holds ten
@@ -5466,7 +5566,7 @@ this step listed it as the narrow capture, which would have left every 460px con
 checklist below uninspected while reading as though the capture had been taken.
 
 ```bash
-npm run harness-shot                                        # the fixed set, now including the three Home shots
+npm run harness-shot                                        # the fixed set, now including the four Home shots
 npm run harness-shot prototype:StatusTicks                  # the ten strips, wide
 npm run harness-shot prototype:StatusTicks -- --width=460   # and narrow, for the strip alone
 ```
@@ -5723,7 +5823,7 @@ Run against the spec after writing the plan, section by section.
 | §2 Outcome, no-invented-numbers rule | 1, 4 (the facts slot renders nothing for an empty entry) |
 | §3 Thesis, three raises, signature interaction | 4 (armature), 6 (count line), 7 (signature) |
 | §4 Scope, anti-goals | Global constraints; 4 (no colour status), 6 (no autofocus) |
-| §5 Regions 1–7, empty/failure/loading | 5 (3,4,5), 6 (2), 9 (1, 7), 11 (3); 6/7 unchanged from `ViewRoot` |
+| §5 Regions 1–7, empty/failure/loading | 5 (3,4,5), 6 (2, and region 6's relocation), 9 (1, 7), 11 (3) |
 | §6 Row anatomy, status strip, narrow | 3 (stage), 4 (row, strip, container query) |
 | §7 Pointer, keyboard, filter, Continue | 6 (filter), 8 (keyboard), 10–11 (Continue) |
 | §8 DTO fields, freshness, reserved slot, ordering | 1 (fields), 2 (freshness), 4 (reserved), 5 (ordering) |

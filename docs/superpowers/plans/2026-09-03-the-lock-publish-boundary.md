@@ -342,12 +342,14 @@ pointer that was one-way."
 
 ### Task 3: The vacuous-pass hole in the harness closure check
 
+> **DONE** — commits 6eccb0e + 58859e7 + 10774b2 (two fix rounds). Review clean; the probe rationale was corrected by measurement and the self-referential count dropped rather than corrected.
+
 **Files:**
 - Modify: `tests/harness/harness.test.ts` — **budget: 444 / 450 counted lines, so SIX lines of headroom** (M7). If your tripwire does not fit, extract to `tests/helpers/` rather than compacting the file; this branch has already been through that exact decision once (ledger Ruling 10) and compaction was reversed in review.
 
 **Interfaces:** Consumes `ROOTS` (`harness.test.ts:550`), `sources()` (:1182-1188), `scanned` (:1200) and the assertion at :1219-1226. Produces nothing.
 
-- [ ] **Step 1: Write the failing tripwire**
+- [x] **Step 1: Write the failing tripwire**
 
 The hole (M9): `sources()` excludes `*.test.ts` from `scanned`, while `escapesTheRoots` accepts any specifier resolving INSIDE the roots. So a scanned module importing a `*.test.ts` helper that itself imports a stylesheet is loaded by Vite, absent from `importers`, and the reachability assertion passes vacuously.
 
@@ -365,17 +367,17 @@ with the predicate resolving the specifier the same way `escapesTheRoots` does a
 
 Add `testHelpers: []` to the expected object.
 
-- [ ] **Step 2: Prove it can fail — plant a probe**
+- [x] **Step 2: Prove it can fail — plant a probe**
 
 The hole is LATENT (M9: 17 such files, none imported by a non-test module), so this case passes on first run and is worth nothing until you have seen it red. Temporarily add to a scanned module under `tests/harness/` an import of one of the 17 (for example `tests/helpers/globBranches.test.ts`), run the case, and confirm it reports that importer by name.
 
 Restore the file and confirm with `git status` that the probe is gone. Record the exact failure text in your report.
 
-- [ ] **Step 3: Document what the tripwire does and does not close**
+- [x] **Step 3: Document what the tripwire does and does not close**
 
 This file's convention is that every guard states its own blind spots — six are already written out for the discovery scan. Add the honest bound: this catches a `*.test.ts` under the ROOTS imported by a scanned module; it does not perform the full transitive traversal, so a `*.test.ts` importing a second `*.test.ts` that imports a stylesheet is still outside it. Say which, rather than implying completeness — this predicate has been found unbounded in four consecutive review rounds and an enumeration that goes stale is the same defect as no enumeration.
 
-- [ ] **Step 4: Check the budget before gating**
+- [x] **Step 4: Check the budget before gating**
 
 ```bash
 npx eslint tests/harness/harness.test.ts
@@ -383,7 +385,7 @@ npx eslint tests/harness/harness.test.ts
 
 A `max-lines` failure here is the expected outcome if the tripwire ran long, and the remedy is extraction to `tests/helpers/`, never raising the cap and never deleting cases.
 
-- [ ] **Step 5: Gate and commit**
+- [x] **Step 5: Gate and commit**
 
 Message the controller and wait for `GATE`.
 

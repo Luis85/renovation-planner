@@ -18,7 +18,7 @@ describe('EmptyState', () => {
 		const wrapper = mount(EmptyState, { props: PROPS });
 
 		// h2, not h1 or h3: it is the level every other panel and dialog here uses
-		// (InspectorPanel, LayersPanel, all four dialogs), and a skip is an axe
+		// (RoomInspector, LayersPanel, all four dialogs), and a skip is an axe
 		// `heading-order` violation.
 		expect(wrapper.find('h2.rp-empty-state__headline').text()).toBe('No zones yet');
 		expect(wrapper.find('.rp-empty-state__body').text()).toBe('Draw the first zone.');

@@ -8,8 +8,8 @@ import { mountPlanEditorCanvas, settle, type CanvasHarness } from '../../../help
 /**
  * The Inspector FRAME (Task 15, component library §8): `EntityInspector.vue` routes by
  * selection to the floor state (`FloorInspector.vue`, over Task 7's `buildFloorSummary`), the
- * multiple-selection text, or the room body (`InspectorPanel.vue`, until Task 16 renames it
- * `RoomInspector`) — driven through the REAL mounted Plan Editor over `FIXTURE_ZONES`
+ * multiple-selection text, or the room body (`RoomInspector.vue`, `InspectorPanel.vue` through
+ * Task 15) — driven through the REAL mounted Plan Editor over `FIXTURE_ZONES`
  * (`zone-kitchen`, a Room; `zone-terrace`, a Terrace), the same fixture `runtime.test.ts`'s
  * `selectAndFrame` cases already use.
  */

@@ -26,7 +26,7 @@ const { plan, project, zones, unreadableZones } = storeToRefs(useProjectStore())
 /**
  * `null` before the first successful hydrate — and this component may well be mounted
  * before one lands: the frame mounts unconditionally on `inspectorPanelOpen`
- * (`PlanEditorRoot`'s own sibling `v-if`, matched exactly from `InspectorPanel`'s Task 14
+ * (`PlanEditorRoot`'s own sibling `v-if`, matched exactly from `RoomInspector`'s Task 14
  * placement), never gated on `ProjectStore.status`. There is nothing yet to summarise, so
  * the template renders nothing rather than a summary built from a `plan`/`project` that are
  * not there — the same "no live control that does nothing" rule slice 14's own empty-state

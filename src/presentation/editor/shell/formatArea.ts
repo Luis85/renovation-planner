@@ -1,7 +1,7 @@
 /**
  * World millimetres² as a human-readable area, shared by both Inspector bodies since Task
- * 15 split the routing frame (`EntityInspector.vue`) from the room state (`InspectorPanel.vue`,
- * Task 16 renames it `RoomInspector`) and gave the frame a floor state (`FloorInspector.vue`)
+ * 15 split the routing frame (`EntityInspector.vue`) from the room state (`RoomInspector.vue`,
+ * `InspectorPanel.vue` through Task 15) and gave the frame a floor state (`FloorInspector.vue`)
  * that needs the identical formatting for its own "Total area" stat. A single function is what
  * keeps both bodies rendering the same figure the same way rather than each rounding it its
  * own way.

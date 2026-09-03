@@ -589,7 +589,7 @@ const EntryBoundary = defineComponent({
 		 * the same argument, so the harness has no second answer to what a runtime is.
 		 *
 		 * Without it, FOUR of the twelve real components could not be opened in the index at
-		 * all — `InspectorPanel`, the toolbar (`EditorToolbar`, since retired in favour of
+		 * all — `RoomInspector`, the toolbar (`EditorToolbar`, since retired in favour of
 		 * `EditorContextBar`), `PlanCanvas` and `InteractionLayer`, each failing on this one
 		 * injection (measured). That is the class a prototype could not
 		 * work around: a template-only mock has no script block, so it can pass a prop and can

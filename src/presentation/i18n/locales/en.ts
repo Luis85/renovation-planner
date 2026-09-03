@@ -78,6 +78,35 @@ export const en = {
 	'editor.inspector.partial': '{count} could not be read',
 	'editor.inspector.floor.guidance': 'Select a room on the canvas or from the list to see its details.',
 	'editor.inspector.floor.no-rooms': 'This floor has no rooms yet.',
+	// The Room Inspector's own `<dl>` labels (Task 16), beside the existing `.area` one.
+	// `.type` labels the value `editor.zone-type.*` resolves, keyed through a `Record` rather
+	// than a template string so a type nothing labels is a compile error at the map instead
+	// of an unresolved key discovered at render (`ZoneRenderModel.ZONE_TYPE_TOKENS`'s own
+	// shape). `.floor-context` is a SEPARATE key from `editor.floor` even though the two
+	// currently say the same word: one labels the property panel's Floor/Site tree, the other
+	// labels which floor a selected room is on, and a copy change to one is not necessarily
+	// a copy change to the other.
+	'editor.inspector.type': 'Type',
+	'editor.inspector.floor-context': 'Floor',
+	// ADR-0016's seven-member zone-type vocabulary, homeowner-worded. Keys are NOT
+	// sentence-case-linted (only VALUES are); `Construction area` and `Other` are.
+	'editor.zone-type.Room': 'Room',
+	'editor.zone-type.Garden': 'Garden',
+	'editor.zone-type.Terrace': 'Terrace',
+	'editor.zone-type.Driveway': 'Driveway',
+	'editor.zone-type.Roof': 'Roof',
+	'editor.zone-type.ConstructionArea': 'Construction area',
+	'editor.zone-type.Custom': 'Other',
+	// `HomeownerQuestionNav`'s three rows, in canonical order (component library §8).
+	'editor.inspector.question.existing': 'What’s here',
+	'editor.inspector.question.planned': 'What will change',
+	'editor.inspector.question.work': 'What needs doing',
+	// `LinkedContentList`'s four rows — Materials is design slice 10's Requirements panel
+	// already and is not one of these (`INSPECTOR_SECTIONS`'s own docblock states why).
+	'editor.inspector.linked.costs': 'Costs',
+	'editor.inspector.linked.documents': 'Documents',
+	'editor.inspector.linked.photos': 'Photos',
+	'editor.inspector.linked.notes': 'Notes',
 	'sequence.marker-clear-failed': 'The delete was saved, but its recovery record could not be cleared from the vault. It is cleared the next time this vault opens.',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
 	'cascade.aborted': 'Requirements linked to this change could not be updated. Their figures may be out of date.',

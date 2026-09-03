@@ -25,7 +25,7 @@ const selection = useSelectionStore();
 /**
  * `record.id` is a bare `string` (Task 7's own `SpatialRecordDto`); the store's own
  * `isSelected` takes the branded `EntityId` every OTHER caller in this editor already
- * narrows to at its own call site (`InspectorPanel.vue`'s `zoneId as never`, this file's
+ * narrows to at its own call site (`RoomInspector.vue`'s `zoneId as never`, this file's
  * sibling). The cast lives here rather than in the template for the same reason theirs do.
  */
 function isSelected(id: string): boolean {

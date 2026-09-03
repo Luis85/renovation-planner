@@ -93,7 +93,7 @@ describe('the harness fixture', () => {
 
 	/**
 	 * The precondition `reseedFixture`'s inspector-store paragraph names but does not reset
-	 * for: `InspectorPanel.vue` must stay the ONLY reader of `inspectorDto`, because
+	 * for: `RoomInspector.vue` must stay the ONLY reader of `inspectorDto`, because
 	 * `dto`'s self-correction on remount is that panel's own `watch(..., { immediate: true })`
 	 * — nothing here re-runs it for a second consumer.
 	 *
@@ -122,7 +122,7 @@ describe('the harness fixture', () => {
 			// Windows CI leg, and this assertion names a literal path.
 			.map((file) => toPosix(file));
 
-		expect(readers).toEqual(['src/presentation/editor/shell/InspectorPanel.vue']);
+		expect(readers).toEqual(['src/presentation/editor/shell/RoomInspector.vue']);
 	});
 });
 

@@ -3,8 +3,8 @@
  * The Inspector FRAME (component library §8): the ONE `<aside>` and `aria-label` for §60's
  * inspector region, and the routing by `selectedIds` — the floor state
  * (`FloorInspector.vue`, Task 7's `buildFloorSummary`) while nothing is selected, the
- * multiple-selection text while several ids are, and the room body (`InspectorPanel.vue`;
- * Task 16 renames it `RoomInspector`) for exactly one. Through Task 14 `InspectorPanel.vue`
+ * multiple-selection text while several ids are, and the room body (`RoomInspector.vue`,
+ * `InspectorPanel.vue` through Task 15) for exactly one. Through Task 14 that body
  * drew its OWN aside and decided this same routing off `InspectorStore.dto.kind`; a second
  * `<aside class="rp-editor-inspector">` nested inside the first would double the landmark
  * `shell.test.ts` asserts is singular, so Task 15 moved both up here and left the body a
@@ -19,7 +19,7 @@ import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useSelectionStore } from '../selection/selection-store';
 import FloorInspector from './FloorInspector.vue';
-import InspectorPanel from './InspectorPanel.vue'; // Task 16 renames this RoomInspector
+import RoomInspector from './RoomInspector.vue';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
 const guidance = ref('');
@@ -69,6 +69,6 @@ watch(selectedIds, async (ids, previous) => {
 		>
 			{{ tr('editor.inspector.multiple') }}
 		</p>
-		<InspectorPanel v-else />
+		<RoomInspector v-else />
 	</aside>
 </template>

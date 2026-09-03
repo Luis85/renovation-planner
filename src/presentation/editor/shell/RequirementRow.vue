@@ -4,7 +4,7 @@
  * quantity and cost with §52's overridden/calculated distinction rendered for each
  * INDEPENDENTLY, and the two override controls.
  *
- * Its own component rather than a block in `InspectorPanel.vue`, and the reason is
+ * Its own component rather than a block in `RoomInspector.vue`, and the reason is
  * measured rather than stylistic: the inline version put the whole panel's template at
  * cognitive complexity 31 over 248 lines, which `npm run analyze` reports as a refactoring
  * target. Splitting it also retires the two draft `Map`s the panel kept keyed by

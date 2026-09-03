@@ -228,7 +228,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 
 		// Both the note-side repo state and the panel agree it is gone (DoD 3/8). The delete
 		// clears the selection, so the Inspector falls back to its floor state (Task 15) —
-		// "Nothing selected." was `InspectorPanel`'s own text through Task 14; the frame's
+		// "Nothing selected." was `RoomInspector`'s own text through Task 14; the frame's
 		// floor state has no rooms left to list instead.
 		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(0);
 		expect(harness.wrapper.text()).toContain('This floor has no rooms yet.');

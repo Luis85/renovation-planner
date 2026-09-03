@@ -366,6 +366,16 @@ describe('the queued gate', () => {
 	 * delivery, so `kill` terminates the wrapper outright, no handler forwards anything, and the
 	 * lock is left for `STALE_MS`. That is a real platform gap, named here because nothing else
 	 * would say it.
+	 *
+	 * It then earned its place twice over by failing on `verify (ubuntu-latest, 26)` against the
+	 * very fix it was written for — and the SHAPE of that failure is what named the second
+	 * defect. Its first two assertions passed: the gate was cancelled promptly and the command
+	 * really was stopped. Only the lock survived. The handlers were installed AFTER the claim
+	 * loop, so a signal landing between `claim()` taking the lock and `spawn()` returning found
+	 * Node with no listener and took the default action, killing the wrapper with the lock
+	 * standing. Three legs were green; the slow one fell into the window. Measured by busy-wait
+	 * outside the suite, signalling the instant the lock appears: the lock survives 25 of 25
+	 * runs with the handlers installed late, and 0 of 25 with them installed first.
 	 */
 	it.skipIf(process.platform === 'win32')('stops the command and releases the lock when it is signalled', async () => {
 		lock = path.join(workspace, 'signal.lock');

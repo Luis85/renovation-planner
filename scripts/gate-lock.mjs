@@ -67,7 +67,13 @@ const HOLDER = path.join(LOCK, "holder");
 
 const NONCE = `${process.pid} ${Date.now()} ${Math.random().toString(36).slice(2)}\n`;
 
-const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+// A PROMISE rather than `Atomics.wait`, for the reason the child below is not `spawnSync`:
+// blocking the event loop queues signals instead of delivering them, so a gate that was still
+// WAITING for the lock could not be cancelled either. Same defect, one loop earlier.
+const sleep = (ms) =>
+	new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
 
 /** Whether `target`'s mtime has not moved in `STALE_MS`. A path that is gone is not stale. */
 const isStale = (target) => {
@@ -289,12 +295,46 @@ if (command.length === 0) {
 
 let waited = false;
 
+// The child, once there is one. Held here because the signal handlers below are installed
+// BEFORE the lock is claimed and have to behave differently on each side of that line.
+let child = null;
+
+// Installed BEFORE the claim loop, and that ordering is the whole point.
+//
+// The first version installed them after, so a signal arriving between `claim()` taking the
+// lock and `spawn()` returning found Node with no listener, took the default action, and
+// killed the wrapper with the lock still standing — a wedge until STALE_MS. Its own regression
+// case caught it on `verify (ubuntu-latest, 26)`: the gate was cancelled promptly and the
+// command really was stopped, and only the lock survived, which is exactly that window on a
+// runner slow enough to fall into it.
+//
+// A signal cannot arrive DURING `claim()` — a handler is dispatched between synchronous blocks,
+// never inside one — so `release()` here sees either a lock fully formed with our nonce in it,
+// or somebody else's, or none. It is never the half-built lock that would leave an empty
+// directory behind.
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+	process.on(signal, () => {
+		// FORWARD once the command is running. Releasing here would drop the lock while that
+		// command ran on, which is the overlap this file exists to prevent arriving through the
+		// one door that looks like cleanup — the child's own exit is what releases, below.
+		if (child !== null) {
+			child.kill(signal);
+
+			return;
+		}
+
+		release();
+		process.exit(1);
+	});
+}
+
 while (!claim()) {
 	if (!waited) {
 		console.error(`Another gate is running. Waiting for ${LOCK} — a queued gate is faster than two contended ones.`);
 		waited = true;
 	}
-	sleep(POLL_MS);
+
+	await sleep(POLL_MS);
 }
 
 // The child runs ASYNCHRONOUSLY, and that is a correctness requirement rather than a style.
@@ -308,22 +348,14 @@ while (!claim()) {
 // delivered to the whole process GROUP, as an interactive Ctrl+C is: there the child dies too,
 // so the block ends and the `finally` runs. A PID-targeted signal, which is what a programmatic
 // cancellation sends, released nothing and stopped nothing.
-const [bin, ...args] = command;
-const child = spawn(bin, args, { stdio: "inherit", shell: needsShell(bin) });
-
-// FORWARD rather than release-and-exit. Releasing here would drop the lock while the command
-// is still running, which is the overlap this file exists to prevent, arriving through the one
-// door that looks like cleanup. The child's own exit is what releases, below.
 //
-// Two things this does not cover, and neither is closable here: a child that ignores the
+// Two things forwarding does not cover, and neither is closable here: a child that ignores the
 // signal (the supervisor's own escalation is the answer, and a SIGKILL to us is what STALE_MS
 // is for), and a `shell: true` grandchild on Windows, where killing the shell need not kill
 // what it started.
-for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
-	process.on(signal, () => {
-		child.kill(signal);
-	});
-}
+const [bin, ...args] = command;
+
+child = spawn(bin, args, { stdio: "inherit", shell: needsShell(bin) });
 
 // The exit is OUTSIDE the `try`, and that is the whole of why this is three statements
 // rather than one: `process.exit()` terminates immediately and does NOT run a pending

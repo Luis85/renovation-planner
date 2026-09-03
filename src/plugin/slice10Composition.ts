@@ -171,7 +171,7 @@ export function composeSlice10(
 		assignAsset: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides }),
 		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),
 		setRequirementCostOverride: new SetRequirementCostOverrideCommand(requirements, events, locks),
-		deleteRequirement: new DeleteRequirementCommand(requirements),
+		deleteRequirement: new DeleteRequirementCommand(requirements, events),
 		queries: {
 			getRequirementsForZone: new GetRequirementsForZone({ requirements, zones, assets, projects, overrides, logger }),
 			listAssets: new ListAssets(assets),

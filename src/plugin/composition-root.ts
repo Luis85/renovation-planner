@@ -518,6 +518,9 @@ export function planEditorDeps(
 					moveObject: persistence.moveZone,
 					deleteZone: persistence.deleteZone,
 					zones: persistence.zones,
+					// The real bus, so the reversible adapters constructed from this bundle can
+					// finally publish what their undo and redo write.
+					events: root.eventBus,
 					zoneInspector: persistence.zoneInspector,
 					requirementEdits: {
 						// The GUARDED services, not the composed classes: the adapters take

@@ -4,6 +4,8 @@ import type { Requirement } from '../../domain/requirement/Requirement';
 import type { Expected, Loaded } from '../ports/versioning';
 import type { Logger } from '../ports/Logger';
 import type { RequirementRepository } from '../ports/RequirementRepository';
+import type { EventBus } from '../../core/events/EventBus';
+import { requirementCreated, requirementRestored } from '../../domain/requirement/Requirement.events';
 import type { ReferenceLocks } from './ReferenceLocks';
 import type { ResolvedSequence, SequenceProgress } from './deleteResolution';
 
@@ -35,6 +37,16 @@ import type { ResolvedSequence, SequenceProgress } from './deleteResolution';
  * than not at all. The `'delete-undo'` member of `SequenceMarker['kind']` is the design's
  * name for that future shape and has no writer yet; a crash during an undo leaves the
  * partially restored Vault this function's rollback would otherwise have repaired.
+ *
+ * **It announces the requirements it restores, once the whole sequence has succeeded and
+ * not from inside `restoreOne`.** A `written` entry is put back from a snapshot that was
+ * still there — `RequirementRestored` — and an `absent` one is inserted, which is a
+ * creation rather than a restore — `RequirementCreated`; the same split `recoverOne` uses,
+ * so the two callers state one rule rather than two descriptions of one act. The contract
+ * above is that a failure part-way leaves the Vault exactly as the delete left it, and an
+ * event is a statement that something happened: publishing from `restoreOne` would
+ * announce a write that a later failure in the same loop rolls back, and an event stream
+ * cannot retract what it already told a subscriber.
  */
 
 export type UndoSequenceErrors = RepositoryError;
@@ -47,6 +59,8 @@ export interface UndoSequenceOps {
 	readonly entityId: string;
 	readonly logger: Logger;
 	readonly requirements: RequirementRepository;
+	/** The bus `RequirementRestored`/`RequirementCreated` are announced on, once the whole sequence succeeds. */
+	readonly events: EventBus;
 	/**
 	 * The one per-kind half: put the deleted entity back (at `'absent'` — the note this is
 	 * restoring was deleted, so anything there now is somebody else's) and hand back the
@@ -111,6 +125,9 @@ export async function undoDeleteResolution(
 		sequence.affectedAfter.map((entry) => entry.id),
 	);
 	const done: Compensation[] = [];
+	// Collected as the loop runs and published only once the whole sequence has succeeded —
+	// see the docblock's "It announces the requirements it restores" bullet.
+	const announced: { readonly snapshot: Loaded<Requirement>; readonly created: boolean }[] = [];
 	try {
 		const entity = await ops.restoreEntity();
 		if (isErr(entity)) return entity;
@@ -124,6 +141,14 @@ export async function undoDeleteResolution(
 			const restored = await restoreOne(ops.requirements, snapshot, entry);
 			if (isErr(restored)) return await rollBack(ops, done, restored.error);
 			done.push(restored.value);
+			announced.push({ snapshot, created: entry.outcome !== 'written' });
+		}
+		for (const { snapshot, created } of announced) {
+			const payload = {
+				requirementId: snapshot.entity.id,
+				projectId: snapshot.entity.projectId,
+			};
+			await ops.events.publish(created ? requirementCreated(payload) : requirementRestored(payload));
 		}
 		return ok(undefined);
 	} finally {

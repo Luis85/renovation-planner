@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeDeleteZoneCommand, zoneUndoDeps } from '../../../helpers/slice10';
+import { dispatchingEventBus, makeDeleteZoneCommand, zoneUndoDeps } from '../../../helpers/slice10';
 import { ReversibleDeleteZoneCommand } from '../../../../src/application/commands/zone/reversible-delete-zone-command';
 import { SessionWriteLedger, type WriteLedger } from '../../../../src/application/editor/WriteLedger';
 import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
@@ -38,9 +38,12 @@ class FlakySave extends InMemoryZoneRepository {
 }
 
 describe('ReversibleDeleteZoneCommand', () => {
+	// A REAL dispatching bus, not a recording-only one: the new announce cases below
+	// subscribe to it and need a handler that actually runs, exactly as the sibling create
+	// adapter's own rig does.
 	const wired = async () => {
 		const zones = new FlakySave();
-		const events = new RecordingEventBus();
+		const events = dispatchingEventBus();
 		const ledger: WriteLedger = new SessionWriteLedger();
 		const plan = makePlan({ projectId: createProjectId() });
 		const zone = makeZone({ projectId: plan.projectId, planId: plan.id });
@@ -51,7 +54,7 @@ describe('ReversibleDeleteZoneCommand', () => {
 				zones,
 				ledger,
 				{ zoneId: zone.id },
-				zoneUndoDeps(),
+				zoneUndoDeps(undefined, undefined, events),
 			);
 		return { zones, events, zone, ledger, makeCommand };
 	};
@@ -82,7 +85,16 @@ describe('ReversibleDeleteZoneCommand', () => {
 		expect(after.entity.geometry.points).toEqual(before.entity.geometry.points);
 	});
 
-	it('undo publishes NOTHING — a restore is not a creation', async () => {
+	// This used to be titled "undo publishes NOTHING — a restore is not a creation", on the
+	// argument that a restore is not a creation and announcing it as one would be a lie.
+	// True of the ENTITY and beside the point for the SIGNAL: nothing downstream of
+	// `ZoneCreated` distinguishes "minted" from "brought back", and every one of those
+	// consumers needs to hear that the zone exists again regardless of which write produced
+	// it — which is the gap the create adapter's own `announceRestore` was built to close on
+	// its side (design slice 8's review pass) and this adapter still had, silently, until
+	// this task. See `reversible-delete-zone-command.ts`'s own docblock for why the publish
+	// sits AFTER the whole undo succeeds rather than inside `restoreEntity`.
+	it('undo announces the restore as ZoneCreated, the half that bypasses the command layer', async () => {
 		const { zones, events, zone, makeCommand } = await wired();
 
 		const reversible = makeCommand();
@@ -92,19 +104,26 @@ describe('ReversibleDeleteZoneCommand', () => {
 		events.clear();
 		await reversible.undo();
 
-		// `restore-zone.ts` saves through the repository and publishes nothing, deliberately:
-		// a restore is not a creation, and anything subscribed to `ZoneCreated` would treat it
-		// as one. Nothing asserted it. The redo case below clears this array immediately after
-		// its own `undo()`, discarding exactly this evidence, so a restore that began emitting
-		// `ZoneCreated` left every case in this file green.
-		//
-		// Watched failing against the real thing: publishing `zoneCreated` from inside
-		// `restoreEntity`, reached through the delete command's own `ops.events`, reddens this
-		// case and leaves the other seven in this file green. The first version of this comment
-		// claimed no source mutation was available because nothing in the undo path holds a
-		// bus — true of the undo path and false of the object it already holds.
-		expect(events.published).toHaveLength(0);
+		expect(events.published.map((event) => event.type)).toEqual(['ZoneCreated']);
 		expect(expectOk(await zones.getById(zone.id))).not.toBeNull();
+	});
+
+	it('announces the zone it restores, which is the half that does not go through a command', async () => {
+		const { events, makeCommand } = await wired();
+		const seen: string[] = [];
+		events.subscribe('ZoneCreated', () => {
+			seen.push('created');
+		});
+		events.subscribe('ZoneDeleted', () => {
+			seen.push('deleted');
+		});
+
+		const reversible = makeCommand();
+		await reversible.execute();
+		await reversible.undo();
+		await reversible.execute(); // the redo re-dispatches the plain command
+
+		expect(seen).toEqual(['deleted', 'created', 'deleted']);
 	});
 
 	it('redo deletes again, against the state the restore wrote', async () => {

@@ -584,6 +584,7 @@ describe('every service leaving the composition root is guarded', () => {
 		expect(skipped.filter((skip) => skip.kind !== 'function-with-arguments')).toEqual([]);
 		expect(owners).toEqual([
 			'editorDeps',
+			'editorDeps.commands.events',
 			'editorDeps.commands.logger',
 			'editorDeps.queries',
 			'persistence.files',

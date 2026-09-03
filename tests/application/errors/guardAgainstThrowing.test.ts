@@ -334,7 +334,7 @@ function slice10Services(): Fixture[] {
 		),
 		commandCase(
 			'DeleteRequirementCommand',
-			new DeleteRequirementCommand(requirements) as never,
+			new DeleteRequirementCommand(requirements, events) as never,
 			'command.deleteRequirement.failed',
 			{ requirementId: requirement.id },
 		),

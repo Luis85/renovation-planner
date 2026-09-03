@@ -17,9 +17,12 @@ import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import type { Loaded } from '../../src/application/ports/versioning';
 import type { Project } from '../../src/domain/project/Project';
 import type { Plan } from '../../src/domain/plan/Plan';
+import { Decimal } from 'decimal.js';
 import { recorder } from './logger';
-import { expectOk } from './domain';
-import { makePlan, makeProject } from './entities';
+import { expectOk, RecordingEventBus } from './domain';
+import { makeAsset, makePlan, makeProject, makeZone } from './entities';
+import type { ZoneId } from '../../src/domain/zone/ZoneId';
+import type { RequirementId } from '../../src/domain/requirement/RequirementId';
 
 /**
  * The slice-10 collaborators the zone commands grew, wired to in-memory doubles — what
@@ -43,12 +46,18 @@ export function makeDeleteZoneCommand(
  * The undo half `ReversibleDeleteZoneCommand` grew in slice 10 — the Requirements a
  * resolution touched are restored through these. Defaulted for the pre-slice-10 tests,
  * whose zones have no referents and whose undo therefore collapses to one write.
+ *
+ * `events` defaults to a fresh `RecordingEventBus`, which only records and never delivers
+ * — fine for a caller not asserting on the restore's announcement, and NOT the bus to hand
+ * a case that subscribes to hear it (use a dispatching one, e.g. `dispatchingEventBus()`,
+ * for that).
  */
 export function zoneUndoDeps(
 	requirements: RequirementRepository = new InMemoryRequirementRepository(),
 	locks: ReferenceLocks = new ReferenceLocks(),
+	events: EventBus = new RecordingEventBus(),
 ): DeleteZoneUndoDeps {
-	return { requirements, locks, logger: recorder };
+	return { requirements, locks, logger: recorder, events };
 }
 
 /**
@@ -167,4 +176,38 @@ export async function requirementFixture(
 		assign: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides }),
 		recalculate,
 	};
+}
+
+/**
+ * `requirementFixture()` plus one Requirement already linking a zone to an asset —
+ * `overrides.test.ts` and `reversibleOverrides.test.ts` both build this exact shape
+ * (a 10 m² zone, an asset with a 10% waste factor, assigned), so it lives here rather
+ * than as a byte-for-byte copy in each of them.
+ */
+export async function assignedRequirementFixture(): Promise<
+	RequirementFixture & { readonly zoneId: ZoneId; readonly requirementId: RequirementId }
+> {
+	const w = await requirementFixture();
+	const zoneEntity = expectOk(
+		await w.zones.save(
+			expectOk(
+				makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }).withGeometry({
+					points: TEN_SQUARE_METERS,
+				}),
+			),
+			'absent',
+		),
+	);
+	const assetEntity = expectOk(
+		await w.assets.save(
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
+			'absent',
+		),
+	);
+	const assigned = await w.assign.execute({
+		zoneId: zoneEntity.entity.id,
+		assetId: assetEntity.entity.id,
+	});
+	if (!assigned.ok) throw new Error(String(assigned.error));
+	return { ...w, zoneId: zoneEntity.entity.id, requirementId: assigned.value.requirement.id };
 }

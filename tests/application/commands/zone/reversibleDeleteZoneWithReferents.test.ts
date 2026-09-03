@@ -8,6 +8,7 @@ import { CommandHistory } from '../../../../src/presentation/editor/tools/comman
 import type { Requirement } from '../../../../src/domain/requirement/Requirement';
 import type { RequirementId } from '../../../../src/domain/requirement/RequirementId';
 import type { Expected } from '../../../../src/application/ports/versioning';
+import { isErr } from '../../../../src/core/result/Result';
 import { expectErr, expectOk, injectedPersistenceError } from '../../../helpers/domain';
 import { makeAsset, makeZone } from '../../../helpers/entities';
 import { recorder as logger } from '../../../helpers/logger';
@@ -143,7 +144,7 @@ async function wired(assetCount: number, requirements = new FailNthSave()) {
 			zoneId: zone.entity.id,
 			resolution,
 			resolvedReferents: referents,
-		}, { requirements: w.requirements, locks: w.locks, logger });
+		}, { requirements: w.requirements, locks: w.locks, logger, events: w.events });
 
 	/** Every referencing requirement as it stands now, keyed by id — the comparison subject. */
 	const snapshotAll = async () => {
@@ -233,6 +234,34 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 
 		expect(leftWritesBehind(refused)).toBe(false);
 		expect(await w.snapshotAll()).toEqual(before);
+	});
+
+	/**
+	 * The rollback path: `undoDeleteResolution` can fail after `restoreEntity` succeeded, and
+	 * its compensation (`removeAgain`) deletes the zone again. Announcing a restore that was
+	 * taken back is a lie the event stream cannot retract — this is what makes the publish's
+	 * placement, AFTER the whole sequence succeeds rather than inside `restoreEntity`, load
+	 * bearing rather than cosmetic. Reuses the same fault this file's own "fails part-way"
+	 * case above arms (the second requirement restore), which is the fixture that puts the
+	 * zone through a real restore-then-rollback rather than merely refusing before either.
+	 */
+	it('announces nothing for a restore its own rollback undid', async () => {
+		const w = await wired(2);
+		const command = w.makeCommand('remove-references');
+		expect(expectOk(await command.execute())).toBe('wrote');
+
+		const seen: string[] = [];
+		w.events.subscribe('ZoneCreated', () => {
+			seen.push('created');
+		});
+
+		// The second requirement restore fails, so the zone's own restore — which succeeded
+		// first — is compensated away again.
+		(w.requirements as FailNthSave).arm(2);
+		const undone = await command.undo();
+
+		expect(isErr(undone)).toBe(true);
+		expect(seen).toEqual([]);
 	});
 
 	it('an undo that fails part-way leaves the vault exactly as the delete left it, and stays undoable', async () => {

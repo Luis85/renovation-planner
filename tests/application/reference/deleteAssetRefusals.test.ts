@@ -3,11 +3,21 @@ import { Decimal } from 'decimal.js';
 import { err } from '../../../src/core/result/Result';
 import { DeleteAssetCommand } from '../../../src/application/commands/asset/DeleteAsset';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
+import { AssignAssetCommand } from '../../../src/application/commands/requirement/AssignAsset';
+import { RecalculateRequirementCommand } from '../../../src/application/commands/requirement/RecalculateRequirement';
+import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
+import type { RequirementId } from '../../../src/domain/requirement/RequirementId';
+import { InMemoryAssetPriceOverrideRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
+import { InMemoryAssetRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
+import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
+import { InMemoryRequirementRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
+import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { expectErr, expectOk } from '../../helpers/domain';
-import { makeAsset, makeZone } from '../../helpers/entities';
-import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
+import { makeAsset, makePlan, makeProject, makeZone } from '../../helpers/entities';
+import { dispatchingEventBus, requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
 
 /**
  * The per-kind closures DeleteAssetCommand hands unDeleteResolution: the
@@ -330,6 +340,95 @@ describe('DeleteAssetCommand closure refusals', () => {
 			}),
 		);
 		expect(error.code).toBe('test.injected-failure');
+	});
+});
+
+/**
+ * A shared catalogue asset (design slice 19: no `projectId` at all) referenced from two
+ * different projects — `assetDeleted({ assetId })` cannot name either one, so the only way
+ * either project's summary hears about its own touched Requirement is the resolution
+ * announcing per referent, exactly as `deleteResolutions.test.ts` already asserts for the
+ * zone-delete path. This rig builds a FRESH stack per project rather than reusing
+ * `requirementFixture`'s single project, because the whole point is that the two referents
+ * do not share one.
+ */
+async function deleteAssetRig(options: { readonly referentsInProjects: readonly string[] }) {
+	const projects = new InMemoryProjectRepository();
+	const plans = new InMemoryPlanRepository();
+	const zones = new InMemoryZoneRepository();
+	const requirements = new InMemoryRequirementRepository();
+	const assets = new InMemoryAssetRepository();
+	const overrides = new InMemoryAssetPriceOverrideRepository();
+	const events = dispatchingEventBus();
+	const locks = new ReferenceLocks();
+	const recalculate = new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides });
+	const assign = new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides });
+
+	const assetEntity = expectOk(
+		await assets.save(makeAsset({ wasteFactorDefault: new Decimal('0.10') }), 'absent'),
+	);
+
+	const referentIds: RequirementId[] = [];
+	for (const name of options.referentsInProjects) {
+		const project = expectOk(await projects.save(makeProject({ name }), 'absent'));
+		const plan = expectOk(await plans.save(makePlan({ projectId: project.entity.id }), 'absent'));
+		const zone = expectOk(
+			await zones.save(
+				expectOk(
+					makeZone({ projectId: project.entity.id, planId: plan.entity.id }).withGeometry({
+						points: TEN_SQUARE_METERS,
+					}),
+				),
+				'absent',
+			),
+		);
+		const assigned = await assign.execute({ zoneId: zone.entity.id, assetId: assetEntity.entity.id });
+		if (!assigned.ok) throw new Error('unexpected assign failure');
+		referentIds.push(assigned.value.requirement.id);
+	}
+
+	const command = new DeleteAssetCommand({
+		assets,
+		requirements,
+		recalculate,
+		events,
+		locks,
+		logger: silentLogger(),
+		overrides,
+	});
+
+	return {
+		events,
+		assetId: assetEntity.entity.id,
+		referentIds,
+		command,
+	};
+}
+
+describe('DeleteAssetCommand reaches requirement-level events', () => {
+	it('reaches the requirements its resolution touched, which assetDeleted cannot name', async () => {
+		// A shared catalogue asset referenced from two projects: assetDeleted carries no
+		// project at all, so without requirement-level events neither project's summary
+		// can be reached.
+		const rig = await deleteAssetRig({ referentsInProjects: ['project-a', 'project-b'] });
+		const seen: unknown[] = [];
+		rig.events.subscribe('RequirementDeleted', (event) => {
+			seen.push(event);
+		});
+
+		expectOk(
+			await rig.command.execute({
+				assetId: rig.assetId,
+				resolution: 'remove-references',
+				// REQUIRED whenever `resolution` is set — see `resolutionInputError`
+				// (deleteResolution.ts), which raises `reference.resolution-without-set` before
+				// the ops bundle is even touched. Omitting this would fail at `expectOk` having
+				// tested nothing about event threading.
+				resolvedReferents: rig.referentIds,
+			}),
+		);
+
+		expect(seen).toHaveLength(2);
 	});
 });
 

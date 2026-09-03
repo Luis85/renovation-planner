@@ -190,8 +190,15 @@ export class CalibrateAssetCommand implements Command<CalibrateAssetInput, Dispa
 		});
 		if (isErr(written)) return written;
 		// OUTSIDE the region: `events.publish` awaits its subscribers and a peer designer leaf
-		// re-reads this same asset on it, so announcing while still holding level 1 would make
-		// every subscriber's own read wait on a lock this command has not let go.
+		// re-reads this same asset on it, so announcing while still holding level 1 would run
+		// that subscriber INSIDE the critical section — lengthening it by the subscriber's own
+		// work and blocking other WRITERS of this asset for its duration.
+		//
+		// CORRECTED 2026-09-03, and PRE-EXISTING rather than introduced by the lock/publish
+		// work: this comment used to give the cost as every subscriber's own READ waiting on a
+		// lock this command had not let go. No read waits on anything — no read path takes a
+		// reference lock at all. `ReferenceLocks`'s header carries the grep that measures it;
+		// `updateAssetShape.ts` stated the same wrong rationale and is corrected with it.
 		await events.publish(assetDesignChanged({ assetId: input.assetId }));
 		return ok({ outcome: 'wrote', version: written.value });
 	}

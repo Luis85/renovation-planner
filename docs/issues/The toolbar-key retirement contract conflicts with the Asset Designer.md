@@ -70,6 +70,10 @@ Add a source/build test that rejects `editor.toolbar.*` references outside histo
 asserts `DesignerToolbar` uses designer-owned pan, undo, and redo keys. Pair it with the existing
 toolbar interaction test so renaming copy cannot disconnect the controls.
 
+## Decision
+
+**2026-09-04.** **R6** Ruling: the Asset Designer's three borrowed strings become `designer.toolbar.pan`, `designer.toolbar.undo`, `designer.toolbar.redo`; `editor.toolbar.*` is deleted from both locales; spec §5.2/§8/§10 are narrowed to the Plan Editor toolbar keys the increment actually retired; a test refuses the literal `editor.toolbar.` anywhere under `src/` — because ownership of a key namespace must be expressible by a test, and three German words are cheaper than an ambiguous owner — cost if wrong: two identical "Undo" translations in the locale tables.
+
 ## References
 
 - [[Open a floor plan in the Obsidian editor shell]]

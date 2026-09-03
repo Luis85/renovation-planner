@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Selection]]"
 order: 60
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -59,6 +59,10 @@ no-draft temporary tool returns through `setTool('select')`, whose deactivation 
 cancellation boundary, and extend the route test to assert `cancelGesture()` is not called on
 that arm. If cancellation must remain a separate contract, call it before switching and add a
 ToolManager test proving the pair settles exactly once.
+
+## What closed it
+
+**2026-09-04.** §6.3 amended (R2); holding assertion `expect(d.cancelGesture).not.toHaveBeenCalled()` in 'a drawing tool WITHOUT a draft returns to Select through setTool alone'.
 
 ## References
 

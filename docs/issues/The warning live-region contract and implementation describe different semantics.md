@@ -70,6 +70,12 @@ model, exactly one unconditional `.rp-warning-strip[role="status"]` and zero ite
 before and after two warnings arrive independently. If the decision changes, replace that test
 with the opposite contract rather than keeping both.
 
+## Decision
+
+**2026-09-04.** **R4** Ruling: the persistent-warning live region is the CONTAINER (`.rp-warning-strip[role="status"]`, rendered unconditionally), never a per-item role; §5.1's row is narrowed to say so — because a region that exists before its first content announces reliably (`docs/components/Toast.md`'s own rule) and per-item regions would risk nested/duplicate announcements — cost if wrong: two simultaneous warnings are announced as one region update rather than two; if assistive-technology evidence ever demands per-item regions, the test written here is replaced by its opposite.
+
+**R5** Ruling: `EditorWarning` gains `severity: 'warning' | 'error'` (the spec §5.1 field), rendered as a per-item MARK AND WORD (`data-rp-severity` plus a translated label), with `stale` and `background-missing` as `warning` and `unreadable-zones` and `background-unreadable` as `error`; accessible heading, busy state and actions stay UNBUILT and recorded, because no warning has an action to be busy over and a busy flag with no producer is a self-declared shape — cost if wrong: a later retry action adds fields to a model that already has a severity axis; the severity split (data may be out of date vs a read refused) is a taste call a reviewer may move.
+
 ## References
 
 - [[Open a floor plan in the Obsidian editor shell]]

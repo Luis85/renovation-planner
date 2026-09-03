@@ -37,7 +37,7 @@ name form) is Feature B and the next increment.
 Not advanced here: Canvas navigation (already built; its PBI is a re-statement of shipped
 behaviour and is closed by review, not by code), Undo and redo (same), Select several parts of a
 plan, Navigate property/building/floor context, Reveal one floor in one editor leaf (already
-built as `revealPlanEditor`), Apply per-plan display units.
+built as `revealPlanEditor`), Apply per-plan display units. Inspect a selected wall (no wall entity exists; this increment's Room Inspector is the frame a wall Inspector will reuse), Plan editor and canvas (the pre-existing scheduling PBI; nothing here advances its criteria). Amended 2026-09-04: the first draft mapped 11 of the 13 PBIs whose frontmatter parent is `[[Editor foundation]]`; `rg -l '^parent: "\[\[Editor foundation\]\]"$' docs/requirements` is the review-time check.
 
 ## 2. Decisions (WP0)
 
@@ -187,7 +187,7 @@ Rules:
 | `RoomSummaryList.vue` | — | Rooms and Areas as two labelled lists of buttons; activation selects and frames (§6.4). |
 | `HomeownerQuestionNav.vue` | — | Three rows in canonical order, each rendered unavailable with a reason; no `href`, no click handler that does nothing. |
 | `LinkedContentList.vue` | — | Costs, Documents, Photos, Notes rows, unavailable. |
-| `PersistentWarningStrip.vue` | four `<p class="rp-editor-notice">` in the root | One keyed collection: `{ id, severity, messageKey, params? }[]` computed in the root from `stale`, `unreadableZones` and `backgroundStatus`. Renders every active warning, each its own `role="status"` element, in a fixed order. |
+| `PersistentWarningStrip.vue` | four `<p class="rp-editor-notice">` in the root | One keyed collection: `{ id, severity, messageKey, params? }[]` computed in the root from `stale`, `unreadableZones` and `backgroundStatus`. Renders every active warning, in a fixed order, inside ONE unconditional `role="status"` container — never a per-item live region, so the region exists before its first content (amended 2026-09-04). Each item carries its `severity` as a mark and a word; heading, busy state and actions are not in this increment's model. |
 | `TemporaryToolBanner.vue` | — | Shown while `activeToolId` is neither `null` nor `'select'`: task name, one instruction, Cancel. |
 | `UnsupportedWidthNotice.vue` | — | Replaces the canvas below the floor width: floor name, room count, and a "Focus this tab" button calling `context.focusLeaf()`. |
 
@@ -198,7 +198,7 @@ composes the shell. It stays under the 400-line cap by moving layout into
 ### 5.2 The toolbar is retired, not renamed
 
 `EditorToolbar.vue` and its strings (`editor.toolbar.pan`, `.select`, `.draw-zone`,
-`.calibrate`, `editor.toolbar`) are deleted. Undo and Redo move to the context bar with new keys
+`.calibrate`, `editor.toolbar`) are deleted. Only the PLAN EDITOR's toolbar keys are meant: the Asset Designer keeps a real toolbar and owns its own `designer.toolbar.*` keys (amended 2026-09-04; three keys it had borrowed from this namespace are renamed). Undo and Redo move to the context bar with new keys
 (`editor.context.undo`, `editor.context.redo`). Pan has no control: the camera override pans on
 Space and middle button already, and the status bar's gesture hint says so
 (`editor.hint.pan`). `docs/tests/cases/Canvas Navigation.md` is updated for the missing button.
@@ -241,10 +241,12 @@ because both live in Pinia and not in the component.
 ### 5.5 Focus and one-overlay rule
 
 Opening the Layers overlay closes the Inspector drawer and vice versa. Escape inside either
-closes it and returns focus to the rail button that opened it. Neither traps focus; the canvas
-behind them stays reachable by Tab, which is what M16 asks for ("trap focus only while open" is
-read as: focus does not escape to the page, and jsdom cannot see that either way, so the
-manual case checks it).
+closes it and returns focus to the rail button that opened it. Neither traps focus: the canvas
+behind them stays reachable by Tab. M16's accessibility list
+used to read "overlay panels trap focus only while open"; the Inspector PBI's criterion 7
+requires the opposite ("does not trap focus"), both components implement no trap, and M16 was
+amended on 2026-09-04 to match. `responsiveShell.test.ts` presses Tab out of each open panel
+onto the canvas; whether Electron honours the focus return is the manual case's step 9.
 
 ### 5.6 What the shell deliberately does not show
 
@@ -296,12 +298,20 @@ Hover never calls `selection.select`.
 
 ### 6.3 Escape precedence, in one function
 
-`PlanCanvas.onKeyDown` (main) already handles Escape. The rule becomes, in order: an open Add
-menu or overlay closes (the root owns those and handles the key before the canvas sees it);
-else a running pan swallows it (existing); else an active non-select tool: `cancelGesture()` and
-return to Select if the tool has no accumulated draft, or `cancelGesture()` alone if it has
-(`DrawPolygonTool` exposes `hasDraft()`); else with Select active and a selection: clear it; else
-nothing. Clicking empty canvas already clears (`SelectTool.pointerDown` with `null` hit).
+`PlanCanvas.onKeyDown` (main) already handles Escape. The rule is, in order: an open Add menu or overlay closes (the root owns those and handles the
+key before the canvas sees it); else a running pan swallows it (existing); else ANY active tool
+holding a draft — `DrawPolygonTool`'s vertex buffer, `CalibrateTool`'s placed point, or
+`SelectTool`'s drag in flight — cancels that draft and stays put (`EditorTool.hasDraft()`), so a
+selection is never cleared out from under a hand still dragging; else an active non-Select tool
+with nothing drawn returns to Select through `setTool('select')` alone, whose deactivation of
+the outgoing tool IS the cancellation boundary (no separate `cancelGesture()` call — `hasDraft()`
+has already answered `false`); else with Select active and a selection: clear it; else nothing.
+Clicking empty canvas already clears (`SelectTool.pointerDown` with `null` hit).
+
+*Amended 2026-09-04.* The first version nested the draft test under "an active non-select tool"
+and called both `cancelGesture()` and a return to Select on the no-draft arm. The code shipped the
+order above deliberately (`escapeRouting.ts`, `escapeRouting.test.ts`'s "Select mid-drag cancels
+the drag before it would clear the selection") and this section now says what the code does.
 
 ### 6.4 List selection frames the record
 
@@ -318,7 +328,7 @@ Nothing rebinds by name or position.
 
 ### 6.6 Announcing the return to the floor
 
-`EntityInspector` has one `role="status"` element that receives
+A shell-level `SelectionGuidance` region (mounted by the root beside the warning strip, so it is present in every layout mode — amended 2026-09-04, the Inspector is unmounted while the constrained drawer is closed) has one `role="status"` element that receives
 `editor.inspector.floor.guidance` when the selection goes from non-empty to empty, and is emptied
 again on the next tick, so a refresh or a pointer move never re-announces it.
 
@@ -377,7 +387,7 @@ no toggle for it and the spec records this.
 ## 8. Strings
 
 Every new key lands in `en.ts` and `de.ts` in the same edit. German addresses the user formally
-and says `Objekt` for an asset. Keys retired with the toolbar are deleted from both. The
+and says `Objekt` for an asset. The Plan Editor toolbar's keys are deleted from both; no `editor.toolbar.*` key survives in either locale, and `strings.test.ts` refuses the prefix. The
 per-key interpolation-hole test already guards the two locales against each other.
 
 ## 9. Sequencing and the asset-designer branch
@@ -411,7 +421,7 @@ is built in waves so that its only conflict-free work runs first:
 | resolver | handle beats body; topmost body wins; identical candidate sets resolve identically regardless of order; hover and click agree |
 | components (jsdom) | context bar breadcrumb and undo/redo flags; floating actions pressed state; Add menu keyboard traversal, search, Escape, focus return, one activation per choice, unsupported entries inert; Escape precedence at each level; list row selects and frames; Room Inspector shares the id with the selection; unavailable rows render no count; warning strip shows two conditions at once and retires one without the other; shell modes move panels without remounting the canvas (asserted on element identity) |
 | accessibility (axe) | plan editor in `full`; Add menu open; `constrained` with the overlay open; `constrained` with the drawer open; Room Inspector with a selection; `unsupported` |
-| build | strings complete in both locales; every new stylesheet class declared; `editor.toolbar.*` keys gone |
+| build | strings complete in both locales; every new stylesheet class declared; no `editor.toolbar.*` key in either locale and no reference under `src/` |
 | harness | four fixed shots read by eye at 1280 and 460 |
 | manual | `docs/tests/cases/Open a floor and select a room.md`: focus behaviour of overlay and drawer, Obsidian keymap interaction with the menu, the real leaf at sidebar width |
 

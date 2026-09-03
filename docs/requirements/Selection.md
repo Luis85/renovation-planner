@@ -134,12 +134,10 @@ Escape mid-drag under Select cancels the drag rather than clearing the selection
 the draft question under "an active non-select tool" — a deliberate improvement, since a selection
 cleared out from under a hand still moving the mouse is worse than the drag being abandoned, pinned
 by `escapeRouting.test.ts`'s "Select mid-drag cancels the drag before it would clear the
-selection" case.
+selection" case. **2026-09-04** — §6.3 was amended to this order; it is the contract now, not a deviation.
 
 - [[A deleted hover target keeps the target cursor active]]
 - [[Selection clearing is silent while the constrained Inspector is closed]]
 - [[A handle hover renders the body-selection cursor]]
 - [[The overlap-order test repeats the same candidate order]]
-- [[The Escape contract clears selection before a Select drag is abandoned]]
-- [[The Escape contract requires a second cancellation with no draft to cancel]]
 - [[The hover-click agreement test never clicks]]

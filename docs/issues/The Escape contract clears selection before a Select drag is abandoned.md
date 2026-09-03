@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Selection]]"
 order: 50
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -59,6 +59,10 @@ Amend design spec §6.3 to adopt the implemented precedence explicitly: after a 
 active tool with a draft cancels that nearer interaction before Select may clear selection.
 Keep the existing Select-drag test as the discriminating check and update the parent/task
 closing evidence to cite the amended rule rather than a deviation.
+
+## What closed it
+
+**2026-09-04.** §6.3 amended to the implemented order (R1); holding test `escapeRouting.test.ts` 'Select mid-drag cancels the drag before it would clear the selection'.
 
 ## References
 

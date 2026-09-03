@@ -47,7 +47,7 @@ Criterion 1 is 'Select with a selection clears it' beside
 selection'. Criterion 2 is 'a running pan swallows Escape and touches nothing', 'a drawing tool
 WITH a draft cancels the draft and stays active' and 'Select mid-drag cancels the drag before it
 would clear the selection', plus `tests/presentation/editor/add/addMenu.test.ts`'s 'Escape reaches
-the menu and never the canvas: a selected zone stays selected'. Criterion 3 is
+the menu and never the canvas: a selected zone stays selected'. The no-draft arm's single `setTool('select')` is pinned by 'a drawing tool WITHOUT a draft returns to Select through setTool alone' (2026-09-04). Criterion 3 is
 `tests/presentation/editor/shell/floorInspector.test.ts`. Criterion 4 is
 `tests/presentation/editor/runtime.test.ts`'s 'a selected zone that disappears from the next
 hydrate is retired, not rebound', with its sibling 'keeps a selected id that survives the next

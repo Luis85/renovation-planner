@@ -22,7 +22,7 @@ export interface EscapeDeps {
  * The draft test comes BEFORE the selection test so a drag in flight is abandoned rather than
  * a selection cleared under a hand still moving.
  *
- * **Two deviations from spec §6.3, recorded rather than silently taken.**
+ * **Two decisions §6.3 records since 2026-09-04 (they were deviations until the spec was amended to them).**
  *
  * (a) The draft test runs BEFORE the tool test for every tool, not only a non-Select one — so
  * Escape mid-drag under SELECT cancels the drag rather than clearing the selection, where §6.3

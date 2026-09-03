@@ -73,6 +73,10 @@ its controls, and proves the selected policy, plus the existing Escape-close and
 assertions. A no-trap test must demonstrate focus can leave for the canvas; a trap test must
 demonstrate wrapping. Testing only initial focus cannot distinguish them.
 
+## Decision
+
+**2026-09-04.** **R3** Ruling: the constrained Layers overlay and Inspector drawer do NOT trap focus; M16's "trap focus only while open" sentence is amended to "restore focus on close and do not trap it — the canvas stays reachable by Tab", and §5.5 stops attributing a trap to M16 — because the Inspector PBI criterion 7 ("does not trap focus"), both components and the canvas-stays-reachable design already agree, and a modal trap would need inertness and cycling nobody designed — cost if wrong: a keyboard user can Tab out of an open overlay onto the canvas, which is the intended modeless behaviour; a later modal decision is a redesign of both panels.
+
 ## References
 
 - [[Open a floor plan in the Obsidian editor shell]]

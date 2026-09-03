@@ -35,10 +35,12 @@ describe('routeEscape — one precedence for the whole canvas', () => {
 		expect(d.cancelGesture).toHaveBeenCalledOnce();
 		expect(d.setTool).not.toHaveBeenCalled();
 	});
-	it('a drawing tool WITHOUT a draft returns to Select', () => {
+	it('a drawing tool WITHOUT a draft returns to Select through setTool alone — deactivation is the cancellation boundary', () => {
 		const d = deps({ activeToolId: 'draw-polygon' });
 		expect(routeEscape(d)).toBe('returned-to-select');
 		expect(d.setTool).toHaveBeenCalledWith('select');
+		// §6.3 as amended 2026-09-04 (R2): no second cancellation on this arm.
+		expect(d.cancelGesture).not.toHaveBeenCalled();
 	});
 	it('Select with a selection clears it', () => {
 		const d = deps({ hasSelection: true });

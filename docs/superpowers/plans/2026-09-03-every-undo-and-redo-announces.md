@@ -1288,8 +1288,9 @@ MSG
 > added a live read in `undo()` purely to build `previous`, bringing three unreached units and
 > a comment asserting an untested invariant; Codex independently reached the same remedy from
 > the behavioural side (the read GATED the undo, and could escape as an unhandled rejection).
-> The fix DELETES the read and captures the written cost at execute time. Re-review pending.
-> Start at Task 9.
+> The fix DELETES the read and captures the written cost at execute time. Scoped re-review
+> APPROVED — all five findings addressed and each one measured, including collapsing the rig's
+> kind branch to prove the per-kind cases now discriminate. Start at Task 9.
 
 **Files:**
 - Modify: `src/application/commands/requirement/reversible-override-commands.ts`

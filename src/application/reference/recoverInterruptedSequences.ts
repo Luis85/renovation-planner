@@ -36,11 +36,12 @@ function findSnapshot(marker: SequenceMarker, requirementId: string): Loaded<Req
 /**
  * One `progress` entry: restore it from the pre-state, presenting the version the forward
  * write recorded (`'absent'` for a removed referent), and announce what landed. A refused
- * restore is surfaced, never forced — logged and left for the next load rather than making
- * this entry's failure this marker's failure, since a sibling entry may still recover
- * cleanly. Split out of `recoverOne` so the per-entry branching (the best-effort pre-read,
- * the refusal, the written/'absent' split, the conditional cost announcement) is one
- * function's complexity rather than folded into the per-marker loop around it.
+ * restore is surfaced, never forced — logged, and this entry's failure does not stop a
+ * sibling entry from still recovering cleanly. `recoverOne` clears the marker regardless of
+ * any refusal here, so recovery does not retry a refused entry forever. Split out of
+ * `recoverOne` so the per-entry branching (the best-effort pre-read, the refusal, the
+ * written/'absent' split, the conditional cost announcement) is one function's complexity
+ * rather than folded into the per-marker loop around it.
  */
 async function restoreEntry(
 	deps: RecoveryDeps,

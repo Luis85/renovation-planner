@@ -60,6 +60,16 @@ import type { Point } from '../core/geometry/Point';
 export type ShapeState = 'measured' | 'unscaled' | 'none' | 'pending' | 'unreadable';
 
 export interface UsedIn {
+	/**
+	 * The row's KEY, and never the name-plus-path pair the first version keyed on.
+	 *
+	 * `ReferencingGroup` already carries a `projectId`, and it is the only field unique by
+	 * construction: two projects can share a display name AND a folder — `projectFolderOf` is
+	 * `parentOf(notePath)`, and nothing stops two notes declaring `type: renovation-project`
+	 * from sitting in one directory — so a composite of name and path collides, giving Vue two
+	 * identical keys for two different projects. Reported by a review bot.
+	 */
+	readonly projectId: string;
 	readonly project: string;
 	/**
 	 * The project's folder, and ONLY where its name is not unique among the groups returned —
@@ -170,19 +180,19 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		heightMm: 22, notes: 'Brushed, matt lacquered. Confirm batch before ordering.',
 		shape: 'measured', outline: box(1200, 190),
 		background: { path: 'Renovation/Library/Sheets/eiche-diele-1200.pdf', kind: 'pdf', page: 2 },
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 3 }, { project: 'Garden studio', requirements: 1 }],
+		usedIn: [{ projectId: 'prj-01', project: 'Flat renovation, Hamburg', requirements: 3 }, { projectId: 'prj-02', project: 'Garden studio', requirements: 1 }],
 	},
 	{
 		id: 'wall-paint-white', name: 'Wall paint, white matt', category: 'Material',
 		unitCost: '18.40', unit: 'm²', currency: 'EUR', waste: '+5%', supplier: 'Farbwerk', sku: 'WM-2500',
 		heightMm: null, notes: null, shape: 'none', outline: null,
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 6 }],
+		usedIn: [{ projectId: 'prj-03', project: 'Flat renovation, Hamburg', requirements: 6 }],
 	},
 	{
 		id: 'porcelain-tile-600', name: 'Porcelain tile, 600 × 600', category: 'Material',
 		unitCost: '42.50', unit: 'm²', currency: 'EUR', waste: '+12%', supplier: 'Fliesen Kramer', sku: 'PT-600-GR',
 		heightMm: 10, notes: null, shape: 'measured', outline: box(600, 600),
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 2 }],
+		usedIn: [{ projectId: 'prj-04', project: 'Flat renovation, Hamburg', requirements: 2 }],
 	},
 	{
 		id: 'skirting-oak', name: 'Skirting board, oak', category: 'Material',
@@ -193,7 +203,7 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		id: 'tile-adhesive', name: 'Tile adhesive, flexible', category: 'Material',
 		unitCost: '6.25', unit: 'm²', currency: 'EUR', waste: '+15%', supplier: 'Fliesen Kramer', sku: 'TA-25KG',
 		heightMm: null, notes: null, shape: 'none', outline: null,
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 2 }],
+		usedIn: [{ projectId: 'prj-05', project: 'Flat renovation, Hamburg', requirements: 2 }],
 	},
 	{
 		id: 'base-cabinet-600', name: 'Base cabinet, 600', category: 'Furniture',
@@ -201,7 +211,7 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		heightMm: 720, notes: 'Traced from the supplier sheet before the sheet was calibrated.',
 		shape: 'unscaled', outline: box(600, 580), clearance: [600, 1180], clearancePending: true,
 		background: { path: 'Renovation/Library/Sheets/adler-bc-600.png', kind: 'image', page: null },
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 4 }],
+		usedIn: [{ projectId: 'prj-06', project: 'Flat renovation, Hamburg', requirements: 4 }],
 	},
 	{
 		id: 'tall-cabinet-400', name: 'Tall cabinet, 400', category: 'Furniture',
@@ -212,33 +222,33 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		id: 'worktop-oak-40', name: 'Worktop, oak 40 mm', category: 'Furniture',
 		unitCost: '118.00', unit: 'm', currency: 'EUR', waste: '+6%', supplier: 'Holzhandel Nord', sku: 'WT-40-620',
 		heightMm: 40, notes: null, shape: 'measured', outline: box(3000, 620),
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 1 }],
+		usedIn: [{ projectId: 'prj-07', project: 'Flat renovation, Hamburg', requirements: 1 }],
 	},
 	{
 		id: 'radiator-600-1200', name: 'Radiator, panel 600 × 1200', category: 'Fixture',
 		unitCost: '189.00', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Sanitär Reuter', sku: 'RP-600-1200',
 		heightMm: 600, notes: null, shape: 'measured', outline: box(1200, 100),
 		clearance: [1200, 700],
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 5 }],
+		usedIn: [{ projectId: 'prj-08', project: 'Flat renovation, Hamburg', requirements: 5 }],
 	},
 	{
 		id: 'basin-mixer', name: 'Basin mixer tap', category: 'Fixture',
 		unitCost: '142.50', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Sanitär Reuter', sku: 'BM-CHR',
 		heightMm: 310, notes: null, shape: 'measured', outline: regular(8, 27.5),
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 2 }],
+		usedIn: [{ projectId: 'prj-09', project: 'Flat renovation, Hamburg', requirements: 2 }],
 	},
 	{
 		id: 'socket-double', name: 'Wall socket, double', category: 'Fixture',
 		unitCost: '14.90', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Elektro Vogt', sku: 'WS-2-W',
 		heightMm: 86, notes: null, shape: 'measured', outline: box(146, 86),
 		usedIn: [
-			{ project: 'Garden studio', path: 'Renovation/Garden studio', requirements: 4 },
-			{ project: 'Garden studio', path: 'Renovation/Garden studio (2024)', requirements: 2 },
+			{ projectId: 'prj-10', project: 'Garden studio', path: 'Renovation/Garden studio', requirements: 4 },
+			{ projectId: 'prj-11', project: 'Garden studio', path: 'Renovation/Garden studio (2024)', requirements: 2 },
 			// The third of the collision is at the VAULT ROOT, so its derived folder is `''`.
 			// Here rather than as a fourth entry somewhere tidier, because the row only means
 			// anything beside the two it has to be told apart from.
-			{ project: 'Garden studio', path: '', requirements: 1 },
-			{ project: 'Flat renovation, Hamburg', requirements: 11 },
+			{ projectId: 'prj-12', project: 'Garden studio', path: '', requirements: 1 },
+			{ projectId: 'prj-13', project: 'Flat renovation, Hamburg', requirements: 11 },
 		],
 	},
 	{
@@ -257,13 +267,13 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		unitCost: '65.00', unit: 'day', currency: 'EUR', waste: null, supplier: 'Mietpark Süd', sku: null,
 		heightMm: null, notes: null, shape: 'measured',
 		outline: [at(0, 0), at(500, 0), at(500, 180), at(260, 180), at(260, 300), at(0, 300)],
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 1 }],
+		usedIn: [{ projectId: 'prj-14', project: 'Flat renovation, Hamburg', requirements: 1 }],
 	},
 	{
 		id: 'internal-door-oak', name: 'Internal door, oak veneer', category: 'Building element',
 		unitCost: '228.00', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Türen Brandt', sku: 'ID-838',
 		heightMm: 1981, notes: null, shape: 'measured', outline: box(838, 44),
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 4 }],
+		usedIn: [{ projectId: 'prj-15', project: 'Flat renovation, Hamburg', requirements: 4 }],
 	},
 	{
 		id: 'lintel-precast', name: 'Precast lintel, 1500', category: 'Building element',
@@ -276,7 +286,7 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		id: 'stud-partition', name: 'Stud partition wall', category: 'Building element',
 		unitCost: '86.40', unit: 'm²', currency: 'EUR', waste: '+7%', supplier: null, sku: null,
 		heightMm: null, notes: null, shape: 'measured', outline: box(2400, 100),
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 1 }],
+		usedIn: [{ projectId: 'prj-16', project: 'Flat renovation, Hamburg', requirements: 1 }],
 	},
 	/*
 	 * THE §84 CASE, and the one entry here that today's persistence layer cannot produce.
@@ -291,14 +301,14 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		unitCost: '12.75', unit: 'm²', currency: 'EUR', waste: '+8%', supplier: 'Dämmstoff Ritter', sku: 'MW-100',
 		heightMm: 100, notes: 'Category typed by hand; not one of the seven the build declares.',
 		shape: 'none', outline: null,
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 2 }],
+		usedIn: [{ projectId: 'prj-17', project: 'Flat renovation, Hamburg', requirements: 2 }],
 	},
 	{
 		id: 'site-skip-8yd', name: 'Site skip, 8 yd', category: 'Custom',
 		unitCost: '320.00', unit: 'fixed', currency: 'EUR', waste: null, supplier: 'Entsorgung Kley', sku: null,
 		heightMm: 1220, notes: null, shape: 'measured',
 		outline: [at(0, 0), at(3660, 0), at(3300, 1680), at(360, 1680)],
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 1 }],
+		usedIn: [{ projectId: 'prj-18', project: 'Flat renovation, Hamburg', requirements: 1 }],
 	},
 ];
 

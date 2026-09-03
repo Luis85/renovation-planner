@@ -555,7 +555,18 @@ Four sections, in this order:
    string; `joinFolder`'s own docblock names that case as the one it exists for. A truthy test
    suppresses exactly the row the path was added to disambiguate and draws it identically to a
    row whose path was never supplied — the collision restored, in the one member of it that has
-   no folder to name. The empty string renders a root label rather than nothing. `Not used in any project` when there are none, which is the
+   no folder to name. The empty string renders a root label rather than nothing.
+
+   **A folder is not always enough, and the row's KEY is never the name-and-path pair.**
+   `withPathsWhereAmbiguous` sets `projectPath` to `folderOf(projectId)` — `parentOf(notePath)` —
+   and two notes declaring `type: renovation-project` can sit in ONE directory under different
+   filenames, so two projects can share a display name *and* a folder. Then the disambiguator
+   disambiguates nothing, and a composite key of the two gives two different projects the same
+   identity. `ReferencingGroup` already carries `projectId`: that is the key, unique by
+   construction. For DISPLAY, where the folder does not separate two rows the discriminator is
+   the project note's own path, which does. Reported by a review bot — the second correction to
+   this one row, and both were the same mistake, using a value that is usually unique as though
+   it were always unique. `Not used in any project` when there are none, which is the
    sentence that makes a deletion safe to reason about, and the sentence a price edit is read
    against.
 
@@ -2152,6 +2163,24 @@ this one, where an empty shelf's non-interactive `<h3>` is exactly what `moveFoc
 collecting only buttons. **Third appearance of that one heading** (the post-delete fallback, the
 Tab and Enter rows, now the arrows), and the second time a fix has covered the rows its report
 named and not the row beside them.
+
+A thirty-second round found one, and it is the second correction to the same *Used in* row —
+both of them the same mistake in different clothes.
+
+**A folder does not always disambiguate, and the row was keyed on a value that is only usually
+unique.** `withPathsWhereAmbiguous` sets `projectPath` to `folderOf(projectId)`, which is
+`parentOf(notePath)`, and two notes declaring `type: renovation-project` can sit in ONE directory
+under different filenames — so two projects can share a display name *and* a folder. The
+disambiguator then disambiguates nothing, and the mock's composite key of name and path gave two
+different projects one identity in Vue. `ReferencingGroup` already carries `projectId`; that is
+the key, and the display discriminator falls back to the note's own path where the folder cannot
+separate them.
+
+**The first correction to this row was `''` being a real path** — a project at the vault root,
+suppressed by a truthiness test. Different symptom, same error: treating a value that holds for
+the cases in front of me as though it held for all of them. **An identity should be a field
+guaranteed unique, not a composite that usually is**, and the id was sitting in the query's own
+result type the whole time.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

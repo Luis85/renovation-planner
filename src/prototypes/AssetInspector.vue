@@ -212,7 +212,7 @@ const specSheet = computed((): string | null => {
 			>
 				<li
 					v-for="use in asset.usedIn"
-					:key="`${use.project}\u0000${use.path ?? ''}`"
+					:key="use.projectId"
 					class="rp-al-used__row"
 				>
 					<span class="rp-al-used__project">

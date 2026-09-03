@@ -9,7 +9,7 @@
  * `de` is still the one object `strings.test.ts`'s completeness check reads.
  */
 import type { StringKey } from './en';
-import { deAssetLibrary } from './de.assetLibrary';
+import { deAssetLibrary } from './de-assetLibrary';
 
 export const de: Partial<Record<StringKey, string>> = {
 	'command.open-project': 'Renovierungsprojekt öffnen',

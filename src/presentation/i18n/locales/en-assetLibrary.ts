@@ -7,9 +7,15 @@
  * extraction"), not a second source of truth: `en.ts` spreads `enAssetLibrary` into the one
  * `en` object `StringKey` derives from, so there is still exactly one place a key is declared.
  *
- * This file is itself an "English locale module" by the obsidianmd sentence-case rule's own
- * filename regex (`en(?:[._-][^/]+)?\.ts$`), so `en.assetLibrary.ts` is linted for sentence
- * case exactly as `en.ts` is — the split does not exempt this copy from that gate.
+ * **The filename is `en-assetLibrary.ts`, hyphen rather than dot, and that hyphen is
+ * load-bearing.** `obsidianmd/ui/sentence-case-locale-module` is scoped by an explicit glob
+ * list (`node_modules/eslint-plugin-obsidianmd/dist/lib/index.js`'s `recommendedWithLocalesEn`):
+ * a bare `en.ts`, an `en-` prefix, an `en_` prefix, or a path under an `en` directory — and
+ * there is no glob for a DOT separator. A first version of this file was named
+ * `en.assetLibrary.ts` and matched none of those, which silently dropped every one of these 58
+ * strings out of the sentence-case gate; `tests/build/localeModuleSentenceCase.test.ts` is what
+ * would have caught it, and now does, by asking `calculateConfigForFile` rather than by reading
+ * this comment.
  *
  * Every key here is copied from design "Asset library overview" §8's own list, key by key —
  * that list is exhaustive for visible copy, and a builder is not to invent, rename or omit
@@ -19,7 +25,7 @@ export const enAssetLibrary = {
 	'view.asset-library.title': 'Asset library',
 	'command.open-asset-library': 'Open asset library',
 	'view.asset-library.search.label': 'Search assets',
-	'view.asset-library.search.placeholder': 'Search by name, supplier or item number',
+	'view.asset-library.search.placeholder': 'Search by name, supplier or SKU',
 	// §6.1's live region: '12 matching assets', announced so a search's effect reaches a
 	// keyboard or screen-reader user who cannot see the list it just filtered.
 	'view.asset-library.search.results': '{count} matching assets',
@@ -78,8 +84,8 @@ export const enAssetLibrary = {
 	// editing the note — which is also why `Open note` is withheld for exactly this one, per
 	// §4's own rule that an action that cannot work is worse than no action).
 	'view.asset-library.unreadable.read-failed': 'Could not be read',
-	'view.asset-library.unreadable.no-id': 'No id',
-	'view.asset-library.unreadable.duplicate-id': 'Duplicate id',
+	'view.asset-library.unreadable.no-id': 'No ID',
+	'view.asset-library.unreadable.duplicate-id': 'Duplicate ID',
 	'view.asset-library.unreadable.future-schema': 'Written by a newer plugin version',
 	// The panel-level Definition-section state (§3.5): the selected id IS in `unreadable`,
 	// with a repairable code. Distinct from `shape.read-failed` above, which is the sidecar
@@ -90,7 +96,7 @@ export const enAssetLibrary = {
 	// way back to the shape or used-in sections, only "a way back" to the list.
 	'view.asset-library.asset-gone': 'This asset no longer exists.',
 	'view.asset-library.shape.unusable-id':
-		'This asset’s id cannot name a shape file, so no shape can be stored for it.',
+		'This asset’s ID cannot name a shape file, so no shape can be stored for it.',
 	'view.asset-library.shape.extent-overflow': 'This shape is too large to measure.',
 	'view.asset-library.failed.headline': 'Assets could not be loaded',
 	'view.asset-library.new-asset': 'New asset',
@@ -126,6 +132,6 @@ export const enAssetLibrary = {
 	'empty.asset-library.no-assets.action': 'New asset',
 	'empty.asset-library.no-matches.headline': 'No matching assets',
 	'empty.asset-library.no-matches.body':
-		'No asset matches that search. Try a different name, supplier or item number.',
+		'No asset matches that search. Try a different name, supplier or SKU.',
 	'empty.asset-library.no-matches.action': 'Clear search',
 } as const;

@@ -177,7 +177,7 @@ describe('the empty-state content registry', () => {
 			expect(t(language, entry.body).length).toBeGreaterThan(0);
 		}
 
-		// The five entries whose `actionLabel` is present in the literal type (not optional), so
+		// The seven entries whose `actionLabel` is present in the literal type (not optional), so
 		// these are unconditional rather than a re-check of the branch above. `noPlans` is here
 		// as well as in its own case above, because that one asks `en` alone — a German action
 		// label resolving to `''` would draw a nameless button for exactly the users this plugin

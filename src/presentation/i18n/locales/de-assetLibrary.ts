@@ -1,30 +1,38 @@
 /**
- * German for the Asset library's own copy (`en.assetLibrary.ts`), split out for the identical
+ * German for the Asset library's own copy (`en-assetLibrary.ts`), split out for the identical
  * reason: `de.ts` had 24 lines of `max-lines` headroom and this surface adds 58 keys. Spread
  * into `de.ts` rather than declared there, so `de` stays the one object the completeness check
- * in `strings.test.ts` reads.
+ * in `strings.test.ts` reads. The filename carries the same hyphen `en-assetLibrary.ts` does,
+ * for the identical reason recorded there — though this file is not itself linted for
+ * sentence case either way, exactly as `de.ts`'s own header says.
  *
- * `Partial<Record<StringKey, string>>` at THIS declaration is what keeps "an orphaned German
- * key is a build failure" true here too: excess-property checking runs at the object literal
- * assigned to that type, wherever that assignment sits.
- *
- * German noun capitalization is why the English sentence-case lint does not run here, exactly
- * as `de.ts`'s own header says — this file is not matched by the "en" filename regex either.
+ * `satisfies Partial<Record<StringKey, string>>` rather than an ANNOTATION of that type is
+ * what makes a duplicate key here a build failure two ways rather than one. Annotating the
+ * literal `Partial<Record<StringKey, string>>` still catches an orphaned key (excess-property
+ * checking runs at the literal either way) but WIDENS this object's own inferred type to one
+ * where every property is optional — and TypeScript's "specified more than once" check
+ * (`TS2783`) does not fire when the SPREAD side of a collision is that wide a type, measured:
+ * `en.ts`'s spread of `enAssetLibrary` (a concrete literal type) is caught by `TS2783` on a
+ * duplicate; `de.ts`'s spread of `deAssetLibrary` was not, before this file used `satisfies`,
+ * because a `Partial<Record<...>>`-typed value carries no concrete key TypeScript can compare
+ * a sibling property against. `satisfies` keeps the literal's own narrow, concrete type
+ * (`{ 'view.asset-library.title': string; … }`) while still checking it against the wider
+ * shape, so `de.ts`'s spread gets the same protection `en.ts`'s always had.
  */
 import type { StringKey } from './en';
 
-export const deAssetLibrary: Partial<Record<StringKey, string>> = {
+export const deAssetLibrary = {
 	'view.asset-library.title': 'Objekt-Bibliothek',
 	'command.open-asset-library': 'Objekt-Bibliothek öffnen',
 	'view.asset-library.search.label': 'Objekte durchsuchen',
-	'view.asset-library.search.placeholder': 'Nach Name, Lieferant oder Artikelnummer suchen',
+	'view.asset-library.search.placeholder': 'Nach Name, Lieferant oder SKU suchen',
 	'view.asset-library.search.results': '{count} passende Objekte',
 	'view.asset-library.unselected': 'Nichts ausgewählt.',
 	'view.asset-library.assets': '{count} Objekte',
 	'view.asset-library.used-in': 'Verwendet in',
 	'view.asset-library.used-in.none': 'In keinem Projekt verwendet',
 	'view.asset-library.used-in.project': '{name} — {count} Anforderung(en)',
-	'view.asset-library.used-in.vault-root': 'Vault-Wurzel',
+	'view.asset-library.used-in.vault-root': 'Vault-Stammverzeichnis',
 	'view.asset-library.open-designer': 'Designer öffnen',
 	'view.asset-library.open-note': 'Notiz öffnen',
 	'view.asset-library.back': 'Zurück zur Bibliothek',
@@ -33,7 +41,7 @@ export const deAssetLibrary: Partial<Record<StringKey, string>> = {
 	'view.asset-library.footprint': 'Umriss',
 	'view.asset-library.clearance': 'Freiraum',
 	'view.asset-library.spec-sheet': 'Datenblatt',
-	'view.asset-library.none': 'Keine',
+	'view.asset-library.none': 'Keiner',
 	'view.asset-library.shape.loading': 'Form wird geladen …',
 	'view.asset-library.shape.gone': 'Dieses Objekt gibt es nicht mehr.',
 	'view.asset-library.shape.read-failed': 'Die Form dieses Objekts konnte nicht gelesen werden: {path}',
@@ -72,10 +80,10 @@ export const deAssetLibrary: Partial<Record<StringKey, string>> = {
 		'Es konnte nicht geprüft werden, wo dies verwendet wird, daher ist Löschen nicht möglich.',
 	'empty.asset-library.no-assets.headline': 'Noch keine Objekte',
 	'empty.asset-library.no-assets.body':
-		'Ein Objekt ist ein Baustoff, Einbauteil, eine Pflanze oder ein Möbelstück, das Sie einmal bepreisen und in jedem Projekt wiederverwenden. Legen Sie eines an, um die Bibliothek zu beginnen.',
+		'Ein Objekt ist ein Baustoff, Einbauteil, eine Pflanze oder ein Möbelstück, das Sie einmal bepreisen und in jedem Projekt wiederverwenden. Legen Sie eines an, um die Bibliothek aufzubauen.',
 	'empty.asset-library.no-assets.action': 'Neues Objekt',
 	'empty.asset-library.no-matches.headline': 'Keine passenden Objekte',
 	'empty.asset-library.no-matches.body':
-		'Keine Objekte entsprechen dieser Suche. Versuchen Sie einen anderen Namen, Lieferanten oder eine andere Artikelnummer.',
-	'empty.asset-library.no-matches.action': 'Suche leeren',
-};
+		'Keine Objekte entsprechen dieser Suche. Versuchen Sie einen anderen Namen, Lieferanten oder eine andere SKU.',
+	'empty.asset-library.no-matches.action': 'Suche löschen',
+} satisfies Partial<Record<StringKey, string>>;

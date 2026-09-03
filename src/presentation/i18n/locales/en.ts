@@ -1,4 +1,4 @@
-import { enAssetLibrary } from './en.assetLibrary';
+import { enAssetLibrary } from './en-assetLibrary';
 
 /**
  * The English table is the COMPLETE one: a key exists because this file answers it, and
@@ -9,7 +9,7 @@ import { enAssetLibrary } from './en.assetLibrary';
  * `enAssetLibrary` is spread in rather than declared here: this file had 29 lines of
  * `max-lines` headroom and the Asset library's §8 inventory is 58 keys, so appending them
  * inline would have been the reformatting-buys-nothing shape this repository's own rule
- * refuses — the fix is the extraction in `en.assetLibrary.ts`, not a wider budget. `en` is
+ * refuses — the fix is the extraction in `en-assetLibrary.ts`, not a wider budget. `en` is
  * still the one object `StringKey` derives from; the spread does not create a second source
  * of truth, only a second FILE for one section of it.
  */

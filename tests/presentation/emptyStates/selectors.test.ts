@@ -219,21 +219,22 @@ describe('which empty state the asset designer is in', () => {
  * is never an `Err` to guard against — `ListCatalogueEntries` has already succeeded by the
  * time this is asked, and a failed read is `ViewFailure`'s state, not this registry's.
  *
- * `searching` is the second, independent input this file's header argues for: an empty result
+ * `searching` is the third, independent input this file's header argues for: an empty result
  * says nothing about whether a query is running, and the two answers this function gives for
- * an empty list are opposite states with opposite hand-offs.
+ * an empty list are opposite states with opposite hand-offs. `unreadable` sits second, matching
+ * the order its two list-shaped siblings above already take theirs in.
  */
 describe('which empty state the asset library is in', () => {
 	it('asks for nothing when the library has entries, even while searching', () => {
-		expect(selectAssetLibraryEmptyState([anEntry()], true)).toBeNull();
+		expect(selectAssetLibraryEmptyState([anEntry()], 0, true)).toBeNull();
 	});
 
 	it('asks for nothing when the library has entries and no search is running', () => {
-		expect(selectAssetLibraryEmptyState([anEntry()], false)).toBeNull();
+		expect(selectAssetLibraryEmptyState([anEntry()], 0, false)).toBeNull();
 	});
 
 	it('asks for noAssets on an empty library with no search running', () => {
-		expect(selectAssetLibraryEmptyState([], false)).toBe('noAssets');
+		expect(selectAssetLibraryEmptyState([], 0, false)).toBe('noAssets');
 	});
 
 	/**
@@ -244,6 +245,24 @@ describe('which empty state the asset library is in', () => {
 	 * above it green — which is what makes it the one worth keeping when the others are cut.
 	 */
 	it('asks for noMatches on an empty library while a search is running', () => {
-		expect(selectAssetLibraryEmptyState([], true)).toBe('noMatches');
+		expect(selectAssetLibraryEmptyState([], 0, true)).toBe('noMatches');
+	});
+
+	/**
+	 * The guard is UNCONDITIONAL — refused whatever `searching` is — per the ruling on the
+	 * finding that this selector originally omitted it entirely: a library whose notes all
+	 * refused is not "no assets at all" (§4's own row for that vault is *Some unreadable*,
+	 * whose shelves still draw), and narrowing the guard to the `noAssets` arm alone would give
+	 * this selector two different policies for `unreadable` to reconcile. Both arms are pinned
+	 * here rather than one, because a guard tested only on the arm somebody was thinking about
+	 * is this repository's oldest recurring defect — and `searching: true` is the arm a version
+	 * of this fix that special-cased `noAssets` alone would still get wrong.
+	 */
+	it('refuses to answer noAssets when the library has unreadable notes', () => {
+		expect(selectAssetLibraryEmptyState([], 1, false)).toBeNull();
+	});
+
+	it('refuses to answer noMatches too, when the library has unreadable notes', () => {
+		expect(selectAssetLibraryEmptyState([], 1, true)).toBeNull();
 	});
 });

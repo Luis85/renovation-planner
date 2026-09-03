@@ -31,6 +31,8 @@ import {
 	assetUpdated,
 } from '../../../src/domain/asset/Asset.events';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
+import { assetPriceOverrideChanged } from '../../../src/domain/asset-price/AssetPriceOverride.events';
+import type { ProjectId } from '../../../src/domain/project/ProjectId';
 import type { EntityId } from '../../../src/core/identity/EntityId';
 
 const THE_ASSET = createAssetId();
@@ -51,7 +53,7 @@ describe('createAssetLibraryChangeSource', () => {
 
 		await bus.publish(make());
 
-		expect(heard).toEqual([{ catalogue: true, marks: [], design: [], replaced: [] }]);
+		expect(heard).toEqual([{ catalogue: true, marks: [], design: [], usage: [], replaced: [] }]);
 	});
 
 	it('restarts BOTH selection reads when an entry is deleted, and invalidates its mark', async () => {
@@ -59,7 +61,7 @@ describe('createAssetLibraryChangeSource', () => {
 
 		await bus.publish(assetDeleted({ assetId: THE_ASSET }));
 
-		expect(heard).toEqual([{ catalogue: true, marks: [THE_ASSET], design: [], replaced: [THE_ASSET] }]);
+		expect(heard).toEqual([{ catalogue: true, marks: [THE_ASSET], design: [], usage: [], replaced: [THE_ASSET] }]);
 	});
 
 	it('refreshes the catalogue on a design change, not only the mark', async () => {
@@ -67,7 +69,7 @@ describe('createAssetLibraryChangeSource', () => {
 
 		await bus.publish(assetDesignChanged({ assetId: THE_ASSET }));
 
-		expect(heard).toEqual([{ catalogue: true, marks: [THE_ASSET], design: [THE_ASSET], replaced: [] }]);
+		expect(heard).toEqual([{ catalogue: true, marks: [THE_ASSET], design: [THE_ASSET], usage: [], replaced: [] }]);
 	});
 
 	it('invalidates the design read on a design change, and never the usage read', async () => {
@@ -85,7 +87,7 @@ describe('createAssetLibraryChangeSource', () => {
 
 		await bus.publish(geometrySidecarChanged({ entityId: THE_ASSET, entityType: 'renovation-asset' }));
 
-		expect(heard).toEqual([{ catalogue: false, marks: [THE_ASSET], design: [THE_ASSET], replaced: [] }]);
+		expect(heard).toEqual([{ catalogue: false, marks: [THE_ASSET], design: [THE_ASSET], usage: [], replaced: [] }]);
 	});
 
 	it('ignores a PLAN sidecar, which raises the same event an asset sidecar does', async () => {
@@ -101,7 +103,34 @@ describe('createAssetLibraryChangeSource', () => {
 
 		await bus.publish(projectIndexEntryChanged({ entityId: THE_ASSET, entityType: 'renovation-asset' }));
 
-		expect(heard).toEqual([{ catalogue: true, marks: [THE_ASSET], design: [], replaced: [THE_ASSET] }]);
+		expect(heard).toEqual([{ catalogue: true, marks: [THE_ASSET], design: [], usage: [], replaced: [THE_ASSET] }]);
+	});
+
+	/**
+	 * §11 item 6's mark, kept honest. A price override set or cleared in ANOTHER leaf changes
+	 * which *Used in* rows a default-price edit will not reach — and changes no note this
+	 * catalogue lists, no geometry and no design — so this is the one event that moves the
+	 * usage read alone.
+	 *
+	 * Driven on the EVENT rather than by constructing a change object: a case that builds the
+	 * payload itself proves the type compiles, not that anything subscribes, and this arm was
+	 * missing entirely for a round with every other case green.
+	 *
+	 * The other four channels are asserted quiet, and each is a real claim. `replaced` would
+	 * re-read `GetAssetDesign` — the asset's whole sidecar — for a number in a different note;
+	 * `design` invalidates the read that did not change; `catalogue` re-reads every asset note
+	 * in the vault for a per-project figure this surface never prints (§3.5).
+	 */
+	it("restarts the usage read alone when a project's price override for this asset moves", async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish(
+			assetPriceOverrideChanged({ projectId: 'project-01' as ProjectId, assetId: THE_ASSET }),
+		);
+
+		expect(heard).toEqual([
+			{ catalogue: false, marks: [], design: [], usage: [THE_ASSET], replaced: [] },
+		]);
 	});
 
 	it('ignores a zone note arriving through the index', async () => {
@@ -117,7 +146,7 @@ describe('createAssetLibraryChangeSource', () => {
 
 		await bus.publish(projectIndexRebuilt());
 
-		expect(heard).toEqual([{ catalogue: true, marks: [], design: [], replaced: [] }]);
+		expect(heard).toEqual([{ catalogue: true, marks: [], design: [], usage: [], replaced: [] }]);
 	});
 
 	it('refreshes only the catalogue when an asset note becomes excluded', async () => {
@@ -125,7 +154,7 @@ describe('createAssetLibraryChangeSource', () => {
 
 		await bus.publish(projectIndexExclusionChanged({ path: 'Renovation/Library/broken.md', entityType: 'renovation-asset' }));
 
-		expect(heard).toEqual([{ catalogue: true, marks: [], design: [], replaced: [] }]);
+		expect(heard).toEqual([{ catalogue: true, marks: [], design: [], usage: [], replaced: [] }]);
 	});
 
 	it('ignores an exclusion change for a note of another kind', async () => {
@@ -147,6 +176,7 @@ describe('createAssetLibraryChangeSource', () => {
 		['a sidecar change', { type: 'GeometrySidecarChanged' as const }],
 		['an index entry change', { type: 'ProjectIndexEntryChanged' as const }],
 		['an exclusion change', { type: 'ProjectIndexExclusionChanged' as const }],
+		['a price override change', { type: 'AssetPriceOverrideChanged' as const }],
 	])('ignores %s that carries no payload at all', async (_name, event) => {
 		const { bus, heard } = wired();
 
@@ -170,6 +200,10 @@ describe('createAssetLibraryChangeSource', () => {
 		[
 			'an exclusion change',
 			() => projectIndexExclusionChanged({ path: 'Renovation/Library/broken.md', entityType: 'renovation-asset' }),
+		],
+		[
+			'a price override change',
+			() => assetPriceOverrideChanged({ projectId: 'project-01' as ProjectId, assetId: THE_ASSET }),
 		],
 	])('stops delivering %s once disposed', async (_name, make) => {
 		const { bus, heard, dispose } = wired();

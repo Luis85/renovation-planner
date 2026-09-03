@@ -1,5 +1,6 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { AssetEventPayload } from '../../domain/asset/Asset.events';
+import type { AssetPriceOverrideEventPayload } from '../../domain/asset-price/AssetPriceOverride.events';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type {
 	GeometrySidecarChangedPayload,
@@ -29,10 +30,16 @@ import type {
  *   generation alone, never the usage one: §5.5 is explicit that a geometry, height or
  *   background edit must not restart `ListRequirementsReferencing`, a scan of every requirement
  *   in the vault, for every footprint edit a designer leaf makes.
+ * - `usage` — the selected asset's *Used in* read is stale and NOTHING else is. Bumps the
+ *   USAGE selection generation alone, the mirror of `design` above: a price override set or
+ *   cleared in another project changes which rows a default-price edit will not reach, and
+ *   changes no note this catalogue lists, no geometry and no design.
  * - `replaced` — the selected asset's ENTRY was removed or replaced. Bumps BOTH selection
  *   generations, because a ticket has to follow the entry, not only the id naming it: an asset
  *   deleted and recreated under the same id must not let a pre-deletion design or usage answer
- *   populate the replacement.
+ *   populate the replacement. It still means BOTH with `usage` present: a consumer bumps the
+ *   usage generation for `usage` OR `replaced`, and `usage` never has to restate what a
+ *   replacement already implies.
  *
  * Every subscription list is documented against the neighbour it is not covered by, exactly as
  * `assetDesignChangeSource`'s four lists are — the pattern this module copies rather than
@@ -46,6 +53,9 @@ export interface AssetLibraryChange {
 	/** Ids whose DESIGN read is stale — geometry, height or background moved. Bumps the design
 	 *  generation ALONE, never the referencing one. */
 	readonly design: readonly AssetId[];
+	/** Ids whose *Used in* read is stale — a price override moved in some project. Bumps the
+	 *  usage generation ALONE, never the design one. */
+	readonly usage: readonly AssetId[];
 	/** Ids whose ENTRY was removed or replaced. Bumps BOTH selection generations, so a
 	 *  pre-deletion design or usage answer cannot populate a same-id replacement. */
 	readonly replaced: readonly AssetId[];
@@ -80,6 +90,15 @@ function changedSidecar(event: DomainEvent): Partial<GeometrySidecarChangedPaylo
 	return (event as { payload?: Partial<GeometrySidecarChangedPayload> }).payload ?? {};
 }
 
+/**
+ * And for the price event's, which names a project as well as an asset — read for its asset
+ * alone here, because a vault-wide catalogue does not care WHICH project's price moved, only
+ * that the set of projects overriding this asset may have.
+ */
+function changedPrice(event: DomainEvent): Partial<AssetPriceOverrideEventPayload> {
+	return (event as { payload?: Partial<AssetPriceOverrideEventPayload> }).payload ?? {};
+}
+
 /** And for the exclusion event's, which names a path rather than an entity id — there is no
  *  asset id to invalidate a mark or a selection with, only a listing to re-read. */
 function changedExclusion(event: DomainEvent): Partial<ProjectIndexExclusionChangedPayload> {
@@ -97,7 +116,7 @@ export function createAssetLibraryChangeSource(
 			 */
 			...(['AssetCreated', 'AssetUpdated'] as const).map((type) =>
 				events.subscribe(type, () => {
-					listener({ catalogue: true, marks: NONE, design: NONE, replaced: NONE });
+					listener({ catalogue: true, marks: NONE, design: NONE, usage: NONE, replaced: NONE });
 				}),
 			),
 			/**
@@ -109,7 +128,7 @@ export function createAssetLibraryChangeSource(
 			events.subscribe('AssetDeleted', (event) => {
 				const assetId = assetIdOf(event);
 				if (assetId === null) return;
-				listener({ catalogue: true, marks: [assetId], design: NONE, replaced: [assetId] });
+				listener({ catalogue: true, marks: [assetId], design: NONE, usage: NONE, replaced: [assetId] });
 			}),
 			/**
 			 * `AssetDesignChanged` refreshes the CATALOGUE too, not only the mark and the design
@@ -123,7 +142,7 @@ export function createAssetLibraryChangeSource(
 			events.subscribe('AssetDesignChanged', (event) => {
 				const assetId = assetIdOf(event);
 				if (assetId === null) return;
-				listener({ catalogue: true, marks: [assetId], design: [assetId], replaced: NONE });
+				listener({ catalogue: true, marks: [assetId], design: [assetId], usage: NONE, replaced: NONE });
 			}),
 			/**
 			 * `GeometrySidecarChanged` is a SHARED event: `VaultChangeAdapter` raises it for
@@ -137,7 +156,7 @@ export function createAssetLibraryChangeSource(
 				const sidecar = changedSidecar(event);
 				if (sidecar.entityType !== 'renovation-asset' || typeof sidecar.entityId !== 'string') return;
 				const assetId = sidecar.entityId as AssetId;
-				listener({ catalogue: false, marks: [assetId], design: [assetId], replaced: NONE });
+				listener({ catalogue: false, marks: [assetId], design: [assetId], usage: NONE, replaced: NONE });
 			}),
 			/**
 			 * `ProjectIndexEntryChanged`, filtered to `entityType === 'renovation-asset'` for the
@@ -151,7 +170,7 @@ export function createAssetLibraryChangeSource(
 				const entry = changedEntry(event);
 				if (entry.entityType !== 'renovation-asset' || typeof entry.entityId !== 'string') return;
 				const assetId = entry.entityId as AssetId;
-				listener({ catalogue: true, marks: [assetId], design: NONE, replaced: [assetId] });
+				listener({ catalogue: true, marks: [assetId], design: NONE, usage: NONE, replaced: [assetId] });
 			}),
 			/**
 			 * `ProjectIndexRebuilt` carries no payload because a rebuild cannot say which entities
@@ -160,7 +179,34 @@ export function createAssetLibraryChangeSource(
 			 * from it.
 			 */
 			events.subscribe('ProjectIndexRebuilt', () => {
-				listener({ catalogue: true, marks: NONE, design: NONE, replaced: NONE });
+				listener({ catalogue: true, marks: NONE, design: NONE, usage: NONE, replaced: NONE });
+			}),
+			/**
+			 * `AssetPriceOverrideChanged` — the ONE event that moves this surface's *Used in*
+			 * marks and nothing else. §11 item 6 makes an unmarked row the claim "a price
+			 * correction reaches every room it was used in" being false by omission, so a mark
+			 * that goes stale is that claim silently reverting: a price override set or cleared
+			 * in another leaf leaves the inspector naming the wrong projects until the user
+			 * reselects the asset, which is exactly the thing the mark exists to prevent.
+			 *
+			 * It is the fifth channel rather than a reuse of `replaced`, and the reason is what
+			 * `replaced` costs: that field bumps BOTH selection generations, so routing a price
+			 * change through it would re-read `GetAssetDesign` — the asset's whole sidecar —
+			 * every time a number in a DIFFERENT note changed, which is the over-invalidation
+			 * this module's own header refuses when it declines to widen the picker's source.
+			 * `design` alone is wrong in the other direction: it invalidates the read that did
+			 * not change and leaves the one that did.
+			 *
+			 * The catalogue stays quiet for the same reason: a per-project override lives in its
+			 * own note and this surface prints the SHARED default (§3.5), so no row's figures
+			 * move. Filtered on nothing but the payload's presence — every price override in the
+			 * vault is about some asset in this catalogue, and the consumer narrows to its own
+			 * selection.
+			 */
+			events.subscribe('AssetPriceOverrideChanged', (event) => {
+				const price = changedPrice(event);
+				if (typeof price.assetId !== 'string') return;
+				listener({ catalogue: false, marks: NONE, design: NONE, usage: [price.assetId], replaced: NONE });
 			}),
 			/**
 			 * `ProjectIndexExclusionChanged`, filtered to `entityType === 'renovation-asset'` for
@@ -173,7 +219,7 @@ export function createAssetLibraryChangeSource(
 			events.subscribe('ProjectIndexExclusionChanged', (event) => {
 				const exclusion = changedExclusion(event);
 				if (exclusion.entityType !== 'renovation-asset') return;
-				listener({ catalogue: true, marks: NONE, design: NONE, replaced: NONE });
+				listener({ catalogue: true, marks: NONE, design: NONE, usage: NONE, replaced: NONE });
 			}),
 		];
 		return () => {

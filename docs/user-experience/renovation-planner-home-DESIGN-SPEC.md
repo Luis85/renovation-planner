@@ -170,13 +170,13 @@ composition. The relocation of the `New asset` action. The keyboard model and th
 
 | # | Region | Present when |
 |---|---|---|
-| 1 | Header — title + `New project` | status is `ready` **and** the vault holds at least one project |
-| 2 | Filter line | status is `ready` **and** the vault holds at least one project |
+| 1 | Header — title + `New project` | status is `ready` **and** the empty state does not apply |
+| 2 | Filter line | status is `ready` **and** at least one project loaded |
 | 3 | `Continue` group | a stored context resolves to a project that still exists |
 | 4 | `Projects` group | at least one project is not `COMPLETE`/`AS_BUILT` and passes the filter |
 | 5 | `Completed` group | at least one project is `COMPLETE`/`AS_BUILT` and passes the filter |
 | 6 | Partial-read notice | `unreadable > 0` |
-| 7 | Foot line — key legend + `New asset` | always, including the empty state |
+| 7 | Foot line — key legend + `New asset` | status is `ready`, including the empty state |
 | — | Empty state | status is `ready`, no projects, nothing unreadable |
 | — | Failure | status is `failed` |
 | — | Loading | status is neither |
@@ -194,7 +194,21 @@ which both buttons render.
 
 Region 7 is present in **both** the empty state and the populated state, which is the change
 that removes today's duplication: `ProjectList`'s header button and `ViewRoot`'s
-`.rp-view-aside` are two independently-decided homes for one action, and they become one.
+`.rp-view-aside` are two independently-decided homes for one action, and they become one. It is
+**not** present during loading or failure, and an earlier draft of this row said `always`, which
+contradicted §9's own loading row two sections down. `ready` is what it always meant: a foot
+line under a `ViewFailure` would offer to create a catalogue entry in a session that could not
+read the vault, and one under a loading line would be the only thing on screen.
+
+**Regions 1 and 2 have different conditions, and the difference is the unreadable-only state.**
+Region 1's condition is the *empty state*, not the project count, because what it exists to
+prevent is two identical `New project` actions on a pane with one thing to do — and the empty
+state is precisely what `selectRenovationProjectEmptyState` declines when `unreadable > 0`. So a
+vault whose only projects are ones this build cannot read draws the header: there is no second
+`New project` to collide with, and creating one is a real thing to do. Region 2 is conditioned on
+a project having *loaded*, because a filter over nothing is furniture and its count line would
+have to read `0 projects` about a vault that demonstrably holds some — a false statement in the
+one region whose whole job is to state the truth about how many there are.
 
 ---
 
@@ -284,7 +298,7 @@ The launcher's grammar, without the autofocus that would make it hostile:
 
 | Key | Where | Does |
 |---|---|---|
-| any printable character | list has focus | moves focus to the filter and seeds it with that character |
+| any printable character **except `Space`** | list has focus | moves focus to the filter and seeds it with that character |
 | `↓` / `↑` | filter or list | moves DOM focus through visible rows |
 | `↵` | a row | opens the project (navigate) |
 | `Mod+↵` | a row | opens the project's note |
@@ -292,9 +306,26 @@ The launcher's grammar, without the autofocus that would make it hostile:
 | `Esc` | filter, empty | returns focus to the first row |
 | `Mod+N` | anywhere in the pane | opens `New project` |
 
+**`Space` is carved out of the type-to-filter rule, and the carve-out is load-bearing rather
+than tidy.** `Space` is a printable character, and the rows are ordinary `<button>` elements —
+which this section requires two paragraphs down — whose native keyboard activation is `Enter`
+*and* `Space`. Seeding the filter from it would either suppress that activation or do both at
+once: open the project *and* leave a space in the field. A keyboard user pressing `Space` on a
+focused row would get behaviour no other button on the surface has. `Space` on a row therefore
+does what a button does, and the filter is unreachable by it — which costs nothing, since a
+query never usefully *begins* with a space.
+
 **Roving `tabindex` applies to the row lists and to nothing else.** Its purpose is to bound an
 *unbounded* set, not to minimise stops: a vault of thirty projects must not cost thirty tabs to
 walk past, and everything else on this surface is a small bounded set that has no such problem.
+
+**Both row lists are roving groups, not just `Projects`.** The tab sequence below names
+`the Completed list, when expanded (one stop)`, and a group is only one stop if something makes
+it one: without its own roving controller, every completed project keeps `tabindex="0"` and a
+vault with twenty finished projects costs twenty tabs to walk past — the exact cost this
+mechanism exists to remove, reintroduced in the group most likely to be long. Each list clamps
+its own controller against **its own** row count, never against the filter's total match count:
+those differ the moment a query matches a completed project and not an active one.
 
 So the tab sequence, in DOM order, is every independent action plus one stop per row list:
 
@@ -459,7 +490,7 @@ in the heading, collapsed by default, its expanded state **not persisted**.
 | **Failed (session)** | `ViewFailure` with no retry — re-running a query that was never wired is the live control that does nothing. Unchanged from slice 17. |
 | **Empty** | The `renovationProject.noProjects` empty state with its action, **plus the foot line** so a fresh vault can still build a catalogue. No header, no filter. |
 | **Partial read** | The `.rp-view-notice` strip above the groups, additive; the list draws every project that loaded. |
-| **Empty list, unreadable > 0** | The list header and its groups draw with no rows, beside the notice. Never the "no projects yet" empty state — `selectRenovationProjectEmptyState` already answers `null` here, and this surface keeps that. |
+| **Empty list, unreadable > 0** | The header, the notice and the foot line. **No filter and no group headings** — a group heading over nothing is the card-with-holes §8 refuses, and a count line reading `0 projects` about a vault that demonstrably holds some is false in the one region whose job is to state that number. Never the "no projects yet" empty state — `selectRenovationProjectEmptyState` already answers `null` here, and this surface keeps that. |
 | **Filtered to nothing** | Groups are empty; the list region holds the no-match line and two actions: `Clear filter`, and `New project named "<query>"`. |
 | **One project** | Everything renders. The filter is present and states `1 project`; it is the count line, so it has a job at every vault size. |
 
@@ -585,9 +616,20 @@ the same fact and would drift from the enum.
    declare. It needs its own persisted key in the plugin's own data, with its own parse-and-
    fall-back-to-absent rule, and it is **device-local** — a consequence worth stating plainly:
    Continue does not follow the vault to the phone.
-2. **`lastWorked`'s exact derivation.** "Most recent mtime across the project's own notes" is
-   the intent; whether that means every indexed note or only `Project.md` is a cost question
-   for whoever holds the index, and it must be decided once, in the query, not per caller.
+2. **`lastWorked` is the most recent mtime across EVERY note the index holds for that project**
+   — its own `Project.md`, its plans, its zones and its requirements alike — decided once, in
+   the query, never per caller.
+
+   An earlier draft of this constraint left "every indexed note or only `Project.md`" open as a
+   cost question, which §8 two sections up had already closed in the other direction: that
+   section requires the maximum across the project's own notes and says the value moves on every
+   owned-note write. `Project.md` alone contradicts both, and it fails the case the field exists
+   for — a project whose whole afternoon went into drawing zones would never move to the top of
+   a list ordered by when it was last worked on.
+
+   The cost that made it look like a question is not real at the scale it is paid: one walk of
+   the index answers both commissioned facts for every project at once, so the read is
+   proportional to the number of notes in the vault rather than to notes × projects.
 3. **The narrow threshold's value.** It comes from a capture at 460px with the German status
    words in place, not from a round number.
 4. **Nothing writes to the vault outside `infrastructure/`**, and `presentation/dialogs/` may

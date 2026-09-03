@@ -26,10 +26,19 @@ jsdom + `@vue/test-utils`, Obsidian 1.13.0 API, CSS partials under `styles/` ass
 The spec's section 14 leaves three decisions open. All three were put to the user and are
 settled here; a task that contradicts one of these is wrong, not a judgement call.
 
-1. **`Mod+N` is a REGISTERED COMMAND**, not a pane-local key handler — `addCommand` in
+1. **`New project` is a REGISTERED COMMAND**, not a pane-local key handler — `addCommand` in
    `src/plugin/`, so Obsidian owns the binding, the user can rebind it, and it appears in the
-   palette. Task 9 builds it. The key legend reads the resolved modifier, never a hard-coded
-   `Mod+N` claim about a binding the user may have changed.
+   palette. Task 9 builds it, with **no default hotkey**: declaring one would claim `Mod+N` on
+   every install over whatever the user already had there.
+
+   **The key legend therefore does not name it**, which is a consequence of that choice rather
+   than a second decision. With no default binding, a legend reading `{mod}N new project` would
+   advertise a key that does nothing until the user goes and binds it; and reading back what
+   they *did* bind is not available, because Obsidian's hotkey registry is internal and this
+   plugin may not reach the global `app`. The legend names the two pane-local accelerators that
+   are true on a fresh install, and the command is discoverable in the palette, which is where
+   §14 says the stranger looks. This narrows the spec's §7 legend and §12's
+   `view.project.keys`; Task 13 amends both.
 2. **`Continue` stores `{ projectId, planId }` and restores by navigating THIS leaf** — it
    never reclaims a leaf by identity, so section 14's "restoring into a leaf Obsidian has
    already restored differently" cannot arise: there is no leaf id stored to be wrong about.
@@ -1031,7 +1040,17 @@ other `command.*` entries, and add this block beside the existing `view.project.
 	'view.project.plans-many': '{count} plans',
 	// `{mod}` is resolved at the CALL SITE — `⌘` on macOS, `Ctrl` elsewhere — never baked into
 	// a locale string, because it is a fact about the machine and not about the language.
-	'view.project.keys': '↵ open · {mod}↵ open note · {mod}N new project',
+	//
+	// **It names only the two PANE-LOCAL accelerators, and `Mod+N` is deliberately absent.**
+	// The design spec's §7 table wrote a third clause, and it cannot be honest: `New project`
+	// is a registered command with NO default hotkey (declaring one would claim `Mod+N` on
+	// every install over whatever the user already had), so a legend promising `{mod}N` would
+	// advertise a key that does nothing until the user goes and binds it. Reading what they
+	// actually bound is not available either — Obsidian's hotkey registry is internal and this
+	// plugin may not reach the global `app` — so the honest legend is the one whose every
+	// clause is true on a fresh install. The command is discoverable where a registered command
+	// is discoverable: the palette.
+	'view.project.keys': '↵ open · {mod}↵ open note',
 ```
 
 **Sentence case.** `obsidianmd/ui/sentence-case-locale-module` fails the build on a capitalised
@@ -1058,7 +1077,7 @@ In `src/presentation/i18n/locales/de.ts`, add the matching entries:
 	'view.project.continue.open': 'Öffnen',
 	'view.project.plans-one': '1 Plan',
 	'view.project.plans-many': '{count} Pläne',
-	'view.project.keys': '↵ öffnen · {mod}↵ Notiz öffnen · {mod}N neues Projekt',
+	'view.project.keys': '↵ öffnen · {mod}↵ Notiz öffnen',
 ```
 
 **Read `de.ts`'s own header before adding a word.** This file has shipped three defects —
@@ -3133,6 +3152,82 @@ describe('ProjectList keyboard', () => {
 		expect(document.activeElement).toBe(rows[0].element);
 	});
 
+	it('leaves Space to the button it was pressed on', async () => {
+		const wrapper = list();
+		const rows = wrapper.findAll('.rp-project-list__row');
+		await rows[0].trigger('focus');
+
+		await rows[0].trigger('keydown', { key: ' ' });
+
+		// `' '.length === 1`, so Space passes a bare printable-character test — and a row is a
+		// `<button>`, whose native activation is Enter AND Space. Seeding from it would either
+		// suppress that activation or do both at once: open the project and leave a space in
+		// the field. Nothing is lost, because a query never usefully begins with a space.
+		expect(document.activeElement).toBe(rows[0].element);
+		expect((wrapper.find('.rp-project-filter__input').element as HTMLInputElement).value).toBe('');
+	});
+
+	it('enters the results with ArrowDown from the filter', async () => {
+		// §7's table says the arrows work from `filter or list`. Bound to the list alone, a
+		// keyboard user reaches the field and cannot get out of it into the rows.
+		const wrapper = list();
+		const input = wrapper.find('.rp-project-filter__input');
+		await input.trigger('focus');
+
+		await input.trigger('keydown', { key: 'ArrowDown' });
+
+		expect(document.activeElement).toBe(wrapper.findAll('.rp-project-list__row')[0].element);
+	});
+
+	it('costs ONE tab stop for the Completed list too', async () => {
+		const wrapper = mount(ProjectList, {
+			props: {
+				projects: [
+					project('Attic', { status: 'COMPLETE' }),
+					project('Bathroom', { status: 'COMPLETE' }),
+					project('Cellar', { status: 'AS_BUILT' }),
+				],
+			},
+			attachTo: document.body,
+		});
+		await wrapper.find('.rp-project-list__completed > summary').trigger('click');
+
+		const rows = wrapper.findAll('.rp-project-list__completed .rp-project-list__row');
+
+		// Its own controller, not the Projects one. Without it every completed project keeps
+		// `tabindex="0"` — the exact cost roving exists to remove, in the group most likely to
+		// be long, and the group §7's sequence names as one stop.
+		expect(rows.filter((row) => row.attributes('tabindex') !== '-1')).toHaveLength(1);
+	});
+
+	it('clamps each group against ITS OWN rows, not the filter’s total', async () => {
+		// One active row and two completed rows match while the active cursor sits at 2:
+		// clamping against `matching.length` (3) does nothing, and the sole active row is left
+		// at `tabindex="-1"` — so Tab skips the Projects group entirely, silently.
+		const wrapper = mount(ProjectList, {
+			props: {
+				projects: [
+					project('Match one'),
+					project('Match two', { status: 'COMPLETE' }),
+					project('Match three', { status: 'AS_BUILT' }),
+					project('Other'),
+					project('Another'),
+				],
+			},
+			attachTo: document.body,
+		});
+		const rows = wrapper.findAll('.rp-project-list__group--projects .rp-project-list__row');
+		await rows[0].trigger('focus');
+		await rows[0].trigger('keydown', { key: 'ArrowDown' });
+		await rows[1].trigger('keydown', { key: 'ArrowDown' });
+
+		await wrapper.find('.rp-project-filter__input').setValue('Match');
+
+		const active = wrapper.findAll('.rp-project-list__group--projects .rp-project-list__row');
+		expect(active).toHaveLength(1);
+		expect(active[0].attributes('tabindex')).toBe('0');
+	});
+
 	it('clears a query on Escape and keeps the caret in the field', async () => {
 		const wrapper = list();
 		const input = wrapper.find('.rp-project-filter__input');
@@ -3216,15 +3311,20 @@ import { ref, type Ref } from 'vue';
  * handling for everything else — the printable-character seeding, in this surface's case —
  * rather than this module having to know about it.
  */
-export function useRovingFocus(
-	container: Ref<HTMLElement | null>,
-	selector: string,
-): {
+/**
+ * Exported by NAME rather than left as a `ReturnType<typeof useRovingFocus>` at the call sites:
+ * `ProjectList` passes a controller as a parameter (two groups, one handler), and an exported
+ * signature naming a type its own module does not export is the `private-type-leak` `fallow`
+ * reports as an `error` here.
+ */
+export interface RovingFocus {
 	activeIndex: Ref<number>;
 	onKeydown: (event: KeyboardEvent) => boolean;
 	clamp: (length: number) => void;
 	focusFirst: () => void;
-} {
+}
+
+export function useRovingFocus(container: Ref<HTMLElement | null>, selector: string): RovingFocus {
 	const activeIndex = ref(0);
 
 	function members(): HTMLElement[] {
@@ -3300,12 +3400,29 @@ In `src/presentation/views/ProjectList.vue`:
 ```typescript
 import { useRovingFocus } from './useRovingFocus';
 
+/**
+ * ONE CONTROLLER PER ROW LIST, because §7's sequence names both of them as one stop each.
+ *
+ * `Completed` having its own is not symmetry for its own sake: without it every completed
+ * project keeps `ProjectRow`'s default `tabindex="0"`, so a vault with twenty finished projects
+ * costs twenty tabs to walk past — the exact cost roving exists to remove, reintroduced in the
+ * group most likely to be long.
+ */
 const activeList = ref<HTMLElement | null>(null);
-const roving = useRovingFocus(activeList, '.rp-project-list__row');
+const completedList = ref<HTMLElement | null>(null);
+const activeRoving = useRovingFocus(activeList, '.rp-project-list__row');
+const completedRoving = useRovingFocus(completedList, '.rp-project-list__row');
 
-// The filter is what makes this necessary: a list that just got shorter can leave the roving
-// index past its end, and the group would then have no tabbable member at all.
-watch(matching, (rows) => roving.clamp(rows.length));
+/**
+ * EACH GROUP CLAMPS AGAINST ITS OWN ROWS, never against the filter's total match count.
+ *
+ * The two differ the moment a query matches a completed project and not an active one: with one
+ * active row and two completed matches, a cursor at index 2 clamped against `matching.length`
+ * (3) does not move, and the sole active row is left at `tabindex="-1"` — so Tab skips the
+ * `Projects` group for the rest of the mount, silently, with nothing on screen to say why.
+ */
+watch(active, (rows) => activeRoving.clamp(rows.length));
+watch(completed, (rows) => completedRoving.clamp(rows.length));
 
 /**
  * The launcher's keyboard ENTRY, and the reason no autofocus is needed: a printable character
@@ -3315,17 +3432,40 @@ watch(matching, (rows) => roving.clamp(rows.length));
  * keystroke is left alone: `Ctrl+P` is Obsidian's command palette, and swallowing it here would
  * take every host shortcut a user presses while a row has focus.
  */
-function onListKeydown(event: KeyboardEvent): void {
+function onListKeydown(event: KeyboardEvent, roving: RovingFocus): void {
 	if (roving.onKeydown(event)) {
 		event.preventDefault();
 		return;
 	}
+	// `Space` is CARVED OUT, and it is the one exclusion that matters. `' '.length === 1`, so a
+	// bare printable test admits it — and a row is a `<button>`, whose native activation is
+	// Enter AND Space. Seeding from it would either suppress that activation or do both at
+	// once: open the project and leave a space in the field. Nothing is lost: a query never
+	// usefully begins with a space.
+	if (event.key === ' ') return;
 	if (event.key.length !== 1 || event.altKey || event.ctrlKey || event.metaKey) return;
 	event.preventDefault();
 	query.value = event.key;
 	void nextTick(() => {
 		filterInput.value?.focus();
 	});
+}
+
+/**
+ * The arrows work from the FILTER as well as from a list — §7's table says `filter or list`,
+ * and bound to the lists alone a keyboard user reaches the field and cannot get out of it into
+ * the results.
+ *
+ * It enters whichever group has rows, `Projects` first: that is the group the user is almost
+ * always filtering toward, and `Completed` is collapsed by default, so arrowing into a group
+ * the user cannot see would be worse than not moving at all.
+ */
+function onFilterKeydown(event: KeyboardEvent): void {
+	if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+	if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+	if (active.value.length === 0) return;
+	event.preventDefault();
+	activeRoving.focusFirst();
 }
 
 /**
@@ -3339,7 +3479,7 @@ function onFilterCancel(): void {
 		query.value = '';
 		return;
 	}
-	if (matching.value.length > 0) roving.focusFirst();
+	if (active.value.length > 0) activeRoving.focusFirst();
 }
 ```
 
@@ -3349,21 +3489,35 @@ existing house style uses; a `defineExpose({ focus: () => input.value?.focus() }
 `ProjectFilter` is the smaller surface and is what the test's `document.activeElement`
 assertion reads.
 
-Bind `@keydown="onListKeydown"` on the `Projects` group's `<ul>` with `ref="activeList"`,
-`@cancel="onFilterCancel"` on the filter, and `:tabbable="index === roving.activeIndex.value"`
-on each row in that list.
+Bind, on the `Projects` group's `<ul>`: `ref="activeList"`,
+`@keydown="(e) => onListKeydown(e, activeRoving)"`, and
+`:tabbable="index === activeRoving.activeIndex.value"` on each row in it. The same three on the
+`Completed` group's `<ul>` with `completedList` and `completedRoving`. On the filter:
+`@cancel="onFilterCancel"` and `@keydown="onFilterKeydown"` — which means `ProjectFilter` must
+re-emit its input's `keydown` beside the `cancel` it already emits, since the arrows are the
+list's business and Escape's two meanings are too.
+
+Export the composable's return type from `useRovingFocus.ts` as
+`export interface RovingFocus { … }` so `onListKeydown`'s second parameter can name it — a
+`ReturnType<typeof useRovingFocus>` at the call site would be the private-type-leak `fallow`
+reports as an `error`.
 
 - [ ] **Step 6: Run the keyboard test**
 
 Run: `npx vitest run tests/presentation/views/projectListKeyboard.test.ts`
-Expected: PASS, 10 cases.
+Expected: PASS, 14 cases.
 
-- [ ] **Step 7: Mutation-check the clamp**
+- [ ] **Step 7: Mutation-check the three guards**
 
-Delete the `watch(matching, …)` line and re-run.
-Expected: the last case goes RED — no row carries `tabindex="0"`.
+Change `watch(active, …)` to `watch(matching, (rows) => activeRoving.clamp(rows.length))`.
+Expected: the own-rows clamp case goes RED — the sole active row is left at `tabindex="-1"`.
+This is the mutation that matters most, because it is the version the plan shipped first and
+every other case in the file passes against it.
 
-Then restore it and delete the `event.key.length !== 1` guard instead.
+Restore it, then delete the `event.key === ' '` carve-out.
+Expected: the Space case goes RED.
+
+Restore it, then delete the `event.key.length !== 1` guard.
 Expected: the modified-keystroke case goes RED.
 
 Both are the measurement this repository asks for when a fix is a REFUSAL or a GUARD: the suite
@@ -4112,9 +4266,12 @@ its own controls is the composite that would force a grid pattern onto everythin
 **Files:**
 - Create: `src/presentation/views/ContinueRow.vue`
 - Modify: `src/presentation/views/ProjectList.vue`, `src/presentation/views/ViewRoot.vue`
+- Modify: `src/presentation/views/ProjectDetailState.vue` — the only path that opens a plan, and
+  therefore the only thing that can ever store a non-null `planId`
 - Modify: `styles/project-list.css`
 - Test: `tests/presentation/views/continueRow.test.ts`
 - Test: `tests/presentation/views/viewRootContinue.test.ts`
+- Test: `tests/presentation/views/projectDetailState.test.ts` (existing — extend)
 
 **Interfaces:**
 - Consumes: `ContinueContext`, `ProjectSummaryDto`, `context.navigate`, `context.openPlan`,
@@ -4366,28 +4523,61 @@ In `src/presentation/views/ViewRoot.vue`:
  * The stored context, resolved against the list this mount actually read — §7's "validation is
  * a READ, not a subscription".
  *
- * A `computed` over `projects` rather than a second query: the project must still exist, and
- * the list in front of us is the freshest answer to that there is. It therefore re-resolves for
- * free on every hydrate, and a project deleted underneath simply stops being found — nothing
- * redirects, nothing announces, nothing is retracted.
+ * The PROJECT half is a `computed` over `projects` rather than a second query: it must still
+ * exist, and the list in front of us is the freshest answer to that there is. It therefore
+ * re-resolves for free on every hydrate, and a project deleted underneath simply stops being
+ * found — nothing redirects, nothing announces, nothing is retracted.
  *
- * The PLAN half is deliberately NOT validated. This surface has no plan list to check against,
- * and asking for one would be a vault read per mount to pre-empt a case `openPlan` already
- * answers for. A plan since deleted is a Continue that lands on the detail state, which is
- * where Open would have gone.
+ * The PLAN half cannot ride that list, because this surface's list holds projects. It is read
+ * once at mount by `resolveStored` below and held in `storedPlanLives`, which is why the two
+ * halves are two fields rather than one predicate.
  */
 const stored = ref<ContinueContext | null>(null);
+/** Whether the stored context's PLAN still exists — `true` when it names none. */
+const storedPlanLives = ref(false);
 
 const continueProject = computed(() => {
-	const context = stored.value;
-	if (context === null) return null;
-	const project = projects.value.find((candidate) => candidate.id === context.projectId);
-	return project === undefined ? null : { project, planId: context.planId };
+	const resume = stored.value;
+	if (resume === null || !storedPlanLives.value) return null;
+	const project = projects.value.find((candidate) => candidate.id === resume.projectId);
+	return project === undefined ? null : { project, planId: resume.planId };
 });
 ```
 
-reading it once inside the existing `onMounted` (`stored.value = await context.continueContext()`),
-and handling the new emit:
+Read both at mount, inside the existing `onMounted`:
+
+```typescript
+/**
+ * **BOTH ids are resolved, which is what §7 asks for and an earlier draft of this plan did not
+ * do**: "resolve the stored ids against the project index at hydrate time, and if EITHER
+ * misses, the group does not render."
+ *
+ * Validating only the project left `onResume` calling `openPlan` on a plan that is gone — and
+ * `renovationProjectOpenPlan` reveals a Plan Editor leaf for that id, whose `missing` state
+ * draws `editor.plan-missing.*` and asks the user to close the tab. So Continue on a deleted
+ * plan opened a dead editor, under a comment in this same plan claiming it "lands on the detail
+ * state". It does not, and the comment was the best available description of the defect — this
+ * repository's oldest recurring shape, arriving in a document about avoiding it.
+ *
+ * The plan half costs ONE extra read, and only when a stored context names a plan: the query
+ * bundle already carries `listPlansByProject`, so nothing new is commissioned for it. A project
+ * whose plans could not be read is treated as a miss — the group is an offer, and an offer that
+ * might open a dead editor is worse than no offer.
+ */
+async function resolveStored(): Promise<void> {
+	const resume = await context.continueContext();
+	stored.value = resume;
+	if (resume === null || resume.planId === null) {
+		storedPlanLives.value = resume !== null;
+		return;
+	}
+	const plans = await context.queries.listPlansByProject(resume.projectId);
+	storedPlanLives.value =
+		!isErr(plans) && plans.value.plans.some((plan) => plan.id === resume.planId);
+}
+```
+
+and handle the new emit:
 
 ```typescript
 /**
@@ -4397,6 +4587,10 @@ and handling the new emit:
  *
  * It goes through the SAME doors a row already uses. Nothing here reclaims a leaf by identity,
  * which is what makes surviving a restart a non-question rather than a behaviour to design.
+ *
+ * The `planId` branch is safe to take unguarded ONLY because `resolveStored` established that
+ * the plan exists — this function has no fallback of its own and must not grow one, because a
+ * fallback here would be a second answer to a question the resolution already owns.
  */
 function onResume(resume: ContinueContext): void {
 	if (resume.planId === null) {
@@ -4410,24 +4604,71 @@ function onResume(resume: ContinueContext): void {
 and remember on every navigation into a project:
 
 ```typescript
-			@open="(id) => { context.rememberContinue({ projectId: id, planId: null }); context.navigate(id); }"
+			@open="onOpenProject"
 ```
 
-Extract that pair into a named `function onOpenProject(id: string): void` rather than leaving it
-inline — a template arrow doing two things is where the second one gets dropped by an edit that
-only meant to change the first.
+```typescript
+function onOpenProject(id: string): void {
+	context.rememberContinue({ projectId: id, planId: null });
+	context.navigate(id);
+}
+```
+
+A named function rather than a template arrow doing two things — that is where the second one
+gets dropped by an edit which only meant to change the first.
+
+- [ ] **Step 6a: Remember the PLAN, which is the half nothing else writes**
+
+`ProjectDetailState.vue` opens a plan directly —
+`@open-plan="(planId) => void context.openPlan(planId)"` — and that is **the only path in the
+app that opens one from this view's tree**. Without a `rememberContinue` there, no gesture ever
+stores a non-null `planId`, so `ContinueContext.planId` is always `null`, `resolveStored`'s plan
+branch is dead, and **Continue can never resume the plan the user was working in** — which is
+the whole of what distinguishes it from `Open`.
+
+The row above remembers a PROJECT; this remembers the plan inside it, and both are needed
+because they are two different places the user can have been.
+
+```typescript
+/**
+ * Where the user is, recorded at the moment they go there. `props.projectId` is this state's
+ * own subject, so the pair is complete without a lookup.
+ *
+ * BEFORE the open rather than after: `openPlan` is fire-and-forget and this must not depend on
+ * its resolution, and a context stored for a plan that then failed to open still describes
+ * where the user asked to be.
+ */
+function onOpenPlan(planId: string): void {
+	context.rememberContinue({ projectId: props.projectId, planId });
+	void context.openPlan(planId);
+}
+```
+
+bound as `@open-plan="onOpenPlan"`. Add a case to `tests/presentation/views/projectDetail*.test.ts`
+asserting `rememberContinue` was called with both ids — watched failing with the call removed,
+because every other case in that file passes without it.
 
 - [ ] **Step 7: Write the view test**
 
 Create `tests/presentation/views/viewRootContinue.test.ts` with cases for: the group rendering
 when the stored context names a project the list holds; the group ABSENT when it names one the
-list does not; the group absent with no stored context; `Continue` on a plan context calling
-`openPlan` and not `navigate`; `Continue` on a project context calling `navigate`; `Open` always
-calling `navigate`; and opening a row calling `rememberContinue` before navigating. Mount through
-`makeRenovationProjectView`'s helper with `continueContext` returning each case's value.
+list does not; the group absent with no stored context; **the group absent when it names a plan
+`listPlansByProject` does not return**; **the group absent when that plan read REFUSES**; the
+group rendering when the context names no plan at all (so the plan read is never made);
+`Continue` on a plan context calling `openPlan` and not `navigate`; `Continue` on a project
+context calling `navigate`; `Open` always calling `navigate`; and opening a row calling
+`rememberContinue` before navigating. Mount through `makeRenovationProjectView`'s helper with
+`continueContext` returning each case's value.
 
-The deleted-project case is the one this whole design turns on — watch it fail with the
-`find` removed, so it is pinning the resolution and not merely the absence.
+Two of these are the ones this design turns on, and each needs watching fail against a
+DIFFERENT mutation:
+
+- **the deleted PROJECT** — watch it fail with the `find` removed, so it pins the resolution
+  rather than merely the absence;
+- **the deleted PLAN** — watch it fail with `storedPlanLives` hard-coded `true`. That is the
+  version the plan shipped first, and every other case in the file passes against it, which is
+  exactly why the case has to exist. Assert `openPlan` was NOT called, not merely that the group
+  is absent: a build that draws the group and opens a dead editor is what the case is about.
 
 - [ ] **Step 8: Run the full gate and commit**
 
@@ -4685,6 +4926,10 @@ for anything that changed:
   it produced.
 - The `PlanDeleted` commission in §8, which has no producer: record that the entry arm carries
   deletion instead.
+- **§7's key legend and §12's `view.project.keys`**, which name a `{mod}N new project` clause the
+  build does not ship: the command carries no default hotkey, so that clause would advertise a
+  key that does nothing on a fresh install, and Obsidian's hotkey registry is internal so the
+  real binding cannot be read back.
 - §14's three open decisions, each with the answer taken and by whom.
 - Anything the capture or the manual case falsified.
 
@@ -4789,6 +5034,32 @@ is `{ projectId, planId }` in the parse, the store, the deps, the emit and the r
 `nameCollator` is defined in Task 5 and consumed by Tasks 5, 6 and 9. `matchesQuery`/`splitMatch`
 are Task 6's throughout. `useRovingFocus` returns `{ activeIndex, onKeydown, clamp, focusFirst }`
 and Task 8 uses exactly those four.
+
+**Second round, after Codex review of the first push.** Six findings against this plan, all six
+verified and all six real. Four were defects the plan would have shipped, and they are recorded
+here rather than only fixed, because three of them are shapes this repository already has a name
+for:
+
+- **`ProjectDetailState` is the only path that opens a plan, and it did not remember one** —
+  so `ContinueContext.planId` was always `null` and Continue could never resume a plan, which is
+  the whole of what distinguishes it from `Open`. The plan built a feature that could not reach
+  half its own purpose. Task 11 step 6a.
+- **A comment describing behaviour the code cannot deliver.** The resume handler claimed a
+  deleted plan "lands on the detail state"; `renovationProjectOpenPlan` reveals a Plan Editor
+  whose `missing` state asks the user to close the tab. Re-reading §7 settled it — the spec
+  already required resolving *both* ids ("if either misses, the group does not render") and the
+  plan validated one. This repository's oldest recurring shape, arriving in a document about
+  avoiding it.
+- **A guard clamped against the wrong set.** One controller over two groups, clamped on the
+  filter's total match count: with one active row and two completed matches, the `Projects`
+  group silently loses its only tab stop. The mutation is written into Task 8 step 7 because
+  every other case in that file passes against the broken version.
+- **`Space` is a printable character and a row is a `<button>`.** The type-to-filter rule would
+  have collided with native activation on the one key that has both meanings.
+
+The other two are narrowings rather than defects: the arrows now work from the filter as §7's
+table always said, and `Completed` gets its own roving controller because §7's sequence names it
+as one stop.
 
 **Coverage risk.** Tasks 1, 6 and 10 each add error arms that no production path reaches
 (`NO_FACTS` at the `getProject` door, `indexOfMatch`'s length guard, both `catch` blocks). Each

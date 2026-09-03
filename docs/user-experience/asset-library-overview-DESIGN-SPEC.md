@@ -564,7 +564,15 @@ Four sections, in this order:
    disambiguates nothing, and a composite key of the two gives two different projects the same
    identity. `ReferencingGroup` already carries `projectId`: that is the key, unique by
    construction. For DISPLAY, where the folder does not separate two rows the discriminator is
-   the project note's own path, which does. Reported by a review bot — the second correction to
+   the project note's own path — **and supplying it is a collaborator change, not a rendering
+   rule.** `ListRequirementsReferencing` holds a `ProjectFolderLookup`
+   (`(projectId) => string | undefined`) and the loaded `Project` carries no note path, so an
+   instruction to *display the full path* leaves an implementation with nothing to display. The
+   lookup widens to the NOTE path, which the index already answers — `projectFolderOf` is
+   literally `parentOf(index.getPath(id))`, so the folder this row shows today is derived from
+   the very value being asked for, one call further out. Third time this document has answered
+   "the data does not reach here" with a rendering instruction; the previous two were a private
+   method and a port refusal. Reported by a review bot — the second correction to
    this one row, and both were the same mistake, using a value that is usually unique as though
    it were always unique. `Not used in any project` when there are none, which is the
    sentence that makes a deletion safe to reason about, and the sentence a price edit is read
@@ -755,7 +763,7 @@ interface CatalogueEntryDto {
   height: number | null; notes: string | null;
   background: AssetBackgroundRef | null;
 }
-interface UnreadableEntry { assetId: AssetId; path: string; }
+interface UnreadableEntry { assetId: AssetId | null; path: string; }
 interface CatalogueListing { entries: readonly CatalogueEntryDto[]; unreadable: readonly UnreadableEntry[]; }
 ```
 
@@ -818,6 +826,19 @@ is nothing to do about it; an unreadable one has a note **on disk**, and opening
 exactly how a user repairs the frontmatter that broke it — the same shape as `Open designer` being
 the repair path for a damaged sidecar. With only a count, §3.5 would have to collapse the two and
 withhold the one action that works, which is the dead-end this document already refused once.
+
+**Two sources feed that list, and the first version of this section knew about one.** A note
+whose read FAILED is skipped by `ObsidianAssetRepository.list`, which has its id. A note whose
+`id` is missing, empty or not a string never reaches the repository at all: `entityRefOf`
+classifies it `no-id` and `buildProjectIndexEntries` excludes it, so `listAll()` — which
+enumerates index ids — cannot see it. A vault holding only such asset notes therefore produced
+`{ entries: [], unreadable: [] }` and drew **no assets yet** over a library full of them, which
+is the exact failure §5.1a was written to prevent, arriving through the door it did not check.
+
+So `UnreadableEntry.assetId` is `AssetId | null` and the scan carries the excluded notes' paths
+alongside the repository's skipped ids. The null arm is not a gap: a note with no usable id cannot
+be SELECTED, because nothing can name it — it can only be counted and listed, and its path is what
+`Open note` needs regardless.
 
 `ObsidianAssetRepository.list` already HAS the ids at the point it skips them — it records each
 one to the diagnostics ledger — so this is a wider return rather than new bookkeeping. The status
@@ -2212,6 +2233,32 @@ index" — the claim §5.3 was corrected for in one of the first rounds, sitting
 prototype the entire time, where a builder promoting that explicitly reusable helper would bypass
 a moved or synced sidecar, report it absent, and later write a duplicate at the derived path. **A
 claim corrected in one file is not corrected**, and nothing here greps for the sentence.
+
+A thirty-fourth round found two, and both are **the same mistake I named one round earlier and
+then made twice more**: answering "the data does not reach here" with an instruction about what to
+render.
+
+**The note-path discriminator had no source.** Round thirty-two said a *Used in* row falls back to
+the project note's own path where the folder cannot separate two rows —
+`ListRequirementsReferencing` holds a `ProjectFolderLookup` and the loaded `Project` carries no
+note path, so an implementation had nothing to display. It is a collaborator change: the lookup
+widens to the note path, which the index already answers, and the folder shown today is literally
+`parentOf` of the value being asked for. **Third instance**, after the private `pathFor` and the
+port refusal that carried no path.
+
+**And `unreadable` was fed by one source where there are two.** A note whose READ failed is skipped
+by the repository, which has its id. A note whose `id` is missing, empty or not a string never
+reaches the repository at all — `entityRefOf` classifies it `no-id` and the index excludes it, so
+`listAll()`, which enumerates index ids, cannot see it. A vault holding only such notes produced
+`{ entries: [], unreadable: [] }` and drew **no assets yet** over a full library: *the exact
+failure §5.1a exists to prevent, arriving through the door §5.1a did not check.* `assetId` is
+nullable now and the scan carries the excluded paths — a note with no usable id cannot be
+selected, because nothing can name it, but it can be counted and opened.
+
+**The through-line for three rounds running is not carelessness about text, it is a habit of
+reasoning about the surface and writing down what it should show, without following the value
+back to something that produces it.** Every one of these was findable by opening the file the
+spec names, which is the check I keep not doing.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

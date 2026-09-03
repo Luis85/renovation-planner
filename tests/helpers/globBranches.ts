@@ -265,9 +265,12 @@ export const resolvesOutsideRoots = (
  * exactly the names ending `.test.ts`, so the literal form and the extensionless one Vite's
  * resolver would complete to it are both this suffix. A `.js`-suffixed spelling of a `.test.ts`
  * file — legal under `moduleResolution: "bundler"` — is NOT matched, and is left that way rather
- * than added: `.test.js` is also a real, SCANNED file name in this tree's own walk (`MODULE`
- * admits `.js` and the exclusion is `.test.ts` only), so matching it would report a module that
- * is not in fact outside the scan.
+ * than added: a file actually NAMED `*.test.js` would be SCANNED by that walk, since `MODULE`
+ * admits `.js` and the exclusion tests `.test.ts` alone — so matching the spelling would report a
+ * module the walk did not in fact leave out. A claim about the walk's RULE and not about the
+ * tree's contents: `find src tests/harness tests/helpers -name '*.js'` prints nothing at all
+ * today, so no such file exists to be either scanned or missed, and the reason to leave the
+ * spelling unmatched is what the walk WOULD do with one rather than what it does with any.
  *
  * **Measured before choosing, and measured WIDE on purpose.** A pattern keyed on `from `/`import `
  * cannot see `import('./x.test.ts')`, an `import.meta.glob` argument, a double-quoted specifier or
@@ -343,6 +346,19 @@ const TEST_FILE = /\.test(?:\.ts)?$/;
  *   refusing a pattern is exactly the case `escapesTheRoots` already reports as an escape, so
  *   that pattern fails the assertion under `escapees` whatever this answers. Over-refusing it
  *   here a second time would name the same file in two lists and prove nothing extra.
+ * - **A BARE specifier is OVER-reported, and this module does not enforce the filter that hides
+ *   that.** `resolveBranch` joins anything not beginning `/` onto `dirname(file)`, so a package
+ *   specifier is resolved as though it were relative:
+ *   `importsATestFile('tests/harness/page.ts', { text: 'some-pkg/x.test.ts', isGlob: false },
+ *   ROOTS)` answers `true` — measured — for a specifier naming no file in this tree at all. It is
+ *   unreachable at the SOLE call site, `harness.test.ts`'s `isBoundableSpecifier`, which drops
+ *   anything not starting `.` or `/` before a specifier is ever offered here; but this function is
+ *   exported and that gate lives in the caller, so a SECOND caller inherits the over-report unless
+ *   it repeats the filter. Left standing rather than guarded because the error is the LOUD
+ *   direction — a false `true` fails the closure assertion and is read, where a false `false`
+ *   reopens the hole this predicate exists to close — and a guard here would put the same rule in
+ *   two places for a caller that does not exist. Stated so that the second caller inherits the
+ *   bound rather than the surprise.
  * - **A specifier that is not in the source at all** — held in an identifier, or assembled at
  *   runtime — the bound the whole scan already accepts.
  */

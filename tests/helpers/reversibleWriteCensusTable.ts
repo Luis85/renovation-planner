@@ -28,11 +28,23 @@
  *
  * The override adapters' `execute` rows are an ADDITION over the plan's own table, made in
  * Task 11's fix round: the plan's table named only `undo` for both, and `execute()` — which
- * actually lives on `ReversibleOverrideBase` at line 96, dispatching through the plain
- * wrapped command's `executeWithVersion` — was enumerated nowhere, invisible to the
- * discovery cross-check because that check only verifies directions a disposition already
- * NAMES. Same shape as the plan-background correction: pre-existing behaviour, via the
- * wrapped command, untouched by this increment.
+ * neither concrete adapter declares, inheriting it from `ReversibleOverrideBase`, whose
+ * `execute` calls the subclass's own `run` hook and so reaches the plain wrapped command's
+ * `executeWithVersion` — was enumerated nowhere, invisible to the discovery cross-check
+ * because that check only verifies directions a disposition already NAMES. Same shape as the
+ * plan-background correction: pre-existing behaviour, via the wrapped command, untouched by
+ * this increment. (Addressed by NAME rather than by line number, which an earlier draft used
+ * and which is correct only until the next insertion above it.)
+ *
+ * **What a row is, and what it is NOT.** `module` and `direction` are load-bearing: the
+ * discovery file's last assertion demands an entry here for every `(module, direction)` a
+ * `rows(...)` disposition names, so deleting a row from this table reddens that assertion.
+ * `mustPublish` is NOT — it is read by no code anywhere, in this table's own file or outside
+ * it, and no mechanism compares it against what a direction really published. It is the
+ * human-readable specification a reviewer holds the census file's `it()`s up against, and
+ * editing it changes nothing any gate can see. Written down because the field's name is an
+ * obligation and reads as an enforced one; every direction here does have a real behavioural
+ * `it()` today, so this is an over-claim in the naming rather than a gap in the proof.
  */
 export type CensusDirection = 'execute' | 'undo';
 

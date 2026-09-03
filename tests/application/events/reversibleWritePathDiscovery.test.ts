@@ -6,13 +6,27 @@
  * filter that was itself a sample, a metric counting literal `publish(` syntax, an enumeration
  * that trailed its own count, a per-file grep, a per-function AST walk — and each passed the
  * exact regression it existed to prevent, because "the body contains a publish" is not "this
- * path publishes". Whether a direction announces is settled by its ROW in
- * `reversibleWritePathCensus.test.ts`, which drives it and looks.
+ * path publishes". Whether a direction announces is settled by the `it()`s in
+ * `reversibleWritePathCensus.test.ts`, which drive each direction and look at what came out.
  *
  * What text CAN answer reliably is which modules exist, and that is the whole of this file: a
  * new reversible adapter fails here for being unenumerated, and its author then has to write a
  * row — the "holds for code not yet written" property the sweep was reaching for, relocated to
  * the question a scan can actually settle.
+ *
+ * **Where that chain ENDS, stated because an earlier draft of this header claimed one link
+ * further than it reaches.** It said a direction's announcement "is settled by its ROW", which
+ * reads as the row driving something. It does not. What is mechanically enforced is exactly:
+ * a new class fails the exact-key-set assertion below → its author writes a `rows(...)`
+ * disposition → the last assertion in this file demands a `CENSUS_TABLE` entry for every
+ * `(module, direction)` that disposition NAMES. It stops there. Nothing requires an `it()` per
+ * row, and `mustPublish` — the field carrying what a direction owes — is read by no code
+ * anywhere: measured, `grep -rn "mustPublish" tests/ src/` prints only the table module's own
+ * declaration and values. So a row is a SPECIFICATION people read, and the census file's `it()`s
+ * are the proof; the two are kept in step by review, not by this cross-check. Every row in the
+ * table has such an `it()` today — this is an over-claimed property in the prose, not a hole in
+ * the coverage — and the honest sentence is the narrow one, because a reader who believes the
+ * wide one stops checking that the `it()` exists.
  *
  * Discovery is deliberately CRUDE and over-inclusive, and the unit is the CLASS, not the file —
  * keying by file was the sixth instance of this same defect, because adding an adapter class to
@@ -25,7 +39,14 @@
  *
  * **What the walk cannot see, stated rather than claimed away** (six earlier claims of
  * completeness in this task's own history were each wrong within one round, and the review
- * that approved this file's rows found three MORE the first draft of this list omitted):
+ * that approved this file's rows found three MORE the first draft of this list omitted).
+ *
+ * Every entry below was DRIVEN against the walk rather than reasoned from the regex — each
+ * shape built as a fixture tree and passed through `undoRelatedClasses`, and kept only where
+ * the class really came back undiscovered. A sixth entry did not survive that measurement and
+ * is recorded in the other direction further down, because a list of limitations nobody drives
+ * accumulates ones that are not true, and those are worse than an unmentioned gap: they read as
+ * surveyed ground and they invite a fix for a defect that does not exist.
  *
  * - an adapter that is not a `class` at all — an object literal or a factory return satisfying
  *   `UndoableCommand` structurally;
@@ -37,19 +58,24 @@
  * - a class EXPRESSION rather than a class DECLARATION — `const X = class {}` or
  *   `export const Y = class Z {}` — since the regex anchors on the `class` KEYWORD starting a
  *   statement, never on an assignment;
- * - a declaration whose `class` keyword is not on the SAME LINE as its `export`/`default`
- *   modifier — `export default\nclass Foo` — for the identical reason: the anchor is
- *   line-by-line;
  * - anything in a `.vue` file. `sourceFilesUnder` takes `.ts` only, so a class declared inside
  *   an SFC's `<script setup>` block is invisible to this walk regardless of what its file
  *   otherwise mentions.
  *
- * Two things worth keeping precise in the other direction, because they are easy to lose in
- * an edit and the review that approved this file measured both directly: the walk DOES catch
- * a subclass in a brand-new file whose text never contains "undo" at all, purely through the
- * `extends` closure (a standalone `class NewAdapter extends ReversibleBase {}` is still
- * found); and the `ReversibleSetPlanBackground` carve-out row in the census file is a
- * BEHAVIOURAL assertion, not a comment — making that adapter's `undo()` publish reddens it.
+ * Three things worth keeping precise in the other direction, because they are easy to lose in
+ * an edit and each was measured directly: the walk DOES catch a subclass in a brand-new file
+ * whose text never contains "undo" at all, purely through the `extends` closure (a standalone
+ * `class NewAdapter extends ReversibleBase {}` is still found); the `ReversibleSetPlanBackground`
+ * carve-out row in the census file is a BEHAVIOURAL assertion, not a comment — making that
+ * adapter's `undo()` publish reddens it; and — the sixth "cannot see" entry, DELETED rather than
+ * corrected — a declaration whose `class` keyword sits on its own line below its
+ * `export`/`default` modifier IS discovered. That entry claimed `export default\nclass Foo` was
+ * missed "because the anchor is line-by-line", which mistakes the anchor for a requirement: every
+ * prefix in the regex is OPTIONAL, so the modifier's line matches nothing and the NEXT line
+ * matches as a bare `class Foo`, name and all. Driven, not read: the fixture is discovered as
+ * `Foo`. The reasoning was plausible and the direction of the error is the one to watch for —
+ * it made the instrument look WEAKER than it is, which is the direction nobody re-measures,
+ * because an overstated limitation costs nothing until someone spends a round closing it.
  *
  * The census table is maintained by people; this tripwire only lowers the odds of forgetting.
  */

@@ -281,9 +281,12 @@ describe('templateSkeleton', () => {
 
 /**
  * The tripwire `harness.test.ts`'s closure check asks over every specifier of every SCANNED
- * module. Its own docblock states the bound; these cases pin the four answers that bound is made
- * of — the two spellings that reach an excluded file, the glob that spells the suffix and the one
- * that does not, and the deliberate `false` for a pattern `escapees` already reports.
+ * module. Its own docblock states the bound; these cases pin the answers that bound is made of,
+ * one per behaviour rather than to a count this header would then owe an edit — the two spellings
+ * that reach an excluded file, an ordinary module beside them, a `.test.ts` outside the roots, a
+ * glob that spells the suffix outright, one whose suffix survives only the wildcard ELISION, one
+ * that does not spell it at all, and the deliberate `false` for a pattern `escapees` already
+ * reports.
  *
  * Driven directly rather than through the whole-tree scan because the tree it scans contains no
  * such import — the hole is LATENT, so every one of these would read the same against a predicate
@@ -311,8 +314,20 @@ describe('importsATestFile', () => {
 		expect(asks('../../scripts/chromium.test.ts')).toBe(false);
 	});
 
-	it('reports a glob pattern that spells the suffix, whose wildcards elide away', () => {
+	it('reports a glob pattern that spells the suffix outright', () => {
 		expect(asks('../helpers/*.test.ts', true)).toBe(true);
+	});
+
+	/*
+	 * The case above cannot see whether `isGlob` reaches `resolveBranch`'s elision at all: its
+	 * pattern already ENDS `.test.ts` before a wildcard is elided, so it reads `true` whether the
+	 * branch is elided or left literal. Measured as the mutation — `resolveBranch(file, branch,
+	 * false)` at the `TEST_FILE` call left this whole file green at 37/37. `'*.test*'` is the
+	 * discriminating spelling, and an ordinary way to glob test files: elided it resolves to a
+	 * path ending `.test` and matches, un-elided it ends `*` and does not.
+	 */
+	it('elides a trailing wildcard so a pattern ending in one still spells the suffix', () => {
+		expect(asks('../helpers/*.test*', true)).toBe(true);
 	});
 
 	it('passes a glob that matches such files without spelling the suffix', () => {

@@ -1168,6 +1168,58 @@ export default defineConfig({
 			// both branches added to `guardedServices.ts` and `composition-root.ts` and the
 			// merged tree measured 427 and 428 counted lines against a 400 cap. Every one is a
 			// move or a call-shape change over code both branches already covered.
+			//
+			// **THE MERGE OF `origin/main` INTO THE RENOVATION PLANNER HOME SURFACE (2026-09-03),
+			// measured on the merged tree:** 8244/8302 statements, 4326/4407 branches,
+			// 2175/2195 functions, 7266/7298 lines — 99.3 / 98.16 / 99.08 / 99.56 as the
+			// reporter prints them. **NOTHING RATCHETS**: rounded down these are 99 / 98 / 99 / 99,
+			// exactly the floors already in force, which makes it eleven increments in a row.
+			//
+			// This entry exists for the reason the entry above states in full and this merge
+			// reproduced exactly: NEITHER of the two measurements above is about this tree. The
+			// newest one measures main without this branch's ~2,460 lines of `src/` in it, and
+			// this branch's own measurement was taken before 237 commits of main landed beside
+			// it. Both were correct on the day; the merge made both stale at once.
+			//
+			// The headroom, in UNITS, arithmetic written out: statements need
+			// `ceil(0.99 × 8302) = 8219` covered and 8244 are (**25**); branches need
+			// `ceil(0.98 × 4407) = 4319` against 4326 (**7**); functions need
+			// `ceil(0.99 × 2195) = 2174` against 2175 (**1**); lines need
+			// `ceil(0.99 × 7298) = 7226` against 7266 (**40**). **FUNCTIONS is the tight metric
+			// at ONE**, where it has sat since slice 19 — this merge did not buy a second, and
+			// the next untested callback anywhere in `src/` fails this gate outright.
+			//
+			// **Read that pairing carefully, because it was got wrong in review and the error is
+			// the more useful half.** The reviewer of this merge was briefed that BRANCHES was
+			// the tight metric and reported it as such. Branches is the lowest PERCENTAGE
+			// (98.16) and the lowest floor (98), which is what makes the mistake natural — and
+			// at 4407 branches those 0.16pp are SEVEN covered arms, while functions' apparently
+			// comfortable 99.08 over a smaller denominator is ONE. A percentage cannot be read
+			// as headroom without its denominator, which is why this ledger's convention is
+			// units; and a fact carried into a review as a briefing is not a measurement, so it
+			// arrives unchecked by the one instrument that would have caught it.
+			//
+			// **The merge itself added NO uncovered position.** Nine `src/` files differ from
+			// BOTH parents — derived with `comm -12` over `git diff --name-only HEAD^1 HEAD --
+			// src/` and the same against `HEAD^2`, never a filename filter, per the entry above
+			// that records what a hand-written one over- and under-matches. Eight measure 100%
+			// of all four. The ninth, `RenovationPlannerPlugin.ts`, carries one uncovered
+			// statement and one uncovered branch arm at its `!(view instanceof
+			// RenovationProjectView)` guard — INHERITED, attributed with
+			// `git log -L 858,858:src/plugin/RenovationPlannerPlugin.ts` to 15d94aa, a commit on
+			// this branch rather than the merge. Read per changed file out of
+			// `coverage-final.json`, which is the instrument that can see one arm; the summary
+			// line cannot, and at a headroom of one function that is the difference between a
+			// gate that fails and a gate that says nothing.
+			//
+			// What the merge changed in `src/` is the union of two features landing on four
+			// shared seams — both locale tables, `renovationProjectQueries`'s parameter list,
+			// `composition-root`'s destructure and its query construction, and
+			// `repositoryComposition`'s bundle — plus one signature change a lint budget forced:
+			// `createRenovationProjectQueries` reached six positional parameters against a
+			// `max-params` cap of five and became ONE named bundle, which is
+			// `createPlanEditorQueries`'s own shape one file over. Every one is a union or a
+			// call-shape change over code both branches already covered.
 			thresholds: {
 				statements: 99,
 				functions: 99,

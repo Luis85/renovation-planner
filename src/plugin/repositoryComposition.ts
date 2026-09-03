@@ -30,7 +30,7 @@ export interface VaultStack {
 }
 
 /**
- * The six repositories, the two geometry sidecars and the library-overlap read — built
+ * The six repositories, the two geometry sidecars and the TWO index-backed reads — built
  * once, unguarded, from the vault stack and the settings a root was composed with.
  * `composeGuarded` in `composition-root.ts` is what wraps the members that leave the root
  * through `PersistenceServices`; this function only constructs them.
@@ -41,6 +41,15 @@ export interface VaultStack {
  * `grep -cE 'new Obsidian[A-Za-z]*Repository\(' src/plugin/repositoryComposition.ts` printed
  * six, and the two sidecars (`PlanGeometryStore`, `AssetGeometryStore`) are counted separately
  * because neither is a repository.
+ *
+ * **And TWO reads rather than one, which this sentence got wrong the very next merge.** It
+ * said "the library-overlap read" while the Home surface's branch added `listFacts` beside
+ * `overlaps` — the same failure the paragraph above records, one clause to its left, in the
+ * comment that exists to warn about it: the repository count was re-derived and the count
+ * beside it was carried over by eye. `grep -cE 'new Index[A-Za-z]*\(' ` on this file prints
+ * two (`IndexLibraryOverlaps`, `IndexProjectListFacts`). The lesson is not the number: a
+ * count that arrives by MERGE is the one no author of either branch is looking at, because
+ * both sentences read correctly in isolation.
  */
 export function composeRepositories(
 	deps: NoteVaultDeps,

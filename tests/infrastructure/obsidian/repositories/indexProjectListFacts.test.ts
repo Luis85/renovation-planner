@@ -147,6 +147,45 @@ describe('IndexProjectListFacts', () => {
 		expect(answer.get(P1)?.lastWorked).toBe(iso(12_000));
 	});
 
+	/**
+	 * **Behaviour created by a MERGE, which is why it is pinned here rather than left to the
+	 * rule it follows.** The per-project price override arrived on one branch and this port on
+	 * another; neither chose the interaction, and no case on either side could have covered it.
+	 * An asset-price note carries a required `project:` key and sits under the project's own
+	 * folder, so `ownerOf` resolves it exactly as it resolves a zone and its mtime folds into
+	 * that project's `lastWorked`.
+	 *
+	 * That is CONSISTENT with `projectOrder.ts`'s stated rule — "`lastWorked` moves on every
+	 * write to any owned note" — and is therefore not a defect. It is pinned because the field
+	 * is user-visible twice over (the Home surface's ordering key and the Continue row's date),
+	 * so a future change to `ownerOf` that stopped attributing price notes would be a silent
+	 * change to what "last worked on" means, with nothing in front of it.
+	 *
+	 * Its mtime is the newest thing P1 owns, so the assertion cannot pass on the zone at 9,000
+	 * the way a lower one would — this fails against an implementation that skips the type.
+	 */
+	it('folds an asset-price note into the owning project’s lastWorked', () => {
+		const priced: readonly ProjectIndexEntry[] = [
+			...ENTRIES,
+			{
+				id: 'price-a' as EntityId<string>,
+				type: 'renovation-asset-price',
+				path: 'R/One/Prices/price-a.md',
+				projectId: P1,
+			},
+		];
+		const withPrice = { ...MTIMES, 'R/One/Prices/price-a.md': 14_000 };
+
+		const answer = new IndexProjectListFacts(indexOver(priced), vaultOver(withPrice)).factsFor([P1, P2]);
+
+		expect(answer.get(P1)?.lastWorked).toBe(iso(14_000));
+		// It is not a PLAN, so the count it feeds is unchanged — the same entry reaching both
+		// tallies would be the other way this could go wrong.
+		expect(answer.get(P1)?.planCount).toBe(2);
+		// And it belongs to ONE project: a price note owned by P1 must not date P2's row.
+		expect(answer.get(P2)?.lastWorked).toBe(iso(5_000));
+	});
+
 	it('answers an entry for every id asked about, including one the index cannot place', () => {
 		const answer = facts().factsFor([P1, 'project-gone' as ProjectId]);
 

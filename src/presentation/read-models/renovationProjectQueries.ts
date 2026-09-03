@@ -133,9 +133,15 @@ const NO_FACTS: ProjectRowFacts = { planCount: 0, lastWorked: null };
  * shape one file over and the reason is the same: this boundary grows a member every time a
  * surface above it grows a section, and the Home surface's facts port and the price section's
  * catalogue read arrived from two independent branches into a signature that was already at
- * five. Positional, that merge is a `max-params` failure and — worse — two adjacent ports of
- * the same shape that a call site can silently transpose; named, a caller that supplies the
- * wrong one names it at the call.
+ * five, which is a `max-params` failure. So: a lint rule forced a signature change, and the
+ * bundle is the shape it was changed INTO — not a latent hazard the rule uncovered.
+ *
+ * An earlier draft of this comment claimed the positional form let a call site "silently
+ * transpose" two adjacent ports of the same shape. Measured and false: `ProjectListFacts`
+ * declares `factsFor` and every other member here declares `execute`, and all six are
+ * mutually unassignable on their parameter and return types, so that swap — and every other
+ * pairwise one — is a compile error in either spelling. The bundle buys legibility at the
+ * call site; it buys no safety the compiler was not already giving.
  */
 export function createRenovationProjectQueries(deps: {
 	readonly listProjects: Query<void, Result<ProjectListResult, RepositoryError>>;

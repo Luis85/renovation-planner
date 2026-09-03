@@ -1338,17 +1338,35 @@ git add -A && git commit -m "feat: the asset library shell, its search and all s
 - Port from: `src/prototypes/AssetInspector.vue`
 - Test: `tests/presentation/library/assetInspector.test.ts`, `assetInspectorShape.test.ts`, `assetInspectorUsedIn.test.ts`
 
-**YOU CANNOT ADD A REGION TO `AssetLibraryRoot.vue` — EXTRACT FIRST. Measured, not estimated.**
-Task 13's review measured that template at **cognitive complexity 15 against fallow's threshold of
-15: zero headroom.** One extra `v-if` takes it to 17 and `npm run analyze` **exits 1**. So mounting
-the inspector as one more conditional region in the root fails the gate before any test runs.
-Extract the region the inspector goes into — the same move Task 13 had to make when the root hit
-24 and it pulled `UnreadableStrip.vue` out as a real §5.1a seam, rather than taking fallow's own
-suggested `fallow-ignore-next-line`. Do that, not the ignore.
-Two numbers Task 13's own report got wrong, corrected here so you do not plan against them: the
-template is **273 lines and the 11th largest** in the tree, not 271 and fourth. ESLint's `max-lines`
-counts 164/400, so **`max-lines` is not the binding constraint — cognitive complexity is**, and it
-is the one with nothing left.
+**THE COMPLEXITY BUDGET, RE-MEASURED AT HEAD — and read the correction, because the first version
+of this paragraph was true when written and false when you read it.** I wrote it from Task 13's
+REVIEW (cognitive 15, zero headroom, 273 lines, 11th largest, "you cannot add a region"). Task 13's
+FIX ROUND then extracted regions out of that template, and every one of those numbers moved. This
+is the staleness class this plan keeps finding in other people's prose, committed in mine: a
+measurement is a fact about the moment it was taken, and I wrote one into a brief a later commit
+was still changing.
+
+**What is true at `912e961b`, verified twice — by the re-review and again by me:**
+- The template is **331 lines**, 8th largest. `wc -l` says so; `max-lines` counts well under its
+  400 cap, so **`max-lines` is not the binding constraint**.
+- Cognitive complexity is **12** against fallow's threshold of **15**, and `npm run analyze`
+  reports `✗ 0 above threshold`.
+- **Cost is NESTING DEPTH**, which is why one number cannot answer this. Adding a conditional
+  region costs 1 as a direct child of the root element, 2 one level in, and 3 inside the
+  ready-branch.
+
+**So the budget depends entirely on where you put it, and the position an inspector actually wants
+is the tightest one:**
+- Direct child of the root element, above the `ViewFailure` branch: **three** regions fit (a fourth
+  fails).
+- Inside the ready branch: **one** fits (a second takes it to 18 and `analyze` exits 1).
+- **At the toolbar/body/footer sibling position — where an inspector RAIL naturally goes — the
+  budget is ONE.** That is the number to plan against, not the three.
+
+Extract if you need more than that, as Task 13 did when this template hit 24 and it pulled out
+`UnreadableStrip.vue` as a real §5.1a seam rather than taking fallow's suggested
+`fallow-ignore-next-line`. **Do not take the ignore, and do not lower a threshold** — an
+over-complex template is a seam nobody has drawn yet.
 
 **A COVERAGE FAILURE HIDES THE HEALTH GATE.** `npm run check` chains with `&&`, so `analyze` never
 runs while coverage is red. Task 13 cleared coverage and only then discovered the complexity

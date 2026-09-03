@@ -5,6 +5,7 @@
  * unreadable notice are ADDITIVE. `unreadable > 0` means the vault holds projects this build
  * could not read — it never replaces the ones it could.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ProjectList from '../../../src/presentation/views/ProjectList.vue';
@@ -96,5 +97,24 @@ describe('ProjectList', () => {
 		const wrapper = mount(ProjectList, { props: { projects: [PROJECTS[1]] } });
 
 		expect(wrapper.get('.rp-project-list__status').text()).toBe('PLANNING');
+	});
+
+	/**
+	 * §2's own door made this header FOUR flex children on a `space-between` row that had
+	 * carried three since it was last captured at 1280 and 460 (`styles/forms.css`'s own
+	 * comment). No capture exists of the four-child row — this environment has no Chromium —
+	 * so `flex-wrap` is the honest default rather than a verified layout: it is what stops the
+	 * excess item from being squeezed toward zero width or overflowing the pane at a width too
+	 * narrow to hold all four, which `styles/forms.css`'s own comment states rather than
+	 * claims verified. Asserted as TEXT over the stylesheet, since jsdom lays nothing out.
+	 */
+	it('lets the header wrap rather than squeezing its fourth child', () => {
+		const forms = readFileSync('styles/forms.css', 'utf8');
+		const rule = forms.slice(
+			forms.indexOf('.rp-project-list__header {'),
+			forms.indexOf('.rp-project-list__title {'),
+		);
+
+		expect(rule).toMatch(/flex-wrap:\s*wrap;/);
 	});
 });

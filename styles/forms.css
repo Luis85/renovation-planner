@@ -64,9 +64,21 @@
  *
  * The horizontal padding matches the ROW's below, so the title's left edge and a project's
  * name line up rather than sitting a few pixels apart.
+ *
+ * **`flex-wrap: wrap` since the Task 11 review, and read this narrowly.** The row held three
+ * children (the title plus two buttons) when it was last captured at 1280 and 460; the Asset
+ * library door (Task 11) makes it four, on a `space-between` row that had no `flex-wrap` at
+ * all, and no capture of this change exists — this environment has no Chromium, so neither
+ * `npm run harness-shot` nor an eye in a vault could be run here. Wrapping is the honest
+ * DEFAULT rather than a verified layout: at a width too narrow for all four to fit on one
+ * line, the excess items drop to a second line instead of being squeezed toward zero width or
+ * overflowing the pane, which is the failure mode `flex-wrap`'s absence would otherwise permit.
+ * Whether four items actually LOOK right at 460 — spacing, the title's alignment against a
+ * wrapped second line — is unverified and stays that way until someone runs the capture.
  */
 .rp-project-list__header {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
 	gap: var(--size-4-2);
@@ -104,17 +116,31 @@
 }
 
 /*
- * The catalogue affordance that sits BESIDE the empty state, for the reason `ViewRoot`'s own
- * comment gives: an Asset needs no project, so a fresh vault must be able to build one.
+ * The catalogue affordances that sit BESIDE the empty state, for the reason `ViewRoot`'s own
+ * comment gives: an Asset needs no project, so a fresh vault must be able to build one; the
+ * Asset library door (Task 11 review) joins `New asset` here for the identical reason on the
+ * catalogue's read side.
  *
- * Centred under the empty state and muted, because it is genuinely secondary — the empty
- * state's own action is the sentence's verb and this is a second path out of the same screen.
- * It is not `.rp-empty-state__action`'s twin and must not read as one.
+ * Centred under the empty state and muted, because both are genuinely secondary — the empty
+ * state's own action is the sentence's verb and these are two second paths out of the same
+ * screen. Neither is `.rp-empty-state__action`'s twin and neither must read as one.
+ *
+ * **`display: flex` with an explicit `gap`, found missing by a review round rather than by any
+ * gate here.** Two adjacent `<button>`s on separate template lines compile with NO whitespace
+ * node between them (Vue's default `whitespace: 'condense'` strips one that contains a
+ * newline), Obsidian's own `button` rule carries no margin, and `text-align: center` alone does
+ * nothing for two inline-flex siblings with nothing between them — so the two buttons rendered
+ * touching, edge to edge, the exact `ZonePanelprototype` class of defect CLAUDE.md records: a
+ * measurement no layout engine in this repository performs, invisible to jsdom and to every
+ * gate here, caught only by compiling the template and reading the resulting vnode tree.
  */
 .rp-view-aside {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: var(--size-4-2);
 	margin: 0;
 	padding-block-start: var(--size-4-2);
-	text-align: center;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 }

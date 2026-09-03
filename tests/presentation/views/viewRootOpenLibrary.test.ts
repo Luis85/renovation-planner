@@ -10,6 +10,7 @@
  * no-projects aside's own sibling to `New asset`, reached only in the empty-vault state where
  * `ProjectList` is not mounted at all — §2's own argument for building both rather than one.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -79,5 +80,22 @@ describe('ViewRoot, opening the asset library from the no-projects aside', () =>
 
 		expect(wrapper.find('.rp-view-aside__create-asset').exists()).toBe(true);
 		expect(wrapper.find('.rp-view-aside__open-library').exists()).toBe(true);
+	});
+
+	/**
+	 * **Found by a review round, not by any gate here.** Compiling this SFC shows the two
+	 * `<button>`s as adjacent element vnodes with no text node between them — Vue's default
+	 * `whitespace: 'condense'` strips the whitespace-only text node their separate template
+	 * lines would otherwise leave — and `.rp-view-aside` carried `text-align: center` with no
+	 * `display: flex` and no `gap`, so the two rendered touching. jsdom lays nothing out and
+	 * cannot see this; the fix is asserted as TEXT over the stylesheet, the same instrument
+	 * `projectListOverlap.test.ts` uses for the identical class of defect on the sibling row.
+	 */
+	it('gives the aside a gap, so the two buttons do not render touching', () => {
+		const forms = readFileSync('styles/forms.css', 'utf8');
+		const rule = forms.slice(forms.indexOf('.rp-view-aside {'), forms.indexOf('.rp-project-list {'));
+
+		expect(rule).toMatch(/display:\s*flex;/);
+		expect(rule).toMatch(/gap:\s*var\(--size-4-2\);/);
 	});
 });

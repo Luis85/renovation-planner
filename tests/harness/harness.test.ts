@@ -63,6 +63,18 @@ interface StyleBlock {
 interface Blocks {
 	readonly styles: readonly StyleBlock[];
 	readonly scripts: readonly Script[];
+	/**
+	 * `<template src="./view.html">`. The descriptor's `content` is EMPTY for one of these, so
+	 * compiling it scans nothing, and `.html` is not in `MODULE` — so `sources()` never walks the
+	 * real template either. Both absence checks then pass over a file Vite loads: an
+	 * `import('./theme.css')` in a handler and a `<link rel="stylesheet">` element alike would be
+	 * invisible. Reported, and the same door `<style src>` was already given an answer at.
+	 *
+	 * Reported under its own name rather than folded into `importers`: an external template does
+	 * not itself load a stylesheet, it is a file this scan cannot see, and saying "loads a
+	 * stylesheet" about it would send the next reader looking for an import that is not there.
+	 */
+	readonly externalTemplate: string | undefined;
 }
 
 /**
@@ -93,6 +105,7 @@ const blocksOf = (file: string, text: string): Blocks => {
 			scripts: [
 				{ content: text, kind: KIND_BY_EXTENSION.get(path.extname(file)) ?? ts.ScriptKind.TS },
 			],
+			externalTemplate: undefined,
 		};
 	}
 	const { descriptor } = parseSfc(text, { filename: file });
@@ -113,6 +126,7 @@ const blocksOf = (file: string, text: string): Blocks => {
 	return {
 		styles: descriptor.styles.map((block) => ({ content: block.content, src: block.src })),
 		scripts,
+		externalTemplate: descriptor.template?.src,
 	};
 };
 
@@ -132,17 +146,6 @@ const isStylesheetSpecifier = (specifier: string): boolean =>
 	specifier.split('?')[0]?.split('#')[0]?.endsWith('.css') === true;
 
 const namesStylesheet = (node: ts.Node): boolean => {
-	// `import.meta.glob(['./a/*.css', '!./a/skip.css'])` — Vite's multi-pattern form. A `!`
-	// prefix EXCLUDES, so a negative pattern names nothing that gets loaded and must not count;
-	// treating it as an import would refuse a file for the very pattern keeping the sheet out.
-	if (ts.isArrayLiteralExpression(node)) {
-		return node.elements.some(
-			(element) =>
-				ts.isStringLiteralLike(element)
-				&& !element.text.startsWith('!')
-				&& isStylesheetSpecifier(element.text),
-		);
-	}
 	if (ts.isStringLiteralLike(node)) return isStylesheetSpecifier(node.text);
 	if (ts.isTemplateExpression(node)) {
 		const last = node.templateSpans.at(-1);
@@ -150,6 +153,51 @@ const namesStylesheet = (node: ts.Node): boolean => {
 	}
 	return false;
 };
+
+/** The characters that make a glob segment a PATTERN rather than a name. */
+const GLOB_WILDCARDS = '*?{}[]';
+
+/**
+ * A glob names a SET, and whether that set holds a stylesheet is a fact about the files on disk
+ * rather than about the pattern's last four characters. `import.meta.glob('./themes/*')` loads
+ * `themes/theme.css` when a loader is called, and `isStylesheetSpecifier` says no to it because
+ * the text ends in `*`; a brace list is the same hole one character further along. Reported
+ * against a scan that tested a pattern as if it were a specifier — the mistake this file keeps
+ * making in new places: asking of the TEXT a question only answerable about what it RESOLVES to.
+ *
+ * Resolving the glob against the tree was the reported remedy and is deliberately not what this
+ * does: that buys a glob engine plus an answer that moves with the files present at scan time,
+ * to decide a question this file already has a standing preference about. The pattern is asked
+ * whether it can be PROVEN CSS-free instead. Only a literal tail after the last wildcard pins a
+ * match's extension, so a pattern ending `.vue` is proven while a bare `*`, a `**` and a brace
+ * list are not — and anything unproven counts. Over-refusing costs an argument; under-refusing
+ * is the silent pass, which is the same trade `isStylesheetSpecifier` records for `?raw`.
+ *
+ * Case-folded in the refusing direction for that same reason.
+ */
+const mayMatchStylesheet = (pattern: string): boolean => {
+	const lastWildcard = Math.max(...[...GLOB_WILDCARDS].map((char) => pattern.lastIndexOf(char)));
+	const tail = pattern.slice(lastWildcard + 1).toLowerCase();
+	return !tail.includes('.') || tail.endsWith('.css');
+};
+
+/**
+ * `import.meta.glob(['./a/*.css', '!./a/skip.css'])` — Vite's multi-pattern form. A `!` prefix
+ * EXCLUDES, so a negative pattern names nothing that gets loaded and must not count; treating
+ * it as an import would refuse a file for the very pattern keeping the sheet out.
+ *
+ * A pattern Vite cannot resolve statically — a template carrying a substitution — reaches
+ * `isStringLiteralLike` as false and counts as nothing, which is right rather than a gap: Vite
+ * REFUSES a non-literal glob pattern outright, so it loads no module at all. A backtick pattern
+ * with no substitution is a literal and is covered.
+ */
+const globNamesStylesheet = (node: ts.Node): boolean =>
+	(ts.isArrayLiteralExpression(node) ? [...node.elements] : [node]).some(
+		(element) =>
+			ts.isStringLiteralLike(element)
+			&& !element.text.startsWith('!')
+			&& mayMatchStylesheet(element.text),
+	);
 
 /** Every `@import` URL one stylesheet declares, per the account on `importsIn` below. */
 const importUrlsOf = (filename: string, code: Buffer): string[] => {
@@ -228,7 +276,12 @@ const scriptImportsStylesheet = (file: string, script: Script): boolean => {
 				ts.isPropertyAccessExpression(callee)
 				&& callee.name.text === 'glob'
 				&& callee.expression.getText(source).startsWith('import.meta');
-			if ((isDynamicImport || isGlob) && namesStylesheet(node.arguments[0])) {
+			// A glob PATTERN and a specifier are different questions, so they take different
+			// predicates rather than one predicate that has to mean both.
+			const claimsStylesheet = isGlob
+				? globNamesStylesheet(node.arguments[0])
+				: isDynamicImport && namesStylesheet(node.arguments[0]);
+			if (claimsStylesheet) {
 				found = true;
 				return;
 			}
@@ -270,13 +323,9 @@ const scriptImportsStylesheet = (file: string, script: Script): boolean => {
  * source at all — held in an identifier, or assembled by concatenation — whose value exists
  * only at runtime.
  */
-const importsStylesheet = (file: string, text: string): boolean => {
-	const { styles, scripts } = blocksOf(file, text);
-	return (
-		styles.some((block) => styleImportsStylesheet(file, block))
-		|| scripts.some((script) => scriptImportsStylesheet(file, script))
-	);
-};
+const importsStylesheet = (file: string, blocks: Blocks): boolean =>
+	blocks.styles.some((block) => styleImportsStylesheet(file, block))
+	|| blocks.scripts.some((script) => scriptImportsStylesheet(file, script));
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
@@ -732,13 +781,30 @@ describe('the browser harness', () => {
 			...sources('tests/helpers'),
 		];
 
-		const importers = reachable.filter((file) => importsStylesheet(file, readText(file)));
-		const linkers = reachable.filter((file) => sheetLink.test(readText(file)));
+		// Read and parse each file ONCE, then ask it every question. Three separate `.filter`
+		// passes each re-read the file, which cost nothing measurable and made the parse the
+		// caller's business to remember rather than the scan's.
+		const scanned = reachable.map((file) => {
+			const text = readText(file);
+			return { file, text, blocks: blocksOf(file, text) };
+		});
+		const named = (
+			predicate: (entry: (typeof scanned)[number]) => boolean,
+		): string[] => scanned.filter((entry) => predicate(entry)).map((entry) => entry.file);
+
+		const importers = named(({ file, blocks }) => importsStylesheet(file, blocks));
+		const linkers = named(({ text }) => sheetLink.test(text));
+		const externalTemplates = named(({ blocks }) => blocks.externalTemplate !== undefined);
 		const styleBlocks = sources('tests/harness').filter((file) =>
 			/<style[\s>]/.test(readText(file)),
 		);
 
-		expect({ importers, linkers, styleBlocks }).toEqual({ importers: [], linkers: [], styleBlocks: [] });
+		expect({ importers, linkers, externalTemplates, styleBlocks }).toEqual({
+			importers: [],
+			linkers: [],
+			externalTemplates: [],
+			styleBlocks: [],
+		});
 	}, WHOLE_TREE_SCAN_MS);
 
 	/**

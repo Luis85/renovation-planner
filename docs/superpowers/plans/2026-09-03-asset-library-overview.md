@@ -1338,6 +1338,23 @@ git add -A && git commit -m "feat: the asset library shell, its search and all s
 - Port from: `src/prototypes/AssetInspector.vue`
 - Test: `tests/presentation/library/assetInspector.test.ts`, `assetInspectorShape.test.ts`, `assetInspectorUsedIn.test.ts`
 
+**YOU CANNOT ADD A REGION TO `AssetLibraryRoot.vue` — EXTRACT FIRST. Measured, not estimated.**
+Task 13's review measured that template at **cognitive complexity 15 against fallow's threshold of
+15: zero headroom.** One extra `v-if` takes it to 17 and `npm run analyze` **exits 1**. So mounting
+the inspector as one more conditional region in the root fails the gate before any test runs.
+Extract the region the inspector goes into — the same move Task 13 had to make when the root hit
+24 and it pulled `UnreadableStrip.vue` out as a real §5.1a seam, rather than taking fallow's own
+suggested `fallow-ignore-next-line`. Do that, not the ignore.
+Two numbers Task 13's own report got wrong, corrected here so you do not plan against them: the
+template is **273 lines and the 11th largest** in the tree, not 271 and fourth. ESLint's `max-lines`
+counts 164/400, so **`max-lines` is not the binding constraint — cognitive complexity is**, and it
+is the one with nothing left.
+
+**A COVERAGE FAILURE HIDES THE HEALTH GATE.** `npm run check` chains with `&&`, so `analyze` never
+runs while coverage is red. Task 13 cleared coverage and only then discovered the complexity
+failure underneath it. Expect a second, different failure on your next run rather than reading the
+first fix as the whole job.
+
 **Interfaces:**
 - Consumes: Tasks 4, 9, 10.
 - Produces: the panel Task 16's narrow composition swaps to.

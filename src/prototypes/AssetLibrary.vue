@@ -182,6 +182,24 @@ function select(id: string): void {
 	if (swappingIn) void focusAfterSwap('.rp-al-inspector__back', shelvesWithdrawn);
 }
 
+/**
+ * Clearing a no-match search, and the focus that goes with it.
+ *
+ * The `Clear search` button lives INSIDE the no-matches state, so clearing removes the very
+ * control the user pressed — focus falls to the document in every layout, which is why the move
+ * here is unconditional rather than gated on a swap. Where it lands is the interesting half and
+ * it needs no branch: clearing also restores `showSelection`, so on a narrow pane with a
+ * selection still held the inspector swaps back IN, and its Back control is the honest
+ * destination; anywhere else that control is not laid out and `focusAfterSwap`'s own fallback
+ * takes the search field. The fifth direction of this gesture, reported by a review bot, and the
+ * first one an existing fallback chain already answered — which is the argument for having
+ * written it as a chain rather than as a named target.
+ */
+function clearSearch(): void {
+	query.value = '';
+	void focusAfterSwap('.rp-al-inspector__back', () => true);
+}
+
 /** One shelf's expansion, flipped. Declared above `back`, which reveals a collapsed shelf. */
 function toggle(category: string): void {
 	const next = new Set(expanded.value);
@@ -342,7 +360,7 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
 					<button
 						type="button"
 						class="rp-al-nothing__action"
-						@click="query = ''"
+						@click="clearSearch"
 					>
 						Clear search
 					</button>

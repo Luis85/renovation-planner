@@ -990,6 +990,8 @@ view.asset-library.clearance        view.asset-library.spec-sheet
 view.asset-library.none             view.asset-library.shape.loading
 view.asset-library.shape.gone       view.asset-library.shape.read-failed
 view.asset-library.clearance.unscaled
+view.asset-library.loading          view.asset-library.some-unreadable  (interpolated: {count})
+view.asset-library.failed.headline
 view.asset-library.new-asset        view.asset-library.results
 view.asset-library.category         view.asset-library.unit
 view.asset-library.unit-cost        view.asset-library.waste
@@ -1001,6 +1003,22 @@ view.asset-library.used-in.loading  view.asset-library.used-in.failed
 empty.asset-library.no-assets.headline / .body / .action
 empty.asset-library.no-matches.headline / .body / .action
 ```
+
+**The three §4 keys were found by sweeping that section's state table row by row**, which is how
+this list should have been derived in the first place and was not. §4 tabulates six states and the
+inventory carried keys for two of them — the empty ones — so *Loading*, *Some unreadable* and the
+retryable *Failed* headline had no copy at all. The second of those is the one that would have
+shipped wrong rather than blank: `view.project.some-unreadable` reads *"Some projects could not be
+read from the vault"*, so a surface reusing it would have told a user about projects while showing
+them assets. `view.asset-library.shape.unreadable` is not a substitute either — that one is about a
+single geometry sidecar. *Failed, unrecoverable* needs nothing new: `view.session-failure.headline`
+and `view.failure.retry` are already generic and already used by two surfaces.
+
+**A key inventory is derived from the state and composition sections, not written alongside
+them** — the derivation is the check, and this list had been assembled by looking at the screen
+rather than by walking §3 and §4. Reported by a review bot, one round after the same list was found
+missing a different key and patched one string at a time, which is what a patch rather than a sweep
+buys.
 
 `view.asset-library.used-in.vault-root` is the label a *Used in* row draws where the query
 supplies `''` — a project whose `Project.md` sits at the vault root, so its derived folder is the
@@ -1628,6 +1646,26 @@ header says the inventory exists to prevent. `view.asset-library.used-in.vault-r
 it goes stale the moment one of them grows a string — so it is the section most exposed to the
 drift, not the least. That is the fifth round in seven to find one section left describing a state
 another had already changed, and this one had three rounds to be noticed in.
+
+A nineteenth round found two, and the first is the round before it, patched instead of swept.
+
+**§8 was missing three more keys, and one would have shipped wrong rather than blank.** §4
+tabulates six states; the inventory carried copy for two of them. *Some unreadable* had been
+specified as *"mirroring `view.project.some-unreadable`"* — a string that reads *"Some projects
+could not be read from the vault"*, so a builder taking the mirror literally tells a user about
+projects while showing them assets. *Loading* and the retryable *Failed* headline had nothing at
+all. Found by walking §4's rows; the round before had added one key by hand and stopped there.
+**A key inventory is DERIVED from the state and composition sections, and the derivation is the
+check** — this one had been assembled by looking at the screen, which is why it could be complete
+about everything visible and silent about every state that is not.
+
+**And the fifth direction of the focus gesture.** `Clear search` sits inside the no-matches state,
+so clearing removes the control the user just pressed and focus falls to the document — in every
+layout, which is why this move is unconditional rather than gated on a swap. It is the first of the
+five that needed no new rule: clearing also restores the selection, so on a narrow pane the
+inspector swaps back in and its Back control is the destination, and everywhere else that control
+is not laid out and the existing fallback takes the search field. **That is the argument for the
+ordered chain paying out** — the previous four each needed a fix, and this one needed a call.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

@@ -2463,6 +2463,17 @@ MSG
 
 ## Task 12: `RequirementRepository.listByProject`
 
+> **DONE** — commits `476143f` + `9ecbff9` (one fix round). Gate exit 0 (5365 passed,
+> 99.36/99.09/99.55/98.28); CI green on `476143f`, all four legs including Windows. Review
+> APPROVED with every mutation run: routing `listByZone` through the tolerant helper reddens
+> `leaves listByZone strict` on both vault rows, and dropping the type intersection reddens
+> `does not try to parse a plan as a requirement` — so both the strictness guarantee
+> `DeleteZoneCommand` depends on and the mixed-axis intersection are pinned by tests rather
+> than by comments. The `runIf(hasVault)` matrix was verified with a verbose reporter (the
+> three gated cases skip on the in-memory row only), closing the silently-skips-everywhere
+> hazard. The fix round drove the stale-index-entry arm the review found at `[10, 0]`; it
+> measures `[12, 2]` now, turning a prose limitation into a check.
+
 **`this.listTolerantly(ids)` does not exist and this plan never defines it.** One occurrence,
 no definition, and `ObsidianRequirementRepository` has no such helper today — grep-verified.
 It is yours to write, and its contract is the paragraph directly beneath the snippet: SKIP AND
@@ -2525,7 +2536,7 @@ is counted once, and only if it is this project's. Unscoped ids meant every per-
 the same malformed note, so aggregating counted it once per zone — and counted another
 project's note against this project.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 **The matrix was wrong in the first draft and the correction is the point of having one.**
 Both `createRepositoryStack` (`tests/helpers/vault.ts:611`) and `openFixtureVault`
@@ -2584,18 +2595,18 @@ describe.each([
 });
 ```
 
-- [ ] **Step 2: Run and watch fail**
+- [x] **Step 2: Run and watch fail**
 
 Run: `npx vitest run tests/application/repositories/requirementListByProject.test.ts`
 Expected: FAIL — the method does not exist.
 
-- [ ] **Step 3: Implement in the port and both implementations**
+- [x] **Step 3: Implement in the port and both implementations**
 
 Add the interface member with a docblock stating the strict/tolerant asymmetry AND why
 `listByZone` keeps its contract, then both implementations. Adding the port member makes any
 unimplemented repository a build error, which is how both get done.
 
-- [ ] **Step 4: Run and watch pass, then mutate**
+- [x] **Step 4: Run and watch pass, then mutate**
 
 Run: `npx vitest run tests/application/repositories/requirementListByProject.test.ts`
 Expected: PASS.
@@ -2604,7 +2615,7 @@ Then drop the type intersection and re-run. Expected: the plan case goes red. **
 filter, because a filter has two ways to be wrong and the suite only ever covers the one
 somebody thought about.**
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check

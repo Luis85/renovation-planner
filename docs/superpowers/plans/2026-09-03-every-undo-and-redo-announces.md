@@ -2654,6 +2654,17 @@ MSG
 
 ## Task 13: Extract the per-row builder
 
+> **DONE** — commit `424c38a`. Gate exit 0 (5370 passed, 99.36/99.09/99.55/98.28); CI green,
+> all four legs including Windows. Review APPROVED the extraction and confirmed behaviour did
+> not change; its one blocking finding was against the REPORT, whose shared-derivation evidence
+> named the wrong mutation. Corrected and then re-verified BY THE CONTROLLER: negating
+> `isStaleReading`'s return gives 12 failed / 85 passed, reddening 10 PRE-EXISTING tests across
+> `queryRefusals.test.ts` and `requirementStaleness.test.ts` plus the 2 new ones — which is what
+> proves `GetRequirementsForZone` routes through the extracted builder rather than keeping a
+> parallel path. `GetRequirementsForZone` went 362 → 114 lines because `buildRow` closed over
+> five sibling helpers; `RequirementRowDeps` is minimal at four members; `RequirementInspectorDTO`
+> is re-exported so all nine consumers still import from the old path.
+
 > **Increment 2 foundation**, as Task 12. Its second caller is `GetProjectSummary`.
 
 **Files:**
@@ -2693,14 +2704,14 @@ already made, so a field added to one left the other comparing the old three. De
 the project total and the Inspector row unable to disagree about whether a figure is stale,
 **by construction rather than by care**.
 
-- [ ] **Step 1: Characterise the current behaviour before moving anything**
+- [x] **Step 1: Characterise the current behaviour before moving anything**
 
 Run: `npx vitest run tests/application/queries/ --coverage`
 Record which cases cover `buildRow` and what `coverage-final.json` says for
 `GetRequirementsForZone.ts`. **A pure extraction must not move a coverage number**, and that is
 the check that it really was pure.
 
-- [ ] **Step 2: Move the code**
+- [x] **Step 2: Move the code**
 
 Move `buildRow`, `buildUnitCostGroup`, `isStaleReading`, `RequirementInspectorDTO` and their
 imports into `src/application/queries/buildRequirementRow.ts`, converting the private methods
@@ -2712,13 +2723,13 @@ a rename of a widely-imported type is a different change and does not belong in 
 walks one zone at a time for the Inspector, where rows can name different projects, and that is
 the case the memo was written for.
 
-- [ ] **Step 3: Run the existing suite unchanged**
+- [x] **Step 3: Run the existing suite unchanged**
 
 Run: `npx vitest run tests/application/queries/`
 Expected: PASS with **no test edited**. If a case needed changing, the extraction was not pure —
 find out why before proceeding.
 
-- [ ] **Step 4: Add the builder's own cases and re-measure**
+- [x] **Step 4: Add the builder's own cases and re-measure**
 
 Add `tests/application/queries/buildRequirementRow.test.ts` covering the builder directly: a
 current row, a stale row by persisted marker, a stale row by `calculatedFrom` mismatch, a row
@@ -2730,7 +2741,7 @@ Expected: PASS, and the per-file figures for the new module at or above what
 `GetRequirementsForZone.ts` measured in Step 1. **Read `coverage-final.json` for the changed
 files** — functions has ~1 unit of headroom, and the summary line cannot see one function.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check

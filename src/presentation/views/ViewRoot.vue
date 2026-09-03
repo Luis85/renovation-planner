@@ -313,7 +313,7 @@ if (openProjectId === null) {
 							class="rp-view-aside__open-library"
 							@click="context.openAssetLibrary"
 						>
-							{{ tr('view.asset-library.title') }}
+							{{ tr('view.asset-library.door') }}
 						</button>
 					</p>
 				</template>

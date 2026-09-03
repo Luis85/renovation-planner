@@ -24,6 +24,10 @@
 export const enAssetLibrary = {
 	'view.asset-library.title': 'Asset library',
 	'command.open-asset-library': 'Open asset library',
+	// §2's own door label (Task 11 review amendment, §8's 59th key): §2 bolds "Assets" in the
+	// same role it bolds "New asset", which is literal copy — and reusing the tab title at
+	// both doors coupled two strings a translator will want to move apart.
+	'view.asset-library.door': 'Assets',
 	'view.asset-library.search.label': 'Search assets',
 	'view.asset-library.search.placeholder': 'Search by name, supplier or SKU',
 	// §6.1's live region: '12 matching assets', announced so a search's effect reaches a

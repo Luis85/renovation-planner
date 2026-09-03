@@ -59,7 +59,7 @@ defineEmits<{ open: [projectId: string]; create: []; createAsset: []; openLibrar
 			class="rp-project-list__open-library"
 			@click="$emit('openLibrary')"
 		>
-			{{ tr('view.asset-library.title') }}
+			{{ tr('view.asset-library.door') }}
 		</button>
 	</div>
 	<ul class="rp-project-list">

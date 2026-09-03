@@ -1950,10 +1950,17 @@ export function orderProjects(
 	collator: Intl.Collator,
 	sortKeys: Map<string, string | null>,
 ): ProjectSummaryDto[] {
-	const keyOf = (project: ProjectSummaryDto): string | null => {
+	// SEEDED BEFORE THE SORT, not lazily inside the comparator. `Array.prototype.sort` does not
+	// call a comparator at all for a list of one, so a vault with a single project never
+	// captured its key — and the freeze then failed in the case it exists for: that project's
+	// mtime moves during a later hydrate, a second project arrives, and the FIRST comparison
+	// records the already-updated value as though it were the mount's. Capturing on sight is
+	// the rule; `sort` deciding which elements to look at is not a schedule to hang it on.
+	for (const project of projects) {
 		if (!sortKeys.has(project.id)) sortKeys.set(project.id, project.lastWorked);
-		return sortKeys.get(project.id) ?? null;
-	};
+	}
+
+	const keyOf = (project: ProjectSummaryDto): string | null => sortKeys.get(project.id) ?? null;
 	return [...projects].sort((left, right) => {
 		const leftKey = keyOf(left);
 		const rightKey = keyOf(right);
@@ -2514,28 +2521,48 @@ function findMatch(
 	//      (1 against 3), measured across `ß æ œ ﬁ ﬂ ﬀ ﬃ ﬄ Æ Œ ẞ`, and it compounds linearly
 	//      (`ﬃﬃ`/`ffiffi` is a delta of 4).
 	//
-	// So a span can differ from the needle in width by at most twice the number of non-ASCII
-	// characters involved, and `slack` is that budget. **This replaces an earlier ASCII-only
-	// gate, which is the shape of fix this branch keeps having to widen**: that gate skipped
-	// pass 2 only when BOTH strings were ASCII, so `Küche` — a German name, which is the data
-	// the collator exists for — still ran the full quadratic scan on every ASCII miss. The
-	// window subsumes it: with no non-ASCII anywhere the budget is 0, the loop runs only at
-	// `needle.length`, and pass 1 has already tried that.
+	// So every character contributes between 1 and 3 units, and a span can only compare equal to
+	// the needle when their two [min, max] length ranges OVERLAP. Both directions matter and a
+	// one-sided bound gets one of them wrong: in `Straße`/`strasse` the SPAN expands, in
+	// `Aeon`/`æon` and `ﬃx`/`ffix` the NEEDLE does.
 	//
-	// **State the bound at its real width**: measurement 1 is at 1-vs-2 over that alphabet, not
-	// a proof over every ASCII substring of every width, and measurement 2 covers the
+	// The upper bound is therefore the NEEDLE's, not the name's: no span longer than
+	// `needle.length + 2 × nonAscii(needle)` can shrink far enough to meet it. **An earlier
+	// draft derived the budget from the whole HAYSTACK's non-ASCII count, which is this
+	// branch's same fix widened one step short twice over**: an ASCII-only gate helped English
+	// and left German, and a haystack-derived slack then helped German and left every
+	// name that is mostly non-ASCII — a Cyrillic or CJK project name made the budget
+	// O(name.length) again and the loops quadratic, on every keystroke of every miss.
+	//
+	// The lower bound is per-SPAN and needs no separate loop: a prefix sum of non-ASCII counts
+	// gives `maxLen(span) = width + 2 × nonAscii(span)` in O(1), and a span whose maximum
+	// cannot reach the needle's length is skipped before the collator is called at all.
+	//
+	// Measured against the real cases rather than reasoned: `Straße`/`strasse` costs 2 collator
+	// calls, `Aeon`/`æon` 1, `Waffle`/`ﬄ` 6, `ﬃx`/`ffix` 1 — and an ASCII miss against a
+	// 40-character all-Cyrillic name costs **73**, where the haystack-derived version spent
+	// roughly 2,800.
+	//
+	// **State the bounds at their real width**: measurement 1 is at 1-vs-2 over that alphabet,
+	// not a proof over every ASCII substring of every width, and measurement 2 covers the
 	// expansions these two locales are known to have rather than all of Unicode. Both are
 	// pinned by a test that re-runs the probes, so a locale whose expansions are ASCII or wider
 	// than 2 fails there. The failure mode either way is a missed match, never a crash.
-	const slack = 2 * (nonAscii(name) + nonAscii(needle));
-	if (slack === 0) return null;
+	const widest = needle.length + 2 * nonAscii(needle);
 
-	// Pass 2: every other width within the budget, shortest first at each position.
-	const lowest = Math.max(1, needle.length - slack);
-	const highest = needle.length + slack;
+	// One pass over the name, so the per-span non-ASCII count is a subtraction rather than a
+	// re-count: `prefix[i]` is how many of the first `i` characters are non-ASCII.
+	const prefix = [0];
+	for (let i = 0; i < name.length; i += 1) {
+		prefix.push(prefix[i] + (name.charCodeAt(i) > 127 ? 1 : 0));
+	}
+
+	// Pass 2: every other width the ranges permit, shortest first at each position.
 	for (let at = 0; at < name.length; at += 1) {
-		for (let width = lowest; width <= highest && at + width <= name.length; width += 1) {
-			if (width !== needle.length && equals(at, width)) return { at, width };
+		for (let width = 1; width <= widest && at + width <= name.length; width += 1) {
+			if (width === needle.length) continue; // pass 1 tried it
+			if (width + 2 * (prefix[at + width] - prefix[at]) < needle.length) continue;
+			if (equals(at, width)) return { at, width };
 		}
 	}
 	return null;
@@ -2559,10 +2586,17 @@ measurement in a commit message:
 | `Aeon` | `æon` | pass 2 | width 4, needle shorter than the span |
 | `Waffle` | `ﬄ` | pass 2 | width 3 at offset 2, needle shorter |
 | `ﬃx` | `ffix` | pass 2 | width 2, needle LONGER than the span |
-| `Küche` | `kuche` | pass 1 | equal width; the slack is not even needed |
+| `Küche` | `kuche` | pass 1 | equal width; pass 2 is never entered |
 
-The last two matter most: they run the window in both directions, which is what a bound stated
-as `needle.length ± slack` has to survive. A one-directional draft passes the first three.
+The last two matter most: they run the ranges in both directions — span expanding, then needle
+expanding — and a one-directional draft passes the first three.
+
+**Two cost cases belong beside them, because the correctness cases pass at any budget.** Assert
+the collator call COUNT, since that is the only thing that tells a bounded search from an
+unbounded one: an ASCII miss against a 40-character all-Cyrillic name, and one against a
+100-character name of repeated `Küche`. Measured at **73** and **60** calls; the haystack-derived
+budget this replaced spent roughly 2,800 on the first. A generous ceiling (say 200) is enough —
+the point is that it cannot grow with the square of the name.
 
 - [ ] **Step 4: Run to verify it passes**
 

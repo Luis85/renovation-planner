@@ -261,6 +261,13 @@ export const defaultRenovationProjectDeps = (
 		// would put every case that mounts a detail state through this factory into the
 		// restored-leaf holding pattern, which is a fake driving behaviour nothing asked for.
 		indexScanCompleted: () => true,
+		// Task 10. `null` rather than a seeded value: no case here is about Continue, and a
+		// default that answered a fabricated context would make the surface's first real
+		// caller the one that finds out this factory was inventing one. `rememberContinue` is
+		// a no-op for the same reason `navigate`/`openPlan`/`openAsset` are inert defaults
+		// above — this harness has no store of its own to remember into.
+		continueContext: () => Promise.resolve(null),
+		rememberContinue: () => undefined,
 	};
 	return defaults;
 };

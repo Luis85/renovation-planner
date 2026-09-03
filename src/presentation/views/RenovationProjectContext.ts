@@ -1,6 +1,7 @@
 import { inject, type InjectionKey } from 'vue';
 import type { RenovationProjectQueryServices } from '../read-models/renovationProjectQueries';
 import type { RenovationProjectCommandServices } from './renovationProjectCommands';
+import type { ContinueContext } from '../../application/continueContext';
 
 /**
  * What a project row's click did, as far as the VIEW needs to know.
@@ -127,6 +128,19 @@ export interface RenovationProjectDeps {
 	 * vault whose last project note was deleted while Obsidian was closed.
 	 */
 	readonly indexScanCompleted: () => boolean;
+	/**
+	 * The stored continue context, or absent — read ONCE at mount, never subscribed to
+	 * (design spec §7: "Validation is a read, not a subscription"). Nothing redirects, nothing
+	 * announces, and nothing is retracted later — a context another leaf or another device
+	 * writes in the meantime is simply what the NEXT mount reads.
+	 */
+	readonly continueContext: () => Promise<ContinueContext | null>;
+	/**
+	 * Remember where the user just went. Fire-and-forget by declaration — it answers `void`,
+	 * not a promise — because every caller is a click handler that navigates in the same tick
+	 * and a failed write costs a Continue row rather than an error.
+	 */
+	readonly rememberContinue: (context: ContinueContext) => void;
 }
 
 export const RENOVATION_PROJECT_CONTEXT: InjectionKey<RenovationProjectDeps> = Symbol(

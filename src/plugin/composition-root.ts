@@ -54,6 +54,7 @@ import {
 } from '../presentation/read-models/renovationProjectQueries';
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
+import type { ContinueContext } from '../application/continueContext';
 import {
 	renovationProjectOpenAsset,
 	renovationProjectOpenPlan,
@@ -612,10 +613,15 @@ export function assetDesignerDeps(
  *
  * `options` carries what only the CALLER can know — `projectId` is the view's own field,
  * `navigate` is bound to `navigateToProject` one caller up (this function may not import
- * Obsidian's own `notifyFault`-mapped `reportFault` shape twice), and `indexScanCompleted`
- * reads a session-scoped flag the plugin owns. A default here would let a composition forget
- * one and still compile — the same self-declared shape this repository already refuses, and
- * the reason Task 3's own wiring case grows an explicit fourth argument instead.
+ * Obsidian's own `notifyFault`-mapped `reportFault` shape twice), `indexScanCompleted`
+ * reads a session-scoped flag the plugin owns, and `continueContext`/`rememberContinue`
+ * (Task 10) reach the plugin's own `ContinueContextStore` the identical way — this function
+ * may not import `infrastructure/obsidian/plugin-data/` and reach for `App` itself, since it
+ * takes `Workspace` and `Vault` rather than the whole app, and neither depends on
+ * `persistence` the other members above it do (a session with unrecovered settings can still
+ * remember and restore where the user was). A default here would let a composition forget one
+ * and still compile — the same self-declared shape this repository already refuses, and the
+ * reason Task 3's own wiring case grows an explicit fourth argument instead.
  */
 export function renovationProjectDeps(
 	root: CompositionRoot,
@@ -625,6 +631,14 @@ export function renovationProjectDeps(
 		projectId: string | null;
 		navigate: (projectId: string | null) => void;
 		indexScanCompleted: () => boolean;
+		/**
+		 * The Continue context and its writer — plugin-local, per-device state Task 10 composes
+		 * over `App.loadLocalStorage`/`saveLocalStorage`, independent of `persistence`
+		 * (`RenovationPlannerPlugin` owns the store; this function only carries it through, the
+		 * same shape `indexScanCompleted` above already takes).
+		 */
+		continueContext: () => Promise<ContinueContext | null>;
+		rememberContinue: (context: ContinueContext) => void;
 	},
 ): RenovationProjectDeps {
 	const persistence = root.persistence;
@@ -632,6 +646,8 @@ export function renovationProjectDeps(
 		projectId: options.projectId,
 		navigate: options.navigate,
 		indexScanCompleted: options.indexScanCompleted,
+		continueContext: options.continueContext,
+		rememberContinue: options.rememberContinue,
 		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve(),
 		openAsset: persistence ? renovationProjectOpenAsset(workspace, root.logger) : () => Promise.resolve(),
 		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason

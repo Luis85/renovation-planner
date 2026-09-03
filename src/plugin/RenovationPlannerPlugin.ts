@@ -34,6 +34,7 @@ import type { RenovationProjectDeps } from '../presentation/views/RenovationProj
 import { isDataAbsent, settingsFrom, type RenovationPlannerSettings, type SettingsPatch } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
+import { ContinueContextStore } from '../infrastructure/obsidian/plugin-data/continueContextStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
 import { runDetached } from './runDetached';
 import { showDiagnosticsReport } from './diagnostics/showDiagnosticsReport';
@@ -572,6 +573,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 				);
 			},
 			indexScanCompleted: () => this.indexScanCompleted,
+			// Task 10. `void` is correct rather than a lint appeasement, not a shortcut around
+			// one: `ContinueContextStore.write` cannot reject (its own docblock states why), so
+			// there is no rejection here for `runDetached` or a `.catch` to have to catch.
+			continueContext: () => this.continueContextStore(this.root.logger).read(),
+			rememberContinue: (context) => void this.continueContextStore(this.root.logger).write(context),
 		});
 	}
 
@@ -654,6 +660,24 @@ export default class RenovationPlannerPlugin extends Plugin {
 			logger,
 		);
 		return this.markerStore;
+	}
+
+	/**
+	 * Task 10's Continue context — one instance per session, the same reason `markerStore` is:
+	 * the storage key it points at survives root swaps, and a store rebuilt per swap would buy
+	 * nothing. Unlike `markerStore`, this one is not keyed to `this.manifest.dir` at all — it
+	 * persists through `App.loadLocalStorage`/`saveLocalStorage`, Obsidian's own PER-DEVICE
+	 * storage rather than a file under the vault's `.obsidian/` tree, which is what keeps a
+	 * last-visit context from following the vault to another device over Obsidian Sync. The
+	 * key is namespaced by `manifest.id` because that pair is scoped to the VAULT and not to
+	 * this plugin — a second plugin calling `saveLocalStorage('continue-context', …)` would
+	 * otherwise collide.
+	 */
+	private continueStore: ContinueContextStore | null = null;
+
+	private continueContextStore(logger: Logger): ContinueContextStore {
+		this.continueStore ??= new ContinueContextStore(this.app, `${this.manifest.id}:continue-context`, logger);
+		return this.continueStore;
 	}
 
 	/**

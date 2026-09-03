@@ -805,13 +805,15 @@ git add -A && git commit -m "feat: the asset library has its own change source"
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: every `StringKey` under `view.asset-library.*` and `empty.asset-library.*`, plus `command.open-asset-library`. `EMPTY_STATE_CONTENT.assetLibrary` with `noAssets` and `noMatches`, and `selectAssetLibraryEmptyState(entries, searching): StringKey | null`.
+- Produces: every `StringKey` under `view.asset-library.*` and `empty.asset-library.*`, plus `command.open-asset-library`. `EMPTY_STATE_CONTENT.assetLibrary` with `noAssets` and `noMatches`, and `selectAssetLibraryEmptyState(entries, unreadable, searching): 'noAssets' | 'noMatches' | null` — a registry KEY, like every sibling selector in `src/presentation/emptyStates/selectors.ts`, never a `StringKey`.
 
 **This task lands the whole inventory before any component exists**, deliberately. A key list assembled a string at a time as each component needs one is how the German reader gets hard-coded English in exactly the places they look first — which is the defect §8 records being reported against its own first version.
 
 **Both empty states carry an action, and they differ in kind:** `noAssets`'s action creates something (`New asset`); `noMatches`'s action **restores the previous view** by clearing the search field. An action that creates something from a no-matches state is the wrong gesture.
 
-**The selector is pure and takes both inputs.** "Is the user searching" is not derivable from an entry list — an empty list with a query is `noMatches` and an empty list without one is `noAssets`, and those want opposite copy and opposite actions.
+**The selector is pure and takes all THREE inputs.** "Is the user searching" is not derivable from an entry list — an empty list with a query is `noMatches` and an empty list without one is `noAssets`, and those want opposite copy and opposite actions.
+
+**And `unreadable` guards both states, unconditionally, as the FIRST statement — exactly as all three siblings in that file do.** An empty `entries` with a non-empty `unreadable` is a library whose notes could not be READ, not one with "no assets at all" (§4's row says that literally), while §4's *Some unreadable* row requires the shelves to still draw. Without the guard this selector invites the user to create their first asset over a catalogue full of damaged notes — the duplicate-inviting state this feature exists to prevent. The guard is unconditional rather than narrowed to `noAssets`: a selector carrying two different unreadable policies would need a paragraph to defend, and the no-matches feedback is not lost, since Task 13's status region announces the match count independently.
 
 **German:** `strings.test.ts` requires `de.ts` to translate every key `en.ts` declares AND to name the same interpolation holes. It also pins two terms — no `Material` where the UI says `Objekt`, and `Vault` kept untranslated. Spelling and every other term are unread by any gate, so read the German you write.
 
@@ -819,9 +821,16 @@ git add -A && git commit -m "feat: the asset library has its own change source"
 
 ```ts
 it('answers noAssets for an empty library and noMatches for an empty search', () => {
-    expect(selectAssetLibraryEmptyState([], false)).toBe('empty.asset-library.no-assets.headline');
-    expect(selectAssetLibraryEmptyState([], true)).toBe('empty.asset-library.no-matches.headline');
-    expect(selectAssetLibraryEmptyState([anEntry()], true)).toBeNull();
+    expect(selectAssetLibraryEmptyState([], 0, false)).toBe('noAssets');
+    expect(selectAssetLibraryEmptyState([], 0, true)).toBe('noMatches');
+    expect(selectAssetLibraryEmptyState([anEntry()], 0, true)).toBeNull();
+});
+
+it('draws no empty state at all while any asset note is unreadable', () => {
+    // The shelves region draws empty beside the notice strip. Both arms, because a guard
+    // written for the arm somebody was thinking about is this repository's oldest defect.
+    expect(selectAssetLibraryEmptyState([], 1, false)).toBeNull();
+    expect(selectAssetLibraryEmptyState([], 1, true)).toBeNull();
 });
 ```
 

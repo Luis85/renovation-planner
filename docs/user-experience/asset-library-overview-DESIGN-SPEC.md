@@ -551,7 +551,21 @@ Four sections, in this order:
      | `asset-geometry.unusable-id` | the asset's **id** cannot name a file, so no shape can be stored for it at all — never that a shape file could not be read | **`Open note`** — the id is in the note's frontmatter and editing it is the whole repair |
      | any other `asset-geometry.*` — `unreadable`, `corrupt`, `schema-invalid`, `asset-id-mismatch` | §3.4's `unreadable` wording, **naming the sidecar from the read model's own `sidecarPath`** | **withdrawn** — see below |
      | a `GeometryError` from `dimensionsOf` | the shape's extent is too large to state as a measurement — the sidecar READ succeeded | withdrawn; **no retry**, because nothing about re-reading the same bytes can change the arithmetic |
+     | a **domain** `asset.*` or `calibration.*` code — the sidecar parsed and its CONTENTS are invalid | §3.4's `unreadable` wording, naming the sidecar | withdrawn; **no retry**, for the same reason as the row above |
      | anything else | the vault read failed, retryable | withdrawn until a read succeeds |
+
+     **That fifth row was missing and the catch-all was swallowing it, which is a Retry that
+     cannot work.** `ObsidianAssetGeometrySidecar.read` does not stop at the JSON schema: it runs
+     `validateAssetShape` and `validateCalibration` over what it parsed and returns
+     `err(validated.error)` unchanged, so a sidecar that is well-formed JSON and a nonsense shape
+     — a typed footprint marked pending, a degenerate clearance — refuses with a DOMAIN code such
+     as `asset.typed-footprint-cannot-be-pending`. That is neither an `asset-geometry.*` code nor
+     a `GeometryError`, so it fell to the last row and was presented as a transient vault failure
+     with a Retry button. Re-reading unchanged invalid bytes cannot succeed, and *an action that
+     cannot work is worse than no action* is the rule this very table is built on. The sidecar's
+     own docblock says these codes pass "through exactly as `validateAssetShape`'s `asset.*` codes
+     do", so the escape was documented at the source and unaccounted for at the destination.
+     Reported by a review bot.
 
      **Those three rows are about the SHAPE. A selection can also fail one level up, and that
      state is the panel's rather than this section's.** §5.1a's listing omits an asset whose NOTE

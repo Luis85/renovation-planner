@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { mountPlanEditorCanvas, runtimeOf, settle } from '../../../helpers/editor';
-import { click } from '../../../helpers/planEditorRig';
+import { activateTool, click } from '../../../helpers/planEditorRig';
 
 describe('TemporaryToolBanner', () => {
 	it('is absent under Select and names the task under a creation tool', async () => {
@@ -51,6 +51,17 @@ describe('TemporaryToolBanner', () => {
 		runtime.cancelActiveTask();
 		expect(runtime.activeToolId.value).toBe('select');
 		expect(useSelectionStore(harness.pinia).selectedIds).toEqual(['zone-kitchen']);
+	});
+
+	it('Cancel under camera mode (no active tool) is a no-op too: nothing to leave', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		activateTool(harness, null);
+		useSelectionStore(harness.pinia).select(['zone-kitchen' as never]);
+		runtime.cancelActiveTask();
+		expect(runtime.activeToolId.value).toBeNull();
+		expect(useSelectionStore(harness.pinia).selectedIds).toEqual(['zone-kitchen']);
+		expect(harness.wrapper.find('.rp-task-banner').exists()).toBe(false);
 	});
 
 	/**

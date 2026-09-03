@@ -726,7 +726,14 @@ entry; a fixture is what decides which state an axe scan actually grades.
 
 ### 5.1 What the surface reads
 
-A new query and a new read model. Nothing else in the application layer changes.
+A new query and a new read model, **plus two port changes** — which the first version of this
+sentence denied, saying *"nothing else in the application layer changes"*, and went on denying
+after the two sections below it had specified both. §5.1a widens `AssetRepository`'s listing so an
+unreadable note can be told from an absent one, and §3.5 needs `AssetGeometrySidecar`'s refusal to
+carry `sidecarPath` so a damaged-sidecar message can name the file through `t(...)` rather than
+through developer English. A builder scoping the increment from this line alone would have costed
+neither. Both are small and both have a precedent to copy; **the reason this sentence keeps
+mattering is that it is the one a plan is written from.**
 
 ```ts
 // application/queries/ListCatalogueEntries.ts
@@ -1020,12 +1027,21 @@ Every gesture reachable without a pointer, per PRODUCT.md's binding WCAG 2.2 AA 
 
 | Key | Does |
 | --- | --- |
-| `Tab` | Moves through: search, `New asset`, each shelf header, each row of an expanded shelf, the inspector's fields and actions |
-| `Enter` / `Space` on a shelf header | Toggles the shelf |
+| `Tab` | Moves through: search, `New asset`, each **collapsible** shelf header, each row of an expanded shelf, the inspector's fields and actions |
+| `Enter` / `Space` on a collapsible shelf header | Toggles the shelf |
 | `Enter` / `Space` on a row | Selects it into the inspector |
 | `↑` / `↓` within a shelf | Moves between rows, wrapping into the next shelf's header at the ends |
 | `Escape` in the search field | Clears it |
 | `Escape` in an inspector field | Resyncs that one field (`useFieldCommit.onCancel`) — one field, not the panel, exactly as the Plan editor's Inspector already behaves |
+
+**"Collapsible" is load-bearing in those two rows, and it was missing.** §3.2 requires an EMPTY
+declared shelf to stay a non-interactive `<h3>` — there is nothing to expand — so it is not a tab
+stop and has no Enter/Space behaviour to promise. Written as *every shelf header*, this table and
+§3.2 asked an implementation to satisfy both, which is impossible: either the empty heading grows
+a tab stop it should not have, or the keyboard contract is quietly not kept. The same
+non-focusable heading that the post-delete fallback had to stop routing through, arriving in the
+section that promises the gestures rather than in the one that uses them. Reported by a review
+bot.
 
 **Below 35rem, selecting a row MOVES focus, and `Back to library` returns it.** The narrow
 composition hides the shelves outright (§7), so the button the user just activated is inside a
@@ -2069,6 +2085,23 @@ in the four mock components — text nodes across newlines, placeholders, titles
 extracted mechanically and checked against the list, rather than read off the screen. The label
 and the placeholder are separate keys now, `.unselected` is present, and the two strings the mock
 does not draw at all (`Delete`, the notes label) were already there.
+
+A twenty-ninth round found two, and both are sections that had been corrected around without
+being corrected.
+
+**§5's opening line still said "nothing else in the application layer changes"** — with §5.1a
+directly beneath it specifying an `AssetRepository` port change, and §3.5 specifying a second one
+on `AssetGeometrySidecar`. That sentence was flagged rounds ago and the answer was to ADD §5.1a
+rather than to fix the claim §5.1a falsifies, so the document carried both for the rest of the
+branch. It matters more than most drift here because **it is the line a plan is scoped from**: a
+builder reading it costs neither port change.
+
+**And §6.2 promised keyboard gestures for every shelf header** while §3.2 requires an empty
+declared shelf to stay a non-interactive `<h3>` — no tab stop, nothing to toggle. Two contracts
+asking for opposite things, so an implementation had to break one silently. Scoped to collapsible
+headers. It is the same non-focusable heading the post-delete fallback had to stop routing
+through, met again in the section that PROMISES the gestures rather than in the one that consumes
+them — which is where it should have been caught the first time.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

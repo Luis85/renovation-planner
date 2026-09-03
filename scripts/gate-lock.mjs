@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -56,19 +56,65 @@ const POLL_MS = 2000;
 
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
+/** Whether `target`'s mtime has not moved in `STALE_MS`. A path that is gone is not stale. */
+const isStale = (target) => {
+	try {
+		return Date.now() - statSync(target).mtimeMs > STALE_MS;
+	} catch {
+		return false;
+	}
+};
+
+/** Return a lock we moved aside but should not have, or drop it if the path is taken again. */
+const putBack = (aside) => {
+	try {
+		renameSync(aside, LOCK);
+	} catch {
+		rmSync(aside, { recursive: true, force: true });
+	}
+};
+
 /**
- * Remove a lock whose mtime has not moved in `STALE_MS` — its holder is gone.
+ * Reclaim a lock whose holder is gone — WITHOUT ever unlinking a live one.
  *
- * `rmSync` here races every other waiter, which is harmless: whoever loses simply fails its
- * own `mkdir` on the next poll and waits again. Its own `catch` covers the narrower race of
- * the holder releasing between the `stat` and the `rm`.
+ * The first version read `stat(LOCK)` and then `rm(LOCK)`, and its comment called the gap
+ * between them harmless. It is not, and a review bot said so: if the stale holder releases
+ * after the `stat` and a new process claims the path before the `rm`, that `rm` deletes the
+ * NEW holder's lock, and the next poller then acquires a path someone is still working
+ * under — two gates overlapping, which is the one thing this file exists to prevent. The
+ * "harmless" the old comment described is a DIFFERENT race (two waiters both reclaiming one
+ * dead lock), which is the shape its author had in mind.
+ *
+ * The rule that closes it: **decide staleness on the directory you already hold, not on the
+ * path you are about to delete.** `renameSync` is the arbitration — atomic, so exactly one
+ * waiter can move a given directory and every other one fails — and it carries the mtime
+ * with it, so the SAME question asked of `aside` is being asked of a directory nothing can
+ * swap out from under us. A replacement lock is by construction freshly made, so it answers
+ * "not stale" and goes back where it came from.
+ *
+ * TWO RESIDUES, named rather than implied. Between our `rename` and `putBack`'s `rename`
+ * the path is briefly free, so a third process can claim it — and then the lock we moved
+ * aside is dropped, which is the overlap above with a far narrower window rather than none.
+ * Closing that needs an atomic conditional rename, which the platform does not offer. And a
+ * holder that genuinely runs longer than `STALE_MS` is stale by this definition and can be
+ * reclaimed while alive; the bound is twenty minutes against a gate measured at three, and
+ * the obvious remedy — a holder that touches its own lock on a timer — cannot work here,
+ * because `spawnSync` blocks the event loop for the whole of the run it is timing.
  */
 const reclaimIfStale = () => {
+	if (!isStale(LOCK)) return;
+
+	const aside = `${LOCK}.reclaim-${process.pid}`;
+
 	try {
-		if (Date.now() - statSync(LOCK).mtimeMs > STALE_MS) rmSync(LOCK, { recursive: true, force: true });
+		renameSync(LOCK, aside);
 	} catch {
-		// Released between the two calls. Nothing to reclaim.
+		// Released, or another waiter moved it first. Either way it is no longer ours to judge.
+		return;
 	}
+
+	if (isStale(aside)) rmSync(aside, { recursive: true, force: true });
+	else putBack(aside);
 };
 
 /** Whether the lock is ours now. Answers false rather than throwing, so the caller polls. */
@@ -87,6 +133,24 @@ const claim = () => {
 };
 
 const release = () => rmSync(LOCK, { recursive: true, force: true });
+
+/**
+ * Whether this command has to go through a shell — on Windows, and only there.
+ *
+ * `npm` is `npm.cmd`, which `CreateProcess` cannot execute directly, so the one command this
+ * script exists to run needs a shell. A shell RE-PARSES the argument vector, though, and
+ * Windows quoting is not JavaScript quoting: `node -e "...\"C:\\x\\y\"..."` reaches the
+ * child mangled, the child never runs, and the failure surfaces as a missing output file
+ * with no error from the wrapper at all. That is not a hypothesis — it is what
+ * `verify (windows-latest, 22)` reported on this file's first commit while all three Ubuntu
+ * legs were green.
+ *
+ * So the shell is asked for only where it is needed. An `.exe` is executable directly, which
+ * covers `process.execPath` and therefore every argument-sensitive caller; everything else on
+ * Windows may be a `.cmd` or a `.bat` and gets one. On any other platform there is no shell
+ * at all and arguments are passed as written.
+ */
+const needsShell = (bin) => process.platform === "win32" && !bin.toLowerCase().endsWith(".exe");
 
 const command = process.argv.slice(2);
 
@@ -125,7 +189,7 @@ let status = 1;
 
 try {
 	const [bin, ...args] = command;
-	status = spawnSync(bin, args, { stdio: "inherit", shell: process.platform === "win32" }).status ?? 1;
+	status = spawnSync(bin, args, { stdio: "inherit", shell: needsShell(bin) }).status ?? 1;
 } finally {
 	release();
 }

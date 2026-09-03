@@ -832,6 +832,11 @@ MSG
 **Files:**
 - Modify: `src/application/commands/zone/reversible-delete-zone-command.ts`
 - Modify: `src/presentation/editor/inspector-wiring.ts:95`
+- Modify: `tests/helpers/slice10.ts` — its typed `zoneUndoDeps()` factory builds this bundle, and
+  the required member makes it a compile error. So does the inline literal in
+  `reversibleDeleteZoneWithReferents.test.ts`, which Step 4 runs and which exercises `undo()`:
+  left alone it either fails typechecking or reaches `this.undoDeps.events.publish` with no bus.
+  Reported by review; the compiler names both regardless, which is what the required member is for.
 - Test: `tests/application/commands/zone/reversibleDeleteZone.test.ts`
 
 **Interfaces:**
@@ -991,7 +996,12 @@ MSG
 
 **Files:**
 - Modify: `src/application/reference/undoDeleteResolution.ts`
-- Modify: `src/presentation/editor/inspector-wiring.ts` (thread `events` into `UndoSequenceOps`)
+- Modify: `src/application/commands/zone/reversible-delete-zone-command.ts` — the `UndoSequenceOps`
+  literal in its `undo()` (around line 159) is the ONLY construction site of that bundle in
+  `src/`; an earlier draft named `inspector-wiring.ts` here, which builds `DeleteZoneUndoDeps`
+  (Task 4's bundle) and not this one.
+- Modify: every TEST that builds `UndoSequenceOps` — the required member makes each a compile
+  error the compiler names. Do not weaken it to optional to make them pass.
 - Test: `tests/application/reference/undoDeleteResolution.test.ts`
 
 **Interfaces:**
@@ -1354,6 +1364,15 @@ MSG
 
 **Files:**
 - Modify: `src/application/reference/deleteResolution.ts`
+- Modify: `src/application/commands/zone/DeleteZone.ts` — it calls `runDeleteResolution` at line
+  79 and builds the ops bundle at 114, and it already holds `this.ops.events` (it publishes
+  `zoneDeleted` at 126), so threading is one line. **Without it Task 8 cannot compile**: making
+  `ResolutionOps.events` required breaks both production callers, and Task 9 wires only the
+  ASSET one. Reported twice — first by this plan's own pre-flight scan, whose ruling never
+  reached this list, and then by review against the omission that ruling was meant to fix.
+- Modify: every TEST that builds a `ResolutionOps` bundle — `deleteResolutionEngine`,
+  `interleaving`, `compensationRestore`, `deleteResolutions` and `deleteAssetRefusals` all drive
+  this engine. The compiler names each one.
 - Test: `tests/application/reference/deleteResolutions.test.ts`
 
 **Interfaces:**

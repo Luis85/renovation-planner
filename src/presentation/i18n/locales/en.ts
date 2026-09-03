@@ -1,14 +1,17 @@
 /**
  * The English table is the COMPLETE one: a key exists because this file answers it, and
  * `StringKey` derives from here, so the compiler demands English before a caller can
- * name a key. The file is named `en.ts` because that is the filename the obsidianmd
+ * name a key. The file is named `en.ts` because that is a path the obsidianmd
  * ruleset's locale rules match — sentence case in this table is linted, not reviewed.
  *
  * **Two lines under the 400-line budget** as of Task 19 (`max-lines` skips blanks and
- * comments, so a docblock like this one is free and a key is not). `de.ts` carries the account
- * of what happens next, including why the obvious extraction is a trap here: this file's NAME
- * is what puts it under the sentence-case rule, so a second English table would be copy no gate
- * reads unless that rule's configuration names it in the same edit.
+ * comments, so a docblock like this one is free and a key is not), and `de.ts` is at it. What
+ * puts this file under the sentence-case rule is its PATH rather than its exact name: the rule
+ * self-scopes through `isEnglishLocalePath`, whose regex admits `en.editor.ts`, `en-editor.ts`
+ * and `locales/en/editor.ts` alike, with no configuration to write — measured against the
+ * installed plugin, and `de.ts`'s header carries the reference and the remedy. So a split into
+ * `locales/en/<subject>.ts` keeps every English string inside the one gate that reads it. Task
+ * 20 performs it.
  */
 export const en = {
 	'command.open-project': 'Open renovation project',

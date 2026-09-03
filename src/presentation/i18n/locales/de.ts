@@ -7,12 +7,24 @@
  * **This table is AT its 400-line budget** (`max-lines`, which skips blanks and comments), and
  * Task 19 bought its own six keys by joining four wrapped values onto one line each. That is a
  * budget already spent, not headroom: the next handful of keys does not fit, and the answer is
- * an extraction rather than a fifth joined literal — `en.ts` sits two lines under the same cap.
- * **Extracting is not free and the trap is worth knowing before someone tries it**: the
- * marketplace sentence-case rule (`obsidianmd/ui/sentence-case-locale-module`) is scoped by
- * FILE NAME — any file called `en.ts` — so splitting the English table moves half the copy out
- * of the one gate that reads it. Either name the new file in that rule's configuration in the
- * same edit, or split neither.
+ * a SPLIT rather than a fifth joined literal — `en.ts` sits two lines under the same cap, so
+ * both tables are out of room at once.
+ *
+ * **The split is safe, which took a measurement rather than a reading.** An earlier draft of
+ * this paragraph warned that the marketplace sentence-case rule
+ * (`obsidianmd/ui/sentence-case-locale-module`) is scoped to files literally called `en.ts` and
+ * that a new file would have to be named in its configuration. Both halves are false: the rule
+ * self-scopes through `isEnglishLocalePath`
+ * (`node_modules/eslint-plugin-obsidianmd/dist/lib/rules/ui/sentenceCaseUtil.js`), whose regex
+ * is `(?:^|/)en(?:[._-][^/]+)?(?:/.*)?\.(ts|js|cjs|mjs)$`, case-insensitive and built from the
+ * rule's own extension list — there is no filename option to configure. Asked of that function
+ * directly, `en.editor.ts`, `en-editor.ts` and `locales/en/editor.ts` are all inside the gate
+ * and `de/editor.ts` is outside it, which is exactly the asymmetry the two tables want.
+ *
+ * So the remedy is `locales/en/<subject>.ts` beside `locales/de/<subject>.ts`, spread into the
+ * assembled `en`/`de` objects — every English part stays linted, and `StringKey` still derives
+ * from one composed table. **Task 20 performs that split** (controller ruling); Task 19 stopped
+ * at recording it, because a locale refactor inside a shell task is a change nobody reviewed.
  */
 import type { StringKey } from './en';
 

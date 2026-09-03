@@ -318,15 +318,6 @@ describe('mount and unmount', () => {
 	});
 
 	/**
-	 * `PlanEditorContext.closeLeaf`, at the seam that supplies it.
-	 *
-	 * The tree gets a narrow callback and the VIEW is what holds the `WorkspaceLeaf` — the same
-	 * shape `onPlanChanged` already had, and the reason `onThemeChange` gives for not handing
-	 * the `Workspace` down. This is the only place that binding is observable: `PlanEditorRoot`
-	 * can be asked whether it CALLED `closeLeaf`, and only here can it be asked whether calling
-	 * it closes anything.
-	 */
-	/**
 	 * `PlanEditorContext.focusLeaf`, at the same seam and for the same reason as `closeLeaf`
 	 * below: `PlanEditorRoot` can be asked whether it CALLED it, and only here can it be asked
 	 * whether calling it reaches an actual `WorkspaceLeaf`.
@@ -357,6 +348,15 @@ describe('mount and unmount', () => {
 		await view.onClose();
 	});
 
+	/**
+	 * `PlanEditorContext.closeLeaf`, at the seam that supplies it.
+	 *
+	 * The tree gets a narrow callback and the VIEW is what holds the `WorkspaceLeaf` — the same
+	 * shape `onPlanChanged` already had, and the reason `onThemeChange` gives for not handing
+	 * the `Workspace` down. This is the only place that binding is observable: `PlanEditorRoot`
+	 * can be asked whether it CALLED `closeLeaf`, and only here can it be asked whether calling
+	 * it closes anything.
+	 */
 	it('closes its own leaf when the dangling-plan action is pressed', async () => {
 		// Driven through the RENDERED button rather than by reaching for the provided context:
 		// the binding is only worth anything if the whole chain works, and this is the one place

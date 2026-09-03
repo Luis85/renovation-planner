@@ -26,7 +26,7 @@ import { resolveEmptyState } from '../emptyStates/resolve';
 import PlanCanvas from './PlanCanvas.vue';
 import EditorContextBar from './shell/EditorContextBar.vue';
 import FloatingPrimaryActions from './shell/FloatingPrimaryActions.vue';
-import InspectorPanel from './shell/InspectorPanel.vue';
+import EntityInspector from './shell/EntityInspector.vue';
 import PropertyLayerPanel from './shell/PropertyLayerPanel.vue';
 import StatusBar from './shell/StatusBar.vue';
 
@@ -229,7 +229,7 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 			>
 				<p>{{ tr('editor.loading') }}</p>
 			</div>
-			<InspectorPanel v-if="inspectorPanelOpen" />
+			<EntityInspector v-if="inspectorPanelOpen" />
 		</div>
 		<!--
 			ADDITIVE, and never the in-place failure state, because the canvas is showing valid

@@ -1,0 +1,189 @@
+/*
+ * The Inspector region — moved out of `editor.css` at its own 400-line cap (Task 15's frame,
+ * floor state and room list pushed it to 353), for the same reason `editor-status.css` and
+ * `editor-requirements.css` split out before it.
+ *
+ * **ITS POSITION IN `index.css` IS NOT LOAD-BEARING**, unlike those two siblings: every
+ * selector in this file is `.rp-editor-inspector*`, `.rp-inspector-guidance`,
+ * `.rp-floor-inspector*` or `.rp-room-list*`, and no other partial declares a rule at equal
+ * specificity for any of them — there is no equal-specificity pair here for source order to
+ * decide between. It is imported directly after `editor-shell.css` because that is where the
+ * OTHER Plan Editor shell partials already sit (`editor-status.css`, `editor-requirements.css`,
+ * `editor-cursors.css`), and grouping keeps the shell's own partials adjacent in the list a
+ * reader scans — a convenience, not a cascade requirement.
+ */
+
+.rp-editor-inspector-empty {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.rp-editor-inspector-fields {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--size-4-1) var(--size-4-2);
+	margin: 0 0 var(--size-4-4);
+	font-size: var(--font-ui-small);
+}
+
+.rp-editor-inspector-fields dt {
+	color: var(--text-muted);
+}
+
+.rp-editor-inspector-fields dd {
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
+/*
+ * Qualified with `.rp-editor-inspector` for the reason `styles/editor-shell.css`'s context-bar
+ * and primary-actions button blocks give at length (Obsidian's own `button:not(.clickable-icon)`
+ * outranks a bare class). This one lost the most: a DESTRUCTIVE action rendered as an ordinary
+ * grey Obsidian button
+ * (`rgb(51,51,51)`/`rgb(218,218,218)` measured), with only its red border surviving — Obsidian's
+ * rule sets no border, so that one declaration was never contested.
+ *
+ * **THE LABEL IS `--text-normal`, NOT `--text-error`, and that is a change of design forced by a
+ * measurement.** Winning the cascade made this rule draw what it had always asked for, and what
+ * it had always asked for does not pass: `--text-error` on the panel measures 4.94:1 in dark and
+ * **4.20:1 in light**, under the 4.5:1 AA floor for text this size. Worse, the hover rule below
+ * sets `--background-modifier-error` as the background, and in Obsidian's palette that resolves
+ * to the SAME `--color-red` as `--text-error` — so hovering rendered red on red at **1.00:1**,
+ * both schemes, and the label disappeared entirely. Measured, not computed.
+ *
+ * None of that was visible while the rule lost. The cascade was handing it `--text-normal`, so
+ * the button was legible by accident and its own declarations were never exercised. This is the
+ * THIRD rule in this pull request to be wrong only once it started working — `.rp-harness-scheme`
+ * and this one's own hover being the others — and it is the argument for re-measuring after a
+ * specificity fix rather than treating the fix as inert.
+ *
+ * So the red moves to where it costs no contrast, exactly as `.rp-harness-failure` does in
+ * `tests/harness/theme.css`: the BORDER carries it (a non-text boundary needs 3:1, and
+ * `--text-error` clears that in both schemes), the hover tint reinforces it, and the label stays
+ * readable. Colour was never the only channel here anyway — the button says "delete" (SDD §85).
+ */
+.rp-editor-inspector .rp-editor-inspector-delete {
+	width: 100%;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--text-error);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+/* The ring, for the reason `styles/editor-shell.css`'s own `:focus-visible` comment gives at length. */
+.rp-editor-inspector .rp-editor-inspector-delete:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/*
+ * A TINT rather than the solid `--background-modifier-error` this was. Solid is not available to
+ * it: that variable is `--color-red` at full strength, and no foreground token clears 4.5:1 on it
+ * — `--text-on-accent` (white) measures 3.45:1 — so a filled destructive button cannot carry a
+ * readable label at this size with the palette Obsidian gives. The tint keeps the composite close
+ * to the panel it sits on, so the label's contrast on hover stays what it is at rest.
+ */
+.rp-editor-inspector .rp-editor-inspector-delete:hover {
+	background-color: color-mix(in oklch, var(--background-modifier-error) 18%, transparent);
+}
+
+/*
+ * Wider than the layers panel since design slice 10, and the two therefore do not share a
+ * width. The Requirements panel puts two labelled text inputs and four buttons per row in
+ * here; at the layers panel's 12rem those wrap to one control per line and a
+ * three-requirement zone is taller than the pane. The number is a judgement rather than a
+ * measurement — jsdom lays nothing out, and the harness draws this panel EMPTY (its fixture
+ * selects no zone), so no gate here has seen a populated row. `npm run test-build` is where
+ * it gets looked at.
+ */
+.rp-editor-inspector {
+	flex: 0 0 auto;
+	width: 17rem;
+	min-height: 0;
+	overflow-y: auto;
+	padding: var(--size-4-2);
+	background-color: var(--background-secondary);
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * The frame's one `role="status"` announcement (Task 15, design spec §6.6). Empty text most
+ * of the time — cleared shortly after it shows — so nothing here reserves layout space for it;
+ * a transient line is exactly what it is.
+ */
+.rp-inspector-guidance {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.rp-floor-inspector {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+/*
+ * The three renderings Task 7's `Aggregate` union asks for. `--partial` and `--unavailable`
+ * each carry a WORD as well as a style — SDD §85's "never colour alone" applies to a figure
+ * exactly as it does to a button: `--unavailable`'s italic and `--partial`'s mark both sit
+ * beside text a screen reader already gets from the element's own content (the "Not
+ * available yet" string, or the "N could not be read" suffix `FloorInspector.vue` appends),
+ * never in place of it.
+ */
+.rp-floor-inspector__stat--unavailable {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.rp-floor-inspector__stat--partial::after {
+	content: ' *';
+	color: var(--text-warning);
+}
+
+/*
+ * A qualified `<button>`, for the reason every other list action in this file's sibling
+ * partials is: Obsidian's own `button:not(.clickable-icon)` sets `background-color`, `color`
+ * and `box-shadow` at (0,1,1), which outranks a bare class at (0,1,0) regardless of source
+ * order. `tests/build/buttonSpecificity.test.ts` and `tests/build/buttonFocusRing.test.ts`
+ * are what would have caught it going unqualified.
+ */
+.rp-room-list {
+	margin: 0 0 var(--size-4-3);
+	padding: 0;
+	list-style: none;
+}
+
+.rp-room-list .rp-room-list__row {
+	width: 100%;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: none;
+	border-radius: var(--radius-s);
+	text-align: left;
+	cursor: pointer;
+}
+
+.rp-room-list .rp-room-list__row:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-room-list .rp-room-list__row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* The selected row (design slice 6's selection, read through `SelectionStore.isSelected`). */
+.rp-room-list .rp-room-list__row[aria-pressed='true'] {
+	background-color: var(--background-modifier-active-hover);
+	font-weight: var(--bold-weight);
+}

@@ -35,86 +35,6 @@
 	position: relative;
 }
 
-.rp-editor-inspector-empty {
-	margin: 0;
-	font-size: var(--font-ui-small);
-	color: var(--text-muted);
-}
-
-.rp-editor-inspector-fields {
-	display: grid;
-	grid-template-columns: auto 1fr;
-	gap: var(--size-4-1) var(--size-4-2);
-	margin: 0 0 var(--size-4-4);
-	font-size: var(--font-ui-small);
-}
-
-.rp-editor-inspector-fields dt {
-	color: var(--text-muted);
-}
-
-.rp-editor-inspector-fields dd {
-	margin: 0;
-	font-variant-numeric: tabular-nums;
-	overflow-wrap: anywhere;
-}
-
-/*
- * Qualified with `.rp-editor-inspector` for the reason `styles/editor-shell.css`'s context-bar
- * and primary-actions button blocks give at length (Obsidian's own `button:not(.clickable-icon)`
- * outranks a bare class). This one lost the most: a DESTRUCTIVE action rendered as an ordinary
- * grey Obsidian button
- * (`rgb(51,51,51)`/`rgb(218,218,218)` measured), with only its red border surviving — Obsidian's
- * rule sets no border, so that one declaration was never contested.
- *
- * **THE LABEL IS `--text-normal`, NOT `--text-error`, and that is a change of design forced by a
- * measurement.** Winning the cascade made this rule draw what it had always asked for, and what
- * it had always asked for does not pass: `--text-error` on the panel measures 4.94:1 in dark and
- * **4.20:1 in light**, under the 4.5:1 AA floor for text this size. Worse, the hover rule below
- * sets `--background-modifier-error` as the background, and in Obsidian's palette that resolves
- * to the SAME `--color-red` as `--text-error` — so hovering rendered red on red at **1.00:1**,
- * both schemes, and the label disappeared entirely. Measured, not computed.
- *
- * None of that was visible while the rule lost. The cascade was handing it `--text-normal`, so
- * the button was legible by accident and its own declarations were never exercised. This is the
- * THIRD rule in this pull request to be wrong only once it started working — `.rp-harness-scheme`
- * and this one's own hover being the others — and it is the argument for re-measuring after a
- * specificity fix rather than treating the fix as inert.
- *
- * So the red moves to where it costs no contrast, exactly as `.rp-harness-failure` does in
- * `tests/harness/theme.css`: the BORDER carries it (a non-text boundary needs 3:1, and
- * `--text-error` clears that in both schemes), the hover tint reinforces it, and the label stays
- * readable. Colour was never the only channel here anyway — the button says "delete" (SDD §85).
- */
-.rp-editor-inspector .rp-editor-inspector-delete {
-	width: 100%;
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid var(--text-error);
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
-
-/* The ring, for the reason `styles/editor-shell.css`'s own `:focus-visible` comment gives at length. */
-.rp-editor-inspector .rp-editor-inspector-delete:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 1px;
-}
-
-/*
- * A TINT rather than the solid `--background-modifier-error` this was. Solid is not available to
- * it: that variable is `--color-red` at full strength, and no foreground token clears 4.5:1 on it
- * — `--text-on-accent` (white) measures 3.45:1 — so a filled destructive button cannot carry a
- * readable label at this size with the palette Obsidian gives. The tint keeps the composite close
- * to the panel it sits on, so the label's contrast on hover stays what it is at rest.
- */
-.rp-editor-inspector .rp-editor-inspector-delete:hover {
-	background-color: color-mix(in oklch, var(--background-modifier-error) 18%, transparent);
-}
-
 .rp-editor-body {
 	display: flex;
 	flex: 1;
@@ -127,31 +47,14 @@
  * first browser capture, while every jsdom test passed. jsdom lays nothing out and cannot
  * see it; `npm run harness-shot` is what did.
  */
-.rp-editor-layers,
-.rp-editor-inspector {
+.rp-editor-layers {
 	flex: 0 0 auto;
 	width: 12rem;
 	min-height: 0;
 	overflow-y: auto;
 	padding: var(--size-4-2);
 	background-color: var(--background-secondary);
-}
-
-.rp-editor-layers {
 	border-right: 1px solid var(--background-modifier-border);
-}
-
-/*
- * Wider than the layers panel since slice 10, and the two therefore stopped sharing a
- * width. The Requirements panel puts two labelled text inputs and four buttons per row in
- * here; at 12rem those wrap to one control per line and a three-requirement zone is taller
- * than the pane. The number is a judgement rather than a measurement — jsdom lays nothing
- * out, and the harness draws this panel EMPTY (its fixture selects no zone), so no gate
- * here has seen a populated row. `npm run test-build` is where it gets looked at.
- */
-.rp-editor-inspector {
-	width: 17rem;
-	border-left: 1px solid var(--background-modifier-border);
 }
 
 .rp-editor-panel-title {

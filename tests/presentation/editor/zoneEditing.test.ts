@@ -226,9 +226,12 @@ describe('the wired Plan Editor (design slice 8)', () => {
 			'the delete to land in the repository',
 		);
 
-		// Both the note-side repo state and the panel agree it is gone (DoD 3/8).
+		// Both the note-side repo state and the panel agree it is gone (DoD 3/8). The delete
+		// clears the selection, so the Inspector falls back to its floor state (Task 15) —
+		// "Nothing selected." was `InspectorPanel`'s own text through Task 14; the frame's
+		// floor state has no rooms left to list instead.
 		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(0);
-		expect(harness.wrapper.text()).toContain('Nothing selected.');
+		expect(harness.wrapper.text()).toContain('This floor has no rooms yet.');
 
 		actionButton(harness, 'Undo').click();
 		await until(
@@ -554,9 +557,9 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		click(canvas, 700, 500);
 		await settle();
 
-		// The store emptying and the panel reading "Nothing selected." are asserted by the
-		// unit suite. What neither can see is the CANVAS: handles left behind would satisfy
-		// both and go on being drawn over a zone the user no longer has selected.
+		// The store emptying and the Inspector falling back to its floor state (Task 15) are
+		// asserted by the unit suite. What neither can see is the CANVAS: handles left behind
+		// would satisfy both and go on being drawn over a zone the user no longer has selected.
 		expect(interaction?.find('Circle')).toHaveLength(0);
 		expect(interaction?.find('Line')).toHaveLength(0);
 

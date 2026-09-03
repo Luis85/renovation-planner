@@ -332,11 +332,27 @@ const styleImportsStylesheet = (file: string, block: StyleBlock): boolean =>
 	|| importUrlsOf(file, Buffer.from(block.content)).length > 0
 	|| composesFrom(file, block.content).length > 0;
 
+/**
+ * A relative specifier, and whether it is a GLOB PATTERN or a module path.
+ *
+ * The two cannot be treated alike and the first version treated them alike: it truncated every
+ * specifier at the first glob metacharacter, so an ordinary import whose path merely CONTAINS
+ * one — `'../(route)/../../scripts/helper.ts'`, and a parenthesised segment is an everyday
+ * routing convention — was cut down to `'../'`, resolved to `src/`, and reported as staying
+ * inside the roots. Measured: the real target is `scripts/helper.ts`, outside them, and the
+ * absence assertion passed. Truncation is only ever right for a pattern, where the literal
+ * prefix is the directory the matches come out of.
+ */
+interface Specifier {
+	readonly text: string;
+	readonly isGlob: boolean;
+}
+
 interface ScriptScan {
 	/** Does this script load a stylesheet? */
 	readonly stylesheet: boolean;
 	/** Every RELATIVE specifier it names, glob patterns included — see `escapesTheRoots`. */
-	readonly relative: readonly string[];
+	readonly relative: readonly Specifier[];
 }
 
 /**
@@ -353,15 +369,15 @@ const scanScript = (file: string, script: Script): ScriptScan => {
 		script.kind,
 	);
 	let found = false;
-	const relative: string[] = [];
+	const relative: Specifier[] = [];
 	// Every literal specifier the node carries, so one walk answers both questions. An array
 	// element is a glob's own multi-pattern form; a `!` prefix is an EXCLUSION and names no
 	// module, so it is dropped here exactly as it is in `globNamesStylesheet`.
-	const collect = (node: ts.Node): void => {
+	const collect = (node: ts.Node, isGlob: boolean): void => {
 		const elements = ts.isArrayLiteralExpression(node) ? [...node.elements] : [node];
 		for (const element of elements) {
 			if (!ts.isStringLiteralLike(element)) continue;
-			if (element.text.startsWith('.')) relative.push(element.text);
+			if (element.text.startsWith('.')) relative.push({ text: element.text, isGlob });
 		}
 	};
 	const visit = (node: ts.Node): void => {
@@ -369,7 +385,7 @@ const scanScript = (file: string, script: Script): ScriptScan => {
 			(ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
 			node.moduleSpecifier !== undefined
 		) {
-			collect(node.moduleSpecifier);
+			collect(node.moduleSpecifier, false);
 			if (namesStylesheet(node.moduleSpecifier)) found = true;
 		}
 		if (ts.isCallExpression(node) && node.arguments[0] !== undefined) {
@@ -389,7 +405,7 @@ const scanScript = (file: string, script: Script): ScriptScan => {
 				&& callee.expression.getText(source).startsWith('import.meta');
 			// A glob PATTERN and a specifier are different questions, so they take different
 			// predicates rather than one predicate that has to mean both.
-			if (isGlob || isDynamicImport) collect(node.arguments[0]);
+			if (isGlob || isDynamicImport) collect(node.arguments[0], isGlob);
 			const claimsStylesheet = isGlob
 				? globNamesStylesheet(node.arguments[0])
 				: isDynamicImport && namesStylesheet(node.arguments[0]);
@@ -485,8 +501,12 @@ const toPosix = (value: string): string => value.split('\\').join('/');
  * `tests/helpers/obsidian-mock.ts`, inside the roots. A second alias, or a `paths` entry,
  * reopens it.
  */
-const escapesTheRoots = (file: string, specifier: string): boolean => {
-	const literal = specifier.split(/[*?{}[\]()!|]/)[0] ?? specifier;
+const escapesTheRoots = (file: string, specifier: Specifier): boolean => {
+	// Truncation is for PATTERNS only. A module path containing a metacharacter is a path, and
+	// cutting it at that character resolves somewhere the import never goes — see `Specifier`.
+	const literal = specifier.isGlob
+		? (specifier.text.split(/[*?{}[\]()!|]/)[0] ?? specifier.text)
+		: specifier.text;
 	const resolved = path.posix.normalize(
 		path.posix.join(path.posix.dirname(toPosix(file)), toPosix(literal)),
 	);
@@ -894,19 +914,32 @@ describe('the browser harness', () => {
 	 * Watched failing against that version: with the roots compared using `path.sep`, the two
 	 * backslash rows below report an escape for a sibling import that never leaves the tree.
 	 */
-	it('resolves the root closure identically for either separator', () => {
-		const inside = './sibling';
-		const outside = '../../scripts/helper.ts';
+	it('resolves the root closure by separator and by specifier kind', () => {
+		const inside: Specifier = { text: './sibling', isGlob: false };
+		const outside: Specifier = { text: '../../scripts/helper.ts', isGlob: false };
+		// A module path that merely CONTAINS a glob metacharacter is still a path: truncating it
+		// at the `(` resolved to `src/` and reported no escape, while the import really leaves.
+		const parenthesised: Specifier = {
+			text: '../(route)/../../scripts/helper.ts',
+			isGlob: false,
+		};
+		// The same text as a PATTERN is truncated on purpose — the literal prefix is the directory
+		// its matches come out of, and `../` from here is inside the roots.
+		const pattern: Specifier = { text: '../(route)/*.ts', isGlob: true };
 		expect({
 			posixInside: escapesTheRoots('tests/helpers/vault.ts', inside),
 			windowsInside: escapesTheRoots('tests\\helpers\\vault.ts', inside),
 			posixOutside: escapesTheRoots('tests/harness/page.ts', outside),
 			windowsOutside: escapesTheRoots('tests\\harness\\page.ts', outside),
+			parenthesisedPath: escapesTheRoots('src/prototypes/x.ts', parenthesised),
+			globPattern: escapesTheRoots('src/prototypes/x.ts', pattern),
 		}).toEqual({
 			posixInside: false,
 			windowsInside: false,
 			posixOutside: true,
 			windowsOutside: true,
+			parenthesisedPath: true,
+			globPattern: false,
 		});
 	});
 

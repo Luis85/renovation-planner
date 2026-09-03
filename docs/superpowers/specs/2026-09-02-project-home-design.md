@@ -717,6 +717,27 @@ degenerate case of the per-row rule, it is the same rule with the whole project 
 and an implementer who wires this per-row will produce a summary that qualifies one row and
 silently vouches for the rest.
 
+**And tolerating that refusal must not LIE to the Inspector, which the first version of this
+section did.** Reported one round later, and exact: `RequirementInspectorDTO.unitCost` carries
+`projectOverride: Money | null`, set from `effective.override` in the shared row builder. A
+refusal has no partial result to hand back — `hydrate` returns the error, not the overrides it
+had already loaded — so a tolerance that reads the refusal as an empty list makes the Inspector
+show **no project override** for every readable row in the project. That is a false statement
+about a price, in the increment whose subject is per-project prices, and it is worse than the
+fault it replaces: a faulted summary is visibly broken, a wrong price is not.
+
+`projectOverride` therefore becomes `Money | null | 'unresolved'` — a value that CANNOT be
+mistaken for "there is none", so the compiler asks the Inspector the third question rather than
+letting `null` answer two. The summary reads `'unresolved'` as it reads any unresolvable input:
+the row is in, summed from its persisted cost, and `stale`. The Inspector renders it as
+unavailable rather than absent.
+
+**The reported alternative — keeping the tolerance in a summary-specific row builder — is
+declined**, because the two callers do not disagree about the ROW, they disagree about what to
+DO with a row whose price could not be resolved. Splitting the builder would give them two
+answers to the first question in order to settle the second, which is the shape this document
+has already refused twice; a three-state value settles it once and both callers read it.
+
 **The reported alternative — "or explicitly specify the full-summary failure" — is declined.** The
 summary does not fail. Every requirement note read perfectly well and every persisted cost is
 present; what is missing is the ability to say whether those costs are current, which is precisely
@@ -1178,8 +1199,30 @@ worth fixing rather than tolerating. `missingTarget` is derived per read from wh
 zone loads; once the zone is back a fresh read clears it. Only the open pane still shows the old
 answer, and it shows it until the leaf is remounted.
 
-So the replayed side publishes a requirement-level event per referent, found through the same
-referencing query the delete path already uses. **The adapter cannot supply that set from what it
+So the replayed side publishes **`RequirementInvalidated`** per referent, found through the same
+referencing query the delete path already uses.
+
+**Naming the event is the correction, and not naming it was the same defect twice.** The first
+draft said "a requirement-level event" — a role rather than a member of the vocabulary — which is
+exactly what the recovery amendment did with `CostEstimateChanged` before its payload turned out
+to be unfillable. Reported both times.
+
+`RequirementInvalidated` is truthful here, and the derivation is what makes it so rather than a
+name picked off the list. Its payload is `{ requirementId }`, which recovery can always supply,
+and it claims a recalculation is OWED. The surviving dependents of a restored zone are exactly
+the ones a delete resolution marked stale: `remove-references` DELETES them, `reassign` repoints
+them at another zone so they no longer reference this one, and only `delete-anyway` leaves them
+in place — through `markStalePersisted`, which calls `requirements.markStale`. Restoring the zone
+does not un-mark them, so a recalculation is genuinely owed and can now actually succeed, which
+is precisely the state the event names.
+
+**Where it over-claims, stated rather than left to be found:** a hand-edited requirement pointing
+at a zone id that never existed, whose id a later redo happens to create. That row was never
+marked stale, so "a recalculation is owed" is a stronger claim than its state supports. It takes
+a hand edit and a coincidence of ids; the alternative is minting a neutral "this row may read
+differently" event, which the recovery residue already names as the vocabulary's real gap — one
+gap with two callers, to be decided when something forces it rather than inside a fix for a
+naming mistake. **The adapter cannot supply that set from what it
 holds** — `ReversibleCreateZoneCommand` retains `snapshot: Loaded<Zone>`, the zone and nothing
 else, and its `undo` dispatches `DeleteZoneCommand`, which resolves the referents internally and
 hands none of them back. So this is a new dependency on the adapter rather than bookkeeping it

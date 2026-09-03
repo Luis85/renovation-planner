@@ -564,7 +564,7 @@ describe('the headless harness capture script', () => {
 		expect(source).not.toContain('createHash');
 	});
 
-	it('still defines the fifteen fixed shots, so an argumentless run is unchanged', () => {
+	it('still defines the eighteen fixed shots, so an argumentless run is unchanged', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
 		for (const name of [
@@ -575,6 +575,12 @@ describe('the headless harness capture script', () => {
 			'project-detail-narrow',
 			'plan-editor-dark',
 			'plan-editor-light',
+			// Task 21's three: a zone selected (the Room Inspector), the Add menu open, and
+			// the shell at a sidebar's width — the same triple `plan-editor-narrow`'s own case
+			// below pins the width and query of.
+			'plan-editor-selected',
+			'plan-editor-add-menu',
+			'plan-editor-narrow',
 			'asset-designer-dark',
 			'asset-designer-light',
 			'asset-designer-narrow',
@@ -586,6 +592,25 @@ describe('the headless harness capture script', () => {
 		]) {
 			expect(source).toContain(`name: '${name}'`);
 		}
+	});
+
+	/**
+	 * Task 21's three Plan Editor shots, pinned the same way `project-detail-narrow` and
+	 * `asset-designer-narrow` are above: the property that makes each shot differ from
+	 * `plan-editor-light` is not merely that its name exists, but that it is reached through
+	 * the knob that actually produces the picture. Losing `&select=`/`&add` off either of the
+	 * first two would silently photograph the resting editor under a new name and exit 0;
+	 * losing `width: 460` off the third would silently photograph the same wide layout twice.
+	 */
+	it('takes the selected-zone and Add-menu shots through the knobs that reach them, and the narrow shot at a sidebar width', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-selected'[^}]*query: '\?view=plan-editor&select=harness-kitchen/);
+		expect(source).toMatch(/name: 'plan-editor-selected'[^}]*selector: '\.rp-room-inspector'/);
+		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*query: '\?view=plan-editor&add/);
+		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*selector: '\.rp-add-menu'/);
+		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*width: 460/);
+		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: PLAN_EDITOR_VIEW/);
 	});
 
 	/**

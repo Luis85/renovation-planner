@@ -18,7 +18,7 @@ import { mountPlanEditorHarness } from '../harness/planEditor';
 import { mountAssetDesignerHarness } from '../harness/assetDesigner';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver } from '../helpers/layout';
-import { installEditorEnvironment, settle as flushAsync } from '../helpers/editor';
+import { installEditorEnvironment, settle as flushAsync, settleUntil, sizedShellRoot } from '../helpers/editor';
 import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
 
@@ -563,6 +563,36 @@ describe('the browser harness, plan editor', () => {
 		document.body.querySelector<HTMLElement>('.rp-harness-scheme')?.click();
 
 		expect(fired).toBe(1);
+	});
+
+	/**
+	 * The `?select=<zoneId>` knob (Task 21) — the only way this harness reaches a zone's Room
+	 * Inspector without a real click, and it takes one anyway: `mountPlanEditorHarness` waits
+	 * for the floor summary's room list to exist and then clicks the row whose TEXT matches
+	 * the zone's name, through `RoomSummaryList`'s own `@click="runtime.selectAndFrame(...)"`
+	 * — the real door, not the runtime or the store reached into directly.
+	 *
+	 * **The shell root has to be SIZED first**, the same way `entries.test.ts`'s `observe()`
+	 * sizes it after Task 19: `ResponsiveEditorShell` measures `root.clientWidth` in
+	 * `onMounted`, jsdom answers 0 for it, and `layoutModeFor(0)` is `unsupported` — a mode
+	 * that renders neither the room list nor the inspector column at all, so the knob's own
+	 * `settleUntil` would time out waiting for a row that can never appear. Sizing runs
+	 * synchronously, right after the mount call and before anything is awaited, which is what
+	 * puts it ahead of the knob's own first (asynchronous) check of its condition.
+	 */
+	it('drives the ?select knob to the seeded Kitchen in the Room Inspector', async () => {
+		installCanvas();
+		installResizeObserver();
+
+		const { leafEl } = mountPlanEditorHarness(document.body, { select: 'harness-kitchen' });
+		sizedShellRoot(leafEl);
+
+		await settleUntil(
+			() => leafEl.querySelector('.rp-room-inspector[data-rp-id="harness-kitchen"]') !== null,
+			'the ?select knob to open the Kitchen in the Room Inspector',
+		);
+
+		expect(leafEl.querySelector('.rp-room-inspector[data-rp-id="harness-kitchen"]')).not.toBeNull();
 	});
 });
 

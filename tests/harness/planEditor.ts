@@ -8,6 +8,13 @@ import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../src/presentation
 import { installObsidianDom } from '../helpers/dom';
 import { emptyRequirementReads } from '../helpers/planFixtures';
 import { FakeLeaf } from '../helpers/workspace';
+// From `../helpers/settle`, deliberately not `../helpers/editor`: that file also imports
+// Konva, Pinia, `@vue/test-utils` and `tests/helpers/canvas.ts`'s native `@napi-rs/canvas`
+// binding, none of which may reach a page Vite serves to a real browser — `page.ts` imports
+// this module for every route, so pulling that whole graph in broke every fixed shot, not only
+// the Plan Editor's, with Vite's dependency optimizer refusing to bundle a native `.node` file
+// as JavaScript. `../helpers/settle` has no import beyond `Promise`/`Date`/`setTimeout`.
+import { settleUntil } from '../helpers/settle';
 
 /**
  * The REAL Plan Editor, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -234,7 +241,63 @@ export interface MountedPlanEditor {
 	view: PlanEditorView;
 }
 
-export function mountPlanEditorHarness(root: HTMLElement): MountedPlanEditor {
+/**
+ * The two harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>` and
+ * `?add` — for a headless capture that needs the Room Inspector or the Add menu open with
+ * nothing to click. Both are optional and independent; nothing here refuses combining them.
+ */
+export interface PlanEditorHarnessOptions {
+	/** A seeded zone's id (e.g. `harness-kitchen`) to select and frame once the editor is ready. */
+	readonly select?: string;
+	/** Opens the Add menu once the editor is ready. */
+	readonly add?: boolean;
+}
+
+/**
+ * Drives the `?select=<zoneId>` knob: waits for the floor summary's room list to exist at all
+ * — it renders only once the plan has hydrated — then clicks the row whose TEXT matches the
+ * zone's name. `RoomSummaryList` renders `record.name`, never `record.id`, so the id has to be
+ * turned back into a name first; there is nothing in the DOM to match the id itself against.
+ *
+ * The click goes through `RoomSummaryList`'s own `@click="runtime.selectAndFrame(record.id)"`
+ * — the real door a user's own click takes — rather than reaching into the runtime or the
+ * Pinia store directly, which is what makes this knob prove the same gesture a screenshot
+ * exists to show actually works.
+ *
+ * Fire-and-forget, the same way `view.setState`/`view.onOpen` already are in the caller below:
+ * the URL a headless capture opens cannot be awaited from here, so the click lands whenever
+ * hydration and the shell's own layout measurement let the row exist.
+ */
+async function selectZoneOnceReady(root: HTMLElement, zoneId: string): Promise<void> {
+	await settleUntil(
+		() => root.querySelector('.rp-room-list__row') !== null,
+		`the ?select knob's room list to render for "${zoneId}"`,
+	);
+
+	const name = HARNESS_ZONES.find((zone) => zone.id === zoneId)?.name;
+	const row = [...root.querySelectorAll<HTMLButtonElement>('.rp-room-list__row')].find(
+		(candidate) => candidate.textContent?.trim() === name,
+	);
+	row?.click();
+}
+
+/**
+ * Drives the `?add` knob: waits for the floating Add button to exist — it mounts only once the
+ * plan is `ready`, inside `PlanCanvas` — and clicks it, through the same door a user's own
+ * click takes (`FloatingPrimaryActions`'s `@click="emit('openAdd')"`).
+ */
+async function openAddMenuOnceReady(root: HTMLElement): Promise<void> {
+	await settleUntil(
+		() => root.querySelector('button[data-rp-action="add"]') !== null,
+		"the ?add knob's Add button to render",
+	);
+	root.querySelector<HTMLButtonElement>('button[data-rp-action="add"]')?.click();
+}
+
+export function mountPlanEditorHarness(
+	root: HTMLElement,
+	options: PlanEditorHarnessOptions = {},
+): MountedPlanEditor {
 	// Obsidian's DOM prototype extensions and its global `createEl`. Installed first,
 	// because the mount below uses them.
 	installObsidianDom();
@@ -251,6 +314,11 @@ export function mountPlanEditorHarness(root: HTMLElement): MountedPlanEditor {
 	// page entry cannot await, and both do their work synchronously before resolving.
 	void view.setState({ planId: HARNESS_PLAN.id }, {} as never);
 	void view.onOpen();
+
+	// Both knobs run against `leafEl`, never `document`, so a jsdom case mounting more than
+	// one editor in a suite cannot have one's knob reach into another's DOM.
+	if (options.select !== undefined) void selectZoneOnceReady(leafEl, options.select);
+	if (options.add === true) void openAddMenuOnceReady(leafEl);
 
 	return { leafEl, view };
 }

@@ -14,9 +14,10 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — either the fifteen fixed surfaces (the project
+ * Headless capture of the browser harness — either the eighteen fixed surfaces (the project
  * view's list state in its dark scheme, light scheme and `?phone`; its detail state wide and
- * at a sidebar's width; the Plan Editor's dark and light schemes; the asset designer's dark and
+ * at a sidebar's width; the Plan Editor's dark and light schemes, a zone selected, the Add
+ * menu open and the shell at a sidebar's width; the asset designer's dark and
  * light schemes plus its own sidebar width (Task B10); and the harness index at rest in both
  * schemes, focused, focused on the current row, and showing its failure card) — or, given an
  * entry id, one named prototype or component in both schemes — for a look nobody has to open a
@@ -144,6 +145,20 @@ const SHOTS = [
 	// surfaces; add one when §61 changes.
 	{ name: 'plan-editor-dark', query: '?view=plan-editor', selector: PLAN_EDITOR_VIEW },
 	{ name: 'plan-editor-light', query: '?view=plan-editor&theme=light', selector: PLAN_EDITOR_VIEW },
+	// Task 21's three: the ROOM state (a zone selected, so the Room Inspector is on screen —
+	// the `?select=` knob drives the real click `RoomSummaryList` renders, through
+	// `runtime.selectAndFrame`), the Add menu open (the `?add` knob, same shape), and the
+	// shell at a sidebar's width. Each waits on the element its own knob produces rather than
+	// on `PLAN_EDITOR_VIEW`, which is on screen the whole time either knob is still working —
+	// a selector that could not tell "mounted" from "the knob actually landed" would let a
+	// broken knob exit 0 with a picture of the resting editor under a new name.
+	{
+		name: 'plan-editor-selected',
+		query: '?view=plan-editor&select=harness-kitchen&theme=light',
+		selector: '.rp-room-inspector',
+	},
+	{ name: 'plan-editor-add-menu', query: '?view=plan-editor&add&theme=light', selector: '.rp-add-menu' },
+	{ name: 'plan-editor-narrow', query: '?view=plan-editor&theme=light', selector: PLAN_EDITOR_VIEW, width: 460 },
 	// The asset designer (Task B10, ADR-0015) in both schemes — the plugin's third workspace
 	// view, and the first look at it against a real theme rather than jsdom's semantics-only
 	// scan. `mountAssetDesignerHarness` seeds no shape and no background, so this photographs the

@@ -1773,11 +1773,31 @@ it('reaches the requirements its resolution touched, which assetDeleted cannot n
 	const seen: unknown[] = [];
 	rig.events.subscribe('RequirementDeleted', (event) => { seen.push(event); });
 
-	expectOk(await rig.command.execute({ assetId: rig.assetId, resolution: 'remove-references' }));
+	expectOk(
+		await rig.command.execute({
+			assetId: rig.assetId,
+			resolution: 'remove-references',
+			// REQUIRED whenever `resolution` is set — see the note below.
+			resolvedReferents: rig.referentIds,
+		}),
+	);
 
 	expect(seen).toHaveLength(2);
 });
 ```
+
+**`resolvedReferents` is not optional here, and omitting it makes this case test nothing.**
+`resolutionInputError` (`deleteResolution.ts:157`) refuses any input that names a `resolution`
+while `resolvedReferents` is `undefined`, with `reference.resolution-without-set`, and
+`runDeleteResolution` asks it FIRST — before the ops bundle is touched at all. So the version of
+this case that omits the field never reaches the event threading it exists to verify; it fails at
+the input guard, which is this repository's own "a test can pass on the WRONG refusal" defect
+arriving one step earlier. `DeleteAssetInput` marks the field optional only so a BARE delete
+(no resolution) stays expressible. Your rig must therefore expose the two seeded referent ids —
+that is what `rig.referentIds` above is — and `expectOk` is what makes the omission fail loudly
+rather than quietly: it asserts the command SUCCEEDED, so an input refusal reddens the case at
+the `expectOk` rather than at the event count. Reported by Codex against the plan and verified
+at the source before being written in.
 
 - [ ] **Step 2: Run and watch fail**
 

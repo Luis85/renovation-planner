@@ -186,9 +186,19 @@ describe('the Add menu', () => {
 		await settle();
 		expect(document.activeElement?.getAttribute('data-rp-entry')).toBe('wall');
 
+		// `cancelable: true` is load-bearing on the assertion below: an event constructed
+		// without it reports `defaultPrevented === false` NO MATTER what the handler does —
+		// jsdom (correctly, per spec) only sets that flag on a call to `preventDefault()` when
+		// the event itself is cancelable — so this is what actually proves the code withheld
+		// the call rather than merely proving a claim about an event that could never disagree.
 		const search = harness.wrapper.find('.rp-add-menu__search').element;
 		for (const key of ['Home', 'End', ' ']) {
-			search.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+			const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+			search.dispatchEvent(event);
+			// The mechanism that lets the browser insert the character / move the caret:
+			// withholding `preventDefault()` is what a native editing gesture needs, not merely
+			// a side effect of this menu doing nothing.
+			expect(event.defaultPrevented, `${key} must not be prevented in the search input`).toBe(false);
 		}
 		await settle();
 
@@ -221,13 +231,15 @@ describe('the Add menu', () => {
 	});
 
 	/**
-	 * A press inside the menu, or on the Add button itself, never reaches
-	 * `onDocumentPointerDown` at all in this mounted tree: both sit inside `EditorSurface`'s
-	 * `.rp-plan-overlay`, whose own `@pointerdown.stop` (Task 8) already keeps a press there
-	 * from bubbling to `document` — see the standalone `describe` below for what actually
-	 * drives the menu's own "inside"/"on the anchor" checks. This case is still worth keeping:
-	 * it is the outcome a user would notice, and it would still hold if that wrapper's
-	 * protection were ever removed, because the menu's own logic independently agrees.
+	 * A press inside the menu, or on the Add button that opened it, genuinely reaches
+	 * `onDocumentPointerDown` and takes its "inside"/"on the anchor" early-returns — CAPTURE
+	 * is what makes that true. Both elements sit inside `EditorSurface`'s `.rp-plan-overlay`,
+	 * whose own `@pointerdown.stop` (Task 8) is a BUBBLE-phase listener; the menu's own
+	 * listener runs on `document` with `{ capture: true }` (review round 1's fix — see
+	 * `AddMenu.vue`'s docblock), which fires on the way DOWN to the target, before that
+	 * bubble-phase `stopPropagation()` ever gets a chance to run. Before that fix this case
+	 * passed for the wrong reason: the press never reached the listener at all, so it would
+	 * have passed just as well with the "inside"/"on the anchor" checks deleted outright.
 	 */
 	it('a press inside the menu, or on the button that opened it, does not close the menu', async () => {
 		const harness = await mountPlanEditorCanvas();
@@ -245,6 +257,29 @@ describe('the Add menu', () => {
 			.element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
 		await settle();
 		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(true);
+	});
+
+	/**
+	 * The finding review round 1 caught: `FloatingPrimaryActions` (Select and Add) and
+	 * `AddMenu` are SIBLINGS inside the same `.rp-plan-overlay`, so a press on Select used to
+	 * be swallowed by that wrapper's bubble-phase `.stop` exactly like a press on the canvas
+	 * was — the menu stayed open above the canvas after the user switched tools, silently.
+	 * `{ capture: true }` is what closes it: Select's own `pointerdown` still reaches
+	 * `document`'s capture-phase listener first, closing the menu, and its ordinary `click`
+	 * handler still runs afterward and sets the tool exactly as it always did.
+	 */
+	it('pressing Select while the Add menu is open closes the menu, and Select still works', async () => {
+		const harness = await mountPlanEditorCanvas();
+		await openAdd(harness);
+		await settle();
+
+		const select = harness.wrapper.find('button[data-rp-action="select"]');
+		select.element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+		await select.trigger('click');
+		await settle();
+
+		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(false);
+		expect(runtimeOf(harness).activeToolId.value).toBe('select');
 	});
 
 	it('a query matching nothing empties the list, and every navigation key is a safe no-op', async () => {
@@ -308,41 +343,5 @@ describe('the Add menu, mounted standalone', () => {
 		expect(wrapper.emitted('close')).toHaveLength(1);
 
 		expect(() => wrapper.unmount()).not.toThrow();
-	});
-
-	/**
-	 * The full integration harness cannot drive `onDocumentPointerDown`'s own "inside the
-	 * menu" and "on the anchor" checks — see the comment on that mounted-tree case above for
-	 * why `.rp-plan-overlay`'s `@pointerdown.stop` gets there first. A REAL anchor element
-	 * that is not a descendant of the menu, mounted with no such wrapper around either, is
-	 * what actually reaches them: `Node.contains` answers `true` for a node against itself,
-	 * which is what a press directly on the anchor button measures.
-	 */
-	it('a press inside the menu or on a real anchor element does not close it; elsewhere does', async () => {
-		const setTool = vi.fn<(id: ToolId | null) => void>();
-		const runtime = { setTool } as unknown as EditorRuntime;
-		const anchor = document.createElement('button');
-		document.body.appendChild(anchor);
-		const wrapper = mount(AddMenu, {
-			props: { anchor },
-			attachTo: document.body,
-			global: { provide: { [EDITOR_RUNTIME as symbol]: runtime } },
-		});
-		await nextTick();
-
-		wrapper.find('.rp-add-menu__search').element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-		await nextTick();
-		expect(wrapper.emitted('close')).toBeUndefined();
-
-		anchor.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-		await nextTick();
-		expect(wrapper.emitted('close')).toBeUndefined();
-
-		document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-		await nextTick();
-		expect(wrapper.emitted('close')).toHaveLength(1);
-
-		wrapper.unmount();
-		anchor.remove();
 	});
 });

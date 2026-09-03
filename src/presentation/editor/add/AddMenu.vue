@@ -235,16 +235,31 @@ function onKeydown(event: KeyboardEvent): void {
  * Outside the menu AND outside the button that opened it — a press on the anchor is its own
  * click, not a close.
  *
+ * **Registered on `document` with `{ capture: true }`, and that is load-bearing rather than a
+ * style choice.** `AddMenu` mounts as a SIBLING of `FloatingPrimaryActions` (Select and Add)
+ * inside `EditorSurface`'s `#overlay`, and that slot's own `.rp-plan-overlay` wrapper carries
+ * `@pointerdown.stop`/`@pointerup.stop`/`@pointercancel.stop` (Task 8) so a press there never
+ * reaches the canvas underneath. A BUBBLE-phase listener on `document` — the first version of
+ * this function — sits behind that same `stopPropagation()`, so a press on the Select button,
+ * or on this menu's own search input, or on the `anchor` button, never bubbled far enough to
+ * arrive: the menu stayed open after the user pressed Select, and the "inside menu"/"on
+ * anchor" checks below were never exercised at all by a press anywhere in the real tree.
+ * Capture runs top-down, BEFORE the bubble phase a sibling's `stopPropagation()` could ever
+ * cut off, so this one listener covers the canvas, Select, this menu's own controls, and every
+ * future sibling the overlay slot gains — none of them need to be named here.
+ *
  * `event.target` is cast rather than narrowed: an ordinary pointer press always targets the
  * DOM node it landed on (the other `EventTarget` implementors — `window`, an `XMLHttpRequest`,
- * a worker — never fire `pointerdown`), and `Node.contains` itself accepts `Node | null`, so
- * there is nothing left for an `instanceof Node` branch to decide. `menuRoot` is cast for the
- * same reason `focusEntry`'s docblock gives: it names this component's own root, bound before
- * `onMounted` registers this listener, so it is never null while the listener can run.
- * `props.anchor` is the one genuinely nullable question here — see its own prop doc.
+ * a worker — never fire `pointerdown`), so there is nothing left for an `instanceof Node`
+ * branch to decide. `menuRoot` is cast for the same reason `focusEntry`'s docblock gives: it
+ * names this component's own root, bound before `onMounted` registers this listener, so it is
+ * never null while the listener can run. `props.anchor` is the one genuinely nullable member
+ * of this function — see its own prop doc — and is EXCLUDED here rather than closed on:
+ * pressing the button that opened this menu is its own gesture (today, toggling it back
+ * open), not an outside press asking to close it.
  */
 function onDocumentPointerDown(event: Event): void {
-	const target = event.target as Node | null;
+	const target = event.target as Node;
 	if ((menuRoot.value as HTMLElement).contains(target)) return;
 	if (props.anchor?.contains(target) === true) return;
 	emit('close');
@@ -256,11 +271,11 @@ onMounted(() => {
 	// two tests could disagree about.
 	const first = CREATION_CATALOGUE.find((entry) => entry.availability.kind === 'available') as CreationEntry;
 	focusEntry(first.id);
-	document.addEventListener('pointerdown', onDocumentPointerDown);
+	document.addEventListener('pointerdown', onDocumentPointerDown, { capture: true });
 });
 
 onBeforeUnmount(() => {
-	document.removeEventListener('pointerdown', onDocumentPointerDown);
+	document.removeEventListener('pointerdown', onDocumentPointerDown, { capture: true });
 	props.anchor?.focus();
 });
 </script>

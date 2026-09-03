@@ -1589,6 +1589,7 @@ no list, because the gaps read as deliberate:
 ```
 view.asset-library.title            command.open-asset-library
 view.asset-library.door             (the two in-app doors' button label)
+view.asset-library.shape.measured   (the measured mark's own state word)
 view.asset-library.search.label     view.asset-library.search.placeholder
 view.asset-library.search.results   (interpolated: {count})
 view.asset-library.unselected
@@ -1610,6 +1611,23 @@ term this plugin's UI already pins (`Material` is refused; the German UI says `O
 Recorded as an amendment rather than edited in silently, because Task 8 asserted this inventory at
 exactly 58 keys against this section — so a 59th is a decision somebody made, not a gap somebody
 filled.
+
+**Amendment 2 (Task 12 review): `view.asset-library.shape.measured` is the 60th key, and the
+sentence it serves is one this section already wrote.** §3.4 line 359 says *"Every mark carries its
+state AND its extent in words"* — every, without carve-out. Task 12 shipped four state words and
+argued in a locale comment that the fifth needs none, because "its extent alone, printed plainly,
+is what the other four are stated against." That is a real argument and it is not this
+specification's: a screen-reader user browsing hears `1200 × 190 mm` and must infer from the
+ABSENCE of a word that the figure is measured rather than unscaled, which is inference from silence
+— the same failure §3.4 refuses when it says a fact carried only in pixels fails through the other
+eye. A fact carried only in an omission fails the same way.
+Its German is `Gemessener Grundriss`, matching the `Grundriss` the other four state words already
+use.
+**This amendment exists because a test caught it.** `tests/presentation/i18n/strings.test.ts` pins
+the inventory at an exact count in both locales, so a 60th key cannot be added quietly — it fails,
+somebody reads why, and the addition becomes a decision. That pin was written after the count went
+stale in prose six times; this is the first time it has been asked to do the job it was written
+for, and it did it.
 view.asset-library.clearance        view.asset-library.spec-sheet
 view.asset-library.none             view.asset-library.shape.loading
 view.asset-library.shape.gone       view.asset-library.shape.read-failed  (interpolated: {path})

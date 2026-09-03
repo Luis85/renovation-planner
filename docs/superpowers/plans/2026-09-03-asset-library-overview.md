@@ -1204,6 +1204,23 @@ git add -A && git commit -m "feat: the asset mark, the asset row and the categor
 - Create: `src/presentation/library/AssetShelves.vue`
 - Reuse: `src/presentation/components/EmptyState.vue` and Task 8's
   `selectAssetLibraryEmptyState` — mounted here and nowhere earlier
+- **Build §3.2's shelf DERIVATION here — Task 12 built the shelf and not the list of them.**
+  `AssetShelves.vue` is where the list is derived, and it is derived rather than enumerated: every
+  category the build declares, in `ASSET_CATEGORY_LABELS`'s order, ALL of them including empty
+  ones, then every category the listing names that the build does not, ordered by `localeCompare`
+  and **kept as written** — not case-normalized, not retitled, not folded into `custom`. A literal
+  seven is the one arrangement that could answer neither group.
+  **The second group cannot be reached in today's code, and you must still derive it and must NOT
+  test it.** An unknown category never becomes an `Asset` — `kebabEnum(ASSET_CATEGORIES)` returns
+  `z.NEVER` and `Asset.create` refuses independently — so such a note is skipped by `listAll()` and
+  appears in the unreadable strip instead. Derive generally anyway, because that is simpler than
+  special-casing group 1 and it populates with no edit the day §84 opens the vocabulary; write no
+  case asserting an unknown category gets a shelf, because it cannot reach the list and the case
+  would pass for the wrong reason and certify a gap. Write no copy promising it either.
+  This paragraph is here because Task 12's review found the ruling had been stated in Task 12's
+  brief, correctly deferred by Task 12, and then named in no later brief at all — the third
+  between-task gap on this plan, and the reason a hand-off belongs in the plan rather than in a
+  ledger nobody downstream reads.
 - Port from: `src/prototypes/AssetLibrary.vue`
 - Test: `tests/presentation/library/assetLibraryRoot.test.ts`
 

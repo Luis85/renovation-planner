@@ -11,6 +11,7 @@ import type { AssetId } from '../../domain/asset/AssetId';
 import type { RequirementId } from '../../domain/requirement/RequirementId';
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import {
+	requirementCreated,
 	requirementDeleted,
 	requirementInvalidated,
 	requirementRestored,
@@ -467,15 +468,19 @@ async function compensate<TEntity>(
 				cause: restored.error,
 			});
 		} else {
-			// The pre-state snapshot's write landed, so the row is back — a restore, not a
-			// creation and not a recalculation. Announced only for a restore that actually
-			// SUCCEEDED; a blanket announcement after a partial rollback would claim
-			// restoration for rows still holding their intermediate state.
+			// The pre-state snapshot's write landed, so the row is back — announced only for
+			// a restore that actually SUCCEEDED; a blanket announcement after a partial
+			// rollback would claim restoration for rows still holding their intermediate
+			// state. Which EVENT is the same split `undoDeleteResolution.ts` computes for its
+			// own restores, and for the identical reason: an entry whose forward outcome was
+			// `'absent'` was REMOVED, so putting it back is a re-creation, not a restore of a
+			// row that was merely edited.
+			const payload = {
+				requirementId: snapshot.entity.id,
+				projectId: snapshot.entity.projectId,
+			};
 			await ops.events.publish(
-				requirementRestored({
-					requirementId: snapshot.entity.id,
-					projectId: snapshot.entity.projectId,
-				}),
+				entry.outcome === 'written' ? requirementRestored(payload) : requirementCreated(payload),
 			);
 		}
 	}

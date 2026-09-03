@@ -1,7 +1,7 @@
 /**
  * The Asset library's own copy, split out of `en.ts` rather than appended to it.
  *
- * `en.ts` had 29 lines of `max-lines` headroom left and this surface's §8 inventory is 58
+ * `en.ts` had 29 lines of `max-lines` headroom left and this surface's §8 inventory is now 59
  * keys — spreading it in here rather than inline is the extraction CLAUDE.md's own rule asks
  * for ("a budget bought back by reformatting is a budget already spent … the answer is an
  * extraction"), not a second source of truth: `en.ts` spreads `enAssetLibrary` into the one
@@ -12,7 +12,7 @@
  * list (`node_modules/eslint-plugin-obsidianmd/dist/lib/index.js`'s `recommendedWithLocalesEn`):
  * a bare `en.ts`, an `en-` prefix, an `en_` prefix, or a path under an `en` directory — and
  * there is no glob for a DOT separator. A first version of this file was named
- * `en.assetLibrary.ts` and matched none of those, which silently dropped every one of these 58
+ * `en.assetLibrary.ts` and matched none of those, which silently dropped every one of these 59
  * strings out of the sentence-case gate; `tests/build/localeModuleSentenceCase.test.ts` is what
  * would have caught it, and now does, by asking `calculateConfigForFile` rather than by reading
  * this comment.

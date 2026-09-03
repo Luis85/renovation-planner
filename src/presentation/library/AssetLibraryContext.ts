@@ -30,9 +30,12 @@ import type { AssetLibraryDeps } from './AssetLibraryDeps';
  * `use-field-commit.ts`'s `draft` is `DeepReadonly<Ref<T>>` for the identical reason, and
  * `type-safety.test-d.ts` records that the SHALLOW `Readonly<Ref<T>>` "reads as read-only and
  * is not" — it freezes `.value` and stops there, so `v-model` still unwraps and writes straight
- * past it. `AssetLibraryView` holds the real, writable `Ref`s privately and casts them to this
- * type at the one `provide()` call it makes; see `assetLibraryContext.test-d.ts` for the
- * compile-time proof that a write through the injected type fails.
+ * past it. `AssetLibraryView` holds the real, writable `Ref`s privately and hands them into this
+ * type at the one `provide()` call it makes — NO CAST NEEDED there, because a writable `Ref<T>`
+ * is already structurally assignable into a `DeepReadonly<Ref<T>>`-typed slot (the readonly
+ * modifiers only narrow what a HOLDER of this type may do, not what may be assigned TO it); see
+ * `assetLibraryContext.test-d.ts` for the compile-time proof that a write through the injected
+ * type fails.
  */
 export interface AssetLibraryContext extends AssetLibraryDeps {
 	/** The selected asset, or `''` for none — §6.3's own sentinel, read LIVE. */

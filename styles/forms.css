@@ -73,8 +73,11 @@
  * DEFAULT rather than a verified layout: at a width too narrow for all four to fit on one
  * line, the excess items drop to a second line instead of being squeezed toward zero width or
  * overflowing the pane, which is the failure mode `flex-wrap`'s absence would otherwise permit.
- * Whether four items actually LOOK right at 460 — spacing, the title's alignment against a
- * wrapped second line — is unverified and stays that way until someone runs the capture.
+ * Whether four items actually LOOK right is unverified at BOTH widths, and stays that way until
+ * someone runs the capture: at 460, spacing and the title's alignment against a wrapped second
+ * line; at 1280, whether `space-between` redistributes four items sensibly on one line or leaves
+ * the new fourth one looking like an afterthought pushed to the row's far edge — the concern the
+ * original review raised first, before the narrower 460 wrapping question above it.
  */
 .rp-project-list__header {
 	display: flex;

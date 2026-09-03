@@ -1,6 +1,6 @@
 /**
  * German for the Asset library's own copy (`en-assetLibrary.ts`), split out for the identical
- * reason: `de.ts` had 24 lines of `max-lines` headroom and this surface adds 58 keys. Spread
+ * reason: `de.ts` had 24 lines of `max-lines` headroom and this surface adds 59 keys. Spread
  * into `de.ts` rather than declared there, so `de` stays the one object the completeness check
  * in `strings.test.ts` reads. The filename carries the same hyphen `en-assetLibrary.ts` does,
  * for the identical reason recorded there — though this file is not itself linted for

@@ -48,11 +48,14 @@ function selectedAssetId(view: AssetLibraryView): string | null {
 	return view.contentEl.querySelector('.renovation-asset-library')?.getAttribute('data-selected-asset-id') ?? null;
 }
 
-/** Its sibling for the expanded set, comma-joined the same way the root renders it. */
+/**
+ * Its sibling for the expanded set, comma-joined the same way the root renders it — on the SAME
+ * root element as `selectedAssetId` above, not a second one: a review round found the identical
+ * raw-prose exposure one element along, in a class no stylesheet declared, so both attributes
+ * now live on the one root rather than giving the mistake a second element to recur on.
+ */
 function expandedCategories(view: AssetLibraryView): string | null {
-	return (
-		view.contentEl.querySelector('.rp-asset-library__expanded')?.getAttribute('data-expanded-categories') ?? null
-	);
+	return view.contentEl.querySelector('.renovation-asset-library')?.getAttribute('data-expanded-categories') ?? null;
 }
 
 afterEach(async () => {

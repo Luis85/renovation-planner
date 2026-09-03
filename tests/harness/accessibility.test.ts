@@ -814,6 +814,10 @@ describe('axe against the asset library', () => {
 		await flushPromises();
 
 		try {
+			// Load-bearing, not decorative (see the file header): without this, a scan that ran
+			// before the tree mounted would find nothing and pass on an empty subtree.
+			expect(view.contentEl.querySelector('.renovation-asset-library')).not.toBeNull();
+
 			const results = await axe.run(view.contentEl, runOptions);
 
 			expect(results.violations).toEqual([]);
@@ -823,7 +827,9 @@ describe('axe against the asset library', () => {
 		}
 	});
 
-	/** And with a selection carried in, which is the branch that renders a second paragraph. */
+	/** And with a selection and an expanded category carried in, both `data-*` attributes on the
+	 * one root element rather than a second paragraph (Task 11 re-review, M11's exposure moved
+	 * one element along and was then removed rather than relocated a second time). */
 	it('reports no semantic violations with an asset selected and a category expanded', async () => {
 		installObsidianDom();
 		const view = makeAssetLibraryView(defaultAssetLibraryDeps());
@@ -833,6 +839,8 @@ describe('axe against the asset library', () => {
 		await flushPromises();
 
 		try {
+			expect(view.contentEl.querySelector('.renovation-asset-library')).not.toBeNull();
+
 			const results = await axe.run(view.contentEl, runOptions);
 
 			expect(results.violations).toEqual([]);

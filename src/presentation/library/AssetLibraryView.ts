@@ -8,9 +8,13 @@ import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from '../views/app-id-prefix';
 
 /**
- * §2's fourth registered view and third workspace surface: the vault-wide asset catalogue, a
+ * §2's fourth registered view and FOURTH workspace surface: the vault-wide asset catalogue, a
  * SINGLETON exactly as the Renovation Project view is one — there is at most one library, not
- * one per subject the way the Plan Editor and the Asset designer are.
+ * one per subject the way the Plan Editor and the Asset designer are. CLAUDE.md's own count of
+ * "three workspace surfaces, each mounting its own isolated Vue app" is a count made before
+ * this view existed; a fourth `createApp` call here is what moves it to four, and the fifth
+ * `registerView` (`GEOMETRY_SIDECAR_VIEW`) still mounts no Vue root at all, so registrations and
+ * Vue-mounting surfaces remain two different counts rather than the same one.
  *
  * The view TYPE is persisted in Obsidian's workspace layout, so it is DATA and never renamed —
  * the same rule every registered view here already carries.

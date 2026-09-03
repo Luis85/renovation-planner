@@ -14,7 +14,7 @@
 	// background, and it imports nothing under `src/` or `tests/`. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
 	// reaches it through the graph — and it having to be reachable is the point of it being
 	// one file rather than a copy in each.
-	// The seven `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
+	// The eight `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
 	// nothing imports them and no npm script runs them either — `vue-tsc -noEmit`
 	// type-checks them because `tsconfig.json`'s `include` names each one directly, and
 	// compiling is the whole point. `type-safety.test-d.ts` holds the screen/world brand
@@ -35,8 +35,9 @@
 	// "omitted and defaulted"; `assetLibraryContext.test-d.ts` (Task 11 review) holds
 	// `AssetLibraryContext.assetId`/`.expanded` being `DeepReadonly<Ref<T>>` rather than a bare
 	// `Ref<T>` — a claim about what the injected TYPE refuses a consumer, which is identical at
-	// runtime either way (both are the same writable ref underneath, cast at the one
-	// `provide()` call) and so has no runtime form. In all eight, an
+	// runtime either way (both are the same writable ref underneath, assigned with NO cast at
+	// the one `provide()` call — a writable `Ref<T>` is structurally assignable into a
+	// `DeepReadonly<Ref<T>>`-typed slot) and so has no runtime form. In all eight, an
 	// unsatisfied `@ts-expect-error` or assignment failure is itself a compile error, which is the
 	// mechanism. Named one at a time rather than
 	// globbed `tests/**/*.test-d.ts`, for the reason `dynamicallyLoaded`'s own comment gives:

@@ -390,3 +390,9 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   suite's second PDF-rendering step and the only caller either has for
   `editor-background-pdf-test.pdf` on the asset surface — reused rather than duplicated,
   because there is no asset-specific fixture and none of this case needs one.
+- [[Open the Asset Library]] — Task 11's own surface: a FOURTH workspace view, its Obsidian
+  lifecycle, its two in-app doors and its rebind on a settings save, scoped to what that task
+  built rather than to §3's still-unbuilt shelves. Its step 6 is where a Task 11 review
+  round's own judgement on the `box`/`boxes` icon pair — "no collision … worth an eye in a
+  vault" — is finally looked at rather than left standing as prose in a task report nothing
+  else inherits.

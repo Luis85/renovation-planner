@@ -19,13 +19,15 @@ describe('the empty-state content registry', () => {
 	 * the button, are Task 10's — this case exists so that an entry cannot arrive without any
 	 * test naming it at all.
 	 */
-	it('holds exactly the six entries the slices name', () => {
+	it('holds exactly the eight entries the slices name', () => {
 		expect(Object.keys(EMPTY_STATE_CONTENT.renovationProject)).toEqual(['noProjects', 'noPlans']);
 		expect(Object.keys(EMPTY_STATE_CONTENT.planEditor)).toEqual(['noBackground', 'noZones']);
 		// Design slice B3's third group. `assetDesigner` and not `designer`: the surface is one
 		// of three now, and a group named for the room rather than for the subject reads as the
 		// only one there is.
 		expect(Object.keys(EMPTY_STATE_CONTENT.assetDesigner)).toEqual(['noShape', 'noBackground']);
+		// Design "Asset library overview" §4's fourth group.
+		expect(Object.keys(EMPTY_STATE_CONTENT.assetLibrary)).toEqual(['noAssets', 'noMatches']);
 	});
 
 	/**
@@ -66,6 +68,27 @@ describe('the empty-state content registry', () => {
 
 		expect(t(language, noShape.headline)).not.toBe(t(language, noBackground.headline));
 		expect(t(language, noShape.body)).not.toBe(t(language, noBackground.body));
+	});
+
+	/**
+	 * Design "Asset library overview" §4. `noAssets` and `noMatches` differ in KIND, not only in
+	 * wording — one hands off to a creation gesture, the other to clearing a search — so a
+	 * registry pointing both at one key would type-check perfectly and offer `New asset` from a
+	 * no-matches state, which is the wrong gesture §4's own table refuses.
+	 */
+	it('gives both asset-library states an action, since both hand off to a real gesture', () => {
+		for (const entry of [EMPTY_STATE_CONTENT.assetLibrary.noAssets, EMPTY_STATE_CONTENT.assetLibrary.noMatches]) {
+			expect(entry.actionLabel).toBeDefined();
+			expect(t('en', entry.actionLabel)).not.toBe('');
+		}
+	});
+
+	it.each(LANGUAGES)('resolves the two asset-library entries to distinct copy in %s', (language) => {
+		const { noAssets, noMatches } = EMPTY_STATE_CONTENT.assetLibrary;
+
+		expect(t(language, noAssets.headline)).not.toBe(t(language, noMatches.headline));
+		expect(t(language, noAssets.body)).not.toBe(t(language, noMatches.body));
+		expect(t(language, noAssets.actionLabel)).not.toBe(t(language, noMatches.actionLabel));
 	});
 
 	/**
@@ -143,6 +166,10 @@ describe('the empty-state content registry', () => {
 			// action now, so both are listed the same way their siblings are.
 			EMPTY_STATE_CONTENT.assetDesigner.noShape,
 			EMPTY_STATE_CONTENT.assetDesigner.noBackground,
+			// Design "Asset library overview" §4: both entries carry an action from their first
+			// commit.
+			EMPTY_STATE_CONTENT.assetLibrary.noAssets,
+			EMPTY_STATE_CONTENT.assetLibrary.noMatches,
 		];
 
 		for (const entry of entries) {
@@ -160,5 +187,7 @@ describe('the empty-state content registry', () => {
 		expect(t(language, EMPTY_STATE_CONTENT.assetDesigner.noShape.actionLabel).length).toBeGreaterThan(0);
 		expect(t(language, EMPTY_STATE_CONTENT.assetDesigner.noBackground.actionLabel).length).toBeGreaterThan(0);
 		expect(t(language, EMPTY_STATE_CONTENT.renovationProject.noPlans.actionLabel).length).toBeGreaterThan(0);
+		expect(t(language, EMPTY_STATE_CONTENT.assetLibrary.noAssets.actionLabel).length).toBeGreaterThan(0);
+		expect(t(language, EMPTY_STATE_CONTENT.assetLibrary.noMatches.actionLabel).length).toBeGreaterThan(0);
 	});
 });

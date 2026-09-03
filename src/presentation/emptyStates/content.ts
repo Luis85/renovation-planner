@@ -30,9 +30,12 @@ export interface EmptyStateContent {
 	 * never the dead control slice 14's Amendment 1 refuses. Task B7 gave `assetDesigner.noBackground`
 	 * its own action — the `BackgroundPicker` port it hands off to — and Task B8 has now given
 	 * `assetDesigner.noShape` its own too, the `asset-dimensions` dialog `AssetDesignerRoot`'s
-	 * `editDimensions` opens. So the count is FIVE entries with a label and ONE without:
-	 * `planEditor.noBackground`, for the reason above. This sentence is that list, so an entry
-	 * added without appearing in it is the stale-comment defect this repository keeps paying for.
+	 * `editDimensions` opens. Design "Asset library overview" §4 then added a THIRD group,
+	 * `assetLibrary`, and both of ITS entries carry one from their first commit too —
+	 * `noAssets` hands off to the toolbar's own `New asset`, `noMatches` to clearing the search
+	 * field. So the count is SEVEN entries with a label and ONE without: `planEditor.noBackground`,
+	 * for the reason above. This sentence is that list, so an entry added without appearing in
+	 * it is the stale-comment defect this repository keeps paying for.
 	 */
 	readonly actionLabel?: StringKey;
 }
@@ -116,6 +119,30 @@ export const EMPTY_STATE_CONTENT = {
 			headline: 'empty.asset.no-background.headline',
 			body: 'empty.asset.no-background.body',
 			actionLabel: 'empty.asset.no-background.action',
+		},
+	},
+	/**
+	 * Design "Asset library overview" §4. Both entries carry an action, and the two differ in
+	 * KIND rather than merely in wording: `noAssets`'s action CREATES something (`New asset`,
+	 * the same toolbar gesture the surface already has), while `noMatches`'s action RESTORES
+	 * the previous view by clearing the search field — a create action offered from a
+	 * no-matches state would be the wrong gesture, per §4's own table.
+	 *
+	 * Replaces the shelves region alone (§4: "Replaces the shelves region, not the shell: the
+	 * toolbar and status bar stay"), which is this registry's `renovationProject`/`planEditor`
+	 * pattern applied a third time — the region an empty state replaces is a rendering decision
+	 * the component makes, never a fact this record carries.
+	 */
+	assetLibrary: {
+		noAssets: {
+			headline: 'empty.asset-library.no-assets.headline',
+			body: 'empty.asset-library.no-assets.body',
+			actionLabel: 'empty.asset-library.no-assets.action',
+		},
+		noMatches: {
+			headline: 'empty.asset-library.no-matches.headline',
+			body: 'empty.asset-library.no-matches.body',
+			actionLabel: 'empty.asset-library.no-matches.action',
 		},
 	},
 } as const satisfies Record<string, Record<string, EmptyStateContent>>;

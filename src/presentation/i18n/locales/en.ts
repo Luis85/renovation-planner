@@ -1,8 +1,17 @@
+import { enAssetLibrary } from './en.assetLibrary';
+
 /**
  * The English table is the COMPLETE one: a key exists because this file answers it, and
  * `StringKey` derives from here, so the compiler demands English before a caller can
  * name a key. The file is named `en.ts` because that is the filename the obsidianmd
  * ruleset's locale rules match — sentence case in this table is linted, not reviewed.
+ *
+ * `enAssetLibrary` is spread in rather than declared here: this file had 29 lines of
+ * `max-lines` headroom and the Asset library's §8 inventory is 58 keys, so appending them
+ * inline would have been the reformatting-buys-nothing shape this repository's own rule
+ * refuses — the fix is the extraction in `en.assetLibrary.ts`, not a wider budget. `en` is
+ * still the one object `StringKey` derives from; the spread does not create a second source
+ * of truth, only a second FILE for one section of it.
  */
 export const en = {
 	'command.open-project': 'Open renovation project',
@@ -732,6 +741,7 @@ export const en = {
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',
 	'save-state.save-error': 'Save error',
+	...enAssetLibrary,
 } as const;
 
 export type StringKey = keyof typeof en;

@@ -1,5 +1,6 @@
 import type { PlanDto, PlanSummaryDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto';
 import type { AssetDesignDto } from '../../application/queries/GetAssetDesign';
+import type { CatalogueEntryDto } from '../../application/queries/ListCatalogueEntries';
 
 /**
  * Which empty state a view is in — decided from query results that have ALREADY succeeded,
@@ -132,4 +133,25 @@ export function selectProjectDetailEmptyState(
 export function selectAssetDesignerEmptyState(design: AssetDesignDto): 'noBackground' | 'noShape' | null {
 	if (design.shape !== null) return null;
 	return design.background === null ? 'noBackground' : 'noShape';
+}
+
+/**
+ * Which empty state the Asset library is in (design "Asset library overview" §4), and the one
+ * selector in this file with no `Err` to guard against for a different reason than its
+ * siblings: `entries` is `ListCatalogueEntries`'s successful `entries` array, and a failed read
+ * is `ViewFailure`'s to draw, never this registry's.
+ *
+ * **Takes BOTH inputs, and `searching` cannot be derived from `entries`.** An empty list with a
+ * query running is `noMatches` (§4: "search returns nothing"); an empty list with no query
+ * running is `noAssets` (§4: "no assets at all"). The two want opposite copy and opposite
+ * actions — `noMatches`'s hands off to clearing the search field rather than to creating
+ * something — so folding `searching` into a property of the list itself would make the two
+ * states indistinguishable at exactly the boundary that matters.
+ */
+export function selectAssetLibraryEmptyState(
+	entries: readonly CatalogueEntryDto[],
+	searching: boolean,
+): 'noAssets' | 'noMatches' | null {
+	if (entries.length > 0) return null;
+	return searching ? 'noMatches' : 'noAssets';
 }

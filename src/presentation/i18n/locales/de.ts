@@ -3,8 +3,13 @@
  * PER KEY in `t`, so an incomplete translation degrades one string at a time instead of
  * failing the locale. (German noun capitalization is why the English sentence-case lint
  * deliberately does not run here.)
+ *
+ * `deAssetLibrary` is spread in for the same reason `en.ts` spreads `enAssetLibrary`: this
+ * file had 24 lines of `max-lines` headroom and the Asset library's §8 inventory is 58 keys.
+ * `de` is still the one object `strings.test.ts`'s completeness check reads.
  */
 import type { StringKey } from './en';
+import { deAssetLibrary } from './de.assetLibrary';
 
 export const de: Partial<Record<StringKey, string>> = {
 	'command.open-project': 'Renovierungsprojekt öffnen',
@@ -469,4 +474,5 @@ export const de: Partial<Record<StringKey, string>> = {
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',
 	'save-state.save-error': 'Fehler beim Speichern',
+	...deAssetLibrary,
 };

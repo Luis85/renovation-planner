@@ -7,11 +7,30 @@
 import { describe, expect, it } from 'vitest';
 import {
 	selectAssetDesignerEmptyState,
+	selectAssetLibraryEmptyState,
 	selectPlanEditorEmptyState,
 	selectRenovationProjectEmptyState,
 } from '../../../src/presentation/emptyStates/selectors';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../../src/presentation/read-models/PlanDto';
+import type { CatalogueEntryDto } from '../../../src/application/queries/ListCatalogueEntries';
 import { assetDesign } from '../../helpers/assetDesign';
+import { createAssetId } from '../../../src/domain/asset/AssetId';
+import { currencyOf } from '../../../src/core/money/Money';
+
+const anEntry = (): CatalogueEntryDto => ({
+	assetId: createAssetId(),
+	name: 'Oak plank floor',
+	category: 'material',
+	unit: 'm2',
+	unitCostAmount: '34.95',
+	currency: currencyOf('EUR'),
+	wasteFactorDefault: '0.08',
+	supplier: null,
+	sku: null,
+	height: null,
+	notes: null,
+	background: null,
+});
 
 const PLAN: PlanDto = {
 	id: 'plan-1',
@@ -192,5 +211,39 @@ describe('which empty state the asset designer is in', () => {
 	 */
 	it('asks for a background before a footprint, when the asset has neither', () => {
 		expect(selectAssetDesignerEmptyState(assetDesign({ shape: null, background: null }))).toBe('noBackground');
+	});
+});
+
+/**
+ * Design "Asset library overview" §4's fourth selector. Unlike its three siblings, `entries`
+ * is never an `Err` to guard against — `ListCatalogueEntries` has already succeeded by the
+ * time this is asked, and a failed read is `ViewFailure`'s state, not this registry's.
+ *
+ * `searching` is the second, independent input this file's header argues for: an empty result
+ * says nothing about whether a query is running, and the two answers this function gives for
+ * an empty list are opposite states with opposite hand-offs.
+ */
+describe('which empty state the asset library is in', () => {
+	it('asks for nothing when the library has entries, even while searching', () => {
+		expect(selectAssetLibraryEmptyState([anEntry()], true)).toBeNull();
+	});
+
+	it('asks for nothing when the library has entries and no search is running', () => {
+		expect(selectAssetLibraryEmptyState([anEntry()], false)).toBeNull();
+	});
+
+	it('asks for noAssets on an empty library with no search running', () => {
+		expect(selectAssetLibraryEmptyState([], false)).toBe('noAssets');
+	});
+
+	/**
+	 * The case that discriminates this selector from a plain `entries.length === 0` check: the
+	 * SAME empty list answers `noMatches` here rather than `noAssets`, because a search is
+	 * running. Mutating the two branches into one (`entries.length === 0 ? 'noAssets' : null`,
+	 * dropping `searching` entirely) reddens this case at its assertion while leaving the two
+	 * above it green — which is what makes it the one worth keeping when the others are cut.
+	 */
+	it('asks for noMatches on an empty library while a search is running', () => {
+		expect(selectAssetLibraryEmptyState([], true)).toBe('noMatches');
 	});
 });

@@ -107,11 +107,9 @@ export function assetRepositoryContract(make: () => AssetFixture): void {
 			expectOk(await f.repository.save(makeAsset({ name: 'A' }), 'absent'));
 			expectOk(await f.repository.save(makeAsset({ name: 'B' }), 'absent'));
 			expectOk(await f.repository.save(makeAsset({ name: 'C' }), 'absent'));
-			expect(expectOk(await f.repository.listAll()).map((a) => a.entity.name).toSorted()).toEqual([
-				'A',
-				'B',
-				'C',
-			]);
+			const listing = expectOk(await f.repository.listAll());
+			expect(listing.loaded.map((a) => a.entity.name).toSorted()).toEqual(['A', 'B', 'C']);
+			expect(listing.skipped).toEqual([]);
 		});
 	});
 }

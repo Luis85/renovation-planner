@@ -173,7 +173,7 @@ describe('open asset designer', () => {
 			root: {
 				logger: recorder,
 				persistence: {
-					requirementQueries: { listAssets: new ListAssets({ listAll: () => Promise.resolve({ ok: true, value: [{ entity: asset, version: 1 }] }) } as never) },
+					requirementQueries: { listAssets: new ListAssets({ listAll: () => Promise.resolve({ ok: true, value: { loaded: [{ entity: asset, version: 1 }], skipped: [] } }) } as never) },
 				},
 			} as never,
 			addCommand: (command) => commands.push(command),

@@ -42,7 +42,7 @@ export class ListReassignmentTargets {
 			const all = await this.assets.listAll();
 			if (isErr(all)) return all;
 			return ok(
-				all.value
+				all.value.loaded
 					.filter((a) => a.entity.id !== target.assetId && UNIT_KIND[a.entity.unit] === 'area')
 					.map((a) => ({ id: a.entity.id, label: a.entity.name })),
 			);

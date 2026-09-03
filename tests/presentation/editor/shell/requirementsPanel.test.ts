@@ -63,7 +63,7 @@ describe('the Requirements panel', () => {
 
 	it('assigns an asset through the picker and renders its row with effective figures', async () => {
 		const r = await rigWithAssets(['Floor tiles']);
-		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll()).loaded[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
 
@@ -102,7 +102,7 @@ describe('the Requirements panel', () => {
 
 	it('applies a quantity override with an Overridden badge, then resets to calculated', async () => {
 		const r = await rigWithAssets(['Plaster']);
-		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll()).loaded[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
 		await until(() => r.harness.wrapper.find('input[data-field="quantity"]').exists(), 'the row override inputs render');
@@ -152,7 +152,7 @@ describe('the Requirements panel', () => {
 	 */
 	it('writes nothing when Reset is pressed on a field that holds no override', async () => {
 		const r = await rigWithAssets(['Screed']);
-		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll()).loaded[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
 		await until(() => r.harness.wrapper.find('input[data-field="quantity"]').exists(), 'the row override inputs render');
@@ -185,7 +185,7 @@ describe('the Requirements panel', () => {
 	 */
 	it('shows the negative-quantity refusal under the quantity input, from the real command', async () => {
 		const r = await rigWithAssets(['Underlay']);
-		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll()).loaded[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
 		await until(() => r.harness.wrapper.find('input[data-field="quantity"]').exists(), 'the row override inputs render');
@@ -232,7 +232,7 @@ describe('the Requirements panel', () => {
 	 */
 	it('renders a requirement whose asset is gone from its id, with the reason', async () => {
 		const r = await rigWithAssets(['Doomed']);
-		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll()).loaded[0];
 		if (areaAsset === undefined) throw new Error('expected a seeded asset');
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
@@ -269,7 +269,7 @@ describe('the Requirements panel', () => {
 	 */
 	it('a zone reshape leaves the RECALCULATED figures on screen, with no reselect', async () => {
 		const r = await rigWithAssets(['Screed']);
-		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll()).loaded[0];
 		if (areaAsset === undefined) throw new Error('expected a seeded asset');
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
@@ -318,7 +318,7 @@ describe('the Requirements panel', () => {
 
 	it('applies a COST override the same way, and resets it', async () => {
 		const r = await rigWithAssets(['Grout']);
-		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll()).loaded[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
 		await until(() => r.harness.wrapper.find('input[data-field="cost"]').exists(), 'the cost override input renders');

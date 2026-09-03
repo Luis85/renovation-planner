@@ -79,7 +79,7 @@ describe('CreateAssetCommand', () => {
 		if (!result.ok) throw new Error(result.error.message);
 		expect(result.value.unitCost.amount).toBe('2.5');
 		expect(
-			expectOk(await w.assets.listAll()).map((a) => a.entity.id),
+			expectOk(await w.assets.listAll()).loaded.map((a) => a.entity.id),
 		).toContain(result.value.id);
 	});
 

@@ -2,7 +2,7 @@ import type { RepositoryError } from '../../../application/ports/repositoryError
 import { isErr, ok, type Result } from '../../../core/result/Result';
 import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
-import type { AssetRepository } from '../../../application/ports/AssetRepository';
+import type { AssetListing, AssetRepository, SkippedAsset } from '../../../application/ports/AssetRepository';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import { assetsFolderFor, normalizeFolder } from '../repositories/paths';
 import { KeyedQueues } from '../repositories/KeyedQueues';
@@ -118,7 +118,7 @@ export class ObsidianAssetRepository implements AssetRepository {
 	 * construction (nothing upserts them with a `projectId`), so this needs no filter and
 	 * no exclusion list.
 	 */
-	listAll(): Promise<Result<Loaded<Asset>[], RepositoryError>> {
+	listAll(): Promise<Result<AssetListing, RepositoryError>> {
 		return this.list(this.deps.index.getIdsByType('renovation-asset') as AssetId[]);
 	}
 
@@ -136,20 +136,30 @@ export class ObsidianAssetRepository implements AssetRepository {
 	 * note whose `type` and `id` are fine, which is exactly the reported case — returns its
 	 * error without recording, so skipping silently would lose the signal entirely.
 	 *
-	 * The shape is `ObsidianProjectRepository.listAll`'s, minus its `refused` count: that
-	 * exists because the project list must tell "no projects" from "projects I could not
-	 * read", and the assign picker has no such distinction to draw.
+	 * The shape is `ObsidianProjectRepository.listAll`'s `ProjectListing`, WIDENED rather
+	 * than copied: the project list's `refused` is a bare count, because the project list
+	 * only has to tell "no projects" apart from "projects I could not read". This surface
+	 * additionally draws a per-note repair strip (§5.1a) — `Open note` over the note's own
+	 * path, with copy that differs for a future-schema refusal versus an ordinary one — so
+	 * each skip carries its id, its `AppError.code` and its path rather than only adding to
+	 * a tally. The ids and the path are already in hand at the point of the skip; this is a
+	 * wider return, not new bookkeeping.
 	 */
-	private async list(ids: readonly AssetId[]): Promise<Result<Loaded<Asset>[], RepositoryError>> {
+	private async list(ids: readonly AssetId[]): Promise<Result<AssetListing, RepositoryError>> {
 		const loaded: Loaded<Asset>[] = [];
+		const skipped: SkippedAsset[] = [];
 		for (const id of ids) {
 			const found = await this.getById(id);
 			if (isErr(found)) {
 				this.deps.ledger.record('asset', id, found.error);
+				// `getIdsByType` only ever answers ids the index actually holds an entry for,
+				// so `getPath` resolving nothing here would be the index disagreeing with
+				// itself — the fallback is defensive, not an expected path.
+				skipped.push({ assetId: id, code: found.error.code, path: this.deps.index.getPath(id) ?? '' });
 				continue;
 			}
 			if (found.value !== null) loaded.push(found.value);
 		}
-		return ok(loaded);
+		return ok({ loaded, skipped });
 	}
 }

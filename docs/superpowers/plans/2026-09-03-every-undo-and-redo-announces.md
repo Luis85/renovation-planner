@@ -2504,11 +2504,15 @@ with no notes behind it has no malformed note to refuse.
 // The two REAL implementations, plus the second host. `createRepositoryStack` and
 // `openFixtureVault` both build ObsidianRequirementRepository — over FakeVault and over disk —
 // so listing only those two compares one implementation against itself.
+// The third column is `hasVault` and it is REQUIRED: three cases below are vault-backed only
+// and gate on it, so a two-column row leaves `hasVault` an undefined free variable and none of
+// this compiles. Typed `as const` so the tuple keeps its shape rather than widening to
+// `(string | Fn | boolean)[]`, which would make the destructured `open` uncallable.
 describe.each([
-	['in-memory', openInMemoryRequirements],   // InMemoryRequirementRepository, directly
-	['obsidian/fake-vault', createRepositoryStack],
-	['obsidian/disk', openFixtureVault],
-])('listByProject (%s)', (_name, open) => {
+	['in-memory', openInMemoryRequirements, false],   // InMemoryRequirementRepository, directly
+	['obsidian/fake-vault', createRepositoryStack, true],
+	['obsidian/disk', openFixtureVault, true],
+] as const)('listByProject (%s)', (_name, open, hasVault) => {
 	it('returns this project’s requirements and nothing else', async () => { /* … */ });
 
 	// The two unreadable-note cases are VAULT-BACKED ONLY — skip them for the in-memory row

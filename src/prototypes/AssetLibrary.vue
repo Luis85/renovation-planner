@@ -229,7 +229,11 @@ function toggle(category: string): void {
 function back(): void {
 	const leaving = selectedId.value;
 	const swappingOut = shelvesWithdrawn();
-	const category = ASSETS.find((a) => a.id === leaving)?.category;
+	// Only when the shelves are what the user is going BACK to. While a search is running the
+	// row is drawn in the flat Results list whatever its shelf is doing, so expanding here would
+	// silently rewrite an expansion state the user set — visible only later, when they clear the
+	// search and find a category open that they had closed. §6.1 says that state is theirs.
+	const category = searching.value ? undefined : ASSETS.find((a) => a.id === leaving)?.category;
 	if (category !== undefined && !expanded.value.has(category)) toggle(category);
 	selectedId.value = null;
 	// `CSS.escape`: an asset id is `z.string().min(1)` in the frontmatter schema, so a

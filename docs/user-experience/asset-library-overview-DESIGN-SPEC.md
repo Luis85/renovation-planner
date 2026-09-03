@@ -356,6 +356,18 @@ Four sections, in this order:
 
    plus **a pending warning per coordinate group**, and **Open designer**.
 
+   **Both extents are DERIVED through `dimensionsOf`, and the clearance's needs that as much as
+   the footprint's does.** `GetAssetDesign` calls it for the footprint alone today, and
+   `validateAssetShape` does not close the gap: it refuses a clearance whose shoelace sum
+   overflows (`enclosesArea` tests `Number.isFinite`), and a very long, very thin clearance has a
+   finite area sum and an infinite SPAN — coordinates from `-1e308` to `1e308` with a hair's
+   height. Nothing then stops this row printing `Infinity mm` as a measurement. So the DTO
+   derives the clearance's extent through the same guarded call, and a failed
+   `dimensionsOf(shape.clearance)` routes as the `GeometryError` it is rather than reaching the
+   row. Reported by a review bot; the footprint got that guard when `polygon-area-overflow` was
+   written and the clearance beside it did not, which is this repository's own *fixing the case
+   in the report is not fixing the class*, one field over.
+
    **Height is NOT here, and the rule that decides it is worth stating rather than the row.**
    *Shape lists what the sidecar derives; Definition lists what the note stores and a field
    edits.* A height is on `Asset`, not on `AssetShape` — typed in millimetres, carried by the
@@ -689,7 +701,7 @@ interface CatalogueEntryDto {
   height: number | null; notes: string | null;
   background: AssetBackgroundRef | null;
 }
-interface CatalogueListing { entries: readonly CatalogueEntryDto[]; unreadable: number; }
+interface CatalogueListing { entries: readonly CatalogueEntryDto[]; unreadable: readonly AssetId[]; }
 ```
 
 `ListAssets` exists and answers `Asset[]` for the assign picker. It is **not** reused: it returns
@@ -697,6 +709,11 @@ domain entities, it drops the unreadable count, and a picker's read and a browsi
 diverging later is cheaper than one query serving two surfaces badly. `Money` is decomposed into an
 amount **string** plus a currency at this boundary, exactly as it already crosses every other one —
 a float is what ADR-010 refuses.
+
+**`unreadable` is a list of IDS, not a count** — §5.1a says why, and this block said `number`
+for one round after that section was written, which is this document's own neighbour-drift in the
+sharpest possible place: a builder reads the interface, not the paragraph three sections down.
+§4's notice draws `unreadable.length`.
 
 **`notes` and the whole background reference, not a boolean.** The first version of this DTO
 carried `hasBackground: boolean` and no `notes` at all, while §3.5 specifies an editable notes
@@ -1844,6 +1861,32 @@ defect is a value in the note's frontmatter.
 **The shape worth keeping: a hostile input written for one rule is evidence about every rule it
 passes through.** That fixture was chosen to break a CSS selector and it happened to walk into the
 filename rule as well. Nothing here connected the two — a reviewer did, off a diff.
+
+A twenty-third round found three, and the first is the previous round's own commit contradicting
+itself two sections apart.
+
+**§5.1's interface still declared `unreadable: number`** while §5.1a, written in the same commit,
+argued at length that it must carry the ids. A builder reads the interface, not the paragraph
+three sections down — so the fix and its justification shipped together and the artefact a builder
+would actually copy said the opposite. This document's neighbour-drift, in the sharpest possible
+place, inside the round that closed the previous instance of it.
+
+**A clearance can have a finite area and an infinite extent, and only the footprint was guarded.**
+`validateAssetShape` refuses a clearance whose shoelace sum overflows — `enclosesArea` tests
+`Number.isFinite` — but a very long, very thin one has a finite sum and a span from `-1e308` to
+`1e308`. `GetAssetDesign` calls `dimensionsOf` for the footprint alone, so nothing stopped §3.5's
+Clearance row printing `Infinity mm` as a measurement. The DTO derives both extents through the
+same guarded call now. The footprint got that guard when `polygon-area-overflow` was written and
+the field beside it did not: **fixing the case in the report is not fixing the class**, one field
+over, in code this branch did not write.
+
+**And `back()` was rewriting a state that belongs to the user.** Round sixteen made it expand the
+selected asset's shelf, which is right when the shelves are what you are going back TO — and a
+selection made from search results is not: the row is drawn in the flat Results list whatever its
+shelf is doing, so expanding did nothing visible then and revealed an opened category later, when
+the search was cleared. §6.1 says that state is the user's. Narrowed to the non-searching case.
+**The pattern is the one this branch keeps paying for from the other direction**: a fix written for
+the case in front of its author, applied unconditionally.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

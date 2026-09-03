@@ -2015,6 +2015,7 @@ Replace the single `<ul>` with the two groups:
 		<details
 			v-if="completed.length > 0"
 			class="rp-project-list__completed"
+			@toggle="completedOpen = ($event.target as HTMLDetailsElement).open"
 		>
 			<summary class="rp-project-list__group-title">
 				{{ tr('view.project.group.completed', { count: String(completed.length) }) }}
@@ -2168,6 +2169,26 @@ describe('matchesQuery', () => {
 		expect(matchesQuery('Ähre', 'ahre', de)).toBe(true);
 	});
 
+	it('matches an expansion that makes the query LONGER than the name', () => {
+		// Measured, not assumed: base sensitivity treats `ß` and `ss` as equal, so a 6-unit
+		// name is matched by a 7-unit query. A window sized from the query — and the
+		// `needle.length > name.length` early return that came with it — rejected exactly this,
+		// so a user typing the ordinary ASCII spelling of a street name found nothing.
+		expect(matchesQuery('Straße', 'strasse', de)).toBe(true);
+		expect(matchesQuery('Hauptstraße 12', 'hauptstrasse', de)).toBe(true);
+	});
+
+	it('matches the same expansion from the other side', () => {
+		expect(matchesQuery('Strasse', 'straße', de)).toBe(true);
+	});
+
+	it('still refuses a query that is genuinely absent, however long', () => {
+		// The widened band must not turn into "matches anything": the guard against that is
+		// that the collator, not the width, decides.
+		expect(matchesQuery('Küche', 'badezimmer', de)).toBe(false);
+		expect(matchesQuery('Straße', 'strosse', de)).toBe(false);
+	});
+
 	it('matches everything on an empty query', () => {
 		// At rest the filter excludes nothing, so the count reads the vault's own total.
 		expect(matchesQuery('Anything', '', en)).toBe(true);
@@ -2184,6 +2205,16 @@ describe('splitMatch', () => {
 		// `Küche` must render with its umlaut even though the query that found it had none —
 		// the highlight is a fact about where the match is, never a replacement for the text.
 		expect(splitMatch('Küche', 'kuche', de)).toEqual([{ text: 'Küche', matched: true }]);
+	});
+
+	it('highlights the MATCHED SPAN, not the query’s length', () => {
+		// `Straße` is six units and the query that found it is seven. Slicing by the query's
+		// length would run past the end of the name — and on a longer name it would swallow a
+		// character that did not match.
+		expect(splitMatch('Straße 12', 'strasse', de)).toEqual([
+			{ text: 'Straße', matched: true },
+			{ text: ' 12', matched: false },
+		]);
 	});
 
 	it('keeps the text either side of a mid-name match', () => {
@@ -2231,7 +2262,7 @@ Create `src/presentation/views/projectFilter.ts`:
 
 /** Whether `query` occurs anywhere in `name`. An empty or blank query matches everything. */
 export function matchesQuery(name: string, query: string, collator: Intl.Collator): boolean {
-	return indexOfMatch(name, query, collator) !== -1;
+	return findMatch(name, query, collator) !== null;
 }
 
 /**
@@ -2247,43 +2278,70 @@ export function splitMatch(
 	query: string,
 	collator: Intl.Collator,
 ): readonly { text: string; matched: boolean }[] {
-	const trimmed = query.trim();
-	const at = indexOfMatch(name, query, collator);
-	if (at === -1 || trimmed.length === 0) return [{ text: name, matched: false }];
+	const found = query.trim().length === 0 ? null : findMatch(name, query, collator);
+	if (found === null) return [{ text: name, matched: false }];
 
 	const runs = [];
-	if (at > 0) runs.push({ text: name.slice(0, at), matched: false });
-	runs.push({ text: name.slice(at, at + trimmed.length), matched: true });
-	if (at + trimmed.length < name.length) {
-		runs.push({ text: name.slice(at + trimmed.length), matched: false });
+	if (found.at > 0) runs.push({ text: name.slice(0, found.at), matched: false });
+	// The MATCHED SPAN, never the query's length — the two differ whenever the collation
+	// expanded something (`Straße` matched by `Strasse` is a 6-unit span found by a 7-unit
+	// query), and slicing by the query's length would highlight past the run that matched.
+	runs.push({ text: name.slice(found.at, found.at + found.width), matched: true });
+	if (found.at + found.width < name.length) {
+		runs.push({ text: name.slice(found.at + found.width), matched: false });
 	}
 	return runs;
 }
 
 /**
- * Where `query` first occurs in `name` under the collator's own equality, or `-1`.
+ * The earliest, shortest span of `name` the collator considers equal to `query`, or `null`.
  *
  * A window walk rather than `String.prototype.includes`, because `includes` compares code units
- * and the whole point here is that it must not. Bounded by the name's length, which for a
- * project name is a title rather than a document; the alternative — normalizing both sides with
+ * and the whole point here is that it must not. The alternative — normalizing both sides with
  * `normalize('NFD')` and stripping combining marks — hard-codes one script's idea of what an
  * accent is, and the collator is already the thing this repository resolves per language.
  *
- * **A window is the query's TRIMMED length in code units**, which is an approximation for a
- * name whose accented characters are composed differently from the query's. Stated rather than
- * hidden: it is exact for every NFC-composed name, which is what Obsidian writes and what a
- * keyboard produces, and a name pasted in NFD form can fail to highlight while still matching.
- * The fix if that ever surfaces is `Intl.Segmenter`, not a wider window.
+ * **The window's WIDTH VARIES, and that is not a refinement — it is the difference between
+ * working and not working in German.** Base sensitivity treats `ß` and `ss` as equal, so a
+ * 6-unit name is matched by a 7-unit query: measured in node, not assumed —
+ * `new Intl.Collator('de', { sensitivity: 'base' }).compare('Straße', 'Strasse')` is `0`, and
+ * the `'en'` collator answers `0` too. A window sized from the query, and the
+ * `needle.length > name.length` early return that came with it, rejected exactly that — so a
+ * user typing the ordinary ASCII spelling of a street name found nothing. That is the failure
+ * the collator was chosen to prevent, arriving through the search that uses it.
+ *
+ * **Bounded, so this stays a filter and not a scan.** Widths run from half the query's length
+ * to twice it, which covers every expansion `Intl` exposes for the locales this plugin ships:
+ * `ß`/`ss` is 1:2 and nothing in `de` or `en` goes further — `ä`/`ae` is measurably NOT equal
+ * under base sensitivity, so that pair needs no width at all. Worst case is
+ * `name.length × query.length × 2` short comparisons for one row.
+ *
+ * **Measure it against the 30-row fixture before trusting the bound** (Task 12). If a keystroke
+ * ever feels slow, the fix is an `includes` fast path — which answers the overwhelmingly common
+ * case, since most queries match without any expansion — not a narrower band, because narrowing
+ * it is what this paragraph exists to record undoing.
+ *
+ * The SHORTEST window at the earliest position wins, so the highlight covers what actually
+ * matched rather than the first longer span that happens to contain it.
  */
-function indexOfMatch(name: string, query: string, collator: Intl.Collator): number {
+function findMatch(
+	name: string,
+	query: string,
+	collator: Intl.Collator,
+): { at: number; width: number } | null {
 	const needle = query.trim();
-	if (needle.length === 0) return 0;
-	if (needle.length > name.length) return -1;
+	if (needle.length === 0) return { at: 0, width: 0 };
 
-	for (let at = 0; at <= name.length - needle.length; at += 1) {
-		if (collator.compare(name.slice(at, at + needle.length), needle) === 0) return at;
+	const minWidth = Math.max(1, Math.ceil(needle.length / 2));
+	const maxWidth = needle.length * 2;
+
+	for (let at = 0; at + minWidth <= name.length; at += 1) {
+		const widest = Math.min(maxWidth, name.length - at);
+		for (let width = minWidth; width <= widest; width += 1) {
+			if (collator.compare(name.slice(at, at + width), needle) === 0) return { at, width };
+		}
 	}
-	return -1;
+	return null;
 }
 ```
 
@@ -3179,6 +3237,40 @@ describe('ProjectList keyboard', () => {
 		expect(document.activeElement).toBe(wrapper.findAll('.rp-project-list__row')[0].element);
 	});
 
+	it('enters an EXPANDED Completed group when there are no active rows', async () => {
+		// A vault whose projects are all finished, or a query matching only completed ones.
+		// Returning whenever `active` is empty leaves those visible results unreachable by
+		// keyboard — the only way in, for that vault, is this fall-through.
+		const wrapper = mount(ProjectList, {
+			props: { projects: [project('Attic', { status: 'COMPLETE' })] },
+			attachTo: document.body,
+		});
+		await wrapper.find('.rp-project-list__completed > summary').trigger('click');
+		const input = wrapper.find('.rp-project-filter__input');
+		await input.trigger('focus');
+
+		await input.trigger('keydown', { key: 'ArrowDown' });
+
+		expect(document.activeElement).toBe(
+			wrapper.findAll('.rp-project-list__completed .rp-project-list__row')[0].element,
+		);
+	});
+
+	it('does NOT enter a collapsed Completed group', async () => {
+		// Moving focus onto a row the user cannot see is worse than not moving. The summary is
+		// an ordinary tab stop and opening it is the gesture that makes those rows reachable.
+		const wrapper = mount(ProjectList, {
+			props: { projects: [project('Attic', { status: 'COMPLETE' })] },
+			attachTo: document.body,
+		});
+		const input = wrapper.find('.rp-project-filter__input');
+		await input.trigger('focus');
+
+		await input.trigger('keydown', { key: 'ArrowDown' });
+
+		expect(document.activeElement).toBe(input.element);
+	});
+
 	it('costs ONE tab stop for the Completed list too', async () => {
 		const wrapper = mount(ProjectList, {
 			props: {
@@ -3414,6 +3506,18 @@ const activeRoving = useRovingFocus(activeList, '.rp-project-list__row');
 const completedRoving = useRovingFocus(completedList, '.rp-project-list__row');
 
 /**
+ * Whether the `Completed` disclosure is open, tracked from the element's own `toggle` event
+ * rather than held as the source of truth: the `<details>` stays native (§11 — the host
+ * announces the state), so this FOLLOWS it and never drives it.
+ *
+ * It exists for one question — may the filter's arrows enter that group — and nothing else
+ * reads it. A `v-if` on the rows would be the wrong mechanism: the group's expanded state is
+ * deliberately not persisted, and collapsing it must not unmount rows the roving controller has
+ * an index into.
+ */
+const completedOpen = ref(false);
+
+/**
  * EACH GROUP CLAMPS AGAINST ITS OWN ROWS, never against the filter's total match count.
  *
  * The two differ the moment a query matches a completed project and not an active one: with one
@@ -3456,16 +3560,30 @@ function onListKeydown(event: KeyboardEvent, roving: RovingFocus): void {
  * and bound to the lists alone a keyboard user reaches the field and cannot get out of it into
  * the results.
  *
- * It enters whichever group has rows, `Projects` first: that is the group the user is almost
- * always filtering toward, and `Completed` is collapsed by default, so arrowing into a group
- * the user cannot see would be worse than not moving at all.
+ * **It enters whichever group actually has visible rows**, `Projects` first: that is what the
+ * user is almost always filtering toward. Falling through to `Completed` is not symmetry — it
+ * is the only way into a vault whose projects are all finished, or into a query that matches
+ * only completed ones, and a first version that returned whenever `active` was empty left
+ * exactly those results unreachable by keyboard.
+ *
+ * **Only while `Completed` is EXPANDED**, which is why its disclosure state is tracked at all:
+ * arrowing into rows the user cannot see would move focus somewhere invisible, which is worse
+ * than not moving. Collapsed, the `<summary>` is an ordinary tab stop and opening it is the
+ * gesture that makes those rows reachable — so nothing is lost.
  */
 function onFilterKeydown(event: KeyboardEvent): void {
 	if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
 	if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-	if (active.value.length === 0) return;
-	event.preventDefault();
-	activeRoving.focusFirst();
+
+	if (active.value.length > 0) {
+		event.preventDefault();
+		activeRoving.focusFirst();
+		return;
+	}
+	if (completedOpen.value && completed.value.length > 0) {
+		event.preventDefault();
+		completedRoving.focusFirst();
+	}
 }
 
 /**
@@ -3502,10 +3620,132 @@ Export the composable's return type from `useRovingFocus.ts` as
 `ReturnType<typeof useRovingFocus>` at the call site would be the private-type-leak `fallow`
 reports as an `error`.
 
+- [ ] **Step 5a: The open-note accelerators, keyboard and pointer**
+
+§7 gives a row a SECOND destination — the project's own note — reached three ways: `Mod+↵` from
+the keyboard, and middle-click or modifier-click from the pointer. They are one destination and
+belong in one task; the foot legend and the manual case both claim they exist.
+
+`ProjectRow` gains an emit and three handlers:
+
+```typescript
+defineEmits<{ open: [projectId: string]; openNote: [projectId: string] }>();
+```
+
+```vue
+		@click="onClick"
+		@auxclick="onAuxClick"
+		@keydown="onKeydown"
+```
+
+```typescript
+/**
+ * A modifier-click opens the NOTE, a plain click NAVIGATES. `metaKey` on macOS and `ctrlKey`
+ * elsewhere is the host's own convention for "open this somewhere else", and Obsidian uses it
+ * throughout its file explorer.
+ */
+function onClick(event: MouseEvent): void {
+	if (event.metaKey || event.ctrlKey) {
+		event.preventDefault();
+		emit('openNote', props.project.id);
+		return;
+	}
+	emit('open', props.project.id);
+}
+
+/**
+ * The MIDDLE button, which fires `auxclick` rather than `click` — a `click` handler testing
+ * `event.button === 1` never runs, because the middle button does not produce one.
+ *
+ * `event.button === 1` is still tested, because `auxclick` fires for the secondary button too
+ * and the right button belongs to the context menu.
+ */
+function onAuxClick(event: MouseEvent): void {
+	if (event.button !== 1) return;
+	// Chrome opens its autoscroll widget on a middle press otherwise — the same rule the plan
+	// editor's canvas states for its own middle button.
+	event.preventDefault();
+	emit('openNote', props.project.id);
+}
+
+/**
+ * `Mod+↵` opens the note; a bare `↵` is the button's own native activation and is deliberately
+ * NOT handled here — intercepting it would reimplement what the element already does.
+ */
+function onKeydown(event: KeyboardEvent): void {
+	if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) return;
+	event.preventDefault();
+	emit('openNote', props.project.id);
+}
+```
+
+`ProjectList` re-emits `openNote` beside `open` from every row, including the Continue row's
+`Open`. `ViewRoot` binds it to the door that already exists:
+
+```typescript
+/**
+ * The project's own NOTE — the only thing on this surface that still opens one, and the reason
+ * `RenovationProjectDeps.openProject` exists: `presentation/` may not reach Obsidian's vault and
+ * a `ProjectSummaryDto` carries no path.
+ *
+ * `'missing'` means the row pointed at a project the vault no longer holds, so the list it was
+ * drawn from is stale and gets re-read — `ProjectDetailState` states the identical rule for its
+ * own `Open note`. `'failed'` buys no re-read: the fault door has already reported it and
+ * nothing about the list is known to be wrong.
+ */
+async function onOpenNote(id: string): Promise<void> {
+	if ((await context.openProject(id)) === 'missing') await hydrate();
+}
+```
+
+Cases in `projectListKeyboard.test.ts` and `projectRow.test.ts`:
+
+```typescript
+	it('opens the note on Mod+Enter, and navigates on a bare Enter', async () => {
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('keydown', { key: 'Enter', ctrlKey: true });
+		expect(wrapper.emitted('openNote')).toEqual([['p1']]);
+		// A bare Enter is the button's own native activation — reaching `click`, not this
+		// handler — so nothing here must emit for it.
+		expect(wrapper.emitted('open')).toBeUndefined();
+	});
+
+	it('opens the note on a middle click, which fires auxclick and never click', async () => {
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('auxclick', { button: 1 });
+
+		expect(wrapper.emitted('openNote')).toEqual([['p1']]);
+	});
+
+	it('ignores the secondary button, which belongs to the context menu', async () => {
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('auxclick', { button: 2 });
+
+		expect(wrapper.emitted('openNote')).toBeUndefined();
+	});
+
+	it('opens the note on a modifier click and navigates on a plain one', async () => {
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('click', { ctrlKey: true });
+		await wrapper.find('.rp-project-list__row').trigger('click');
+
+		expect(wrapper.emitted('openNote')).toEqual([['p1']]);
+		expect(wrapper.emitted('open')).toEqual([['p1']]);
+	});
+```
+
+Plus one in `viewRootOpenProject.test.ts` asserting a `'missing'` outcome re-hydrates and a
+`'failed'` one does not — watched failing with the `=== 'missing'` test inverted, because both
+arms otherwise look alike from outside.
+
 - [ ] **Step 6: Run the keyboard test**
 
-Run: `npx vitest run tests/presentation/views/projectListKeyboard.test.ts`
-Expected: PASS, 14 cases.
+Run: `npx vitest run tests/presentation/views/projectListKeyboard.test.ts tests/presentation/views/projectRow.test.ts`
+Expected: PASS.
 
 - [ ] **Step 7: Mutation-check the three guards**
 
@@ -4000,6 +4240,34 @@ describe('ContinueContextStore', () => {
 		});
 	});
 
+	it('keeps the LATEST context when two writes overlap', async () => {
+		// The ordinary gesture: open a project, then open a plan inside it. Both writes are in
+		// flight together because `rememberContinue` discards its promise, and an adapter that
+		// finishes them out of order lets the older project-only context erase the newer one.
+		const io = adapter();
+		const settle: (() => void)[] = [];
+		const plain = io.write;
+		io.write = (path, data) =>
+			new Promise((resolve) => {
+				settle.push(() => {
+					void plain(path, data);
+					resolve();
+				});
+			});
+		const s = new ContinueContextStore(io, 'p/continue.json', new RecordingLogger());
+
+		const first = s.write({ projectId: 'p1', planId: null });
+		const second = s.write({ projectId: 'p1', planId: 'plan-1' });
+		// The queue means the second write has not even STARTED yet, which is the property:
+		// releasing them in the order they were queued is the only order available.
+		settle[0]();
+		await first;
+		settle[1]();
+		await second;
+
+		expect(await s.read()).toEqual({ projectId: 'p1', planId: 'plan-1' });
+	});
+
 	it('never rejects on a failed write', async () => {
 		// `rememberContinue` is fire-and-forget from a click handler that discards its promise,
 		// so a rejection here is an unhandled rejection reaching nobody. A context that failed
@@ -4073,6 +4341,7 @@ Create `src/plugin/continueContextStore.ts`:
 
 ```typescript
 import type { Logger } from '../application/ports/Logger';
+import { KeyedQueues } from '../infrastructure/obsidian/repositories/KeyedQueues';
 import type { TextFileAdapter } from '../infrastructure/obsidian/persistence/SequenceMarkerFileStore';
 import { parseContinueContext, type ContinueContext } from '../presentation/views/continueContext';
 
@@ -4102,6 +4371,20 @@ const CONTINUE_CONTEXT_SCHEMA_VERSION = 1;
  * to prevent. A context that failed to persist costs a Continue row; it must not cost an error.
  */
 export class ContinueContextStore {
+	/**
+	 * **Writes are SERIALIZED, and the race is an ordinary gesture rather than an exotic one.**
+	 * `rememberContinue` answers `void` and every caller navigates in the same tick, so two
+	 * writes are in flight together the moment a user opens a project and then a plan inside it
+	 * — two clicks, seconds apart, which is the flow this feature exists for. Nothing about
+	 * `TextFileAdapter.write` promises completion order, so the older project-only write can
+	 * land last and erase the newer plan context: Continue would then offer the project the user
+	 * passed through rather than the plan they stopped in, intermittently and unreproducibly.
+	 *
+	 * `KeyedQueues` is what `SequenceMarkerFileStore` already uses one directory over, for the
+	 * same file and the same reason. One key, because there is one file.
+	 */
+	private readonly queues = new KeyedQueues();
+
 	constructor(
 		private readonly adapter: TextFileAdapter,
 		private readonly path: string,
@@ -4129,17 +4412,19 @@ export class ContinueContextStore {
 		}
 	}
 
-	async write(context: ContinueContext): Promise<void> {
-		try {
-			await this.adapter.write(
-				this.path,
-				// An ENVELOPE rather than the bare context, so a future shape has something to
-				// branch on instead of having to guess from the fields present.
-				JSON.stringify({ schemaVersion: CONTINUE_CONTEXT_SCHEMA_VERSION, context }),
-			);
-		} catch (cause) {
-			this.logger.warn('continue-context.write-failed', { cause });
-		}
+	write(context: ContinueContext): Promise<void> {
+		return this.queues.run('continue-context', async () => {
+			try {
+				await this.adapter.write(
+					this.path,
+					// An ENVELOPE rather than the bare context, so a future shape has something
+					// to branch on instead of having to guess from the fields present.
+					JSON.stringify({ schemaVersion: CONTINUE_CONTEXT_SCHEMA_VERSION, context }),
+				);
+			} catch (cause) {
+				this.logger.warn('continue-context.write-failed', { cause });
+			}
+		});
 	}
 }
 ```
@@ -5013,13 +5298,13 @@ Two gaps are deliberate and named where they occur rather than left to be found:
 - **`planCount`'s `PlanDeleted`** (§8) has no producer in the tree. Task 2 carries the case
   through the entry arm and Task 13 amends the spec. This is the one place the plan does not do
   what the spec literally asks, and it is because the spec asks for something that does not exist.
-- **§7's "middle-click and modifier-click open the project's note"** is not built by any task
-  above. It is a pointer accelerator over `openProject`, which the view already has — one
-  `@click.middle` and one modifier test on the row's own handler — and it belongs in Task 8 with
-  the keyboard's `Mod+↵`, since they are the same destination reached two ways. **Add it there**:
-  the row emits a second event (`openNote: [projectId: string]`) and `ViewRoot` binds it to
-  `context.openProject`, whose `ProjectOpenOutcome` the view already branches on. The manual case
-  step 6 is what verifies it.
+- **§7's open-note accelerators** — middle-click, modifier-click and `Mod+↵` — were found
+  missing by this review and are **built by Task 8 step 5a**, not deferred. An earlier draft of
+  this paragraph described the fix and told the reader to "add it there", which is the
+  describe-without-showing failure this skill's own rules forbid: the numbered tasks would have
+  shipped rows that only emit `open` while the foot legend and the manual case both claimed the
+  accelerators existed. One detail that only writing it surfaced: the middle button fires
+  `auxclick`, never `click`, so a `click` handler testing `event.button === 1` never runs at all.
 
 **Placeholder scan.** No `TBD`, no "add appropriate error handling", no "similar to Task N". Every
 code step carries the code. Three steps deliberately say *read the existing file first* rather
@@ -5061,8 +5346,34 @@ The other two are narrowings rather than defects: the arrows now work from the f
 table always said, and `Completed` gets its own roving controller because §7's sequence names it
 as one stop.
 
+**Third round, on the fixes themselves.** Four more, all real, and two of them are defects the
+second round's own repairs introduced or left standing — which is this repository's recorded
+pattern for review rounds on one branch, arriving on schedule:
+
+- **`Intl.Collator` at base sensitivity treats `ß` and `ss` as EQUAL**, so a 6-unit name is
+  matched by a 7-unit query. Measured in node rather than reasoned:
+  `compare('Straße', 'Strasse')` is `0` in `de` *and* in `en`. The fixed-width window and its
+  `needle.length > name.length` early return rejected exactly that, so a user typing
+  `hauptstrasse` — the ordinary ASCII spelling — found nothing. **The failure the collator was
+  chosen to prevent, arriving through the search that uses it.** The window's width varies now
+  and `splitMatch` highlights the matched SPAN rather than the query's length, which are
+  different numbers whenever an expansion fired. Measured that `ä`/`ae` is *not* equal, which is
+  what bounds the band.
+- **The filter's new arrow handler returned whenever `Projects` was empty**, leaving a vault of
+  only completed projects unreachable by keyboard. A fix written for the common case, blind to
+  the case that made the group exist.
+- **The open-note accelerators were "add it there" and nothing else.** The self-review found
+  them missing and then described the remedy instead of writing it — the exact
+  describe-without-showing failure the planning rules forbid, committed in the paragraph that
+  had just caught the omission. Task 8 step 5a builds them, and writing it surfaced what the
+  description had missed: the middle button fires `auxclick`, never `click`.
+- **Two continue-context writes can overlap and land out of order**, so opening a project and
+  then a plan inside it — the flow the feature exists for — could persist the project-only
+  context last and erase the plan. Serialized through `KeyedQueues`, which the marker store one
+  directory over already uses for the same file and the same reason.
+
 **Coverage risk.** Tasks 1, 6 and 10 each add error arms that no production path reaches
-(`NO_FACTS` at the `getProject` door, `indexOfMatch`'s length guard, both `catch` blocks). Each
+(`NO_FACTS` at the `getProject` door, `findMatch`'s empty-query arm, both `catch` blocks). Each
 has a test above that drives it — deliberately, because at this repository's ONE unit of headroom
 an untested arm in a tight metric fails the gate outright and one in a slack metric hides
 completely.

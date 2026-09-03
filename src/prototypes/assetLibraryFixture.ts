@@ -314,13 +314,38 @@ export const ASSETS: readonly CatalogueAsset[] = [
  * zero-area polygon is only refused at `createPolygon` — would divide by zero and emit `NaN`
  * into the path, so the zero axis is dropped from the fit rather than trusted.
  */
+/**
+ * A polygon's bounding box, scanned rather than spread.
+ *
+ * `Math.min(...xs)` passes every coordinate as a function ARGUMENT, and V8 throws
+ * `RangeError: Maximum call stack size exceeded` somewhere around 125,000 of them. Nothing here
+ * bounds a vertex count: the persistence schema does not, and `validatePolygonPoints` checks
+ * finiteness and a minimum rather than a maximum — so a hand-authored sidecar with a very long
+ * traced outline is accepted, and this runs while a VISIBLE ROW renders. The failure would
+ * therefore be the library throwing mid-render, not one mark going missing. Reported by a review
+ * bot; a loop costs nothing and has no such ceiling.
+ */
+export function boundsOf(outline: readonly Point[]): {
+	minX: number;
+	minY: number;
+	width: number;
+	depth: number;
+} {
+	let minX = Infinity;
+	let maxX = -Infinity;
+	let minY = Infinity;
+	let maxY = -Infinity;
+	for (const point of outline) {
+		if (point.x < minX) minX = point.x;
+		if (point.x > maxX) maxX = point.x;
+		if (point.y < minY) minY = point.y;
+		if (point.y > maxY) maxY = point.y;
+	}
+	return { minX, minY, width: maxX - minX, depth: maxY - minY };
+}
+
 export function markPath(outline: readonly Point[], size: number, inset: number): string {
-	const xs = outline.map((point) => point.x);
-	const ys = outline.map((point) => point.y);
-	const minX = Math.min(...xs);
-	const minY = Math.min(...ys);
-	const width = Math.max(...xs) - minX;
-	const depth = Math.max(...ys) - minY;
+	const { minX, minY, width, depth } = boundsOf(outline);
 	const span = size - inset * 2;
 	// **Both ends of the extent, and the existing guard only caught one.** A zero extent makes
 	// the scale `Infinity`, which `Number.isFinite` refuses below. An OVERFLOWING one — finite

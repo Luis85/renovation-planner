@@ -2103,6 +2103,28 @@ headers. It is the same non-focusable heading the post-delete fallback had to st
 through, met again in the section that PROMISES the gestures rather than in the one that consumes
 them — which is where it should have been caught the first time.
 
+A thirtieth round found two, and the first is the round before it MOVING a lie rather than
+removing it.
+
+**`toFixed(3)` reports anything under 0.0005 mm as `0`, exactly as `Math.round` reported anything
+under 0.5 mm as `0`.** Smaller threshold, identical falsehood — and the comment I wrote claiming
+the trap was escaped is what made it hard to see. Nothing in the geometry validators bounds an
+extent from below, so a rounding rule with any fixed precision has this defect somewhere. The rule
+is adaptive now: round for the ordinary case, and where rounding would erase a positive extent,
+print what the extent actually is. **A fix that relocates a boundary is not a fix, and writing
+that it was is worse than leaving the boundary where it was.**
+
+**And spreading a vertex array is a crash rather than a missing mark.** `Math.min(...xs)` passes
+every coordinate as an argument, and V8 throws `RangeError: Maximum call stack size exceeded`
+around 125,000 of them. Nothing bounds a vertex count — the persistence schema does not, and
+`validatePolygonPoints` checks finiteness and a MINIMUM — so a hand-authored sidecar with a very
+long traced outline is accepted, and this runs while a **visible row renders**: the library throws
+mid-render rather than dropping one mark. One `boundsOf` scan, shared by the mark and the
+dimensions, with no such ceiling.
+
+Both pinned and watched failing against their mutations — the first reporting `'0 × 0 mm'` where a
+micron-scale footprint is real, the second the `RangeError` itself.
+
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's
 shapes rather than a fixture's — and nothing in it commits an edit, because the inspector's

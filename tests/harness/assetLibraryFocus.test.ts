@@ -71,6 +71,26 @@ describe('the asset library mock’s derived geometry', () => {
 		expect(path).toBe('');
 	});
 
+	it('never prints a positive extent as zero, at any scale', () => {
+		const tiny = { ...ASSETS[0], outline: [
+			{ x: 0, y: 0 }, { x: 1e-6, y: 0 }, { x: 1e-6, y: 1e-6 }, { x: 0, y: 1e-6 },
+		] };
+		// `Math.round` said `0 × 0 mm` here, and so did `toFixed(3)` — a smaller threshold and
+		// the identical falsehood, which is what the round before this one shipped.
+		const shown = shapeDimensions(tiny);
+		expect(shown).not.toMatch(/(^|[^.\d])0 /);
+		expect(shown).toBe('0.0000010 × 0.0000010 mm');
+	});
+
+	it('scans a very long outline rather than spreading it', () => {
+		// No schema and no validator bounds a vertex count, and `Math.min(...xs)` throws
+		// `RangeError: Maximum call stack size exceeded` around 125k arguments — while a
+		// VISIBLE ROW renders, so the library would throw rather than drop one mark.
+		const many = Array.from({ length: 200_000 }, (_, i) => ({ x: i % 997, y: (i * 7) % 991 }));
+		expect(() => markPath(many, 20, 2)).not.toThrow();
+		expect(() => shapeDimensions({ ...ASSETS[0], outline: many })).not.toThrow();
+	});
+
 	it('keeps a fractional extent out of the whole-millimetre trap', () => {
 		const asset = { ...ASSETS[0], outline: [
 			{ x: 0, y: 0 }, { x: 1200.4, y: 0 }, { x: 1200.4, y: 189.6 }, { x: 0, y: 189.6 },

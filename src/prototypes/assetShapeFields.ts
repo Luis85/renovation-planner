@@ -9,14 +9,31 @@
  * height, and an absence reported after a refused read. A rule that keeps being corrected is a
  * rule worth reading in one place, with nothing else on the screen.
  */
-import type { CatalogueAsset } from './assetLibraryFixture';
+import { boundsOf, type CatalogueAsset } from './assetLibraryFixture';
+
+/**
+ * An extent as a number of millimetres, and it may never print a positive value as `0`.
+ *
+ * Three decimals is this repository's figure for telling a real value from float noise, and on
+ * its own it MOVED the zero-extent lie rather than removing it — `Math.round` reported anything
+ * under 0.5 mm as `0`, and `toFixed(3)` reports anything under 0.0005 mm the same way. Smaller
+ * threshold, identical falsehood, and the comment claiming the trap was escaped was the thing
+ * that made it hard to see. Nothing in the geometry validators bounds an extent from below, so
+ * the honest rule is adaptive: round for the ordinary case, and when rounding would erase a
+ * positive extent, say what it actually is. Reported by a review bot, one round after the
+ * rounding it replaced.
+ */
+function millimetres(extent: number): string {
+	const rounded = Number(extent.toFixed(3));
+	if (rounded !== 0 || extent === 0) return String(rounded);
+	return extent.toPrecision(2);
+}
 
 /** Width × depth in millimetres, from the footprint's own extent — derived, never typed (§88). */
 export function shapeDimensions(asset: CatalogueAsset | null): string | null {
 	const outline = asset?.outline;
 	if (!outline) return null;
-	const xs = outline.map((point) => point.x);
-	const ys = outline.map((point) => point.y);
+	const { width: rawWidth, depth: rawDepth } = boundsOf(outline);
 	// NOT `Math.round`, which was here and which turns a measurement into a different one:
 	// a traced or calibrated outline has fractional extents, so `1200.4 × 189.6` was reported as
 	// `1200 × 190`, and anything under half a millimetre was reported as `0 mm` — an extent that
@@ -25,8 +42,8 @@ export function shapeDimensions(asset: CatalogueAsset | null): string | null {
 	// and `Number(...)` drops the trailing zeros so the ordinary whole-millimetre case still
 	// reads `1200 × 190`. The Asset designer shows its derived dimensions unrounded; this row is
 	// the same measurement and had been quietly disagreeing with it.
-	const width = Number((Math.max(...xs) - Math.min(...xs)).toFixed(3));
-	const depth = Number((Math.max(...ys) - Math.min(...ys)).toFixed(3));
+	const width = millimetres(rawWidth);
+	const depth = millimetres(rawDepth);
 	// The unit is WITHHELD while this group's capture is pending, exactly as the clearance's is.
 	// The reported defect was the clearance's; the footprint had it too, one row up, and fixing
 	// only the row in the report is how a partial fix ends up reading like a complete one.

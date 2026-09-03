@@ -21,6 +21,23 @@ export interface EscapeDeps {
  * tool with nothing drawn returns to Select; Select with a selection clears it; else nothing.
  * The draft test comes BEFORE the selection test so a drag in flight is abandoned rather than
  * a selection cleared under a hand still moving.
+ *
+ * **Two deviations from spec §6.3, recorded rather than silently taken.**
+ *
+ * (a) The draft test runs BEFORE the tool test for every tool, not only a non-Select one — so
+ * Escape mid-drag under SELECT cancels the drag rather than clearing the selection, where §6.3
+ * nests the draft question under "an active non-select tool" and would have Select's own drag
+ * fall straight through to the selection clear. This ordering is a deliberate improvement: a
+ * selection cleared out from under a hand still moving the mouse is worse than the drag simply
+ * being abandoned. Pinned by `escapeRouting.test.ts`'s "Select mid-drag cancels the drag before
+ * it would clear the selection" case. Dated 2026-09-03 in `docs/requirements/Selection.md`'s
+ * `## Amendments`.
+ *
+ * (b) The return-to-Select arm calls `setTool('select')` alone, never `cancelGesture()` as well
+ * — §6.3 says both. Equivalent today only because `hasDraft()` has already answered `false` on
+ * every path that reaches this arm, and because `setTool` runs the outgoing tool's own
+ * `deactivate()`, which is where a creation tool's abandon-on-switch behaviour already lives.
+ * Do not "restore" the `cancelGesture()` call without re-checking that equivalence still holds.
  */
 export function routeEscape(deps: EscapeDeps): EscapeOutcome {
 	if (deps.panning) return 'swallowed-pan';

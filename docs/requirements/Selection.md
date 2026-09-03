@@ -127,3 +127,11 @@ Remains:
 - **The cursor does not distinguish a body from a handle.** One class,
   `rp-plan-canvas-target`, answers for both, because `renderState.hoveredObjectId` is written from
   body hits only — narrower than spec §6.2's pointer-versus-grab sentence.
+
+**2026-09-03** — `routeEscape` (`src/presentation/editor/escapeRouting.ts`) deviates from §6.3 on
+purpose: the draft test runs before the tool test for every tool, not only a non-Select one, so
+Escape mid-drag under Select cancels the drag rather than clearing the selection, where §6.3 nests
+the draft question under "an active non-select tool" — a deliberate improvement, since a selection
+cleared out from under a hand still moving the mouse is worse than the drag being abandoned, pinned
+by `escapeRouting.test.ts`'s "Select mid-drag cancels the drag before it would clear the
+selection" case.

@@ -720,7 +720,13 @@ and add the method:
 		// against the first draft of this method, which handled `isErr` and nothing else.
 		const referents = await this.deps.requirements
 			.listByZone(zone.id)
-			.catch((cause: unknown) => err(faultError('zone.restore.referents-faulted', cause)));
+			// `persistenceError` from `application/errors.ts`, NOT `faultError`. An earlier draft
+			// of this plan wrote `faultError(code, cause)` here and at Task 10; that function
+			// exists only in `presentation/notices/notify.ts`, takes `(cause, logger, event)`,
+			// and is unreachable from `application/` under the layer ban. Found by the
+			// implementer against the compiler rather than by review.
+			.catch((cause: unknown) =>
+				err(persistenceError('zone.restore.referents-faulted', 'The zone restore could not enumerate referents.', cause)));
 		if (isErr(referents)) {
 			// The zone write has ALREADY succeeded, so this cannot fail the operation — and
 			// staying silent leaves a cross-project dependent stale, which is the state the
@@ -1881,7 +1887,10 @@ delta genuinely cannot be computed. Spell it as a value rather than a control-fl
 				? null
 				: await deps.requirements
 						.getById(snapshot.entity.id)
-						.catch((cause: unknown) => err(faultError('sequence.recovery.cost-baseline-faulted', cause)));
+						// `persistenceError` from `application/errors.ts` — see Task 3's note: `faultError`
+						// is presentation-only and takes a different shape entirely.
+						.catch((cause: unknown) =>
+							err(persistenceError('sequence.recovery.cost-baseline-faulted', 'The cost baseline could not be read.', cause)));
 			const previous = live !== null && isOk(live) && live.value !== null
 				? effectiveValue(live.value.entity.estimatedCost)
 				: null;

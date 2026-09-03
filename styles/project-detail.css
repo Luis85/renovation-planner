@@ -144,31 +144,42 @@
 }
 
 /*
- * The list scrolls and the header does not. `PlanList` is a FRAGMENT — its header `div` and
- * this `ul` are both direct children of `.rp-project-detail` — so giving the `ul` alone the
- * free height is what pins `Plans` and its `New plan` button in place while the rows move
- * under them. `min-height: 0` is the half that is easy to omit: a flex item's default minimum
- * is its content, so `overflow-y` on its own would be inert.
+ * **The BODY scrolls, and the header does not** — one scroll region for both of this state's
+ * regions, under a pinned header.
  *
- * MEASURED in a real browser at 800px of leaf, against the 26-plan harness fixture: with the
- * block, the `ul` is 677px tall over a 780px scroll height — it scrolls — while the `Plans`
- * header's top stays at 81. Without it the `ul` is 780px tall starting at y=123 inside an
- * 800px shell, so its last rows are below the pane, clipped, with no scrollbar and no gesture
- * that reaches them; the document's own scroll height stays 800 either way. An earlier
- * spelling of this comment said the shell would GROW instead, which is the plausible sentence
- * and not what happens — the rows are simply lost.
+ * The scroll used to live on `.rp-plan-list` itself (`flex: 1; min-height: 0; overflow-y:
+ * auto`), which was right while that list was the shell's last child: measured in a real
+ * browser at 800px of leaf against the 26-plan harness fixture, the `ul` was 677px tall over a
+ * 780px scroll height while the `Plans` header's top stayed at 81. It stopped being right the
+ * moment the price section followed it — measured in the same browser, the shell then
+ * overflowed and the last price row was drawn below the pane, clipped, with no scrollbar and
+ * no gesture that reached it. That is the identical defect the old block existed to fix,
+ * arriving from the other side once that list stopped being the only region.
+ *
+ * The scroll moved UP to a wrapper rather than DOWN to the shell, and the difference is what
+ * stays pinned: `.rp-project-detail` holds the header, so giving it `overflow-y` would scroll
+ * Back, the project's name and Open note away with the content. The plans header scrolls with
+ * its own list now, which is the one thing given up.
+ *
+ * `min-height: 0` is the half that is easy to omit: a flex item's default minimum is its
+ * content, so `overflow-y` on its own would be inert.
  *
  * `.rp-project-list` has no equivalent and can still grow its own pane. That is a pre-existing
- * shape rather than something this slice introduced, and it is left alone deliberately: it is
- * a different component on a different surface, and changing how an existing pane scrolls is
- * not a change to make blind. Written down rather than fixed in passing.
+ * shape rather than something this increment introduced, and it is left alone deliberately: it
+ * is a different component on a different surface, and changing how an existing pane scrolls
+ * is not a change to make blind. Written down rather than fixed in passing.
  */
-.rp-plan-list {
-	margin: 0;
-	padding: 0;
+.rp-project-detail__body {
+	display: flex;
+	flex-direction: column;
 	flex: 1;
 	min-height: 0;
 	overflow-y: auto;
+}
+
+.rp-plan-list {
+	margin: 0;
+	padding: 0;
 	list-style: none;
 }
 

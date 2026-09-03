@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, ref, type Ref } from 'vue';
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import { isErr } from '../../core/result/Result';
 import { selectProjectDetailEmptyState } from '../emptyStates/selectors';
 import type { RenovationProjectQueryServices } from '../read-models/renovationProjectQueries';
 import type { PlanSummaryDto, ProjectSummaryDto } from '../read-models/PlanDto';
+import type { AssetPriceRowDto } from '../../application/queries/ListProjectAssetPrices';
 
 /**
  * How far the detail state got, and `'gone'` is the member the other two stores here do not
@@ -20,6 +21,77 @@ import type { PlanSummaryDto, ProjectSummaryDto } from '../read-models/PlanDto';
  * deleted because their vault hiccuped.
  */
 type ProjectDetailStatus = 'idle' | 'loading' | 'ready' | 'failed' | 'gone';
+
+
+/**
+ * The price section's own state and its own read, with its own request ticket.
+ *
+ * A factory beside the store rather than four more lines inside it, and the reason is a budget
+ * that had already been spent: `defineStore`'s setup arrow measured 104 effective lines against
+ * `max-lines-per-function`'s 100 once this region was inlined, and CLAUDE.md's account of
+ * `runtime.ts` is why the answer is an extraction rather than a collapsed literal. It is also a
+ * coherent seam rather than a convenient one — everything here is "what does this project pay",
+ * and nothing here touches `status` or `error`.
+ *
+ * **A SECOND ticket, not the store's.** The price read's callers are the mount, a catalogue
+ * change and a project-price change, all of which can be in flight while a `hydrate` is — so
+ * sharing `latestHydration` would let a price read cancel a project read, and each other's, on a
+ * question neither is asking. Two reads, two orderings.
+ *
+ * A ticket ORDERS reads it did not issue; it cannot stop one STARTING, which is the single-flight
+ * loader's job one layer up in `ProjectDetailState`. Both stay because neither does the other's:
+ * a fresh mount racing a refresh is the ticket's case, and a sync burst is the loader's.
+ */
+function createPriceSection(): {
+	/** The whole shared catalogue with this project's own price beside each default. */
+	readonly assetPrices: Ref<readonly AssetPriceRowDto[]>;
+	/**
+	 * Non-null exactly when the price read failed. Its own field rather than the store's `error`,
+	 * because the two replace different regions: that one replaces the whole detail state, and
+	 * this one replaces the price list while the project, its header and its plans stay drawn.
+	 */
+	readonly assetPricesError: Ref<RepositoryError | null>;
+	// `this: void` on both, so `hydratePrices: prices.hydrate` below is a plain function
+	// reference rather than a method torn off an object — the shape `unbound-method` refuses.
+	hydrate(this: void, queries: RenovationProjectQueryServices, projectId: string): Promise<void>;
+	clear(this: void): void;
+} {
+	const assetPrices = ref<readonly AssetPriceRowDto[]>([]);
+	const assetPricesError = ref<RepositoryError | null>(null);
+	let latest = 0;
+
+	return {
+		assetPrices,
+		assetPricesError,
+		/**
+		 * Run on every occasion the section has — the mount, a catalogue change, a price change,
+		 * and after a successful price edit.
+		 *
+		 * It touches neither `status` nor `error`: a project whose prices could not be read is
+		 * still a project the user can look at and work in. It DOES clear the rows on a failure,
+		 * because a section showing prices beside a message saying they could not be read is a
+		 * section disagreeing with itself — `fail`'s rule, applied to the region that owns it.
+		 */
+		async hydrate(queries, projectId) {
+			const request = ++latest;
+			const listed = await queries.listAssetPrices(projectId);
+			if (request !== latest) return;
+			if (isErr(listed)) {
+				assetPrices.value = [];
+				assetPricesError.value = listed.error;
+				return;
+			}
+			assetPrices.value = listed.value;
+			assetPricesError.value = null;
+		},
+		/** Takes a ticket as well as emptying, so a read already in flight cannot land after it. */
+		clear() {
+			latest += 1;
+			assetPrices.value = [];
+			assetPricesError.value = null;
+		},
+	};
+}
 
 /**
  * One project's detail state (design slice 21) — never a write path, exactly like
@@ -39,6 +111,8 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	const unreadablePlans = ref(0);
 	const status = ref<ProjectDetailStatus>('idle');
 	const error = ref<RepositoryError | null>(null);
+	const prices = createPriceSection();
+	const { assetPrices, assetPricesError } = prices;
 
 	/**
 	 * The ticket every `hydrate` takes before its first await, so a slower earlier read cannot
@@ -156,6 +230,9 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	 */
 	function markGone(): void {
 		latestHydration += 1;
+		// The price region too: a read still in flight for a project the command has just
+		// declared gone must not land its rows under the screen that says so.
+		prices.clear();
 		project.value = null;
 		plans.value = [];
 		unreadablePlans.value = 0;
@@ -182,6 +259,7 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	 */
 	function reset(): void {
 		latestHydration += 1;
+		prices.clear();
 		project.value = null;
 		plans.value = [];
 		unreadablePlans.value = 0;
@@ -193,10 +271,13 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 		project,
 		plans,
 		unreadablePlans,
+		assetPrices,
+		assetPricesError,
 		status,
 		error,
 		emptyStateKey,
 		hydrate,
+		hydratePrices: prices.hydrate,
 		markGone,
 		reset,
 	};

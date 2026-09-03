@@ -11,10 +11,17 @@
  * A service composed next month without a guard passed all four gates, because nothing is
  * wrong with the code.
  *
- * So this file NAMES no service. It composes a real root, DETONATES eight named
- * collaborators underneath it — the five repositories, the plan and asset geometry ports and
+ * So this file NAMES no service. It composes a real root, DETONATES nine named
+ * collaborators underneath it — the six repositories, the plan and asset geometry ports and
  * the file probe, each port method replaced by a thrower — walks everything the root hands
  * out, and drives a hostile input through EVERY DOOR of everything it finds.
+ *
+ * NINE re-derived at the merge of the price-override and asset-designer increments rather
+ * than remembered, because each of those branches incremented this count on its own and both
+ * sentences read right in isolation: the two increments added `overrides` and `assetGeometry`
+ * respectively. The array below is the measurement —
+ * `awk '/Detonated BEFORE the/{f=1} f&&/^\t\t\]\)/{f=0} f' tests/plugin/guardCategory.test.ts
+ * | grep -oE 'persistence\.[a-zA-Z]+' | sort` prints one line per entry, and it printed nine.
  *
  * Four hand-written lists live in this file — that detonation array, `SERVICE_CARVE_OUTS`,
  * `DOOR_CARVE_OUTS`, and the skip test's `owners`. The last three are each asserted by exact
@@ -487,6 +494,7 @@ describe('every service leaving the composition root is guarded', () => {
 			persistence.zones,
 			persistence.assets,
 			persistence.requirements,
+			persistence.overrides,
 			persistence.geometry,
 			persistence.assetGeometry,
 			persistence.files,

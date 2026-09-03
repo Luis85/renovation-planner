@@ -22,8 +22,8 @@ import { registerAssetDesignerCommands } from './assetDesignerCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import { activateNotices, disposeNotices, notifyFault } from '../presentation/notices/notify';
+import { assetDesignerDeps } from './assetDesignerDeps';
 import {
-	assetDesignerDeps,
 	createCompositionRoot,
 	planEditorDeps,
 	renovationProjectDeps,

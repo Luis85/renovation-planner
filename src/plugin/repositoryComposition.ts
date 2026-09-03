@@ -10,6 +10,7 @@ import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/Note
 import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../infrastructure/obsidian/repositories/ObsidianZoneRepository';
+import { ObsidianAssetPriceOverrideRepository } from '../infrastructure/obsidian/repositories/ObsidianAssetPriceOverrideRepository';
 
 /**
  * The vault collaborators the persistence stack reads and writes through — the raw
@@ -28,10 +29,17 @@ export interface VaultStack {
 }
 
 /**
- * The five repositories, the two geometry sidecars and the library-overlap read — built
+ * The six repositories, the two geometry sidecars and the library-overlap read — built
  * once, unguarded, from the vault stack and the settings a root was composed with.
  * `composeGuarded` in `composition-root.ts` is what wraps the members that leave the root
  * through `PersistenceServices`; this function only constructs them.
+ *
+ * SIX rather than five since the per-project price override and the asset designer merged:
+ * this sentence said five in the branch that extracted this function, and `overrides` arrived
+ * on the other one. Re-derived rather than remembered —
+ * `grep -cE 'new Obsidian[A-Za-z]*Repository\(' src/plugin/repositoryComposition.ts` printed
+ * six, and the two sidecars (`PlanGeometryStore`, `AssetGeometryStore`) are counted separately
+ * because neither is a repository.
  */
 export function composeRepositories(
 	deps: NoteVaultDeps,
@@ -71,6 +79,7 @@ export function composeRepositories(
 		zones: new ObsidianZoneRepository(deps, geometryStore),
 		assets: new ObsidianAssetRepository(deps, libraryFolder, assetGeometryStore),
 		requirements: new ObsidianRequirementRepository(deps),
+		overrides: new ObsidianAssetPriceOverrideRepository(deps),
 		// §83's third site, which has no door to refuse at: ADR-0013 derives a project's
 		// folder from where its `Project.md` sits, so a user moves a project by dragging a
 		// folder in Obsidian's file explorer. Composed here rather than passed as a sixth

@@ -68,10 +68,15 @@ An item beneath this epic is done when:
   asset's default has no other way to price it — and [[Quotes and quote items]], which would
   otherwise be that way, is V1 while this epic is MVP. An epic that shares a catalogue owes the
   projects that share it a way to disagree about price.
-  **Still open after the currency increment of 2026-09-01, and deliberately not ticked.** That
-  increment gave the pipeline a currency it must produce and refused another, so a mismatch is
-  now caught rather than silently priced — which is the correctness half. It built no override,
-  so a project still has no way to record its own price and this item is unmet. It belongs to the
-  override increment split out of
-  [20 — The Currency the Pipeline Is Told](../tasks/20-the-currency-the-pipeline-is-told.md);
-  that document's Amendment 1, item 7 enumerates what it carries.
+  **MET by the per-project price override increment of 2026-09-02.** `AssetPriceOverride` is an
+  entity of its own with two repositories over one shared contract test, so the override is
+  *stored beside* the shared default and replaces nothing: an asset's `unitCost` is untouched by
+  setting one, and clearing one returns the pairing to the catalogue price. A project sets it on
+  its own detail state; the cost pipeline resolves `override ?? asset.unitCost` in the two
+  commands that price a Requirement, and the Inspector prints the library price, the project's
+  price and the requirement's own recorded figure side by side with the one in force marked. What
+  the epic asked for is exactly what closes the currency dead end beside it: the increment before
+  this one made a mismatched pairing refuse, and this one is how a project *passes* that check
+  rather than a way around it. Recorded in
+  [20 — The Currency the Pipeline Is Told](../tasks/20-the-currency-the-pipeline-is-told.md)'s
+  Amendment 4, which also carries what that increment withdrew and what it left standing.

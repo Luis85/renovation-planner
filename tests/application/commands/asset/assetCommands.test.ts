@@ -16,6 +16,7 @@ import {
 	requirementFixture,
 	TEN_SQUARE_METERS,
 } from '../../../helpers/slice10';
+import { recorder } from '../../../helpers/logger';
 
 /**
  * The slice-10 write/read sides with no dedicated suite yet: catalog CRUD, the picker
@@ -53,6 +54,7 @@ async function wiredWithLink() {
 		events: w.events,
 		locks: w.locks,
 		logger: silentLogger(),
+		overrides: w.overrides,
 	});
 	const deleteRequirement = new DeleteRequirementCommand(w.requirements);
 	return {
@@ -242,7 +244,7 @@ describe('DeleteAssetCommand', () => {
 		const { GetRequirementsForZone } = await import(
 			'../../../../src/application/queries/GetRequirementsForZone'
 		);
-		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects);
+		const readModel = new GetRequirementsForZone({ requirements: w.requirements, zones: w.zones, assets: w.assets, projects: w.projects, overrides: w.overrides, logger: recorder });
 
 		expectOk(
 			await w.deleteAsset.execute({
@@ -260,6 +262,10 @@ describe('DeleteAssetCommand', () => {
 		expect(rows[0]?.missingTarget).toBe('asset');
 		expect(rows[0]?.assetName).toBeNull();
 		expect(rows[0]?.recalculationStatus).toBe('stale');
+		// `buildUnitCostGroup`'s missing-asset guard: there is no library price to show for
+		// an asset that is gone, so the whole group is `null` rather than a group built from
+		// figures that no longer exist.
+		expect(rows[0]?.unitCost).toBeNull();
 	});
 
 	it('reassign repoints at another area-kind asset and recalculates inline', async () => {

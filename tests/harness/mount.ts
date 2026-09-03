@@ -19,7 +19,7 @@
  * component bare, and `ProjectDetail` requires three props and reads `project.name`
  * immediately, so the picture would be the index's own failure card. The two rules most worth
  * looking at are properties of the component's PLACE in `.renovation-planner-view`
- * (`.rp-project-detail`'s `flex: 1`, `.rp-plan-list`'s scroll), which a bare mount has no pane
+ * (`.rp-project-detail`'s `flex: 1`, `.rp-project-detail__body`'s scroll), which a bare mount has no pane
  * for.
  *
  * It is no longer a fixed `ok({ projects: [], unreadable: 0 })`: `makeRenovationProjectView.ts`
@@ -36,8 +36,17 @@
  * this surface rather than by any gate.
  */
 import type { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
-import { currencyOf } from '../../src/core/money/Money';
 import { Plan } from '../../src/domain/plan/Plan';
+import { Asset } from '../../src/domain/asset/Asset';
+import { AssetPriceOverride } from '../../src/domain/asset-price/AssetPriceOverride';
+import type { AssetId } from '../../src/domain/asset/AssetId';
+import type { AssetPriceOverrideId } from '../../src/domain/asset-price/AssetPriceOverrideId';
+// `createMoney`, not `of`, for the seeded amounts: `of` normalizes through `Decimal` and prints
+// `41.50` back as `41.5`, so the capture — the one instrument this repository has for what a
+// price LOOKS like — would photograph an amount no user would type. `createMoney` stores the
+// spelling verbatim, which is what the section renders. ONE import statement with `currencyOf`
+// beside it, because `import/no-duplicates` refuses two value imports of one module.
+import { createMoney, currencyOf } from '../../src/core/money/Money';
 import { Project } from '../../src/domain/project/Project';
 import type { PlanId } from '../../src/domain/plan/PlanId';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
@@ -141,14 +150,41 @@ const expectSeeded = (saved: Promise<{ ok: boolean }>): void => {
  * validation is a picture of the loading state with no error anywhere, which is the quiet this
  * whole capture tool exists against.
  */
-const seedProject = (projectId: string) => ({ projects, plans }: SeedRepositories): void => {
+/**
+ * The catalogue rows the price section draws, and every one of them is a case worth LOOKING at
+ * rather than a filler name.
+ *
+ * `Skirting board, primed` is deliberately the longest: the row is a wrapping flex row and the
+ * name takes the slack, so a name that cannot fit is what says whether it ellipses or shoves the
+ * input and the button off the row — the defect `.rp-project-list__name` already paid for at
+ * 460px, which is an Obsidian sidebar leaf's real width and one of the two shots taken.
+ *
+ * Every catalogue price is EUR and the seeded project is GBP, which is this increment's central
+ * case: a project pricing a shared asset that is denominated in another currency. `Oak flooring`
+ * is the one with an override, so the capture shows a GBP price of this project's own beside a
+ * EUR library default — "beside what it replaced" — while the two rows without one show what
+ * that row looked like before.
+ */
+const HARNESS_ASSETS: readonly { id: string; name: string; amount: string; currency: string; own?: string }[] = [
+	{ id: 'asset-1', name: 'Oak flooring', amount: '48.00', currency: 'EUR', own: '41.50' },
+	{ id: 'asset-2', name: 'Underlay', amount: '7.25', currency: 'EUR' },
+	{ id: 'asset-3', name: 'Skirting board, primed', amount: '11.90', currency: 'EUR' },
+];
+
+const seedProject = (projectId: string) => (
+	{ projects, plans, assets, overrides }: SeedRepositories,
+): void => {
 	const id = projectId as ProjectId;
 	const project = expectOk(
 		Project.create({
 			id,
 			name: 'Maple Street, ground floor refit',
 			status: 'EXECUTION',
-			currency: currencyOf('EUR'),
+			// GBP against a EUR catalogue, which is this increment's CENTRAL case: the library
+			// default and this project's own price are denominated differently, and the price
+			// section prints both. An all-EUR fixture would photograph the section without
+			// photographing the thing it exists for.
+			currency: currencyOf('GBP'),
 		}),
 	);
 
@@ -163,6 +199,37 @@ const seedProject = (projectId: string) => ({ projects, plans }: SeedRepositorie
 		const plan = expectOk(Plan.create({ id: `plan-${index + 1}` as PlanId, projectId: id, name }));
 
 		expectSeeded(plans.save(plan, 'absent'));
+	});
+
+	// The catalogue, plus this project's own price for one of it — so the capture shows a row
+	// with an override beside two without, which is the comparison the section exists for.
+	// `expectSeeded` on every save, for the reason it states: a fixture that silently seeded
+	// nothing photographs the section's empty state and exits 0.
+	HARNESS_ASSETS.forEach((entry) => {
+		const asset = expectOk(
+			Asset.create({
+				id: entry.id as AssetId,
+				name: entry.name,
+				category: 'material',
+				unit: 'm2',
+				unitCost: expectOk(createMoney(entry.amount, entry.currency)),
+			}),
+		);
+		expectSeeded(assets.save(asset, 'absent'));
+		if (entry.own === undefined) return;
+		const override = expectOk(
+			AssetPriceOverride.create({
+				id: `price-${entry.id}` as AssetPriceOverrideId,
+				projectId: id,
+				assetId: entry.id as AssetId,
+				// The PROJECT's currency, never the catalogue entry's: an override is what this
+				// project pays, and `SetAssetPriceOverrideCommand` refuses any other — so a
+				// fixture spelling the catalogue's currency here would seed a row no command
+				// could have written.
+				unitCost: expectOk(createMoney(entry.own, 'GBP')),
+			}),
+		);
+		expectSeeded(overrides.save(override, 'absent'));
 	});
 };
 

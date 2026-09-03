@@ -11,6 +11,10 @@ import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { GetProject } from '../../../src/application/queries/GetProject';
 import { ListPlansByProject } from '../../../src/application/queries/ListPlansByProject';
 import { ListProjects } from '../../../src/application/queries/ListProjects';
+import type { Query } from '../../../src/application/queries/Query';
+import type { AssetPriceRowDto } from '../../../src/application/queries/ListProjectAssetPrices';
+import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
+import type { Result } from '../../../src/core/result/Result';
 import type { LibraryOverlaps } from '../../../src/application/ports/LibraryOverlaps';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
@@ -307,6 +311,15 @@ describe('the plan editor query boundary', () => {
  */
 const NO_OVERLAPS: LibraryOverlaps = { overlapping: () => [] };
 
+/**
+ * This file is about the getProject/listProjects/listPlansByProject boundary; none of its
+ * cases exercise the price list, so every call gets the same empty answer rather than a
+ * fifth `NO_OVERLAPS`-shaped literal repeated at each site.
+ */
+const NO_ASSET_PRICES: Query<ProjectId, Result<AssetPriceRowDto[], RepositoryError>> = {
+	execute: () => Promise.resolve(ok([])),
+};
+
 describe('the renovation project query boundary', () => {
 	it('answers every project as a DTO, not as an entity', async () => {
 		const projects = new InMemoryProjectRepository();
@@ -317,6 +330,7 @@ describe('the renovation project query boundary', () => {
 			new GetProject(projects),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_ASSET_PRICES,
 		);
 
 		const found = expectOk(await queries.listProjects());
@@ -346,6 +360,7 @@ describe('the renovation project query boundary', () => {
 			new GetProject(projects),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_ASSET_PRICES,
 		);
 
 		const found = expectOk(await queries.listProjects());
@@ -362,6 +377,7 @@ describe('the renovation project query boundary', () => {
 			new GetProject(projects),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_ASSET_PRICES,
 		);
 
 		expect(expectOk(await queries.listProjects())).toEqual({ projects: [], unreadable: 0 });
@@ -375,7 +391,7 @@ describe('the renovation project query boundary', () => {
 	it('answers a failed read with isErr, never with an empty list', async () => {
 		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
 
-		const result = await createRenovationProjectQueries(failing as never, undefined as never, undefined as never, NO_OVERLAPS).listProjects();
+		const result = await createRenovationProjectQueries(failing as never, undefined as never, undefined as never, NO_OVERLAPS, NO_ASSET_PRICES).listProjects();
 
 		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
 	});
@@ -410,6 +426,7 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 			new GetProject(projects),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_ASSET_PRICES,
 		);
 
 		const found = expectOk(await queries.getProject(saved.entity.id));
@@ -448,6 +465,7 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 			new GetProject(projects),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			{ overlapping: () => [saved.entity.id] },
+			NO_ASSET_PRICES,
 		);
 
 		const found = expectOk(await queries.getProject(saved.entity.id));
@@ -467,6 +485,7 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 			new GetProject(new InMemoryProjectRepository()),
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_ASSET_PRICES,
 		);
 
 		const found = expectOk(await queries.getProject('project-01JNOPE'));
@@ -483,6 +502,7 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 			new GetProject(new InMemoryProjectRepository()),
 			new ListPlansByProject(plans),
 			NO_OVERLAPS,
+			NO_ASSET_PRICES,
 		);
 
 		const listed = expectOk(await queries.listPlansByProject(projectId));
@@ -503,6 +523,7 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 			failing as never,
 			new ListPlansByProject(new InMemoryPlanRepository()),
 			NO_OVERLAPS,
+			NO_ASSET_PRICES,
 		);
 
 		const result = await queries.getProject('project-01JAAA');
@@ -518,6 +539,7 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 			new GetProject(new InMemoryProjectRepository()),
 			failing as never,
 			NO_OVERLAPS,
+			NO_ASSET_PRICES,
 		);
 
 		const result = await queries.listPlansByProject('project-01JAAA');
@@ -526,16 +548,56 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 	});
 
 	/**
+	 * `listAssetPrices` is a straight pass-through — `ListProjectAssetPrices` already builds
+	 * the row this view renders, so there is no mapping step here for a second query to
+	 * disagree with the first about. Asserted on BOTH arms, the same way the other two doors
+	 * above are: an `ok` result travels unchanged, and so does a failure, never collapsed to
+	 * an empty list.
+	 */
+	it('passes listAssetPrices straight through, both when it answers and when it refuses', async () => {
+		const row: AssetPriceRowDto = {
+			assetId: 'asset-1',
+			assetName: 'Oak flooring',
+			catalogue: null,
+			override: null,
+			overrideId: null,
+			overrideVersion: null,
+			assetStatus: 'known',
+		};
+		const answering = createRenovationProjectQueries(
+			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
+			new GetProject(new InMemoryProjectRepository()),
+			new ListPlansByProject(new InMemoryPlanRepository()),
+			NO_OVERLAPS,
+			{ execute: () => Promise.resolve(ok([row])) },
+		);
+		expect(await answering.listAssetPrices('project-01JAAA')).toEqual(ok([row]));
+
+		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
+		const refusing = createRenovationProjectQueries(
+			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
+			new GetProject(new InMemoryProjectRepository()),
+			new ListPlansByProject(new InMemoryPlanRepository()),
+			NO_OVERLAPS,
+			failing as never,
+		);
+		const result = await refusing.listAssetPrices('project-01JAAA');
+		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
+	});
+
+	/**
 	 * ONE logical failure must not arrive under two codes when something downstream branches
 	 * on it — the rule `unavailableRenovationProjectQueries` already states for `listProjects`.
 	 */
-	it('refuses both new doors with settings.unrecovered when settings could not be recovered', async () => {
+	it('refuses all three new doors with settings.unrecovered when settings could not be recovered', async () => {
 		const queries = unavailableRenovationProjectQueries();
 
 		const project = await queries.getProject('project-01JAAA');
 		const plans = await queries.listPlansByProject('project-01JAAA');
+		const prices = await queries.listAssetPrices('project-01JAAA');
 
 		expect(expectErr(project).code).toBe('settings.unrecovered');
 		expect(expectErr(plans).code).toBe('settings.unrecovered');
+		expect(expectErr(prices).code).toBe('settings.unrecovered');
 	});
 });

@@ -14,8 +14,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
-import { settle } from '../../helpers/editor';
+import { mountPlanEditorCanvas, runtimeOf, settle, type EditorHarness } from '../../helpers/editor';
 import { click, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import {
 	POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX,
 	POLYGON_CLOSE_TARGET_RADIUS_PX,
@@ -42,6 +43,11 @@ function interactionLayer(stage: Konva.Stage | null): Konva.Layer {
 	const layer = stage?.findOne<Konva.Layer>('.interaction');
 	if (layer === undefined) throw new Error('expected a mounted interaction layer');
 	return layer;
+}
+
+/** Every `Konva.Line` inside the interaction layer carrying the given `name`. */
+function linesNamed(harness: EditorHarness, name: string): Konva.Line[] {
+	return interactionLayer(harness.stage).find(`.${name}`) as Konva.Line[];
 }
 
 describe('the interaction layer while a zone is being drawn', () => {
@@ -344,6 +350,43 @@ describe('the interaction layer while a plan is being calibrated', () => {
 		// The ruler really did get busier — otherwise the count below proves nothing.
 		expect(longTicks).toBeGreaterThan(shortTicks);
 		expect(longNodes).toBe(shortNodes);
+	});
+});
+
+/**
+ * The hovered zone's outline (design slice 12) — `hoverOutlineFlat`'s own computed, driven
+ * directly through the runtime's `RenderState` rather than through a real hover gesture:
+ * `SelectTool.pointerMove` already has its own suite, and what this describes is the LAYER's
+ * three early returns, independent of whatever wrote the field.
+ */
+describe('the interaction layer hover outline', () => {
+	it('draws a hover outline for the hovered zone and none for the selected one', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+
+		runtime.renderState.hoveredObjectId = 'zone-terrace';
+		await settle();
+		expect(linesNamed(harness, 'hover-outline')).toHaveLength(1);
+
+		// Selecting the same zone draws its OWN outline instead — a hover on top of a
+		// selection would say nothing the selection outline does not already say.
+		useSelectionStore().select(['zone-terrace' as never]);
+		await settle();
+		expect(linesNamed(harness, 'hover-outline')).toHaveLength(0);
+
+		harness.unmount();
+	});
+
+	it('draws nothing for a hovered id the hydrated zones do not hold', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+
+		runtime.renderState.hoveredObjectId = 'zone-nonexistent';
+		await settle();
+
+		expect(linesNamed(harness, 'hover-outline')).toHaveLength(0);
+
+		harness.unmount();
 	});
 });
 

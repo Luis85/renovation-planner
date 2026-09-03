@@ -1161,6 +1161,11 @@ onMounted(() => {
 	if (element === null) return;
 	const measure = (): void => {
 		size.value = { width: element.clientWidth, height: element.clientHeight };
+		// The store's own copy (design slice 12), for `selectAndFrame` — reached from the
+		// Inspector's room list, nowhere near this file's `size` ref or the `framedBounds` prop
+		// that already threads it to the fit shortcuts. Written at the same place `size` itself
+		// is, so the two can never disagree about what the stage measures.
+		editor.setStageSize(size.value);
 	};
 	measure();
 	observer = new ResizeObserver(measure);

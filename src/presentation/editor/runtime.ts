@@ -30,6 +30,7 @@ import { useDialogStore } from '../dialogs/dialog-store';
 import { knownDistanceSupplier } from './shell/knownDistance';
 import { EDITOR_SNAP_SERVICE } from './snapping/editorSnapping';
 import { editorViewportAdapter } from './viewport/editorViewportAdapter';
+import { boundsOfZones } from './viewport/zoneExtent';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
 import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispatchFault } from './report-failure';
@@ -93,6 +94,14 @@ export interface EditorRuntime {
 	readonly commitField: (edit: InspectorEdit) => Promise<DispatchResult>;
 	/** The assign-asset picker's options: the vault's whole catalogue, narrowed by no project. */
 	readonly assetOptions: Readonly<Ref<readonly { readonly id: string; readonly name: string }[]>>;
+	/**
+	 * Design slice 12's list-framing seam: selects `id` and fits the camera to its bounds
+	 * through `EditorStore.fitTo`. A degenerate extent (nothing to frame) or an unmeasured
+	 * stage leaves the camera exactly where it was — the selection still lands, because a
+	 * user picking a row from a list wants it highlighted whether or not the camera can also
+	 * move to it.
+	 */
+	readonly selectAndFrame: (id: string) => void;
 }
 
 
@@ -341,6 +350,48 @@ function createDeleteZoneAction(
 	};
 }
 
+/**
+ * Design slice 12's list-framing seam (spec §6.5), pulled out of `buildRuntime` for its line
+ * budget rather than for a shared caller: select `id`, then fit the camera to it if there is
+ * anything to fit it into. The selection lands regardless — a row in a list naming an id this
+ * leaf has never hydrated (stale by construction, since the list and this leaf's own `zones`
+ * come from two different reads) is still worth marking as the user's intent, and the camera
+ * simply has nothing to move to.
+ */
+function selectAndFrameOn(
+	projectStore: ReturnType<typeof useProjectStore>,
+	selection: ReturnType<typeof useSelectionStore>,
+	editor: ReturnType<typeof useEditorStore>,
+	id: string,
+): void {
+	selection.select([id as EntityId<string>]);
+	const zone = projectStore.zones.get(id);
+	if (zone === undefined) return;
+	const bounds = boundsOfZones([zone]);
+	if (bounds === null) return; // nothing to frame: the selection stands, the camera stays
+	editor.fitTo(bounds, editor.stageSize);
+}
+
+/**
+ * A selected id the vault no longer holds is RETIRED, never rebound by name or position (spec
+ * §6.5). Watched on the zones map, which every successful hydrate replaces wholesale
+ * (`ProjectStore.hydrate` assigns a fresh `Map`), so this fires exactly when a hydrate lands —
+ * never merely because the map's CONTENTS changed, since Vue's `watch` compares the reference
+ * and a mutated map would be the same reference twice.
+ */
+function registerSelectionRetirement(
+	projectStore: ReturnType<typeof useProjectStore>,
+	selection: ReturnType<typeof useSelectionStore>,
+): void {
+	watch(
+		() => projectStore.zones,
+		(zones) => {
+			const survivors = selection.selectedIds.filter((id) => zones.has(String(id)));
+			if (survivors.length !== selection.selectedIds.length) selection.select(survivors);
+		},
+	);
+}
+
 function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const editor = useEditorStore();
 	const projectStore = useProjectStore();
@@ -478,6 +529,9 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		},
 	);
 
+	const selectAndFrame = (id: string): void => selectAndFrameOn(projectStore, selection, editor, id);
+	registerSelectionRetirement(projectStore, selection);
+
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
 	// refusal — bound straight to toolbar clicks. `ReversibleCalibratePlanCommand.undo()`
 	// refuses with a revision conflict whenever anything else has touched the plan's
@@ -551,10 +605,18 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		deleteZone,
 		commitEdit,
 		commitField,
+		selectAndFrame,
 	};
 }
 
-const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-planner:editor-runtime');
+/**
+ * Exported ONLY so a test can reach a mounted leaf's runtime the way `PLAN_EDITOR_CONTEXT`
+ * already lets one supply a `PlanEditorContext` — `provide()` sets this on `PlanEditorRoot`'s
+ * OWN component instance, so `wrapper.vm.$.provides[EDITOR_RUNTIME]` reads it back without
+ * needing a descendant that calls `useEditorRuntime()` itself. Nothing in `src/` outside this
+ * file imports the symbol for any other reason.
+ */
+export const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-planner:editor-runtime');
 
 export function provideEditorRuntime(context: PlanEditorContext): EditorRuntime {
 	const runtime = buildRuntime(context);

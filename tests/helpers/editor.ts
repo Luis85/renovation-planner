@@ -4,6 +4,7 @@ import VueKonva from 'vue-konva';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
+import { EDITOR_RUNTIME, type EditorRuntime } from '../../src/presentation/editor/runtime';
 import {
 	unavailablePlanEditorCommands,
 	type PlanEditorCommandServices,
@@ -306,6 +307,26 @@ export async function mountPlanEditorCanvas(options: EditorHarnessOptions = {}):
 		throw new Error('the editor mounted no canvas; use mountPlanEditor for a plan that draws none');
 	}
 	return { ...harness, canvasEl, stage };
+}
+
+/**
+ * The `EditorRuntime` a mounted `PlanEditorRoot` built — for a test that needs to write
+ * `renderState` or call a runtime method directly, rather than driving the gesture that would
+ * produce the same write.
+ *
+ * `PlanEditorRoot.setup()` calls `provideEditorRuntime(context)`, which `provide()`s the
+ * runtime on that component's OWN internal instance rather than only on its descendants' —
+ * so `wrapper.vm.$.provides` (the raw `ComponentInternalInstance`, which the public instance
+ * proxy exposes under `$`) already holds it once `PlanEditorRoot` has run its `setup()`, with
+ * no need for a probe component injected into its fixed template.
+ */
+export function runtimeOf(harness: EditorHarness): EditorRuntime {
+	const instance = (harness.wrapper.vm as unknown as { $: { provides: Record<symbol, unknown> } }).$;
+	const runtime = instance.provides[EDITOR_RUNTIME as unknown as symbol];
+	if (runtime === undefined) {
+		throw new Error('expected the mounted tree to have provided an EditorRuntime');
+	}
+	return runtime as EditorRuntime;
 }
 
 /** Every Konva layer in the stage, by the `name` its component set. */

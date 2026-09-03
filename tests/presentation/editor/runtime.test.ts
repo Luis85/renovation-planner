@@ -16,6 +16,7 @@
  * unexpected fault); this file covers the resolved-but-failed half.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
+import { nextTick } from 'vue';
 // Mock-only surface, imported BY NAME. `Notice` carries members
 // the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
 // `'obsidian'` specifier type-checks against a surface that has no such thing. The
@@ -25,7 +26,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Notice } from '../../helpers/obsidian-mock';
 import { expectOk } from '../../helpers/domain';
 import { click, pointer, rig, toolbarButton, type Rig } from '../../helpers/planEditorRig';
-import { settle } from '../../helpers/editor';
+import { mountPlanEditor, runtimeOf, settle } from '../../helpers/editor';
+import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
+import type { ZoneDto } from '../../../src/presentation/read-models/PlanDto';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
+import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installObsidianDom } from '../../helpers/dom';
 
@@ -204,6 +210,115 @@ describe('Select is the default tool (Task 10)', () => {
 		await settle();
 		expect(toolbarButton(harness, 'Draw zone').getAttribute('aria-pressed')).toBe('true');
 
+		harness.unmount();
+	});
+});
+
+/**
+ * `EditorRuntime.selectAndFrame` (design slice 12): the list-framing seam a room-list row
+ * dispatches through — select the id and fit the camera to its bounds through
+ * `EditorStore.fitTo`, unless there is nothing to fit or nowhere to fit it into.
+ *
+ * `mountPlanEditor()` mounts the real canvas over `FIXTURE_PLAN`/`FIXTURE_ZONES`
+ * (`zone-kitchen`, `zone-terrace`), which is what wires `EditorSurface`'s resize observer —
+ * so `editor.stageSize` is already the harness's own 800×600 by the time these cases run,
+ * the same way a real leaf's would be after its first layout.
+ */
+describe('selectAndFrame (Task 12: list framing)', () => {
+	it('selects the id and moves the camera onto it', async () => {
+		const harness = await mountPlanEditor();
+		const runtime = runtimeOf(harness);
+		const editor = useEditorStore();
+		const before = editor.viewport;
+
+		runtime.selectAndFrame('zone-kitchen');
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-kitchen']);
+		expect(editor.viewport).not.toEqual(before);
+		harness.unmount();
+	});
+
+	/**
+	 * `boundsOfZones` answers `null` for a zone with NO points at all — the case its own
+	 * docblock means by "nothing to frame" — which is a different arm of `selectAndFrame`
+	 * from `fitTo`'s own doubly-degenerate handling (a single-point extent, still a valid
+	 * bounding box) that `EditorStore`'s own tests already cover.
+	 */
+	it('on a degenerate record selects it and leaves the camera alone', async () => {
+		const pointless: ZoneDto = {
+			id: 'zone-empty',
+			planId: FIXTURE_PLAN.id,
+			name: 'Nothing to frame',
+			zoneType: 'Room',
+			status: 'Planned',
+			points: [],
+		};
+		const harness = await mountPlanEditor({ queries: fakeQueries(FIXTURE_PLAN, [pointless]) });
+		const runtime = runtimeOf(harness);
+		const editor = useEditorStore();
+		const before = editor.viewport;
+
+		runtime.selectAndFrame('zone-empty');
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-empty']);
+		expect(editor.viewport).toEqual(before);
+		harness.unmount();
+	});
+
+	it('selects an id the hydrated zones do not hold, and leaves the camera alone', async () => {
+		const harness = await mountPlanEditor();
+		const runtime = runtimeOf(harness);
+		const editor = useEditorStore();
+		const before = editor.viewport;
+
+		runtime.selectAndFrame('zone-nonexistent');
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-nonexistent']);
+		expect(editor.viewport).toEqual(before);
+		harness.unmount();
+	});
+
+	/**
+	 * `fitTo` treats a `0 x 0` stage as an ordinary early call rather than an error (its own
+	 * docblock) — the window before `EditorSurface`'s resize observer has ever run. Reset
+	 * directly through the store rather than by avoiding the canvas mount, since mounting one
+	 * at all is what wires the observer that sets a real size.
+	 */
+	it('leaves the camera alone while the stage has not been measured', async () => {
+		const harness = await mountPlanEditor();
+		const runtime = runtimeOf(harness);
+		const editor = useEditorStore();
+		editor.setStageSize({ width: 0, height: 0 });
+		const before = editor.viewport;
+
+		runtime.selectAndFrame('zone-kitchen');
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-kitchen']);
+		expect(editor.viewport).toEqual(before);
+		harness.unmount();
+	});
+
+	it('a selected zone that disappears from the next hydrate is retired, not rebound', async () => {
+		const harness = await mountPlanEditor();
+		const projectStore = useProjectStore();
+		useSelectionStore().select(['zone-kitchen' as never]);
+
+		await projectStore.hydrate(fakeQueries(FIXTURE_PLAN, [FIXTURE_ZONES[1]]), FIXTURE_PLAN.id);
+		await nextTick();
+
+		expect(useSelectionStore().selectedIds).toEqual([]);
+		harness.unmount();
+	});
+
+	it('keeps a selected id that survives the next hydrate untouched', async () => {
+		const harness = await mountPlanEditor();
+		const projectStore = useProjectStore();
+		useSelectionStore().select(['zone-kitchen' as never]);
+
+		await projectStore.hydrate(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), FIXTURE_PLAN.id);
+		await nextTick();
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-kitchen']);
 		harness.unmount();
 	});
 });

@@ -345,6 +345,21 @@ describe('EditorStore, the ephemeral half', () => {
 			drag: store.dragState,
 			draft: store.temporaryPolygon,
 		}).toEqual({ tool: null, hover: null, drag: null, draft: null });
+		expect(store.stageSize).toEqual({ width: 0, height: 0 });
+	});
+
+	/**
+	 * `stageSize` (design slice 12) is `EditorSurface`'s own measured size, written from its
+	 * resize observer at the same place it sets its local `size` ref — a store field rather
+	 * than a second prop path, because `selectAndFrame` reaches it from the Inspector's room
+	 * list, nowhere near the surface's own prop chain.
+	 */
+	it('holds the stage size the surface last measured', () => {
+		const store = useEditorStore();
+
+		store.setStageSize({ width: 800, height: 600 });
+
+		expect(store.stageSize).toEqual({ width: 800, height: 600 });
 	});
 
 	it('zooms about an anchor through the shared transform, not arithmetic of its own', () => {

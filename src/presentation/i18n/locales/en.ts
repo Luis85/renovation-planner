@@ -31,6 +31,11 @@ export const en = {
 	'command.set-plan-background': 'Set plan background',
 	'command.open-asset-designer': 'Open asset designer',
 	'command.create-sample-project': 'Create sample renovation project',
+	// Task 9's registered command over the Home surface's launcher — `addCommand`'s `name` is a
+	// user-facing string and `I18N_LITERAL_BAN` refuses a literal at that position, so this key
+	// exists even though the design spec's own count of the surface's vocabulary is fifteen and
+	// not sixteen. No default hotkey: see `view.project.keys` below for why.
+	'command.new-project': 'New project',
 	'plan.none': 'This vault has no renovation plans yet.',
 	'asset.none': 'This vault has no assets yet.',
 	'sample.project.name': 'Sample renovation',
@@ -292,6 +297,45 @@ export const en = {
 	'view.project.currency': 'Priced in {currency}',
 	'view.project.plans-title': 'Plans',
 	'view.project.create-plan': 'New plan',
+	// The Home surface's launcher vocabulary (design spec §12). `{count}`, `{shown}`,
+	// `{total}`, `{query}` and `{mod}` are `t`'s interpolation holes; an unmatched one is left
+	// standing as `{name}` rather than blanked, because a visible hole is a bug report and an
+	// empty string is a silent one.
+	'view.project.filter.label': 'Filter projects',
+	// TWO keys for one count, and the same again for plans below. `t` has no plural machinery;
+	// English and German are both two-form languages, so this is complete for the current
+	// locales and it is the point at which a THIRD locale forces a real plural mechanism.
+	// Recorded here so that arrival is a decision rather than a discovery.
+	// 'Project' rather than 'project': `obsidianmd/ui/sentence-case-locale-module` treats a
+	// leading bare digit as non-content (its emoji-stripping check matches ASCII digits too),
+	// so a value starting `1 …` is read as sentence-initial and the build fails on a lowercase
+	// noun there — measured, not guessed. `view.project.plans-one` has the identical shape.
+	'view.project.count-one': '1 Project',
+	'view.project.count-many': '{count} projects',
+	'view.project.filter.matches': '{shown} of {total}',
+	'view.project.filter.none': 'No project matches “{query}”.',
+	'view.project.filter.clear': 'Clear filter',
+	'view.project.create-named': 'New project named “{query}”',
+	'view.project.group.continue': 'Continue',
+	'view.project.group.projects': 'Projects',
+	'view.project.group.completed': 'Completed ({count})',
+	'view.project.continue.resume': 'Continue',
+	'view.project.continue.open': 'Open',
+	'view.project.plans-one': '1 Plan',
+	'view.project.plans-many': '{count} plans',
+	// `{mod}` is resolved at the CALL SITE — `⌘` on macOS, `Ctrl` elsewhere — never baked into
+	// a locale string, because it is a fact about the machine and not about the language.
+	//
+	// **It names only the two PANE-LOCAL accelerators, and `Mod+N` is deliberately absent.**
+	// The design spec's §7 table wrote a third clause, and it cannot be honest: `New project`
+	// is a registered command with NO default hotkey (declaring one would claim `Mod+N` on
+	// every install over whatever the user already had), so a legend promising `{mod}N` would
+	// advertise a key that does nothing until the user goes and binds it. Reading what they
+	// actually bound is not available either — Obsidian's hotkey registry is internal and this
+	// plugin may not reach the global `app` — so the honest legend is the one whose every
+	// clause is true on a fresh install. The command is discoverable where a registered command
+	// is discoverable: the palette.
+	'view.project.keys': '↵ open · {mod}↵ open note',
 	// Design slice 21's creation form. One field, so one label — `background` and `layers` are
 	// both optional on `CreatePlanInput` and this form sends neither: slice 5's background is
 	// its own command, and a plan without one is a state the editor already draws.

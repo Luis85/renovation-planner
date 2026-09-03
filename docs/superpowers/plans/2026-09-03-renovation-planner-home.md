@@ -3919,6 +3919,21 @@ const completedRoving = useRovingFocus(completedList, '.rp-project-list__row');
 const completedOpen = ref(false);
 
 /**
+ * **The disclosure is recreated COLLAPSED, so the ref that remembers it open must be cleared.**
+ * `<details>` sits under a `v-if` on the group having rows, so filtering the last completed
+ * project away unmounts it and a later query that brings one back mounts a fresh, closed
+ * element — while this ref still says `true`. `focusFirstRow` then treats rows inside a
+ * collapsed disclosure as reachable and swallows the Arrow or Escape that reached it, with
+ * nothing focused and nothing on screen to say why.
+ *
+ * Cleared on the group emptying rather than derived from the live element: the element is gone
+ * at exactly the moment the question is asked, so reading `.open` off it answers about nothing.
+ */
+watch(completed, (rows) => {
+	if (rows.length === 0) completedOpen.value = false;
+});
+
+/**
  * EACH GROUP CLAMPS AGAINST ITS OWN ROWS, never against the filter's total match count.
  *
  * The two differ the moment a query matches a completed project and not an active one: with one
@@ -4528,6 +4543,40 @@ tree's existing `onCreateProject` — the handler `ViewRoot` already has, with i
 through the same handler it already does**, so this adds a door to the view and not a second way
 to open the form.
 
+**The bridge has to be built, and an earlier draft of this task assumed one that does not
+exist.** `mount()` today discards what `app.mount(this.contentEl)` returns, and `ViewRoot.vue` is
+`<script setup>`, which exposes NOTHING by default — `grep -c defineExpose src/presentation/
+views/ViewRoot.vue` answers 0. So `openNewProjectDialog()` as first written had no route to
+`onCreateProject` at all. Three small edits, and they are the task rather than a detail of it:
+
+```typescript
+// ViewRoot.vue — the one member the view is allowed to call in.
+defineExpose({ openNewProjectDialog: onCreateProject });
+```
+
+```typescript
+// RenovationProjectView.ts
+/** What `<script setup>`'s `defineExpose` puts on the mounted root. */
+type ViewRootProxy = { openNewProjectDialog: () => Promise<void> };
+
+private root: ViewRootProxy | null = null;
+...
+this.root = app.mount(this.contentEl) as unknown as ViewRootProxy;
+...
+// in the existing unmount path, beside `app.unmount()`:
+this.root = null;
+
+async openNewProjectDialog(): Promise<void> {
+	await this.root?.openNewProjectDialog();
+}
+```
+
+`this.root = null` on unmount is not tidiness: Obsidian REUSES a view, and a retained proxy from
+a torn-down tree is a handler closing over the composition root `rebind` exists to retire — the
+same hazard `ViewRoot`'s own dialog-settling comment records. The `as unknown as` is the one cast
+here, and it is confined to this line because Vue types `app.mount` as `ComponentPublicInstance`
+and `<script setup>`'s exposed shape is not recoverable from it.
+
 **This must be written out rather than left as "follow the existing shape", because the
 alternative passes the test.** A build that reveals the view and stops satisfies every assertion
 about the command's id, name and hotkeys — and the dialog is the command's entire purpose, so the
@@ -4549,21 +4598,27 @@ Add to `tests/plugin/registration.test.ts`:
 
 	it('opens the creation dialog, not merely the view', async () => {
 		// The metadata case above passes against a build that reveals the pane and stops, and
-		// the dialog is the whole point of the command. INVOKE the callback and assert the
-		// door was reached.
-		const opened: string[] = [];
+		// the dialog is the whole point of the command.
+		//
+		// **NOTHING IS STUBBED ON THE VIEW.** An earlier draft replaced
+		// `view.openNewProjectDialog` with a recorder — which passes whether or not the
+		// `defineExpose`/`app.mount` bridge exists, i.e. it overrides the exact thing the case
+		// was added to prove. Mount the real view, invoke the real callback, and assert on the
+		// DIALOG STORE, which is the far end of the whole chain.
 		const view = makeRenovationProjectView();
-		view.openNewProjectDialog = async () => {
-			opened.push('dialog');
-		};
+		await view.onOpen();
 		workspace.setLeafView(view);
 
 		plugin.commands.find((c) => c.id === 'new-project')?.callback?.();
 		await settle();
 
-		expect(opened).toEqual(['dialog']);
+		expect(useDialogStore().current?.kind).toBe('form');
 	});
 ```
+
+Watch it fail with `defineExpose` removed from `ViewRoot.vue`, and again with `this.root` left
+unassigned in `mount`. A case that stays green through either is the stubbed version again in
+different clothes.
 
 Follow the file's existing shape for `workspace.setLeafView` or whatever `FakeWorkspace` already
 offers to put a view behind a revealed leaf — `openProjectDetail`'s own registration case is the

@@ -3454,8 +3454,8 @@ gate.** Measured on a quiet four-core box: `vue-tsc` 14.0s + `vite build` 1.6s, 
 1.0s + `eslint .` 23.8s, `test:coverage` 159.7s, `fallow` ~2s. **The suite is 79% of it**,
 and the suite's own accounting says the cost is not the tests — `transform 13.7s, import
 74.3s, tests 143.9s, environment 82.1s` over 362 files, so per-file overhead (a jsdom
-environment and a module registry, both paid once per FILE) exceeds the test bodies. Two
-doors exist beside `check` for that reason, and neither replaces it:
+environment and a module registry, both paid once per FILE) exceeds the test bodies. ONE
+door exists beside `check` for that reason, and it does not replace it:
 
 - **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no
   coverage and no `eslint .`. Arguments after `--` reach the vitest call, so
@@ -3463,14 +3463,27 @@ doors exist beside `check` for that reason, and neither replaces it:
   the inner loop: run it between edits, and `npm run check` once before the commit. It is
   NOT a smaller definition of done — it omits `eslint .`, which is where the layer bans,
   the write boundary and both text bans live, and it omits the coverage floors entirely.
-- **`npm run check:queued`** — the same `npm run check` behind a machine-wide lock
-  (`scripts/gate-lock.mjs`). For parallel agents: two gates at once do not cost 2x, they
-  thrash, and what they produce is a WRONG red rather than a slow one — a destroyed
-  `coverage/.tmp/coverage-N.json` and `tests/build/` ESLint boots over their `beforeAll`
-  budget, both of which this file already names as hazards elsewhere. `check` itself is
-  deliberately NOT wrapped: `tests/build/harness-shot.test.ts` asserts what
-  `pkg.scripts.check` CONTAINS, and hiding the four steps behind a wrapper would leave that
-  guard reading the wrapper.
+
+**Two gates at once do not cost 2x, they thrash — and the remedy is the WORKFLOW above
+rather than a mutex.** What contention produces is a WRONG red rather than a slow one: a
+destroyed `coverage/.tmp/coverage-N.json`, and `tests/build/` ESLint boots over their
+`beforeAll` budget, both named as hazards elsewhere in this file. So agents working in
+parallel run `check:fast` — which touches no `coverage/` and boots ESLint for one file at
+most — and the full `npm run check` runs ONCE, before a commit, by whoever is committing.
+One gate at a time falls out of that rule; nothing has to enforce it.
+
+**A machine-wide lock was built for this and then deleted, which is worth recording because
+the deletion is the finding.** `scripts/gate-lock.mjs` reached 475 lines and its suite 590 —
+91% of that increment's whole diff — through eight review rounds: an unlink race, validation
+over a free path, a put-back clobbering a fresh empty claim, `spawnSync` blocking every
+signal, handlers armed after the claim, `child.kill` reaching only `npm`, and a group signal
+that did not wait for descendants. Every one was real. **It bought zero seconds**, and two
+races remained that the shape could not close: `rename` can only atomically replace an EMPTY
+directory, and an empty directory is exactly what another process's claim looks like between
+its `mkdirSync` and its `writeFileSync` — atomicity needs them indistinguishable, safety
+needs them told apart. Reach for the workflow rule before the mutex; if one is ever wanted
+again, the argument to beat is a kernel-released primitive (a held socket, released by the OS
+on any death including SIGKILL), not a directory protocol.
 
 Two things make the gate itself cheaper, and both are measured rather than argued.
 `tsconfig.json` is `incremental` with its build info under `node_modules/.cache/` — 14.3s

@@ -813,7 +813,11 @@ interface CatalogueEntryDto {
   background: AssetBackgroundRef | null;
 }
 type UnreadableReason = 'read-failed' | 'no-id' | 'duplicate-id';
-interface UnreadableEntry { assetId: AssetId | null; path: string; reason: UnreadableReason; }
+interface UnreadableEntry {
+  assetId: AssetId | null; path: string; reason: UnreadableReason;
+  /** The refusal's own `AppError.code`, for `read-failed` alone; the scan sources have none. */
+  code: string | null;
+}
 interface CatalogueListing { entries: readonly CatalogueEntryDto[]; unreadable: readonly UnreadableEntry[]; }
 ```
 
@@ -911,6 +915,25 @@ are not, and the second is the likeliest of the three in a real vault. A repair 
 the file and cannot say what is wrong with it is a list that sends a user to stare at a correct-
 looking note. The three sources are already distinct at the point they are collected, so the
 reason costs nothing to carry and everything to reconstruct later.
+
+**And the SOURCE is not the reason for a `read-failed`, which is a whole third of them.** That
+arm collapses every `RepositoryError` the repository skipped on, and they do not ask the user
+for the same thing: a `MigrationError` means the note was written by a build newer than this
+one and the remedy is to upgrade the plugin — editing the frontmatter is the wrong advice and
+`Open note` invites exactly that — while a schema validation failure over an unknown category
+really is a frontmatter edit, and a vault I/O fault is neither. So the descriptor carries the
+refusal's own `code` beside its source, and §4's row resolves guidance from the pair.
+
+**`code` is `null` for `no-id` and `duplicate-id` and that is a fact rather than a gap**: both
+are decided by the index scan, which raises no `AppError` — the note is excluded, not refused.
+A row whose `code` is null takes its guidance from `reason` alone, which is what those two
+already had.
+
+**`Open note` is offered per row rather than for every row**, for the reason above: it is the
+action for a defect a person can fix in the note. A `read-failed` whose code names a
+future-schema refusal draws the sentence and no action, because there is nothing in that file
+to change. This is §3.5's `asset-geometry.unusable-id` rule — *an action that cannot work is
+worse than no action* — applied to the repair strip.
 
 **A duplicate-id LOSER carries `assetId: null` for that same reason**, and stating it avoids the
 ambiguity the third source otherwise creates: the loser and the index winner share an id, so if
@@ -1118,13 +1141,24 @@ What differs per seam is only what makes two requests **the same request**:
   into loading and disabling `Delete` while somebody works next door. A geometry change cannot
   alter usage. **The unit of invalidation is the read, and the unit of restart is the gesture**,
   which are different questions and were being answered with one counter.
-- **Both selection generations bump when an applied listing removes or replaces the selected
-  entry**, and restart if that id reappears. The id is not enough on its own: an asset deleted in
-  another leaf and recreated under the SAME id leaves the selection unchanged, so neither counter
-  moves and a pre-deletion answer still in flight lands as current — populating the replacement
-  with the deleted asset's geometry or its obsolete referents. §5.4's immediate `AssetDeleted`
-  invalidation covers the MARK cache and says nothing about these reads, which is the same gap
-  one door over: *the ticket has to follow the ENTRY, not only the id naming it.* A selection starts TWO independent reads (`GetAssetDesign` and
+- **`AssetDeleted` bumps both selection generations IMMEDIATELY**, and an applied listing that
+  removes or replaces the selected entry bumps them again; either way they restart if that id
+  reappears. The id is not enough on its own: an asset deleted in another leaf and recreated
+  under the SAME id leaves the selection unchanged, so neither counter moves and a pre-deletion
+  answer still in flight lands as current — populating the replacement with the deleted asset's
+  geometry or its obsolete referents. *The ticket has to follow the ENTRY, not only the id
+  naming it.*
+
+  **The event is the load-bearing half and the listing rule is the backstop, and this document
+  had them the other way round for a round.** A listing diff can only see an absence it is
+  actually shown: delete and recreate under one id before EITHER refresh is applied and both
+  listings return the replacement, which may be a byte-identical DTO — nothing is removed,
+  nothing detectably replaced, and the diff is silent about a gap it never observed. §5.4 takes
+  the immediate `AssetDeleted` invalidation for the mark cache for exactly this reason, and the
+  paragraph this replaces NAMED that remedy — *"the same gap one door over"* — and then took the
+  weaker one beside it. **Citing the fix is not applying it**; the listing rule stays, because it
+  also covers an entry that leaves the listing without a delete event of ours (a note removed
+  outside the plugin, a sync), which the event cannot see. A selection starts TWO independent reads (`GetAssetDesign` and
   `ListRequirementsReferencing`, §3.5), and a counter bumped per read start makes the second
   invalidate the first: both answers are required, so the section holding the older ticket waits
   for a result that will now be discarded — **loading for ever, on the ordinary path**. That was
@@ -1316,7 +1350,7 @@ view.asset-library.clearance.unscaled
 view.asset-library.loading          view.asset-library.some-unreadable  (interpolated: {count})
 view.asset-library.some-unreadable.open-note
 view.asset-library.unreadable.read-failed   view.asset-library.unreadable.no-id
-view.asset-library.unreadable.duplicate-id
+view.asset-library.unreadable.duplicate-id  view.asset-library.unreadable.future-schema
 view.asset-library.note-unreadable  (interpolated: {path})
 view.asset-library.asset-gone
 view.asset-library.shape.unusable-id
@@ -2562,6 +2596,29 @@ not exist rather than one that does, and the row loses its description with noth
 anywhere. It is the row's ordinal now. Same class as §6.3's `CSS.escape` finding, found in the
 same file two rounds apart, which says the rule was learnt as a fact about `querySelector` rather
 than about interpolating a user-authored id into any syntax at all.
+
+A forty-fourth round found two, and both are a remedy I named and then did not take.
+
+**Citing a fix is not applying it.** §5.5's selection tickets were given the listing-diff rule
+in the round before, under a sentence that pointed at §5.4's immediate `AssetDeleted`
+invalidation and called this *"the same gap one door over"* — and then took the weaker remedy
+beside it. A listing diff can only see an absence it is shown, and a delete-and-recreate under
+one id before either refresh is applied hands both listings a replacement that may be a
+byte-identical DTO: nothing removed, nothing detectably replaced. The event bumps both
+generations immediately now; the listing rule stays as the backstop for an entry that leaves
+without a delete event of ours, which the event cannot see. Round thirty-four made this exact
+correction for the mark cache, so this is the second time the same argument had to be made about
+the same mechanism — and the first time it was made, I quoted it.
+
+**The SOURCE of a refusal is not its REASON.** `UnreadableReason` distinguishes where the
+descriptor was collected and collapses every repository refusal into `read-failed` — but a
+future-schema `MigrationError` asks the user to upgrade the plugin, a schema validation failure
+over an unknown category asks for a frontmatter edit, and a vault I/O fault asks for neither.
+The strip offered one `Open note` for all of them, which for the first is advice to go and edit
+a file that has nothing wrong with it. The descriptor carries the refusal's own `code` beside
+its source now, `null` for the two scan sources because the index raises no `AppError` at all,
+and the action is offered per row rather than for every row — §3.5's `unusable-id` rule, that an
+action which cannot work is worse than none, applied to the repair list.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

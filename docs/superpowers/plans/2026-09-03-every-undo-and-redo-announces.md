@@ -74,6 +74,11 @@ this section.
   ```
 - **Branch:** `claude/plan-editor-user-journey-jak1fl`. Never push elsewhere.
 - **No model identifier** in any artifact pushed to the repository beyond the trailer above.
+- **Stage by name. Never `git add -A`.** Tasks run alongside other agents on this worktree, and
+  that spelling has already swept a concurrently-running agent's uncommitted work into an
+  unrelated commit on this branch (`4d9235f`, recorded in `7836a93`). Stage the exact paths your
+  task's Files block names. Tasks 2-6 still show the old spelling in their already-executed
+  steps; this constraint overrides them.
 
 ---
 
@@ -1293,6 +1298,24 @@ is the second-derivation defect this repository has already paid for twice.
 A cost-override undo changes the effective total directly; a quantity-override undo reprices the
 calculated cost. Both move a figure, and both restore through the repository port.
 
+**`overrideAdapterRig` does not exist — you are writing it, and the snippet below is its
+contract rather than a call to something already there.** Verified by grep across `src/` and
+`tests/`: no such helper, and no shared rig for these adapters at all; the sibling
+`tests/application/commands/requirement/reversibleAssign.test.ts` builds its fixtures inline
+and is the shape to copy. Three obligations, because a rig invented to satisfy a snippet is
+the place a test quietly stops discriminating:
+
+- `overrideAdapterRig(kind: 'quantity' | 'cost', opts?)` returns at least `{ adapter, events }`,
+  where `events` is a real `createEventBus()` — not a recorder that swallows, since a subscriber
+  that throws is caught and swallowed by `deliver` and the case would then pass in both worlds.
+- `opts.overrideEqualsCalculated` must produce a requirement whose override is arithmetically
+  EQUAL to its calculated cost, so `publishIfEffectiveCostChanged`'s equality arm is the reason
+  the third case sees nothing. Equal `amount` AND equal `currency` — `19.5` against `19.50`
+  compares unequal by `amount` string, which would make the case pass for the wrong reason.
+- **Mutation-check the third case before you commit it.** Delete the equality guard inside
+  `publishIfEffectiveCostChanged` and confirm that case goes red. If it stays green, the fixture
+  is not producing equal figures and the case is asserting nothing.
+
 - [ ] **Step 1: Write the failing test**
 
 ```ts
@@ -1344,7 +1367,11 @@ Expected: PASS, 3 tests.
 
 ```bash
 npm run check
-git add -A
+# Stage by name, never `git add -A`: that spelling swept a concurrently-running
+# agent's work into an unrelated commit once already on this branch.
+git add src/application/commands/requirement/reversible-override-commands.ts \
+        src/presentation/editor/inspector-wiring.ts \
+        tests/application/commands/requirement/reversibleOverrides.test.ts
 git commit -m "$(cat <<'MSG'
 Announce the cost an undone override moves back
 
@@ -1620,7 +1647,15 @@ plausible reads exactly like a correct one.**
 
 ```bash
 npm run check
-git add -A
+# Stage by name, never `git add -A`: that spelling swept a concurrently-running
+# agent's work into an unrelated commit once already on this branch.
+git add src/application/reference/deleteResolution.ts \
+        src/application/commands/zone/DeleteZone.ts \
+        tests/application/reference/deleteResolutions.test.ts \
+        tests/application/reference/deleteResolutionEngine.test.ts \
+        tests/application/reference/interleaving.test.ts \
+        tests/application/reference/compensationRestore.test.ts \
+        tests/application/reference/deleteAssetRefusals.test.ts
 git commit -m "$(cat <<'MSG'
 Announce each referent a delete resolution touches
 
@@ -1709,7 +1744,10 @@ Expected: PASS.
 
 ```bash
 npm run check
-git add -A
+# Stage by name, never `git add -A`: that spelling swept a concurrently-running
+# agent's work into an unrelated commit once already on this branch.
+git add src/application/commands/asset/DeleteAsset.ts \
+        tests/application/reference/deleteAssetRefusals.test.ts
 git commit -m "$(cat <<'MSG'
 Let the asset delete's resolution announce at requirement level
 
@@ -1955,7 +1993,11 @@ Expected: PASS, 5 tests.
 
 ```bash
 npm run check
-git add -A
+# Stage by name, never `git add -A`: that spelling swept a concurrently-running
+# agent's work into an unrelated commit once already on this branch.
+git add src/application/reference/recoverInterruptedSequences.ts \
+        src/plugin/RenovationPlannerPlugin.ts \
+        tests/application/reference/recovery.test.ts
 git commit -m "$(cat <<'MSG'
 Announce what crash recovery restores
 
@@ -2235,7 +2277,9 @@ Expected: RED. If no such method exists today, say so in your report rather than
 
 ```bash
 npm run check
-git add -A
+# Stage by name, never `git add -A`: that spelling swept a concurrently-running
+# agent's work into an unrelated commit once already on this branch.
+git add tests/application/events/reversibleWritePathCensus.test.ts
 git commit -m "$(cat <<'MSG'
 Census every reversible write path behaviourally, and scan only the enumeration
 
@@ -2409,7 +2453,12 @@ somebody thought about.**
 
 ```bash
 npm run check
-git add -A
+# Stage by name, never `git add -A`: that spelling swept a concurrently-running
+# agent's work into an unrelated commit once already on this branch.
+git add src/application/ports/RequirementRepository.ts \
+        src/infrastructure/obsidian/repositories/ObsidianRequirementRepository.ts \
+        src/infrastructure/persistence/in-memory/InMemoryRequirementRepository.ts \
+        tests/application/repositories/requirementListByProject.test.ts
 git commit -m "$(cat <<'MSG'
 Add a tolerant, project-scoped requirement listing
 
@@ -2519,7 +2568,11 @@ files** — functions has ~1 unit of headroom, and the summary line cannot see o
 
 ```bash
 npm run check
-git add -A
+# Stage by name, never `git add -A`: that spelling swept a concurrently-running
+# agent's work into an unrelated commit once already on this branch.
+git add src/application/queries/buildRequirementRow.ts \
+        src/application/queries/GetRequirementsForZone.ts \
+        tests/application/queries/buildRequirementRow.test.ts
 git commit -m "$(cat <<'MSG'
 Extract the per-row builder so two callers cannot derive a row differently
 

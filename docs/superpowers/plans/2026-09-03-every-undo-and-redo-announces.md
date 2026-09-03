@@ -1166,10 +1166,14 @@ MSG
 
 ## Task 6: The assign adapter announces both directions
 
+> **DONE** — commit `0fa5759`, review clean (spec met on all 7, quality approved,
+> 0 blocking). CI green at `0ad9200`. Three comment-accuracy findings parked for a follow-up
+> batch; the docblock finding is folded into Task 8. Start at Task 7.
+
 **Files:**
 - Modify: `src/application/commands/requirement/reversible-assign-asset-command.ts`
 - Modify: `src/presentation/editor/inspector-wiring.ts:118`
-- Test: `tests/application/commands/requirement/reversibleAssignAsset.test.ts`
+- Test: `tests/application/commands/requirement/reversibleAssign.test.ts`
 
 **Interfaces:**
 - Consumes: `requirementDeleted` (Task 1), `PlanEditorCommandServices.events` (Task 2).
@@ -1227,7 +1231,7 @@ it('announces nothing when its execute found an existing link', async () => {
 
 - [ ] **Step 2: Run and watch fail**
 
-Run: `npx vitest run tests/application/commands/requirement/reversibleAssignAsset.test.ts`
+Run: `npx vitest run tests/application/commands/requirement/reversibleAssign.test.ts`
 Expected: FAIL on all three (constructor arity, then missing events).
 
 - [ ] **Step 3: Implement**
@@ -1252,7 +1256,7 @@ publishes. A two-operation case passes against the stale version and proves noth
 
 - [ ] **Step 4: Run and watch pass**
 
-Run: `npx vitest run tests/application/commands/requirement/reversibleAssignAsset.test.ts`
+Run: `npx vitest run tests/application/commands/requirement/reversibleAssign.test.ts`
 Expected: PASS, 3 tests.
 
 - [ ] **Step 5: Full gate, then commit**
@@ -1392,6 +1396,42 @@ MSG
 ---
 
 ## Task 8: The delete resolution announces per referent it touched
+
+**The rig in the snippet below DOES NOT EXIST — you are writing it, and the snippet is its
+contract rather than a call to something already there.** Grep-verified across `src/` and
+`tests/`. This plan invents a rig in four separate tasks and names none of them as new; Task 7
+hit it first and Codex reported the Task 8 instance, so treat the snippet's helper name as a
+sketch and prefer EXTENDING the rig the sibling tests already use over inventing a parallel one.
+Two obligations that hold wherever a case asserts an event's ABSENCE:
+
+- The bus must be a REAL one that delivers. `createEventBus`'s `deliver` wraps each handler in
+  `.catch` and SWALLOWS, so asserting a forbidden event by THROWING inside a subscriber passes
+  whether or not the event fired. Collect into an array and assert it is empty. Never throw.
+- Mutation-check every negative case before committing it: break the thing that suppresses the
+  event and confirm the case goes RED. A green negative proves nothing on its own.
+
+**`runDeleteResolution` takes THREE required arguments, not two** — `(ops, input, locks)`, with
+an optional fourth `markers`. Every call in this task's snippets supplies only `ops` and
+`input` and would not compile. Reported by Codex against the plan, verified at
+`src/application/reference/deleteResolution.ts:422`. The sibling suite's own spelling is
+`runDeleteResolution(ops, {}, new ReferenceLocks())` — see
+`tests/application/reference/deleteResolutionEngine.test.ts:229`, which constructs the locks
+inline — and `tests/application/reference/deleteResolutions.test.ts` already has a
+`wiredWithRequirement()` rig at line 19 to extend rather than replace.
+
+**Carried in from Task 6's review — fix this in the same commit.** `RequirementDeleted`'s
+docblock in `src/domain/requirement/Requirement.events.ts` names THREE publishers. A fresh
+`grep -rn "requirementDeleted(" src/` prints TWO call sites (`DeleteRequirementCommand` and
+`ReversibleAssignAssetCommand.undo`) plus the factory itself, and its third clause —
+"the delete resolutions' `remove-references` arm" — is served by
+`deleteResolution.ts:207`, which calls `requirements.delete` on the RAW PORT and never goes
+through `DeleteRequirementCommand`. So the docblock's other clause, "`remove-references`
+resolves through it", is false today and the two clauses contradict each other.
+
+Your task makes the third clause TRUE. Rewrite the whole publisher list from a grep taken in
+the same edit — this repository's own rule — rather than deleting the one word that is wrong:
+after your change the arm publishes directly, which is not the same claim as resolving through
+the command, and a sentence that is accidentally true is the next reader's trap.
 
 **Files:**
 - Modify: `src/application/reference/deleteResolution.ts`
@@ -1693,6 +1733,19 @@ MSG
 
 ## Task 9: `DeleteAsset`'s resolution paths announce at requirement level
 
+**The rig in the snippet below DOES NOT EXIST — you are writing it, and the snippet is its
+contract rather than a call to something already there.** Grep-verified across `src/` and
+`tests/`. This plan invents a rig in four separate tasks and names none of them as new; Task 7
+hit it first and Codex reported the Task 8 instance, so treat the snippet's helper name as a
+sketch and prefer EXTENDING the rig the sibling tests already use over inventing a parallel one.
+Two obligations that hold wherever a case asserts an event's ABSENCE:
+
+- The bus must be a REAL one that delivers. `createEventBus`'s `deliver` wraps each handler in
+  `.catch` and SWALLOWS, so asserting a forbidden event by THROWING inside a subscriber passes
+  whether or not the event fired. Collect into an array and assert it is empty. Never throw.
+- Mutation-check every negative case before committing it: break the thing that suppresses the
+  event and confirm the case goes RED. A green negative proves nothing on its own.
+
 **Files:**
 - Modify: `src/application/commands/asset/DeleteAsset.ts`
 - Test: `tests/application/reference/deleteAssetRefusals.test.ts` (or a sibling asset-delete test)
@@ -1764,6 +1817,19 @@ MSG
 ---
 
 ## Task 10: Crash recovery announces, and `RecoveryDeps.events` is required
+
+**The rig in the snippet below DOES NOT EXIST — you are writing it, and the snippet is its
+contract rather than a call to something already there.** Grep-verified across `src/` and
+`tests/`. This plan invents a rig in four separate tasks and names none of them as new; Task 7
+hit it first and Codex reported the Task 8 instance, so treat the snippet's helper name as a
+sketch and prefer EXTENDING the rig the sibling tests already use over inventing a parallel one.
+Two obligations that hold wherever a case asserts an event's ABSENCE:
+
+- The bus must be a REAL one that delivers. `createEventBus`'s `deliver` wraps each handler in
+  `.catch` and SWALLOWS, so asserting a forbidden event by THROWING inside a subscriber passes
+  whether or not the event fired. Collect into an array and assert it is empty. Never throw.
+- Mutation-check every negative case before committing it: break the thing that suppresses the
+  event and confirm the case goes RED. A green negative proves nothing on its own.
 
 **Files:**
 - Modify: `src/application/reference/recoverInterruptedSequences.ts`
@@ -2599,6 +2665,16 @@ MSG
 ---
 
 ## Task 14: The account
+
+**Required first step, carried in from Task 6's review: re-run `npm run check` on a QUIET,
+CLEAN tree.** Several tasks in this increment gated while a concurrent agent was mutating
+`src/` — Task 6's reviewer observed it directly, watching `git diff HEAD --stat` grow from one
+file to four mid-review with "Not Committed Yet" blame lines in a file that task did not own.
+`CLAUDE.md` requires a quiet tree for the full-suite run and gives the reason: a reviewer
+mid-mutation makes the tree lie, and the red it produces is indistinguishable from a real one
+until you read that agent's log. Every per-task gate in this increment is therefore weaker
+evidence than its exit code suggests. One clean run, with no other agent working and nothing
+uncommitted, is what actually certifies the increment.
 
 **Files:**
 - Modify: `CLAUDE.md`

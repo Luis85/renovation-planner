@@ -23,56 +23,87 @@ import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
 
 /**
- * Source normalised the way the ENGINE reads it, before any pattern is matched: line
- * continuations removed (the parser drops them) and `${...}` substitutions emptied (a template
- * literal's value is its quasis, and a substitution cannot contribute an extension).
+ * Source as the ENGINE reads it, before any pattern is matched: line continuations removed,
+ * comments dropped, and `${...}` substitutions emptied INSIDE template literals only.
  *
  * Module scope because it captures nothing (oxlint `consistent-function-scoping`), and named
  * rather than inlined because the stylesheet walk below is not the only question that would be
  * wrong to ask of un-normalised source.
  *
- * **The substitution scan is BALANCED, and the two cheaper versions before it were not.** The
- * first spelled a continuation alternative into the pattern and could not see one inside the
- * extension; the second emptied `${...}` with `[^}]*` and stopped at the first `}`, so a
- * substitution holding a nested object or a quoted brace — `` `./s/${ x["}"] }.css` `` — left
- * its tail in the text and the import went unseen. Both failures are SILENT, because the
- * assertion below is an absence: an under-reaching normaliser reports a clean tree.
+ * **Six rounds of review narrowed this one reported case at a time, and every intermediate
+ * version failed SILENTLY**, because the assertion below is an absence: an under-reaching
+ * normaliser reports a clean tree. The versions, so the next author sees the shape rather than
+ * the endpoint:
  *
- * So this walks the substitution with a depth counter, skipping quoted spans (backticks
- * included, so a nested template is stepped over whole) and escapes. Five rounds of review
- * narrowed a pattern one reported case at a time; a depth counter is what those cases had in
- * common, and it costs 20 lines against a parser's `.vue` problem — an SFC is not a TS
- * program, so a parser needs the script block extracted first, and an extraction that silently
- * missed one returns this instrument to exactly the failure above.
+ * 1. A pattern alternative for continuations — blind to one inside the extension.
+ * 2. `.replace(/\\\r?\n/g, '')` — blind to a newline inside `${ }`, which is expression syntax.
+ * 3. `.replace(/\$\{[^}]*\}/gs, '')` — stopped at the first `}`, so a nested object or a quoted
+ *    brace left its tail behind.
+ * 4. A balanced depth counter — but it treated `${` ANYWHERE as a substitution, so
+ *    `const marker = '${'; import('./theme.css')` swallowed the import that followed it.
  *
- * **What it still cannot reach, stated because the previous revision claimed a class it had
- * closed only part of**: a specifier that is not in the source text at all — held in an
- * identifier, or assembled by concatenation. No normalisation reaches that, and neither would
- * a parser, since the value exists only at runtime. That is the honest bound of a source scan.
+ * Each fix was correct about the case it was given and wrong about the class, which is why this
+ * one tracks MODE rather than adding a fifth rule: a `${` matters only inside a backtick, and
+ * knowing that requires knowing where you are. Comments are dropped for the same reason, and it
+ * retires the bare-newline restriction's original job — the prose-spanning false positives that
+ * started this were comment text.
+ *
+ * **The honest bound, stated because an earlier revision claimed a class it had closed part
+ * of**: a specifier that is not in the source text at all — held in an identifier, or assembled
+ * by concatenation. No source scan reaches that, and a parser would not either, since the value
+ * exists only at runtime.
  */
-const withoutContinuations = (text: string): string => {
+const normalisedSource = (text: string): string => {
 	const source = text.replace(/\\\r?\n/g, '');
 	let out = '';
-	for (let i = 0; i < source.length; ) {
-		if (source[i] !== '$' || source[i + 1] !== '{') {
-			out += source[i];
+	let i = 0;
+	const skipQuoted = (quote: string): void => {
+		i += 1;
+		while (i < source.length && source[i] !== quote) i += source[i] === '\\' ? 2 : 1;
+		i += 1;
+	};
+	while (i < source.length) {
+		const c = source[i];
+		const next = source[i + 1];
+		if (c === '/' && next === '/') {
+			while (i < source.length && source[i] !== '\n') i += 1;
+		} else if (c === '/' && next === '*') {
+			i += 2;
+			while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) i += 1;
+			i += 2;
+		} else if (c === "'" || c === '"') {
+			const from = i;
+			skipQuoted(c);
+			out += source.slice(from, i);
+		} else if (c === '`') {
+			out += '`';
 			i += 1;
-			continue;
-		}
-		i += 2;
-		for (let depth = 1; i < source.length && depth > 0; ) {
-			const c = source[i];
-			if (c === '\\') {
-				i += 2;
-			} else if (c === "'" || c === '"' || c === '`') {
-				i += 1;
-				while (i < source.length && source[i] !== c) i += source[i] === '\\' ? 2 : 1;
-				i += 1;
-			} else {
-				if (c === '{') depth += 1;
-				else if (c === '}') depth -= 1;
-				i += 1;
+			while (i < source.length && source[i] !== '`') {
+				if (source[i] === '\\') {
+					out += source.slice(i, i + 2);
+					i += 2;
+				} else if (source[i] === '$' && source[i + 1] === '{') {
+					i += 2;
+					for (let depth = 1; i < source.length && depth > 0; ) {
+						const k = source[i];
+						if (k === '\\') i += 2;
+						else if (k === "'" || k === '"' || k === '`') skipQuoted(k);
+						else {
+							if (k === '{') depth += 1;
+							else if (k === '}') depth -= 1;
+							i += 1;
+						}
+					}
+				} else {
+					out += source[i];
+					i += 1;
+				}
 			}
+			out += '`';
+			i += 1;
+		} else {
+			out += c;
+			i += 1;
 		}
 	}
 	return out;
@@ -515,7 +546,7 @@ describe('the browser harness', () => {
 		];
 
 		const importers = reachable.filter((file) =>
-			sheetImport.test(withoutContinuations(readText(file))),
+			sheetImport.test(normalisedSource(readText(file))),
 		);
 		const linkers = reachable.filter((file) => sheetLink.test(readText(file)));
 		const styleBlocks = sources('tests/harness').filter((file) =>

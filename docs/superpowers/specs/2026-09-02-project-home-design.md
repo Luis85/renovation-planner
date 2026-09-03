@@ -817,6 +817,42 @@ $ for f in $(grep -rln "UndoableCommand\|Reversible" --include=*.ts src/applicat
 reported by nobody. The sweep found it, which is the whole argument for doing the sweep: three
 rounds of one-at-a-time would have taken three more rounds to reach it, and it would have shipped.
 
+**And then the sweep's own FILTER turned out to be a sample.** It selects files matching
+`UndoableCommand|Reversible`, which answers *"every reversible adapter"* — a narrower question
+than *"every write path that publishes nothing"*, which is the defect. Asked the wider way
+(`writes > 0 && publishes == 0` across `src/application`) it returns **thirteen** files, not five.
+Some are helpers whose caller publishes — `WriteLedger`, `ReferenceLocks`, and `restore-zone.ts`,
+whose two callers are adapters already in the table. Three are not, and each was verified rather
+than inferred:
+
+- **`reference/deleteResolution.ts`** — four writes, no `publish` anywhere in the file, reached
+  from BOTH the zone delete and the asset delete. Reported by review in its cross-project form: a
+  requirement in project A whose `origin.zoneId` sits in project B — the mirror case Decision 3
+  accepts as an honest residue — is marked stale here, and the only event that follows is
+  `ZoneDeleted` carrying B. A's Overview keeps its old total and stale count.
+- **`commands/requirement/SetRequirementCostOverride.ts`** — one write, no publish, **and it is
+  the exact path this decision's `CostEstimateChanged` membership was argued from.**
+  `grep -rn "costEstimateChanged(" src/` outside the events module prints ONE line, in
+  `SetRequirementQuantityOverride.ts`. The event was admitted to the unfiltered list on the
+  reasoning that *"a cost override changes the total without recalculating anything, so
+  `RequirementRecalculated` never fires for it"* — and the cost override command raises nothing
+  at all. The subscription is right and has nothing to hear: the same asymmetry the sweep exists
+  to close, in the very event the sweep's own argument defended.
+- **`commands/requirement/DeleteRequirement.ts`** — one write, no publish, and no publishing
+  caller anywhere in `src/`.
+
+**The remedy for the cross-project case is the requirement-level event, not unfiltered zone
+events.** A requirement event carries the requirement's own `projectId` — A, the project that
+must refresh — while unfiltering `ZoneCreated` / `ZoneDeleted` / `ZoneGeometryChanged` would make
+every project's summary re-read on any zone edit in the vault. That is the cost the filter exists
+to avoid, paid to serve a state only a hand edit produces. It is also what this decision already
+does for `DeleteAsset`'s resolution paths, so it is consistency rather than new design.
+
+**The shape, which is this document's own recurring one:** a count is only as complete as the
+question it counts over. Replacing a sample with a census fixed the sampling of ADAPTERS and left
+the sampling of the FILTER, and the second was invisible precisely because the first had been
+announced as a sweep.
+
 **It is one defect, not five.** The forward commands publish; the reversible adapters restore
 snapshots through the repository PORTS directly, and `CLAUDE.md` records exactly why those ports
 are raw — "the boundary stops at the repository PORTS … because the reversible adapters restore
@@ -1100,7 +1136,9 @@ mistake, per this repository's rule.
 | Coalescing | a cascade whose writes OUTLAST the debounce causes at most one read per settled burst, never one per event | asserting ONE here fails a correct trailing coalescer on a slow repository — the prose declines a completion boundary, so the test may not demand one |
 | Coalescing | a slower earlier read cannot overwrite a later one | without the request ticket a just-recalculated figure reverts |
 | Coalescing | disposing inside the debounce window performs NO summary read | unsubscribing does not cancel a scheduled callback, so an unmounted section keeps paying the walk this section exists to bound; asserted on reads, since a listener-count assertion passes against a live timer |
-| Sweep | every adapter matching `UndoableCommand\|Reversible` that writes also publishes | five of eleven publish nothing today; a per-adapter test lets the sixth ship |
+| Sweep | every module under `src/application` that WRITES also publishes, or is a helper whose caller does | five of eleven publish nothing today; and the adapter-only filter is itself a sample — asked the wider way it returns thirteen, three of them genuine |
+| Summary | a requirement in project A whose origin zone lives in project B refreshes A when that zone is deleted | zone events carry B, so a project-filtered subscription drops them while A's row derives its area from that zone |
+| Summary | a cost override refreshes an Overview in another leaf | `CostEstimateChanged` has one publisher and it is the QUANTITY override; the cost override raises nothing, so the event this list was argued from never fires on its own path |
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
 | Summary | a requirement whose `projectId` names another project is never reached | a zone-started walk reaches it and, on one shared currency, sums it into the wrong project silently |
 | Summary | a requirement whose zone was deleted IS reached and reports `missingTarget: 'zone'` | a zone-started walk cannot produce that row at all |

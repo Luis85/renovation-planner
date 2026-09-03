@@ -1,0 +1,24 @@
+/*
+ * The Asset library view's own root (§2, ADR-0015's fourth workspace surface) — mounted
+ * directly onto `contentEl` with no wrapper div, exactly as `RenovationProjectView` is and for
+ * the identical reason its own docblock states: a `contentEl.createDiv(...)` host has
+ * `height: auto` and collapses the pane to a sliver, invisible to jsdom and caught only by the
+ * browser harness. `.renovation-planner-view` is `RenovationProjectView`'s own class by its
+ * stylesheet's own docblock, so this is a class of its own rather than a second claimant.
+ *
+ * Only the root is styled here — Tasks 12 through 14 build the toolbar, the shelves and the
+ * inspector this shell will hold, and each task's own stylesheet partial is where their layout
+ * belongs.
+ */
+.renovation-asset-library {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	color: var(--text-normal);
+	/* A positioned ancestor for whatever this shell grows next — an overlay resolves
+	   `position: absolute` against its nearest positioned ancestor, and `.renovation-planner-
+	   view` and `.renovation-asset-designer` both take the identical rule for the identical
+	   reason. Stated ahead of a caller rather than left `static` until the first one needs it. */
+	position: relative;
+}

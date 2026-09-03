@@ -2163,6 +2163,16 @@ MSG
 
 ## Task 11: The census, behavioural per direction, with a static check on the ENUMERATION
 
+> **DONE** — commits `5aa5d36` + `763526c` (one fix round). Gate exit 0 (5349 passed,
+> 99.36/99.09/99.55/98.28); CI green on both. Review APPROVED after the most thorough
+> verification on this branch: SEVEN source mutations each reddening exactly the right row, the
+> carve-out row proven BEHAVIOURAL by inverting it, and the discovery scan shown to bite in four
+> directions — including a subclass in a brand-new file whose text never contains "undo", caught
+> through the `extends` closure. Counts are computed live, never pinned. The fix round added the
+> override `execute` rows the plan's own table had omitted and wrote down three limitations the
+> reviewer measured but the header had not stated (class expression, multi-line declaration,
+> `.vue` files).
+
 **Files:**
 - Create: `tests/application/events/reversibleWritePathCensus.test.ts`
 
@@ -2363,13 +2373,13 @@ picture in a second leaf on the same plan, which is that surface's decision. Its
 that nothing is published — a carve-out that is itself a behavioural assertion, so a build that
 starts publishing there fails rather than quietly diverging from its own documentation.
 
-- [ ] **Step 1: Take the census from the tree, not from the table above**
+- [x] **Step 1: Take the census from the tree, not from the table above**
 
 Before writing a single case, list every module under `src/application/**` exposing an `undo`,
 and diff that list against the table. Write the result into your report. If the tree holds an
 adapter the table omits, the table was wrong — add it.
 
-- [ ] **Step 2: Write Part B first, and watch it fail**
+- [x] **Step 2: Write Part B first, and watch it fail**
 
 The enumeration check is the cheap half and it fails immediately (the table starts empty).
 Then watch it fail the two ways that matter, which is what the first draft could not do:
@@ -2387,13 +2397,13 @@ Then watch it fail the two ways that matter, which is what the first draft could
    assertion fails; then add one for a file that does not exist, and confirm it fails the other
    way.
 
-- [ ] **Step 3: Write the rows**
+- [x] **Step 3: Write the rows**
 
 One `it` per table row, driving the real adapter against an in-memory stack. Use the rigs the
 Task 3–10 test files already established rather than inventing new ones (see the controller's
 Ruling 3 — helper names in this plan are illustrative, the assertions are binding).
 
-- [ ] **Step 4: Watch the census bite where the draft could not**
+- [x] **Step 4: Watch the census bite where the draft could not**
 
 Comment out the publish in **one direction only** of `ReversibleCalibratePlan.ts` and re-run.
 Expected: that direction's row goes RED while the other stays green. This is the finding-4
@@ -2403,7 +2413,7 @@ Restore.
 Then do the same for one BRANCH of a method that writes in two branches, if the tree holds one.
 Expected: RED. If no such method exists today, say so in your report rather than inventing one.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check

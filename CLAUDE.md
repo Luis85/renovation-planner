@@ -3449,6 +3449,61 @@ Windows one, while Windows still runs the version every platform must support. P
 line endings are the only things that differ between the two PLATFORMS, and both have
 already produced a defect the project this harness came from could not see on one alone.
 
+**That gate is ~200 seconds, and the number is a fact about the LOOP rather than about the
+gate.** Measured on a quiet four-core box: `vue-tsc` 14.0s + `vite build` 1.6s, `oxlint`
+1.0s + `eslint .` 23.8s, `test:coverage` 159.7s, `fallow` ~2s. **The suite is 79% of it**,
+and the suite's own accounting says the cost is not the tests — `transform 13.7s, import
+74.3s, tests 143.9s, environment 82.1s` over 362 files, so per-file overhead (a jsdom
+environment and a module registry, both paid once per FILE) exceeds the test bodies. ONE
+door exists beside `check` for that reason, and it does not replace it:
+
+- **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no
+  coverage and no `eslint .`. Arguments after `--` reach the vitest call, so
+  `npm run check:fast -- tests/application` is **12.3s** against the gate's 200. That is
+  the inner loop: run it between edits, and `npm run check` once before the commit. It is
+  NOT a smaller definition of done — it omits `eslint .`, which is where the layer bans,
+  the write boundary and both text bans live, and it omits the coverage floors entirely.
+
+**Two gates at once do not cost 2x, they thrash — and the remedy is the WORKFLOW above
+rather than a mutex.** What contention produces is a WRONG red rather than a slow one: a
+destroyed `coverage/.tmp/coverage-N.json`, and `tests/build/` ESLint boots over their
+`beforeAll` budget, both named as hazards elsewhere in this file. So agents working in
+parallel run `check:fast` — which touches no `coverage/` and boots ESLint for one file at
+most — and the full `npm run check` runs ONCE, before a commit, by whoever is committing.
+One gate at a time falls out of that rule; nothing has to enforce it.
+
+**A machine-wide lock was built for this and then deleted, which is worth recording because
+the deletion is the finding.** `scripts/gate-lock.mjs` reached 475 lines and its suite 590 —
+91% of that increment's whole diff — through eight review rounds: an unlink race, validation
+over a free path, a put-back clobbering a fresh empty claim, `spawnSync` blocking every
+signal, handlers armed after the claim, `child.kill` reaching only `npm`, and a group signal
+that did not wait for descendants. Every one was real. **It bought zero seconds**, and two
+races remained that the shape could not close: `rename` can only atomically replace an EMPTY
+directory, and an empty directory is exactly what another process's claim looks like between
+its `mkdirSync` and its `writeFileSync` — atomicity needs them indistinguishable, safety
+needs them told apart. Reach for the workflow rule before the mutex; if one is ever wanted
+again, the argument to beat is a kernel-released primitive (a held socket, released by the OS
+on any death including SIGKILL), not a directory protocol.
+
+Two things make the gate itself cheaper, and both are measured rather than argued.
+`tsconfig.json` is `incremental` with its build info under `node_modules/.cache/` — 14.3s
+cold against **3.8s warm**, including after touching a source file, so CI (always cold) is
+unchanged and the loop is not. And `vitest.config.ts` runs `tests/build/` as its own
+project with `isolate: false`, which shares the eleven type-aware ESLint boots that
+directory pays per file: **34.6s to 20.8s** for that directory, 102.9s against 121.8s for
+the suite as a whole.
+
+**What was measured and REFUSED is worth as much as what was taken.** `--no-isolate` over
+the whole suite runs it in half the time (121.8s to 61.3s) and is not a flag anybody may
+flip: three runs produced three DISJOINT failure sets — four files, a different three under
+coverage, a different three again with the first four excluded — so which files break is a
+function of worker scheduling and quarantining the observed ones is whack-a-mole. Four
+families of module-level state cause it: Konva's `stages` registry, a `npm_package_version`
+mutation, `@napi-rs/canvas`'s install against a reused jsdom global, and the harness
+`import.meta.glob` registry. Closing those is an increment with its own argument — and note
+that the cases it breaks (`stacks nothing across repeated open and close cycles`) are the
+ones whose SUBJECT is isolation, so they need re-siting rather than deleting.
+
 What each step refuses, because a step whose purpose is vague gets skipped:
 
 - **build** — `tsc` first, then Vite. Also the stylesheet: the build fails on a partial no

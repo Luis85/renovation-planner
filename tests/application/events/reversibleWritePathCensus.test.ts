@@ -311,29 +311,55 @@ describe('reversible-assign-asset-command', () => {
 	});
 });
 
+const QUANTITY_OVERRIDE = 20;
+const COST_OVERRIDE = moneyOf('550.00', 'EUR');
+
+/**
+ * One rig for both override kinds, shared by the execute AND undo rows below — a fixture
+ * built twice in one `it` would be a fixture a mutation run could silently leave un-mutated
+ * in one copy, which this repository has already paid for.
+ */
+function overrideAdapterFor(kind: 'quantity' | 'cost', w: Awaited<ReturnType<typeof withRequirement>>, events: RecordingEventBus) {
+	const adapter =
+		kind === 'quantity'
+			? new ReversibleSetRequirementQuantityOverrideCommand(
+					new SetRequirementQuantityOverrideCommand(w.requirements, events, w.locks),
+					w.requirements,
+					events,
+				)
+			: new ReversibleSetRequirementCostOverrideCommand(
+					new SetRequirementCostOverrideCommand(w.requirements, events, w.locks),
+					w.requirements,
+					events,
+				);
+	const input =
+		kind === 'quantity'
+			? { requirementId: w.requirementId, quantity: QUANTITY_OVERRIDE }
+			: { requirementId: w.requirementId, cost: COST_OVERRIDE };
+	return { adapter, input };
+}
+
 describe('reversible-override-commands', () => {
-	const QUANTITY_OVERRIDE = 20;
-	const COST_OVERRIDE = moneyOf('550.00', 'EUR');
+	// execute() dispatches through `ReversibleOverrideBase.run()` to the plain wrapped
+	// command's `executeWithVersion`, which already announces this figure — pre-existing,
+	// untouched by this increment, exactly as `ReversibleSetPlanBackground.execute` does.
+	it.each(['quantity', 'cost'] as const)(
+		'(%s) execute publishes CostEstimateChanged when the figure moves, via the wrapped command',
+		async (kind) => {
+			const w = await withRequirement();
+			const events = new RecordingEventBus();
+			const { adapter, input } = overrideAdapterFor(kind, w, events);
+
+			expectOk(await adapter.execute(input as never));
+
+			expect(events.published.map((event) => event.type)).toEqual(['CostEstimateChanged']);
+		},
+	);
 
 	it.each(['quantity', 'cost'] as const)('(%s) undo publishes CostEstimateChanged when the figure moves', async (kind) => {
 		const w = await withRequirement();
 		const events = new RecordingEventBus();
-		const adapter =
-			kind === 'quantity'
-				? new ReversibleSetRequirementQuantityOverrideCommand(
-						new SetRequirementQuantityOverrideCommand(w.requirements, events, w.locks),
-						w.requirements,
-						events,
-					)
-				: new ReversibleSetRequirementCostOverrideCommand(
-						new SetRequirementCostOverrideCommand(w.requirements, events, w.locks),
-						w.requirements,
-						events,
-					);
-		const input =
-			kind === 'quantity'
-				? { requirementId: w.requirementId, quantity: QUANTITY_OVERRIDE }
-				: { requirementId: w.requirementId, cost: COST_OVERRIDE };
+		const { adapter, input } = overrideAdapterFor(kind, w, events);
 		expectOk(await adapter.execute(input as never));
 		events.clear();
 

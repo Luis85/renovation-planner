@@ -24,7 +24,8 @@
  * layer list, no export filter.
  *
  * **What the walk cannot see, stated rather than claimed away** (six earlier claims of
- * completeness in this task's own history were each wrong within one round):
+ * completeness in this task's own history were each wrong within one round, and the review
+ * that approved this file's rows found three MORE the first draft of this list omitted):
  *
  * - an adapter that is not a `class` at all — an object literal or a factory return satisfying
  *   `UndoableCommand` structurally;
@@ -32,7 +33,23 @@
  *   chain rooted in such a file;
  * - a direction added to a class that already has a `rows:` disposition, if that disposition's
  *   direction list is not widened to match — the cross-check below catches only the directions
- *   a disposition already NAMES.
+ *   a disposition already NAMES;
+ * - a class EXPRESSION rather than a class DECLARATION — `const X = class {}` or
+ *   `export const Y = class Z {}` — since the regex anchors on the `class` KEYWORD starting a
+ *   statement, never on an assignment;
+ * - a declaration whose `class` keyword is not on the SAME LINE as its `export`/`default`
+ *   modifier — `export default\nclass Foo` — for the identical reason: the anchor is
+ *   line-by-line;
+ * - anything in a `.vue` file. `sourceFilesUnder` takes `.ts` only, so a class declared inside
+ *   an SFC's `<script setup>` block is invisible to this walk regardless of what its file
+ *   otherwise mentions.
+ *
+ * Two things worth keeping precise in the other direction, because they are easy to lose in
+ * an edit and the review that approved this file measured both directly: the walk DOES catch
+ * a subclass in a brand-new file whose text never contains "undo" at all, purely through the
+ * `extends` closure (a standalone `class NewAdapter extends ReversibleBase {}` is still
+ * found); and the `ReversibleSetPlanBackground` carve-out row in the census file is a
+ * BEHAVIOURAL assertion, not a comment — making that adapter's `undo()` publish reddens it.
  *
  * The census table is maintained by people; this tripwire only lowers the odds of forgetting.
  */
@@ -186,9 +203,9 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 			'inheriting execute/undo rather than declaring them',
 	),
 	'src/application/commands/requirement/reversible-override-commands.ts::ReversibleSetRequirementQuantityOverrideCommand':
-		rows(['undo'], 'reversible-override-commands (quantity)'),
+		rows(['execute', 'undo'], 'reversible-override-commands (quantity)'),
 	'src/application/commands/requirement/reversible-override-commands.ts::ReversibleSetRequirementCostOverrideCommand':
-		rows(['undo'], 'reversible-override-commands (cost)'),
+		rows(['execute', 'undo'], 'reversible-override-commands (cost)'),
 	'src/application/commands/requirement/SetRequirementQuantityOverride.ts::SetRequirementQuantityOverrideCommand':
 		notAnAdapter('plain command wrapped by the reversible quantity-override adapter'),
 	'src/application/commands/requirement/SetRequirementCostOverride.ts::SetRequirementCostOverrideCommand':

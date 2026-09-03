@@ -25,6 +25,14 @@
  *   `PlanRepository.save`, past the command, and — by design decision, not by oversight — no
  *   publish was added there, unlike its eight reversible-asset-design siblings. The table's
  *   single "execute, undo | nothing" row conflated the two.
+ *
+ * The override adapters' `execute` rows are an ADDITION over the plan's own table, made in
+ * Task 11's fix round: the plan's table named only `undo` for both, and `execute()` — which
+ * actually lives on `ReversibleOverrideBase` at line 96, dispatching through the plain
+ * wrapped command's `executeWithVersion` — was enumerated nowhere, invisible to the
+ * discovery cross-check because that check only verifies directions a disposition already
+ * NAMES. Same shape as the plan-background correction: pre-existing behaviour, via the
+ * wrapped command, untouched by this increment.
  */
 export type CensusDirection = 'execute' | 'undo';
 
@@ -57,8 +65,18 @@ export const CENSUS_TABLE: readonly CensusRow[] = [
 	},
 	{
 		module: 'reversible-override-commands (quantity)',
+		direction: 'execute',
+		mustPublish: 'CostEstimateChanged when the figure moves, via the wrapped plain command (pre-existing)',
+	},
+	{
+		module: 'reversible-override-commands (quantity)',
 		direction: 'undo',
 		mustPublish: 'CostEstimateChanged when the figure moves',
+	},
+	{
+		module: 'reversible-override-commands (cost)',
+		direction: 'execute',
+		mustPublish: 'CostEstimateChanged when the figure moves, via the wrapped plain command (pre-existing)',
 	},
 	{
 		module: 'reversible-override-commands (cost)',

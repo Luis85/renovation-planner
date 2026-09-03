@@ -55,12 +55,48 @@ import { isPlantedProbe } from '../helpers/plantedProbe';
  * source at all — held in an identifier, or assembled by concatenation — whose value exists
  * only at runtime.
  */
-const scriptsOf = (file: string, text: string): string[] => {
-	if (!file.endsWith('.vue')) return [text];
+/**
+ * The parser needs the DIALECT, not just the text. `ScriptKind.TS` parses `<div>` in a `.tsx`
+ * file as a type assertion and then an unterminated regular expression, so a dynamic
+ * `import('./theme.css')` inside JSX never becomes a `CallExpression` and the walk reports a
+ * clean tree — the silent-pass failure again, one layer inside the fix for it.
+ *
+ * **Unreachable today and admitted anyway**: there are no `.tsx` or `.jsx` files in the walked
+ * tree, but `MODULE` below lists both, so the first one written would go unscanned with nothing
+ * to say so. A gate that stops working when a permitted file type appears is worse than one that
+ * never permitted it.
+ */
+const KIND_BY_EXTENSION: ReadonlyMap<string, ts.ScriptKind> = new Map([
+	['.tsx', ts.ScriptKind.TSX],
+	['.jsx', ts.ScriptKind.JSX],
+	['.js', ts.ScriptKind.JS],
+	['.mjs', ts.ScriptKind.JS],
+	['.cjs', ts.ScriptKind.JS],
+]);
+
+/** An SFC block states its own dialect; `lang` absent means TS here, as `<script setup>` does. */
+const KIND_BY_LANG: ReadonlyMap<string, ts.ScriptKind> = new Map([
+	['tsx', ts.ScriptKind.TSX],
+	['jsx', ts.ScriptKind.JSX],
+	['js', ts.ScriptKind.JS],
+]);
+
+interface Script {
+	readonly content: string;
+	readonly kind: ts.ScriptKind;
+}
+
+const scriptsOf = (file: string, text: string): Script[] => {
+	if (!file.endsWith('.vue')) {
+		return [{ content: text, kind: KIND_BY_EXTENSION.get(path.extname(file)) ?? ts.ScriptKind.TS }];
+	}
 	const { descriptor } = parseSfc(text, { filename: file });
-	return [descriptor.script?.content, descriptor.scriptSetup?.content].filter(
-		(content): content is string => content !== undefined,
-	);
+	return [descriptor.script, descriptor.scriptSetup]
+		.filter((block): block is NonNullable<typeof block> => block !== null)
+		.map((block) => ({
+			content: block.content,
+			kind: KIND_BY_LANG.get(block.lang ?? '') ?? ts.ScriptKind.TS,
+		}));
 };
 
 const namesStylesheet = (node: ts.Node): boolean => {
@@ -74,7 +110,13 @@ const namesStylesheet = (node: ts.Node): boolean => {
 
 const importsStylesheet = (file: string, text: string): boolean =>
 	scriptsOf(file, text).some((script) => {
-		const source = ts.createSourceFile(file, script, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+		const source = ts.createSourceFile(
+			file,
+			script.content,
+			ts.ScriptTarget.Latest,
+			false,
+			script.kind,
+		);
 		let found = false;
 		const visit = (node: ts.Node): void => {
 			if (found) return;

@@ -230,9 +230,11 @@
 
 /*
  * R5's per-item severity: a mark (the border) AND a word (`.rp-warning-strip__severity`),
- * never one alone — `docs/components/Toast.md`'s "both, always, never one". Both severities get
- * their own left-border mark, `--item--error` in `--text-error` and `--item--warning` in
- * `--text-warning`, matching the colour `.rp-warning-strip__item` already applies to the text.
+ * never one alone — `docs/components/Toast.md`'s "both, always, never one". `.rp-warning-strip__item`
+ * colours its text `--text-warning` by default; `--item--error` overrides BOTH the text colour
+ * and the left-border mark to `--text-error`, so an error item's text and its border agree;
+ * `--item--warning` adds only the left-border mark, in `--text-warning`, since the base text
+ * colour is already that colour.
  */
 .rp-warning-strip__severity {
 	font-weight: var(--bold-weight);
@@ -240,6 +242,7 @@
 }
 
 .rp-warning-strip__item--error {
+	color: var(--text-error);
 	border-left: 2px solid var(--text-error);
 }
 

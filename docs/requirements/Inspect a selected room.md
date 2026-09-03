@@ -131,14 +131,16 @@ the traversal itself is measured by nothing today.
 
 **2026-09-04** — criterion 1 closed by the instrument-review task. The citation moves to
 `tests/presentation/editor/shell/roomInspector.test.ts`'s 'one real click on Kitchen: store, named
-outline, pressed list row and Inspector all carry zone-kitchen', which drives one real primary
-click through the mounted canvas — the case it replaces wrote `SelectionStore` directly and never
-crossed that boundary. Three of the four cross-surface facts are read from that one mount: the
-`SelectionStore` id, the named `.selection-outline` outline and the Inspector's `data-rp-id`. The
-fourth — the Room-list row reading pressed — cannot be read from the same mount, because
-`EntityInspector` unmounts `FloorInspector` (and with it `RoomSummaryList`) the instant a room is
-selected; it is held instead by `roomSummaryList.test.ts`'s existing 'marks the row matching the
-current selection pressed, and no other'.
+outline and Inspector all carry zone-kitchen (the pressed row is roomSummaryList.test.ts's
+case)', which drives one real primary click through the mounted canvas — the case it replaces
+wrote `SelectionStore` directly and never crossed that boundary. Three of the four cross-surface
+facts are read from that one mount: the `SelectionStore` id, the named `.selection-outline`
+outline and the Inspector's `data-rp-id`. The fourth — the Room-list row reading pressed AND
+carrying the selected stable id — cannot be read from the same mount, because `EntityInspector`
+unmounts `FloorInspector` (and with it `RoomSummaryList`) the instant a room is selected; it is
+held instead by `roomSummaryList.test.ts`'s existing 'marks the row matching the current
+selection pressed, and no other', whose `data-rp-id` assertion is what closed that fourth fact
+(fix round 1, 2026-09-04).
 
 Remains:
 

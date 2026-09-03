@@ -45,6 +45,7 @@ function isSelected(id: string): boolean {
 			<button
 				type="button"
 				class="rp-room-list__row"
+				:data-rp-id="record.id"
 				:aria-pressed="isSelected(record.id)"
 				@click="runtime.selectAndFrame(record.id)"
 			>

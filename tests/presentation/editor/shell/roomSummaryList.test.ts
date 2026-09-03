@@ -52,6 +52,12 @@ describe('RoomSummaryList', () => {
 
 		const rows = wrapper.findAll('.rp-room-list__row');
 		expect(rows.map((row) => row.attributes('aria-pressed'))).toEqual(['false', 'true']);
+		// The pressed row carries the same stable id the selection names, not merely the same
+		// ARRAY POSITION — [[The cross-surface identity test starts after selection]]'s finding
+		// that this case proved the pair by index correspondence alone, never by reading an id
+		// off the row.
+		const pressed = rows.filter((row) => row.attributes('aria-pressed') === 'true');
+		expect(pressed.map((row) => row.attributes('data-rp-id'))).toEqual(['zone-terrace']);
 	});
 
 	it('a row click asks the runtime to select and frame its own record', async () => {

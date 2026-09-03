@@ -150,10 +150,12 @@ selection" case. **2026-09-04** — §6.3 was amended to this order; it is the c
 **2026-09-04** — criteria 1, 2 and 3's evidence is replaced by three stronger cases from the
 instrument-review task. Criterion 1's evidence is
 `tests/presentation/editor/shell/roomInspector.test.ts`'s 'one real click on Kitchen: store, named
-outline, pressed list row and Inspector all carry zone-kitchen', which drives one real primary
-click through the mounted canvas rather than writing `SelectionStore` directly, and reads the
-`SelectionStore` id, the named `.selection-outline` line and the Inspector's `data-rp-id` in the
-same mount — the case it replaces never crossed the canvas-to-selection boundary. Criterion 2's
+outline and Inspector all carry zone-kitchen (the pressed row is roomSummaryList.test.ts's
+case)', which drives one real primary click through the mounted canvas rather than writing
+`SelectionStore` directly, and reads the `SelectionStore` id, the named `.selection-outline` line
+and the Inspector's `data-rp-id` in the same mount — the case it replaces never crossed the
+canvas-to-selection boundary; the pressed row's own stable id is
+`roomSummaryList.test.ts`'s case (fix round 1, 2026-09-04). Criterion 2's
 evidence is `resolveSelectionTarget.test.ts`'s 'is a function of z-order: the same ordered list
 answers the same, and reversing it makes the other body topmost', which replaces a case that
 computed both sides of its equality from the identical candidate order and so could not detect

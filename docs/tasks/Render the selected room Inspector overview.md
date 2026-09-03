@@ -56,6 +56,6 @@ frame's `<h2>` rather than a second `<h2>`, which is a heading-order decision st
 
 **2026-09-04** — criterion 1's citation moves to the click-driven case:
 `tests/presentation/editor/shell/roomInspector.test.ts`'s 'one real click on Kitchen: store, named
-outline, pressed list row and Inspector all carry zone-kitchen', for the reason
-[[The cross-surface identity test starts after selection]] gives — the case it replaces wrote
-`SelectionStore` directly and never drove a canvas click.
+outline and Inspector all carry zone-kitchen (the pressed row is roomSummaryList.test.ts's
+case)', for the reason [[The cross-surface identity test starts after selection]] gives — the
+case it replaces wrote `SelectionStore` directly and never drove a canvas click.

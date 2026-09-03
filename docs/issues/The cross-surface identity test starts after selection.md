@@ -103,6 +103,30 @@ selects. That clause is held instead by the existing
 selection pressed, and no other". Commit "test(editor): fakes that respect the id and the
 width, and six cases whose bodies now hold what their names claim".
 
+**2026-09-04, fix round 1.** Two review findings on the closure above: the first case's title
+claimed a "pressed list row" fact its own body never asserted, and the sibling case it cited for
+that fact proved only that the pressed row and the selected id shared an ARRAY POSITION, never
+that the row carried the id — `RoomSummaryList.vue`'s row had no `data-rp-id` at all. Both are
+fixed now, and the fourth cross-surface fact — the Room-list row reading pressed AND carrying
+the selected stable id — is genuinely closed:
+
+- `RoomSummaryList.vue`'s row carries `:data-rp-id="record.id"` beside its existing
+  `:aria-pressed`.
+- `tests/presentation/editor/shell/roomSummaryList.test.ts` › "marks the row matching the
+  current selection pressed, and no other" now additionally asserts that the row reading
+  `aria-pressed="true"` has `data-rp-id` equal to the selected id, and no other row does;
+  mutation-checked by decoupling `data-rp-id` from the pressed row's own id (swapping the two
+  fixture ids on the binding) — red at that new assertion specifically, with the pre-existing
+  `aria-pressed` assertion staying green, which is what proves the new assertion discriminates
+  rather than merely repeating the first; reverted.
+- The click-driven case in `roomInspector.test.ts` is retitled to what its own body proves —
+  "one real click on Kitchen: store, named outline and Inspector all carry zone-kitchen (the
+  pressed row is roomSummaryList.test.ts's case)" — and its docblock now says the sibling case
+  proves the id, not only the pressed state.
+
+Holding tests: both cases above, both green; commit "test(selection): the pressed room row
+carries its stable id, and the identity case's title matches its body".
+
 ## References
 
 - [[Inspect a selected room]]

@@ -65,15 +65,17 @@ describe('the Room Inspector, through the real mounted editor', () => {
 	 * canvas and reads the store, the named selection outline and the Inspector — three of
 	 * the design's four surfaces.
 	 *
-	 * The FOURTH — the Room-list row reading pressed — cannot be asserted in this same mount:
-	 * `EntityInspector` renders `FloorInspector` (and with it `RoomSummaryList`) only while
-	 * `selectedIds.length === 0`, so the instant this click selects Kitchen, the row this case
-	 * would read is unmounted. That clause is held instead by
-	 * `roomSummaryList.test.ts`'s existing 'marks the row matching the current selection
-	 * pressed, and no other', which selects the same stable id from the store the click above
-	 * writes to and reads `aria-pressed` on the matching row.
+	 * The FOURTH — the Room-list row reading pressed AND carrying that stable id — cannot be
+	 * asserted in this same mount: `EntityInspector` renders `FloorInspector` (and with it
+	 * `RoomSummaryList`) only while `selectedIds.length === 0`, so the instant this click
+	 * selects Kitchen, the row this case would read is unmounted. That clause is held instead
+	 * by `roomSummaryList.test.ts`'s existing 'marks the row matching the current selection
+	 * pressed, and no other', which selects the same stable id the click above writes to,
+	 * reads `aria-pressed` on the matching row, AND asserts that row's `data-rp-id` equals the
+	 * selected id — a fact `RoomSummaryList.vue`'s row carries as a `:data-rp-id="record.id"`
+	 * binding rather than merely as its array position.
 	 */
-	it('one real click on Kitchen: store, named outline, pressed list row and Inspector all carry zone-kitchen', async () => {
+	it('one real click on Kitchen: store, named outline and Inspector all carry zone-kitchen (the pressed row is roomSummaryList.test.ts\'s case)', async () => {
 		harness = await mountPlanEditorCanvas();
 		const editor = useEditorStore();
 		const inKitchen = worldToScreen({ x: 2000, y: 1500 }, editor.viewport, STAGE_PIXELS);

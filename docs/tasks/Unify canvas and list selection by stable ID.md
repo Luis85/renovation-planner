@@ -51,7 +51,7 @@ pure selection — no command, no history entry'.
 
 **2026-09-04** — criterion 1's citation moves to
 `tests/presentation/editor/shell/roomInspector.test.ts`'s 'one real click on Kitchen: store, named
-outline, pressed list row and Inspector all carry zone-kitchen', for the reason
-[[The cross-surface identity test starts after selection]] gives: the case it replaces wrote
-`SelectionStore` directly and never crossed the canvas-to-selection boundary the criterion is
-about.
+outline and Inspector all carry zone-kitchen (the pressed row is roomSummaryList.test.ts's
+case)', for the reason [[The cross-surface identity test starts after selection]] gives: the case
+it replaces wrote `SelectionStore` directly and never crossed the canvas-to-selection boundary
+the criterion is about.

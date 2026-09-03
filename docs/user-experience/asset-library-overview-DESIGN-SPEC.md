@@ -1039,7 +1039,15 @@ What differs per seam is only what makes two requests **the same request**:
   `RenovationProjectStore.hydrate`'s `latestHydration`. It is refreshed by events rather than by a
   gesture, so two arriving close together is the ordinary case rather than the fast-fingers one.
 
-- **The selection reads** are ticketed on the **selected asset**. Select A, select B before A's
+- **The selection reads** are ticketed on a **monotonically increasing generation**, bumped
+  whenever a selection read starts — for any reason, including §5.4's refresh of the SAME asset.
+  Keying on the selected asset alone was the first spelling and it is not enough, which is worth
+  spelling out because it looks sufficient: an initial read for A can still be in flight when
+  `AssetDesignChanged` starts a replacement read for A, and if the replacement lands first the
+  older answer overwrites it — both results "match the selection", so an identity check drops
+  neither. `A → B → A` has the same hole. **Identity is not monotonic**, and a ticket has to
+  answer *is this the read I am currently waiting for*, which only a counter can. The asset it is
+  ABOUT is Select A, select B before A's
   design read resolves, and A's late answer lands in B's panel: the wrong dimensions under B's
   name, and — because *Used in* governs which delete flow `Delete` opens — the wrong blast radius
   behind a destructive control. A late *failure* is the same defect wearing the other face, since
@@ -2290,6 +2298,31 @@ deletion there is.** Deleting the LAST row of a shelf that still holds earlier r
 now occupying the deleted index, and the previous surviving row where the deleted one was last.
 **Fourth correction to this chain**, and the third where the rule named the case its author
 pictured — here, deleting from the middle.
+
+A thirty-sixth round found three, and the first is a logic error in the ticket rule itself rather
+than in its prose.
+
+**Keying a selection read on the selected ASSET does not make every stale result droppable.** An
+initial read for A can still be in flight when §5.4's refresh starts a second read for A; if the
+replacement lands first, the older answer overwrites it — both results "match the selection", so
+an identity check drops neither. `A → B → A` has the same hole. **Identity is not monotonic**, and
+a ticket has to answer *is this the read I am currently waiting for*, which only a counter can.
+§5.5 specifies a generation now. Third correction to that section, and the only one that was
+wrong about the mechanism rather than about which reads it covered.
+
+**`Escape` in the search field bypassed the focus-aware clear**, two lines from the button that
+routes through it. Below 35rem a retained selection means clearing swaps the inspector back in and
+hides the shelves — including the input being typed in — so Escape left focus on a hidden element.
+The round that gave `Clear search` its focus move looked at the button and not at the key, which
+is the same partial fix this document keeps recording, at a distance of two lines this time.
+
+**And the price column is looser than the comment claimed.** The cost strings end in a column;
+their decimal points do not line up, because the unit suffix is inside the cost cell and `m²`,
+`m` and `piece` are different widths — tabular numerals cannot correct a difference that comes
+from the letters after the digits. Aligning them means separate tracks for amount and unit across
+five grid variants, for a refinement over a treatment that is ordinary and readable. **Not taken,
+and written down where the CSS is** rather than left for the next reader to discover the promise
+was looser than it sounded.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

@@ -296,6 +296,15 @@ const price = (asset: CatalogueAsset): string => {
  * after the flexible one keep the cost, the waste and the supplier each in their own column
  * down the whole shelf, which is the entire argument for a dense row over a flat one.
  *
+ * **What "a column" means here, precisely: the cost strings END in a column, and their decimal
+ * points do not line up.** The unit suffix is part of the cost cell and its width varies — `m²`
+ * against `m` against `piece` — so with the right edge fixed the amounts sit ragged inside it,
+ * and tabular numerals cannot correct a difference that comes from the letters after them.
+ * Aligning the decimals means giving the amount and the unit separate tracks: a markup change
+ * plus all five grid variants, for a refinement over a treatment — right-aligned complete
+ * prices — that is ordinary and readable. Not taken, and written here rather than left for the
+ * next reader to discover the promise is looser than it sounds. Reported by a review bot.
+ *
  * **The waste track is a FIXED width, and that is what makes the sentence above true.** Every row
  * is its own grid — no subgrid, no shared sizing — so an `auto` track sizes to ITS row's content:
  * zero on the rows with no waste factor, wider on the rest. The cost cell beside it shifts by

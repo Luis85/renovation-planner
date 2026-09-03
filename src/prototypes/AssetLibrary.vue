@@ -190,7 +190,15 @@ function select(id: string): void {
 }
 
 /**
- * Clearing a no-match search, and the focus that goes with it.
+ * Clearing the search, and the focus that goes with it.
+ *
+ * **Two gestures, one function**, which it was not: `Escape` in the field assigned `query = ''`
+ * directly, two lines from the button that routes through here, and the round that gave the
+ * button its focus move looked at the button alone. Below 35rem a retained selection means
+ * clearing swaps the inspector back IN and hides the shelves — including the input the user is
+ * typing in — so Escape left focus on a hidden element or on the document. The narrow swap is
+ * the whole reason this function exists, and the key that reaches it most naturally was the one
+ * path that skipped it.
  *
  * The `Clear search` button lives INSIDE the no-matches state, so clearing removes the very
  * control the user pressed — focus falls to the document in every layout, which is why the move
@@ -325,7 +333,7 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
 					type="search"
 					class="rp-al-search__input"
 					placeholder="Name, supplier or SKU"
-					@keydown.esc="query = ''"
+					@keydown.esc="clearSearch"
 				>
 			</label>
 			<button

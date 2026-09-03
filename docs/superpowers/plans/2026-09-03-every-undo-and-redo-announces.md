@@ -2777,6 +2777,13 @@ MSG
 
 ## Task 14: The account
 
+> **DONE** — commit `0f77fc2`. Certifying gate on a QUIET, CLEAN tree: **exit 0**, read from a
+> non-piped `; echo "EXIT:$?"` rather than through `tee` — 373 files, 5370 passed / 69 skipped,
+> 99.36/99.09/99.55/98.28. Re-run after the prose edits: exit 0, identical figures. Wrote a
+> rules-based section in `CLAUDE.md` and Amendment 1 in the Project Home spec; all five carried
+> items represented, the census's six blind spots and the `ReversibleSetPlanBackground.undo`
+> carve-out each narrowed in their own sentence.
+
 **Required first step, carried in from Task 6's review: re-run `npm run check` on a QUIET,
 CLEAN tree.** Several tasks in this increment gated while a concurrent agent was mutating
 `src/` — Task 6's reviewer observed it directly, watching `git diff HEAD --stat` grow from one
@@ -2793,7 +2800,7 @@ uncommitted, is what actually certifies the increment.
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Write the `CLAUDE.md` section**
+- [x] **Step 1: Write the `CLAUDE.md` section**
 
 A new section recording what this increment established, written as RULES rather than as a list
 of files, per this repository's own standard. At minimum:
@@ -2815,7 +2822,7 @@ of files, per this repository's own standard. At minimum:
 Update the "three workspace surfaces" style counts only if this increment moved one; it does
 not.
 
-- [ ] **Step 2: Amend the spec**
+- [x] **Step 2: Amend the spec**
 
 Add an *Amendment* section to
 `docs/superpowers/specs/2026-09-02-project-home-design.md` recording the split: Decision 7 and
@@ -2828,17 +2835,17 @@ deferral recorded in prose is a deferral nothing fires: `RequirementDeleted` and
 `RequirementRestored` are published and subscribed to by nothing, which is the exact state this
 document describes as *"a feature that reads correct in every file"*.
 
-- [ ] **Step 3: Verify every claim you wrote**
+- [x] **Step 3: Verify every claim you wrote**
 
 For each "the only place X" or count in the new prose, run the grep in the same edit and write
 the sentence from what it printed.
 
-- [ ] **Step 4: Full gate**
+- [x] **Step 4: Full gate**
 
 Run: `npm run check`
 Expected: PASS.
 
-- [ ] **Step 5: Commit and push**
+- [x] **Step 5: Commit and push**
 
 ```bash
 git add CLAUDE.md docs/superpowers/specs/2026-09-02-project-home-design.md

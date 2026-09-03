@@ -145,9 +145,6 @@ Remains, and each is recorded at the Task that owns it:
   mark and a word (R5, 2026-09-04) — but an `EditorWarning` still has no accessible heading, no busy
   state and no action, so there is nothing yet for a keyboard user to reach. See
   [[Render independent simultaneous persistent warnings]].
-- **`Ground floor has 1 rooms`.** The unsupported-width notice's body is a spec-mandated string
-  and `tr` has no plural form, so a single-room floor reads wrong. Recorded at
-  [[Keep the editor truthful across failure and narrow layouts]].
 - **No measurement of horizontal scrolling below 400px, by any instrument.** jsdom lays nothing
   out, and the only narrow capture is at 460px, which is `constrained` rather than `unsupported`.
   The manual case's step 10 opens that state and watches `Focus this tab`; its expected result
@@ -159,4 +156,3 @@ Remains, and each is recorded at the Task that owns it:
   disabled with an empty history; the Undo and redo PBI is not advanced here.
 - [[The toolbar-key retirement contract conflicts with the Asset Designer]]
 - [[Unsupported width has no horizontal-overflow check]]
-- [[The unsupported-width copy pluralizes one room as rooms]]

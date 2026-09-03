@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 90
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -70,6 +70,17 @@ that needs it, while preserving correct German copy in the same change.
 Replace the current substring assertion with exact user-visible body assertions for one and two
 rooms in both locales. The two-count contrast discriminates a real plural branch from simply
 changing `"rooms"` to `"room"`.
+
+## What closed it
+
+**2026-09-04.** `editor.unsupported-width.body` split into three keys chosen at the caller
+(R12): `.one` (`{floor}`), `.other` (`{floor}`, `{rooms}`), `.partial` (`{floor}`) — no plural
+mechanism was added to `tr`. `UnsupportedWidthNotice`'s `body` computed picks between them from
+`summary.rooms.length`. Holding test: `tests/presentation/editor/shell/responsiveShell.test.ts`
+› 'the responsive shell' › 'below the floor width replaces the canvas with a summary and a Focus
+this tab action that asks the leaf' (one room, exact body) and 'inflects the room count: two
+rooms read as rooms, in both locales' (the two-count contrast, in English and German). Commit
+"fix(shell): the unsupported-width sentence inflects one room and withholds a partial count".
 
 ## References
 

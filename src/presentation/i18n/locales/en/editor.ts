@@ -192,10 +192,15 @@ export const editorEn = {
 	'editor.rail.details': 'Details',
 	'editor.overlay.close': 'Close panel',
 	'editor.unsupported-width.headline': 'This pane is too narrow to edit the floor plan',
-	// Both holes are filled from what the editor already read — the floor's own name and how
-	// many rooms it holds — so a pane too narrow to draw still says WHICH plan it is refusing
-	// to draw. The counterpart action is the only thing this state can offer.
-	'editor.unsupported-width.body': '{floor} has {rooms} rooms. Widen the pane or focus this tab to edit.',
+	// THREE keys chosen at the caller (R12), never a plural mechanism added to `tr`: `.one` and
+	// `.other` inflect the room count English requires, and `.partial` withholds the count
+	// entirely rather than presenting a lower bound as complete — a pane too narrow to draw
+	// still says WHICH plan it is refusing to draw, and never a wrong grammar or a false total.
+	// The counterpart action is the only thing this state can offer.
+	'editor.unsupported-width.body.one': '{floor} has 1 room. Widen the pane or focus this tab to edit.',
+	'editor.unsupported-width.body.other': '{floor} has {rooms} rooms. Widen the pane or focus this tab to edit.',
+	'editor.unsupported-width.body.partial':
+		'Not every record on {floor} could be read, so its room count is unknown. Widen the pane or focus this tab to edit.',
 	'editor.unsupported-width.action': 'Focus this tab',
 	// Task 20's status bar additions. `.scale.*` says whether `PlanDto.calibration` is set — a
 	// number would need `t()`'s interpolation for a unit no homeowner reads usefully off a

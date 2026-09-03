@@ -53,6 +53,5 @@ Criterion 4's 'without horizontal scrolling' half is held by NOTHING, and by no 
 either: jsdom lays nothing out, the only narrow capture is at 460px (which is `constrained`
 rather than `unsupported`), and step 10 of [[Open a floor and select a room]] — which does open
 this state — asks the tester to watch `Focus this tab`, never to look for a sideways scrollbar.
-An earlier draft of this line named that step as the instrument; it is not one. The unsupported
-notice's own body also reads "1 rooms" for a single-room floor — a spec-mandated string, and `tr`
-has no plural form.
+An earlier draft of this line named that step as the instrument; it is not one. The body inflects
+for one room and withholds a partial count (2026-09-04, `responsiveShell.test.ts`).

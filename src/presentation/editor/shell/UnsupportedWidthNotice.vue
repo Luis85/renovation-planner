@@ -10,24 +10,36 @@
  * it is. `useFloorSummary` is the same derivation `FloorInspector` renders — one answer to
  * "what is on this floor", read here as one sentence and there as five stats and two lists.
  *
- * **`rooms.length` rather than `roomCount.value`.** They are the same number by construction —
- * `buildFloorSummary` counts one from the other — and the `Aggregate` union admits an
- * `unavailable` state that `counted()` never returns for either, so reading the aggregate here
- * would mean narrowing past a branch no test could ever take. The `partial` annotation a
- * `roomCount` can carry belongs to the Inspector, which has room to explain it; this sentence
- * is a glance.
+ * **The STATE is read, and the number still comes from `rooms.length` (R12).** `roomCount.state`
+ * says whether the count is trustworthy — `'partial'` means some of this floor's records could
+ * not be read, and the sentence withholds the number rather than presenting a lower bound as
+ * complete — while the count itself is still `rooms.length`, the same figure `roomCount.value`
+ * carries by construction. Reading the state costs nothing past the `unavailable` arm
+ * `counted()` never produces for `roomCount`: the three-way `body` below only ever asks
+ * `s.roomCount.state === 'partial'`, never `.value`, so there is no `unavailable` branch to
+ * narrow past.
  *
  * The plan may be `null` — a leaf restored into a narrow pane draws this before the first
  * hydrate lands, and a plan that is missing or unreadable never gets one at all. The headline
  * and the action hold in every one of those cases, so they render unconditionally; the body is
  * the only part that needs a floor to be about, and it is what withdraws.
  */
+import { computed } from 'vue';
 import { tr } from '../../i18n/strings';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import { useFloorSummary } from './useFloorSummary';
 
 const context = usePlanEditorContext();
 const summary = useFloorSummary();
+
+/** Three sentences for one count (R12): a partial count is OMITTED rather than presented as complete. */
+const body = computed(() => {
+	const s = summary.value;
+	if (s === null) return null;
+	if (s.roomCount.state === 'partial') return tr('editor.unsupported-width.body.partial', { floor: s.floor.name });
+	if (s.rooms.length === 1) return tr('editor.unsupported-width.body.one', { floor: s.floor.name });
+	return tr('editor.unsupported-width.body.other', { floor: s.floor.name, rooms: String(s.rooms.length) });
+});
 </script>
 
 <template>
@@ -36,10 +48,10 @@ const summary = useFloorSummary();
 			{{ tr('editor.unsupported-width.headline') }}
 		</h2>
 		<p
-			v-if="summary !== null"
+			v-if="body !== null"
 			class="rp-unsupported-width__body"
 		>
-			{{ tr('editor.unsupported-width.body', { floor: summary.floor.name, rooms: String(summary.rooms.length) }) }}
+			{{ body }}
 		</p>
 		<button
 			type="button"

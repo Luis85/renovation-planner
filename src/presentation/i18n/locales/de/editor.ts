@@ -132,8 +132,11 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.rail.details': 'Details',
 	'editor.overlay.close': 'Panel schließen',
 	'editor.unsupported-width.headline': 'Dieser Bereich ist zu schmal, um den Grundriss zu bearbeiten',
-	// The same two holes as the English, in the order German word order wants them.
-	'editor.unsupported-width.body': '{floor} hat {rooms} Räume. Vergrößern Sie den Bereich oder fokussieren Sie diesen Tab, um zu bearbeiten.',
+	// The same three keys as the English, in the order German word order wants them.
+	'editor.unsupported-width.body.one': '{floor} hat 1 Raum. Vergrößern Sie den Bereich oder fokussieren Sie diesen Tab, um zu bearbeiten.',
+	'editor.unsupported-width.body.other': '{floor} hat {rooms} Räume. Vergrößern Sie den Bereich oder fokussieren Sie diesen Tab, um zu bearbeiten.',
+	'editor.unsupported-width.body.partial':
+		'Nicht jeder Eintrag auf {floor} konnte gelesen werden, daher ist die Zahl der Räume unbekannt. Vergrößern Sie den Bereich oder fokussieren Sie diesen Tab, um zu bearbeiten.',
 	'editor.unsupported-width.action': 'Diesen Tab fokussieren',
 	'editor.status.scale.calibrated': 'Maßstab festgelegt',
 	'editor.status.scale.uncalibrated': 'Maßstab nicht festgelegt',

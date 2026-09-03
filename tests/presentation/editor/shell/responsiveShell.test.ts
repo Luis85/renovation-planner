@@ -23,6 +23,7 @@ import {
 } from '../../../helpers/editor';
 import { connectedObservers, resizeTo } from '../../../helpers/layout';
 import { click, pointer } from '../../../helpers/planEditorRig';
+import { FIXTURE_ZONES } from '../../../helpers/planFixtures';
 
 let open: EditorHarness | null = null;
 
@@ -236,11 +237,9 @@ describe('the responsive shell', () => {
 		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(false);
 		const notice = harness.wrapper.find('.rp-unsupported-width');
 		expect(notice.text()).toContain(t('en', 'editor.unsupported-width.headline'));
-		// `Ground floor` is FIXTURE_PLAN's name and `1` its only Room — the two holes the body
-		// interpolates, asserted through what the user reads rather than through the params.
-		expect(notice.text()).toContain('Ground floor');
-		expect(notice.text()).toContain('1');
-		expect(notice.text()).not.toContain('{');
+		expect(notice.find('.rp-unsupported-width__body').text()).toBe(
+			'Ground floor has 1 room. Widen the pane or focus this tab to edit.',
+		);
 
 		await notice.find('button').trigger('click');
 		expect(harness.focusedLeaf()).toBe(1);
@@ -248,6 +247,33 @@ describe('the responsive shell', () => {
 		resizeTo(harness.rootEl, 1280, 800);
 		await settle();
 		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(true);
+	});
+
+	it('inflects the room count: two rooms read as rooms, in both locales', async () => {
+		const second = { ...FIXTURE_ZONES[0], id: 'zone-pantry', name: 'Pantry' };
+		const harness = await mountPlanEditorCanvas({ zones: [FIXTURE_ZONES[0], second] });
+		open = harness;
+		resizeTo(harness.rootEl, 320, 800);
+		await settle();
+		expect(harness.wrapper.find('.rp-unsupported-width__body').text()).toBe(
+			'Ground floor has 2 rooms. Widen the pane or focus this tab to edit.',
+		);
+		expect(t('de', 'editor.unsupported-width.body.one', { floor: 'Erdgeschoss' })).toBe(
+			'Erdgeschoss hat 1 Raum. Vergrößern Sie den Bereich oder fokussieren Sie diesen Tab, um zu bearbeiten.',
+		);
+		expect(t('de', 'editor.unsupported-width.body.other', { floor: 'Erdgeschoss', rooms: '2' })).toBe(
+			'Erdgeschoss hat 2 Räume. Vergrößern Sie den Bereich oder fokussieren Sie diesen Tab, um zu bearbeiten.',
+		);
+	});
+
+	it('does not present a partial room count as complete', async () => {
+		const harness = await mountPlanEditorCanvas({ unreadableZones: 2 });
+		open = harness;
+		resizeTo(harness.rootEl, 320, 800);
+		await settle();
+		const body = harness.wrapper.find('.rp-unsupported-width__body').text();
+		expect(body).toBe(t('en', 'editor.unsupported-width.body.partial', { floor: 'Ground floor' }));
+		expect(body).not.toMatch(/has \d+ rooms?\./);
 	});
 
 	/**

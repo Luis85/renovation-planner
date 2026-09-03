@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[View rooms in the Standard Plan View]]"
 order: 10
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -65,6 +65,18 @@ The smallest fix is to render from `summary.roomCount` and preserve its `partial
 sentence, or omit the count when the sentence cannot carry that qualification. The smallest test
 extends `responsiveShell.test.ts` with `unreadable > 0` and asserts that the unsupported-width
 body does not present the readable count as an unqualified complete total.
+
+## What closed it
+
+**2026-09-04.** `UnsupportedWidthNotice`'s `body` computed reads `summary.roomCount.state`
+before it reads a count at all: `'partial'` renders `editor.unsupported-width.body.partial`,
+which withholds the number entirely rather than presenting `rooms.length` as a complete total.
+The count itself is still `rooms.length` in the other two arms — the same figure `roomCount`
+carries by construction — so no `unavailable` branch had to be narrowed past. Holding test:
+`tests/presentation/editor/shell/responsiveShell.test.ts` › 'the responsive shell' › 'does not
+present a partial room count as complete' (`unreadableZones: 2`, body equals the `.partial` key
+and never matches `/has \d+ rooms?\./`). Commit "fix(shell): the unsupported-width sentence
+inflects one room and withholds a partial count".
 
 ## References
 

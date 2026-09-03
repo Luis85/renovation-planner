@@ -1489,8 +1489,18 @@ git add -A && git commit -m "feat: the asset library inspector, its four section
 
 **Files — CORRECTED AT `1d2f2a25`, because three of the four entries below were written before
 Tasks 12 and 13 shipped and are stale in the direction that matters:**
-- Create: `styles/asset-library-inspector.css` — the ONE new partial. Its `@import` goes after
-  `asset-shelf.css`'s, which is currently the last line of `styles/index.css`.
+- Create: NOTHING. **This entry said `styles/asset-library-inspector.css` and Task 14 shipped it**
+  (`aae0a4fa`, 288 lines, imported at `styles/index.css:40`), forced rather than chosen: promotion
+  turned the prototype's classes into a real component's and `tests/build/prototype-styles.test.ts`
+  reddens on a class NEITHER home declares, so the partial had to exist in the same commit as the
+  component. Recorded rather than quietly absorbed, because a task whose Files list is wrong in
+  the CREATE direction is one whose implementer overwrites shipped work.
+- **So this task's real job on that file is to READ it and fix what it cannot have got right.**
+  Nothing has RENDERED it — the container holds no pinned Chromium — and Task 14's own report
+  names three of this repository's recorded rendering defect classes as live in it: a third
+  `space-between` child moving its siblings out of column (three surfaces have now shipped that
+  one), a `:last-child` separator, and `:focus-visible` on the controls. `npm run harness` with
+  an eye is the instrument; a text assertion over the stylesheet is what keeps a fix.
 - Modify: `styles/asset-library.css` (Task 13 created it; it holds `.rp-al-shelves`'s
   `container: rp-al-shelves / inline-size` declaration, which both of `asset-shelf.css`'s
   container queries key off), `styles/asset-mark.css` and `styles/asset-shelf.css` (Task 12

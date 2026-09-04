@@ -2179,6 +2179,27 @@ was WITHDRAWN instead. The rule that generalises is structural rather than lexic
 
 > **A census command belongs in a different file from the one it counts.**
 
+**A REFINEMENT EARNED IN THE LAST TASK, because "name the thing" has its own failure mode.**
+Naming beats counting — a count is wrong on the next insertion, a name survives every edit that
+does not delete its subject. But **a name can point at the wrong thing**, and that failure is
+quieter than a stale count, because a plausible name reads as verified where an off-by-two
+distance at least looks like arithmetic somebody could check. Task 18's fix round replaced a
+positional pointer with the DETERMINISM rule ("pick the contender the next full rebuild would
+pick") when the sentence actually rested on the sole-survivor rule — a real paragraph, correctly
+named, and the wrong one.
+
+**What caught it is the rule this section already states, working on a claim that was not
+numeric:** it ran the grep for the phrase it had just quoted, got **0**, and — instead of
+shrugging at a zero — re-read the source to explain it. The zero turned out to be a line wrap
+rather than an absence, and explaining it is what surfaced the wrong attribution. So:
+
+> **Run the command your sentence quotes, and when it returns nothing, explain the nothing.**
+> A zero is a finding, not a non-finding.
+
+That is the strongest form of the quoted-command pass on this branch: five of its instances were
+caught by an author before commit, and this one caught a SEMANTIC error rather than a numeric
+one.
+
 **AND ITS SIBLING, EARNED FOUR GENERATIONS DEEP ON ONE CLAIM — re-found a drifting claim on
 something a GATE holds.** A sentence about the state of a test suite goes stale whenever the
 suite moves, and nobody re-runs it; the correction inherits the authority of being a correction

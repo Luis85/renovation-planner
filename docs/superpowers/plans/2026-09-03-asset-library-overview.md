@@ -2196,6 +2196,30 @@ rather than an absence, and explaining it is what surfaced the wrong attribution
 > **Run the command your sentence quotes, and when it returns nothing, explain the nothing.**
 > A zero is a finding, not a non-finding.
 
+**AND THE PAIR THAT CLOSED THE PLAN, earned on its very last finding.** Seventeen instances in,
+the class produced a sub-shape none of the earlier rules could catch: not a count, not a
+coordinate, not a positional pointer, but a claim about a MECHANISM — *"`debounceMs: 0` is what
+puts the delete event inside `trashFile`'s await"*. The behaviour was real and the setting was
+real; **the arrow between them was invented.** `VaultChangeAdapter.onDelete` calls `processPath`
+unconditionally and never reads `debounceMs` at all.
+
+> **A sentence attributing a behaviour to a cause is checked by reading the CAUSE, not the
+> behaviour.**
+
+And then the fix for it produced the same defect one layer in, which is what gives the rule its
+second half. Having correctly moved the attribution to the create half, the implementer *guessed*
+the consequence — "sits on a timer nothing flushes" — and only found the truth by taking the
+setting away and running it: with `debounceMs: 500` the rollback case **fails**, because that
+file's environment has no `window` and `enqueue`'s non-zero arm calls `window.setTimeout`, so it
+throws out of the override and the compensation never runs. Blunter than the guess, and
+different.
+
+> **A sentence saying what would happen WITHOUT a cause is checked by taking it away and running
+> it.**
+
+Both wrong drafts are kept in that docblock rather than tidied away, which is the right instinct:
+the reader who most needs the rule is the one about to write the third draft.
+
 That is the strongest form of the quoted-command pass on this branch: five of its instances were
 caught by an author before commit, and this one caught a SEMANTIC error rather than a numeric
 one.

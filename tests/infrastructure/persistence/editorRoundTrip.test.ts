@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, parseFrontmatter } from '../../helpers/vault';
-import { expectFound, expectOk } from '../../helpers/domain';
+import { expectFound, expectOk, RecordingEventBus } from '../../helpers/domain';
 import { makePlan, makeProject, makeZone } from '../../helpers/entities';
 import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../src/domain/zone/ZoneId';
 import { createPolygon } from '../../../src/core/geometry/Polygon';
+import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
 
 /**
  * WP0's round-trip instrument (design spec §2.5): a Project, a Plan and a Room-classified
@@ -98,6 +99,50 @@ describe('editor round trip: Project, Plan and a Room-classified Zone', () => {
 		expect(frontmatter['zone-type']).toBe('room');
 		expect(frontmatter['name']).toBe('Kitchen');
 		expect(Object.keys(frontmatter)).not.toContain('kind');
+		expect(Object.keys(frontmatter)).not.toContain('room');
+	});
+
+	it('round-trips a rectangle created through CreateZoneCommand as a polygon under one id', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		const planId = createPlanId();
+		expectOk(await stack.projects.save(makeProject({ id: projectId, name: 'Willow House' }), 'absent'));
+		expectOk(await stack.plans.save(makePlan({ id: planId, projectId, name: 'Ground floor' }), 'absent'));
+
+		const command = new CreateZoneCommand(stack.zones, stack.plans, new RecordingEventBus());
+		const geometry = expectOk(
+			createPolygon([
+				{ x: 1000, y: 2000 },
+				{ x: 5200, y: 2000 },
+				{ x: 5200, y: 5800 },
+				{ x: 1000, y: 5800 },
+			]),
+		);
+		const created = expectOk(
+			await command.execute({ planId, name: 'Kitchen', zoneType: 'Room', geometry }),
+		).zone;
+
+		const read = expectFound(await stack.zones.getById(created.entity.id));
+		expect(read.entity.id).toBe(created.entity.id);
+		expect(read.entity.name).toBe('Kitchen');
+		expect(read.entity.zoneType).toBe('Room');
+		expect(read.entity.geometry.points).toEqual([
+			{ x: 1000, y: 2000 },
+			{ x: 5200, y: 2000 },
+			{ x: 5200, y: 5800 },
+			{ x: 1000, y: 5800 },
+		]);
+		expect(expectOk(read.entity.area())).toBe(15_960_000);
+
+		const path = stack.index.getPath(created.entity.id as never);
+		if (path === undefined) throw new Error('zone note not indexed');
+		const file = stack.vault.getAbstractFileByPath(path) as never;
+		const frontmatter = parseFrontmatter(await stack.vault.read(file)).frontmatter;
+		// `zoneMapper.zoneToPersistence` writes `toKebab(zone.zoneType)`, matching the
+		// existing `makeZone` case above rather than a second derivation of the spelling.
+		expect(frontmatter['zone-type']).toBe('room');
+		expect(Object.keys(frontmatter)).not.toContain('width');
+		expect(Object.keys(frontmatter)).not.toContain('depth');
 		expect(Object.keys(frontmatter)).not.toContain('room');
 	});
 

@@ -2520,7 +2520,7 @@ git commit -m "feat(shell): warnings as a keyed collection; the status bar says 
 
 **Files:**
 - Modify: `tests/harness/page.ts`, `tests/harness/planEditor.ts` (`mountPlanEditorHarness` gains `{ select?: string; add?: boolean }` options read from the URL), `scripts/harness-shot.mjs` (`SHOTS`), `tests/harness/harness.test.ts` (the fixed-shot presence case)
-- Test: `tests/harness/harness.test.ts`
+- Test: `tests/harness/harness.test.ts` (the fixed-shot inventory case) and `tests/harness/harnessSurfaces.test.ts` (the `?select` mount case — it lived in `harness.test.ts` until the merge of the publishing increment put that file over its 450-line cap, and the two editor-surface blocks moved out together)
 
 **Interfaces:**
 - `?view=plan-editor&select=harness-kitchen` mounts the editor and, once `ready`, calls `runtime.selectAndFrame('harness-kitchen')` — through the store the view's Vue tree provides (`mountPlanEditorHarness` can `await settleUntil(() => document.querySelector('.rp-room-list__row') !== null)` and then click the row whose text matches, which drives the REAL door rather than reaching into the runtime). `?view=plan-editor&add` clicks the Add button after ready.

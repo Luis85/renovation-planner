@@ -204,6 +204,8 @@ export async function rig(seed?: (repos: {
 		// real editor would pass against a zone nothing references.
 		deleteZone: makeDeleteZoneCommand(zonesRepo, events, requirementsRepo, locks, projects),
 		zones: zonesRepo,
+		// The same dispatching bus every command above already publishes on.
+		events,
 		zoneInspector: new GetZoneInspector(zonesRepo),
 		// A FACTORY, as the interface requires, and one that REFUSES TO BE USED — deliberately,
 		// loudly, and after two rounds of trying to make it work.

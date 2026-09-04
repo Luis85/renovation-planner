@@ -6,8 +6,10 @@ import type {
 } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import { UNIT_KIND } from '../../../core/units/MeasurementUnit';
+import type { EventBus } from '../../../core/events/EventBus';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
+import { requirementCreated, requirementDeleted } from '../../../domain/requirement/Requirement.events';
 import type { AssetRepository } from '../../ports/AssetRepository';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
@@ -66,6 +68,14 @@ export interface ReversibleAssignDeps {
 	readonly zones: ZoneRepository;
 	readonly assets: AssetRepository;
 	readonly locks: ReferenceLocks;
+	/**
+	 * The bus BOTH silent halves announce on. `execute()`'s first call needs none — the
+	 * plain `AssignAssetCommand` it dispatches publishes `RequirementCreated` itself — but
+	 * `redoCreate` writes straight through `requirements.save`, past that command, and
+	 * `undo` writes straight through `requirements.delete`: neither had a bus to reach
+	 * until this adapter was constructed in `presentation/` with nowhere to get one.
+	 */
+	readonly events: EventBus;
 }
 
 export class ReversibleAssignAssetCommand {
@@ -111,6 +121,16 @@ export class ReversibleAssignAssetCommand {
 		// recalculation landed since is a conflict, not a casualty.
 		const deleted = await this.deps.requirements.delete(recorded.snapshot.id, recorded.version);
 		if (isErr(deleted)) return err(deleted.error);
+		// Held by the type, not by a behavioural guard: the 'found' member of the `outcome`
+		// field's union, declared above, carries no `snapshot`, and the early return above is
+		// what narrows `recorded` to the 'created' arm — the only shape `recorded.snapshot`
+		// compiles against, at the delete above and the publish below. Moving this publish
+		// above that return does not merely fail a test; it does not compile
+		// (`recorded.snapshot` becomes a `TS2339` on the union), which is why no test covers
+		// this and none is owed.
+		await this.deps.events.publish(
+			requirementDeleted({ requirementId: recorded.snapshot.id, projectId: recorded.snapshot.projectId }),
+		);
 		return ok('wrote');
 	}
 
@@ -152,6 +172,31 @@ export class ReversibleAssignAssetCommand {
 			// Only the ID is carried over; validity was just re-established.
 			const saved = await this.deps.requirements.save(recorded.snapshot, 'absent');
 			if (isErr(saved)) return err(saved.error);
+			// The recorded VERSION must move to this save's own — the snapshot's own id is
+			// stable across redo, but a stale version here is what a bare publish-without-fix
+			// would leave standing: on execute -> undo -> redo -> undo, the second undo would
+			// present the FIRST execute's version as `expected`. Measured against
+			// `VersionedStore`, the store the four-operation test below drives, that stale
+			// pair refuses as an external modification — `checkExpectedVersion` compares
+			// revision then observation token, the revision resets to 1 after a delete in
+			// both stores alike, and `VersionedStore.mint()` is a monotonic counter, so a
+			// redo always mints a fresh token and the stale pair's token differs. The Obsidian
+			// repository derives its token from the note's own frontmatter digest instead, and
+			// a redo writes byte-identical frontmatter, so both halves of the stale pair
+			// coincide there and the unfixed second undo would have SUCCEEDED against a vault,
+			// silently deleting a row a later gesture had recreated. The fix stays regardless:
+			// it is the invariant `ReversibleDeleteZoneCommand.undo` already states where it
+			// advances its own `snapshot` from `restored.value`, and the frontmatter
+			// coincidence it closes breaks the moment the index is stale.
+			this.outcome = { kind: 'created', snapshot: recorded.snapshot, version: saved.value.version };
+			// Created rather than Restored: the save above presents 'absent', so this is a
+			// re-creation of a row undo removed, not a restore of one merely edited — the same
+			// split `deleteResolution.compensate` and `undoDeleteResolution` both compute
+			// (`entry.outcome === 'written'` restores, `'absent'` re-creates), stated in full on
+			// `RequirementRestored`'s own docblock.
+			await this.deps.events.publish(
+				requirementCreated({ requirementId: saved.value.entity.id, projectId: saved.value.entity.projectId }),
+			);
 			return ok({ requirementId: saved.value.entity.id, outcome: 'wrote' });
 		} finally {
 			release();

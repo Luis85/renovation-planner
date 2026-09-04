@@ -5,11 +5,13 @@ import { ReversibleCreateZoneCommand } from '../../../../src/application/command
 import { ReversibleDeleteZoneCommand } from '../../../../src/application/commands/zone/reversible-delete-zone-command';
 import { SessionWriteLedger, type WriteLedger } from '../../../../src/application/editor/WriteLedger';
 import { InMemoryPlanRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { InMemoryRequirementRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
 import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import type { PersistenceError } from '../../../../src/core/errors/AppError';
 import type { ZoneRepository } from '../../../../src/application/ports/ZoneRepository';
 import { makeDeleteZoneCommand, zoneUndoDeps } from '../../../helpers/slice10';
 import { RecordingEventBus, expectErr, expectOk } from '../../../helpers/domain';
+import { recorder } from '../../../helpers/logger';
 import { makePlan, makeZone, squareAt } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
@@ -34,9 +36,9 @@ async function wiredCreateAdapter(zones?: ZoneRepository) {
 	const command = new ReversibleCreateZoneCommand(
 		new CreateZoneCommand(zoneRepo, plans, events),
 		makeDeleteZoneCommand(zoneRepo, events),
-		zoneRepo,
 		ledger,
 		{ planId: plan.id, name: 'Living room', zoneType: 'Room', geometry: squareAt() },
+		{ zones: zoneRepo, events, requirements: new InMemoryRequirementRepository(), logger: recorder },
 	);
 	return { plan, zoneRepo, command };
 }

@@ -85,6 +85,7 @@ export class DeleteAssetCommand
 				entityKind: 'asset',
 				logger: this.ops.logger,
 				notify: this.ops.notify,
+				events: this.ops.events,
 				listReferents: () => this.ops.requirements.listByAsset(input.assetId),
 				loadEntity: async () => await this.ops.assets.getById(input.assetId),
 				deleteEntity: (expected) => this.ops.assets.delete(input.assetId, expected),

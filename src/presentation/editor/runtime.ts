@@ -163,13 +163,18 @@ function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): vo
 					const command = new ReversibleCreateZoneCommand(
 						context.commands.createZone,
 						context.commands.deleteZone,
-						context.commands.zones,
 						ledger,
 						{
 							planId,
 							name: `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
 							zoneType: 'Room',
 							geometry,
+						},
+						{
+							zones: context.commands.zones,
+							events: context.commands.events,
+							requirements: context.commands.requirementEdits.requirements,
+							logger: context.commands.logger,
 						},
 					);
 					// An adapter rather than the command itself: `createdZoneId` is the

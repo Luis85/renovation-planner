@@ -66,8 +66,31 @@ async function collidingVault() {
  * Obsidian raises — the rig `assetDeleteCompensation.test.ts` established, for the same reason:
  * a hand-written `index.remove(...)` would encode one reader's idea of the delete arm.
  *
- * `debounceMs: 0` is what puts the delete event INSIDE `trashFile`'s own await, which is the
- * ordering that used to undo the promotion it had just made.
+ * **Which of the two settings does what, read off `VaultChangeAdapter` rather than inferred from
+ * the behaviour.** `onDelete` calls `processPath` directly and never reads `debounceMs` — the
+ * only reader is `enqueue`, which `onCreate`, `onModify` and both arms of `onRename` go through
+ * (`grep -n "debounceMs"` on that file prints its declaration and two lines, both inside
+ * `enqueue`) — so a delete is
+ * synchronous whatever the debounce says. What puts the delete INSIDE `trashFile`'s own await is
+ * the `vault.delete` override below, which raises the event after removing the file and before
+ * the awaited call returns; that is the ordering which used to undo the promotion it had just
+ * made. `debounceMs: 0` earns its place on the CREATE half instead, and for a blunter reason
+ * than "sooner": it keeps `enqueue` — the only reader, reached by `onCreate` and `onModify` — on
+ * its SYNCHRONOUS branch, and the other branch calls `window.setTimeout`. This file's
+ * environment has no `window` — `vitest.config.ts` sets `environment: 'node'` and nothing here
+ * opts out; `branches.test.ts` stubs one to reach that branch at all. Measured with `debounceMs: 500`: the restore's `vault.create` in the rollback
+ * case raises `onCreate`, `enqueue` throws on the absent `window`, the throw leaves the override
+ * and `restoreNoteText` reports failure — `asset.delete-compensation-failed` in the log, and the
+ * case fails with the loser still holding the id.
+ *
+ * **Two earlier drafts of this paragraph got the arrow wrong in two different directions**, which
+ * is why it is this long. The first gave the delete ordering to `debounceMs: 0`; the setting and
+ * the behaviour were both real and the arrow between them was invented, and reading `onDelete` —
+ * where `debounceMs` does not appear at all — is the only thing that could have caught it. The
+ * second corrected the attribution and then guessed at the CONSEQUENCE, saying the create merely
+ * "sits on a timer nothing flushes", which is what `enqueue` says and not what happens here.
+ * A sentence attributing a behaviour to a cause is checked by reading the cause; a sentence
+ * saying what would happen WITHOUT the cause is checked by taking it away and running it.
  */
 function withPipeline(stack: RepositoryStack): void {
 	const adapter = new VaultChangeAdapter({
@@ -143,8 +166,9 @@ describe('a duplicate-id delete the pipeline never hears about', () => {
 
 describe('a duplicate-id delete driven by a command', () => {
 	/**
-	 * The brief's ordering #1: `trashFile` is awaited, the delete event is handled inside that
-	 * await, and the promotion it makes used to be undone by the `index.remove(id)` that follows.
+	 * The brief's ordering #1: `trashFile` is awaited, this rig's `vault.delete` override raises
+	 * the delete event inside that await, and the promotion it makes used to be undone by the
+	 * `index.remove(id)` that follows.
 	 * `forgetTrashedNote` is what closes it — the entry goes only while the id still names the
 	 * path this delete trashed.
 	 */

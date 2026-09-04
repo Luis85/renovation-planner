@@ -207,6 +207,14 @@ const runOptions: Parameters<typeof axe.run>[1] = {
 	rules: Object.fromEntries(LAYOUT_DEPENDENT_RULES.map((id) => [id, { enabled: false }])),
 };
 
+/** A mounted Plan Editor with `draw-room` already active, for Task 13's four scans below. */
+async function mountWithDrawRoom(): Promise<EditorHarness> {
+	const mounted = await mountPlanEditor();
+	runtimeOf(mounted).setTool('draw-room');
+	await settle();
+	return mounted;
+}
+
 /** One state of the index, scanned and torn down — the mount must not outlive the scan. */
 /**
  * `document.body`, not the wrapper's own element.
@@ -827,6 +835,95 @@ describe('axe against the mounted view', () => {
 			expect(mounted.wrapper.find('.rp-empty-state__action').exists()).toBe(true);
 
 			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 13, scan 1: the New Room form (design spec §2.3, §5.1) with a VALID draft — the
+	 * persistent column Task 8 gives the `full` layout, never yet scanned by this file. The
+	 * `aria-disabled="false"` half proves the button is really in the valid state this case
+	 * names, not merely present.
+	 */
+	it('reports no semantic violations on the New Room form with a valid draft', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountWithDrawRoom();
+			runtimeOf(mounted).roomDraft.setRect({ x: 0, y: 0, width: 4200, depth: 3800 });
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-new-room').exists()).toBe(true);
+			expect(mounted.wrapper.find('button.rp-new-room__create').attributes('aria-disabled')).toBe('false');
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Scan 2: the same form with a REFUSED width — `FieldError`'s `aria-invalid`/
+	 * `aria-describedby` pairing driven onto a genuinely invalid control, where every other
+	 * `FieldError` case in this file mounts clean.
+	 */
+	it('reports no semantic violations on the New Room form with a refused width', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountWithDrawRoom();
+			await mounted.wrapper.find('input[name="width"]').setValue('abc');
+			await mounted.wrapper.find('input[name="width"]').trigger('blur');
+			await settle();
+
+			expect(mounted.wrapper.find('input[name="width"][aria-invalid="true"]').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Scan 3: the temporary task banner (Task 18, widened by Task 8) under `draw-room`, with
+	 * its Finish button — a second door onto `runtime.createRoom()` this file has not scanned.
+	 */
+	it('reports no semantic violations on the temporary task banner with its Finish button', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountWithDrawRoom();
+
+			expect(mounted.wrapper.find('button.rp-task-banner__finish').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Scan 4: the `constrained` layout's Inspector drawer holding the New Room form — the
+	 * same resize-then-rail-click recipe the existing drawer case above uses.
+	 */
+	it('reports no semantic violations on the constrained Inspector drawer with the New Room form open', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountWithDrawRoom();
+			resizeTo(mounted.rootEl, 460, 800);
+			await settle();
+			await mounted.wrapper.find('[data-rp-rail="details"]').trigger('click');
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-inspector-drawer .rp-new-room').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
 			expect(results.violations).toEqual([]);
 		} finally {
 			mounted?.unmount();

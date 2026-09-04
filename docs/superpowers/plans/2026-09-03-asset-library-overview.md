@@ -1994,6 +1994,21 @@ that explains the extra line — the first survives the next edit and the second
 
 **Added mid-execution, by ruling, after Task 2's review.** It is last because it is a decision about who owns *"an id was vacated"* rather than a defect in Task 2 — and because the asset library's repair strip is what makes it observable end to end, so it wants the surface to exist first.
 
+**INHERITED FROM TASK 16b, measured and handed over rather than discovered: `rowPositionOf`
+addresses a row by `[data-asset-id]`.** §3.5's post-deletion focus rule places the caret on the
+row now occupying the deleted row's index, and `shelfFocus.ts` finds that row by its
+`data-asset-id` attribute. **If your decision lets two rows carry one id, that selector answers
+the FIRST of them and the focus rule silently places the caret relative to the wrong row** — no
+error, no failing test, and a keyboard user lands somewhere unrelated to what they deleted. It is
+the one place the library surface's own code holds an opinion a duplicate id can falsify, and it
+was found by Task 16b's implementer looking for exactly that rather than by any gate.
+
+Two things narrow it before you plan around it. Reassignment already REFUSES on this surface for
+every vault this task is about — `asset.listing-incomplete`, because a duplicate-id loser is a
+skipped note — so the reachable damage today is the focus placement rather than a wrong write.
+And the remedy depends on what you decide a duplicate delete MEANS, which is this task's opening
+question, so do not fix it before answering that.
+
 **Spec:** §5.1a's promotion rule, lines 1021–1040.
 
 **Files:**

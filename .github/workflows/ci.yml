@@ -100,9 +100,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Node 24, NOT the 22 floor the Windows leg runs, and the reason is the npm that
+      # comes bundled with it. Node 22 ships npm 10, which still FALLS BACK from the bulk
+      # advisory endpoint to the registry's legacy `/-/npm/v1/security/audits/quick` when
+      # the bulk request fails — and that endpoint is being retired (brownouts since
+      # 2026-04-15, gone for good 2026-07-15). Measured on PR #66, 2026-09-04: one transient
+      # bulk failure sent npm 10 down the fallback, the retired endpoint answered 400
+      # "Invalid package tree", the job spent five minutes getting there, and a re-run of
+      # the same commit and the same lockfile passed. npm 11 (bundled from Node 24.0)
+      # dropped the fallback, so a bulk failure fails FAST and names itself, and a
+      # retired endpoint is not on its path at all.
+      #
+      # An advisory is a fact about the lockfile, not about the runtime, so the Node major
+      # here changes nothing about WHAT is audited — only which npm asks. Chosen over
+      # `npm install -g npm@latest` because it costs no network round trip and pins to
+      # what setup-node resolves rather than to whatever the registry serves that day.
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
 
       # No install: `npm audit` reads package-lock.json and asks the registry — it never
       # touches node_modules, so an `npm ci` here would be a minute of work whose output

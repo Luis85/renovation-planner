@@ -371,6 +371,29 @@ describe('what the cursor says the pointer will do', () => {
 		harness.unmount();
 	});
 
+	/**
+	 * The room tool's press anchors the rectangle at the exact world point it lands on
+	 * (`DrawRoomTool.pointerDown`), which is the whole of what `PRECISE_TOOLS` selects for —
+	 * so it gets the crosshair the polygon tool and the calibration tool already get.
+	 *
+	 * A REGRESSION case rather than a new promise: the empty state's "Add a room" button used
+	 * to run `setTool('draw-polygon')` and now routes through `activateCreationEntry('room')`,
+	 * so the same button quietly stopped changing the cursor.
+	 *
+	 * What this case CANNOT see is the cursor: jsdom resolves no styles, so it asserts the
+	 * class and `styles/editor-cursors.css` maps it to `crosshair` under no gate at all.
+	 * `docs/tests/cases/Canvas Navigation.md` is the only instrument for the keyword itself.
+	 */
+	it('is precise while the room tool is active', async () => {
+		const { harness, canvas } = await editor();
+
+		activateTool(harness, 'draw-room');
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-precise']);
+		harness.unmount();
+	});
+
 	it('lets the camera outrank the drawing tool, matching what the routing does', async () => {
 		// The precedence that matters: space held DURING a draw pans, so the cursor must
 		// promise a pan and not a vertex. The routing already behaves this way; a cursor

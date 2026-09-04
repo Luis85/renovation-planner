@@ -160,10 +160,26 @@ function syncPanPhase(): void {
  * Tools whose click places a point at an exact spot, and which therefore want a crosshair
  * rather than an arrow. A LIST rather than a `tool.cursor` member on `EditorTool`, because
  * the alternative widens the tool interface every implementation must satisfy for the sake
- * of a presentational detail two of them care about — and `ToolManager`'s own contract is
+ * of a presentational detail three of them care about — and `ToolManager`'s own contract is
  * that the framework knows no tool by name, which this file is not part of.
+ *
+ * **`draw-room` is on it and is deliberately NOT on `CONSTRAINING_TOOLS`, which is a
+ * different question with a different answer** — said here because two lists over the same
+ * ids, one naming a tool and the other not, otherwise reads as one of them having forgotten
+ * it. This list asks whether the click lands on a POINT: `DrawRoomTool.pointerDown` anchors
+ * the rectangle at the exact world point of the press, so it does. That list asks whether
+ * Shift's angle constraint applies, and for an axis-aligned rectangle there is no free
+ * direction to constrain, so it does not.
+ *
+ * This file is not in the Add Room increment's diff, which is why nothing pointed at it: the
+ * empty state's own action moved from `setTool('draw-polygon')` to
+ * `activateCreationEntry('room', …)`, so the SAME button quietly stopped changing the cursor
+ * — a regression rather than a gap. `canvasNavigation.test.ts`'s 'is precise while the room
+ * tool is active' is what would notice it going again; that the class resolves to
+ * `crosshair` is checked by nothing here at all (`styles/editor-cursors.css` says so where
+ * the keyword is, and `docs/tests/cases/Canvas Navigation.md` is the instrument).
  */
-const PRECISE_TOOLS: readonly ToolId[] = ['draw-polygon', 'calibrate'];
+const PRECISE_TOOLS: readonly ToolId[] = ['draw-polygon', 'draw-room', 'calibrate'];
 
 /**
  * The ONE cursor class on the canvas, and the place the precedence between the camera and

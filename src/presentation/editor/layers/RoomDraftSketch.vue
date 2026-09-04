@@ -12,6 +12,43 @@
  * converge on `useRoomDraftStore().rect` (spec §2.2). Routing that through `RenderState` as
  * well would be a second place the two surfaces have to agree, for no reader this layer has
  * that `RenderState` does not already serve. It writes nothing and dispatches nothing.
+ *
+ * **The template's ONE `<VGroup>` root, always mounted, is a correctness requirement rather
+ * than a wrapper — and it took two separate measurements to arrive at, because the obvious
+ * half of it is not the half that bites.** vue-konva orders a layer's children by walking the
+ * LAYER's own subtree and resolving each vnode to a Konva node (`I`/`B`/`R`, `vue-konva.mjs`
+ * 3.4.0), then `a.forEach((node, i) => node.setZIndex(i))`. Two things follow, and this
+ * component was on the wrong side of both: the draft's dashed outline and its two labels drew
+ * OVER the selection outline and its vertex handles, which `keepAdding` reaches on the first
+ * drag after a room is created.
+ *
+ * - **A FRAGMENT root is unresolvable.** `B` does not descend into a slotless component
+ *   vnode's `children` — that is `null` — so it asks `R` for the component's own node, and
+ *   `R` answers `component.__konvaNode || R(component.subTree)`. A root that is three
+ *   siblings, or a single `<template v-if>` around them (which compiles to the same Fragment),
+ *   has a subTree whose `.component` is `null`, so `R` answers `null`, the nodes are left out
+ *   of the ordering array entirely, and the parent walk that attached them leaves them at the
+ *   END for good. Nothing is logged either: `W` reports an unresolvable child only when
+ *   `el.tagName` is set, and a Fragment's `el` is a Text anchor with none. A Group's node IS
+ *   resolvable, so it takes this component's place in the array at the position
+ *   `InteractionLayer` mounts it. **Hoisting the `v-if` to the call site does not fix this**
+ *   — measured, not reasoned: with three roots each carrying their own `v-if` the ordering
+ *   case in `roomDraftSketch.test.ts` failed at the identical index.
+ * - **And the group may not carry the `v-if` itself, because the ordering pass runs on the
+ *   LAYER's `onUpdated`.** A rectangle appearing re-renders only THIS component, and Vue runs
+ *   a parent's update job before a child's — so the layer's reindex has already happened by
+ *   the time the group is created, and the new group is appended at the end until something
+ *   else happens to re-render the layer. Measured both ways: with the `v-if` on the group,
+ *   drafting after a selection settled left it at index 5 of 6, and only a later selection
+ *   change moved it to 0. Mounted unconditionally, the group is created inside the layer's own
+ *   first render pass, so its index is right from then on and the `v-if` on its CHILDREN is
+ *   what makes this component draw nothing before a rectangle exists.
+ *
+ * The group is an IDENTITY transform — no `x`, `y`, `scale` or `rotation` — so the
+ * screen-space coordinates `geometry` computes below reach Konva unchanged, which is what the
+ * existing `points()` assertion in that same file holds. `listening: false` matches every node
+ * here and the layer above them (SDD §62). Its whole cost when no draft exists is one empty
+ * Konva node, which draws nothing and is what reserves the position.
  */
 import { computed } from 'vue';
 import { useRoomDraftStore } from '../add/room-draft-store';
@@ -95,40 +132,42 @@ const geometry = computed<RoomDraftGeometry | null>(() => {
 </script>
 
 <template>
-	<template v-if="geometry !== null">
-		<VLine
-			:config="{
-				name: 'room-draft',
-				points: geometry.outlineFlat,
-				closed: true,
-				stroke: props.tokens.accent,
-				strokeWidth: 1.5,
-				dash: [4, 4],
-				strokeScaleEnabled: false,
-				listening: false,
-			}"
-		/>
-		<VText
-			:config="{
-				name: 'room-draft-label',
-				text: geometry.widthLabel.text,
-				x: geometry.widthLabel.x,
-				y: geometry.widthLabel.y,
-				fontSize: 12,
-				fill: props.tokens.zoneLabel,
-				listening: false,
-			}"
-		/>
-		<VText
-			:config="{
-				name: 'room-draft-label',
-				text: geometry.depthLabel.text,
-				x: geometry.depthLabel.x,
-				y: geometry.depthLabel.y,
-				fontSize: 12,
-				fill: props.tokens.zoneLabel,
-				listening: false,
-			}"
-		/>
-	</template>
+	<VGroup :config="{ name: 'room-draft-group', listening: false }">
+		<template v-if="geometry !== null">
+			<VLine
+				:config="{
+					name: 'room-draft',
+					points: geometry.outlineFlat,
+					closed: true,
+					stroke: props.tokens.accent,
+					strokeWidth: 1.5,
+					dash: [4, 4],
+					strokeScaleEnabled: false,
+					listening: false,
+				}"
+			/>
+			<VText
+				:config="{
+					name: 'room-draft-label',
+					text: geometry.widthLabel.text,
+					x: geometry.widthLabel.x,
+					y: geometry.widthLabel.y,
+					fontSize: 12,
+					fill: props.tokens.zoneLabel,
+					listening: false,
+				}"
+			/>
+			<VText
+				:config="{
+					name: 'room-draft-label',
+					text: geometry.depthLabel.text,
+					x: geometry.depthLabel.x,
+					y: geometry.depthLabel.y,
+					fontSize: 12,
+					fill: props.tokens.zoneLabel,
+					listening: false,
+				}"
+			/>
+		</template>
+	</VGroup>
 </template>

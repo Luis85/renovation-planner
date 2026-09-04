@@ -13,6 +13,18 @@ so `npm run harness-shot` could not run and nothing here was read off a capture.
 measured figure quoted below is cited to the file that already recorded it. Section 10 names
 the captures that must be taken before this ships.
 
+**Amended 2026-09-04, after the surface was built.** The captures section 10 asked for exist —
+seven fixed shots, `home-stress`, `home-stress-light`, `home-stress-de`, `home-whole`,
+`home-stress-narrow`, `home-no-match-narrow` and `home-filter-focus` — and reading them found
+five defects no gate could see, three of which changed sentences in this document. Every
+amendment below carries its date and says what it replaced rather than overwriting it, because
+a criterion that quietly keeps its old wording is how the gap between promise and check
+reopens. **Two limits ride with every measured figure quoted here**: those captures were taken
+with a **substitute Chromium**, not the pinned build, and through a stylesheet carrying
+Obsidian's **default** palette only. Nothing in this document has been seen in Obsidian, and
+`docs/tests/cases/Find and resume a project.md` is the instrument for what that leaves — it is
+written and **has not been run in a vault**.
+
 ---
 
 ## 1. Job and audience
@@ -250,6 +262,28 @@ contradicted §9's own loading row two sections down. `ready` is what it always 
 line under a `ViewFailure` would offer to create a catalogue entry in a session that could not
 read the vault, and one under a loading line would be the only thing on screen.
 
+**Amended 2026-09-04 — the empty state's foot line carries `New asset` and NOT the key
+legend, and the region table's `key legend + New asset` was true of one of its two states.**
+The row above names both halves and the condition says "including the empty state", which
+read as a promise that both halves appear in both. They do not, and the build is right: in the
+empty state there is no list to arrow through and no note to open, so a legend reading
+`↵ open · Mod↵ open note` would advertise two keys that do nothing on the one screen whose
+whole job is to say there is exactly one thing to do — which is the live-control-that-does-
+nothing failure slice 14's own amendment refuses, in copy rather than in a button.
+
+So region 7 is **one region with two compositions**: `New asset` in both, the key legend only
+where there are rows for those keys to act on. Stated here rather than left in
+`ViewRoot.vue`'s comment alone, because a divergence from a region table that lives only in
+the code it diverges from is a divergence no reader of this document can find.
+
+**Nothing asserted the absence until this amendment, which is what made the divergence
+invisible from both ends.** The populated foot's legend has a case; the empty foot had one for
+`New asset` and nothing at all about the half it drops, so a build that started drawing the
+legend there would have made this paragraph wrong with every test green.
+`viewRootCreateAsset.test.ts`'s empty-vault case pins it now, watched failing against a planted
+legend. What is still checked by nothing is the sentence-to-markup direction — no gate reads
+this table.
+
 **Regions 1 and 2 have different conditions, and the difference is the unreadable-only state.**
 Region 1's condition is the *empty state*, not the project count, because what it exists to
 prevent is two identical `New project` actions on a pane with one thing to do — and the empty
@@ -344,6 +378,40 @@ German is the binding case for the threshold: `Bestandsaufnahme` (SURVEY) is 16 
 against `Survey`'s 6, and the concept mocks already measured German labels deciding a rail's
 width. A threshold validated only in English is not validated.
 
+**Amended 2026-09-04 — the threshold is `41rem`, and the two sentences above each need one
+correction.** It is not *chosen from a capture at 460px*: 460 is the width the row is
+INSPECTED at, and a threshold read off one capture is a number somebody picked. It is
+DERIVED, from a rule stated with the rule — *the name must keep at least as much room as the
+trailing group beside it* — over a trailing group measured on the built surface at **314.5px**
+in both locales, giving `W ≥ 16 + 8 + 2 × 314.5 = 653px → 40.8rem → 41rem`.
+`styles/project-list-narrow.css` carries the arithmetic; two cases in
+`projectListNarrowStyles.test.ts` hold it against the shipped rule, one requiring every
+recorded sum to balance and one requiring the derivation's final `→ Nrem` to equal the
+container query's own number.
+
+**And the German example is the wrong one, in the direction that makes the argument bigger.**
+The longest German status word is not `Bestandsaufnahme` but **`Bestandsdokumentation`**
+(AS_BUILT, **21** characters against `As built`'s 8). `Bestandsaufnahme` is merely the longest
+that appears in the **`Projects`** group, AS_BUILT living in the collapsed `Completed` one —
+which is a distinction worth keeping, because the reserved status slot is sized for the whole
+vocabulary while the rows a user usually sees are drawn from part of it.
+
+**Count characters to make the argument and MEASURE to size a slot, because the two numbers
+are not the same one.** `Bestandsdokumentation` is 21 characters and **19.145ch** — a `ch` is
+the advance of `0`, and these are lowercase letters — against `Bestandsaufnahme`'s 15.213ch and
+`Procurement`'s 10.037ch. The slot is `20ch`, which is the measured figure rounded up and not
+the character count; reading 21 characters as 21ch would over-reserve nearly a whole
+character's width on every row in the list, and reading it the other way would clip.
+
+**Three ways that derivation can be wrong, and only two of them have an instrument** — written
+here because the number moved three times (34rem provisional → 36rem measured → 41rem after
+the reserved slots) and twice for a reason no arithmetic checker sees. A wrong **sum** is
+caught by the balancing case. A wrong **transcription** between the derivation and the shipped
+rule is caught by the arrow case. A wrong **model** — the 42rem the reservation first shipped
+as, whose overhead double-counted a gap the trailing group already contained — balances
+perfectly, transcribes correctly, agrees with the container query, and is caught only by a
+reader re-deriving it from the layout. That is how it was actually found.
+
 ---
 
 ## 7. Interaction
@@ -378,7 +446,27 @@ The launcher's grammar, without the autofocus that would make it hostile:
 | `Mod+↵` | a row | opens the project's note |
 | `Esc` | filter, with a query | clears the query, focus stays |
 | `Esc` | filter, empty | returns focus to the first row |
-| `Mod+N` | anywhere in the pane | opens `New project` |
+| ~~`Mod+N`~~ | ~~anywhere in the pane~~ | ~~opens `New project`~~ — **WITHDRAWN 2026-09-04, see below** |
+
+**`Mod+N` is withdrawn as a pane-local key and shipped as a registered COMMAND instead**, which
+is §14's second open decision taken. `New project` is `addCommand({ id: 'new-project' })`, so
+it is in the palette — where §1's stranger looks — and bindable in **Settings → Hotkeys** to
+whatever the user chooses.
+
+**It carries no default hotkey, and that is the decision rather than an omission.** Declaring
+one would claim `Mod+N` on every install over whatever the user had already bound there, on a
+surface that is one pane of a note-taking app. So the accelerator exists exactly when a user
+asks for it.
+
+**The consequence is that the key legend loses a clause it cannot honour** — §12's amendment
+is the other half of this one. A legend reading `{mod}N new project` would advertise a key
+that does nothing on a fresh install; reading back what the user actually bound is not
+available either, because Obsidian's hotkey registry is internal and this plugin may not reach
+the global `app`, which the marketplace rules refuse. A legend whose every clause is true on a
+fresh install is the only honest one, so it names the two pane-local accelerators and stops.
+
+Both halves of this are `docs/tests/cases/Find and resume a project.md` step 9's subject: the
+command in the palette, the binding in Settings, and the legend NOT naming it.
 
 **`Space` is carved out of the type-to-filter rule, and the carve-out is load-bearing rather
 than tidy.** `Space` is a printable character, and the rows are ordinary `<button>` elements —
@@ -410,10 +498,13 @@ stop)* → `New asset`.
 In the filtered-to-nothing state the two list stops are replaced by `Clear filter` and
 `New project named "…"`, which are ordinary stops like any other action.
 
-**Every visible control is reachable by Tab alone.** `Mod+N` and the arrow keys are
-accelerators over that sequence and never a substitute for part of it — a control reachable
-only by a shortcut fails `PRODUCT.md`'s full-keyboard-support requirement, which this document
-binds itself to. An earlier draft of this section said "three tab stops, not thirty" and was
+**Every visible control is reachable by Tab alone.** The arrow keys, type-to-filter and
+`Mod+↵` are accelerators over that sequence and never a substitute for part of it — a control
+reachable only by a shortcut fails `PRODUCT.md`'s full-keyboard-support requirement, which this
+document binds itself to. *(This sentence named `Mod+N` until the amendment above withdrew it;
+the property it states is what made that withdrawal cheap — `New project` was already the first
+Tab stop on the pane, so removing the accelerator cost discoverability and not access.)* An
+earlier draft of this section said "three tab stops, not thirty" and was
 exactly that failure: it left the header's `New project`, the `Completed` `<summary>` and both
 Continue actions off the sequence while the same document promised a visible focus indicator at
 every stop.
@@ -464,9 +555,20 @@ above a flat list is the composition this direction did not lock.
 ```
 Continue
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ House Renovation 2026 · Kitchen › Work        14 Aug   [Continue] [Open]│
+│ House Renovation 2026 · Kitchen               14 Aug   [Continue] [Open]│
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Amended 2026-09-04 — the third segment is gone, and it is this document breaking its own
+rule.** The wireframe drew `House Renovation 2026 · Kitchen › Work`, and there is no field
+behind `› Work`: `ContinueContext` is `{ projectId, planId }` and has no section, because this
+surface's whole out-of-scope list starts at the detail state and nothing here knows what a
+project's sections are. §2's honesty rule — *no field renders a number the read model cannot
+supply* — was written against invented metrics and applies exactly as well to an invented
+breadcrumb segment. What ships is project · plan, with the plan half **absent rather than
+blank** when the stored context names no plan, per §8's content rule. Found by a reviewer
+comparing the diagram against the type, not by any gate: a wireframe is prose, and nothing
+here reads one.
 
 - **`Continue`** restores the stored leaf state. **`Open`** always opens the project's detail
   state, which is A.4's own distinction and the one thing the usability script in
@@ -539,6 +641,26 @@ different answers, and the difference follows from what each one is:
   nothing like the zone burst the filter was written against. Zones, assets and requirements
   stay excluded, and a builder may not widen the filter past `plan` to make some other number
   work.
+
+  **Amended 2026-09-04 — `PlanDeleted` DOES NOT EXIST, and the deletion case is carried by the
+  entry arm instead.** This document commissioned a name rather than an event: there is no
+  `PlanDeleted` anywhere in the tree and no delete-plan command to raise one, so adding it to a
+  subscription list would have been a list naming something nothing publishes — correct-looking,
+  inert, and invisible to every gate, because subscribing to an event nobody fires fails
+  nothing. What ships is `['ProjectIndexRebuilt', 'ProjectCreated', 'PlanCreated']` in the
+  category list, and the deletion rides the SECOND list: `VaultChangeAdapter.announce` runs on
+  `index.remove` as well as on upsert — its call sits directly after the removal, reading the
+  entry's `type` before dropping it — so admitting `renovation-plan` to the entry filter covers
+  a plan note created by hand, modified, copied in, arriving through sync **or deleted**, in one
+  arm. The bound this bullet states is unchanged and so is the refusal to widen past
+  `renovation-plan`.
+
+  **The general shape, since this is the one place the spec asked for something that does not
+  exist:** the remedy for a commissioned event with no producer is not to add the name, and it
+  is not to write the producer either — it is to find which arm already carries the case and
+  say so where the list is. `projectListChangeSource.ts`'s own docblock is where that is
+  written down, because a subscription list is exactly where the next reader will look for a
+  missing name and conclude it was forgotten.
 - **`lastWorked` is captured at hydrate and the order is frozen for the life of the mount.**
   It moves on *every* write to *any* owned note, which is precisely the burst no subscription
   should carry — and re-sorting a list under a user's cursor because a background leaf saved a
@@ -579,7 +701,7 @@ in the heading, collapsed by default, its expanded state **not persisted**.
 | **Partial read** | The `.rp-view-notice` strip above the groups, additive; the list draws every project that loaded. |
 | **Empty list, unreadable > 0** | The header, the notice and the foot line. **No filter and no group headings** — a group heading over nothing is the card-with-holes §8 refuses, and a count line reading `0 projects` about a vault that demonstrably holds some is false in the one region whose job is to state that number. Never the "no projects yet" empty state — `selectRenovationProjectEmptyState` already answers `null` here, and this surface keeps that. |
 | **Filtered to nothing** | Groups are empty; the list region holds the no-match line and two actions: `Clear filter`, and `New project named "<query>"`. |
-| **One project** | Everything renders. The filter is present and states `1 project`; it is the count line, so it has a job at every vault size. |
+| **One project** | Everything renders. The filter is present and states `One project` (amended 2026-09-04 from `1 project` — §12 carries the lint measurement that decided the numeral); it is the count line, so it has a job at every vault size. |
 
 **Ranges to design and prototype against:** 0, 1, 4 (typical), 30 (the stress case for tab
 stops, ordering and scroll), and one project whose name overruns the pane at 460px — the
@@ -645,6 +767,14 @@ size, and it does not reach a `Notice`, which renders on `document.body`. Contra
 ring's visibility and the 24px floor are verified in a live vault via `npm run test-build`,
 and the manual case owed by this surface is where they are written down.
 
+**Amended 2026-09-04 — that case is `docs/tests/cases/Find and resume a project.md`, and it
+has not been run.** Steps 2, 3 and 4 are the three above; step 6 is the one this paragraph did
+not anticipate, because it is not about measurement at all. `Space` on a focused row is a
+printable character and a `<button>`'s native activation at once, and **jsdom dispatches no
+native activation**, so the collision the type-to-filter carve-out exists to prevent cannot be
+observed anywhere in this repository. Nothing here is a substitute for the case; the case is
+not a substitute for having run it.
+
 ---
 
 ## 12. Localization
@@ -666,7 +796,7 @@ New:
 |---|---|
 | `view.project.filter.label` | Filter projects |
 | `view.project.filter.placeholder` | Filter by name |
-| `view.project.count-one` | 1 project |
+| `view.project.count-one` | ~~1 project~~ → **One project** (amended 2026-09-04) |
 | `view.project.count-many` | {count} projects |
 | `view.project.filter.matches` | {shown} of {total} |
 | `view.project.filter.none` | No project matches “{query}”. |
@@ -677,9 +807,29 @@ New:
 | `view.project.group.completed` | Completed ({count}) |
 | `view.project.continue.resume` | Continue |
 | `view.project.continue.open` | Open |
-| `view.project.plans-one` | 1 plan |
+| `view.project.plans-one` | ~~1 plan~~ → **One plan** (amended 2026-09-04) |
 | `view.project.plans-many` | {count} plans |
-| `view.project.keys` | ↵ open · {mod}↵ open note · {mod}N new project |
+| `view.project.keys` | ~~↵ open · {mod}↵ open note · {mod}N new project~~ → **↵ open · {mod}↵ open note** (amended 2026-09-04) |
+
+**Amendment 2026-09-04, the two singular keys: the ENGLISH numeral is spelled out, and only
+the English one.** `obsidianmd/ui/sentence-case-locale-module` treats a leading bare digit as
+non-content — its emoji-stripping check matches ASCII digits too — so `1 project` reads to that
+rule as sentence-initial and it demands a capital on the noun that follows. Measured, not
+guessed. Capitalising instead (`1 Project`) passes the same rule and is wrong on the page: it
+sits beside `{count} projects`, so the count line's capitalisation would flip with the count in
+the one region whose whole job is to state the truth about how many there are. Spelling the
+numeral out keeps every word correct without coercing one. **German needs neither fix and gets
+neither** — `1 Projekt` and `1 Plan` are what ships there, because `Projekt` and `Plan` are
+capitalised nouns whatever numeral precedes them. A locale table is not obliged to make the
+same choice in every language, and this is the first key here where it does not.
+
+**Amendment 2026-09-04, `view.project.keys`: THREE clauses to TWO.** The third named a key
+this build does not ship — see §7's own withdrawal above for why `New project` is a registered
+command with no default hotkey, and why the binding a user chooses cannot be read back. The
+legend's rule is now stated as a rule rather than as a list: **every clause must be true on a
+fresh install.** That is what refuses a fourth clause on the same ground, whoever proposes it,
+and it is checked by nothing — a locale string is data, and no gate asks whether a sentence
+about a key is true.
 
 **`t` has no plural machinery**, so a count that can be one gets **two keys** and the component
 picks by `count === 1`. English and German are both two-form languages, so this is complete for
@@ -704,6 +854,27 @@ the same fact and would drift from the enum.
    declare. It needs its own persisted key in the plugin's own data, with its own parse-and-
    fall-back-to-absent rule, and it is **device-local** — a consequence worth stating plainly:
    Continue does not follow the vault to the phone.
+
+   **Amended 2026-09-04 — "the plugin's own data" would NOT have been device-local, and the
+   store uses Obsidian's own per-device door instead.** A file under the plugin's manifest
+   directory sits inside `.obsidian/`, the vault's configuration tree, and Obsidian Sync can be
+   configured to carry community-plugin settings — so that file MAY follow the vault to another
+   device and two devices would then overwrite each other's last-visit context. The constraint's
+   own final clause is what the mechanism had to be chosen to keep, and the mechanism first
+   written for it would have quietly narrowed it away. `App.loadLocalStorage` /
+   `App.saveLocalStorage` are promised at this plugin's `minAppVersion` floor (`@since 1.8.7`
+   against 1.13.0), are per device by construction, and serialize for the caller — so
+   `ContinueContextStore` holds no `JSON.parse`, and the key is prefixed with the manifest id
+   because that API is vault-scoped rather than plugin-scoped. **Both doors are synchronous**,
+   which is also why there is no write queue here where `SequenceMarkerFileStore` one directory
+   over has one: two calls made without awaiting between them cannot interleave, so a queue
+   would have nothing to guard and no way to be tested.
+
+   **What is verified and what is inferred**, stated separately because they read alike: that
+   the two members exist at the pinned floor is read off `obsidian.d.ts`; that a real Obsidian
+   keeps this off Sync is the vendor's documented behaviour and is checked by nothing here.
+   `docs/tests/cases/Find and resume a project.md` step 11 is the restart half; the two-device
+   half has no instrument in this repository at all.
 2. **`lastWorked` is the most recent mtime across EVERY note the index holds for that project**
    — its own `Project.md`, its plans, its zones and its requirements alike — decided once, in
    the query, never per caller.
@@ -720,6 +891,15 @@ the same fact and would drift from the enum.
    proportional to the number of notes in the vault rather than to notes × projects.
 3. **The narrow threshold's value.** It comes from a capture at 460px with the German status
    words in place, not from a round number.
+
+   **Amended 2026-09-04 — it is `41rem`, and it comes from a DERIVATION checked against a
+   capture rather than from the capture.** 460px is the width the row is inspected at; the
+   threshold is the output of a stated rule over a measured trailing group, and
+   `styles/project-list-narrow.css` carries both. The constraint is unchanged in what it
+   refuses — a round number — and is narrowed in what it asks for: a builder may not move this
+   number without moving the derivation it is the output of, which two cases in
+   `projectListNarrowStyles.test.ts` now hold together. §6's amendment names the third way a
+   derivation goes wrong that neither case can see.
 4. **Nothing writes to the vault outside `infrastructure/`**, and `presentation/dialogs/` may
    not import `application/`, `infrastructure/`, `plugin/` or the event bus. The layer bans are
    lint, not convention.
@@ -731,18 +911,55 @@ the same fact and would drift from the enum.
 
 ## 14. Open decisions
 
+**All three are CLOSED as of 2026-09-04**, taken during the build and recorded here with the
+answer and who took it rather than left reading as open. Each keeps its original wording above
+the answer, because a decision whose question is edited away cannot be re-argued by anyone who
+comes to disagree with it.
+
 - **Does the filter also match the status word?** Typing `design` finding every project in the
   Design stage is useful and is one line; it also makes the count ambiguous about what matched.
   Recommended: name only for now, and revisit when a vault has enough projects for stage
   filtering to be the faster path.
+
+  **ANSWER: name only, the recommendation taken as written.** Taken at the plan, before any
+  code, and never contested by the build. `matchesQuery` reads `project.name` and nothing else,
+  and `view.project.filter.placeholder` says **`Filter by name`** out loud — which is the half
+  that makes the narrowing honest rather than merely small: the resting field now states the
+  field it matches, so a user typing a status word into it learns why nothing came back. The
+  revisit condition is unchanged, and a builder widening this owes the count line a way to say
+  what matched.
+
 - **`Mod+N` may collide with a user's own hotkey.** Obsidian binds hotkeys to command ids;
   a pane-local key handler does not go through that registry and cannot be rebound. Either
   register a real command for `New project` and let the legend read whatever the user bound,
   or drop the accelerator. Recommended: register the command — it also puts the action in the
   palette, which is where the stranger looks.
+
+  **ANSWER: register the command — and the second half of the recommendation is REFUSED.**
+  `addCommand({ id: 'new-project' })` ships, so the action is in the palette and bindable in
+  Settings → Hotkeys. *"Let the legend read whatever the user bound"* cannot be built: Obsidian's
+  hotkey registry is internal and reaching it needs the global `app`, which the marketplace rules
+  refuse — so the legend would have had to either name a default this plugin declines to claim,
+  or name nothing while pretending to name what the user chose. It names the two pane-local
+  accelerators and stops. §7 and §12 carry the withdrawal. **The instructive half is that the
+  recommendation was two clauses and only one of them was buildable**, which reading it as a
+  single "recommended: register the command" would have hidden.
+
 - **Whether `Continue` survives an Obsidian restart.** The stored leaf state is durable; the
   *leaf* is not. Restoring into a leaf Obsidian has already restored differently is a
   behaviour question this document does not settle.
+
+  **ANSWER: it survives, and the question dissolved rather than being decided — because the
+  premise is false.** Nothing stores a leaf state. `ContinueContext` is `{ projectId, planId }`,
+  two ids and no leaf identity at all, re-resolved against the project index at every hydrate;
+  `Continue` then reveals a Plan Editor through the same `revealPlanEditor` door the palette
+  command uses, which finds an open leaf or makes one. So there is no leaf to restore into and
+  no way to disagree with the one Obsidian restored. **A design question can be answered by
+  making it unaskable, and that is usually cheaper than answering it** — storing a leaf id
+  would have bought exact restoration and every failure mode this bullet was worried about.
+  What it costs is stated rather than glossed: `Continue` reopens the plan, not the scroll
+  position, the zoom or the selection. `docs/tests/cases/Find and resume a project.md` step 11
+  is the instrument, and it has not been run.
 
 ---
 
@@ -771,11 +988,39 @@ Nothing here is built by this document. When it is:
    Spacing, wrapping, overflow, hit size and the tick strip's legibility are measurements no
    gate in this repository performs; a capture read by eye is the only instrument that reaches
    them. Every layout defect this surface has ever had was found this way and by nothing else.
+
+   **Amended 2026-09-04 — what shipped is SEVEN entries in the fixed set, not an ad-hoc narrow
+   capture, and the sentence above under-priced the difference.** `home-stress`,
+   `home-stress-light`, `home-stress-de`, `home-whole`, `home-stress-narrow`,
+   `home-no-match-narrow` and `home-filter-focus` are permanent shots with their own URLs, and
+   the reason is this script's own recorded precedent: an ad-hoc capture is *taken once and
+   never watched again*, so a status label retranslated longer would move the 41rem threshold
+   and nothing would show it. Three of them exist only because the first four could not see
+   something — thirty rows are taller than an 800px viewport, so the `Completed` disclosure and
+   the foot line were below the fold in all four (`home-whole`); German at 1280 is the state the
+   threshold is COMPUTED from and was in no shot (`home-stress-de`); and a focus ring is not on
+   screen at rest, so no resting shot can watch one (`home-filter-focus`, which presses Tab
+   rather than calling `page.focus()`, because only a keyboard press satisfies `:focus-visible`).
+
+   **The last sentence above is the one to carry, and it under-states itself: a capture that
+   cannot SEE what it certifies reads exactly like one that can.** The no-match shot was graded
+   as proving `overflow-wrap: anywhere` while its query was hyphenated — a hyphen-minus is a
+   UAX #14 break opportunity, so ordinary wrapping did the work and deleting the declaration
+   produced a byte-identical PNG. De-hyphenating was **not enough**: the 47-character token that
+   produced still fitted inside the 420px button, and the PNG was byte-identical again. Only a
+   59-character, 453px token makes the declaration load-bearing. Two plausible fixes in a row
+   looked right and proved nothing; running the mutation twice is what told them apart. **Grade
+   a capture by mutating the rule it is supposed to certify, not by looking at it.**
 3. **Commission the two DTO fields** before the row is built to this spec, so the row is never
    built against placeholders it then has to be rebuilt around.
 4. **Write the manual case** for what only a live vault can verify — contrast, the focus ring,
    the 24px floor, `Mod+↵`, and whether `Continue` restores what it claims — and run it in
    `npm run test-build`.
+
+   **Status 2026-09-04: `docs/tests/cases/Find and resume a project.md` is written, registered
+   in [[Smoke Test the Editor]], and HAS NOT BEEN RUN.** Its Runs table says so. An unrun manual
+   case is a plan to find out, not a finding, and this repository has already shipped one
+   outcome row reading "walked" over a case nobody had walked.
 5. **Then** the impeccable finish pass: build, one batched inspection round at both widths,
    one fix batch, one confirming round, and stop.
 
@@ -795,7 +1040,35 @@ container-query finding, and the *colour reinforces, it never carries* rule);
 `styles/forms.css`, `list-row.css`, `project-list-overlap.css`, `view.css`, `chrome.css`,
 `empty-state.css`, `editor.css`; SDD §§47, 60, 84, 85.
 
-The three amendments dated 2026-09-04 (§3's armature, §6's cell size, §7's filter field) were
-each decided against a capture rather than a reading, and the rules they describe live in
+The first three amendments dated 2026-09-04 (§3's armature, §6's cell size, §7's filter field)
+were each decided against a capture rather than a reading, and the rules they describe live in
 `styles/project-list.css`, `project-list-narrow.css` and `project-filter.css`, where every
 measured number carries its own derivation.
+
+**The finish pass added ten more on the same date, and they divide by how they were found**,
+which is worth stating because only one of the ten came from looking at a picture:
+
+| § | Amendment | Found by |
+|---|---|---|
+| Header note | The captures exist; the two limits that ride with every figure they produced | The build |
+| §5 | Region 7 is one region with two compositions — the empty state's foot omits the key legend | Reading `ViewRoot.vue` against the region table |
+| §6 | The threshold is `41rem`, DERIVED rather than read off a capture; `Bestandsdokumentation` is the longest German status word, not `Bestandsaufnahme` | Measuring the vocabulary instead of quoting the example |
+| §7 | The Continue wireframe's `› Work` segment has no field behind it | A reviewer comparing the diagram against `ContinueContext` |
+| §7, §12 | `Mod+N` withdrawn as a pane-local key; the legend loses its third clause | Asking what Obsidian's hotkey registry is reachable from |
+| §8 | `PlanDeleted` does not exist; the entry arm carries deletion | Grepping for the event this document commissioned |
+| §9, §12 | `One project` / `One plan` rather than `1 project` / `1 plan`, in English only | An `eslint-plugin-obsidianmd` rule, measured |
+| §11, §15 | The manual case exists, is registered, and has NOT been run | Writing it |
+| §13.1 | "The plugin's own data" would not have been device-local | Reading `.obsidian/` against what Obsidian Sync carries |
+| §13.3, §14 | The threshold constraint asks for a derivation, not a capture; all three open decisions closed with the answer and how it was reached | The build, recorded rather than left reading as open |
+
+**Nine of those ten were found by reading this document against the tree**, which is the
+opposite proportion to the first three, and it is the argument for a finish pass being a
+separate step rather than a tidy-up. A capture answers *does this look right*; only a reading
+answers *does this document still describe what was built*, and a sentence that has quietly
+stopped being true fails nothing, renders nothing, and reads exactly like one that is still
+true.
+
+**Do not count these by grepping the date.** `2026-09-04` appears more often than there are
+amendments, because several are marked twice on purpose — once in the table row that carries
+the old wording struck through, and once in the prose that says why. The table above is the
+list; the markers are navigation.

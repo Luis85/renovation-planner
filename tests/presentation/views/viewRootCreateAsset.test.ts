@@ -122,6 +122,18 @@ describe('ViewRoot, creating an asset in a vault with no projects', () => {
 		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
 		expect(wrapper.find('.rp-project-list').exists()).toBe(false);
 
+		// The foot line's OTHER half is deliberately absent here, and this is the only place
+		// that says so. The design spec's §5 region 7 is `key legend + New asset` and its
+		// condition reads "including the empty state" — which promises both halves in both
+		// states. The build ships `New asset` alone, because an empty vault has no list to
+		// arrow through and no note to open, so `↵ open · Mod↵ open note` would advertise two
+		// keys that do nothing on the one screen whose whole job is to say there is exactly one
+		// thing to do. That is right, and it is a divergence from a region table that no gate
+		// compares against the markup; the spec's own amendment records it, and this line is
+		// what makes a build that starts drawing the legend here fail rather than quietly make
+		// that amendment wrong.
+		expect(wrapper.find('.rp-project-list__keys').exists()).toBe(false);
+
 		await wrapper.get('.rp-view-aside__create-asset').trigger('click');
 		await flushPromises();
 		const form = wrapper.findComponent(NewAssetForm);

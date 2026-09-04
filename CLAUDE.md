@@ -99,6 +99,14 @@ view, opened from the empty state's action button and from `ProjectList`'s own h
 with BOTH halves clear: an empty list with `unreadable > 0` is a vault that has projects this
 build could not read, so it gets the notice and no "no projects yet".
 
+**That list is a LAUNCHER since the Renovation Planner Home increment**, and this paragraph
+describes the bare `<ul>` it grew out of rather than what draws today — a filter that is also
+the pane's count line, two facts per row, a ten-step status strip, a `Continue` group, a
+collapsed `Completed` group and a foot line, with the header and the empty state unchanged.
+Left standing rather than rewritten, because every sentence in it is still true of the seam it
+is about (`ListProjects`, the `'ready'` gate, the two-halves empty state, `DialogHost`); the
+Home section far below carries what was added and what building it taught.
+
 **Design slice 21 gave that view a SECOND state, and everything above describes the first
 one.** A project row NAVIGATES now rather than opening `Project.md`, into a detail state that
 draws one project — its name, its lifecycle status, an **Open note** action (the only surface
@@ -3567,6 +3575,152 @@ template specifier that does not SPELL the suffix) is enumerated where the predi
 Re-measured in this edit, `find src tests/harness tests/helpers -name "*.test.ts" | wc -l`
 still prints **17**, none of them imported by a non-test module — so the hole was latent when
 it was closed, which is the cheapest moment to close one and the moment nothing forces you to.
+
+**The Renovation Planner Home increment has landed: the project list is a LAUNCHER.** The
+Renovation project view's list state draws a header, a filter that is also the pane's count
+line, a `Continue` group offering the project and plan the user was last in, `Projects` most
+recently worked first, a collapsed `Completed`, and a foot line carrying the key legend and
+`New asset`. A row states two commissioned facts beside its name — `planCount` and
+`lastWorked`, both REQUIRED on `ProjectSummaryDto` — plus its lifecycle stage as a word and a
+ten-step tick strip. Both row lists are roving-`tabindex` groups, so thirty projects cost one
+Tab rather than thirty. `docs/user-experience/renovation-planner-home-DESIGN-SPEC.md` is the
+contract, and every place the build disagreed with it is a DATED amendment in place, never a
+silent edit — its Sources section tabulates them and says why the count is a table rather than
+a grep. `docs/tests/cases/Find and resume a project.md` is what only a vault can answer, and it
+is **written and has not been run**. The rules that came out of building it:
+
+- **A snippet a plan mandates VERBATIM can produce the exact opposite of its own stated
+  default, and eighteen rounds of a bot reading the text cannot see it — because it is not a
+  defect in the text.** `:tabindex="(tabbable ?? true) ? 0 : -1"` reads as "tabbable unless
+  told otherwise" and ships `tabindex="-1"` on every row that does not pass the prop: **Vue
+  casts an ABSENT prop typed `boolean` to `false`, not `undefined`**, so `??` never fires and
+  every row in the list would have been silently skipped by Tab. Measured rather than
+  reasoned — `wrapper.props()` resolved `false` on a mount passing nothing. `withDefaults` is
+  the fix, and taking it immediately tripped `vue/require-default-prop` on the sibling `query`
+  prop, which is a second-order consequence no reading finds either: that rule activates the
+  moment ANY prop is defaulted through `withDefaults`. **A plan is INTENT and not source**, and
+  the sharpest form of that is a plan whose prose is impeccable about a runtime it never ran.
+- **The conflicts are the SAFE part of a merge.** Merging 237 commits of `origin/main` into
+  this surface produced nineteen conflicting hunks across six files, every one of them looked
+  at by two agents — and the finding that mattered was not among them. **Six call sites git
+  auto-merged CLEANLY from only one side, silently dropping the other's argument**, caught by
+  `vue-tsc` as arity errors. What is flagged gets read; what merges cleanly and is semantically
+  wrong does not. The sweep that followed went looking for the same class where the compiler
+  CANNOT see it — untyped `provide` literals, runtime enumerations — and found one benign
+  instance, which is the half worth copying: after a merge, the question is not "did I resolve
+  the conflicts" but "where would a clean merge have been wrong".
+- **A recorded derivation has THREE ways to be wrong and only two of them have an instrument,
+  and the third is the one that actually bit.** `styles/project-list-narrow.css`'s container
+  threshold is derived rather than picked, and it moved 34rem (placeholder) → 36rem (measured)
+  → 42rem → **41rem**. Two cases hold it: one requires every recorded sum to balance, one
+  requires the derivation's final `→ Nrem` to equal the container query. **Neither could have
+  caught the 42rem defect**, and a controller asserting they would have was corrected by an
+  implementer that checked against `git show`: `32 + 2 × 314.5 = 661` balances, 661px IS 42rem,
+  and it transcribes correctly. Its error was the PREMISE — 32 counted a gap the 314.5 already
+  contained — and **no arithmetic checker sees a wrong premise.** So: a wrong SUM → the
+  balancing case; a wrong TRANSCRIPTION → the arrow case; a wrong MODEL → a human re-deriving
+  from the layout, which is how it was found. Write that division down beside the checker, or
+  its next reader trusts it for a class it does not reach.
+- **A capture that cannot SEE what it certifies reads exactly like one that can, and removing
+  the obstacle was not enough.** The no-match shot was graded as proving `overflow-wrap:
+  anywhere` while its query was hyphenated — a hyphen-minus is a UAX #14 break opportunity, so
+  ordinary wrapping did the work; deleting the declaration produced a **byte-identical PNG**.
+  De-hyphenating gave a 47-character token and the PNG was byte-identical AGAIN, because that
+  token renders 362px inside a 420px button and never has to break. Only a 59-character, 453px
+  token makes the rule load-bearing. **Two plausible fixes in a row looked right and proved
+  nothing; running the mutation twice is what told them apart.** Grade a capture by mutating
+  the rule it certifies, never by looking at it.
+- **A row is a `<button>`, and Obsidian's own `button` rule sets a FIXED `height`.** At 460px —
+  the width an Obsidian sidebar leaf actually has — the container query wrapped every row's
+  content to two lines while its box stayed 30px around 41px of content, so each row's second
+  line was drawn over the next row's name. The surface would have shipped unusable in a
+  sidebar, with 5,600 tests green: jsdom lays nothing out. `list-row.css`'s
+  `min-height: var(--size-4-6)` does not save it, and **not for the reason it looks like** —
+  `min-height` beats `height` when it is the larger, and 24px simply never is. The fix is
+  `height: auto` scoped to `.rp-project-row` inside the narrow block, deliberately not in
+  `list-row.css`, where it would drop every one-line row in both lists to 24px as a side effect
+  of an overflow fix.
+- **A spec can commission an event that has no producer, and the remedy is neither to add the
+  name nor to write the producer.** §8 asked for `PlanCreated` **and `PlanDeleted`**; there is
+  no `PlanDeleted` anywhere in this tree and no delete-plan command to raise one, so putting it
+  in a subscription list would have been a list naming something nothing publishes — correct
+  looking, inert, and invisible to every gate, since subscribing to an event nobody fires fails
+  nothing. The remedy is to find which arm already carries the case and write that down where
+  the list is: `VaultChangeAdapter.announce` runs on `index.remove` as well as on upsert, so
+  admitting `renovation-plan` to `projectListChangeSource`'s ENTRY filter covers a plan note
+  created by hand, modified, copied in, synced **or deleted**, in one arm.
+- **A REQUIRED DTO field is what makes the compiler name the second door.** `planCount` and
+  `lastWorked` are non-optional on `ProjectSummaryDto` for the reason `libraryOverlap`'s own
+  docblock already gave — an absent field and a zero read identically at the site that renders
+  them — and the consequence is a build error at `toProjectSummaryDto`'s SECOND caller, which
+  is not the list. An optional third parameter would have compiled at both and left `getProject`
+  silently answering `0` about a project it never counted.
+- **A roving group whose list gets SHORTER can end up with no tabbable member at all** —
+  silently, for the rest of the mount, because `tabindex="0"` lives on exactly one row and an
+  index past the end selects none. The filter is what makes that reachable on every keystroke.
+  `reconcile` does two things rather than one, and the second is the non-obvious half:
+  it follows the active row's ID when that row survived the filter, and clamps only when it did
+  not. An index-only clamp passes the case everyone tests — `[A, B, C]` shortened to `[B, C]`
+  leaves index 1 in range, so nothing clamps and **C** silently becomes the tab stop while B is
+  the row the user was on.
+- **`Space` is a printable character and a row is a `<button>`.** The type-to-filter rule —
+  which is what lets this pane refuse autofocus — collides on the one key that has both
+  meanings: seeding from it would either suppress the button's native activation or do both at
+  once. `Space` is carved out, which costs nothing because a query never usefully begins with
+  one. **Nothing in this repository can observe that collision**: jsdom dispatches no native
+  activation at all, so it is `docs/tests/cases/Find and resume a project.md` step 6 or nowhere.
+  A modified keystroke is left alone for the neighbouring reason — `Ctrl+P` is Obsidian's
+  command palette, and a bare printable-character test swallows every host shortcut a user
+  presses while a row has focus.
+- **A legend may only name keys that are true on a FRESH INSTALL, which is what took a spec'd
+  clause out.** §7 wrote `{mod}N new project` into the key legend. `New project` is a
+  registered command with **no default hotkey** — declaring one would claim `Mod+N` on every
+  install over whatever the user already had — and reading back what the user actually bound
+  needs Obsidian's internal hotkey registry, reachable only through the global `app` the
+  marketplace rules refuse. So the clause would advertise either a dead key or a binding this
+  build cannot read. Two clauses ship. **The recommendation that produced it was two clauses
+  and only one of them was buildable**, which reading it as a single "register the command"
+  would have hidden.
+- **The unreached cells of a progress strip are a TRACK, so the contrast that matters is
+  reached-against-unreached and not unreached-against-the-page.** Raising them from
+  `--text-faint` to `--text-muted` — proposed because this branch had just deleted that token
+  from the foot line for measuring 2.30:1 — makes every cell easy to see and collapses the
+  distinction to **1.50:1 in dark**, in Obsidian's own default scheme: ten cells of one grey
+  where a ten-stage arc should be. The real finding was the cell SIZE (3px at a 1px gap
+  anti-aliases into one bar; 4px at 2px is countable), and the token change was a second remedy
+  for a defect the first had already closed. Both builds were captured and read; the token
+  vocabulary was then searched for a third option and there is none — a grey clearing 3:1 both
+  ways exists per scheme, and the light and dark windows do not overlap in any named token.
+- **A controller instruction stated more absolutely than the brief supports is a defect in the
+  DISPATCH.** The `Continue` context was briefed to a plugin-local FILE with a `KeyedQueues`
+  chain, and the dispatch called the queue "not optional" — written from the brief's default
+  branch without reading its conditional, which said to use a per-device host door if the
+  typings expose one. They do: `App.loadLocalStorage`/`saveLocalStorage`, promised at
+  `minAppVersion`, per device by construction, **synchronous** (so two writes cannot interleave
+  and a queue would have nothing to guard), and serializing for the caller (so the store holds
+  no `JSON.parse` and both fakes hold live objects). The file the dispatch insisted on would
+  have sat under `.obsidian/`, which Obsidian Sync can carry — narrowing away the device-local
+  guarantee the constraint existed to state. The implementer followed the brief over the
+  instruction and FLAGGED the conflict rather than resolving it silently, which is the
+  authority order working as written.
+- **A grep quoted inside the comment it is evidence for counts itself.** A docblock added to
+  prove a call site was unique asserted that `grep -n "notifyFault(cause" …` prints ONE line —
+  and the sentence contains that substring, so it printed TWO. The code was right; the
+  verification added to prove it was false in the same edit. This file already carries the same
+  shape from the notice-door count, and it recurred anyway. **A claim about the tree is cheap
+  to make and cheap to check, and only one of those two has been reliable.**
+- **The declined candidate's donation is what stops a search box being furniture.** A filter
+  over a two-project vault is an empty rectangle nobody types in — the direction's own recorded
+  risk — and the answer is that at rest the field IS the pane's count line (`10 projects`),
+  turning into a ratio (`2 of 30`) while typing. The first capture showed that count rendered
+  **outside** the field's border, which is the risk shipped by the region written to answer it;
+  the count sits inside the border now and the ring is drawn on the wrapper with
+  `:focus-within`, so a focused field is one ring rather than a rectangle inside a rectangle.
+  **The count must not be the placeholder** and must not be debounced: a placeholder vanishes on
+  the first keystroke, and the count's whole value is that it changes WHILE you type — so the
+  debounce belongs to the `role="status"` announcement in a separate hidden region, and an
+  earlier version that debounced the visible number made the pane's state line wrong for 400ms
+  after every keystroke over rows that had already filtered.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

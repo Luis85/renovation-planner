@@ -1,8 +1,9 @@
 /**
  * §5.1a's promotion rule at the doors a user reaches from INSIDE the plugin.
  *
- * Every promotion case in `excludedNotes.test.ts` drives `VaultChangeAdapter` directly —
- * `onDelete`, `onCreate`, `onModify` — which are the out-of-band doors. A duplicate winner
+ * `excludedNotes.test.ts` drives `VaultChangeAdapter` and nothing else: its only drivers are
+ * `adapter.onDelete` (9), `onCreate` (5) and `onModify` (4), and no repository `save` or
+ * `delete` appears in it at all. Those are the out-of-band doors. A duplicate winner
  * removed by a repository reaches the index by a different route: the repository mutates it
  * itself (SDD §42), so promotion has to be a property of the INDEX rather than of the pipeline,
  * and until it was the surviving note stayed unindexed until the next full rebuild.
@@ -16,6 +17,13 @@
  * deleted from `ReconcilingProjectIndex.remove` and `promoteContender` restored to
  * `VaultChangeAdapter.applyRemove`, that case fails at its assertion and every other case in
  * this file and in `excludedNotes.test.ts` stays green.
+ *
+ * **The `upsert` half's witness is the rollback case, and it witnesses ownership despite wiring
+ * the pipeline** — which had to be measured rather than assumed, because "it wires the pipeline"
+ * is exactly the reason the promotion cases witness nothing. Move the demotion back to
+ * `VaultChangeAdapter.processNote` and drop it from `ReconcilingProjectIndex.upsert`, and that
+ * case alone goes red (1 failed, 23 passed): the demotion it depends on happens on the
+ * repository's own rollback upsert, which no `processNote` is on the path of.
  *
  * Asserted against what a full `rebuildIndex()` produces rather than against a hard-coded path,
  * because §5.1a's determinism rule is exactly that the incremental door and the reload must not
@@ -67,30 +75,41 @@ async function collidingVault() {
  * a hand-written `index.remove(...)` would encode one reader's idea of the delete arm.
  *
  * **Which of the two settings does what, read off `VaultChangeAdapter` rather than inferred from
- * the behaviour.** `onDelete` calls `processPath` directly and never reads `debounceMs` — the
- * only reader is `enqueue`, which `onCreate`, `onModify` and both arms of `onRename` go through
- * (`grep -n "debounceMs"` on that file prints its declaration and two lines, both inside
- * `enqueue`) — so a delete is
- * synchronous whatever the debounce says. What puts the delete INSIDE `trashFile`'s own await is
- * the `vault.delete` override below, which raises the event after removing the file and before
- * the awaited call returns; that is the ordering which used to undo the promotion it had just
- * made. `debounceMs: 0` earns its place on the CREATE half instead, and for a blunter reason
- * than "sooner": it keeps `enqueue` — the only reader, reached by `onCreate` and `onModify` — on
- * its SYNCHRONOUS branch, and the other branch calls `window.setTimeout`. This file's
- * environment has no `window` — `vitest.config.ts` sets `environment: 'node'` and nothing here
- * opts out; `branches.test.ts` stubs one to reach that branch at all. Measured with `debounceMs: 500`: the restore's `vault.create` in the rollback
+ * the behaviour.** `onDelete` calls `processPath` directly and never reads `debounceMs`. The
+ * setting has exactly one reader, `enqueue`, reached by `onCreate`, `onModify` and both arms of
+ * `onRename` — `grep -n "debounceMs"` on that file prints its declaration and two lines, both
+ * inside `enqueue` — so a delete is synchronous whatever the debounce says. What puts the delete
+ * INSIDE `trashFile`'s own await is the `vault.delete` override below, which raises the event
+ * after removing the file and before the awaited call returns; that is the ordering which used to
+ * undo the promotion it had just made.
+ *
+ * `debounceMs: 0` earns its place on the CREATE half instead, and for a blunter reason than
+ * "sooner": it keeps that one reader on its SYNCHRONOUS branch, and the other branch calls
+ * `window.setTimeout`. This file's environment has no `window` — `vitest.config.ts` sets
+ * `environment: 'node'` and nothing here opts out; `branches.test.ts` stubs one to reach that
+ * branch at all. Measured with `debounceMs: 500`: the restore's `vault.create` in the rollback
  * case raises `onCreate`, `enqueue` throws on the absent `window`, the throw leaves the override
  * and `restoreNoteText` reports failure — `asset.delete-compensation-failed` in the log, and the
  * case fails with the loser still holding the id.
  *
- * **Two earlier drafts of this paragraph got the arrow wrong in two different directions**, which
- * is why it is this long. The first gave the delete ordering to `debounceMs: 0`; the setting and
- * the behaviour were both real and the arrow between them was invented, and reading `onDelete` —
- * where `debounceMs` does not appear at all — is the only thing that could have caught it. The
- * second corrected the attribution and then guessed at the CONSEQUENCE, saying the create merely
- * "sits on a timer nothing flushes", which is what `enqueue` says and not what happens here.
- * A sentence attributing a behaviour to a cause is checked by reading the cause; a sentence
- * saying what would happen WITHOUT the cause is checked by taking it away and running it.
+ * **Three earlier drafts of this paragraph were wrong in three different ways**, which is why it
+ * is this long and why each correction is kept rather than smoothed away.
+ *
+ * 1. It gave the delete ordering to `debounceMs: 0`. Both the setting and the behaviour were
+ *    real and the arrow between them was invented; reading `onDelete` is the only thing that
+ *    could have caught it.
+ * 2. The fix corrected the attribution and then guessed at the CONSEQUENCE, saying the create
+ *    merely "sits on a timer nothing flushes" — what `enqueue` says in the abstract, and not
+ *    what happens here.
+ * 3. That fix stated the reader's caller list TWICE, seven lines apart, and the second copy
+ *    dropped `onRename` — an incomplete restatement inside the paragraph correcting the previous
+ *    defect. The remedy is not a completed second copy, which drifts again at the next caller:
+ *    the fact is stated once above and referred to as "that one reader" below.
+ *
+ * The three rules, in the order they were paid for: a sentence attributing a behaviour to a cause
+ * is checked by reading the cause; a sentence saying what would happen WITHOUT the cause is
+ * checked by taking it away and running it; and a fact is stated once, because a restatement is a
+ * second copy that only ever drifts apart from the first.
  */
 function withPipeline(stack: RepositoryStack): void {
 	const adapter = new VaultChangeAdapter({
@@ -149,8 +168,9 @@ describe('a duplicate-id delete the pipeline never hears about', () => {
 	/**
 	 * **The ownership case.** No adapter exists, so no vault event is raised and nothing but
 	 * `ProjectIndex.remove` can promote. It is the brief's ordering #2 — the event arriving after
-	 * the removal, or never — and it is the asymmetry the `upsert` half of this seam already had
-	 * through the rollback case below while the `remove` half had none.
+	 * the removal, or never. It is the witness the `remove` half of this seam had none of, where
+	 * the `upsert` half already had one — see the file header for what makes the rollback case
+	 * that, and for the mutation that proves it.
 	 */
 	it('promotes through the repository alone, with no vault-change pipeline in the tree', async () => {
 		const { stack, assetId, version, originalPath, copyPath } = await collidingVault();

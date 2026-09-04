@@ -247,10 +247,22 @@
  *
  * **`rp-al` is declared on `.renovation-asset-library` in `styles/asset-library.css`**, which
  * that block's own paragraph explains — and this sentence is written FROM the grep rather than
- * ported: `grep -rn "container-type\|container:" styles/` prints three declarations, of which
- * `rp-al` is one. The version this file shipped with asserted "the container is declared on the
- * shell's root" while nothing declared it, ported verbatim from a prototype where it was true,
- * and both blocks below were inert in a vault for a whole task.
+ * ported: `grep -rnE "^[[:space:]]*container(-type)?:" styles/` prints exactly three lines, all
+ * three of them declarations, and `rp-al` is one of them. The version this file shipped with
+ * asserted "the container is declared on the shell's root" while nothing declared it, ported
+ * verbatim from a prototype where it was true, and both blocks below were inert in a vault for
+ * a whole task.
+ *
+ * **The PATTERN changed in Task 17 and the claim did not, which is the point of the change.**
+ * It used to be an alternation over the bare property names, and that matched PROSE as well as
+ * CSS — seven lines, three of them declarations and four of them comments, one of which was
+ * this sentence quoting its own pattern. So the number here read as a miscount when it was a
+ * defect in the instrument: *an instrument written inside the text it measures counts itself*,
+ * which CLAUDE.md records against a `MIGRATION_SET` grep that printed ten for an array of nine.
+ * Anchoring at the start of a line under leading whitespace is what a DECLARATION looks like
+ * and a comment line — which begins ` * ` — cannot; the fix is the instrument being unable to
+ * count itself rather than a sentence explaining the extra lines, because the first survives
+ * the next edit to this comment and the second does not.
  */
 /*
  * The ladder's middle rung, which shipped missing. §7 specifies 280px at 45rem and above, 240px

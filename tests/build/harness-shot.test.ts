@@ -564,7 +564,15 @@ describe('the headless harness capture script', () => {
 		expect(source).not.toContain('createHash');
 	});
 
-	it('still defines the fifteen fixed shots, so an argumentless run is unchanged', () => {
+	/**
+	 * **NO NUMBER, in the name or anywhere else.** This case was called *the fifteen fixed shots*
+	 * and listed fifteen while `SHOTS` held seventeen: the two `project-detail-prices` captures
+	 * were added without it, so the pair this case exists to protect was the pair it could not
+	 * see, and the stale total read as a deliberate subset rather than as an omission. A count
+	 * in prose is only as good as the last person to re-derive it, which is the same defect
+	 * class this branch has been sweeping for greps that match their own quotation.
+	 */
+	it('still defines every fixed shot, so an argumentless run is unchanged', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
 		for (const name of [
@@ -572,7 +580,16 @@ describe('the headless harness capture script', () => {
 			'light',
 			'phone',
 			'project-detail',
+			'project-detail-prices',
 			'project-detail-narrow',
+			'project-detail-prices-narrow',
+			'asset-library-dark',
+			'asset-library-light',
+			'asset-library-selected',
+			'asset-library-middle',
+			'asset-library-actions',
+			'asset-library-narrow',
+			'asset-library-narrow-selected',
 			'plan-editor-dark',
 			'plan-editor-light',
 			'asset-designer-dark',

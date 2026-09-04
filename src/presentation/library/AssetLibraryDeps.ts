@@ -165,10 +165,21 @@ export interface AssetLibraryDeps {
  * `settings.unrecovered` code literals across eight modules in `presentation/` — followed
  * rather than shared, and said out loud so the tenth is a decision somebody makes.** Measured
  * in the edit that wrote this sentence rather than carried from a review that said eight:
- * `grep -rn "'settings.unrecovered'" src/presentation/` prints twelve lines over eleven files,
- * of which two are locale KEYS (`en.ts`, `de.ts`) and one is `errorSurfacePolicy.ts`'s named
- * constant rather than a raised code. Read the number as a fact about that grep and re-run it
- * before quoting it. Two lines are far under fallow's clone floor, so no gate will ever raise this; the house pattern is one per bundle, and a shared
+ * `grep -rnE "'settings[.]unrecovered'" src/presentation/` prints twelve lines over eleven
+ * files, of which two are locale KEYS (`en.ts`, `de.ts`) and one is `errorSurfacePolicy.ts`'s
+ * named constant rather than a raised code. Read the number as a fact about that grep and
+ * re-run it before quoting it.
+ *
+ * **The `[.]` is why twelve is now TRUE, and it was not.** The sentence claimed twelve while the
+ * pattern as written printed thirteen, for two tasks, and the extra line was this docblock
+ * itself. The pattern used to be written with a bare dot, so this very line — which quotes it
+ * — was one of the lines it counted: *an instrument written inside the text it measures counts
+ * itself*, which CLAUDE.md records against a `MIGRATION_SET` grep that printed ten for an array
+ * of nine, and which this branch has now produced four times. A bracketed dot is the same regex
+ * to `grep -E` and a different STRING in this comment, so the quotation is no longer a match —
+ * the fix being an instrument that cannot count itself rather than a sentence explaining the
+ * extra line, because the first survives the next edit to this paragraph and the second does
+ * not. Two lines are far under fallow's clone floor, so no gate will ever raise this; the house pattern is one per bundle, and a shared
  * helper would put the write side's refusal code in a module neither bundle owns. Recorded
  * because a habit nobody has noticed is not the same as a convention somebody chose.
  */

@@ -14,13 +14,20 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — either the fifteen fixed surfaces (the project
- * view's list state in its dark scheme, light scheme and `?phone`; its detail state wide and
- * at a sidebar's width; the Plan Editor's dark and light schemes; the asset designer's dark and
- * light schemes plus its own sidebar width (Task B10); and the harness index at rest in both
- * schemes, focused, focused on the current row, and showing its failure card) — or, given an
- * entry id, one named prototype or component in both schemes — for a look nobody has to open a
- * browser for. This is how a real layout defect was found earlier in this plan (the view
+ * Headless capture of the browser harness — either the fixed surfaces (the project view's list
+ * state in its dark scheme, light scheme and `?phone`; its detail state and its price section,
+ * each wide and at a sidebar's width; the Plan Editor's dark and light schemes; the asset
+ * designer's dark and light schemes plus its own sidebar width (Task B10); the asset library at
+ * three of §7's widths, resting and with an asset selected (Task 17); and the harness index at
+ * rest in both schemes, focused, focused on the current row, and showing its failure card) — or,
+ * given an entry id, one named prototype or component in both schemes — for a look nobody has to
+ * open a browser for.
+ *
+ * **The header used to open with a COUNT, and it said fifteen over seventeen shots** — the two
+ * `project-detail-prices` captures landed without it, and the test below carried the same
+ * fifteen in its own name and in a list that omitted the same two. Neither is a number now:
+ * a total in prose is a fact about the array at the moment somebody last read it, and this one
+ * had been wrong for an increment with nothing able to notice. This is how a real layout defect was found earlier in this plan (the view
  * collapsing to 39px of a 700px pane): nothing in the suite could see it because jsdom draws
  * nothing, and a screenshot is the only artifact that shows it. The asset designer's sidebar-
  * width shot is the same shape found a second time, in this same task: an AD-HOC capture at
@@ -54,6 +61,16 @@ const ASSET_DESIGNER_VIEW = '.renovation-asset-designer-view';
 // index at `?index` opens no entry — so unlike the two surfaces above there is no "has it really
 // drawn" question to answer here beyond the element existing.
 const HARNESS_INDEX = '.rp-harness-index';
+
+const ASSET_LIBRARY_VIEW = '.renovation-asset-library';
+
+/**
+ * The asset the four selected shots open on — `tests/harness/assetLibrary.ts`'s one DESIGNED
+ * seed, so §3.5's Shape section draws a footprint, a clearance and a spec sheet rather than
+ * three "nothing yet" lines. Named once here because four shots share it and a fifth would
+ * otherwise be a fifth place to keep in step.
+ */
+const LIBRARY_SELECTED_ASSET = 'base-cabinet-600';
 
 /**
  * The viewport for one shot: `VIEWPORT`, with `width` overriding its one field when a shot
@@ -219,6 +236,71 @@ const SHOTS = [
 	// it, wrapping is not a colour question — nothing here behaves differently by scheme, so
 	// there is nothing to measure and dark is simply this file's own default.
 	{ name: 'asset-designer-narrow', query: '?view=asset-designer', selector: ASSET_DESIGNER_VIEW, width: 460 },
+	// THE ASSET LIBRARY (Task 17), and this is the surface with the largest gap between what was
+	// built and what has ever been looked at: sixteen tasks shipped the shelves, the rows, the
+	// marks, the inspector, the stylesheet, the keyboard and the narrow composition, and every
+	// rendering question any of them raised was deferred to a capture nobody could take.
+	//
+	// SEVEN shots and not two, which is a deviation from this task's own brief and is argued from
+	// §7 rather than from appetite: that section specifies a ladder with THREE rungs (a 280px
+	// rail at and above 45rem, 240px between 35 and 45, and one pane below 35), and the middle
+	// rung has already shipped MISSING once — reported by a review bot, with that partial's own
+	// comment recording why nothing saw it: "no capture had been taken between the two widths
+	// that were". A ladder photographed at one width is a ladder with two untested rungs.
+	//
+	//   - Rest, BOTH schemes at 1280: the shelves, the rows' five slots, §5.1a's repair strip and
+	//     the resting inspector rail. The whole palette of this surface is here and nowhere else.
+	//   - Selected at 1280, LIGHT: §3.5's inspector in full — four sections, the editable field
+	//     grid, the `Used in` list and the three actions. Light because the one control on this
+	//     surface with a colour argument is the destructive `Delete`, whose border is
+	//     `--text-error`: the pair already measured for that variable in this file (the index's
+	//     failure card) puts it at 3.89:1 in light against 4.27:1 in dark, so light is the scheme
+	//     a regression toward a contrast floor breaches first.
+	//   - Selected at 700, LIGHT: §7's MIDDLE rung, the 240px rail, which no picture has ever
+	//     held. Same scheme as the shot above so the only difference between the two is the width.
+	//   - Rest at 460, DARK: the row at an Obsidian sidebar leaf's real width, where §7 says the
+	//     supplier slot goes first and the waste slot second. Dark for `asset-designer-narrow`'s
+	//     own stated reason — wrapping is not a colour question, so there is nothing to measure
+	//     and dark is this file's default.
+	//   - Selected at 460, LIGHT: §7's THIRD rung, the one composition in this plugin where a rail
+	//     stops being a rail. `.rp-al-body` is hidden, the inspector takes the pane and
+	//     `‹ Back to library` appears — three rules that have never drawn together anywhere,
+	//     stood in for until now by a unit test that strips the `@container` wrapper off the
+	//     shipped selector, which is a stand-in and not evidence the query fires.
+	{ name: 'asset-library-dark', query: '?view=asset-library', selector: ASSET_LIBRARY_VIEW },
+	{ name: 'asset-library-light', query: '?view=asset-library&theme=light', selector: ASSET_LIBRARY_VIEW },
+	{
+		name: 'asset-library-selected',
+		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
+		selector: ASSET_LIBRARY_VIEW,
+	},
+	{
+		name: 'asset-library-middle',
+		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
+		selector: ASSET_LIBRARY_VIEW,
+		width: 700,
+	},
+	// AND THE ACTIONS ROW, which no RESTING capture of this surface reaches: the rail is its own
+	// scroller, and with §3.5's four sections above it the row sits below the fold at 1280 × 800 —
+	// measured, not predicted, which is exactly what the first capture after this shot's siblings
+	// showed. `Delete` is the reason it is worth a shot of its own: it is this surface's one
+	// destructive control, its treatment was reasoned from SPECIFICITY alone
+	// (`.rp-al-inspector .rp-al-action--delete` at (0,2,0) against Obsidian's own
+	// `button:not(.clickable-icon)` at (0,1,1)), and this repository has already shipped exactly
+	// that reasoning being wrong once, when a danger button rendered plain white.
+	{
+		name: 'asset-library-actions',
+		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
+		selector: ASSET_LIBRARY_VIEW,
+		scrollTo: '.rp-al-actions',
+	},
+	{ name: 'asset-library-narrow', query: '?view=asset-library', selector: ASSET_LIBRARY_VIEW, width: 460 },
+	{
+		name: 'asset-library-narrow-selected',
+		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
+		selector: ASSET_LIBRARY_VIEW,
+		width: 460,
+	},
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

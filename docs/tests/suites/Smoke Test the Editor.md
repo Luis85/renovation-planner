@@ -83,18 +83,32 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 96 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 39 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 114 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 99 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 48 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 115 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 12 |
-| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 9 |
+| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 13 |
 
-**270 steps across FIFTEEN cases, and this paragraph has now proved itself a SIXTH time — this
-time in the commit that ADDED the case, which is a shape the previous five did not have.** The
-asset library increment appended [[Open the Asset Library]] to the `## Cases` list below and left
-this paragraph reading 264 across fourteen, so the file contradicted itself within one commit
-rather than across a merge. `obsidian` moved 108 → 114 with it; the other four verdicts did not
-move. Re-run of both greps below against the current tree, taken in the edit that wrote this.
+**287 steps across SIXTEEN cases, and this paragraph has now proved itself a SEVENTH time.** The
+asset library increment's Task 17 appended [[Browse the asset library]] to the `## Cases` list
+below — seventeen steps spread over four tiers (`suite` 3, `browser` 9, `obsidian` 1,
+`judgement` 4), so every tier but `desktop` moved where the sixth correction moved exactly one.
+Re-run of both greps below against the current tree, taken in the edit that wrote this.
+
+**That sentence first claimed the case was the FIRST here to span four tiers, and measuring it
+before committing said otherwise:** [[Zone Editing Walkthrough]], [[Notices and save state]],
+[[Empty States Walkthrough]], [[Create a Project]] and [[Calibrate a Plan]] each already span
+four, and [[Canvas Navigation]] spans all five. What is true is the narrower thing — a case
+whose subject is the gap between what each instrument can settle ends up spread rather than
+concentrated — and it is worth recording that the false version was caught by a one-line loop
+over the same two greps this section already names as its authority, rather than by review.
+
+**The sixth correction's own account follows, and it stands.** *270 steps across FIFTEEN cases,
+and this paragraph has now proved itself a SIXTH time — this time in the commit that ADDED the
+case, which is a shape the previous five did not have.* The asset library increment appended
+[[Open the Asset Library]] to the `## Cases` list below and left this paragraph reading 264
+across fourteen, so the file contradicted itself within one commit rather than across a merge.
+`obsidian` moved 108 → 114 with it; the other four verdicts did not move.
 
 **The remedy is no longer a more careful paragraph.** Five previous corrections were each careful
 and each went stale, so a sixth careful sentence predicts a seventh staleness. What changes here is
@@ -399,6 +413,15 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   suite's second PDF-rendering step and the only caller either has for
   `editor-background-pdf-test.pdf` on the asset surface — reused rather than duplicated,
   because there is no asset-specific fixture and none of this case needs one.
+- [[Browse the asset library]] — the sibling of the case below, and what its own *Deliberately
+  NOT checked* list defers: §3's shelves, row, mark and inspector, §6's search and keyboard, and
+  §7's three widths. FIVE of its seventeen steps are written as expected FAILURES, each with the
+  browser measurement that found it — a price column whose decimals do not line up under a
+  comment promising they do, a geometry mark stuck in one of its five states because nothing
+  passes `outline-for`, a category named two ways on two surfaces of one pane, an override chip
+  breaking a project name one character per line at §7's middle rung, and a repair strip whose
+  reason column is 70px ragged. A case that predicts its own failures is what stops the next run
+  reporting them as discoveries.
 - [[Open the Asset Library]] — Task 11's own surface: a FOURTH workspace view, its Obsidian
   lifecycle, its two in-app doors and its rebind on a settings save, scoped to what that task
   built rather than to §3's still-unbuilt shelves. Its step 6 is where a Task 11 review

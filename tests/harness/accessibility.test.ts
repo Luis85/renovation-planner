@@ -104,6 +104,7 @@ import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountAssetDesignerHarness } from './assetDesigner';
+import { mountAssetLibraryHarness } from './assetLibrary';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
@@ -828,6 +829,28 @@ function anAxeCatalogueEntry(): CatalogueEntryDto {
 	};
 }
 
+/**
+ * One case per §4 empty state, and the shared half is a FUNCTION rather than an `it.each`
+ * table: `noMatches` is reached by typing into the search field and `noAssets` is not, so a
+ * parameterised version put an `expect` inside an `if` — which `vitest/no-conditional-expect`
+ * refuses, and rightly: a conditional assertion is one that can be skipped without the case
+ * going red.
+ */
+const mountLibraryWith = async (entries: readonly CatalogueEntryDto[]) => {
+	installObsidianDom();
+	const deps = defaultAssetLibraryDeps({
+		queries: {
+			...defaultAssetLibraryDeps().queries,
+			listCatalogue: () => Promise.resolve(ok({ entries, unreadable: [] })),
+		},
+	});
+	const view = makeAssetLibraryView(deps);
+	document.body.appendChild(view.containerEl);
+	await view.onOpen();
+	await flushPromises();
+	return view;
+};
+
 describe('axe against the asset library', () => {
 	/**
 	 * `axe.run` requires its target to be part of the live document — `mountHarness`'s own
@@ -919,6 +942,118 @@ describe('axe against the asset library', () => {
 		try {
 			expect(view.contentEl.querySelector('.rp-al-toolbar')).not.toBeNull();
 			expect(view.contentEl.querySelector('.rp-view-notice')).not.toBeNull();
+
+			const results = await axe.run(view.contentEl, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			await view.onClose();
+			view.containerEl.remove();
+		}
+	});
+
+	/**
+	 * THE INSPECTOR, and it is the reason this block grew a sixth case rather than a sixth
+	 * assertion. Task 14 shipped §3.5's panel and reported, as its own last concern, that no axe
+	 * scan reaches it — and it is the largest new ARIA surface on this view: four sections each
+	 * with three states, a definition list of live fields with inline errors, `aria-disabled`
+	 * controls carrying their reason by `aria-describedby`, and a per-group override mark. Every
+	 * other case in this block rests where the panel draws its one resting line or nothing at
+	 * all, so all five would pass a build in which the inspector's ARIA is broken.
+	 *
+	 * **Scanned in its ANSWERED state, which is what `flushPromises()` buys and why it is
+	 * load-bearing here in a way it is not everywhere.** `AssetInspector` starts three ticketed
+	 * reads from a `watch` with `immediate: true`, and while they are out the Shape and *Used in*
+	 * sections draw a single `<p>` loading line each. A scan taken one tick early therefore grades
+	 * a strictly smaller surface — no `<dl>`, no list, no override mark — and reads identically to
+	 * one that grades the larger. `.rp-al-used__override` is the assertion that tells the two
+	 * apart, because it exists only once `listOverridingProjects` has answered.
+	 *
+	 * Mounted through `mountAssetLibraryHarness`, the same function `npm run harness` and
+	 * `scripts/harness-shot.mjs` both drive, for the reason every case in this file gives: a
+	 * fixture typed into this file would grade markup nobody keeps in sync with what renders.
+	 */
+	it('reports no semantic violations on the inspector, with an asset selected', async () => {
+		const { view } = mountAssetLibraryHarness(document.body, 'base-cabinet-600');
+		await flushPromises();
+
+		try {
+			// The panel is drawn AND its two ticketed sections have answered — see this case's
+			// docblock for why the second assertion is not decoration.
+			expect(view.contentEl.querySelector('.rp-al-inspector')).not.toBeNull();
+			expect(view.contentEl.querySelector('.rp-al-fields__input')).not.toBeNull();
+			expect(view.contentEl.querySelector('.rp-al-used__override')).not.toBeNull();
+			expect(view.contentEl.querySelector('.rp-al-action--delete')).not.toBeNull();
+
+			const results = await axe.run(view.contentEl, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			await view.onClose();
+			view.containerEl.remove();
+		}
+	});
+
+	/**
+	 * §4's two action-bearing empty states, scanned on the day they ship — that paragraph's own
+	 * requirement, and it names the mechanism as well as the rule: `planEditor.noZones` went seven
+	 * slices unscanned because the case's fixture resolved to a DIFFERENT entry, so each case here
+	 * asserts `.rp-empty-state` and `.rp-empty-state__action` are in the scanned DOM rather than
+	 * trusting the fixture to have produced the state its name claims.
+	 *
+	 * `noMatches` is reached by TYPING rather than by seeding a store: §6.1's query lives in
+	 * `AssetLibraryStore`, and the only door into it from outside the tree is the field the user
+	 * uses. Driving it through the input is also what makes this case a scan of the state a user
+	 * can actually reach — a store poked directly would grade a state and prove nothing about the
+	 * route to it.
+	 */
+
+	/**
+	 * §4's two action-bearing empty states, scanned on the day they ship — that paragraph's own
+	 * requirement, and it names the mechanism as well as the rule: `planEditor.noZones` went seven
+	 * slices unscanned because the case's fixture resolved to a DIFFERENT entry, so both cases
+	 * below assert `.rp-empty-state` and `.rp-empty-state__action` are in the scanned DOM rather
+	 * than trusting the fixture to have produced the state its name claims.
+	 */
+	it('reports no semantic violations on the empty state for a vault with no assets', async () => {
+		const view = await mountLibraryWith([]);
+
+		try {
+			expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
+			expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
+
+			const results = await axe.run(view.contentEl, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			await view.onClose();
+			view.containerEl.remove();
+		}
+	});
+
+	/**
+	 * Reached by TYPING rather than by seeding a store: §6.1's query lives in
+	 * `AssetLibraryStore`, and the only door into it from outside the tree is the field the user
+	 * uses. Driving it through the input is also what makes this a scan of a state a user can
+	 * actually reach — a store poked directly would grade the state and prove nothing about the
+	 * route to it. Measured: with the two typing lines removed the case fails at
+	 * `.rp-empty-state`, because a catalogue holding one entry draws a shelf.
+	 */
+	it('reports no semantic violations on the empty state for a search that matches nothing', async () => {
+		const view = await mountLibraryWith([anAxeCatalogueEntry()]);
+		const field = view.contentEl.querySelector<HTMLInputElement>('.rp-al-search__input');
+
+		try {
+			expect(field).not.toBeNull();
+			// `definite`'s job, spelled out because this file imports no such helper: the
+			// assertion above is what makes the cast honest rather than optimistic.
+			const input = field as HTMLInputElement;
+			input.value = 'nothing matches this';
+			input.dispatchEvent(new Event('input'));
+			await flushPromises();
+
+			expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
+			expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
 
 			const results = await axe.run(view.contentEl, runOptions);
 

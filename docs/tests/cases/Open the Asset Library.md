@@ -56,8 +56,11 @@ for every other surface:
 
 ## Deliberately NOT checked
 
-- **§3's shelves, categories, the inspector and the toolbar.** None of that markup exists
-  yet; Tasks 12–14 build it and get their own case.
+- **§3's shelves, categories, the inspector and the toolbar.** Tasks 12–16 built all of it
+  after this case was written, and Task 17 gave it the case this line predicted:
+  [[Browse the asset library]]. The exclusion stands — this case is the view's LIFECYCLE — and
+  the pointer is here so that the sentence names where the work went rather than a task number
+  a later reader has to resolve.
 - **Colour contrast and hit-target size**, for the same reason every other case in this
   folder excludes them: `tests/harness/accessibility.test.ts` grades roles, names, labels and
   ARIA validity and explicitly not those two.

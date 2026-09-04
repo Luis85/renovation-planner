@@ -33,6 +33,7 @@ import type { AssetLibraryQueryServices } from '../../../src/presentation/read-m
 import { assetDesign } from '../../helpers/assetDesign';
 import { Notice } from '../../helpers/obsidian-mock';
 import { activateNotices, disposeNotices } from '../../../src/presentation/notices/notify';
+import { lines, resetRecorder } from '../../helpers/logger';
 import { installObsidianDom } from '../../helpers/dom';
 import { en } from '../../../src/presentation/i18n/locales/en';
 import { settle } from '../../helpers/async';
@@ -49,6 +50,7 @@ const installed: HTMLStyleElement[] = [];
 // shared queue would fold a second identical sentence into a `(×2)` and construct no `Notice`.
 beforeEach(() => {
 	activateNotices();
+	resetRecorder();
 });
 afterEach(() => {
 	for (const wrapper of mounted.splice(0)) wrapper.unmount();
@@ -80,6 +82,17 @@ interface Options {
 	readonly targets?: readonly ReassignmentTargetDto[];
 	/** Refuse the delete with this code rather than performing it. */
 	readonly refuseWith?: string;
+	/**
+	 * THROW out of the referent read rather than refusing — SDD §65's other half, which a
+	 * `Result` cannot carry and which the detached binding would otherwise swallow whole.
+	 *
+	 * Applied from the SECOND call onward, never the first, and that is the fixture modelling
+	 * the real thing rather than a convenience: `AssetSelectionStore.select` runs this same
+	 * door on selection, so a fixture that threw for every call would fault the PANEL's read
+	 * too — which reaches `Delete` before this flow does, leaves `canDelete` false, and tests a
+	 * gesture no user could have made. Faulting the flow's own read is the case.
+	 */
+	readonly faultWith?: Error;
 	/** Refuse only the FIRST dispatch with this code — slice 10's stale-read path. */
 	readonly refuseFirstWith?: string;
 	/**
@@ -97,13 +110,17 @@ async function library(options: Options) {
 	const live = [...options.entries];
 	const dispatched: DeleteAssetInput[] = [];
 	let referents = options.referents ?? [];
+	let reads = 0;
 	const queries: AssetLibraryQueryServices = {
 		listCatalogue: () => Promise.resolve(ok({ entries: [...live], unreadable: [] })),
 		listOutlines: (assetIds) =>
 			Promise.resolve(new Map(assetIds.map((assetId) => [assetId, { kind: 'none' as const }]))),
 		getDesign: (assetId) => Promise.resolve(ok(assetDesign({ assetId }))),
-		listReferencing: vi.fn<AssetLibraryQueryServices['listReferencing']>(() =>
-			Promise.resolve(ok(referents))),
+		listReferencing: vi.fn<AssetLibraryQueryServices['listReferencing']>(() => {
+			reads += 1;
+			if (options.faultWith !== undefined && reads > 1) return Promise.reject(options.faultWith);
+			return Promise.resolve(ok(referents));
+		}),
 		listOverridingProjects: () => Promise.resolve(ok([])),
 		listReassignmentTargets: () => Promise.resolve(ok(options.targets ?? [])),
 	};
@@ -136,6 +153,15 @@ async function library(options: Options) {
 		async pressDelete(): Promise<void> {
 			await root.get('.rp-al-action--delete').trigger('click');
 			await settle();
+		},
+		/**
+		 * A press that does NOT let the gesture finish — `trigger` awaits Vue's own scheduler
+		 * and nothing else, so the handler is left suspended at its first `await`. That window
+		 * is the whole subject of the re-entrancy cases: it is where a real second click lands,
+		 * and where the background is not yet `inert` because no dialog has opened.
+		 */
+		pressDeleteWithoutWaiting(): Promise<void> {
+			return root.get('.rp-al-action--delete').trigger('click');
 		},
 	};
 }
@@ -289,6 +315,82 @@ describe("§3.5's Delete and the resolution behind it", () => {
 	});
 });
 
+/**
+ * SDD §65's FAULT half at a DETACHED door, and the re-entrancy the same window admits.
+ *
+ * The binding is `@delete="(id) => void onDelete(id)"`, so the promise is discarded and Vue's
+ * own error handling never sees a rejection: without the handler's own `try`/`catch` a thrown
+ * fault on the destructive gesture reaches neither channel. Both are asserted TOGETHER in the
+ * first case, because "a notice appeared" is equally true of a build that printed and logged
+ * nothing, and a log line alone is equally true of one that told the user nothing.
+ */
+describe("§3.5's Delete at a detached door", () => {
+	it('maps, logs and announces a THROWN fault rather than discarding it', async () => {
+		const entries = shelf('material', ['Alder plank']);
+		const lib = await library({ entries, faultWith: new Error('the vault exploded') });
+		await lib.select(entries[0]?.assetId as AssetId);
+		await lib.pressDelete();
+
+		expect(lines.map((line) => line.event)).toContain('library.deleteAsset.faulted');
+		// The MAPPED sentence, never the cause's own text — `NOTICE_TEXT_BAN`'s rule holding at
+		// the one door that had no guard at all until now.
+		expect(Notice.shown.join(' ')).toContain(en['vault.unexpected-failure']);
+		expect(Notice.shown.join(' ')).not.toContain('the vault exploded');
+	});
+
+	/**
+	 * A referenced asset: the first press awaits the usage read before it opens anything, so a
+	 * second press inside that window finds no dialog to be behind and no `inert` background.
+	 * Ungated it reaches `openDialog` twice and `DialogStackingError` is thrown into a promise
+	 * nothing holds.
+	 */
+	it('drops a second press that lands while the first is still reading', async () => {
+		const entries = shelf('material', ['Alder plank']);
+		const lib = await library({ entries, referents: [GROUP] });
+		await lib.select(entries[0]?.assetId as AssetId);
+
+		await lib.pressDeleteWithoutWaiting();
+		await lib.pressDeleteWithoutWaiting();
+		await settle();
+
+		expect(lib.root.findAll('.rp-dialog-references')).toHaveLength(1);
+		expect(lines.map((line) => line.event)).not.toContain('library.deleteAsset.faulted');
+	});
+
+	/**
+	 * And the referent-FREE asset, which is the worse of the two because no dialog opens at all:
+	 * ungated, both presses dispatch, and the second reports *"no longer there"* about a
+	 * deletion that had just succeeded. Asserted on the DISPATCH count, because the toast count
+	 * cannot discriminate — slice 13's queue folds an identical message into a `(×N)` suffix.
+	 */
+	it('dispatches once when a referent-free delete is pressed twice', async () => {
+		const entries = shelf('material', ['Alder plank']);
+		const lib = await library({ entries, referents: [] });
+		await lib.select(entries[0]?.assetId as AssetId);
+
+		await lib.pressDeleteWithoutWaiting();
+		await lib.pressDeleteWithoutWaiting();
+		await settle();
+
+		expect(lib.dispatched).toHaveLength(1);
+	});
+
+	/** The guard RELEASES: a second deletion in the same session is an ordinary gesture. */
+	it('releases the guard so a later deletion still runs', async () => {
+		const entries = shelf('material', ['Alder plank', 'Birch plank']);
+		const lib = await library({ entries, referents: [] });
+		await lib.select(entries[0]?.assetId as AssetId);
+		await lib.pressDelete();
+		await lib.select(entries[1]?.assetId as AssetId);
+		await lib.pressDelete();
+
+		expect(lib.dispatched.map((input) => input.assetId)).toEqual([
+			entries[0]?.assetId,
+			entries[1]?.assetId,
+		]);
+	});
+});
+
 describe("§3.5's post-deletion focus rule", () => {
 	/**
 	 * The MIDDLE row, which is the case a build that always focuses the first surviving row
@@ -391,6 +493,29 @@ describe("§3.5's post-deletion focus rule", () => {
 
 		expect(lib.root.find(`[data-asset-id="${entries[1]?.assetId ?? ''}"]`).exists()).toBe(true);
 		expect(active()).toBe(lib.search);
+	});
+
+	/**
+	 * The POLICY half of the case above, and the reason it is a second assertion rather than a
+	 * second reading of the first: `onBack` answers this same situation by REVEALING the shelf,
+	 * under a docblock about exactly that stranding, and `onDelete` does not. Both are legal
+	 * under §3.5 — the search field is *"every remaining case"* — so the divergence is a decision
+	 * somebody made, and a decision nobody pins reads as an oversight from whichever side is read
+	 * second. The argument is in both functions' docblocks; this is what makes a build that
+	 * started revealing fail an assertion about the EXPANSION rather than only one about the
+	 * caret, which would read as a focus regression instead of as the policy change it is.
+	 */
+	it('leaves a collapsed shelf collapsed rather than revealing it as Back does', async () => {
+		const entries = [...shelf('material', ['Alder plank', 'Birch plank']), ...shelf('furniture', ['Sofa'])];
+		const lib = await library({ entries, referents: [] });
+		await open(lib.root, 'material');
+		await lib.select(entries[0]?.assetId as AssetId);
+		await open(lib.root, 'material');
+		const before = lib.root.attributes('data-expanded-categories');
+		await lib.pressDelete();
+
+		expect(lib.root.attributes('data-expanded-categories')).toBe(before);
+		expect(before).not.toContain('material');
 	});
 
 	/**

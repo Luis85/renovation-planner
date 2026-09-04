@@ -147,9 +147,20 @@ export function focusWithin(
  * two lists this rule serves cannot be named the same way: §6.1 replaces every shelf with one
  * flat *Results* list while a search runs, and that list has no category to key on. Holding
  * the element makes the two cases one rule — the deleted row's own `<ul class="rp-al-rows">`,
- * whichever list that is — and it makes the one way this can go stale REPRESENTABLE rather
- * than silent: a shelf that empties out of existence (an undeclared category exists only
+ * whichever list that is — and it makes ONE of the two ways this can go stale REPRESENTABLE
+ * rather than silent: a shelf that empties out of existence (an undeclared category exists only
  * because an asset sits in it) leaves a disconnected element, which `focusRowAt` tests for.
+ *
+ * **The SECOND way is not closed and is named rather than surveyed**, because a residue written
+ * down without its bound is what this repository calls reading as surveyed ground. This value is
+ * captured before the dispatch and CONSUMED after the user has answered a modal, and
+ * `onLibraryChanged`'s fire-and-forget `applyChange` can apply a listing in that window — a row
+ * inserted ABOVE the captured index leaves the caret on a different neighbour than §3.5 names.
+ * Capturing the surviving neighbour's ID instead would close it and would answer a DIFFERENT
+ * rule: §3.5 says *"the row that now occupies the deleted row's index"*, which is index-shaped
+ * on purpose, so this is a decision to keep the spec's rule rather than an oversight. What no
+ * instrument here reaches: nothing in the suite drives a concurrent listing across an open
+ * dialog, and the misplacement is one row rather than a lost caret.
  */
 export interface RowPosition {
 	readonly list: HTMLElement;
@@ -158,6 +169,23 @@ export interface RowPosition {
 
 /** The class §3.3's rows are drawn into, by both the shelves and §6.1's flat Results list. */
 const ROWS = '.rp-al-rows';
+
+/**
+ * The row control itself — ONE selector, asked by both halves of this pair.
+ *
+ * The first version counted the position over `list.children` (the `<li>`s) and read it back
+ * over `.rp-al-row` (the `<button>`s), which agree only while every `<li>` in a `.rp-al-rows`
+ * holds exactly one row — true of `AssetRow.vue` today, stated nowhere and pinned by nothing.
+ * A non-row `<li>` in that list (a "load more", a §6.1 grouping element) would then desync the
+ * caret silently, in the direction of focusing the WRONG asset. Two expressions of one question,
+ * three lines apart, drift immediately; this is the one expression.
+ */
+const ROW = '.rp-al-row';
+
+/** The rows of one list, in DOM order — the one instrument both halves of this pair count on. */
+function rowsIn(list: HTMLElement): readonly HTMLElement[] {
+	return [...list.querySelectorAll<HTMLElement>(ROW)];
+}
 
 /**
  * The position of the row naming `assetId`, or `null` when this surface is not drawing one.
@@ -172,11 +200,11 @@ const ROWS = '.rp-al-rows';
  */
 export function rowPositionOf(shell: HTMLElement | null, assetId: string): RowPosition | null {
 	const row = shell?.querySelector<HTMLElement>(`[data-asset-id="${CSS.escape(assetId)}"]`) ?? null;
-	const item = row?.closest('li') ?? null;
-	const list = item?.closest<HTMLElement>(ROWS) ?? null;
-	if (list === null || item === null) return null;
-	return { list, index: [...list.children].indexOf(item) };
+	const list = row?.closest<HTMLElement>(ROWS) ?? null;
+	if (list === null || row === null) return null;
+	return { list, index: rowsIn(list).indexOf(row) };
 }
+
 
 /**
  * §3.5's post-deletion destination: the row that now occupies the deleted row's index, then
@@ -203,7 +231,7 @@ export function focusRowAt(position: RowPosition | null, fallback: HTMLElement |
 		fallback?.focus();
 		return;
 	}
-	const rows = [...position.list.querySelectorAll<HTMLElement>('.rp-al-row')];
+	const rows = rowsIn(position.list);
 	const target = rows[position.index] ?? rows[position.index - 1] ?? null;
 	if (target !== null && isLaidOut(target, null)) target.focus();
 	else fallback?.focus();

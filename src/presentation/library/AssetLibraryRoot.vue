@@ -54,7 +54,7 @@ import { useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
-import { notifyOperationFailure } from '../notices/notify';
+import { notifyFault, notifyOperationFailure } from '../notices/notify';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
 import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { AssetId } from '../../domain/asset/AssetId';
@@ -276,6 +276,16 @@ function onSelect(assetId: AssetId): void {
  * list whatever its shelf is doing, so expanding here would silently rewrite an expansion state
  * §6.1 says is the user's.
  *
+ * **`onDelete` answers the same collapsed-shelf situation the OPPOSITE way, deliberately, and
+ * the two reasons are written in both places because a divergence stated once reads as an
+ * oversight from the other side.** The difference is WHOSE row the destination is. This one
+ * returns to the row the user CHOSE and then hid; revealing it restores what they were looking
+ * at, and the alternative strands the caret on `<body>`. A deletion's destination is a NEIGHBOUR
+ * the user never picked, so expanding a shelf they deliberately collapsed — to show them a row
+ * they did not ask for — is the very rewrite the paragraph above withholds this reveal for,
+ * arriving on a different trigger. §3.5's chain names no reveal and ends at the search field,
+ * which is what `onDelete` does.
+ *
  * `CSS.escape`: an asset id is `z.string().min(1)` in the frontmatter schema, so a
  * hand-authored one holding a quote or a backslash builds an invalid selector and
  * `querySelector` THROWS rather than missing.
@@ -303,8 +313,42 @@ function onBack(): void {
 /**
  * §3.5's `Delete` — the FIRST listener `AssetInspector`'s `delete` emit has ever had, and a
  * deliberately thin one: the resolution lives in `deleteAssetFlow.ts`, and this function is the
- * three things only the shell knows — which row was where, what to do with a refusal, and where
- * focus lands afterwards.
+ * four things only the shell knows — which row was where, what to do with a refusal, what to do
+ * with a FAULT, and where focus lands afterwards.
+ *
+ * **It is DETACHED, so both halves of SDD §65 are owed here and the first version of this
+ * docblock claimed one of them for the other.** The binding is
+ * `@delete="(id) => void onDelete(id)"`: the arrow returns `undefined`, so Vue's
+ * `callWithAsyncErrorHandling` never sees a rejection and a thrown fault below this reached
+ * neither the user nor a log. `runtime.ts`'s `createDeleteZoneAction` — the same flow's other
+ * caller — has caught since slice 10, under a comment giving exactly this reason, and
+ * `AssetLibraryDeps.logger` is declared as *"where a THROWN fault on a click-bound dispatch is
+ * recorded"*. The seam, the precedent and the collaborator all existed; this function used none
+ * of them while a sentence below asserted it matched the sibling "verbatim". Reported by review;
+ * it is CLAUDE.md's oldest recurring shape — the docblock naming the invariant was the best
+ * available description of the bug.
+ *
+ * **A second press is DROPPED rather than coalesced, and the two precedents in this repository
+ * mean different things.** `openNote.ts`'s `openingByPath` COALESCES because its two callers
+ * each want the outcome and one tab is the honest answer to two asks for it; slice 16's
+ * `useFormCommit.submit` returns `false` on a second press because a repeated submit is one
+ * intent pressed twice. A destructive command is the second: nobody awaits this handler, there
+ * is no outcome for a second caller to receive, and joining the first press's promise would
+ * dress an accidental repeat up as a request that was served. So `deleting` is a plain guard.
+ *
+ * It is what `onCreateAsset`'s `dialogs.current !== null` check does one function above, moved
+ * to a flag because that check CANNOT work here: this flow awaits a query before it opens
+ * anything, so during that window there is no dialog to see and the background is not yet
+ * `inert`. Two presses inside it reach `dialogs.openDialog` twice (`DialogStackingError`, which
+ * the catch above now records) or — for a referent-free asset, where no dialog opens at all —
+ * dispatch twice, the second answering *"no longer there"* about a deletion that succeeded.
+ *
+ * **What the guard does NOT do is change the control**, and saying so is the point: `Delete`
+ * stays clickable and says nothing while a deletion runs, exactly as `New asset` does. Making
+ * it report busy is a prop on `AssetInspector` and a state §3.5's actions row does not describe.
+ *
+ * A plain `let` rather than a `ref` because nothing renders it — `newAssetBusy` beside it is a
+ * `ref` only because `NewAssetForm` is handed it.
  *
  * **The position is captured BEFORE anything is dispatched**, because after a successful delete
  * there is no row left to ask. `rowPositionOf` is the whole of the reading: which list the row
@@ -313,6 +357,16 @@ function onBack(): void {
  * ("the shelf", "the same rule inside the flat Results list") are ONE rule over whichever list
  * the row was actually drawn into, rather than a condition on `store.searching` that would have
  * to be kept in step with what §6.1 mounts.
+ *
+ * **It does NOT reveal a collapsed shelf, where `onBack` does** — see that function's docblock
+ * for the argument stated from the other side. In short: `onBack`'s destination is the row the
+ * user chose and hid, and a deletion's is a neighbour they never picked, so expanding a shelf
+ * they deliberately collapsed would rewrite an expansion state §6.1 says is theirs in order to
+ * show them a row they did not ask for. §3.5's chain names no reveal, so the search field is the
+ * answer for that state. Pinned as a POLICY rather than as a side effect: `assetDelete.test.ts`
+ * asserts both that focus falls back AND that `data-expanded-categories` is unchanged, so a
+ * build that started revealing — matching `onBack` — reddens an assertion about the expansion
+ * rather than only one about the caret.
  *
  * **The inspector withdraws BEFORE the re-read**, which is the ordering that matters rather than
  * a tidy-up: below 35rem the shelves are hidden while something is selected, so a focus computed
@@ -326,30 +380,51 @@ function onBack(): void {
  * (`latestHydration`), so the event-driven read landing beside this one cannot regress it, and a
  * second listing read per deletion is what buys a deterministic moment to place the caret at.
  *
- * A refusal is `notifyOperationFailure`, matching the Plan editor's own delete action verbatim
- * and for its reason: the DECISION half already happened — the flow opened slice 15's modal and
- * the user answered it — so what lands here is the command refusing after that answer, which is
- * an explicit operation like any other rather than a second decision to put in front of them.
+ * A REFUSAL is `notifyOperationFailure` and a FAULT is `notifyFault`, which is the Plan editor's
+ * own delete action in both halves rather than — as this sentence said for one commit — in the
+ * one half it had. The refusal reason is that action's: the DECISION half already happened, the
+ * flow opened slice 15's modal and the user answered it, so what lands there is the command
+ * refusing AFTER that answer — an explicit operation like any other rather than a second
+ * decision to put in front of them. The fault reason is `notifyFault`'s own: mapped once and
+ * LOGGED as well as printed, under an event name that says which door it came through.
  * `cancelled` is neither, and says nothing.
  */
+let deleting = false;
+
 async function onDelete(assetId: AssetId): Promise<void> {
-	const position = rowPositionOf(shellEl.value, assetId);
-	const outcome = await deleteAssetWithReferences(
-		{ queries: context.queries, deleteAsset: context.commands.deleteAsset, dialogs },
-		assetId,
-		store.entryFor(assetId)?.name ?? '',
-	);
-	if (outcome.kind === 'failed') {
-		notifyOperationFailure(outcome.error);
-		return;
+	if (deleting) return;
+	deleting = true;
+	try {
+		const position = rowPositionOf(shellEl.value, assetId);
+		const outcome = await deleteAssetWithReferences(
+			{ queries: context.queries, deleteAsset: context.commands.deleteAsset, dialogs },
+			assetId,
+			// `?? ''` is unreachable rather than defensive, and tracing it is what makes the
+			// `??` honest: `AssetInspector` draws `Delete` only for `state === 'ready'`, which
+			// is `entryFor(assetId) !== null`, and `onDelete` guards on `canDelete` before it
+			// emits — so the entry this reads is the one that made the control exist, with no
+			// await between the two. An empty label would be slice 15's "a descriptor says what
+			// it is about IN WORDS" failing on the one dialog where naming the subject is the
+			// whole contract, which is why the absence is named here rather than left to read
+			// as a fallback somebody chose.
+			store.entryFor(assetId)?.name ?? '',
+		);
+		if (outcome.kind === 'failed') {
+			notifyOperationFailure(outcome.error);
+			return;
+		}
+		if (outcome.kind === 'cancelled') return;
+		selectedId.value = null;
+		showingSelection.value = true;
+		publish(null, expandedCategories.value);
+		await hydrate();
+		await nextTick();
+		focusRowAt(position, searchEl.value);
+	} catch (cause) {
+		notifyFault(cause, context.logger, 'library.deleteAsset.faulted');
+	} finally {
+		deleting = false;
 	}
-	if (outcome.kind === 'cancelled') return;
-	selectedId.value = null;
-	showingSelection.value = true;
-	publish(null, expandedCategories.value);
-	await hydrate();
-	await nextTick();
-	focusRowAt(position, searchEl.value);
 }
 </script>
 

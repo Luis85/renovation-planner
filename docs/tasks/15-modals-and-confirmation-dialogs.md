@@ -123,11 +123,15 @@ Obsidian's own keymap stays live behind an open dialog.
 ### What slice 19 closed (2026-08-31)
 
 **Items 6 and 6a were met by slice 19 (2026-08-31.)** Every Definition of Done item in this
-document is now met. The row mapping is `rowsFor` in
-`src/presentation/editor/deleteZoneFlow.ts`, asserted in
+document is now met. The row mapping is `rowsFor`, asserted in
 `tests/presentation/editor/deleteZoneFlow.test.ts` — against the mapping directly, which is
 what item 6 asks for — and through the mounted editor in
-`tests/presentation/editor/shell/deleteZoneWithReferences.test.ts`. `t`'s third parameter
+`tests/presentation/editor/shell/deleteZoneWithReferences.test.ts`. **It lives in
+`src/presentation/references/deleteWithReferences.ts` since the Asset library's Task 16b
+(2026-09-04)**, which extracted the delete flow's shape out of
+`src/presentation/editor/deleteZoneFlow.ts` so that two surfaces run one derivation of this
+rule rather than two; this record named the old file until then. The test path is unchanged —
+that suite imports the mapping from its new home and says why at the import. `t`'s third parameter
 lives in `src/presentation/i18n/strings.ts`, with `tr` forwarding it, driven by
 `tests/presentation/i18n/strings.test.ts` (the fill, the unmatched hole left standing, the
 unchanged two-argument call, and the per-key hole parity between `de.ts` and `en.ts`).

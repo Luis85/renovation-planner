@@ -122,5 +122,31 @@ jobs:
       # No install: `npm audit` reads package-lock.json and asks the registry — it never
       # touches node_modules, so an `npm ci` here would be a minute of work whose output
       # nothing reads.
+      #
+      # Bounded retries, and only for the ENDPOINT failing — a genuine advisory fails on the
+      # first attempt and is never retried. Measured 2026-09-04 against
+      # `/-/npm/v1/security/advisories/bulk` with this lockfile's own runtime payload (38
+      # names): one POST in five answered, in ~18s, and the other four hung past 60s, with
+      # status.npmjs.org showing Security Audit operational throughout. npm's default
+      # fetch-timeout is 300s and it does not retry a timeout, so a single attempt spent
+      # five minutes to report one hung socket. Five attempts at a 60s fetch-timeout cost
+      # the same five minutes in the worst case and buy four more chances at an endpoint
+      # that answers within 20s when it answers at all. The retry key is npm's own
+      # sentence for the endpoint arm, `audit endpoint returned an error`; anything else
+      # — an advisory at or above `high`, a bad lockfile — is the job's verdict and
+      # exits as itself.
       - name: Audit what ships
-        run: npm run audit
+        env:
+          npm_config_fetch_timeout: "60000"
+        # `pipefail` is GitHub's default for a Linux `run` and is set here anyway: without it
+        # the `if` reads `tee`'s exit status and every attempt reads as success.
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/audit.log"
+          for attempt in 1 2 3 4 5; do
+            if npm run audit 2>&1 | tee "$log"; then exit 0; fi
+            if ! grep -q "audit endpoint returned an error" "$log"; then exit 1; fi
+            echo "::warning::npm audit attempt $attempt: the advisory endpoint did not answer; retrying"
+          done
+          echo "::error::npm audit: the advisory endpoint did not answer in 5 attempts"
+          exit 1

@@ -334,9 +334,25 @@ COMPLETE → AS_BUILT`). A badge treats them as ten unrelated labels and throws 
 fact a renovator actually wants: how far along this is.
 
 **The status renders as the translated stage word plus a ten-step tick strip** — ten cells
-drawn from `currentColor`, cells up to and including the current stage at `--text-normal`,
-the rest at `--text-faint`. No hue, so a themed vault keeps its theme and no colour literal
-enters the sheet. The strip is `aria-hidden`; the word is the accessible name, in full, so
+drawn from ~~`currentColor`~~ **two named Obsidian tokens (amended 2026-09-04)**, cells up to
+and including the current stage at `--text-normal`, the rest at `--text-faint`. No hue, so a
+themed vault keeps its theme and no colour literal enters the sheet.
+
+**Amendment 2026-09-04 — `currentColor` was the MECHANISM this section named and it cannot
+deliver the two states the same sentence asks for.** The original wording said both things at
+once, and only one of them survives contact with the cascade: `currentColor` resolves to a
+single inherited colour, so it produces the strip's SHAPE and not its reached/unreached
+distinction. These cells sit inside `.rp-project-list__status`, which `forms.css` sets to
+`--text-muted`, so an inheriting strip would draw every cell that one muted grey and a reached
+cell would have to be told apart by an opacity — dimmer than the `--text-normal` this section
+asks for at one end, bearing no relation to `--text-faint` at the other, and measured at
+**1.50:1** in dark by the table two paragraphs down. `styles/project-list.css` names the two
+tokens directly and states the refusal where the code is.
+
+**The PROPERTY this section was reaching for still holds, which is why this is an amendment and
+not a retraction**: a `var()` on an Obsidian token is exactly what SDD §84's colour check asks
+to see, so no literal enters the sheet and the strip follows the theme either way. The gate is
+not what decides between the two spellings; the two states are. The strip is `aria-hidden`; the word is the accessible name, in full, so
 the strip is an *enhancement* and never the second channel a11y depends on — the word already
 is that channel.
 
@@ -1106,3 +1122,20 @@ true.
 amendments, because several are marked twice on purpose — once in the table row that carries
 the old wording struck through, and once in the prose that says why. The table above is the
 list; the markers are navigation.
+
+**The final whole-branch review added two more, on the same date and by a different
+instrument**, kept in their own table because "the finish pass added ten" is a measured fact
+about that pass and folding these into it would make the sentence wrong:
+
+| § | Amendment | Found by |
+|---|---|---|
+| §6 | The tick strip is drawn from two named tokens, not `currentColor`; the property that wording was reaching for holds, the mechanism does not | Reading this section against `styles/project-list.css`, which had refused it in writing |
+| §9 | The Continue group survives a filter matching nothing — it is an ACTION, not a member of the index | A capture, read against the *Filtered to nothing* row |
+
+**Both are the failure this document's own header warns about, arriving after the pass written
+to catch it.** The §6 one is the sharper of the two: the build had already refused
+`currentColor` in a paragraph explaining exactly why, so the divergence was recorded on one side
+and invisible from the other — and the manual case at
+`docs/tests/cases/Find and resume a project.md` step 2 sent a runner to verify the mechanism
+this section had stated rather than the one that shipped. A claim checked from only one side is
+one the next reader resolves the wrong way.

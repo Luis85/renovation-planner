@@ -207,11 +207,27 @@ describe('project-list-narrow.css', () => {
 	 *
 	 * Guarded at both ends, because a regex over prose is the instrument this file already
 	 * records going quiet: the read fails loudly if the document has moved, and BOTH matches
-	 * must be found before either is compared. §6 and §13 are asserted separately rather than by
-	 * one sweep, so a build that amends one section and forgets the other fails at the section
-	 * it forgot rather than passing on the one it remembered.
+	 * must be found before either is compared. The two sentences are asserted separately rather
+	 * than by one sweep, so a build that amends one and forgets the other fails at the one it
+	 * forgot rather than passing on the one it remembered.
+	 *
+	 * **WHAT IT HOLDS IS TWO SENTENCES, NOT "everywhere the spec states the number", and the
+	 * name said the second for a review round.** Measured: `grep -n "41rem"` over that document
+	 * prints **ten** lines, of which **four** state the threshold normatively — §6's derivation
+	 * (the arithmetic this case's first regex reads), §6's own amendment sentence naming it, §13's
+	 * constraint 3 (the second regex), and the §16 amendment table row. The other six are prose
+	 * ABOUT the number — a risk note, a translation warning — which a sweep would have to tell
+	 * apart from a statement of it, and cannot. So this case pins the two that carry a
+	 * DERIVATION or a RULE, and the remaining two normative sites are held by a reader.
+	 *
+	 * **Neither regex is anchored to its SECTION**, which is the other half of the same
+	 * narrowing: the first matches an arithmetic SHAPE (`… → N.Nrem → Nrem`) and would read a
+	 * §13 arithmetic of that shape just as happily if §6's were deleted. Anchoring means
+	 * splitting the document on its headings, which is a second parser over prose — and this
+	 * file's own record is that a regex over prose goes quiet rather than loud. Stated rather
+	 * than closed, so the guarantee is not read wider than the check.
 	 */
-	it('agrees with the threshold the design spec states, in both places the spec states it', () => {
+	it('agrees with the threshold stated by the spec’s derivation and by its constraint 3', () => {
 		const path = 'docs/user-experience/renovation-planner-home-DESIGN-SPEC.md';
 		const shipped = /@container rp-project-list \(max-width: (\d+)rem\)/u
 			.exec(readFileSync('styles/project-list-narrow.css', 'utf8'))?.[1];

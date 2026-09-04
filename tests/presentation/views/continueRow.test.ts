@@ -90,6 +90,40 @@ describe('ContinueRow', () => {
 		expect(wrapper.emitted('open')).toBeUndefined();
 	});
 
+	/**
+	 * **The autoscroll widget is a default action of `mousedown`, not of `auxclick`** — by the
+	 * time `auxclick` fires (on release) Chrome has already opened it, so `preventDefault()` there
+	 * suppresses nothing. `ProjectRow` was fixed for exactly this and this row shipped the pre-fix
+	 * shape three tasks later, with only the `auxclick` arm driven — so the case is written the
+	 * same way its sibling is, dispatching by hand rather than through `.trigger()` because this
+	 * needs the event object itself to read `defaultPrevented` back off it.
+	 */
+	it('suppresses the autoscroll widget at mousedown, where auxclick cannot reach it', () => {
+		const wrapper = row();
+		const pressed = new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true });
+
+		wrapper.find('.rp-continue__open').element.dispatchEvent(pressed);
+
+		expect(pressed.defaultPrevented).toBe(true);
+	});
+
+	it('leaves every other button’s mousedown on Open alone', () => {
+		const wrapper = row();
+		const pressed = new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true });
+
+		wrapper.find('.rp-continue__open').element.dispatchEvent(pressed);
+
+		expect(pressed.defaultPrevented).toBe(false);
+	});
+
+	it('ignores the secondary button on Open, which belongs to the context menu', async () => {
+		const wrapper = row();
+
+		await wrapper.find('.rp-continue__open').trigger('auxclick', { button: 2 });
+
+		expect(wrapper.emitted('openNote')).toBeUndefined();
+	});
+
 	it('gives Continue no modifier gesture at all', async () => {
 		// Resume restores a CONTEXT, and a note is not one. A modifier here would have to mean
 		// something this row has never been asked to define, so it means nothing.

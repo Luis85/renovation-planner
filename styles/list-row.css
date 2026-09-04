@@ -58,6 +58,22 @@
 	border: none;
 	border-radius: var(--radius-s);
 	background-color: transparent;
+	/*
+	 * **`box-shadow` is the fourth thing stripped, and it was missing for as long as this rule
+	 * has existed.** Obsidian's own `button:not(.clickable-icon)` sets
+	 * `box-shadow: var(--input-shadow)`, which `border: none` does not touch — so every row on
+	 * both lists drew as an OUTLINED BOX, and a stack of outlined boxes is the composition the
+	 * Home spec's column armature is written against. Found by the final whole-branch review
+	 * comparing the Continue row (a `<div>`, which inherits none of the button rule) against the
+	 * project rows above it: they were visibly different shapes, in a component whose own header
+	 * says it is distinguished "never by being a different shape".
+	 *
+	 * Stripped here rather than added to the `<div>`, which is the direction this file's own
+	 * first sentence already asks for — "a `<button>` stripped of its button-ness so the row
+	 * reads as a row". The captures decided it: the plan list is 26 outlined boxes edge-to-edge
+	 * before and a readable list after, on both schemes.
+	 */
+	box-shadow: none;
 	color: var(--text-normal);
 	text-align: left;
 	cursor: pointer;

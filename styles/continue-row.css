@@ -26,9 +26,21 @@
  * build on a literal, a bare colour word included.
  */
 
-/* Two buttons, not the row, are the target here: the shared hover/cursor come back off. */
+/*
+ * Two buttons, not the row, are the target here: the shared hover/cursor come back off.
+ *
+ * **THE TWO DECLARATIONS A `<div>` DOES NOT INHERIT, and their absence is what made this row a
+ * different shape from every row below it.** `list-row.css` flattens a `<button>`; this row is a
+ * `<div>` with two buttons inside it (its own header says why), so Obsidian's bare `button` rule
+ * — which sets `font-size: var(--font-ui-small)` and `white-space: nowrap` and is NOT part of the
+ * button-ness `list-row.css` strips — reaches every project row and reaches nothing here. The
+ * captures showed it as a larger, wrapping name above a list of small ones. Restated rather than
+ * inherited, because a `<div>` has no rule to inherit it from and the sameness is the contract.
+ */
 .rp-project-list .rp-continue {
 	cursor: default;
+	font-size: var(--font-ui-small);
+	white-space: nowrap;
 }
 
 .rp-project-list .rp-continue:hover {

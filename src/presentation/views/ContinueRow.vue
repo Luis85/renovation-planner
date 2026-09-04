@@ -57,10 +57,26 @@ function onOpen(event: MouseEvent): void {
 	emit('open');
 }
 
-/** The middle button, which fires `auxclick` and never `click`. `2` is the context menu's. */
+/**
+ * **The autoscroll widget is suppressed HERE, on `mousedown`, and cannot be suppressed on
+ * `auxclick`.** Chrome opens it as a default action of the PRESS; `auxclick` fires only after the
+ * button is released, by which point the widget has already opened, so cancelling that event
+ * cancels nothing. `ProjectRow` learned this against the plan text and this row shipped the
+ * pre-fix shape three tasks later — the same gesture vocabulary claim in this file's own header
+ * is what makes the two doors owe each other the same handler.
+ */
+function onOpenMouseDown(event: MouseEvent): void {
+	if (event.button === 1) event.preventDefault();
+}
+
+/**
+ * The middle button, which fires `auxclick` and never `click`. `2` is the context menu's.
+ *
+ * It only EMITS: the autoscroll suppression this door cannot deliver lives at
+ * `onOpenMouseDown`, above.
+ */
 function onOpenAux(event: MouseEvent): void {
 	if (event.button !== 1) return;
-	event.preventDefault();
 	emit('openNote');
 }
 
@@ -108,6 +124,7 @@ const worked = computed(() => {
 		<button
 			type="button"
 			class="rp-continue__open"
+			@mousedown="onOpenMouseDown"
 			@click="onOpen"
 			@auxclick="onOpenAux"
 		>

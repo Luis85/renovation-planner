@@ -99,6 +99,42 @@ describe('continue-row.css', () => {
 		expect(body).not.toContain('outline-offset: -2px');
 	});
 
+	/**
+	 * **THE TWO HALVES OF "the same armature as every other row", which was false for three
+	 * tasks and which four captures showed.** Every other row is a `<button>` and inherits
+	 * Obsidian's bare `button` rule; this row is a `<div>` and inherits none of it. Two of that
+	 * rule's declarations are visible — `font-size: var(--font-ui-small)` and
+	 * `white-space: nowrap` — and are NOT part of the button-ness `list-row.css` strips, so
+	 * without them the Continue row drew at the interface's default size above a list of small
+	 * ones. Asserted TOGETHER because either alone leaves the row a different shape, and each
+	 * reads as an ordinary tidy-up to a reader who does not know the `<div>` is why.
+	 *
+	 * Both are RESTATEMENTS of a rule this row cannot inherit, which is the one case where a
+	 * hard-coded agreement with somebody else's stylesheet is the honest answer: a `<div>` has
+	 * nothing to inherit from and the sameness is the component's own stated contract.
+	 */
+	it('restates the two button declarations a div cannot inherit', () => {
+		const body = bodyOf('.rp-project-list .rp-continue');
+
+		expect(body).toContain('font-size: var(--font-ui-small)');
+		expect(body).toContain('white-space: nowrap');
+	});
+
+	/**
+	 * **THE OTHER HALF OF THE SAME FINDING, and it lives in the SHARED sheet rather than here.**
+	 * `list-row.css` flattens a row `<button>`, and `border: none` does not touch the
+	 * `box-shadow: var(--input-shadow)` Obsidian's `button:not(.clickable-icon)` sets — so every
+	 * row on BOTH lists drew as an outlined box until the final review compared this `<div>`
+	 * against them. Asserted from here because this file is where the sameness claim is made and
+	 * because `list-row.css` has no test of its own; a build that re-adds the shadow makes this
+	 * row and the rows below it different shapes again, which is the thing being pinned.
+	 */
+	it('flattens the shared row shadow, without which this div and every button row differ', () => {
+		const shared = readFileSync('styles/list-row.css', 'utf8').replace(RULES_ONLY, '');
+
+		expect(shared).toContain('box-shadow: none');
+	});
+
 	it('is assembled into the shipped sheet', () => {
 		expect(readFileSync('styles/index.css', 'utf8')).toContain('continue-row.css');
 	});

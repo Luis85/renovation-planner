@@ -26,6 +26,26 @@
 	   view` and `.renovation-asset-designer` both take the identical rule for the identical
 	   reason. Stated ahead of a caller rather than left `static` until the first one needs it. */
 	position: relative;
+	/*
+	 * §7's INSPECTOR ladder measures this box and never `.rp-al-shelves`, which is why there are
+	 * two containers on this surface rather than one. The shelves' own container asks "how wide
+	 * is the region I am laid out in" — a question whose answer the rail changes. The rail's
+	 * question is "how wide is the PANE", and measuring the shelves for it would be circular:
+	 * the rail's width decides the shelves' width, which would then decide the rail's.
+	 *
+	 * **Added in Task 14's fix round, and the reason is the paragraph in `asset-shelf.css`
+	 * lines 259-269.** That paragraph records `@container rp-al-shelves` rules shipping INERT on
+	 * this same branch because only the prototype declared the container, names Task 13 as what
+	 * fixed it, and closes "a comment that names its trigger is a comment nothing re-reads when
+	 * the trigger fires". Task 14 then ported two `@container rp-al` blocks out of a prototype
+	 * whose OWN scoped block declared `container: rp-al / inline-size` on `.rp-al`, into a sheet
+	 * where nothing did — the identical defect under a second name, three files away from its
+	 * own write-up. `Back to library` was `display: none` at every width, which also takes it
+	 * out of the tab order, and neither rung of §7's ladder fired.
+	 * `tests/build/styles.test.ts`'s container case is what makes a third instance fail a gate
+	 * rather than a capture.
+	 */
+	container: rp-al / inline-size;
 }
 
 /* §9's own heading, visually hidden: Obsidian already prints the view's title in the leaf

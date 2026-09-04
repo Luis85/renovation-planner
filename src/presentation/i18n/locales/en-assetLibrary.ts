@@ -106,6 +106,14 @@ export const enAssetLibrary = {
 	// asset is simply gone. Narrower than `shape.gone`: §3.5's own table gives this row no
 	// way back to the shape or used-in sections, only "a way back" to the list.
 	'view.asset-library.asset-gone': 'This asset no longer exists.',
+	// §3.5's panel-level table has THREE rows and this is the middle one: the note was written by
+	// a NEWER build, so `Open note` is withheld because editing frontmatter cannot repair it — and
+	// the sentence has to carry the remedy that can, or the panel is a dead end that offers nothing
+	// and explains nothing. §8's 62nd key (amendment of 2026-09-03, Task 14 fix round): the panel
+	// rendered `note-unreadable` here, which is the REPAIRABLE row's sentence, so a user was told
+	// their note could not be read and given neither an action nor a reason.
+	'view.asset-library.note-future-schema':
+		'This asset’s note was written by a newer version of this plugin: {path}. Update the plugin to open it.',
 	'view.asset-library.shape.unusable-id':
 		'This asset’s ID cannot name a shape file, so no shape can be stored for it.',
 	'view.asset-library.shape.extent-overflow': 'This shape is too large to measure.',

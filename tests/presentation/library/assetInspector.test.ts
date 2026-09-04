@@ -107,9 +107,13 @@ describe('AssetInspector panel-level failure', () => {
 		expect(opened).toEqual(['Renovation/Library/tile.md']);
 	});
 
-	it('offers NOTHING for a note written by a newer build, because editing it cannot repair it', async () => {
-		// The remedy is to upgrade the plugin, so `Open note` invites an edit that cannot work —
-		// which is worse than no action, per this section's own rule for `unusable-id`.
+	it('names the upgrade remedy for a note written by a newer build, and offers nothing', async () => {
+		// TWO halves, and the case shipped asserting only the second. `Open note` is withheld
+		// because editing frontmatter cannot repair a future schema — but the SENTENCE has to
+		// carry the remedy that can, or the panel is a dead end that offers nothing and explains
+		// nothing. It rendered the REPAIRABLE row's wording ("could not be read"), which is
+		// identical in both worlds to a build with no future-schema state at all: exactly the
+		// assert-an-absence shape this file's own used-in sibling records one level up.
 		const assetId = createAssetId();
 		const inspector = await mountInspector({
 			unreadable: [
@@ -123,6 +127,10 @@ describe('AssetInspector panel-level failure', () => {
 			assetId,
 		});
 
+		const said = inspector.panel.get('.rp-al-inspector__failure').text();
+		expect(said).toContain('Renovation/Library/future.md');
+		expect(said).toContain('Update the plugin');
+		expect(said).not.toContain('could not be read');
 		expect(inspector.panel.findAll('.rp-al-action')).toHaveLength(0);
 	});
 
@@ -174,7 +182,15 @@ describe('AssetInspector actions', () => {
 				queries: {
 					getDesign: () =>
 						Promise.resolve(
-							err({ category: 'Validation', code, message: 'x', sidecarPath: 'g.rpgeo' }),
+							// `sidecarPath` on the damaged-sidecar row ONLY: `AssetGeometryStore.pathFor`
+						// refuses an unusable id before any path is derived, so production never
+						// mints one carrying it — a fixture more permissive than the real thing is
+						// evidence about a different program.
+						err(
+							code === 'asset-geometry.unusable-id'
+								? { category: 'Validation', code, message: 'x' }
+								: { category: 'Validation', code, message: 'x', sidecarPath: 'g.rpgeo' },
+						),
 						),
 				},
 			});
@@ -221,6 +237,32 @@ describe('AssetInspector actions', () => {
 		expect(opened).toEqual([entry.assetId]);
 	});
 
+	it('re-reads the listing when the id-keyed door reports the note missing', async () => {
+		// The composition answers `'missing'` when a LIVE index holds no note for the id, which
+		// means the listing this panel resolved its subject against is stale — so this door acts
+		// on it exactly as its path-keyed sibling does. It shipped DISCARDING the outcome, so an
+		// `Open note` on an asset whose note had just been deleted opened nothing, said nothing
+		// and left the stale row on screen.
+		const entry = anEntry();
+		let listings = 0;
+		const inspector = await mountInspector({
+			assetId: entry.assetId,
+			queries: {
+				listCatalogue: () => {
+					listings += 1;
+					return Promise.resolve(ok({ entries: [entry], unreadable: [] }));
+				},
+			},
+			openAssetNote: () => Promise.resolve('missing'),
+		});
+		const before = listings;
+
+		await inspector.panel.get('.rp-al-action--note').trigger('click');
+		await settle();
+
+		expect(listings).toBe(before + 1);
+	});
+
 	it('withholds Delete while the usage read has not succeeded, with the reason on the control', async () => {
 		const entry = anEntry();
 		const inspector = await mountInspector({
@@ -242,6 +284,27 @@ describe('AssetInspector actions', () => {
 
 		await control.trigger('click');
 		expect(inspector.panel.emitted('delete')).toBeUndefined();
+	});
+
+	it('withholds Delete while the usage read is IN FLIGHT without claiming it failed', async () => {
+		// §3.5 puts "Where this is used could not be checked" under its Refused bullet alone; the
+		// In flight bullet asks for a loading line, which the section draws. The reason rendered
+		// unconditionally on `!canDelete`, so for the whole of every selection's two reads the
+		// panel claimed a FAILURE three elements below a line saying the read was proceeding —
+		// invisible against a fake that answers in the same tick.
+		const entry = anEntry();
+		const inspector = await mountInspector({
+			entries: [entry],
+			assetId: entry.assetId,
+			queries: { listReferencing: neverAnswers },
+		});
+
+		const control = inspector.panel.get('.rp-al-action--delete');
+		expect(control.attributes('aria-disabled')).toBe('true');
+		expect(inspector.panel.find('.rp-al-actions__reason').exists()).toBe(false);
+		expect(control.attributes('aria-describedby')).toBeUndefined();
+		// And the section above it says the true thing while this one says nothing.
+		expect(inspector.panel.text()).toContain('Loading where this is used');
 	});
 
 	it('emits delete with the asset id once the usage read has succeeded', async () => {

@@ -415,3 +415,53 @@ describe('assembling the stylesheet', () => {
 		});
 	});
 });
+
+
+/**
+ * Every `@container <name>` query in the SHIPPED sheet names a container the shipped sheet also
+ * declares.
+ *
+ * **This class has now shipped twice on one branch, three files apart.** `styles/asset-shelf.css`
+ * lines 259-269 record `@container rp-al-shelves` rules being inert because only a PROTOTYPE's
+ * scoped block declared that container, name the task that fixed it, and close with "a comment
+ * that names its trigger is a comment nothing re-reads when the trigger fires". Task 14 then
+ * ported two `@container rp-al` blocks out of a prototype whose own scoped block declared `rp-al`,
+ * into a sheet where nothing did — and the ported comment asserted the container WAS declared.
+ * `Back to library` was `display: none` at every width, which also removes it from the tab order.
+ *
+ * Nothing else here can see it: `assembleStyles` checks colour literals and the line cap, jsdom
+ * lays nothing out, and a `@container` naming no container simply never matches — no error, no
+ * warning, no visible difference from a rule whose condition is false. A capture read by eye is
+ * the only other instrument, and none had been taken.
+ *
+ * A rule rather than a list, so it holds for the next partial: the two regexes are asserted to
+ * still match before the comparison is trusted, because a name regex that stopped matching would
+ * compare an empty set against anything and pass.
+ *
+ * **COMMENTS ARE STRIPPED FIRST, and the first version of this case did not strip them.**
+ * Measured: deleting the real `container: rp-al / inline-size` declaration left this file GREEN,
+ * because the paragraph explaining that declaration QUOTES it four lines above — an instrument
+ * written inside the text it measures counting itself, which is the shape CLAUDE.md records
+ * against a self-matching grep. It reddens now, which is what makes it a check.
+ */
+describe('the shipped stylesheet\'s container queries', () => {
+	const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//g, '');
+	const queried = new Set(
+		[...sheet.matchAll(/@container\s+([A-Za-z_][\w-]*)\s*\(/g)].map(([, name]) => name),
+	);
+	// `container: <name> / <type>` and the longhand `container-name: <name>` alike — the shorthand
+	// is what this repository writes and the longhand is what the next author may.
+	const declared = new Set([
+		...[...sheet.matchAll(/container:\s*([A-Za-z_][\w-]*)\s*\//g)].map(([, name]) => name),
+		...[...sheet.matchAll(/container-name:\s*([A-Za-z_][\w-]*)/g)].map(([, name]) => name),
+	]);
+
+	it('is measured by regexes that still match', () => {
+		expect(queried.size).toBeGreaterThan(0);
+		expect(declared.size).toBeGreaterThan(0);
+	});
+
+	it('queries no container the sheet does not declare', () => {
+		expect([...queried].filter((name) => !declared.has(name))).toEqual([]);
+	});
+});

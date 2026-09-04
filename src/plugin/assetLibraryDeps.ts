@@ -94,13 +94,19 @@ export function assetLibraryDeps(
 		// and it is CALLED down there, because that is where the coalescing is.
 		openNote,
 		// §3.5's `Open note`, resolved through the INDEX because a catalogue DTO carries no path.
-		// A null persistence has no index to resolve through, so it answers `'failed'` — the same
-		// member `NoteOpenOutcome` reserves for "there was no vault to open through" — rather
-		// than `'missing'`, which would tell the user their note is gone on the strength of a
-		// session that never read one.
+		//
+		// TWO causes, told apart, because the port promises they are. A null persistence answers
+		// `'failed'` — the member `NoteOpenOutcome` reserves for "there was no vault to open
+		// through" — since `'missing'` would tell the user their note is gone on the strength of a
+		// session that never read one. A LIVE index that simply holds no note for the id answers
+		// `'missing'`, which is the honest answer for an asset just deleted and is what the
+		// caller re-reads its listing on. The first version of this arm folded the second cause
+		// into the first under a comment that explained only the first, so the port's own docblock
+		// was false and the caller's re-read was unreachable.
 		openAssetNote: (assetId) => {
-			const path = persistence === null ? undefined : persistence.index.getPath(assetId);
-			return path === undefined ? Promise.resolve('failed') : openNote(path);
+			if (persistence === null) return Promise.resolve('failed');
+			const path = persistence.index.getPath(assetId);
+			return path === undefined ? Promise.resolve('missing') : openNote(path);
 		},
 		// The SAME binding the project view's `openAsset` takes, reused rather than duplicated:
 		// one activation function is what stops a double click opening two designer tabs, and a

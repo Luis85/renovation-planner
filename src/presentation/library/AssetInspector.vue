@@ -115,12 +115,23 @@ const state = computed((): PanelState => {
 	return props.assetId === null ? 'resting' : 'gone';
 });
 
-/** The panel-level failure sentence. Read by the template only from the branch that HAS one,
- *  which is what keeps it two arms rather than three. */
+/**
+ * The panel-level failure sentence — THREE arms, one per row of §3.5's own table, and read by the
+ * template only from the branch that has one.
+ *
+ * **It shipped with two, and the future-schema row got the REPAIRABLE row's wording.** The
+ * actions were already right (`canOpenNote` withholds `Open note` for it), so a user whose note
+ * came from a newer build was told it "could not be read", offered nothing, and never told the
+ * remedy — which is the dead end §3.5 refuses by name. *An action that cannot work is worse than
+ * no action* is the argument for withholding the BUTTON; it is not an argument for withholding
+ * the explanation, and the docblock on `state` above already said this was "a THIRD state rather
+ * than a wording of the second" while this function made it exactly that.
+ */
 const failure = computed((): string => {
 	const row = unreadable.value;
-	return row === null
-		? tr('view.asset-library.asset-gone')
+	if (row === null) return tr('view.asset-library.asset-gone');
+	return state.value === 'note-future-schema'
+		? tr('view.asset-library.note-future-schema', { path: row.path })
 		: tr('view.asset-library.note-unreadable', { path: row.path });
 });
 
@@ -139,12 +150,29 @@ const canOpenDesigner = computed(
 const canOpenNote = computed(() => state.value === 'ready' || state.value === 'note-unreadable');
 
 /**
- * §3.5: `Delete` is unavailable while the usage read has not SUCCEEDED, with the reason shown
- * on the control — an edit stays available, because a price correction is recoverable and a
- * deletion is the gesture this panel exists to inform. `aria-disabled` rather than `disabled`
- * so the reason is reachable by a screen reader, with the click guarded in `onDelete`.
+ * §3.5: `Delete` is unavailable while the usage read has not SUCCEEDED, which is a wider gate
+ * than "failed" on purpose — an edit stays available, because a price correction is recoverable
+ * and a deletion is the gesture this panel exists to inform. `aria-disabled` rather than
+ * `disabled` so the reason below stays in the accessibility tree, with the click guarded in
+ * `onDelete`.
  */
 const canDelete = computed(() => state.value === 'ready' && selection.usedInStatus === 'ready');
+
+/**
+ * The sentence on a withheld `Delete`, or `null` — and it is NARROWER than the withholding above,
+ * which is the whole of this member's reason for existing.
+ *
+ * §3.5 puts *"Where this is used could not be checked"* under its **Refused** bullet alone; the
+ * *In flight* bullet asks for a loading line, which `AssetInspectorUsedIn` draws. This rendered
+ * unconditionally on `!canDelete`, so for the whole of every selection's two reads the panel
+ * claimed a FAILURE three elements below a line saying the read was proceeding — a surface
+ * contradicting itself, invisible against a fake that answers in the same tick. While the read is
+ * in flight the control is disabled and says nothing, because the section above it is already
+ * saying the true thing.
+ */
+const deleteReason = computed((): string | null =>
+	selection.usedInStatus === 'failed' ? tr('view.asset-library.used-in.failed') : null,
+);
 
 /** Minted rather than derived from the asset id: an id a user can author may hold whitespace,
  *  and `aria-describedby` is a whitespace-separated IDREF LIST — the same rule `AssetRow`
@@ -162,7 +190,12 @@ async function onOpenNote(): Promise<void> {
 		}
 		return;
 	}
-	if (props.assetId !== null) await context.openAssetNote(props.assetId);
+	// The id-keyed door acts on `'missing'` exactly as its path-keyed sibling above does: the
+	// composition answers it when a LIVE index holds no note for the id, which means the listing
+	// this panel resolved its subject against is stale.
+	if (props.assetId !== null && (await context.openAssetNote(props.assetId)) === 'missing') {
+		await library.hydrate(context.queries, context.indexScanCompleted);
+	}
 }
 
 function onOpenDesigner(): void {
@@ -256,18 +289,18 @@ function onDelete(): void {
 				type="button"
 				class="rp-al-action rp-al-action--delete"
 				:aria-disabled="canDelete ? undefined : 'true'"
-				:aria-describedby="canDelete ? undefined : deleteReasonId"
+				:aria-describedby="deleteReason === null ? undefined : deleteReasonId"
 				@click="onDelete"
 			>
 				{{ tr('view.asset-library.delete') }}
 			</button>
 		</div>
 		<p
-			v-if="state === 'ready' && !canDelete"
+			v-if="state === 'ready' && deleteReason !== null"
 			:id="deleteReasonId"
 			class="rp-al-actions__reason"
 		>
-			{{ tr('view.asset-library.used-in.failed') }}
+			{{ deleteReason }}
 		</p>
 	</aside>
 </template>

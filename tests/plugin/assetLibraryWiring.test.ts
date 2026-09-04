@@ -222,6 +222,42 @@ describe('assetLibraryDeps with a composed root', () => {
 	});
 
 	/**
+	 * §3.5's id-keyed door, and the two causes it has to tell apart — which the first version of
+	 * this arm did not.
+	 *
+	 * `AssetLibraryDeps.openAssetNote`'s own docblock promises `'missing'` for "the index holds
+	 * no note for that id at all"; the composition folded that case into the null-persistence
+	 * arm and answered `'failed'` for both, under a comment explaining only the first. So the
+	 * port's contract was false, and `AssetInspector`'s re-read — which its path-keyed sibling
+	 * performs on `'missing'` — was unreachable.
+	 *
+	 * Both arms, because a door with two causes is untested until each is driven from its own
+	 * side: an index HIT is what proves the lookup happens at all, and the miss is the promise.
+	 */
+	it('answers missing for an id a LIVE index holds no note for, and opens the one it does', async () => {
+		const { root, stack } = composedRoot();
+		const persistence = root.persistence;
+		if (persistence === null) throw new Error('expected a composed persistence stack');
+		await stack.vault.createFolder('Library');
+		await stack.vault.create(
+			'Library/Tiles.md',
+			`---\ntype: renovation-asset\nid: ${TILES}\n---\n`,
+		);
+		// The ROOT's own index, never `stack.rebuildIndex()`: `createCompositionRoot` builds its
+		// own `InMemoryProjectIndex`, so a scan into the stack's would populate a different
+		// object and leave this door answering `'missing'` for both ids — a case that would have
+		// passed on its miss half alone and proved nothing about the hit.
+		persistence.index.upsert({ id: TILES, type: 'renovation-asset', path: 'Library/Tiles.md' });
+
+		const deps = assetLibraryDeps(root, new FakeWorkspace() as never, stack.vault as never, {
+			indexScanCompleted: () => true,
+		});
+
+		expect(await deps.openAssetNote(TILES)).toBe('opened');
+		expect(await deps.openAssetNote(PAINT)).toBe('missing');
+	});
+
+	/**
 	 * The composed fault door, which nothing else drives: `openNoteAtPath` reports through the
 	 * closure this factory builds, and a bundle that forgot to build one would be an unhandled
 	 * rejection reaching nobody — every caller of `openNote` is a click handler that discards

@@ -19,10 +19,14 @@
  * for the DOM and still runs `notify`."*
  *
  * **Category and unit are `<select>`s over their own closed vocabularies rather than text
- * fields**, which is not decoration: `UpdateAssetInput.changes` types them as `AssetCategory`
- * and `MeasurementUnit`, so a free-text draft would have to be cast at the seam. A cast is a
- * claim nothing checks — `Asset.create` refuses an unknown CATEGORY and validates no UNIT at
- * all, so a typo'd `m22` would have been persisted with nothing anywhere refusing it.
+ * fields**, and the reason is what the DOMAIN checks rather than what the seam looks like:
+ * `Asset.create` refuses an unknown CATEGORY and validates no UNIT at all, so a typo'd `m22`
+ * from a text field would have been persisted with nothing anywhere refusing it. Both paths
+ * cast at `UpdateAssetInput.changes` either way — this file writes three casts — and the
+ * `<select>` is what makes those casts SOUND rather than absent: the value came from the option
+ * list the same constant built, so there is no string the control can produce that the type does
+ * not already admit. An earlier version of this paragraph argued "a cast is a claim nothing
+ * checks" from inside a file performing three, which is true of a text draft and not of this one.
  *
  * Height is here and not in Shape, per §3.5's own rule: *Shape lists what the sidecar derives;
  * Definition lists what the note stores and a field edits.* It is the one field of the nine
@@ -274,8 +278,17 @@ const rest: readonly DefinitionField[] = [
 const units = computed((): readonly MeasurementUnit[] => Object.keys(UNIT_KIND) as MeasurementUnit[]);
 const categories: readonly AssetCategory[] = ASSET_CATEGORIES;
 
-/** A `<select>` commits on CHANGE — there is no draft to type, so blur would delay a decision
- *  the user has already made with one gesture. */
+/**
+ * A `<select>` commits on CHANGE — there is no draft to type, so blur would delay a decision the
+ * user has already made with one gesture.
+ *
+ * **It walks past `commitOnce`'s clean-field guard, deliberately.** `onInput` mints a draft
+ * unconditionally, so `submitted` is never `null` by the time a round runs — the same shape
+ * CLAUDE.md records `RequirementRow`'s Reset button paying for. It costs nothing HERE and the
+ * difference is the control: a `<select>` fires `change` only when the value actually differs,
+ * so there is no gesture a user can make that dispatches the value already stored. A test can
+ * drive one; a person cannot.
+ */
 function choose(chosen: DefinitionField, value: string): void {
 	chosen.commit.onInput(value);
 	void chosen.commit.onCommit();

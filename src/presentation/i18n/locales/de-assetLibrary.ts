@@ -61,6 +61,8 @@ export const deAssetLibrary = {
 	'view.asset-library.unreadable.future-schema': 'Von einer neueren Plugin-Version geschrieben',
 	'view.asset-library.note-unreadable': 'Die Notiz dieses Objekts konnte nicht gelesen werden: {path}',
 	'view.asset-library.asset-gone': 'Dieses Objekt gibt es nicht mehr.',
+	'view.asset-library.note-future-schema':
+		'Die Notiz dieses Objekts wurde mit einer neueren Version dieses Plugins geschrieben: {path}. Aktualisieren Sie das Plugin, um sie zu öffnen.',
 	'view.asset-library.shape.unusable-id':
 		'Die ID dieses Objekts kann keine Formdatei benennen, sodass keine Form dafür gespeichert werden kann.',
 	'view.asset-library.shape.extent-overflow': 'Diese Form ist zu groß, um gemessen zu werden.',

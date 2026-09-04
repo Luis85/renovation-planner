@@ -375,7 +375,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'asset.empty-name': 'Ein Objekt braucht einen Namen.',
 	'asset.unknown-category': 'Wählen Sie eine Kategorie aus der Liste.',
 	'asset.negative-unit-cost': 'Ein Stückpreis kann nicht negativ sein.',
-	// „Übersteuert" ist das Wort der deutschen Benutzeroberfläche für einen Override.
 	'asset.unit-kind-referenced':
 		'Dieses Objekt wird von einer Anforderung verwendet, daher kann seine Einheit nicht zu einer anderen Messgröße wechseln.',
 	'asset.negative-waste-factor-default': 'Ein Verschnitt kann nicht negativ sein.',

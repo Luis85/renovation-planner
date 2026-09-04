@@ -64,9 +64,19 @@
 .rp-al-fields {
 	display: grid;
 	grid-template-columns: auto 1fr;
-	gap: var(--size-2-1) var(--size-4-2);
+	/*
+	 * The row gap and the type size are `.rp-designer-inspector-fields`' and
+	 * `.rp-editor-inspector-fields`' — measured (`styles/designer.css:200-206`,
+	 * `styles/editor.css:158-164`), not guessed. §3.5 opens by requiring that "a user moving
+	 * between the Plan editor, the Asset designer and this surface must not be able to tell that
+	 * three people wrote them", and the prototype this file was ported from set `--size-2-1` and
+	 * `--font-ui-smaller` — the two properties a reader comparing two panels sees first. The
+	 * definition list is therefore set LARGER than the rail's own `--font-ui-smaller` notes and
+	 * headings, deliberately: the `<dl>` is the thing §3.5 names, and the chrome around it is not.
+	 */
+	gap: var(--size-4-1) var(--size-4-2);
 	margin: 0;
-	font-size: var(--font-ui-smaller);
+	font-size: var(--font-ui-small);
 }
 
 /*
@@ -148,6 +158,15 @@
 	text-overflow: ellipsis;
 }
 
+/*
+ * `src/prototypes/AssetInspector.vue`'s OWN third row child, and nothing shipped emits it: the
+ * promoted row folds the count into `view.asset-library.used-in.project`, because word order
+ * around an interpolated name is the translator's to choose. The rule stays because the mock and
+ * the panel share one sheet (criterion 5) and a mock naming a class nothing styles is what
+ * `prototype-styles.test.ts` refuses from the other side — so this is the one selector here that
+ * describes the MOCK rather than the component, and it is said out loud rather than left to read
+ * as a component's.
+ */
 .rp-al-used__count {
 	flex: 0 0 auto;
 	color: var(--text-muted);
@@ -162,11 +181,17 @@
 }
 
 /*
- * BELOW 35rem THE RAIL STOPS BEING A RAIL — the container is declared on the shell's root. At
- * 460px, an Obsidian sidebar leaf's real width, two columns is not a tight layout but two
- * unusable ones, so the inspector takes the pane and a back control returns. That is the
- * one-pane-at-a-time move `ProjectDetailState` already makes, so a user meets one idea and not
- * two.
+ * BELOW 35rem THE RAIL STOPS BEING A RAIL. At 460px, an Obsidian sidebar leaf's real width, two
+ * columns is not a tight layout but two unusable ones, so the inspector takes the pane and a
+ * back control returns. That is the one-pane-at-a-time move `ProjectDetailState` already makes,
+ * so a user meets one idea and not two.
+ *
+ * **`rp-al` is declared on `.renovation-asset-library` in `styles/asset-library.css`**, which
+ * that block's own paragraph explains — and this sentence is written FROM the grep rather than
+ * ported: `grep -rn "container-type\|container:" styles/` prints three declarations, of which
+ * `rp-al` is one. The version this file shipped with asserted "the container is declared on the
+ * shell's root" while nothing declared it, ported verbatim from a prototype where it was true,
+ * and both blocks below were inert in a vault for a whole task.
  */
 /*
  * The ladder's middle rung, which shipped missing. §7 specifies 280px at 45rem and above, 240px

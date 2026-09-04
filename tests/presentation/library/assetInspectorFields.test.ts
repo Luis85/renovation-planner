@@ -76,6 +76,10 @@ describe('AssetInspectorFields keying', () => {
 		await updateAsset.reject('asset.empty-name');
 
 		expect(inspector.panel.get('.rp-al-inspector__name').text()).toBe('Wall paint');
+		// BOTH halves §3.5 names, and the case shipped asserting only the second: "the key
+		// discards the stale draft" is the first thing that sentence says, and a panel showing
+		// A's typed text under B's name is the same defect one field over.
+		expect((inspector.panel.get('[data-field="name"]').element as HTMLInputElement).value).toBe('Wall paint');
 		expect(inspector.panel.find('.rp-field-error__message').exists()).toBe(false);
 	});
 

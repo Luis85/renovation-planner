@@ -750,8 +750,21 @@ in the heading, collapsed by default, its expanded state **not persisted**.
 | **Empty** | The `renovationProject.noProjects` empty state with its action, **plus the foot line** so a fresh vault can still build a catalogue. No header, no filter. |
 | **Partial read** | The `.rp-view-notice` strip above the groups, additive; the list draws every project that loaded. |
 | **Empty list, unreadable > 0** | The header, the notice and the foot line. **No filter and no group headings** — a group heading over nothing is the card-with-holes §8 refuses, and a count line reading `0 projects` about a vault that demonstrably holds some is false in the one region whose job is to state that number. Never the "no projects yet" empty state — `selectRenovationProjectEmptyState` already answers `null` here, and this surface keeps that. |
-| **Filtered to nothing** | Groups are empty; the list region holds the no-match line and two actions: `Clear filter`, and `New project named "<query>"`. |
+| **Filtered to nothing** | ~~Groups are empty~~ **The `Projects` and `Completed` groups are empty; `Continue` is NOT (amended 2026-09-04)**; the list region holds the no-match line and two actions: `Clear filter`, and `New project named "<query>"`. |
 | **One project** | Everything renders. The filter is present and states `One project` (amended 2026-09-04 from `1 project` — §12 carries the lint measurement that decided the numeral); it is the count line, so it has a job at every vault size. |
+
+**Amendment 2026-09-04 — "Groups are empty" claimed a group the filter does not own.**
+`Continue` survives a query matching nothing, and that is the behaviour rather than a gap: it
+is an **ACTION**, not a member of the index the filter searches. Filtering it would mean the
+one control that answers *take me back to where I was* disappearing precisely while the user is
+searching for something — and its own row names its project, so nothing about it is ambiguous
+beside a no-match line. §7's placement already says as much from the other side: the row sits
+OUTSIDE the `Projects` list rather than at the top of it, which is exactly what makes the filter
+not its business. The two groups the filter DOES own are named now, so the row this table row
+never meant to claim is no longer inside its wording.
+
+**Found by a capture** — the Continue row sitting above *"No project matches …"* — which is the
+one of the final review's two amendments that a picture caught rather than a reading.
 
 **Ranges to design and prototype against:** 0, 1, 4 (typical), 30 (the stress case for tab
 stops, ordering and scroll), and one project whose name overruns the pane at 460px — the

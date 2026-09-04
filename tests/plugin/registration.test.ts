@@ -8,7 +8,7 @@
  * silently — so it is driven here against the module mock rather than trusted.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Command } from 'obsidian';
+import type { Command, ViewStateResult } from 'obsidian';
 import { installObsidianDom } from '../helpers/dom';
 
 import {
@@ -287,6 +287,39 @@ describe('new-project', () => {
 		plugin.commands.find((c) => c.id === 'new-project')?.callback?.();
 		await settle();
 
+		expect(useDialogStore().current?.kind).toBe('form');
+	});
+
+	/**
+	 * **THE PANE IS LEFT IN THE LIST STATE FIRST, and without that the command's SUCCESS was
+	 * indistinguishable from a no-op.** `revealView` reveals the singleton leaf without resetting
+	 * its view state, so invoked over the DETAIL state the form opened on top of the detail
+	 * screen — and `ViewRoot.hydrate()` then re-read the LIST store, which nothing renders there.
+	 * The project was created; the dialog closed; nothing on screen moved and no notice said so.
+	 *
+	 * **BOTH halves are asserted, because either alone passes a build with the defect.** The
+	 * dialog case above is green whichever state the pane is in, and a build that navigated and
+	 * forgot to open the dialog would satisfy the state assertion alone. Mutation-checked by
+	 * deleting the `navigateToProject` call: the state assertion reddens at
+	 * `{ projectId: 'project-1' }` and the dialog assertion stays green — which is the whole
+	 * finding, since that green is exactly what every gate saw.
+	 */
+	it('leaves the pane in the list state, so a create over the detail state is not invisible', async () => {
+		setActivePinia(createPinia());
+		const view = makeView();
+		await view.onOpen();
+		// `{} as ViewStateResult` is the spelling `renovationProjectView.test.ts` already uses:
+		// this seeds the state rather than reading the result back, and `history` is required.
+		await view.setState({ projectId: 'project-1' }, {} as ViewStateResult);
+		const leaf = workspace.withOpen(RENOVATION_PROJECT_VIEW);
+		leaf.view = view;
+
+		plugin.commands.find((c) => c.id === 'new-project')?.callback?.();
+		await settle();
+
+		// `''` is the LIST — a state rather than an absence, which is `projectIdFrom`'s own
+		// three-way parse and the sentinel the back arrow already restores.
+		expect(view.getState()).toEqual({ projectId: '' });
 		expect(useDialogStore().current?.kind).toBe('form');
 	});
 });

@@ -101,9 +101,20 @@ const INITIAL: CreateProjectInput = {
 };
 
 const form = useFormCommit<CreateProjectInput, { project: Loaded<Project> }>({
-	// A fresh object per mount, never `INITIAL` itself: that constant is module-level and
-	// shared by every mount of this form, and `useFormCommit` holds its argument as the value a
-	// cancel resyncs to.
+	// **THE SPREAD IS HERE TO CARRY `initialName`, and the reason this comment used to give was
+	// false in both of its clauses.** It claimed `INITIAL` could be mutated through a retained
+	// reference and that `useFormCommit` "holds its argument as the value a cancel resyncs to".
+	// Measured: `use-form-commit.ts` does `ref({ ...options.initial })` — it copies once and
+	// retains nothing — and that file contains the words `cancel`, `resync` and `reset` exactly
+	// nowhere; the resync-on-cancel behaviour belongs to `useFieldCommit`, its sibling at the
+	// OTHER commit boundary. `INITIAL` could be passed by reference here and nothing would go
+	// wrong.
+	//
+	// What the spread is actually for is the line it is on: this form is opened both from the
+	// empty state and from a `New project named "<query>"` action, so the name field starts at
+	// whatever the filter held. A false reason for a correct line is what a later reader deletes
+	// the line on — recorded rather than quietly rewritten, because the mistake was to reason
+	// about the composable from its name instead of reading it.
 	initial: { ...INITIAL, name: props.initialName ?? '' },
 	dispatch: props.dispatch,
 	errorMap: NEW_PROJECT_ERRORS,

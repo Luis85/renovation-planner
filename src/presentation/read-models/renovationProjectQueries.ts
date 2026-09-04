@@ -201,6 +201,18 @@ export function createRenovationProjectQueries(deps: {
 			// project this function never counted — safe today only because the detail state
 			// draws neither field, and a defect with no failing test in front of it the day it
 			// does. One instrument for both doors, so the two cannot disagree about a project.
+			//
+			// **COST, NAMED RATHER THAN PAID DOWN.** Both adapters take a LIST and answer a
+			// subset, and both walk the WHOLE Project Index to do it — so a one-element ask is a
+			// full walk, on every detail-state hydrate, for two fields the detail state renders
+			// nowhere. It is not a defect: the walk is over an in-memory index, the detail state
+			// hydrates on navigation rather than per frame, and the alternative is exactly the
+			// second derivation the two comments above refuse. What would close it is a
+			// by-id door on the port itself, which is a port change and a restructuring, and the
+			// final whole-branch review's own ruling was that the end of a branch is not where
+			// that happens. Written here so the next reader meets a decision rather than an
+			// oversight, and so a vault whose index has grown by an order of magnitude has a
+			// named place to look.
 			const rowFacts = facts.factsFor([found.value.entity.id]).get(found.value.entity.id);
 			return ok(
 				toProjectSummaryDto(found.value.entity, overlapping !== undefined, rowFacts ?? NO_FACTS),

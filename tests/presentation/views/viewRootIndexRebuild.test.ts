@@ -65,6 +65,13 @@ async function mountBeforeTheScan() {
 					// here is about Continue, so `null` — no stored context — is the honest default,
 					// matching `defaultRenovationProjectDeps`'s own.
 					continueContext: () => Promise.resolve(null),
+					// Task 11's write half, stated beside the read half above for a reason the read
+					// half does not have: `ViewRoot.onOpenProject` calls this UNGUARDED, so a literal
+					// omitting it is a `TypeError` waiting for the first case that plain-clicks a row —
+					// which none here does today, so nothing throws and no compiler can say so (a
+					// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
+					// nothing can see.
+					rememberContinue: () => undefined,
 				},
 			},
 		},
@@ -130,6 +137,13 @@ describe('ViewRoot, and an index built after the pane was restored', () => {
 							return () => undefined;
 						},
 						continueContext: () => Promise.resolve(null),
+						// Task 11's write half, stated beside the read half above for a reason the read
+						// half does not have: `ViewRoot.onOpenProject` calls this UNGUARDED, so a literal
+						// omitting it is a `TypeError` waiting for the first case that plain-clicks a row —
+						// which none here does today, so nothing throws and no compiler can say so (a
+						// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
+						// nothing can see.
+						rememberContinue: () => undefined,
 					},
 				},
 			},

@@ -95,8 +95,11 @@ export interface SeedRepositories {
 	 * The Project INDEX, which is a different world from the repositories above and had to be
 	 * exposed once anything needed a row's own facts.
 	 *
-	 * Three of the five fields a `ProjectSummaryDto` carries do not come from the project
-	 * repository at all: `planCount` and `lastWorked` are derived by `IndexProjectListFacts`
+	 * Three of the SEVEN fields a `ProjectSummaryDto` carries do not come from the project
+	 * repository at all — `id`, `name`, `status` and `currency` are the four that do. (It said
+	 * five, and it said it in the comment explaining why the seed had just grown two members:
+	 * wrong at birth, by exactly the two the same edit added. Counted from the interface rather
+	 * than remembered.) `planCount` and `lastWorked` are derived by `IndexProjectListFacts`
 	 * from index entries plus the vault's file stats, and `libraryOverlap` by
 	 * `IndexLibraryOverlaps` from the folder a project's own note sits in. So a seed that
 	 * reached only `projects` and `plans` produced rows reading `0 plans`, no date and no

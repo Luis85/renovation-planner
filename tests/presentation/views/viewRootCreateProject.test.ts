@@ -41,6 +41,13 @@ function deps(listProjects: () => Promise<unknown>) {
 		// Task 11's continue read, stated for the same reason: no case in this file is about
 		// Continue, so `null` — no stored context — is the honest default.
 		continueContext: () => Promise.resolve(null),
+		// Task 11's write half, stated beside the read half above for a reason the read
+		// half does not have: `ViewRoot.onOpenProject` calls this UNGUARDED, so a literal
+		// omitting it is a `TypeError` waiting for the first case that plain-clicks a row —
+		// which none here does today, so nothing throws and no compiler can say so (a
+		// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
+		// nothing can see.
+		rememberContinue: () => undefined,
 	};
 }
 
@@ -146,6 +153,13 @@ describe('ViewRoot, creating a project', () => {
 		// `viewRootIndexRebuild.test.ts` for the whole argument.
 		projectId: null,
 		continueContext: () => Promise.resolve(null),
+		// Task 11's write half, stated beside the read half above for a reason the read
+		// half does not have: `ViewRoot.onOpenProject` calls this UNGUARDED, so a literal
+		// omitting it is a `TypeError` waiting for the first case that plain-clicks a row —
+		// which none here does today, so nothing throws and no compiler can say so (a
+		// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
+		// nothing can see.
+		rememberContinue: () => undefined,
 		};
 		const wrapper = mount(ViewRoot, {
 			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },

@@ -181,10 +181,22 @@ export interface RenovationProjectDeps {
 	 */
 	readonly indexScanCompleted: () => boolean;
 	/**
-	 * The stored continue context, or absent — read ONCE at mount, never subscribed to
+	 * The stored continue context, or absent — read on every HYDRATE, never subscribed to
 	 * (design spec §7: "Validation is a read, not a subscription"). Nothing redirects, nothing
-	 * announces, and nothing is retracted later — a context another leaf or another device
-	 * writes in the meantime is simply what the NEXT mount reads.
+	 * announces, and nothing is retracted later.
+	 *
+	 * **It said "read ONCE at mount" while `ViewRoot.hydrate()` called it on every hydrate, and
+	 * that file argues at length that it must** — two docblocks describing one behaviour in
+	 * opposite terms, neither failing anything. §7 asks for the stored ids to be resolved against
+	 * the project index AT HYDRATE TIME, and a mount-only read loses exactly the case Continue
+	 * exists for: Obsidian restores its leaves BEFORE `onLayoutReady`, the index scan runs from
+	 * it, so a pane restored with the app resolves against an EMPTY index and would pin the plan
+	 * to `'gone'` for the life of that mount. `ViewRoot`'s `storedPlan` docblock is the authority
+	 * and this is now written from it.
+	 *
+	 * **"Never subscribed to" is the half that was true and stays true**, and it is what the
+	 * sentence about nothing being retracted rests on: a context another leaf or another device
+	 * writes is what the next HYDRATE reads, and nothing pushes one at a mounted pane.
 	 */
 	readonly continueContext: () => Promise<ContinueContext | null>;
 	/**

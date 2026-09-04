@@ -1220,6 +1220,51 @@ export default defineConfig({
 			// `max-params` cap of five and became ONE named bundle, which is
 			// `createPlanEditorQueries`'s own shape one file over. Every one is a union or a
 			// call-shape change over code both branches already covered.
+			//
+			// **THE HOME SURFACE'S TASKS 12, D AND 13, AND THE FINAL WHOLE-BRANCH REVIEW'S FIX
+			// WAVE (2026-09-04), measured on this tree:** 8251/8309 statements, 4333/4413
+			// branches, 2176/2196 functions, 7271/7303 lines — 99.30 / 98.19 / 99.09 / 99.56.
+			// **NOTHING RATCHETS**: rounded down these are 99 / 98 / 99 / 99, exactly the floors
+			// already in force, which makes it twelve increments in a row.
+			//
+			// This entry exists because the one above measures the MERGE and three tasks changed
+			// `src/` after it — the same shape that entry records about its own two parents, met
+			// once more by the branch that wrote the warning.
+			//
+			// The headroom, in UNITS, arithmetic written out: statements need
+			// `ceil(0.99 × 8309) = 8226` covered and 8251 are (**25**); branches need
+			// `ceil(0.98 × 4413) = 4325` against 4333 (**8**); functions need
+			// `ceil(0.99 × 2196) = 2174` against 2176 (**2**); lines need
+			// `ceil(0.99 × 7303) = 7230` against 7271 (**41**). **FUNCTIONS is still the tight
+			// metric.** It reads TWO here for the first time since slice 19, and that is a
+			// rounding artefact of the denominator rather than a second unit earned: 2196
+			// functions puts the ceiling at 2174, where 2195 put it at 2174 as well. Treat it as
+			// ONE — the next untested callback anywhere in `src/` is what this floor is for, and
+			// a metric that has sat at one unit for twelve increments does not stop being the
+			// one to plan around because a denominator crossed a boundary.
+			//
+			// **THE FIX WAVE ADDED NO UNCOVERED POSITION**, which is the claim worth checking
+			// rather than the totals: it added five covered statements, four covered branch arms,
+			// one covered function and three covered lines, so every headroom figure above is
+			// unchanged from the review's own measurement of this tree before the wave. Read per
+			// changed file out of `coverage-final.json` over
+			// `git diff --name-only origin/main...HEAD -- src/`, never a filename filter.
+			//
+			// One position in it was MEASURED rather than inherited or accepted, and it is the
+			// reason this paragraph exists. `newProject` had to narrow its leaf for the
+			// `navigateToProject` call the wave gave it, and the readable spelling — an early
+			// `if (leaf === undefined) return;` — was written first under a comment asserting it
+			// cost no branch. Driven with per-file coverage over `registration.test.ts`, the
+			// split form leaves TWO uncovered statements and TWO uncovered branch arms where the
+			// folded `||` leaves ONE of each, which is the position this ledger's merge entry
+			// already names as inherited. The folded form ships and the comment beside it is
+			// written from the measurement. **A claim about what a spelling costs is a
+			// measurement, and at this headroom it is one worth taking before the comment.**
+			//
+			// Every other uncovered position in the six changed files is INHERITED and was
+			// carried into the wave: `ContinueRow.vue`'s `lastWorked === null` arm,
+			// `NewProjectForm.vue`'s three, `ProjectList.vue`'s eight, `ViewRoot.vue`'s four and
+			// `useRovingFocus.ts`'s four. None is in a line this wave wrote.
 			thresholds: {
 				statements: 99,
 				functions: 99,

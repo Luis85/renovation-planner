@@ -4466,10 +4466,19 @@ DOM code gets jsdom, per file. The `obsidian` module is aliased to one small moc
 suite, the harness and nothing else share.
 
 **Known limits of the fakes**, so nothing trusts them wider than they are: the module mock
-models only the members something drives, and its `getLanguage()` always answers `'en'` —
-a call site resolving the language wrongly is invisible to the suite, which is why `t` is
-pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
-behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
+models only the members something drives, and its `getLanguage()` answers `'en'` **unless a
+caller sets it** — the Home surface branch made it a module-level `let` behind a `setLanguage`
+setter for the browser harness's `?lang=` knob, and **no suite calls that setter**, so the
+suite's own exposure is unchanged: a call site resolving the language wrongly is still
+invisible to it, which is why `t` is pure and driven per locale directly. What DID change is
+that the value is now mutable across a worker, so a suite that ever calls it owes every later
+file in that worker the reset — the setter's own docblock is the authority and says so. (This
+sentence read "always answers `'en'`" for the whole of the branch that falsified it, in a
+paragraph the same branch edited by 179 lines: the count of a claim's readers is not the count
+of its editors.) **`Platform.isMacOS` is the second mutable member and it IS driven by the
+suite** — `platformModifier`'s cases assign it directly to reach the macOS arm — so it is the
+one that actually owes the reset in practice. `FakeLeaf`/`FakeWorkspace` RECORD asks rather
+than behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
 **`npm run build` type-checks `tests/**` in full** — `tsconfig.json`'s `include` is `src/**`
 plus `tests/**`, with no `paths` mapping, so a test is checked against the same types `src/`
 is. Vitest still transpiles without checking; the compiler that matters runs in `build`.

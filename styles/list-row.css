@@ -50,8 +50,10 @@
 	 * think a wrapped row could grow. It cannot: `height` is a fixed value, so a row whose
 	 * content wraps OVERFLOWS its box rather than growing, which is exactly what the Home
 	 * surface's narrow rows did — 41px of content in a 30px box, each row's second line drawn
-	 * over the next row's first. `project-list.css`'s narrow block is where that is released,
-	 * because that is the one place a row here is meant to wrap.
+	 * over the next row's first. `project-list-narrow.css` is where that is released, because
+	 * that is the one place a row here is meant to wrap. (It said `project-list.css`'s narrow
+	 * block, which is where the release lived until Task D moved it out when that file hit the
+	 * 400-line cap; a pointer at a file is a pointer a split invalidates.)
 	 */
 	min-height: var(--size-4-6);
 	padding: var(--size-2-2) var(--size-4-2);

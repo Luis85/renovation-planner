@@ -845,17 +845,46 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * makes `leaf.view` a real `RenovationProjectView` on every reachable path, so the `instanceof`
 	 * guard is defensive against a foreign view under this plugin's own type rather than a case
 	 * expected to fail in production.
+	 *
+	 * **IT LEAVES THE PANE IN THE LIST STATE FIRST, and without that step this command's SUCCESS
+	 * was indistinguishable from a no-op.** `revealView` reveals the singleton leaf without
+	 * resetting its view state, so invoked while the pane sits in the DETAIL state the form opened
+	 * over the detail screen — and on success `ViewRoot.hydrate()` re-reads the LIST store, which
+	 * nothing renders there. The dialog closed with no navigation, no notice and no visible
+	 * change: the project WAS created, and the user had no way to tell. Found by the final
+	 * whole-branch review, and invisible to every gate here because both halves are correct
+	 * alone — the reveal reveals, the create creates.
+	 *
+	 * **`navigateToProject` with the leaf `revealView` just answered**, rather than a second
+	 * reveal: passing it as `targetLeaf` skips the candidate lookup entirely and shares the write
+	 * lane a row click in that same pane uses, which is the ambiguity that module's own parameter
+	 * exists to refuse. Already in the list, `sync()`'s guard makes it a no-op, so nobody loses a
+	 * scroll position for a command they invoked from the list.
+	 *
+	 * **It deliberately does NOT then navigate to the created project.** A user who asked to
+	 * create a project is answered by the list the new project is now in; going further is a
+	 * design decision nobody has taken. What it does cost is a user in a detail state losing their
+	 * place — the correct trade, because the list is where projects are.
 	 */
 	private async newProject(): Promise<void> {
-		const leaf = await revealView(
-			{
-				workspace: this.app.workspace,
-				reportFault: this.reportRevealFault,
-			},
-			RENOVATION_PROJECT_VIEW,
-		);
+		const deps = {
+			workspace: this.app.workspace,
+			reportFault: this.reportRevealFault,
+		};
+		const leaf = await revealView(deps, RENOVATION_PROJECT_VIEW);
 		const view = leaf?.view;
-		if (!(view instanceof RenovationProjectView)) return;
+		// **ONE condition rather than two, and that is a MEASUREMENT rather than a style
+		// preference.** `leaf` has to be narrowed for the `navigateToProject` call below, and the
+		// obvious spelling — an early `if (leaf === undefined) return;` followed by the guard —
+		// was written first with a comment asserting it "costs no branch". It costs one: driven
+		// through `registration.test.ts` with per-file coverage, the split form leaves TWO
+		// uncovered statements and TWO uncovered branch arms in this method and the folded form
+		// leaves ONE of each, which is the inherited position the coverage ledger already names.
+		// At a functions headroom of one and a branches headroom of eight, a spelling that spends
+		// an arm for readability is a spelling that has to say so. The `||` narrows `leaf` on the
+		// fall-through exactly as the early return would have.
+		if (leaf === undefined || !(view instanceof RenovationProjectView)) return;
+		await navigateToProject(deps, RENOVATION_PROJECT_VIEW, null, leaf);
 		// ANNOTATED rather than left to the narrowing, for the reason `rebindOpenViews` already
 		// carries: `fallow` resolves a class member through an explicit type, never through a
 		// property access, so a member reached only via `instanceof` is reported as unused.

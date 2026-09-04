@@ -1,7 +1,15 @@
 <script setup lang="ts">
 /**
  * The Inspector FRAME (component library §8): the ONE `<aside>` and `aria-label` for §60's
- * inspector region, and the routing by `selectedIds` — the floor state
+ * inspector region, and the routing — FOUR arms since the Add Room increment. The first is
+ * about the TASK rather than the selection: while `activeToolId === 'draw-room'` this region
+ * is the New room form (`NewRoomInspector.vue`), ahead of everything below it, because the
+ * naming step lives in the Inspector rather than in a dialog (Add Room design spec §2.3 — a
+ * `FormDialog` would make the rest of the view `inert`, so the user could not re-drag after
+ * seeing the numbers). A selection made before the task began is deliberately not drawn
+ * beside it: one region, one subject.
+ *
+ * The other three route by `selectedIds` as they always did — the floor state
  * (`FloorInspector.vue`, Task 7's `buildFloorSummary`) while nothing is selected, the
  * multiple-selection text while several ids are, and the room body (`RoomInspector.vue`,
  * `InspectorPanel.vue` through Task 15) for exactly one. Through Task 14 that body
@@ -23,15 +31,20 @@
  * rail button a close would normally return focus to is removed by the same transition, so
  * `ResponsiveEditorShell.measure` focuses this region instead of leaving the keyboard user on
  * `<body>`. `-1` rather than `0` because that is the whole of it: this is a surviving TARGET,
- * not a new Tab stop, and the Inspector's own controls are what a user tabs to.
+ * not a new Tab stop, and the Inspector's own controls are what a user tabs to. It is the
+ * hand-off `NewRoomInspector.onBeforeUnmount` takes as well, for the same reason: the room
+ * task ends by returning to Select, which unmounts the very control the user pressed.
  */
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
+import { useEditorStore } from '../../stores/EditorStore';
 import { useSelectionStore } from '../selection/selection-store';
 import FloorInspector from './FloorInspector.vue';
+import NewRoomInspector from './NewRoomInspector.vue';
 import RoomInspector from './RoomInspector.vue';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
+const { activeToolId } = storeToRefs(useEditorStore());
 </script>
 
 <template>
@@ -44,7 +57,8 @@ const { selectedIds } = storeToRefs(useSelectionStore());
 		<h2 class="rp-editor-panel-title">
 			{{ tr('editor.inspector') }}
 		</h2>
-		<FloorInspector v-if="selectedIds.length === 0" />
+		<NewRoomInspector v-if="activeToolId === 'draw-room'" />
+		<FloorInspector v-else-if="selectedIds.length === 0" />
 		<p
 			v-else-if="selectedIds.length > 1"
 			class="rp-editor-inspector-empty"

@@ -1795,6 +1795,23 @@ address, and the panel must be mounted before its `Delete` can be driven.
   10's resolution.
 - Produces: nothing any other task imports.
 
+**MEASURED AT `a48d0884`, BEFORE YOU START — two facts that decide how you build this.**
+
+**1. `AssetInspector`'s `delete` emit has NO LISTENER.** The component declares
+`defineEmits<{ back: []; delete: [assetId: AssetId] }>()` at `AssetInspector.vue:79` and fires it
+at `:225`; `AssetLibraryRoot.vue:358-361` mounts the panel and binds `@back` ALONE. So the
+`Delete` button is wired to nothing today, which is correct — Task 16a owned the mount and this
+task owns the handler — but know it before you go looking for a handler to extend or, worse, add
+a second one beside an existing binding you did not find. You are adding the FIRST listener.
+
+**2. The root has about 27 lines of headroom, so the flow does not live in it.**
+`AssetLibraryRoot.vue` is 373 lines against a 400 `max-lines` cap (`AssetLibraryBody.vue`, 16a's
+extraction, is 151). A reference-resolution flow — two dialog kinds, a resolution, an undo shape
+and the post-deletion focus rule — does not fit in 27 lines and must not be made to. Put the flow
+in its own module, as this task's Files list already anticipates, and give the root a THIN
+handler that calls it. If you find yourself shaving a comment to fit, that is the signal to
+extract, not to shave; this repository records paying for a budget bought back by reformatting.
+
 **WHAT TASK 14 SHIPPED, so you do not rebuild it.** The `Delete` control exists, drawn and
 `aria-disabled` with its reason on it while the usage read has not succeeded. It EMITS rather
 than resolving. Task 14's withdrawal was verified by its reviewer against source, and the two

@@ -3827,6 +3827,88 @@ The rules that came out of it:
   contended machine the documented hazard is the ordinary case rather than the rare one, so a
   report that does NOT mention it is the one worth reading twice.
 
+**The final review of that increment found two defects and six false sentences, and the two
+defects are the same shape from opposite ends: a rule kept at ONE of the two doors that owes
+it.**
+
+- **A rule the numeric route enforced and the drag route did not, in the one place both were
+  supposed to converge.** Design spec §2.7 states "a side must be positive" as `parseMetres`'s
+  three refusals, so a typed `0` is `not-positive` and never reaches the store's sides at all —
+  and a DRAG straight along one axis has no such door: `moved` clears `DrawRoomTool`'s
+  four-pixel click epsilon, `pointerUp` settles rather than taking it back, and the store
+  answered `{ width: 4200, depth: 0 }`. `createPolygon` validates the coordinate COUNT and
+  their finiteness, `Zone.create` defers to that same validator, so `valid` was true, Create
+  dispatched, and a Room of area zero was written and selected. **Two routes into one store is
+  exactly where a rule gets kept once**, and the store is where the increment's own headline
+  claim — "dragging and typing converge on the same creation command" — put it.
+
+  The refusal is at **`rect`, not at `valid`**, and the choice is the useful half.
+  `geometry`, `areaMm2`, `valid`, `settle()`, `RoomDraftSketch` and `DrawRoomTool.hasDraft()`
+  all read `rect`, so one answer settles all six; a guard on `valid` alone would have drawn a
+  flat outline, printed an area of 0 m², announced a 0 m² sentence to a screen reader and left
+  a Create button the user cannot press with nothing saying why — the live-control-that-does-
+  nothing shape slice 14's own amendment refuses, dressed as a fix. `> 0` rather than `!== 0`,
+  which refuses a negative side and a `NaN` one in the same test, and `Infinity` deliberately
+  passes it so `polygonForRect`'s refusal stays reachable — the store case that used to drive
+  `NaN` for that arm drives `Infinity` now, because the new guard would otherwise have made
+  the arm it was written for unreachable. **A guard added upstream can retire the test of the
+  guard below it**, which reads as coverage until somebody checks which line the case is
+  actually exercising.
+
+  The CLASS is the one this file already carries open: three COLLINEAR vertices are a
+  zero-area polygon that nothing refuses, and closing it is a change to `createPolygon` (SDD
+  §26 files degeneracy under "Future"). This closes the RECTANGULAR case at the one door that
+  can see it and claims nothing wider; the note beside `rectFrom` says so.
+- **A brand's guarantee holds where the PARAMETER is typed with it, and nowhere else.**
+  `ToolDispatcher`'s own docblock calls `mapDispatchFaults` "one the compiler will not let a
+  surface skip". `RoomCreationDeps.dispatcher` was typed `{ run(command: UndoableCommand):
+  Promise<DispatchResult> }` — the brand's own shape minus the brand — so `runtime.ts` composed
+  the room action around the raw `wrappedDispatcher` and the compiler said nothing, while every
+  tool on that same leaf went through the mapping. `withSaveStateTracking` re-throws a
+  technical fault and both callers launch `createRoom()` detached, so a vault fault under
+  Create was an unhandled rejection: no notice, no log line, the button silently dead. **A
+  phantom brand is a check that a call site DECLARED something, and a structurally identical
+  parameter one file away is the self-declared shape this file already warns about** — the same
+  defect as a guard on the door nobody dispatches through, arriving through the TYPE rather
+  than through the routing.
+
+  Measured rather than argued, in both directions. Typing the parameter turns the old wiring
+  into `TS2322: Property '[FAULT_MAPPED]' is missing in type 'RefreshedHistory'` — so the fix
+  is the compiler's now, not review's. And the remaining exposure is a grep rather than a
+  hope: `grep -rn "run(command: UndoableCommand): Promise<DispatchResult>" src/` prints **six**
+  lines, of which two are `report-failure.ts`'s own (the brand's definition and
+  `mapDispatchFaults`'s parameter, which must take an UNbranded dispatcher or nothing could be
+  wrapped), one is `CommandHistory.run`'s implementation, one is `EditorContext`'s tool-facing
+  member (deliberately unbranded — `EditorContextDeps` carries the brand, so the requirement
+  is at composition and the tools see the plain shape), and the last two are the INSPECTOR's,
+  whose throws are mapped by `makeCommitField`'s own `catch` into the same coded
+  `PersistenceError`. A different last stop, not a missing one — which is a sentence worth
+  checking the next time this grep grows a seventh line.
+- **A category check's SCOPE is a lens, and the two sentences outside it were on the surface
+  the increment had just relabelled.** `strings.test.ts`'s "Room, never Zone" runs over
+  `editor.*` and `empty.plan.*`, which is what the spec draws — and the reassign decision the
+  Plan Editor's Delete button opens surfaces `reference.no-reassignment-target` and
+  `zone.listing-incomplete`, neither of which carries either prefix. Both said "zone" to a
+  homeowner, in a dialog whose own title says "room or area". The scope stayed as drawn
+  (widening it sweeps in every `reference.*` and `zone.*` sentence, most of which no editing
+  surface shows) and the two keys are NAMED in a case of their own — a list, which this
+  repository normally refuses, and the reason it is right here is that the list is precisely
+  what the rule deliberately excludes. **When a rule wide enough to cover a case is a rule you
+  have declined, the honest instrument is a named case, not a silently wider regex.**
+  Its German half spells the stem itself (`R(aum|äume)`, `Fläche`), because `/\bzones?\b/i`
+  cannot see `Zonen` — the blind spot this file already recorded, met by the first check that
+  needed it.
+- **A comment can be true of one of the two properties it is about.** `.rp-task-banner
+  .rp-task-banner__finish` (0,2,0) sat under a note saying `[aria-disabled="true"]` dimming is
+  Obsidian's own selector, "so nothing is declared here for that state". True of `opacity`,
+  which this project never declares and Obsidian's `button[aria-disabled="true"]` (0,1,1)
+  still wins — and false of `cursor`, which the same host rule sets and the two-class compound
+  outranks with `pointer`: the blocked Finish button dimmed correctly and invited a click. Its
+  own sibling three files away, `.rp-new-room__create`, restates the disabled cursor
+  explicitly and says why. **A compound written to beat one host rule beats every host rule
+  that shares its subject**, including the ones the author never thought about, so the
+  question is not "did my declaration win" but "what else did it take with it".
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was

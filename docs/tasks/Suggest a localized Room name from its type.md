@@ -66,9 +66,16 @@ is also criterion 4: the fallback is the established one, `t()` answering the En
 key the German table lacks — and the German editor table cannot lack one, being typed
 `Record<keyof typeof editorEn, string>`.
 
-Criterion 2 — **a name the renovator edited is never overwritten** — is `nameTouched` in
-`room-draft-store.ts`: the counted default (`Room {n}`) is applied by `beginTask` alone, and both
-`setName` and `suggestName` mark the name touched, so nothing later overwrites it. Held by
-`roomDraftStore.test.ts`'s 'suggestName sets the name as an explicit gesture, like setName' and
-'beginTask resets keepAdding and the name; clearRect keeps both; reset drops the name'. The
-clause's own subject — "by a later TYPE change" — has no producer, for the reason above.
+Criterion 2 — **a name the renovator edited is never overwritten** — is discharged by the fact
+that **nothing re-applies a default**, not by a flag. The counted default (`Room {n}`) is written
+by `beginTask` alone, which runs when a task STARTS; no other writer of `name` exists but
+`setName`/`suggestName`, which are the renovator's own gestures. Held by `roomDraftStore.test.ts`'s
+'suggestName sets the name as an explicit gesture, like setName' and 'beginTask resets keepAdding
+and the name; clearRect keeps both; reset drops the name'. The clause's own subject — "by a later
+TYPE change" — has no producer, for the reason above.
+
+`nameTouched` is written by both of those gestures and cleared by `beginTask`, and the final
+review measured that **nothing in `src/` reads it** — so it is not the evidence for this
+criterion and this passage said it was for one increment. It is kept as RESERVED, with its own
+docblock in `room-draft-store.ts` saying so: it is the question a re-apply would have to ask, and
+the first re-apply is this task's own deferred half. If that half is abandoned, the flag goes.

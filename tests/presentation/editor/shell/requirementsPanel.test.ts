@@ -54,7 +54,7 @@ describe('the Requirements panel', () => {
 			actionButton(r.harness, 'Select').click();
 			click(r.harness.canvasEl as HTMLElement, 300, 300);
 			await until(
-				() => r.harness.wrapper.text().includes('No requirements reference this zone yet.'),
+				() => r.harness.wrapper.text().includes('No requirements reference this room yet.'),
 				'empty requirements message',
 			);
 			expect(expectOk(await r.requirementsRepo.listByZone('zone-a' as never))).toEqual([]);
@@ -71,7 +71,7 @@ describe('the Requirements panel', () => {
 		// post-command refresh has re-run the requirements query.
 		await until(
 			() => r.harness.wrapper.text().includes('Floor tiles')
-				&& !r.harness.wrapper.text().includes('No requirements reference this zone yet.'),
+				&& !r.harness.wrapper.text().includes('No requirements reference this room yet.'),
 			'the requirement row appears',
 		);
 
@@ -93,7 +93,7 @@ describe('the Requirements panel', () => {
 		// notice the requirement becoming unrecoverable.
 		actionButton(r.harness, 'Undo').click();
 		await until(
-			() => r.harness.wrapper.text().includes('No requirements reference this zone yet.'),
+			() => r.harness.wrapper.text().includes('No requirements reference this room yet.'),
 			'the assignment is undone',
 		);
 		expect(expectOk(await r.requirementsRepo.listByZone('zone-a' as never))).toEqual([]);
@@ -248,7 +248,7 @@ describe('the Requirements panel', () => {
 		expectOk(await r.assetsRepo.delete(areaAsset.entity.id, areaAsset.version));
 		// Re-select, which is what re-runs the panel's query.
 		click(r.harness.canvasEl as HTMLElement, 900, 900);
-		await until(() => !r.harness.wrapper.text().includes('Delete zone'), 'the zone is deselected');
+		await until(() => !r.harness.wrapper.text().includes('Delete room'), 'the zone is deselected');
 		click(r.harness.canvasEl as HTMLElement, 300, 300);
 
 		await until(

@@ -167,13 +167,25 @@ describe('the German locale', () => {
 	 * refused drops out of the qualifying set entirely rather than being reported (the check
 	 * has no other way to know which side is the mistake); a translation that drops the example
 	 * and describes the rule instead passes; and it says nothing about any other locale, of
-	 * which there is one. Exactly ONE key qualifies today, measured rather than assumed by
-	 * printing the qualifying set — which is what makes this one assertion rather than a
-	 * backlog, and what makes the next qualifying key the interesting one.
+	 * which there is one.
+	 *
+	 * **A SECOND key now qualifies by the same rule, and it is excluded rather than checked —
+	 * "the next qualifying key" this docblock already predicted.** Task 6 (design spec
+	 * 2026-09-03, Add Room) added `editor.room.error.not-a-number`, whose English example
+	 * `4.2` parses as an amount exactly as a price would. But its copy is a LENGTH accepted by
+	 * `parseMetres`, not `createMoney` — and `parseMetres` accepts a decimal COMMA in German on
+	 * purpose (design spec §2.6, "since `de.ts` exists"), the opposite of what `AMOUNT_PATTERN`
+	 * allows. Checking it against `createMoney` would refuse the correctly-localized `4,2` for
+	 * showing the separator `parseMetres` actually wants. `NOT_A_MONEY_EXAMPLE` names it rather
+	 * than widening the digit-token heuristic to guess which parser a key is about — one key
+	 * excluded, with the reason written here rather than left for the next reader to rediscover.
 	 */
+	const NOT_A_MONEY_EXAMPLE: ReadonlySet<StringKey> = new Set(['editor.room.error.not-a-number']);
+
 	it('never shows a monetary example the amount parser refuses', () => {
 		const offenders: string[] = [];
 		for (const [key, english] of Object.entries(en) as [StringKey, string][]) {
+			if (NOT_A_MONEY_EXAMPLE.has(key)) continue;
 			const shown = amountsIn(english);
 			if (shown.length === 0 || !shown.every((raw) => parsesAsAmount(raw))) continue;
 			for (const example of amountsIn(de[key] ?? '')) {
@@ -197,6 +209,25 @@ describe('the German locale', () => {
 
 	it('calls a footprint an Umriss everywhere, including the toolbar', () => {
 		expect(de['designer.toolbar.trace-footprint']).toBe('Umriss nachzeichnen');
+	});
+});
+
+/**
+ * Design spec 2026-09-03 (Add Room), §7.2: "Room, never Zone" — the Plan Editor's own
+ * vocabulary and the empty-state copy that names it must say Room to a homeowner, never the
+ * persisted `Zone` entity's own name. `editor.zone-type.*` VALUES are exempt by construction:
+ * they are ADR-0016's seven homeowner-worded type labels ("Room", "Garden", …), none of which
+ * contains the word "zone" itself.
+ */
+describe('the plan editor speaks of Room, never Zone (ADR-0016, design spec 2026-09-03 §7.2)', () => {
+	it('says Room and never Zone anywhere a homeowner reads the editor', () => {
+		const prefixes = ['editor.', 'empty.plan.'];
+		for (const table of [en, de]) {
+			const offenders = Object.entries(table)
+				.filter(([key]) => prefixes.some((p) => key.startsWith(p)))
+				.filter(([, value]) => /\bzones?\b/i.test(value));
+			expect(offenders).toEqual([]);
+		}
 	});
 });
 

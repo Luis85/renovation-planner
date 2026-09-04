@@ -219,7 +219,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		pointer(canvas, 'pointerup', 200, 200);
 		await settle();
 
-		const deleteButton = actionButton(harness, 'Delete zone');
+		const deleteButton = actionButton(harness, 'Delete room');
 		deleteButton.click();
 		await until(
 			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 0,
@@ -418,7 +418,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		await settle();
 
 		expect(harness.wrapper.text()).toContain('Multiple objects selected.');
-		expect(harness.wrapper.text()).not.toContain('Delete zone');
+		expect(harness.wrapper.text()).not.toContain('Delete room');
 
 		harness.unmount();
 	});
@@ -479,7 +479,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 
 		zonesRepo.failuresLeft = 1;
 		const noticesBefore = Notice.shown.length;
-		actionButton(harness, 'Delete zone').click();
+		actionButton(harness, 'Delete room').click();
 		await settle();
 
 		// The write failed, the zone survives, and the refusal reached the user through the
@@ -614,7 +614,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		click(canvas, 200, 200);
 		await settle();
 
-		actionButton(harness, 'Delete zone').click();
+		actionButton(harness, 'Delete room').click();
 		await until(
 			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 0,
 			'the delete to land in the repository',

@@ -202,9 +202,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.project.no-projects.body': 'Ein Renovierungsprojekt enthält Ihre Grundrisse, Zonen, Objekte und Kosten. Erstellen Sie eines, um zu beginnen.',
 	'empty.plan.no-background.headline': 'Noch kein Plandokument',
 	'empty.plan.no-background.body': 'Legen Sie einen Grundriss, Lageplan, eine Skizze oder einen Gartenplan als Hintergrund dieses Plans fest und kalibrieren Sie ihn, damit Flächen in echten Einheiten herauskommen.',
-	'empty.plan.no-zones.headline': 'Noch keine Zonen',
-	'empty.plan.no-zones.body': 'Zeichnen Sie die erste Zone auf diesem Plan. Ihre Fläche wird aus dem Umriss gemessen und bestimmt Mengen und Kosten für alles, was Sie ihr zuweisen.',
-	'empty.plan.no-zones.action': 'Zone zeichnen',
+	'empty.plan.no-zones.headline': 'Noch keine Räume',
+	'empty.plan.no-zones.body': 'Fügen Sie den ersten Raum auf diesem Geschoss hinzu. Seine Fläche wird aus dem Umriss gemessen und bestimmt Mengen und Kosten für alles, was Sie ihm zuweisen.',
+	'empty.plan.no-zones.action': 'Raum hinzufügen',
 	// Design slice 17: die Fehlerzustände, die den Inhalt einer Ansicht ersetzen.
 	'view.failure.retry': 'Erneut versuchen',
 	'view.project.failed.headline': 'Projekte konnten nicht geladen werden',
@@ -212,7 +212,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.refresh-failed': 'Dieser Grundriss konnte nach der letzten Änderung nicht neu gelesen werden; die Anzeige ist möglicherweise nicht aktuell.',
 	// „Zonen“, wie überall sonst in dieser Oberfläche — siehe `zone.listing-incomplete`.
 	'editor.some-zones-unreadable':
-		'{count} Zone(n) in diesem Grundriss konnten nicht gelesen werden und werden nicht gezeichnet. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
+		'{count} Fläche(n) in diesem Grundriss konnten nicht gelesen werden und werden nicht gezeichnet. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'editor.plan-missing.headline': 'Diesen Grundriss gibt es nicht mehr',
 	'editor.plan-missing.body': 'Dieser Tab verweist auf einen Grundriss, der nicht mehr im Vault ist.',
 	'editor.plan-missing.action': 'Tab schließen',

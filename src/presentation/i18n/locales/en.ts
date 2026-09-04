@@ -210,9 +210,9 @@ export const en = {
 	'empty.project.no-projects.body': 'A renovation project holds your plans, zones, assets and costs. Create one to get started.',
 	'empty.plan.no-background.headline': 'No plan document yet',
 	'empty.plan.no-background.body': 'Set a floor plan, site plan, sketch or garden plan as this plan\u2019s background, then calibrate it so areas come out in real units.',
-	'empty.plan.no-zones.headline': 'No zones yet',
-	'empty.plan.no-zones.body': 'Draw the first zone on this plan. Its area is measured from the outline and drives the quantities and costs of anything you assign to it.',
-	'empty.plan.no-zones.action': 'Draw a zone',
+	'empty.plan.no-zones.headline': 'No rooms yet',
+	'empty.plan.no-zones.body': 'Add the first room on this floor. Its area is measured from the outline and drives the quantities and costs of anything you assign to it.',
+	'empty.plan.no-zones.action': 'Add a room',
 	// Design slice 17's in-place failure states. The BODY of each is `trError(error)` — the
 	// mapped sentence for that error's own code — so unrecovered settings and a vault fault say
 	// different things; only the headline and the action label are fixed copy here.
@@ -226,7 +226,7 @@ export const en = {
 	// point: one bad note now costs one zone, and a user who cannot see the count cannot tell
 	// that from a plan that lost everything.
 	'editor.some-zones-unreadable':
-		'{count} zone(s) in this plan could not be read and are not drawn. Open the diagnostics report to see which notes refused.',
+		'{count} area(s) in this plan could not be read and are not drawn. Open the diagnostics report to see which notes refused.',
 	'editor.plan-missing.headline': 'This plan no longer exists',
 	'editor.plan-missing.body': 'This tab points at a plan that is not in the vault any more.',
 	'editor.plan-missing.action': 'Close this tab',

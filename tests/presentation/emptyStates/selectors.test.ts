@@ -90,7 +90,7 @@ describe('selectPlanEditorEmptyState', () => {
 	/**
 	 * The arm that makes this a THREE-argument function, and the last of the three selectors
 	 * to get it. An empty zone list with a refusal behind it is not "no zones yet": `noZones`
-	 * carries a "Draw a zone" button, so the canvas would offer the user an action beside a
+	 * carries an "Add a room" button, so the canvas would offer the user an action beside a
 	 * strip telling them three of their zones could not be read — two answers to "why is this
 	 * canvas empty", and the actionable one is the wrong one.
 	 */

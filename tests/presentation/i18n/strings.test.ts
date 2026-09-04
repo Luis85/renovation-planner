@@ -213,13 +213,35 @@ describe('the German locale', () => {
 		expect(offenders, 'a shown price must be one `createMoney` accepts').toEqual([]);
 	});
 
+	/**
+	 * The locale used the formal Sie in every sentence until one increment added six du-form
+	 * imperatives beside fourteen Sie-form ones. A register is a fact about the whole file, so the
+	 * check is over every value rather than over the six that were found.
+	 *
+	 * **The boundary is `\p{L}` lookarounds and NOT `\b`, which is the same English-shaped
+	 * instrument the "never Zone" check below was measured blind with.** JS's `\b` is defined over
+	 * `[A-Za-z0-9_]`, so an UMLAUT is a non-word character: between a space and the `Ö` of `Öffne`
+	 * there are two non-word characters and therefore no boundary at all, and
+	 * `/\b(Öffne)\b/.test('Öffne den Bericht')` is `false` — measured, and measured again end to
+	 * end by planting that value into `de.ts` and watching this case stay green. So a `\b`-anchored
+	 * list could not express an umlaut-initial du-form even if somebody wrote one down, and this
+	 * locale's own copy carries the two verbs it matters for: `de.ts` says `Öffnen Sie` and
+	 * `Überprüfen Sie` today, whose du-forms are exactly `Öffne` and `Überprüfe`. The trailing
+	 * guard is what keeps the Sie-forms out: `Öffnen` fails `(?!\p{L})` at its own `n`.
+	 *
+	 * **What stays a LIST is stated rather than quietly widened.** These ten are the du-forms of
+	 * verbs this locale actually uses; a dozen more Sie-forms in it (`Vergrößern`, `Löschen`,
+	 * `Verwerfen`, `Erstellen`, …) have du-forms nothing here refuses, so a register slip in one
+	 * of those is invisible. Closing that is a judgement about which verbs to enumerate, which is
+	 * a different question from the boundary this edit fixes, and the honest answer is that it is
+	 * open rather than covered.
+	 */
+	const INFORMAL_IMPERATIVE =
+		/(?<!\p{L})(Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Öffne|Überprüfe)(?!\p{L})/u;
+
 	it('addresses the user formally throughout: no du-form imperative anywhere in de.ts', () => {
-		// The locale used the formal Sie in every sentence until one increment added six
-		// du-form imperatives beside fourteen Sie-form ones. A register is a fact about the whole
-		// file, so the check is over every value rather than over the six that were found.
-		const informal = /\b(Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe)\b/;
 		const offenders = Object.entries(de)
-			.filter(([, german]) => informal.test(german))
+			.filter(([, german]) => INFORMAL_IMPERATIVE.test(german))
 			.map(([key]) => key);
 		expect(offenders).toEqual([]);
 	});
@@ -235,16 +257,54 @@ describe('the German locale', () => {
  * persisted `Zone` entity's own name. `editor.zone-type.*` VALUES are exempt by construction:
  * they are ADR-0016's seven homeowner-worded type labels ("Room", "Garden", …), none of which
  * contains the word "zone" itself.
+ *
+ * **ONE PATTERN CANNOT ASK THIS OF TWO LANGUAGES, and the first version of this check asked it
+ * anyway.** It ran `/\bzones?\b/i` over `for (const table of [en, de])`, and a word BOUNDARY is
+ * an English-shaped instrument: German's own plural is `Zonen`, where the trailing `n` is a word
+ * character, so the `\b` after `Zone` fails and `zones` does not match `Zonen` either. Measured
+ * against the very string this increment fixed by hand —
+ * `'Die Zonen auf diesem Plan neu skalieren?'`, the pre-diff value of
+ * `editor.calibrate.recalibrate.title` — which the old check PASSED. So the German half was
+ * structurally unable to report the class it exists for, in the language most likely to produce
+ * it, while the English half passed beside it and the whole `it` read as coverage of both.
+ *
+ * The two arms are taken apart rather than widened together, because their SAFETY arguments are
+ * different facts about different languages and only the sentence below says which is which:
+ *
+ * - **German is the bare stem `/zone/i`**, the pattern the `DELETE_FLOW_KEYS` case below already
+ *   spells as `/Zone/i` for this same reason. `Zone` is a feminine noun whose every inflection
+ *   (`Zone`, `Zonen`) and every compound (`Bauzone`, `Zonenplan`) keeps the full stem, so the
+ *   stem covers the class rather than a list of forms somebody thought of.
+ * - **English is `/zon(e|ing)/i`**, one alternative wider than the stem: English derives a
+ *   gerund that DROPS the `e` (`zoning`), which no substring of `zone` can see. The `e` arm
+ *   covers `zone`, `zones`, `zoned`, `subzone` and `zone-type` — every form the boundary
+ *   version missed the moment a hyphen or a prefix was attached.
+ *
+ * **Neither goes one letter shorter to `/zon/i`**, which would additionally catch `zoniert` and
+ * `zoning` in one pattern — and would sweep in `horizontal` and `Horizont`, ordinary geometry
+ * copy in BOTH languages. Measured as a PROSPECT rather than as a live false positive: no locale
+ * value carries either word today (`grep -i horizont src/presentation/i18n/locales/` prints
+ * nothing), so the cost lands on the first author who writes one, silently, against a check
+ * nobody re-reads. What each arm still cannot see is a synonym for the entity that does not
+ * contain its name (`Bereich`, `region`) and any string outside the two prefixes — the sibling
+ * case below carries the two keys that second gap is known to hold.
  */
 describe('the plan editor speaks of Room, never Zone (ADR-0016, design spec 2026-09-03 §7.2)', () => {
-	it('says Room and never Zone anywhere a homeowner reads the editor', () => {
-		const prefixes = ['editor.', 'empty.plan.'];
-		for (const table of [en, de]) {
-			const offenders = Object.entries(table)
-				.filter(([key]) => prefixes.some((p) => key.startsWith(p)))
-				.filter(([, value]) => /\bzones?\b/i.test(value));
-			expect(offenders).toEqual([]);
-		}
+	const HOMEOWNER_PREFIXES = ['editor.', 'empty.plan.'];
+
+	/** Homeowner-facing keys of one table whose VALUE names the persisted entity, key and text. */
+	const namesTheEntity = (table: Partial<Record<StringKey, string>>, forbidden: RegExp): string[] =>
+		Object.entries(table)
+			.filter(([key]) => HOMEOWNER_PREFIXES.some((prefix) => key.startsWith(prefix)))
+			.filter(([, value]) => forbidden.test(value))
+			.map(([key, value]) => `${key}: ${value}`);
+
+	it('says Room and never zone, zones or zoning anywhere a homeowner reads the editor', () => {
+		expect(namesTheEntity(en, /zon(e|ing)/i)).toEqual([]);
+	});
+
+	it('says Raum and never Zone or Zonen — the plural a word-boundary check could not see', () => {
+		expect(namesTheEntity(de, /zone/i)).toEqual([]);
 	});
 });
 

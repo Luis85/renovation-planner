@@ -26,12 +26,23 @@ export interface CreationEntry {
 	readonly activate: (runtime: Pick<EditorRuntime, 'setTool'>) => void;
 }
 
+/**
+ * One entry whose `id` is pinned to a SINGLE member of the union rather than to the union as a
+ * whole. That is what lets the map below key each entry by its own id and have the compiler say
+ * so: `wall: unsupported('door', …)` reports
+ * `error TS2322: Type 'EntryFor<"door">' is not assignable to type 'EntryFor<"wall">'` — measured
+ * by writing that row — rather than mislabelling a menu row at runtime. It is why `unsupported`
+ * below is generic in `K`: returning a plain `CreationEntry` would widen every row's `id` back to
+ * the union and make each key/id pair unaskable again.
+ */
+type EntryFor<K extends CreationEntryId> = CreationEntry & { readonly id: K };
+
 const NOT_YET = { kind: 'unsupported', reasonKey: 'editor.add.unsupported.not-yet' } as const;
 const refuse = (id: CreationEntryId) => (): never => {
 	throw new Error(`creation entry '${id}' is unsupported and must not be activated`);
 };
 
-function unsupported(id: CreationEntryId, group: CreationGroup): CreationEntry {
+function unsupported<K extends CreationEntryId>(id: K, group: CreationGroup): EntryFor<K> {
 	return {
 		id,
 		group,
@@ -44,17 +55,42 @@ function unsupported(id: CreationEntryId, group: CreationGroup): CreationEntry {
 }
 
 /**
- * M02's catalogue as DATA (design spec §7.1). Room is the one available entry and routes to the
- * rectangular room tool (`'draw-room'`); the room itself does not exist until the temporary tool
- * banner's Finish action turns the draft into a Zone typed Room (Task 8), so `activate` here only
- * arms the tool rather than creating anything. Everything else is unsupported with a reason, so
- * the menu can explain rather than offer a dead control. Order IS the locked group order. The
- * `as StringKey` casts above are the one place a key is built by interpolation;
- * `creationCatalogue.test.ts` resolves every key in both locales, which is what a template
- * string would otherwise escape.
+ * M02's catalogue as DATA (design spec §7.1), keyed by id and declared ONCE. Room is the one
+ * available entry and routes to the rectangular room tool (`'draw-room'`); the room itself does
+ * not exist until the temporary tool banner's Finish action turns the draft into a Zone typed
+ * Room (Task 8), so `activate` here only arms the tool rather than creating anything. Everything
+ * else is unsupported with a reason, so the menu can explain rather than offer a dead control.
+ * Declaration order IS the locked group order — see `CREATION_CATALOGUE` below. The `as StringKey`
+ * casts above are the one place a key is built by interpolation; `creationCatalogue.test.ts`
+ * resolves every key in both locales, which is what a template string would otherwise escape.
+ *
+ * **The annotation is the totality check, and it replaces a cast that ASSERTED totality while
+ * nothing held it.** This map used to be `Object.fromEntries(CREATION_CATALOGUE.map(…)) as
+ * Record<CreationEntryId, CreationEntry>` under a docblock reading "carries exactly one entry per
+ * member, so this lookup cannot miss" — `Object.fromEntries` infers `{ [k: string]:
+ * CreationEntry }`, so the cast was the only thing making that sentence true, and it made it true
+ * by assertion. Measured rather than argued: adding `| 'stair'` to `CreationEntryId` with no row
+ * for it left `vue-tsc` completely silent about this file, `AddMenu` rendered the row, and
+ * pressing it threw `TypeError: Cannot read properties of undefined (reading 'activate')` —
+ * uncaught, because `Record<K, V>` index access is non-optional and `activateCreationEntry` below
+ * therefore has no `undefined` arm to write. With the literal annotated, the same mutation is a
+ * build failure at the opening brace below:
+ *
+ * ```
+ * error TS2741: Property 'stair' is missing in type '{ room: {…}; … note: EntryFor<…>; }'
+ * but required in type '{ readonly room: EntryFor<"room">; … readonly stair: EntryFor<…>; }'.
+ * ```
+ *
+ * "Exactly one entry per member" is FOUR compiler rules rather than a sentence, and each was
+ * measured by writing the mutation and reading `vue-tsc`: a missing member is that `TS2741`, an
+ * EXTRA key is `TS2353` ("Object literal may only specify known properties, and 'stair' does not
+ * exist in type …"), a duplicate key is `TS1117` ("An object literal cannot have multiple
+ * properties with the same name"), and a row whose entry disagrees with its key is the `TS2322`
+ * quoted at `EntryFor` above. What no type reaches: whether an entry's `group` is the right one,
+ * and whether the ORDER below is the order the design spec draws — both stay cases.
  */
-export const CREATION_CATALOGUE: readonly CreationEntry[] = [
-	{
+const ENTRIES_BY_ID: { readonly [K in CreationEntryId]: EntryFor<K> } = {
+	room: {
 		id: 'room',
 		group: 'structure',
 		labelKey: 'editor.add.room.label',
@@ -63,25 +99,29 @@ export const CREATION_CATALOGUE: readonly CreationEntry[] = [
 		availability: { kind: 'available' },
 		activate: (runtime) => runtime.setTool('draw-room'),
 	},
-	unsupported('wall', 'structure'),
-	unsupported('door', 'structure'),
-	unsupported('window', 'structure'),
-	unsupported('area', 'property'),
-	unsupported('path', 'property'),
-	unsupported('fence', 'property'),
-	unsupported('item', 'planning'),
-	unsupported('measurement', 'planning'),
-	unsupported('note', 'planning'),
-];
+	wall: unsupported('wall', 'structure'),
+	door: unsupported('door', 'structure'),
+	window: unsupported('window', 'structure'),
+	area: unsupported('area', 'property'),
+	path: unsupported('path', 'property'),
+	fence: unsupported('fence', 'property'),
+	item: unsupported('item', 'planning'),
+	measurement: unsupported('measurement', 'planning'),
+	note: unsupported('note', 'planning'),
+};
 
 /**
- * `CreationEntryId` is closed and `CREATION_CATALOGUE` carries exactly one entry per member, so
- * this lookup cannot miss — there is no "not found" arm to write, dead or live, and therefore
- * none to test. Built once at module load rather than re-scanned on every call.
+ * The same ten entries as a LIST, in the locked group order the Add menu renders — structure,
+ * property, planning — which is the declaration order of the map above.
+ *
+ * `Object.values` is what preserves it, and that is a spec guarantee rather than an
+ * implementation detail: ES2015's [[OwnPropertyKeys]] returns integer-index keys in ascending
+ * numeric order and every other string key in CREATION order, and not one `CreationEntryId` is an
+ * integer index. A member spelled `'2'` would be the one shape that reorders itself, which is why
+ * the ids are words and why `creationCatalogue.test.ts` pins the whole sequence by name rather
+ * than only the three groups — the compiler owns totality, and ORDER stays a case.
  */
-const ENTRIES_BY_ID: Record<CreationEntryId, CreationEntry> = Object.fromEntries(
-	CREATION_CATALOGUE.map((entry) => [entry.id, entry]),
-) as Record<CreationEntryId, CreationEntry>;
+export const CREATION_CATALOGUE: readonly CreationEntry[] = Object.values(ENTRIES_BY_ID);
 
 /**
  * The ONE door onto a catalogue entry's `activate` (design spec §7.1, Task 10). Both the Add
@@ -90,6 +130,12 @@ const ENTRIES_BY_ID: Record<CreationEntryId, CreationEntry> = Object.fromEntries
  * `entry.activate(...)` directly, and never a second, independently-decided route to the same
  * effect. An unsupported entry's own `activate` already throws (`refuse`, above), so calling
  * this with an unsupported id throws too; there is no second refusal to write here.
+ *
+ * The lookup cannot MISS for the reason `ENTRIES_BY_ID` states — that map's own annotation refuses
+ * a union member with no row — so there is no "not found" arm, dead or live, and none to test.
+ * Read that narrowly: it holds while `id` really IS a `CreationEntryId`, and a caller who reaches
+ * this door through an `as CreationEntryId` cast on a foreign string is outside what any type
+ * here can hold. That cast is exactly how the `TypeError` quoted above was reproduced.
  */
 export function activateCreationEntry(id: CreationEntryId, runtime: Pick<EditorRuntime, 'setTool'>): void {
 	ENTRIES_BY_ID[id].activate(runtime);

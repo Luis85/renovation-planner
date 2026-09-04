@@ -69,6 +69,36 @@ describe('the creation catalogue', () => {
 		expect(groups).toEqual(['structure', 'property', 'planning']);
 	});
 
+	/**
+	 * ORDER is the half of the catalogue's contract the compiler does NOT own, and it needs its
+	 * own case for two reasons the group case above cannot cover.
+	 *
+	 * `CREATION_CATALOGUE` is `Object.values(ENTRIES_BY_ID)` since the totality fix, so the list
+	 * is DERIVED from a map and its order is the map's declaration order — a property of
+	 * `[[OwnPropertyKeys]]`, not of anything a type checks. And the group case passes with `room`
+	 * and `wall` swapped, or with any two entries of one group exchanged, because it reads the
+	 * groups as a set of first appearances.
+	 *
+	 * What it does NOT prove is one entry per union member — that is `ENTRIES_BY_ID`'s own
+	 * annotation and the four compiler errors its docblock quotes. This is a sequence, so it
+	 * would go red for a dropped or reordered row and CANNOT go red for a member the union grew
+	 * and the map never gained: such a build does not run at all.
+	 */
+	it('lists every entry once, in the exact order the Add menu renders', () => {
+		expect(CREATION_CATALOGUE.map((e) => e.id)).toEqual([
+			'room',
+			'wall',
+			'door',
+			'window',
+			'area',
+			'path',
+			'fence',
+			'item',
+			'measurement',
+			'note',
+		]);
+	});
+
 	it('activateCreationEntry is the one door: Room reaches setTool("draw-room") exactly once', () => {
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		activateCreationEntry('room', { setTool });

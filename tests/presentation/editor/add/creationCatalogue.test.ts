@@ -80,18 +80,28 @@ describe('the creation catalogue', () => {
 
 /**
  * "One door" is a claim about EVERY caller, and a catalogue test cannot see a second one
- * hiding in a Vue file. This reads `PlanEditorRoot.vue`'s SOURCE TEXT instead — the same
- * instrument `entityRef.test.ts` uses for a caller list — so it is blind exactly where that
- * instrument says it is: it cannot tell a comment from code, and a second `setTool('draw-…')`
- * reached through a re-export or an alias would not match either literal below. What it does
- * prove is narrow and cheap: the file names `activateCreationEntry('room'` at all, and no
- * `setTool('draw-` literal sits anywhere in it — so the empty state's action cannot have grown
- * a second, undocumented route to the room tool without this failing.
+ * hiding in a Vue file — which is exactly what happened: a review round found `AddMenu.vue`
+ * calling `entry.activate(runtime)` directly while this file's own docblock on
+ * `activateCreationEntry` asserted "never `entry.activate(...)` directly" as settled fact. This
+ * reads BOTH callers' SOURCE TEXT instead — the same instrument `entityRef.test.ts` uses for a
+ * caller list — so it is blind exactly where that instrument says it is: it cannot tell a
+ * comment from code, and a call reached through a re-export or an alias would not match either
+ * literal below. What each case proves is narrow and cheap: the file names
+ * `activateCreationEntry(` at all, and no direct `entry.activate(`/`.activate(runtime` call sits
+ * anywhere in it — so neither caller can grow a second, undocumented route to the catalogue's
+ * `activate` without one of these failing.
  */
-describe("PlanEditorRoot.vue's empty-state action goes through activateCreationEntry", () => {
-	it("contains activateCreationEntry('room' and no setTool('draw- literal", () => {
+describe('activateCreationEntry is the one door onto the catalogue, not entry.activate(...) directly', () => {
+	it("PlanEditorRoot.vue's empty-state action calls activateCreationEntry('room' and never setTool('draw- directly", () => {
 		const source = readFileSync('src/presentation/editor/PlanEditorRoot.vue', 'utf8');
 		expect(source).toContain("activateCreationEntry('room'");
 		expect(source).not.toMatch(/setTool\('draw-/);
+	});
+
+	it("AddMenu.vue's activation calls activateCreationEntry( and never entry.activate( or .activate(runtime directly", () => {
+		const source = readFileSync('src/presentation/editor/add/AddMenu.vue', 'utf8');
+		expect(source).toContain('activateCreationEntry(');
+		expect(source).not.toMatch(/entry\.activate\(/);
+		expect(source).not.toMatch(/\.activate\(runtime/);
 	});
 });

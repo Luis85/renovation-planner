@@ -2103,6 +2103,28 @@ quoted, and both were correctly REPORTED rather than fixed: neither is that task
 reopening a completed task's file to fix a pre-existing sentence is how a fix round grows into a
 second task. They are routed HERE instead.
 
+**A SIXTH INSTANCE, AND IT TAUGHT THE BETTER RULE — promoted here because it supersedes the one
+above rather than adding to it.** Task 17's fix round found that `scripts/harness-shot.mjs`'s
+`focus` docblock quotes `grep -c "focus: "` INSIDE the file that command counts, so it printed 3
+for two shots. The pattern is a bare field name, and **no spelling a reader could actually run
+avoids matching its own quotation** — so "escape the pattern" had nothing to offer and the claim
+was WITHDRAWN instead. The rule that generalises is structural rather than lexical:
+
+> **A census command belongs in a different file from the one it counts.**
+
+Prefer that to escaping. Escaping is a property of one pattern and has to be re-earned by every
+later edit; separation is a property of where the sentence LIVES and survives rewording. Where
+neither is available — the count is about the file the sentence must sit in — withdraw the number
+and name the thing instead, which is what the same round did for "five fixed captures", replaced
+by "every `asset-library-*` shot".
+
+**And the same round produced the sharpest possible argument for running the quoted commands:**
+its own replacement for a false `m²` claim was ALSO false. It wrote that `grep -rn "m²" src/`
+"finds only the prototype"; that prints nine files. Corrected to the scope the claim actually
+rests on (`src/presentation/library/`, `views/`, `i18n/` → 0), in both the report and the manual
+case. A fix for a false claim is where the next false claim lives, and only running the command
+finds it.
+
 **The final review's job is the CLASS, not these two.** A count in a comment is only as good as
 the last person to run it, and a pattern that can match its own quotation is wrong the moment it
 is written. Sweep every quoted command in the branch's diff, run each one, and compare. Where a

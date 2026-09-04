@@ -146,7 +146,7 @@ jobs:
           for attempt in 1 2 3 4 5; do
             if npm run audit 2>&1 | tee "$log"; then exit 0; fi
             if ! grep -q "audit endpoint returned an error" "$log"; then exit 1; fi
-            echo "::warning::npm audit attempt $attempt: the advisory endpoint did not answer; retrying"
+            echo "::warning::npm audit attempt $attempt of 5: the advisory endpoint did not answer"
           done
           echo "::error::npm audit: the advisory endpoint did not answer in 5 attempts"
           exit 1

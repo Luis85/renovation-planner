@@ -29,12 +29,24 @@ import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueri
  * has to supply for `setVisible` and would otherwise have to remember to supply twice.
  *
  * **There is no timer and no microtask coalescing, and the batch boundary is the CALLER's
- * call.** That is what an `IntersectionObserver` callback already gives — it delivers an array
- * of entries per callback rather than one per row — so a scheduler here would be a second
- * batching mechanism layered over one that already exists, and it would put every test of this
- * module on a hop count that is a fact about today's implementation. `setVisible` is idempotent
- * against what it already holds and against what is in flight, so it is called with the whole
- * visible set on every pass.
+ * call.** A scheduler here would be a second batching mechanism layered over the caller's own,
+ * and it would put every test of this module on a hop count that is a fact about today's
+ * implementation. `setVisible` is idempotent against what it already holds and against what is
+ * in flight, so it is called with the whole visible set on every pass.
+ *
+ * **WHAT THE SHIPPED CALLER ACTUALLY PASSES, because this module's vocabulary promises more
+ * than the surface delivers and the earlier draft of this header leaned on it.** That draft
+ * argued the batch boundary from what *"an `IntersectionObserver` callback already gives"*.
+ * **Nothing in this repository constructs one** — every occurrence of that name in `src/` and
+ * `tests/` is prose, this paragraph and `AssetLibraryBody.vue`'s own included, which is why
+ * that is stated as a thing rather than as a count: a grep for a name, quoted inside a file
+ * that discusses it, counts itself. jsdom implements none either, so an observer would be this
+ * tree's first AND unexercisable by the suite as it stands. What Task 17b wired instead is
+ * `AssetLibraryBody.drawnAssetIds` — every row an OPEN SHELF draws, or every match when §6.1's
+ * flat Results list has replaced the shelves — which is a strict SUPERSET of the viewport. The
+ * names here (`setVisible`, `visible`) are §5.3's and are kept; the bound they carry today is
+ * *drawn*, and that file is where the narrowing and its cost are argued. Nothing in this module
+ * changes if an observer ever arrives: it would call `setVisible` with a smaller set.
  *
  * Not a Pinia store: it holds no cross-view state and needs no devtools identity. It is created
  * by `AssetLibraryStore`, which is what a view actually reaches, and tested through it.
@@ -76,7 +88,11 @@ export function createViewportMarks(): ViewportMarks {
 	 * has given up on is still in flight.
 	 */
 	const inFlight = new Set<AssetId>();
-	/** What is on screen — §5.4's *immediately* is a question about this set and nothing else. */
+	/**
+	 * What the caller last said was visible — §5.4's *immediately* is a question about this set
+	 * and nothing else. Today that is what an open shelf DRAWS rather than what a viewport shows;
+	 * see this module's header.
+	 */
 	let visible: ReadonlySet<AssetId> = new Set();
 
 	const generationOf = (assetId: AssetId): number => generations.get(assetId) ?? 0;

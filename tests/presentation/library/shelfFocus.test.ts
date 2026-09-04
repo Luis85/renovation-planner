@@ -45,7 +45,10 @@ function mountShelves(expanded: readonly string[]): VueWrapper {
 	];
 	const wrapper = mount(AssetShelves, {
 		attachTo: document.body,
-		props: { entries, searching: false, expanded: new Set(expanded) },
+		// `outlineFor` is REQUIRED since Task 17b — an optional one is exactly how the single
+		// production mount came to omit it and every mark drew §3.4's *not yet read* for four
+		// tasks. Nothing in this file asserts a mark, so every row here answers that state.
+		props: { entries, searching: false, expanded: new Set(expanded), outlineFor: () => null },
 	});
 	mounted.push(wrapper);
 	return wrapper;

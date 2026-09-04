@@ -27,6 +27,13 @@
  * that it "holds regardless of how deep Task 16 nests `.rp-al-body`". Nesting it one level
  * deeper inside `.rp-al-main` is exactly the case that comment anticipated.
  *
+ * **It also owns §5.3's mark BATCH, which is the one thing here that is not markup.** The
+ * shelves are what draw the rows, so this component is what knows which rows are drawn — see
+ * `drawnAssetIds` below for the batch, and for the honest narrowing of §5.3's *viewport* to
+ * *what an open shelf draws*. Task 17b added both; before it, `<AssetShelves>` was mounted with
+ * no `outline-for` at all and every mark in the catalogue drew §3.4's *not yet read* for the
+ * life of the view.
+ *
  * **Neither `expanded` nor `selectedId` is held here**, for the reason `AssetShelves.vue`'s own
  * header already gives one level down: a search that briefly matches nothing swaps this whole
  * region for an `EmptyState`, and a value only this component held would reset with it —
@@ -43,7 +50,7 @@
  * No `<style>` block, ever (`vue/no-restricted-block`): every class here is already declared in
  * `styles/asset-library.css`.
  */
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import EmptyState from '../components/EmptyState.vue';
 import AssetShelves from './AssetShelves.vue';
 import UnreadableStrip from './UnreadableStrip.vue';
@@ -54,7 +61,7 @@ import { resolveEmptyState } from '../emptyStates/resolve';
 import { tr } from '../i18n/strings';
 import type { AssetId } from '../../domain/asset/AssetId';
 
-defineProps<{
+const props = defineProps<{
 	/** Which shelf categories are open — the ROOT's, per this file's own header. */
 	expanded: ReadonlySet<string>;
 	/** §6.3's `''` sentinel already resolved to an id or `null` by the root. */
@@ -110,6 +117,72 @@ function onEmptyStateAction(): void {
 }
 
 /**
+ * §5.3's mark batch: the ids of the rows this region is DRAWING, handed to the store on every
+ * change to that set.
+ *
+ * **The bound is what an open shelf draws, and §5.3 asks for the VIEWPORT — so the claim is
+ * narrowed here rather than left implying a precision this build does not have.** §5.3's rule 1
+ * is *"a mark is requested when its row enters the viewport"*, and nothing in this repository
+ * observes a viewport: no module in `src/` or `tests/` constructs an `IntersectionObserver`
+ * (every occurrence of the name is prose, this paragraph included — which is why that is
+ * stated rather than counted), and jsdom implements none, so one would be this tree's first,
+ * unexercisable by the suite as it stands, and its correctness would live entirely
+ * where no gate here can reach it — the trade CLAUDE.md already records taking the other way
+ * (*prefer the fix whose result a gate can see to the one whose correctness lives where no gate
+ * reaches*). What ships is a strict SUPERSET of the viewport: every row an open shelf draws, or
+ * every match when §6.1's flat Results list has replaced the shelves.
+ *
+ * What that costs, exactly, so the next reader does not have to derive it: a shelf holding 34
+ * entries reads 34 sidecars to draw the six rows a pane can show — §5.3's own named objection to
+ * the per-shelf bound it replaced. What it does NOT cost is either of the two HOLES that
+ * objection came with. The `searching` arm is the first: a flat Results list has no expanded
+ * shelf at all, so without it every search result would sit in *not yet read* for ever,
+ * contradicting §5.3's own rule 2. And rules 2 and 3 are untouched — a row still renders
+ * unread and fills in, and nothing in flight is cancelled when a shelf closes.
+ *
+ * §5.4 inherits the same narrowing through `ViewportMarks.invalidate`, which re-reads exactly
+ * the intersection of the invalidated ids with this set: a row in an OPEN shelf re-requests
+ * immediately whether or not it is scrolled into view, and a row in a closed one waits for the
+ * shelf. That is §5.4's rule with *on screen* read as *drawn*, and it errs towards the eager
+ * half, which is the safe direction — a stale outline held for the life of the view is the
+ * failure that section exists to prevent.
+ *
+ * Not derived from the DOM: `AssetShelf` draws a collapsed shelf's rows and hides them with
+ * `v-show`, so a query over `.rp-al-row` would name every row in the catalogue. The state is
+ * what says which shelf is open, and it is what the shelves are drawn from.
+ */
+const drawnAssetIds = computed((): readonly AssetId[] =>
+	(store.searching
+		? store.visibleEntries
+		: store.visibleEntries.filter((entry) => props.expanded.has(entry.category))
+	).map((entry) => entry.assetId),
+);
+
+/**
+ * `watch` and never `watchEffect`, and the difference is MEASURED rather than reasoned:
+ * `ViewportMarks.setVisible` READS the mark cache (`marks.value.has`) to decide what is already
+ * known, and that cache is a reactive `Map`, so under `watchEffect` the answers it stores are
+ * dependencies of the effect that asked for them. Counted, over one shelf holding one asset:
+ * `watchEffect` runs TWICE and this `watch` callback runs ONCE, both issuing exactly one
+ * `listOutlines`. So the extra pass is real and is harmless TODAY — `read`'s own filter drops
+ * an id already cached, so the second pass asks for nothing — which is the point: the effect
+ * form is safe only because of a filter one module away, and a `watch` callback is not a
+ * tracking context at all, so the source above is the whole of what re-runs this.
+ *
+ * `immediate`, because the first paint is already a batch: `AssetLibraryRoot` draws this region
+ * only from the ready branch, so the listing has resolved by the time this component exists.
+ *
+ * Fire-and-forget, and there is nothing to report: `listOutlines` answers a MAP rather than a
+ * `Result` and settles per asset, so a batch that could not be read arrives as one `refused`
+ * outline per id and draws §3.4's struck box. The refusal is IN the marks, and a fault below
+ * the guarded door is mapped to that same per-id refusal by `createAssetLibraryQueries` — so
+ * there is no rejection here for a `.catch` to have.
+ */
+watch(drawnAssetIds, (assetIds) => void store.setVisibleMarks(assetIds, context.queries), {
+	immediate: true,
+});
+
+/**
  * The strip's per-row action. `'missing'` means the listing this row was drawn from is stale —
  * the note the path named is gone — so this is the one strip row that re-reads, mirroring
  * `ProjectDetailState.onOpenNote`'s identical rule for its own repair action. `'failed'` is not
@@ -144,6 +217,7 @@ async function onOpenNoteRow(path: string): Promise<void> {
 			:searching="store.searching"
 			:expanded="expanded"
 			:selected-id="selectedId"
+			:outline-for="store.markFor"
 			@toggle="emit('toggle', $event)"
 			@select="emit('select', $event)"
 		/>

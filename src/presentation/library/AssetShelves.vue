@@ -76,10 +76,41 @@ const props = withDefaults(
 		 *  file's own header. */
 		expanded: ReadonlySet<string>;
 		selectedId?: AssetId | null;
-		/** `null` for §3.4's *not yet read* — a shelf never waits for its own rows' marks. */
-		outlineFor?: (assetId: AssetId) => AssetOutline | null;
+		/**
+		 * This region's whole geometry mark, per row: `null` for §3.4's *not yet read* — a shelf
+		 * never waits for its own rows' marks, and a mark that has not arrived is a state rather
+		 * than a delay.
+		 *
+		 * **REQUIRED, and it was optional-with-`undefined` for four tasks.** That is the whole of
+		 * why §3.4's five-state mark, Task 6's `ListAssetOutlines` and §5.3/§5.4's viewport cache
+		 * reached no user: `AssetLibraryBody.vue` — the ONE production mount of this component —
+		 * omitted the prop, which an optional one makes legal, so every row drew *not yet read*
+		 * for the life of the view and no gate could see it.
+		 *
+		 * **Task 17b's own brief said the unit tests of this component all passed the prop while
+		 * the mount site did not; measured against the tree, that is true of `AssetShelf` and
+		 * false here, and the truth is worse.** `AssetShelves` is imported in exactly two places
+		 * — `AssetLibraryBody.vue` and `shelfFocus.test.ts` — and that suite mounts it for §6.2's
+		 * arrow keys and omitted `outlineFor` too. So NOTHING in this repository ever supplied it
+		 * to this component, and the prop's default was the only value it had ever carried.
+		 * Required makes that omission a `vue-tsc` error naming the mount site — measured rather
+		 * than asserted: delete the binding and `vue-tsc --noEmit` reports `TS2345 … Property
+		 * 'outlineFor' is missing` against `AssetLibraryBody.vue`, at the `<AssetShelves>` tag.
+		 * (The FILE and the tag, never a line:column — this repository's own rule is to address
+		 * code by name, and the first draft of this sentence quoted coordinates that six added
+		 * lines of docblock had already moved.) Which is
+		 * CLAUDE.md's own rule for a deps bundle (*a composition that forgets it does not compile
+		 * rather than announcing into nothing*) met from the props side.
+		 *
+		 * `AssetShelf.outlineFor` one level down stays OPTIONAL, deliberately and for a reason
+		 * that does not apply here: its own default is asserted by a case of its own
+		 * (`assetShelf.test.ts`'s *answers "not yet read" for every row when outlineFor is not
+		 * supplied*), and its only production caller is this component — which can no longer omit
+		 * it, so the compiler already names the one path that reaches a shelf in the app.
+		 */
+		outlineFor: (assetId: AssetId) => AssetOutline | null;
 	}>(),
-	{ selectedId: null, outlineFor: undefined },
+	{ selectedId: null },
 );
 
 const emit = defineEmits<{ toggle: [category: string]; select: [assetId: AssetId] }>();
@@ -131,10 +162,6 @@ const shelves = computed((): readonly Shelf[] => {
 		entries: byCategory.get(category) ?? [],
 	}));
 });
-
-function outlineOf(assetId: AssetId): AssetOutline | null {
-	return props.outlineFor?.(assetId) ?? null;
-}
 </script>
 
 <template>
@@ -169,7 +196,7 @@ function outlineOf(assetId: AssetId): AssetOutline | null {
 				:expanded="expanded.has(shelf.category)"
 				:collapsible="true"
 				:selected-id="selectedId"
-				:outline-for="outlineOf"
+				:outline-for="outlineFor"
 				@toggle="emit('toggle', shelf.category)"
 				@select="emit('select', $event)"
 			/>

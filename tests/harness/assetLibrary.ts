@@ -49,21 +49,22 @@ import { FakeLeaf } from '../helpers/workspace';
  * a gesture fails like any other failed write rather than appearing to persist against a vault
  * this page does not have.
  *
- * **`listOutlines` is answered in full and NO SHIPPED PATH REACHES IT**, which is a finding
- * rather than a property of this fixture, and it is stated here because this is the file whose
- * captures show it. The chain breaks in two places, one hop apart, and the precise version
- * matters because the loose one ("nothing calls it") is falsifiable in a second:
- * `viewportMarks.ts:94` DOES call `queries.listOutlines`, and what has no caller is
- * `ViewportMarks`' own entry point — `AssetLibraryStore.markFor`, `.setVisibleMarks` and
- * `.invalidateMarks` are reachable from nothing in `src/presentation/` outside the store and
- * that module themselves. One hop further out, `AssetLibraryBody.vue` mounts `<AssetShelves>`
- * with no `outline-for` prop, so `AssetShelves.outlineOf` answers `null` for every row and
- * `AssetMark` draws §3.4's *not yet read* state for the whole catalogue, permanently — measured
- * in a browser against this fixture: 17 marks, one class.
+ * **`listOutlines` REACHES THE ROWS since Task 17b, and it did not when this fixture was
+ * written — the account is kept rather than deleted, because the captures taken against it are
+ * what found the defect.** What Task 17's shots showed was 17 marks under one class: the chain
+ * broke in two places, one hop apart, and the precise version matters because the loose one
+ * ("nothing calls it") was falsifiable in a second. `viewportMarks.ts` DID call
+ * `queries.listOutlines`; what had no caller was `ViewportMarks`' own entry point, since
+ * `AssetLibraryStore.setVisibleMarks` was reached from nothing outside the store. And one hop
+ * further out, `AssetLibraryBody.vue` mounted `<AssetShelves>` with no `outline-for` prop —
+ * OPTIONAL, so omitting it was legal — and `AssetMark` drew §3.4's *not yet read* for the whole
+ * catalogue, permanently.
  *
- * The outlines below are supplied anyway, and deliberately: a harness that refused a query the
- * composed root answers would be a fake HARSHER than the real thing, and the day that prop is
- * wired the marks have something true to draw.
+ * Both halves are wired now: that prop is REQUIRED and bound to `store.markFor`, and
+ * `AssetLibraryBody.drawnAssetIds` hands the store every row an open shelf draws. So the
+ * outlines below — supplied from the start, deliberately, because a harness that refused a
+ * query the composed root answers would be a fake HARSHER than the real thing — are what the
+ * `asset-library-*` shots now actually draw.
  */
 
 const money = (amount: string, currency: string): Pick<CatalogueEntryDto, 'unitCostAmount' | 'currency'> => ({

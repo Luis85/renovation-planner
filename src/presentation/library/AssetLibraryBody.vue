@@ -1,8 +1,15 @@
 <script setup lang="ts">
 /**
- * The Asset library's SHELVES REGION and every one of §4's states inside it: the loading line,
- * §6.1's live-region announcement, §5.1a's repair strip, either of §4's two `EmptyState` entries,
- * and the shelves themselves.
+ * The Asset library's SHELVES REGION once the catalogue read has answered: §6.1's live-region
+ * announcement, §5.1a's repair strip, either of §4's two `EmptyState` entries, and the shelves
+ * themselves.
+ *
+ * **§4's LOADING line is deliberately not here**, and it was for one commit. §7's narrow
+ * composition hides this element outright once something is selected, so a restored leaf below
+ * 35rem drew nothing at all between its toolbar and its status bar for the length of the read —
+ * strictly worse than the *"never a spinner over an empty pane"* §4 forbids. The line lives in
+ * `AssetLibraryRoot.vue`'s `.rp-al-main`, outside the element the container query hides, and
+ * this component is drawn only from the ready branch beside it.
  *
  * **Extracted out of `AssetLibraryRoot.vue` by Task 16a, and the extraction is the point rather
  * than a tidy-up.** Task 13's own review named it, and this task's brief measured why: the root
@@ -26,9 +33,12 @@
  * the loss §6.1's "a search must not cost a user the arrangement they had" refuses. The root
  * holds both and publishes them; this file draws them.
  *
- * **`rehydrate` is an EMIT rather than a `store.hydrate` call of its own.** The root's `hydrate`
- * is "the ONE read this view has, on every occasion it runs", and a second call site here would
- * be a second answer to what refreshed this pane.
+ * **`rehydrate` is an EMIT rather than a `store.hydrate` call of its own**, because
+ * `onOpenNoteRow` below IS the root's own function moved out for a budget, over the same
+ * `context.openNote` door the shell already had — so a call here would be a second spelling of
+ * one line rather than a second door. `AssetLibraryRoot.hydrate`'s own docblock carries the
+ * measured count of that store's call sites across this folder, and why the inspector's two are
+ * not a copy of it.
  *
  * No `<style>` block, ever (`vue/no-restricted-block`): every class here is already declared in
  * `styles/asset-library.css`.
@@ -112,38 +122,30 @@ async function onOpenNoteRow(path: string): Promise<void> {
 
 <template>
 	<div class="rp-al-body">
-		<div
-			v-if="store.status !== 'ready'"
-			class="rp-view-message"
+		<p
+			class="rp-al-results"
+			role="status"
 		>
-			<p>{{ tr('view.asset-library.loading') }}</p>
-		</div>
-		<template v-else>
-			<p
-				class="rp-al-results"
-				role="status"
-			>
-				{{ matchCount }}
-			</p>
-			<UnreadableStrip
-				v-if="store.unreadable.length > 0"
-				:entries="store.unreadable"
-				@open="(path) => void onOpenNoteRow(path)"
-			/>
-			<EmptyState
-				v-if="empty !== null"
-				v-bind="empty"
-				@action="onEmptyStateAction"
-			/>
-			<AssetShelves
-				v-else
-				:entries="store.visibleEntries"
-				:searching="store.searching"
-				:expanded="expanded"
-				:selected-id="selectedId"
-				@toggle="emit('toggle', $event)"
-				@select="emit('select', $event)"
-			/>
-		</template>
+			{{ matchCount }}
+		</p>
+		<UnreadableStrip
+			v-if="store.unreadable.length > 0"
+			:entries="store.unreadable"
+			@open="(path) => void onOpenNoteRow(path)"
+		/>
+		<EmptyState
+			v-if="empty !== null"
+			v-bind="empty"
+			@action="onEmptyStateAction"
+		/>
+		<AssetShelves
+			v-else
+			:entries="store.visibleEntries"
+			:searching="store.searching"
+			:expanded="expanded"
+			:selected-id="selectedId"
+			@toggle="emit('toggle', $event)"
+			@select="emit('select', $event)"
+		/>
 	</div>
 </template>

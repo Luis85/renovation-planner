@@ -5,16 +5,22 @@
  * — the mock's markup and section order, against Tasks 4/9/10's real read models rather than
  * its own invented fixture, and with every one of the states the mock could not represent.
  *
- * **THE SUBJECT IS THE `assetId` PROP, never `context.assetId`, and the two disagree by
- * design.** Task 13 holds `selectedId` as a local ref in `AssetLibraryRoot.vue`, seeded from
- * `context.assetId` and re-assigned by a `watch` on it, while `onSelect` writes only the local
- * ref — the context is `DeepReadonly` and no component may write it. So the moment a user
- * clicks a row, `selectedId` names the clicked asset and `context.assetId.value` still names
- * whatever the leaf was restored with. A panel subscribing to the context would show the
- * restored asset for ever and contradict the marked row beside it, since `AssetRow.selected`
- * comes from `selectedId`. One source for the mark and the panel, or they disagree on the
- * first click. (The other half — a WRITE back into Obsidian's view state — is Task 16's, which
- * owns the context member it needs.)
+ * **THE SUBJECT IS THE `assetId` PROP, never `context.assetId` — and the REASON has moved
+ * since this was written, while the rule has not.** The original reason was a DIVERGENCE: Task
+ * 13 held `selectedId` as a local ref in `AssetLibraryRoot.vue` and `onSelect` wrote only that
+ * ref, since the context is `DeepReadonly` and no component may write it — so from the first
+ * click the panel and the marked row would have named different assets. Task 16a's write-back
+ * closed exactly that: `onSelect` now calls `context.publishViewState(...)`, the view writes
+ * its own refs, and the root's `watch` assigns `selectedId` from them in the same synchronous
+ * stretch. The two agree.
+ *
+ * **The rule survives its reason, and this is the paragraph that must not be read as inviting
+ * the switch.** What the prop buys now is that the panel is drawn from the SAME value the row's
+ * `selected` mark is drawn from — one authority for one fact — rather than from a second read
+ * of it kept equal by a watch. A panel wired to the context would be correct only for as long
+ * as that watch stays unconditional, and nothing here would fail on the day it does not. A
+ * prop also keeps this component mountable on its own, which `assetInspector.test.ts` and the
+ * harness both depend on.
  *
  * §6.3's `''` sentinel gets its second consumer here: `''` means nothing selected, `null` after
  * `selectionOf`, and this panel's resting line is what that value draws.
@@ -22,8 +28,9 @@
  * **This panel is drawn from the root's READY branch**, which is what makes resolving an id
  * against the listing meaningful: mounted while the catalogue read is still out, every id would
  * resolve to no entry and no unreadable row, and the panel would report a perfectly good asset
- * as gone. Task 16 owns that placement; this file states the precondition rather than adding a
- * second loading branch that the surface's own §4 state already covers.
+ * as gone. `AssetLibraryRoot.vue` keeps that placement — one `v-if` over `.rp-al-main`'s
+ * contents, with §4's loading line as its `v-else` — and this file states the precondition
+ * rather than adding a second loading branch beside the one §4 already owns.
  *
  * **Selection is what STARTS the three reads.** `AssetSelectionStore.select` clears and
  * restarts all three ticketed sections (§5.5), and this is its one caller — a click, a restored

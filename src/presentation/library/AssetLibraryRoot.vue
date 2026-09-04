@@ -67,10 +67,28 @@ const shellEl = ref<HTMLElement | null>(null);
 const searchEl = ref<HTMLInputElement | null>(null);
 
 /**
- * The ONE read this view has, on every occasion it runs — open, a retry, and every `catalogue`
- * arm `applyChange` below decides needs one. A second "refresh" path would be a second answer
- * to what this pane is showing, exactly as `PlanEditorRoot` and `ViewRoot` each state about
- * their own `hydrate`.
+ * The SHELL's read, on every occasion the shell runs one — open, a retry, and the `rehydrate`
+ * `AssetLibraryBody` emits when a repair row turns out to name a note that is gone.
+ *
+ * **It is not the view's only call site, and the sentence here said it was.** Measured in the
+ * edit that replaced it —
+ * `grep -rn "\.hydrate(" src/presentation/library/` prints THREE: this function, and
+ * `AssetInspector.vue`'s two repair doors. The claim was vacuously safe while nothing mounted
+ * the panel; Task 16a mounting it is what made it false, and the docblock is where this
+ * repository's rule says to look — an "only place X" sentence gets a `grep` in the SAME edit.
+ *
+ * The asymmetry between the two regions is deliberate rather than an oversight of the
+ * extraction. `AssetLibraryBody.onOpenNoteRow` is THIS function's own body, moved out for a
+ * budget, over `context.openNote` — the door the shell already had — so a `hydrate` call there
+ * would be a second spelling of the line above it. `AssetInspector.onOpenNote` reaches
+ * `context.openAssetNote`, an id-keyed door the shell does not have and cannot resolve, so its
+ * re-read is its own rather than a copy of this one.
+ *
+ * What three callers of one store would cost, and why they cost nothing: `AssetLibraryStore
+ * .hydrate` is ticketed (`latestHydration`), so a slower earlier read cannot land over a newer
+ * one. What is still refused is a second read MODEL — another query, another shape, another
+ * answer to what this pane is showing — which is what `PlanEditorRoot` and `ViewRoot` each
+ * state about their own `hydrate` and what remains true here.
  */
 function hydrate(): Promise<void> {
 	return store.hydrate(context.queries, context.indexScanCompleted);
@@ -186,9 +204,17 @@ watch(
 	},
 );
 
-/** What the shell ANNOUNCES it is showing — see this file's header for why the attribute means
- *  the pane's subject rather than the raw selection. */
-const paneAssetId = computed(() => (showingSelection.value ? context.assetId.value : ''));
+/**
+ * What the shell ANNOUNCES it is showing — see this file's header for why the attribute means
+ * the pane's subject rather than the raw selection.
+ *
+ * Reads `selectedId` rather than `context.assetId`, which are kept equal by the `watch` above
+ * and are still TWO reads of one fact: the attribute the stylesheet hides `.rp-al-body` off and
+ * the prop the panel is drawn from would then come from different places, and on the day that
+ * watch is made conditional the marked row and the hidden body would disagree with nothing here
+ * failing. One authority, and it reads the same.
+ */
+const paneAssetId = computed(() => (showingSelection.value ? (selectedId.value ?? '') : ''));
 
 /** §6.3's write half: one call carries both values, because the view publishes one state. */
 function publish(assetId: AssetId | null, expanded: ReadonlySet<string>): void {
@@ -247,6 +273,12 @@ function onBack(): void {
 	selectedId.value = null;
 	showingSelection.value = true;
 	publish(null, expanded);
+	// An EARLY EXIT rather than a behavioural guard, and saying so is the point: with it deleted
+	// `CSS.escape(null)` builds `[data-asset-id="null"]`, which matches nothing, and the fallback
+	// below does exactly what it does now — and `leaving === null` implies `paneAssetId === ''`,
+	// so `swappingOut` was already false and `focusAfterSwap` would return at its own gate. No
+	// case here reddens against removing it, deliberately: the case beside it asserts the
+	// BEHAVIOUR, which is the same in both worlds.
 	if (leaving === null) return;
 	void focusAfterSwap(`[data-asset-id="${CSS.escape(leaving)}"]`, () => swappingOut);
 }
@@ -289,20 +321,37 @@ function onBack(): void {
 				</button>
 			</div>
 			<div class="rp-al-main">
-				<AssetLibraryBody
-					:expanded="expandedCategories"
-					:selected-id="selectedId"
-					@toggle="toggleShelf"
-					@select="onSelect"
-					@create="onCreateAsset"
-					@rehydrate="() => void hydrate()"
-				/>
-				<AssetInspector
-					v-if="store.status === 'ready'"
-					:class="{ 'rp-al-inspector--away': !showingSelection }"
-					:asset-id="selectedId"
-					@back="onBack"
-				/>
+				<!--
+					§4's loading row — "the shell, with a loading line in the shelves region.
+					Never a spinner over an empty pane" — drawn HERE rather than inside
+					`.rp-al-body`, which is where Task 16a first put it and where it was strictly
+					worse than the thing that row forbids. §7's narrow composition hides
+					`.rp-al-body` once something is selected, so a restored leaf below 35rem drew
+					a title, a toolbar, a status bar and a blank hole between them for the length
+					of the read. Outside that element the line is visible in every composition,
+					and it costs no attribute semantics and no fixture change.
+				-->
+				<div
+					v-if="store.status !== 'ready'"
+					class="rp-view-message"
+				>
+					<p>{{ tr('view.asset-library.loading') }}</p>
+				</div>
+				<template v-else>
+					<AssetLibraryBody
+						:expanded="expandedCategories"
+						:selected-id="selectedId"
+						@toggle="toggleShelf"
+						@select="onSelect"
+						@create="onCreateAsset"
+						@rehydrate="() => void hydrate()"
+					/>
+					<AssetInspector
+						:class="{ 'rp-al-inspector--away': !showingSelection }"
+						:asset-id="selectedId"
+						@back="onBack"
+					/>
+				</template>
 			</div>
 			<footer class="rp-al-status">
 				<span class="rp-al-status__count">{{ assetCount }}</span>

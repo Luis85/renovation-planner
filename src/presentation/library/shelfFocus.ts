@@ -29,6 +29,16 @@
  * `display: none` ancestor still reports its OWN display — which is what makes the walk
  * necessary and the narrowing to a single element the mutation that catches it.
  *
+ * **What this costs, and what it does not exclude.** `focusStops` resolves a computed style per
+ * stop per keypress, walking that stop's ancestors — so an expanded shelf of several hundred
+ * rows pays for all of them on every `↑`/`↓` in a real browser, where each call can force style
+ * resolution. §5.3 is the section that cares about that order of cost; nothing here measures it,
+ * and it is written down so the next author meets it as a known price rather than as a stutter.
+ * The selector is `button`, which is a RULE rather than a list of the two components that ship
+ * one — and it does not exclude a `disabled` button, of which this region has none: `focus()`
+ * on one silently does nothing, which reads as a dead arrow key, so a control added here that
+ * can be disabled owes this filter a second condition.
+ *
  * **What no walk here can report is genuine LAYOUT.** `offsetParent` answers `null` for every
  * element in jsdom, so a manager built on it would filter out every row and the arrow keys
  * would do nothing with the whole suite green; `getBoundingClientRect` and `checkVisibility`

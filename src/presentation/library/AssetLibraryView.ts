@@ -205,7 +205,8 @@ export class AssetLibraryView extends ItemView {
 	 * **The refs move FIRST, and the round trip second.** Everything this view answers about
 	 * itself reads those two refs — `getState()` reports them, `mount()` provided them — so the
 	 * tree is correct the instant this returns, and Obsidian's round trip is what makes the
-	 * change survive a reopen rather than what performs it. That ordering is also what makes the
+	 * change survive a reopen. It is not INERT, which the residue below turns on: it reaches
+	 * `setState`, which writes both refs again. That ordering is also what makes the
 	 * round trip IDEMPOTENT: `setViewState` reaches `setState` below with the values already in
 	 * the refs, assigning a ref its own value triggers nothing, and `AssetLibraryRoot`'s `watch`
 	 * on `context.assetId` therefore cannot re-enter this. Asserted rather than assumed in
@@ -217,11 +218,21 @@ export class AssetLibraryView extends ItemView {
 	 * and activating it here would fight §6.2's focus handoff, which moves focus deliberately
 	 * on exactly the gestures that publish.
 	 *
-	 * **No ticket, unlike `navigateToProject`'s.** That door reads a leaf and may create one, so
-	 * two `setViewState` calls can genuinely settle out of order; here `setState` below returns
-	 * an already-resolved promise and does no work between, so two publishes in one tick reach
-	 * it in the order they were made. The residue is named rather than hidden: if `setState`
-	 * ever grows an `await`, this needs the ticket that door already carries.
+	 * **No ticket, unlike `navigateToProject`'s — and the residue is Obsidian's ordering rather
+	 * than ours.** An earlier version of this paragraph named `setState` below as the thing that
+	 * would have to grow an `await` before a ticket was owed, which points at the wrong half:
+	 * `setState` is OUR method and returns immediately, while the promise whose ordering is not
+	 * ours to promise is `leaf.setViewState`. Even the stand-in interposes a microtask —
+	 * `FakeLeaf.setViewState` awaits before it records and calls back — and it survives only
+	 * because it resumes FIFO; a real `setViewState` that awaits at differing depths per call
+	 * promises no such thing.
+	 *
+	 * **And the cost is larger than a stale record.** `setState` writes BOTH refs, and
+	 * `AssetLibraryRoot` watches `context.assetId`, so a stale payload landing last does not
+	 * merely leave Obsidian remembering the wrong state — it flips the live selection and
+	 * redraws the pane back to it. The exposure is that two publishes have to fall inside one
+	 * round trip, and every publisher here is a distinct user gesture; a ticket is what this
+	 * needs the day one is not.
 	 *
 	 * An arrow-function FIELD rather than a method: `mount` hands it into the context, where a
 	 * method would arrive unbound and write `assetIdRef` on whatever called it.

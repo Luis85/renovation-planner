@@ -120,6 +120,19 @@
 	flex-direction: column;
 	flex: 1 1 auto;
 	min-height: 0;
+	/*
+	 * `min-width: 0` because this is an item of the ROW `.rp-al-main` since Task 16a mounted the
+	 * rail beside it. A flex item's automatic minimum size is its min-content size on the main
+	 * axis, so without this a long unbroken supplier or SKU string inside the shelves refuses to
+	 * shrink and squeezes — or overflows past — §7's 280px rail. `.rp-al-shelf__name` states the
+	 * identical rule beside its own `flex: 1 1 auto` and says so; `.rp-al-shelves`'s own
+	 * `min-width: 0` is a CROSS-axis clamp inside this column and does not reach this element.
+	 *
+	 * UNRENDERED: jsdom lays nothing out and this container has no pinned Chromium, so the
+	 * instrument is Task 17's default-width capture read by eye. `min-height` above is the same
+	 * rule on the other axis, for this element's position in the column shell.
+	 */
+	min-width: 0;
 }
 
 /*
@@ -134,9 +147,13 @@
  * be circular — a container here would be exactly that box, and a second one for the ladder to
  * be pointed at by mistake.
  *
- * `min-height: 0` for the reason every flex ancestor on this surface carries it: without it a
- * flex item's automatic minimum size is its content, so the rail's and the shelves' own
- * `overflow-y: auto` would never engage and the pane would grow instead of scrolling.
+ * **TWO AXES, and the first version of this comment reasoned about one of them at the wrong
+ * end.** `min-height: 0` here is about THIS element's own position as an item of the column
+ * shell: without it a flex item's automatic minimum size is its content, so the rail's and the
+ * shelves' `overflow-y: auto` never engage and the pane grows instead of scrolling. That says
+ * nothing about the items this element now contains, which are laid out along the INLINE axis —
+ * and the automatic minimum size that bites there is min-content WIDTH. `.rp-al-body` carries
+ * its own `min-width: 0` for exactly that, and the reason is written where that declaration is.
  */
 .rp-al-main {
 	display: flex;
@@ -161,16 +178,24 @@
  * attribute is `''` for "nothing selected" (§6.3), never absent, so `[data-selected-asset-id]`
  * alone would match every render; `:not([data-selected-asset-id=""])` is the actual test.
  *
- * UNREACHABLE IN A VAULT TODAY, which is a stronger claim than "unrendered" and the one worth
- * stating precisely: `context.assetId` starts at `''` (`AssetLibraryView`'s `assetIdRef`) and
- * nothing in `AssetLibraryRoot.vue` writes back to it — `onSelect` sets only the local
- * `selectedId` ref, since the context is `DeepReadonly`, and that write-back into Obsidian's own
- * view state is explicitly Task 16's to build. So `data-selected-asset-id` cannot carry a
- * non-empty value from any gesture a user can make in today's shipped app, which means this rule
- * cannot fire in a vault regardless of width, container support, or anything a capture could
- * show. That is a fact about REACHABILITY rather than about rendering, and it is a different
- * remedy: no eye or capture settles it, only Task 16 building the write-back does, after which
- * an eye and a capture are what settle whether hiding `.rp-al-body` alone is the right call.
+ * REACHABLE SINCE TASK 16a, AND STILL NEVER RENDERED — two different facts, and this paragraph
+ * asserted the wrong one for a whole task. It used to read "UNREACHABLE IN A VAULT TODAY …
+ * nothing in `AssetLibraryRoot.vue` writes back to it", which was true when it was written and
+ * false the moment the write-back landed: `AssetLibraryRoot.onSelect` calls
+ * `context.publishViewState(...)`, `AssetLibraryView.publishViewState` writes `assetIdRef`, and
+ * `assetLibraryViewState.test.ts`'s *carries a row click into getState* drives one click to a
+ * non-empty `getState().assetId`. So the attribute carries a real id after one click and this
+ * rule can fire.
+ *
+ * **The comment naming its own trigger is what went unread when the trigger fired**, which is
+ * this repository's oldest recurring shape and was pre-warned in that task's own brief. The
+ * remedy is the sentence being about a STATE rather than about a schedule: a reader checks the
+ * claim by grepping for `publishViewState` rather than by knowing which task is current.
+ *
+ * What is still open is RENDERING, and no gate here reaches it: jsdom evaluates no container
+ * query, this container holds no pinned Chromium, and `assetLibraryKeyboard.test.ts` stands in
+ * for the composition with this selector minus its `@container` wrapper. Task 17's 460px
+ * capture is the first eye on whether hiding `.rp-al-body` alone is the right call.
  */
 @container rp-al (width < 35rem) {
 	.renovation-asset-library[data-selected-asset-id]:not([data-selected-asset-id='']) .rp-al-body {

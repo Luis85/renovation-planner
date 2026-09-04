@@ -88,11 +88,28 @@ const props = withDefaults(
 		 * for the life of the view and no gate could see it.
 		 *
 		 * **Task 17b's own brief said the unit tests of this component all passed the prop while
-		 * the mount site did not; measured against the tree, that is true of `AssetShelf` and
-		 * false here, and the truth is worse.** `AssetShelves` is imported in exactly two places
-		 * — `AssetLibraryBody.vue` and `shelfFocus.test.ts` — and that suite mounts it for §6.2's
-		 * arrow keys and omitted `outlineFor` too. So NOTHING in this repository ever supplied it
-		 * to this component, and the prop's default was the only value it had ever carried.
+		 * the mount site did not. Measured, that is false here and the truth is worse:**
+		 * `AssetShelves` is imported in exactly two places — `AssetLibraryBody.vue` and
+		 * `shelfFocus.test.ts`, which mounts it for §6.2's arrow keys and omitted `outlineFor`
+		 * too. NOTHING in this repository had ever supplied it to this component; the default was
+		 * the only value the prop had ever carried.
+		 *
+		 * **The first correction to that sentence said the brief was "true of `AssetShelf`", and
+		 * that was not measured either — three generations of one claim, each looser than the
+		 * defect it fixed.** Run in the edit that replaced it:
+		 * `grep -c "mount(AssetShelf" tests/presentation/library/assetShelf.test.ts` prints 12,
+		 * and `grep -n outlineFor` on the same file prints three lines of which exactly ONE
+		 * (`:125`) is a prop — and one of the others names the case that exists to assert the
+		 * behaviour when the prop is NOT supplied. Eleven of twelve mounts omit it. What IS true
+		 * of the siblings is a fact about their TYPES rather than their tests: `AssetRow.outline`
+		 * and `AssetMark.outline` are both required (`outline: AssetOutline | null`, no `?`), so
+		 * no mount of either can omit one.
+		 *
+		 * **The durable lesson, and it is why this paragraph is kept rather than trimmed to the
+		 * conclusion: the half of a correction that is NOT the part being corrected is the half
+		 * nobody measures.** The brief's error was about this component, so the fix measured this
+		 * component and let the comparison to its sibling ride — under a label reading *"measured
+		 * against the tree"*, which made an unmeasured clause read as a verified one.
 		 * Required makes that omission a `vue-tsc` error naming the mount site — measured rather
 		 * than asserted: delete the binding and `vue-tsc --noEmit` reports `TS2345 … Property
 		 * 'outlineFor' is missing` against `AssetLibraryBody.vue`, at the `<AssetShelves>` tag.
@@ -103,9 +120,9 @@ const props = withDefaults(
 		 * rather than announcing into nothing*) met from the props side.
 		 *
 		 * `AssetShelf.outlineFor` one level down stays OPTIONAL, deliberately and for a reason
-		 * that does not apply here: its own default is asserted by a case of its own
-		 * (`assetShelf.test.ts`'s *answers "not yet read" for every row when outlineFor is not
-		 * supplied*), and its only production caller is this component — which can no longer omit
+		 * that does not apply here: its default is what eleven of its twelve mounts rely on, one
+		 * of them asserting it outright (`assetShelf.test.ts`'s *answers "not yet read" for every
+		 * row when outlineFor is not supplied*), and its only production caller is this component — which can no longer omit
 		 * it, so the compiler already names the one path that reaches a shelf in the app.
 		 */
 		outlineFor: (assetId: AssetId) => AssetOutline | null;

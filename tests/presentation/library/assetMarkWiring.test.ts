@@ -2,11 +2,18 @@
  * @vitest-environment jsdom
  *
  * The Asset library's geometry mark, asked AT THE MOUNT (design "Asset library overview" §3.4,
- * §5.3, §5.4) — the one question no test of `AssetShelf`, `AssetRow`, `AssetMark` or
- * `ViewportMarks` could ever have answered, because each of those supplies its own outline and
- * the SURFACE supplied none. `AssetShelves` is not on that list and is worse: its only test
- * mount (`shelfFocus.test.ts`, for §6.2's arrow keys) omitted the prop exactly as the
- * production mount did, so nothing anywhere had ever handed that component an outline.
+ * §5.3, §5.4) — the one question no test BELOW the surface could answer, whatever it supplied,
+ * because what was missing was the composition and not a component.
+ *
+ * **Stated that way because the narrower version of it was wrong.** An earlier draft here said
+ * each of `AssetShelf`, `AssetRow`, `AssetMark` and `ViewportMarks` "supplies its own outline",
+ * which `assetShelf.test.ts`'s *answers "not yet read" for every row when outlineFor is not
+ * supplied* falsifies directly — a case that exists for the omission — and eleven of that
+ * file's twelve mounts omit the prop. (Named, never addressed by line: the review that caught
+ * this claim quoted line numbers, and the numbers are the half that goes stale.) What holds is narrower and is about TYPES: `AssetRow.outline` and `AssetMark.outline` are
+ * required, so no mount of either can omit one. And `AssetShelves` is worse than any of them —
+ * its only test mount (`shelfFocus.test.ts`, for §6.2's arrow keys) omitted the prop exactly as
+ * the production mount did, so nothing anywhere had ever handed that component an outline.
  *
  * **This file exists because four tasks of correct, fully tested work reached no user.**
  * `AssetLibraryBody.vue` mounted `<AssetShelves>` without `:outline-for`, that prop was OPTIONAL

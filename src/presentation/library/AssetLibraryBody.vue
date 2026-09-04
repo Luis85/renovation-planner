@@ -150,6 +150,19 @@ function onEmptyStateAction(): void {
  * Not derived from the DOM: `AssetShelf` draws a collapsed shelf's rows and hides them with
  * `v-show`, so a query over `.rp-al-row` would name every row in the catalogue. The state is
  * what says which shelf is open, and it is what the shelves are drawn from.
+ *
+ * **The residual §7 leaves, recorded HERE rather than only in a task report, because a residual
+ * a report holds reaches nobody.** *Drawn* is not *visible*. Below 35rem with something
+ * selected, `styles/asset-library.css` sets `display: none` on `.rp-al-body` — the rule this
+ * file's own header already discusses, since that selector is why this element's position may
+ * not move — and this component stays MOUNTED underneath it. So an open shelf's marks are read
+ * for rows the pane is not showing at all, which is the narrow composition's own worse case of
+ * the cost priced two paragraphs up. It is a COST and not a correctness defect: the marks are
+ * cached, correct, and already there when the user comes back from the inspector.
+ *
+ * Closing it means asking whether this region is DISPLAYED, which is a container query — and
+ * jsdom evaluates none, so the guard would be unassertable by every gate here, which is the
+ * same trade the observer lost two paragraphs up and it loses it for the same reason.
  */
 const drawnAssetIds = computed((): readonly AssetId[] =>
 	(store.searching

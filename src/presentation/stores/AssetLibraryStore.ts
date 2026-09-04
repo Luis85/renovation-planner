@@ -304,7 +304,16 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 		applyChange,
 		reset,
 		markFor: (assetId: AssetId) => marks.markFor(assetId),
-		/** The rows now IN the viewport — the whole set, per `ViewportMarks.setVisible`. */
+		/**
+		 * The rows the caller is now DRAWING — the whole set, per `ViewportMarks.setVisible`.
+		 *
+		 * *Drawn* and not *in the viewport*, which is what this line said until Task 17b gave the
+		 * door a caller: nothing here observes a viewport, and `AssetLibraryBody.drawnAssetIds`
+		 * passes every row an open shelf draws. That module's leading paragraph and
+		 * `AssetLibraryBody.vue`'s own carry the narrowing and its cost. The sentence was vacuous
+		 * while this door had no caller and became an over-claim the moment it had one — with
+		 * nothing editing it.
+		 */
 		setVisibleMarks: (assetIds: readonly AssetId[], queries: AssetLibraryQueryServices) =>
 			marks.setVisible(assetIds, queries),
 		invalidateMarks: (assetIds: readonly AssetId[], queries: AssetLibraryQueryServices) =>

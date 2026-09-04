@@ -21,7 +21,7 @@
  * **Three keys that sat inside this block did NOT move with it**, for the opposite reason:
  * `sequence.marker-clear-failed`, `cascade.stale-marker-failed` and `cascade.aborted` are
  * not `editor.*` at all — they happened to sit between `editor.inspector.linked.notes` and
- * `editor.zone.default-name` in the source file's reading order. They stayed in `en.ts`.
+ * `editor.room.default-name` in the source file's reading order. They stayed in `en.ts`.
  */
 export const editorEn = {
 	'editor.context-bar': 'Editor context',
@@ -131,7 +131,7 @@ export const editorEn = {
 	'editor.inspector.price-project': 'Project price',
 	'editor.inspector.price-in-force': 'In force',
 	'editor.inspector.price-derived-from': 'Derived from',
-	'editor.zone.default-name': 'Zone',
+	'editor.room.default-name': 'Room {n}',
 	'editor.canvas': 'Plan canvas',
 	'editor.status': 'Status',
 	'editor.measurements': 'Measurements',

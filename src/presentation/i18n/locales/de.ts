@@ -48,7 +48,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.default-currency.desc':
 		'Die Währung, in der ein neues Projekt kalkuliert wird. Ein Projekt ohne eigene Währung folgt dieser Einstellung.',
 	// „Zonen“, nicht „Bereiche“: die deutsche Oberfläche nennt eine Zone überall sonst so
-	// (`editor.zone.default-name`, `editor.inspector.delete-zone.reassign-title`).
+	// (`editor.inspector.delete-zone.reassign-title`).
 	// „Vault“ bleibt unübersetzt — Obsidians eigener Name dafür, was `strings.test.ts` prüft.
 	'command.show-diagnostics-report': 'Diagnosebericht anzeigen',
 	'settings.diagnostics.name': 'Diagnosebericht',

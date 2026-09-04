@@ -96,7 +96,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.inspector.price-project': 'Projektpreis',
 	'editor.inspector.price-in-force': 'Aktiv',
 	'editor.inspector.price-derived-from': 'Berechnet aus',
-	'editor.zone.default-name': 'Zone',
+	'editor.room.default-name': 'Raum {n}',
 	'editor.canvas': 'Grundriss-Zeichenfläche',
 	'editor.status': 'Status',
 	'editor.measurements': 'Messwerte',

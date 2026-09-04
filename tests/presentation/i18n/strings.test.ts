@@ -57,6 +57,12 @@ describe('translating a string', () => {
 	it('tr answers in the app language', () => {
 		expect(tr('view.project.name')).toBe(t('en', 'view.project.name'));
 	});
+
+	it('has no default room name that says Zone', () => {
+		expect('editor.zone.default-name' in en).toBe(false);
+		expect(t('en', 'editor.room.default-name', { n: '3' })).toBe('Room 3');
+		expect(t('de', 'editor.room.default-name', { n: '3' })).toBe('Raum 3');
+	});
 });
 
 /**

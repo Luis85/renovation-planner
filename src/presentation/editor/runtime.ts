@@ -18,6 +18,7 @@ import { RenderState } from './tools/render-state';
 import { ToolManager } from './tools/tool-manager';
 import { createToolSwitch } from './tools/tool-switch';
 import { registerEditorTools } from './tools/registerEditorTools';
+import { useRoomDraftStore } from './add/room-draft-store';
 import { withEditorStateRefresh } from './tools/with-editor-state-refresh';
 import { wrapDispatcher } from './tools/wrap-dispatcher';
 import { useSaveStateStore } from './save-state/save-state-store';
@@ -506,7 +507,9 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const returnToSelect = (): void => setTool('select');
 	const cancelActiveTask = createCancelActiveTask(toolManager, activeToolId, setTool);
 
-	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect });
+	const roomDraft = useRoomDraftStore();
+	const defaultRoomName = (): string => tr('editor.room.default-name', { n: String(projectStore.zones.size + 1) });
+	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
 	// BECOMES `'ready'` — and a `previous !== 'ready'` guard would be dead code here, not a

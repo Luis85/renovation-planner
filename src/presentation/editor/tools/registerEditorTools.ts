@@ -6,8 +6,10 @@ import type { useDialogStore } from '../../dialogs/dialog-store';
 import type { ToolManager } from './tool-manager';
 import { CalibrateTool } from './calibrate-tool';
 import { DrawPolygonTool } from './draw-polygon-tool';
+import { DrawRoomTool } from './draw-room-tool';
 import { SelectTool } from './select-tool';
 import { ReversibleMoveZoneCommand } from './reversible-move-zone-command';
+import type { RoomDraftStore } from '../add/room-draft-store';
 import { knownDistanceSupplier } from '../shell/knownDistance';
 import { tr } from '../../i18n/strings';
 import { notifyOperationFailure } from '../../notices/notify';
@@ -35,11 +37,15 @@ export interface EditorToolDeps {
 	 * vertex the user did not mean.
 	 */
 	readonly returnToSelect: () => void;
+	/** `DrawRoomTool`'s one collaborator (Task 2): the rectangle a drag or two typed lengths write. */
+	readonly roomDraft: RoomDraftStore;
+	/** The room tool's counted name — "Room 2", never "Zone 2" (this task's own rename). */
+	readonly defaultRoomName: () => string;
 }
 
 /** The concrete tools of this slice, registered against one shared context factory. */
 export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
-	const { context, planId, projectStore, ledger, dialogs, returnToSelect } = deps;
+	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
 	toolManager.register(
 		new SelectTool({
 			spatialObjects: () =>
@@ -68,7 +74,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 						ledger,
 						{
 							planId,
-							name: `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
+							name: defaultRoomName(),
 							zoneType: 'Room',
 							geometry,
 						},
@@ -97,6 +103,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			onCompleted: returnToSelect,
 		}),
 	);
+	toolManager.register(new DrawRoomTool({ draft: roomDraft, defaultName: defaultRoomName }));
 	toolManager.register(
 		new CalibrateTool({
 			// The two dialogs this gesture may open, in the order it opens them. Both go

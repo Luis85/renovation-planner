@@ -6,13 +6,15 @@
  * was found by a capture and is argued for where it lives, and a second declaration of a
  * settled layout finding is how one becomes two that disagree.
  *
- * TWO of this surface's own regions live in siblings imported directly after this file, both
- * split out in Task 12 when recording a MEASURED threshold took the file past the 400-line cap:
- * `continue-row.css` (§7's Continue row) and `project-filter.css` (§7's filter line). Each is a
- * region with a component file of its own and no rule another region reads, which is the seam
- * that cuts nothing — the alternative, splitting row rules from list chrome, runs straight
+ * THREE of this surface's own parts live in siblings imported directly after this file, each
+ * split out when recording a MEASURED number took this file past the 400-line cap:
+ * `continue-row.css` (§7's Continue row) and `project-filter.css` (§7's filter line) in Task 12,
+ * and `project-list-narrow.css` (§6's narrow composition, plus the container declaration its
+ * threshold is measured against) in Task D. The first two are a REGION with a component file of
+ * its own; the third is a STATE. Both cuts leave nothing another partial reads, which is the
+ * property that matters — the alternative, splitting row rules from list chrome, runs straight
  * through `.rp-project-list .rp-project-list__row`'s descendant pairs. What is left here is the
- * row's own anatomy, the groups, the narrow composition and the foot line.
+ * row's own anatomy, the groups and the foot line.
  *
  * Every colour is an Obsidian variable, at every nesting depth — `scripts/styles-assemble.mjs`
  * fails the build on a literal, a bare colour word included.
@@ -22,11 +24,53 @@
  * THE FACTS SLOT. `flex-shrink: 0` because the NAME is the half that gives way, which
  * `forms.css` records finding at 460px: a flex item's `min-width` is `auto`, so anything that
  * CAN shrink is what loses, and the row's trailing facts are the ones a user is reading it for.
+ *
+ * **`min-width: 12ch` is HALF THE COLUMN ARMATURE (design spec §3), and it is MEASURED.** Before
+ * it, exactly one edge on this surface aligned across rows — the strip's right edge, and only
+ * because it is last in a right-packed cluster — so `4 plans · EUR`, `EUR` and `One plan · EUR`
+ * each began and ended wherever that row's own name length left them. That is the defect §3's
+ * Crouwel-grid raise names in so many words, still standing in the surface that promised to fix
+ * it.
+ *
+ * WHAT WON, so the next locale is CHECKED against this rather than re-measured blind: the widest
+ * facts string across `en.ts` and `de.ts`, rendered at 12px `--font-ui-smaller` in a real
+ * browser, is **`One plan · EUR` at 90.31px = 11.82ch**, with `12 Pläne · EUR` second at
+ * 11.54ch. 12ch is the ceiling of the larger. A THIRD locale, or a plan count past two digits,
+ * is checked by rendering its own longest string against 12ch — and by nothing here, since jsdom
+ * lays nothing out.
+ *
+ * `ch` rather than `px` for the reason the container threshold is in `rem`: it follows the font
+ * the host gives us, and this plugin ships into somebody else's themed vault. What `ch` cannot
+ * follow is the RATIO between a font's `0` advance and its lowercase, so a face where that
+ * differs makes 12ch generous or tight. Tight is safe: `min-width` is a FLOOR, so an overlong
+ * string widens its own slot and breaks the column for that row rather than truncating.
+ *
+ * `text-align: right` so the reserved slack falls BETWEEN the two columns rather than inside
+ * one, which is what makes the currency line up down the list. The row's own `text-align: left`
+ * (`list-row.css`) is what this overrides, and it is inert on the row itself — a flex item is
+ * not inline content — while it is live here, on a span whose content IS inline.
+ *
+ * **SCOPED TO `.rp-project-row`, and a capture is what made that necessary rather than tidy.**
+ * `ContinueRow` reuses this class for its DATE — the same reuse the narrow sheet's `order` rules
+ * are scoped against — so an unqualified reservation gave that date a 91.7px box it does not
+ * fill. On the wide row nothing moved (the whole cluster is right-packed and the date is
+ * right-aligned inside its slot), and at 460px the second line starts with the date, so the
+ * reservation indented it 22px from the leading edge every other row's second line starts at.
+ * Measured off `home-stress-narrow` before and after. The Continue row is explicitly not a peer
+ * of these rows — its tail is two buttons — so it has no column to be in and wants no slot.
+ *
+ * The shared half stays unscoped, because the muted colour, the smaller size and `flex-shrink`
+ * are what that row genuinely takes from this class.
  */
 .rp-project-row__facts {
 	flex-shrink: 0;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
+}
+
+.rp-project-row .rp-project-row__facts {
+	min-width: 12ch;
+	text-align: right;
 }
 
 /*
@@ -40,31 +84,108 @@
 	gap: var(--size-2-2);
 }
 
-.rp-project-row__ticks {
-	display: flex;
-	gap: 1px;
+/*
+ * THE OTHER HALF OF THE ARMATURE, and it is on the WORD rather than on the status box — which is
+ * what lets the number above it be exactly "the longest status word" instead of that plus a gap
+ * plus a strip width in a `calc()`. The span exists for this rule and for nothing else.
+ *
+ * WHAT WON: **`Bestandsdokumentation` (AS_BUILT) at 146.28px = 19.145ch**, against
+ * `Bestandsaufnahme` at 15.213ch and `Procurement` — English's longest — at 10.037ch. 20ch is
+ * the ceiling. The locale gap is the whole reason this is sized across both: an English-only
+ * measurement would have reserved half of what German needs, and a German row would then break
+ * the column on every AS_BUILT project.
+ *
+ * **`text-align: right`, and this is the decision the two alignments differ on.** Right-aligning
+ * keeps the word against its own strip at a constant distance and puts the reserved slack
+ * between the facts column and the status column — air between columns, which is what a column
+ * armature looks like. Left-aligning would align the words' first letters and put the same slack
+ * INSIDE the status, between a word and the strip that is its own positional map: measured, an
+ * `Idee` row would sit 128px from its strip in German. §6 makes the word and the strip one flex
+ * line precisely so they are read as one thing, and air inside that pair costs more than a
+ * ragged left edge.
+ *
+ * So what aligns: the status slot's left edge, every status word's RIGHT edge, and the strip's
+ * right edge — which stays the outer rule it already was. A row carrying PRD §83's marker is
+ * outside all three, because the marker takes the tail; that was already true of the strip
+ * before this rule existed.
+ *
+ * Released at narrow (`project-list-narrow.css`), where the row is two lines and a reserved
+ * column aligns nothing a reader can follow.
+ */
+.rp-project-row__status-word {
+	min-width: 20ch;
+	text-align: right;
 }
 
 /*
- * TEN CELLS, at the two tokens the design spec's §6 names: reached cells `--text-normal`,
- * unreached `--text-faint`. No hue at either end — the status WORD beside them is the second
- * channel, and PRD's accessibility section and SDD §85 both refuse a status carried by colour.
+ * FOUR-PIXEL CELLS AT A TWO-PIXEL GAP, which is Task D's answer to the first picture ever taken
+ * of this strip: at 3px and 1px the ten cells read as ONE FILLED BAR — a proportion — and the
+ * count, which is the only thing that makes this a positional map of a ten-member enum rather
+ * than a progress meter, could not be taken at a glance in either scheme.
+ *
+ * TEN STAYS. Five larger cells would read better and would be a lie about the arc: §6's own
+ * argument for a strip over a badge is that the stages ARE an arc, so a reader counting cells is
+ * reading the real thing. The width bought is 58px against 39px, spent where there is room — the
+ * strip is DROPPED below the container threshold, so the extra 19px exists only on the wide row,
+ * and it is one of the two figures that moved that threshold from 36rem to 42rem.
+ */
+.rp-project-row__ticks {
+	display: flex;
+	gap: 2px;
+}
+
+/*
+ * TEN CELLS, at the two tokens the design spec §6 names: reached `--text-normal`, unreached
+ * `--text-faint`.
+ *
+ * **`--text-muted` WAS TRIED FOR THE UNREACHED CELLS AND MEASURED WORSE, and the measurement is
+ * recorded here because the reasoning for it is genuinely persuasive.** The argument was that
+ * `--text-faint` is the token this same branch DELETED from the foot line for measuring 2.30:1
+ * on the light scheme against WCAG 1.4.3's 4.5:1, and that a token established as too faint to
+ * read should not then carry a distinction a reader is asked to make. What that argument misses
+ * is WHICH distinction: the unreached cells are a TRACK, and the thing a reader has to be able
+ * to see is reached AGAINST unreached, not unreached against the page.
+ *
+ * Both, in a real browser, at this cell size:
+ *
+ *                       light: on the page / against a reached cell     dark: same two
+ *   --text-faint  #ababab      2.30                6.93                 2.97      4.11
+ *   --text-muted  #5c5c5c      6.69                2.38                 8.13      1.50
+ *
+ * 1.50:1 is not a difference. Raising the token makes every unreached cell easy to see and makes
+ * the strip stop saying anything at all in the dark scheme, which is the one scheme Obsidian
+ * ships as its default — a positional map of a ten-stage arc rendered as ten cells of one grey.
+ * The five border tokens were measured too and are worse in the other direction (1.27–2.29
+ * against the page).
+ *
+ * **What the observation behind that argument was really about is the CELL SIZE, and that is
+ * fixed above.** "Barely present in light" was measured on 3px cells at a 1px gap, where an
+ * unreached cell is a hairline that anti-aliases into its neighbours; the same colour as a 4px
+ * block at a 2px gap is plainly a block. So the width change discharges the finding and the
+ * token change was a second remedy for a defect the first one had already closed.
+ *
+ * The strip is `aria-hidden` and the status word is the accessible name, so no contrast floor
+ * binds either number — this is legibility, and it is settled by looking rather than by a gate.
+ *
+ * No hue at either end — the status WORD beside them is the second channel, and PRD's
+ * accessibility section and SDD §85 both refuse a status carried by colour.
  *
  * **NOT `currentColor`, and the reason is the CONTRACT rather than the gate.** The design spec
  * §6 says both things in one sentence — "ten cells drawn from `currentColor`" and "cells up to
  * and including the current stage at `--text-normal`, the rest at `--text-faint`" — and the two
  * cannot both hold: `currentColor` resolves to a single inherited colour, so it can produce the
- * strip's SHAPE and not its two states. These cells sit inside `.rp-project-list__status`,
- * which `forms.css` sets to `--text-muted`, so an inheriting strip would draw every cell that
- * one muted grey and a reached cell would have to be told apart by an opacity — dimmer than the
- * `--text-normal` the spec asks for at one end, and bearing no relation to `--text-faint` at
- * the other, with a theme moving `--text-faint` relative to `--text-muted` moving nothing here
- * at all. Naming the two tokens gives up nothing on the themed-vault half either: a `var()` on
- * an Obsidian token is exactly what SDD §84's check asks to see, so both spellings clear that
- * gate and the gate is not what decides between them.
+ * strip's SHAPE and not its two states. These cells sit inside `.rp-project-list__status`, which
+ * `forms.css` sets to `--text-muted`, so an inheriting strip would draw every cell that one
+ * muted grey and a reached cell would have to be told apart by an opacity — dimmer than the
+ * `--text-normal` the spec asks for at one end, and bearing no relation to `--text-faint` at the
+ * other, with a theme moving `--text-faint` relative to `--text-muted` moving nothing here at
+ * all. It is also the arrangement the table above measures at 1.50:1 in dark, from the other
+ * direction. Naming the two tokens gives up nothing on the themed-vault half either: a
+ * `var()` on an Obsidian token is exactly what SDD §84's check asks to see, so both spellings
+ * clear that gate and the gate is not what decides between them.
  */
 .rp-project-row__tick {
-	width: 3px;
+	width: 4px;
 	height: var(--size-2-3);
 	border-radius: 1px;
 	background-color: var(--text-faint);
@@ -72,150 +193,6 @@
 
 .rp-project-row__tick--reached {
 	background-color: var(--text-normal);
-}
-
-/*
- * THE NARROW ROW — a CONTAINER query, never a media query, and that is a STRUCTURAL fact about
- * Obsidian's panes rather than a preference: the width this row has to fit is its leaf's, not
- * the window's, so a media query asks the wrong element and is right only when the plugin
- * happens to own the whole window. `?phone` does not substitute for it either — that is a body
- * class answering what the plugin does when it believes it is on a phone.
- *
- * **36rem IS MEASURED.** It replaces the 34rem starting value, which was chosen so a rule
- * existed to measure against and was evidence for nothing. Taken in a real browser, IN GERMAN,
- * because the width at which a one-line row stops fitting is decided by the longest status word
- * and a threshold confirmed only in English is confirmed against the easy case. The state it was
- * measured from is the `home-stress-de` capture — the WIDE German row, at 1280; a review round
- * asked how anyone would re-derive this, found that shot did not exist, and it does now.
- *
- * **The longest word is `Bestandsdokumentation` (AS_BUILT), not `Bestandsaufnahme`** — 21
- * characters against 16, and against `As built`'s 8. The sentence that used to sit here reasoned
- * from `SURVEY`, whose English label is the shortest, rather than measuring the set. What was
- * measured is the whole TRAILING GROUP at 1280, across every seeded row: **270px** in German
- * (`3 Pläne · EUR` + `Bestandsdokumentation` + the strip) against **199px** in English — so the
- * locale moves this threshold by 71px, more than the example it was argued from suggested.
- *
- * The arithmetic, so the number can be re-derived rather than trusted: a one-line row spends
- * 16px on its own inline padding and 8px on each of its two gaps, so the name gets `width−302`.
- * The line taken is **the name must keep at least as much room as the trailing group it sits
- * beside** — below that the row stops being a named thing with facts beside it and becomes facts
- * with a name squeezed in — which is `302 + 270 = 572px`, rounded up to the whole rem at 576px.
- * `rem` rather than `px` because it must follow the user's interface font size, which moves both
- * halves of that sum together; 576px is therefore one root size's answer, not a constant. It is
- * well above the 460px an Obsidian sidebar leaf actually has, so a sidebar is firmly narrow.
- *
- * **The MARKED row is deliberately not what this protects, and that is a decision.** PRD §83's
- * marker measures 217px on its own in German, so a marked row's trailing content is 381px and
- * it truncates hard well above this threshold — measured, its name is 178px at a 600px pane.
- * Sizing for it would put every one of thirty unmarked rows onto two lines to protect the one
- * row that is marked, in a vault where the usual number of marked projects is zero.
- */
-.rp-project-list {
-	container-type: inline-size;
-	container-name: rp-project-list;
-}
-
-@container rp-project-list (max-width: 36rem) {
-	/*
-	 * BOTH row kinds, and this is now a FINDING rather than the forward reference it was
-	 * written as: Task 11 built `.rp-continue`, and Task 12's capture drew it at 460px for the
-	 * first time. It wraps to name / date · status / two buttons and its box grows to 66px —
-	 * measured — because it is a `<div>` and Obsidian's fixed button height never reaches it.
-	 * The sentence here used to say the row "DOES NOT EXIST IN THIS TREE YET" and stayed after
-	 * it did, which is the stale-forward-reference defect this repository keeps re-finding.
-	 */
-	.rp-project-list .rp-project-row,
-	.rp-project-list .rp-continue {
-		flex-wrap: wrap;
-	}
-
-	/*
-	 * THE BOX HAS TO BE ALLOWED TO GROW, and until Task 12's capture nothing said so: a row is
-	 * a `<button>` and Obsidian's own `button` rule sets `height: var(--input-height)` — a FIXED
-	 * 30px. So the rule above wrapped the content and the box stayed one line tall, and every
-	 * row's second line was drawn over the next row's name. Measured rather than described: 41px
-	 * of content in a 30px box, at 460px, in the first picture ever taken of this surface.
-	 *
-	 * `list-row.css`'s `min-height: var(--size-4-6)` floors it once `height` stops deciding — the
-	 * WCAG 2.5.8 guarantee that file states — so this releases the height and inherits the floor.
-	 *
-	 * ---
-	 *
-	 * THE SECOND LINE IS ONE PHRASE, not two things at opposite edges of the pane.
-	 *
-	 * `forms.css` gives the row `justify-content: space-between`, which is right for the WIDE
-	 * row — two items, name left and trailing column right. A wrapped row applies it to EVERY
-	 * line, so the second line put the status against the leading edge and the facts against the
-	 * trailing one: measured at 460px, `Ausführung` at x=8 and `4 Pläne · EUR` ending at x=452,
-	 * with 280px of nothing between them. §6's own diagram is `Design · 2 plans · EUR` — one
-	 * phrase — and the row's existing `gap` is exactly that separation, so this is a removal
-	 * rather than a new spacing decision. It changes nothing on line one, where the name's 100%
-	 * basis makes it the only item either way.
-	 *
-	 * BOTH are SCOPED to `.rp-project-row`, and for two different reasons rather than one habit.
-	 * The height: the Continue row is a `<div>`, which Obsidian's `button` rule never reaches, so
-	 * it already grows — 66px, measured — and naming it would be a declaration doing nothing. The
-	 * packing: that row's second line ends in two BUTTONS, which belong at the trailing edge,
-	 * so `space-between` is right there and only there.
-	 */
-	.rp-project-list .rp-project-row {
-		height: auto;
-		justify-content: flex-start;
-	}
-
-	/* The name takes the whole first line; the status and the facts share the second. */
-	.rp-project-list .rp-project-list__name {
-		flex-basis: 100%;
-	}
-
-	/*
-	 * SECOND LINE ORDER: status, then facts — `Design · 2 plans · EUR`, which is what §6's own
-	 * diagram specifies and what DOM order alone does not give. The row is name, facts, status
-	 * (the wide row's trailing column belongs at the trailing edge), so wrapping without this
-	 * renders `2 plans · EUR` followed by `Design`: the stage word, which is the fact a
-	 * renovator scans for, pushed to the end of the line behind two lesser ones.
-	 *
-	 * `order` rather than reordering the markup, because the WIDE row's sequence is correct and
-	 * is what the armature aligns; this is a narrow-only rearrangement and belongs in the
-	 * narrow-only block. The name keeps the implicit `order: 0` and so keeps line one.
-	 *
-	 * SCOPED TO `.rp-project-row`, and the qualifier is load-bearing rather than tidy: Task 11's
-	 * `ContinueRow` reuses `.rp-project-row__facts` for its date, so an unqualified rule would
-	 * give that date `order: 2` while the Continue row's own status and its two buttons kept the
-	 * default 0 — rearranging `name, date, status, Continue, Open` into a sequence with the date
-	 * stranded after the controls. The wrapping rule above deliberately includes `.rp-continue`;
-	 * the ORDERING deliberately does not, because the two rows have different items to order and
-	 * only one of them has a status/facts pair to swap.
-	 */
-	.rp-project-list .rp-project-row .rp-project-row__status {
-		order: 1;
-	}
-
-	.rp-project-list .rp-project-row .rp-project-row__facts {
-		order: 2;
-	}
-
-	/*
-	 * THE WARNING KEEPS THE TAIL, and giving it an order is not tidiness — the two rules above
-	 * created this. `order` defaults to 0, so the moment status and facts moved to 1 and 2 the
-	 * §83 overlap marker became the LOWEST-ordered item after the name: it would land on the
-	 * first line beside a name whose basis is 100%, and `project-list-overlap.css` sets
-	 * `flex-shrink: 0` on it deliberately (a truncated warning no longer says what it is about),
-	 * so the name is what gives — or the line breaks a third time. A marked row would have laid
-	 * out unlike every other row at exactly the width the design calls a designed state.
-	 */
-	.rp-project-list .rp-project-row .rp-project-list__overlap {
-		order: 3;
-	}
-
-	/*
-	 * THE STRIP IS DROPPED, and nothing is lost: the translated word alone is complete and
-	 * conformant, and a ten-cell strip in a 460px row is exactly the ceremony this direction's
-	 * own recorded risk warns about.
-	 */
-	.rp-project-list .rp-project-row__ticks {
-		display: none;
-	}
 }
 
 /*

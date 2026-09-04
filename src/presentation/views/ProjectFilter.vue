@@ -6,7 +6,10 @@
  * **The count is the pane's STATE LINE, not decoration**, which is the discipline the declined
  * teletext candidate donated to this direction: `4 projects` at rest and `2 of 4` while
  * filtering, so the field has a job at every vault size. The direction's own recorded risk was
- * that two projects turn a search field into furniture; this is the answer to it.
+ * that two projects turn a search field into furniture; this is the answer to it — and until
+ * Task D the count was rendered BESIDE the field rather than inside it, which left the box that
+ * raise exists to fill as empty as if the raise had never been taken. The input and the count
+ * are one bordered control now; the template's own comment carries the rest.
  *
  * **It owns no state.** The query is the LIST's, handed down and emitted back — so Escape's
  * meaning, the no-match block and the row highlighting all read one value. A field holding its
@@ -123,31 +126,49 @@ defineExpose({ focus: (): void => input.value?.focus() });
 
 <template>
 	<div class="rp-project-filter">
-		<!-- A visually-hidden real `<label>`. A placeholder is not a label and does not
-		     become one; the input carries no placeholder at all, so nothing reads as a
-		     value that is not one. -->
+		<!-- A visually-hidden real `<label>`. A placeholder is not a label and does not become
+		     one — it disappears on the first keystroke — so the label stays and the placeholder
+		     below is a hint beside it, never a replacement for it. -->
 		<label
 			class="rp-project-filter__label"
 			:for="inputId"
 		>{{ tr('view.project.filter.label') }}</label>
-		<input
-			:id="inputId"
-			ref="input"
-			class="rp-project-filter__input"
-			type="text"
-			:value="query"
-			@input="$emit('update:query', ($event.target as HTMLInputElement).value)"
-			@keydown="onInputKeydown"
-		>
 		<!--
-			THE VISIBLE COUNT, immediate. `aria-hidden` because the live region below carries the
-			same fact for assistive technology, and two elements announcing one number is how a
-			screen reader ends up saying it twice.
+			THE FIELD IS THE INPUT AND THE COUNT TOGETHER, in one bordered box.
+
+			§3's teletext raise is that at rest the field IS the pane's count line. Rendering the
+			count OUTSIDE the input is what left a full-pane-width empty rectangle with a number
+			floating beside it — the "search field as furniture" this direction's own recorded
+			risk names, shipped by the very region written to answer it. Task D's capture is
+			where that was seen.
+
+			So the BORDER moves off the `<input>` onto this wrapper (`project-filter.css`) and
+			the count sits at its trailing edge, inside. The count keeps its behaviour exactly:
+			`10 projects` at rest, `2 of 10` while filtering, immediate. It is deliberately NOT
+			the input's `placeholder` — a placeholder vanishes on input, and this count's whole
+			value is that it changes WHILE you type.
 		-->
-		<span
-			class="rp-project-filter__count"
-			aria-hidden="true"
-		>{{ countText }}</span>
+		<div class="rp-project-filter__field">
+			<input
+				:id="inputId"
+				ref="input"
+				class="rp-project-filter__input"
+				type="text"
+				:placeholder="tr('view.project.filter.placeholder')"
+				:value="query"
+				@input="$emit('update:query', ($event.target as HTMLInputElement).value)"
+				@keydown="onInputKeydown"
+			>
+			<!--
+				THE VISIBLE COUNT, immediate. `aria-hidden` because the live region below carries
+				the same fact for assistive technology, and two elements announcing one number is
+				how a screen reader ends up saying it twice.
+			-->
+			<span
+				class="rp-project-filter__count"
+				aria-hidden="true"
+			>{{ countText }}</span>
+		</div>
 		<!--
 			THE ANNOUNCEMENT, debounced and visually hidden. Separate from the line above because
 			the two have different timing requirements and one element cannot have both: the

@@ -12,8 +12,15 @@
  *
  * IMPORTED AFTER `project-list.css` and that position is load-bearing for the same reason
  * that file's own is: everything here overrides a shared row declaration from `list-row.css`
- * at equal or higher specificity, and the shared `container-name` these rules narrow inside
- * is declared there.
+ * at equal or higher specificity.
+ *
+ * **No rule in this file is inside a container query, and the sentence here used to say one
+ * was** — it claimed the position also mattered because "the shared `container-name` these
+ * rules narrow inside is declared there". This row's narrow behaviour is a single
+ * `flex-wrap: wrap` that lives with every other narrow rule on this surface
+ * (`project-list-narrow.css`, which owns the container declaration since Task D), and nothing
+ * here queries anything. Corrected rather than deleted, because a false reason for a true
+ * position is what a later reader tidies the position away on.
  *
  * Every colour is an Obsidian variable, at every nesting depth — the assembler fails the
  * build on a literal, a bare colour word included.

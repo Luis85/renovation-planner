@@ -220,7 +220,13 @@ function onKeydown(event: KeyboardEvent): void {
 		>{{ run.text }}</span></span>
 		<span class="rp-project-row__facts">{{ facts }}</span>
 		<span class="rp-project-list__status rp-project-row__status">
-			{{ statusLabel(project.status) }}
+			<!-- The word is WRAPPED rather than left as a bare text node, and the span exists for
+			     exactly one rule: `project-list.css` gives it a reserved `min-width` in `ch`, so
+			     the status words form a column instead of landing wherever each name's length
+			     left them (design spec §3's armature). Sizing the status BOX instead would put
+			     the strip's own width and the gap beside it into that number, and the number is
+			     meant to be re-derivable as "the longest status word" and nothing else. -->
+			<span class="rp-project-row__status-word">{{ statusLabel(project.status) }}</span>
 			<!-- `aria-hidden` and text-free, so the WORD above stays the whole accessible name.
 			     The strip is an enhancement over a channel that is already complete, which is
 			     what makes dropping it at narrow lossless rather than a downgrade. -->

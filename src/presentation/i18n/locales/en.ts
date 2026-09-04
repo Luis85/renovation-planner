@@ -362,6 +362,14 @@ export const en = {
 	// standing as `{name}` rather than blanked, because a visible hole is a bug report and an
 	// empty string is a silent one.
 	'view.project.filter.label': 'Filter projects',
+	// THE PLACEHOLDER IS A HINT, NEVER THE NAME. The visually-hidden `<label>` above is the
+	// input's accessible name and stays; a placeholder disappears on the first keystroke, so a
+	// field named only by one is a field with no name for exactly the user who most needs it.
+	// What this adds is the VERB, which the resting field said nowhere: Task D's capture showed
+	// an empty bordered box with the count beside it and nothing at all saying what typing does.
+	// It names the FIELD the filter matches, because it matches the name only and a user typing
+	// a status word into it gets nothing back.
+	'view.project.filter.placeholder': 'Filter by name',
 	// TWO keys for one count, and the same again for plans below. `t` has no plural machinery;
 	// English and German are both two-form languages, so this is complete for the current
 	// locales and it is the point at which a THIRD locale forces a real plural mechanism.

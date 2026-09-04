@@ -52,17 +52,24 @@ describe('project-list.css', () => {
 	 *
 	 * The five `rp-project-filter*` names LEFT this list in Task 12, when they left this sheet:
 	 * `styles/project-filter.css` declares them now and `projectFilterStyles.test.ts` is what
-	 * holds them. They are not merely dropped — a name removed from a list is a name nothing
-	 * checks, which is the failure `harness-shot.test.ts`'s own fixed-shot list had.
+	 * holds them. `rp-project-row` LEFT it in Task D for the same reason — the narrow block was
+	 * that class's only bare declarer here, and `projectListNarrowStyles.test.ts` holds it now.
+	 * Neither is merely dropped: a name removed from a list is a name nothing checks, which is
+	 * the failure `harness-shot.test.ts`'s own fixed-shot list had.
+	 *
+	 * `rp-project-row__status-word` JOINED it in Task D. It is a span that exists for exactly one
+	 * rule — the reserved `min-width` that makes the status words a column — so a build that kept
+	 * the span and lost the rule would draw the pre-armature picture with every mounted case
+	 * green.
 	 *
 	 * `.rp-view-notice` is deliberately NOT here even though `ProjectList` emits it since the
 	 * filter line's task: `view.css` declares it, and it moved COMPONENT without moving sheet.
 	 */
 	it('declares every class the row emits that this sheet owns', () => {
 		for (const cls of [
-			'rp-project-row',
 			'rp-project-row__facts',
 			'rp-project-row__status',
+			'rp-project-row__status-word',
 			'rp-project-row__ticks',
 			'rp-project-row__tick',
 			'rp-project-row__tick--reached',
@@ -91,15 +98,13 @@ describe('project-list.css', () => {
 		expect('/* mentions .rp-gone here */\n'.replace(RULES_ONLY, '')).toBe('\n');
 	});
 
-	it('drops the strip inside a CONTAINER query, not a media query', () => {
-		// The pane's width is the leaf's, not the window's. A media query asks the wrong
-		// element, and it is a mistake that looks correct at 1280 and only at 1280.
-		expect(sheet).toContain('@container rp-project-list');
-		expect(sheet).not.toContain('@media');
-	});
-
 	/**
 	 * THE STRIP'S TWO STATES, at the two Obsidian tokens the design spec §6 names.
+	 *
+	 * `--text-muted` was tried for the unreached cells in Task D and measured worse: it makes an
+	 * unreached cell easy to see against the page and drops reached-against-unreached to 1.50:1
+	 * in the dark scheme, which is the distinction the strip exists to carry. The sheet's own
+	 * comment holds the whole table. This case is what stops that swap coming back as a tidy-up.
 	 *
 	 * The spec's own sentence also says `currentColor`, and the two halves cannot both hold —
 	 * `currentColor` resolves to ONE inherited colour, so it draws the strip's shape and cannot
@@ -116,6 +121,52 @@ describe('project-list.css', () => {
 	it('draws a reached cell differently from an unreached one, at Obsidian tokens', () => {
 		expect(bodyOf('.rp-project-row__tick')).toContain('background-color: var(--text-faint)');
 		expect(bodyOf('.rp-project-row__tick--reached')).toContain('background-color: var(--text-normal)');
+	});
+
+	/**
+	 * TEN CELLS THAT CAN BE COUNTED. The strip shipped at 3px cells with 1px gaps and the first
+	 * picture of it read as one filled bar — a proportion, which is the one thing §6 argues a
+	 * strip is NOT: it is a positional map of a ten-member enum, and a reader who cannot count
+	 * the cells is not reading it.
+	 *
+	 * Asserted as a PAIR because the gap is half the mechanism: ten 4px cells at a 1px gap read
+	 * very nearly as solid, so a build that widened the cell alone would satisfy a single-value
+	 * assertion and draw the defect. Whether ten can actually be counted is a question only a
+	 * capture answers — this pins the two numbers that capture was taken against.
+	 */
+	it('draws cells wide enough, and gapped enough, to be counted', () => {
+		expect(bodyOf('.rp-project-row__tick')).toContain('width: 4px');
+		expect(bodyOf('.rp-project-row__ticks')).toContain('gap: 2px');
+	});
+
+	/**
+	 * THE COLUMN ARMATURE (design spec §3), which is the one raise this direction was given that
+	 * shipped unmet: before Task D exactly one edge aligned across rows — the strip's right edge,
+	 * and only because it is last in a right-packed cluster.
+	 *
+	 * All four declarations, because each alone leaves the defect. Without a `min-width` the slot
+	 * is shrink-to-fit and there is no column at all; without `text-align: right` the reserved
+	 * slack falls inside a column instead of between two, which for the status separates the word
+	 * from the strip that is its own positional map.
+	 *
+	 * The UNITS are asserted, not the numbers. `ch` is the claim — the widths follow the font the
+	 * host gives us, which is the same reason the container threshold is in `rem` — and the two
+	 * integers are measurements recorded in the sheet's own prose, where a later locale can
+	 * re-derive them rather than trust them.
+	 *
+	 * The facts reservation is read through its SCOPED selector, which is load-bearing: the
+	 * Continue row reuses `.rp-project-row__facts` for its date, and an unqualified rule indented
+	 * that date 22px from the leading edge on the narrow row's second line. Reading the bare
+	 * selector here would go on passing against exactly that build.
+	 */
+	it('reserves both trailing slots in ch, and puts the slack between the columns', () => {
+		const facts = bodyOf('.rp-project-row .rp-project-row__facts');
+		const word = bodyOf('.rp-project-row__status-word');
+
+		expect(facts).toMatch(/min-width: \d+ch/u);
+		expect(facts).toContain('text-align: right');
+		expect(word).toMatch(/min-width: \d+ch/u);
+		expect(word).toContain('text-align: right');
 	});
 
 	/**

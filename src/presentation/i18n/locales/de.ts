@@ -304,6 +304,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'view.project.plans-title': 'Grundrisse',
 	'view.project.create-plan': 'Neuer Grundriss',
 	'view.project.filter.label': 'Projekte filtern',
+	'view.project.filter.placeholder': 'Nach Namen filtern',
 	'view.project.count-one': '1 Projekt',
 	'view.project.count-many': '{count} Projekte',
 	'view.project.filter.matches': '{shown} von {total}',

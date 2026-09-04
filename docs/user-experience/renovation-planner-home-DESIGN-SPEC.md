@@ -86,6 +86,45 @@ the composition rather than admired:
   trailing facts form a column across rows instead of floating to wherever each name's length
   left them. `styles/forms.css` records that exact defect being found in a capture and fixed
   with `flex-grow` on the name; this direction makes the fix structural rather than incidental.
+
+  **Amended 2026-09-04, and NARROWED to what ships.** The sentence above described a promise
+  that the first eleven tasks did not keep: exactly one edge aligned across rows — the tick
+  strip's right edge, and only because it is last in a right-packed cluster — so `4 plans · EUR`,
+  `EUR` and `One plan · EUR` each began and ended wherever that row's own name length left them,
+  and so did every status word. Task 12's captures are where that was finally seen; Task D closed
+  the part of it that CSS can close, and this is the honest account of the rest.
+
+  **What aligns.** On the wide row, the facts slot and the status word each carry a reserved
+  `min-width` in `ch`, measured against the longest string in that slot across `en.ts` and
+  `de.ts` and recorded at the rule. So four edges are columns: the facts slot's left edge, every
+  facts string's right edge, every status word's right edge, and the tick strip's right edge —
+  the outer rule, which it already was. Measured on the built surface at 1280, in both locales:
+  one distinct x for each of those four, across every unmarked row.
+
+  **What does not, and why the full promise was refused.** The NAME is not a column; it takes
+  the remaining slack and truncates with an ellipsis, which is the shipped division `forms.css`
+  argues for. A row carrying PRD §83's library-overlap marker is outside all four columns,
+  because the marker takes the tail — already true of the strip before this. And at NARROW there
+  are no columns at all: the row is two lines and the reservation is released, because a column
+  armature across wrapped rows aligns nothing a reader can follow.
+
+  Two remedies were rejected, and the reasons matter more than the choice:
+
+  - **A grid across the list** (`display: grid` on the `<ul>`, rows `display: contents`) is the
+    only CSS that sizes columns to the widest content ACROSS ROWS with no magic number — and it
+    requires destroying the row's own box. The row is a `<button>`; `display: contents` takes its
+    background, its hover, its focus ring and its hit target with it, and the whole keyboard
+    model rests on that button being a real box.
+  - **Fixed pixel widths per slot** are brittle in exactly the direction this surface already
+    pays for: German status words are far longer than English, which is why the container
+    threshold was measured in German rather than guessed. `ch` scales with the font the host
+    gives us, for the same reason the threshold is in `rem`.
+
+  **What the reservation costs, measured rather than predicted.** Every row now occupies the
+  widest row's trailing width, so the container threshold rose from 36rem to 42rem and one
+  50-character name in the 30-row stress fixture truncates between 673px and roughly 715px where
+  before it truncated at no width at all. One row of thirty, in a 40px band, degrading as a long
+  name is designed to degrade.
 - **From the sneaker-box wall — the end label is the whole index.** The row must say what it
   is at 460px. Narrow is a designed state with its own composition, never a fallback the wide
   one degrades into.
@@ -255,6 +294,21 @@ is that channel.
 lost; a ten-cell strip in a 460px row is the ceremony this direction's own recorded risk warns
 about.
 
+**Amended 2026-09-04 — the cell SIZE, which this section never stated and which decided whether
+any of the above was readable.** It shipped at 3px cells with 1px gaps and the first picture of
+it read as one filled bar: a proportion, which is the one thing this section argues the strip is
+not. It is 4px at a 2px gap now (58px against 39px), and the ten cells can be counted in both
+schemes. Ten stays: five larger cells would read better and would be a lie about the arc.
+
+**Raising the unreached cells to `--text-muted` was proposed for the same finding, built, and
+measured worse.** The argument was that `--text-faint` measures 2.30:1 on the light scheme and
+this branch had just deleted it from the foot line for that. What it misses is which distinction
+matters: the unreached cells are a track, and what a reader has to see is reached AGAINST
+unreached. Measured in a real browser — `--text-faint` gives 6.93:1 light and 4.11:1 dark for
+that distinction; `--text-muted` gives 2.38:1 and **1.50:1**, which is not a difference, in
+Obsidian's own default scheme. The cell-size fix is what actually closed the finding. The two
+tokens this section names are what ships; `styles/project-list.css` holds the full table.
+
 An unrecognised status renders as its raw value with no strip — the fallback `statusLabel`
 already implements, for a note this build cannot fully make sense of.
 
@@ -375,6 +429,19 @@ navigation with none of that cost.
 - The count at the line's trailing edge is the state: `4 projects` at rest,
   `2 of 4` while filtering. It is a `role="status"`, announced politely, and the announcement
   is debounced so a five-character query announces once rather than five times.
+- **Amended 2026-09-04: the count sits INSIDE the field's own border, not beside it.** §3's
+  teletext raise says the field *is* the pane's count line at rest, and the first capture of the
+  populated surface showed the opposite — a full-pane-width empty rectangle with `10 projects`
+  floating outside it to the right, which is the "search field as furniture" risk this direction
+  records, shipped by the region written to answer it. The input and the count are one bordered
+  control: the border moves off the `<input>` onto a wrapper, the input keeps no chrome of its
+  own, and the focus ring is drawn on the wrapper (`:focus-within`) so a focused field is one
+  ring rather than a rectangle inside a rectangle.
+- **A placeholder gives the verb, beside the visually-hidden label and never instead of it.** A
+  placeholder disappears on the first keystroke, so a field named only by one has no name for
+  exactly the user who most needs it — the `<label>` stays. The count is deliberately NOT
+  implemented as the placeholder: a placeholder vanishes on input, and this count's whole value
+  is that it changes *while* you type.
 - The query is **not persisted**. It resets on remount, which is every navigation.
 
 ### Continue
@@ -587,6 +654,7 @@ New:
 | Key | English |
 |---|---|
 | `view.project.filter.label` | Filter projects |
+| `view.project.filter.placeholder` | Filter by name |
 | `view.project.count-one` | 1 project |
 | `view.project.count-many` | {count} projects |
 | `view.project.filter.matches` | {shown} of {total} |
@@ -715,3 +783,8 @@ container-query finding, and the *colour reinforces, it never carries* rule);
 `statusLabel.ts`, `projectStatusLabels.ts`; `src/presentation/read-models/PlanDto.ts`;
 `styles/forms.css`, `list-row.css`, `project-list-overlap.css`, `view.css`, `chrome.css`,
 `empty-state.css`, `editor.css`; SDD §§47, 60, 84, 85.
+
+The three amendments dated 2026-09-04 (§3's armature, §6's cell size, §7's filter field) were
+each decided against a capture rather than a reading, and the rules they describe live in
+`styles/project-list.css`, `project-list-narrow.css` and `project-filter.css`, where every
+measured number carries its own derivation.

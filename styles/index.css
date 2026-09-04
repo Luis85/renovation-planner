@@ -36,10 +36,19 @@
  */
 @import "./project-list.css";
 /*
+ * AFTER `project-list.css` and BEFORE `continue-row.css`, which is the slot these rules already
+ * occupied: they were the middle of `project-list.css` until Task D lifted them out, and nothing
+ * left in that file declares a property one of their selectors sets, so the lift is
+ * order-equivalent rather than merely order-compatible. What the position IS load-bearing for is
+ * `forms.css`: the narrow row's `justify-content: flex-start` and that file's `space-between`
+ * are both (0,2,0), so this must come later or the wrapped row's second line goes back to
+ * putting the status and the facts at opposite edges of the pane.
+ */
+@import "./project-list-narrow.css";
+/*
  * AFTER `project-list.css`, and load-bearing for the same reason that file's own position is:
- * the Continue row's rules override shared row declarations from `list-row.css`, and the
- * `container-name` its narrow rules query is declared in `project-list.css`. It was split out
- * of that file in Task 12 because the file had reached the 400-line cap exactly — a budget,
+ * the Continue row's rules override shared row declarations from `list-row.css`. It was split
+ * out of that file in Task 12 because the file had reached the 400-line cap exactly — a budget,
  * not a new organising idea; `continue-row.css`'s own header carries the seam's argument.
  */
 @import "./continue-row.css";

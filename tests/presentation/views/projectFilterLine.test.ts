@@ -60,15 +60,39 @@ describe('ProjectFilter', () => {
 		vi.useRealTimers();
 	});
 
-	it('gives the input a real accessible name through a label, not a placeholder', () => {
+	/**
+	 * A placeholder is not a label and does not become one — it disappears on the first
+	 * keystroke, so a field named only by one has no name for exactly the user who most needs it.
+	 *
+	 * Task D added a placeholder BESIDE the label rather than instead of it, because the resting
+	 * field said nothing about what typing does. So this case asserts the pair and asserts they
+	 * are DIFFERENT strings: a placeholder that merely repeated the label would be the "duplicate
+	 * the name into the box" habit rather than the verb the box was missing.
+	 */
+	it('gives the input a real accessible name through a label, and a placeholder beside it', () => {
 		const wrapper = line();
 		const input = wrapper.find('input');
 		const label = wrapper.find('label');
 
-		// A placeholder is not a label and does not become one.
 		expect(label.text()).toBe('Filter projects');
 		expect(label.attributes('for')).toBe(input.attributes('id'));
-		expect(input.attributes('placeholder')).toBeUndefined();
+		expect(input.attributes('placeholder')).toBe('Filter by name');
+	});
+
+	/**
+	 * THE COUNT IS INSIDE THE FIELD, which is what makes §3's teletext raise true: at rest the
+	 * field IS the pane's count line. Rendered outside it — which is what shipped until Task D —
+	 * the control is a full-pane-width empty box with a number floating beside it.
+	 *
+	 * Asserted on the DOM relationship rather than on the class alone, because a build that
+	 * declared the wrapper and left the count as its sibling would satisfy any check that only
+	 * asks whether `.rp-project-filter__field` exists.
+	 */
+	it('puts the count inside the same bordered field as the input', () => {
+		const field = line().get('.rp-project-filter__field');
+
+		expect(field.find('input').exists()).toBe(true);
+		expect(field.find('.rp-project-filter__count').exists()).toBe(true);
 	});
 
 	/**

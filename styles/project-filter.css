@@ -15,26 +15,78 @@
  */
 
 /*
- * THE FILTER LINE (design spec §7's region 2) — one input across the pane with the count at its
- * trailing edge.
+ * THE FILTER LINE (design spec §7's region 2) — one control across the pane, holding the input
+ * and the count together.
  *
  * The INLINE padding is `--size-4-2`, which is what `list-row.css` gives a row
  * (`padding: var(--size-2-2) var(--size-4-2)`) and what `.rp-project-list__group-title` gives a
  * heading — so an armature exists and this line is on it. **What that buys is narrower than
  * "aligned", and the difference is worth stating rather than discovering in a capture**: a
- * heading's inline padding puts its TEXT at that offset, while this one puts the input's BORDER
- * there, and the input's own chrome then pushes its text further in again. The field's edge
+ * heading's inline padding puts its TEXT at that offset, while this one puts the field's BORDER
+ * there, and the field's own chrome then pushes its text further in again. The field's edge
  * lines up with a row's text; the field's text does not. Whether that reads as one armature or
- * as two is a question no gate here can answer — jsdom lays nothing out — and it is on this
- * task's capture-only list.
+ * as two is a question no gate here can answer — jsdom lays nothing out.
  *
  * The BLOCK-end `--size-2-2` is the gap to whatever follows, matching the group heading's own.
+ *
+ * It is NOT a flex row any more, and that is what the field below took over: this element's only
+ * remaining in-flow child is that field, and the label and the announcement beside it are both
+ * `position: absolute`.
  */
 .rp-project-filter {
+	padding: 0 var(--size-4-2) var(--size-2-2);
+}
+
+/*
+ * THE FIELD IS THE INPUT AND THE COUNT IN ONE BOX (Task D).
+ *
+ * §3's teletext raise says the field IS the pane's count line at rest. The count was rendered
+ * beside the input, so what a capture actually showed was a full-pane-width EMPTY rectangle with
+ * a number floating to its right — the "search field as furniture" risk this direction records,
+ * shipped by the region written to answer it. Moving the border out here and putting the count
+ * inside it is what makes the raise true rather than merely intended.
+ *
+ * The border, the radius and the background are Obsidian's own input tokens, taken one at a time
+ * rather than inherited, because the element wearing them is a `<div>` now. A literal is refused
+ * by `scripts/styles-assemble.mjs` at any nesting depth, and none is used.
+ *
+ * **The padding is INLINE ONLY, and `var(--input-padding)` here was measured wrong before it was
+ * measured right.** That token is `var(--size-4-1) var(--size-4-2)` and reads as "what an input
+ * is padded by", so wearing it whole looks like faithfully reproducing the control. It is not:
+ * Obsidian's text input already resolves to a 30px box from its own line box, so the block half
+ * is added on top of a height that is already there — measured, the field came out **40px** where
+ * the bare input it replaced was 30, a 10px swell in the region §5 puts directly under the pane's
+ * only heading. Inline only, and the input's own 30px decides the height: 32px with the border,
+ * which also keeps the input itself the full-height hit target (WCAG 2.5.8's 24px floor, the rule
+ * this surface's rows already pay).
+ */
+.rp-project-filter__field {
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
-	padding: 0 var(--size-4-2) var(--size-2-2);
+	padding: 0 var(--size-4-2);
+	border: var(--input-border-width) solid var(--background-modifier-border);
+	border-radius: var(--input-radius);
+	background-color: var(--background-modifier-form-field);
+}
+
+/*
+ * THE RING BELONGS TO THE BOX THE USER SEES. A ring drawn on a border-less input inside a
+ * bordered wrapper is a rectangle inside a rectangle, and the outer one — the thing that looks
+ * like the control — would be the half that never lights up.
+ *
+ * `:focus-within` rather than `:focus-visible`, which cannot be asked of an ancestor. It is not
+ * a widening in practice: the only focusable descendant is a text input, and a focused text
+ * input always matches `:focus-visible` whatever brought the caret there.
+ *
+ * The ring is stated rather than inherited for the reason every control in this repository
+ * states it: the vendored app.css reduction carries `:focus { outline: none }` and puts nothing
+ * back (WCAG 2.4.7). `--interactive-accent` is the token `forms.css` measured at 4.00:1 dark and
+ * 3.43:1 light, both over WCAG 1.4.11's 3:1 floor for a non-text indicator.
+ */
+.rp-project-filter__field:focus-within {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
 }
 
 /*
@@ -53,17 +105,38 @@
 	white-space: nowrap;
 }
 
-/* Quiet at rest: the host's own input chrome, taking the pane's slack so the count sits at the
-   trailing edge whatever the pane's width. `min-width: 0` because a flex item's is `auto` and
-   an input's intrinsic width would otherwise stop the row shrinking to a narrow leaf. */
-.rp-project-filter__input {
+/*
+ * THE INPUT GIVES UP ITS OWN CHROME to the field around it — border, background, padding and
+ * Obsidian's focus shadow — so the two read as one control rather than as a box in a box. It
+ * still takes the pane's slack, so the count sits at the trailing edge whatever the pane's
+ * width; `min-width: 0` because a flex item's is `auto` and an input's intrinsic width would
+ * otherwise stop the line shrinking to a narrow leaf.
+ *
+ * **THE DESCENDANT SELECTOR IS LOAD-BEARING and this rule is silently dead without it.**
+ * Obsidian's own `input[type='text']` is (0,1,1) — one type plus one attribute — and sets every
+ * property being neutralised here; a single class is (0,1,0) and loses with no warning and no
+ * failing build. The same trap `list-row.css` records for `button:not(.clickable-icon)`, and
+ * `tests/build/buttonSpecificity.test.ts` is the category check that reads it for buttons.
+ */
+.rp-project-filter .rp-project-filter__input {
 	flex-grow: 1;
 	min-width: 0;
+	padding: 0;
+	border: none;
+	background-color: transparent;
 }
 
-.rp-project-filter__input:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
+/*
+ * AND AGAIN AT (0,3,0), because Obsidian states its focus chrome at (0,2,1): a `border-color` on
+ * `input[type='text']:focus` and a `box-shadow` ring on `:focus-visible`. Both would otherwise
+ * draw the inner rectangle the wrapper's own ring exists to replace. Two selectors rather than
+ * one because they are two different pseudo-classes and a browser that supports only the first
+ * must still lose the border-colour.
+ */
+.rp-project-filter .rp-project-filter__input:focus,
+.rp-project-filter .rp-project-filter__input:focus-visible {
+	border-color: transparent;
+	box-shadow: none;
 }
 
 /* `flex-shrink: 0` because the count is what the line exists to state — the input is the half

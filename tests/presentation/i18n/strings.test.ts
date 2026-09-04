@@ -1,10 +1,25 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { t, tr } from '../../../src/presentation/i18n/strings';
 import { de } from '../../../src/presentation/i18n/locales/de';
 import { en } from '../../../src/presentation/i18n/locales/en';
 import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import { createMoney } from '../../../src/core/money/Money';
 import { isErr } from '../../../src/core/result/Result';
+import { REPO, repoRelative } from '../../helpers/repo';
+
+/** Every file under a directory, recursively, skipping `node_modules` and dotfiles. */
+const walk = (dir: string): string[] => {
+	const found: string[] = [];
+	for (const name of readdirSync(dir)) {
+		if (name === 'node_modules' || name.startsWith('.')) continue;
+		const full = join(dir, name);
+		if (statSync(full).isDirectory()) found.push(...walk(full));
+		else found.push(full);
+	}
+	return found;
+};
 
 /**
  * Every digit-bearing token in a string — a maximal run anchored at a digit at both ends, so a
@@ -256,5 +271,34 @@ describe('interpolation', () => {
 	it('pins the Asset library inventory at 63 keys in both locales', () => {
 		expect(assetLibraryKeys(en)).toHaveLength(63);
 		expect(assetLibraryKeys(de)).toHaveLength(63);
+	});
+});
+
+/**
+ * Note 33 / R6: the Plan Editor's toolbar retired (Task 13 replaced it with a context bar and
+ * a floating Select/Add group), and the Asset Designer's own toolbar had borrowed three of the
+ * retired keys — `editor.toolbar.pan`/`.undo`/`.redo` — rather than minting its own. That made
+ * a valid designer control look like a regression against the editor-shell retirement contract,
+ * and left no way to express which surface owns the copy. R6 renames the three to
+ * `designer.toolbar.pan`/`.undo`/`.redo` and retires `editor.toolbar.*` from both locales.
+ *
+ * A category claim ("no surface names a retired key") is checked at the forbidden thing — a
+ * `src/`-wide scan for the literal — rather than by listing the files it must not appear in,
+ * per this repository's own rule that a list goes stale and a rule does not.
+ */
+describe('the Plan Editor toolbar is retired (spec §5.2, R6)', () => {
+	it('declares no editor.toolbar.* key in either locale', () => {
+		expect(Object.keys(en).filter((key) => key.startsWith('editor.toolbar.'))).toEqual([]);
+		expect(Object.keys(de).filter((key) => key.startsWith('editor.toolbar.'))).toEqual([]);
+	});
+
+	it('names editor.toolbar. nowhere under src/, and the designer uses its own keys', () => {
+		const hits = walk(join(REPO, 'src')).filter((file) => readFileSync(file, 'utf8').includes('editor.toolbar.'));
+		expect(hits.map((file) => repoRelative(file))).toEqual([]);
+
+		for (const key of ['designer.toolbar.pan', 'designer.toolbar.undo', 'designer.toolbar.redo']) {
+			expect(en[key as StringKey]).toBeDefined();
+			expect(de[key as StringKey]).toBeDefined();
+		}
 	});
 });

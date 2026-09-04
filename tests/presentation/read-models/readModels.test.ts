@@ -135,16 +135,20 @@ describe('mapping an entity to a read model', () => {
 async function wired() {
 	const plans = new InMemoryPlanRepository();
 	const zones = new InMemoryZoneRepository();
+	const projects = new InMemoryProjectRepository();
 	const projectId = createProjectId();
+	const project = makeProject({ id: projectId, name: 'Ground floor project' });
+	expectOk(await projects.save(project, 'absent'));
 	const plan = makePlan({ projectId, name: 'Ground floor' });
 	expectOk(await plans.save(plan, 'absent'));
 	const zone = makeZone({ projectId, planId: plan.id, name: 'Hall' });
 	expectOk(await zones.save(zone, 'absent'));
 	const queries = createPlanEditorQueries({
 		getPlan: new GetPlan(plans),
+		getProject: new GetProject(projects),
 		findZonesByPlan: new FindZonesByPlan(zones),
 	});
-	return { plans, zones, plan, zone, queries };
+	return { plans, zones, projects, plan, project, zone, queries };
 }
 
 describe('the plan editor query boundary', () => {
@@ -171,6 +175,40 @@ describe('the plan editor query boundary', () => {
 		};
 
 		const result = await createPlanEditorQueries(failing as never).getPlan('plan-1');
+
+		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
+	});
+
+	/**
+	 * The same mapping the renovation-project boundary's own `getProject` makes, below —
+	 * except `libraryOverlap` is fixed `false` here, since the editor draws no overlap marker.
+	 */
+	it('answers the plan’s project as a DTO, not as an entity', async () => {
+		const { project, queries } = await wired();
+
+		const found = expectOk(await queries.getProject(project.id));
+
+		expect(found).toEqual(toProjectSummaryDto(project, false));
+	});
+
+	/**
+	 * `ok(null)` travels through UNCHANGED — this is what `ProjectStore.hydrate` reads as
+	 * "the plan's project is gone", the same dangling state as a missing plan.
+	 */
+	it('answers a project that does not exist with ok(null), never an error', async () => {
+		const { queries } = await wired();
+
+		expect(expectOk(await queries.getProject('project-nope'))).toBeNull();
+	});
+
+	it('answers a project whose read failed with isErr, so the two stay distinguishable', async () => {
+		const failing = {
+			getPlan: { execute: () => Promise.resolve(ok(null)) },
+			getProject: { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) },
+			findZonesByPlan: { execute: () => Promise.resolve(ok([])) },
+		};
+
+		const result = await createPlanEditorQueries(failing as never).getProject('project-1');
 
 		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
 	});
@@ -214,6 +252,7 @@ describe('the plan editor query boundary', () => {
 			code: 'settings.unrecovered',
 		});
 		for (const refused of [
+			await queries.getProject('project-1'),
 			await queries.findZonesByPlan('plan-1'),
 			await queries.getRequirementsForZone('zone-1'),
 			await queries.listAssets(),

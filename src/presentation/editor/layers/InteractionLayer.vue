@@ -85,6 +85,27 @@ const sketch = computed(() => sketchScreenGeometry(runtime.renderState.polygonSk
 const measurementMarks = computed(() => measurementScreenMarks(runtime.renderState.measurement, toScreen));
 
 /**
+ * The hovered zone's outline (design slice 12) — `SelectTool.pointerMove`'s prediction of
+ * what a click would take, drawn so the user sees it before they commit to it.
+ *
+ * `null` in every case that would say nothing new: no hover at all, a hover that IS the
+ * selection (the selection outline below already draws it, thicker and solid — a second
+ * outline on top would say nothing the first does not), and a hovered id the hydrated zones
+ * no longer hold (the same "deleted while hovered, before refresh lands" case
+ * `selectedScreenPoints` already guards below).
+ */
+const hoverOutlineFlat = computed(() => {
+	const id = runtime.renderState.hoveredObjectId;
+	if (id === null || selectedIds.value.some((selected) => String(selected) === id)) return null;
+	const zone = zones.value.get(id);
+	if (zone === undefined) return null;
+	return zone.points.flatMap((point) => {
+		const at = toScreen(point);
+		return [at.x, at.y];
+	});
+});
+
+/**
  * The selected zone's outline and vertex handles. Exactly one zone is selectable in this
  * slice (`SelectTool` sets one id); anything else renders nothing rather than guessing.
  */
@@ -183,9 +204,23 @@ function vertexFill(index: number): string {
 				}"
 			/>
 		</template>
+		<VLine
+			v-if="hoverOutlineFlat !== null"
+			:config="{
+				name: 'hover-outline',
+				points: hoverOutlineFlat,
+				closed: true,
+				stroke: props.tokens.accent,
+				strokeWidth: 1,
+				dash: [4, 4],
+				strokeScaleEnabled: false,
+				listening: false,
+			}"
+		/>
 		<template v-if="selectedFlat !== null">
 			<VLine
 				:config="{
+					name: 'selection-outline',
 					points: selectedFlat,
 					closed: true,
 					stroke: props.tokens.accent,

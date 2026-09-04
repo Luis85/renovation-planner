@@ -19,6 +19,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
+import { installResizeObserver } from '../helpers/layout';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
@@ -33,6 +34,10 @@ import type RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlug
 vi.mock('../../src/infrastructure/logging/consoleLogger', async () => (await import('../helpers/logger')).consoleLoggerMock());
 
 installObsidianDom();
+// `ResponsiveEditorShell` (Task 19) observes its own root the moment a Plan Editor mounts,
+// whether or not that editor ever gets as far as a canvas — and jsdom implements no
+// `ResizeObserver` at all. The two editor cases below mount one; nothing here reads a width.
+installResizeObserver();
 
 /**
  * Obsidian's own part: build the registered view for a leaf, put it ON the leaf, and give

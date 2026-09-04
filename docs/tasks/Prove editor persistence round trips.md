@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Consolidate the current and target editor data models]]"
 order: 20
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -34,3 +34,14 @@ Happy-path fixtures can conceal compensation, parse-lag and unreadable-note beha
 ## Outcome
 
 Feature A has evidence that its approved fields and geometry survive save, reload and failure boundaries.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment.
+`tests/infrastructure/persistence/editorRoundTrip.test.ts` drives a `Project`, a `Plan` and a
+Room-classified `Zone` through the real mappers and the in-memory repository stack and asserts
+every first-slice field, both ids, the revision and a user-authored Markdown body survive.
+The field-by-field matrix naming canonical storage and schema version is
+`docs/development/consolidation/2026-09-editor-model-consolidation.md` §3; the preserve decision
+for the existing `tests/vault/` and `tests/fixtures/` fixtures is §5. The report cites the test;
+the test does not cite the report.

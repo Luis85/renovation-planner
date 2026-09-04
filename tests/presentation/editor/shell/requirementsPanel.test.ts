@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { settle, settleUntil as until } from '../../../helpers/editor';
-import { click, pointer, rig, toolbarButton } from '../../../helpers/planEditorRig';
+import { actionButton, click, pointer, rig } from '../../../helpers/planEditorRig';
 import { expectOk } from '../../../helpers/domain';
 import { makeAsset } from '../../../helpers/entities';
 
@@ -26,7 +26,7 @@ async function rigWithAssets(names: string[]) {
 }
 
 	async function selectZoneAndAssign(r: Awaited<ReturnType<typeof rig>>, assetId: string): Promise<void> {
-	toolbarButton(r.harness, 'Select').click();
+	actionButton(r.harness, 'Select').click();
 	click(r.harness.canvasEl as HTMLElement, 300, 300);
 	await until(() => r.harness.wrapper.text().includes('Assign'), 'assign control visible');
 
@@ -51,7 +51,7 @@ async function rigWithAssets(names: string[]) {
 describe('the Requirements panel', () => {
 		it('says the zone has no requirements before anything is assigned', async () => {
 			const r = await rig();
-			toolbarButton(r.harness, 'Select').click();
+			actionButton(r.harness, 'Select').click();
 			click(r.harness.canvasEl as HTMLElement, 300, 300);
 			await until(
 				() => r.harness.wrapper.text().includes('No requirements reference this zone yet.'),
@@ -91,7 +91,7 @@ describe('the Requirements panel', () => {
 		// case passes identically against an `inspector-wiring.ts` that dispatched the plain
 		// `AssignAssetCommand` — the row appears either way, and nothing else here would
 		// notice the requirement becoming unrecoverable.
-		toolbarButton(r.harness, 'Undo').click();
+		actionButton(r.harness, 'Undo').click();
 		await until(
 			() => r.harness.wrapper.text().includes('No requirements reference this zone yet.'),
 			'the assignment is undone',
@@ -117,9 +117,9 @@ describe('the Requirements panel', () => {
 		await until(() => r.harness.wrapper.text().includes('Overridden'), 'overridden badge');
 		expect(r.harness.wrapper.text()).toContain('7 m2');
 
-		// Undo through the toolbar: the reversible adapter restores the WHOLE requirement,
+		// Undo through the context bar: the reversible adapter restores the WHOLE requirement,
 		// so the typed figure is gone, not merely hidden.
-		toolbarButton(r.harness, 'Undo').click();
+		actionButton(r.harness, 'Undo').click();
 		await until(
 			() => !r.harness.wrapper.text().includes('Overridden'),
 			'override undone',
@@ -211,7 +211,7 @@ describe('the Requirements panel', () => {
 		// The picker starts on the empty value, so the first thing a user can do is press
 		// Assign without choosing — which must be inert rather than a refused command.
 		const r = await rigWithAssets(['Skirting']);
-		toolbarButton(r.harness, 'Select').click();
+		actionButton(r.harness, 'Select').click();
 		click(r.harness.canvasEl as HTMLElement, 300, 300);
 		await until(() => r.harness.wrapper.text().includes('Assign'), 'assign control visible');
 
@@ -308,7 +308,7 @@ describe('the Requirements panel', () => {
 
 		// And undoing the GEOMETRY command puts the requirement's figures back with it —
 		// one history entry, not two: a single Undo is enough.
-		toolbarButton(r.harness, 'Undo').click();
+		actionButton(r.harness, 'Undo').click();
 		await until(
 			() => r.harness.wrapper.text().includes(beforeCost),
 			'the panel carries the pre-drag cost again',

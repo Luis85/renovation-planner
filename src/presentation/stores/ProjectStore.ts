@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, ref, type Ref } from 'vue';
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import { isErr } from '../../core/result/Result';
 import { selectPlanEditorEmptyState } from '../emptyStates/selectors';
@@ -16,10 +16,69 @@ import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto
  */
 type ProjectStoreStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'failed';
 
+/** The three refs `handleFailedRead` reads and writes, bundled to stay under `max-params`. */
+interface HydrationFailureRefs {
+	readonly status: Ref<ProjectStoreStatus>;
+	readonly error: Ref<RepositoryError | null>;
+	readonly stale: Ref<boolean>;
+}
+
+/**
+ * The `keepOnFailure` handling `hydrate` owes each of its three reads (plan, project,
+ * zones) identically: keep the previous contents and surface the cause through `error`
+ * plus `stale` when a ready canvas is re-reading, or blank everything through `fail()`
+ * otherwise. Module-level rather than a closure inside `hydrate`, because a nested
+ * function's lines still count against the enclosing one's budget — this is what pulled
+ * both the store's line cap and `hydrate`'s own branch complexity back under their caps.
+ */
+function handleFailedRead(
+	cause: RepositoryError,
+	keepOnFailure: boolean,
+	refs: HydrationFailureRefs,
+	fail: (cause: RepositoryError) => void,
+): void {
+	if (keepOnFailure && refs.status.value === 'ready') {
+		// Real content is still on screen and the vault has moved past it.
+		refs.error.value = cause;
+		refs.stale.value = true;
+		return;
+	}
+	fail(cause);
+}
+
+/** The refs `markMissing` blanks, bundled the same way `HydrationFailureRefs` is. */
+interface HydrationMissingRefs {
+	readonly project: Ref<ProjectSummaryDto | null>;
+	readonly plan: Ref<PlanDto | null>;
+	readonly zones: Ref<ReadonlyMap<string, ZoneDto>>;
+	readonly unreadableZones: Ref<number>;
+	readonly status: Ref<ProjectStoreStatus>;
+	readonly stale: Ref<boolean>;
+}
+
+/**
+ * `hydrate` reaches this from two places — a plan `GetPlan` never found, and a project
+ * `GetProject` never found for a plan that otherwise resolved — and blanks the same five
+ * fields either way: a plan whose project is gone is a plan nothing owns, the same
+ * dangling state as a missing plan, drawn the same way. `GetPlan` cannot see the second
+ * case; only the project read can.
+ *
+ * And `stale`, because a flag saying the content on screen is out of date is false once
+ * there is no content on screen.
+ */
+function markMissing(refs: HydrationMissingRefs): void {
+	refs.project.value = null;
+	refs.plan.value = null;
+	refs.zones.value = new Map();
+	refs.unreadableZones.value = 0;
+	refs.status.value = 'missing';
+	refs.stale.value = false;
+}
+
 /**
  * The Plan Editor's working copy of persisted data (SDD §14), and never a write path:
  * nothing here calls a repository, and everything in it is rebuildable by re-running the
- * same two queries (ADR-005). A crash or a forced Pinia reset loses no project data,
+ * same three queries (ADR-005). A crash or a forced Pinia reset loses no project data,
  * because nothing canonical ever lived only here.
  *
  * Zones are keyed by `ZoneId` — never by array index and never by Konva node identity —
@@ -84,6 +143,7 @@ export const useProjectStore = defineStore('project', () => {
 	 * the two wrong answers.
 	 */
 	function fail(cause: RepositoryError): void {
+		project.value = null;
 		plan.value = null;
 		zones.value = new Map();
 		unreadableZones.value = 0;
@@ -95,7 +155,7 @@ export const useProjectStore = defineStore('project', () => {
 	}
 
 	/**
-	 * The ONE hydration routine (§35's two queries), run on open.
+	 * The ONE hydration routine (§35's three queries), run on open.
 	 *
 	 * Slice 8 adds the other moment it runs — after every committed command, so the canvas
 	 * shows what was just written — and re-uses this rather than growing a second one. That
@@ -125,6 +185,8 @@ export const useProjectStore = defineStore('project', () => {
 		const request = ++latestHydration;
 		const superseded = (): boolean => request !== latestHydration;
 		const keepOnFailure = options?.keepPreviousOnFailure === true;
+		const failureRefs: HydrationFailureRefs = { status, error, stale };
+		const missingRefs: HydrationMissingRefs = { project, plan, zones, unreadableZones, status, stale };
 		// A RE-hydration does not blank the editor. The root mounts its canvas on `ready`, so
 		// dropping to `loading` here would unmount the Konva stage and build a fresh one on
 		// every committed command — the whole canvas flashing because one background
@@ -142,33 +204,33 @@ export const useProjectStore = defineStore('project', () => {
 		const foundPlan = await queries.getPlan(planId);
 		if (superseded()) return;
 		if (isErr(foundPlan)) {
-			if (keepOnFailure && status.value === 'ready') {
-				error.value = foundPlan.error;
-				// Real content is still on screen and the vault has moved past it.
-				stale.value = true;
-				return;
-			}
-			return fail(foundPlan.error);
+			handleFailedRead(foundPlan.error, keepOnFailure, failureRefs, fail);
+			return;
 		}
 		if (foundPlan.value === null) {
-			plan.value = null;
-			zones.value = new Map();
-			unreadableZones.value = 0;
-			status.value = 'missing';
+			markMissing(missingRefs);
+			return;
+		}
+
+		const foundProject = await queries.getProject(foundPlan.value.projectId);
+		if (superseded()) return;
+		if (isErr(foundProject)) {
+			handleFailedRead(foundProject.error, keepOnFailure, failureRefs, fail);
+			return;
+		}
+		if (foundProject.value === null) {
+			markMissing(missingRefs);
 			return;
 		}
 
 		const foundZones = await queries.findZonesByPlan(planId);
 		if (superseded()) return;
 		if (isErr(foundZones)) {
-			if (keepOnFailure && status.value === 'ready') {
-				error.value = foundZones.error;
-				stale.value = true;
-				return;
-			}
-			return fail(foundZones.error);
+			handleFailedRead(foundZones.error, keepOnFailure, failureRefs, fail);
+			return;
 		}
 
+		project.value = foundProject.value;
 		plan.value = foundPlan.value;
 		zones.value = new Map(foundZones.value.zones.map((zone) => [zone.id, zone]));
 		unreadableZones.value = foundZones.value.unreadable;
@@ -234,17 +296,12 @@ export const useProjectStore = defineStore('project', () => {
 	}
 
 	/**
-	 * `project` is exposed and nothing reads it yet: it is a field of the `ProjectStoreState`
-	 * SDD §14 names, and the Plan Editor needs no project-level data until slice 6 gives the
-	 * Inspector something to show. Suppressed rather than deleted for the reason
-	 * `Zone.area()` is: a declared shape that gets trimmed whenever nothing calls it stops
-	 * being a declared shape.
+	 * `project` is hydrated now, beside `plan`, so a caller can name the project without a
+	 * second query — `EditorContextBar.vue` reads it for the `Project › Floor` crumb and
+	 * `useFloorSummary.ts` reads it to build the floor summary both `FloorInspector` and
+	 * `UnsupportedWidthNotice` render from.
 	 */
 	return {
-		// The directive means the NEXT LINE literally, so it sits on `project` rather than on
-		// the `return` — where it was, and where it went stale the moment this object stopped
-		// being one line.
-		// fallow-ignore-next-line unused-store-member
 		project,
 		plan,
 		zones,

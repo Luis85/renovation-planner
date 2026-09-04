@@ -30,15 +30,31 @@ const LOCALES_DIR = 'src/presentation/i18n/locales';
 
 /**
  * "An English locale module" identified from this repository's own naming convention —
- * a file directly under `locales/` whose name starts with `en` — rather than from the
+ * something directly under `locales/` whose name starts with `en` — rather than from the
  * obsidianmd glob this case exists to check. Reusing that glob to find the files would make
  * the check circular: a file the glob fails to match would also fail to be FOUND, and the
  * exact defect this case exists to catch (a filename the glob does not reach) would once
  * again pass silently.
+ *
+ * **A DIRECTORY is the second spelling, and the first version of this walk read it as a
+ * file.** The obsidianmd config the docblock above quotes reaches four shapes and one of them
+ * is *a path under an `en` directory* — so a split that puts its partial at `locales/en/
+ * editor.ts` is squarely inside the rule, and this walk handed `resolveConfig` the DIRECTORY
+ * path instead. ESLint answers a config with no `rules` for a path that is not a file, so both
+ * `it.each` cases threw on `undefined` rather than reporting the module unreached: a failure
+ * that names the instrument, not the tree. Found at the merge that created the directory —
+ * two branches split this one locale file two different ways on the same day, one by prefix
+ * and one by directory, and the prefix half is the one this walk had been written against.
  */
-const englishLocaleModules = readdirSync(path.join(REPO, LOCALES_DIR))
-	.filter((file) => file.startsWith('en'))
-	.map((file) => `${LOCALES_DIR}/${file}`);
+const englishLocaleModules = readdirSync(path.join(REPO, LOCALES_DIR), { withFileTypes: true })
+	.filter((entry) => entry.name.startsWith('en'))
+	.flatMap((entry) =>
+		entry.isDirectory()
+			? readdirSync(path.join(REPO, LOCALES_DIR, entry.name)).map(
+					(file) => `${LOCALES_DIR}/${entry.name}/${file}`,
+				)
+			: [`${LOCALES_DIR}/${entry.name}`],
+	);
 
 describe('every English locale module carries the sentence-case rule', () => {
 	// The instrument before the measurement: a naming convention that stopped matching
@@ -69,12 +85,13 @@ describe('every English locale module carries the sentence-case rule', () => {
 		expect(options?.[1]).toMatchObject({ acronyms: expect.arrayContaining(['SKU']) });
 	});
 
-	// The other direction, named once rather than left implicit: neither German partial in
-	// this same directory may be swept into the rule by a widened predicate — the HYPHENATED
-	// one is the closer call, since it is the one this repo's own `en-*`/`de-*` naming
-	// convention pairs with an English file the rule DOES reach. German noun capitalization
-	// is incompatible with the rule either way (`de.ts`'s own header states this).
-	it.each(['de.ts', 'de-assetLibrary.ts'])('does not reach %s', async (file) => {
+	// The other direction, named once rather than left implicit: no German partial in this
+	// same directory may be swept into the rule by a widened predicate — the HYPHENATED one is
+	// the closer call, since it is the one this repo's own `en-*`/`de-*` naming convention
+	// pairs with an English file the rule DOES reach, and `de/editor.ts` is the DIRECTORY
+	// spelling's own mirror, added when the walk above learned to descend. German noun
+	// capitalization is incompatible with the rule either way (`de.ts`'s own header says so).
+	it.each(['de.ts', 'de-assetLibrary.ts', 'de/editor.ts'])('does not reach %s', async (file) => {
 		const config = await resolveConfig(path.join(REPO, `${LOCALES_DIR}/${file}`));
 
 		expect(severityOf(config, 'obsidianmd/ui/sentence-case-locale-module')).toBeUndefined();

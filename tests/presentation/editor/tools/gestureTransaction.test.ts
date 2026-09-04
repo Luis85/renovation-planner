@@ -230,6 +230,10 @@ function fakeGestureTool(
 		abandonGesture: (): void => {
 			context.renderState.reset();
 		},
+		// Not exercised by this file's cases — they drive the dispatch pipeline, not Escape —
+		// so the fake states the one honest default: nothing here accumulates across calls that
+		// `cancel()` doesn't already clear.
+		hasDraft: (): boolean => false,
 	};
 	return tool;
 }

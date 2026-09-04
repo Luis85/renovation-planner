@@ -271,22 +271,31 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			subject: { id: assetId, calibration: store.design?.calibration ?? null },
 		}),
 	);
-	registerDesignerTools(toolManager, {
-		assetId,
-		edits,
-		reportRejected: reportDispatchFailure,
-		reportInvalidInput: notifyOperationFailure,
-		...calibrationDeps(useDialogStore(), store),
-	});
-
 	/**
 	 * The reactive mirror of `ToolManager`'s non-reactive pointer, held in `EditorStore` rather
 	 * than in a second ref beside it — the seam `DesignerCanvas` already reads and hands to
 	 * `EditorSurface`. The manager stays framework-pure (no Vue), so ONE mirror at this seam is
 	 * what a Vue consumer reads, and `setTool` is the one writer of both.
+	 *
+	 * Hoisted above `registerDesignerTools` (Task 10) so `returnToCamera` exists in time to be
+	 * threaded into the two trace tools' `onCompleted` below — `toolManager` is already built
+	 * at this point, which is all `createToolSwitch` needs.
 	 */
 	const { activeToolId } = storeToRefs(editor);
 	const setTool = createToolSwitch(toolManager, activeToolId);
+	// This surface registers no `select` tool (see `DESIGNER_TOOL_LABELS`'s own note), so a
+	// completed trace returns to camera mode — `setTool(null)` — rather than to a tool that
+	// does not exist.
+	const returnToCamera = (): void => setTool(null);
+
+	registerDesignerTools(toolManager, {
+		assetId,
+		edits,
+		reportRejected: reportDispatchFailure,
+		reportInvalidInput: notifyOperationFailure,
+		returnToCamera,
+		...calibrationDeps(useDialogStore(), store),
+	});
 
 	// Both halves of SDD §65 — a THROWN fault and a RESOLVED refusal — bound straight to
 	// toolbar clicks, which discard the promise they are handed.

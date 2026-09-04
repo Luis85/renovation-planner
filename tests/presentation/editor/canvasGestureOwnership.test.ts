@@ -28,7 +28,7 @@
 import { describe, expect, it } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { settle } from '../../helpers/editor';
-import { chord, click, drawnLines, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { actionButton, activateTool, chord, click, drawnLines, pointer, rig } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
 const PLAN = 'plan-e2e' as never;
@@ -65,7 +65,7 @@ it('does not let a foreign pointer’s MOVE steer the owner’s preview', async 
 	// so the geometry survives and the PREVIEW is the whole of the damage — which is why
 	// this asserts on what is drawn rather than on what is saved.
 	const { harness, canvas } = await editor();
-	toolbarButton(harness, 'Select').click();
+	actionButton(harness, 'Select').click();
 	await settle();
 
 	pointer(canvas, 'pointerdown', 300, 300, 0, 11);
@@ -96,7 +96,7 @@ describe('a pan the pointer walks out of', () => {
 		// Pointer capture means a real browser should not deliver this mid-drag at all. That
 		// is a reason for the two to agree anyway, not a reason to leave the gap.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 
@@ -195,7 +195,7 @@ describe('a press arriving while a pan is already running', () => {
 		// below is the one a mouse really sends; the vertex count is what it is asserted on
 		// either way.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		pointer(canvas, 'pointerdown', 300, 300, 1); // middle: the pan begins
@@ -221,7 +221,7 @@ describe('a press arriving while a pan is already running', () => {
 
 	it('does not let a second finger start a tool gesture during a touch pan', async () => {
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 
@@ -282,7 +282,7 @@ describe('a pointer taken away mid-pan', () => {
 		// pan's press, so its buffer has nothing to do with the gesture the OS just took away.
 		// A user mid-polygon who holds space to pan and then alt-tabs lost their vertices.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -310,7 +310,7 @@ describe('a pointer taken away mid-pan', () => {
 		// The half that must keep working: no `pointerup` will ever arrive for a cancelled
 		// pointer, so a pan left running would follow the bare cursor forever.
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		key(canvas, 'keydown', { key: ' ' });
@@ -335,7 +335,11 @@ describe('a pointer taken away mid-pan', () => {
 		// is refused, `endPan` never runs, and the drag follows the bare cursor for the rest of
 		// the session. The whole suite passes against that version, which is why this exists.
 		const { harness, canvas, camera } = await editor();
-		// No tool: camera mode, and no space either — the store's own drag.
+		// Camera mode, and no space either — the store's own drag. Task 10 made Select the
+		// tool a ready plan opens onto, so this reaches camera mode through the Pan button
+		// rather than through the pre-Task-10 default.
+		activateTool(harness, null);
+		await settle();
 		pointer(canvas, 'pointerdown', 300, 300);
 		pointer(canvas, 'pointermove', 340, 300);
 		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true }));
@@ -355,7 +359,7 @@ describe('a pointer taken away mid-pan', () => {
 		// hovering pen taken away by the OS blanks the status bar and forgets where the
 		// drawing hand is. A foreign pointer's cancellation is not news about the owner's.
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
@@ -398,7 +402,7 @@ describe('a Shift press during a pan', () => {
 	 */
 	it('does not move the tool’s sketch, which the pan is otherwise keeping away from it', async () => {
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -429,7 +433,7 @@ describe('a Shift press during a pan', () => {
 		// a user who holds the button and moves is mid-gesture by definition, and Shift is what
 		// they press to straighten the line they are already drawing.
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -463,7 +467,7 @@ describe('a Shift press during a pan', () => {
 	 */
 	it('forgets the pan’s cursor when the pan is CANCELLED rather than released', async () => {
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -506,7 +510,7 @@ describe('a second pointer arriving during a TOOL gesture', () => {
 	 */
 	async function dragWithZoneSelected(interloper: boolean, cancelFrom?: number): Promise<number> {
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 
@@ -535,7 +539,7 @@ describe('a second pointer arriving during a TOOL gesture', () => {
 		// to have pressed — for the rest of the session, silently. A multi-click tool sits
 		// between clicks with nothing in flight, and a hover is how its loose end moves at all.
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100); // a complete click: pointer 1 owns nothing afterwards
@@ -594,7 +598,7 @@ describe('the camera during a tool drag', () => {
 	 */
 	async function draggingZone() {
 		const built = await editor();
-		toolbarButton(built.harness, 'Select').click();
+		actionButton(built.harness, 'Select').click();
 		await settle();
 		const before = expectOk(await built.zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 		pointer(built.canvas, 'pointerdown', 300, 300);
@@ -671,6 +675,10 @@ describe('the camera during a CAMERA-MODE drag', () => {
 	 */
 	async function panningTheCamera() {
 		const built = await editor();
+		// Task 10 made Select the tool a ready plan opens onto; back to camera mode so this
+		// bare primary drag pans rather than dragging zone-a, which sits under (300, 300).
+		activateTool(built.harness, null);
+		await settle();
 		pointer(built.canvas, 'pointerdown', 300, 300);
 		pointer(built.canvas, 'pointermove', 350, 300);
 		await settle();
@@ -716,7 +724,7 @@ describe('a foreign pointer hovering during a tool drag', () => {
 	 */
 	it('does not commit the drag at the hovering pointer’s coordinates', async () => {
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 
@@ -734,7 +742,7 @@ describe('a foreign pointer hovering during a tool drag', () => {
 		// The other direction, so the fix cannot be "ignore every move reporting no buttons":
 		// the owning pointer saying its button is up is exactly the case the branch exists for.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 

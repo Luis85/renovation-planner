@@ -34,7 +34,8 @@
  *      element in jsdom regardless of its CSS — so even forcing the rule on would not
  *      make it catch a real hit-target defect, it would make it silently pass one.
  *
- *    All three are disabled below (`LAYOUT_DEPENDENT_RULES`) so this file's assertion
+ *    All three are disabled by `./axeOptions`'s `LAYOUT_DEPENDENT_RULES` — shared with
+ *    `accessibilityAssetLibrary.test.ts` rather than copied — so this file's assertion
  *    doesn't depend on an `incomplete` result it can never act on, or on a rule that
  *    would pass a genuine defect if left forced on. axe has no rule at all for a visible
  *    focus indicator — verified by reading its full rule list — so nothing here checks
@@ -104,14 +105,14 @@ import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountAssetDesignerHarness } from './assetDesigner';
-import { mountAssetLibraryHarness } from './assetLibrary';
-import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
+import { runOptions } from './axeOptions';
+import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../helpers/editor';
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
 import { installCanvas } from '../helpers/canvas';
-import { installResizeObserver } from '../helpers/layout';
+import { installResizeObserver, resizeTo } from '../helpers/layout';
+import { useSelectionStore } from '../../src/presentation/editor/selection/selection-store';
 import { defaultRenovationProjectDeps, makeView } from '../helpers/makeRenovationProjectView';
-import { defaultAssetLibraryDeps, makeAssetLibraryView } from '../helpers/makeAssetLibraryView';
 import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
 import { err, ok } from '../../src/core/result/Result';
 import type { Result } from '../../src/core/result/Result';
@@ -123,9 +124,7 @@ import type { ViewStateResult } from 'obsidian';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 import type { PlanSummaryDto } from '../../src/presentation/read-models/PlanDto';
 import type { AssetPriceRowDto } from '../../src/application/queries/ListProjectAssetPrices';
-import { createMoney, currencyOf, type Money } from '../../src/core/money/Money';
-import { createAssetId } from '../../src/domain/asset/AssetId';
-import type { CatalogueEntryDto } from '../../src/application/queries/ListCatalogueEntries';
+import { createMoney, type Money } from '../../src/core/money/Money';
 
 /**
  * A read side where every door refuses with the same code — which is what production does for
@@ -204,11 +203,6 @@ function price(amount: string): Money {
 	return minted.value;
 }
 
-const LAYOUT_DEPENDENT_RULES = ['color-contrast', 'color-contrast-enhanced', 'target-size'];
-
-const runOptions: Parameters<typeof axe.run>[1] = {
-	rules: Object.fromEntries(LAYOUT_DEPENDENT_RULES.map((id) => [id, { enabled: false }])),
-};
 
 /** One state of the index, scanned and torn down — the mount must not outlive the scan. */
 /**
@@ -592,6 +586,207 @@ describe('axe against the mounted view', () => {
 	});
 
 	/**
+	 * Task 13's context bar and floating primary actions — two `full`-layout regions the case
+	 * above already mounts (`mountPlanEditor()`'s default is `full`, 1280px) but never asserts
+	 * on, so a defect in either's own markup could stand behind a green scan of everything
+	 * else in the shell. `EditorContextBar`'s `<nav aria-label>` crumbs and its undo/redo
+	 * buttons, and `FloatingPrimaryActions`'s `role="group"` Select/Add pair, are both new ARIA
+	 * this file had not yet scanned on their own.
+	 *
+	 * The presence assertions are this file's usual reason: `violations` is `[]` on a subtree
+	 * containing nothing at all, so proving both regions are really in the DOM this scan ran
+	 * against is what makes green mean something.
+	 */
+	it('reports no semantic violations on the plan editor context bar and floating actions', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+
+			expect(mounted.wrapper.find('.rp-context-bar').exists()).toBe(true);
+			expect(mounted.wrapper.find('.rp-primary-actions').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 17's Add menu, OPEN — the surface with the most new ARIA any one task in this file
+	 * has added (`role="menu"`, `role="group"`, `role="menuitem"`, a roving `tabindex`, an
+	 * `aria-describedby` on every unsupported item). `AddMenu.vue`'s own header explains why
+	 * its search `<input>` sits outside `role="menu"` (an ARIA-spec argument, not a measured
+	 * fix) and why each group's `<h3>` carries `role="presentation"` — THAT one this case is
+	 * what found: scanned with a plain `<h3>`, it reported `aria-required-children` ("Element
+	 * has children which are not allowed: h3"), because `menu`'s allowed-owned-elements
+	 * computation reaches through `group` to the heading same as it would an unadorned
+	 * `<input>`. Green here is what proves the fix rather than the ARIA reading alone.
+	 *
+	 * The presence assertion is this file's usual reason: `violations` is `[]` on a subtree
+	 * containing nothing at all, so proving the menu is really open is what makes green mean
+	 * something.
+	 */
+	it('reports no semantic violations on the plan editor with the Add menu open', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			await mounted.wrapper.find('button[data-rp-action="add"]').trigger('click');
+			await flushPromises();
+
+			expect(mounted.wrapper.find('[role="menu"]').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 18's temporary task banner — `role="status"`, an `aria-label`, and a Cancel
+	 * `<button>` — was never exercised by any scan in this file: the case above mounts the
+	 * default fixture and never switches off Select, so the banner's own `v-if` (the active
+	 * tool has an entry in its `TASKS` table) never passed. `setTool('draw-polygon')` is what
+	 * makes it appear; the presence assertion sits ABOVE `axe.run` for the reason every case in
+	 * this file already gives — this is a scan of the banner or it is a scan of nothing.
+	 */
+	it('reports no semantic violations on the plan editor with the temporary task banner shown', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			runtimeOf(mounted).setTool('draw-polygon');
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-task-banner button').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 19's `constrained` layout with the Layers overlay open — `OverlayPanel`'s own
+	 * `tabindex="-1"` container, its labelled close button, and the real
+	 * `<PropertyLayerPanel>` it holds (the same component the `full` layout renders in a
+	 * column, so a defect here would be a defect there too, reached through a different door).
+	 * Resizing the REAL mounted shell root (`resizeTo(mounted.rootEl, ...)`), the same way
+	 * `responsiveShell.test.ts` drives a layout change, rather than writing `layoutMode` into
+	 * the store directly — the thing worth scanning is what the observer's callback produces.
+	 *
+	 * The presence assertion is this file's usual reason: `violations` is `[]` on a subtree
+	 * containing nothing at all, so proving the overlay is really open is what makes green
+	 * mean something.
+	 */
+	it('reports no semantic violations on the plan editor with the constrained Layers overlay open', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			resizeTo(mounted.rootEl, 460, 800);
+			await settle();
+			await mounted.wrapper.find('[data-rp-rail="layers"]').trigger('click');
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-overlay-panel').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 19's `constrained` layout with the Inspector drawer open, over a REAL selection —
+	 * `InspectorDrawer` wraps the same `<EntityInspector>` the `full` layout renders in its own
+	 * column, so this is what Task 16's Room Inspector looks like drawn through the drawer's
+	 * door rather than through a persistent panel. Task 16's own review deferred "no
+	 * accessibility scan reaches the Room Inspector with a selection" to this task; this case
+	 * and the one below it are what close that gap, for the two layouts a selected room can be
+	 * drawn in.
+	 *
+	 * The zone is selected BEFORE the resize, matching `responsiveShell.test.ts`'s own finding
+	 * that a selection survives a layout change — this proves the drawer renders the SAME
+	 * selection's markup rather than one this case happened to make afterward.
+	 */
+	it('reports no semantic violations on the plan editor with the constrained Inspector drawer open and a room selected', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			useSelectionStore().select(['zone-kitchen' as never]);
+			await settle();
+			resizeTo(mounted.rootEl, 460, 800);
+			await settle();
+			await mounted.wrapper.find('[data-rp-rail="details"]').trigger('click');
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-inspector-drawer .rp-room-inspector').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 16's Room Inspector, in the `full` layout's own persistent column — the other half
+	 * of the gap that task's review deferred to this one. `.rp-question-nav` is the three
+	 * homeowner questions, each marked unavailable with NO control (`roomInspector.test.ts`'s
+	 * own "with no button and no count" case), so the absence assertion is not merely the usual
+	 * presence check: a `<button>` appearing here would be the live-control-that-does-nothing
+	 * slice 14's amendment refuses, wired to nothing this build can act on yet.
+	 */
+	it('reports no semantic violations on the Room Inspector in the full layout with a room selected', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			useSelectionStore().select(['zone-kitchen' as never]);
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-question-nav').exists()).toBe(true);
+			expect(mounted.wrapper.find('.rp-question-nav button').exists()).toBe(false);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 19's `unsupported` width — the floor summary and the one `Focus this tab` action
+	 * `UnsupportedWidthNotice` draws instead of a canvas below `CONSTRAINED_MIN_PX`. Its own
+	 * `<h2>` headline is unconditional and its body withdraws when there is no plan to
+	 * summarise, so the button is what this case proves is really there — the one control a
+	 * pane this narrow still offers.
+	 */
+	it('reports no semantic violations on the plan editor at an unsupported width', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			resizeTo(mounted.rootEl, 320, 800);
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-unsupported-width button').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
 	 * **The last action-carrying empty state no axe scan reached** — and BOTH this branch and
 	 * `main` added a case for it independently, which is why this docblock carries two
 	 * arguments rather than one.
@@ -792,265 +987,6 @@ describe('axe against the mounted view', () => {
  * looking at a different file. A mock is exactly the artefact nobody writes a test for, so the
  * set has to come from the tree.
  */
-/**
- * §2's fourth workspace view (Task 11 review, M12): a cheap addition here rather than a
- * deferral, since the root is a real, opened `AssetLibraryView` and needs none of the other
- * cases' hydration-timing care — `mount()` builds the Vue tree synchronously inside `onOpen`,
- * and the first paint draws before `hydrate()`'s own query resolves.
- *
- * **Task 13 built §3's shelves-and-inspector-less shell** (the toolbar, the shelves region and
- * every one of §4's states except the Inspector, which is Task 14's), so the first two cases
- * below now scan REAL branching rather than the placeholder div Task 11 left here — both were
- * strengthened with a load-bearing assertion on `.rp-view-failure` for exactly the reason this
- * file's own header names as the recurring hazard on this branch (an axe scan that passes with
- * nothing meaningful mounted): `defaultAssetLibraryDeps()` refuses every query, so both cases
- * scan the FAILED state, and a mount that silently stopped drawing `ViewFailure` would still
- * pass an unguarded `axe.run` on an empty subtree. A third case below scans the READY state —
- * the toolbar, the shelves and the repair strip — which is the branch these two cannot reach.
- */
-/** A minimal, real `CatalogueEntryDto` for the ready-state scan below — the exact shape
- *  `tests/presentation/library/assetRow.test.ts`'s own fixture builds, since this file's job
- *  is to scan what those unit-tested components draw together rather than to invent a second
- *  reading of the DTO. */
-function anAxeCatalogueEntry(): CatalogueEntryDto {
-	return {
-		assetId: createAssetId(),
-		name: 'Oak plank floor',
-		category: 'material',
-		unit: 'm2',
-		unitCostAmount: '34.95',
-		currency: currencyOf('EUR'),
-		wasteFactorDefault: '0.08',
-		supplier: 'Holzhandel Nord',
-		sku: 'EIC-1200-190',
-		height: null,
-		notes: null,
-		background: null,
-	};
-}
-
-/**
- * One case per §4 empty state, and the shared half is a FUNCTION rather than an `it.each`
- * table: `noMatches` is reached by typing into the search field and `noAssets` is not, so a
- * parameterised version put an `expect` inside an `if` — which `vitest/no-conditional-expect`
- * refuses, and rightly: a conditional assertion is one that can be skipped without the case
- * going red.
- */
-const mountLibraryWith = async (entries: readonly CatalogueEntryDto[]) => {
-	installObsidianDom();
-	const deps = defaultAssetLibraryDeps({
-		queries: {
-			...defaultAssetLibraryDeps().queries,
-			listCatalogue: () => Promise.resolve(ok({ entries, unreadable: [] })),
-		},
-	});
-	const view = makeAssetLibraryView(deps);
-	document.body.appendChild(view.containerEl);
-	await view.onOpen();
-	await flushPromises();
-	return view;
-};
-
-describe('axe against the asset library', () => {
-	/**
-	 * `axe.run` requires its target to be part of the live document — `mountHarness`'s own
-	 * comment says why (`leafEl.appendChild(view.containerEl)`): the `ItemView` mock builds
-	 * `contentEl` with `document.createElement`, never attached to anything, so scanning it
-	 * unattached answers "No elements found for include in page Context" rather than a result.
-	 * `document.body.appendChild(view.containerEl)` is the same fix, done here rather than
-	 * through the harness mount because this view needs no leaf frame or theme rules.
-	 */
-	it('reports no semantic violations on the surface AssetLibraryView actually draws', async () => {
-		installObsidianDom();
-		const view = makeAssetLibraryView(defaultAssetLibraryDeps());
-		document.body.appendChild(view.containerEl);
-		await view.onOpen();
-		await flushPromises();
-
-		try {
-			// Load-bearing, not decorative (see the file header): without this, a scan that ran
-			// before the tree mounted would find nothing and pass on an empty subtree. Refined
-			// past the outer wrapper to `.rp-view-failure` — the `defaultAssetLibraryDeps()`
-			// refusal bundle drives this mount to `status === 'failed'`, so the outer div alone
-			// was already true before Task 13 drew anything, and would stay true even if the
-			// failure branch stopped rendering.
-			expect(view.contentEl.querySelector('.renovation-asset-library')).not.toBeNull();
-			expect(view.contentEl.querySelector('.rp-view-failure')).not.toBeNull();
-
-			const results = await axe.run(view.contentEl, runOptions);
-
-			expect(results.violations).toEqual([]);
-		} finally {
-			await view.onClose();
-			view.containerEl.remove();
-		}
-	});
-
-	/** And with a selection and an expanded category carried in, both `data-*` attributes on the
-	 * one root element rather than a second paragraph (Task 11 re-review, M11's exposure moved
-	 * one element along and was then removed rather than relocated a second time). */
-	it('reports no semantic violations with an asset selected and a category expanded', async () => {
-		installObsidianDom();
-		const view = makeAssetLibraryView(defaultAssetLibraryDeps());
-		document.body.appendChild(view.containerEl);
-		await view.setState({ assetId: 'tile-01', expanded: ['material'] }, {} as ViewStateResult);
-		await view.onOpen();
-		await flushPromises();
-
-		try {
-			expect(view.contentEl.querySelector('.renovation-asset-library')).not.toBeNull();
-			expect(view.contentEl.querySelector('.rp-view-failure')).not.toBeNull();
-
-			const results = await axe.run(view.contentEl, runOptions);
-
-			expect(results.violations).toEqual([]);
-		} finally {
-			await view.onClose();
-			view.containerEl.remove();
-		}
-	});
-
-	/**
-	 * The READY branch neither case above can reach: a catalogue that actually answers, so the
-	 * toolbar, a shelf with a real row and the `.rp-view-notice` repair strip (with its own
-	 * per-row `Open note` button) are all on screen at once — the surface Task 13 actually
-	 * built, scanned rather than assumed. `.rp-al-toolbar` is this case's own load-bearing
-	 * assertion, mirroring the two above: without it, a mount that regressed to the loading or
-	 * failed branch would still pass an `axe.run` finding nothing wrong with an empty pane.
-	 */
-	it('reports no semantic violations on the ready shelves, beside a repair strip', async () => {
-		installObsidianDom();
-		const deps = defaultAssetLibraryDeps({
-			queries: {
-				...defaultAssetLibraryDeps().queries,
-				listCatalogue: () =>
-					Promise.resolve(
-						ok({
-							entries: [anAxeCatalogueEntry()],
-							unreadable: [
-								{ assetId: null, path: 'Renovation/Library/mystery.md', reason: 'no-id', code: null },
-							],
-						}),
-					),
-			},
-		});
-		const view = makeAssetLibraryView(deps);
-		document.body.appendChild(view.containerEl);
-		await view.onOpen();
-		await flushPromises();
-
-		try {
-			expect(view.contentEl.querySelector('.rp-al-toolbar')).not.toBeNull();
-			expect(view.contentEl.querySelector('.rp-view-notice')).not.toBeNull();
-
-			const results = await axe.run(view.contentEl, runOptions);
-
-			expect(results.violations).toEqual([]);
-		} finally {
-			await view.onClose();
-			view.containerEl.remove();
-		}
-	});
-
-	/**
-	 * THE INSPECTOR, and it is the reason this block grew a sixth case rather than a sixth
-	 * assertion. Task 14 shipped §3.5's panel and reported, as its own last concern, that no axe
-	 * scan reaches it — and it is the largest new ARIA surface on this view: four sections each
-	 * with three states, a definition list of live fields with inline errors, `aria-disabled`
-	 * controls carrying their reason by `aria-describedby`, and a per-group override mark. Every
-	 * other case in this block rests where the panel draws its one resting line or nothing at
-	 * all, so all five would pass a build in which the inspector's ARIA is broken.
-	 *
-	 * **Scanned in its ANSWERED state, which is what `flushPromises()` buys and why it is
-	 * load-bearing here in a way it is not everywhere.** `AssetInspector` starts three ticketed
-	 * reads from a `watch` with `immediate: true`, and while they are out the Shape and *Used in*
-	 * sections draw a single `<p>` loading line each. A scan taken one tick early therefore grades
-	 * a strictly smaller surface — no `<dl>`, no list, no override mark — and reads identically to
-	 * one that grades the larger. `.rp-al-used__override` is the assertion that tells the two
-	 * apart, because it exists only once `listOverridingProjects` has answered.
-	 *
-	 * Mounted through `mountAssetLibraryHarness`, the same function `npm run harness` and
-	 * `scripts/harness-shot.mjs` both drive, for the reason every case in this file gives: a
-	 * fixture typed into this file would grade markup nobody keeps in sync with what renders.
-	 */
-	it('reports no semantic violations on the inspector, with an asset selected', async () => {
-		const { view } = mountAssetLibraryHarness(document.body, 'base-cabinet-600');
-		await flushPromises();
-
-		try {
-			// The panel is drawn AND its two ticketed sections have answered — see this case's
-			// docblock for why the second assertion is not decoration.
-			expect(view.contentEl.querySelector('.rp-al-inspector')).not.toBeNull();
-			expect(view.contentEl.querySelector('.rp-al-fields__input')).not.toBeNull();
-			expect(view.contentEl.querySelector('.rp-al-used__override')).not.toBeNull();
-			expect(view.contentEl.querySelector('.rp-al-action--delete')).not.toBeNull();
-
-			const results = await axe.run(view.contentEl, runOptions);
-
-			expect(results.violations).toEqual([]);
-		} finally {
-			await view.onClose();
-			view.containerEl.remove();
-		}
-	});
-
-	/**
-	 * §4's two action-bearing empty states, scanned on the day they ship — that paragraph's own
-	 * requirement, and it names the mechanism as well as the rule: `planEditor.noZones` went seven
-	 * slices unscanned because the case's fixture resolved to a DIFFERENT entry, so both cases
-	 * below assert `.rp-empty-state` and `.rp-empty-state__action` are in the scanned DOM rather
-	 * than trusting the fixture to have produced the state its name claims.
-	 */
-	it('reports no semantic violations on the empty state for a vault with no assets', async () => {
-		const view = await mountLibraryWith([]);
-
-		try {
-			expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
-			expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
-
-			const results = await axe.run(view.contentEl, runOptions);
-
-			expect(results.violations).toEqual([]);
-		} finally {
-			await view.onClose();
-			view.containerEl.remove();
-		}
-	});
-
-	/**
-	 * Reached by TYPING rather than by seeding a store: §6.1's query lives in
-	 * `AssetLibraryStore`, and the only door into it from outside the tree is the field the user
-	 * uses. Driving it through the input is also what makes this a scan of a state a user can
-	 * actually reach — a store poked directly would grade the state and prove nothing about the
-	 * route to it. Measured: with the two typing lines removed the case fails at
-	 * `.rp-empty-state`, because a catalogue holding one entry draws a shelf.
-	 */
-	it('reports no semantic violations on the empty state for a search that matches nothing', async () => {
-		const view = await mountLibraryWith([anAxeCatalogueEntry()]);
-		const field = view.contentEl.querySelector<HTMLInputElement>('.rp-al-search__input');
-
-		try {
-			expect(field).not.toBeNull();
-			// `definite`'s job, spelled out because this file imports no such helper: the
-			// assertion above is what makes the cast honest rather than optimistic.
-			const input = field as HTMLInputElement;
-			input.value = 'nothing matches this';
-			input.dispatchEvent(new Event('input'));
-			await flushPromises();
-
-			expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
-			expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
-
-			const results = await axe.run(view.contentEl, runOptions);
-
-			expect(results.violations).toEqual([]);
-		} finally {
-			await view.onClose();
-			view.containerEl.remove();
-		}
-	});
-});
-
 describe('axe against the harness index', () => {
 	it.each([
 		['the picker', 'index'],

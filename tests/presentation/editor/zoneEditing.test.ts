@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Design slice 8's Definition of Done, driven through the REAL mounted Plan Editor —
- * real Vue, real Pinia, real Konva, the real toolbar/canvas/inspector wiring — against
+ * real Vue, real Pinia, real Konva, the real shell/canvas/inspector wiring — against
  * in-memory repositories, so a drawn zone is genuinely written and a refresh genuinely
  * re-reads what was written (docs/tasks/08-zone-editing.md, DoD 2/3/5/6/7/8 and the
  * "symptom" store-refresh tests).
@@ -25,12 +25,15 @@ import { mount } from '@vue/test-utils';
 import { Notice } from '../../helpers/obsidian-mock';
 import { mountPlanEditor, settle, settleUntil as until } from '../../helpers/editor';
 import {
+	actionButton,
+	activateTool,
 	click,
 	PLAN_DTO,
+	planEditorQueriesFor,
 	pointer,
 	PROJECT_ID,
+	projectRepoWithFixture,
 	rig,
-	toolbarButton,
 	ZONE_A_DTO,
 } from '../../helpers/planEditorRig';
 import { makeDeleteZoneCommand } from '../../helpers/slice10';
@@ -41,9 +44,6 @@ import { expectOk, injectedPersistenceError, RecordingEventBus } from '../../hel
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../../../src/application/queries/GetZoneInspector';
-import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
-import { GetPlan } from '../../../src/application/queries/GetPlan';
-import { createPlanEditorQueries } from '../../../src/presentation/read-models/planEditorQueries';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { makePlan, makeZone } from '../../helpers/entities';
@@ -72,10 +72,10 @@ beforeEach(() => {
 });
 
 describe('the wired Plan Editor (design slice 8)', () => {
-	it('draws a zone through the toolbar and canvas, persists it, selects it, and undo/redo keep the SAME id', async () => {
+	it('draws a zone through the draw tool and canvas, persists it, selects it, and undo/redo keep the SAME id', async () => {
 		const { harness, zonesRepo } = await rig();
 
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		const canvas = harness.canvasEl;
@@ -109,7 +109,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		expect(harness.wrapper.text()).toContain('Zone 2');
 
 		// Undo removes it; redo restores THE SAME entity (DoD 2).
-		const undoButton = toolbarButton(harness, 'Undo');
+		const undoButton = actionButton(harness, 'Undo');
 		expect(undoButton.disabled).toBe(false);
 		undoButton.click();
 		await until(
@@ -117,7 +117,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 			'the undo of the drawn zone to land in the repository',
 		);
 
-		const redoButton = toolbarButton(harness, 'Redo');
+		const redoButton = actionButton(harness, 'Redo');
 		redoButton.click();
 		await until(
 			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 2,
@@ -135,7 +135,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		// Down inside the zone selects AND begins the drag; up ends it (+60 px = +600 mm).
@@ -149,7 +149,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		if (moved === null) throw new Error('expected the moved zone to exist');
 		expect(moved.entity.geometry.points[0]).toEqual({ x: 2100, y: 1500 });
 
-		toolbarButton(harness, 'Undo').click();
+		actionButton(harness, 'Undo').click();
 		await until(
 			async () =>
 				(expectOk(await zonesRepo.getById('zone-a' as never)))?.entity.geometry.points[0]?.x === 1500,
@@ -166,7 +166,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		// Click to select...
@@ -214,23 +214,26 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		pointer(canvas, 'pointerdown', 200, 200);
 		pointer(canvas, 'pointerup', 200, 200);
 		await settle();
 
-		const deleteButton = toolbarButton(harness, 'Delete zone');
+		const deleteButton = actionButton(harness, 'Delete zone');
 		deleteButton.click();
 		await until(
 			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 0,
 			'the delete to land in the repository',
 		);
 
-		// Both the note-side repo state and the panel agree it is gone (DoD 3/8).
+		// Both the note-side repo state and the panel agree it is gone (DoD 3/8). The delete
+		// clears the selection, so the Inspector falls back to its floor state (Task 15) —
+		// "Nothing selected." was `RoomInspector`'s own text through Task 14; the frame's
+		// floor state has no rooms left to list instead.
 		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(0);
-		expect(harness.wrapper.text()).toContain('Nothing selected.');
+		expect(harness.wrapper.text()).toContain('This floor has no rooms yet.');
 
-		toolbarButton(harness, 'Undo').click();
+		actionButton(harness, 'Undo').click();
 		await until(
 			async () => (expectOk(await zonesRepo.getById('zone-a' as never))) !== null,
 			'the undo of the delete to restore the zone',
@@ -246,7 +249,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		// Two REAL clicks — each with its pointerup, which is the state a multi-click
 		// gesture actually lives in between vertices. The first version of this test sent
@@ -267,16 +270,16 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		harness.unmount();
 	});
 
-	it('the Pan toolbar state clears the active tool; camera-mode drag does not feed tools', async () => {
+	it('returning to camera mode clears the active tool; camera-mode drag does not feed tools', async () => {
 		const { harness, zonesRepo } = await rig();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		// Back to camera mode: drag pans again instead of feeding a tool.
-		toolbarButton(harness, 'Pan').click();
+		activateTool(harness, null);
 		await settle();
 		click(canvas, 200, 200);
 		await settle();
@@ -290,7 +293,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		// Middle button with a tool active: translated to 'auxiliary', which SelectTool
@@ -340,6 +343,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		}
 
 		const plans = new InMemoryPlanRepository();
+		const projects = await projectRepoWithFixture();
 		const plan = makePlan({ projectId: PROJECT_ID, id: PLAN_DTO.id as PlanId });
 		await plans.save(plan, 'absent');
 		const zonesRepo = new FlakySave();
@@ -355,10 +359,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		await zonesRepo.save(zoneA, 'absent');
 
 		const events = new RecordingEventBus();
-		const queries = createPlanEditorQueries({
-			getPlan: new GetPlan(plans),
-			findZonesByPlan: new FindZonesByPlan(zonesRepo),
-		});
+		const queries = planEditorQueriesFor(plans, projects, zonesRepo);
 		zonesRepo.failuresLeft = 1; // fail exactly the drawn zone's insert
 		const harness = await mountPlanEditor({
 			plan: PLAN_DTO,
@@ -380,7 +381,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		click(canvas, 500, 100);
 		click(canvas, 600, 100);
@@ -424,6 +425,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 
 	it('a FAILED delete surfaces through the notice seam and leaves the zone intact', async () => {
 		const plans = new InMemoryPlanRepository();
+		const projects = await projectRepoWithFixture();
 		const plan = makePlan({ projectId: PROJECT_ID, id: PLAN_DTO.id as PlanId });
 		await plans.save(plan, 'absent');
 		class FlakyDelete extends InMemoryZoneRepository {
@@ -454,10 +456,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const harness = await mountPlanEditor({
 			plan: PLAN_DTO,
 			zones: [ZONE_A_DTO],
-			queries: createPlanEditorQueries({
-				getPlan: new GetPlan(plans),
-				findZonesByPlan: new FindZonesByPlan(zonesRepo),
-			}),
+			queries: planEditorQueriesFor(plans, projects, zonesRepo),
 			commands: {
 				// Spread over the refusal bundle so every member of the interface EXISTS —
 				// slice 10's requirement collaborators and the leaf's logger among them. The
@@ -474,13 +473,13 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		click(canvas, 200, 200);
 		await settle();
 
 		zonesRepo.failuresLeft = 1;
 		const noticesBefore = Notice.shown.length;
-		toolbarButton(harness, 'Delete zone').click();
+		actionButton(harness, 'Delete zone').click();
 		await settle();
 
 		// The write failed, the zone survives, and the refusal reached the user through the
@@ -516,7 +515,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		click(canvas, 200, 200);
 		await settle();
@@ -545,7 +544,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		click(canvas, 200, 200);
 		await settle();
@@ -558,9 +557,9 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		click(canvas, 700, 500);
 		await settle();
 
-		// The store emptying and the panel reading "Nothing selected." are asserted by the
-		// unit suite. What neither can see is the CANVAS: handles left behind would satisfy
-		// both and go on being drawn over a zone the user no longer has selected.
+		// The store emptying and the Inspector falling back to its floor state (Task 15) are
+		// asserted by the unit suite. What neither can see is the CANVAS: handles left behind
+		// would satisfy both and go on being drawn over a zone the user no longer has selected.
 		expect(interaction?.find('Circle')).toHaveLength(0);
 		expect(interaction?.find('Line')).toHaveLength(0);
 
@@ -572,7 +571,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		click(canvas, 200, 200);
 		await settle();
@@ -586,7 +585,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 			'the vertex drag to land in the repository',
 		);
 
-		toolbarButton(harness, 'Undo').click();
+		actionButton(harness, 'Undo').click();
 		await until(
 			async () => (expectOk(await zonesRepo.getById('zone-a' as never)))
 				?.entity.geometry.points[0]?.x === 1500,
@@ -610,24 +609,24 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		click(canvas, 200, 200);
 		await settle();
 
-		toolbarButton(harness, 'Delete zone').click();
+		actionButton(harness, 'Delete zone').click();
 		await until(
 			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 0,
 			'the delete to land in the repository',
 		);
 
-		toolbarButton(harness, 'Undo').click();
+		actionButton(harness, 'Undo').click();
 		await until(
 			async () => (expectOk(await zonesRepo.getById('zone-a' as never))) !== null,
 			'the undo of the delete to restore the zone',
 		);
 
-		toolbarButton(harness, 'Redo').click();
+		actionButton(harness, 'Redo').click();
 		await until(
 			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 0,
 			'the redo of the delete to remove the zone again',

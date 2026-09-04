@@ -12,7 +12,8 @@
  * has the screen footprint (198,198)-(488,388), inside the 800×600 stage.
  */
 import type Konva from 'konva';
-import { mountPlanEditor, type EditorHarness } from './editor';
+import { mountPlanEditor, runtimeOf, type EditorHarness } from './editor';
+import type { ToolId } from '../../src/presentation/editor/tools/editor-tool';
 import { expectOk } from './domain';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
@@ -32,6 +33,7 @@ import { ListReassignmentTargets } from '../../src/application/queries/ListReass
 import { GetZoneInspector } from '../../src/application/queries/GetZoneInspector';
 import { FindZonesByPlan } from '../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../src/application/queries/GetPlan';
+import { GetProject } from '../../src/application/queries/GetProject';
 import { createPlanEditorQueries } from '../../src/presentation/read-models/planEditorQueries';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
@@ -80,6 +82,34 @@ export interface Rig {
 	zonesRepo: InMemoryZoneRepository;
 	assetsRepo: InMemoryAssetRepository;
 	requirementsRepo: InMemoryRequirementRepository;
+}
+
+/**
+ * An `InMemoryProjectRepository` holding just the fixture project at `PROJECT_ID` — for a
+ * spot that needs a real `GetProject` behind `createPlanEditorQueries` but not the whole
+ * `rig()`, so it does not duplicate this same three-line seed at each call site.
+ */
+export async function projectRepoWithFixture(): Promise<InMemoryProjectRepository> {
+	const projects = new InMemoryProjectRepository();
+	await projects.save(makeProject({ id: PROJECT_ID }), 'absent');
+	return projects;
+}
+
+/**
+ * The three-repository `createPlanEditorQueries` call two rigs outside this file build by
+ * hand — extracted so a caller wiring its own `plans`/`projects`/`zonesRepo` (rather than
+ * going through `rig()`) states that in one line instead of five.
+ */
+export function planEditorQueriesFor(
+	plans: InMemoryPlanRepository,
+	projects: InMemoryProjectRepository,
+	zonesRepo: InMemoryZoneRepository,
+) {
+	return createPlanEditorQueries({
+		getPlan: new GetPlan(plans),
+		getProject: new GetProject(projects),
+		findZonesByPlan: new FindZonesByPlan(zonesRepo),
+	});
 }
 
 export async function rig(seed?: (repos: {
@@ -154,6 +184,7 @@ export async function rig(seed?: (repos: {
 
 	const queries = createPlanEditorQueries({
 		getPlan: new GetPlan(plans),
+		getProject: new GetProject(projects),
 		findZonesByPlan: new FindZonesByPlan(zonesRepo),
 		getRequirementsForZone: new GetRequirementsForZone({ requirements: requirementsRepo, zones: zonesRepo, assets: assetsRepo, projects, overrides: overridesRepo, logger: recorder }),
 		listAssets: new ListAssets(assetsRepo),
@@ -307,11 +338,27 @@ export function click(element: HTMLElement, x: number, y: number, button = 0): v
 }
 
 
-export function toolbarButton(harness: EditorHarness, label: string): HTMLButtonElement {
+/**
+ * A button anywhere in the mounted tree, found by its exact text — Task 13 retired the
+ * toolbar this was named for, and the shell now spreads its actions across the context bar,
+ * the floating Select/Add group and the Inspector's own Delete button, so this searches the
+ * whole wrapper rather than one region.
+ */
+export function actionButton(harness: EditorHarness, label: string): HTMLButtonElement {
 	const buttons = harness.wrapper.findAll('button');
 	const found = buttons.find((button) => button.text() === label);
-	if (found === undefined) throw new Error(`no toolbar button labelled ${label}`);
+	if (found === undefined) throw new Error(`no button labelled ${label}`);
 	return found.element as HTMLButtonElement;
+}
+
+/**
+ * Activates a tool through the runtime directly, for Pan/Draw zone/Calibrate — the three
+ * gestures Task 13's shell offers no button for any more (`null` is camera mode/Pan;
+ * `draw-polygon` is Draw zone; `calibrate` reaches the tool Task 14 gives its own door).
+ * Select, Undo, Redo and Delete zone still have real buttons and go through `actionButton`.
+ */
+export function activateTool(harness: EditorHarness, id: ToolId | null): void {
+	runtimeOf(harness).setTool(id);
 }
 
 

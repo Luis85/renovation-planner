@@ -66,8 +66,14 @@ there is nothing here to go stale, and a reader asking what is unbuilt is sent t
 document's amendments rather than here, because a list of exceptions kept in two places is one
 that disagrees with itself.
 
-There are **four workspace surfaces**, each mounting its own isolated Vue app (SDD §12) —
-nothing outside a view knows it is Vue. This sentence said TWO for a slice after the third was
+**Every workspace surface mounts its own isolated Vue app** (SDD §12) — nothing outside a view
+knows it is Vue. **This sentence carried a NUMBER until the merge that read it beside its own
+conclusion**, which is the sharpest form this defect has taken here: the lead said *four* in
+bold and the sentence four lines below it said *No count is stated here, therefore* — one
+paragraph, written in one commit, disagreeing with itself about whether it was allowed to
+count. Neither half was wrong about the tree; the paragraph was wrong about the paragraph, and
+nothing in any gate reads whether a passage's argument survives its own opening clause. This
+sentence said TWO for a slice after the third was
 registered and THREE for a branch after the fourth was, and the second time it was already
 "re-founded on `registerView`" — so a COUNT is not what fixes it, whatever the count is of. Two
 reasons, and only the first was known: a number written here is a number nothing re-runs, and
@@ -75,8 +81,10 @@ reasons, and only the first was known: a number written here is a number nothing
 because that file's own prose names the call, so the obvious re-measurement misleads too.
 No count is stated here, therefore. **The registered view types are pinned in order, by exact
 array, by `tests/plugin/settings/unrecovered.test.ts`** ("registers the view and the command
-anyway") — that assertion is where a fifth one arrives and fails, rather than here where it
-would read correctly forever. Which of them mounts a Vue ROOT is the different fact and the one
+anyway") — that assertion is where the NEXT one arrives and fails, rather than here where it
+would read correctly forever. Not *a fifth*, which this sentence said while the array already
+held five: the pin is over REGISTRATIONS and the paragraph is about Vue ROOTS, and an ordinal
+borrowed from one of those two counts the other. Which of them mounts a Vue ROOT is the different fact and the one
 this paragraph is about: every entry on that list except `GEOMETRY_SIDECAR_VIEW`, which is
 registered and mounts none. The **Renovation project** view is a singleton with
 a ribbon button and a command, and it now draws **a project list** — design slice 16's
@@ -3492,12 +3500,14 @@ announcing into nothing. The rules that came out of it:
   HOLDS**: the discovery file's *"every module a disposition names carries a row for every
   direction it claims"* case fails the moment a `rows:` disposition and `CENSUS_TABLE`
   disagree. The disposition TOTAL is held by nothing —
-  `grep -oE "'src/[^']+\.ts::[A-Za-z_]+':" | sort -u | wc -l` over that file printed **42** on
-  2026-09-03, the balance being `notAnAdapter` with a stated reason — so read it as a dated
+  `grep -oE "'src/[^']+\.ts::[A-Za-z_]+':" | sort -u | wc -l` over that file printed **43** on
+  2026-09-04, the balance being `notAnAdapter` with a stated reason — so read it as a dated
   measurement and re-run the grep rather than quoting the number. It said **40** for two
   increments, because the increment that added `ReferenceLocks`'s two dispositions did not
-  re-run this file's own grep, and the disposition table is exactly where additions land
-  routinely: **a number no check holds is a number every later author inherits unexamined**,
+  re-run this file's own grep, and **42** for one more, because a MERGE brought a disposition
+  neither branch's author was looking at — the grep was re-run at that merge only because this
+  sentence tells its reader to, which is the whole return on dating it. The disposition table
+  is exactly where additions land routinely: **a number no check holds is a number every later author inherits unexamined**,
   which is why the pinned pair leads and the total is dated. The table lives in a plain
   module rather than being exported from either `.test.ts`, because vitest registers a test
   file's whole suite on IMPORT and a cross-file import would silently run every one of its
@@ -3600,9 +3610,109 @@ fail loudly, which is what stops the chain being built, and is not a proof that 
 exists. The full module-graph traversal was the reported remedy and is more than the question
 needs while the tripwire holds the entrance; the rest of what it cannot reach (a glob or a
 template specifier that does not SPELL the suffix) is enumerated where the predicate is.
-Re-measured in this edit, `find src tests/harness tests/helpers -name "*.test.ts" | wc -l`
-still prints **17**, none of them imported by a non-test module — so the hole was latent when
-it was closed, which is the cheapest moment to close one and the moment nothing forces you to.
+Re-measured at the merge that brought the plan editor foundation in,
+`find src tests/harness tests/helpers -name "*.test.ts" | wc -l` prints **21** (it was **17**
+when the tripwire was written), none of them imported by a non-test module — so the hole was
+latent when it was closed, which is the cheapest moment to close one and the moment nothing
+forces you to, and it is still latent four files later because the tripwire is a rule rather
+than a list.
+**The plan editor foundation's first increment has landed: the read path and selection.** A floor
+opens into the Standard Plan View with **Select already active and nothing selected**, and the
+toolbar is DELETED rather than renamed — Undo and Redo moved to a context bar reading
+`Project › Floor`, Select and Add float over the canvas, and **camera mode is no longer a state
+any control puts a user into**: `routeEscape` never sets `activeToolId` to `null`, so only the
+pre-ready moment and the asset designer's own default reach it. Pan is still Space and the middle
+button, SAID ONCE in the status bar rather than offered as a button. Calibrate moved to the one
+row that is about the thing being calibrated — the Reference plan layer's **Set scale**, disabled
+with its reason while the plan has no background. Rooms are a presentation projection over `Zone`
+(ADR-0016) and Floor over `Plan` (ADR-0017): no entity, no frontmatter key and no schema version
+moved, and `tests/infrastructure/persistence/editorRoundTrip.test.ts` is what says so rather than
+the prose. `INSPECTOR_SECTIONS` is a CLOSED UNION of seven, every member `unavailable` here, so an
+unbuilt section is a stated absence rather than an empty one and no row is a control that does
+nothing. Five model ADRs — hierarchy, Existing/Planned/Work, spatial-object evolution, the
+relationship mechanism and the schema-version policy — are recorded as DEFERRED with a first
+consumer and a trigger each (`docs/development/consolidation/2026-09-editor-model-consolidation.md`
+§6) rather than accepted, because no code here reads one and a decision nothing pins drifts. The
+rules that came out of it:
+
+- **A threshold is a JUDGEMENT, and a capture is the only instrument that grades it.**
+  `layoutMode.ts`'s 900 and 400 were picked, not measured; what checks them is the 460px shot (an
+  Obsidian sidebar leaf's real width, which must show a usable canvas in `constrained`) and the
+  1280px one. Both are read BY EYE, and the file says so where the numbers are. What no capture
+  here can answer is what Obsidian's own leaf chrome leaves once the tab bar, the ribbon and the
+  resize handle are subtracted — step 8 of `docs/tests/cases/Open a floor and select a room.md`
+  is that instrument, and **that case has not been run in a vault**.
+- **A fake `ResizeObserver` that fires only on demand makes every mounted editor in the suite
+  `unsupported`.** The real one fires once on `observe()`; `tests/helpers/layout.ts`'s fires only
+  through `resizeTo`, and jsdom reports `clientWidth` 0 — so a shell that read its width only from
+  the observer would have sat below the floor with no canvas in every existing editor test. Two
+  halves, and both were needed: the shell reads `clientWidth` in `onMounted` AND on every observer
+  callback, so the real observer's initial call and the fake's `resizeTo` land on one path; and
+  EVERY jsdom mount path sizes the shell ROOT rather than only the canvas element. The failure
+  would have been mass red on the first run rather than a silent defect, which is the only reason
+  it was cheap.
+- **The first captures found three defects `npm run check` was green on, and the person who took
+  them saw one.** Add-menu rows drew each item's label over the previous item's description; the
+  Inspector's room list rendered CENTRED, because Obsidian's own `button` rule centres text — the
+  identical defect design slice 21 records for the project detail's plan list, in the next
+  component built out of full-width buttons, and the fix is NOT the `text-align: left` that
+  slice's sentence leads with: Obsidian's rule leaves the button a flex container, so
+  `justify-content: center` decides the label and `text-align` has nothing to align.
+  `display: block` is what restores the layout the declaration was written for; and at 460px the
+  status bar's "Scale not set" wrapped onto two lines.
+  The implementer's own read of the same three PNGs reported the first and missed the other two.
+  **An eyes-on gap is not a code defect and is not caught by a second pair of gates** — it is
+  caught by a second pair of eyes, which is why the pictures were re-read by the controller and
+  re-read again after the fix.
+- **A bubble-phase `document` listener sits behind a sibling's `stopPropagation`.** `AddMenu`
+  mounts inside the same overlay slot as Select and Add, and that slot's wrapper carries
+  `@pointerdown.stop` so a press there never reaches the canvas — so the menu's outside-press close
+  never heard a press on Select, on its own search input, or anywhere else in the slot, and
+  pressing Select left the menu open. `{ capture: true }` covers the whole slot including every
+  future sibling, without naming the wrapper's class. **A listener's PHASE is part of its address**,
+  and "on `document`" is not far enough away when something in between is allowed to stop.
+- **Vue's `watch` never fires on a same-value write, so a guard on the PREVIOUS value can be
+  unreachable.** The runtime's Select-on-ready watch shipped as `status === 'ready' && previous
+  !== 'ready'`, and its "a later refresh keeps the tool" case passed because the watcher never
+  woke at all, not because the second conjunct discriminated. It is `status === 'ready'` now with
+  a docblock saying why that is enough. The shape is this file's own: **a test that passes for a
+  reason other than the one its name gives is indistinguishable from one that passes for the
+  right reason**, and a conjunct no test can reach is a conjunct nobody is checking.
+- **A test title is a claim about the body, and three of them outran it in one increment.** One
+  said "emits openAdd from Add" and never touched Add; one said "undo and redo" and asserted undo;
+  a third claimed the root "still has a handler bound", which VTU's `emitted()` records regardless
+  of whether any parent is listening — unfalsifiable rather than merely untested. A manual case
+  said "the eight rows" where `INSPECTOR_SECTIONS` has seven. Every one was found by READING the
+  body against the title; nothing in any gate compares them.
+- **A rule scoped by a FILE NAME and a rule scoped by a PATH are different rules, and only one of
+  them was measured.** `en.ts` reached its 400-line cap with three keys still to add, under a
+  header asserting that splitting it was "a trap, because the sentence-case rule is scoped by the
+  file NAME `en.ts`". False: `eslint-plugin-obsidianmd` self-scopes through `isEnglishLocalePath`,
+  whose regex admits `en/editor.ts`, `en.editor.ts` and `en-editor.ts` alike, with no
+  configuration to write. So the fix was a SPLIT rather than a raised budget —
+  `locales/en/editor.ts` and `de/editor.ts`, spread back into the assembled tables so `StringKey`,
+  `t()`, the completeness test and the interpolation-hole test are all untouched. The German half
+  is `Record<keyof typeof editorEn, string>` rather than `Partial`, so a key added there without a
+  translation is a build error. And `editor.hint.pan` reads "Space or the middle button pans"
+  because that ruleset fails a capitalised key name mid-sentence — the same measurement the
+  Shift-constraint hint already paid for, arriving at a second key.
+- **A member with no `src/` caller yet is cheaper to give a TEST CONSUMER than a suppression.**
+  `WorkspaceStore.closeOverlay` had none until the rail that opens the overlay landed, two waves
+  after the store action itself; the first answer was an inline
+  `fallow-ignore-next-line` carrying prose on the directive line, which produced nine STALE
+  findings while the report calling `analyze` clean sat beside them. A store test that calls the
+  action removes the finding, restores the functions-coverage unit the uncalled member cost, and
+  removes the inline-versus-`.fallowrc.json` question rather than adjudicating it.
+- **A control that goes live three tasks later ships DISABLED, never live with a dead handler.**
+  Add landed with `openAdd` wired to `() => {}` and `aria-haspopup="menu"` — a control that does
+  nothing AND announces a menu, which is worse than either half. It shipped `disabled` and without
+  the ARIA promise until the menu existed, so the later task flipped two attributes and supplied a
+  handler. A sanction to defer the BEHAVIOUR is not a sanction to make the promise early.
+- **A spec-mandated string can be wrong, and the residue is written down rather than reworded
+  quietly.** The unsupported-width notice reads "Ground floor has 1 rooms": `tr` has no plural
+  form, the string is the spec's, and every gate is green. It is recorded in the amendments of
+  `docs/requirements/Open a floor plan in the Obsidian editor shell.md`, where the next author of
+  that surface will meet it, rather than here alone.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
@@ -3676,9 +3786,13 @@ and the suite's own accounting says the cost is not the tests — `transform 13.
 74.3s, tests 143.9s, environment 82.1s` over 362 files, so per-file overhead (a jsdom
 environment and a module registry, both paid once per FILE) exceeds the test bodies. **Every
 number in this paragraph is a DATED SNAPSHOT of one machine and one tree, the file count
-included** — `find tests -name "*.test.ts" | wc -l` prints **374** as of 2026-09-03, so the
-362 is already behind and the per-file conclusion is what survives it, since that conclusion
-is a RATIO rather than a total. Re-measure before reasoning from any of them. ONE
+included** — `find tests -name "*.test.ts" | wc -l` prints **429** as of 2026-09-04 (it printed
+374 the day before, and 362 in the run the timings above come from), so the file count is
+already behind twice over and the per-file conclusion is what survives it, since that
+conclusion is a RATIO rather than a total. The 2026-09-04 run of that same suite reports
+`transform 22.43s, import 125.34s, tests 365.21s, environment 149.02s` over 429 files in
+260s wall clock — import and environment together still exceed the test bodies, which is the
+ratio, holding across a 19% growth in files. Re-measure before reasoning from any of them. ONE
 door exists beside `check` for that reason, and it does not replace it:
 
 - **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no
@@ -3870,7 +3984,12 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   equal the floors already in force ratchets NOTHING, which is what slices 5, 11, 13, 15, 16,
   18 and 19 did.
   The suite
-  includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
+  includes `tests/harness/accessibility.test.ts` and, since two branches each appended cases
+  to it and the sum crossed the 450-line cap, `tests/harness/accessibilityAssetLibrary.test.ts`
+  beside it — one seam, drawn where the file already had three top-level `describe`s, with
+  `runOptions` shared through `./axeOptions` rather than copied, because the alternative to
+  sharing it is two copies of the list naming the rules this suite cannot honestly grade. Both
+  are axe-core driven in jsdom against the
   real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
   three states — never a fixture), checking
   roles, accessible names, form labels, heading order and ARIA attribute validity. It
@@ -4930,7 +5049,9 @@ Not oversights; each has a trigger.
   60 KB to **488 KB** at design slice 5's close; that is what ADR-003 and §54 cost, and it
   is worth knowing before the next dependency. **488 KB is that slice's own figure, not
   today's** — `dist/main.js` measured 670.06 kB (gzip 211.08 kB) at design slice 16's close and
-  **703.39 kB (gzip 221.71 kB) at design slice 19's**, each verified by running `npm run build`
+  **703.39 kB (gzip 221.71 kB) at design slice 19's**, and **825.68 kB (gzip 252.79 kB) at the
+  close of the plan editor foundation's first increment** (2026-09-03, after the asset-designer
+  merge — the two arrivals are not separated here), each verified by running `npm run build`
   rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 

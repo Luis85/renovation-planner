@@ -527,3 +527,45 @@ describe('an interrupted second press', () => {
 		expect(h.dispatched).toHaveLength(1);
 	});
 });
+
+describe('CalibrateTool.hasDraft', () => {
+	// Task 9 — a placed anchor or a buffered second point is the whole of what `cancel()`
+	// would throw away, and Escape asks before it does.
+	it('is false before any click and true once the anchor is placed', () => {
+		const h = harness();
+		const tool = newTool(h);
+
+		expect(tool.hasDraft()).toBe(false);
+
+		tool.pointerDown(at(10, 10));
+		expect(tool.hasDraft()).toBe(true);
+	});
+
+	it('is false again once cancel() clears the anchor', () => {
+		const h = harness();
+		const tool = newTool(h);
+
+		tool.pointerDown(at(0, 0));
+		tool.cancel();
+
+		expect(tool.hasDraft()).toBe(false);
+	});
+
+	it('is false once pointerUp hands the completion off, even while it is still in flight', async () => {
+		// `pointerA` and `pendingCompletion` both go to null synchronously inside `pointerUp` —
+		// before the awaited dialog/dispatch inside `complete()` ever settles. `hasDraft()`
+		// answers only from those two fields (matching the interface's own reasoning), so this
+		// is the honest boundary of what it can see, not an oversight.
+		const h = harness();
+		h.supplyNextDistance(100);
+		const tool = newTool(h);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(30, 40));
+		expect(tool.hasDraft()).toBe(true); // the second point is buffered, awaiting its release
+
+		tool.pointerUp(at(30, 40));
+		expect(tool.hasDraft()).toBe(false);
+		await flush();
+	});
+});

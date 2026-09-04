@@ -59,3 +59,7 @@ They are grouped for being cross-cutting, and **their scheduling is not the same
 A failure has one path from where it happened to what the user sees, and an architectural
 violation is refused by a gate rather than by a reviewer noticing — including violations in
 code nobody has written yet.
+
+- [[The plan-editor manual case has never run in a vault]]
+- [[Three plan-editor captures can complete before their intended state appears]]
+- [[The fixed-shot inventory test omits two merged captures]]

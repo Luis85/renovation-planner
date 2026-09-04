@@ -53,6 +53,15 @@ const wantsPlanEditor = params.get('view') === 'plan-editor';
 const wantsAssetDesigner = params.get('view') === 'asset-designer';
 const wantsAssetLibrary = params.get('view') === 'asset-library';
 
+/**
+ * The Plan Editor's own two knobs (Task 21): `?select=<zoneId>` selects and frames a seeded
+ * zone once the editor is ready, `?add` opens the Add menu once it is ready. Both are read
+ * here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below rather than
+ * read a second time there — one parse of the URL, like every other knob on this page.
+ */
+const selectZoneId = params.get('select');
+const wantsAddMenu = params.has('add');
+
 let view: unknown = null;
 
 if (wantsIndex) {
@@ -142,7 +151,7 @@ if (wantsIndex) {
 	 * untouched default.
 	 */
 	view = wantsPlanEditor
-		? mountPlanEditorHarness(document.body).view
+		? mountPlanEditorHarness(document.body, { select: selectZoneId ?? undefined, add: wantsAddMenu }).view
 		: wantsAssetDesigner
 			? mountAssetDesignerHarness(document.body).view
 			: wantsAssetLibrary

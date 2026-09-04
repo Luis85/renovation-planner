@@ -2,7 +2,7 @@
 type: Task
 parent: "[[View rooms in the Standard Plan View]]"
 order: 20
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -35,3 +35,15 @@ Separate render lists can drift in filtering or ordering.
 ## Outcome
 
 Users can see and reach every readable room spatially or through the list.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment. Criteria 1 and 3 are one case:
+`tests/presentation/editor/shell/floorInspector.test.ts`'s 'lists every room and every area as a
+button, and a row selects and frames its record' — the rows are real `<button>` elements carrying
+the same stable ids the canvas draws, so the keyboard route and the pointer route reach one
+identity. Criterion 2 is `tests/presentation/editor/runtime.test.ts`'s 'activates Select once the
+plan becomes ready' beside `tests/presentation/editor/shell/roomSummaryList.test.ts`'s 'marks no
+row pressed when nothing is selected'. Criterion 4 is the pre-existing
+`tests/presentation/editor/zoneExtent.test.ts` and `tests/presentation/editor/viewport.test.ts`:
+fitting reads bounds and writes only the camera.

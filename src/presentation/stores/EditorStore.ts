@@ -87,6 +87,21 @@ export const useEditorStore = defineStore('editor', () => {
 	const temporaryPolygon = ref<readonly Point[] | null>(null);
 
 	/**
+	 * The gesture surface's own measured size, in stage pixels — `{ width: 0, height: 0 }`
+	 * until `EditorSurface`'s resize observer has run at least once, which is the window
+	 * `fitTo` already treats as an ordinary early call rather than an error (see its own
+	 * docblock).
+	 *
+	 * Held here, rather than threaded as a second parameter, because `selectAndFrame` (design
+	 * slice 12's list-framing seam) is the first caller with no prop path of its own to carry
+	 * one: it is reached from the Inspector's room list, nowhere near `EditorSurface`'s
+	 * `size` ref or the `framedBounds` prop that already threads it to the fit shortcuts. A
+	 * fact the surface measures and a tool-framework caller needs is a store field, the same
+	 * bargain `viewport` itself already makes.
+	 */
+	const stageSize = ref<StageSize>({ width: 0, height: 0 });
+
+	/**
 	 * The last pointer position, in the STAGE's own screen pixels. The SCREEN half is what is
 	 * stored, because it is the half a camera change leaves alone.
 	 */
@@ -221,6 +236,11 @@ export const useEditorStore = defineStore('editor', () => {
 		pointerScreen.value = at;
 	}
 
+	/** Written by `EditorSurface`'s resize observer, at the same place it sets its own local ref. */
+	function setStageSize(size: StageSize): void {
+		stageSize.value = size;
+	}
+
 	/**
 	 * The camera and every in-flight gesture back to the state a Plan Editor opens in.
 	 *
@@ -248,8 +268,10 @@ export const useEditorStore = defineStore('editor', () => {
 	/**
 	 * `activeToolId` is the ONE reactive mirror of `ToolManager`'s non-reactive pointer,
 	 * written by `runtime.ts`'s `setTool` and read by `EditorRuntime.activeToolId`, which
-	 * is this ref — so the toolbar's active state and `EditorSurface`'s tool-versus-camera
-	 * routing both come from here. It briefly had a second writer and a private copy beside
+	 * is this ref — so the shell's own active-tool indicator (`FloatingPrimaryActions`'
+	 * `aria-pressed` on Select in the Plan Editor, the asset designer's own toolbar) and
+	 * `EditorSurface`'s tool-versus-camera routing both come from here. It briefly had a
+	 * second writer and a private copy beside
 	 * it: three places holding the active tool, the one this comment named as the consumer
 	 * being the dead one. `hoveredObjectId` and `temporaryPolygon` are still inert — slice 8's tools
 	 * broadcast transients through `RenderState` (a reactive proxy over
@@ -268,6 +290,7 @@ export const useEditorStore = defineStore('editor', () => {
 		dragState,
 		// fallow-ignore-next-line unused-store-member
 		temporaryPolygon,
+		stageSize,
 		pointerWorld,
 		zoomAt,
 		zoomByFactor,
@@ -278,6 +301,7 @@ export const useEditorStore = defineStore('editor', () => {
 		panByScreen,
 		fitTo,
 		setPointer,
+		setStageSize,
 		reset,
 	};
 });

@@ -508,14 +508,14 @@ describe('which elements a focus rule reaches', () => {
 				[
 					sheet,
 					readFileSync(sheet, 'utf8').replace(
-						/\.rp-editor-toolbar \.rp-editor-tool-button:focus-visible \{[^}]*\}/g,
+						/\.rp-context-bar \.rp-context-bar__button:focus-visible \{[^}]*\}/g,
 						'',
 					),
 				] as const,
 		);
 
 		expect([...flattenedWithoutRing(scanned, buttonClasses(), buttonClassGroups()).offenders.keys()]).toContain(
-			'.rp-editor-tool-button',
+			'.rp-context-bar__button',
 		);
 	});
 

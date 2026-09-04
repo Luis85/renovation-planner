@@ -30,7 +30,7 @@
 import { describe, expect, it } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { settle } from '../../helpers/editor';
-import { chord, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { actionButton, activateTool, chord, pointer, rig } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
 const PLAN = 'plan-e2e' as never;
@@ -113,7 +113,7 @@ describe('a second mouse button pressed during a pan', () => {
 		// fires for them. This case used to synthesize both, and so drove a stream no mouse
 		// produces.
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		key(canvas, 'keydown', { key: ' ' });
@@ -146,7 +146,7 @@ describe('a middle press refused because another gesture is running', () => {
 	// alone would leave the more reachable half open, which this review has already seen twice.
 	it('still suppresses the browser default during a TOOL drag', async () => {
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		pointer(canvas, 'pointerdown', 50, 50);
 		pointer(canvas, 'pointermove', 60, 60);
@@ -193,7 +193,7 @@ describe('a middle press refused because another gesture is running', () => {
 		// gesture. A build that hoisted the claim rather than the `preventDefault` would pass
 		// the two cases above and break the lock this review spent a round establishing.
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		pointer(canvas, 'pointerdown', 50, 50);
 		pointer(canvas, 'pointermove', 60, 60);
@@ -211,15 +211,22 @@ describe('a middle press refused because another gesture is running', () => {
 
 describe('the middle button pressed during a camera-mode drag', () => {
 	/**
-	 * Camera mode is the DEFAULT — no tool — so it is the MORE reachable half of every rule
-	 * the pan override carries, and a fix applied only to the override leaves it broken. Both
-	 * directions of the chord live here for that reason.
+	 * Camera mode was the OPEN-time default before Task 10 gave that role to Select — reached
+	 * explicitly now through `runtime.setTool(null)` (`activateTool(harness, null)` here; the
+	 * toolbar's own Pan button that used to do this was retired in Task 13) — so it remains
+	 * the MORE reachable half of every rule the pan override carries, and a fix applied only
+	 * to the override leaves it broken. Both directions of the chord live here for that
+	 * reason.
 	 */
 	it('does not kill a primary drag whose button is still held', async () => {
 		// A bare left-drag pan with a middle click on top of it. The middle click is two
 		// chords, not a press and a release: the primary button is already down, so no
 		// `pointerdown` or `pointerup` fires for it at all.
 		const { harness, canvas, camera } = await editor();
+		// Select is the tool a ready plan opens onto (Task 10); back to camera mode so this
+		// bare primary drag pans rather than dragging zone-a, which sits under (300, 300).
+		activateTool(harness, null);
+		await settle();
 		pointer(canvas, 'pointerdown', 300, 300);
 		pointer(canvas, 'pointermove', 340, 300);
 		await settle();
@@ -242,6 +249,9 @@ describe('the middle button pressed during a camera-mode drag', () => {
 		// button — which `isPrimary` correctly refuses, so nothing ended the drag and the
 		// camera went on following a cursor with no button held.
 		const { harness, canvas, camera } = await editor();
+		// Same reason as the case above: back to camera mode so the bare primary press pans.
+		activateTool(harness, null);
+		await settle();
 		pointer(canvas, 'pointerdown', 300, 300);
 		pointer(canvas, 'pointermove', 340, 300);
 		chord(canvas, 340, 300, 1, 5); // middle pressed on top of the drag
@@ -278,7 +288,7 @@ describe('a chorded mouse button, which is the only shape a second button can ha
 		// one: the canvas stayed `panning` for the rest of the session, and every later click
 		// was swallowed as a foreign press.
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		pointer(canvas, 'pointerdown', 300, 300, 1); // middle: the pan begins
@@ -306,7 +316,7 @@ describe('a TOOL drag whose primary button is released inside a chord', () => {
 		// only `pointerup` names the MIDDLE button. So the primary release arrives as a move,
 		// nothing ends the gesture, and the zone the user dragged snaps back with no error.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 

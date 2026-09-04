@@ -569,7 +569,9 @@ describe('the headless harness capture script', () => {
 	 * fifteen fixed shots* and listed fifteen while `SHOTS` held seventeen: the two
 	 * `project-detail-prices` captures were added without it, so the pair this case exists to
 	 * protect was the pair it could not see, and the stale total read as a deliberate subset
-	 * rather than as an omission.
+	 * rather than as an omission. `main` fixed the same defect independently and its own name
+	 * still carried *twenty-one*, which this merge drops for the reason both sides had already
+	 * discovered separately.
 	 *
 	 * **Dropping the number was half a fix, and the half that was left is what let the defect
 	 * happen.** A `for (name of […]) expect(source).toContain(…)` loop proves *at least these*,
@@ -579,42 +581,52 @@ describe('the headless harness capture script', () => {
 	 * HARNESS_INDEX }` to `SHOTS` left this file entirely green under the `toContain` form and
 	 * reddens HERE under the set comparison below.
 	 *
-	 * So the names are DERIVED from the script and the two sets are compared. `withoutCommentary`
-	 * first, so a `name: '…'` written inside one of that file's own docblocks cannot join the
-	 * census — nothing there does today, and an instrument that would start counting prose is the
-	 * shape this whole block has now paid for twice.
+	 * So the names are DERIVED from the script and the two sets are compared. TWO independent
+	 * narrowings, one from each branch: the slice is bounded to the `SHOTS` array itself
+	 * (`main`'s, structural), and `withoutCommentary` runs first so a `name: '…'` written inside
+	 * a docblock — including one INSIDE that array — cannot join the census (ours, lexical).
+	 * Neither subsumes the other, and an instrument that would start counting prose is the shape
+	 * this block has now paid for twice.
 	 */
 	it('defines exactly the fixed shots this file lists, in both directions', () => {
 		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
+		const shotsBlock = source.slice(
+			source.indexOf('const SHOTS = ['),
+			source.indexOf('];', source.indexOf('const SHOTS = [')),
+		);
 
-		const declared = [...source.matchAll(/name: '([a-z0-9-]+)'/g)].map((match) => match[1]);
+		const declared = [...shotsBlock.matchAll(/name: '([a-z0-9-]+)'/g)].map((match) => match[1]);
 
 		expect(declared.toSorted()).toEqual(
 			[
-				'dark',
-				'light',
-				'phone',
-				'project-detail',
-				'project-detail-prices',
-				'project-detail-narrow',
-				'project-detail-prices-narrow',
-				'asset-library-dark',
-				'asset-library-light',
-				'asset-library-selected',
-				'asset-library-middle',
-				'asset-library-actions',
-				'asset-library-narrow',
-				'asset-library-narrow-selected',
-				'plan-editor-dark',
-				'plan-editor-light',
 				'asset-designer-dark',
 				'asset-designer-light',
 				'asset-designer-narrow',
+				'asset-library-actions',
+				'asset-library-dark',
+				'asset-library-light',
+				'asset-library-middle',
+				'asset-library-narrow',
+				'asset-library-narrow-selected',
+				'asset-library-selected',
+				'dark',
 				'index-dark',
-				'index-light',
+				'index-failure',
 				'index-focus',
 				'index-focus-current',
-				'index-failure',
+				'index-light',
+				'light',
+				'phone',
+				'plan-editor-add-menu',
+				'plan-editor-dark',
+				'plan-editor-light',
+				'plan-editor-narrow',
+				'plan-editor-selected',
+				'plan-editor-unsupported',
+				'project-detail',
+				'project-detail-narrow',
+				'project-detail-prices',
+				'project-detail-prices-narrow',
 			].toSorted(),
 		);
 	});
@@ -697,6 +709,61 @@ describe('the headless harness capture script', () => {
 		// And the id those four resolve — named once in the script so a fifth selected shot
 		// cannot introduce a second spelling.
 		expect(source).toMatch(/const LIBRARY_SELECTED_ASSET = '[a-z0-9-]+';/);
+	});
+
+	/**
+	 * R14: `plan-editor-dark` and `plan-editor-light` used to wait on `PLAN_EDITOR_VIEW` alone,
+	 * which attaches before asynchronous project hydration establishes the ready floor state —
+	 * so both could complete while the intended contents were still loading. `plan-editor-narrow`
+	 * waited on the same wrapper and could photograph a 460px shell with no proof the constrained
+	 * layout's rail had actually appeared. All three now name a selector that only exists once
+	 * the state each shot is FOR has landed; a mutation back to `PLAN_EDITOR_VIEW` fails here.
+	 */
+	it('waits for the hydrated floor state on the resting plan-editor shots, and for the rail as well on the narrow one', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-dark'[^}]*selector: FLOOR_STATE/);
+		expect(source).toMatch(/name: 'plan-editor-light'[^}]*selector: FLOOR_STATE/);
+		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
+		expect(source).toContain("const FLOOR_STATE = '.rp-floor-inspector'");
+	});
+
+	/**
+	 * R13: the one width the 460px capture cannot show, and the one shot that MEASURES rather
+	 * than only draws — jsdom lays nothing out, so `measure` reads the real shell's scrollWidth
+	 * against its clientWidth in a browser through the importable `overflowFinding`/`shellMetrics`
+	 * pair, rather than a claim only a source-text pin could hold.
+	 */
+	it('measures the unsupported shell for horizontal overflow at 320 px, through the importable overflowFinding', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-unsupported'[^}]*width: 320/);
+		expect(source).toMatch(
+			/name: 'plan-editor-unsupported'[^}]*selector: '\.rp-editor-shell\[data-layout="unsupported"\] \.rp-unsupported-width'/,
+		);
+		expect(source).toMatch(/name: 'plan-editor-unsupported'[^}]*measure: '\.rp-editor-shell'/);
+		expect(source).toContain("from './captureMeasures.mjs'");
+	});
+
+	/**
+	 * Task 21's three Plan Editor shots, pinned the same way `project-detail-narrow` and
+	 * `asset-designer-narrow` are above: the property that makes each shot differ from
+	 * `plan-editor-light` is not merely that its name exists, but that it is reached through
+	 * the knob that actually produces the picture. Losing `&select=`/`&add` off either of the
+	 * first two would silently photograph the resting editor under a new name and exit 0;
+	 * losing `width: 460` off the third would silently photograph the same wide layout twice.
+	 */
+	it('takes the selected-zone and Add-menu shots through the knobs that reach them, and the narrow shot at a sidebar width', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-selected'[^}]*query: '\?view=plan-editor&select=harness-kitchen/);
+		expect(source).toMatch(/name: 'plan-editor-selected'[^}]*selector: '\.rp-room-inspector'/);
+		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*query: '\?view=plan-editor&add/);
+		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*selector: '\.rp-add-menu'/);
+		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*width: 460/);
+		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' above
+		// for why a bare `PLAN_EDITOR_VIEW` wait is exactly the defect being refused here.
+		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
 	});
 
 	/**

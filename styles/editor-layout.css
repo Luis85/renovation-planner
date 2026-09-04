@@ -1,0 +1,187 @@
+/*
+ * Task 19's constrained and unsupported layouts (design spec §5.4/§5.5): the rail that replaces
+ * the two persistent panels, the overlay and the drawer they slide into, and what a pane too
+ * narrow for a canvas draws instead.
+ *
+ * A partial of its own rather than more of `editor-shell.css`, for one reason: that file is
+ * already at 316 of the 400 lines `scripts/styles-assemble.mjs` allows, and this is about 90.
+ * Its POSITION in `index.css` is NOT load-bearing — it is imported after `editor-shell.css`
+ * only to keep the Plan Editor's shell partials adjacent for a reader. Nothing here ties an
+ * equal-specificity rule declared anywhere else: the two selectors that reach a rule in another
+ * partial (`.rp-overlay-panel .rp-editor-layers` over `editor.css`'s `.rp-editor-layers`, and
+ * `.rp-inspector-drawer .rp-editor-inspector` over `editor-inspector.css`'s) each carry two
+ * classes against that rule's one, so they win on SPECIFICITY and would win from anywhere in
+ * the list.
+ *
+ * Every button rule here names its parent class as well as its own — `(0,2,0)` against
+ * Obsidian's `button:not(.clickable-icon)` at `(0,1,1)`, which `tests/build/buttonSpecificity.
+ * test.ts` checks for every button this project renders rather than trusting this comment.
+ */
+
+/*
+ * The rail takes the left edge in `constrained` and is the only thing beside the canvas there,
+ * so it is deliberately narrow: two text labels stacked, sized by their own content rather than
+ * by a width this file would have to guess.
+ */
+.rp-panel-rail {
+	display: flex;
+	flex: 0 0 auto;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	padding: var(--size-4-2) var(--size-4-1);
+	background-color: var(--background-secondary);
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.rp-panel-rail .rp-panel-rail__button {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-panel-rail .rp-panel-rail__button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-panel-rail .rp-panel-rail__button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/*
+ * The open one is marked by a BORDER and a fill, never by colour alone (SDD §85) — the same
+ * two-channel rule the floating Select button follows for `aria-pressed`.
+ */
+.rp-panel-rail .rp-panel-rail__button[aria-expanded='true'] {
+	background-color: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border);
+}
+
+/*
+ * Both containers cover one edge of `.rp-editor-body` — its `position: relative` in
+ * `editor.css` is what they resolve against — and neither needs a `z-index`: they are
+ * positioned siblings declared AFTER the canvas, which is what puts them above it.
+ *
+ * `min(17rem, 80%)` is the persistent Inspector's own 17rem, bounded so that the canvas behind
+ * stays visible at the narrow end of `constrained` — the panel is a look at something, and one
+ * covering the whole pane would be a screen rather than an overlay.
+ */
+.rp-overlay-panel,
+.rp-inspector-drawer {
+	display: flex;
+	position: absolute;
+	flex-direction: column;
+	width: min(17rem, 80%);
+	min-height: 0;
+	overflow-y: auto;
+	background-color: var(--background-secondary);
+	box-shadow: var(--shadow-s);
+}
+
+.rp-overlay-panel {
+	inset: 0 auto 0 0;
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.rp-inspector-drawer {
+	inset: 0 0 0 auto;
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * The panel inside fills the container rather than keeping the width and the edge border it
+ * carries as a COLUMN: those belong to the full layout's three-column row, and here the
+ * container is what draws the edge.
+ */
+.rp-overlay-panel .rp-editor-layers,
+.rp-inspector-drawer .rp-editor-inspector {
+	width: 100%;
+	overflow-y: visible;
+	border-right: none;
+	border-left: none;
+}
+
+.rp-overlay-panel .rp-overlay-panel__close,
+.rp-inspector-drawer .rp-inspector-drawer__close {
+	align-self: flex-end;
+	margin: var(--size-4-1) var(--size-4-1) 0;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-overlay-panel .rp-overlay-panel__close:hover,
+.rp-inspector-drawer .rp-inspector-drawer__close:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-overlay-panel .rp-overlay-panel__close:focus-visible,
+.rp-inspector-drawer .rp-inspector-drawer__close:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/*
+ * The container itself takes focus on mount so that Escape is heard immediately, which makes it
+ * a focus target with no visible ring of its own — `tabindex="-1"` never enters the Tab order,
+ * so this ring appears only for that programmatic focus and says where the keyboard is.
+ */
+.rp-overlay-panel:focus-visible,
+.rp-inspector-drawer:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.rp-unsupported-width {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--size-4-2);
+	max-width: 24rem;
+	padding: var(--size-4-4);
+	text-align: center;
+}
+
+.rp-unsupported-width .rp-unsupported-width__headline {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-medium);
+	color: var(--text-normal);
+	line-height: var(--line-height-tight);
+}
+
+.rp-unsupported-width__body {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.rp-unsupported-width .rp-unsupported-width__action {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-unsupported-width .rp-unsupported-width__action:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-unsupported-width .rp-unsupported-width__action:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}

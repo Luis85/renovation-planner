@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Consolidate the current and target editor data models]]"
 order: 10
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -34,3 +34,15 @@ A list can miss indirect event, migration or fixture contracts; review it agains
 ## Outcome
 
 One reviewed matrix describes the current editor model and every locked concept Feature A needs.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment
+(`docs/superpowers/specs/2026-09-02-plan-editor-foundation-read-path-design.md`). The inventory,
+the mapping matrix and the ranked gap register are
+`docs/development/consolidation/2026-09-editor-model-consolidation.md` §1, §2 and §4; Room/Zone,
+Floor/Plan, Existing/Planned/Work and the unsupported Inspector states each appear there by name,
+and §4 carries the finding that `Zone.domainNoteLink` sits on the entity and is absent from the v1
+DTO and mapper — classified, not fixed. This criterion set is about a DOCUMENT, so no test holds
+it; the report's §3 matrix is the only part with a runnable instrument, and that belongs to
+[[Prove editor persistence round trips]].

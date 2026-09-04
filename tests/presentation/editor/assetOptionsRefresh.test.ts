@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { ok } from '../../../src/core/result/Result';
 import { fakeQueries, mountPlanEditor, settle, settleUntil as until } from '../../helpers/editor';
-import { click, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { actionButton, click, rig } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
 import { makeAsset } from '../../helpers/entities';
@@ -33,7 +33,7 @@ describe('the assign picker options', () => {
 	it('repopulates when the catalogue-change event fires after the index was empty at mount', async () => {
 		// No assets at mount — the empty index a restored leaf reads.
 		const r = await rig();
-		toolbarButton(r.harness, 'Select').click();
+		actionButton(r.harness, 'Select').click();
 		click(r.harness.canvasEl as HTMLElement, 300, 300);
 		await until(() => r.harness.wrapper.text().includes('Assign'), 'assign control visible');
 

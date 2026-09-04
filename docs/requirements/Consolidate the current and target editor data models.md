@@ -2,9 +2,9 @@
 type: PBI
 parent: "[[Editor foundation]]"
 order: 10
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-02
+finished: 2026-09-03
 horizon: "MVP"
 start: ""
 due: ""
@@ -63,3 +63,22 @@ select, create, move, undo, redo, save or reload.
 - [Vertical-slice plan: WP0 and data-model specification](../user-experience/renovation-planner-editor-specs/Renovation%20Planner%20—%20First%20Vertical%20Slice%20Plan%20and%20Data-Model%20Specification.md)
 - [Editor implementation plan: Phase 0](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md)
 - [Locked editor specification set](../user-experience/renovation-planner-editor-specs/README.md)
+
+## Amendments
+
+**2026-09-03** — closed by the plan editor foundation's first increment
+(`docs/superpowers/specs/2026-09-02-plan-editor-foundation-read-path-design.md`, Wave 0). The
+Outcome is met in full: one reviewed inventory, mapping matrix and ranked gap register
+(`docs/development/consolidation/2026-09-editor-model-consolidation.md` §1, §2, §4), accepted
+Room/Zone and Plan/Floor decisions (ADR-0016, ADR-0017), one round-trip account backed by a
+contract test (`tests/infrastructure/persistence/editorRoundTrip.test.ts`, report §3), and one
+approved slice contract naming exactly what the first editor slice reads and writes.
+
+**Two of its Tasks stay Active on purpose, and this PBI is Done anyway.**
+[[Establish the editor migration and compatibility contract]] recorded the NO-CHANGE decision
+(spec §2.4, report §5) and can go no further until a schema transition exists to accept.
+[[Record remaining editor model and routing ADRs]] recorded ADR-HI, ADR-EPW, ADR-SO, ADR-RL and
+ADR-SV as DEFERRED with a first consumer and a trigger each (report §6) rather than accepting
+them, because no code in this increment reads any of them and a decision nothing pins drifts.
+Both are exactly what this PBI asked for — "no unresolved high-severity conflict remains" — and
+neither is a promise this increment left unkept.

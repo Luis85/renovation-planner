@@ -196,7 +196,7 @@ describe("the harness's own SFCs", () => {
 	// The other direction. The carve-out is one block setting one rule; a `files` entry that
 	// widened to `src/` would turn the logging policy off where it is the policy.
 	it('leaves the console ban in force under src/', async () => {
-		const config = await resolveConfig(path.join(REPO, 'src/presentation/editor/shell/EditorToolbar.vue'));
+		const config = await resolveConfig(path.join(REPO, 'src/presentation/editor/shell/EditorContextBar.vue'));
 
 		expect(severityOf(config, 'no-console')).toBe(2);
 	});

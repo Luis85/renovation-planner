@@ -29,7 +29,7 @@ import { createRepositoryStack } from '../helpers/vault';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../helpers/entities';
 import { expectOk } from '../helpers/domain';
 import { FakeLeaf } from '../helpers/workspace';
-import { installEditorEnvironment, settle, settleUntil } from '../helpers/editor';
+import { installEditorEnvironment, settle, settleUntil, sizedShellRoot } from '../helpers/editor';
 
 installEditorEnvironment();
 
@@ -51,6 +51,11 @@ async function restoreLeaf(plugin: { views: Map<string, (leaf: WorkspaceLeaf) =>
 	const view = factory?.(new FakeLeaf() as never) as PlanEditorView;
 	await view.onOpen();
 	await view.setState({ planId }, {} as never);
+	await settle();
+	// The pane Obsidian would have laid out. `ResponsiveEditorShell` reads its root's
+	// `clientWidth`, jsdom answers 0, and `layoutModeFor(0)` is `unsupported` — which draws the
+	// too-narrow notice instead of the canvas region every assertion below reads.
+	sizedShellRoot((view as unknown as { contentEl: HTMLElement }).contentEl);
 	await settle();
 	return view;
 }

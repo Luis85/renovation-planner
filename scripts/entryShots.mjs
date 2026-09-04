@@ -96,14 +96,14 @@ export const entryShots = (entry, width) => {
  * The mutation this exists to catch: `process.argv[2]` silently becoming `process.argv[3]` (or
  * any other index) inside `run()`. Every case in this file kept passing against that mutation
  * before this function existed — none of them ran the script, so none of them cared which
- * index it read — while `npm run harness-shot prototype:ZoneSummary` would write the fifteen
- * fixed PNGs instead of capturing the requested entry, and exit 0. Testing THIS function with
+ * index it read — while `npm run harness-shot prototype:ZoneSummary` would write every fixed
+ * shot in `SHOTS` instead of capturing the requested entry, and exit 0. Testing THIS function with
  * a real `argv` array closes that: it is the one place the index is read, and nothing else in
  * `harness-shot.mjs` inspects `argv` at all.
  *
  * An entry argument that is present but blank (`npm run harness-shot ""`) is a mistake, not an
  * absent argument — `entryShots('')` would still produce two loadable-looking filenames, so a
- * quoted empty string would otherwise run the fifteen fixed shots and exit 0 rather than
+ * quoted empty string would otherwise run every fixed shot in `SHOTS` and exit 0 rather than
  * reporting an unnamed entry. Truthiness alone conflates the two; this checks presence first.
  */
 const WIDTH_FLAG = /^--width=(.*)$/;

@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Editor foundation]]"
 order: 60
-status: New
-started: ""
+status: Active
+started: 2026-09-02
 finished: ""
 horizon: "MVP"
 start: ""
@@ -95,3 +95,77 @@ stable ID. Selection is ephemeral and never changes or writes the selected recor
 - [M01 — Standard Plan View](../user-experience/renovation-planner-editor-specs/screens/M01-standard-plan-view.md)
 - [M07 — Wall Selected](../user-experience/renovation-planner-editor-specs/screens/M07-wall-selected.md)
 - [Editor implementation plan: Phase 2](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md)
+
+## Amendments
+
+**2026-09-03** — advanced, not closed, by the plan editor foundation's first increment.
+
+Met: criterion 1 is `tests/presentation/editor/shell/roomInspector.test.ts`'s 'heading, canvas
+selection and Inspector share one id' beside
+`tests/presentation/editor/shell/roomSummaryList.test.ts`; criterion 2 is
+`tests/presentation/editor/selection/resolveSelectionTarget.test.ts`, where ONE function answers
+both the click and the hover — a handle of an already-selected record, then the topmost body, then
+nothing — and 'resolves the same target regardless of the order the same candidates arrive in'
+pins the determinism; criterion 3 is `tests/presentation/editor/tools/selectTool.test.ts`'s 'a
+hover with no gesture predicts the same target a click there would take' with the hover path never
+calling `selection.select`; criterion 4 is the pressed-row case; criterion 5 is
+`tests/presentation/editor/escapeRouting.test.ts` and 'clicking empty canvas clears the
+selection'; criterion 6 is the outline and vertex handles in
+`tests/presentation/editor/interactionLayer.test.ts`; criterion 7 is `SelectionStore` starting
+empty and `tests/presentation/editor/runtime.test.ts`'s retirement case, which never rebinds by
+name.
+
+Remains:
+
+- **Overlap cycling.** Extension 2a's "alternate/cycling route where supported" is out of scope by
+  spec §6.1: this increment has one record type, so the only overlap is a room over a room, and
+  the resolver's shape leaves room for cycling rather than implementing it. Recorded at
+  [[Resolve overlapping selection targets deterministically]].
+- **The contextual half of Select.** [[Compose predictive and contextual Select surfaces]] shipped
+  hover and the cursor; no direct convenience is rendered on a selection at all, so the criteria
+  about their Inspector and keyboard equivalents have no subject.
+
+**2026-09-04** — added to Met, and the third Remains bullet ("the cursor does not distinguish a
+body from a handle") deleted with it. The cursor says grab over a vertex handle of the selected
+room and pointer over its body — spec §6.2's own distinction, carried through
+`RenderState.hoveredTargetKind` beside the id rather than by widening the id — held by
+`tests/presentation/editor/canvasNavigation.test.ts`'s 'says grab over a vertex handle of the
+selected room and pointer over its body', whose third move off every body pins the resting cursor
+in the same case. And a hovered id the vault no longer holds is retired WITH the selection, so
+the outline and the cursor cannot contradict each other after a delete:
+`tests/presentation/editor/runtime.test.ts`'s 'a selected AND hovered zone that disappears from
+the next hydrate is retired from both, and the cursor stops promising it', with 'keeps a selected
+id that survives the next hydrate untouched' holding the other direction for the hover as well —
+without which an unconditional clear would pass the first case and take a live hover with it on
+every hydrate.
+
+**2026-09-03** — `routeEscape` (`src/presentation/editor/escapeRouting.ts`) deviates from §6.3 on
+purpose: the draft test runs before the tool test for every tool, not only a non-Select one, so
+Escape mid-drag under Select cancels the drag rather than clearing the selection, where §6.3 nests
+the draft question under "an active non-select tool" — a deliberate improvement, since a selection
+cleared out from under a hand still moving the mouse is worse than the drag being abandoned, pinned
+by `escapeRouting.test.ts`'s "Select mid-drag cancels the drag before it would clear the
+selection" case. **2026-09-04** — §6.3 was amended to this order; it is the contract now, not a deviation.
+
+**2026-09-04** — criteria 1, 2 and 3's evidence is replaced by three stronger cases from the
+instrument-review task. Criterion 1's evidence is
+`tests/presentation/editor/shell/roomInspector.test.ts`'s 'one real click on Kitchen: store, named
+outline and Inspector all carry zone-kitchen (the pressed row is roomSummaryList.test.ts's
+case)', which drives one real primary click through the mounted canvas rather than writing
+`SelectionStore` directly, and reads the `SelectionStore` id, the named `.selection-outline` line
+and the Inspector's `data-rp-id` in the same mount — the case it replaces never crossed the
+canvas-to-selection boundary; the pressed row's own stable id is
+`roomSummaryList.test.ts`'s case (fix round 1, 2026-09-04). Criterion 2's
+evidence is `resolveSelectionTarget.test.ts`'s 'is a function of z-order: the same ordered list
+answers the same, and reversing it makes the other body topmost', which replaces a case that
+computed both sides of its equality from the identical candidate order and so could not detect
+nondeterminism or an accidental reversal of the z-order rule. Criterion 3's evidence is
+`selectTool.test.ts`'s rewritten 'a hover with no gesture predicts the same target a click there
+would take', which now drives a real `pointerDown`/`pointerUp` at the hovered point over two
+overlapping candidates and asserts the selection lands on the predicted id, rather than only
+comparing two hovers. Closes [[The cross-surface identity test starts after selection]],
+[[The overlap-order test repeats the same candidate order]] and
+[[The hover-click agreement test never clicks]].
+
+- [[A deleted hover target keeps the target cursor active]]
+- [[A handle hover renders the body-selection cursor]]

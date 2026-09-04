@@ -108,6 +108,15 @@ the composition rather than admired:
   are no columns at all: the row is two lines and the reservation is released, because a column
   armature across wrapped rows aligns nothing a reader can follow.
 
+  **The Continue row is outside the columns too**, and that is the one exception a reader is most
+  likely to meet, because it sits directly above them. Its tail is two buttons rather than a tick
+  strip, so there is no width it could reserve that would put its status where the list's is:
+  measured in the shipped capture at 1280, its status word ends at x=1115 against the column's
+  1210 — **95px off**. Its date lands within a pixel of the facts column, and that is this
+  fixture's coincidence rather than an alignment. §7 already says that row is "in the same
+  armature as every other row, distinguished by … carrying a second action"; that is true of its
+  padding, its height and its name, and it is not true of these columns.
+
   Two remedies were rejected, and the reasons matter more than the choice:
 
   - **A grid across the list** (`display: grid` on the `<ul>`, rows `display: contents`) is the
@@ -121,10 +130,12 @@ the composition rather than admired:
     gives us, for the same reason the threshold is in `rem`.
 
   **What the reservation costs, measured rather than predicted.** Every row now occupies the
-  widest row's trailing width, so the container threshold rose from 36rem to 42rem and one
-  50-character name in the 30-row stress fixture truncates between 673px and roughly 715px where
-  before it truncated at no width at all. One row of thirty, in a 40px band, degrading as a long
-  name is designed to degrade.
+  widest row's trailing width, so the container threshold rose from 36rem to 41rem and one
+  50-character name in the 30-row stress fixture truncates from 657px to 715px where before it
+  truncated at no width at all. One row of thirty, in a 59px band, degrading as a long name is
+  designed to degrade. It is a band rather than a cliff: at its tightest width the second-longest
+  name has 117px of headroom. `styles/project-list-narrow.css` carries the derivation, and states
+  why shrinking the reserved slot would WIDEN that band rather than narrow it.
 - **From the sneaker-box wall — the end label is the whole index.** The row must say what it
   is at 460px. Narrow is a designed state with its own composition, never a fallback the wide
   one degrades into.

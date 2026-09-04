@@ -104,6 +104,29 @@ describe('project-list-narrow.css', () => {
 	});
 
 	/**
+	 * THE DERIVATION MUST PRODUCE THE NUMBER BESIDE IT, which is the one property a recorded
+	 * arithmetic has that a bare number does not — and the first version of this sheet did not
+	 * have it. It wrote `32 + 2 × 314.5 = 661px → 42rem`, reading 32 as the row's padding plus
+	 * BOTH its gaps, while the 314.5 already itemises the facts↔status gap: one 8px paid twice.
+	 * The rule's real output is 653px → 41rem. The shipped 42rem was harmless in pixels and not
+	 * harmless in the record, because a reader who does what the file asks — re-derive rather
+	 * than trust — gets a different number and concludes the file is wrong. Found in review.
+	 *
+	 * Read off the RAW text on purpose: the derivation lives in a comment, which is exactly what
+	 * every other case in this file strips, so this is the one question that has to ask the
+	 * unstripped file. Watched failing against the 42rem pairing before being trusted.
+	 */
+	it('ends its recorded derivation on the threshold it actually ships', () => {
+		const raw = readFileSync('styles/project-list-narrow.css', 'utf8');
+		const shipped = /@container rp-project-list \(max-width: (\d+)rem\)/u.exec(raw)?.[1];
+		const derived = /=\s*\d+px\s+→\s*[\d.]+rem\s+→\s*(\d+)rem/u.exec(raw)?.[1];
+
+		expect(shipped, 'the container query states a whole-rem threshold').toBeDefined();
+		expect(derived, 'the comment carries an arithmetic ending in a whole-rem answer').toBeDefined();
+		expect(derived).toBe(shipped);
+	});
+
+	/**
 	 * THE PAIR that makes a wrapped row readable, and either alone is the defect Task 12's first
 	 * capture found. `height: auto` releases Obsidian's fixed `--input-height` on the `<button>`,
 	 * without which the content wraps and the BOX does not — 41px of content in a 30px box, each

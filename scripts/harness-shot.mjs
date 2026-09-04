@@ -221,6 +221,25 @@ const SHOTS = [
 		selector: PROJECT_VIEW,
 		width: 460,
 	},
+	// THE FILTER FIELD WITH THE CARET IN IT, and this shot exists because nothing else here can
+	// see the one thing it photographs. Task D made the filter a bordered WRAPPER around a
+	// chrome-less input, which moves the focus ring from the input to `:focus-within` on that
+	// wrapper — and the ring is the half of that change with no other instrument: jsdom resolves
+	// no CSS, so `projectFilterStyles.test.ts` can assert the sheet DECLARES the rule and can
+	// never see whether the ring is drawn, is drawn twice, or is clipped by the border it sits
+	// outside of. This repository has already shipped exactly that defect once, on the harness
+	// index's own entry links, and the remedy it built then was a `focus`-selector shot.
+	//
+	// LIGHT, because that is the scheme `--interactive-accent` measures worst against (3.43:1
+	// there and 4.00:1 dark, both over WCAG 1.4.11's 3:1 floor for a non-text indicator), so a
+	// regression breaches here first — the same trade `index-focus` takes for the same reason.
+	//
+	// A RESTING shot cannot substitute: nothing is focused in a headless page until something
+	// presses Tab, which is what `focusForShot` does and why it does it that way — setting focus
+	// programmatically does not satisfy `:focus-visible`, and while THIS ring hangs off
+	// `:focus-within` rather than `:focus-visible`, the input's own suppressed host ring is
+	// `:focus-visible` and is half of what this picture is for.
+	{ name: 'home-filter-focus', query: '?projects=10&theme=light', selector: PROJECT_VIEW, focus: '.rp-project-filter__input' },
 	// The project view's DETAIL state (design slice 21), which the harness index cannot
 	// photograph: it mounts a component bare, and `ProjectDetail` requires three props and
 	// reads `project.name` immediately, so the picture would be the index's own failure card.

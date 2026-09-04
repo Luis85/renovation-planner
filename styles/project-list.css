@@ -111,6 +111,14 @@
  *
  * Released at narrow (`project-list-narrow.css`), where the row is two lines and a reserved
  * column aligns nothing a reader can follow.
+ *
+ * **UNSCOPED, where the facts reservation three rules up is scoped to `.rp-project-row` — and the
+ * asymmetry is stated because it is the exact shape of the defect that scoping fixed.** The facts
+ * rule needs the qualifier because `ContinueRow` reuses `.rp-project-row__facts` for its date;
+ * this class has no second emitter at all. `ContinueRow` renders its own status as a bare
+ * `.rp-project-list__status` and never wraps the word, so there is nothing here for a scope to
+ * exclude. If that row ever gains a `__status-word`, this rule needs the same qualifier its
+ * sibling has — and it will want it, because the Continue row has no column to be in.
  */
 .rp-project-row__status-word {
 	min-width: 20ch;
@@ -127,7 +135,7 @@
  * argument for a strip over a badge is that the stages ARE an arc, so a reader counting cells is
  * reading the real thing. The width bought is 58px against 39px, spent where there is room — the
  * strip is DROPPED below the container threshold, so the extra 19px exists only on the wide row,
- * and it is one of the two figures that moved that threshold from 36rem to 42rem.
+ * and it is one of the two figures that moved that threshold from 36rem to 41rem.
  */
 .rp-project-row__ticks {
 	display: flex;
@@ -148,9 +156,16 @@
  *
  * Both, in a real browser, at this cell size:
  *
- *                       light: on the page / against a reached cell     dark: same two
- *   --text-faint  #ababab      2.30                6.93                 2.97      4.11
- *   --text-muted  #5c5c5c      6.69                2.38                 8.13      1.50
+ * The hexes differ per scheme and are given per scheme, because these numbers are the evidence
+ * for a reversal a later reader may well want to re-check and a table labelled with one scheme's
+ * values is a table they cannot:
+ *
+ *                    light                            dark
+ *                    hex      on page  vs reached     hex      on page  vs reached
+ *   --text-faint     #ababab    2.30      6.93        #666666    2.97      4.11
+ *   --text-muted     #5c5c5c    6.69      2.38        #b3b3b3    8.13      1.50
+ *
+ * (`--text-normal` is #222222 light and #dadada dark; the page is #ffffff and #1c1c1c.)
  *
  * 1.50:1 is not a difference. Raising the token makes every unreached cell easy to see and makes
  * the strip stop saying anything at all in the dark scheme, which is the one scheme Obsidian

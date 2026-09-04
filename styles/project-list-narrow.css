@@ -34,30 +34,40 @@
  * window. `?phone` does not substitute for it either — that is a body class answering what the
  * plugin does when it believes it is on a phone.
  *
- * **42rem IS MEASURED, and it has been re-derived twice.** It began as a placeholder 34rem
+ * **41rem IS DERIVED, and it has been re-derived three times.** It began as a placeholder 34rem
  * chosen so a rule existed to measure against, became 36rem when Task 12 measured it in a real
- * browser IN GERMAN, and is 42rem since Task D widened the tick strip and gave the status and
+ * browser IN GERMAN, and is 41rem since Task D widened the tick strip and gave the status and
  * facts slots a reserved width. A threshold measured only in English is measured against the
  * easy case: the width at which a one-line row stops fitting is decided by the longest status
  * word, and `Bestandsdokumentation` (AS_BUILT) is 21 characters against `As built`'s 8.
  *
  * THE RULE, unchanged across all three derivations: **the name must keep at least as much room
  * as the trailing group it sits beside.** Below that the row stops being a named thing with
- * facts beside it and becomes facts with a name squeezed in. So the threshold is
- * `32 + 2 × trailingGroup`, where 32px is the row's own 16px of inline padding plus its two 8px
- * gaps, and `trailingGroup` is what the facts and the status occupy together.
+ * facts beside it and becomes facts with a name squeezed in.
  *
  * THE ARITHMETIC, so the number can be re-derived rather than trusted. Every figure below was
  * measured in a real browser at 12px `--font-ui-smaller`, where `1ch` is 7.641px:
  *
  *   facts slot        12ch                              =  91.7px  (`project-list.css`)
- *   gap                                                 =   8px    (`--size-4-2`)
+ *   gap  facts↔status                                   =   8px    (`--size-4-2`)
  *   status word slot  20ch                              = 152.8px  (`project-list.css`)
- *   gap                                                 =   4px    (`--size-2-2`)
+ *   gap  word↔strip                                     =   4px    (`--size-2-2`)
  *   tick strip        10 × 4px + 9 × 2px                =  58px
  *                                                        --------
  *   trailing group                                        314.5px
- *   threshold         32 + 2 × 314.5 = 661px  →  41.3rem  →  42rem
+ *
+ * A one-line row is `padding | name | gap | trailingGroup | padding`, so what is left for the
+ * name is `W − 16 − 8 − 314.5`, and the rule is that this is at least the trailing group:
+ *
+ *   W  ≥  16 + 8 + 2 × 314.5  =  653px   →  40.8rem  →  41rem
+ *
+ * **The 8px in that sum is the ONE gap outside the trailing group**, and getting this wrong is
+ * how the number arrived at 42rem on its first writing. That version said `32 + 2 × 314.5`,
+ * reading 32 as "16px of padding plus the row's TWO 8px gaps" — but the trailing group is
+ * measured from the facts' left edge to the status's right edge, so the facts↔status gap is
+ * already inside it and was being paid for twice. A derivation whose output disagrees with the
+ * number beside it is worse than no derivation, because a reader who re-derives concludes the
+ * FILE is wrong. Found in review; the rounding is up to the whole rem and nothing else.
  *
  * That sum is CHECKED against the tree rather than left as arithmetic: measured on the built
  * surface at 1280, the widest unmarked trailing group is **314.30px in BOTH locales** — the
@@ -78,11 +88,27 @@
  * as much room as the trailing group and no more, so a name LONGER than that still truncates on
  * a one-line row — and the reservation makes the trailing group bigger, which moves the width at
  * which that starts. Driven across widths in German on the 30-row stress fixture: one unmarked
- * name (`Hinterhaus, Dachgeschossausbau und Bestandsaufnahme`, 50 characters) truncates between
- * **673px and roughly 715px** and at no width above it, where before Task D it truncated at none
- * of them. That is one row of thirty, in a 40px band, degrading exactly as `forms.css` designs a
- * long name to degrade — an ellipsis with the full name in `title`. The marked row truncates in
- * that band too and is outside this threshold's protection either way, for the reason below.
+ * name (`Hinterhaus, Dachgeschossausbau und Bestandsaufnahme`, 50 characters, 379px) truncates
+ * from **657px — the first width above the threshold — to 715px inclusive**, and at no width
+ * above, where before Task D it truncated at none of them. One row of thirty, in a 59px band,
+ * degrading exactly as `forms.css` designs a long name to degrade: an ellipsis with the full name
+ * in `title`. The marked row truncates in the lower part of it too and is outside this
+ * threshold's protection at any width, for the reason below.
+ *
+ * **It is a band rather than a cliff, and that is measured too.** At 657px the name gets 318.7px
+ * and the SECOND-longest name in the fixture is 201px, so it has 117px of headroom — roughly
+ * thirty more characters — before it would join. The cost is an outlier's, not the list's.
+ *
+ * **SHRINKING THE STATUS SLOT DOES NOT SHRINK THE BAND, and the first version of this file
+ * offered it as the one-number escape hatch that would.** It does the opposite, because it moves
+ * BOTH numbers: at 16ch (sized for `Bestandsaufnahme`, the longest word in the un-collapsed
+ * `Projects` group rather than in the whole enum) the trailing group falls to 284.0px, so this
+ * threshold falls with it to `16 + 8 + 2 × 284.0 = 584px → 37rem`, and the band runs from 593px
+ * to about 688px — roughly 95px, wider than the 59px it was offered as a remedy for. "Saves 31px
+ * and shrinks the band" is true only if the threshold is frozen while the slot shrinks, which the
+ * rule above forbids. 20ch is the more defensible number and this is the reason, rather than the
+ * grudging one the first draft gave it. The real lever on the band is the RULE — asking the name
+ * for more than parity with the trailing group — and that is a design change, not one number.
  *
  * **The MARKED row is deliberately not what this protects, and that is a decision.** PRD §83's
  * marker measures 217px on its own in German, so a marked row's trailing content is far past
@@ -95,7 +121,7 @@
 	container-name: rp-project-list;
 }
 
-@container rp-project-list (max-width: 42rem) {
+@container rp-project-list (max-width: 41rem) {
 	/*
 	 * BOTH row kinds. Task 11 built `.rp-continue`, and Task 12's capture drew it at 460px for
 	 * the first time. It wraps to name / date · status / two buttons and its box grows to 66px —

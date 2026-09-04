@@ -574,7 +574,7 @@ describe('the headless harness capture script', () => {
 	 * that skips this list fail HERE rather than silently reducing what an argumentless run
 	 * captures.
 	 */
-	it('still defines the twenty-three fixed shots, so an argumentless run is unchanged', () => {
+	it('still defines the twenty-four fixed shots, so an argumentless run is unchanged', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
 		for (const name of [
@@ -587,6 +587,7 @@ describe('the headless harness capture script', () => {
 			'home-whole',
 			'home-stress-narrow',
 			'home-no-match-narrow',
+			'home-filter-focus',
 			'project-detail',
 			'project-detail-prices',
 			'project-detail-narrow',
@@ -609,7 +610,7 @@ describe('the headless harness capture script', () => {
 		// joining the set unwatched — which is exactly what happened to the two price shots.
 		// `name: '` counts one per entry: no other construct in this file uses that spelling,
 		// measured, and a stray one in a comment would over-count and fail rather than pass.
-		expect(source.match(/name: '/gu)?.length).toBe(23);
+		expect(source.match(/name: '/gu)?.length).toBe(24);
 	});
 
 	/**

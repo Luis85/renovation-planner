@@ -69,6 +69,15 @@ describe('RoomDraftStore', () => {
 		expect(draft.rect).toEqual({ x: 10_000 - 2100, y: 6_000 - 1900, width: 4200, depth: 3800 });
 	});
 
+	it('the numeric route centres the same way when depth is known before width', () => {
+		const draft = useRoomDraftStore();
+		draft.beginTask('Room 1');
+		draft.commitDimension('depth', '3.8', centre);
+		expect(draft.rect).toBeNull();
+		draft.commitDimension('width', '4.2', centre);
+		expect(draft.rect).toEqual({ x: 10_000 - 2100, y: 6_000 - 1900, width: 4200, depth: 3800 });
+	});
+
 	it('a numeric commit over an existing rect keeps the min corner and changes one side', () => {
 		const draft = useRoomDraftStore();
 		draft.beginTask('Room 1');
@@ -105,6 +114,22 @@ describe('RoomDraftStore', () => {
 		expect(draft.settledSize).toContain('4.2');
 		expect(draft.settledSize).toContain('3.8');
 		expect(draft.settledSize).toContain('15.96 m²');
+	});
+
+	it('clearRect and reset drop a previously announced sentence along with the rect it described', () => {
+		const draft = useRoomDraftStore();
+		draft.beginTask('Room 1');
+		draft.setRect({ x: 0, y: 0, width: 4200, depth: 3800 });
+		draft.settle();
+		expect(draft.settledSize).not.toBeNull();
+		draft.clearRect();
+		expect(draft.settledSize).toBeNull();
+
+		draft.setRect({ x: 0, y: 0, width: 4200, depth: 3800 });
+		draft.settle();
+		expect(draft.settledSize).not.toBeNull();
+		draft.reset();
+		expect(draft.settledSize).toBeNull();
 	});
 
 	it('geometry and area are null before any rect exists', () => {

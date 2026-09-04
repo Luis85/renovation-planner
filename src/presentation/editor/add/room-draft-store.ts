@@ -37,7 +37,7 @@ function polygonForRect(r: RoomRect): Polygon | null {
 	return isOk(result) ? result.value : null;
 }
 
-/** The sentence `settle()` writes to `settledSize` (§5.4); the copy key lands in Task 6. */
+/** The sentence `settle()` writes to `settledSize` (§5.4); the copy key is this task's own. */
 function settledSentenceFor(r: RoomRect): string {
 	return tr('editor.room.settled', {
 		width: formatMetres(r.width),
@@ -97,17 +97,23 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 			rect.value !== null && name.value.trim() !== '' && widthError.value === null && depthError.value === null && !submitting.value,
 	);
 
-	/** Escape's writer (§3): origin/width/depth/texts/errors cleared; name and keepAdding kept. */
+	/**
+	 * Escape's writer (§3): origin/width/depth/texts/errors cleared; name and keepAdding
+	 * kept. `settledSize` goes with the rect it described — the sentence names a rect that
+	 * no longer exists once `origin` is null, and `settle()`'s own contract ("the sentence
+	 * for rect, or null") says so, so this belongs to the function rather than to whichever
+	 * caller remembers to re-invoke `settle()`.
+	 */
 	function clearRect(): void {
 		origin.value = null;
 		widthMm.value = depthMm.value = null;
 		widthText.value = depthText.value = '';
 		widthError.value = depthError.value = null;
+		settledSize.value = null;
 	}
 
 	function beginTask(defaultName: string): void {
 		clearRect();
-		settledSize.value = null;
 		submitting.value = false;
 		name.value = defaultName;
 		nameTouched.value = false;

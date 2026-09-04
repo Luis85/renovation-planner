@@ -49,12 +49,12 @@ async function rigWithAssets(names: string[]) {
 }
 
 describe('the Requirements panel', () => {
-		it('says the zone has no requirements before anything is assigned', async () => {
+		it('says the selected room or area has no requirements before anything is assigned', async () => {
 			const r = await rig();
 			actionButton(r.harness, 'Select').click();
 			click(r.harness.canvasEl as HTMLElement, 300, 300);
 			await until(
-				() => r.harness.wrapper.text().includes('No requirements reference this room yet.'),
+				() => r.harness.wrapper.text().includes('No requirements reference this room or area yet.'),
 				'empty requirements message',
 			);
 			expect(expectOk(await r.requirementsRepo.listByZone('zone-a' as never))).toEqual([]);
@@ -71,7 +71,7 @@ describe('the Requirements panel', () => {
 		// post-command refresh has re-run the requirements query.
 		await until(
 			() => r.harness.wrapper.text().includes('Floor tiles')
-				&& !r.harness.wrapper.text().includes('No requirements reference this room yet.'),
+				&& !r.harness.wrapper.text().includes('No requirements reference this room or area yet.'),
 			'the requirement row appears',
 		);
 
@@ -93,7 +93,7 @@ describe('the Requirements panel', () => {
 		// notice the requirement becoming unrecoverable.
 		actionButton(r.harness, 'Undo').click();
 		await until(
-			() => r.harness.wrapper.text().includes('No requirements reference this room yet.'),
+			() => r.harness.wrapper.text().includes('No requirements reference this room or area yet.'),
 			'the assignment is undone',
 		);
 		expect(expectOk(await r.requirementsRepo.listByZone('zone-a' as never))).toEqual([]);
@@ -248,7 +248,7 @@ describe('the Requirements panel', () => {
 		expectOk(await r.assetsRepo.delete(areaAsset.entity.id, areaAsset.version));
 		// Re-select, which is what re-runs the panel's query.
 		click(r.harness.canvasEl as HTMLElement, 900, 900);
-		await until(() => !r.harness.wrapper.text().includes('Delete room'), 'the zone is deselected');
+		await until(() => !r.harness.wrapper.text().includes('Delete'), 'the zone is deselected');
 		click(r.harness.canvasEl as HTMLElement, 300, 300);
 
 		await until(

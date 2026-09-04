@@ -67,7 +67,7 @@ describe('deleting a Zone that Requirements reference', () => {
 	it('opens the dialog showing the count the QUERY answered, and remove-references deletes both', async () => {
 		const r = await selectZoneWithRequirements(2);
 
-		actionButton(r.harness, 'Delete room').click();
+		actionButton(r.harness, 'Delete').click();
 		await until(() => r.harness.wrapper.find('[data-rp-action="delete-anyway"]').exists(), 'the dialog');
 
 		// The row the descriptor was built from — the count AND the project name came from
@@ -90,7 +90,7 @@ describe('deleting a Zone that Requirements reference', () => {
 	it('delete-anyway strands the requirements marked stale rather than deleting them', async () => {
 		const r = await selectZoneWithRequirements(1);
 
-		actionButton(r.harness, 'Delete room').click();
+		actionButton(r.harness, 'Delete').click();
 		await until(() => r.harness.wrapper.find('[data-rp-action="delete-anyway"]').exists(), 'the dialog');
 		await dialogButton(r.harness, 'delete-anyway').trigger('click');
 
@@ -107,7 +107,7 @@ describe('deleting a Zone that Requirements reference', () => {
 	it('Cancel leaves the zone and its requirements exactly as they were', async () => {
 		const r = await selectZoneWithRequirements(1);
 
-		actionButton(r.harness, 'Delete room').click();
+		actionButton(r.harness, 'Delete').click();
 		await until(() => r.harness.wrapper.find('[data-rp-action="cancel"]').exists(), 'the dialog');
 		await dialogButton(r.harness, 'cancel').trigger('click');
 		await until(() => !r.harness.wrapper.find('[data-rp-action="cancel"]').exists(), 'the dialog closed');
@@ -121,9 +121,9 @@ describe('deleting a Zone that Requirements reference', () => {
 		const r = await rig();
 		actionButton(r.harness, 'Select').click();
 		click(r.harness.canvasEl as HTMLElement, 300, 300);
-		await until(() => r.harness.wrapper.text().includes('Delete room'), 'the panel shows the zone');
+		await until(() => r.harness.wrapper.text().includes('Delete'), 'the panel shows the zone');
 
-		actionButton(r.harness, 'Delete room').click();
+		actionButton(r.harness, 'Delete').click();
 		await until(
 			async () => expectOk(await r.zonesRepo.getById('zone-a' as never)) === null,
 			'the zone is deleted',
@@ -148,7 +148,7 @@ describe('deleting a Zone that Requirements reference', () => {
 			),
 		);
 
-		actionButton(r.harness, 'Delete room').click();
+		actionButton(r.harness, 'Delete').click();
 		await until(() => r.harness.wrapper.find('[data-rp-action="reassign"]').exists(), 'the dialog');
 		await dialogButton(r.harness, 'reassign').trigger('click');
 

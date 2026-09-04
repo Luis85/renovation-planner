@@ -355,7 +355,7 @@ export function actionButton(harness: EditorHarness, label: string): HTMLButtonE
  * Activates a tool through the runtime directly, for Pan/Draw zone/Calibrate — the three
  * gestures Task 13's shell offers no button for any more (`null` is camera mode/Pan;
  * `draw-polygon` is Draw zone; `calibrate` reaches the tool Task 14 gives its own door).
- * Select, Undo, Redo and Delete room still have real buttons and go through `actionButton`.
+ * Select, Undo, Redo and Delete still have real buttons and go through `actionButton`.
  */
 export function activateTool(harness: EditorHarness, id: ToolId | null): void {
 	runtimeOf(harness).setTool(id);

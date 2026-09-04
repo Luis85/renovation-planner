@@ -210,9 +210,11 @@ export const de: Partial<Record<StringKey, string>> = {
 	'view.project.failed.headline': 'Projekte konnten nicht geladen werden',
 	'editor.plan-failed.headline': 'Dieser Grundriss konnte nicht geladen werden',
 	'editor.refresh-failed': 'Dieser Grundriss konnte nach der letzten Änderung nicht neu gelesen werden; die Anzeige ist möglicherweise nicht aktuell.',
-	// „Zonen“, wie überall sonst in dieser Oberfläche — siehe `zone.listing-incomplete`.
+	// Reviewer round 1 (Task 6): eine Notiz, die nicht gelesen werden konnte, kann ein Raum
+	// oder eine Fläche sein — anders als `zone.listing-incomplete`, das weiterhin „Zonen“ sagt
+	// (kein `editor.`/`empty.plan.`-Präfix, also von der „nie Zone“-Regel nicht erfasst).
 	'editor.some-zones-unreadable':
-		'{count} Fläche(n) in diesem Grundriss konnten nicht gelesen werden und werden nicht gezeichnet. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
+		'{count} Raum/Räume oder Fläche(n) in diesem Grundriss konnten nicht gelesen werden und werden nicht gezeichnet. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'editor.plan-missing.headline': 'Diesen Grundriss gibt es nicht mehr',
 	'editor.plan-missing.body': 'Dieser Tab verweist auf einen Grundriss, der nicht mehr im Vault ist.',
 	'editor.plan-missing.action': 'Tab schließen',

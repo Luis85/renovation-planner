@@ -126,7 +126,7 @@ describe('an unexpected fault during a dispatch', () => {
 
 		const noticesBefore = Notice.shown.length;
 		zonesRepo.throwNext = true;
-		actionButton(harness, 'Delete room').click();
+		actionButton(harness, 'Delete').click();
 		// `settleUntil` rather than a fixed `settle()`: slice 10's delete flow reads the
 		// referencing requirements before it dispatches, so the number of ticks between the
 		// click and the write is a property of that flow rather than of this test.
@@ -139,7 +139,7 @@ describe('an unexpected fault during a dispatch', () => {
 		expect(harness.wrapper.text()).toContain('Kitchen');
 
 		// And the leaf still works: a second, clean delete goes through.
-		actionButton(harness, 'Delete room').click();
+		actionButton(harness, 'Delete').click();
 		await settleUntil(
 			async () => expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded.length === 0,
 			'the second delete lands',

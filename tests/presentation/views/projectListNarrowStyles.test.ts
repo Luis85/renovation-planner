@@ -116,6 +116,66 @@ describe('project-list-narrow.css', () => {
 	 * every other case in this file strips, so this is the one question that has to ask the
 	 * unstripped file. Watched failing against the 42rem pairing before being trusted.
 	 */
+	/**
+	 * EVERY RECORDED SUM MUST EQUAL ITSELF, and this case exists because the narrower one below
+	 * has a demonstrated blind spot rather than a theoretical one.
+	 *
+	 * That case pulls the threshold out of a line shaped `… = Npx → N.Nrem → Nrem`, so its regex
+	 * requires TWO arrows — and one commit after it landed, the paragraph EXPLAINING it shipped
+	 * `16 + 8 + 2 × 284.0 = 584px → 37rem`, which is 592 and carries one arrow. The identical
+	 * defect class, reintroduced in the prose about the correction, one arrow short of the
+	 * instrument built for it. Found in review.
+	 *
+	 * So this asks the question that does not depend on the shape of the line: any expression of
+	 * numbers joined by `+` and `×` and followed by `= n` is evaluated, and `n` must be the real
+	 * sum.
+	 *
+	 * **It would NOT have caught the original 42rem defect, and the review round that asked for
+	 * this case said it would.** Measured rather than accepted: that line was
+	 * `32 + 2 × 314.5 = 661px → 41.3rem → 42rem`, and 32 + 629 IS 661, and 661px IS 42rem once
+	 * rounded up, and 42rem is what shipped. Every mechanical check here passes on it. Its error
+	 * was in the MODEL — 32 was the wrong overhead, because it counted a gap the 314.5 already
+	 * contained — and no arithmetic checker can see a wrong premise. So the two cases in this
+	 * file cover a wrong SUM and a wrong TRANSCRIPTION between the derivation and the shipped
+	 * rule; a wrong MODEL is caught by a reader re-deriving it from the layout, which is exactly
+	 * how that one was caught. Written down because the alternative is a later reader trusting
+	 * these two to cover a class they do not reach.
+	 *
+	 * **What it deliberately does NOT ask**: that every number in the sheet be derivable. A
+	 * rounded figure, a measured one and an illustrative example are not arithmetic, and forcing
+	 * them to balance would make the sheet's prose unwritable. An `=` with a sum on its left is
+	 * the whole of the rule. Two lines here are correctly outside it and are the reason the rule
+	 * is spelled this way: `→ 40.8rem → 41rem` is a ROUNDING rather than a sum, and `32 + 2 ×
+	 * 314.5` is quoted with no result at all, being the erroneous version this file names.
+	 *
+	 * **Scoped to this sheet**, which is the one whose header is a derivation. Measured with this
+	 * same pattern rather than assumed: it finds **0** in `project-list.css` and **0** in
+	 * `project-filter.css`, and exactly the **3** below here. Extending the scan is one more path
+	 * in an array on the day a sibling grows one.
+	 */
+	it('balances every arithmetic derivation it records', () => {
+		const raw = readFileSync('styles/project-list-narrow.css', 'utf8');
+		const term = String.raw`[\d.]+(?:px)?(?:\s*×\s*[\d.]+(?:px)?)*`;
+		const sums = new RegExp(String.raw`(${term}(?:\s*\+\s*${term})+)\s*=\s*([\d.]+)`, 'gu');
+		const found = [...raw.matchAll(sums)];
+
+		// A widened pattern that matches nothing passes silently and is worse than no test at
+		// all. Three derivations are recorded here today — the strip's width, the threshold, and
+		// the counter-example the 16ch paragraph works through — so a pattern that stops reaching
+		// them fails HERE rather than going quiet.
+		expect(found.length, 'the scan reaches the derivations this sheet records').toBeGreaterThanOrEqual(3);
+
+		for (const [, expression, stated] of found) {
+			const sum = expression
+				.split('+')
+				.reduce((total, addend) => total + addend
+					.split('×')
+					.reduce((product, factor) => product * Number.parseFloat(factor), 1), 0);
+
+			expect(sum, `${expression.replace(/\s+/gu, ' ').trim()} = ${stated}`).toBeCloseTo(Number.parseFloat(stated), 5);
+		}
+	});
+
 	it('ends its recorded derivation on the threshold it actually ships', () => {
 		const raw = readFileSync('styles/project-list-narrow.css', 'utf8');
 		const shipped = /@container rp-project-list \(max-width: (\d+)rem\)/u.exec(raw)?.[1];

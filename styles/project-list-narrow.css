@@ -103,7 +103,7 @@
  * offered it as the one-number escape hatch that would.** It does the opposite, because it moves
  * BOTH numbers: at 16ch (sized for `Bestandsaufnahme`, the longest word in the un-collapsed
  * `Projects` group rather than in the whole enum) the trailing group falls to 284.0px, so this
- * threshold falls with it to `16 + 8 + 2 × 284.0 = 584px → 37rem`, and the band runs from 593px
+ * threshold falls with it to `16 + 8 + 2 × 284.0 = 592px → 37rem`, and the band runs from 593px
  * to about 688px — roughly 95px, wider than the 59px it was offered as a remedy for. "Saves 31px
  * and shrinks the band" is true only if the threshold is frozen while the slot shrinks, which the
  * rule above forbids. 20ch is the more defensible number and this is the reason, rather than the

@@ -336,10 +336,9 @@ function onBack(): void {
  * is no outcome for a second caller to receive, and joining the first press's promise would
  * dress an accidental repeat up as a request that was served. So `deleting` is a plain guard.
  *
- * It is what `onCreateAsset`'s `dialogs.current !== null` check does one function above, moved
- * to a flag because that check CANNOT work here: this flow awaits a query before it opens
- * anything, so during that window there is no dialog to see and the background is not yet
- * `inert`. Two presses inside it reach `dialogs.openDialog` twice (`DialogStackingError`, which
+ * It is what `onCreateAsset`'s `dialogs.current !== null` check does, moved to a flag because
+ * that check CANNOT work here: this flow awaits a query before it opens anything, so during
+ * that window there is no dialog to see and the background is not yet `inert`. Two presses inside it reach `dialogs.openDialog` twice (`DialogStackingError`, which
  * the catch above now records) or — for a referent-free asset, where no dialog opens at all —
  * dispatch twice, the second answering *"no longer there"* about a deletion that succeeded.
  *
@@ -347,8 +346,16 @@ function onBack(): void {
  * stays clickable and says nothing while a deletion runs, exactly as `New asset` does. Making
  * it report busy is a prop on `AssetInspector` and a state §3.5's actions row does not describe.
  *
- * A plain `let` rather than a `ref` because nothing renders it — `newAssetBusy` beside it is a
- * `ref` only because `NewAssetForm` is handed it.
+ * A plain `let` rather than a `ref` because nothing renders it — `newAssetBusy` in
+ * `onCreateAsset` is a `ref` only because `NewAssetForm` is handed it.
+ *
+ * (Both sentences said *"one function above"* and *"beside it"* for one commit, and neither
+ * was adjacent — `onCreateAsset` sits several declarations up. A DISTANCE is wrong the moment
+ * anything is inserted between the two, and correcting it to today's number would only reset
+ * the clock; a NAME is what stays true for the life of the file, which is the preference this
+ * branch already took for greps. Cosmetic, and worth correcting for that reason: the
+ * substantive comparison to `onCreateAsset` is right, and it is what makes a reader trust the
+ * paragraph.)
  *
  * **The position is captured BEFORE anything is dispatched**, because after a successful delete
  * there is no row left to ask. `rowPositionOf` is the whole of the reading: which list the row

@@ -375,8 +375,23 @@ describe("§3.5's Delete at a detached door", () => {
 		expect(lib.dispatched).toHaveLength(1);
 	});
 
-	/** The guard RELEASES: a second deletion in the same session is an ordinary gesture. */
-	it('releases the guard so a later deletion still runs', async () => {
+	/**
+	 * The guard RELEASES, asked once per EXIT PATH rather than once for the gesture.
+	 *
+	 * The reset lives in one shared `finally`, so by JS semantics every exit takes it and no
+	 * branch can forget — which is exactly why this is worth four cases rather than one. The
+	 * property that makes the shipped code safe is STRUCTURAL, and a later edit that "simplifies
+	 * away the `finally`" by resetting at the end of the happy path alone would wedge `Delete`
+	 * for the leaf's life with a suite that only ever exercised the happy path staying green.
+	 * A guard that never releases is a worse defect than the one it was added to fix.
+	 *
+	 * Each case presses, lets the flow reach its own exit, and presses AGAIN — asserting the
+	 * second press REACHED the flow rather than that anything succeeded, because what is under
+	 * test is the flag and not the outcome. Mutation-checked by moving the reset into the
+	 * success branch alone: the refused, cancelled and faulted cases redden and the success one
+	 * does not, which is what tells the four apart.
+	 */
+	it('releases the guard after a SUCCESS, so a later deletion still runs', async () => {
 		const entries = shelf('material', ['Alder plank', 'Birch plank']);
 		const lib = await library({ entries, referents: [] });
 		await lib.select(entries[0]?.assetId as AssetId);
@@ -388,6 +403,47 @@ describe("§3.5's Delete at a detached door", () => {
 			entries[0]?.assetId,
 			entries[1]?.assetId,
 		]);
+	});
+
+	it('releases the guard after a REFUSAL', async () => {
+		const entries = shelf('material', ['Alder plank']);
+		const lib = await library({ entries, referents: [], refuseWith: 'reference.referents-exist' });
+		await lib.select(entries[0]?.assetId as AssetId);
+		await lib.pressDelete();
+		await lib.pressDelete();
+
+		// TWO dispatches: the asset is still there after a refusal, so pressing again is an
+		// ordinary retry — and a wedged guard would leave the second press unable to make one.
+		expect(lib.dispatched).toHaveLength(2);
+	});
+
+	it('releases the guard after a CANCEL', async () => {
+		const entries = shelf('material', ['Alder plank']);
+		const lib = await library({ entries, referents: [GROUP] });
+		await lib.select(entries[0]?.assetId as AssetId);
+		await lib.pressDelete();
+		await lib.root.get('[data-rp-action="cancel"]').trigger('click');
+		await settle();
+
+		await lib.pressDelete();
+		await settle();
+
+		// The dialog is up a SECOND time, which is what the second press reaching the flow looks
+		// like from outside: a cancel dispatches nothing, so a dispatch count cannot see it.
+		expect(lib.root.find('.rp-dialog-references').exists()).toBe(true);
+	});
+
+	it('releases the guard after a FAULT', async () => {
+		const entries = shelf('material', ['Alder plank']);
+		const lib = await library({ entries, faultWith: new Error('the vault exploded') });
+		await lib.select(entries[0]?.assetId as AssetId);
+		await lib.pressDelete();
+		await lib.pressDelete();
+
+		// TWO faulted log lines: the second press reached the flow and faulted the same way.
+		// Asserted on the LOG rather than on `Notice.shown`, which cannot discriminate — slice
+		// 13's queue folds an identical message into a `(×N)` suffix on the notice already up.
+		expect(lines.filter((line) => line.event === 'library.deleteAsset.faulted')).toHaveLength(2);
 	});
 });
 

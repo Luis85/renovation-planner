@@ -4024,13 +4024,48 @@ it.** Worth reading as a set rather than as three items, because the set is the 
   `parseMetres` is the only place a `LengthRefusal` is minted and therefore the only path to a
   per-field message.
 
+- **A FOURTH came back on the next round, and it is the sharpest of the set: `formatMetres`
+  and `parseMetres` are an ENCODE/DECODE across a control the user can focus, and nothing had
+  asked them to agree.** `RoomDraftStore.setRect` writes the formatter's output into the two
+  editable width/depth fields, and their blur handler hands that same text back to
+  `parseMetres` — so focusing an untouched field and leaving it re-parses a rectangle nobody
+  edited. Both options of a one-line `toLocaleString` call were wrong for that job:
+  `maximumFractionDigits: 2` cannot express a millimetre, so a valid 1–4 mm side printed `0`
+  and came back `not-positive` (a good draft made uncreatable by a blur that changed nothing),
+  and 5 mm printed `0.01` and came back as 10 mm; and `en-US` GROUPS thousands with a comma
+  while `parseMetres` reads a comma as a DECIMAL separator on purpose, for a German numeric
+  keypad — so 999,999 mm printed `1,000` and came back as 1000 mm, **a silent 1000× shrink**,
+  from 999,500 mm upward rather than only at the `MAX_ROOM_SIDE_MM` boundary. `useGrouping:
+  false, maximumFractionDigits: 3` is the fix, three decimals being exactly millimetre
+  precision in metres because `parseMetres` rounds to the millimetre anyway.
+  **The property is what to remember rather than the options**:
+  `parseMetres(formatMetres(mm)).mm === mm` for every whole millimetre the draft can hold,
+  verified over all 1,000,000 of them (zero mismatches) and asserted over the two dangerous
+  ranges plus a prime-strided sweep. A separate display formatter was REFUSED on this file's own
+  "one rule with two doors is two rules unless one function holds it" — the door that would
+  drift is the one feeding the control — so the whole cost is that a side above 999 m reads
+  `1000` rather than `1,000`, against a maximum of exactly 1000 m. And the consequence has cases
+  at the STORE beside the property one at the formatter, because the numbers are only wrong once
+  they have been through a control; both were watched red against the reverted options, failing
+  as `not-positive` and as `1000` against `999999`.
+
 **The meta-point, and it is this file's oldest lesson arriving at its own final review.** That
 review closed two defects and wrote up six false sentences, and reported the branch as done.
-Every one of these three was live underneath it, and none is exotic: each is a rule already
+Every one of these four was live underneath it, and none is exotic: each is a rule already
 written down in this file or in the module next door, missing at exactly one door. **A review
 that finds defects is not evidence that the class is closed** — the two the final review found
 were the zero-side rectangle and the phantom brand, and the zero-side one has a THIRD door
 (`parseMetres`) that the same review did not look at while fixing the first two.
+
+**And the fourth arrived one round AFTER the three above were fixed and written up, which is
+the same sentence one level higher.** The round that closed them added a per-field refusal to
+`parseMetres` and never asked what WROTE the text `parseMetres` reads — so the encode/decode
+defect was sitting under the very function that round had just edited. Every one of these four
+was reachable by an ordinary gesture, all four passed `npm run check`, and the count of review
+rounds that have found "one more" on this branch is now five. The useful reading is not that
+the reviews are good, it is that **"the class is closed" is a claim with the same standing as
+any other claim in this repository: it needs an instrument, and until one exists the honest
+statement is that nobody has looked at the next door yet.**
 
 **The Renovation Planner Home increment has landed: the project list is a LAUNCHER.** The
 Renovation project view's list state draws a header, a filter that is also the pane's count

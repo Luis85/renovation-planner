@@ -2,11 +2,61 @@ import { describe, expect, it } from 'vitest';
 import { formatMetres, MAX_ROOM_SIDE_MM, parseMetres } from '../../../../src/presentation/editor/shell/formatLength';
 
 describe('formatMetres', () => {
-	it('prints world millimetres as metres with at most two decimals, en-US', () => {
+	it('prints world millimetres as metres, ungrouped, to millimetre precision', () => {
 		expect(formatMetres(4200)).toBe('4.2');
 		expect(formatMetres(3800)).toBe('3.8');
-		expect(formatMetres(4255)).toBe('4.26');
-		expect(formatMetres(1_234_560)).toBe('1,234.56');
+		expect(formatMetres(4255)).toBe('4.255');
+		expect(formatMetres(1_234_560)).toBe('1234.56');
+	});
+
+	/**
+	 * **THE ROUND TRIP, and it is the reason this function's shape is what it is.**
+	 * `RoomDraftStore.setRect` writes this output into the editable width/depth fields, and
+	 * their blur handler hands that same text back to `parseMetres` — so these two are not
+	 * merely a pair of formatters, they are an encode/decode across a control the user can
+	 * focus. Nothing had asked them to agree, and they did not:
+	 *
+	 * - **`maximumFractionDigits: 2` cannot express a millimetre.** A valid 1–4 mm side
+	 *   displayed as `0`, which `parseMetres` then refused as `not-positive` — so merely
+	 *   focusing and leaving an untouched field invalidated a draft that was fine, and 5 mm
+	 *   displayed as `0.01` and came back as 10 mm.
+	 * - **`en-US` GROUPS thousands, and `parseMetres` reads a comma as a DECIMAL separator**
+	 *   (deliberately — a German numeric keypad types one). So 999,999 mm formatted as
+	 *   `1,000` and reparsed as 1000 mm: a 1000× shrink, on an untouched blur, silently. It
+	 *   bites from 999,500 mm upward rather than only at the `MAX_ROOM_SIDE_MM` boundary,
+	 *   which is why the case below reaches for 999,999 and not just the maximum.
+	 *
+	 * The property is `parseMetres(formatMetres(mm)).mm === mm` for every whole millimetre the
+	 * draft can hold, which is exact because `parseMetres` rounds to the millimetre anyway —
+	 * so millimetre precision in metres is three decimals, and grouping has to go.
+	 *
+	 * Verified over ALL 1,000,000 valid values offline (zero mismatches); asserted here over
+	 * the sub-decimal range where rounding is dangerous, the top of the range where grouping
+	 * was, and a prime-strided sweep of the middle, so the case stays fast without being a
+	 * hand-picked set of the values that happen to work.
+	 */
+	it('round-trips every whole millimetre back through parseMetres', () => {
+		const samples = [
+			...Array.from({ length: 2000 }, (_, i) => i + 1),
+			...Array.from({ length: 1001 }, (_, i) => 999_000 + i),
+			...Array.from({ length: 100 }, (_, i) => 1 + i * 9973),
+			MAX_ROOM_SIDE_MM,
+		];
+
+		const broken = samples.filter((mm) => {
+			const parsed = parseMetres(formatMetres(mm));
+			return !parsed.ok || parsed.mm !== mm;
+		});
+
+		expect(broken).toEqual([]);
+	});
+
+	// The two shapes that made the round trip fail, named so a regression says WHICH.
+	it('emits no thousands separator and does not truncate a millimetre away', () => {
+		expect(formatMetres(999_999)).toBe('999.999');
+		expect(formatMetres(MAX_ROOM_SIDE_MM)).toBe('1000');
+		expect(formatMetres(2)).toBe('0.002');
+		expect(formatMetres(5)).toBe('0.005');
 	});
 });
 

@@ -60,6 +60,48 @@ describe('RoomDraftStore', () => {
 		expect(draft.depthError).toBeNull();
 	});
 
+	/**
+	 * **The consequence the round trip exists to prevent, driven the way a user meets it.**
+	 * `setRect` fills the two editable fields from `formatMetres`, and their blur handler hands
+	 * that text straight back through `parseMetres` — so focusing an untouched field and
+	 * leaving it is a full encode/decode of a rectangle nobody edited. Two shapes broke it and
+	 * each is a case below, because they fail differently and a single case would let the other
+	 * through:
+	 *
+	 * - a 2 mm side printed `0` under `maximumFractionDigits: 2`, so an untouched blur refused
+	 *   it as `not-positive` and a valid draft became uncreatable.
+	 * - a 999,999 mm side printed `1,000` because `en-US` groups thousands while `parseMetres`
+	 *   reads a comma as a decimal separator, so it came back as 1000 mm — the room silently
+	 *   shrank by a factor of 1000, with no error anywhere.
+	 *
+	 * Asserted at the STORE rather than on the formatter (which has its own property case)
+	 * because this is the reachable gesture: the numbers are only wrong once they have been
+	 * through a control.
+	 */
+	it('a blur on an untouched field leaves a millimetre-scale side exactly as it was', () => {
+		const draft = useRoomDraftStore();
+		draft.beginTask('Room 1');
+		draft.setRect({ x: 0, y: 0, width: 2, depth: 5000 });
+
+		draft.commitDimension('width', draft.widthText, centre);
+
+		expect(draft.widthError).toBeNull();
+		expect(draft.widthMm).toBe(2);
+		expect(draft.rect).toEqual({ x: 0, y: 0, width: 2, depth: 5000 });
+		expect(draft.valid).toBe(true);
+	});
+
+	it('a blur on an untouched field does not shrink a near-maximum side by a thousand', () => {
+		const draft = useRoomDraftStore();
+		draft.beginTask('Room 1');
+		draft.setRect({ x: 0, y: 0, width: 999_999, depth: 4000 });
+
+		draft.commitDimension('width', draft.widthText, centre);
+
+		expect(draft.widthError).toBeNull();
+		expect(draft.widthMm).toBe(999_999);
+	});
+
 	it('the numeric route places a rect centred on placeAt() once both sides are known', () => {
 		const draft = useRoomDraftStore();
 		draft.beginTask('Room 1');

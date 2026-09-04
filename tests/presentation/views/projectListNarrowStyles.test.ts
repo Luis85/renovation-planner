@@ -187,6 +187,58 @@ describe('project-list-narrow.css', () => {
 	});
 
 	/**
+	 * **THE SAME INSTRUMENT, ONE DOCUMENT FURTHER.** The case above holds this sheet's own
+	 * derivation against this sheet's own rule; the design spec states the number a THIRD time
+	 * (§6's amendment and §13's constraint 3), and until this case existed nothing compared it
+	 * to anything. That is the count-in-two-places defect this repository keeps paying for, on
+	 * a number that has already moved three times — 34rem placeholder, 36rem measured, 42rem,
+	 * 41rem — and each move had to be transcribed by hand into a document no gate reads.
+	 *
+	 * **THIS IS THE FIRST TEST IN THIS SUITE THAT READS `docs/`, and the rule it bends is
+	 * stated rather than skirted.** CLAUDE.md's testing section says `docs/` is user land and
+	 * that the suite must not depend on paths somebody reorganises while writing notes — which
+	 * is why the walkthrough fixtures are tracked twice, in `docs/tests/fixtures/` AND in
+	 * `tests/fixtures/`. That reasoning is about FIXTURES a case needs. It does not reach a
+	 * design CONTRACT, which is already referenced by path from CLAUDE.md, from the plan, from
+	 * every task brief and from the manual case: a move that leaves those five pointers dangling
+	 * is a defect, and a red test naming the file is a better way to find out than five silent
+	 * links. Duplicating the spec into `tests/` would be the fixtures' remedy applied to a
+	 * document whose whole value is that there is one of it.
+	 *
+	 * Guarded at both ends, because a regex over prose is the instrument this file already
+	 * records going quiet: the read fails loudly if the document has moved, and BOTH matches
+	 * must be found before either is compared. §6 and §13 are asserted separately rather than by
+	 * one sweep, so a build that amends one section and forgets the other fails at the section
+	 * it forgot rather than passing on the one it remembered.
+	 */
+	it('agrees with the threshold the design spec states, in both places the spec states it', () => {
+		const path = 'docs/user-experience/renovation-planner-home-DESIGN-SPEC.md';
+		const shipped = /@container rp-project-list \(max-width: (\d+)rem\)/u
+			.exec(readFileSync('styles/project-list-narrow.css', 'utf8'))?.[1];
+
+		expect(shipped, 'the container query states a whole-rem threshold').toBeDefined();
+
+		let spec: string;
+
+		try {
+			spec = readFileSync(path, 'utf8');
+		} catch {
+			throw new Error(`${path} is the contract this sheet implements and could not be read`);
+		}
+
+		// §6's amendment, which carries the arithmetic, and §13's constraint 3, which carries the
+		// rule a builder must not move the number without. Two distinct sentences, one number.
+		const stated = [
+			/→\s*[\d.]+rem\s*→\s*(\d+)rem/u.exec(spec)?.[1],
+			/it is `(\d+)rem`, and it comes from a DERIVATION/u.exec(spec)?.[1],
+		];
+
+		expect(stated.filter((value) => value !== undefined), `${path} states the threshold in both sections`)
+			.toHaveLength(stated.length);
+		for (const value of stated) expect(value).toBe(shipped);
+	});
+
+	/**
 	 * THE PAIR that makes a wrapped row readable, and either alone is the defect Task 12's first
 	 * capture found. `height: auto` releases Obsidian's fixed `--input-height` on the `<button>`,
 	 * without which the content wraps and the BOX does not — 41px of content in a 30px box, each

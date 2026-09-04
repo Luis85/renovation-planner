@@ -29,8 +29,11 @@ Preconditions: `npm run test-build`, this folder open as a vault, the plugin ena
 the other three and the completed one are made through the pane's own `New project`, which is
 what step 15 walks anyway.
 
-**Why a human is the only instrument for most of this.** Every one of the twelve rows below has
-its reason in the fourth column, and they fall into four groups:
+**Why a human is the only instrument for most of this.** **Thirteen of the sixteen rows below**
+are `obsidian` or `browser`; each carries its own reason in the table's **fifth** column, and
+those reasons fall into the four groups here. The other three — steps 5, 14 and 15 — are
+`suite`, reachable in jsdom with no new infrastructure, and they are in this case because it
+is about the surface rather than about what happens to be uncovered.
 
 - **Nothing on this surface has ever been in Obsidian.** Every picture taken of it is
   `npm run harness-shot` through the vendored `tests/harness/obsidian.css`, which is Obsidian's
@@ -56,12 +59,31 @@ its reason in the fourth column, and they fall into four groups:
 
 **What is already discharged elsewhere, so a runner does not re-derive it.** Seven fixed
 captures address this surface — `home-stress`, `home-stress-light`, `home-stress-de`,
-`home-whole`, `home-stress-narrow`, `home-no-match-narrow` and `home-filter-focus` — and four
-defects were found by reading them and are fixed: rows overlapping at 460px (a row is a
-`<button>` carrying Obsidian's fixed `height: var(--input-height)`), a wrapped row's second line
-pushed to opposite pane edges, the foot legend at 2.30:1, and a tick strip that read as one bar
-at 3px cells. Steps 2, 3, 4 and 13 are what a **themed** vault and a **real leaf** add to those
-readings, not a first look.
+`home-whole`, `home-stress-narrow`, `home-no-match-narrow` and `home-filter-focus` — and **five**
+defects were found by reading them, every one fixed and every one invisible to a green
+`npm run check`. **This list is the authoritative one**; the design spec's header amendment
+points here rather than keeping a second copy, because the first draft of these two documents
+disagreed about the count and the omitted defect was the one a runner is sent to look at.
+
+1. **Every row overlapped the row below it at 460px.** A row is a `<button>`, and Obsidian's own
+   `button` rule sets a **fixed** `height: var(--input-height)` — so the container query wrapped
+   the content to two lines and the box stayed one line tall: 41px of content in a 30px box.
+2. **The wrapped row's second line was pushed to opposite pane edges** by `forms.css`'s
+   `justify-content: space-between`, which is right for the wide row and applies to *every* line
+   of a wrapped one — 280px of nothing between `Ausführung` and `4 Pläne · EUR`.
+3. **The foot line's key legend measured 2.30:1**, against the 4.5:1 floor `PRODUCT.md` binds by
+   name — and it is the only place middle-click and modifier-click are discoverable at all.
+4. **The ten-step tick strip read as one filled bar** at 3px cells with 1px gaps: a proportion,
+   which is the one thing §6 argues the strip is not.
+5. **The filter's count rendered OUTSIDE the field's border** — a full-pane-width empty
+   rectangle with `10 projects` floating to the right of it, and no placeholder saying what
+   typing does. That is §3's teletext raise inverted: the field was furniture in the region
+   written to answer exactly that risk. **Step 1 is where a runner looks at what replaced it**,
+   so leaving this one off the list sent them to re-derive the finding this section exists to
+   spare them.
+
+Steps 1, 2, 3, 4 and 13 are what a **themed** vault and a **real leaf** add to those readings,
+not a first look.
 
 ## Steps
 

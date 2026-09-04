@@ -3621,6 +3621,31 @@ is **written and has not been run**. The rules that came out of building it:
   balancing case; a wrong TRANSCRIPTION → the arrow case; a wrong MODEL → a human re-deriving
   from the layout, which is how it was found. Write that division down beside the checker, or
   its next reader trusts it for a class it does not reach.
+
+  **Two of that division's three arms have since been NARROWED, by asking what the derivation's
+  inputs rest on rather than what its arithmetic does.** The threshold's own document stated the
+  number a THIRD time and nothing compared it to anything, so the arrow case is pointed at the
+  design spec too — the first test in this suite that reads `docs/`, with the `docs/`-is-user-land
+  rule it bends stated at the code and the reason a design CONTRACT is not the fixture that rule
+  was written about. And the PREMISE under the whole sum — that `Bestandsdokumentation` is the
+  longest translated stage word, which sizes the `20ch` slot and through it the threshold — lived
+  in three prose copies with `grep -rln Bestandsdokumentation tests/` printing nothing, under a
+  sentence predicting its own failure: *a status label retranslated longer would move the 41rem
+  threshold and nothing would show it.* `projectListStyles.test.ts` re-runs the `max` over the
+  shipped `de.ts` now. **What it deliberately does not claim is the useful half**: it compares
+  CHARACTER COUNTS and the slot is in `ch`, jsdom measures no text, so a new winner still needs
+  a human to measure it — the case is what tells them to. **A premise is not automatically
+  uncheckable because the quantity it decides is unmeasurable here**, and "nothing can check
+  this" is worth one attempt before it is written down as a residue.
+- **A COUNT in one document and a LIST of the same thing in another disagree in the commit that
+  writes both.** This file's whole account of counts is about them going stale over time; this
+  one was wrong at birth. The spec's header said the captures found *five* defects; the manual
+  case enumerated *four*; one author, one commit, twenty minutes apart — and the omitted fifth
+  was the resting filter field, which is exactly what that case's step 1 sends a runner to
+  inspect, so the section written so a runner *"does not re-derive it"* sent them to re-derive
+  it. The remedy is not a more careful number: **one document holds the list and the other
+  points at it**, so there is no second copy to disagree. Found by a reviewer reading the two
+  halves of one commit against each other, which is the reading nobody does on their own work.
 - **A capture that cannot SEE what it certifies reads exactly like one that can, and removing
   the obstacle was not enough.** The no-match shot was graded as proving `overflow-wrap:
   anywhere` while its query was hyphenated — a hyphen-minus is a UAX #14 break opportunity, so

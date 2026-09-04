@@ -16,7 +16,12 @@ the captures that must be taken before this ships.
 **Amended 2026-09-04, after the surface was built.** The captures section 10 asked for exist —
 seven fixed shots, `home-stress`, `home-stress-light`, `home-stress-de`, `home-whole`,
 `home-stress-narrow`, `home-no-match-narrow` and `home-filter-focus` — and reading them found
-five defects no gate could see, three of which changed sentences in this document. Every
+defects no gate could see, three of which changed sentences in this document.
+**`docs/tests/cases/Find and resume a project.md` enumerates them and is the only place that
+does**: this paragraph carried a COUNT and that case carried a LIST, they disagreed by one in
+the commit that wrote both, and the missing one was the resting filter field — which is
+precisely what that case's step 1 sends a runner to inspect. A number and a list of the same
+thing in two documents is a disagreement waiting to happen; there is one list now. Every
 amendment below carries its date and says what it replaced rather than overwriting it, because
 a criterion that quietly keeps its old wording is how the gap between promise and check
 reopens. **Two limits ride with every measured figure quoted here**: those captures were taken
@@ -382,12 +387,29 @@ width. A threshold validated only in English is not validated.
 correction.** It is not *chosen from a capture at 460px*: 460 is the width the row is
 INSPECTED at, and a threshold read off one capture is a number somebody picked. It is
 DERIVED, from a rule stated with the rule — *the name must keep at least as much room as the
-trailing group beside it* — over a trailing group measured on the built surface at **314.5px**
-in both locales, giving `W ≥ 16 + 8 + 2 × 314.5 = 653px → 40.8rem → 41rem`.
-`styles/project-list-narrow.css` carries the arithmetic; two cases in
-`projectListNarrowStyles.test.ts` hold it against the shipped rule, one requiring every
-recorded sum to balance and one requiring the derivation's final `→ Nrem` to equal the
-container query's own number.
+trailing group beside it* — over a trailing group of **314.5px**, giving
+`W ≥ 16 + 8 + 2 × 314.5 = 653px → 40.8rem → 41rem`.
+
+**That 314.5 is the ARITHMETIC total of the reserved components, not a measurement — and this
+amendment's own first draft said "measured on the built surface at 314.5px".** The two numbers
+are close and they are not the same claim: the components sum to 314.5px (a 12ch facts slot,
+an 8px gap, a 20ch status word, a 4px gap and a 58px strip, at `1ch = 7.641px`), while the
+trailing group **measured** on the built surface at 1280 is **314.30px in both locales**, the
+0.2px being `ch` rounding. `styles/project-list-narrow.css` records both and treats the
+measurement as a CHECK on the sum rather than as its source. Corrected rather than smoothed
+over, because two paragraphs below this one the same amendment makes *"count characters to make
+the argument and MEASURE to size a slot, because the two numbers are not the same one"* its own
+lesson — and then broke it, about the very number that lesson multiplies into the threshold.
+
+`styles/project-list-narrow.css` carries the arithmetic, and **three** cases in
+`projectListNarrowStyles.test.ts` hold it: every recorded sum must balance, the derivation's
+final `→ Nrem` must equal the container query's own number, and **the number THIS DOCUMENT
+states — here and again at §13's constraint 3 — must equal it too.** That third one is the
+reason a reader can trust the `41rem` in this sentence: until it existed, the spec stated the
+threshold a third time and nothing compared it to anything, on a number that has already moved
+three times and been transcribed by hand into a document no gate reads. It is the first test in
+this repository's suite that reads `docs/`, and its own docblock states the rule that bends and
+why a design contract is not the fixture that rule was written about.
 
 **And the German example is the wrong one, in the direction that makes the argument bigger.**
 The longest German status word is not `Bestandsaufnahme` but **`Bestandsdokumentation`**
@@ -402,6 +424,18 @@ the advance of `0`, and these are lowercase letters — against `Bestandsaufnahm
 `Procurement`'s 10.037ch. The slot is `20ch`, which is the measured figure rounded up and not
 the character count; reading 21 characters as 21ch would over-reserve nearly a whole
 character's width on every row in the list, and reading it the other way would clip.
+
+**And *which word won* is now a test rather than three prose copies of one derivation.** It was
+stated in this section, in `project-list.css`'s rule comment and in
+`project-list-narrow.css`'s threshold — and `grep -rln Bestandsdokumentation tests/` printed
+nothing, on a premise that multiplies into the 20ch slot and through it into the 41rem
+threshold. §15's own amendment names the exposure in as many words: *a status label
+retranslated longer would move the 41rem threshold and nothing would show it.*
+`projectListStyles.test.ts` takes the longest of the ten German stage labels the shipped table
+actually holds and requires the sheet's recorded winner to be that word, plus that the recorded
+width still fits the slot. **What it deliberately does not claim**: it compares CHARACTER
+COUNTS, jsdom measures no text, and a new winner still needs a human to measure its `ch` width.
+The case is what tells them to — which is the whole of what a capture nobody takes could not do.
 
 **Three ways that derivation can be wrong, and only two of them have an instrument** — written
 here because the number moved three times (34rem provisional → 36rem measured → 41rem after

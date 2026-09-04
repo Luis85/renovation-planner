@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { de } from '../../../src/presentation/i18n/locales/de';
+import { PROJECT_STATUS_LABELS } from '../../../src/presentation/views/projectStatusLabels';
 
 /**
  * jsdom resolves no CSS, so a class whose rule is one word off renders the base look with
@@ -167,6 +169,50 @@ describe('project-list.css', () => {
 		expect(facts).toContain('text-align: right');
 		expect(word).toMatch(/min-width: \d+ch/u);
 		expect(word).toContain('text-align: right');
+	});
+
+	/**
+	 * **THE PREMISE UNDER THAT `20ch`, which lived only in prose and predicted its own failure.**
+	 * The status slot is sized for the longest translated stage word across `en.ts` and `de.ts`,
+	 * and the winner is `Bestandsdokumentation` (AS_BUILT). Three separate documents say so in
+	 * sentences — this sheet's own rule comment, `project-list-narrow.css`'s threshold
+	 * derivation (which multiplies this slot into the 41rem container query) and the design
+	 * spec's §6 — and until this case existed, `grep -rln Bestandsdokumentation tests/` printed
+	 * nothing. The spec's §15 amendment states the exposure in as many words: *"a status label
+	 * retranslated longer would move the 41rem threshold and nothing would show it."*
+	 *
+	 * So the derivation is re-run here rather than trusted: take the longest of the ten German
+	 * stage labels the shipped table actually holds, and require the sheet's own recorded winner
+	 * to be that word. A `de.ts` retranslation that overtakes it reddens this case on the next
+	 * run instead of waiting for somebody to take a capture and look at it.
+	 *
+	 * **What it CANNOT do, said plainly, because the reviewer's phrasing invites the wider
+	 * reading.** It compares CHARACTER COUNTS and the slot is in `ch` — the advance of `0` —
+	 * and those are different numbers: `Bestandsdokumentation` is 21 characters and 19.145ch,
+	 * because these are lowercase letters. jsdom measures no text, so no test here can derive a
+	 * `ch` width from a string. What the third assertion does instead is compare the sheet's own
+	 * RECORDED measurement against the width it actually ships, which is the same shape as
+	 * `project-list-narrow.css`'s arrow case: a slot shrunk below the figure it was sized from
+	 * fails here. A NEW winner still needs a human to measure it — this case is what tells them
+	 * to, which is the whole gap it closes.
+	 *
+	 * Guarded against matching nothing at both ends: ten labels must resolve, and the `WHAT WON`
+	 * line must parse. A regex that stops reaching either fails here rather than going quiet.
+	 */
+	it('sizes the status slot from the longest stage word the locale tables actually hold', () => {
+		const raw = readFileSync('styles/project-list.css', 'utf8');
+		const german = Object.values(PROJECT_STATUS_LABELS).map((key) => de[key]);
+
+		expect(german.filter((label) => label !== undefined)).toHaveLength(german.length);
+
+		const longest = german.reduce((winner, label) => ((label ?? '').length > (winner ?? '').length ? label : winner), '');
+		const recorded = /WHAT WON: \*\*`(\S+)` \(\w+\) at [\d.]+px = ([\d.]+)ch\*\*/u.exec(raw);
+
+		expect(recorded, 'the rule records which word it was sized from, and at what width').not.toBeNull();
+		expect(recorded?.[1], 'the recorded winner is still the longest German stage word').toBe(longest);
+		expect(Number.parseFloat(recorded?.[2] ?? 'NaN')).toBeLessThanOrEqual(
+			Number.parseFloat(/min-width: (\d+)ch/u.exec(bodyOf('.rp-project-row__status-word'))?.[1] ?? 'NaN'),
+		);
 	});
 
 	/**

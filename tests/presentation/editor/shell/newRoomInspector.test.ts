@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { mountPlanEditorCanvas, runtimeOf, settle, settleUntil as until } from '../../../helpers/editor';
@@ -153,6 +153,28 @@ describe('NewRoomInspector', () => {
 		harness.unmount();
 	});
 
+	/**
+	 * An `aria-describedby` naming an id no element carries is the ARIA defect axe reports as
+	 * `aria-valid-attr-value`, and the hint it names is rendered only while the draft is
+	 * blocked. Both states are asserted here rather than only the blocked one, because the
+	 * dangling half is the half that reads as correct in every screenshot.
+	 */
+	it('the Create button describes a real element while blocked, and nothing at all once valid', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		const create = harness.wrapper.find('button.rp-new-room__create');
+		const hintId = create.attributes('aria-describedby');
+		expect(harness.wrapper.find(`#${hintId}`).exists()).toBe(true);
+		runtime.roomDraft.setRect({ x: 0, y: 0, width: 4200, depth: 3800 });
+		await settle();
+		expect(create.attributes('aria-disabled')).toBe('false');
+		expect(create.attributes('aria-describedby')).toBeUndefined();
+		expect(harness.wrapper.find('.rp-new-room__hint').exists()).toBe(false);
+		harness.unmount();
+	});
+
 	it('typing in the name field writes the draft name', async () => {
 		const harness = await mountPlanEditorCanvas();
 		const runtime = runtimeOf(harness);
@@ -188,13 +210,19 @@ describe('NewRoomInspector', () => {
 
 	/**
 	 * The `aria-disabled` promise is kept at the CONTROL and not only at the action:
-	 * `onCreate` asks `canCreateRoom` before it dispatches anything.
+	 * `onCreate` asks `canCreateRoom` and dispatches NOTHING when it answers false.
 	 *
-	 * What this case cannot tell apart, said rather than implied: `createRoomFromDraft`
-	 * answers `'invalid'` for this same draft and writes nothing either way, so a build with
-	 * the guard deleted passes it too. It covers the refusing arm and pins the OUTCOME a user
-	 * pressing an `aria-disabled` button must get — a control announced as disabled that still
-	 * writes is the defect — while the guard itself rests on review.
+	 * **The non-invocation is what this asserts, and the outcome alone would not have.**
+	 * `createRoomFromDraft` independently answers `'invalid'` for this same draft, so "no zone
+	 * was written" and "the tool stayed" are both true of a build with the guard deleted —
+	 * the earlier draft of this case checked exactly those two and discriminated nothing.
+	 * Spying on `runtime.createRoom` is what tells the two builds apart: the runtime is a
+	 * plain per-leaf object and `onCreate` looks the member up at call time, so a spy
+	 * installed after mount is on the door the component actually takes. Mutation-checked by
+	 * deleting the guard line and watching this go red at `not.toHaveBeenCalled()`.
+	 *
+	 * The outcome assertions stay beside it: a control announced as disabled that still writes
+	 * is the defect, and a spy alone would not say the vault was left alone.
 	 */
 	it('pressing Create while the draft is incomplete writes nothing', async () => {
 		const { harness, zonesRepo } = await rig();
@@ -205,8 +233,10 @@ describe('NewRoomInspector', () => {
 		await settle();
 		const create = harness.wrapper.find('button.rp-new-room__create');
 		expect(create.attributes('aria-disabled')).toBe('true');
+		const createRoom = vi.spyOn(runtime, 'createRoom');
 		await create.trigger('click');
 		await settle();
+		expect(createRoom).not.toHaveBeenCalled();
 		expect(expectOk(await zonesRepo.listByPlan(PLAN_DTO.id as never)).loaded).toHaveLength(1);
 		expect(runtime.activeToolId.value).toBe('draw-room');
 		harness.unmount();

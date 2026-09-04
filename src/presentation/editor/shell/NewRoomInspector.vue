@@ -18,6 +18,12 @@
  * makes is kept at the control and not only inside the action — a guard on a door nobody
  * dispatches through is a guard nobody has.
  *
+ * **That description is bound only while the draft is BLOCKED**, because the element it names
+ * is rendered only then: an `aria-describedby` pointing at an id no element carries is what
+ * axe reports as `aria-valid-attr-value`, and it would have been this component's one ARIA
+ * defect. Two states, one condition — `runtime.canCreateRoom` decides the attribute and the
+ * `v-if` alike, so the reference and its target cannot disagree.
+ *
  * **`settledSize` is announced and the live width/depth are not** (§5.4). The `<dl>` figures
  * are ordinary reactive reads that change on every pointer move; the `role="status"` element
  * carries the sentence `RoomDraftStore.settle()` writes on a drag's END and on a numeric
@@ -61,7 +67,15 @@ const SUGGESTIONS: readonly StringKey[] = [
 	'editor.room.suggestion.office',
 ];
 
-/** Rendered where a figure would otherwise be, for a rectangle that is not sized yet. */
+/**
+ * Rendered where a figure would otherwise be, for a rectangle that is not sized yet.
+ *
+ * A bare glyph rather than a `StringKey`, and the exemption is deliberate: an en dash is
+ * PUNCTUATION standing in for a number, identical in every language this plugin ships, so a
+ * locale entry for it would be one more key two translators have to keep saying the same
+ * thing. It is the same call `FieldError`'s own `⚠` already makes. The moment this needs a
+ * WORD — "not sized yet" — it stops being punctuation and owes a key.
+ */
 const NO_FIGURE = '–';
 
 const runtime = useEditorRuntime();
@@ -219,7 +233,7 @@ onBeforeUnmount(() => {
 				type="button"
 				class="rp-new-room__create"
 				:aria-disabled="!runtime.canCreateRoom.value"
-				:aria-describedby="hintId"
+				:aria-describedby="runtime.canCreateRoom.value ? undefined : hintId"
 				@click="onCreate"
 			>
 				{{ tr('editor.room.create') }}

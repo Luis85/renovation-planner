@@ -590,6 +590,8 @@ describe('the headless harness capture script', () => {
 			'plan-editor-light',
 			'plan-editor-selected',
 			'plan-editor-add-menu',
+			'plan-editor-add-room',
+			'plan-editor-add-room-narrow',
 			'plan-editor-narrow',
 			'plan-editor-unsupported',
 			'asset-designer-dark',
@@ -656,6 +658,30 @@ describe('the headless harness capture script', () => {
 		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' above
 		// for why a bare `PLAN_EDITOR_VIEW` wait is exactly the defect being refused here.
 		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
+	});
+
+	/**
+	 * Task 14's two ROOM shots, pinned the same way the three above them are: what makes each
+	 * one differ from `plan-editor-add-menu` is not that its name exists but that `?room=` is
+	 * on the query — the knob that walks Add → Room → the two length fields. Lose that
+	 * parameter and both shots photograph the resting editor under new names and exit 0.
+	 *
+	 * Their SELECTORS differ from each other and that is the pinned property rather than a
+	 * detail: at full width the form is a column of the shell, so the wait is the settled
+	 * sentence the numeric route writes — `:not(:empty)` because `.rp-new-room__settled` is in
+	 * the DOM from the first render (a live region attributed on a container that APPEARS
+	 * announces nothing) and holds text only once both sides are committed. At 460 px the same
+	 * form lives in a drawer the knob closes behind itself, so nothing of it is on screen and
+	 * the banner's Finish is what proves the task is running.
+	 */
+	it('takes the room task at both widths, through the ?room knob, waiting on what each width can show', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-add-room'[^}]*query: '\?view=plan-editor&room=4200x3800/);
+		expect(source).toMatch(/name: 'plan-editor-add-room'[^}]*selector: '\.rp-new-room__settled:not\(:empty\)'/);
+		expect(source).toMatch(/name: 'plan-editor-add-room-narrow'[^}]*query: '\?view=plan-editor&room=4200x3800/);
+		expect(source).toMatch(/name: 'plan-editor-add-room-narrow'[^}]*selector: '\.rp-task-banner__finish'/);
+		expect(source).toMatch(/name: 'plan-editor-add-room-narrow'[^}]*width: 460/);
 	});
 
 	/**

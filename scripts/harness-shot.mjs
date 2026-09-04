@@ -259,6 +259,29 @@ const SHOTS = [
 		selector: '.rp-room-inspector',
 	},
 	{ name: 'plan-editor-add-menu', query: '?view=plan-editor&add&theme=light', selector: '.rp-add-menu' },
+	// Task 14's two: the ROOM TASK under way at both widths, reached through `?room=<w>x<d>`,
+	// which presses Add, the catalogue's Room item and then both length fields — the numeric
+	// route of design spec §3, so the picture shows a placed rectangle nobody dragged.
+	//
+	// The two wait on DIFFERENT elements because the two widths can show different things. At
+	// full width the form is a column of the shell, so the wait is the sentence the numeric
+	// route itself writes — `:not(:empty)` because `.rp-new-room__settled` is a live region
+	// present from the first render (a `role="status"` attributed on a container that APPEARS
+	// announces nothing) and carries text only once both sides are committed, which is exactly
+	// "the knob landed" rather than "the form mounted". At 460px that form is inside a drawer
+	// the knob opens to type in and closes behind itself, so none of it is on screen: the
+	// banner's Finish is what is left, and it is the honest wait there.
+	{
+		name: 'plan-editor-add-room',
+		query: '?view=plan-editor&room=4200x3800&theme=light',
+		selector: '.rp-new-room__settled:not(:empty)',
+	},
+	{
+		name: 'plan-editor-add-room-narrow',
+		query: '?view=plan-editor&room=4200x3800&theme=light',
+		selector: '.rp-task-banner__finish',
+		width: 460,
+	},
 	// A LIST rather than one selector (R14, 2026-09-04): the canvas alone attaches before the
 	// constrained-layout reflow has actually happened, so a wait on it could complete with the
 	// Layers/Details rail not yet on screen — the same wrong-state shape as `plan-editor-dark`'s

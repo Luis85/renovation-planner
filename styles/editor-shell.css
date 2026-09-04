@@ -281,13 +281,36 @@
 /*
  * Task 18's temporary task banner — the top edge's counterpart to `.rp-primary-actions` at the
  * bottom, resolved against the same `.rp-plan-canvas` ancestor for the reason given above it.
+ *
+ * **CENTRED BY `margin-inline: auto` BETWEEN TWO INSETS, NOT BY `left: 50%` AND A TRANSFORM**,
+ * and the difference is a whole layout rather than a spelling. An absolutely positioned box
+ * with `left: 50%`, `right: auto` and a shrink-to-fit width may only be as wide as the space
+ * from that 50% to the containing block's right edge — the transform slides the box afterwards
+ * and buys back none of that width, because it is not layout. So this banner was capped at
+ * HALF the canvas whatever the pane could afford: at 1280px "Adding a room" broke mid-phrase
+ * across two lines beside a three-line instruction, and at an Obsidian sidebar's 460px the same
+ * sentence became eleven lines of one and two words — a 250px slab of chrome over the plan it
+ * is describing. Found by capture (`plan-editor-add-room`/`-narrow`, Task 14); nothing in any
+ * gate lays this out, so nothing else could have found it.
+ *
+ * With both insets named the available width is the whole canvas less the two gutters,
+ * `width: fit-content` still shrinks the box to its content, and `margin-inline: auto` is what
+ * centres it — the over-constrained case, where the leftover is split equally.
+ *
+ * `flex-wrap: wrap` for the width that is genuinely too narrow for one line: the buttons drop
+ * BELOW the sentence rather than the sentence collapsing into a column beside them, which is
+ * the same choice `.rp-new-room__suggestions` makes and the one that keeps the instruction
+ * readable at any width this shell supports.
  */
 .rp-task-banner {
 	position: absolute;
 	top: var(--size-4-2);
-	left: 50%;
-	transform: translateX(-50%);
+	right: var(--size-4-2);
+	left: var(--size-4-2);
+	width: fit-content;
+	margin-inline: auto;
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--size-4-2);
 	padding: var(--size-4-1) var(--size-4-2);

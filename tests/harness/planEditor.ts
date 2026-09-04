@@ -3,6 +3,7 @@ import { PlanEditorView, type PlanEditorDeps } from '../../src/presentation/view
 import { unavailablePlanEditorCommands } from '../../src/presentation/editor/planEditorCommands';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
+import { formatMetres } from '../../src/presentation/editor/shell/formatLength';
 import { installObsidianDom } from '../helpers/dom';
 import { emptyRequirementReads, zoneInspectorAnswering } from '../helpers/planFixtures';
 import { FakeLeaf } from '../helpers/workspace';
@@ -239,15 +240,24 @@ export interface MountedPlanEditor {
 }
 
 /**
- * The two harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>` and
- * `?add` — for a headless capture that needs the Room Inspector or the Add menu open with
- * nothing to click. Both are optional and independent; nothing here refuses combining them.
+ * The three harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
+ * `?add` and `?room=<w>x<d>` — for a headless capture that needs the Room Inspector, the Add
+ * menu, or the room task already under way, with nothing to click. All three are optional and
+ * independent; nothing here refuses combining them, and `?room` needs no combining: it opens
+ * the Add menu itself on its way through, so pairing it with `?add` is redundant rather than
+ * contradictory.
  */
 export interface PlanEditorHarnessOptions {
 	/** A seeded zone's id (e.g. `harness-kitchen`) to select and frame once the editor is ready. */
 	readonly select?: string;
 	/** Opens the Add menu once the editor is ready. */
 	readonly add?: boolean;
+	/**
+	 * Enters the room task and types both sides, in WORLD MILLIMETRES — the unit every geometry
+	 * in this plugin is stored in, turned into the metres the field takes by the same
+	 * `formatMetres` the form itself writes there after a drag.
+	 */
+	readonly room?: { readonly widthMm: number; readonly depthMm: number };
 }
 
 /**
@@ -291,6 +301,102 @@ async function openAddMenuOnceReady(root: HTMLElement): Promise<void> {
 	root.querySelector<HTMLButtonElement>('button[data-rp-action="add"]')?.click();
 }
 
+/**
+ * `?room=<widthMm>x<depthMm>` as the option `mountPlanEditorHarness` takes, or `undefined` when
+ * the parameter is absent.
+ *
+ * **A present value that does not parse is REFUSED LOUDLY rather than dropped**, which is the
+ * only decision in this function. Say what that buys narrowly, because the wider claim is
+ * false: the two FIXED shots would fail either way, since each waits on an element only a
+ * landed knob produces and a dropped value leaves it waiting until the deadline. What the
+ * refusal changes is which failure arrives — `scripts/harness-shot.mjs` turns a page's
+ * `console.error` into a named failed shot, so `?room=big` reports the value it could not read,
+ * where a drop reports a selector that never appeared and leaves the reader to work backwards.
+ * And `npm run harness`, the interactive door, has no selector to wait on at all: there a
+ * dropped value is invisible, and the console line is the whole of the notice.
+ *
+ * Whole millimetres only, both sides required: this is a URL a person types, and `NaN x 3800`
+ * is not a rectangle.
+ */
+export function parseRoomKnob(raw: string | null): { widthMm: number; depthMm: number } | undefined {
+	if (raw === null) return undefined;
+	const match = /^(\d+)x(\d+)$/.exec(raw);
+	if (match === null) {
+		console.error(`the ?room knob wants <widthMm>x<depthMm> in whole millimetres, e.g. 4200x3800; got "${raw}"`);
+		return undefined;
+	}
+	return { widthMm: Number(match[1]), depthMm: Number(match[2]) };
+}
+
+/**
+ * Types one side of the room and commits it the way the field itself is committed — writing
+ * the value and dispatching `blur`, which is what `NewRoomInspector`'s own
+ * `@blur="commit(...)"` listens for. Setting `input.value` alone changes nothing: the
+ * component reads the event target at commit time, so a value with no `blur` behind it is a
+ * string sitting in a DOM node no store has heard about.
+ *
+ * The cast states a guarantee the caller has already established rather than hiding a branch:
+ * `enterRoomTaskOnceReady` waits for `.rp-new-room` before either call, and that form renders
+ * both fields unconditionally, so a null arm here is one nothing could ever drive.
+ */
+function typeSide(root: HTMLElement, name: 'width' | 'depth', mm: number): void {
+	const field = root.querySelector<HTMLInputElement>(`.rp-new-room input[name="${name}"]`) as HTMLInputElement;
+	field.value = formatMetres(mm);
+	field.dispatchEvent(new Event('blur'));
+}
+
+/**
+ * Drives the `?room=<w>x<d>` knob: Add → the catalogue's Room item → both length fields, every
+ * step a press or a commit on the real control rather than a write into `RoomDraftStore`. That
+ * is the whole point of the knob — a picture assembled beside the route is a picture of a state
+ * no user can reach, which is worse than no picture at all.
+ *
+ * `[data-rp-entry="room"]` rather than the label text `?select` has to match on: `AddMenu`
+ * renders that attribute on every item, so there is an id in the DOM here and no
+ * label-to-entry translation to get wrong. It is still that item's own `@click` that runs.
+ *
+ * **The CONSTRAINED layout is why this is not four straight lines.** At an Obsidian sidebar's
+ * width the shell renders no inspector column at all — the same form lives in a drawer the
+ * rail's Details button opens (`ResponsiveEditorShell`'s `overlay === 'inspector'` branch) — so
+ * there is nothing to type into until that drawer is open. The knob presses the rail button
+ * when the form is not already on screen, and presses the drawer's own close button afterwards:
+ * the drawer is `position: absolute` at `min(17rem, 80%)`, so leaving it open would cover the
+ * canvas and the banner, which are exactly what a narrow capture of this task exists to show.
+ * Both presses are the user's own doors, and both are skipped at a width that needs neither.
+ */
+async function enterRoomTaskOnceReady(
+	root: HTMLElement,
+	room: { readonly widthMm: number; readonly depthMm: number },
+): Promise<void> {
+	await openAddMenuOnceReady(root);
+	await settleUntil(
+		() => root.querySelector('.rp-add-menu [data-rp-entry="room"]') !== null,
+		"the ?room knob's Add menu to render its Room item",
+	);
+	root.querySelector<HTMLButtonElement>('.rp-add-menu [data-rp-entry="room"]')?.click();
+
+	// The form, or — in `constrained` — the rail button that reveals it. ONE wait for either,
+	// because which of the two appears is the layout's decision rather than this knob's, and a
+	// wait on the form alone would time out at every width that keeps it in a drawer.
+	await settleUntil(
+		() => root.querySelector('.rp-new-room, [data-rp-rail="details"]') !== null,
+		"the ?room knob's New room form, or the rail that holds it",
+	);
+	const inDrawer = root.querySelector('.rp-new-room') === null;
+	if (inDrawer) {
+		root.querySelector<HTMLButtonElement>('[data-rp-rail="details"]')?.click();
+		await settleUntil(
+			() => root.querySelector('.rp-new-room') !== null,
+			"the ?room knob's Inspector drawer to open on the New room form",
+		);
+	}
+
+	typeSide(root, 'width', room.widthMm);
+	typeSide(root, 'depth', room.depthMm);
+
+	if (inDrawer) root.querySelector<HTMLButtonElement>('.rp-inspector-drawer__close')?.click();
+}
+
 export function mountPlanEditorHarness(
 	root: HTMLElement,
 	options: PlanEditorHarnessOptions = {},
@@ -316,6 +422,7 @@ export function mountPlanEditorHarness(
 	// one editor in a suite cannot have one's knob reach into another's DOM.
 	if (options.select !== undefined) void selectZoneOnceReady(leafEl, options.select);
 	if (options.add === true) void openAddMenuOnceReady(leafEl);
+	if (options.room !== undefined) void enterRoomTaskOnceReady(leafEl, options.room);
 
 	return { leafEl, view };
 }

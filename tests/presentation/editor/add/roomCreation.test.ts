@@ -1,0 +1,168 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { ok, err } from '../../../../src/core/result/Result';
+import { createPlanId } from '../../../../src/domain/plan/PlanId';
+import { createRoomFromDraft, type RoomCreationDeps } from '../../../../src/presentation/editor/add/roomCreation';
+import { useRoomDraftStore } from '../../../../src/presentation/editor/add/room-draft-store';
+import { SessionWriteLedger } from '../../../../src/application/editor/WriteLedger';
+import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
+import { InMemoryPlanRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { InMemoryRequirementRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
+import { CreateZoneCommand } from '../../../../src/application/commands/zone/CreateZone';
+import { makeDeleteZoneCommand } from '../../../helpers/slice10';
+import { makePlan, makeProject } from '../../../helpers/entities';
+import { RecordingEventBus, expectOk, injectedPersistenceError } from '../../../helpers/domain';
+import { recorder } from '../../../helpers/logger';
+
+/**
+ * `RoomCreationDeps.commands` widened past the brief's original `Pick<…, 'createZone' |
+ * 'deleteZone' | 'zones'>`: `ReversibleCreateZoneCommand`'s constructor takes a fifth
+ * `ReversibleCreateZoneDeps` argument (`zones`, `events`, `requirements`, `logger`), which
+ * `registerEditorTools.ts`'s draw-polygon completion already builds from
+ * `context.commands.events` / `.requirementEdits.requirements` / `.logger` — mirrored here
+ * rather than re-derived. `requirements` is shared between the delete command and the
+ * restore-referents lookup, exactly as the real composition root shares one repository
+ * across both.
+ */
+async function deps(overrides: Partial<RoomCreationDeps> = {}) {
+	const planId = createPlanId();
+	const plans = new InMemoryPlanRepository();
+	const zones = new InMemoryZoneRepository();
+	const requirements = new InMemoryRequirementRepository();
+	const project = makeProject({});
+	await plans.save(makePlan({ projectId: project.id, id: planId }), 'absent');
+	const events = new RecordingEventBus();
+	const createZone = new CreateZoneCommand(zones, plans, events);
+	const draft = useRoomDraftStore();
+	draft.beginTask('Room 1');
+	const dispatched: unknown[] = [];
+	const base: RoomCreationDeps = {
+		planId,
+		commands: {
+			createZone,
+			deleteZone: makeDeleteZoneCommand(zones, events, requirements),
+			zones,
+			events,
+			requirementEdits: { requirements },
+			logger: recorder,
+		},
+		ledger: new SessionWriteLedger(),
+		dispatcher: { run: (command) => { dispatched.push(command); return command.execute(); } },
+		draft,
+		selection: { select: vi.fn<RoomCreationDeps['selection']['select']>() },
+		defaultName: () => 'Room 2',
+		returnToSelect: vi.fn<RoomCreationDeps['returnToSelect']>(),
+		reportRejected: vi.fn<RoomCreationDeps['reportRejected']>(),
+	};
+	return { d: { ...base, ...overrides }, zones, dispatched, draft };
+}
+
+describe('createRoomFromDraft', () => {
+	beforeEach(() => setActivePinia(createPinia()));
+
+	it('an invalid draft dispatches nothing', async () => {
+		const { d, dispatched } = await deps();
+		expect(await createRoomFromDraft(d)).toBe('invalid');
+		expect(dispatched).toHaveLength(0);
+	});
+
+	/**
+	 * `RoomDraftStore.valid` checks nothing about finiteness (`room-draft-store.ts`'s own
+	 * docblock says so), so a rect whose side is non-finite is `valid: true` and
+	 * `geometry: null` at once — the one way `!draft.valid || geometry === null` is true
+	 * with its FIRST disjunct false, which the "an invalid draft" case above cannot reach
+	 * (there `valid` alone is false).
+	 */
+	it('a valid-shaped but non-finite rect is still invalid, and dispatches nothing', async () => {
+		const { d, draft, dispatched } = await deps();
+		draft.setRect({ x: 0, y: 0, width: Infinity, depth: 1000 });
+		expect(draft.valid).toBe(true);
+		expect(draft.geometry).toBeNull();
+		expect(await createRoomFromDraft(d)).toBe('invalid');
+		expect(dispatched).toHaveLength(0);
+	});
+
+	it('a valid draft dispatches exactly one command, selects the new id, and returns to Select', async () => {
+		const { d, zones, dispatched, draft } = await deps();
+		draft.setName(' Kitchen ');
+		draft.setRect({ x: 1000, y: 2000, width: 4200, depth: 3800 });
+		expect(await createRoomFromDraft(d)).toBe('created');
+		expect(dispatched).toHaveLength(1);
+		const listed = expectOk(await zones.listByPlan(d.planId)).loaded;
+		expect(listed).toHaveLength(1);
+		expect(listed[0].entity.name).toBe('Kitchen');
+		expect(listed[0].entity.zoneType).toBe('Room');
+		expect(listed[0].entity.geometry.points).toEqual([
+			{ x: 1000, y: 2000 }, { x: 5200, y: 2000 }, { x: 5200, y: 5800 }, { x: 1000, y: 5800 },
+		]);
+		expect(d.selection.select).toHaveBeenCalledWith([listed[0].entity.id]);
+		expect(d.returnToSelect).toHaveBeenCalledTimes(1);
+	});
+
+	it('the numeric route and a drag of the same size produce identical geometry', async () => {
+		const a = await deps();
+		a.draft.setRect({ x: 800, y: 100, width: 4200, depth: 3800 });
+		await createRoomFromDraft(a.d);
+		setActivePinia(createPinia());
+		const b = await deps();
+		b.draft.commitDimension('width', '4.2', () => ({ x: 2900, y: 2000 }));
+		b.draft.commitDimension('depth', '3.8', () => ({ x: 2900, y: 2000 }));
+		await createRoomFromDraft(b.d);
+		const pa = expectOk(await a.zones.listByPlan(a.d.planId)).loaded[0].entity.geometry.points;
+		const pb = expectOk(await b.zones.listByPlan(b.d.planId)).loaded[0].entity.geometry.points;
+		expect(pb).toEqual(pa);
+	});
+
+	it('keepAdding: the room is selected, the draft restarts with the next default name, Select is not returned to', async () => {
+		const { d, draft } = await deps();
+		draft.setKeepAdding(true);
+		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
+		expect(await createRoomFromDraft(d)).toBe('created');
+		expect(d.selection.select).toHaveBeenCalledTimes(1);
+		expect(d.returnToSelect).not.toHaveBeenCalled();
+		expect(draft.rect).toBeNull();
+		expect(draft.name).toBe('Room 2');
+		expect(draft.keepAdding).toBe(true); // an explicit choice survives one creation
+	});
+
+	it('a refused write reports once, keeps the draft, and stays in the task', async () => {
+		const { d, draft } = await deps({
+			dispatcher: { run: () => Promise.resolve(err(injectedPersistenceError())) },
+		});
+		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
+		expect(await createRoomFromDraft(d)).toBe('refused');
+		expect(d.reportRejected).toHaveBeenCalledTimes(1);
+		expect(d.returnToSelect).not.toHaveBeenCalled();
+		expect(draft.rect).not.toBeNull();
+		expect(draft.submitting).toBe(false);
+	});
+
+	it('a second call while the first is in flight is dropped', async () => {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => { release = resolve; });
+		const { d, draft } = await deps({
+			dispatcher: { run: async (command) => { await gate; return command.execute(); } },
+		});
+		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
+		const first = createRoomFromDraft(d);
+		expect(await createRoomFromDraft(d)).toBe('busy');
+		release();
+		expect(await first).toBe('created');
+	});
+
+	/**
+	 * `command.createdZoneId` reads the adapter's own captured snapshot, which only exists
+	 * once `execute()` has actually run — a dispatcher that resolves `ok('wrote')` WITHOUT
+	 * calling `command.execute()` is the one way to reach that `null` with an otherwise
+	 * successful dispatch, which is the false arm of `if (createdId !== null)`.
+	 */
+	it('a dispatcher that never runs the command creates nothing to select, and still returns to Select', async () => {
+		const { d, draft } = await deps({
+			dispatcher: { run: () => Promise.resolve(ok('wrote')) },
+		});
+		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
+		expect(await createRoomFromDraft(d)).toBe('created');
+		expect(d.selection.select).not.toHaveBeenCalled();
+		expect(d.returnToSelect).toHaveBeenCalledTimes(1);
+	});
+});

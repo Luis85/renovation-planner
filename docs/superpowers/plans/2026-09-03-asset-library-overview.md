@@ -1705,6 +1705,13 @@ jsdom reflects inline styles at every level, so this IS assertable in the suite 
 
 **Empty shelves are skipped, having no header to focus.** This is §3.2's non-interactive heading arriving in the section that promises the gestures.
 
+**THE CSS RULE THAT HIDES THE SHELVES ALREADY EXISTS — Task 15 shipped it at `1cb2fbdc`**, past
+its own brief's Files list and with its reasoning recorded. So this task's narrow-composition work
+is the BEHAVIOUR only: the focus handoff below, the search rule after it, and whatever `matchMedia`
+question the swap has to ask. Read `styles/asset-library.css` before adding a rule of your own —
+a second declaration of the same swap is two answers to one question, and the one in the
+stylesheet is the one a vault actually applies.
+
 **Below 35rem, selecting a row MOVES focus, and `Back to library` returns it.** The narrow composition hides the shelves outright, so the button the user just activated is inside a `display: none` subtree — focus lands on a hidden element or resets to the document, the pane change is announced to nobody, and the next Tab starts from the top.
 
 **Whether the swap happened is asked of the DOM, never of a breakpoint.** `matchMedia` is the wrong instrument: §7's ladder is a CONTAINER query, so it answers about the pane's width and the viewport's may differ — a split leaf is exactly that case. The honest test is whether the shelves region is actually laid out after the change, which is what the browser already knows.

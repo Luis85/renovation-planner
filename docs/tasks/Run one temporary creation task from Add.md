@@ -60,3 +60,28 @@ Criterion 2 is vacuous: Room carries no context, so there is no second command p
 Criterion 4's 'unless repeat was explicitly chosen' has no subject — repeated creation is not
 built, the banner carries no toggle for it, and spec §7.3 and §12 record that as a decision
 rather than an omission.
+
+**2026-09-04**, the Add Room increment — criterion 4's repeat clause has a subject at last, and
+this task stays Active for the one criterion that is still VACUOUS rather than met.
+
+Criterion 4's *"unless repeat was explicitly chosen"* is `keepAdding` on the room draft: off by
+default, reset by `beginTask`, one checkbox on the New room form, and one branch in
+`createRoomFromDraft` driven both ways —
+`tests/presentation/editor/add/roomCreation.test.ts`'s 'a valid draft dispatches exactly one
+command, selects the new id, and returns to Select' against 'keepAdding: the room is selected,
+the draft restarts with the next default name, Select is not returned to', with the end-to-end
+half in `tests/presentation/editor/roomCreation.e2e.test.ts`'s 'Keep adding rooms restarts the
+task on the created room and re-counts the default name'. That case pins the ORDERING this task's
+own Risks section names — *"starting the next draft before commit settles can duplicate
+activation or hide failure"* — by asserting the next default name reads **Room 3**, which is only
+true once the post-command refresh has re-read the plan.
+
+Criterion 1 gains a second door rather than a second path: the no-rooms empty state's action and
+the Add menu's Enter, Space and click all reach `activateCreationEntry('room', runtime)`, and
+`tests/presentation/editor/add/creationCatalogue.test.ts`'s two source-text cases are what hold
+that — one of the two was calling the entry directly until a review round found it.
+
+**Still Active for criterion 2**, which is vacuous rather than met: Room carries no selected
+context, so *"current context is passed without creating a second command path"* has nothing to
+pass and nothing to test. Recorded rather than ticked, under this Feature's own rule that a
+criterion whose subject does not exist is an amendment and not a tick.

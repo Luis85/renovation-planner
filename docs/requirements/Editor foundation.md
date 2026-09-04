@@ -75,4 +75,26 @@ stated in each of them: **a whole acceptance criterion whose subject this increm
 which no instrument holds is an amendment, not a tick.** Two Tasks were moved from Done to Active
 by review round 1 under exactly that rule.
 
-Checkpoint C2 — Add Room with a rectangular drag and a name form — is the next increment.
+**2026-09-04** — the SECOND increment has landed on `claude/plan-editor-add-room`: **Add Room**,
+checkpoint C2, designed in
+`docs/superpowers/specs/2026-09-03-plan-editor-add-room-design.md`. It belongs mostly to
+[[Spatial creation]], and what it closes HERE is two of the three residues this Feature's own
+[[Start one creation task from Add]] recorded: the temporary task's **repeat option**, which had
+no subject at all, and **Finish** on the banner, which the room task is the first to declare.
+[[Run one temporary creation task from Add]] and
+[[Show an active creation-task banner with complete controls]] are still Active, each for one
+named half: the first for the criterion that is VACUOUS rather than met — Room carries no
+selected context, so "passed without creating a second command path" has no subject to test —
+and the second for **Remove last**, which a rectangle has no removable step for and which the
+one tool that does hold a removable vertex buffer no longer has a door to. Extension 1a stays
+open on the PBI itself, for checkpoint C3.
+
+It also settled a vocabulary question this Feature had left half-answered. `editor.zone.default-name`
+is gone, and `strings.test.ts` refuses the word "zone" in every `editor.*` and `empty.plan.*` value
+of BOTH locales — which turned out to falsify four EXISTING labels rather than only the increment's
+own new ones, because "room" is not true of a Garden or a Terrace. They read "room or area", or
+they lost the noun altogether ("Delete"). Recorded in
+[[Draw and name a rectangular room]]'s amendments and in CLAUDE.md.
+
+Checkpoint C3 — the trust path, where a stale or failed floor disables unsafe follow-up edits — is
+the next increment.

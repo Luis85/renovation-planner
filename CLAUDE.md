@@ -377,8 +377,10 @@ already hydrates. Rules that came out of it:
   deliberate, tested change rather than an oversight closing quietly. (The same file
   asserted `renovationProject.noProjects`'s absence too, until design slice 16 flipped that
   assertion the other way — see that slice's section below.) `planEditor.noZones` is the
-  other entry that keeps a button, because its hand-off (`activeToolId = 'draw-polygon'`) already
-  exists and is reachable from the editor's own state.
+  other entry that keeps a button, because its hand-off already exists and is reachable from the
+  editor's own state — `activeToolId = 'draw-polygon'` when this was written, and
+  `activateCreationEntry('room', runtime)` since the Add Room increment routed that button
+  through the same one door the Add menu takes.
 - **Promoting a mock is not always a byte-for-byte move, and the honest account says which
   file pair that criterion is actually held for.** `EmptyState.vue`'s template crossed from
   `src/prototypes/` unchanged except for one added line, `@click="$emit('action')"` — the
@@ -3665,6 +3667,166 @@ rules that came out of it:
   `docs/requirements/Open a floor plan in the Obsidian editor shell.md`, where the next author of
   that surface will meet it, rather than here alone.
 
+**The plan editor foundation's SECOND increment has landed: Add Room, and one homeowner
+gesture produces one domain record.** Add's Room entry activates a new `'draw-room'` tool; a
+primary drag on the floor writes one axis-aligned rectangle whose width, depth and area follow
+the hand; the Inspector is replaced by a New room form — a counted default name, six suggestion
+buttons, two length fields in METRES, an area row, `Keep adding rooms`, Create and Cancel — and
+ONE press writes ONE `ReversibleCreateZoneCommand`, selects the new Room and returns to Select.
+Nothing about the model moved: a Room is still a `Zone` note plus a sidecar entry under one id,
+which `editorRoundTrip.test.ts` now says through the REAL command rather than through a fixture.
+The rules that came out of it:
+
+- **A draft edited from two surfaces is ONE store, and that is a recorded deviation from
+  `RenderState` rather than an oversight.** SDD §19 puts a tool's transient visual in
+  `RenderState`; `RoomDraftStore` (Pinia, one per leaf) holds this one, and the Konva sketch
+  READS it. Two reasons, and the second decides it: the draft is not only a visual — it carries a
+  name, two field drafts, two field errors and a checkbox — and it must OUTLIVE the gesture,
+  because the numeric route creates a rectangle with no gesture at all. What that buys is that
+  "dragging and numeric dimensions converge on the same creation command" is a fact about the
+  SHAPE rather than a test's assertion: one store is written by both, one action
+  (`createRoomFromDraft`) reads its `geometry` getter, and there is no second path to converge.
+- **A tool that stays registered with no door is a stated absence, and stating it is the whole
+  of the work.** `DrawPolygonTool` is still in the Plan Editor's `ToolManager` — the asset
+  designer registers the same class, and test files drive it by id — and after this increment no
+  control in the Plan Editor reaches it: `grep -rn "'draw-polygon'" src/presentation/editor/add
+  src/presentation/editor/PlanEditorRoot.vue` prints nothing. That is the exact shape slice 7
+  paid for from the other side (a tool registered nowhere, invisible to all four gates), so the
+  trigger is written down in three places rather than one — the design spec's §2.1, the
+  `Start room creation from Add` PBI's amendments, and here: the free-form-room PBI, whose own
+  task adapts that tool behind Room language and gives it a door.
+- **"Room, never Zone" as a TEST turned out to falsify four labels that had nothing to do with
+  this increment, and the fix is a rule about TRUTH rather than about vocabulary.**
+  `strings.test.ts`'s 'says Room and never Zone anywhere a homeowner reads the editor' runs
+  `/\bzones?\b/i` over every `editor.*` and `empty.plan.*` value of BOTH locale tables. Nine
+  values failed, every one of them pre-existing, and for four of them the obvious repair — say
+  "room" — was FALSE:
+  `RoomInspector` renders for any zone type and `hasGeometryToRescale` counts every zone, so
+  "Delete room", "…this room…", "…which room?" and "Rescale the rooms…" all lie the moment the
+  selected zone is a Garden or a Terrace. ADR-0016's homeowner split is exactly Room OR Area, so
+  they ship as "room or area" — or, better, with no noun at all: `editor.inspector.delete-zone`
+  is just **Delete**, since the Inspector around it already names the type. **A regex that
+  refuses one word forces every value it touches to be true for every `ZoneType`**, which is
+  more than the PBI asked for and is why it found four labels the increment never intended to
+  edit.
+  **What that regex cannot see is worth knowing before the next locale grows one:** German's own
+  plural is "Zonen", and `/\bzones?\b/i.test('Zonen')` is `false` — measured, not reasoned —
+  because the `\b` fails against the trailing `n`. It costs nothing today only because no
+  surviving value under those two prefixes says it.
+- **"Out of bounds" was a claim about a Floor, and a Floor has no extent.** The task asks that
+  numeric input placing a room "outside editable bounds" be refused; ADR-0017's Plan has no
+  extent and a background is optional, so there is nothing to be outside of. The refusal reduces
+  to numeric sanity, stated once as `parseMetres`'s three arms — not a number, not positive, and
+  longer than `MAX_ROOM_SIDE_MM`, which is **1,000,000 mm: a kilometre**, and not a Floor's edge.
+  Narrowed in the task's own amendment rather than met by inventing a bound.
+- **A test that batches its input into one Vue flush is a test of a different program, and this
+  one PASSED against its own mutation.** The live region's contract is that `settle()` writes the
+  settled sentence on a drag END and never on a move, so the case fires twenty pointer moves and
+  asserts the `role="status"` text changed exactly once. As briefed, those twenty were
+  synchronous with a single `await` after them — Vue batches all twenty into ONE render, so a
+  `MutationObserver` records one mutation whatever the store did in between. Measured: with
+  `draft.settle()` inserted into `DrawRoomTool.pointerMove` — the exact defect the criterion
+  forbids — the case read `seen.length` 1 and passed. It awaits per move now, which is the
+  grammar a real device sends, and the same mutation goes red at that assertion. **The
+  repository's own "a simulated pointer stream has to obey the real device's grammar" rule,
+  arriving at the FLUSH rather than at the event shape.**
+- **Asserting the OUTCOME cannot discriminate a guard whose absence produces the same outcome.**
+  `NewRoomInspector.onCreate` refuses while `canCreateRoom` is false, and its case asserted that
+  an incomplete draft creates nothing — which is equally true with the guard deleted, because
+  `createRoomFromDraft` answers `'invalid'` for that draft on its own. The first report named
+  this as an acceptable residue; a review round called it the defect it is. The case spies
+  `runtime.createRoom` and asserts `not.toHaveBeenCalled()` BEFORE the two outcome assertions,
+  which stay — a spy alone would not say the vault was left alone — and deleting the guard
+  reddens it at the spy. Its sibling on the banner's Finish was written the same way from the
+  start.
+- **`onBeforeUnmount` never fires for a component whose OWN ROOT carries the `v-if`.**
+  `TemporaryToolBanner` is mounted for the life of the leaf and draws nothing while no task is
+  running, so the brief's focus recovery — copied from `NewRoomInspector`, which its PARENT
+  mounts and unmounts — was called zero times, and Finish left focus on `<body>`. Measured with a
+  scratch SFC rather than reasoned from the documentation, and measured again in the other
+  direction: at a real full-tree teardown the hook DID fire, with `root.value` already `null`,
+  which threw inside an unrelated test. It is `watch(task)` now, whose default `'pre'` flush runs
+  before the owning component's own DOM patch — the same "before" moment the other surface's hook
+  gets, reached through a mechanism that works for a self-`v-if`'d root.
+- **An `aria-describedby` naming an element that is not there is the dangling half of a
+  conditional pair, and it reads as correct in every screenshot.** The brief bound it
+  unconditionally beside a hint the template `v-if`s away once the draft is valid. One condition
+  drives both now (`runtime.canCreateRoom.value ? undefined : hintId`), so the reference and its
+  target cannot disagree, and the case asserts BOTH states rather than the blocked one — the
+  valid state being the half that looks fine. The ruling that ordered the fix named `axe`'s
+  `aria-valid-attr-value` as what would have caught it, and nothing here measured that claim,
+  because the scans landed six tasks after the form and found the binding already conditional.
+- **A docblock claiming "both callers go through this and nothing else" was a claim about one
+  caller.** `activateCreationEntry(id, runtime)` is the one door from the Add menu and from the
+  no-rooms empty state — and `AddMenu.vue` went on calling `entry.activate(runtime)` directly.
+  Behaviourally identical (the same closure, on the same object), so every case passed; the
+  claim was simply false. The fix is one line, and the instrument is the SOURCE-TEXT case this
+  repository already uses for a caller list: it reads both files and refuses `entry.activate(`
+  as well as requiring `activateCreationEntry(`. That test then caught its own author, because
+  the docblock added beside the fix contained the forbidden substring in prose.
+- **A refusal has ONE surface, and which one is a fact to be traced rather than guessed.** A
+  detonated `zones.save` during Create raises a `Persistence` refusal; `affectsSaveState` reads
+  that as write-affecting, so `withSaveStateTracking` flips the **save-state badge** — and
+  `report-failure.ts` routes the same error at an `autosave-write` origin, whose sink for a
+  toast is deliberately a no-op, because slice 17 forbids one failure reported through two
+  widgets that can drift apart. So the e2e case asserts the badge AND that `Notice.shown` did not
+  move, over a LIVE notice queue: over an inactive one the second half would be true of every
+  build ever written.
+- **A `clear` that leaves the sentence describing what it cleared is a stale announcement, and
+  the invariant was half-applied by its own author.** `RoomDraftStore.clearRect()` nulled the
+  origin, the sides, the texts and the errors and left `settledSize` holding "4.2 m by 3.8 m,
+  15.96 m²" — while `beginTask()` nulled it explicitly right after its own `clearRect()` call,
+  which is the proof the rule was known and only half-applied. The handling belongs to the FUNCTION, not to the callers that have to remember
+  it: `clearRect` nulls it and `beginTask`'s line went away.
+- **A plan's code snippet is a hypothesis about which arms are reachable, and three of them were
+  wrong in one increment.** `parseMetres`'s `normalised === 'Infinity' ? …` ternary sat INSIDE an
+  `if` whose regex alternation already admits `Infinity`, so its first arm was unreachable;
+  `DrawRoomTool.pointerUp`'s `this.context?.viewport.worldPerScreenPixel() ?? 1` could not take
+  the fallback, since an anchor exists only after `activate` set the context; and
+  `createRoomFromDraft`'s `if (createdId !== null)` false arm is reachable only through a
+  dispatcher that resolves `ok` without ever running the command. The first two were
+  restructured until the arm did not exist; the third was given the fake that drives it. This
+  file's floors are why: **an unreachable guard is not free**, and a plan that ships one has
+  moved the cost to whoever runs the gate.
+- **`ReversibleCreateZoneCommand` takes a `deps` bundle, and the plan's five positional ports
+  were a memory of an older signature.** The real constructor is
+  `(createCommand, deleteCommand, ledger, input, deps)`, and `ReversibleCreateZoneDeps` wants
+  `zones`, `events`, `requirements` and `logger` — so `RoomCreationDeps.commands` is a `Pick`
+  with a NESTED `Pick` on `requirementEdits`, naming exactly the one member the restore path
+  needs rather than admitting the whole bundle. The construction mirrors the draw-polygon
+  completion's, one file away, rather than being re-derived.
+- **The captures found the increment's only layout defect, and it was in the one surface every
+  route to a room passes through.** `.rp-task-banner` centred itself with `left: 50%` plus a
+  `transform: translateX(-50%)` — and for an absolutely positioned shrink-to-fit box with
+  `right: auto` the available width is the space from that 50% to the containing block's right
+  edge, which the transform then slides without buying back. **A transform is not layout.** So
+  "Adding a room" broke mid-phrase at 1280 px with 800 px of canvas to spare, and at 460 px the
+  instruction became ELEVEN lines of one and two words in a ~250 px slab over the canvas it
+  describes. Both insets named, `width: fit-content`, `margin-inline: auto` — the
+  over-constrained case, where the leftover is split equally — and `flex-wrap: wrap` for the
+  width that genuinely cannot hold one line. jsdom lays nothing out, so the two PNGs are the
+  whole instrument: a regression to `left: 50%` would be invisible to `npm run check` and visible
+  only to the next person who opens them. The state they photograph is reached through the REAL
+  doors rather than by writing the store — `?room=<width>x<depth>` reuses the existing `?add`
+  knob to open the menu, clicks the Room item and types each side into the form, blurring it the
+  way `@blur="commit(...)"` listens for — and at 460 px it also presses the rail's Details button
+  and closes the drawer again, because the drawer is `position: absolute` at `min(17rem, 80%)`
+  and leaving it open would cover the very banner the narrow shot exists to show.
+- **The pinned Chromium was there, and a report that it was not is worth as much as a report of
+  a defect.** `scripts/chromium.mjs`'s own resolver answered `chromium-1234/chrome-win64/chrome.exe`
+  in this worktree, so both captures are the PINNED browser with no `RP_CHROMIUM_EXECUTABLE` and
+  no approximate caveat — unlike the price-override increment's, whose captures carry one. That
+  contradicted a mid-task claim that the resolver returned `null`; it was settled by re-running
+  the resolver rather than by either party's recollection.
+- **Machine contention is not news and its FREQUENCY is.** Six of this increment's task reports —
+  tasks 1, 2, 3, 4, 6 and the batched 12+13 — record `tests/build/` files timing out in
+  `beforeAll` under default file-parallelism and passing on a serial re-run, which is exactly the
+  hazard this file already documents; one of those six also hit a different flake entirely, a
+  Windows temp symlink-probe `EPERM` in `fixtureVault.test.ts`. What that says is not that the remedy has
+  changed — it has not, and serial is the DIAGNOSTIC rather than the remedy — but that on a
+  contended machine the documented hazard is the ordinary case rather than the rare one, so a
+  report that does NOT mention it is the one worth reading twice.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was
@@ -4993,8 +5155,10 @@ Not oversights; each has a trigger.
   today's** — `dist/main.js` measured 670.06 kB (gzip 211.08 kB) at design slice 16's close and
   **703.39 kB (gzip 221.71 kB) at design slice 19's**, and **825.68 kB (gzip 252.79 kB) at the
   close of the plan editor foundation's first increment** (2026-09-03, after the asset-designer
-  merge — the two arrivals are not separated here), each verified by running `npm run build`
-  rather than carried forward from an earlier entry here. Read every bundle figure in this file the
+  merge — the two arrivals are not separated here), and **867.05 kB (gzip 262.83 kB) at the close
+  of the Add Room increment** (2026-09-04 — no new dependency, so that 41 kB is this
+  repository's own code: a tool, a store, an action, a form, a sketch and their strings), each
+  verified by running `npm run build` rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 
   **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a

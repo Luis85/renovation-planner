@@ -83,10 +83,10 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 99 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 42 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 113 |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 13 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 101 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 44 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 118 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 14 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 9 |
 
 **264 steps across FOURTEEN cases, and this paragraph has now proved itself a FIFTH time — at
@@ -122,6 +122,16 @@ greps below, run in the edit that resolved it, print 259 table rows across fourt
 list steps in [[Canvas Navigation]], for 276 across fifteen cases — `suite` 99, `browser` 42,
 `obsidian` 113, `desktop` 13 and `judgement` 9. See
 [[The smoke-test census omits the newest case]], closed.
+
+**286 steps across SIXTEEN cases**, re-run in the edit that added [[Add a room]] rather than
+left for the next reader to find stale — which is the one thing every paragraph above it says
+and the reason this one is short. The two greps print **269 table rows across fifteen files**
+and the same **17 list steps** in [[Canvas Navigation]]: `suite` 101, `browser` 44,
+`obsidian` 118, `desktop` 14, `judgement` 9. The whole of the movement is the new case's own
+ten steps (five `obsidian`, two `suite`, two `browser`, one `desktop`), which is what makes
+this a re-run rather than a correction: `git diff --stat 23e2910b..HEAD -- docs/tests/` printed
+nothing before this edit, so the Add Room increment touched no existing case and the previous
+figures were still true of the tree it inherited.
 
 **This paragraph is its own worked example, twice over.** Design slices 19 and 21 each re-ran
 the two greps and each wrote down what it measured; both were correct on the day, and the merge
@@ -422,3 +432,14 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   nor any step here reaches is the 460 px `constrained` width, and whether a REAL Obsidian leaf
   scrolls at either width — the capture runs in a headless Chromium, not in Obsidian's own leaf
   chrome.
+- [[Add a room]] — the plan editor foundation's second increment, checkpoint C2: Add → Room, a
+  rectangular drag, the New room form, and ONE reversible Room written, selected and reloadable.
+  Its two layout steps (1 and 10) stand where [[Price a shared asset for one project]]'s do NOT:
+  both have already been read once in the PINNED Chromium — `plan-editor-add-room` at 1280 and
+  `plan-editor-add-room-narrow` at 460 — and that reading is what found the defect step 10 now
+  exists to catch, a task banner capped at half the pane by `left: 50%` plus a transform and
+  wrapping to eleven lines of one and two words at a sidebar's width. So what a vault adds there
+  is a themed palette and Obsidian's own leaf chrome rather than a first look. Its step 9 is the
+  only instrument anywhere for the click-versus-drag epsilon — four screen pixels, asserted as a
+  number by the tool's own tests and judged as a hand's steadiness by nobody else — and its step
+  3 is the one place a settled announcement is heard rather than counted.

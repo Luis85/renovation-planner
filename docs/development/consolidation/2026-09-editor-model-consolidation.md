@@ -125,8 +125,11 @@ Every file returned by the `ls`/`grep` commands the task brief names, one row ea
 
 ## 3. Round-trip matrix
 
-One row per field `tests/infrastructure/persistence/editorRoundTrip.test.ts` asserts, all five
-`it` cases cited by their exact names.
+One row per field `tests/infrastructure/persistence/editorRoundTrip.test.ts` asserts, all six
+`it` cases cited by their exact names. The sixth arrived with the Add Room increment and differs
+in kind from the other five: it builds its Zone through the REAL `CreateZoneCommand` rather than
+through the file's `makeZone` fixture, so it is the one row-set that says the CREATION path and
+the read path agree about one record.
 
 | Field | Canonical store | Schema version | Test case |
 |---|---|---|---|
@@ -148,6 +151,12 @@ One row per field `tests/infrastructure/persistence/editorRoundTrip.test.ts` ass
 | `Zone.geometry.points` (four vertices) | geometry sidecar object `points` | v1 | `reads back the zone as one logical record: note fields plus sidecar geometry` |
 | `Zone.area()` (15,120,000 mm²) | derived from `points`, never stored | — | `reads back the zone as one logical record: note fields plus sidecar geometry` |
 | zone note `type`, `schema-version`, `id`, `zone-type` (kebab), `name`; absence of `kind`/`room` keys | zone note | v1 | `persists the zone note with the v1 keys the spec names, and nothing homeowner-facing` |
+| `Zone.id` (minted by `CreateZoneCommand`, not by a fixture) | zone note `id`; sidecar entry key | v1 | `round-trips a rectangle created through CreateZoneCommand as a polygon under one id` |
+| `Zone.name` (`'Kitchen'`, the visible name a form wrote) | zone note `name` | v1 | `round-trips a rectangle created through CreateZoneCommand as a polygon under one id` |
+| `Zone.zoneType` (`'Room'`, decided by Add → Room rather than by a field the user chose) | zone note `zone-type` (persisted `'room'`, kebab) | v1 | `round-trips a rectangle created through CreateZoneCommand as a polygon under one id` |
+| `Zone.geometry.points` (the rectangle's four corners, clockwise from the min corner) | geometry sidecar object `points` | v1 | `round-trips a rectangle created through CreateZoneCommand as a polygon under one id` |
+| `Zone.area()` (15,960,000 mm² for 4.2 m × 3.8 m) | derived from `points`, never stored | — | `round-trips a rectangle created through CreateZoneCommand as a polygon under one id` |
+| absence of `width`, `depth` and `room` keys — a rectangle is stored as a POLYGON, and nothing in frontmatter says otherwise | zone note | v1 | `round-trips a rectangle created through CreateZoneCommand as a polygon under one id` |
 | user-authored body text below frontmatter | zone note body (unversioned prose, user-owned) | n/a | `keeps a user-authored body across a plugin save` |
 | `Zone.name` after a re-save (`'Kitchen (renamed)'`) | zone note `name` | v1 | `keeps a user-authored body across a plugin save` |
 
@@ -160,6 +169,7 @@ One row per field `tests/infrastructure/persistence/editorRoundTrip.test.ts` ass
 | 3 | `ZoneStatus` (`Planned`/`InProgress`/`Complete`, `src/domain/zone/ZoneStatus.ts`) is a progress axis | high if misused | all zones | never presented as Existing/Planned; ADR-EPW |
 | 4 | Project note persists no budget/contingency/location | low | all projects | out of scope |
 | 5 | `zoneMapper.zoneToPersistence` writes `toKebab(zone.zoneType)`: the domain value `'Room'` persists as `'zone-type': 'room'`, and `ZoneFrontmatterSchemaV1`'s `kebabEnum` reads it back to the domain label on load. Measured against the real mapper in Task 3 (`tests/infrastructure/persistence/editorRoundTrip.test.ts`'s fourth case), which failed on a first draft asserting `'Room'` and was corrected to `'room'`. ADR-0016's Context section already spelled `zone-type: room` correctly (`docs/development/adrs/0016-a-room-classified-zone-presents-as-room.md`); only the implementation plan document's Task 3 test code (`docs/superpowers/plans/2026-09-02-plan-editor-foundation-read-path.md`, `toBe('Room')`) had spelled it `'Room'` | low | none — the mapper is correct and already shipped | intentional; the note key is kebab, the domain label is the mapper's job to restore |
+| 6 | No room KIND on `Zone`. M03 asks the renovator to "choose a room type", and interaction spec §69 lists Kitchen, Living room, Bedroom, Bathroom, Other — but `ZoneType` is the Room/Area classifier (ADR-0016) and Add → Room has already fixed it to `'Room'`. The Add Room increment presents the type question as a row of NAME suggestions instead (`editor.room.suggestion.*`, six of them), so what is persisted is the visible name and nothing else — which is exactly what that increment's own task requires ("Confirmation persists the visible name, not a translation key or internal type"). Design spec §2.4 | low | none today — no reader would exist for the field either | deferred, ADR-RK. A kind stored now would be a label nothing queries |
 
 ## 5. Compatibility decision
 
@@ -176,3 +186,4 @@ discharged for this increment by this paragraph and by the round-trip instrument
 | SO | polygon-only sidecar → walls/openings | Feature B walls | the first non-polygon spatial object |
 | RL | one relationship mechanism spatial ↔ vault records | Feature C/D | the first Work item or evidence link |
 | SV | additive change at v1 vs version bump | first key that moves or changes meaning | see CLAUDE.md's "still empty BY A DECISION" |
+| RK | a room KIND beside `ZoneType` — a stored classifier (kitchen, bathroom, …) distinct from the Room/Area split | the first query BY kind | per-kind cost defaults, per-kind material lists, or a room filter. Until one exists, the suggestion buttons set a NAME and the kind is unmodelled (gap #6) |

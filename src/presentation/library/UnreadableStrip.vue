@@ -33,25 +33,50 @@
 	it actually is: a static region rendered with the pane. §5.1a asks for a repair strip and
 	names no announcement; the one announcement §6.1 DOES ask for — the search result count — is
 	a persistent, always-drawn region, written into on each keystroke. It is
-	`AssetLibraryBody.vue`'s `resultsAnnouncement`, and this sentence said `AssetLibraryRoot.vue`
-	until a review ran `grep -n 'role=' src/presentation/library/AssetLibraryRoot.vue` and got
-	NOTHING: Task 16b extracted the body, the region went with it, and the count in the paragraph
-	below stayed right the whole time. A name can point at the wrong thing, and that is quieter
-	than a stale count — nothing about a sentence naming the wrong file reads as unverified.
+	`AssetLibraryBody.vue`'s `.rp-al-results`, whose content is `matchCount`.
 
-	**That rule is a CLASS this tree has not swept, and saying so is what stops this comment
-	reading as though it had been.** Measured across `src/presentation/**/*.vue` (comments
-	stripped, so a prose mention does not count): TEN `role="status"` regions sit behind a
-	`v-if`/`v-else-if` and therefore appear together with their content — four in
-	`PlanEditorRoot.vue`, three in `AssetDesignerRoot.vue`, two in `ProjectDetail.vue`, one in
-	`ViewRoot.vue`'s own partial-read notice, which is this strip's exact twin. Two are
-	unconditional and correct: `StatusBar.vue`'s, and the search-count region in this strip's own
-	parent.
-	Fixing the twin alone was offered and declined — it is one of ten, and a partial fix that
-	reads like a complete one is this repository's oldest recorded defect. The remedy is slice
-	13's persistent-region shape applied as a sweep with its own review, and it is neither this
-	component's to make nor this task's; what belongs here is the measurement, so the next author
-	inherits a number rather than an impression.
+	**This sentence has now named the wrong thing TWICE, and the second time was worse than the
+	first.** It said `AssetLibraryRoot.vue` until a review ran
+	`grep -n 'role=' src/presentation/library/AssetLibraryRoot.vue` and got NOTHING — Task 16b
+	extracted the body and the region went with it. The correction then named
+	`resultsAnnouncement`, an identifier that exists in no file in this repository at all:
+	`grep -rn resultsAnnouncement src/` prints nothing but this paragraph. A wrong FILE is
+	findable by anyone who opens it; a wrong IDENTIFIER is findable only by grepping, and a
+	sentence whose whole subject is that a name can point at the wrong thing is the last place a
+	reader thinks to check. Names get the same treatment as counts: run the grep in the edit that
+	writes the name.
+
+	That instruction was earned one sentence later. The line above first read *prints only the
+	line you are reading* — and running it printed TWO, because the sentence quoting the grep and
+	the sentence naming the identifier are separate lines of one paragraph. A claim about a
+	command's output is checked by running the command, including when the claim is the one
+	telling you to.
+
+	**That rule is a class this tree has PARTIALLY swept, and the sweep is not ours.** This
+	paragraph said "has not swept" and gave TEN behind a `v-if` against two unconditional. Both
+	numbers were right at `fd5dbeef` and neither survived the merge of the plan editor
+	foundation, which is the fourth way a count in this repository goes wrong and the one no
+	author of either branch is looking at. Re-measured on 2026-09-04 across
+	`src/presentation/**/*.vue` with comments stripped, so a prose mention does not count:
+	SEVEN sit behind a `v-if`/`v-else-if` and therefore appear together with their content —
+	three in `AssetDesignerRoot.vue`, two in `ProjectDetail.vue`, one in
+	`TemporaryToolBanner.vue`, and one in `ViewRoot.vue`'s partial-read notice, which is this
+	strip's exact twin. FOUR are unconditional and correct: `StatusBar.vue`'s, this strip's own
+	parent's search count, and — new with that merge — `PersistentWarningStrip.vue` and
+	`SelectionGuidance.vue`.
+
+	**Those last two are the precedent, and they are worth more to the next author than the
+	number.** `PlanEditorRoot.vue` mounts both into `ResponsiveEditorShell`'s `warnings` slot,
+	which that shell renders OUTSIDE every layout branch, for the reason stated at its call
+	site: the constrained drawer unmounts what it holds, and a region that is not mounted
+	announces nothing. That is slice 13's persistent-region shape applied to a live surface by
+	somebody else — so the remedy this paragraph prescribes is no longer a proposal.
+
+	Fixing the twin alone was offered and declined — it is one of seven, and a partial fix that
+	reads like a complete one is this repository's oldest recorded defect. The sweep still wants
+	its own review, and it is neither this component's to make nor this task's; what belongs here
+	is a dated measurement and a worked example, so the next author inherits both rather than an
+	impression.
 
 	`rp-al-repair` beside the shared `rp-view-notice`: the strip's three-part rows are this
 	surface's own layout, and `styles/view.css`'s `.rp-view-notice` was written for a single

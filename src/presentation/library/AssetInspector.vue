@@ -10,9 +10,20 @@
  * 13 held `selectedId` as a local ref in `AssetLibraryRoot.vue` and `onSelect` wrote only that
  * ref, since the context is `DeepReadonly` and no component may write it — so from the first
  * click the panel and the marked row would have named different assets. Task 16a's write-back
- * closed exactly that: `onSelect` now calls `context.publishViewState(...)`, the view writes
- * its own refs, and the root's `watch` assigns `selectedId` from them in the same synchronous
- * stretch. The two agree.
+ * closed exactly that: `onSelect` assigns `selectedId` itself and then publishes, and
+ * `AssetLibraryView` writes its own refs — so the root's `watch` on `context.assetId` fires
+ * with the value the tree already holds. The two agree.
+ *
+ * **Stated that way rather than as a timing guarantee, which is the correction a re-review had
+ * to make.** The first version of this sentence said the watch assigns `selectedId` "in the
+ * same synchronous stretch", and it is wrong twice over: `onSelect` sets that ref DIRECTLY,
+ * before it publishes at all, so the watch is not what assigns it on this path — and a `watch`
+ * at Vue's default `flush: 'pre'` queues its callback rather than running inline, so no
+ * synchronous claim about it would be true anywhere. The careful wording already existed twice
+ * in the tree and neither place needed changing: `AssetLibraryRoot.vue`'s own header says the
+ * watches "fire with the value they already hold", and `AssetLibraryContext.publishViewState`
+ * says the watch "fires with the value the tree already holds". Both make the idempotence point
+ * without promising a flush, which is what this sentence now does too.
  *
  * **The rule survives its reason, and this is the paragraph that must not be read as inviting
  * the switch.** What the prop buys now is that the panel is drawn from the SAME value the row's

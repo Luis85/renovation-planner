@@ -71,11 +71,20 @@ const searchEl = ref<HTMLInputElement | null>(null);
  * `AssetLibraryBody` emits when a repair row turns out to name a note that is gone.
  *
  * **It is not the view's only call site, and the sentence here said it was.** Measured in the
- * edit that replaced it —
- * `grep -rn "\.hydrate(" src/presentation/library/` prints THREE: this function, and
- * `AssetInspector.vue`'s two repair doors. The claim was vacuously safe while nothing mounted
- * the panel; Task 16a mounting it is what made it false, and the docblock is where this
- * repository's rule says to look — an "only place X" sentence gets a `grep` in the SAME edit.
+ * edit that replaced it: `grep -rEn "(store|library)\.hydrate\(" src/presentation/library/`
+ * prints THREE — this function, and `AssetInspector.vue`'s two repair doors. The claim was
+ * vacuously safe while nothing mounted the panel; Task 16a mounting it is what made it false,
+ * and the docblock is where this repository's rule says to look — an "only place X" sentence
+ * gets a `grep` in the SAME edit.
+ *
+ * **The PATTERN is escaped so that it cannot match this paragraph**, which is the correction a
+ * re-review had to make: the first version quoted a bare dot-hydrate pattern and reported three
+ * where it printed FOUR, the fourth being the docblock line quoting the pattern. *An instrument
+ * written inside the text it measures counts itself* — CLAUDE.md records it against a
+ * `MIGRATION_SET` grep that printed ten for an array of nine, and this branch has now produced
+ * it twice. The escapes above (`\.`, `\(`) are literal backslashes in this comment and
+ * metacharacters to `grep -E`, so the quoted text is not itself a match; the alternation is
+ * what makes that possible without also excluding a real call site.
  *
  * The asymmetry between the two regions is deliberate rather than an oversight of the
  * extraction. `AssetLibraryBody.onOpenNoteRow` is THIS function's own body, moved out for a

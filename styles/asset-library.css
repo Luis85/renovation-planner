@@ -124,9 +124,12 @@
 	 * `min-width: 0` because this is an item of the ROW `.rp-al-main` since Task 16a mounted the
 	 * rail beside it. A flex item's automatic minimum size is its min-content size on the main
 	 * axis, so without this a long unbroken supplier or SKU string inside the shelves refuses to
-	 * shrink and squeezes — or overflows past — §7's 280px rail. `.rp-al-shelf__name` states the
-	 * identical rule beside its own `flex: 1 1 auto` and says so; `.rp-al-shelves`'s own
-	 * `min-width: 0` is a CROSS-axis clamp inside this column and does not reach this element.
+	 * shrink and squeezes — or overflows past — §7's 280px rail. `.rp-al-shelf__name` carries the
+	 * identical pair (`flex: 1 1 auto` beside `min-width: 0`) with no comment of its own; the
+	 * REASON for that pair is written one selector along, in `.rp-al-row__name`'s block, which
+	 * explains why IT omits the property and cites its neighbour for why the flex item needs it.
+	 * `.rp-al-shelves`'s own `min-width: 0` is a CROSS-axis clamp inside this column and does
+	 * not reach this element.
 	 *
 	 * UNRENDERED: jsdom lays nothing out and this container has no pinned Chromium, so the
 	 * instrument is Task 17's default-width capture read by eye. `min-height` above is the same

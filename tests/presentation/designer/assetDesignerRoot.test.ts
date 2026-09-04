@@ -254,7 +254,7 @@ describe('what the designer draws inside its canvas region', () => {
 
 		toolButton(wrapper, 'designer.toolbar.trace-footprint').click();
 		await nextTick();
-		toolButton(wrapper, 'editor.toolbar.pan').click();
+		toolButton(wrapper, 'designer.toolbar.pan').click();
 		await nextTick();
 
 		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);

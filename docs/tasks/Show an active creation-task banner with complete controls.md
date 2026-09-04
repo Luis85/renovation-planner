@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Start one creation task from Add]]"
 order: 40
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -39,3 +39,17 @@ Hard-coding controls per tool can make the banner disagree with the active task'
 ## Outcome
 
 An active creation task is always visible, understandable and controllable without relying on hidden canvas mode.
+
+## Amendments
+
+**2026-09-03** — `TemporaryToolBanner.vue` draws whenever the active tool is neither `null` nor
+`select`. Criterion 1 is `tests/presentation/editor/shell/temporaryToolBanner.test.ts`'s 'is
+absent under Select and names the task under a creation tool' and 'names the calibrate task under
+the calibrate tool' — a name and one instruction, both from the locale table. Criterion 5 is its
+Cancel case: Cancel retires the banner by returning to Select, discarding any draft.
+
+The banner's only control is Cancel. So criterion 2's FINISH is unmet: a polygon finishes by
+clicking its own first corner and nothing in the banner says so. Criterion 3's REMOVE LAST is
+unmet for a tool that does have removable draft steps — `DrawPolygonTool` holds a vertex buffer
+and offers no way to drop the last one. Criterion 4 is vacuous: the banner displays no shortcut,
+so there is nothing that could fire from an editable field.

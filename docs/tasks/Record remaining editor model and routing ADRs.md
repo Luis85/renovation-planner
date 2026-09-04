@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Consolidate the current and target editor data models]]"
 order: 50
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -49,3 +49,15 @@ that make those answers durable.
 
 Every remaining editor model and routing decision needed by the first and later slices has an
 accepted owner, compatibility account and enforcement plan.
+
+## Amendments
+
+**2026-09-03** — ADR-HI, ADR-EPW, ADR-SO, ADR-RL and ADR-SV are RECORDED AS DEFERRED, each with
+its first consumer and the trigger that forces it
+(`docs/development/consolidation/2026-09-editor-model-consolidation.md` §6). That is not the same
+as accepted, so criteria 1 to 5 are deliberately unmet: no code in this increment reads any of
+them, and spec §2.3 gives the reason — a decision nothing pins drifts. Criterion 8 IS met:
+[[Decide Room Zone and Floor Plan boundaries]] is still the only Task owning ADR-RZ and ADR-PF.
+Criteria 6 and 7 remain open — perspective state, typed selection, Inspector routing, adapter
+ownership and event/refresh ownership are not yet assigned to one layer by an accepted record,
+and no enforceable boundary among them names its check.

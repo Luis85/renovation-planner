@@ -17,6 +17,11 @@ the selection.
 
 Run [[Editor Walkthrough]] first, or at least its steps 1–2, so a plan is open with zones on
 it. Preconditions: `npm run test-build`, this folder open as a vault, the plugin enabled.
+**Panning is Space or the middle button, and nothing else** — the plan editor foundation
+increment retired the toolbar's Pan button (design spec §5.2) and made Select the tool a plan
+opens into, so there is no user-reachable door into camera mode (`activeToolId === null`) here
+any more; it remains the state a plan is in before it is ready, and the asset designer's own
+default.
 
 ## Why a human is the only instrument for four of these
 
@@ -27,7 +32,11 @@ and they are the reason this file exists:
 1. **The cursor.** jsdom resolves no styles, so nothing in the suite can tell that
    `.rp-plan-canvas-armed` means `cursor: grab`. The suite asserts the CLASS; only an eye can
    confirm the keyword reaches the pointer. `npm run harness-shot` cannot help either —
-   nothing in a headless capture is hovering.
+   nothing in a headless capture is hovering. The Select tool's hover now carries TWO such
+   classes the suite asserts and only an eye can see: `rp-plan-canvas-target` (pointer over a
+   room body) and `rp-plan-canvas-grab` (grab over a selected room's vertex handle) —
+   `tests/presentation/editor/canvasNavigation.test.ts`'s 'says grab over a vertex handle of the
+   selected room and pointer over its body'.
 2. **Obsidian's own keymap.** jsdom models no host keymap at all. The space bar, `Shift+1`
    and `Shift+2` are all bindable in Obsidian's hotkey settings, and a user's binding fires
    from Obsidian's `Scope` stack, not from this canvas. Steps 3 and 9 ask what actually
@@ -78,8 +87,9 @@ the five values and what they do not claim.
    still zoom rather than drifting sideways as your fingers wobble.
 8a. `desktop` **On a touch device, if you have one:** with the plan panning under one finger, put a
    second finger down and move it, then lift it. Expected: neither disturbs the first
-   finger's pan. Try it in camera mode (no tool selected), which is where a second finger
-   most plausibly lands.
+   finger's pan. Try it with the Select tool active, holding Space (or the middle button) to
+   pan — the plan editor has no other door into this gesture, since camera mode itself is not
+   user-reachable here (see above).
 9. `obsidian` **`Shift+1`.** Expected: the camera reframes so every zone is visible at once, centred,
    with a margin. Then zoom in hard on one corner and press it again.
    *Record whether Obsidian's own keymap took `Shift+1` first.*
@@ -89,6 +99,11 @@ the five values and what they do not claim.
    that is a real defect and not a local quirk.
 10. `suite` **Select one zone, then `Shift+2`.** Expected: the camera frames that zone. With
     **nothing** selected, `Shift+2` must do **nothing at all** — the view you had is kept.
+10a. `browser` **With that zone still selected, hover one of its vertex handles, then hover its
+    body away from any handle.** Expected: the cursor is a **grab hand** over the selected
+    room's vertex handle and an ordinary **pointer** over its body — `rp-plan-canvas-grab` and
+    `rp-plan-canvas-target` from the note above. Only an eye can confirm either keyword reaches
+    the pointer; the suite asserts the class alone.
 11. `desktop` **Hold space, then Alt+Tab away and back** without releasing it. Expected: the canvas is
     NOT stuck in pan mode — the next click selects normally. Focus leaving is the only notice
     the canvas gets that the key was released.

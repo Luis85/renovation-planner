@@ -8,8 +8,21 @@ import { describe, expect, it } from 'vitest';
 import { err, ok } from '../../../src/core/result/Result';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
+/**
+ * `GetProject` and `InMemoryProjectRepository` are here because `wired()` composes the plan
+ * editor boundary's own `getProject` door, and they are worth a comment because THE MERGE THAT
+ * BROUGHT THAT DOOR HERE DROPPED THEM. This branch moved the renovation-project boundary's
+ * cases out to `renovationProjectQueries.test.ts` and removed these two imports with them,
+ * correctly, because nothing left in this file used them; `origin/main` meanwhile added the
+ * `getProject` door and enriched `wired()` to compose it. Neither edit touched the other's
+ * lines, so git applied both — a deletion and a new use of the deleted thing — and produced a
+ * file that no longer compiled. `vue-tsc` named it; no test could, because a file that does
+ * not compile runs none of them.
+ */
+import { GetProject } from '../../../src/application/queries/GetProject';
 import type { ProjectRowFacts } from '../../../src/application/ports/ProjectListFacts';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import {
 	createPlanEditorQueries,
@@ -128,16 +141,20 @@ describe('mapping an entity to a read model', () => {
 async function wired() {
 	const plans = new InMemoryPlanRepository();
 	const zones = new InMemoryZoneRepository();
+	const projects = new InMemoryProjectRepository();
 	const projectId = createProjectId();
+	const project = makeProject({ id: projectId, name: 'Ground floor project' });
+	expectOk(await projects.save(project, 'absent'));
 	const plan = makePlan({ projectId, name: 'Ground floor' });
 	expectOk(await plans.save(plan, 'absent'));
 	const zone = makeZone({ projectId, planId: plan.id, name: 'Hall' });
 	expectOk(await zones.save(zone, 'absent'));
 	const queries = createPlanEditorQueries({
 		getPlan: new GetPlan(plans),
+		getProject: new GetProject(projects),
 		findZonesByPlan: new FindZonesByPlan(zones),
 	});
-	return { plans, zones, plan, zone, queries };
+	return { plans, zones, projects, plan, project, zone, queries };
 }
 
 describe('the plan editor query boundary', () => {
@@ -164,6 +181,49 @@ describe('the plan editor query boundary', () => {
 		};
 
 		const result = await createPlanEditorQueries(failing as never).getPlan('plan-1');
+
+		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
+	});
+
+	/**
+	 * The same mapping the renovation-project boundary's own `getProject` makes, below —
+	 * except `libraryOverlap` is fixed `false` here, since the editor draws no overlap marker,
+	 * and the row facts are fixed the same way, since the editor composes no facts port and
+	 * draws neither `planCount` nor `lastWorked`. Both fabrications are argued at that call
+	 * site; asserting them HERE is what makes a build that starts inventing a different
+	 * placeholder fail rather than quietly answering a project a number nobody counted.
+	 *
+	 * Written against `NO_ROW_FACTS` — this file's own literal — rather than importing
+	 * `UNKNOWN_ROW_FACTS`, so the two are compared rather than being the same object twice.
+	 */
+	it('answers the plan’s project as a DTO, not as an entity', async () => {
+		const { project, queries } = await wired();
+
+		const found = expectOk(await queries.getProject(project.id));
+
+		expect(found).toEqual(toProjectSummaryDto(project, false, NO_ROW_FACTS));
+		expect(found?.planCount).toBe(0);
+		expect(found?.lastWorked).toBeNull();
+	});
+
+	/**
+	 * `ok(null)` travels through UNCHANGED — this is what `ProjectStore.hydrate` reads as
+	 * "the plan's project is gone", the same dangling state as a missing plan.
+	 */
+	it('answers a project that does not exist with ok(null), never an error', async () => {
+		const { queries } = await wired();
+
+		expect(expectOk(await queries.getProject('project-nope'))).toBeNull();
+	});
+
+	it('answers a project whose read failed with isErr, so the two stay distinguishable', async () => {
+		const failing = {
+			getPlan: { execute: () => Promise.resolve(ok(null)) },
+			getProject: { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) },
+			findZonesByPlan: { execute: () => Promise.resolve(ok([])) },
+		};
+
+		const result = await createPlanEditorQueries(failing as never).getProject('project-1');
 
 		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
 	});
@@ -207,6 +267,7 @@ describe('the plan editor query boundary', () => {
 			code: 'settings.unrecovered',
 		});
 		for (const refused of [
+			await queries.getProject('project-1'),
 			await queries.findZonesByPlan('plan-1'),
 			await queries.getRequirementsForZone('zone-1'),
 			await queries.listAssets(),

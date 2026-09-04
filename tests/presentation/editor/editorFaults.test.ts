@@ -21,15 +21,21 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Notice } from '../../helpers/obsidian-mock';
 import { mountPlanEditor, settle, settleUntil } from '../../helpers/editor';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
-import { click, PLAN_DTO, pointer, PROJECT_ID, toolbarButton, ZONE_A_DTO } from '../../helpers/planEditorRig';
+import {
+	actionButton,
+	click,
+	PLAN_DTO,
+	planEditorQueriesFor,
+	pointer,
+	PROJECT_ID,
+	projectRepoWithFixture,
+	ZONE_A_DTO,
+} from '../../helpers/planEditorRig';
 import { expectErr, expectOk, RecordingEventBus } from '../../helpers/domain';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
 import { makeDeleteZoneCommand } from '../../helpers/slice10';
 import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../../../src/application/queries/GetZoneInspector';
-import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
-import { GetPlan } from '../../../src/application/queries/GetPlan';
-import { createPlanEditorQueries } from '../../../src/presentation/read-models/planEditorQueries';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { makePlan, makeZone } from '../../helpers/entities';
@@ -62,6 +68,7 @@ class ThrowingRead extends InMemoryZoneRepository {
 
 async function faultRig() {
 	const plans = new InMemoryPlanRepository();
+	const projects = await projectRepoWithFixture();
 	const plan = makePlan({ projectId: PROJECT_ID, id: PLAN_DTO.id as PlanId });
 	await plans.save(plan, 'absent');
 	const zonesRepo = new ThrowingRead();
@@ -81,10 +88,7 @@ async function faultRig() {
 	const harness = await mountPlanEditor({
 		plan: PLAN_DTO,
 		zones: [ZONE_A_DTO],
-		queries: createPlanEditorQueries({
-			getPlan: new GetPlan(plans),
-			findZonesByPlan: new FindZonesByPlan(zonesRepo),
-		}),
+		queries: planEditorQueriesFor(plans, projects, zonesRepo),
 		commands: {
 			// Spread over the refusal bundle so slice 10's members exist: this rig deletes a
 			// zone nothing references, so a refusing requirement port is exactly right — what
@@ -116,13 +120,13 @@ describe('an unexpected fault during a dispatch', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		click(canvas, 300, 300);
 		await settle();
 
 		const noticesBefore = Notice.shown.length;
 		zonesRepo.throwNext = true;
-		toolbarButton(harness, 'Delete zone').click();
+		actionButton(harness, 'Delete zone').click();
 		// `settleUntil` rather than a fixed `settle()`: slice 10's delete flow reads the
 		// referencing requirements before it dispatches, so the number of ticks between the
 		// click and the write is a property of that flow rather than of this test.
@@ -135,7 +139,7 @@ describe('an unexpected fault during a dispatch', () => {
 		expect(harness.wrapper.text()).toContain('Kitchen');
 
 		// And the leaf still works: a second, clean delete goes through.
-		toolbarButton(harness, 'Delete zone').click();
+		actionButton(harness, 'Delete zone').click();
 		await settleUntil(
 			async () => expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded.length === 0,
 			'the second delete lands',
@@ -157,9 +161,9 @@ describe('an unexpected fault during a dispatch', () => {
  * was an unhandled rejection: no notice, no log line the user's report could name, and the
  * gesture simply did nothing.
  *
- * Driven through the real toolbar and a real drag rather than asserted at the seam, because
- * what is in question is the whole chain — a seam that mapped the fault and a tool that then
- * failed to report it would leave the user exactly as silent.
+ * Driven through the real Select button and a real drag rather than asserted at the seam,
+ * because what is in question is the whole chain — a seam that mapped the fault and a tool
+ * that then failed to report it would leave the user exactly as silent.
  */
 describe('an unexpected fault during a TOOL gesture', () => {
 	it('reaches the user as a notice, and the leaf goes on working', async () => {
@@ -167,7 +171,7 @@ describe('an unexpected fault during a TOOL gesture', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		click(canvas, 300, 300);
 		await settle();
 

@@ -127,6 +127,19 @@ describe('SetAnchorTool', () => {
 	});
 
 	/**
+	 * Task 9 — the whole gesture is over inside `pointerDown` (the class docblock's own
+	 * account), so there is never a draft for Escape to ask about.
+	 */
+	it('never holds a draft: the gesture is over inside pointerDown', () => {
+		const rig = anchorRig();
+		rig.tool.activate(rig.harness.context);
+
+		expect(rig.tool.hasDraft()).toBe(false);
+		rig.tool.pointerDown(pointerAt(40, 50));
+		expect(rig.tool.hasDraft()).toBe(false);
+	});
+
+	/**
 	 * A REFUSED placement reaches the report door — the only channel this tool has, since
 	 * everything it can refuse is refused by the command rather than by itself.
 	 */
@@ -234,6 +247,23 @@ describe('SetFacingTool', () => {
 	 * click to complete. A build that kept the origin would set a facing out of the user's next
 	 * unrelated release.
 	 */
+	/**
+	 * Task 9 — a press with no release yet is this tool's whole draft (`origin`), and Escape
+	 * asks before `cancel()` discards it.
+	 */
+	it('holds a draft only between pointerDown and its release', () => {
+		const rig = facingRig();
+		rig.tool.activate(rig.harness.context);
+
+		expect(rig.tool.hasDraft()).toBe(false);
+
+		rig.tool.pointerDown(pointerAt(0, 0));
+		expect(rig.tool.hasDraft()).toBe(true);
+
+		rig.tool.pointerUp(pointerAt(100, 0));
+		expect(rig.tool.hasDraft()).toBe(false);
+	});
+
 	it('discards the drag on Escape, and on an interruption, without dispatching', async () => {
 		const rig = facingRig();
 		rig.tool.activate(rig.harness.context);

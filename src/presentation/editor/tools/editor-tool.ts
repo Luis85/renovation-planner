@@ -89,4 +89,6 @@ export interface EditorTool {
 	pointerUp(event: EditorPointerEvent): void;
 	cancel(): void;
 	abandonGesture(): void;
+	/** Does this tool hold work a user would lose to `cancel()`? Escape asks before cancelling. */
+	hasDraft(): boolean;
 }

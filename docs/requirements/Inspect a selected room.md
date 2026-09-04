@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Editor foundation]]"
 order: 70
-status: New
-started: ""
+status: Active
+started: 2026-09-02
 finished: ""
 horizon: "MVP"
 start: ""
@@ -97,3 +97,59 @@ successfully read information; unavailable, empty and failed are three different
 - [M01 — Standard Plan View](../user-experience/renovation-planner-editor-specs/screens/M01-standard-plan-view.md)
 - [M16 — Constrained Workspace](../user-experience/renovation-planner-editor-specs/screens/M16-constrained-workspace.md)
 - [Vertical-slice plan: Inspector honesty rule and WP6](../user-experience/renovation-planner-editor-specs/Renovation%20Planner%20—%20First%20Vertical%20Slice%20Plan%20and%20Data-Model%20Specification.md)
+
+## Amendments
+
+**2026-09-03** — advanced, not closed, by the plan editor foundation's first increment.
+
+Met: criterion 1 is `tests/presentation/editor/shell/roomInspector.test.ts`'s 'heading, canvas
+selection and Inspector share one id; the type and floor are homeowner words'; criterion 2 is
+`tests/presentation/read-models/spatialRecords.test.ts`'s 'derives area from the points rather than
+reading a stored figure' — the figure is computed from sidecar geometry at read time and is stored
+in no frontmatter key; criterion 3 is the seven unavailable rows drawn with no count and no
+control beside the Requirements panel keeping its own empty state; criterion 5 is
+`tests/presentation/editor/shell/floorInspector.test.ts`; criterion 6's constrained half is
+`tests/harness/accessibility.test.ts`'s drawer-with-a-selection scan and
+`tests/presentation/editor/shell/responsiveShell.test.ts`'s element-identity assertion;
+criterion 7 is that same scan plus the room name being an `<h3>` under the frame's `<h2>`, a
+heading-order decision stated in `RoomInspector.vue`'s docblock rather than left to chance.
+
+**2026-09-04** — criteria 6 and 7 completed by the review-findings increment.
+
+Met: the resize-driven drawer close no longer strands focus (R10) —
+`tests/presentation/editor/shell/responsiveShell.test.ts`'s 'growing back to full while %s is
+open moves focus to the persistent region it stood in for' asserts `document.activeElement` is
+`[data-rp-region="inspector"]`, the persistent Inspector aside the drawer stood in for, rather
+than `<body>`. And criterion 7's "does not trap focus" half is PINNED rather than merely
+implemented (R3): the same file's '%s does not trap focus: focus can leave it for the canvas'
+opens each constrained panel, moves focus to the canvas, and asserts the panel neither pulls it
+back nor closes — so the modal reading M16 once carried fails there rather than at review. What
+that pin cannot ask is what a browser's own Tab key does with the ORDER, because jsdom performs
+no traversal: step 9 of [[Open a floor and select a room]] is the one place this overlay is
+opened under a real keyboard, and it watches Escape's focus return rather than a Tab out — so
+the traversal itself is measured by nothing today.
+
+**2026-09-04** — criterion 1 closed by the instrument-review task. The citation moves to
+`tests/presentation/editor/shell/roomInspector.test.ts`'s 'one real click on Kitchen: store, named
+outline and Inspector all carry zone-kitchen (the pressed row is roomSummaryList.test.ts's
+case)', which drives one real primary click through the mounted canvas — the case it replaces
+wrote `SelectionStore` directly and never crossed that boundary. Three of the four cross-surface
+facts are read from that one mount: the `SelectionStore` id, the named `.selection-outline`
+outline and the Inspector's `data-rp-id`. The fourth — the Room-list row reading pressed AND
+carrying the selected stable id — cannot be read from the same mount, because `EntityInspector`
+unmounts `FloorInspector` (and with it `RoomSummaryList`) the instant a room is selected; it is
+held instead by `roomSummaryList.test.ts`'s existing 'marks the row matching the current
+selection pressed, and no other', whose `data-rp-id` assertion is what closed that fourth fact
+(fix round 1, 2026-09-04).
+
+Remains:
+
+- **`TransformationSummary` and every available route.**
+  [[Assemble shared homeowner-question Inspector navigation]] shipped the ROWS, all seven
+  unavailable, which is what makes an unbuilt section a stated absence rather than an empty one.
+  Nothing navigates, so nothing preserves a stable id or a viewport through a route, and no child
+  view opens for focus to return from.
+- **Criterion 4 is half met: nothing is disabled while stale.** Stale content IS labelled, by the
+  additive warning strip; `stale` reaches exactly one computed in `PlanEditorRoot.vue` and feeds
+  that strip alone, so Delete stays live over data the last read-back could not confirm. Recorded
+  at [[Preserve room inspection across layout and read changes]].

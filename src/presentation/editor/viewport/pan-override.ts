@@ -218,10 +218,12 @@ export class PanOverride {
 	}
 
 	/**
-	 * Everything abandoned, including the held space bar — which is why `onBlur` is its ONE
-	 * caller. `pointercancel` used to be the other, and is not: a cancellation names a
-	 * pointer, so it abandons that pointer's pan through `abandonGesture` and leaves a key
-	 * the user is still holding alone.
+	 * Everything abandoned, including the held space bar — which is why its one caller is
+	 * `EditorSurface.releaseInterruptedInputs`, the two doors with no pointer to name:
+	 * `onBlur` (the key was released in another application) and `onBeforeUnmount` (the
+	 * element it would have been released on is going away). `pointercancel` used to be
+	 * another, and is not: a cancellation names a pointer, so it abandons that pointer's pan
+	 * through `abandonGesture` and leaves a key the user is still holding alone.
 	 *
 	 * Focus loss has to drop the HELD SPACE, and that is the whole reason this clears
 	 * both fields rather than only the drag. The canvas listens for keys on itself rather

@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Selection]]"
 order: 30
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -36,3 +36,29 @@ Global key handling can swallow Escape intended for a focused field or dialog.
 ## Outcome
 
 Selection always has a predictable, non-destructive route back to the floor overview.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment. `routeEscape`
+(`src/presentation/editor/escapeRouting.ts`) states the whole precedence once, and
+`tests/presentation/editor/escapeRouting.test.ts` walks every level of it in seven cases.
+Criterion 1 is 'Select with a selection clears it' beside
+`tests/presentation/editor/tools/selectTool.test.ts`'s 'clicking empty canvas clears the
+selection'. Criterion 2 is 'a running pan swallows Escape and touches nothing', 'a drawing tool
+WITH a draft cancels the draft and stays active' and 'Select mid-drag cancels the drag before it
+would clear the selection', plus `tests/presentation/editor/add/addMenu.test.ts`'s 'Escape reaches
+the menu and never the canvas: a selected zone stays selected'. The no-draft arm's single `setTool('select')` is pinned by 'a drawing tool WITHOUT a draft returns to Select through setTool alone' (2026-09-04). Criterion 3 is
+`tests/presentation/editor/shell/floorInspector.test.ts`. Criterion 4 is
+`tests/presentation/editor/runtime.test.ts`'s 'a selected zone that disappears from the next
+hydrate is retired, not rebound', with its sibling 'keeps a selected id that survives the next
+hydrate untouched' holding the other direction.
+
+**Criterion 5 ("Viewport remains unchanged") is held by CONSTRUCTION and by no test**, and the
+first draft of this section said the retirement case asserted it, which is false:
+`tests/presentation/editor/runtime.test.ts`'s 'a selected zone that disappears from the next
+hydrate is retired, not rebound' asserts `selectedIds` and nothing else. The three cases that do
+compare `editor.viewport` against a captured `before` belong to `selectAndFrame` — a different
+criterion, on a different Task. What actually holds this one is `routeEscape`'s SHAPE: no member
+of `EscapeDeps` reaches the camera, so no arm of the routine has a viewport to change. A shape is
+weaker evidence than an assertion, and saying which one is in hand is the point of writing it
+down.

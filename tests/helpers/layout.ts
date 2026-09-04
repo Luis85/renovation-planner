@@ -57,6 +57,30 @@ export function resizeTo(element: HTMLElement, width: number, height: number): v
 	}
 }
 
+/**
+ * Make `clientWidth` answer `width(el)` for every element until `restore()` — the one way to
+ * give a component's root a width BEFORE its `onMounted` reads it, since the element does not
+ * exist for `resizeTo` to size until then. jsdom declares the getter on `Element.prototype`
+ * (verified below with `Object.getOwnPropertyDescriptor` rather than assumed), which is what
+ * lets one override answer for every element rather than needing one per node.
+ *
+ * [[The fake ResizeObserver hides removal of the mount-time measurement]]: the fake observer in
+ * this module deliberately fires only through `resizeTo`, and every jsdom mount path calls
+ * `resizeTo` AFTER mounting — so a case that only ever resizes post-mount cannot tell the
+ * mount-time `measure()` call apart from the later observer callback supplying the same width.
+ * This is the other way to give a root a size, ahead of either.
+ */
+export function clientWidthFor(width: (el: Element) => number): () => void {
+	const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'clientWidth') as PropertyDescriptor;
+	Object.defineProperty(Element.prototype, 'clientWidth', {
+		configurable: true,
+		get(this: Element): number {
+			return width(this);
+		},
+	});
+	return () => Object.defineProperty(Element.prototype, 'clientWidth', descriptor);
+}
+
 /** `getBoundingClientRect` is what the camera measures a pointer against. */
 export function placeAt(element: HTMLElement, left: number, top: number, width: number, height: number): void {
 	element.getBoundingClientRect = () =>

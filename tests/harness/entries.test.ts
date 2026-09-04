@@ -12,7 +12,8 @@ import { harnessEditorContext, seedFixture } from './fixture';
 import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
 import SharedWorldPrototype from './SharedWorldPrototype.vue';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
-import { installEditorEnvironment } from '../helpers/editor';
+import { installEditorEnvironment, sizedShellRoot } from '../helpers/editor';
+import { useWorkspaceStore } from '../../src/presentation/stores/WorkspaceStore';
 
 /**
  * jsdom for the whole file, because the last block mounts two real components. The discovery
@@ -286,6 +287,20 @@ const captionsOn = (stage: Konva.Stage | undefined): string[] =>
  * assertion would pass on an empty fixture, seeded a tick later by the queries instead. What
  * the fixture exists to provide is a world in place before the FIRST synchronous mount, and
  * that is exactly what the un-awaited DOM shows.
+ *
+ * **Which is exactly why the shell root is sized HERE, synchronously, before anything is
+ * read.** `ResponsiveEditorShell` (Task 19) measures `root.clientWidth` in `onMounted`, jsdom
+ * answers 0, and `layoutModeFor(0)` is `unsupported` — a mode that renders no canvas at all.
+ * Reading the DOM before Vue flushes hid that completely: measured, the first frame showed
+ * `data-layout="full"` (the store's default, rendered before `onMounted` ran) while the store
+ * already held `'unsupported'`, so `rootHasCanvas` was true of a frame the mount was already
+ * leaving. The remedy has to stay synchronous, because awaiting is what this paragraph refuses;
+ * sizing does, and it makes the pre-flush frame a TRUE statement rather than a stale one.
+ *
+ * The check below is a PRECONDITION, not one of the observations — the header's "never from the
+ * store" rule is about what the fixture's world reached, and this is about which mode the mount
+ * is in. It compares the settled store against the frame actually rendered, so removing the
+ * sizing throws here instead of quietly re-certifying a canvas by render timing.
  */
 function observe(pinia: Pinia, components: Record<string, Component>): {
 	statusTexts: string[];
@@ -295,6 +310,13 @@ function observe(pinia: Pinia, components: Record<string, Component>): {
 } {
 	// ONE prototype, ONE context — as `page.ts` provides one across the whole app.
 	const prototype = mountLikeTheIndex(SharedWorldPrototype, pinia, harnessEditorContext(), components);
+	const shellRoot = sizedShellRoot(prototype.element as HTMLElement);
+	const settled = useWorkspaceStore(pinia).layoutMode;
+
+	if (settled !== 'full' || shellRoot.dataset.layout !== 'full') {
+		throw new Error(`the mount is not in the full layout: store ${settled}, rendered ${shellRoot.dataset.layout}`);
+	}
+
 	const hasCanvas = prototype.find('.rp-plan-canvas').exists();
 	const observed = {
 		// Both `StatusBar`s the prototype ends up with: its own, and `PlanEditorRoot`'s.

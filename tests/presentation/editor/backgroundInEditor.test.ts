@@ -15,7 +15,7 @@ import type { PlanDto } from '../../../src/presentation/read-models/PlanDto';
 import { clearResources, registerResource, releaseResource } from '../../helpers/canvas';
 import { pngFixture } from '../../helpers/backgroundFixtures';
 import { mountPlanEditor, settle, settleUntil, type EditorHarness } from '../../helpers/editor';
-import { FIXTURE_PLAN } from '../../helpers/planFixtures';
+import { FIXTURE_PLAN, FIXTURE_PROJECT } from '../../helpers/planFixtures';
 
 let harness: EditorHarness | null = null;
 
@@ -143,7 +143,11 @@ describe('a background that cannot be drawn', () => {
 		});
 		await settle();
 
-		expect(harness.wrapper.find('.rp-editor-notice').text()).toBe(t('en', 'editor.background-missing'));
+		// R5: the item's text includes its severity word (`background-missing` is `warning`)
+		// beside the message, per `PersistentWarningStrip.vue`'s severity mark.
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.background-missing')}`,
+		);
 	});
 
 	it('says something DIFFERENT when the file is there but will not decode', async () => {
@@ -156,13 +160,16 @@ describe('a background that cannot be drawn', () => {
 		});
 		await settle();
 
-		expect(harness.wrapper.find('.rp-editor-notice').text()).toBe(t('en', 'editor.background-failed'));
+		// `background-unreadable` is `error` (a read refused), unlike the missing-file case above.
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+			`${t('en', 'editor.warning.severity.error')} ${t('en', 'editor.background-failed')}`,
+		);
 	});
 
 	it('shows no notice at all for a plan with no background', async () => {
 		harness = await mountPlanEditor();
 
-		expect(harness.wrapper.find('.rp-editor-notice').exists()).toBe(false);
+		expect(harness.wrapper.find('.rp-warning-strip__item').exists()).toBe(false);
 	});
 });
 
@@ -186,6 +193,7 @@ describe('two background loads racing', () => {
 			vault: vaultWith(['Plans/slow.png', 'Plans/fast.png']),
 			queries: {
 				getPlan: () => Promise.resolve(ok(plan)),
+				getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 			getRequirementsForZone: () => Promise.resolve(ok([])),
 			listAssets: () => Promise.resolve(ok([])),
 			// The two the contract requires and this fixture omitted until `tests/**` was
@@ -255,6 +263,7 @@ describe('two background loads racing', () => {
 			vault: counting,
 			queries: {
 				getPlan: () => Promise.resolve(ok(plan)),
+				getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 				getRequirementsForZone: () => Promise.resolve(ok([])),
 				listAssets: () => Promise.resolve(ok([])),
 				listRequirementsReferencing: () => Promise.resolve(ok([])),
@@ -286,6 +295,7 @@ describe('two background loads racing', () => {
 			vault: vaultWith([PNG, 'Plans/other.png']),
 			queries: {
 				getPlan: () => Promise.resolve(ok(plan)),
+				getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 				getRequirementsForZone: () => Promise.resolve(ok([])),
 				listAssets: () => Promise.resolve(ok([])),
 				listRequirementsReferencing: () => Promise.resolve(ok([])),
@@ -348,6 +358,7 @@ describe('two background loads racing', () => {
 			vault,
 			queries: {
 				getPlan: () => Promise.resolve(ok(plan)),
+				getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 				getRequirementsForZone: () => Promise.resolve(ok([])),
 				listAssets: () => Promise.resolve(ok([])),
 				listRequirementsReferencing: () => Promise.resolve(ok([])),

@@ -159,6 +159,11 @@ export class SetFacingTool implements EditorTool {
 		this.cancel();
 	}
 
+	/** A press with no release yet is the whole of this tool's draft — see `origin`. */
+	hasDraft(): boolean {
+		return this.origin !== null;
+	}
+
 	/**
 	 * Where the drag's head is: the pointer, pulled onto a whole angle from the ORIGIN while
 	 * Shift is held.

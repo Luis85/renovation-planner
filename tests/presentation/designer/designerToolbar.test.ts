@@ -89,14 +89,14 @@ describe('every tool the toolbar offers', () => {
 		const rig = await designerRig();
 		const labels = rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.text());
 		expect(labels).toEqual([
-			t('en', 'editor.toolbar.pan'),
+			t('en', 'designer.toolbar.pan'),
 			t('en', 'designer.toolbar.trace-footprint'),
 			t('en', 'designer.toolbar.trace-clearance'),
 			t('en', 'designer.toolbar.set-anchor'),
 			t('en', 'designer.toolbar.set-facing'),
 			t('en', 'designer.toolbar.calibrate'),
-			t('en', 'editor.toolbar.undo'),
-			t('en', 'editor.toolbar.redo'),
+			t('en', 'designer.toolbar.undo'),
+			t('en', 'designer.toolbar.redo'),
 		]);
 		rig.unmount();
 	});
@@ -113,7 +113,7 @@ describe('camera mode', () => {
 		const rig = await designerRig();
 
 		expect(rig.activeToolId()).toBeNull();
-		expect(rig.toolbarButton(t('en', 'editor.toolbar.pan')).getAttribute('aria-pressed')).toBe('true');
+		expect(rig.toolbarButton(t('en', 'designer.toolbar.pan')).getAttribute('aria-pressed')).toBe('true');
 		rig.unmount();
 	});
 
@@ -123,7 +123,7 @@ describe('camera mode', () => {
 		await press(rig, 'designer.toolbar.trace-footprint');
 		expect(rig.activeToolId()).toBe('trace-footprint');
 
-		await press(rig, 'editor.toolbar.pan');
+		await press(rig, 'designer.toolbar.pan');
 
 		expect(rig.activeToolId()).toBeNull();
 		rig.unmount();
@@ -153,10 +153,10 @@ describe('the toolbar itself', () => {
 	 */
 	it('offers undo and redo, disabled until a gesture has been made', async () => {
 		const rig = await designerRig();
-		const undo = rig.toolbarButton(t('en', 'editor.toolbar.undo'));
+		const undo = rig.toolbarButton(t('en', 'designer.toolbar.undo'));
 
 		expect(undo.disabled).toBe(true);
-		expect(rig.toolbarButton(t('en', 'editor.toolbar.redo')).disabled).toBe(true);
+		expect(rig.toolbarButton(t('en', 'designer.toolbar.redo')).disabled).toBe(true);
 
 		// A traced FOOTPRINT rather than an anchor, because the rig's asset starts with no
 		// shape at all and `SetAssetAnchorCommand` refuses an asset that has none — an anchor
@@ -170,7 +170,7 @@ describe('the toolbar itself', () => {
 		]);
 		await settle();
 
-		expect(rig.toolbarButton(t('en', 'editor.toolbar.undo')).disabled).toBe(false);
+		expect(rig.toolbarButton(t('en', 'designer.toolbar.undo')).disabled).toBe(false);
 		rig.unmount();
 	});
 });

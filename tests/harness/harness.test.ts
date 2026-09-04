@@ -16,10 +16,6 @@ import { transform } from 'lightningcss';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { mountHarness } from '../harness/mount';
-import { mountPlanEditorHarness } from '../harness/planEditor';
-import { mountAssetDesignerHarness } from '../harness/assetDesigner';
-import { installCanvas } from '../helpers/canvas';
-import { installResizeObserver } from '../helpers/layout';
 import { installEditorEnvironment, settle as flushAsync } from '../helpers/editor';
 import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
@@ -1327,75 +1323,4 @@ describe('the browser harness', () => {
 	// that it works BEFORE the extensions are installed — is not reachable from this
 	// file, because a case above has already installed them on the shared prototype.
 	// `platform.test.ts` holds the strictly stronger version of that check.
-});
-
-/**
- * The Plan Editor half of the page — `npm run harness` with `?view=plan-editor`. Same job
- * as the block above and the same limit: this asserts the FRAME and the plumbing, never
- * appearance, because a browser is where the layered scene is actually looked at.
- *
- * The canvas backing and the resize observer are installed because a real Konva stage is
- * constructed here; a browser has both natively, and jsdom has neither.
- */
-describe('the browser harness, plan editor', () => {
-	it('mounts the real plan editor inside the same leaf frame', () => {
-		installCanvas();
-		installResizeObserver();
-
-		const { leafEl, view } = mountPlanEditorHarness(document.body);
-
-		expect(leafEl.classList.contains('rp-harness-leaf')).toBe(true);
-		expect(view.containerEl.parentElement).toBe(leafEl);
-		// Its own first draw ran: the mount point the stylesheet keys off is there.
-		expect(view.contentEl.querySelector('.renovation-plan-editor-view')).not.toBeNull();
-	});
-
-	/**
-	 * The scheme toggle has to reach the CANVAS, not just the DOM chrome. A Konva shape
-	 * cannot read a CSS variable, so the editor re-resolves its palette on a theme event —
-	 * and without the toggle firing one, switching scheme here would relight the panels and
-	 * leave the zones drawn in the other theme.
-	 */
-	it('fires a theme event the editor can re-resolve its palette on', () => {
-		installCanvas();
-		installResizeObserver();
-		mountPlanEditorHarness(document.body);
-		drawSchemeToggle();
-		let fired = 0;
-		window.addEventListener('rp-harness-theme', () => {
-			fired += 1;
-		});
-
-		document.body.querySelector<HTMLElement>('.rp-harness-scheme')?.click();
-
-		expect(fired).toBe(1);
-	});
-});
-
-/**
- * The asset designer half of the page — `npm run harness` with `?view=asset-designer` (Task
- * B10). Same job as the block above and the same limit: this asserts the FRAME and the
- * plumbing, never appearance — a browser is where the shell is actually looked at.
- *
- * The canvas backing and the resize observer are installed for the identical reason: a real
- * Konva stage is constructed inside `DesignerCanvas`, which a browser has natively and jsdom
- * has neither of. There is no theme-event case to mirror the Plan Editor's: `DesignerCanvas.vue`
- * 's own docblock records that `AssetDesignerDeps` carries no theme subscription, so this
- * surface has nothing to fire yet.
- */
-describe('the browser harness, asset designer', () => {
-	it('mounts the real asset designer inside the same leaf frame', async () => {
-		installCanvas();
-		installResizeObserver();
-
-		const { leafEl, view } = mountAssetDesignerHarness(document.body);
-		// The designer's own hydration settles a tick after the synchronous mount, same as
-		// every other view this file and `accessibility.test.ts` mount.
-		await flushPromises();
-
-		expect(leafEl.classList.contains('rp-harness-leaf')).toBe(true);
-		expect(view.containerEl.parentElement).toBe(leafEl);
-		// Its own first draw ran: the mount point the stylesheet keys off is there.
-		expect(view.contentEl.querySelector('.renovation-asset-designer-view')).not.toBeNull();
-	});
 });

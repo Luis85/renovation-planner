@@ -3,10 +3,19 @@
  * PER KEY in `t`, so an incomplete translation degrades one string at a time instead of
  * failing the locale. (German noun capitalization is why the English sentence-case lint
  * deliberately does not run here.)
+ *
+ * **Split at Task 20**, alongside `en.ts` and for the same reason: this table was at its
+ * 400-line budget (`max-lines`, which skips blanks and comments) with no room for the next
+ * handful of keys. `de/editor.ts` holds the German half of the Plan Editor's own
+ * vocabulary — the counterpart of `en/editor.ts`, spread into this object below
+ * (`...editorDe,`) — and its own header explains why it is typed `Record` rather than this
+ * table's `Partial`.
  */
 import type { StringKey } from './en';
+import { editorDe } from './de/editor';
 
 export const de: Partial<Record<StringKey, string>> = {
+	...editorDe,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.name': 'Renovierungsprojekt',
@@ -14,11 +23,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.units.desc': 'Maßsystem für Mengen und Abmessungen.',
 	'settings.units.metric': 'Metrisch',
 	'settings.units.imperial': 'Imperial',
-	'settings.unrecovered':
-		'Einstellungen konnten nicht gelesen werden. data.json im Plugin-Ordner reparieren oder entfernen, dann Obsidian neu laden.',
+	'settings.unrecovered': 'Einstellungen konnten nicht gelesen werden. data.json im Plugin-Ordner reparieren oder entfernen, dann Obsidian neu laden.',
 	'settings.project-folder.name': 'Standardordner für neue Projekte',
-	'settings.project-folder.desc':
-		'Vault-Ordner, in dem der Ordner eines neuen Projekts angelegt wird. Ein bestehendes Projekt behält den Ordner, in dem es sich bereits befindet.',
+	'settings.project-folder.desc': 'Vault-Ordner, in dem der Ordner eines neuen Projekts angelegt wird. Ein bestehendes Projekt behält den Ordner, in dem es sich bereits befindet.',
 	'settings.library-folder.name': 'Bibliotheksordner',
 	'settings.library-folder.current': 'Zurzeit {folder}. Eine Änderung verschiebt die Notizen.',
 	'settings.library-folder.move.name': 'Bibliothek verschieben',
@@ -26,10 +33,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.library-folder-empty': 'Ein Bibliotheksordner darf nicht leer sein.',
 	'settings.library-overlaps-project': 'Dieser Ordner liegt in einem Projektordner oder enthält einen.',
 	'settings.library-overlaps-source': 'Dieser Ordner überlappt den aktuellen Bibliotheksordner.',
-	'settings.library-source-is-vault-root':
-		'Der Bibliotheksordner ist derzeit der gesamte Vault, es gibt also nichts, woraus er verschoben werden könnte. Setzen Sie ihn zuerst in der data.json auf einen echten Ordner.',
-	'settings.library-source-case-mismatch':
-		'Der Bibliotheksordner existiert nicht in der Schreibweise, die diese Einstellung nennt, aber ein ähnlich benannter Ordner ist vorhanden. Bitte diesen Ordner passend umbenennen, bevor verschoben wird.',
+	'settings.library-source-is-vault-root': 'Der Bibliotheksordner ist derzeit der gesamte Vault, es gibt also nichts, woraus er verschoben werden könnte. Setzen Sie ihn zuerst in der data.json auf einen echten Ordner.',
+	'settings.library-source-case-mismatch': 'Der Bibliotheksordner existiert nicht in der Schreibweise, die diese Einstellung nennt, aber ein ähnlich benannter Ordner ist vorhanden. Bitte diesen Ordner passend umbenennen, bevor verschoben wird.',
 	'settings.library-refresh-failed':
 		'Die App konnte den Vault nicht einlesen. Es wurde nichts verschoben und die Einstellung wurde nicht geändert. Bitte erneut versuchen oder Obsidian neu laden.',
 	'settings.library-move-failed':
@@ -81,70 +86,12 @@ export const de: Partial<Record<StringKey, string>> = {
 	'sample.zone.living-room': 'Wohnzimmer',
 	'sample.zone.terrace': 'Terrasse',
 	'sample.zone.garden': 'Garten',
-	'editor.toolbar': 'Editor-Werkzeuge',
-	'editor.layers': 'Ebenen',
-	'editor.toolbar.pan': 'Verschieben',
-	'editor.toolbar.select': 'Auswählen',
-	'editor.toolbar.draw-zone': 'Zone zeichnen',
-	'editor.toolbar.undo': 'Rückgängig',
-	'editor.toolbar.redo': 'Wiederholen',
-	'editor.toolbar.calibrate': 'Kalibrieren',
-	'editor.inspector': 'Inspektor',
-	'editor.inspector.empty': 'Nichts ausgewählt.',
-	'editor.inspector.multiple': 'Mehrere Objekte ausgewählt.',
-	'editor.inspector.name': 'Name',
-	'editor.inspector.area': 'Fläche',
-	'editor.inspector.delete-zone': 'Zone löschen',
-	'editor.inspector.requirements': 'Anforderungen',
-	'editor.inspector.requirements.empty': 'Noch keine Anforderungen für diese Zone.',
-	'editor.inspector.requirement.asset': 'Objekt',
-	'editor.inspector.requirement.quantity': 'Menge',
-	'editor.inspector.requirement.cost': 'Kosten',
-	'editor.inspector.requirement.overridden': 'Übersteuert',
-	'editor.inspector.requirement.stale': 'Werte sind veraltet; Anforderung neu berechnen.',
-	'editor.inspector.requirement.missing-asset': 'Objekt fehlt im Katalog.',
-	// „Bibliothekspreis" für den geteilten Katalogpreis, „Projektpreis" für den eigenen Preis
-	// dieses Projekts. Kein „Material" und kein „Asset": ein Asset heißt in dieser Oberfläche
-	// `Objekt` (siehe `editor.inspector.requirement.asset`), und diese drei Zeilen stehen
-	// unmittelbar daneben.
-	'editor.inspector.price-library': 'Bibliothekspreis',
-	'editor.inspector.price-project': 'Projektpreis',
-	'editor.inspector.price-in-force': 'Aktiv',
-	'editor.inspector.price-derived-from': 'Berechnet aus',
-	'editor.inspector.assign.label': 'Objekt zuweisen',
-	'editor.inspector.assign.button': 'Zuweisen',
-	'editor.inspector.quantity-override.label': 'Mengen-Übersteuerung für',
-	'editor.inspector.cost-override.label': 'Kosten-Übersteuerung für',
-	'editor.inspector.override.reset': 'Auf berechneten Wert zurücksetzen',
-	'editor.inspector.delete-zone.reassign-title': 'Zu welcher Zone sollen diese Anforderungen verschoben werden?',
+	// Keys that are not `editor.*` but sit where the moved block used to be read — see
+	// `de/editor.ts`'s own header (and `en/editor.ts`'s) for why they stayed.
 	'sequence.marker-clear-failed': 'Das Löschen wurde gespeichert, aber der Wiederherstellungseintrag konnte nicht aus dem Vault entfernt werden. Er wird beim nächsten Öffnen dieses Vaults entfernt.',
 	'asset-price.cleanup-failed': 'Das Objekt wurde gelöscht, aber eine Preisnotiz dafür konnte nicht aus dem Vault entfernt werden. Löschen Sie sie von Hand, falls Sie sie finden.',
 	'cascade.stale-marker-failed': 'Eine Anforderung konnte nicht als veraltet markiert werden. Ihre Werte können falsch sein, bis sie neu berechnet wird.',
 	'cascade.aborted': 'Mit dieser Änderung verknüpfte Anforderungen konnten nicht aktualisiert werden. Ihre Werte können veraltet sein.',
-	'editor.zone.default-name': 'Zone',
-	'editor.canvas': 'Grundriss-Zeichenfläche',
-	'editor.status': 'Status',
-	'editor.measurements': 'Messwerte',
-	'editor.save-state': 'Speicherstatus',
-	'editor.zoom': 'Zoom',
-	// `Umschalttaste` is the German name of the key itself, which is what a hint about holding
-	// it has to say — `Shift` is the legend printed on many keyboards but not the word.
-	'editor.hint.constrain-angle': 'Umschalttaste beschränkt den Winkel',
-	'editor.loading': 'Grundriss wird geladen …',
-	'editor.background-missing': 'Die Hintergrunddatei dieses Grundrisses fehlt.',
-	'editor.background-failed': 'Der Hintergrund dieses Grundrisses konnte nicht gezeichnet werden.',
-	'editor.layer.background': 'Hintergrund',
-	'editor.layer.architecture': 'Architektur',
-	'editor.layer.zone': 'Zonen',
-	'editor.layer.construction': 'Bauabschnitte',
-	'editor.layer.asset': 'Ausstattung',
-	'editor.layer.annotation': 'Anmerkungen',
-	'editor.layer.interaction': 'Interaktion',
-	'editor.calibrate.distance.title': 'Reale Entfernung festlegen',
-	'editor.calibrate.distance.label': 'Entfernung in Millimetern',
-	'editor.calibrate.distance.measured': 'Auf dem Hintergrund gemessen:',
-	'editor.calibrate.recalibrate.title': 'Die Zonen auf diesem Plan neu skalieren?',
-	'editor.calibrate.recalibrate.message': 'Auf diesem Plan sind bereits Zonen eingezeichnet. Beim Festlegen des Maßstabs werden alle skaliert. Sie können den Vorgang rückgängig machen.',
 	'background.no-plan-open': 'Zuerst einen Grundriss-Editor öffnen.',
 	'background.unsupported': 'Nur PNG-, JPEG- und PDF-Dateien können ein Grundriss-Hintergrund sein.',
 	'zone.status.planned': 'Geplant',
@@ -444,6 +391,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'view.asset-designer.name': 'Objekt-Designer',
 	'designer.canvas': 'Objekt-Zeichenfläche',
 	'designer.toolbar': 'Objekt-Werkzeuge',
+	'designer.toolbar.pan': 'Verschieben',
+	'designer.toolbar.undo': 'Rückgängig',
+	'designer.toolbar.redo': 'Wiederholen',
 	'designer.toolbar.trace-footprint': 'Umriss nachzeichnen',
 	'designer.toolbar.trace-clearance': 'Freiraum nachzeichnen',
 	'designer.toolbar.set-anchor': 'Ankerpunkt setzen',

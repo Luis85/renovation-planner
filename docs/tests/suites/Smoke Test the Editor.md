@@ -75,7 +75,7 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the twelve cases whose
+Every step below carries a **`Reachable by`** verdict — a column in the fifteen cases whose
 steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
 procedure is a list. The verdict names the **cheapest instrument that could discharge that
 step as written**. It is a claim about the step's own pass condition, not a report on what is
@@ -83,13 +83,34 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 99 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 40 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 120 |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 12 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 102 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 43 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 125 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 13 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 9 |
 
-**280 steps across FIFTEEN cases**, re-measured by running both greps below over the tree that
+**292 steps across SIXTEEN cases, and this paragraph has now proved itself a SEVENTH time — at a
+merge, and with a face this file had not yet recorded: TWO of the five rows agreed across the
+conflict and were therefore never offered to anyone to check.** The Renovation Planner Home
+branch measured 280 across fifteen and `origin/main` measured 276 across fifteen; each was
+correct on the day and neither is correct now, because each had counted a tree without the
+other's case in it ([[Find and resume a project]] and [[Open a floor and select a room]]
+respectively). Three rows conflicted and were resolved by re-running; `suite` and `judgement`
+did not conflict at all, because both branches happened to write the SAME number — `suite` 99
+and `judgement` 9 — over two different trees. `judgement` was right by luck, since neither case
+added one. **`suite` was wrong and silent**: both branches had added exactly three `suite` steps
+to the base's 96, so git saw one line and merged it, and the merged tree holds 102. A number
+that agrees across a conflict is not a number two branches have checked; it is a number nobody
+was asked about. The five figures above are a fresh run of BOTH greps below against the tree
+this merge produced, taken in the edit that resolved it — 275 table rows across fifteen
+table-form cases and 17 list steps in [[Canvas Navigation]] — and they sum to 292 rather than
+being asserted to. They are also additive against the merge base to the step: base `suite` 96,
+`browser` 39, `obsidian` 108, `desktop` 12, `judgement` 9, plus this branch's 16 and
+`origin/main`'s 12, which is what says nothing was dropped in the resolution.
+
+**280 steps across FIFTEEN cases** was this branch's own pre-merge measurement, superseded by
+the re-run above and kept for what the rest of the paragraph says. It was taken by running both
+greps below over the tree that
 holds [[Find and resume a project]], which contributes sixteen steps — twelve `obsidian`, three
 `suite` and one `browser`. It is the Renovation Planner Home surface's case, and it is
 disproportionately `obsidian` for a reason worth reading before the tier figures are used to
@@ -131,6 +152,20 @@ project]] together, so the current figures are one measurement of the whole tree
 two arithmetic corrections stacked. A count is only as current as its last grep, and the
 increment that adds a case is the one that has a reason to take it.
 
+**276 steps across FIFTEEN cases — `origin/main`'s own pre-merge measurement, superseded by the
+re-run at the head of this section — and this paragraph proving itself a SIXTH time, not at
+a merge that time, but at an omission inside one tree.** [[Open a floor and select a room]] had
+been in `docs/tests/cases/` since the plan editor foundation's first increment, so the case count
+here was never wrong; only the step total was, because the census had not been re-run since that
+case's own step 6 and step 9 were written, and it had not been re-run again after this
+review-findings task gave that case a step 11 (the `Ctrl+P` keymap instrument,
+[[The manual keymap claim points to a step that never invokes the keymap]]) and gave [[Canvas
+Navigation]] a tenth-numbered hover step for the Select tool's two new cursor classes. The two
+greps below, run in the edit that resolved it, print 259 table rows across fourteen files and 17
+list steps in [[Canvas Navigation]], for 276 across fifteen cases — `suite` 99, `browser` 42,
+`obsidian` 113, `desktop` 13 and `judgement` 9. See
+[[The smoke-test census omits the newest case]], closed.
+
 **This paragraph is its own worked example, twice over.** Design slices 19 and 21 each re-ran
 the two greps and each wrote down what it measured; both were correct on the day, and the merge
 of the two made both wrong at once, because each had counted a tree without the other's cases in
@@ -145,7 +180,7 @@ pass gave that case its verdict column, and it contributes 17 steps. Eleven case
 carrying verdicts, measured per file rather than assumed.
 
 The instrument is TWO patterns, because the verdict has two spellings and a grep that sees only
-the table form silently under-counts by the sixteen steps of [[Canvas Navigation]]:
+the table form silently under-counts by the seventeen steps of [[Canvas Navigation]]:
 
 ```bash
 grep -rhoE '^\| [0-9]+[a-z]? \| `(suite|browser|obsidian|desktop|judgement)` \|' docs/tests/cases/*.md
@@ -256,8 +291,12 @@ fifteen `obsidian` steps of its own, for the same kind of reason. The
 `browser` tier is the one this triage was made to price, and three review rounds moved it in
 both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
 `obsidian` or `desktop` on a closer read, and five `suite` steps then turned out to be
-`browser` under the rule above. It has been 35, 27, 33, 32, 31, 30, 29, 30, 39 and now **40** —
-each of the last two measured by a re-run rather than reasoned from the one before it.
+`browser` under the rule above. It has been 35, 27, 33, 32, 31, 30, 29, 30, 39, then 40 on the
+Renovation Planner Home branch and 42 on `origin/main` at the same time — two concurrent
+readings of two trees rather than two steps of one sequence — and now **43** on the tree their
+merge produced. Each of the last four was measured by a re-run rather than reasoned from the one
+before it, and the pair in the middle is the reason this line reads as a fork rather than a
+chain: a sequence written as a chain would have implied one of them followed the other.
 
 **The ninth figure used to read `33`, and that is the pre-existing transcription defect the
 head of this section names.** It and the table's `39` were attributed to one re-run of one
@@ -346,13 +385,16 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   round trip through a real reload.
 - [[Canvas Navigation]] — the camera gestures a user reaches for while doing something
   else: space-drag, middle-drag, shift+wheel and the two zoom-to-fit shortcuts. **NINE of its
-  SIXTEEN steps** need Obsidian, a real desktop, or settle nothing an instrument can reach:
+  SEVENTEEN steps** need Obsidian, a real desktop, or settle nothing an instrument can reach:
   what Obsidian's own keymap does with the space bar and `Shift+1`, what a real desktop does
   with a middle press, a trackpad, a touch screen and a chorded mouse, and what a right-click
   produces, which the step records rather than asserts. This sentence read "four of its twelve
   steps" until the triage gave it something to be checked against — the procedure had grown to
   sixteen and the summary had not moved. The cursor keyword it used to name is `browser` now,
-  not manual: a real pointer over a real element has a computed style.
+  not manual: a real pointer over a real element has a computed style. **2026-09-04** added a
+  seventeenth, `browser`, step — hovering a selected room's vertex handle and its body for the
+  Select tool's two new cursor classes — so the ratio needing a host or a desktop is unchanged
+  at nine while the denominator moves.
 - [[Empty States Walkthrough]] — design slice 14's two central-view empty states. Its step 4
   is the sharpest example in this suite of a claim only a vault can settle: the Plan Editor's
   empty states are OVERLAYS over a canvas that stays mounted, and the two things that
@@ -434,3 +476,19 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   suite's second PDF-rendering step and the only caller either has for
   `editor-background-pdf-test.pdf` on the asset surface — reused rather than duplicated,
   because there is no asset-specific fixture and none of this case needs one.
+- [[Open a floor and select a room]] — the plan editor foundation's first increment: the read
+  path and selection, with Select as the resting state, the toolbar gone, and the shell rearranged
+  around one canvas instance by leaf width. FIVE of its eleven steps are tagged `obsidian` — 1, 8,
+  9, 10 and 11 — and its own header tabulates the four things no gate here can settle, which is a
+  different set by one: step 11 (added 2026-09-04) is the only instrument for whether Obsidian's
+  keymap fires behind an open Add menu, since jsdom models no host `Scope`; step 8 for whether a
+  real sidebar leaf lands in `constrained` once the tab bar, ribbon and resize handle are
+  subtracted from `layoutMode.ts`'s 900/400 JUDGEMENTS; step 9 for whether Electron honours the
+  `.focus()` the overlay's close path demonstrably calls, and, since the same date, whether Tab
+  from the reopened overlay's last control leaves it for the canvas without trapping focus (R3);
+  and step 10 for whether `focusLeaf()` visibly brings the tab forward. The unsupported-width
+  notice's own horizontal-overflow question is answered at 320 px by `npm run harness-shot`'s
+  `plan-editor-unsupported` measure (2026-09-04), not by any step here; what neither that capture
+  nor any step here reaches is the 460 px `constrained` width, and whether a REAL Obsidian leaf
+  scrolls at either width — the capture runs in a headless Chromium, not in Obsidian's own leaf
+  chrome.

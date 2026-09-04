@@ -16,6 +16,7 @@
  * unexpected fault); this file covers the resolved-but-failed half.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
+import { nextTick } from 'vue';
 // Mock-only surface, imported BY NAME. `Notice` carries members
 // the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
 // `'obsidian'` specifier type-checks against a surface that has no such thing. The
@@ -24,8 +25,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 // wants.
 import { Notice } from '../../helpers/obsidian-mock';
 import { expectOk } from '../../helpers/domain';
-import { click, pointer, rig, toolbarButton, type Rig } from '../../helpers/planEditorRig';
-import { settle } from '../../helpers/editor';
+import { actionButton, click, pointer, rig, type Rig } from '../../helpers/planEditorRig';
+import { mountPlanEditor, mountPlanEditorCanvas, runtimeOf, settle } from '../../helpers/editor';
+import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
+import type { ZoneDto } from '../../../src/presentation/read-models/PlanDto';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
+import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installObsidianDom } from '../../helpers/dom';
 
@@ -62,7 +68,7 @@ async function externallyTouchZoneA(zonesRepo: Rig['zonesRepo']): Promise<void> 
 async function moveZoneA(harness: Rig['harness']): Promise<void> {
 	const canvas = harness.canvasEl;
 	if (canvas === null) throw new Error('expected a mounted canvas');
-	toolbarButton(harness, 'Select').click();
+	actionButton(harness, 'Select').click();
 	await settle();
 	pointer(canvas, 'pointerdown', 200, 200);
 	pointer(canvas, 'pointermove', 230, 200);
@@ -95,7 +101,7 @@ describe('a refused undo', () => {
 		await externallyTouchZoneA(zonesRepo);
 
 		const noticesBefore = Notice.shown.length;
-		const undoButton = toolbarButton(harness, 'Undo');
+		const undoButton = actionButton(harness, 'Undo');
 		expect(undoButton.disabled).toBe(false);
 		undoButton.click();
 		await settle();
@@ -130,7 +136,7 @@ describe('a refused redo', () => {
 
 		// A clean undo first — nothing has touched the zone yet, so this one succeeds and
 		// moves the command onto the redo stack.
-		const undoButton = toolbarButton(harness, 'Undo');
+		const undoButton = actionButton(harness, 'Undo');
 		undoButton.click();
 		await settle();
 		expect(
@@ -141,7 +147,7 @@ describe('a refused redo', () => {
 		await externallyTouchZoneA(zonesRepo);
 
 		const noticesBefore = Notice.shown.length;
-		const redoButton = toolbarButton(harness, 'Redo');
+		const redoButton = actionButton(harness, 'Redo');
 		expect(redoButton.disabled).toBe(false);
 		redoButton.click();
 		await settle();
@@ -163,21 +169,185 @@ describe('a refused redo', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		// Every other assertion on this control in the suite is `disabled === false`. A
 		// binding that lost its condition — an Undo always live — satisfies all of them and
 		// offers the user a control for a history that does not exist.
-		expect(toolbarButton(harness, 'Undo').disabled).toBe(true);
+		expect(actionButton(harness, 'Undo').disabled).toBe(true);
 
 		click(canvas, 200, 200);
 		await settle();
 
 		// A plain selection is not a command: still nothing to undo.
-		expect(toolbarButton(harness, 'Undo').disabled).toBe(true);
+		expect(actionButton(harness, 'Undo').disabled).toBe(true);
 
 		harness.unmount();
 	});
 
+});
+
+describe('Select is the default tool (Task 10)', () => {
+	it('activates Select once the plan becomes ready, and a refresh that keeps status ready does not re-arm it', async () => {
+		// `rig()` awaits hydration to `'ready'` before handing the harness back, so the
+		// transition INTO `'ready'` has already happened by this line — Select is what a fresh
+		// Plan Editor leaf opens onto rather than camera mode.
+		const { harness } = await rig();
+		const runtime = runtimeOf(harness);
+
+		expect(actionButton(harness, 'Select').getAttribute('aria-pressed')).toBe('true');
+
+		// Task 13 retired the toolbar's own Draw zone button; the tool is asked for directly,
+		// and the claim under test — the ACTIVE TOOL, not one button's rendering of it —
+		// is what `activeToolId` states.
+		runtime.setTool('draw-polygon');
+		await settle();
+		expect(runtime.activeToolId.value).toBe('draw-polygon');
+
+		// `PlanEditorRoot` subscribes a plain re-hydration to `onPlanChanged`, and
+		// `ProjectStore.hydrate` only sets `status = 'loading'` when it was not already
+		// `'ready'` — so this refresh never actually CHANGES `status`, Vue's `watch` never
+		// invokes its callback for a same-value write, and the tool the user chose survives it
+		// without the watch needing to ask what the status used to be.
+		harness.changePlan();
+		await settle();
+		expect(runtime.activeToolId.value).toBe('draw-polygon');
+
+		harness.unmount();
+	});
+});
+
+/**
+ * `EditorRuntime.selectAndFrame` (design slice 12): the list-framing seam a room-list row
+ * dispatches through — select the id and fit the camera to its bounds through
+ * `EditorStore.fitTo`, unless there is nothing to fit or nowhere to fit it into.
+ *
+ * `mountPlanEditor()` mounts the real canvas over `FIXTURE_PLAN`/`FIXTURE_ZONES`
+ * (`zone-kitchen`, `zone-terrace`), which is what wires `EditorSurface`'s resize observer —
+ * so `editor.stageSize` is already the harness's own 800×600 by the time these cases run,
+ * the same way a real leaf's would be after its first layout.
+ */
+describe('selectAndFrame (Task 12: list framing)', () => {
+	it('selects the id and moves the camera onto it', async () => {
+		const harness = await mountPlanEditor();
+		const runtime = runtimeOf(harness);
+		const editor = useEditorStore();
+		const before = editor.viewport;
+
+		runtime.selectAndFrame('zone-kitchen');
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-kitchen']);
+		expect(editor.viewport).not.toEqual(before);
+		harness.unmount();
+	});
+
+	/**
+	 * `boundsOfZones` answers `null` for a zone with NO points at all — the case its own
+	 * docblock means by "nothing to frame" — which is a different arm of `selectAndFrame`
+	 * from `fitTo`'s own doubly-degenerate handling (a single-point extent, still a valid
+	 * bounding box) that `EditorStore`'s own tests already cover.
+	 */
+	it('on a degenerate record selects it and leaves the camera alone', async () => {
+		const pointless: ZoneDto = {
+			id: 'zone-empty',
+			planId: FIXTURE_PLAN.id,
+			name: 'Nothing to frame',
+			zoneType: 'Room',
+			status: 'Planned',
+			points: [],
+		};
+		const harness = await mountPlanEditor({ queries: fakeQueries(FIXTURE_PLAN, [pointless]) });
+		const runtime = runtimeOf(harness);
+		const editor = useEditorStore();
+		const before = editor.viewport;
+
+		runtime.selectAndFrame('zone-empty');
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-empty']);
+		expect(editor.viewport).toEqual(before);
+		harness.unmount();
+	});
+
+	it('selects an id the hydrated zones do not hold, and leaves the camera alone', async () => {
+		const harness = await mountPlanEditor();
+		const runtime = runtimeOf(harness);
+		const editor = useEditorStore();
+		const before = editor.viewport;
+
+		runtime.selectAndFrame('zone-nonexistent');
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-nonexistent']);
+		expect(editor.viewport).toEqual(before);
+		harness.unmount();
+	});
+
+	/**
+	 * `fitTo` treats a `0 x 0` stage as an ordinary early call rather than an error (its own
+	 * docblock) — the window before `EditorSurface`'s resize observer has ever run. Reset
+	 * directly through the store rather than by avoiding the canvas mount, since mounting one
+	 * at all is what wires the observer that sets a real size.
+	 */
+	it('leaves the camera alone while the stage has not been measured', async () => {
+		const harness = await mountPlanEditor();
+		const runtime = runtimeOf(harness);
+		const editor = useEditorStore();
+		editor.setStageSize({ width: 0, height: 0 });
+		const before = editor.viewport;
+
+		runtime.selectAndFrame('zone-kitchen');
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-kitchen']);
+		expect(editor.viewport).toEqual(before);
+		harness.unmount();
+	});
+
+	/**
+	 * Spec §6.5's retirement is about an IDENTITY the vault no longer holds, and the hover is
+	 * the second channel that names one. The outline already withdrew on its own — the
+	 * `InteractionLayer` draws nothing for an id the hydrated map lacks — while the CURSOR went
+	 * on promising a target, so the two predictive channels contradicted each other until some
+	 * later pointer move happened to overwrite the stale id. Mounted through
+	 * `mountPlanEditorCanvas` rather than `mountPlanEditor` because the class is the half of
+	 * this that a user actually sees, and it needs a canvas to be on.
+	 */
+	it('a selected AND hovered zone that disappears from the next hydrate is retired from both, and the cursor stops promising it', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		const projectStore = useProjectStore();
+		useSelectionStore().select(['zone-kitchen' as never]);
+		runtime.renderState.hoveredObjectId = 'zone-kitchen';
+		runtime.renderState.hoveredTargetKind = 'body';
+		await settle();
+		expect(harness.canvasEl.classList.contains('rp-plan-canvas-target')).toBe(true);
+
+		await projectStore.hydrate(fakeQueries(FIXTURE_PLAN, [FIXTURE_ZONES[1]]), FIXTURE_PLAN.id);
+		await settle();
+
+		expect(useSelectionStore().selectedIds).toEqual([]);
+		expect(runtime.renderState.hoveredObjectId).toBeNull();
+		expect(runtime.renderState.hoveredTargetKind).toBeNull();
+		expect(harness.canvasEl.classList.contains('rp-plan-canvas-target')).toBe(false);
+		harness.unmount();
+	});
+
+	it('keeps a selected id that survives the next hydrate untouched', async () => {
+		const harness = await mountPlanEditor();
+		const runtime = runtimeOf(harness);
+		const projectStore = useProjectStore();
+		useSelectionStore().select(['zone-kitchen' as never]);
+		// The other direction of the retirement, and the reason it is asserted for the hover
+		// too: a watcher that cleared unconditionally would pass the case above and take a live
+		// hover with it on every hydrate.
+		runtime.renderState.hoveredObjectId = 'zone-kitchen';
+		runtime.renderState.hoveredTargetKind = 'body';
+
+		await projectStore.hydrate(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), FIXTURE_PLAN.id);
+		await nextTick();
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-kitchen']);
+		expect(runtime.renderState.hoveredObjectId).toBe('zone-kitchen');
+		expect(runtime.renderState.hoveredTargetKind).toBe('body');
+		harness.unmount();
+	});
 });

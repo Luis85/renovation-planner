@@ -1,6 +1,6 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { LibraryOverlaps } from '../../application/ports/LibraryOverlaps';
-import type { ProjectListFacts, ProjectRowFacts } from '../../application/ports/ProjectListFacts';
+import type { ProjectListFacts } from '../../application/ports/ProjectListFacts';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { Query } from '../../application/queries/Query';
 import type { GetProjectInput } from '../../application/queries/GetProject';
@@ -13,7 +13,13 @@ import type { AssetPriceRowDto } from '../../application/queries/ListProjectAsse
 import type { Loaded } from '../../application/ports/versioning';
 import type { Project } from '../../domain/project/Project';
 import type { ProjectId } from '../../domain/project/ProjectId';
-import { toPlanSummaryDto, toProjectSummaryDto, type PlanSummaryDto, type ProjectSummaryDto } from './PlanDto';
+import {
+	UNKNOWN_ROW_FACTS,
+	toPlanSummaryDto,
+	toProjectSummaryDto,
+	type PlanSummaryDto,
+	type ProjectSummaryDto,
+} from './PlanDto';
 
 /**
  * The view's own shape of a project listing: summaries it can render, and how many projects
@@ -115,7 +121,7 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
  * `createPlanEditorQueries` draws for `getPlan` and `findZonesByPlan`.
  */
 /**
- * What a project the facts port did not answer for gets, at BOTH doors.
+ * What a project the facts port did not answer for gets, at BOTH doors below.
  *
  * A compliant port never produces it — `ProjectListFacts.factsFor` states one entry per id
  * asked about, never a sparse map — so this exists because `ReadonlyMap.get` is typed
@@ -125,8 +131,16 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
  *
  * Zero and null rather than a refusal: the detail state draws neither field today, and a row
  * with an unknown plan count still has a name, a status and a currency worth drawing.
+ *
+ * **It is `PlanDto.ts`'s exported constant rather than a literal of this file's own**, taken
+ * there at the merge that gave `createPlanEditorQueries.getProject` a third door needing the
+ * same value for a DIFFERENT reason (that bundle composes no facts port at all). Two literals
+ * spelling `{ planCount: 0, lastWorked: null }` in one directory would have to keep meaning
+ * the same thing with nothing to notice them drifting; the local name stays because these two
+ * call sites are about a port that ANSWERED and the other is about one that was never asked,
+ * and only the value is shared.
  */
-const NO_FACTS: ProjectRowFacts = { planCount: 0, lastWorked: null };
+const NO_FACTS = UNKNOWN_ROW_FACTS;
 
 /**
  * ONE bundle rather than six positional parameters, which is `createPlanEditorQueries`'s own

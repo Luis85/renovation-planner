@@ -5,7 +5,7 @@
  *
  * **Its POSITION in `index.css` is not load-bearing**, unlike that earlier split's, and this
  * says so rather than repeating a caution that does not apply here: nothing else in the
- * assembled sheet declares `cursor` on `.rp-plan-canvas` or on any of these three classes,
+ * assembled sheet declares `cursor` on `.rp-plan-canvas` or on any of the classes below,
  * so there is no equal-specificity pair for ordering to decide. If a second declaration ever
  * appears, this paragraph is what has to change first.
  */
@@ -13,7 +13,7 @@
 /*
  * WHAT THE POINTER IS ABOUT TO DO, as the one thing on this canvas that says so.
  *
- * `PlanCanvas.vue` binds exactly ONE of these at a time, from a computed that resolves the
+ * `EditorSurface.vue` binds exactly ONE of these at a time, from a computed that resolves the
  * precedence itself — see `cursorClass` there. That is deliberate rather than incidental:
  * expressing "the camera outranks the active tool" as source order in this file would make
  * a correct rule depend on where it was pasted, and nothing in any gate reads CSS ordering.
@@ -41,4 +41,19 @@
 
 .rp-plan-canvas-precise {
 	cursor: crosshair;
+}
+
+/* Select predicting a selectable BODY under the pointer — what a click here would take. */
+.rp-plan-canvas-target {
+	cursor: pointer;
+}
+
+/*
+ * Select predicting a VERTEX HANDLE of the already-selected room — what a drag here would
+ * move. The same keyword as `.rp-plan-canvas-armed` above, and deliberately so: both mean
+ * "this is about to move under your hand", and the two can never apply at once because
+ * `cursorClass` gives the camera the higher precedence and returns exactly one class.
+ */
+.rp-plan-canvas-grab {
+	cursor: grab;
 }

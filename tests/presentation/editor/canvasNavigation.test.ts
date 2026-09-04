@@ -22,7 +22,7 @@
 import { describe, expect, it } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { settle } from '../../helpers/editor';
-import { click, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { actionButton, activateTool, click, pointer, rig } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
 const PLAN = 'plan-e2e' as never;
@@ -75,7 +75,7 @@ describe('holding space to pan', () => {
 		// The gesture the whole change exists for: the user is in a selection mode and needs
 		// the view moved without leaving it.
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = camera.viewport.pan;
 
@@ -94,7 +94,7 @@ describe('holding space to pan', () => {
 		// The routing half. A canvas that panned AND forwarded would drag the zone by the
 		// same delta it just moved the camera by, which reads as the plan tearing apart.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 
@@ -114,7 +114,7 @@ describe('holding space to pan', () => {
 		// vertices already placed — and the user reaches for the pan precisely BECAUSE the
 		// shape they are drawing runs off the pane.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -156,7 +156,7 @@ describe('holding space to pan', () => {
 		// With a tool ACTIVE, so the pan can only have come from the override — in camera
 		// mode a bare primary drag already pans and this case would pass against no change
 		// at all.
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = camera.viewport.pan;
 
@@ -178,7 +178,7 @@ describe('holding space to pan', () => {
 		const { harness, canvas, camera } = await editor();
 		// Again with a tool active: the point is that the primary drag goes back to the TOOL,
 		// which in camera mode would be indistinguishable from the override still working.
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		key(canvas, 'keydown', { key: ' ' });
 		canvas.dispatchEvent(new FocusEvent('blur', { bubbles: false }));
@@ -197,7 +197,7 @@ describe('holding space to pan', () => {
 describe('the middle button', () => {
 	it('pans with no modifier while a tool is active', async () => {
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = camera.viewport.pan;
 
@@ -223,7 +223,7 @@ describe('the middle button', () => {
 		// a reason the case did not name. A finger has its own pointer id and its own press,
 		// which is the one input that reaches `pointerDown` while a gesture is in flight.
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		click(canvas, 300, 300);
 		await settle();
@@ -305,7 +305,7 @@ describe('zoom to fit', () => {
 
 	it('Shift+2 frames the selection', async () => {
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		click(canvas, 300, 300);
 		await settle();
@@ -364,7 +364,7 @@ describe('what the cursor says the pointer will do', () => {
 	it('is precise while a drawing tool is active', async () => {
 		const { harness, canvas } = await editor();
 
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-precise']);
@@ -376,13 +376,63 @@ describe('what the cursor says the pointer will do', () => {
 		// promise a pan and not a vertex. The routing already behaves this way; a cursor
 		// that disagreed with it would be the only thing telling the user otherwise.
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		key(canvas, 'keydown', { key: ' ' });
 		await settle();
 
 		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-armed']);
+		harness.unmount();
+	});
+
+	it('promises what a Select click would take, and a running pan still outranks it', async () => {
+		// `resolveSelectionTarget` predicts through `SelectTool.pointerMove` — task 11 — so
+		// hovering zone-a's body promises the same thing a click there would take.
+		const { harness, canvas } = await editor();
+		actionButton(harness, 'Select').click();
+		await settle();
+
+		// Screen footprint (198,198)-(488,388) is zone-a's, at the default camera.
+		pointer(canvas, 'pointermove', 300, 300);
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-target']);
+
+		// The camera outranks the tool, exactly as it does for the drawing tool above: a
+		// middle-button pan claims the canvas out from under the same hover.
+		pointer(canvas, 'pointerdown', 300, 300, 1);
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-panning']);
+		harness.unmount();
+	});
+
+	it('says grab over a vertex handle of the selected room and pointer over its body', async () => {
+		// Spec §6.2 distinguishes the two: a body promises a SELECTION, a vertex handle of an
+		// already-selected room promises a DRAG of that vertex. `resolveSelectionTarget` has
+		// always answered which, and the hover used to keep only the id — so the most precise
+		// target on the canvas was announced as an ordinary body hit.
+		const { harness, canvas } = await editor();
+		actionButton(harness, 'Select').click();
+		await settle();
+		click(canvas, 300, 300); // select zone-a; handles only exist on a selected record
+		await settle();
+
+		pointer(canvas, 'pointermove', 199, 199); // within the grab radius of the (198,198) vertex
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-grab']);
+
+		pointer(canvas, 'pointermove', 300, 300); // the body of the same room
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-target']);
+
+		pointer(canvas, 'pointermove', 900, 900); // off every body: back to the resting cursor
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual([]);
 		harness.unmount();
 	});
 });
@@ -452,7 +502,7 @@ describe('the fit shortcuts on a non-US keyboard', () => {
 	it('frames the selection on the physical 2 key, on a German layout', async () => {
 		// Shift+2 on a German keyboard reports `key: '"'` — neither `'@'` nor `'2'`.
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		click(canvas, 300, 300);
 		await settle();

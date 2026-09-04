@@ -1,10 +1,24 @@
+import { editorEn } from './en/editor';
+
 /**
  * The English table is the COMPLETE one: a key exists because this file answers it, and
  * `StringKey` derives from here, so the compiler demands English before a caller can
- * name a key. The file is named `en.ts` because that is the filename the obsidianmd
+ * name a key. The file is named `en.ts` because that is a path the obsidianmd
  * ruleset's locale rules match — sentence case in this table is linted, not reviewed.
+ *
+ * **Split at Task 20**, which is what keeps this file under the 400-line budget
+ * (`max-lines` skips blanks and comments, so a docblock like this one is free and a key is
+ * not) rather than merely two lines under it, as Task 19 left it. What puts a locale module
+ * under the sentence-case rule is its PATH rather than its exact name: the rule self-scopes
+ * through `isEnglishLocalePath`, whose regex admits `en.editor.ts`, `en-editor.ts` and
+ * `locales/en/editor.ts` alike, with no configuration to write — measured against the
+ * installed plugin. `en/editor.ts` holds the Plan Editor's own vocabulary (a coherent
+ * SUBSET of the `editor.*` prefix — its own header names the four keys that stayed here
+ * instead) and is spread into this object below (`...editorEn,`), so `StringKey = keyof
+ * typeof en` stays exact and no consumer of a key changes.
  */
 export const en = {
+	...editorEn,
 	'command.open-project': 'Open renovation project',
 	'command.open-project-detail': 'Go to renovation project',
 	'view.project.name': 'Renovation project',
@@ -45,89 +59,12 @@ export const en = {
 	'sample.zone.living-room': 'Living room',
 	'sample.zone.terrace': 'Terrace',
 	'sample.zone.garden': 'Garden',
-	'editor.toolbar': 'Editor tools',
-	'editor.layers': 'Layers',
-	'editor.toolbar.pan': 'Pan',
-	'editor.toolbar.select': 'Select',
-	'editor.toolbar.draw-zone': 'Draw zone',
-	'editor.toolbar.undo': 'Undo',
-	'editor.toolbar.redo': 'Redo',
-	'editor.toolbar.calibrate': 'Calibrate',
-	'editor.inspector': 'Inspector',
-	'editor.inspector.empty': 'Nothing selected.',
-	'editor.inspector.multiple': 'Multiple objects selected.',
-	'editor.inspector.name': 'Name',
-	'editor.inspector.area': 'Area',
-	'editor.inspector.delete-zone': 'Delete zone',
-	'editor.inspector.requirements': 'Requirements',
-	'editor.inspector.requirements.empty': 'No requirements reference this zone yet.',
-	'editor.inspector.requirement.asset': 'Asset',
-	'editor.inspector.requirement.quantity': 'Quantity',
-	'editor.inspector.requirement.cost': 'Cost',
-	'editor.inspector.requirement.overridden': 'Overridden',
-	'editor.inspector.requirement.stale': 'Figures are out of date; recalculate this requirement.',
-	'editor.inspector.requirement.missing-asset': 'Asset missing from the catalog.',
-	// §89's "beside what it replaced" at the INPUT level: the shared library's unit price, this
-	// project's own, and the price the row's figures were actually derived from. `price-in-force`
-	// is the §85 non-colour channel — a WORD beside the figure, so a screen reader reads it and a
-	// user who cannot tell the two colours apart still knows which figure is being used.
-	//
-	// `editor.inspector.*`, with this surface's other twenty keys. The task brief spelled these
-	// four `view.inspector.*`; `view.*` everywhere else in this file means the Renovation Project
-	// view, so that prefix would have named the wrong surface. Ruled on rather than assumed.
-	'editor.inspector.price-library': 'Library price',
-	'editor.inspector.price-project': 'Project price',
-	'editor.inspector.price-in-force': 'In force',
-	'editor.inspector.price-derived-from': 'Derived from',
-	'editor.inspector.assign.label': 'Assign asset',
-	'editor.inspector.assign.button': 'Assign',
-	'editor.inspector.quantity-override.label': 'Override quantity for',
-	'editor.inspector.cost-override.label': 'Override cost for',
-	'editor.inspector.override.reset': 'Reset to calculated',
-	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
+	// Keys that are not `editor.*` but sit where the moved block used to be read — see
+	// `en/editor.ts`'s own header for why they stayed here rather than moving.
 	'sequence.marker-clear-failed': 'The delete was saved, but its recovery record could not be cleared from the vault. It is cleared the next time this vault opens.',
 	'asset-price.cleanup-failed': 'The asset was deleted, but a price note for it could not be removed from the vault. Delete it by hand if you find it.',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
 	'cascade.aborted': 'Requirements linked to this change could not be updated. Their figures may be out of date.',
-	'editor.zone.default-name': 'Zone',
-	'editor.canvas': 'Plan canvas',
-	'editor.status': 'Status',
-	'editor.measurements': 'Measurements',
-	'editor.save-state': 'Save state',
-	'editor.zoom': 'Zoom',
-	/**
-	 * The angle constraint, announced because a modifier nothing mentions is a feature only
-	 * its author knows about — the one real cost of the modifier-driven convention every
-	 * drawing tool uses, and the reason the status bar carries this while a drawing tool is
-	 * active. Deliberately not a numeric angle readout, which is what CAD shows beside its
-	 * tracking line: `t()` takes no parameters, so the first interpolated string in this
-	 * plugin is a piece of work of its own.
-	 *
-	 * Phrased with the key first because the marketplace's sentence-case rule
-	 * (`obsidianmd/ui/sentence-case-locale-module`) refuses a capitalised `Shift` mid-sentence
-	 * — measured, it fails the build — and lowercasing the name of a key is worse copy than
-	 * leading with it.
-	 */
-	'editor.hint.constrain-angle': 'Shift constrains the angle',
-	'editor.loading': 'Loading plan…',
-	'editor.background-missing': 'The background file for this plan is missing.',
-	'editor.background-failed': 'The background for this plan could not be rendered.',
-	'editor.layer.background': 'Background',
-	'editor.layer.architecture': 'Architecture',
-	'editor.layer.zone': 'Zones',
-	'editor.layer.construction': 'Construction',
-	'editor.layer.asset': 'Assets',
-	'editor.layer.annotation': 'Annotations',
-	'editor.layer.interaction': 'Interaction',
-	'editor.calibrate.distance.title': 'Set the real-world distance',
-	'editor.calibrate.distance.label': 'Distance in millimetres',
-	// 'Measured on the plan:' until Task B6, when `KnownDistanceForm` gained a second caller:
-	// the asset designer measures on an asset's reference image, and the background is the one
-	// noun true of both surfaces. The key keeps its `editor.` prefix because the FORM lives in
-	// `presentation/editor/shell/` and a key rename orphans nothing but reads as a move.
-	'editor.calibrate.distance.measured': 'Measured on the background:',
-	'editor.calibrate.recalibrate.title': 'Rescale the zones on this plan?',
-	'editor.calibrate.recalibrate.message': 'This plan already has zones drawn on it. Setting the scale rescales every one of them. You can undo it.',
 	'background.no-plan-open': 'Open a plan editor first.',
 	'background.unsupported': 'Only PNG, JPEG and PDF files can be a plan background.',
 	'zone.status.planned': 'Planned',
@@ -666,14 +603,21 @@ export const en = {
 	// vault, unrecovered settings and an asset that is gone each say their own sentence.
 	'view.asset-designer.name': 'Asset designer',
 	'designer.canvas': 'Asset canvas',
-	// The designer's toolbar (design slice B5). FOUR labels rather than six: camera mode, Select,
-	// Undo and Redo say the same words as the Plan Editor's and take its keys
-	// (`editor.toolbar.pan`/`.select`/`.undo`/`.redo`) rather than shipping a second translation
-	// of "Undo" for a translator to keep in step with the first. What is designer-specific is
-	// the five gestures below. Four have no counterpart on a plan; `calibrate` has one and still
-	// gets a key of its own, because the Plan Editor's says "Calibrate" about a plan's background
-	// and each surface's toolbar builds its buttons from its own table.
+	// The designer's toolbar (design slice B5). Camera mode, Undo and Redo are designer-owned
+	// keys — `designer.toolbar.pan`/`.undo`/`.redo` — rather than a share of the Plan Editor's
+	// namespace: note 33 (R6) found the two surfaces' toolbars disagreeing about who owns those
+	// three words, since the Plan Editor's own toolbar is retired (Task 13 replaced it with a
+	// context bar and a floating Select/Add group, whose Undo/Redo live at `editor.context.undo`/
+	// `.redo`) and a designer control naming a retired surface's keys read as a regression against
+	// that retirement rather than as a working control. What is designer-specific beyond those
+	// three is the five gestures below; `calibrate` has a counterpart on a plan and still gets a
+	// key of its own, because the Plan Editor's own calibrate label lives in its own table and
+	// says "Calibrate" about a plan's background, and each surface's toolbar builds its buttons
+	// from its own table.
 	'designer.toolbar': 'Asset tools',
+	'designer.toolbar.pan': 'Pan',
+	'designer.toolbar.undo': 'Undo',
+	'designer.toolbar.redo': 'Redo',
 	'designer.toolbar.trace-footprint': 'Trace footprint',
 	'designer.toolbar.trace-clearance': 'Trace clearance',
 	'designer.toolbar.set-anchor': 'Set anchor',
@@ -694,11 +638,12 @@ export const en = {
 	// The DANGLING state, and the three keys are the designer's own rather than a reuse of
 	// `editor.plan-missing.*`. The first two must be: every surface's copy is written from its
 	// own subject, and the plan editor's say "plan". The ACTION says "Close this tab" on both
-	// surfaces and could have been borrowed — the toolbar borrows `editor.toolbar.undo` on
-	// exactly that argument — and is minted anyway, because the key that would be borrowed is
-	// `editor.plan-missing.action`: its NAME claims the plan editor's state, so a later change
-	// to that state reaches into this one with nothing to notice. A borrowed key whose name
-	// names a sibling's state is not the same trade as a borrowed word.
+	// surfaces and could have been borrowed, and is minted anyway, because the key that would be
+	// borrowed is `editor.plan-missing.action`: its NAME claims the plan editor's state, so a
+	// later change to that state reaches into this one with nothing to notice. A borrowed key
+	// whose name names a sibling's state is not the same trade as a borrowed word — note 33 (R6)
+	// is the same argument reached from the toolbar's own three keys, which used to borrow the
+	// Plan Editor's and mint their own designer-owned pair now for the identical reason.
 	'designer.asset-missing.headline': 'This asset no longer exists',
 	'designer.asset-missing.body': 'This tab points at an asset that is not in the vault any more.',
 	'designer.asset-missing.action': 'Close this tab',

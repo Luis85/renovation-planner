@@ -96,6 +96,11 @@ export class SetAnchorTool implements EditorTool {
 		// See `cancel`.
 	}
 
+	/** Nothing accumulates across clicks: see the class docblock. Escape has nothing to ask about. */
+	hasDraft(): boolean {
+		return false;
+	}
+
 	private async place(context: EditorContext, anchor: Point): Promise<void> {
 		// Through the dispatcher and never by the command itself: it is the single funnel per
 		// leaf, and it is what puts this gesture on the undo stack, re-reads the design

@@ -3572,9 +3572,110 @@ fail loudly, which is what stops the chain being built, and is not a proof that 
 exists. The full module-graph traversal was the reported remedy and is more than the question
 needs while the tripwire holds the entrance; the rest of what it cannot reach (a glob or a
 template specifier that does not SPELL the suffix) is enumerated where the predicate is.
-Re-measured in this edit, `find src tests/harness tests/helpers -name "*.test.ts" | wc -l`
-still prints **17**, none of them imported by a non-test module — so the hole was latent when
-it was closed, which is the cheapest moment to close one and the moment nothing forces you to.
+Re-measured 2026-09-04 at the merge of this branch with `origin/main`,
+`find src tests/harness tests/helpers -name "*.test.ts" | wc -l` prints **19**, none of them
+imported by a non-test module — so the hole is still latent, which is the cheapest state for one
+to be in and the state nothing forces you to check. **It said 17 when written and was one behind
+its own tree even then**, which is why the figure is now dated rather than asserted as current:
+the tripwire is what holds the property, and this number is a fact about the day it was taken.
+
+**The plan editor foundation's first increment has landed: the read path and selection.** A floor
+opens into the Standard Plan View with **Select already active and nothing selected**, and the
+toolbar is DELETED rather than renamed — Undo and Redo moved to a context bar reading
+`Project › Floor`, Select and Add float over the canvas, and **camera mode is no longer a state
+any control puts a user into**: `routeEscape` never sets `activeToolId` to `null`, so only the
+pre-ready moment and the asset designer's own default reach it. Pan is still Space and the middle
+button, SAID ONCE in the status bar rather than offered as a button. Calibrate moved to the one
+row that is about the thing being calibrated — the Reference plan layer's **Set scale**, disabled
+with its reason while the plan has no background. Rooms are a presentation projection over `Zone`
+(ADR-0016) and Floor over `Plan` (ADR-0017): no entity, no frontmatter key and no schema version
+moved, and `tests/infrastructure/persistence/editorRoundTrip.test.ts` is what says so rather than
+the prose. `INSPECTOR_SECTIONS` is a CLOSED UNION of seven, every member `unavailable` here, so an
+unbuilt section is a stated absence rather than an empty one and no row is a control that does
+nothing. Five model ADRs — hierarchy, Existing/Planned/Work, spatial-object evolution, the
+relationship mechanism and the schema-version policy — are recorded as DEFERRED with a first
+consumer and a trigger each (`docs/development/consolidation/2026-09-editor-model-consolidation.md`
+§6) rather than accepted, because no code here reads one and a decision nothing pins drifts. The
+rules that came out of it:
+
+- **A threshold is a JUDGEMENT, and a capture is the only instrument that grades it.**
+  `layoutMode.ts`'s 900 and 400 were picked, not measured; what checks them is the 460px shot (an
+  Obsidian sidebar leaf's real width, which must show a usable canvas in `constrained`) and the
+  1280px one. Both are read BY EYE, and the file says so where the numbers are. What no capture
+  here can answer is what Obsidian's own leaf chrome leaves once the tab bar, the ribbon and the
+  resize handle are subtracted — step 8 of `docs/tests/cases/Open a floor and select a room.md`
+  is that instrument, and **that case has not been run in a vault**.
+- **A fake `ResizeObserver` that fires only on demand makes every mounted editor in the suite
+  `unsupported`.** The real one fires once on `observe()`; `tests/helpers/layout.ts`'s fires only
+  through `resizeTo`, and jsdom reports `clientWidth` 0 — so a shell that read its width only from
+  the observer would have sat below the floor with no canvas in every existing editor test. Two
+  halves, and both were needed: the shell reads `clientWidth` in `onMounted` AND on every observer
+  callback, so the real observer's initial call and the fake's `resizeTo` land on one path; and
+  EVERY jsdom mount path sizes the shell ROOT rather than only the canvas element. The failure
+  would have been mass red on the first run rather than a silent defect, which is the only reason
+  it was cheap.
+- **The first captures found three defects `npm run check` was green on, and the person who took
+  them saw one.** Add-menu rows drew each item's label over the previous item's description; the
+  Inspector's room list rendered CENTRED, because Obsidian's own `button` rule centres text — the
+  identical defect design slice 21 records for the project detail's plan list, in the next
+  component built out of full-width buttons, and the fix is NOT the `text-align: left` that
+  slice's sentence leads with: Obsidian's rule leaves the button a flex container, so
+  `justify-content: center` decides the label and `text-align` has nothing to align.
+  `display: block` is what restores the layout the declaration was written for; and at 460px the
+  status bar's "Scale not set" wrapped onto two lines.
+  The implementer's own read of the same three PNGs reported the first and missed the other two.
+  **An eyes-on gap is not a code defect and is not caught by a second pair of gates** — it is
+  caught by a second pair of eyes, which is why the pictures were re-read by the controller and
+  re-read again after the fix.
+- **A bubble-phase `document` listener sits behind a sibling's `stopPropagation`.** `AddMenu`
+  mounts inside the same overlay slot as Select and Add, and that slot's wrapper carries
+  `@pointerdown.stop` so a press there never reaches the canvas — so the menu's outside-press close
+  never heard a press on Select, on its own search input, or anywhere else in the slot, and
+  pressing Select left the menu open. `{ capture: true }` covers the whole slot including every
+  future sibling, without naming the wrapper's class. **A listener's PHASE is part of its address**,
+  and "on `document`" is not far enough away when something in between is allowed to stop.
+- **Vue's `watch` never fires on a same-value write, so a guard on the PREVIOUS value can be
+  unreachable.** The runtime's Select-on-ready watch shipped as `status === 'ready' && previous
+  !== 'ready'`, and its "a later refresh keeps the tool" case passed because the watcher never
+  woke at all, not because the second conjunct discriminated. It is `status === 'ready'` now with
+  a docblock saying why that is enough. The shape is this file's own: **a test that passes for a
+  reason other than the one its name gives is indistinguishable from one that passes for the
+  right reason**, and a conjunct no test can reach is a conjunct nobody is checking.
+- **A test title is a claim about the body, and three of them outran it in one increment.** One
+  said "emits openAdd from Add" and never touched Add; one said "undo and redo" and asserted undo;
+  a third claimed the root "still has a handler bound", which VTU's `emitted()` records regardless
+  of whether any parent is listening — unfalsifiable rather than merely untested. A manual case
+  said "the eight rows" where `INSPECTOR_SECTIONS` has seven. Every one was found by READING the
+  body against the title; nothing in any gate compares them.
+- **A rule scoped by a FILE NAME and a rule scoped by a PATH are different rules, and only one of
+  them was measured.** `en.ts` reached its 400-line cap with three keys still to add, under a
+  header asserting that splitting it was "a trap, because the sentence-case rule is scoped by the
+  file NAME `en.ts`". False: `eslint-plugin-obsidianmd` self-scopes through `isEnglishLocalePath`,
+  whose regex admits `en/editor.ts`, `en.editor.ts` and `en-editor.ts` alike, with no
+  configuration to write. So the fix was a SPLIT rather than a raised budget —
+  `locales/en/editor.ts` and `de/editor.ts`, spread back into the assembled tables so `StringKey`,
+  `t()`, the completeness test and the interpolation-hole test are all untouched. The German half
+  is `Record<keyof typeof editorEn, string>` rather than `Partial`, so a key added there without a
+  translation is a build error. And `editor.hint.pan` reads "Space or the middle button pans"
+  because that ruleset fails a capitalised key name mid-sentence — the same measurement the
+  Shift-constraint hint already paid for, arriving at a second key.
+- **A member with no `src/` caller yet is cheaper to give a TEST CONSUMER than a suppression.**
+  `WorkspaceStore.closeOverlay` had none until the rail that opens the overlay landed, two waves
+  after the store action itself; the first answer was an inline
+  `fallow-ignore-next-line` carrying prose on the directive line, which produced nine STALE
+  findings while the report calling `analyze` clean sat beside them. A store test that calls the
+  action removes the finding, restores the functions-coverage unit the uncalled member cost, and
+  removes the inline-versus-`.fallowrc.json` question rather than adjudicating it.
+- **A control that goes live three tasks later ships DISABLED, never live with a dead handler.**
+  Add landed with `openAdd` wired to `() => {}` and `aria-haspopup="menu"` — a control that does
+  nothing AND announces a menu, which is worse than either half. It shipped `disabled` and without
+  the ARIA promise until the menu existed, so the later task flipped two attributes and supplied a
+  handler. A sanction to defer the BEHAVIOUR is not a sanction to make the promise early.
+- **A spec-mandated string can be wrong, and the residue is written down rather than reworded
+  quietly.** The unsupported-width notice reads "Ground floor has 1 rooms": `tr` has no plural
+  form, the string is the spec's, and every gate is green. It is recorded in the amendments of
+  `docs/requirements/Open a floor plan in the Obsidian editor shell.md`, where the next author of
+  that surface will meet it, rather than here alone.
 
 **The Renovation Planner Home increment has landed: the project list is a LAUNCHER.** The
 Renovation project view's list state draws a header, a filter that is also the pane's count
@@ -3819,9 +3920,12 @@ and the suite's own accounting says the cost is not the tests — `transform 13.
 74.3s, tests 143.9s, environment 82.1s` over 362 files, so per-file overhead (a jsdom
 environment and a module registry, both paid once per FILE) exceeds the test bodies. **Every
 number in this paragraph is a DATED SNAPSHOT of one machine and one tree, the file count
-included** — `find tests -name "*.test.ts" | wc -l` prints **374** as of 2026-09-03, so the
-362 is already behind and the per-file conclusion is what survives it, since that conclusion
-is a RATIO rather than a total. Re-measure before reasoning from any of them. ONE
+included** — `find tests -name "*.test.ts" | wc -l` printed **374** on 2026-09-03 and **418**
+on 2026-09-04, the day this branch merged `origin/main`, so the 362 is two measurements behind
+and the per-file conclusion is what survives it, since that conclusion is a RATIO rather than a
+total. **A merge is where a file count moves furthest and where nobody re-takes it**: 44 files
+arrived in one commit here, more than the whole drift between the two dated readings before it.
+Re-measure before reasoning from any of them. ONE
 door exists beside `check` for that reason, and it does not replace it:
 
 - **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no
@@ -5082,7 +5186,9 @@ Not oversights; each has a trigger.
   60 KB to **488 KB** at design slice 5's close; that is what ADR-003 and §54 cost, and it
   is worth knowing before the next dependency. **488 KB is that slice's own figure, not
   today's** — `dist/main.js` measured 670.06 kB (gzip 211.08 kB) at design slice 16's close and
-  **703.39 kB (gzip 221.71 kB) at design slice 19's**, each verified by running `npm run build`
+  **703.39 kB (gzip 221.71 kB) at design slice 19's**, and **825.68 kB (gzip 252.79 kB) at the
+  close of the plan editor foundation's first increment** (2026-09-03, after the asset-designer
+  merge — the two arrivals are not separated here), each verified by running `npm run build`
   rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 

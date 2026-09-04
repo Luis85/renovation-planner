@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Inspect a selected room]]"
 order: 40
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -51,3 +51,27 @@ their route availability logic.
 
 The selected Room has one reusable homeowner-question navigation surface and one complementary,
 non-duplicative transformation summary.
+
+## Amendments
+
+**2026-09-03** — the ROWS are present and every one of them is unavailable, which is the scope
+spec §1 gave this task. Criterion 1 is
+`tests/presentation/editor/shell/roomInspector.test.ts`'s 'renders the three homeowner questions in
+order, each unavailable, with no button and no count'; criterion 3 is met in its UNAVAILABLE arm
+only, and the risk it exists to guard — an unavailable row becoming a control that does nothing —
+is asserted by that case's no-button clause; criterion 4 is the same `RoomInspector` body
+rendering in the full Inspector and in the constrained drawer, scanned in both by
+`tests/harness/accessibility.test.ts`; criterion 7 is `INSPECTOR_SECTIONS` being ONE closed union
+that `HomeownerQuestionNav` and `LinkedContentList` both read, so a future section joins by
+leaving the union rather than by a second navigation model.
+
+Criteria 2, 5 and 6 have no subject: no route is available, so nothing preserves a stable id or a
+viewport through one; `TransformationSummary` is not built; and no child view opens, so there is
+no return for focus to make.
+
+**2026-09-04** — criterion 7 is UNMET, not met, and the paragraph above WITHDRAWS its claim
+otherwise: one closed unavailable-section vocabulary (`INSPECTOR_SECTIONS`) feeds TWO
+presentation models (`HomeownerQuestionNav`'s and `LinkedContentList`'s private `ROWS`), which is
+the approved design's own two-list structure (§5.1, §6.7). The first available section decides
+which list owns it; a shared descriptor registry is that increment's work, not this one's
+(2026-09-04). See [[The Inspector's two unavailable lists are separate navigation models]].

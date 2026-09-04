@@ -565,19 +565,33 @@ describe('the headless harness capture script', () => {
 	});
 
 	/**
-	 * **The list is measured against the ARRAY now, and that is a fix rather than a widening.**
-	 * It called itself "the fifteen fixed shots" and named fifteen — internally consistent, and
-	 * two short of what `SHOTS` actually held: `project-detail-prices` and
-	 * `project-detail-prices-narrow` landed without being added here, so either could have been
-	 * deleted with this case green. A list of names cannot notice a name that was never in it,
-	 * which is why the case below counts the array as well: the count is what makes an addition
-	 * that skips this list fail HERE rather than silently reducing what an argumentless run
-	 * captures.
+	 * DERIVED from the `SHOTS` source rather than remembered, which is the fix for the defect
+	 * this case used to be on BOTH sides of the merge that produced this file: one branch's
+	 * hand-written list said fifteen against seventeen entries, the other's said eighteen
+	 * against twenty, and each was internally consistent — a list of names cannot notice a name
+	 * that was never in it. Slicing the block between `const SHOTS = [` and its closing `];`
+	 * and matching every `name: '…'` inside it reads the same names `harness-shot.mjs` actually
+	 * iterates, so a shot added or removed there changes this test's answer without anyone
+	 * touching this file.
+	 *
+	 * **The merge is the reason both instruments are here rather than one.** Each branch
+	 * appended its own shots to a DIFFERENT part of the `SHOTS` array, so `harness-shot.mjs`
+	 * merged cleanly at twenty-eight while the assertion about it conflicted — and NEITHER
+	 * side's number described the merged array. The list below was re-derived from the array,
+	 * not resolved from either side of the conflict.
+	 *
+	 * The whole-FILE count is the second instrument and asks a question the first cannot: the
+	 * derivation above sees only inside `SHOTS`, so an entry written outside that array — a
+	 * second array, or one moved out — is invisible to it. `name: '` counts one per entry: no
+	 * other construct in that file uses that spelling, measured, and a stray one in a comment
+	 * would over-count and fail rather than pass.
 	 */
-	it('still defines the twenty-four fixed shots, so an argumentless run is unchanged', () => {
+	it('defines exactly the twenty-eight fixed shots, derived from the SHOTS source rather than remembered', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
+		const shotsBlock = source.slice(source.indexOf('const SHOTS = ['), source.indexOf('];', source.indexOf('const SHOTS = [')));
+		const named = [...shotsBlock.matchAll(/name: '([a-z-]+)'/g)].map((m) => m[1]);
 
-		for (const name of [
+		expect(named).toEqual([
 			'dark',
 			'light',
 			'phone',
@@ -594,6 +608,10 @@ describe('the headless harness capture script', () => {
 			'project-detail-prices-narrow',
 			'plan-editor-dark',
 			'plan-editor-light',
+			'plan-editor-selected',
+			'plan-editor-add-menu',
+			'plan-editor-narrow',
+			'plan-editor-unsupported',
 			'asset-designer-dark',
 			'asset-designer-light',
 			'asset-designer-narrow',
@@ -602,15 +620,66 @@ describe('the headless harness capture script', () => {
 			'index-focus',
 			'index-focus-current',
 			'index-failure',
-		]) {
-			expect(source).toContain(`name: '${name}'`);
-		}
+		]);
 
-		// The array's own size, so a shot added without being named above fails here instead of
-		// joining the set unwatched — which is exactly what happened to the two price shots.
-		// `name: '` counts one per entry: no other construct in this file uses that spelling,
-		// measured, and a stray one in a comment would over-count and fail rather than pass.
-		expect(source.match(/name: '/gu)?.length).toBe(24);
+		// The whole FILE, not the sliced block — see the header. A shot entry written outside
+		// `SHOTS` is invisible to the derivation above and fails here instead.
+		expect(source.match(/name: '/gu)?.length).toBe(28);
+	});
+
+	/**
+	 * R14: `plan-editor-dark` and `plan-editor-light` used to wait on `PLAN_EDITOR_VIEW` alone,
+	 * which attaches before asynchronous project hydration establishes the ready floor state —
+	 * so both could complete while the intended contents were still loading. `plan-editor-narrow`
+	 * waited on the same wrapper and could photograph a 460px shell with no proof the constrained
+	 * layout's rail had actually appeared. All three now name a selector that only exists once
+	 * the state each shot is FOR has landed; a mutation back to `PLAN_EDITOR_VIEW` fails here.
+	 */
+	it('waits for the hydrated floor state on the resting plan-editor shots, and for the rail as well on the narrow one', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-dark'[^}]*selector: FLOOR_STATE/);
+		expect(source).toMatch(/name: 'plan-editor-light'[^}]*selector: FLOOR_STATE/);
+		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
+		expect(source).toContain("const FLOOR_STATE = '.rp-floor-inspector'");
+	});
+
+	/**
+	 * R13: the one width the 460px capture cannot show, and the one shot that MEASURES rather
+	 * than only draws — jsdom lays nothing out, so `measure` reads the real shell's scrollWidth
+	 * against its clientWidth in a browser through the importable `overflowFinding`/`shellMetrics`
+	 * pair, rather than a claim only a source-text pin could hold.
+	 */
+	it('measures the unsupported shell for horizontal overflow at 320 px, through the importable overflowFinding', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-unsupported'[^}]*width: 320/);
+		expect(source).toMatch(
+			/name: 'plan-editor-unsupported'[^}]*selector: '\.rp-editor-shell\[data-layout="unsupported"\] \.rp-unsupported-width'/,
+		);
+		expect(source).toMatch(/name: 'plan-editor-unsupported'[^}]*measure: '\.rp-editor-shell'/);
+		expect(source).toContain("from './captureMeasures.mjs'");
+	});
+
+	/**
+	 * Task 21's three Plan Editor shots, pinned the same way `project-detail-narrow` and
+	 * `asset-designer-narrow` are above: the property that makes each shot differ from
+	 * `plan-editor-light` is not merely that its name exists, but that it is reached through
+	 * the knob that actually produces the picture. Losing `&select=`/`&add` off either of the
+	 * first two would silently photograph the resting editor under a new name and exit 0;
+	 * losing `width: 460` off the third would silently photograph the same wide layout twice.
+	 */
+	it('takes the selected-zone and Add-menu shots through the knobs that reach them, and the narrow shot at a sidebar width', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-selected'[^}]*query: '\?view=plan-editor&select=harness-kitchen/);
+		expect(source).toMatch(/name: 'plan-editor-selected'[^}]*selector: '\.rp-room-inspector'/);
+		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*query: '\?view=plan-editor&add/);
+		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*selector: '\.rp-add-menu'/);
+		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*width: 460/);
+		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' above
+		// for why a bare `PLAN_EDITOR_VIEW` wait is exactly the defect being refused here.
+		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
 	});
 
 	/**

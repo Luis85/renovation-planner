@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Inspect a selected room]]"
 order: 30
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -36,3 +36,20 @@ Responsive remounting can race hydration and overwrite newer selection state.
 ## Outcome
 
 Room inspection remains coherent as workspace and vault conditions change.
+
+## Amendments
+
+**2026-09-03** — criteria 1, 2 and 5 landed. `tests/harness/accessibility.test.ts` mounts the
+constrained Inspector drawer with a room selected and the full Room Inspector with the same one,
+and both draw the same id, because the drawer is a container around the SAME body rather than a
+second rendering of it; `tests/presentation/editor/shell/responsiveShell.test.ts`'s 'keeps
+selection and viewport across the change' is criterion 2, and it asserts the canvas ELEMENT is the
+same one, so the viewport survives by construction rather than by being restored; criterion 5 is
+`tests/presentation/editor/runtime.test.ts`'s 'a selected zone that disappears from the next
+hydrate is retired, not rebound'.
+
+Criterion 3 holds for the Escape close and not for the resize-driven one, the same residue
+[[Keep layer controls usable in constrained leaves]] records. Criterion 4 is HALF met: stale
+content is labelled, by the additive warning strip, and nothing is disabled while stale —
+`stale` reaches exactly one computed in `PlanEditorRoot.vue` and feeds the strip alone, so Delete
+stays live over data the last read-back could not confirm.

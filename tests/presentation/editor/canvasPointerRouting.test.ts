@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { settle, settleUntil as until } from '../../helpers/editor';
-import { chord, click, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { actionButton, chord, click, pointer, rig } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
 describe('the Plan Canvas pointer routing', () => {
@@ -34,7 +34,7 @@ describe('the Plan Canvas pointer routing', () => {
 		if (canvas === null) throw new Error('expected a mounted canvas');
 		const before = expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded[0];
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		click(canvas, 300, 300); // select zone-a — inside its (198,198)-(488,388) footprint
 		await settle();
@@ -70,7 +70,7 @@ describe('the Plan Canvas pointer routing', () => {
 		if (canvas === null) throw new Error('expected a mounted canvas');
 		const before = expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded[0];
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		click(canvas, 300, 300);
 		await settle();

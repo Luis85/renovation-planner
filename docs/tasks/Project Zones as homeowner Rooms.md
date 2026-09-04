@@ -2,7 +2,7 @@
 type: Task
 parent: "[[View rooms in the Standard Plan View]]"
 order: 10
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -35,3 +35,16 @@ A presentation adapter can accidentally conceal unsupported or malformed source 
 ## Outcome
 
 The editor can speak Room and Floor while reading the current canonical model faithfully.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment. `src/presentation/read-models/spatialRecords.ts`
+is the projection and `tests/presentation/read-models/spatialRecords.test.ts` holds every
+criterion: 'keeps the ZoneId as the record id and calls a Room zone a room' and 'is the plan under
+its homeowner name, beside its project' are criterion 1; 'derives area from the points rather than
+reading a stored figure' and 'answers 0 for a degenerate polygon rather than throwing' are
+criterion 2 — the area is computed from sidecar geometry at read time and is stored nowhere;
+'marks every count partial when some zones were unreadable, carrying the number' and
+'distinguishes a floor with no rooms from one whose rooms could not be read' are criterion 3.
+Criterion 4 is `tests/infrastructure/persistence/editorRoundTrip.test.ts` — no entity, key or
+schema version moved, and ADR-0016 says why.

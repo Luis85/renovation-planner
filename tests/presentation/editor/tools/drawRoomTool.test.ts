@@ -36,6 +36,28 @@ describe('DrawRoomTool', () => {
 		expect(tool.hasDraft()).toBe(true);
 	});
 
+	/**
+	 * The drag route's own half of design spec §2.7's "a side must be positive", which the
+	 * numeric route has always kept (`parseMetres('0')` is `not-positive`) and this one did
+	 * not. A drag straight along one axis clears the click epsilon — `moved` is 4200 world
+	 * units against an epsilon of 4 — so `pointerUp` settles it rather than taking it back,
+	 * and the store used to answer a rectangle of depth 0: `createPolygon` validates count and
+	 * finiteness only, `Zone.create` defers to the same validator, and Create wrote a Room of
+	 * area zero. Asserted through the STORE rather than through the tool, because the tool is
+	 * unchanged: the refusal belongs to the one place both routes read.
+	 */
+	it('a drag along one axis alone settles no rectangle at all', () => {
+		const { tool, draft } = armed();
+		tool.pointerDown(pointerAt(1000, 4000));
+		tool.pointerMove(pointerAt(3000, 4000));
+		tool.pointerMove(pointerAt(5200, 4000));
+		tool.pointerUp(pointerAt(5200, 4000));
+		expect(draft.rect).toBeNull();
+		expect(draft.valid).toBe(false);
+		expect(draft.settledSize).toBeNull();
+		expect(tool.hasDraft()).toBe(false);
+	});
+
 	it('a click under the epsilon leaves the previous rectangle alone', () => {
 		const { tool, draft } = armed();
 		draft.setRect({ x: 0, y: 0, width: 4200, depth: 3800 });

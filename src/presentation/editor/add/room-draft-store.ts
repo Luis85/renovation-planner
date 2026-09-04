@@ -37,6 +37,40 @@ function polygonForRect(r: RoomRect): Polygon | null {
 	return isOk(result) ? result.value : null;
 }
 
+/**
+ * The three pieces of truth as one rectangle, or `null` while there is no rectangle to have.
+ *
+ * **A side that is not POSITIVE is refused HERE rather than at `valid`, and that is a
+ * decision.** Design spec §2.7 states the rule as `parseMetres`'s three refusals, so the
+ * numeric route never puts a zero into `widthMm`/`depthMm` at all (a typed `0` is
+ * `not-positive` and the side keeps its previous value); the DRAG route has no such door — a
+ * drag straight along one axis clears `DrawRoomTool`'s click epsilon and settles with a depth
+ * of exactly 0 — and `createPolygon` validates only the count and the finiteness of the
+ * coordinates, so a zero-area quadrilateral passed it, passed `Zone.create` behind it, and was
+ * written. Refusing at `rect` rather than at `valid` is what makes the two routes agree about
+ * what a rectangle IS: `geometry`, `areaMm2`, `valid`, `settle()`, `RoomDraftSketch` and
+ * `DrawRoomTool.hasDraft()` all read `rect`, so one answer settles all six — where a guard on
+ * `valid` alone would draw a flat outline, announce a 0 m² sentence and print an area, beside
+ * a Create button the user cannot press and nothing saying why.
+ *
+ * `> 0` rather than `!== 0` on purpose: it refuses a negative side (`setRect` is a public port
+ * method, even though `normalised` hands it absolutes) and a `NaN` one in the same test.
+ * `Infinity` passes it and is refused one step later by `polygonForRect`, which is what keeps
+ * that refusal reachable.
+ *
+ * A module-level pure function beside `polygonForRect` and for its reason: the setup function
+ * below has a 100-line budget.
+ *
+ * The class this belongs to is the one `CLAUDE.md` already records as open — three COLLINEAR
+ * vertices are a zero-area polygon that nothing refuses, and closing it is a change to
+ * `createPolygon` (SDD §26 files degeneracy under "Future"). This closes the rectangular case
+ * at the one door that can see it, and claims nothing wider.
+ */
+function rectFrom(corner: Point | null, width: number | null, depth: number | null): RoomRect | null {
+	if (corner === null || width === null || depth === null) return null;
+	return width > 0 && depth > 0 ? { x: corner.x, y: corner.y, width, depth } : null;
+}
+
 /** The sentence `settle()` writes to `settledSize` (§5.4); the copy key is this task's own. */
 function settledSentenceFor(r: RoomRect): string {
 	return tr('editor.room.settled', {
@@ -59,7 +93,8 @@ function centeredOrigin(centre: Point, width: number, depth: number): Point {
  * than a test's assertion. One instance per leaf, like every editor store.
  *
  * `origin`, `widthMm` and `depthMm` are the three pieces of truth; `rect` is null until all
- * three are known. The numeric route can know one side before the other (a user tabs from
+ * three are known AND both sides are positive (`rectFrom` above carries that second half and
+ * the reason it lives there). The numeric route can know one side before the other (a user tabs from
  * width to depth), so `origin` is deferred until BOTH sides exist — there is no reasonable
  * min corner for a rectangle whose depth is still unknown — and is then centred on
  * `placeAt()`, a thunk rather than a stored point because the store may not know the
@@ -76,6 +111,25 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 	const widthMm = ref<number | null>(null);
 	const depthMm = ref<number | null>(null);
 	const name = ref('');
+	/**
+	 * RESERVED, and read by NOTHING in `src/` today. Measured in the edit that wrote this:
+	 * `grep -rn "nameTouched" src/` prints FIVE lines, and not one is a read — this docblock's
+	 * own mention (self-matching, so it is named rather than counted silently), the
+	 * declaration, `beginTask`'s reset, `setName`'s set, and the store's own return list. Its
+	 * only reader anywhere is `roomDraftStore.test.ts`.
+	 *
+	 * It is kept rather than deleted because the property it records is the one design spec
+	 * §2.4 states: the counted default is applied by `beginTask` alone, so "a name the
+	 * renovator edited is never overwritten" holds today because NOTHING RE-APPLIES A
+	 * DEFAULT — a stronger fact than the flag, and the one the criterion is actually
+	 * discharged by. The flag is what a re-apply would have to ask. Its first reader is the
+	 * increment that gives one a producer: a room TYPE that suggests a name when the type
+	 * changes, which is [[Suggest a localized Room name from its type]]'s own deferred half.
+	 *
+	 * If that increment is abandoned, delete the flag rather than leaving a field three
+	 * writers keep current for nobody — this repository's own rule about an event minted with
+	 * no subscriber, applied to a ref.
+	 */
 	const nameTouched = ref(false);
 	const keepAdding = ref(false);
 	const widthText = ref('');
@@ -85,11 +139,7 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 	const settledSize = ref<string | null>(null);
 	const submitting = ref(false);
 
-	const rect = computed<RoomRect | null>(() =>
-		origin.value === null || widthMm.value === null || depthMm.value === null
-			? null
-			: { x: origin.value.x, y: origin.value.y, width: widthMm.value, depth: depthMm.value },
-	);
+	const rect = computed<RoomRect | null>(() => rectFrom(origin.value, widthMm.value, depthMm.value));
 	const geometry = computed<Polygon | null>(() => (rect.value === null ? null : polygonForRect(rect.value)));
 	const areaMm2 = computed<number | null>(() => (rect.value === null ? null : rect.value.width * rect.value.depth));
 	const valid = computed<boolean>(

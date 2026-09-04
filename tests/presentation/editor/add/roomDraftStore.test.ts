@@ -139,11 +139,54 @@ describe('RoomDraftStore', () => {
 		expect(draft.areaMm2).toBeNull();
 	});
 
+	/**
+	 * `Infinity` rather than the `NaN` this case used to drive, and the swap is what keeps the
+	 * polygon refusal REACHABLE: `rect` refuses a side that is not `> 0`, which `NaN` fails, so
+	 * a NaN side now stops at `rect` and never reaches `createPolygon` at all. `Infinity > 0`
+	 * is true, so an infinite side is the one remaining way a rect exists whose polygon does
+	 * not — the same fixture `roomCreation.test.ts` drives for the same arm.
+	 */
 	it('geometry is null when the rect refuses to become a polygon', () => {
 		const draft = useRoomDraftStore();
 		draft.beginTask('Room 1');
-		draft.setRect({ x: 0, y: 0, width: NaN, depth: 100 });
+		draft.setRect({ x: 0, y: 0, width: Infinity, depth: 100 });
+		expect(draft.rect).not.toBeNull();
 		expect(draft.geometry).toBeNull();
+	});
+
+	/**
+	 * A zero side is refused at `rect` rather than at `valid` (design spec §2.7's rule, which
+	 * the numeric route already kept and the drag route did not). An axis-aligned drag —
+	 * straight left to right, no vertical displacement at all — clears the click epsilon and
+	 * settles, so before this the store answered a rectangle of area zero that `createPolygon`
+	 * accepts and `Zone.create` defers to it about. Refusing at `rect` is what makes every
+	 * reader agree at once: no sketch, no area, no settled sentence, no Create.
+	 *
+	 * `> 0` rather than `!== 0`, so a negative side (which `setRect` can be handed, even though
+	 * `normalised` takes absolutes) and a `NaN` one are refused by the same test.
+	 */
+	it('a rectangle with a zero side is no rectangle at all, on either axis', () => {
+		for (const flat of AXES) {
+			const draft = useRoomDraftStore();
+			draft.beginTask('Room 1');
+			draft.setName('Kitchen');
+			draft.setRect({ x: 0, y: 0, width: flat === 'width' ? 0 : 4200, depth: flat === 'depth' ? 0 : 3800 });
+			expect(draft.rect).toBeNull();
+			expect(draft.valid).toBe(false);
+			expect(draft.geometry).toBeNull();
+			expect(draft.areaMm2).toBeNull();
+			draft.settle();
+			expect(draft.settledSize).toBeNull();
+		}
+	});
+
+	it('a negative or NaN side is refused by the same test as a zero one', () => {
+		const draft = useRoomDraftStore();
+		draft.beginTask('Room 1');
+		draft.setRect({ x: 0, y: 0, width: -4200, depth: 3800 });
+		expect(draft.rect).toBeNull();
+		draft.setRect({ x: 0, y: 0, width: 4200, depth: NaN });
+		expect(draft.rect).toBeNull();
 	});
 
 	it('a field error on either axis invalidates the same way, and a correction clears it', () => {

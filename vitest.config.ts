@@ -1222,8 +1222,8 @@ export default defineConfig({
 			// call-shape change over code both branches already covered.
 			//
 			// **THE HOME SURFACE'S TASKS 12, D AND 13, AND THE FINAL WHOLE-BRANCH REVIEW'S FIX
-			// WAVE (2026-09-04), measured on this tree:** 8251/8309 statements, 4333/4413
-			// branches, 2176/2196 functions, 7271/7303 lines — 99.30 / 98.19 / 99.09 / 99.56.
+			// WAVE (2026-09-04), measured on this tree:** 8250/8307 statements, 4334/4413
+			// branches, 2176/2196 functions, 7270/7302 lines — 99.31 / 98.21 / 99.09 / 99.56.
 			// **NOTHING RATCHETS**: rounded down these are 99 / 98 / 99 / 99, exactly the floors
 			// already in force, which makes it twelve increments in a row.
 			//
@@ -1232,21 +1232,29 @@ export default defineConfig({
 			// once more by the branch that wrote the warning.
 			//
 			// The headroom, in UNITS, arithmetic written out: statements need
-			// `ceil(0.99 × 8309) = 8226` covered and 8251 are (**25**); branches need
-			// `ceil(0.98 × 4413) = 4325` against 4333 (**8**); functions need
-			// `ceil(0.99 × 2196) = 2174` against 2176 (**2**); lines need
-			// `ceil(0.99 × 7303) = 7230` against 7271 (**41**). **FUNCTIONS is still the tight
-			// metric.** It reads TWO here for the first time since slice 19, and that is a
-			// rounding artefact of the denominator rather than a second unit earned: 2196
-			// functions puts the ceiling at 2174, where 2195 put it at 2174 as well. Treat it as
-			// ONE — the next untested callback anywhere in `src/` is what this floor is for, and
-			// a metric that has sat at one unit for twelve increments does not stop being the
-			// one to plan around because a denominator crossed a boundary.
+			// `ceil(0.99 × 8307) = 8224` covered and 8250 are (**26**); branches need
+			// `ceil(0.98 × 4413) = 4325` against 4334 (**9**); functions need
+			// `ceil(0.99 × 2196) = 2175` against 2176 (**1**); lines need
+			// `ceil(0.99 × 7302) = 7229` against 7270 (**41**). **FUNCTIONS IS STILL ONE**, where
+			// it has sat since slice 19, and the next untested callback anywhere in `src/` fails
+			// this gate outright.
+			//
+			// **The first draft of this entry said TWO, and the error is worth keeping because it
+			// is this ledger's own subject.** `ceil(0.99 × 2196)` is 2175 and was written as 2174,
+			// so a headroom of one was reported as two and then EXPLAINED at length as a
+			// denominator artefact — a wrong number given a plausible account, which is harder to
+			// catch than a bare wrong number because the prose reads as though somebody checked.
+			// The figures here are printed by a script over `coverage-final.json` and transcribed;
+			// the arithmetic beside them is what a reader re-derives, so it is the half that has
+			// to be re-derived rather than typed. Do not read a figure from this entry as current
+			// — run `npm run test:coverage`.
 			//
 			// **THE FIX WAVE ADDED NO UNCOVERED POSITION**, which is the claim worth checking
-			// rather than the totals: it added five covered statements, four covered branch arms,
-			// one covered function and three covered lines, so every headroom figure above is
-			// unchanged from the review's own measurement of this tree before the wave. Read per
+			// rather than the totals: against the review's own measurement of this tree before the
+			// wave (8246/8304, 4329/4409, 2175/2195, 7268/7300 — headroom 25 / 8 / 1 / 41) it
+			// added four covered statements over three new ones, five covered branch arms over
+			// four, one covered function over one and two covered lines over two. Statements and
+			// branches each gained a unit of headroom; functions and lines are unmoved. Read per
 			// changed file out of `coverage-final.json` over
 			// `git diff --name-only origin/main...HEAD -- src/`, never a filename filter.
 			//
@@ -1261,8 +1269,10 @@ export default defineConfig({
 			// written from the measurement. **A claim about what a spelling costs is a
 			// measurement, and at this headroom it is one worth taking before the comment.**
 			//
-			// Every other uncovered position in the six changed files is INHERITED and was
-			// carried into the wave: `ContinueRow.vue`'s `lastWorked === null` arm,
+			// Every uncovered position in the six changed files is INHERITED and was carried into
+			// the wave, enumerated per file rather than counted: `RenovationPlannerPlugin.ts`'s
+			// `!(view instanceof RenovationProjectView)` guard (the one the merge entry above
+			// already names), `ContinueRow.vue`'s `lastWorked === null` arm,
 			// `NewProjectForm.vue`'s three, `ProjectList.vue`'s eight, `ViewRoot.vue`'s four and
 			// `useRovingFocus.ts`'s four. None is in a line this wave wrote.
 			thresholds: {

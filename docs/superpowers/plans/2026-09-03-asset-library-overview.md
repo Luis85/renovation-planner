@@ -1947,7 +1947,12 @@ the docblock quoting its own pattern and printed ten for an array of nine.
 - **`src/presentation/library/AssetLibraryDeps.ts`** says a `settings.unrecovered` grep prints
   twelve over eleven files; it now prints thirteen, its own quoting line included. OUTSTANDING.
 
-Both outstanding ones were found by Task 16a's implementer sweeping the commands its own rounds
+**Both outstanding numbers are CONFIRMED rather than reported** — measured independently by the
+round-2 re-review on 2026-09-04, which was asked for them even on a clean verdict precisely so
+this routing would rest on a measurement rather than on a claim: the inspector partial's grep
+prints 7 lines (3 declarations, 4 prose), and `AssetLibraryDeps.ts`'s prints 13 over 11 files.
+
+Both were found by Task 16a's implementer sweeping the commands its own rounds
 quoted, and both were correctly REPORTED rather than fixed: neither is that task's claim, and
 reopening a completed task's file to fix a pre-existing sentence is how a fix round grows into a
 second task. They are routed HERE instead.

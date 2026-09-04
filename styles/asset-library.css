@@ -139,9 +139,16 @@
  * attribute is `''` for "nothing selected" (§6.3), never absent, so `[data-selected-asset-id]`
  * alone would match every render; `:not([data-selected-asset-id=""])` is the actual test.
  *
- * UNVERIFIED BY EVERY GATE HERE: jsdom lays nothing out and no capture exists — the container
- * has no pinned Chromium — so this is read from the CSS and the spec alone. Task 16 mounts
- * `AssetInspector` and is where an eye can finally check it.
+ * UNREACHABLE IN A VAULT TODAY, which is a stronger claim than "unrendered" and the one worth
+ * stating precisely: `context.assetId` starts at `''` (`AssetLibraryView`'s `assetIdRef`) and
+ * nothing in `AssetLibraryRoot.vue` writes back to it — `onSelect` sets only the local
+ * `selectedId` ref, since the context is `DeepReadonly`, and that write-back into Obsidian's own
+ * view state is explicitly Task 16's to build. So `data-selected-asset-id` cannot carry a
+ * non-empty value from any gesture a user can make in today's shipped app, which means this rule
+ * cannot fire in a vault regardless of width, container support, or anything a capture could
+ * show. That is a fact about REACHABILITY rather than about rendering, and it is a different
+ * remedy: no eye or capture settles it, only Task 16 building the write-back does, after which
+ * an eye and a capture are what settle whether hiding `.rp-al-body` alone is the right call.
  */
 @container rp-al (width < 35rem) {
 	.renovation-asset-library[data-selected-asset-id]:not([data-selected-asset-id='']) .rp-al-body {

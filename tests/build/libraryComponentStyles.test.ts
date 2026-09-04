@@ -9,11 +9,17 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
  * This exists because of the defect it was written to catch, measured at `e3d2e8bc`:
  * `AssetInspector.vue` emitted `rp-al-action--delete`, `rp-al-action--designer` and
  * `rp-al-action--note`, and no partial declared any of the three — found by a one-off `comm`
- * between two greps, not by any gate, because `tests/build/prototype-styles.test.ts`'s identical
- * rule is scoped to `src/prototypes/**` and says so in its own header ("it does not read
- * `src/presentation/**`"). Written as a RULE rather than as three names, per CLAUDE.md's own
- * "a table that enumerates code goes stale; a table that states a rule does not" — the concrete
- * three that motivated it are not spelled out below, only the exemption two of them left behind.
+ * between two greps, not by any gate. **`tests/build/prototype-styles.test.ts` does not say so
+ * in its own header, and does not ask this question at all — corrected here rather than left
+ * standing, because the first version of this sentence presented an invented quotation as that
+ * file's own words.** It DOES walk `src/presentation` (its `componentClasses` constant), but
+ * only to learn which classes a REAL component uses, so its own isolation rule can refuse a
+ * PROTOTYPE declaring a rule for one of them (its `'%s declares no class a real component uses'`
+ * case). It never asks the opposite question — whether a real component's own emitted class is
+ * declared anywhere at all — which is the gap this file closes. Written as a RULE rather than
+ * as three names, per CLAUDE.md's own "a table that enumerates code goes stale; a table that
+ * states a rule does not" — the concrete three that motivated it are not spelled out below, only
+ * the exemption two of them left behind.
  *
  * Deliberately scoped to `src/presentation/library/` rather than widened to every presentation
  * component: the defect this file exists for is the library surface's own, this task owns four

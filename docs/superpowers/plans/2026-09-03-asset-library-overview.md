@@ -1880,6 +1880,53 @@ git add -A && git commit -m "feat: deleting an asset from the library, and where
 
 **Spec:** §4's last paragraph (both empty states scanned on the day they ship), §7 (460px is a required capture width), §9's closing paragraph (what no gate here can settle), §12 (what the prototype found and what it could not).
 
+**YOU CAN ACTUALLY TAKE CAPTURES, AND EVERY EARLIER TASK ASSUMED YOU COULD NOT — measured at
+`6e08c78d`, not inferred.** Tasks 14, 15, 16a and 16b each recorded a rendering question as
+unsettleable and deferred it here, on the understanding that this container has no pinned
+Chromium. Half of that is true and the useful half is not:
+
+- `playwright-core` resolves the PINNED revision to `/opt/pw-browsers/chromium-1234/…`, which is
+  **absent** — so `npm run harness-shot` refuses on its own, correctly, and that refusal is what
+  earlier tasks met.
+- Revision **1194** IS installed, at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, and
+  `scripts/chromium.mjs`'s documented escape hatch takes it:
+  `RP_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm run harness-shot …`
+- **Verified by launching it and taking a screenshot** before this paragraph was written — it
+  launches and returns image bytes. That check is the reason this is stated as a fact rather
+  than as a possibility.
+
+**The caveat travels with every picture and you must not drop it.** The script prints that the
+build is not the pinned one, and nothing here can check whether 1194 renders like 1234. So: read
+these captures as APPROXIMATE, say so wherever you report what one showed, and never write a
+sentence claiming pinned-build fidelity. An approximate eye is enormously better than none for
+everything below — all of which is a measurement no layout engine in this repository performs,
+and all of which is currently watched by nothing at all.
+
+**What you are the first eye on, inherited task by task:**
+- **The narrow composition below 35rem** — the shelves-hiding rule, which only became reachable
+  at all with 16a's write-back (nothing could produce a non-empty `data-selected-asset-id`
+  before it), and whose behaviour 16a and 16b drive through the shipped selector with its
+  `@container` wrapper stripped. That is a stand-in, not evidence the query fires. 460px is the
+  width §7 requires and the width an Obsidian sidebar leaf actually has.
+- **The destructive `Delete` button's treatment** (Task 15), reasoned from specificity alone —
+  `.rp-al-inspector .rp-al-action--delete` at (0,2,0) against Obsidian's
+  `button:not(.clickable-icon)` at (0,1,1). This repository shipped that exact defect once, when
+  a danger button rendered plain white.
+- **The inspector's field grid against its two sibling surfaces** (Task 15) — §3.5 opens by
+  requiring that a user cannot tell three people wrote them, and the grid was aligned to
+  `--size-4-1`/`--font-ui-small` by reading the siblings' CSS rather than by looking.
+- **The inspector's own four sections** (Task 14), never drawn anywhere.
+- **A third child in a row-per-item list**, which this repository has now shipped as a defect on
+  three separate surfaces: any child whose width follows CONTENT decides where its siblings
+  start, and the columns stop lining up. The row has five slots and the inspector's price block
+  has three.
+
+**Two mechanics earlier captures paid for, so you do not rediscover them.** A state not on screen
+at rest is a state the resting pair cannot watch — a focus ring needs a `focus` selector and a
+real Tab press (`page.focus()` does not satisfy `:focus-visible`), and a section below the fold
+needs a `scrollTo`. And the narrow shot is a WIDTH argument (`-- --width=460`), where the `--` is
+load-bearing because npm claims a bare `--width` as its own config.
+
 **Files:**
 - Create: `tests/harness/assetLibrary.ts`
 - Modify: `tests/harness/page.ts` (a `?view=asset-library` branch), `tests/harness/entries.ts`, `tests/harness/accessibility.test.ts`, `scripts/harness-shot.mjs` (two more fixed shots)

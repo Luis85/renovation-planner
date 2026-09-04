@@ -36,7 +36,9 @@ import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo
  * **The `duplicate-id` half of that collection is NOT this door's**, and used to be. Its cause
  * lives in another FILE, so taking an id has to demote whoever held it and vacating one has to
  * re-open the question for notes no event will ever name — a rule this pipeline kept correctly
- * and which the five repositories, mutating the index on their own writes, did not. It belongs
+ * and which the SIX repositories mutating the index on their own writes did not (project, plan,
+ * zone, asset, requirement and asset-price; `ReconcilingProjectIndex`'s header carries the
+ * count's own measurement). It belongs
  * to the index the composition root hands out (`ReconcilingProjectIndex`), which is the one
  * object every writer holds; the calls to `index.upsert`, `index.remove`, `index.addExclusion`
  * and `index.removeExclusion` below are what reach it.
@@ -215,9 +217,9 @@ export class VaultChangeAdapter {
 
 		// The descriptor this path may carry, and the demotion of whatever note held this id,
 		// are BOTH the upsert's own — `ReconcilingProjectIndex.upsert` does them. They used to be
-		// spelled here, three lines above `applyUpsert`, which is why the repositories' own
-		// upserts did neither: the rollback of a failed delete displaced a promoted loser into
-		// no collection at all.
+		// spelled in this method, beside the call below rather than inside it, which is why the
+		// repositories' own upserts did neither: the rollback of a failed delete displaced a
+		// promoted loser into no collection at all.
 		this.applyUpsert({
 			id: ref.id as ProjectIndexEntry['id'],
 			type: ref.type,

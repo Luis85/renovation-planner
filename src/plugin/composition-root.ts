@@ -425,10 +425,11 @@ export function createCompositionRoot(
 	const markers = session.markers;
 	const echo = new EchoWindow();
 	// The index every writer holds is the RECONCILING one, and that is the whole of how §5.1a's
-	// two-collection invariant reaches the five repositories: they mutate the index themselves
-	// on their own writes, so a rule kept inside `VaultChangeAdapter` held for the file explorer
-	// and for no command. Wrapping is what answers writers not yet written — there is one
-	// object, and nothing can hold anything else.
+	// two-collection invariant reaches the six repositories: they mutate the index themselves on
+	// their own writes, so a rule kept inside `VaultChangeAdapter` held for the file explorer and
+	// for no command. Wrapping is what answers writers not yet written — there is one object, and
+	// nothing can hold anything else. (`ReconcilingProjectIndex`'s header carries the six's
+	// measurement; several older comments in this tree still say five.)
 	// Annotated as the PORT, which is what fallow resolves a class's members through: the
 	// delegating reads here are reached from repositories typed to `ProjectIndex`, and an
 	// inferred concrete type reports every one of them as an unused class member.

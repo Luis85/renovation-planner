@@ -1107,7 +1107,10 @@ the id's geometry sidecar, requirements and price overrides are gone by the user
 instruction either way, because all three are keyed by the ID the survivor shares, and
 withholding the promotion hides the survivor rather than protecting it — until the next reload,
 which promotes it regardless, since `collectNotes` knows nothing about commands. A door that can
-reach a state its own full rebuild cannot is the thing the rule three paragraphs up refuses.
+reach a state its own rebuild cannot is what the **"If one remains"** paragraph above already
+refuses in its own words: *"An incremental door that can reach a no-winner state its own rebuild
+cannot is a door that disagrees with the thing it is an increment of."* Declining at the command
+door is exactly such a no-winner state, arrived at from the other side.
 What promotion does NOT do is restore what the delete destroyed; refusing to delete an asset
 whose id has contenders is a different rule, and one this surface cannot yet offer, since a
 loser is unselectable.

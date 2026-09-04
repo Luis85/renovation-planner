@@ -27,9 +27,21 @@ import { frontmatterOf } from '../../obsidian/repositories/noteIo';
  *
  * **Why the index rather than the pipeline, which is where this rule was born.** Promotion
  * shipped inside `VaultChangeAdapter`, so it held for the doors a user reaches from OUTSIDE
- * the app — the file explorer, a sync, a hand edit — and for no other. Five repositories
- * mutate the index themselves on their own writes (SDD §42), and two of those mutations are
- * the ordinary in-app resolution of a collision:
+ * the app — the file explorer, a sync, a hand edit — and for no other. **SIX repositories**
+ * mutate the index themselves on their own writes (SDD §42) — project, plan, zone, asset,
+ * requirement and asset-price, the last three through `saveNoteBackedEntity` /
+ * `trashNoteBackedEntity` rather than in their own bodies — and two of those mutations are the
+ * ordinary in-app resolution of a collision:
+ *
+ * (Counted rather than remembered, because the number this seam has to cover is the whole
+ * argument for it. The census lives outside the set it counts — this module is not an
+ * `Obsidian*Repository` — and it is one command:
+ * `grep -lE "deps\.index\.|(save|trash)NoteBackedEntity"
+ * src/infrastructure/obsidian/repositories/Obsidian*Repository.ts`, which prints those six file
+ * names. `AssetGeometryStore` and `PlanGeometryStore` are deliberately not in it: they only READ
+ * the index, for a sidecar path. Several older comments in this tree say FIVE —
+ * `NoteVaultDeps.ts`, `paths.ts` and `CLAUDE.md` among them — and that undercount predates this
+ * class rather than being introduced by it.)
  *
  * - `trashNoteBackedEntity` removes the entry AFTER awaiting `trashFile`, so a duplicate
  *   winner deleted through a command either had the vault event's promotion undone by that
@@ -117,9 +129,10 @@ export class ReconcilingProjectIndex implements ProjectIndex {
 	 * Taking an id: any descriptor naming this PATH is spent, and whatever different note held
 	 * this ID is demoted in the same step.
 	 *
-	 * Both were the pipeline's, three lines above its own `applyUpsert`, and both are properties
-	 * of the upsert rather than of the door that asked for one — which is what the ROLLBACK door
-	 * proved by not having them.
+	 * Both were the pipeline's, spelled inside `VaultChangeAdapter.processNote` beside its call to
+	 * `applyUpsert` rather than inside the upsert itself, and both are properties of the upsert
+	 * rather than of the door that asked for one — which is what the ROLLBACK door proved by not
+	 * having them.
 	 */
 	upsert(entry: ProjectIndexEntry): void {
 		this.removeExclusion(entry.path);
@@ -186,14 +199,30 @@ export class ReconcilingProjectIndex implements ProjectIndex {
 	 * to a new path whose old one is a duplicate of nothing.
 	 */
 	private demoteDisplaced(entry: ProjectIndexEntry): void {
-		const displaced = this.inner.entries().find((held) => held.id === entry.id);
-		if (displaced === undefined || displaced.path === entry.path) return;
-		if (!(this.deps.vault.getAbstractFileByPath(displaced.path) instanceof TFile)) return;
+		// **`getPath` FIRST, and that ordering is the hot path rather than a style.** Every
+		// repository save reaches this, and `entries()` materialises the whole index into a fresh
+		// array; asking the O(1) lookup first means the ordinary save — the id already at this
+		// path, or at no path — pays one map read and stops. Only a real collision, where a
+		// DIFFERENT path holds the id, needs the entry itself, and it needs it for the `type` the
+		// descriptor carries, which `getPath` cannot answer.
+		const held = this.inner.getPath(entry.id);
+		if (held === undefined || held === entry.path) return;
+		if (!(this.deps.vault.getAbstractFileByPath(held) instanceof TFile)) return;
+		// **This `if` NARROWS a type and cannot discriminate**, which is why its false arm is
+		// uncovered rather than untested: `getPath` has just answered a path for this id, so the
+		// entry it came from is provably in `entries()`. What the guard buys is
+		// `ProjectIndexEntry` where `find` answers `ProjectIndexEntry | undefined`, and the
+		// descriptor below needs the displaced note's own `type` — the one thing `getPath` cannot
+		// answer, and the whole reason this second, non-O(1) lookup happens at all. Deleting it is
+		// a build error, not a behaviour change. Same shape, and the same reason, as the guard on
+		// the restored entry in `trashNoteBackedEntity`.
+		const displaced = this.inner.entries().find((candidate) => candidate.id === entry.id);
+		if (displaced === undefined) return;
 
 		this.deps.logger.warn('persistence.pipeline.duplicate-id', {
 			id: entry.id,
 			path: entry.path,
-			otherPath: displaced.path,
+			otherPath: held,
 			reason: 'another note already declares this id; it is no longer reachable',
 		});
 		this.addExclusion({ path: displaced.path, entityType: displaced.type, reason: 'duplicate-id' });

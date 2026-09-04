@@ -1484,10 +1484,13 @@ are load-bearing:
 from where its `Project.md` sits rather than storing one: nothing goes stale, and a user who
 drags the folder in Obsidian's file explorer has moved the project, which is ADR-011's
 sidecar-folder argument turned to a second use. `entityRefOf` is now the one answer to "is this
-note ours" (`type` plus a non-empty `id`), with exactly two callers — the Project Index's full
-scan and `VaultChangeAdapter`'s incremental one — so the two cannot disagree about a note the
-way two hand-spelled copies of the same test could; `entityRef.test.ts` measures that caller
-list by reading `src/` rather than asserting it. `NoteVaultDeps.projectFolder` is gone; the
+note ours" (`type` plus a non-empty `id`), so no two doors can disagree about a note the way two
+hand-spelled copies of the same test could; `entityRef.test.ts` measures that caller list by
+reading `src/` rather than asserting it. **It was "exactly two callers — the full scan and
+`VaultChangeAdapter`'s incremental one" for many slices and is THREE since the duplicate-id
+promotion rule moved to `ReconcilingProjectIndex`**, which re-asks the notes an exclusion
+descriptor names rather than the note that changed. Read the count off that test, which is the
+thing that fails when it moves; this sentence is the thing that does not. `NoteVaultDeps.projectFolder` is gone; the
 five repositories that cached it in a constructor now resolve each INSERT's folder from the
 entity being saved, through `projectFolderOf(index, projectId)`, and refuse with a
 `PersistenceError` rather than default when that resolves to nothing — an UPDATE writes where
@@ -1553,9 +1556,13 @@ id on a name collision. Four rules came out of it, the last two from the review 
   indexed) — a genuine pair is reported in either
   order under a per-door event name, and a sidecar re-affirming its own mapping is not reported
   at all. "Both doors" is a category claim, so it is MEASURED rather than asserted: the second
-  `it` in `tests/infrastructure/persistence/index/entityRef.test.ts` pins its two callers the
-  same way that file pins `entityRefOf`'s, and a `processSidecar` that goes back to
-  adjudicating for itself drops the list to one and fails there.
+  `it` in `tests/infrastructure/persistence/index/entityRef.test.ts` pins its callers the same
+  way that file pins `entityRefOf`'s. **Its two are the full scan and `sidecarMapping.ts` now,
+  not the scan and the pipeline**: promotion moved to `ReconcilingProjectIndex` and asks the same
+  question, so the incremental answer was extracted where both incremental doors can reach it,
+  and a THIRD `it` pins `incrementalSidecarMapping`'s own two callers. A `processSidecar` that
+  goes back to adjudicating for itself is what that third one catches; it is no longer the second
+  one's job.
   Reporting and adjudication are separate steps in it for a reason worth keeping: the
   first draft returned early when the arriving file was the derived one, which silenced the copy
   in exactly one of the two scan orders.

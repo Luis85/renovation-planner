@@ -68,3 +68,19 @@ export const POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX = 9;
  * reaction is armed by, so what the user sees change is exactly the region that will act.
  */
 export const POLYGON_CLOSE_GRAB_RADIUS_PX = 12;
+
+/**
+ * Below this SCREEN displacement, pointerUp is a click, not a drag — converted to world
+ * millimetres through the CURRENT camera on every release. A world-fixed epsilon was the
+ * first version's defect: 0.5 mm is half a pixel at the default zoom, so ordinary hand
+ * jitter during a click dispatched a move command — exactly the history pollution the
+ * spec's "a no-op move must not pollute the undo stack" exists to prevent.
+ *
+ * It is measured on EVERY gesture, body and vertex alike. The second version's defect was
+ * applying it only to body drags: a plain click on a vertex handle then teleported that
+ * vertex to the click point — up to `VERTEX_GRAB_RADIUS_PX` away, which is 80 mm at the
+ * default zoom — and pushed a real move onto the undo stack. Both gestures therefore
+ * record where they STARTED, which is the whole reason the vertex arm carries a
+ * `startWorld` it otherwise has no use for.
+ */
+export const CLICK_EPSILON_PX = 4;

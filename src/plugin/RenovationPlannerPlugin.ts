@@ -15,6 +15,8 @@ import type { VaultChangeAdapter } from '../infrastructure/persistence/index/Vau
 import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../presentation/designer/AssetDesignerView';
 import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerContext';
+import { ASSET_LIBRARY_VIEW, AssetLibraryView } from '../presentation/library/AssetLibraryView';
+import type { AssetLibraryDeps } from '../presentation/library/AssetLibraryDeps';
 import { ProjectSuggestModal } from '../presentation/modals/ProjectSuggestModal';
 import { entriesOfType } from './indexEntries';
 import { registerPlanEditorCommands } from './planEditorCommands';
@@ -23,9 +25,10 @@ import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import { activateNotices, disposeNotices, notifyFault } from '../presentation/notices/notify';
 import { assetDesignerDeps } from './assetDesignerDeps';
+import { planEditorDeps } from './planEditorDeps';
+import { assetLibraryDeps } from './assetLibraryDeps';
 import {
 	createCompositionRoot,
-	planEditorDeps,
 	renovationProjectDeps,
 	type CompositionRoot,
 	type VaultStack,
@@ -224,6 +227,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// registering the type here is what lets a leaf restored from the workspace layout find
 		// a view at all, which is why the registration does not wait for a command to open it.
 		this.registerView(ASSET_DESIGNER_VIEW, (leaf) => new AssetDesignerView(leaf, this.assetDesignerViewDeps()));
+		// §2's fourth registration: the vault-wide catalogue, a SINGLETON like the project
+		// view rather than per-subject like the two above it. Registering the type here is
+		// what lets a leaf restored from the workspace layout find a view at all, ahead of
+		// either in-app door existing to open one.
+		this.registerView(ASSET_LIBRARY_VIEW, (leaf) => new AssetLibraryView(leaf, this.assetLibraryViewDeps()));
 		// Sidecars are visible, openable files (ADR-011): without the extension
 		// registration they render as unsupported attachments in the explorer.
 		this.registerExtensions(['rpgeo'], GEOMETRY_SIDECAR_VIEW);
@@ -279,6 +287,22 @@ export default class RenovationPlannerPlugin extends Plugin {
 			name: tr('command.show-diagnostics-report'),
 			callback: () => {
 				this.openDiagnosticsReport();
+			},
+		});
+
+		/**
+		 * §2's fourth registration's own command: a plain callback, never a `checkCallback` —
+		 * `open-plan-editor` already paid for the lesson that a command gated on the active
+		 * note is a command absent from the palette in every vault that has none of the thing,
+		 * and the library needs no active note at all. No ribbon icon joins it: §2 refuses one
+		 * by name, the ribbon being shared real estate across every installed plugin and this
+		 * surface being reached often but not constantly.
+		 */
+		this.addCommand({
+			id: 'open-asset-library',
+			name: tr('command.open-asset-library'),
+			callback: () => {
+				this.openAssetLibrary();
 			},
 		});
 
@@ -591,6 +615,13 @@ export default class RenovationPlannerPlugin extends Plugin {
 		return assetDesignerDeps(this.root, this.app, { indexScanCompleted: () => this.indexScanCompleted });
 	}
 
+	/** ONE spelling of the Asset library's bundle, for the factory and the rebind. */
+	private assetLibraryViewDeps(): AssetLibraryDeps {
+		return assetLibraryDeps(this.root, this.app.workspace, this.app.vault, {
+			indexScanCompleted: () => this.indexScanCompleted,
+		});
+	}
+
 	/**
 	 * Points every view already on screen at the root that has just replaced the one it was
 	 * built against.
@@ -606,12 +637,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 *
 	 * It walks EVERY view type that holds a composition root rather than the one that was
 	 * reported, because "a view built against a replaced root" is a category and the second
-	 * member of it was already there when the first was found. It has been THREE since ADR-0015
-	 * (the sidecar viewer is the one registered view that holds no root and needs no loop) — a
-	 * category, so a fourth is a loop here rather than a decision.
-	 * `instanceof` rather than a view-type string comparison: `getLeavesOfType` is already
-	 * keyed by type, and what this needs to know is that the object has the method — a leaf
-	 * holding some other plugin's view under our type is not a thing to guess about.
+	 * member of it was already there when the first was found. It is FOUR loops now, the
+	 * fourth being the Asset library's — the sidecar viewer stays the one registered view that
+	 * holds no root and needs none — and this is the surface the category matters most for:
+	 * §83's library-folder migration MOVES every catalogue note and then swaps the root, so an
+	 * un-rebound library goes on resolving asset notes at the folder they have just left,
+	 * showing an empty or wrong catalogue right after the one gesture most likely to be
+	 * performed from it. `instanceof` rather than a view-type string comparison:
+	 * `getLeavesOfType` is already keyed by type, and what this needs to know is that the
+	 * object has the method — a leaf holding some other plugin's view under our type is not a
+	 * thing to guess about.
 	 */
 	private rebindOpenViews(): void {
 		for (const leaf of this.app.workspace.getLeavesOfType(RENOVATION_PROJECT_VIEW)) {
@@ -639,6 +674,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// only via `instanceof` is reported as an unused class member.
 			const view: AssetDesignerView = leaf.view;
 			view.rebind(this.assetDesignerViewDeps());
+		}
+		for (const leaf of this.app.workspace.getLeavesOfType(ASSET_LIBRARY_VIEW)) {
+			if (!(leaf.view instanceof AssetLibraryView)) continue;
+			// ANNOTATED, for the reason the three loops above give: `fallow` resolves a class
+			// member through an explicit type and never through a property access, so a
+			// `rebind` reached only via `instanceof` is reported as an unused class member.
+			const view: AssetLibraryView = leaf.view;
+			view.rebind(this.assetLibraryViewDeps());
 		}
 	}
 
@@ -703,14 +746,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 		const persistence = this.root.persistence;
 		if (!persistence || !this.vaultStack) return;
 
-		persistence.index.rebuild(
-			buildProjectIndexEntries({
-				vault: this.vaultStack.vault,
-				metadataCache: this.vaultStack.metadataCache,
-				echo: persistence.vaultDeps.echo,
-				logger: this.root.logger,
-			}),
-		);
+		// Both halves of one scan, in one call: the entries and the notes of ours the scan could
+		// not index. A rebuild that replaced only the first would leave a repair surface naming
+		// collisions the vault no longer has.
+		const scan = buildProjectIndexEntries({
+			vault: this.vaultStack.vault,
+			metadataCache: this.vaultStack.metadataCache,
+			echo: persistence.vaultDeps.echo,
+			logger: this.root.logger,
+		});
+		persistence.index.rebuild(scan.entries, scan.exclusions);
 
 		// Set BEFORE the announce, so a subscriber re-hydrating on that event already sees a
 		// completed scan. Announcing first would leave the very re-read this flag exists for
@@ -812,6 +857,28 @@ export default class RenovationPlannerPlugin extends Plugin {
 				reportFault: this.reportRevealFault,
 			},
 			RENOVATION_PROJECT_VIEW,
+		);
+	}
+
+	/**
+	 * The palette command's own way into the library — a plain `revealView`, exactly
+	 * `openProject`'s shape above and for the identical reason: `revealView` answers every
+	 * fault itself and cannot reject, so there is nothing left for `runDetached` to catch.
+	 * `ProjectList`'s header and `ViewRoot`'s no-projects aside reach the same view through
+	 * `RenovationProjectDeps.openAssetLibrary`, composed at `renovationProjectOpenSeams.ts` —
+	 * a separate binding rather than a call to this method, since that seam already composes
+	 * the fault door for the other bundle it belongs to and a call across the two would be a
+	 * second answer to who owns it.
+	 */
+	private openAssetLibrary(): void {
+		void revealView(
+			{
+				workspace: this.app.workspace,
+				reportFault: (cause: unknown): void => {
+					notifyFault(cause, this.root.logger, 'view.asset-library.reveal-failed');
+				},
+			},
+			ASSET_LIBRARY_VIEW,
 		);
 	}
 

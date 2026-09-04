@@ -3,10 +3,8 @@ import { createEventBus, type EventBus } from '../core/events/EventBus';
 import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
-import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
 import { createProjectPricesChangeSource } from '../application/events/projectPricesChangeSource';
-import { createRequirementFiguresChangeSource } from '../application/events/requirementFiguresChangeSource';
 import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
 import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
@@ -16,7 +14,6 @@ import type { CreateProjectInput, CreateProjectError } from '../application/comm
 import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
 import type { CreateZoneInput, CreateZoneError } from '../application/commands/zone/CreateZone';
 import { DeleteZoneCommand } from '../application/commands/zone/DeleteZone';
-import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
 import { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
 import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBackground';
 import type {
@@ -28,17 +25,12 @@ import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import type { LibraryOverlaps } from '../application/ports/LibraryOverlaps';
 import type { ProjectListFacts } from '../application/ports/ProjectListFacts';
 import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
-import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
-import { createVaultFileChangeSource } from '../infrastructure/obsidian/vault/vaultFileChanges';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { RecalculateRequirementCommand } from '../application/commands/requirement/RecalculateRequirement';
 import {
 	createPlanEditorQueries,
-	unavailablePlanEditorQueries,
 	type PlanEditorQueryServices,
 } from '../presentation/read-models/planEditorQueries';
-import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
-import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
 import {
 	createRenovationProjectQueries,
 	unavailableRenovationProjectQueries,
@@ -48,6 +40,7 @@ import type { RenovationProjectDeps } from '../presentation/views/RenovationProj
 import type { ContinueContext } from '../application/continueContext';
 import {
 	renovationProjectOpenAsset,
+	renovationProjectOpenAssetLibrary,
 	renovationProjectOpenPlan,
 	renovationProjectOpenProject,
 } from './renovationProjectOpenSeams';
@@ -74,6 +67,7 @@ import { createMigrationRunner, type MigrationRunner } from '../infrastructure/p
 import { MIGRATION_SET } from '../infrastructure/persistence/migration/migrationSet';
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../infrastructure/persistence/index/InMemoryProjectIndex';
+import { ReconcilingProjectIndex } from '../infrastructure/persistence/index/ReconcilingProjectIndex';
 import { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { guardCommand } from '../application/errors/guardAgainstThrowing';
 import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnosticsLedger';
@@ -81,7 +75,6 @@ import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/di
 import {
 	VAULT_EXCEPTION_MAPPER,
 	guardAssetDesign,
-	guardCalibratePlan,
 	guardSlice10,
 	guardedEditorServices,
 	type GuardedAssetDesignServices,
@@ -91,6 +84,7 @@ import {
 	type UnguardedSlice10Services,
 } from './guardedServices';
 import { guardAssetPriceServices, type GuardedAssetPriceServices } from './guardedAssetPrice';
+import { guardAssetLibrary, type GuardedAssetLibraryServices } from './guardedAssetLibrary';
 import { SetAssetPriceOverrideCommand } from '../application/commands/asset-price/SetAssetPriceOverride';
 import { ClearAssetPriceOverrideCommand } from '../application/commands/asset-price/ClearAssetPriceOverride';
 import { ListProjectAssetPrices } from '../application/queries/ListProjectAssetPrices';
@@ -175,7 +169,8 @@ export interface PersistenceServices
 	extends GuardedEditorServices,
 		GuardedSlice10Services,
 		GuardedAssetPriceServices,
-		GuardedAssetDesignServices {
+		GuardedAssetDesignServices,
+		GuardedAssetLibraryServices {
 	readonly index: ProjectIndex;
 	readonly vaultDeps: NoteVaultDeps;
 	readonly migrations: MigrationRunner;
@@ -375,6 +370,9 @@ function composeGuarded(
 	// commands and the query Tasks 4 and 8 wrote. `index` is `wiring.index` — the same
 	// instance every repository and `IndexLibraryOverlaps` already share — so this is a
 	// wiring change at one call site, not a new construction.
+	// The library's three reads, composed and guarded together — `guardAssetDesign`'s shape,
+	// and every port here is one this function already holds.
+	const assetLibrary = guardAssetLibrary({ assets, index, geometry: assetGeometry, overrides }, logger, map);
 	const assetPrice = guardAssetPriceServices(
 		{
 			setAssetPriceOverride: new SetAssetPriceOverrideCommand({ overrides, projects, assets, events: eventBus, locks }),
@@ -388,6 +386,7 @@ function composeGuarded(
 		...editor,
 		...guardSlice10(slice10, recalculate, logger, map),
 		...assetPrice,
+		...assetLibrary,
 		// The SAME `locks` the delete resolution takes — `wiring.locks`, one instance per root. A
 		// second `new ReferenceLocks()` here would be two mutual-exclusion sets that exclude
 		// nothing from each other, which is the shape this file already refuses for the event bus.
@@ -425,8 +424,23 @@ export function createCompositionRoot(
 
 	const ledger = session.ledger ?? new InMemoryDiagnosticsLedger();
 	const markers = session.markers;
-	const index = new InMemoryProjectIndex();
 	const echo = new EchoWindow();
+	// The index every writer holds is the RECONCILING one, and that is the whole of how §5.1a's
+	// two-collection invariant reaches the six repositories: they mutate the index themselves on
+	// their own writes, so a rule kept inside `VaultChangeAdapter` held for the file explorer and
+	// for no command. Wrapping is what answers writers not yet written — there is one object, and
+	// nothing can hold anything else. (`ReconcilingProjectIndex`'s header carries the six's
+	// measurement; several older comments in this tree still say five.)
+	// Annotated as the PORT, which is what fallow resolves a class's members through: the
+	// delegating reads here are reached from repositories typed to `ProjectIndex`, and an
+	// inferred concrete type reports every one of them as an unused class member.
+	const index: ProjectIndex = new ReconcilingProjectIndex(new InMemoryProjectIndex(), {
+		vault: vault.vault,
+		metadataCache: vault.metadataCache,
+		echo,
+		events: eventBus,
+		logger,
+	});
 	const migrations = createMigrationRunner(MIGRATION_SET);
 
 	const deps: NoteVaultDeps = {
@@ -501,78 +515,6 @@ export function createCompositionRoot(
 }
 
 /**
- * The Plan Editor's own dependency bundle, assembled from a composed root.
- *
- * A function rather than another `CompositionRoot` field, because it needs the
- * `Workspace` — which is not part of the vault stack the persistence layer reads through —
- * and because it answers `null` for a session with no persistence at all: with settings
- * unrecovered there is no query service to hand a view, so registering one that would
- * draw an empty pane is worse than not being able to open it.
- */
-export function planEditorDeps(
-	root: CompositionRoot,
-	workspace: Workspace,
-	vault: Vault,
-): PlanEditorDeps {
-	const persistence = root.persistence;
-	return {
-		// TOTAL rather than nullable, and that is the point: with settings unrecovered there
-		// is no query service to hand over, so the view is handed one that REFUSES and shows
-		// the same failed state it shows for any unreadable plan. The alternatives were a
-		// nullable dependency every caller has to branch on, or not registering the view at
-		// all — which would leave a restored Plan Editor leaf pointing at a view type
-		// Obsidian does not know.
-		queries: persistence?.planEditorQueries ?? unavailablePlanEditorQueries(),
-		commands: persistence
-			? {
-					createZone: persistence.createZone,
-					moveObject: persistence.moveZone,
-					deleteZone: persistence.deleteZone,
-					zones: persistence.zones,
-					// The real bus, so the reversible adapters constructed from this bundle can
-					// finally publish what their undo and redo write.
-					events: root.eventBus,
-					zoneInspector: persistence.zoneInspector,
-					requirementEdits: {
-						// The GUARDED services, not the composed classes: the adapters take
-						// structural doors (`Command`, `…Door`) precisely so a wrapper can
-						// stand where the class used to, which is what puts these three
-						// inside the Error Boundary instead of beside it.
-						assignAsset: persistence.assignAsset,
-						setQuantityOverride: persistence.setRequirementQuantityOverride,
-						setCostOverride: persistence.setRequirementCostOverride,
-						requirements: persistence.requirements,
-						assets: persistence.assets,
-						locks: persistence.locks,
-					},
-					// The LEAF's logger, beside the bundles rather than inside one of them:
-					// a failed compensation inside a reversible adapter's undo writes to it,
-					// and so does `notifyFault` at the two raw-port fault doors in
-					// `runtime.ts` — and the second of those is not about requirement edits.
-					logger: root.logger,
-					// A new command per call — see `CalibratePlanTransaction` — and GUARDED
-					// per call, because the factory is the only door this one has: it never
-					// passes through `PersistenceServices`, so `composeGuarded` cannot reach
-					// it, and the tool's dispatch path has no `.catch` of its own.
-					calibratePlan: () =>
-						guardCalibratePlan(
-							new ReversibleCalibratePlanCommand(persistence.plans, persistence.geometry, root.eventBus),
-							root.logger,
-							VAULT_EXCEPTION_MAPPER,
-						),
-				}
-			: unavailablePlanEditorCommands(),
-		vault,
-		onThemeChange: createThemeChangeSource(workspace),
-		onPlanChanged: createPlanChangeSource(root.eventBus),
-		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
-		onProjectPricesChanged: createProjectPricesChangeSource(root.eventBus),
-		onRequirementFiguresChanged: createRequirementFiguresChangeSource(root.eventBus),
-		onVaultFileChanged: createVaultFileChangeSource(vault),
-	};
-}
-
-/**
  * The Renovation Project view's own dependency bundle (design slice 14, widened by slice 16's
  * write side) — the seam slice 1 reserved in writing, extended by a field rather than
  * relocated.
@@ -641,6 +583,10 @@ export function renovationProjectDeps(
 		rememberContinue: options.rememberContinue,
 		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve(),
 		openAsset: persistence ? renovationProjectOpenAsset(workspace, root.logger) : () => Promise.resolve(),
+		// UNCONDITIONAL, persistence or not — `onProjectsChanged`'s own reason two screens down:
+		// revealing the library needs no repository at all, and a refusing bundle underneath it
+		// simply draws its own failure state (§4) the way `unavailableAssetLibraryQueries` does.
+		openAssetLibrary: renovationProjectOpenAssetLibrary(workspace, root.logger),
 		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
 		// `onProjectsChanged` states three lines down: the bus is the root's own and exists
 		// either way, and a refusal bundle re-reading simply refuses again.

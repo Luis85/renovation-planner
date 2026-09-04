@@ -1,0 +1,330 @@
+/*
+ * The Asset library view's own root (§2, ADR-0015's fourth workspace surface) — mounted
+ * directly onto `contentEl` with no wrapper div, exactly as `RenovationProjectView` is and for
+ * the identical reason its own docblock states: a `contentEl.createDiv(...)` host has
+ * `height: auto` and collapses the pane to a sliver, invisible to jsdom and caught only by the
+ * browser harness. `.renovation-planner-view` is `RenovationProjectView`'s own class by its
+ * stylesheet's own docblock, so this is a class of its own rather than a second claimant.
+ *
+ * Task 13 adds the toolbar, the shelves container and the status bar below, ported from
+ * `src/prototypes/AssetLibrary.vue`'s own `<style scoped>` block — moved rather than copied,
+ * per `prototype-styles.test.ts`'s own rule: a real component drawing with these classes and a
+ * mock still styling them would be two sources of truth for one look, so the mock's rules for
+ * every promoted class came out of it in the same commit these rules went in. The container
+ * query ladder these regions eventually take (§7) and the focus-ring/specificity gates
+ * (`buttonSpecificity.test.ts`, `buttonFocusRing.test.ts`) are Task 15's; the INSPECTOR rail is
+ * Task 14's own partial.
+ */
+.renovation-asset-library {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	color: var(--text-normal);
+	/* A positioned ancestor for whatever this shell grows next — an overlay resolves
+	   `position: absolute` against its nearest positioned ancestor, and `.renovation-planner-
+	   view` and `.renovation-asset-designer` both take the identical rule for the identical
+	   reason. Stated ahead of a caller rather than left `static` until the first one needs it. */
+	position: relative;
+	/*
+	 * §7's INSPECTOR ladder measures this box and never `.rp-al-shelves`, which is why there are
+	 * two containers on this surface rather than one. The shelves' own container asks "how wide
+	 * is the region I am laid out in" — a question whose answer the rail changes. The rail's
+	 * question is "how wide is the PANE", and measuring the shelves for it would be circular:
+	 * the rail's width decides the shelves' width, which would then decide the rail's.
+	 *
+	 * **Added in Task 14's fix round, and the reason is the paragraph in `asset-shelf.css`
+	 * lines 259-269.** That paragraph records `@container rp-al-shelves` rules shipping INERT on
+	 * this same branch because only the prototype declared the container, names Task 13 as what
+	 * fixed it, and closes "a comment that names its trigger is a comment nothing re-reads when
+	 * the trigger fires". Task 14 then ported two `@container rp-al` blocks out of a prototype
+	 * whose OWN scoped block declared `container: rp-al / inline-size` on `.rp-al`, into a sheet
+	 * where nothing did — the identical defect under a second name, three files away from its
+	 * own write-up. `Back to library` was `display: none` at every width, which also takes it
+	 * out of the tab order, and neither rung of §7's ladder fired.
+	 * `tests/build/styles.test.ts`'s container case is what makes a third instance fail a gate
+	 * rather than a capture.
+	 */
+	container: rp-al / inline-size;
+}
+
+/* §9's own heading, visually hidden: Obsidian already prints the view's title in the leaf
+   chrome, which sits outside `contentEl`, so a visible one would duplicate it for sighted
+   readers while its absence would leave heading-based navigation with nothing to land on. */
+.rp-al-title {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.rp-al-toolbar {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-al-search {
+	flex: 1 1 auto;
+	min-width: 0;
+	/* Capped rather than greedy: at a main pane's width an unbounded field is a 1160px input
+	   for a word, which reads as a page that has not been laid out. It still takes the whole
+	   toolbar in a sidebar leaf, where the cap never binds. */
+	max-width: 22rem;
+}
+
+/* Visually hidden rather than absent: a placeholder is a hint and never a label. */
+.rp-al-search__label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.rp-al-search__input {
+	width: 100%;
+}
+
+/* Obsidian's global `:focus { outline: none }` reaches buttons too, so every control here
+   opts its ring back in per control — `styles/asset-shelf.css`'s own rules for the shelf
+   header and the row carry the identical comment. Positive offset: this button is inset in
+   the toolbar and has room, unlike an edge-to-edge row. */
+.rp-al-toolbar .rp-al-create:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/*
+ * A COLUMN, and the direction is the correction rather than the rule. This block was promoted
+ * from the prototype, where `.rp-al-body` is a ROW holding the shelves beside the inspector and
+ * the results line lives INSIDE `.rp-al-shelves`. The shipped root holds four things directly —
+ * the loading line, the results live region, the repair strip and `EmptyState`/`AssetShelves` —
+ * so a promoted `display: flex` with no direction laid them out side by side rather than
+ * stacked, and put the empty state outside the scrolling container. jsdom lays nothing out and
+ * no gate here can see it; it was found by reading the promoted rule against the DOM this task
+ * actually shipped.
+ *
+ * Task 14's inspector rail is a row beside the shelves, not beside these four — so it belongs
+ * inside the shelves region's own row, or in a wrapper of its own, rather than by reverting
+ * this direction.
+ */
+.rp-al-body {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	/*
+	 * `min-width: 0` because this is an item of the ROW `.rp-al-main` since Task 16a mounted the
+	 * rail beside it. A flex item's automatic minimum size is its min-content size on the main
+	 * axis, so without this a long unbroken supplier or SKU string inside the shelves refuses to
+	 * shrink and squeezes — or overflows past — §7's 280px rail. `.rp-al-shelf__name` carries the
+	 * identical pair (`flex: 1 1 auto` beside `min-width: 0`) with no comment of its own; the
+	 * REASON for that pair is written one selector along, in `.rp-al-row__name`'s block, which
+	 * explains why IT omits the property and cites its neighbour for why the flex item needs it.
+	 * `.rp-al-shelves`'s own `min-width: 0` is a CROSS-axis clamp inside this column and does
+	 * not reach this element.
+	 *
+	 * UNRENDERED: jsdom lays nothing out and this container has no pinned Chromium, so the
+	 * instrument is Task 17's default-width capture read by eye. `min-height` above is the same
+	 * rule on the other axis, for this element's position in the column shell.
+	 */
+	min-width: 0;
+}
+
+/*
+ * The ROW §7's first two rungs describe — the shelves region beside the inspector rail — and
+ * the wrapper `.rp-al-body`'s own block above predicted: *"Task 14's inspector rail is a row
+ * beside the shelves, not beside these four — so it belongs inside the shelves region's own
+ * row, or in a wrapper of its own, rather than by reverting this direction."* This is that
+ * wrapper, added by Task 16a in the commit that first mounts the rail.
+ *
+ * It declares NO container of its own. §7's inspector ladder measures `.renovation-asset-
+ * library` (the PANE) on purpose, because measuring the box the rail's own width decides would
+ * be circular — a container here would be exactly that box, and a second one for the ladder to
+ * be pointed at by mistake.
+ *
+ * **TWO AXES, and the first version of this comment reasoned about one of them at the wrong
+ * end.** `min-height: 0` here is about THIS element's own position as an item of the column
+ * shell: without it a flex item's automatic minimum size is its content, so the rail's and the
+ * shelves' `overflow-y: auto` never engage and the pane grows instead of scrolling. That says
+ * nothing about the items this element now contains, which are laid out along the INLINE axis —
+ * and the automatic minimum size that bites there is min-content WIDTH. `.rp-al-body` carries
+ * its own `min-width: 0` for exactly that, and the reason is written where that declaration is.
+ */
+.rp-al-main {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+/*
+ * §7's THIRD rung, the shell's own half of it. `styles/asset-library-inspector.css` narrows the
+ * rail at `rp-al (width < 45rem)` and turns it into the whole pane at `rp-al (width < 35rem)`;
+ * that same file's own comment has said since Task 14's fix round that "the shell hides the
+ * SHELVES in the mirror-image case" — true of the INTENT and, until this rule, false of the
+ * shipped sheet, because nothing in `styles/` ever hid them. Written here rather than there for
+ * the reason that comment already gives: the two halves live in two files because each partial
+ * owns the rules for the classes IT declares.
+ *
+ * Keyed on `data-selected-asset-id` — the same attribute `assetLibraryRoot.test.ts` already
+ * reads to prove the in-place-update mechanism (§6.3) — rather than on the eventual wrapper a
+ * shelves-and-rail row will need: that wrapper is Task 16's to build (the inspector is not
+ * mounted here at all yet), and a descendant selector holds regardless of how deep Task 16
+ * nests `.rp-al-body`, so this rule does not have to guess at markup nobody has written. The
+ * attribute is `''` for "nothing selected" (§6.3), never absent, so `[data-selected-asset-id]`
+ * alone would match every render; `:not([data-selected-asset-id=""])` is the actual test.
+ *
+ * REACHABLE SINCE TASK 16a, AND STILL NEVER RENDERED — two different facts, and this paragraph
+ * asserted the wrong one for a whole task. It used to read "UNREACHABLE IN A VAULT TODAY …
+ * nothing in `AssetLibraryRoot.vue` writes back to it", which was true when it was written and
+ * false the moment the write-back landed: `AssetLibraryRoot.onSelect` calls
+ * `context.publishViewState(...)`, `AssetLibraryView.publishViewState` writes `assetIdRef`, and
+ * `assetLibraryViewState.test.ts`'s *carries a row click into getState* drives one click to a
+ * non-empty `getState().assetId`. So the attribute carries a real id after one click and this
+ * rule can fire.
+ *
+ * **The comment naming its own trigger is what went unread when the trigger fired**, which is
+ * this repository's oldest recurring shape and was pre-warned in that task's own brief. The
+ * remedy is the sentence being about a STATE rather than about a schedule: a reader checks the
+ * claim by grepping for `publishViewState` rather than by knowing which task is current.
+ *
+ * What is still open is RENDERING, and no gate here reaches it: jsdom evaluates no container
+ * query, this container holds no pinned Chromium, and `assetLibraryKeyboard.test.ts` stands in
+ * for the composition with this selector minus its `@container` wrapper. Task 17's 460px
+ * capture is the first eye on whether hiding `.rp-al-body` alone is the right call.
+ */
+@container rp-al (width < 35rem) {
+	.renovation-asset-library[data-selected-asset-id]:not([data-selected-asset-id='']) .rp-al-body {
+		display: none;
+	}
+}
+
+/*
+ * The shelves are their own container, so a row's droppable slots (§3.3) measure the region
+ * they actually sit in rather than the pane — which will matter once the inspector rail beside
+ * them (Task 14) takes some of it. A CONTAINER query and never a media query:
+ * `docs/user-experience/concepts/README.md` records what measuring the wrong box costs, a
+ * canvas given 67% of a 1440px pane and 29% of a 680px one.
+ */
+.rp-al-shelves {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	padding-top: var(--size-4-2);
+	overflow-y: auto;
+	container: rp-al-shelves / inline-size;
+}
+
+/*
+ * §6.1's announcement. DRAWN ALWAYS and empty when nothing is being searched for — see
+ * `AssetLibraryRoot.vue`'s `matchCount` for why a live region may not appear with its content —
+ * so its box has to cost nothing in the render it is silent in.
+ *
+ * That is what the missing vertical padding buys, and it is a correction: this rule was promoted
+ * with `padding: 0 var(--size-4-3) var(--size-4-2)`, written for a region that only existed
+ * while it had something to say, and a permanent 8px band above the shelves is what it became.
+ * Horizontal padding only now, with `margin: 0` — an empty `<p>` generates no line box, so a
+ * silent region is zero-height — and the separation the announcement needs BELOW it comes from
+ * `.rp-al-shelves`'s own `padding-top`, which is there in both renders.
+ *
+ * jsdom lays nothing out, so no gate here can measure either the old gap or this fix; the
+ * instrument is `npm run harness` and an eye.
+ */
+.rp-al-results {
+	margin: 0;
+	padding: 0 var(--size-4-3);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-al-status {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-2) var(--size-4-3);
+	border-top: 1px solid var(--background-modifier-border);
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-al-status__sep {
+	width: 3px;
+	height: 3px;
+	border-radius: 50%;
+	background-color: currentColor;
+}
+
+/* The count never wraps; the FOLDER is what gives way, which is why the two are declared as a
+   pair — a path is long and truncatable, and "54 assets" is neither. */
+.rp-al-status__count {
+	white-space: nowrap;
+}
+
+.rp-al-status__folder {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/*
+ * §5.1a's repair strip, which draws with the SHARED `.rp-view-notice` (`styles/view.css`) plus
+ * this class of its own. Two things needed saying that the shared rule does not: it was written
+ * for a single `<p>` and this strip is a `<div>` wrapping a `<p>` and a `<ul>`, and the strip's
+ * rows are a three-part shape (path, reason, action) that had no rules at all for a review
+ * round — the "controls forming a column" defect this project has now shipped on three
+ * surfaces, arriving on a fourth with nothing to form a column with.
+ *
+ * Declared under `.rp-al-repair` rather than by widening `.rp-view-notice`, because
+ * `RenovationProjectView`'s own strip draws with that shared class and owes none of this.
+ */
+.rp-al-repair > p {
+	margin: 0 0 var(--size-4-1);
+}
+
+.rp-al-repair ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+}
+
+.rp-al-repair li {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-4-2);
+}
+
+/* The path takes the slack and truncates, so the reason and the action start in a COLUMN rather
+   than wherever the previous row's path length left them — measured on three other lists in this
+   project before it was a rule. */
+.rp-al-repair .rp-view-notice__path {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-family: var(--font-monospace);
+}
+
+.rp-al-repair .rp-view-notice__reason {
+	flex: 0 0 auto;
+	color: var(--text-muted);
+}
+
+/* Obsidian's global `:focus { outline: none }` reaches this button too — every control in this
+   feature opts its ring back in per control, and the toolbar's `New asset` carries the same
+   comment. */
+.rp-al-repair button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}

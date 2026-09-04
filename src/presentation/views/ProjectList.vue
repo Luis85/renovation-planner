@@ -71,6 +71,11 @@ defineEmits<{
 	openNote: [projectId: string];
 	create: [initialName: string];
 	createAsset: [];
+	/**
+	 * §2's second door to the vault-wide catalogue — the palette command being the first.
+	 * Carries nothing: the view reveals the singleton library, which needs no argument.
+	 */
+	openLibrary: [];
 	/** Task 11's Continue row, re-emitted with the context it names rather than left bare. */
 	resume: [context: ContinueContext];
 }>();
@@ -515,6 +520,19 @@ watch(
 			@click="$emit('createAsset')"
 		>
 			{{ tr('view.asset.create') }}
+		</button>
+		<!--
+			§2's own placement: the Assets control, beside `New asset` rather than replacing it
+			— this is where a user already is when the thought "have I got a definition for
+			this?" arrives. Reveals the singleton library view; it opens and dispatches nothing
+			itself, the same rule the row buttons above already follow.
+		-->
+		<button
+			type="button"
+			class="rp-project-list__open-library"
+			@click="$emit('openLibrary')"
+		>
+			{{ tr('view.asset-library.door') }}
 		</button>
 	</p>
 </template>

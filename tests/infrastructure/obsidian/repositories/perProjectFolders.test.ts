@@ -5,6 +5,7 @@ import {
 	joinFolder,
 	plansFolderFor,
 	projectFolderOf,
+	projectLocationOf,
 } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { createRepositoryStack, parseFrontmatter, serializeFrontmatter, type RepositoryStack } from '../../../helpers/vault';
@@ -48,6 +49,39 @@ describe('projectFolderOf', () => {
 
 	it('answers undefined for a project the index does not hold', () => {
 		expect(projectFolderOf(new InMemoryProjectIndex(), 'nope' as never)).toBeUndefined();
+	});
+});
+
+describe('projectLocationOf', () => {
+	/**
+	 * The NOTE path beside the folder, which is what a *Used in* row falls back to when two
+	 * projects share both a name and a directory (Asset library §3.5). Asserted as a PAIR:
+	 * a build answering only the folder here leaves that row nothing to disambiguate with,
+	 * and one answering only the path leaves every ordinary collision labelled `…/Project.md`.
+	 */
+	it('answers the note path beside the folder it derives', () => {
+		const index = new InMemoryProjectIndex();
+		index.upsert({
+			id: 'p1' as never,
+			type: 'renovation-project',
+			path: 'Renovation/Kitchen Refit/Project.md',
+		});
+		expect(projectLocationOf(index, 'p1' as never)).toEqual({
+			path: 'Renovation/Kitchen Refit/Project.md',
+			folder: 'Renovation/Kitchen Refit',
+		});
+	});
+
+	it("derives the empty folder for a note at the vault root, rather than refusing", () => {
+		// `''` is a SUPPLIED answer and not an absence — the case the *Used in* row draws a
+		// root label for, and the one a truthiness test would silently suppress.
+		const index = new InMemoryProjectIndex();
+		index.upsert({ id: 'p2' as never, type: 'renovation-project', path: 'Refit.md' });
+		expect(projectLocationOf(index, 'p2' as never)).toEqual({ path: 'Refit.md', folder: '' });
+	});
+
+	it('refuses for a project the index does not hold, rather than half-answering', () => {
+		expect(projectLocationOf(new InMemoryProjectIndex(), 'nope' as never)).toBeUndefined();
 	});
 });
 

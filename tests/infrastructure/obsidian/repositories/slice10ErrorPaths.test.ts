@@ -316,7 +316,7 @@ describe('ObsidianAssetRepository failure branches', () => {
 
 		const listed = expectOk(await stack.assets.listAll());
 
-		expect(listed.map((one) => one.entity.id)).toEqual([second.assetId]);
+		expect(listed.loaded.map((one) => one.entity.id)).toEqual([second.assetId]);
 	});
 
 	it('listAll skips an indexed id whose note has vanished entirely', async () => {
@@ -329,7 +329,7 @@ describe('ObsidianAssetRepository failure branches', () => {
 		stack.vault.entries.delete(second.path);
 
 		const listed = expectOk(await stack.assets.listAll());
-		expect(listed.map((loaded) => loaded.entity.id)).toEqual([first.assetId]);
+		expect(listed.loaded.map((loaded) => loaded.entity.id)).toEqual([first.assetId]);
 	});
 });
 

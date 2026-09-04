@@ -34,7 +34,8 @@
  *      element in jsdom regardless of its CSS — so even forcing the rule on would not
  *      make it catch a real hit-target defect, it would make it silently pass one.
  *
- *    All three are disabled below (`LAYOUT_DEPENDENT_RULES`) so this file's assertion
+ *    All three are disabled by `./axeOptions`'s `LAYOUT_DEPENDENT_RULES` — shared with
+ *    `accessibilityAssetLibrary.test.ts` rather than copied — so this file's assertion
  *    doesn't depend on an `incomplete` result it can never act on, or on a rule that
  *    would pass a genuine defect if left forced on. axe has no rule at all for a visible
  *    focus indicator — verified by reading its full rule list — so nothing here checks
@@ -104,6 +105,7 @@ import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountAssetDesignerHarness } from './assetDesigner';
+import { runOptions } from './axeOptions';
 import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../helpers/editor';
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
@@ -201,11 +203,6 @@ function price(amount: string): Money {
 	return minted.value;
 }
 
-const LAYOUT_DEPENDENT_RULES = ['color-contrast', 'color-contrast-enhanced', 'target-size'];
-
-const runOptions: Parameters<typeof axe.run>[1] = {
-	rules: Object.fromEntries(LAYOUT_DEPENDENT_RULES.map((id) => [id, { enabled: false }])),
-};
 
 /** One state of the index, scanned and torn down — the mount must not outlive the scan. */
 /**

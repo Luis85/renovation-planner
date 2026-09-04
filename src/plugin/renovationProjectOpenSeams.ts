@@ -4,8 +4,10 @@ import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import { openProjectNote, type ProjectNoteOpenOutcome } from '../infrastructure/obsidian/workspace/openNote';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
 import { revealAssetDesigner } from '../infrastructure/obsidian/workspace/revealAssetDesigner';
+import { revealView } from '../infrastructure/obsidian/workspace/revealView';
 import { PLAN_EDITOR_VIEW } from '../presentation/views/PlanEditorView';
 import { ASSET_DESIGNER_VIEW } from '../presentation/designer/AssetDesignerView';
+import { ASSET_LIBRARY_VIEW } from '../presentation/library/AssetLibraryView';
 import { notifyFault } from '../presentation/notices/notify';
 
 /**
@@ -48,6 +50,28 @@ export function renovationProjectOpenAsset(workspace: Workspace, logger: Logger)
 			ASSET_DESIGNER_VIEW,
 			assetId,
 		);
+}
+
+/**
+ * `RenovationProjectDeps.openAssetLibrary`, bound to the real `revealView` — the same
+ * line-budget extraction as its two siblings above, and `void` rather than `Promise<void>` for
+ * the reason its own docblock gives: a SINGLETON with no id to resolve takes the plain
+ * `revealView` every other singleton reveal in this plugin already uses
+ * (`RenovationPlannerPlugin.openProject`, and this view's own command into itself), which
+ * answers every fault through `reportFault` and cannot reject.
+ */
+export function renovationProjectOpenAssetLibrary(workspace: Workspace, logger: Logger): () => void {
+	return () => {
+		void revealView(
+			{
+				workspace,
+				reportFault: (cause: unknown): void => {
+					notifyFault(cause, logger, 'view.asset-library.reveal-failed');
+				},
+			},
+			ASSET_LIBRARY_VIEW,
+		);
+	};
 }
 
 /**

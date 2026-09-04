@@ -17,3 +17,26 @@ export function settle(): Promise<void> {
 		setTimeout(resolve, 0);
 	});
 }
+
+/**
+ * A promise whose settlement the test controls, so two reads can be made to land in the
+ * opposite order to the one they were started in.
+ *
+ * Every ticket in this repository exists for exactly that ordering, and it is the one thing
+ * a fake resolving immediately cannot produce: with `Promise.resolve(...)` the first read
+ * always lands first, so a suite written against it is green whether the ticket is there or
+ * not. Named `defer` rather than `deferred` because the value is the ACT of deferring —
+ * `resolve` is handed back beside the promise so the caller decides when.
+ */
+export interface Deferred<T> {
+	readonly promise: Promise<T>;
+	resolve(value: T): void;
+}
+
+export function defer<T>(): Deferred<T> {
+	let fulfil!: (value: T) => void;
+	const promise = new Promise<T>((resolve) => {
+		fulfil = resolve;
+	});
+	return { promise, resolve: fulfil };
+}

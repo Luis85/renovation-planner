@@ -6,7 +6,13 @@ import {
 	geometrySidecarChanged,
 	projectIndexEntryChanged,
 } from '../../../application/events/projectIndex.events';
-import { derivedPlanSidecarPath, entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
+import {
+	acceptsSidecar,
+	entityRefOf,
+	stringField,
+} from './buildProjectIndexEntries';
+import { incrementalSidecarMapping } from './sidecarMapping';
+import { entryById } from './entryLookup';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo';
@@ -22,6 +28,21 @@ import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo
  * plugin's own write and is dropped (`EchoWindow`); anything else is real and updates
  * the index. A malformed note is excluded with a diagnostic rather than aborting the
  * rest of the scan — one broken file must not take down the vault's data.
+ *
+ * **Excluded is a place in the index now, not a return statement.** A note of ours this door
+ * cannot index gets a descriptor beside the entries and its own announcement, because the
+ * surfaces that list what a user has to repair are fed by the index and this door is the sole
+ * writer for every change the plugin did not make itself.
+ *
+ * **The `duplicate-id` half of that collection is NOT this door's**, and used to be. Its cause
+ * lives in another FILE, so taking an id has to demote whoever held it and vacating one has to
+ * re-open the question for notes no event will ever name — a rule this pipeline kept correctly
+ * and which the SIX repositories mutating the index on their own writes did not (project, plan,
+ * zone, asset, requirement and asset-price; `ReconcilingProjectIndex`'s header carries the
+ * count's own measurement). It belongs
+ * to the index the composition root hands out (`ReconcilingProjectIndex`), which is the one
+ * object every writer holds; the calls to `index.upsert`, `index.remove`, `index.addExclusion`
+ * and `index.removeExclusion` below are what reach it.
  */
 export class VaultChangeAdapter {
 	private readonly pending = new Set<string>();
@@ -108,11 +129,21 @@ export class VaultChangeAdapter {
 		const existing = this.findByPath(path);
 
 		if (!(abstractFile instanceof TFile)) {
-			// Deleted (or replaced by something that is not a note).
-			if (existing) {
-				this.applyRemove(existing);
-				this.deps.echo.forget(path);
-			}
+			// Deleted (or replaced by something that is not a note). A note that was EXCLUDED has
+			// no entry to remove and still has a descriptor naming it, so a repair surface would
+			// go on listing a file the user has already dealt with by deleting it.
+			this.deps.index.removeExclusion(path);
+			// **Forgotten for every deleted path, not only for one that had an ENTRY**, which is
+			// where this line used to sit. The full scan marks the echo of every note it reads
+			// (`collectNotes` → `markFrontmatter`), a duplicate-id LOSER included — it is marked
+			// on the way in and displaced afterwards — so an excluded note leaves a record here
+			// with no entry to carry it out. Delete that note and restore it with the same bytes
+			// and `echo.matches` answered TRUE, so `processNote` returned before re-excluding it:
+			// the collision was gone from the repair list until the next full rebuild, having
+			// been suppressed as this plugin's own write. The file is gone; nothing about it can
+			// be our echo.
+			this.deps.echo.forget(path);
+			if (existing) this.applyRemove(existing);
 			return;
 		}
 		this.processNote(abstractFile, existing);
@@ -133,18 +164,32 @@ export class VaultChangeAdapter {
 			// is excluded correctly with no diagnostic and no compile error — measured when
 			// `bad-id` briefly existed: adding it failed the build at the scan and said nothing
 			// here. The scan's branches are compiler-enforced; this door's are not, so a third
-			// excluded kind must be spelled out rather than left to a default.
+			// excluded kind must be spelled out rather than left to a default. It reaches the
+			// `else` below and DROPS any descriptor for the path, which is right for a note that
+			// stopped being ours and wrong for a fourth kind of exclusion — the same sentence,
+			// one collection further on.
 			if (ref.kind === 'no-id') {
 				this.deps.logger.warn('persistence.pipeline.note-excluded', {
 					path,
 					reason: 'a note of this plugin must declare a non-empty id',
 				});
+				// The half this door used to be missing entirely: it logged and returned, so a note
+				// that lost its id after load reached the index as a removal and reached a repair
+				// surface as nothing at all, until the next full rebuild — which happens at
+				// layout-ready and on a settings save and nowhere else.
+				this.deps.index.addExclusion({ path, entityType: ref.type, reason: 'no-id' });
+			} else {
+				// It is not ours at all now, so whatever it was excluded FOR has stopped being
+				// true — a `no-id` note whose `type` was corrected away, or a duplicate loser
+				// that is no longer one of our notes.
+				this.deps.index.removeExclusion(path);
 			}
-			// Not ours — but if it USED to be, it changed into something we cannot index.
-			if (existing) {
-				this.applyRemove(existing);
-				this.deps.echo.forget(path);
-			}
+			// Not ours — but if it USED to be, it changed into something we cannot index. The
+			// echo goes for the same reason the deleted arm above forgets unconditionally: this
+			// path has stopped being one whose bytes we could have written, and an excluded note
+			// reaching here has a record and no entry to carry it out.
+			this.deps.echo.forget(path);
+			if (existing) this.applyRemove(existing);
 			return;
 		}
 
@@ -171,8 +216,11 @@ export class VaultChangeAdapter {
 		// refusing for the life of the session.
 		if (existing && existing.id !== ref.id) this.applyRemove(existing);
 
-		this.warnOnDuplicateId(ref.id, path);
-
+		// The descriptor this path may carry, and the demotion of whatever note held this id,
+		// are BOTH the upsert's own — `ReconcilingProjectIndex.upsert` does them. They used to be
+		// spelled in this method, beside the call below rather than inside it, which is why the
+		// repositories' own upserts did neither: the rollback of a failed delete displaced a
+		// promoted loser into no collection at all.
 		this.applyUpsert({
 			id: ref.id as ProjectIndexEntry['id'],
 			type: ref.type,
@@ -281,7 +329,7 @@ export class VaultChangeAdapter {
 		// that path comes from the `libraryFolder` SETTING and this pipeline is not given it.
 		// `derivedPath: undefined` is that answer, and `sidecarMappingFor` then keeps the
 		// mapping it holds and says so, rather than guessing.
-		if (!entry || (entry.type !== 'renovation-plan' && entry.type !== 'renovation-asset')) {
+		if (!entry || !acceptsSidecar(entry)) {
 			this.deps.logger.warn('persistence.pipeline.sidecar-skipped', {
 				path,
 				reason: 'no indexed plan or asset carries this id',
@@ -295,50 +343,22 @@ export class VaultChangeAdapter {
 		// which is how an in-vault backup of a project folder silently sent the live plan's
 		// geometry writes into the copy: `sidecarMappingFor` carries the whole argument, and
 		// carries it for the full scan too, so the two doors cannot answer differently.
-		this.applyUpsert({
-			...entry,
-			geometrySidecarPath: sidecarMappingFor({
-				logger: this.deps.logger,
-				event: 'persistence.pipeline.sidecar-duplicate',
-				entry,
-				incoming: path,
-				derivedPath:
-					entry.type === 'renovation-plan'
-						? derivedPlanSidecarPath(entry, (projectId) => this.deps.index.getPath(projectId))
-						: undefined,
-			}),
-		});
+		this.applyUpsert({ ...entry, geometrySidecarPath: incrementalSidecarMapping(this.deps, entry, path) });
 	}
 
 	/**
-	 * The incremental half of the builder's duplicate-id diagnostic: a note arriving with an
-	 * id another note already holds takes the index entry over, and the loser then never
-	 * opens with nothing saying why. Semantics are untouched — last writer still wins.
-	 *
-	 * The existence check is what keeps this from crying wolf on a MOVE: a sync that
-	 * relocates a note without a `rename` event arrives as a create at the new path while
-	 * the index still points at the old one, which looks identical to a duplicate until you
-	 * ask whether a file is still sitting there.
-	 */
-	private warnOnDuplicateId(id: string, path: string): void {
-		const indexed = this.deps.index.getPath(id as never);
-		if (indexed === undefined || indexed === path) return;
-		if (!(this.deps.vault.getAbstractFileByPath(indexed) instanceof TFile)) return;
-
-		this.deps.logger.warn('persistence.pipeline.duplicate-id', {
-			id,
-			path,
-			otherPath: indexed,
-			reason: 'another note already declares this id; it is no longer reachable',
-		});
-	}
-
-	/**
-	 * Every index mutation this pipeline makes goes through this pair, and that is a CATEGORY
+	 * Every ENTRY mutation this pipeline makes goes through this pair, and that is a CATEGORY
 	 * rather than a habit: the announcement's whole value is that a view can trust it to mean
 	 * "the index changed under you", which a list of remembered call sites cannot promise. Six
 	 * sites called `index.upsert`/`index.remove` directly before these existed, across four
 	 * handlers and the sidecar path.
+	 *
+	 * **ENTRY, narrowly, and ANNOUNCEMENT narrowly at that.** The index holds a second
+	 * collection since it learned to keep the notes it could not index, and that collection's
+	 * pair is `ProjectIndex.addExclusion`/`removeExclusion` — announced by
+	 * `ReconcilingProjectIndex`, which is also what announces the entry a PROMOTION creates,
+	 * since no door here asked for one. Writing "every index mutation is announced from this
+	 * file" would be a category claim this file no longer keeps on its own.
 	 *
 	 * The removal reads the entry's `type` BEFORE dropping it, because after `index.remove`
 	 * there is nothing left to ask — which is why both take the whole entry rather than an id.
@@ -375,6 +395,12 @@ export class VaultChangeAdapter {
 		this.announce(entry.id, entry.type);
 	}
 
+	/**
+	 * Removing an entry frees its id, and freeing an id is the question a `duplicate-id`
+	 * exclusion was answered relative to — so the re-evaluation belongs to `index.remove`
+	 * itself rather than to any of the doors that call one. It used to be spelled here, which
+	 * held for this pipeline's three call sites and for none of the repositories'.
+	 */
 	private applyRemove(entry: ProjectIndexEntry): void {
 		this.deps.index.remove(entry.id);
 		this.announce(entry.id, entry.type);
@@ -395,8 +421,8 @@ export class VaultChangeAdapter {
 
 	/**
 	 * The sidecar counterpart of `announce`, and a SEPARATE event rather than a second caller of
-	 * that one — `applyUpsert`/`applyRemove`'s docblock makes a category claim ("every index
-	 * mutation goes through this pair"), and a sidecar change need mutate nothing at all: an
+	 * that one — `applyUpsert`/`applyRemove`'s docblock makes a category claim about every ENTRY
+	 * mutation this pipeline makes, and a sidecar change need mutate nothing at all: an
 	 * asset's sidecar has no index mapping to move, so reusing `ProjectIndexEntryChanged` to buy
 	 * a designer its refresh would make that sentence only mostly true.
 	 *
@@ -418,13 +444,13 @@ export class VaultChangeAdapter {
 	}
 
 	/**
-	 * The by-id sibling of `findByPath`, over the same scan and for the same reason there is no
-	 * port method for either: `ProjectIndex` answers `getPath` and the three bucket queries, and
-	 * none of them hands back an ENTRY. A `getById` would be the smaller change and a wider
-	 * surface — this pipeline is the only caller, and it already pays this scan once per
-	 * processed path.
+	 * The by-id sibling of `findByPath`, and no longer this pipeline's own scan: `entryById`
+	 * holds it, because `ReconcilingProjectIndex.demoteDisplaced` asks the identical question in
+	 * a different module. That module's header carries why it is a function rather than a port
+	 * method, and what the previous version of THIS docblock got wrong by arguing it from a
+	 * caller count.
 	 */
 	private findById(id: ProjectIndexEntry['id']): ProjectIndexEntry | undefined {
-		return this.deps.index.entries().find((entry) => entry.id === id);
+		return entryById(this.deps.index, id);
 	}
 }

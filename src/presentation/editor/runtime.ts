@@ -363,7 +363,10 @@ function subscribeToChangedFigures(
  * Every string the dialogs receive is resolved before it reaches them, because nothing
  * under `presentation/dialogs/` resolves a key on its own behalf: the reassign title with
  * `tr` here, the zone's own name from the caller, and the reference rows in
- * `deleteZoneFlow` — which is where the groups those labels depend on actually are.
+ * `presentation/references/deleteWithReferences.ts` — which is where the groups those labels
+ * depend on actually are. That module is the SHAPE `deleteZoneFlow.ts` is now an adapter over;
+ * `rowsFor` moved into it with the body when the Asset library needed the identical gesture,
+ * and this sentence pointed at the old home for one commit.
  *
  * Both failure halves of SDD §65 are handled here rather than in `commitEdit`, and that is
  * the reason this action does not go through it: a refusal the flow ACTS on
@@ -380,10 +383,11 @@ function createDeleteZoneAction(
 	const deps: DeleteZoneFlowDeps = {
 		listReferents: (zoneId) => context.queries.listRequirementsReferencing(zoneId),
 		listReassignmentTargets: (zoneId) => context.queries.listReassignmentTargets(zoneId),
-		// The rows arrive built. `deleteZoneFlow` maps the query's per-project groups onto them,
-		// because which label a row takes depends on the ambiguity `ListRequirementsReferencing`
-		// resolved — building them here would derive that rule a second time, and this door
-		// cannot see the groups at all.
+		// The rows arrive built. `deleteWithReferences` maps the query's per-project groups onto
+		// them — `deleteZoneFlow` is the adapter that binds this door to it and never sees a
+		// group — because which label a row takes depends on the ambiguity
+		// `ListRequirementsReferencing` resolved, and building them here would derive that rule
+		// a second time for one of the two surfaces that now share it.
 		askResolution: (entityLabel, references) =>
 			dialogs.openDialog({ kind: 'delete-reference', entityLabel, references }),
 		askReassignTarget: (title, candidates) =>

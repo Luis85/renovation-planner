@@ -120,7 +120,7 @@ describe('the in-memory project index', () => {
 
 	it('answers all five lookups', () => {
 		const index = new InMemoryProjectIndex();
-		index.rebuild([projectEntry, planEntry, zoneEntry]);
+		index.rebuild([projectEntry, planEntry, zoneEntry], []);
 		expect(index.getPath('plan-b' as never)).toBe('Renovation/Plans/GF.md');
 		expect(index.getGeometrySidecarPath('plan-b' as never)).toBe('Renovation/Geometry/plan-b.rpgeo');
 		expect(index.getIdsByType('renovation-zone')).toEqual(['zone-c']);
@@ -170,7 +170,7 @@ describe('the in-memory project index', () => {
 
 	it('rebuild converges to the same state an equal sequence of upserts produces', () => {
 		const rebuilt = new InMemoryProjectIndex();
-		rebuilt.rebuild([projectEntry, planEntry, zoneEntry]);
+		rebuilt.rebuild([projectEntry, planEntry, zoneEntry], []);
 		const incremental = new InMemoryProjectIndex();
 		for (const entry of [projectEntry, planEntry, zoneEntry]) incremental.upsert(entry);
 		expect(incremental.entries()).toEqual(rebuilt.entries());

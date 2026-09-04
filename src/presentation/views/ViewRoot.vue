@@ -463,12 +463,21 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 						so a fresh vault can still build a catalogue and the two states are one
 						composition rather than two that happen to agree.
 
-						A SIBLING of the empty state rather than a second action ON it, which is
-						unchanged: `EMPTY_STATE_CONTENT` is a typed registry whose entries carry
-						one action each, so a second one would be a widening every entry inherits
-						for the sake of one. The key legend is omitted here — there is no list to
-						navigate and no note to open, so a legend would advertise keys that do
-						nothing.
+						A SIBLING of the empty state rather than a second action ON it:
+						`EMPTY_STATE_CONTENT` is a typed registry whose entries carry one action
+						each, so a second one would be a widening every entry inherits for the
+						sake of one. The empty state's message is "create your first project" and
+						its button is that sentence's verb; these are unrelated affordances and
+						are drawn as such.
+
+						**§2's Assets control joins it here for the identical reason.** The
+						catalogue is vault-wide, so a vault with no projects can hold a full
+						library — and `ProjectList`'s own header, where §2 places this control's
+						other door, is not mounted in this state either. A vault that can create
+						an asset and cannot list one is the same argument left half-applied.
+
+						The key legend is omitted here — there is no list to navigate and no note
+						to open, so a legend would advertise keys that do nothing.
 					-->
 					<p class="rp-project-list__foot rp-view-aside">
 						<button
@@ -477,6 +486,13 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 							@click="onCreateAsset"
 						>
 							{{ tr('view.asset.create') }}
+						</button>
+						<button
+							type="button"
+							class="rp-view-aside__open-library"
+							@click="context.openAssetLibrary"
+						>
+							{{ tr('view.asset-library.door') }}
 						</button>
 					</p>
 				</template>
@@ -512,6 +528,7 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 					@open-note="onOpenNote"
 					@create="onCreateProject"
 					@create-asset="onCreateAsset"
+					@open-library="context.openAssetLibrary"
 					@resume="onResume"
 				/>
 			</template>

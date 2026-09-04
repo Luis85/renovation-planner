@@ -76,7 +76,9 @@
  * cycle, a port — and only then against the real composition root.
  */
 import { describe, expect, it } from 'vitest';
-import { createCompositionRoot, planEditorDeps } from '../../src/plugin/composition-root';
+import { createCompositionRoot } from '../../src/plugin/composition-root';
+import { planEditorDeps } from '../../src/plugin/planEditorDeps';
+import { assetLibraryDeps } from '../../src/plugin/assetLibraryDeps';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { guardCommand } from '../../src/application/errors/guardAgainstThrowing';
 import { createVaultExceptionMapper } from '../../src/application/errors/exceptionMapper';
@@ -506,9 +508,19 @@ describe('every service leaving the composition root is guarded', () => {
 		// The editor's bundle is the second door out of the root, and the only one handing
 		// over a factory. Surveyed with the same instrument, into the same report.
 		const fromEditor = discover(planEditorDeps(root, {} as never, {} as never), 'editorDeps');
+		// The library's own bundle, surveyed with the same instrument into the same report: a
+		// view-deps builder that is not walked is a place a raw command can be composed with
+		// every gate green. Two OTHERS are still unwalked and this comment says so rather than
+		// letting the pair above read as a category — `renovationProjectDeps` and
+		// `assetDesignerDeps` hand out only members `persistence` already carries, which is why
+		// nothing here has missed a raw door yet, and is a reason rather than a guarantee.
+		const fromLibrary = discover(
+			assetLibraryDeps(root, {} as never, {} as never, { indexScanCompleted: () => false }),
+			'libraryDeps',
+		);
 		return {
-			discovered: [...fromPersistence.discovered, ...fromEditor.discovered],
-			skipped: [...fromPersistence.skipped, ...fromEditor.skipped],
+			discovered: [...fromPersistence.discovered, ...fromEditor.discovered, ...fromLibrary.discovered],
+			skipped: [...fromPersistence.skipped, ...fromEditor.skipped, ...fromLibrary.skipped],
 		};
 	}
 
@@ -587,6 +599,9 @@ describe('every service leaving the composition root is guarded', () => {
 			'editorDeps.commands.events',
 			'editorDeps.commands.logger',
 			'editorDeps.queries',
+			'libraryDeps',
+			'libraryDeps.logger',
+			'libraryDeps.queries',
 			'persistence.files',
 			'persistence.planEditorQueries',
 			'persistence.vaultDeps.logger',

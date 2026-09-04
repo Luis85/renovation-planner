@@ -228,9 +228,9 @@ describe('ListProjectAssetPrices', () => {
 		let reordered = false;
 		const reorderingAssets = overridePort(assets, {
 			listAll: async () => {
-				const rows = expectOk(await assets.listAll());
-				const ordered = reordered ? rows.toReversed() : rows;
-				return { ok: true as const, value: ordered };
+				const listing = expectOk(await assets.listAll());
+				const ordered = reordered ? listing.loaded.toReversed() : listing.loaded;
+				return { ok: true as const, value: { ...listing, loaded: ordered } };
 			},
 		});
 		const query = new ListProjectAssetPrices(reorderingAssets, overrides, index, logger);

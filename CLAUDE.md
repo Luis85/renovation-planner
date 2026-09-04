@@ -66,13 +66,27 @@ there is nothing here to go stale, and a reader asking what is unbuilt is sent t
 document's amendments rather than here, because a list of exceptions kept in two places is one
 that disagrees with itself.
 
-There are **three workspace surfaces**, each mounting its own isolated Vue app (SDD §12) —
-nothing outside a view knows it is Vue. It said TWO for a slice after the third was
-registered, which is this file's own recurring defect and the reason the count is now
-stated against `registerView`: that call appears FOUR times in
-`RenovationPlannerPlugin.ts`, and the fourth is `GEOMETRY_SIDECAR_VIEW`, a registered view
-that mounts no Vue root at all. So three surfaces, four registrations, and the two numbers
-are different facts. The **Renovation project** view is a singleton with
+**Every workspace surface mounts its own isolated Vue app** (SDD §12) — nothing outside a view
+knows it is Vue. **This sentence carried a NUMBER until the merge that read it beside its own
+conclusion**, which is the sharpest form this defect has taken here: the lead said *four* in
+bold and the sentence four lines below it said *No count is stated here, therefore* — one
+paragraph, written in one commit, disagreeing with itself about whether it was allowed to
+count. Neither half was wrong about the tree; the paragraph was wrong about the paragraph, and
+nothing in any gate reads whether a passage's argument survives its own opening clause. This
+sentence said TWO for a slice after the third was
+registered and THREE for a branch after the fourth was, and the second time it was already
+"re-founded on `registerView`" — so a COUNT is not what fixes it, whatever the count is of. Two
+reasons, and only the first was known: a number written here is a number nothing re-runs, and
+`grep -c "registerView" src/plugin/RenovationPlannerPlugin.ts` answers one MORE than the calls
+because that file's own prose names the call, so the obvious re-measurement misleads too.
+No count is stated here, therefore. **The registered view types are pinned in order, by exact
+array, by `tests/plugin/settings/unrecovered.test.ts`** ("registers the view and the command
+anyway") — that assertion is where the NEXT one arrives and fails, rather than here where it
+would read correctly forever. Not *a fifth*, which this sentence said while the array already
+held five: the pin is over REGISTRATIONS and the paragraph is about Vue ROOTS, and an ordinal
+borrowed from one of those two counts the other. Which of them mounts a Vue ROOT is the different fact and the one
+this paragraph is about: every entry on that list except `GEOMETRY_SIDECAR_VIEW`, which is
+registered and mounts none. The **Renovation project** view is a singleton with
 a ribbon button and a command, and it now draws **a project list** — design slice 16's
 `ProjectList.vue`, not slice 17's: that document is the error-surfacing decision table and
 never once mentions one, so the list was owned by no slice until slice 16 claimed it. This
@@ -149,6 +163,13 @@ records as REJECTED: that note is `status: Done` and says slice 05 registers no 
 while `RenovationPlannerPlugin.ts` registers `PLAN_EDITOR_VIEW`. ADR-0015 follows the code rather
 than the note, says so, and the note carries a pointer back — because a contradiction findable
 from only one side is one the next reader resolves the wrong way.
+
+The **Asset library** is the fourth: one vault-wide catalogue of every `Asset`, reached through
+`revealView` exactly as the Renovation project view is, drawing shelves of rows and an inspector
+for whichever row is selected. Its own design document is
+`docs/user-experience/asset-library-overview-DESIGN-SPEC.md`, which is the authority for every
+section number the `src/presentation/library/` modules cite; this file describes no part of it
+that document already owns.
 
 **Its shell regions are held reachable by an import-graph walk, not by a habit.**
 `tests/presentation/designer/regionsReachable.test.ts` requires every `.vue` under
@@ -1311,8 +1332,12 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   you write. The one hole: `DialogHost`'s check is `FormDialog`'s declared prop type, so it
   is STRUCTURAL — a fifth descriptor carrying a `title` and a `component` would satisfy
   `FormDescriptor` and render as a form rather than fail.
-- **`DeleteReferenceDialog` and `EntityPickerDialog` have a caller now** — slice 10's
-  `presentation/editor/deleteZoneFlow.ts`, reached from the Inspector's Delete button. They
+- **`DeleteReferenceDialog` and `EntityPickerDialog` have callers now** — slice 10's
+  `presentation/editor/deleteZoneFlow.ts`, reached from the Inspector's Delete button, and since
+  the Asset library `presentation/library/deleteAssetFlow.ts` beside it; both open both kinds,
+  which `grep -rn "kind: 'delete-reference'\|kind: 'entity-picker'" src/presentation/` says
+  (four `openDialog` calls, two per flow, plus each descriptor's own declaration and the two
+  docblocks quoting the call). They
   shipped with none for two slices, which was the plan rather than dead code: the queries
   feeding their rows and the command fields carrying their answer were slice 10's to define,
   and declaring them in slice 15 would have been a second derivation of contracts it owns.
@@ -1324,7 +1349,12 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   is the shape rather than the schedule: the first interpolated string in the plugin IS the row
   label item 6 names, so neither could land alone. The query answers
   `readonly ReferencingGroup[]` now, with `projectPath` supplied only where `projectName` is
-  ambiguous among the groups returned, and the row mapping is `rowsFor` in `deleteZoneFlow.ts`.
+  ambiguous among the groups returned, and the row mapping is `rowsFor` — which the Asset
+  library's own delete flow then EXTRACTED, along with the whole reference-resolution sequence,
+  into `presentation/references/deleteWithReferences.ts`, where `grep -rn "function rowsFor" src/`
+  finds it — one declaration, called once, inside the sequence BOTH flows dispatch through
+  (`deleteZoneFlow.ts` and `deleteAssetFlow.ts` each end in `deleteWithReferences(bound, name)`),
+  which is why the caller list is the flows' and not this function's.
   Both items are ticked in slice 15's OWN document with a dated note, which is where a closed
   criterion belongs.
 - **A tool's transient visual goes in `RenderState`, and it needs its own field when it
@@ -1492,10 +1522,13 @@ are load-bearing:
 from where its `Project.md` sits rather than storing one: nothing goes stale, and a user who
 drags the folder in Obsidian's file explorer has moved the project, which is ADR-011's
 sidecar-folder argument turned to a second use. `entityRefOf` is now the one answer to "is this
-note ours" (`type` plus a non-empty `id`), with exactly two callers — the Project Index's full
-scan and `VaultChangeAdapter`'s incremental one — so the two cannot disagree about a note the
-way two hand-spelled copies of the same test could; `entityRef.test.ts` measures that caller
-list by reading `src/` rather than asserting it. `NoteVaultDeps.projectFolder` is gone; the
+note ours" (`type` plus a non-empty `id`), so no two doors can disagree about a note the way two
+hand-spelled copies of the same test could; `entityRef.test.ts` measures that caller list by
+reading `src/` rather than asserting it. **It was "exactly two callers — the full scan and
+`VaultChangeAdapter`'s incremental one" for many slices and is THREE since the duplicate-id
+promotion rule moved to `ReconcilingProjectIndex`**, which re-asks the notes an exclusion
+descriptor names rather than the note that changed. Read the count off that test, which is the
+thing that fails when it moves; this sentence is the thing that does not. `NoteVaultDeps.projectFolder` is gone; the
 five repositories that cached it in a constructor now resolve each INSERT's folder from the
 entity being saved, through `projectFolderOf(index, projectId)`, and refuse with a
 `PersistenceError` rather than default when that resolves to nothing — an UPDATE writes where
@@ -1561,9 +1594,13 @@ id on a name collision. Four rules came out of it, the last two from the review 
   indexed) — a genuine pair is reported in either
   order under a per-door event name, and a sidecar re-affirming its own mapping is not reported
   at all. "Both doors" is a category claim, so it is MEASURED rather than asserted: the second
-  `it` in `tests/infrastructure/persistence/index/entityRef.test.ts` pins its two callers the
-  same way that file pins `entityRefOf`'s, and a `processSidecar` that goes back to
-  adjudicating for itself drops the list to one and fails there.
+  `it` in `tests/infrastructure/persistence/index/entityRef.test.ts` pins its callers the same
+  way that file pins `entityRefOf`'s. **Its two are the full scan and `sidecarMapping.ts` now,
+  not the scan and the pipeline**: promotion moved to `ReconcilingProjectIndex` and asks the same
+  question, so the incremental answer was extracted where both incremental doors can reach it,
+  and a THIRD `it` pins `incrementalSidecarMapping`'s own two callers. A `processSidecar` that
+  goes back to adjudicating for itself is what that third one catches; it is no longer the second
+  one's job.
   Reporting and adjudication are separate steps in it for a reason worth keeping: the
   first draft returned early when the arriving file was the derived one, which silenced the copy
   in exactly one of the two scan orders.
@@ -3374,9 +3411,16 @@ recurring shapes arriving again:**
 draws the line here and no item beneath it may claim otherwise:**
 
 - **Nothing draws this shape on a Plan.** A footprint, a clearance, an anchor and a facing
-  exist on the asset's OWN canvas and nowhere else — [[Asset placement]] is a separate epic
-  that does not exist yet, and no code anywhere in this plugin reads an asset's geometry from
-  a Plan's own render path.
+  exist on the asset's OWN canvas and nowhere else, and no code anywhere in this plugin reads
+  an asset's geometry from a Plan's own render path. This bullet said "[[Asset placement]] is a
+  separate epic that does not exist yet" and both halves were false: that note is `type:
+  Feature` with `parent: "[[Asset library]]"`, so it is a sibling of [[Searchable asset catalog]],
+  [[Asset definitions and categories]] and [[Geometry-linked quantities]] under an **Active MVP
+  epic** — which makes the exclusion sharper rather than softer, since the epic it belongs to is
+  not done without it. Found while reading that epic's children against
+  `docs/user-experience/asset-library-overview-DESIGN-SPEC.md`, which carried the identical
+  sentence; a claim living in two files is one a reader can only check from the side they are
+  standing on.
 - **Nothing computes with the height, and nothing consumes the clearance.** Both are stored,
   shown and round-tripped; neither is read by a calculation, a fit check or an overlap test
   anywhere in the product. *Does the worktop clear the window sill* is a question this
@@ -3464,12 +3508,14 @@ announcing into nothing. The rules that came out of it:
   HOLDS**: the discovery file's *"every module a disposition names carries a row for every
   direction it claims"* case fails the moment a `rows:` disposition and `CENSUS_TABLE`
   disagree. The disposition TOTAL is held by nothing —
-  `grep -oE "'src/[^']+\.ts::[A-Za-z_]+':" | sort -u | wc -l` over that file printed **42** on
-  2026-09-03, the balance being `notAnAdapter` with a stated reason — so read it as a dated
+  `grep -oE "'src/[^']+\.ts::[A-Za-z_]+':" | sort -u | wc -l` over that file printed **43** on
+  2026-09-04, the balance being `notAnAdapter` with a stated reason — so read it as a dated
   measurement and re-run the grep rather than quoting the number. It said **40** for two
   increments, because the increment that added `ReferenceLocks`'s two dispositions did not
-  re-run this file's own grep, and the disposition table is exactly where additions land
-  routinely: **a number no check holds is a number every later author inherits unexamined**,
+  re-run this file's own grep, and **42** for one more, because a MERGE brought a disposition
+  neither branch's author was looking at — the grep was re-run at that merge only because this
+  sentence tells its reader to, which is the whole return on dating it. The disposition table
+  is exactly where additions land routinely: **a number no check holds is a number every later author inherits unexamined**,
   which is why the pinned pair leads and the total is dated. The table lives in a plain
   module rather than being exported from either `.test.ts`, because vitest registers a test
   file's whole suite on IMPORT and a cross-file import would silently run every one of its
@@ -3572,12 +3618,14 @@ fail loudly, which is what stops the chain being built, and is not a proof that 
 exists. The full module-graph traversal was the reported remedy and is more than the question
 needs while the tripwire holds the entrance; the rest of what it cannot reach (a glob or a
 template specifier that does not SPELL the suffix) is enumerated where the predicate is.
-Re-measured 2026-09-04 at the merge of this branch with `origin/main`,
-`find src tests/harness tests/helpers -name "*.test.ts" | wc -l` prints **19**, none of them
+Re-measured 2026-09-04 on the merged tree,
+`find src tests/harness tests/helpers -name "*.test.ts" | wc -l` prints **22**, none of them
 imported by a non-test module — so the hole is still latent, which is the cheapest state for one
 to be in and the state nothing forces you to check. **It said 17 when written and was one behind
-its own tree even then**, which is why the figure is now dated rather than asserted as current:
-the tripwire is what holds the property, and this number is a fact about the day it was taken.
+its own tree even then**, which is why the figure is dated rather than asserted as current. Both
+branches of this merge re-took it and got **21** and **19** against two different trees; neither
+is the merged answer, which is what makes the tripwire rather than the number the thing that
+holds the property. Five files later it still holds, because it is a rule and not a list.
 
 **The plan editor foundation's first increment has landed: the read path and selection.** A floor
 opens into the Standard Plan View with **Select already active and nothing selected**, and the
@@ -3920,12 +3968,16 @@ and the suite's own accounting says the cost is not the tests — `transform 13.
 74.3s, tests 143.9s, environment 82.1s` over 362 files, so per-file overhead (a jsdom
 environment and a module registry, both paid once per FILE) exceeds the test bodies. **Every
 number in this paragraph is a DATED SNAPSHOT of one machine and one tree, the file count
-included** — `find tests -name "*.test.ts" | wc -l` printed **374** on 2026-09-03 and **418**
-on 2026-09-04, the day this branch merged `origin/main`, so the 362 is two measurements behind
-and the per-file conclusion is what survives it, since that conclusion is a RATIO rather than a
-total. **A merge is where a file count moves furthest and where nobody re-takes it**: 44 files
-arrived in one commit here, more than the whole drift between the two dated readings before it.
-Re-measure before reasoning from any of them. ONE
+included** — `find tests -name "*.test.ts" | wc -l` prints **450** on 2026-09-04, against 362 in
+the run the timings above come from, so the file count is three measurements behind and the
+per-file conclusion is what survives it, since that conclusion is a RATIO rather than a total.
+The 2026-09-04 run of that suite at 429 files reports `transform 22.43s, import 125.34s,
+tests 365.21s, environment 149.02s` in 260s wall clock — import and environment together still
+exceed the test bodies, which is the ratio holding across a 19% growth in files.
+**A merge is where a file count moves furthest and where nobody re-takes it**, and this
+paragraph is its own worked example twice over: one branch of this merge read 429 and the other
+418, on the same day, against trees that differed by a merge neither had taken — and the answer
+here is 450. Re-measure before reasoning from any of them. ONE
 door exists beside `check` for that reason, and it does not replace it:
 
 - **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no
@@ -4117,7 +4169,12 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   equal the floors already in force ratchets NOTHING, which is what slices 5, 11, 13, 15, 16,
   18 and 19 did.
   The suite
-  includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
+  includes `tests/harness/accessibility.test.ts` and, since two branches each appended cases
+  to it and the sum crossed the 450-line cap, `tests/harness/accessibilityAssetLibrary.test.ts`
+  beside it — one seam, drawn where the file already had three top-level `describe`s, with
+  `runOptions` shared through `./axeOptions` rather than copied, because the alternative to
+  sharing it is two copies of the list naming the rules this suite cannot honestly grade. Both
+  are axe-core driven in jsdom against the
   real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
   three states — never a fixture), checking
   roles, accessible names, form labels, heading order and ARIA attribute validity. It

@@ -3,18 +3,21 @@
  * `assetDesigner.ts` and `IndexPage.vue`, each of which a test can drive.
  *
  * `?view=plan-editor` opens the Plan Editor instead of the project surface, `?view=asset-designer`
- * (Task B10) opens the asset designer the same way, `?project=<id>` opens the Renovation Project
- * view's DETAIL state on a seeded project of that id rather than its list, `?projects=<n>` and
- * `?q=<text>` (Task 12) open its LIST state over a seeded vault of that size with the filter
- * already carrying that query, and `?index` (or an `?entry=`) opens the harness index. A query
- * parameter rather than a second page, for the same reason `?theme`, `?phone` and `?lang` are
- * ones: a headless screenshot needs a URL and nothing to click.
+ * (Task B10) opens the asset designer the same way, `?view=asset-library` (Task 17) opens the
+ * asset library — with `&asset=<id>` seeding a selection, which is what §7's narrow composition
+ * needs to draw at all — `?project=<id>` opens the Renovation Project view's DETAIL state on a
+ * seeded project of that id rather than its list, `?projects=<n>` and `?q=<text>` (Task 12) open
+ * its LIST state over a seeded vault of that size with the filter already carrying that query,
+ * and `?index` (or an `?entry=`) opens the harness index. A query parameter rather than a second
+ * page, for the same reason `?theme`, `?phone` and `?lang` are ones: a headless screenshot needs
+ * a URL and nothing to click.
  */
 import { createApp } from 'vue';
 import VueKonva from 'vue-konva';
 import { mountHarness } from './mount';
 import { mountPlanEditorHarness } from './planEditor';
 import { mountAssetDesignerHarness } from './assetDesigner';
+import { mountAssetLibraryHarness } from './assetLibrary';
 import { seedFixture, harnessEditorContext } from './fixture';
 import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
 import { componentEntries, prototypeEntries, registerEntries, registrableComponents } from './entries';
@@ -56,6 +59,8 @@ const params = new URLSearchParams(window.location.search);
 const wantsIndex = params.has('index') || params.has('entry');
 const wantsPlanEditor = params.get('view') === 'plan-editor';
 const wantsAssetDesigner = params.get('view') === 'asset-designer';
+const wantsAssetLibrary = params.get('view') === 'asset-library';
+
 /**
  * The Plan Editor's own two knobs (Task 21): `?select=<zoneId>` selects and frames a seeded
  * zone once the editor is ready, `?add` opens the Add menu once it is ready. Both are read
@@ -176,11 +181,13 @@ if (wantsIndex) {
 		? mountPlanEditorHarness(document.body, { select: selectZoneId ?? undefined, add: wantsAddMenu }).view
 		: wantsAssetDesigner
 			? mountAssetDesignerHarness(document.body).view
-			: mountHarness(document.body, {
-					projectId: params.get('project'),
-					projects: Number.isFinite(asked) ? asked : undefined,
-					initialQuery: params.get('q') ?? undefined,
-				}).view;
+			: wantsAssetLibrary
+				? mountAssetLibraryHarness(document.body, params.get('asset')).view
+				: mountHarness(document.body, {
+						projectId: params.get('project'),
+						projects: Number.isFinite(asked) ? asked : undefined,
+						initialQuery: params.get('q') ?? undefined,
+					}).view;
 }
 
 // After the mount: the toggle is the harness's own furniture and is appended to the body,

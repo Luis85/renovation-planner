@@ -2,6 +2,7 @@ import { normalizePath, type Vault } from 'obsidian';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
+import type { ProjectLocation } from '../../../application/queries/ListRequirementsReferencing';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 
 /**
@@ -326,16 +327,41 @@ export function freshNotePath(vault: Vault, folder: string, name: string, id: st
 }
 
 /**
- * A project's folder: the folder its `Project.md` sits in (ADR-0013). Resolved through the
- * index, which is the single answer to "where is entity X" (SDD §47) — never by rescanning
- * the vault, and never from the plugin setting, which names only where a NEW project goes.
+ * Where a project IS: its `Project.md`'s own path, and the folder that note sits in
+ * (ADR-0013). Resolved through the index, which is the single answer to "where is entity X"
+ * (SDD §47) — never by rescanning the vault, and never from the plugin setting, which names
+ * only where a NEW project goes.
+ *
+ * **The pair rather than the folder alone, because a folder does not always tell two projects
+ * apart.** Two notes declaring `type: renovation-project` can sit in ONE directory under
+ * different filenames, so two projects can share a display name *and* a folder — and
+ * `ListRequirementsReferencing`'s *Used in* rows, which disambiguate a repeated name with the
+ * folder, then draw two identical rows for the two things a user is being asked to tell apart
+ * immediately before an edit or a deletion. The note path is the discriminator, and this is
+ * the one place it comes from.
  *
  * `undefined` is a REFUSAL, not a prompt to fall back: writing to a defaulted path when the
- * real one is unknown is how a note lands in a parallel tree beside the user's work.
+ * real one is unknown is how a note lands in a parallel tree beside the user's work. It
+ * covers both values at once, which is what makes a path with no folder unrepresentable.
+ */
+export function projectLocationOf(index: ProjectIndex, projectId: ProjectId): ProjectLocation | undefined {
+	const path = index.getPath(projectId);
+	return path === undefined ? undefined : { path, folder: parentOf(path) };
+}
+
+/**
+ * The same lookup, one call less far out: the folder alone, which is what every WRITE path
+ * here needs.
+ *
+ * It DELEGATES rather than deriving a second time, which is the whole reason the pair is one
+ * function answering both: `parentOf` is the one place a path is taken apart in this
+ * repository, and a caller wanting both values must not compute one of them itself.
+ *
+ * `undefined` stays the REFUSAL described above: an unplaceable project gets no folder rather
+ * than a guessed one.
  */
 export function projectFolderOf(index: ProjectIndex, projectId: ProjectId): string | undefined {
-	const path = index.getPath(projectId);
-	return path === undefined ? undefined : parentOf(path);
+	return projectLocationOf(index, projectId)?.folder;
 }
 
 /**

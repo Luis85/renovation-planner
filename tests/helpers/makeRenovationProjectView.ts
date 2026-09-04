@@ -341,16 +341,18 @@ export const defaultRenovationProjectDeps = (
 		// The LIST state, which is what a harness mount with no query string draws and what
 		// every existing case of this factory has always been asserting against.
 		projectId: null,
-		// `navigate`, `openPlan` and `openAsset` are the one place this default is deliberately
-		// INERT, and the reason is the same one `openProject`'s own paragraph gives: all three
-		// are Obsidian workspace operations this harness has none of. A default that silently
-		// did nothing would let a view that never calls `navigate` pass a test written to prove
-		// that it does — every case that asserts on any of the three passes its own `deps`
-		// instead of taking this one. `openAsset` joined the other two in Task B9, the same
-		// shape and for the same reason `openPlan` already states.
+		// `navigate`, `openPlan`, `openAsset` and `openAssetLibrary` are the one place this
+		// default is deliberately INERT, and the reason is the same one `openProject`'s own
+		// paragraph gives: all four are Obsidian workspace operations this harness has none
+		// of. A default that silently did nothing would let a view that never calls `navigate`
+		// pass a test written to prove that it does — every case that asserts on any of the
+		// four passes its own `deps` instead of taking this one. `openAsset` joined the other
+		// two in Task B9 and `openAssetLibrary` in Task 11, the same shape and for the same
+		// reason `openPlan` already states.
 		navigate: () => undefined,
 		openPlan: () => Promise.resolve(),
 		openAsset: () => Promise.resolve(),
+		openAssetLibrary: () => undefined,
 		onPlansChanged: () => () => undefined,
 		// INERT, like `onProjectsChanged` and `onPlansChanged` above and for the same reason:
 		// nothing here publishes, so a real source would deliver nothing anyway, and a case that

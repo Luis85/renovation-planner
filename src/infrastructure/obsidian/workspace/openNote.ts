@@ -114,9 +114,11 @@ export type ProjectNoteOpenOutcome = 'opened' | 'missing' | 'failed';
  * The half of the work that touches Obsidian, split out so the WHOLE of it — and therefore
  * the whole of what a joined click waits on — sits under one fault handler rather than two.
  *
- * What is left above it in `openProjectNote` is `ProjectIndex.getPath`, `normalizePath` and
- * `Vault.getAbstractFileByPath`: three synchronous in-memory lookups, none of which reaches
- * I/O. That is the honest bound on what the handler covers, stated rather than implied.
+ * What is left above it is three synchronous in-memory lookups, none of which reaches I/O —
+ * `normalizePath` and `Vault.getAbstractFileByPath` in `openNoteAtPath`, and
+ * `ProjectIndex.getPath` one door further out in `openProjectNote`. That is the honest bound
+ * on what the handler covers, stated rather than implied. The split moved two of the three and
+ * this sentence moved with them, which is the point of naming them at all.
  */
 async function revealOrOpen(
 	deps: { readonly workspace: Workspace },
@@ -133,28 +135,37 @@ async function revealOrOpen(
 	return 'opened';
 }
 
-export async function openProjectNote(
-	deps: {
-		readonly workspace: Workspace;
-		readonly vault: Vault;
-		readonly index: ProjectIndex;
-		/**
-		 * What this module does with a fault instead of announcing one itself. Injected rather
-		 * than imported for the reason the layer ban states: `infrastructure/` may not reach
-		 * `presentation/notices/notify`, and the composition root is the layer that may see
-		 * both. Injected rather than left to the CALLER because the coalescing is here — see
-		 * `openingByPath` — and a caller reporting a shared operation reports it once per
-		 * click.
-		 */
-		readonly reportFault: (cause: unknown) => void;
-	},
-	projectId: string,
-): Promise<ProjectNoteOpenOutcome> {
-	// `ProjectIndex.getPath` takes a branded `EntityId`, not a bare string — the cast
-	// `projectFolderOf` and `buildProjectIndexEntries` take at this same boundary, since a
-	// `ProjectSummaryDto.id` (what this is always called with) carries no brand at all.
-	const path = deps.index.getPath(projectId as EntityId<string>);
-	if (path === undefined) return 'missing';
+export interface NoteOpenDeps {
+	readonly workspace: Workspace;
+	readonly vault: Vault;
+	/**
+	 * What this module does with a fault instead of announcing one itself. Injected rather
+	 * than imported for the reason the layer ban states: `infrastructure/` may not reach
+	 * `presentation/notices/notify`, and the composition root is the layer that may see
+	 * both. Injected rather than left to the CALLER because the coalescing is here — see
+	 * `openingByPath` — and a caller reporting a shared operation reports it once per
+	 * click.
+	 */
+	readonly reportFault: (cause: unknown) => void;
+}
+
+/**
+ * The same open, addressed by PATH — everything above except the id resolution.
+ *
+ * It exists because the Asset library's repair strip (design "Asset library overview" §5.1a)
+ * offers `Open note` beside notes that have NO USABLE ID: a note whose `id` is missing or not
+ * a string never reaches the index at all, so an id-keyed door cannot reach the one file the
+ * user has to edit to fix it. The path is the only identifier such a note has, and it is what
+ * `ExcludedNote` and `UnreadableEntry` already carry.
+ *
+ * `openProjectNote` DELEGATES to it rather than the two sharing a copied body, which is what
+ * keeps `openingByPath` one map: a second coalescing table keyed the same way would let one
+ * click on a row and one on a strip open two tabs of one note.
+ *
+ * `'missing'` still means the path names no file, which for this door is a note deleted since
+ * the listing that named it was read.
+ */
+export async function openNoteAtPath(deps: NoteOpenDeps, path: string): Promise<ProjectNoteOpenOutcome> {
 	const file = deps.vault.getAbstractFileByPath(normalizePath(path));
 	if (!(file instanceof TFile)) return 'missing';
 	// Asked BEFORE the leaf lookup, because an open in flight is precisely the state the
@@ -174,4 +185,16 @@ export async function openProjectNote(
 	} finally {
 		openingByPath.delete(file.path);
 	}
+}
+
+export async function openProjectNote(
+	deps: NoteOpenDeps & { readonly index: ProjectIndex },
+	projectId: string,
+): Promise<ProjectNoteOpenOutcome> {
+	// `ProjectIndex.getPath` takes a branded `EntityId`, not a bare string — the cast
+	// `projectFolderOf` and `buildProjectIndexEntries` take at this same boundary, since a
+	// `ProjectSummaryDto.id` (what this is always called with) carries no brand at all.
+	const path = deps.index.getPath(projectId as EntityId<string>);
+	if (path === undefined) return 'missing';
+	return await openNoteAtPath(deps, path);
 }

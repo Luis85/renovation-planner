@@ -12,6 +12,7 @@ import {
 	cacheReading,
 	fileStatAt,
 	ensureFolder,
+	forgetTrashedNote,
 	frontmatterOf,
 	migrateNote,
 	noteIdMismatch,
@@ -188,7 +189,7 @@ export class ObsidianProjectRepository {
 			} catch (cause) {
 				return err(persistenceError('project.delete-failed', `Could not delete project note ${file.path}.`, cause));
 			}
-			this.deps.index.remove(id);
+			forgetTrashedNote(this.deps.index, id, file.path);
 			this.deps.echo.forget(file.path);
 			return ok(undefined);
 		});

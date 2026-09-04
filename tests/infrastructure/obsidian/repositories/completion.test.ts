@@ -132,7 +132,7 @@ describe('project and zone listings', () => {
 
 		// The readable one survives — the whole point. Asserted on the ids rather than on a
 		// count, because "one asset" is equally true of a build that kept the wrong one.
-		expect(listed.map((one) => one.entity.id)).toEqual([readable]);
+		expect(listed.loaded.map((one) => one.entity.id)).toEqual([readable]);
 		// And the refusal is not lost by being skipped.
 		expect(stack.ledger.issues().map((issue) => issue.entityId)).toContain(poisoned);
 	});

@@ -4,6 +4,12 @@
  * failing the locale. (German noun capitalization is why the English sentence-case lint
  * deliberately does not run here.)
  *
+ * `deAssetLibrary` is spread in for the same reason `en.ts` spreads `enAssetLibrary`: this
+ * file had no `max-lines` headroom for the Asset library's §8 inventory, whose SIZE is
+ * stated by `strings.test.ts`'s own pin rather than restated here — a count in a docblock
+ * is wrong at the next key, and that pin is the thing a gate actually holds.
+ * `de` is still the one object `strings.test.ts`'s completeness check reads.
+ *
  * **Split at Task 20**, alongside `en.ts` and for the same reason: this table was at its
  * 400-line budget (`max-lines`, which skips blanks and comments) with no room for the next
  * handful of keys. `de/editor.ts` holds the German half of the Plan Editor's own
@@ -12,6 +18,7 @@
  * table's `Partial`.
  */
 import type { StringKey } from './en';
+import { deAssetLibrary } from './de-assetLibrary';
 import { editorDe } from './de/editor';
 
 export const de: Partial<Record<StringKey, string>> = {
@@ -68,6 +75,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'diagnostics.copied': 'Diagnosebericht kopiert.',
 	'zone.listing-incomplete':
 		'Einige Zonen in diesem Projekt konnten nicht gelesen werden, daher ist die Liste möglicher Ziele unvollständig. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
+	'asset.listing-incomplete':
+		'Einige Objekte im Katalog konnten nicht gelesen werden, daher ist die Liste möglicher Objekte unvollständig. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'settings.verbose-logging.name': 'Ausführliche Protokollierung',
 	'settings.verbose-logging.desc': 'Debug-Meldungen in der Entwicklerkonsole anzeigen. Alles bleibt auf diesem Gerät.',
 	'view.geometry.name': 'Geometrie-Seitendatei',
@@ -130,6 +139,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.set-changed': 'Die Referenzen hierauf haben sich während Ihrer Entscheidung geändert. Bitte prüfen und erneut bestätigen.',
 	'reference.resolution-required': 'Dies wird noch referenziert. Entscheiden Sie vor dem Löschen, was mit diesen Referenzen geschehen soll.',
 	'reference.no-reassignment-target': 'In diesem Projekt gibt es keine andere Zone, der diese Anforderungen zugewiesen werden könnten.',
+	'reference.no-reassignment-asset':
+		'In diesem Vault gibt es kein anderes flächenbasiertes Objekt, dem diese Anforderungen zugewiesen werden könnten.',
 	'reference.self-reassign': 'Referenzen können nicht dem zu löschenden Eintrag neu zugewiesen werden. Bitte einen anderen wählen.',
 	'reference.cross-project-reassign': 'Referenzen können nur innerhalb desselben Projekts neu zugewiesen werden.',
 	// Zeilen im Löschdialog (Slice 15, Punkt 6): zwei Schlüssel statt eines mit fest
@@ -152,6 +163,8 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Diese beiden Punkte und dieser Abstand ergeben keinen brauchbaren Maßstab. Wählen Sie zwei weiter entfernte Punkte, oder prüfen Sie den eingegebenen Abstand.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',
+	'error.asset.unit-cost.unparseable': 'Geben Sie einen Betrag ein, zum Beispiel 34.95.',
+	'error.asset.waste.unparseable': 'Geben Sie einen Bruchteil zwischen 0 und 1 ein, zum Beispiel 0.08.',
 	'error.suffix.schema-version-unsupported':
 		'Diese Notiz wurde von einer neueren Version dieses Plugins geschrieben. Aktualisieren Sie das Plugin, um sie zu öffnen.',
 	'error.suffix.revision-conflict':
@@ -178,6 +191,8 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Die Version dieser Notiz konnte nicht gelesen werden, daher wurde sie nicht geöffnet.',
 	'error.suffix.project-folder-unresolved':
 		'Diese Notiz konnte nicht gespeichert werden, weil der Ordner des zugehörigen Projekts nicht gefunden wurde.',
+	'error.suffix.note-id-mismatch':
+		'Diese Notiz gehört zu einem anderen Eintrag, daher wurde sie nicht geöffnet. Lade den Vault neu, um den Index neu aufzubauen.',
 	'error.category.domain': 'Die Projektdaten sind ungültig.',
 	'error.category.validation': 'Diese Daten haben nicht die erwartete Form.',
 	'error.category.persistence': 'Der Vault konnte nicht gelesen oder geschrieben werden.',
@@ -330,6 +345,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'asset.empty-name': 'Ein Objekt braucht einen Namen.',
 	'asset.unknown-category': 'Wählen Sie eine Kategorie aus der Liste.',
 	'asset.negative-unit-cost': 'Ein Stückpreis kann nicht negativ sein.',
+	'asset.unit-kind-referenced':
+		'Dieses Objekt wird von einer Anforderung verwendet, daher kann seine Einheit nicht zu einer anderen Messgröße wechseln.',
+	'asset.negative-waste-factor-default': 'Ein Verschnitt kann nicht negativ sein.',
+	'asset.waste-factor-default-above-one': 'Ein Verschnitt ist ein Bruchteil zwischen 0 und 1.',
 	'asset.invalid-height': 'Geben Sie eine Höhe als Zahl in Millimetern ein.',
 	'asset.negative-height': 'Eine Höhe kann nicht negativ sein.',
 	'asset.non-positive-dimension': 'Breite und Tiefe müssen jeweils größer als null sein.',
@@ -434,4 +453,5 @@ export const de: Partial<Record<StringKey, string>> = {
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',
 	'save-state.save-error': 'Fehler beim Speichern',
+	...deAssetLibrary,
 };

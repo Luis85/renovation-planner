@@ -125,6 +125,16 @@ export interface RenovationProjectDeps {
 	 */
 	readonly openAsset: (assetId: string) => Promise<void>;
 	/**
+	 * Reveal the Asset library — §2's two in-app doors (`ProjectList`'s header and this view's
+	 * own no-projects aside), both reaching this ONE member rather than each composing its own
+	 * activation. `void` rather than `Promise<void>`, unlike `openPlan`/`openAsset`: those
+	 * resolve an id to a leaf and can fault doing it, where this is a plain `revealView` over a
+	 * SINGLETON with no id to resolve — `revealView` answers every fault itself and cannot
+	 * reject, the identical shape `RenovationPlannerPlugin.openProject` already takes for its
+	 * own ribbon-and-command pair into this very view.
+	 */
+	readonly openAssetLibrary: () => void;
+	/**
 	 * "Some plan of THIS project changed — re-read it." The third change source
 	 * (`projectPlansChangeSource`), filtered on the owning project, which `PlanCreated`'s
 	 * payload carries.

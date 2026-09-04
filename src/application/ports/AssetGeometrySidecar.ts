@@ -34,6 +34,20 @@ export interface AssetGeometrySnapshot {
 }
 
 /**
+ * Everything a `RepositoryError` carries, plus the file the refusal is about (§3.5, "naming
+ * the sidecar"). `BaseError.message` is developer English and has no structured path field,
+ * so a builder could satisfy §8's *every visible string resolves through `t(...)`* or this
+ * row's promise to name the file, and not both; adding a field to `BaseError` would be a
+ * change to every error in the plugin for one row's benefit. So the path rides on THIS
+ * port instead — the store has it at the moment it refuses, and `GetAssetDesign` passes it
+ * through unchanged for an interpolated key to name.
+ *
+ * `undefined` for a refusal with no file to name — `asset-geometry.unusable-id` refuses
+ * before any path is derived, so its absence is by construction rather than an omission.
+ */
+export type AssetGeometryError = RepositoryError & { readonly sidecarPath?: string };
+
+/**
  * Read/write access to ONE asset's geometry sidecar as a single document (SDD §40). The
  * write replaces the whole document and is conditional on `expected`, exactly like every
  * other port here — recalibrating an asset rewrites the calibration AND every rescaled
@@ -55,10 +69,10 @@ export interface AssetGeometrySnapshot {
  * by removing the tag and watching the gate go on reporting it.
  */
 export interface AssetGeometrySidecar {
-	read(assetId: AssetId): Promise<Result<AssetGeometrySnapshot, RepositoryError>>;
+	read(assetId: AssetId): Promise<Result<AssetGeometrySnapshot, AssetGeometryError>>;
 	write(
 		assetId: AssetId,
 		document: AssetGeometryDocument,
 		expected?: EntityVersion,
-	): Promise<Result<EntityVersion, RepositoryError>>;
+	): Promise<Result<EntityVersion, AssetGeometryError>>;
 }

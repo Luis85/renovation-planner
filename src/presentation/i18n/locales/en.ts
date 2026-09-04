@@ -1,3 +1,4 @@
+import { enAssetLibrary } from './en-assetLibrary';
 import { editorEn } from './en/editor';
 
 /**
@@ -5,6 +6,16 @@ import { editorEn } from './en/editor';
  * `StringKey` derives from here, so the compiler demands English before a caller can
  * name a key. The file is named `en.ts` because that is a path the obsidianmd
  * ruleset's locale rules match — sentence case in this table is linted, not reviewed.
+ *
+ * `enAssetLibrary` is spread in rather than declared here: this file had no `max-lines`
+ * headroom for the Asset library's §8 inventory, whose SIZE is stated by
+ * `strings.test.ts`'s own pin rather than restated here — this sentence carried a count
+ * that was stale by three within a day of being written, which is why it now names the
+ * gate instead. Appending the keys
+ * inline would have been the reformatting-buys-nothing shape this repository's own rule
+ * refuses — the fix is the extraction in `en-assetLibrary.ts`, not a wider budget. `en` is
+ * still the one object `StringKey` derives from; the spread does not create a second source
+ * of truth, only a second FILE for one section of it.
  *
  * **Split at Task 20**, which is what keeps this file under the 400-line budget
  * (`max-lines` skips blanks and comments, so a docblock like this one is free and a key is
@@ -96,6 +107,11 @@ export const en = {
 	'reference.set-changed': 'The references to this changed while you were deciding. Check them and confirm again.',
 	'reference.resolution-required': 'This is still referenced. Decide what happens to those references before deleting it.',
 	'reference.no-reassignment-target': 'There is no other zone in this project to reassign these requirements to.',
+	// Its own code beside the zone one above, because the two name different scopes: the
+	// catalogue has been project-free since design slice 19, so an asset's alternatives are
+	// bounded by the vault. Minted in `presentation/library/deleteAssetFlow.ts`.
+	'reference.no-reassignment-asset':
+		'There is no other area-based asset in this vault to reassign these requirements to.',
 	'reference.self-reassign': 'References cannot be reassigned to the entry being deleted. Pick a different one.',
 	'reference.cross-project-reassign': 'References can only be reassigned within the same project.',
 	// The delete dialog's reference rows (slice 15 item 6), one row per project. TWO keys
@@ -138,6 +154,13 @@ export const en = {
 	// `routeError` to place. Keyed by the field rather than by any code for that reason.
 	'error.requirement.quantity.unparseable': 'Enter a number, or reset to the calculated figure.',
 	'error.requirement.cost.unparseable': 'Enter an amount, or reset to the calculated figure.',
+	// The Asset library inspector's two unconvertible drafts — `moneyOf` and `new Decimal(...)`
+	// both THROW on a malformed literal, so these are `useFieldCommit`'s own `validate` refusals
+	// rather than a command's, and there is no `AppError` for `routeError` to place. Under
+	// `error.` rather than `view.asset-library.` because §8's inventory is that surface's visible
+	// COPY, and a parse refusal is the same family `error.requirement.*.unparseable` already is.
+	'error.asset.unit-cost.unparseable': 'Enter an amount, such as 34.95.',
+	'error.asset.waste.unparseable': 'Enter a fraction between 0 and 1, such as 0.08.',
 	'error.suffix.schema-version-unsupported':
 		'This note was written by a newer version of this plugin. Update the plugin to open it.',
 	'error.suffix.revision-conflict': 'This entry changed elsewhere in the meantime. Reload and try again.',
@@ -175,11 +198,12 @@ export const en = {
 	// GUARD degrades to the wrong sentence the day the guard moves, and this costs two strings.
 	'asset-price.negative-unit-cost': 'A price cannot be negative.',
 	'error.suffix.migration-failed': 'This note could not be converted to the current format.',
-	// TWO more suffixes, and the instrument that found them is
-	// `grep -rno '\${spec\.kind}\.[a-z-]*\|\${kind}\.[a-z-]*' src/infrastructure/`, which
-	// reports FOUR shared raise sites: `migration-failed` and `schema-version-unsupported`
-	// above, and these two. With them the class is closed, which is a claim that grep can be
-	// re-run against.
+	// THREE more suffixes, and the class they belong to is no longer described here at all: it
+	// is ASSERTED, by `toUserMessage.test.ts`'s 'every per-kind suffix raised in
+	// src/infrastructure/ resolves to something other than its category sentence'. The prose
+	// this replaces quoted a grep and read FOUR off it; the same grep prints SIX, and one of the
+	// six is not a code at all (a logger EVENT name), which is the half no text scan can settle
+	// and why that case carries a named exclusion table rather than a number.
 	//
 	// Both are SUFFIXES rather than per-kind entries because each is raised from ONE site
 	// parameterised by kind, so a direct `asset-price.` entry would answer it for one kind and
@@ -190,6 +214,12 @@ export const en = {
 		"This note's version could not be read, so it was not opened.",
 	'error.suffix.project-folder-unresolved':
 		'This note could not be saved, because the folder of the project it belongs to could not be found.',
+	// Raised when a note's own `id` names a different entity from the one the index sent us
+	// looking for it, which is a STALE INDEX rather than an unreadable vault — so the category
+	// sentence it fell back to ("The vault could not be read or written") named the wrong thing
+	// to do about it as well as the wrong cause.
+	'error.suffix.note-id-mismatch':
+		'This note belongs to a different entry, so it was not opened. Reload the vault to rebuild the index.',
 	'error.category.domain': 'Something about the project data is invalid.',
 	'error.category.validation': 'This data is not in the expected form.',
 	'error.category.persistence': 'The vault could not be read or written.',
@@ -467,6 +497,13 @@ export const en = {
 	'asset.empty-name': 'An asset needs a name.',
 	'asset.unknown-category': 'Choose a category from the list.',
 	'asset.negative-unit-cost': 'A unit cost cannot be negative.',
+	// Three codes a user reaches from the Asset library's Definition fields and nothing else
+	// raised before it: without a row here each falls back to the Validation category sentence,
+	// which names no field and nothing to do differently.
+	'asset.unit-kind-referenced':
+		'This asset is used by a requirement, so its unit cannot change to a different kind of measurement.',
+	'asset.negative-waste-factor-default': 'A waste factor cannot be negative.',
+	'asset.waste-factor-default-above-one': 'A waste factor is a fraction between 0 and 1.',
 	'asset.invalid-height': 'Enter a height as a number of millimetres.',
 	'asset.negative-height': 'A height cannot be negative.',
 	'asset.non-positive-dimension': 'A width and a depth must each be greater than zero.',
@@ -726,10 +763,17 @@ export const en = {
 	// same increment: a sentence naming a surface that does not exist is a promise on screen.
 	'zone.listing-incomplete':
 		'Some zones in this project could not be read, so the list of places to move this to is incomplete. Open the diagnostics report to see which notes refused.',
+	// The asset-side sibling: the catalogue is vault-wide rather than per-project (design
+	// slice 19), so this names the catalogue rather than a project, but the reasoning is
+	// `zone.listing-incomplete`'s own — an incomplete reassignment picker is how a user
+	// reassigns to the wrong asset and then deletes the right one.
+	'asset.listing-incomplete':
+		'Some assets in the catalogue could not be read, so the list of assets to reassign to is incomplete. Open the diagnostics report to see which notes refused.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',
 	'save-state.save-error': 'Save error',
+	...enAssetLibrary,
 } as const;
 
 export type StringKey = keyof typeof en;

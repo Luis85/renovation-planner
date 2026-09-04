@@ -83,7 +83,11 @@ function vaultOver(paths: Readonly<Record<string, number>>): { getAbstractFileBy
 
 function indexOver(entries: readonly ProjectIndexEntry[]): InMemoryProjectIndex {
 	const index = new InMemoryProjectIndex();
-	index.rebuild(entries);
+	// The second argument is this branch's exclusions collection (Task 2), which `main` had
+	// no caller for when it wrote this helper. Empty: none of these fixtures is an excluded
+	// note, and passing `[]` states that rather than leaving the parameter to a default that
+	// would hide a fixture which grew one.
+	index.rebuild(entries, []);
 	return index;
 }
 

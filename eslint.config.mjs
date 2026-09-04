@@ -4,6 +4,7 @@ import { defineConfig } from 'eslint/config';
 import obsidianmd from 'eslint-plugin-obsidianmd';
 import pluginVue from 'eslint-plugin-vue';
 import vueParser from 'vue-eslint-parser';
+import { DEFAULT_ACRONYMS } from 'eslint-plugin-obsidianmd/dist/lib/rules/ui/acronyms.js';
 
 /**
  * The layers the SDD declares (§8), innermost last. Each may reach anything below it and
@@ -302,6 +303,37 @@ const pluginRules = obsidianmd.configs.recommendedWithLocalesEn.map((c) => ({
 	...c,
 	ignores: [...(c.ignores ?? []), TESTS],
 }));
+
+/**
+ * `SKU` is this plugin's own vocabulary (design "Asset library overview" §5, §8's
+ * `view.asset-library.sku`) and `sentence-case-locale-module`'s default acronym list does not
+ * carry it — measured: `SKU` mid-sentence is reported wanting `sku`. The fix widens the
+ * RULE's vocabulary rather than the product's, per the ruling on that finding: changing what
+ * the field is called to satisfy a linter's word list is the wrong direction.
+ *
+ * `DEFAULT_ACRONYMS` is imported from the rule's own module rather than hand-copied, for the
+ * same reason `OBSIDIAN_RESTRICTED_GLOBALS` below reads its list out of the plugin's config
+ * instead of transcribing it: a future acronym the plugin adds upstream reaches this list too,
+ * rather than silently falling behind a frozen copy. There is no public export for it — the
+ * plugin's `configs` object carries only the ASSEMBLED rule configuration (severity, no
+ * options), never a rule's internal default options — so this is a deep import into the
+ * package's build output. It is read at CONFIG time, in a file that is not part of the shipped
+ * bundle, which is a different exposure than reaching into vendor internals from `src/`.
+ *
+ * The `files` list is DERIVED from `recommendedWithLocalesEn` itself — the one config block
+ * whose `rules` names `sentence-case-locale-module` — rather than retyped, so this override
+ * cannot drift from the glob the rule is actually scoped to.
+ * `tests/build/localeModuleSentenceCase.test.ts` pins that the RESOLVED config for a real
+ * locale file actually carries `SKU` in its `acronyms` option, which is what a stale
+ * derivation here would break: `files: undefined` is not a silent no-op, it is an ESLint
+ * config VALIDATION ERROR (`Key "files": Expected value to be a non-empty array`), so the
+ * whole lint run would fail loudly rather than quietly losing this override — measured
+ * rather than assumed, because the safe-sounding direction was the wrong one to guess.
+ */
+const localeModuleFiles = obsidianmd.configs.recommendedWithLocalesEn.find(
+	(c) => c.rules?.['obsidianmd/ui/sentence-case-locale-module'] !== undefined,
+)?.files;
+const ASSET_LIBRARY_ACRONYMS = [...DEFAULT_ACRONYMS, 'SKU'];
 
 /**
  * `eslint-plugin-vue`'s flat configs carry NO `files` of their own, so spreading them as
@@ -703,6 +735,29 @@ export default defineConfig([
 		linterOptions: { noInlineConfig: true },
 	},
 	...pluginRules,
+	// Widens `sentence-case-locale-module`'s acronym vocabulary for `SKU` — see
+	// `ASSET_LIBRARY_ACRONYMS`'s own comment above for why the fix lives here rather than in
+	// the product's copy. Placed AFTER `...pluginRules` so its `sentence-case-locale-module`
+	// entry, for the identical `files`, wins: two flat-config blocks matching one file OVERRIDE
+	// a rule key rather than merging it, which is this file's own recorded trap for
+	// `no-restricted-globals` and `no-restricted-syntax` alike.
+	//
+	// `ignores: [TESTS]` MATCHES `pluginRules`' own exclusion rather than omitting it, and that
+	// match is load-bearing rather than tidiness: this block's `files` is `localeModuleFiles`,
+	// the SAME glob `pluginRules` scopes the rule to, and without the identical `ignores` this
+	// block would reach further than `pluginRules` does — a test fixture or helper directory
+	// named `en…` under `tests/` would match here and NOWHERE ELSE, so the `obsidianmd` plugin
+	// this block's rule key names would never have been registered for it, and ESLint throws
+	// "Could not find plugin obsidianmd in configuration" for the whole file rather than
+	// reporting a lint finding. Measured: nothing under `tests/` matches today, which is why
+	// this was green before the exclusion existed.
+	{
+		files: localeModuleFiles,
+		ignores: [TESTS],
+		rules: {
+			'obsidianmd/ui/sentence-case-locale-module': ['warn', { acronyms: ASSET_LIBRARY_ACRONYMS }],
+		},
+	},
 	{
 		// The ruleset's own manifest validation — the bot's naming, typing and
 		// description rules — guards itself: `if the linted file is not manifest.json,

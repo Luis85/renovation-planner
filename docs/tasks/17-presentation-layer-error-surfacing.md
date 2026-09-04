@@ -521,6 +521,28 @@ this whole slice is about, one document up.
     is composed in the root and reachable from no surface. That half is vacuous rather than
     satisfied, and it is written here so the next slice to give Assets a delete control knows
     it inherits this item rather than finding it ticked.
+
+    **CLOSED by the Asset library's Task 16b (2026-09-04), which is the slice this paragraph
+    addressed.** The Asset path exists: `AssetInspector`'s `Delete` emits, `AssetLibraryRoot
+    .onDelete` listens, and `presentation/library/deleteAssetFlow.ts` runs the same
+    reference-resolution SHAPE the Zone path runs — `presentation/references/
+    deleteWithReferences.ts`, extracted from `deleteZoneFlow.ts` in that commit so the two
+    surfaces cannot answer differently. The item's substance holds on it: a delete on an asset
+    with existing referents reaches slice 15's modal and never a toast or an inline error, pinned
+    by `tests/presentation/library/assetDelete.test.ts`'s *resolves referents through the Used in
+    read rather than a second one*, which asserts on the dialog's own row before any dispatch.
+
+    **Two corrections to the sentence above rather than to the item**, because a closure record
+    that repeats a stale measurement is the defect this document was guarding against. The grep
+    it quotes prints **eleven** lines across four modules at the closing commit — a DATED
+    reading, not a property: it printed ten at 16b's own first commit and gained one in that
+    task's review round, from a `notifyFault` event NAMED `library.deleteAsset.faulted`. Re-run
+    it rather than quoting this figure. And it did not print nothing when it was written either —
+    `AssetLibraryDeps.ts` already named `deleteAsset` before 16b, so *"prints nothing"* was
+    PRE-EXISTINGLY stale and only *"reachable from no surface"* became false here. And the
+    trigger fired unread: 16b was written, reviewed and committed before anyone opened this
+    document. A deferral addressed to a future slice is only as good as that slice reading it,
+    and nothing in any gate points a reader here.
 - [x] A failed background recalculation (`onZoneGeometryChanged` cascade)
     produces zero toast/modal/inline calls; `recalculationStatus` remains the
     only user-facing trace until the affected Requirement is next viewed. Verified by

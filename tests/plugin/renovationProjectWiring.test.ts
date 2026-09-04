@@ -36,6 +36,7 @@ import { createRepositoryStack } from '../helpers/vault';
 import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
 import { settle } from '../helpers/async';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
+import type { revealView as RevealViewFn } from '../../src/infrastructure/obsidian/workspace/revealView';
 import type { ContinueContext } from '../../src/application/continueContext';
 
 // `loadedPlugin()` (the 'the registered view factory' cases below) builds the plugin's own
@@ -59,6 +60,28 @@ vi.mock('../../src/infrastructure/obsidian/workspace/revealAssetDesigner', () =>
 }));
 import { revealAssetDesigner as revealAssetDesignerSpy } from '../../src/infrastructure/obsidian/workspace/revealAssetDesigner';
 import { ASSET_DESIGNER_VIEW } from '../../src/presentation/designer/AssetDesignerView';
+
+// Task 11's sibling mock, for the identical reason: `renovationProjectOpenAssetLibrary`
+// imports the binding directly, so a spy on the export a caller already holds a reference to
+// would never be seen by that caller.
+//
+// **Narrower than its two siblings above, on purpose (Task 11 review, M10).** `revealView` is
+// not `revealPlanEditor`'s or `revealAssetDesigner`'s shape: those two have exactly one
+// caller each in `src/`, both covered by this file's own dedicated cases, while `revealView`
+// is ALSO what `navigateToProject` falls back to when a caller passes no `targetLeaf`
+// (`targetLeaf ?? (await revealView(deps, type))`) — and this same file's `navigate` cases
+// below always supply one, so they never actually reach this door. A blanket stub — the shape
+// the other two use — would leave a FUTURE no-`targetLeaf` case in this file silently
+// exercising a fake that resolves `undefined` and asserts nothing real. So this one wraps the
+// REAL `revealView` (`importOriginal`) rather than replacing it: every call the tests below
+// don't ask about still does exactly what production does, and only `toHaveBeenCalledWith` is
+// borrowed from being a mock at all.
+vi.mock('../../src/infrastructure/obsidian/workspace/revealView', async (importOriginal) => {
+	const actual = await importOriginal<{ revealView: typeof RevealViewFn }>();
+	return { revealView: vi.fn<typeof RevealViewFn>(actual.revealView) };
+});
+import { revealView as revealViewSpy } from '../../src/infrastructure/obsidian/workspace/revealView';
+import { ASSET_LIBRARY_VIEW } from '../../src/presentation/library/AssetLibraryView';
 
 installObsidianDom();
 
@@ -566,6 +589,36 @@ describe('the renovation project dependencies', () => {
 			ASSET_DESIGNER_VIEW,
 			'asset-01JXXX',
 		);
+	});
+
+	/**
+	 * `openAssetLibrary`'s own case: bound to the REAL `revealView`, the same plain-callback
+	 * activation `RenovationPlannerPlugin.openProject` already takes into this very view, and
+	 * ONE binding rather than two, since both of §2's in-app doors reach this single member —
+	 * see `ProjectList`'s header and this view's own no-projects aside.
+	 *
+	 * Wired UNCONDITIONALLY of `persistence`, unlike `openPlan`/`openAsset` above: revealing a
+	 * singleton view needs no repository, and a session with none composed simply draws the
+	 * library's own failure state once the leaf opens.
+	 */
+	it('binds openAssetLibrary to the real revealView', async () => {
+		const { root, workspace, vault } = composedRoot();
+		const deps = renovationProjectDeps(root, workspace as never, vault, {
+			projectId: null,
+			navigate: () => undefined,
+			indexScanCompleted: () => true,
+			// Task 10's pair, REQUIRED by that signature and supplied as stubs here: this case
+			// is about `openAssetLibrary` alone, and the case below is what asserts these two
+			// are passed straight through. Stated rather than defaulted, per the reason that
+			// signature's own comment gives for making them required.
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
+		});
+
+		deps.openAssetLibrary();
+		await settle();
+
+		expect(revealViewSpy).toHaveBeenCalledWith(expect.objectContaining({ workspace }), ASSET_LIBRARY_VIEW);
 	});
 
 	/**

@@ -6,7 +6,7 @@
  * is the one the index answers.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { openProjectNote } from '../../../../src/infrastructure/obsidian/workspace/openNote';
+import { openNoteAtPath, openProjectNote } from '../../../../src/infrastructure/obsidian/workspace/openNote';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { createRepositoryStack } from '../../../helpers/vault';
 import { FakeWorkspace } from '../../../helpers/workspace';
@@ -280,6 +280,116 @@ describe('opening a project note', () => {
 		// The same answer as an unresolved id, and deliberately so: both mean the row points at
 		// nothing, which is the only distinction the caller can act on. A note deleted while the
 		// index has not caught up yet takes THIS arm rather than the one above.
+		expect(outcome).toBe('missing');
+		expect(workspace.leaves).toHaveLength(0);
+	});
+});
+
+/**
+ * The path-addressed door the Asset library's repair strip needs (§5.1a).
+ *
+ * It exists because the notes that strip lists have NO USABLE ID — a note whose `id` is
+ * missing or not a string never reaches the index — so the id-keyed door above cannot reach
+ * the one file a user has to edit to fix it.
+ */
+describe('opening a note by path', () => {
+	it('opens the file at the path, with no index consulted at all', async () => {
+		const { vault } = createRepositoryStack();
+		await vault.createFolder('Library');
+		await vault.create('Library/Broken.md', '---\nname: no id here\n---\n');
+		const workspace = new FakeWorkspace();
+
+		const outcome = await openNoteAtPath(
+			{
+				workspace: workspace as never,
+				vault: vault as never,
+				reportFault: (cause: unknown) => {
+					faults.push(cause);
+				},
+			},
+			'Library/Broken.md',
+		);
+
+		expect(outcome).toBe('opened');
+		expect(workspace.leaves[0].opened).toHaveLength(1);
+	});
+
+	/**
+	 * The split's central claim, which nothing asserted until this round: `openProjectNote`
+	 * DELEGATES rather than copying the body, so there is one `openingByPath` and a second
+	 * click joins the first open whichever door it arrives at.
+	 *
+	 * A build giving `openNoteAtPath` a map of its own is exactly the shape the delegation's
+	 * docblock warns against, and it is green against every other case in this file — the
+	 * sequential ones have an `await` between their calls, which is what the real gesture does
+	 * not do. Watched failing against that mutation: two leaves.
+	 */
+	it('coalesces two concurrent opens of one path into one tab', async () => {
+		const { vault } = createRepositoryStack();
+		await vault.createFolder('Library');
+		await vault.create('Library/Broken.md', '---\nname: no id here\n---\n');
+		const workspace = new FakeWorkspace();
+		const deps = {
+			workspace: workspace as never,
+			vault: vault as never,
+			reportFault: (cause: unknown) => {
+				faults.push(cause);
+			},
+		};
+
+		// Not awaited between the calls, deliberately: reuse is read off the LEAF's view state
+		// and `FakeLeaf.openFile` establishes that only when its promise SETTLES, so both calls
+		// reach the lookup while the first open is still in flight.
+		const outcomes = await Promise.all([
+			openNoteAtPath(deps, 'Library/Broken.md'),
+			openNoteAtPath(deps, 'Library/Broken.md'),
+		]);
+
+		expect(outcomes).toEqual(['opened', 'opened']);
+		expect(workspace.leaves).toHaveLength(1);
+		expect(workspace.leaves[0].opened).toHaveLength(1);
+	});
+
+	/**
+	 * And ACROSS the two doors, which is the case the Asset library actually produces: a
+	 * project row click and a repair-strip click can name one note, and the strip addresses it
+	 * by path because a note with no usable id has no other handle. One map is what makes those
+	 * one tab; two maps make two, with neither door able to see the other's entry.
+	 */
+	it('coalesces an id-addressed open and a path-addressed one on the same note', async () => {
+		const { vault } = createRepositoryStack();
+		await vault.create('Project.md', '---\nid: project-1\n---\n');
+		const index = new InMemoryProjectIndex();
+		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
+		const workspace = new FakeWorkspace();
+		const deps = depsFor(workspace, vault, index);
+
+		const outcomes = await Promise.all([
+			openProjectNote(deps, PROJECT_ID),
+			openNoteAtPath(deps, 'Project.md'),
+		]);
+
+		expect(outcomes).toEqual(['opened', 'opened']);
+		expect(workspace.leaves).toHaveLength(1);
+		expect(workspace.leaves[0].opened).toHaveLength(1);
+	});
+
+	it('answers missing for a path naming no file, rather than opening a blank tab', async () => {
+		const { vault } = createRepositoryStack();
+		const workspace = new FakeWorkspace();
+
+		const outcome = await openNoteAtPath(
+			{
+				workspace: workspace as never,
+				vault: vault as never,
+				reportFault: (cause: unknown) => {
+					faults.push(cause);
+				},
+			},
+			'Library/Gone.md',
+		);
+
+		// The listing that named this path is stale — the note was deleted since it was read.
 		expect(outcome).toBe('missing');
 		expect(workspace.leaves).toHaveLength(0);
 	});

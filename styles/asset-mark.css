@@ -1,0 +1,49 @@
+/*
+ * The row's leading mark: the asset's own footprint, fitted to a 20px box (design "Asset
+ * library overview" §3.4). Ported from `src/prototypes/AssetMark.vue`'s own `<style scoped>`
+ * block, dropping the `.rp-al-mark--on` selected variant — §3.3 makes selection a fact of the
+ * ROW alone (a leading box-shadow rule plus `aria-current`), so the geometry mark carries no
+ * selected state of its own; see `styles/asset-shelf.css` for the row's own selection rule.
+ *
+ * FIVE STATES THAT DIFFER IN KIND, and getting there took a capture and two reviews on the
+ * branch this was ported from. The first version drew an empty box for both absence states,
+ * told apart by a diagonal, and put a slash across an unscaled outline — photographed with all
+ * four on screen at once, a measured 600 × 600 tile, an unscaled cabinet and a not-yet-read
+ * cabinet were each "a square with a line through it", separated by stroke pattern in one case
+ * and by COLOUR alone in the other: the exact failure this mark exists to avoid, shipped by
+ * the mark. So each state differs from every other in KIND, never in weight — `measured` is
+ * the outline solid, `unscaled` the same outline dashed, `pending` three dots, `none` nothing
+ * at all, and `unreadable` a struck box, the only state that draws a box.
+ */
+.rp-al-mark {
+	width: 20px;
+	height: 20px;
+	overflow: visible;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1;
+	stroke-linejoin: round;
+	color: var(--text-muted);
+}
+
+.rp-al-mark--unscaled {
+	stroke-dasharray: 2 2;
+}
+
+/* The two quiet absences. Neither is told from the other by this weight — the dots are what
+   say `pending` and their absence is what says `none`. */
+.rp-al-mark--pending {
+	color: var(--text-faint);
+}
+
+/* Not `--text-error`: the state is carried by the cross, and a colour on top of it would be a
+   second channel rather than the only one. But a damaged file is worth an eye finding, so it
+   keeps full-strength foreground where the two absences are faint. */
+.rp-al-mark--unreadable {
+	color: var(--text-normal);
+}
+
+.rp-al-mark__dot {
+	fill: currentColor;
+	stroke: none;
+}

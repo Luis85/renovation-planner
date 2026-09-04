@@ -123,6 +123,33 @@
 }
 
 /*
+ * §7's THIRD rung, the shell's own half of it. `styles/asset-library-inspector.css` narrows the
+ * rail at `rp-al (width < 45rem)` and turns it into the whole pane at `rp-al (width < 35rem)`;
+ * that same file's own comment has said since Task 14's fix round that "the shell hides the
+ * SHELVES in the mirror-image case" — true of the INTENT and, until this rule, false of the
+ * shipped sheet, because nothing in `styles/` ever hid them. Written here rather than there for
+ * the reason that comment already gives: the two halves live in two files because each partial
+ * owns the rules for the classes IT declares.
+ *
+ * Keyed on `data-selected-asset-id` — the same attribute `assetLibraryRoot.test.ts` already
+ * reads to prove the in-place-update mechanism (§6.3) — rather than on the eventual wrapper a
+ * shelves-and-rail row will need: that wrapper is Task 16's to build (the inspector is not
+ * mounted here at all yet), and a descendant selector holds regardless of how deep Task 16
+ * nests `.rp-al-body`, so this rule does not have to guess at markup nobody has written. The
+ * attribute is `''` for "nothing selected" (§6.3), never absent, so `[data-selected-asset-id]`
+ * alone would match every render; `:not([data-selected-asset-id=""])` is the actual test.
+ *
+ * UNVERIFIED BY EVERY GATE HERE: jsdom lays nothing out and no capture exists — the container
+ * has no pinned Chromium — so this is read from the CSS and the spec alone. Task 16 mounts
+ * `AssetInspector` and is where an eye can finally check it.
+ */
+@container rp-al (width < 35rem) {
+	.renovation-asset-library[data-selected-asset-id]:not([data-selected-asset-id='']) .rp-al-body {
+		display: none;
+	}
+}
+
+/*
  * The shelves are their own container, so a row's droppable slots (§3.3) measure the region
  * they actually sit in rather than the pane — which will matter once the inspector rail beside
  * them (Task 14) takes some of it. A CONTAINER query and never a media query:

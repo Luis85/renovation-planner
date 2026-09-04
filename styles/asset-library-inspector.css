@@ -181,6 +181,65 @@
 }
 
 /*
+ * §3.5 item 4's Actions row: `Open designer` · `Open note` · `Delete`. Measured at `e3d2e8bc`,
+ * all three reached the shipped app with no rule of their own — `.rp-al-action`'s only
+ * declaration anywhere is the `:focus-visible` one above — and `tests/build/
+ * libraryComponentStyles.test.ts` is the category check that now refuses that silently
+ * happening again.
+ *
+ * `Open designer` and `Open note` STAY undeclared, by name, in that same file's exemption list:
+ * §3.5 gives neither a visual argument distinct from an ordinary secondary button, so Obsidian's
+ * own `button:not(.clickable-icon)` plus the inherited focus ring above is the whole of what
+ * either needs — the identical reasoning `styles/dialogs.css` states for leaving
+ * `.rp-dialog-button` bare (staying at (0,1,0) is what lets a themed vault's own button
+ * appearance through undisturbed).
+ *
+ * `Delete` is the one destructive control among the three, and this repository has already
+ * shipped exactly this defect once with no check to catch it: `.rp-dialog-button-danger` at a
+ * bare (0,1,0) lost to Obsidian's own `button:not(.clickable-icon)` at (0,1,1) and rendered
+ * plain white (design slice 15). Qualified with `.rp-al-inspector` for the identical reason
+ * every other rule on this rail is, and shaped like `.rp-editor-inspector-delete`
+ * (`styles/editor.css`) rather than a solid fill: Obsidian's error red has no on-fill
+ * foreground that clears 4.5:1 at this size (`--text-on-accent` measures 3.45:1 on
+ * `--background-modifier-error`), so a border plus the label's own colour is what stays legible
+ * in both schemes. `border` is the full shorthand and not `border-color` alone — Obsidian's own
+ * base `button` rule sets `border: 0`, so a colour with no width or style to carry it would draw
+ * nothing.
+ */
+.rp-al-inspector .rp-al-action--delete {
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--text-error);
+}
+
+/*
+ * A TINT rather than a solid fill, for the reason `.rp-editor-inspector-delete:hover` already
+ * states: `--background-modifier-error` is `--color-red` at full strength, and keeping the
+ * composite close to the panel it sits on is what leaves the label's contrast on hover where it
+ * is at rest.
+ */
+.rp-al-inspector .rp-al-action--delete:hover {
+	background-color: color-mix(in oklch, var(--background-modifier-error) 18%, transparent);
+}
+
+/*
+ * ITS OWN RING, EXPLICITLY, even though `.rp-al-action:focus-visible` above already matches
+ * every element wearing this modifier — the button carries both classes at once. Written out
+ * anyway, per `.rp-editor-inspector-delete:focus-visible`'s identical shape and for the reason
+ * `tests/build/buttonFocusRing.test.ts`'s own `covers` check states: it proves a ring for a
+ * flattening rule by comparing the two selectors' SUBJECT TEXT, never by knowing that
+ * `rp-al-action` and `rp-al-action--delete` land on one element, so `.rp-al-action:focus-visible`
+ * alone left this rule reported as an offender — measured, not assumed. Over-reporting is the
+ * check's own stated safe side for a gate about a missing indicator; the fix is to make the ring
+ * as literal as the flattening it answers, not to relax the check.
+ */
+.rp-al-inspector .rp-al-action--delete:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/*
  * BELOW 35rem THE RAIL STOPS BEING A RAIL. At 460px, an Obsidian sidebar leaf's real width, two
  * columns is not a tight layout but two unusable ones, so the inspector takes the pane and a
  * back control returns. That is the one-pane-at-a-time move `ProjectDetailState` already makes,

@@ -2024,8 +2024,26 @@ which is why it is corrected in place rather than deleted.** This paragraph orig
 not", offering that as the reason no test caught the gap. Measured on `main`:
 `git show origin/main:tests/presentation/library/shelfFocus.test.ts | grep -c outlineFor` prints
 **0**. `AssetShelves` had NO test supplying `outlineFor` at all — its only mount omitted it
-exactly as production did. My sentence was true of `AssetShelf`, one level down, and I wrote it
-about the wrong component.
+exactly as production did.
+
+**AND THE CORRECTION ABOVE WAS ITSELF WRONG, which is the part worth keeping.** Its next clause
+read "my sentence was true of `AssetShelf`, one level down" — offered as the harmless half of a
+correction, and never measured, because attention was on the half already known false. Task 17b's
+round 1 measured it: `grep -c "mount(AssetShelf" tests/presentation/library/assetShelf.test.ts`
+prints **12**, `outlineFor` is supplied at exactly one of them, and another exists precisely to
+assert the behaviour when it is omitted. Eleven of twelve omit it. So the sentence was not true
+one level down either; it was true of a single test.
+
+**THE HALF OF A CORRECTION THAT IS NOT THE PART BEING CORRECTED IS THE HALF NOBODY MEASURES.**
+A correction inherits the authority of being a correction, and the clause offered in place of the
+wrong one is read as settled by the same act that settled the other. Three generations of one
+claim here — a brief's, this file's fix of it, and an implementer's transcription of that fix
+labelled *"measured against the tree"* — and only the third was caught by a reviewer.
+
+**What ended it was giving up on wording and re-founding the claim on a GATE**, per the rule
+stated further up this section: `AssetRow.outline` and `AssetMark.outline` are REQUIRED props, so
+no mount can omit one and `vue-tsc` is what holds the sentence true. That is the version that
+ships, and it cannot drift with a suite.
 
 So the blind spot was not "tests disagreed with production"; it was that **the component's own
 test had the identical gap**, which is a stronger argument for the required prop rather than a

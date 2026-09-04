@@ -2017,6 +2017,22 @@ four gates because nothing is wrong with the code — at its largest scale here.
 OPTIONAL with a default. Forgetting it is therefore not a type error, and no test failed because
 every unit test of `AssetShelves` passes the prop explicitly while the only mount site does not.
 Had it been REQUIRED, `vue-tsc` would have named the mount site the moment Task 12 declared it.
+
+**CORRECTION, mine, made after Task 17b measured it — and the truth is WORSE than what I wrote,
+which is why it is corrected in place rather than deleted.** This paragraph originally said
+"every unit test of `AssetShelves` passes the prop explicitly while the only mount site does
+not", offering that as the reason no test caught the gap. Measured on `main`:
+`git show origin/main:tests/presentation/library/shelfFocus.test.ts | grep -c outlineFor` prints
+**0**. `AssetShelves` had NO test supplying `outlineFor` at all — its only mount omitted it
+exactly as production did. My sentence was true of `AssetShelf`, one level down, and I wrote it
+about the wrong component.
+
+So the blind spot was not "tests disagreed with production"; it was that **the component's own
+test had the identical gap**, which is a stronger argument for the required prop rather than a
+weaker one: there was no green test anywhere encoding the working behaviour, and nothing but the
+compiler could have spoken. Thirteenth instance on this branch of a claim whose own prose is
+false — and the first that is the CONTROLLER's rather than an implementer's, committed inside the
+paragraph explaining why the defect survived.
 That is the same rule CLAUDE.md states for deps bundles — *a composition that forgets it does not
 compile rather than announcing into nothing* — met from the props side. **Prefer a required prop
 whose absence is a build error to an optional one whose absence is a blank screen**, and when

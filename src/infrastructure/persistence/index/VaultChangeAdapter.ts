@@ -1,20 +1,17 @@
 import { TFile, type MetadataCache, type TFile as TFileType, type Vault } from 'obsidian';
 import type { Logger } from '../../../application/ports/Logger';
-import type { ExcludedNote, ProjectIndex, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
+import type { ProjectIndex, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type { EventBus } from '../../../core/events/EventBus';
 import {
 	geometrySidecarChanged,
 	projectIndexEntryChanged,
-	projectIndexExclusionChanged,
 } from '../../../application/events/projectIndex.events';
 import {
 	acceptsSidecar,
-	derivedPlanSidecarPath,
 	entityRefOf,
-	sidecarMappingFor,
-	sidecarsNaming,
 	stringField,
 } from './buildProjectIndexEntries';
+import { incrementalSidecarMapping } from './sidecarMapping';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo';
@@ -34,10 +31,15 @@ import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo
  * **Excluded is a place in the index now, not a return statement.** A note of ours this door
  * cannot index gets a descriptor beside the entries and its own announcement, because the
  * surfaces that list what a user has to repair are fed by the index and this door is the sole
- * writer for every change the plugin did not make itself. One of the two reasons — a
- * `duplicate-id` collision — is also the one thing here that is NOT path-local: its cause
- * lives in another file, so an entry leaving has to re-open the question for notes no event
- * will ever name (`promoteContender`).
+ * writer for every change the plugin did not make itself.
+ *
+ * **The `duplicate-id` half of that collection is NOT this door's**, and used to be. Its cause
+ * lives in another FILE, so taking an id has to demote whoever held it and vacating one has to
+ * re-open the question for notes no event will ever name — a rule this pipeline kept correctly
+ * and which the five repositories, mutating the index on their own writes, did not. It belongs
+ * to the index the composition root hands out (`ReconcilingProjectIndex`), which is the one
+ * object every writer holds; the calls to `index.upsert`, `index.remove`, `index.addExclusion`
+ * and `index.removeExclusion` below are what reach it.
  */
 export class VaultChangeAdapter {
 	private readonly pending = new Set<string>();
@@ -127,7 +129,7 @@ export class VaultChangeAdapter {
 			// Deleted (or replaced by something that is not a note). A note that was EXCLUDED has
 			// no entry to remove and still has a descriptor naming it, so a repair surface would
 			// go on listing a file the user has already dealt with by deleting it.
-			this.dropExclusion(path);
+			this.deps.index.removeExclusion(path);
 			// **Forgotten for every deleted path, not only for one that had an ENTRY**, which is
 			// where this line used to sit. The full scan marks the echo of every note it reads
 			// (`collectNotes` → `markFrontmatter`), a duplicate-id LOSER included — it is marked
@@ -172,12 +174,12 @@ export class VaultChangeAdapter {
 				// that lost its id after load reached the index as a removal and reached a repair
 				// surface as nothing at all, until the next full rebuild — which happens at
 				// layout-ready and on a settings save and nowhere else.
-				this.addExclusion({ path, entityType: ref.type, reason: 'no-id' });
+				this.deps.index.addExclusion({ path, entityType: ref.type, reason: 'no-id' });
 			} else {
 				// It is not ours at all now, so whatever it was excluded FOR has stopped being
 				// true — a `no-id` note whose `type` was corrected away, or a duplicate loser
 				// that is no longer one of our notes.
-				this.dropExclusion(path);
+				this.deps.index.removeExclusion(path);
 			}
 			// Not ours — but if it USED to be, it changed into something we cannot index. The
 			// echo goes for the same reason the deleted arm above forgets unconditionally: this
@@ -211,12 +213,11 @@ export class VaultChangeAdapter {
 		// refusing for the life of the session.
 		if (existing && existing.id !== ref.id) this.applyRemove(existing);
 
-		// This note is about to BE the entry for its id, so any descriptor naming it is spent:
-		// the `no-id` it arrived with has been corrected, or the collision it lost has just been
-		// won by it (last-writer-wins, below).
-		this.dropExclusion(path);
-		this.demoteDisplacedDuplicate(ref.id, path);
-
+		// The descriptor this path may carry, and the demotion of whatever note held this id,
+		// are BOTH the upsert's own — `ReconcilingProjectIndex.upsert` does them. They used to be
+		// spelled here, three lines above `applyUpsert`, which is why the repositories' own
+		// upserts did neither: the rollback of a failed delete displaced a promoted loser into
+		// no collection at all.
 		this.applyUpsert({
 			id: ref.id as ProjectIndexEntry['id'],
 			type: ref.type,
@@ -339,174 +340,7 @@ export class VaultChangeAdapter {
 		// which is how an in-vault backup of a project folder silently sent the live plan's
 		// geometry writes into the copy: `sidecarMappingFor` carries the whole argument, and
 		// carries it for the full scan too, so the two doors cannot answer differently.
-		this.applyUpsert({ ...entry, geometrySidecarPath: this.sidecarMappingOf(entry, path) });
-	}
-
-	/**
-	 * Which sidecar an entry's mapping keeps when this file is offered to it — `sidecarMappingFor`
-	 * with this door's own event name and this door's answer to "where would it sit".
-	 *
-	 * One spelling rather than two: the sidecar door above and `promotedSidecarMapping` below ask
-	 * the identical question, and the derived-path arm is the part that would drift — an asset
-	 * answers `undefined` because its home comes from the `libraryFolder` SETTING and this
-	 * pipeline is not given it (ADR-0014), which is a sentence one of the two copies would
-	 * eventually stop carrying.
-	 */
-	private sidecarMappingOf(entry: ProjectIndexEntry, incoming: string): string {
-		return sidecarMappingFor({
-			logger: this.deps.logger,
-			event: 'persistence.pipeline.sidecar-duplicate',
-			entry,
-			incoming,
-			derivedPath:
-				entry.type === 'renovation-plan'
-					? derivedPlanSidecarPath(entry, (projectId) => this.deps.index.getPath(projectId))
-					: undefined,
-		});
-	}
-
-	/**
-	 * The sidecar mapping a full rebuild would give a note just promoted into the index —
-	 * RESOLVED from the vault, never inherited from the entry it replaces.
-	 *
-	 * Inheriting was the first version and it disagreed with the rebuild in both directions, for
-	 * one reason: `joinSidecars` joins by BASENAME to whatever entry holds the id, so the vacated
-	 * entry's own value says nothing about the promoted one. A requirement note colliding with a
-	 * plan id carries no mapping, so promoting the displaced plan behind it inherited `undefined`
-	 * and every zone read on that plan answered `plan-geometry.path-unresolved` until the next
-	 * rebuild — which would have joined the `.rpgeo` perfectly well. The mirror image is worse
-	 * for being quieter: promote a REQUIREMENT out from behind a plan and it inherited the plan's
-	 * `.rpgeo`, an entry holding a mapping a rebuild refuses to give it (`sidecar-skipped`).
-	 *
-	 * That is rule 3's own disagreement arriving in the sidecar dimension rather than the
-	 * identity one, three lines under a docblock saying a door which can reach a state its own
-	 * rebuild cannot is a door that disagrees with what it is an increment of — this repository's
-	 * oldest recurring shape, and the comment naming the invariant was again the best available
-	 * description of the bug.
-	 */
-	private promotedSidecarMapping(entry: ProjectIndexEntry): string | undefined {
-		if (!acceptsSidecar(entry)) return undefined;
-
-		let mapping: string | undefined;
-		// Folded rather than taken from the first match, because two `.rpgeo` files CAN name one
-		// id — a copied project folder — and `sidecarMappingFor` is what adjudicates that. Offered
-		// them in the vault's own order, which is the order the scan offers them in, so the two
-		// doors cannot pick differently.
-		for (const file of sidecarsNaming(this.deps.vault, entry.id)) {
-			mapping = this.sidecarMappingOf({ ...entry, geometrySidecarPath: mapping }, file.path);
-		}
-		return mapping;
-	}
-
-	/**
-	 * The incremental half of the builder's duplicate-id diagnostic: a note arriving with an
-	 * id another note already holds takes the index entry over, and the loser then never
-	 * opens with nothing saying why. Semantics are untouched — last writer still wins.
-	 *
-	 * **The DEMOTION is the other half of the promotion rule below, and it happens in the same
-	 * step as the arrival takes the id.** `applyUpsert` is keyed by id, so the displaced note's
-	 * path simply leaves the index: it is in neither `entries()` nor `listExclusions()`, so it
-	 * has not been reported as unreadable and it is not in the catalogue — gone from every
-	 * surface at once, which is worse than being classified wrongly, because a repair list
-	 * cannot even name the file. Demoting it here rather than from `applyUpsert` is what keeps
-	 * a RENAME out of it: that path calls the upsert with the same entry under a new path, and
-	 * the old path is a duplicate of nothing.
-	 *
-	 * The descriptor takes the DISPLACED entry's own type — this index is one global id
-	 * namespace, so the arriving note's type may not be the same kind of thing at all.
-	 *
-	 * The existence check is what keeps this from crying wolf on a MOVE: a sync that
-	 * relocates a note without a `rename` event arrives as a create at the new path while
-	 * the index still points at the old one, which looks identical to a duplicate until you
-	 * ask whether a file is still sitting there. It bounds the demotion as well as the warn —
-	 * a moved note's old path is not a note anybody can repair.
-	 */
-	private demoteDisplacedDuplicate(id: string, path: string): void {
-		const displaced = this.findById(id as ProjectIndexEntry['id']);
-		if (displaced === undefined || displaced.path === path) return;
-		if (!(this.deps.vault.getAbstractFileByPath(displaced.path) instanceof TFile)) return;
-
-		this.deps.logger.warn('persistence.pipeline.duplicate-id', {
-			id,
-			path,
-			otherPath: displaced.path,
-			reason: 'another note already declares this id; it is no longer reachable',
-		});
-		this.addExclusion({ path: displaced.path, entityType: displaced.type, reason: 'duplicate-id' });
-	}
-
-	/**
-	 * The notes still claiming an id, in the order a FULL REBUILD would reach them.
-	 *
-	 * A `duplicate-id` exclusion is the one kind whose cause lives in a DIFFERENT file, so it
-	 * is the one kind this path-local door has to re-open when something else changes: the
-	 * loser's own file is untouched by the winner's deletion, no event names it, and nothing
-	 * else will ask again until the next full rebuild.
-	 *
-	 * The vault walk is guarded on there being any such descriptor at all, which in a healthy
-	 * vault is none — so an ordinary delete pays a `listExclusions()` filter and stops.
-	 *
-	 * Each candidate's frontmatter is re-read rather than trusted, because a descriptor
-	 * records what was true when it was made: a vault edited while Obsidian was closed can
-	 * have left the loser declaring another id, or nothing of ours at all.
-	 */
-	private contendersFor(id: string): ProjectIndexEntry[] {
-		const excluded = new Set(
-			this.deps.index
-				.listExclusions()
-				.filter((note) => note.reason === 'duplicate-id')
-				.map((note) => note.path),
-		);
-		if (excluded.size === 0) return [];
-
-		const contenders: ProjectIndexEntry[] = [];
-		for (const file of this.deps.vault.getMarkdownFiles()) {
-			if (!excluded.has(file.path)) continue;
-			const frontmatter = frontmatterOf(this.deps, file);
-			const ref = entityRefOf(frontmatter);
-			if (ref.kind !== 'ours' || ref.id !== id) continue;
-			contenders.push({
-				id: ref.id as ProjectIndexEntry['id'],
-				type: ref.type,
-				path: file.path,
-				projectId: stringField(frontmatter['project']) as ProjectIndexEntry['projectId'],
-				planId: stringField(frontmatter['plan']) as ProjectIndexEntry['planId'],
-			});
-		}
-		return contenders;
-	}
-
-	/**
-	 * An id has just been vacated, so exactly ONE of the notes still claiming it becomes the
-	 * entry — never only when exactly one is left.
-	 *
-	 * Without any promotion, a user resolves a collision precisely as instructed — delete the
-	 * copy, or give it its own id — and the note that was excluded stays excluded until the
-	 * next full rebuild, which is a reload away.
-	 *
-	 * **"When exactly one remains" was the first version of this rule and it is wrong for
-	 * three notes.** With three sharing an id, deleting the winner leaves two contenders, so a
-	 * sole-survivor condition promotes neither and the id leaves every surface entirely —
-	 * worse than the collision being resolved, and a state the SCAN cannot produce:
-	 * `collectNotes` is last-writer-wins over an id-keyed map, so a rebuild ends with exactly
-	 * one winner however many notes collide. A door that can reach a state its own full
-	 * rebuild cannot is a door that disagrees with the thing it is an increment of.
-	 *
-	 * **Which one is not a free choice either.** `contendersFor` hands them back in the vault's
-	 * own enumeration order and this takes the LAST — which is what last-writer-wins picks, so
-	 * the promotion an event makes and the one the next reload makes name the same file. Any
-	 * other pick is a note that silently stops being the asset when Obsidian restarts.
-	 *
-	 * The promoted entry's sidecar mapping is RESOLVED from the vault rather than carried across
-	 * from the entry it replaces — `promotedSidecarMapping` carries why, and it is this same
-	 * disagreement-with-the-rebuild rule in a second dimension.
-	 */
-	private promoteContender(vacated: ProjectIndexEntry): void {
-		const promoted = this.contendersFor(vacated.id).at(-1);
-		if (promoted === undefined) return;
-
-		this.dropExclusion(promoted.path);
-		this.applyUpsert({ ...promoted, geometrySidecarPath: this.promotedSidecarMapping(promoted) });
+		this.applyUpsert({ ...entry, geometrySidecarPath: incrementalSidecarMapping(this.deps, entry, path) });
 	}
 
 	/**
@@ -516,10 +350,12 @@ export class VaultChangeAdapter {
 	 * sites called `index.upsert`/`index.remove` directly before these existed, across four
 	 * handlers and the sidecar path.
 	 *
-	 * **ENTRY, narrowly.** The index holds a second collection since it learned to keep the
-	 * notes it could not index, and `addExclusion`/`dropExclusion` below are that collection's
-	 * own pair, under their own event. Writing "every index mutation" here would be a category
-	 * claim two functions no longer keep.
+	 * **ENTRY, narrowly, and ANNOUNCEMENT narrowly at that.** The index holds a second
+	 * collection since it learned to keep the notes it could not index, and that collection's
+	 * pair is `ProjectIndex.addExclusion`/`removeExclusion` — announced by
+	 * `ReconcilingProjectIndex`, which is also what announces the entry a PROMOTION creates,
+	 * since no door here asked for one. Writing "every index mutation is announced from this
+	 * file" would be a category claim this file no longer keeps on its own.
 	 *
 	 * The removal reads the entry's `type` BEFORE dropping it, because after `index.remove`
 	 * there is nothing left to ask — which is why both take the whole entry rather than an id.
@@ -558,49 +394,13 @@ export class VaultChangeAdapter {
 
 	/**
 	 * Removing an entry frees its id, and freeing an id is the question a `duplicate-id`
-	 * exclusion was answered relative to — so the re-evaluation belongs here rather than at the
-	 * three call sites, which are a delete, a note that stopped being ours, and a note that was
-	 * hand-edited to declare a different id. All three are "removing or re-identifying an
-	 * entry", and a rule kept at the call sites is a rule the fourth one will not follow.
+	 * exclusion was answered relative to — so the re-evaluation belongs to `index.remove`
+	 * itself rather than to any of the doors that call one. It used to be spelled here, which
+	 * held for this pipeline's three call sites and for none of the repositories'.
 	 */
 	private applyRemove(entry: ProjectIndexEntry): void {
 		this.deps.index.remove(entry.id);
 		this.announce(entry.id, entry.type);
-		this.promoteContender(entry);
-	}
-
-	/**
-	 * The exclusion pair, beside the entry pair above and for the same reason: a subscriber
-	 * trusts the announcement to mean "the notes you cannot open changed", which only holds
-	 * while nothing mutates that collection past these two.
-	 *
-	 * The removal LOOKS UP the descriptor before dropping it, because the announcement carries
-	 * the excluded note's type and after the removal there is nothing left to ask — the same
-	 * sentence `applyRemove` has always carried. It is also what keeps this quiet: a path with
-	 * no descriptor is the ordinary case at every door that calls it, and announcing there
-	 * would fire an exclusion event for every note edit in the vault.
-	 */
-	private addExclusion(note: ExcludedNote): void {
-		const previous = this.deps.index.listExclusions().find((excluded) => excluded.path === note.path);
-		this.deps.index.addExclusion(note);
-		// **A retype announces TWICE, one event per type, and that is `applyUpsert`'s own shape
-		// rather than a second one.** A descriptor is keyed by path, so a no-id `renovation-asset`
-		// edited into a no-id `renovation-project` REPLACES it — and consumers of this event
-		// filter on `entityType`, which is the whole reason the payload carries one. Announcing
-		// only what it became tells every subscriber except the one that needed telling: the
-		// asset library never hears that its broken note left, and keeps a repair row for a note
-		// that is now somebody else's problem. Two facts, and each source filters on one.
-		if (previous !== undefined && previous.entityType !== note.entityType) {
-			this.announceExclusion(previous);
-		}
-		this.announceExclusion(note);
-	}
-
-	private dropExclusion(path: string): void {
-		const note = this.deps.index.listExclusions().find((excluded) => excluded.path === path);
-		if (note === undefined) return;
-		this.deps.index.removeExclusion(path);
-		this.announceExclusion(note);
 	}
 
 	/**
@@ -618,8 +418,8 @@ export class VaultChangeAdapter {
 
 	/**
 	 * The sidecar counterpart of `announce`, and a SEPARATE event rather than a second caller of
-	 * that one — `applyUpsert`/`applyRemove`'s docblock makes a category claim ("every index
-	 * mutation goes through this pair"), and a sidecar change need mutate nothing at all: an
+	 * that one — `applyUpsert`/`applyRemove`'s docblock makes a category claim about every ENTRY
+	 * mutation this pipeline makes, and a sidecar change need mutate nothing at all: an
 	 * asset's sidecar has no index mapping to move, so reusing `ProjectIndexEntryChanged` to buy
 	 * a designer its refresh would make that sentence only mostly true.
 	 *
@@ -633,19 +433,6 @@ export class VaultChangeAdapter {
 		if (entry === undefined) return;
 		void this.deps.events.publish(
 			geometrySidecarChanged({ entityId: entry.id, entityType: entry.type }),
-		);
-	}
-
-	/**
-	 * The exclusion counterpart of `announce`, and a THIRD event rather than a second caller of
-	 * that one: `ProjectIndexEntryChangedPayload` declares `entityId`, required, and the note
-	 * this is about may have no id at all — that is what excluded it.
-	 *
-	 * Fire-and-forget for the reasons `announce` states, which apply unchanged.
-	 */
-	private announceExclusion(note: ExcludedNote): void {
-		void this.deps.events.publish(
-			projectIndexExclusionChanged({ path: note.path, entityType: note.entityType }),
 		);
 	}
 

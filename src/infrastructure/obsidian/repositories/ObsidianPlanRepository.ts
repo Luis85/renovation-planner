@@ -11,6 +11,7 @@ import {
 	cacheReading,
 	fileStatAt,
 	ensureFolder,
+	forgetTrashedNote,
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
@@ -318,7 +319,7 @@ export class ObsidianPlanRepository {
 			}
 			if (sidecarFile) this.deps.echo.forget(sidecarFile.path);
 
-			this.deps.index.remove(id);
+			forgetTrashedNote(this.deps.index, id, file.path);
 			this.deps.echo.forget(file.path);
 			return ok(undefined);
 		});

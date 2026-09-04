@@ -297,6 +297,12 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 	'src/infrastructure/obsidian/repositories/ObsidianZoneRepository.ts::ObsidianZoneRepository': notAnAdapter(
 		'a repository; "undo" appears only in prose',
 	),
+	'src/infrastructure/persistence/index/ReconcilingProjectIndex.ts::ReconcilingProjectIndex':
+		notAnAdapter(
+			'the ProjectIndex decorator that keeps §5.1a\'s promote/demote invariant for every ' +
+				'writer; it announces the exclusion and promotion changes it makes itself, and has ' +
+				'no execute/undo — "undo" appears only in prose',
+		),
 	'src/plugin/RenovationPlannerPlugin.ts::RenovationPlannerPlugin': notAnAdapter(
 		'the plugin bootstrap; "undo" appears only in prose',
 	),

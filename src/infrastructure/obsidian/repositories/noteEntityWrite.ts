@@ -14,6 +14,7 @@ import {
 	cacheReading,
 	fileStatAt,
 	ensureFolder,
+	forgetTrashedNote,
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
@@ -187,6 +188,13 @@ export interface NoteDeleteSpec {
  * own delete event can take the entry out from under it, so the entry and the echo record
  * are captured and PUT BACK beside the bytes; the inline comments at both sites carry the
  * race and what each half costs on its own.
+ *
+ * **Both index calls below are keyed by something the vault event can have moved, and neither
+ * used to say so.** The removal goes through `forgetTrashedNote`, which drops the entry only
+ * while the id still names the path this function trashed — otherwise it deletes the promotion
+ * that event just made (§5.1a). The put-back goes through `ReconcilingProjectIndex.upsert`,
+ * which demotes whatever note the promotion had installed instead of displacing it into no
+ * collection at all. Neither rule is spelled here: both belong to the index every writer holds.
  */
 export async function trashNoteBackedEntity(
 	deps: NoteVaultDeps,
@@ -240,6 +248,12 @@ export async function trashNoteBackedEntity(
 			// and `frontmatterOf` has no echo to fall back on, so the note reads as none of ours
 			// and the entry just put back is taken out again — with no later event to repair it.
 			//
+			// Through the RECONCILING index, so the entry this displaces is demoted rather than
+			// dropped: while `trashFile` was awaited the vault's own delete event may have
+			// promoted a `duplicate-id` contender into this very id, and the raw port left that
+			// loser in NEITHER collection — not in the catalogue and not in the repair strip, so
+			// nothing could even name the file.
+			//
 			// **This `if` NARROWS a type and cannot discriminate**, which is a different reason
 			// from the ones around it and is why its false arm is uncovered rather than untested:
 			// `openNoteById` resolved through this very index and returned `missing` if it held
@@ -258,7 +272,7 @@ export async function trashNoteBackedEntity(
 		return err(persistenceError(spec.deleteFailedCode, `Could not remove the second file of ${kind} ${id}.`, removed.error));
 	}
 
-	deps.index.remove(id);
+	forgetTrashedNote(deps.index, id, notePath);
 	return ok(undefined);
 }
 

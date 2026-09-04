@@ -104,9 +104,18 @@ describe('entityRefOf callers', () => {
 	 *
 	 * Same blind spot as its sibling, said rather than implied: a comment writing the name with
 	 * an empty argument list would read as a call.
+	 *
+	 * **THREE modules, and the third is the point of the list rather than a dilution of it.**
+	 * The scan and the pipeline are the two doors that ASK a note what it is; the reconciling
+	 * index is the door that re-asks the notes an exclusion descriptor names, because a
+	 * descriptor records what was true when it was made and a vault edited while Obsidian was
+	 * closed can have left a contender declaring another id. Two of the three ask about the file
+	 * that changed; this one asks about files nothing changed. A FOURTH module answering "is
+	 * this note ours" is what the case still refuses.
 	 */
-	it('is called by exactly two modules in src/, and they are the scan and the pipeline', () => {
+	it('is called by exactly three modules in src/: the scan, the pipeline and the reconciling index', () => {
 		expect(modulesNaming('entityRefOf(')).toEqual([
+			'src/infrastructure/persistence/index/ReconcilingProjectIndex.ts',
 			'src/infrastructure/persistence/index/VaultChangeAdapter.ts',
 			'src/infrastructure/persistence/index/buildProjectIndexEntries.ts',
 		]);
@@ -131,10 +140,32 @@ describe('entityRefOf callers', () => {
  * callers, so it would need an exclusion this instrument does not have.
  */
 describe('sidecarMappingFor callers', () => {
-	it('is called by exactly two modules in src/, and they are the scan and the pipeline', () => {
+	/**
+	 * The pipeline's own spelling of this question moved to `sidecarMapping.ts` when a SECOND
+	 * incremental door grew: promotion asks it too, and promotion now belongs to the index
+	 * rather than to the adapter. So the two callers are the scan and one shared incremental
+	 * answer, which is a narrower claim than "the scan and the pipeline" and the true one —
+	 * `incrementalSidecarMapping` is what the pipeline reaches, and its own caller list is the
+	 * case below.
+	 */
+	it('is called by exactly two modules in src/: the scan and the incremental answer', () => {
 		expect(modulesNaming('sidecarMappingFor(')).toEqual([
-			'src/infrastructure/persistence/index/VaultChangeAdapter.ts',
 			'src/infrastructure/persistence/index/buildProjectIndexEntries.ts',
+			'src/infrastructure/persistence/index/sidecarMapping.ts',
+		]);
+	});
+
+	/**
+	 * The claim `sidecarMappingFor`'s used to make, one level up: the two incremental doors that
+	 * offer a `.rpgeo` to an entry give it the same answer, because they call one function. A
+	 * `.rpgeo` arriving is `VaultChangeAdapter.processSidecar`'s; a note being promoted into the
+	 * index is `promotedSidecarMapping`'s, which lives beside it in the same module and is the
+	 * second name this list would otherwise have to carry.
+	 */
+	it('has exactly two modules asking the incremental answer', () => {
+		expect(modulesNaming('incrementalSidecarMapping(')).toEqual([
+			'src/infrastructure/persistence/index/VaultChangeAdapter.ts',
+			'src/infrastructure/persistence/index/sidecarMapping.ts',
 		]);
 	});
 });

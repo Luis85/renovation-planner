@@ -1094,17 +1094,23 @@ following it would have implemented the stale rule while the plan beside it said
 copy** rather than a second rule invented here: pick the contender the next full rebuild would
 pick. Otherwise an incremental promotion and a reload disagree about which note IS the asset.
 
-**Promotion is reached by the VAULT's delete event, and a COMMAND-driven delete does not reach
-it — a known residue rather than a claim of coverage.** `trashNoteBackedEntity` awaits
-`trashFile` and calls `index.remove(id)` *after* it, so a duplicate winner deleted through the
-plugin either has its promotion undone by that removal or never triggers one, and the surviving
-note stays unindexed until a full rebuild. Out-of-band resolution — editing the loser's id, or
-deleting either note in the file explorer — works, and those are the routes a user actually has,
-because a `duplicate-id` loser is not in the index and cannot be selected in the app at all.
-Closing it is a decision about who owns *"an id was vacated"*: promotion needs the vault and the
-metadata cache, and `ProjectIndex` is a pure port with neither, so it wants an observer on the
-index or a promotion service both removers call. Written down here rather than left to be
-rediscovered, because the surface this specification describes is what makes the gap visible.
+**Promotion is the INDEX's, at every door, and that is what a command-driven delete needed.**
+It shipped inside the vault-change pipeline, so it held for the file explorer, a sync and a hand
+edit, and for nothing a user does inside the plugin: `trashNoteBackedEntity` awaits `trashFile`
+and removes the entry *after* it, so a duplicate winner deleted through the plugin either had
+that event's promotion undone by the removal or never triggered one, and the surviving note
+stayed unindexed until a full rebuild. Both orderings are closed by moving the rule to the one
+object every writer holds — `ReconcilingProjectIndex`, which wraps the store the composition
+root builds — plus `forgetTrashedNote`, which drops an entry only while the id still names the
+path that was trashed. **Promotion is right for a command delete and not merely convenient**:
+the id's geometry sidecar, requirements and price overrides are gone by the user's own
+instruction either way, because all three are keyed by the ID the survivor shares, and
+withholding the promotion hides the survivor rather than protecting it — until the next reload,
+which promotes it regardless, since `collectNotes` knows nothing about commands. A door that can
+reach a state its own full rebuild cannot is the thing the rule three paragraphs up refuses.
+What promotion does NOT do is restore what the delete destroyed; refusing to delete an asset
+whose id has contenders is a different rule, and one this surface cannot yet offer, since a
+loser is unselectable.
 
 **And the ARRIVING duplicate has to demote the winner it displaces, in the same step.** That is
 the opposite transition and the rule above does not reach it: `applyUpsert` is keyed by id, so a

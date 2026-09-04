@@ -73,6 +73,7 @@ import { createMigrationRunner, type MigrationRunner } from '../infrastructure/p
 import { MIGRATION_SET } from '../infrastructure/persistence/migration/migrationSet';
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../infrastructure/persistence/index/InMemoryProjectIndex';
+import { ReconcilingProjectIndex } from '../infrastructure/persistence/index/ReconcilingProjectIndex';
 import { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { guardCommand } from '../application/errors/guardAgainstThrowing';
 import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnosticsLedger';
@@ -422,8 +423,22 @@ export function createCompositionRoot(
 
 	const ledger = session.ledger ?? new InMemoryDiagnosticsLedger();
 	const markers = session.markers;
-	const index = new InMemoryProjectIndex();
 	const echo = new EchoWindow();
+	// The index every writer holds is the RECONCILING one, and that is the whole of how §5.1a's
+	// two-collection invariant reaches the five repositories: they mutate the index themselves
+	// on their own writes, so a rule kept inside `VaultChangeAdapter` held for the file explorer
+	// and for no command. Wrapping is what answers writers not yet written — there is one
+	// object, and nothing can hold anything else.
+	// Annotated as the PORT, which is what fallow resolves a class's members through: the
+	// delegating reads here are reached from repositories typed to `ProjectIndex`, and an
+	// inferred concrete type reports every one of them as an unused class member.
+	const index: ProjectIndex = new ReconcilingProjectIndex(new InMemoryProjectIndex(), {
+		vault: vault.vault,
+		metadataCache: vault.metadataCache,
+		echo,
+		events: eventBus,
+		logger,
+	});
 	const migrations = createMigrationRunner(MIGRATION_SET);
 
 	const deps: NoteVaultDeps = {

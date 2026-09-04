@@ -599,3 +599,27 @@ export async function writeOwnedFrontmatter(
 	});
 }
 
+
+/**
+ * The index entry for a note this plugin has just trashed — dropped only while the index still
+ * points that id at that PATH.
+ *
+ * `ProjectIndex.remove` is keyed by ID, and by the time a delete reaches it the id may name a
+ * different file. `trashFile` raises Obsidian's own delete event; `VaultChangeAdapter` handles
+ * a delete immediately rather than on the debounce; and §5.1a's promotion then hands the
+ * vacated id to whichever note still claims it. An unconditional removal deletes exactly that
+ * promotion, so the surviving note stays unindexed — and unselectable, every read here
+ * resolving through the index — until the next full rebuild. That is one of the two orderings
+ * that made a duplicate resolved through the plugin never take effect; the other, where the
+ * event arrives after this line, is answered by the removal itself, because
+ * `ReconcilingProjectIndex.remove` promotes and the later event then finds no entry at the
+ * trashed path and does nothing.
+ *
+ * A function rather than four spellings of one `if`: this repository's own rule is that a
+ * question worth asking at one door is a function, and the moment it is spelled longhand the
+ * count of places it is missing is unknowable. All four note-backed deletes call it.
+ */
+export function forgetTrashedNote(index: ProjectIndex, id: EntityId<string>, path: string): void {
+	if (index.getPath(id) !== path) return;
+	index.remove(id);
+}

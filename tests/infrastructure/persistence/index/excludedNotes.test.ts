@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack } from '../../../helpers/vault';
-import { createEventBus, type DomainEvent } from '../../../../src/core/events/EventBus';
+import type { DomainEvent } from '../../../../src/core/events/EventBus';
 import type {
 	ProjectIndexEntryChanged,
 	ProjectIndexExclusionChanged,
@@ -42,7 +42,10 @@ const assetNote = (id: string): string => `type: renovation-asset\nid: ${id}`;
  * `projectIndex.events.ts` already states.
  */
 function wired(stack: ReturnType<typeof createRepositoryStack>) {
-	const bus = createEventBus(() => undefined);
+	// The STACK's bus, never a fresh one: the exclusion and promotion events come from the
+	// index the stack was built with (`ReconcilingProjectIndex`), so a private bus here would
+	// record only the pipeline's own entry announcements and read the silence as an absence.
+	const bus = stack.events;
 	const exclusions: ProjectIndexExclusionChangedPayload[] = [];
 	bus.subscribe('ProjectIndexExclusionChanged', (event: DomainEvent) => {
 		exclusions.push((event as ProjectIndexExclusionChanged).payload);

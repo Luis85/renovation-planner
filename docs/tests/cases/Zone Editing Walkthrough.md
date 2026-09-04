@@ -23,6 +23,21 @@ its steps 1–6, so there are zones to edit). This file is the **canonical proce
 Preconditions: `npm run test-build`, this folder open as a vault, the plugin enabled, and
 a plan with at least one zone (`Create sample renovation project` makes five).
 
+**AMENDMENT, 2026-09-05: the free-form polygon tool this case's creation steps use has NO
+DOOR in the Plan Editor, so steps 8 and 8b cannot be performed as written.** Two changes did
+it, and neither is a defect: the plan editor foundation deleted the toolbar those steps press
+(Select and Add float over the canvas now, Undo/Redo sit in a context bar, Calibrate is the
+Reference plan layer's **Set scale**), and the Add Room increment (2026-09-04) repointed
+Add ▸ Room from `'draw-polygon'` to `'draw-room'` — `DrawPolygonTool` is still registered in
+the `ToolManager` and reachable from no control at all. [[Add a room]] is the case for the
+gesture that replaced it. **Do not read a missing Draw zone button as a regression**; the
+trigger for rewriting these steps is the free-form-room PBI, which is what gives that tool a
+door again, and this note is deliberately not a rewrite — a step whose subject is a multi-click
+vertex buffer needs a surface to be performed on, and choosing one (the asset designer
+registers the same tool class) is a decision rather than a label fix. Every step that does not
+CREATE a zone — selection, dragging, vertex handles, undo/redo, the Inspector — is unaffected
+and still runs against a plan seeded by `Create sample renovation project`.
+
 **Why a human still matters here, after 1200 automated tests:** the review pass found
 Escape-cancels-drawing certified by an event sequence no mouse can produce, and two
 gestures whose feel was wrong at the default camera in ways only a hand on a mouse shows.
@@ -279,8 +294,11 @@ so nothing that fixed the list ever brought a reader here.
   behaviour, not a defect to file.
 - **Snapping.** `SnapService` is wired but this slice hands it no candidate geometry, so
   nothing visibly snaps yet — vertices land where the pointer lands.
-- **Zone names/types.** Every drawn zone is "Room", named "Zone N" — scaffolding until the
-  creation forms arrive. Those are slice 16's ALONE. Slice 15 built the dialog FRAMEWORK they
+- **Zone names/types.** Every created zone is typed "Room", and its default name is `Room N`
+  (`editor.room.default-name`, counted from the hydrated zones) — scaffolding until the
+  creation forms arrive. It read "Zone N" until the Add Room increment (2026-09-04) retired
+  `editor.zone.default-name`; the New room form that increment built asks for a name up front,
+  so the default is now only what an unnamed creation falls back to. Those are slice 16's ALONE. Slice 15 built the dialog FRAMEWORK they
   will be mounted in and no form of its own beyond the calibration prompt
   ([[Calibrate a Plan]]). Renaming is not wired.
 

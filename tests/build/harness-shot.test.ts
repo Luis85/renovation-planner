@@ -805,7 +805,21 @@ describe('the headless harness capture script', () => {
 	 * the DOM from the first render (a live region attributed on a container that APPEARS
 	 * announces nothing) and holds text only once both sides are committed. At 460 px the same
 	 * form lives in a drawer the knob closes behind itself, so nothing of it is on screen and
-	 * the banner's Finish is what proves the task is running.
+	 * the banner's Finish is what is left to wait on.
+	 *
+	 * **The narrow one is pinned WITH its attribute, and the bare class is what this refuses.**
+	 * `.rp-task-banner__finish` alone attaches the moment the knob arms `draw-room` — three
+	 * steps before it types a side or closes the drawer — so it certified the ARMING and not
+	 * the landing: the same "mounted vs. the knob actually landed" hazard the sibling case
+	 * above states, shipped inside the shot that states it. `[aria-disabled="false"]` is
+	 * `RoomDraftStore.valid` read through the one surface a closed drawer leaves on screen, and
+	 * dropping the attribute here is what puts the vacuous wait back.
+	 *
+	 * A SOURCE pin, so it holds only what `harness-shot.mjs` asks for. That the attribute really
+	 * reads `"false"` once the draft is valid is
+	 * `tests/presentation/editor/shell/temporaryToolBanner.test.ts`'s, against a real mount; that
+	 * the knob reaches that state is `tests/harness/planEditor.ts`'s; and that the PICTURE is
+	 * right is a capture read by eye, which nothing in this suite can do.
 	 */
 	it('takes the room task at both widths, through the ?room knob, waiting on what each width can show', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
@@ -813,7 +827,9 @@ describe('the headless harness capture script', () => {
 		expect(source).toMatch(/name: 'plan-editor-add-room'[^}]*query: '\?view=plan-editor&room=4200x3800/);
 		expect(source).toMatch(/name: 'plan-editor-add-room'[^}]*selector: '\.rp-new-room__settled:not\(:empty\)'/);
 		expect(source).toMatch(/name: 'plan-editor-add-room-narrow'[^}]*query: '\?view=plan-editor&room=4200x3800/);
-		expect(source).toMatch(/name: 'plan-editor-add-room-narrow'[^}]*selector: '\.rp-task-banner__finish'/);
+		expect(source).toMatch(
+			/name: 'plan-editor-add-room-narrow'[^}]*selector: '\.rp-task-banner__finish\[aria-disabled="false"\]'/,
+		);
 		expect(source).toMatch(/name: 'plan-editor-add-room-narrow'[^}]*width: 460/);
 	});
 

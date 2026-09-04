@@ -401,8 +401,35 @@ const SHOTS = [
 	// present from the first render (a `role="status"` attributed on a container that APPEARS
 	// announces nothing) and carries text only once both sides are committed, which is exactly
 	// "the knob landed" rather than "the form mounted". At 460px that form is inside a drawer
-	// the knob opens to type in and closes behind itself, so none of it is on screen: the
-	// banner's Finish is what is left, and it is the honest wait there.
+	// the knob opens to type in and closes behind itself, so none of it is on screen and the
+	// banner's Finish is what is left.
+	//
+	// **The BARE `.rp-task-banner__finish` was not a wait at all, and it shipped as one.** That
+	// button attaches the moment `activateCreationEntry('room', …)` arms `draw-room` — step 2
+	// of `enterRoomTaskOnceReady`, BEFORE it presses the rail's Details button, types either
+	// side or closes the drawer — and the knob is fire-and-forget, so nothing sequenced the two:
+	// this shot could photograph an unsized draft, or the drawer covering the very banner it
+	// exists to show. Exactly the "mounted vs. the knob actually landed" hazard the paragraph
+	// above states for its siblings, in the one shot that did not apply it.
+	//
+	// `[aria-disabled="false"]` is the discriminating form, and it is the same fact the wide
+	// shot waits on read through the one surface a closed drawer leaves on screen:
+	// `TemporaryToolBanner.vue` binds that attribute to `!runtime.canCreateRoom`, which is
+	// `RoomDraftStore.valid` — a placed rect, a non-empty name, no field refusal — so it reads
+	// `"false"` only once both sides have committed. Vue renders the boolean as the STRING
+	// `"true"`/`"false"` for an `aria-` attribute rather than dropping it, which that
+	// component's own header states and `tests/presentation/editor/shell/temporaryToolBanner.
+	// test.ts` asserts against a real mount.
+	//
+	// It proves the DRAWER is closed too, which nothing else reachable here can: `waitUntilReady`
+	// waits for `attached` and has no way to spell an absence. From the width commit to the
+	// drawer's close click the knob runs with NO `await`, so both reactive writes land in one
+	// Vue flush — the attribute cannot flip in a DOM that still holds the drawer.
+	//
+	// What it costs is named rather than hidden: this wait depends on a binding in a component
+	// no capture owns. If that binding changes, the shot TIMES OUT — a reported error and a
+	// non-zero exit — rather than photographing the wrong state, which is the loud direction of
+	// the two and the reason a dependency is acceptable here at all.
 	{
 		name: 'plan-editor-add-room',
 		query: '?view=plan-editor&room=4200x3800&theme=light',
@@ -411,7 +438,7 @@ const SHOTS = [
 	{
 		name: 'plan-editor-add-room-narrow',
 		query: '?view=plan-editor&room=4200x3800&theme=light',
-		selector: '.rp-task-banner__finish',
+		selector: '.rp-task-banner__finish[aria-disabled="false"]',
 		width: 460,
 	},
 	// A LIST rather than one selector (R14, 2026-09-04): the canvas alone attaches before the

@@ -23,8 +23,12 @@ export interface EmptyStateContent {
 	 * widening `PlanEditorContext` (slice 5's surface) or reaching for the global `app`, both
 	 * refused. `renovationProject.noProjects` is NOT an example of this any more — design
 	 * slice 16 built the form it hands off to, so it keeps the field like `planEditor.noZones`
-	 * does, whose hand-off (`activeToolId = 'draw-polygon'`) already existed and was reachable
-	 * from here. Design slice 21's `renovationProject.noPlans` is the third entry that carries
+	 * does, whose hand-off already existed and was reachable from here. That hand-off is
+	 * `activateCreationEntry('room', runtime)` since the Add Room increment (2026-09-04) —
+	 * `PlanEditorRoot.onEmptyStateAction`, the ONE door the Add menu's own Room item takes,
+	 * which arms `'draw-room'`. It said `activeToolId = 'draw-polygon'` here until that
+	 * increment, which had been true and named a tool no control in the Plan Editor reaches
+	 * any more. Design slice 21's `renovationProject.noPlans` is the third entry that carries
 	 * one, and it carried one from its first commit: `ProjectDetailState.onCreatePlan` opens
 	 * `NewPlanForm` in slice 15's `FormDialog` and dispatches the real `CreatePlanCommand`, so its button was
 	 * never the dead control slice 14's Amendment 1 refuses. Task B7 gave `assetDesigner.noBackground`
@@ -35,7 +39,11 @@ export interface EmptyStateContent {
 	 * `noAssets` hands off to the toolbar's own `New asset`, `noMatches` to clearing the search
 	 * field. So the count is SEVEN entries with a label and ONE without: `planEditor.noBackground`,
 	 * for the reason above. This sentence is that list, so an entry added without appearing in
-	 * it is the stale-comment defect this repository keeps paying for.
+	 * it is the stale-comment defect this repository keeps paying for — and the seven and the
+	 * one were RE-DERIVED from `EMPTY_STATE_CONTENT` below rather than carried forward, on
+	 * 2026-09-05, in the edit that corrected `noZones`'s hand-off above
+	 * (`grep -c "actionLabel: '"` prints 7 against `grep -c "headline: '"`'s 8). A count read off
+	 * the record is the only kind this paragraph is entitled to state.
 	 */
 	readonly actionLabel?: StringKey;
 }

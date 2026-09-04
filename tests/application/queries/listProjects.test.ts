@@ -13,6 +13,7 @@ import { InMemoryProjectRepository } from '../../../src/infrastructure/persisten
 import { err, isErr, isOk, ok } from '../../../src/core/result/Result';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
 import type { LibraryOverlaps } from '../../../src/application/ports/LibraryOverlaps';
+import type { ProjectListFacts } from '../../../src/application/ports/ProjectListFacts';
 import type { ProjectRepository } from '../../../src/application/ports/ProjectRepository';
 import { expectOk } from '../../helpers/domain';
 import { makeProject } from '../../helpers/entities';
@@ -32,11 +33,24 @@ const READ_FAILED: PersistenceError = {
  */
 const NO_OVERLAPS: LibraryOverlaps = { overlapping: () => [] };
 
+/**
+ * The Home surface's facts port, answering what the REAL adapter answers over an empty
+ * Project Index: one entry per id asked about, nothing counted and nothing dated. Honest for
+ * the same reason `NO_OVERLAPS` above is — these cases run against an in-memory repository
+ * with no vault and no index behind it — and NOT an empty map, because the port's contract is
+ * an entry per id and a stub breaking it would be a fake harsher than the real thing.
+ */
+const WORKED = '2026-08-14T00:00:00.000Z';
+
+const NO_FACTS: ProjectListFacts = {
+	factsFor: (ids) => new Map(ids.map((id) => [id, { planCount: 0, lastWorked: null }])),
+};
+
 describe('ListProjects', () => {
 	it('answers an empty list for a vault with no projects', async () => {
-		const result = await new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS).execute();
+		const result = await new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS, NO_FACTS).execute();
 
-		expect(isOk(result) && result.value).toEqual({ projects: [], unreadable: 0, overlapping: [] });
+		expect(isOk(result) && result.value).toEqual({ projects: [], unreadable: 0, overlapping: [], facts: new Map() });
 	});
 
 	/**
@@ -66,7 +80,7 @@ describe('ListProjects', () => {
 			listAll: () => Promise.resolve(err(READ_FAILED)),
 		};
 
-		const result = await new ListProjects(failing, NO_OVERLAPS).execute();
+		const result = await new ListProjects(failing, NO_OVERLAPS, NO_FACTS).execute();
 
 		expect(isErr(result) && result.error.code).toBe('project.read-failed');
 	});
@@ -78,7 +92,7 @@ describe('ListProjects', () => {
 		await repository.save(first, 'absent');
 		await repository.save(second, 'absent');
 
-		const result = await new ListProjects(repository, NO_OVERLAPS).execute();
+		const result = await new ListProjects(repository, NO_OVERLAPS, NO_FACTS).execute();
 
 		const listed = expectOk(result);
 		expect(listed.projects.map((p) => p.id)).toEqual(
@@ -109,9 +123,37 @@ describe('ListProjects', () => {
 			listAll: () => Promise.resolve(ok({ loaded: [], refused: 3 })),
 		};
 
-		const listed = expectOk(await new ListProjects(refusing, NO_OVERLAPS).execute());
+		const listed = expectOk(await new ListProjects(refusing, NO_OVERLAPS, NO_FACTS).execute());
 
 		expect(listed.projects).toEqual([]);
 		expect(listed.unreadable).toBe(3);
+	});
+
+	/**
+	 * The Home surface's two commissioned facts travel in the SAME read as the list and the
+	 * overlap markers — the pairing `overlapping` already argues for and this query now makes
+	 * twice: one read, one failure mode, rather than a second query needing a policy for "the
+	 * list loaded but the counts did not".
+	 *
+	 * Asserted on WHICH ids were asked about as well as on the answer, because a query passing
+	 * the wrong list — every project in the vault, say, rather than the ones it listed — reads
+	 * identically at the count.
+	 */
+	it('answers the row facts for exactly the projects it listed', async () => {
+		const repository = new InMemoryProjectRepository();
+		const project = makeProject({ name: 'Kitchen renovation' });
+		await repository.save(project, 'absent');
+		let asked: readonly string[] = [];
+		const facts: ProjectListFacts = {
+			factsFor: (ids) => {
+				asked = ids;
+				return new Map(ids.map((id) => [id, { planCount: 2, lastWorked: WORKED }]));
+			},
+		};
+
+		const listed = expectOk(await new ListProjects(repository, NO_OVERLAPS, facts).execute());
+
+		expect(asked).toEqual([project.id]);
+		expect(listed.facts.get(project.id)).toEqual({ planCount: 2, lastWorked: WORKED });
 	});
 });

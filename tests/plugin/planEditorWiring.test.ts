@@ -7,7 +7,8 @@
  * parameter, never a second wiring point somewhere else in the plugin.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createCompositionRoot, planEditorDeps, type VaultStack } from '../../src/plugin/composition-root';
+import { createCompositionRoot, type VaultStack } from '../../src/plugin/composition-root';
+import { planEditorDeps } from '../../src/plugin/planEditorDeps';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
 import { planBackgroundChanged } from '../../src/domain/plan/Plan.events';

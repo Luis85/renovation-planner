@@ -30,7 +30,8 @@
  * so no fault can be driven through it there.
  */
 import { describe, expect, it } from 'vitest';
-import { createCompositionRoot, planEditorDeps } from '../../src/plugin/composition-root';
+import { createCompositionRoot } from '../../src/plugin/composition-root';
+import { planEditorDeps } from '../../src/plugin/planEditorDeps';
 import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from '../../src/plugin/guardedServices';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { installObsidianDom } from '../helpers/dom';

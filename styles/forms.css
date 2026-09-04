@@ -108,10 +108,22 @@
  *
  * `outline-offset` is POSITIVE here and negative on the row: the row is edge-to-edge in the
  * pane, so an outside ring would be clipped, while this button is inset and has room.
+ *
+ * **Each selector names the ancestor the element ACTUALLY has, measured at the merge that moved
+ * one rather than carried over.** `.rp-project-list__open-library` sat in the HEADER when it was
+ * written and sits in the FOOT since main's list rewrite, so the old ancestor selected nothing;
+ * and `.rp-project-list__header .rp-project-list__create-asset` was dropped outright, because no
+ * element carries that class any more (`grep -rl` over `src/**\/*.vue` prints nothing). A focus
+ * ring that stops matching is invisible to every gate here — jsdom resolves no CSS — so the
+ * ancestor is checked in the edit that moves the element, or not at all.
+ *
+ * The note lives HERE rather than between the selectors, which is where it was first written:
+ * `lightningcss` refuses a comment inside a selector list (`Unexpected token Delim`), and the
+ * assembler parses this sheet with it, so the build failed outright. A comment CSS permits and
+ * this toolchain does not is one the toolchain decides.
  */
 .rp-project-list__header .rp-project-list__create:focus-visible,
-.rp-project-list__header .rp-project-list__create-asset:focus-visible,
-.rp-project-list__header .rp-project-list__open-library:focus-visible,
+.rp-project-list__foot .rp-project-list__open-library:focus-visible,
 .rp-view-aside .rp-view-aside__create-asset:focus-visible,
 .rp-view-aside .rp-view-aside__open-library:focus-visible {
 	outline: 2px solid var(--interactive-accent);
@@ -119,27 +131,36 @@
 }
 
 /*
- * The catalogue affordances that sit BESIDE the empty state, for the reason `ViewRoot`'s own
- * comment gives: an Asset needs no project, so a fresh vault must be able to build one; the
- * Asset library door (Task 11 review) joins `New asset` here for the identical reason on the
- * catalogue's read side.
+ * THE BASE THE FOOT LINE BUILDS ON (design spec §5, region 7) — muted and smaller text, which
+ * is what BOTH of this class's callers still take from it. NEITHER draws it bare any more:
+ * `ViewRoot`'s empty-state aside and `ProjectList`'s populated foot each carry
+ * `.rp-project-list__foot` alongside this class now (`grep -rn 'rp-view-aside"' src/` finds
+ * exactly those two elements), and that rule (`project-list.css`, imported after this one, same
+ * specificity) is what decides the padding and the alignment for both — it wins the cascade
+ * outright rather than merging with anything stated here. There is therefore no live caller for
+ * a centred default any more: an earlier draft of this comment claimed `.rp-view-aside` "centres
+ * it by default for the one caller that draws it bare", which stopped being true the moment the
+ * foot line gained this class too, and the `text-align: center` that claim was describing is
+ * gone rather than left to be found unreachable a second time.
  *
- * Centred under the empty state and muted, because both are genuinely secondary — the empty
- * state's own action is the sentence's verb and these are two second paths out of the same
- * screen. Neither is `.rp-empty-state__action`'s twin and neither must read as one.
+ * It is not `.rp-empty-state__action`'s twin and must not read as one.
  *
- * **`display: flex` with an explicit `gap`, found missing by a review round rather than by any
- * gate here.** Two adjacent `<button>`s on separate template lines compile with NO whitespace
- * node between them (Vue's default `whitespace: 'condense'` strips one that contains a
- * newline), Obsidian's own `button` rule carries no margin, and `text-align: center` alone does
- * nothing for two inline-flex siblings with nothing between them — so the two buttons rendered
- * touching, edge to edge, the exact `ZonePanelprototype` class of defect CLAUDE.md records: a
- * measurement no layout engine in this repository performs, invisible to jsdom and to every
- * gate here, caught only by compiling the template and reading the resulting vnode tree.
+ * **What the `display: flex` and the `gap` below are FOR, kept because the reason outlived the
+ * branch that found it.** Two adjacent `<button>`s on separate template lines compile with NO
+ * whitespace node between them — Vue's default `whitespace: 'condense'` strips one containing a
+ * newline — and Obsidian's own `button` rule carries no margin, so the empty state's `New asset`
+ * and `Assets` rendered touching, edge to edge. Same class of defect as the harness index's
+ * `ZonePanelprototype`: a measurement no layout engine in this repository performs, invisible to
+ * jsdom and to every gate here, found by compiling the template and reading the vnode tree.
+ *
+ * `justify-content` is the one declaration here that is now DEAD for both live callers, and it
+ * is left OUT rather than kept as decoration: `.rp-project-list__foot`'s `space-between` wins
+ * the cascade at equal specificity from the later file, so a `center` stated here would describe
+ * a layout nothing draws — which is the exact defect the paragraph above records being cleaned
+ * up once already.
  */
 .rp-view-aside {
 	display: flex;
-	justify-content: center;
 	align-items: center;
 	gap: var(--size-4-2);
 	margin: 0;

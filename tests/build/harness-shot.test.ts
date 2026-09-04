@@ -565,28 +565,35 @@ describe('the headless harness capture script', () => {
 	});
 
 	/**
-	 * **NO NUMBER, in the name or anywhere else, and BOTH DIRECTIONS.** This case was called *the
-	 * fifteen fixed shots* and listed fifteen while `SHOTS` held seventeen: the two
-	 * `project-detail-prices` captures were added without it, so the pair this case exists to
-	 * protect was the pair it could not see, and the stale total read as a deliberate subset
-	 * rather than as an omission. `main` fixed the same defect independently and its own name
-	 * still carried *twenty-one*, which this merge drops for the reason both sides had already
-	 * discovered separately.
+	/**
+	 * **NO NUMBER IN THE NAME, BOTH DIRECTIONS, AND TWO INSTRUMENTS.** Every clause of that was
+	 * paid for separately, and the last two came from opposite sides of this merge.
 	 *
-	 * **Dropping the number was half a fix, and the half that was left is what let the defect
-	 * happen.** A `for (name of […]) expect(source).toContain(…)` loop proves *at least these*,
-	 * so a shot added to `SHOTS` and not listed here stays green — which is exactly how
-	 * `project-detail-prices` landed unpinned, and it stayed true of the corrected list. Measured
-	 * rather than argued: appending `{ name: 'zzz-unlisted', query: '?index', selector:
-	 * HARNESS_INDEX }` to `SHOTS` left this file entirely green under the `toContain` form and
-	 * reddens HERE under the set comparison below.
+	 * This case was *the fifteen fixed shots* against seventeen entries on one branch and
+	 * *the eighteen* against twenty on the other; each was internally consistent, because a
+	 * hand-written list cannot notice a name that was never in it. Both branches independently
+	 * replaced it with a DERIVATION from the `SHOTS` source, and neither branch's derived list
+	 * described the merged array: each had appended to a different part of it, so
+	 * `harness-shot.mjs` merged cleanly at THIRTY-FIVE while the assertion about it conflicted.
+	 * The list below was re-derived from the array at the merge, not resolved from either side.
 	 *
-	 * So the names are DERIVED from the script and the two sets are compared. TWO independent
-	 * narrowings, one from each branch: the slice is bounded to the `SHOTS` array itself
-	 * (`main`'s, structural), and `withoutCommentary` runs first so a `name: '…'` written inside
-	 * a docblock — including one INSIDE that array — cannot join the census (ours, lexical).
-	 * Neither subsumes the other, and an instrument that would start counting prose is the shape
+	 * **Why a set comparison and not a loop.** `for (name of […]) expect(source).toContain(…)`
+	 * proves *at least these*, so a shot added to `SHOTS` and not listed here stays green —
+	 * which is exactly how `project-detail-prices` landed unpinned. Measured rather than argued:
+	 * appending `{ name: 'zzz-unlisted', query: '?index', selector: HARNESS_INDEX }` to `SHOTS`
+	 * left this file entirely green under the `toContain` form and reddens here.
+	 *
+	 * **Why TWO narrowings on the slice**, one from each branch and neither subsuming the other:
+	 * the slice is bounded to the `SHOTS` array itself (structural), and `withoutCommentary`
+	 * runs first so a `name: '…'` written inside a docblock — including one INSIDE that array —
+	 * cannot join the census (lexical). An instrument that starts counting prose is the shape
 	 * this block has now paid for twice.
+	 *
+	 * **Why a WHOLE-FILE count beside it**, which is the other branch's instrument and asks a
+	 * question the first cannot: the derivation sees only inside `SHOTS`, so an entry written
+	 * outside that array — a second array, or one moved out — is invisible to it. It is taken
+	 * over the commentary-stripped source for the same reason the slice is, which is the one
+	 * change either instrument needed to survive being put beside the other.
 	 */
 	it('defines exactly the fixed shots this file lists, in both directions', () => {
 		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
@@ -597,38 +604,47 @@ describe('the headless harness capture script', () => {
 
 		const declared = [...shotsBlock.matchAll(/name: '([a-z0-9-]+)'/g)].map((match) => match[1]);
 
-		expect(declared.toSorted()).toEqual(
-			[
-				'asset-designer-dark',
-				'asset-designer-light',
-				'asset-designer-narrow',
-				'asset-library-actions',
-				'asset-library-dark',
-				'asset-library-light',
-				'asset-library-middle',
-				'asset-library-narrow',
-				'asset-library-narrow-selected',
-				'asset-library-selected',
-				'dark',
-				'index-dark',
-				'index-failure',
-				'index-focus',
-				'index-focus-current',
-				'index-light',
-				'light',
-				'phone',
-				'plan-editor-add-menu',
-				'plan-editor-dark',
-				'plan-editor-light',
-				'plan-editor-narrow',
-				'plan-editor-selected',
-				'plan-editor-unsupported',
-				'project-detail',
-				'project-detail-narrow',
-				'project-detail-prices',
-				'project-detail-prices-narrow',
-			].toSorted(),
-		);
+		expect(declared.toSorted()).toEqual([
+			'asset-designer-dark',
+			'asset-designer-light',
+			'asset-designer-narrow',
+			'asset-library-actions',
+			'asset-library-dark',
+			'asset-library-light',
+			'asset-library-middle',
+			'asset-library-narrow',
+			'asset-library-narrow-selected',
+			'asset-library-selected',
+			'dark',
+			'home-filter-focus',
+			'home-no-match-narrow',
+			'home-stress',
+			'home-stress-de',
+			'home-stress-light',
+			'home-stress-narrow',
+			'home-whole',
+			'index-dark',
+			'index-failure',
+			'index-focus',
+			'index-focus-current',
+			'index-light',
+			'light',
+			'phone',
+			'plan-editor-add-menu',
+			'plan-editor-dark',
+			'plan-editor-light',
+			'plan-editor-narrow',
+			'plan-editor-selected',
+			'plan-editor-unsupported',
+			'project-detail',
+			'project-detail-narrow',
+			'project-detail-prices',
+			'project-detail-prices-narrow',
+		]);
+
+		// The whole FILE, not the sliced block — see the header. A shot entry written outside
+		// `SHOTS` is invisible to the derivation above and fails here instead.
+		expect(source.match(/name: '/gu)?.length).toBe(declared.length);
 	});
 
 	/**

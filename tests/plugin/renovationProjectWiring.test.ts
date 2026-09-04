@@ -37,6 +37,7 @@ import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
 import { settle } from '../helpers/async';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 import type { revealView as RevealViewFn } from '../../src/infrastructure/obsidian/workspace/revealView';
+import type { ContinueContext } from '../../src/application/continueContext';
 
 // `loadedPlugin()` (the 'the registered view factory' cases below) builds the plugin's own
 // REAL console logger — `recorder`/`lines` only see it through this mock, the same one
@@ -111,6 +112,8 @@ function refusingDeps(): RenovationProjectDeps {
 		projectId: null,
 		navigate: () => undefined,
 		indexScanCompleted: () => true,
+		continueContext: () => Promise.resolve(null),
+		rememberContinue: () => undefined,
 	});
 }
 
@@ -137,6 +140,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 		const listener = vi.fn<() => void>();
 
@@ -159,6 +164,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 		const listener = vi.fn<() => void>();
 
@@ -175,6 +182,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 		const result = await deps.queries.listProjects();
 
@@ -195,6 +204,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 		const result = await deps.queries.listProjects();
 
@@ -218,6 +229,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 
 		const found = await deps.queries.getProject(saved.entity.id);
@@ -239,6 +252,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 
 		expect(deps.commands.createProject).toBe(root.persistence?.createProject);
@@ -263,6 +278,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 		const created = await deps.commands.createPlan.execute({ projectId: project.entity.id, name: 'Ground floor' });
 		const plans = await deps.queries.listPlansByProject(project.entity.id);
@@ -308,6 +325,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 		await deps.openProject('project-1');
 
@@ -332,6 +351,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 		await expect(deps.openProject('project-1')).resolves.toBe('failed');
 
@@ -353,6 +374,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 
 		await expect(deps.openPlan('plan-1')).resolves.toBeUndefined();
@@ -374,6 +397,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 
 		await expect(deps.openAsset('asset-1')).resolves.toBeUndefined();
@@ -396,6 +421,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 
 		await expect(deps.openProject('project-1')).resolves.toBe('missing');
@@ -432,6 +459,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 
 		// `'failed'`, not `'missing'`: the id DID resolve, so the list behind the row is not
@@ -472,6 +501,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 
 		// Both in the same tick, which is what a double click IS: the second call finds the
@@ -495,6 +526,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 		const heard = vi.fn<() => void>();
 		deps.onPlansChanged('project-01JAAA', heard);
@@ -524,6 +557,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 
 		await deps.openPlan('plan-01JXXX');
@@ -543,6 +578,8 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 
 		await deps.openAsset('asset-01JXXX');
@@ -570,12 +607,45 @@ describe('the renovation project dependencies', () => {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
+			// Task 10's pair, REQUIRED by that signature and supplied as stubs here: this case
+			// is about `openAssetLibrary` alone, and the case below is what asserts these two
+			// are passed straight through. Stated rather than defaulted, per the reason that
+			// signature's own comment gives for making them required.
+			continueContext: () => Promise.resolve(null),
+			rememberContinue: () => undefined,
 		});
 
 		deps.openAssetLibrary();
 		await settle();
 
 		expect(revealViewSpy).toHaveBeenCalledWith(expect.objectContaining({ workspace }), ASSET_LIBRARY_VIEW);
+	});
+
+	/**
+	 * Task 10's pair, passed straight through — the same shape `indexScanCompleted` above
+	 * already takes and for the same reason: this function composes what `persistence` can
+	 * decide, and the Continue store is the CALLER's to own (the plugin's), never `persistence`'s
+	 * — asserted with settings unrecovered too, since a session with no repository can still
+	 * remember and restore where the user was.
+	 */
+	it.each([
+		['with persistence composed', DEFAULT_SETTINGS],
+		['with settings unrecovered', null],
+	])('passes continueContext and rememberContinue straight through, %s', (_what, settings) => {
+		const continueContext = vi.fn<() => Promise<ContinueContext | null>>().mockResolvedValue(null);
+		const rememberContinue = vi.fn<(context: ContinueContext) => void>();
+		const root = createCompositionRoot(settings, recorder, vaultStack());
+
+		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault, {
+			projectId: null,
+			navigate: () => undefined,
+			indexScanCompleted: () => true,
+			continueContext,
+			rememberContinue,
+		});
+
+		expect(deps.continueContext).toBe(continueContext);
+		expect(deps.rememberContinue).toBe(rememberContinue);
 	});
 });
 
@@ -649,5 +719,45 @@ describe('the registered view factory', () => {
 		const logged = lines.find((line) => line.event === 'view.project.reveal-failed');
 		expect(logged?.level).toBe('error');
 		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('disk exploded');
+	});
+
+	/**
+	 * Task 10's plugin-level half: `continueContext`/`rememberContinue` reach a REAL
+	 * `ContinueContextStore` over `this.app.loadLocalStorage`/`saveLocalStorage`, proved by a
+	 * round trip rather than by the members merely existing — this file's own header states
+	 * why: a composition that forgot to wire the store would still compile and every OTHER
+	 * case here would still pass.
+	 */
+	it('remembers and restores a context through the real store', async () => {
+		const { loadedPlugin } = await import('../helpers/plugin');
+		const { plugin } = await loadedPlugin();
+		const deps = (plugin as unknown as { projectViewDeps(leaf: unknown): RenovationProjectDeps }).projectViewDeps(
+			new FakeLeaf(),
+		);
+
+		deps.rememberContinue({ projectId: 'project-1', planId: 'plan-1' });
+
+		await expect(deps.continueContext()).resolves.toEqual({ projectId: 'project-1', planId: 'plan-1' });
+	});
+
+	/**
+	 * ONE store per session, the `markerStore` reason stated where the field is declared: the
+	 * storage key it points at survives root swaps, so a store rebuilt per call would still
+	 * pass the round-trip case above and fail this one — a fresh store starts with nothing
+	 * written. Proved by writing through the bundle built for one leaf and reading through the
+	 * bundle built for a second, across a settings save.
+	 */
+	it('remembers through one store shared across leaves and settings saves', async () => {
+		const { loadedPlugin } = await import('../helpers/plugin');
+		const { plugin } = await loadedPlugin();
+		const bundle = plugin as unknown as { projectViewDeps(leaf: unknown): RenovationProjectDeps };
+
+		bundle.projectViewDeps(new FakeLeaf()).rememberContinue({ projectId: 'project-1', planId: null });
+		await plugin.saveSettings({ projectFolder: 'Somewhere else' });
+
+		await expect(bundle.projectViewDeps(new FakeLeaf()).continueContext()).resolves.toEqual({
+			projectId: 'project-1',
+			planId: null,
+		});
 	});
 });

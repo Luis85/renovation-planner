@@ -7,6 +7,14 @@ import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from './app-id-prefix';
 
 /**
+ * The one member `ViewRoot.vue`'s `defineExpose` puts on the mounted root — what `<script
+ * setup>`'s single `defineExpose({ openNewProjectDialog: onCreateProject })` line makes
+ * reachable from outside the Vue tree. Named here rather than left as an inline literal type
+ * at its two use sites (the field and the cast), so a second exposed member is one edit.
+ */
+type ViewRootProxy = { openNewProjectDialog: () => Promise<void> };
+
+/**
  * The workspace view the SDD names first (§11): the project surface.
  *
  * The view TYPE is persisted by Obsidian in the workspace layout, so it is data rather
@@ -212,6 +220,31 @@ export class RenovationProjectView extends ItemView {
 	private mountedProjectId: string | null = null;
 
 	/**
+	 * The one member `ViewRoot.vue`'s `defineExpose` puts on the mounted root — `<script
+	 * setup>` exposes NOTHING by default (`grep -c defineExpose src/presentation/views/
+	 * ViewRoot.vue` answers 1, and that one line is the whole of this class's route in), so
+	 * this is the SHAPE of what `app.mount(...)` returns rather than the type Vue itself gives
+	 * it. `null` between a close and the next open, mirroring `vueApp` — a call in through a
+	 * stale proxy would reach a torn-down tree's own `onCreateProject`, closing over the
+	 * composition root `rebind` exists to retire.
+	 */
+	private root: ViewRootProxy | null = null;
+
+	/**
+	 * The palette command's door in: `new-project` reveals this view and calls this, which
+	 * forwards to the Vue tree's existing `onCreateProject` handler — the same one the pane's
+	 * own header button and empty-state action already dispatch through, so this adds a door
+	 * to the view rather than a second way to open the form.
+	 *
+	 * A no-op while nothing is mounted (a closed leaf, or one `rebind` has not yet remounted):
+	 * `RenovationPlannerPlugin.newProject` only reaches a leaf `revealView` has just shown, so
+	 * this is defensive rather than a path expected to fire in production.
+	 */
+	async openNewProjectDialog(): Promise<void> {
+		await this.root?.openNewProjectDialog();
+	}
+
+	/**
 	 * Whether anything is mounted at all — and it is NOT redundant with
 	 * `mountedProjectId !== null`. `null` is the list, a real state, so without this flag a
 	 * first open (`null === null`) is skipped by the guard and the pane draws nothing.
@@ -288,7 +321,10 @@ export class RenovationProjectView extends ItemView {
 		// that mattered.
 		app.provide(RENOVATION_PROJECT_CONTEXT, { ...this.deps, projectId });
 		// Onto `contentEl` itself, with no wrapper — see the class docblock's height chain.
-		app.mount(this.contentEl);
+		// Vue types `app.mount(...)`'s return as the generic `ComponentPublicInstance`, and
+		// `<script setup>`'s own exposed shape is not recoverable from that type — one cast,
+		// confined to this line, rather than one at every later `this.root` read.
+		this.root = app.mount(this.contentEl) as unknown as ViewRootProxy;
 		this.vueApp = app;
 		this.mountedProjectId = projectId;
 		this.mounted = true;
@@ -297,6 +333,10 @@ export class RenovationProjectView extends ItemView {
 	private unmount(): void {
 		this.vueApp?.unmount();
 		this.vueApp = null;
+		// Obsidian REUSES a view, so a retained proxy from a torn-down tree is a handler
+		// closing over the composition root `rebind` exists to retire — the same hazard
+		// `ViewRoot`'s own dialog-settling comment records.
+		this.root = null;
 		this.mountedProjectId = null;
 		this.mounted = false;
 	}

@@ -38,6 +38,12 @@ const PROJECT: ProjectSummaryDto = {
 	status: 'IDEA',
 	currency: 'GBP',
 	libraryOverlap: false,
+	// The Home surface's two row facts, required on the DTO since that surface landed. Zero
+	// and null because this file is about the PRICE section: nothing here draws a plan count
+	// or a last-worked stamp, so a fixture stating anything else would be asserting about a
+	// surface these cases never mount.
+	planCount: 0,
+	lastWorked: null,
 };
 
 function money(amount: string, currency = 'GBP'): Money {

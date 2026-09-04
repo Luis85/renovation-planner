@@ -39,9 +39,20 @@ function mountWith(projects: readonly ProjectSummaryDto[]) {
 }
 
 describe('ViewRoot, opening the asset library from the project list', () => {
-	it('reaches context.openAssetLibrary from the list header, and opens nothing else', async () => {
+	// FOOT LINE, not header — `main`'s list rewrite moved `New asset` there and this control
+	// followed it, which is where §2 places it (beside `New asset`, wherever that is). The name
+	// said header until the merge that moved it; the selector never changed, so nothing failed.
+	it('reaches context.openAssetLibrary from the list foot line, and opens nothing else', async () => {
 		const { wrapper, openAssetLibrary } = mountWith([
-			{ id: 'p1', name: 'Kitchen', status: 'IDEA', currency: 'EUR', libraryOverlap: false },
+			{
+				id: 'p1',
+				name: 'Kitchen',
+				status: 'IDEA',
+				currency: 'EUR',
+				libraryOverlap: false,
+				planCount: 0,
+				lastWorked: null,
+			},
 		]);
 		await flushPromises();
 		expect(wrapper.find('.rp-project-list').exists()).toBe(true);

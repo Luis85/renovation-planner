@@ -176,7 +176,7 @@ function detailDeps(over: {
 			...base.queries,
 			getProject: () =>
 				Promise.resolve(
-					ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false }),
+					ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null }),
 				),
 			listPlansByProject: () => Promise.resolve(ok({ plans: over.plans, unreadable: 0 })),
 			listAssetPrices:
@@ -304,10 +304,13 @@ describe('axe against the mounted view', () => {
 	 * project rather than merely naming it.
 	 *
 	 * The case above grades the EMPTY state and can never reach a row: `mountHarness` takes no
-	 * `deps`, so its list is empty by construction. This one hands `makeView` a list holding one
-	 * marked project — rather than exposing the helper's own `IndexLibraryOverlaps`, which is
-	 * built over an empty `InMemoryProjectIndex` and so is incapable of answering "overlapping"
-	 * at all. What is graded is the marker's MARKUP, which is what axe can see at this file's
+	 * `deps`, so its list is empty by construction. This one hands `makeView` a list holding TWO
+	 * projects — one marked, one COMPLETE — rather than exposing the helper's own
+	 * `IndexLibraryOverlaps`, which is built over an empty `InMemoryProjectIndex` and so is
+	 * incapable of answering "overlapping" at all. The second project is what makes the
+	 * `Completed` disclosure render at all, and Task 12 added it with the assertion that needs
+	 * it; the fixture is now the smallest one that puts every graded region in the scanned DOM
+	 * at once, which is what stops any of those assertions quietly reaching nothing. What is graded is the marker's MARKUP, which is what axe can see at this file's
 	 * ceiling; the mark itself is CSS-drawn and jsdom resolves no CSS, so the "mark and a word"
 	 * contract is held by `projectListOverlap.test.ts` against the stylesheet instead.
 	 *
@@ -336,7 +339,16 @@ describe('axe against the mounted view', () => {
 				listProjects: () =>
 					Promise.resolve(
 						ok({
-							projects: [{ id: 'p1', name: 'Kitchen refit', status: 'IDEA', currency: 'EUR', libraryOverlap: true }],
+							projects: [
+								{ id: 'p1', name: 'Kitchen refit', status: 'IDEA', currency: 'EUR', libraryOverlap: true, planCount: 0, lastWorked: null },
+								// A COMPLETE project, so the `Completed` disclosure actually renders —
+								// `isCompleted` files exactly `COMPLETE` and `AS_BUILT` into it, and the
+								// assertion below is worthless without one in the list. It also carries
+								// real facts where `p1` carries none, so the row's facts slot is in the
+								// scanned DOM in both of its shapes: a project with plans and one
+								// without, which §8's content rule renders differently on purpose.
+								{ id: 'p2', name: 'Loft conversion', status: 'COMPLETE', currency: 'EUR', libraryOverlap: false, planCount: 6, lastWorked: '2026-08-01T00:00:00.000Z' },
+							],
 							unreadable: 0,
 						}),
 					),
@@ -353,6 +365,21 @@ describe('axe against the mounted view', () => {
 
 		expect(view.contentEl.querySelector('.rp-project-list__row')).not.toBeNull();
 		expect(view.contentEl.querySelector('.rp-project-list__overlap')).not.toBeNull();
+		// THE FILTER, asserted present for the reason the empty-state cases assert
+		// `.rp-empty-state__action`: a populated list draws it (the guard is
+		// `projects.length > 0`), it is this surface's only text input, and its accessible name
+		// comes from a visually-hidden `<label>` — which is precisely the shape a scan grades
+		// and a green `violations: []` is equally true of a subtree that has no input in it.
+		expect(view.contentEl.querySelector('.rp-project-filter__input')).not.toBeNull();
+		// THE COLLAPSED GROUP, for the same reason and one more of its own. Same reason: a green
+		// `violations: []` is equally true of a subtree that has no disclosure in it, and this
+		// group has real semantics to grade — a native `<details>`/`<summary>` whose expanded
+		// state the HOST announces, carrying an `<h3>` INSIDE the summary so the heading order
+		// (`<h2>` then `<h3>`) that §11 asks for is unbroken for a group whose contents are
+		// hidden by default. Its own: it renders under a `v-if` on `completed.length > 0`, so it
+		// is present only because this fixture was given a completed project — an assertion that
+		// would silently stop reaching anything if that row were ever dropped.
+		expect(view.contentEl.querySelector('.rp-project-list__completed')).not.toBeNull();
 		expect(results.violations).toEqual([]);
 		await view.onClose();
 	});

@@ -3,10 +3,8 @@ import { createEventBus, type EventBus } from '../core/events/EventBus';
 import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
-import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
 import { createProjectPricesChangeSource } from '../application/events/projectPricesChangeSource';
-import { createRequirementFiguresChangeSource } from '../application/events/requirementFiguresChangeSource';
 import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
 import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
@@ -16,7 +14,6 @@ import type { CreateProjectInput, CreateProjectError } from '../application/comm
 import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
 import type { CreateZoneInput, CreateZoneError } from '../application/commands/zone/CreateZone';
 import { DeleteZoneCommand } from '../application/commands/zone/DeleteZone';
-import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
 import { ReversibleSetPlanBackgroundCommand } from '../application/commands/plan/ReversibleSetPlanBackground';
 import { SetPlanBackgroundCommand } from '../application/commands/plan/SetPlanBackground';
 import type {
@@ -26,24 +23,21 @@ import type {
 } from '../application/commands/plan/SetPlanBackground';
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import type { LibraryOverlaps } from '../application/ports/LibraryOverlaps';
+import type { ProjectListFacts } from '../application/ports/ProjectListFacts';
 import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
-import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
-import { createVaultFileChangeSource } from '../infrastructure/obsidian/vault/vaultFileChanges';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { RecalculateRequirementCommand } from '../application/commands/requirement/RecalculateRequirement';
 import {
 	createPlanEditorQueries,
-	unavailablePlanEditorQueries,
 	type PlanEditorQueryServices,
 } from '../presentation/read-models/planEditorQueries';
-import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
-import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
 import {
 	createRenovationProjectQueries,
 	unavailableRenovationProjectQueries,
 } from '../presentation/read-models/renovationProjectQueries';
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
+import type { ContinueContext } from '../application/continueContext';
 import {
 	renovationProjectOpenAsset,
 	renovationProjectOpenAssetLibrary,
@@ -81,7 +75,6 @@ import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/di
 import {
 	VAULT_EXCEPTION_MAPPER,
 	guardAssetDesign,
-	guardCalibratePlan,
 	guardSlice10,
 	guardedEditorServices,
 	type GuardedAssetDesignServices,
@@ -223,6 +216,14 @@ export interface PersistenceServices
 	 * compared. One instrument, so the two surfaces cannot disagree about one project.
 	 */
 	readonly overlaps: LibraryOverlaps;
+	/**
+	 * The Home surface's plan count and last-worked time (§8), exposed for the reason
+	 * `overlaps` states one field up and answered by the same instrument at both doors:
+	 * `ListProjects` takes it for the list, and `createRenovationProjectQueries` takes it so
+	 * the single-project door states facts it actually asked for rather than a zero it never
+	 * counted.
+	 */
+	readonly listFacts: ProjectListFacts;
 	readonly defaultCurrency: Currency;
 	/**
 	 * The read side the Plan Editor actually consumes: slice 4's queries mapped into
@@ -346,7 +347,7 @@ function composeGuarded(
 	files: VaultFileProbe,
 	diagnostics: { versions: RuntimeVersions; migrations: MigrationRunner; ledger: DiagnosticsLedger },
 ) {
-	const { projects, plans, zones, assets, assetGeometry, requirements, overlaps, defaultCurrency, overrides } =
+	const { projects, plans, zones, assets, assetGeometry, requirements, overlaps, listFacts, defaultCurrency, overrides } =
 		repositories;
 	const { events: eventBus, logger, recalculate, locks, markers, index } = wiring;
 	const map = VAULT_EXCEPTION_MAPPER;
@@ -362,7 +363,7 @@ function composeGuarded(
 	});
 	const editor = guardedEditorServices(
 		{ projects, plans, zones, deleteZone },
-		{ eventBus, files, logger, map, overlaps },
+		{ eventBus, files, logger, map, overlaps, listFacts },
 		diagnostics,
 	);
 	// Task 5's repository is what these needed; nothing else is built here beyond the two
@@ -489,6 +490,7 @@ export function createCompositionRoot(
 			locks,
 			files,
 			overlaps: repositories.overlaps,
+			listFacts: repositories.listFacts,
 			defaultCurrency: repositories.defaultCurrency,
 			...guarded,
 			planEditorQueries: createPlanEditorQueries({
@@ -509,78 +511,6 @@ export function createCompositionRoot(
 				events: eventBus,
 			}),
 		},
-	};
-}
-
-/**
- * The Plan Editor's own dependency bundle, assembled from a composed root.
- *
- * A function rather than another `CompositionRoot` field, because it needs the
- * `Workspace` — which is not part of the vault stack the persistence layer reads through —
- * and because it answers `null` for a session with no persistence at all: with settings
- * unrecovered there is no query service to hand a view, so registering one that would
- * draw an empty pane is worse than not being able to open it.
- */
-export function planEditorDeps(
-	root: CompositionRoot,
-	workspace: Workspace,
-	vault: Vault,
-): PlanEditorDeps {
-	const persistence = root.persistence;
-	return {
-		// TOTAL rather than nullable, and that is the point: with settings unrecovered there
-		// is no query service to hand over, so the view is handed one that REFUSES and shows
-		// the same failed state it shows for any unreadable plan. The alternatives were a
-		// nullable dependency every caller has to branch on, or not registering the view at
-		// all — which would leave a restored Plan Editor leaf pointing at a view type
-		// Obsidian does not know.
-		queries: persistence?.planEditorQueries ?? unavailablePlanEditorQueries(),
-		commands: persistence
-			? {
-					createZone: persistence.createZone,
-					moveObject: persistence.moveZone,
-					deleteZone: persistence.deleteZone,
-					zones: persistence.zones,
-					// The real bus, so the reversible adapters constructed from this bundle can
-					// finally publish what their undo and redo write.
-					events: root.eventBus,
-					zoneInspector: persistence.zoneInspector,
-					requirementEdits: {
-						// The GUARDED services, not the composed classes: the adapters take
-						// structural doors (`Command`, `…Door`) precisely so a wrapper can
-						// stand where the class used to, which is what puts these three
-						// inside the Error Boundary instead of beside it.
-						assignAsset: persistence.assignAsset,
-						setQuantityOverride: persistence.setRequirementQuantityOverride,
-						setCostOverride: persistence.setRequirementCostOverride,
-						requirements: persistence.requirements,
-						assets: persistence.assets,
-						locks: persistence.locks,
-					},
-					// The LEAF's logger, beside the bundles rather than inside one of them:
-					// a failed compensation inside a reversible adapter's undo writes to it,
-					// and so does `notifyFault` at the two raw-port fault doors in
-					// `runtime.ts` — and the second of those is not about requirement edits.
-					logger: root.logger,
-					// A new command per call — see `CalibratePlanTransaction` — and GUARDED
-					// per call, because the factory is the only door this one has: it never
-					// passes through `PersistenceServices`, so `composeGuarded` cannot reach
-					// it, and the tool's dispatch path has no `.catch` of its own.
-					calibratePlan: () =>
-						guardCalibratePlan(
-							new ReversibleCalibratePlanCommand(persistence.plans, persistence.geometry, root.eventBus),
-							root.logger,
-							VAULT_EXCEPTION_MAPPER,
-						),
-				}
-			: unavailablePlanEditorCommands(),
-		vault,
-		onThemeChange: createThemeChangeSource(workspace),
-		onPlanChanged: createPlanChangeSource(root.eventBus),
-		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
-		onProjectPricesChanged: createProjectPricesChangeSource(root.eventBus),
-		onRequirementFiguresChanged: createRequirementFiguresChangeSource(root.eventBus),
-		onVaultFileChanged: createVaultFileChangeSource(vault),
 	};
 }
 
@@ -616,10 +546,15 @@ export function planEditorDeps(
  *
  * `options` carries what only the CALLER can know — `projectId` is the view's own field,
  * `navigate` is bound to `navigateToProject` one caller up (this function may not import
- * Obsidian's own `notifyFault`-mapped `reportFault` shape twice), and `indexScanCompleted`
- * reads a session-scoped flag the plugin owns. A default here would let a composition forget
- * one and still compile — the same self-declared shape this repository already refuses, and
- * the reason Task 3's own wiring case grows an explicit fourth argument instead.
+ * Obsidian's own `notifyFault`-mapped `reportFault` shape twice), `indexScanCompleted`
+ * reads a session-scoped flag the plugin owns, and `continueContext`/`rememberContinue`
+ * (Task 10) reach the plugin's own `ContinueContextStore` the identical way — this function
+ * may not import `infrastructure/obsidian/plugin-data/` and reach for `App` itself, since it
+ * takes `Workspace` and `Vault` rather than the whole app, and neither depends on
+ * `persistence` the other members above it do (a session with unrecovered settings can still
+ * remember and restore where the user was). A default here would let a composition forget one
+ * and still compile — the same self-declared shape this repository already refuses, and the
+ * reason Task 3's own wiring case grows an explicit fourth argument instead.
  */
 export function renovationProjectDeps(
 	root: CompositionRoot,
@@ -629,6 +564,14 @@ export function renovationProjectDeps(
 		projectId: string | null;
 		navigate: (projectId: string | null) => void;
 		indexScanCompleted: () => boolean;
+		/**
+		 * The Continue context and its writer — plugin-local, per-device state Task 10 composes
+		 * over `App.loadLocalStorage`/`saveLocalStorage`, independent of `persistence`
+		 * (`RenovationPlannerPlugin` owns the store; this function only carries it through, the
+		 * same shape `indexScanCompleted` above already takes).
+		 */
+		continueContext: () => Promise<ContinueContext | null>;
+		rememberContinue: (context: ContinueContext) => void;
 	},
 ): RenovationProjectDeps {
 	const persistence = root.persistence;
@@ -636,6 +579,8 @@ export function renovationProjectDeps(
 		projectId: options.projectId,
 		navigate: options.navigate,
 		indexScanCompleted: options.indexScanCompleted,
+		continueContext: options.continueContext,
+		rememberContinue: options.rememberContinue,
 		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve(),
 		openAsset: persistence ? renovationProjectOpenAsset(workspace, root.logger) : () => Promise.resolve(),
 		// UNCONDITIONAL, persistence or not — `onProjectsChanged`'s own reason two screens down:
@@ -653,13 +598,14 @@ export function renovationProjectDeps(
 		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
 		onProjectPricesChanged: createProjectPricesChangeSource(root.eventBus),
 		queries: persistence
-			? createRenovationProjectQueries(
-					persistence.listProjects,
-					persistence.queries.getProject,
-					persistence.listPlansByProject,
-					persistence.overlaps,
-					persistence.listProjectAssetPrices,
-				)
+			? createRenovationProjectQueries({
+					listProjects: persistence.listProjects,
+					getProject: persistence.queries.getProject,
+					listPlansByProject: persistence.listPlansByProject,
+					overlaps: persistence.overlaps,
+					facts: persistence.listFacts,
+					listAssetPrices: persistence.listProjectAssetPrices,
+				})
 			: unavailableRenovationProjectQueries(),
 		// `renovationProjectCommandBundle` is the same line-budget extraction
 		// `renovationProjectOpenSeams.ts` already carries for this function's two open doors —

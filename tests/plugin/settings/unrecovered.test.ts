@@ -91,6 +91,12 @@ describe('a read that failed', () => {
 			// to it — the view it opens draws its own failure state (§4) rather than being
 			// missing from the palette.
 			'open-asset-library',
+			// Task 9's `new-project`, registered unconditionally like every other command here:
+			// `newProject` reveals the view and forwards to the dialog, and with settings
+			// unrecovered the composed root's own guarded doors are what refuse the write —
+			// the same shape `create-sample-project` already takes, not a reason to withhold
+			// the command from the palette.
+			'new-project',
 			'open-plan-editor',
 			'set-plan-background',
 			// Registered here too, the same shape `open-plan-editor` already takes: with no

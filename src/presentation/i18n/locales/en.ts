@@ -56,6 +56,11 @@ export const en = {
 	'command.set-plan-background': 'Set plan background',
 	'command.open-asset-designer': 'Open asset designer',
 	'command.create-sample-project': 'Create sample renovation project',
+	// Task 9's registered command over the Home surface's launcher — `addCommand`'s `name` is a
+	// user-facing string and `I18N_LITERAL_BAN` refuses a literal at that position, so this key
+	// exists even though the design spec's own count of the surface's vocabulary is fifteen and
+	// not sixteen. No default hotkey: see `view.project.keys` below for why.
+	'command.new-project': 'New project',
 	'plan.none': 'This vault has no renovation plans yet.',
 	'asset.none': 'This vault has no assets yet.',
 	'sample.project.name': 'Sample renovation',
@@ -319,6 +324,60 @@ export const en = {
 	'view.project.currency': 'Priced in {currency}',
 	'view.project.plans-title': 'Plans',
 	'view.project.create-plan': 'New plan',
+	// The Home surface's launcher vocabulary (design spec §12). `{count}`, `{shown}`,
+	// `{total}`, `{query}` and `{mod}` are `t`'s interpolation holes; an unmatched one is left
+	// standing as `{name}` rather than blanked, because a visible hole is a bug report and an
+	// empty string is a silent one.
+	'view.project.filter.label': 'Filter projects',
+	// THE PLACEHOLDER IS A HINT, NEVER THE NAME. The visually-hidden `<label>` above is the
+	// input's accessible name and stays; a placeholder disappears on the first keystroke, so a
+	// field named only by one is a field with no name for exactly the user who most needs it.
+	// What this adds is the VERB, which the resting field said nowhere: Task D's capture showed
+	// an empty bordered box with the count beside it and nothing at all saying what typing does.
+	// It names the FIELD the filter matches, because it matches the name only and a user typing
+	// a status word into it gets nothing back.
+	'view.project.filter.placeholder': 'Filter by name',
+	// TWO keys for one count, and the same again for plans below. `t` has no plural machinery;
+	// English and German are both two-form languages, so this is complete for the current
+	// locales and it is the point at which a THIRD locale forces a real plural mechanism.
+	// Recorded here so that arrival is a decision rather than a discovery.
+	// The numeral is spelled out here, and only in English: `obsidianmd/ui/sentence-case-
+	// locale-module` treats a leading bare digit as non-content (its emoji-stripping check
+	// matches ASCII digits too), so `1 project` is read as sentence-initial and the rule
+	// demands a capital on the noun that follows — measured, not guessed. Capitalising it
+	// instead (`1 Project`) passes the same rule and is wrong on the page: it sits beside
+	// `{count} projects`, so the count line's capitalisation would flip with the count, in
+	// the one region whose whole job is to state the truth about how many there are. Spelling
+	// the numeral out keeps every word correct without coercing one. German needs neither
+	// fix — `Projekt`/`Plan` are capitalised nouns regardless of the numeral in front of them,
+	// so `1 Projekt` and `1 Plan` are both idiomatic and already lint-clean.
+	// `view.project.plans-one` has the identical shape.
+	'view.project.count-one': 'One project',
+	'view.project.count-many': '{count} projects',
+	'view.project.filter.matches': '{shown} of {total}',
+	'view.project.filter.none': 'No project matches “{query}”.',
+	'view.project.filter.clear': 'Clear filter',
+	'view.project.create-named': 'New project named “{query}”',
+	'view.project.group.continue': 'Continue',
+	'view.project.group.projects': 'Projects',
+	'view.project.group.completed': 'Completed ({count})',
+	'view.project.continue.resume': 'Continue',
+	'view.project.continue.open': 'Open',
+	'view.project.plans-one': 'One plan',
+	'view.project.plans-many': '{count} plans',
+	// `{mod}` is resolved at the CALL SITE — `⌘` on macOS, `Ctrl` elsewhere — never baked into
+	// a locale string, because it is a fact about the machine and not about the language.
+	//
+	// **It names only the two PANE-LOCAL accelerators, and `Mod+N` is deliberately absent.**
+	// The design spec's §7 table wrote a third clause, and it cannot be honest: `New project`
+	// is a registered command with NO default hotkey (declaring one would claim `Mod+N` on
+	// every install over whatever the user already had), so a legend promising `{mod}N` would
+	// advertise a key that does nothing until the user goes and binds it. Reading what they
+	// actually bound is not available either — Obsidian's hotkey registry is internal and this
+	// plugin may not reach the global `app` — so the honest legend is the one whose every
+	// clause is true on a fresh install. The command is discoverable where a registered command
+	// is discoverable: the palette.
+	'view.project.keys': '↵ open · {mod}↵ open note',
 	// The project's own price section (the per-project price override increment). An override is
 	// per-(project, asset), so `price-scope` is the DISCLOSURE that justifies this affordance
 	// living on the project surface rather than on the Inspector's requirement row: one edit here

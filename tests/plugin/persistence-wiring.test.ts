@@ -317,7 +317,7 @@ describe('persistence composition', () => {
 	 * restore the first's snapshot.
 	 */
 	it('hands the editor a calibrate factory that answers a fresh command each call', async () => {
-		const { planEditorDeps } = await import('../../src/plugin/composition-root');
+		const { planEditorDeps } = await import('../../src/plugin/planEditorDeps');
 		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS);
 		const services = planEditorDeps(plugin.root, workspace as never, {} as never).commands;
 

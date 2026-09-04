@@ -76,7 +76,8 @@
  * cycle, a port — and only then against the real composition root.
  */
 import { describe, expect, it } from 'vitest';
-import { createCompositionRoot, planEditorDeps } from '../../src/plugin/composition-root';
+import { createCompositionRoot } from '../../src/plugin/composition-root';
+import { planEditorDeps } from '../../src/plugin/planEditorDeps';
 import { assetLibraryDeps } from '../../src/plugin/assetLibraryDeps';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { guardCommand } from '../../src/application/errors/guardAgainstThrowing';

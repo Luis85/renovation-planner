@@ -1804,13 +1804,21 @@ at `:225`; `AssetLibraryRoot.vue:358-361` mounts the panel and binds `@back` ALO
 task owns the handler — but know it before you go looking for a handler to extend or, worse, add
 a second one beside an existing binding you did not find. You are adding the FIRST listener.
 
-**2. The root has about 27 lines of headroom, so the flow does not live in it.**
-`AssetLibraryRoot.vue` is 373 lines against a 400 `max-lines` cap (`AssetLibraryBody.vue`, 16a's
-extraction, is 151). A reference-resolution flow — two dialog kinds, a resolution, an undo shape
-and the post-deletion focus rule — does not fit in 27 lines and must not be made to. Put the flow
-in its own module, as this task's Files list already anticipates, and give the root a THIN
-handler that calls it. If you find yourself shaving a comment to fit, that is the signal to
-extract, not to shave; this repository records paying for a budget bought back by reformatting.
+**2. The flow does not live in the root — and MY STATED REASON FOR THAT WAS WRONG, corrected
+here rather than quietly deleted.** The brief this task was dispatched with said
+"`AssetLibraryRoot.vue` is 373 lines against a 400 `max-lines` cap … about 27 lines of
+headroom". That compared `wc -l` against a rule which does not count what `wc -l` counts:
+`eslint.config.mjs:1003` sets `max-lines` to `['error', { max: 400, skipBlankLines: true,
+skipComments: true }]`, and in a tree whose files are majority docblock the two numbers are
+nowhere near each other. The root stands at **434 raw lines and passes**, which is the proof.
+
+The CONCLUSION was right for a different and better reason, so it stands: a reference-resolution
+flow — two dialog kinds, a resolution, an undo shape and a focus rule — is not a root component's
+work whatever the line count says, and `deleteWithReferences.ts` plus `deleteAssetFlow.ts` is
+where it belongs. But **do not carry the 27-line figure forward, and do not reason about
+`max-lines` headroom from `wc -l` again**: the binding budget on this surface has been COGNITIVE
+COMPLEXITY (fallow's threshold of 15) every time it has actually bitten, which is a real
+measurement, and the line cap has not bitten once.
 
 **WHAT TASK 14 SHIPPED, so you do not rebuild it.** The `Delete` control exists, drawn and
 `aria-disabled` with its reason on it while the usage read has not succeeded. It EMITS rather

@@ -12,7 +12,21 @@ import { CreateZoneCommand } from '../../../../src/application/commands/zone/Cre
 import { makeDeleteZoneCommand } from '../../../helpers/slice10';
 import { makePlan, makeProject } from '../../../helpers/entities';
 import { RecordingEventBus, expectOk, injectedPersistenceError } from '../../../helpers/domain';
-import { recorder } from '../../../helpers/logger';
+import { lines, recorder } from '../../../helpers/logger';
+import { isTechnicalFault } from '../../../../src/core/errors/technical-fault';
+import { mapDispatchFaults, type ToolDispatcher } from '../../../../src/presentation/editor/report-failure';
+import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
+import type { DispatchResult } from '../../../../src/application/commands/DispatchOutcome';
+
+/**
+ * Every fixture dispatcher goes through the REAL `mapDispatchFaults`, because
+ * `RoomCreationDeps.dispatcher` is the branded `ToolDispatcher` and nothing outside that
+ * module can mint the brand — which is the whole mechanism, and the reason `runtime.ts`'s own
+ * unwrapped composition is now a build error rather than a review question. The event name is
+ * this file's own; the leaf passes `editor.dispatch.faulted`.
+ */
+const toolDispatcher = (run: (command: UndoableCommand) => Promise<DispatchResult>): ToolDispatcher =>
+	mapDispatchFaults({ run }, recorder, 'test.room.faulted');
 
 /**
  * `RoomCreationDeps.commands` widened past the brief's original `Pick<…, 'createZone' |
@@ -47,7 +61,7 @@ async function deps(overrides: Partial<RoomCreationDeps> = {}) {
 			logger: recorder,
 		},
 		ledger: new SessionWriteLedger(),
-		dispatcher: { run: (command) => { dispatched.push(command); return command.execute(); } },
+		dispatcher: toolDispatcher((command) => { dispatched.push(command); return command.execute(); }),
 		draft,
 		selection: { select: vi.fn<RoomCreationDeps['selection']['select']>() },
 		defaultName: () => 'Room 2',
@@ -127,7 +141,7 @@ describe('createRoomFromDraft', () => {
 
 	it('a refused write reports once, keeps the draft, and stays in the task', async () => {
 		const { d, draft } = await deps({
-			dispatcher: { run: () => Promise.resolve(err(injectedPersistenceError())) },
+			dispatcher: toolDispatcher(() => Promise.resolve(err(injectedPersistenceError()))),
 		});
 		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
 		expect(await createRoomFromDraft(d)).toBe('refused');
@@ -137,11 +151,51 @@ describe('createRoomFromDraft', () => {
 		expect(draft.submitting).toBe(false);
 	});
 
+	/**
+	 * The door's fault half, and the reason `RoomCreationDeps.dispatcher` is typed
+	 * `ToolDispatcher` rather than structurally.
+	 *
+	 * `withSaveStateTracking` RE-THROWS a technical fault by design and both callers launch
+	 * this detached (`void runtime.createRoom()`), so a throw below the dispatcher was an
+	 * unhandled rejection: no notice, no log line, and the Create button silently doing
+	 * nothing. `mapDispatchFaults` is the one seam that closes it — the brand is what stops a
+	 * surface composing around the unwrapped dispatcher, which is exactly what `runtime.ts`
+	 * had done.
+	 *
+	 * So the contract is the tools': the action does NOT catch. A branded dispatcher cannot
+	 * reject, the mapped fault arrives as a resolved failed `Result` indistinguishable in
+	 * SHAPE from a refusal, and it takes the same `'refused'` arm — reported ONCE through
+	 * `reportRejected`, logged ONCE by `faultError` under the caller's event name, with
+	 * `submitting` cleared by the same `finally` a refusal clears it by.
+	 */
+	it('a THROWN fault below the dispatcher is mapped, logged once, reported once and answers refused', async () => {
+		const before = lines.length;
+		const { d, draft } = await deps({
+			dispatcher: toolDispatcher(() => Promise.reject(new Error('the vault went away'))),
+		});
+		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
+
+		expect(await createRoomFromDraft(d)).toBe('refused');
+
+		expect(d.reportRejected).toHaveBeenCalledTimes(1);
+		const reported = vi.mocked(d.reportRejected).mock.calls[0][0];
+		// STAMPED, so `reportDispatchFailure` gives it its own sentence rather than a "Save
+		// error" badge with no cause.
+		expect(isTechnicalFault(reported)).toBe(true);
+		// The raw cause reaches the log and nowhere else, under the wrapping caller's event.
+		expect(lines.slice(before).map((line) => line.event)).toEqual(['test.room.faulted']);
+		expect(lines.slice(before).at(0)?.context?.cause).toBeInstanceOf(Error);
+		// The draft survives the fault exactly as it survives a refusal, and the task stands.
+		expect(draft.submitting).toBe(false);
+		expect(draft.rect).not.toBeNull();
+		expect(d.returnToSelect).not.toHaveBeenCalled();
+	});
+
 	it('a second call while the first is in flight is dropped', async () => {
 		let release!: () => void;
 		const gate = new Promise<void>((resolve) => { release = resolve; });
 		const { d, draft } = await deps({
-			dispatcher: { run: async (command) => { await gate; return command.execute(); } },
+			dispatcher: toolDispatcher(async (command) => { await gate; return command.execute(); }),
 		});
 		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
 		const first = createRoomFromDraft(d);
@@ -158,7 +212,7 @@ describe('createRoomFromDraft', () => {
 	 */
 	it('a dispatcher that never runs the command creates nothing to select, and still returns to Select', async () => {
 		const { d, draft } = await deps({
-			dispatcher: { run: () => Promise.resolve(ok('wrote')) },
+			dispatcher: toolDispatcher(() => Promise.resolve(ok('wrote'))),
 		});
 		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
 		expect(await createRoomFromDraft(d)).toBe('created');

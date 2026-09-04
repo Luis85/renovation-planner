@@ -2,7 +2,6 @@ import { computed, inject, onBeforeUnmount, provide, reactive, ref, watch, type 
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger, type WriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
-import type { UndoableCommand } from './tools/undoable-command';
 import { createInspector } from './inspector-wiring';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
@@ -32,7 +31,7 @@ import { editorViewportAdapter } from './viewport/editorViewportAdapter';
 import { boundsOfZones } from './viewport/zoneExtent';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
-import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispatchFault } from './report-failure';
+import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispatchFault, type ToolDispatcher } from './report-failure';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
@@ -378,12 +377,20 @@ function registerSelectionRetirement(
  * directly. A bundle rather than eight positional parameters (`max-params` caps at five, and
  * five of these are already stores or the context); `roomCreation.ts` carries the mechanism,
  * this is only the wiring, pulled out of `buildRuntime` for its line budget.
+ *
+ * `dispatcher` is the BRANDED `ToolDispatcher` — `toolDispatcher`, the same object every tool
+ * on this leaf goes through, never the raw `wrappedDispatcher`. It shipped as the latter for
+ * one increment, under a structurally identical inline type that the compiler was happy with,
+ * and `withSaveStateTracking` re-throws a technical fault while both callers of `createRoom`
+ * launch it detached: a vault fault under Create was an unhandled rejection. Naming the
+ * branded type here rather than restating its shape is what makes the compiler refuse the
+ * other object.
  */
 function createRoomCreationAction(deps: {
 	readonly context: PlanEditorContext;
 	readonly planId: PlanId;
 	readonly ledger: WriteLedger;
-	readonly dispatcher: { run(command: UndoableCommand): Promise<DispatchResult> };
+	readonly dispatcher: ToolDispatcher;
 	readonly selection: ReturnType<typeof useSelectionStore>;
 	readonly roomDraft: RoomDraftStore;
 	readonly defaultRoomName: () => string;
@@ -556,7 +563,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName });
 
 	const { createRoom, canCreateRoom } = createRoomCreationAction({
-		context, planId, ledger, dispatcher: wrappedDispatcher, selection, roomDraft, defaultRoomName, returnToSelect,
+		context, planId, ledger, dispatcher: toolDispatcher, selection, roomDraft, defaultRoomName, returnToSelect,
 	});
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`

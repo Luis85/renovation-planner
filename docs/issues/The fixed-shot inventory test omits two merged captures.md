@@ -76,6 +76,18 @@ source rather than remembered'. Commit "test(harness-shot): wait for the state e
 plan-editor shot names, derive the inventory from SHOTS, and measure the 320 px shell for
 horizontal overflow".
 
+**Amended 2026-09-04, at the merge of the Renovation Planner Home branch.** The holding test is
+named `defines exactly the twenty-eight fixed shots, derived from the SHOTS source rather than
+remembered` now: the two branches appended shots to different parts of the `SHOTS` array, so the
+array merged cleanly at twenty-eight while the assertion about it conflicted, and neither side's
+count described the merged array. The derivation this note asked for is what made that safe to
+resolve — the list came back from the array rather than from either side. The case gained a
+second assertion in the same edit, a whole-FILE `name: '` count, because the derivation can only
+see inside `SHOTS` and an entry written outside it would be invisible to exactly the census this
+note exists to make complete. **The count in the test's NAME is the part of this that will go
+stale again**, and it is the one thing here nothing checks: the list and the count are both
+derived, the title is not.
+
 ## References
 
 - [[Errors, diagnostics and the test harness]]

@@ -73,6 +73,18 @@ step to [[Canvas Navigation]]): 259 table rows across fourteen files plus 17 lis
 cases whose steps are a table" (now fourteen) are both updated in place. Commit "docs(review):
 correct the records the review found overclaiming, and defer the vault walk".
 
+**Amended 2026-09-04, at the merge of the Renovation Planner Home branch, which is this note's
+own subject arriving through a mechanism the closure did not anticipate.** Both figures above
+are superseded: the merged tree measures **292 steps across sixteen cases** — `suite` 102,
+`browser` 43, `obsidian` 125, `desktop` 13, `judgement` 9 — and the table-form denominator is
+FIFTEEN, not fourteen. What is worth carrying past the arithmetic is that only THREE of the five
+tier rows conflicted. Both branches had written `suite` 99 and `judgement` 9, so git merged those
+two lines without offering them to anyone; `judgement` was right by luck and `suite` was wrong,
+because each branch had added exactly three `suite` steps to the base's 96. **A census row that
+agrees across a conflict is not a row two branches checked** — it is a row nobody was asked
+about, and it is invisible to the very re-run this note prescribes unless the re-run covers all
+five rows rather than the ones git flagged.
+
 ## References
 
 - [[Errors, diagnostics and the test harness]]

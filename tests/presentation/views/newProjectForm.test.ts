@@ -425,4 +425,31 @@ describe('NewProjectForm', () => {
 		expect(dispatch).toHaveBeenCalledTimes(1);
 		expect(dispatch.mock.calls[0][0]).toMatchObject({ name: 'Kitchen' });
 	});
+
+	/**
+	 * The Home surface's signature interaction (Task 7): a query that matched no project
+	 * offers to become one, and the form opens carrying what the user already typed rather
+	 * than an empty field they have to retype.
+	 */
+	it('opens with the name it was given, and that name is submitted', async () => {
+		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok(created())));
+		const wrapper = mount(NewProjectForm, {
+			props: { dispatch, logger, initialName: 'Cellar conversion' },
+		});
+
+		expect((wrapper.get('input[data-field="name"]').element as HTMLInputElement).value).toBe(
+			'Cellar conversion',
+		);
+
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(dispatch.mock.calls[0][0]).toMatchObject({ name: 'Cellar conversion' });
+	});
+
+	it('opens empty when given no name', () => {
+		const wrapper = mount(NewProjectForm, { props: { dispatch: () => Promise.resolve(ok(created())), logger } });
+
+		expect((wrapper.get('input[data-field="name"]').element as HTMLInputElement).value).toBe('');
+	});
 });

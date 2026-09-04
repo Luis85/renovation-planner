@@ -206,6 +206,24 @@ async function onOpenNote(): Promise<void> {
 }
 
 /**
+ * Where the user is, recorded at the moment they go there. `props.projectId` is this state's
+ * own subject, so the pair is complete without a lookup.
+ *
+ * BEFORE the open rather than after: `openPlan` is fire-and-forget and this must not depend on
+ * its resolution, and a context stored for a plan that then failed to open still describes
+ * where the user asked to be.
+ *
+ * **This is the only path in the app that opens a plan from this view's tree**, and therefore
+ * the only thing that can ever store a non-null `planId` — the row above (`ViewRoot.
+ * onOpenProject`) remembers a PROJECT alone. Both are needed, because they are two different
+ * places the user can have been.
+ */
+function onOpenPlan(planId: string): void {
+	context.rememberContinue({ projectId: props.projectId, planId });
+	void context.openPlan(planId);
+}
+
+/**
  * The plans region's hand-off, from BOTH controls that raise it — the empty state's action and
  * `PlanList`'s own header button — for the reason `ViewRoot.onCreateProject` states about its
  * own two: one handler, never two independently-decided ways to open the same form.
@@ -405,7 +423,7 @@ onBeforeUnmount(
 		:logger="context.commands.logger"
 		@back="context.navigate(null)"
 		@open-note="() => void onOpenNote()"
-		@open-plan="(planId) => void context.openPlan(planId)"
+		@open-plan="onOpenPlan"
 		@create-plan="() => void onCreatePlan()"
 	/>
 	<!--

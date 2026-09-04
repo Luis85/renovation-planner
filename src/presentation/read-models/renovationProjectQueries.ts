@@ -1,5 +1,6 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { LibraryOverlaps } from '../../application/ports/LibraryOverlaps';
+import type { ProjectListFacts } from '../../application/ports/ProjectListFacts';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { Query } from '../../application/queries/Query';
 import type { GetProjectInput } from '../../application/queries/GetProject';
@@ -12,7 +13,13 @@ import type { AssetPriceRowDto } from '../../application/queries/ListProjectAsse
 import type { Loaded } from '../../application/ports/versioning';
 import type { Project } from '../../domain/project/Project';
 import type { ProjectId } from '../../domain/project/ProjectId';
-import { toPlanSummaryDto, toProjectSummaryDto, type PlanSummaryDto, type ProjectSummaryDto } from './PlanDto';
+import {
+	UNKNOWN_ROW_FACTS,
+	toPlanSummaryDto,
+	toProjectSummaryDto,
+	type PlanSummaryDto,
+	type ProjectSummaryDto,
+} from './PlanDto';
 
 /**
  * The view's own shape of a project listing: summaries it can render, and how many projects
@@ -113,13 +120,52 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
  * entities and the mapping to `ProjectSummaryDto` happens here — the same division
  * `createPlanEditorQueries` draws for `getPlan` and `findZonesByPlan`.
  */
-export function createRenovationProjectQueries(
-	listProjects: Query<void, Result<ProjectListResult, RepositoryError>>,
-	getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>,
-	listPlansByProject: Query<ListPlansByProjectInput, Result<PlanListResult, RepositoryError>>,
-	overlaps: LibraryOverlaps,
-	listAssetPrices: Query<ProjectId, Result<AssetPriceRowDto[], RepositoryError>>,
-): RenovationProjectQueryServices {
+/**
+ * What a project the facts port did not answer for gets, at BOTH doors below.
+ *
+ * A compliant port never produces it — `ProjectListFacts.factsFor` states one entry per id
+ * asked about, never a sparse map — so this exists because `ReadonlyMap.get` is typed
+ * `V | undefined` and the branch has to go somewhere, not because either door is likelier to
+ * miss than the other. `readModels.test.ts` drives a deliberately sparse port through both,
+ * so the arm is exercised rather than merely present.
+ *
+ * Zero and null rather than a refusal: the detail state draws neither field today, and a row
+ * with an unknown plan count still has a name, a status and a currency worth drawing.
+ *
+ * **It is `PlanDto.ts`'s exported constant rather than a literal of this file's own**, taken
+ * there at the merge that gave `createPlanEditorQueries.getProject` a third door needing the
+ * same value for a DIFFERENT reason (that bundle composes no facts port at all). Two literals
+ * spelling `{ planCount: 0, lastWorked: null }` in one directory would have to keep meaning
+ * the same thing with nothing to notice them drifting; the local name stays because these two
+ * call sites are about a port that ANSWERED and the other is about one that was never asked,
+ * and only the value is shared.
+ */
+const NO_FACTS = UNKNOWN_ROW_FACTS;
+
+/**
+ * ONE bundle rather than six positional parameters, which is `createPlanEditorQueries`'s own
+ * shape one file over and the reason is the same: this boundary grows a member every time a
+ * surface above it grows a section, and the Home surface's facts port and the price section's
+ * catalogue read arrived from two independent branches into a signature that was already at
+ * five, which is a `max-params` failure. So: a lint rule forced a signature change, and the
+ * bundle is the shape it was changed INTO — not a latent hazard the rule uncovered.
+ *
+ * An earlier draft of this comment claimed the positional form let a call site "silently
+ * transpose" two adjacent ports of the same shape. Measured and false: `ProjectListFacts`
+ * declares `factsFor` and every other member here declares `execute`, and all six are
+ * mutually unassignable on their parameter and return types, so that swap — and every other
+ * pairwise one — is a compile error in either spelling. The bundle buys legibility at the
+ * call site; it buys no safety the compiler was not already giving.
+ */
+export function createRenovationProjectQueries(deps: {
+	readonly listProjects: Query<void, Result<ProjectListResult, RepositoryError>>;
+	readonly getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>;
+	readonly listPlansByProject: Query<ListPlansByProjectInput, Result<PlanListResult, RepositoryError>>;
+	readonly overlaps: LibraryOverlaps;
+	readonly facts: ProjectListFacts;
+	readonly listAssetPrices: Query<ProjectId, Result<AssetPriceRowDto[], RepositoryError>>;
+}): RenovationProjectQueryServices {
+	const { listProjects, getProject, listPlansByProject, overlaps, facts, listAssetPrices } = deps;
 	return {
 		async listProjects() {
 			const found = await listProjects.execute();
@@ -131,7 +177,11 @@ export function createRenovationProjectQueries(
 			const overlapping = new Set<string>(found.value.overlapping);
 			return ok({
 				projects: found.value.projects.map((project) =>
-					toProjectSummaryDto(project, overlapping.has(project.id)),
+					toProjectSummaryDto(
+						project,
+						overlapping.has(project.id),
+						found.value.facts.get(project.id) ?? NO_FACTS,
+					),
 				),
 				unreadable: found.value.unreadable,
 			});
@@ -159,7 +209,28 @@ export function createRenovationProjectQueries(
 			// one-element ask — synchronous, and the same instrument the list query reaches
 			// through `ListProjects`, rather than a second derivation that could disagree with it.
 			const [overlapping] = overlaps.overlapping([found.value.entity.id]);
-			return ok(toProjectSummaryDto(found.value.entity, overlapping !== undefined));
+			// ASKED rather than fabricated, exactly as `libraryOverlap` is one line up and for
+			// the reason that comment gives: this door answers the same DTO type, so a
+			// hard-coded `{ planCount: 0, lastWorked: null }` here would be a statement about a
+			// project this function never counted — safe today only because the detail state
+			// draws neither field, and a defect with no failing test in front of it the day it
+			// does. One instrument for both doors, so the two cannot disagree about a project.
+			//
+			// **COST, NAMED RATHER THAN PAID DOWN.** Both adapters take a LIST and answer a
+			// subset, and both walk the WHOLE Project Index to do it — so a one-element ask is a
+			// full walk, on every detail-state hydrate, for two fields the detail state renders
+			// nowhere. It is not a defect: the walk is over an in-memory index, the detail state
+			// hydrates on navigation rather than per frame, and the alternative is exactly the
+			// second derivation the two comments above refuse. What would close it is a
+			// by-id door on the port itself, which is a port change and a restructuring, and the
+			// final whole-branch review's own ruling was that the end of a branch is not where
+			// that happens. Written here so the next reader meets a decision rather than an
+			// oversight, and so a vault whose index has grown by an order of magnitude has a
+			// named place to look.
+			const rowFacts = facts.factsFor([found.value.entity.id]).get(found.value.entity.id);
+			return ok(
+				toProjectSummaryDto(found.value.entity, overlapping !== undefined, rowFacts ?? NO_FACTS),
+			);
 		},
 
 		async listPlansByProject(projectId) {

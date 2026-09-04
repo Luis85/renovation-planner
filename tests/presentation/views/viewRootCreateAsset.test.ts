@@ -1,9 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * Design slice A10's entry point, end to end: the project list header's second button opens
- * the New asset form, and the form is handed the two REAL command doors rather than one the
- * view invented.
+ * Design slice A10's entry point, end to end: the foot line's `New asset` button (Task 9 moved
+ * it there from the list header, giving it the one home `.rp-view-aside__create-asset` shares
+ * with the empty state's own) opens the New asset form, and the form is handed the two REAL
+ * command doors rather than one the view invented.
  *
  * The second and third cases are the ones that earn their place. "A dialog opened" is equally
  * true of a caller that wired the wrong command — every existing case in this directory says
@@ -68,6 +69,24 @@ function deps() {
 			onProjectsChanged: () => () => undefined,
 			projectId: null,
 			openAsset,
+			// Task 11's continue read; no case in this file is about Continue, so `null` — no
+			// stored context — is the honest default.
+			continueContext: () => Promise.resolve(null),
+			// Task 11's WRITE half, and it needs stating where the read half does not:
+			// `ViewRoot.onOpenProject` calls this UNGUARDED, so a literal omitting it is a
+			// `TypeError` waiting for the first case that plain-clicks a row — which none here
+			// does today, so nothing throws and no compiler can say so (this object is provided
+			// as `unknown`). Stated, not defaulted: an omitted key is what nothing can see.
+			//
+			// **This was the FOURTH such literal and the sweep that fixed the other three
+			// missed it**, because that sweep ran over the three files a report named rather
+			// than over `tests/` — the partial fix that reads like a complete one, in the
+			// commit that fixed the class. Re-run properly: `grep -rln "continueContext" tests/`
+			// answers ten files, of which four are bare `provide` literals like this one and the
+			// rest are either annotated `RenovationProjectDeps` (`mount.ts`,
+			// `renovationProjectWiring.test.ts`, `makeRenovationProjectView.ts` — the compiler
+			// holds those) or about the parser rather than the deps. There is no fifth.
+			rememberContinue: () => undefined,
 		},
 		createAsset,
 		setAssetFootprintFromDimensions,
@@ -81,7 +100,7 @@ async function openTheForm(context: unknown) {
 		global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
 	});
 	await flushPromises();
-	await wrapper.get('.rp-project-list__create-asset').trigger('click');
+	await wrapper.get('.rp-view-aside__create-asset').trigger('click');
 	await flushPromises();
 	return wrapper;
 }
@@ -117,6 +136,18 @@ describe('ViewRoot, creating an asset in a vault with no projects', () => {
 		await flushPromises();
 		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
 		expect(wrapper.find('.rp-project-list').exists()).toBe(false);
+
+		// The foot line's OTHER half is deliberately absent here, and this is the only place
+		// that says so. The design spec's §5 region 7 is `key legend + New asset` and its
+		// condition reads "including the empty state" — which promises both halves in both
+		// states. The build ships `New asset` alone, because an empty vault has no list to
+		// arrow through and no note to open, so `↵ open · Mod↵ open note` would advertise two
+		// keys that do nothing on the one screen whose whole job is to say there is exactly one
+		// thing to do. That is right, and it is a divergence from a region table that no gate
+		// compares against the markup; the spec's own amendment records it, and this line is
+		// what makes a build that starts drawing the legend here fail rather than quietly make
+		// that amendment wrong.
+		expect(wrapper.find('.rp-project-list__keys').exists()).toBe(false);
 
 		await wrapper.get('.rp-view-aside__create-asset').trigger('click');
 		await flushPromises();
@@ -266,9 +297,9 @@ describe('ViewRoot, creating an asset', () => {
 		await flushPromises();
 		const openDialog = vi.spyOn(useDialogStore(), 'openDialog');
 
-		await wrapper.get('.rp-project-list__create-asset').trigger('click');
+		await wrapper.get('.rp-view-aside__create-asset').trigger('click');
 		await flushPromises();
-		await wrapper.get('.rp-project-list__create-asset').trigger('click');
+		await wrapper.get('.rp-view-aside__create-asset').trigger('click');
 		await flushPromises();
 
 		expect(openDialog).toHaveBeenCalledTimes(1);

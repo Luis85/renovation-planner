@@ -1,6 +1,7 @@
 import { inject, type InjectionKey } from 'vue';
 import type { RenovationProjectQueryServices } from '../read-models/renovationProjectQueries';
 import type { RenovationProjectCommandServices } from './renovationProjectCommands';
+import type { ContinueContext } from '../../application/continueContext';
 
 /**
  * What a project row's click did, as far as the VIEW needs to know.
@@ -72,6 +73,33 @@ export interface RenovationProjectDeps {
 	 * carries and a second way a Vue tree in this plugin learns its subject changed.
 	 */
 	readonly projectId: string | null;
+	/**
+	 * What the filter starts with — absent everywhere in production, and set only by the browser
+	 * harness so that a headless capture can photograph a FILTERED list.
+	 *
+	 * **It exists because `harness-shot` navigates and screenshots and types nothing.** The
+	 * no-match state — a query matching no project, which is where §3's signature interaction
+	 * lives and where `overflow-wrap: anywhere` is the only thing stopping a long unspaced query
+	 * pushing the pane wide — is reachable by no other route a headless runner has. A scripted
+	 * keystroke was the alternative and is worse: the filter only exists once the list has
+	 * hydrated, so driving it would make the capture depend on input timing, which is the class
+	 * of flake the whole fixed-shot set exists to avoid.
+	 *
+	 * The same seam as `projectId` above and NOT the same mechanism, which is worth stating
+	 * because the two read alike: `RenovationProjectView.mount` writes its own `projectId` field
+	 * over the bundle on every mount, and it does not touch this — the value simply travels in
+	 * the `{ ...this.deps }` spread from whatever composed the bundle. So there is nothing in
+	 * `RenovationProjectView` to change for it, and a composition that sets nothing gets nothing.
+	 * What it shares with `projectId` is the property that matters: the view REMOUNTS per
+	 * navigation, so a per-mount starting value cannot go stale.
+	 *
+	 * OPTIONAL, unlike `projectId`, and the asymmetry is deliberate. `projectId` is required
+	 * because an absent value and `null` mean different things nobody can tell apart at the site
+	 * that branches on them. Here they mean the same thing — the filter starts empty — so an
+	 * omitted field draws exactly the surface every existing mount already draws, which is the
+	 * behaviour every construction site of this bundle is entitled to keep.
+	 */
+	readonly initialQuery?: string;
 	/**
 	 * Go to a project, or back to the list with `null`. The ONE writer of that state.
 	 *
@@ -152,6 +180,31 @@ export interface RenovationProjectDeps {
 	 * vault whose last project note was deleted while Obsidian was closed.
 	 */
 	readonly indexScanCompleted: () => boolean;
+	/**
+	 * The stored continue context, or absent — read on every HYDRATE, never subscribed to
+	 * (design spec §7: "Validation is a read, not a subscription"). Nothing redirects, nothing
+	 * announces, and nothing is retracted later.
+	 *
+	 * **It said "read ONCE at mount" while `ViewRoot.hydrate()` called it on every hydrate, and
+	 * that file argues at length that it must** — two docblocks describing one behaviour in
+	 * opposite terms, neither failing anything. §7 asks for the stored ids to be resolved against
+	 * the project index AT HYDRATE TIME, and a mount-only read loses exactly the case Continue
+	 * exists for: Obsidian restores its leaves BEFORE `onLayoutReady`, the index scan runs from
+	 * it, so a pane restored with the app resolves against an EMPTY index and would pin the plan
+	 * to `'gone'` for the life of that mount. `ViewRoot`'s `storedPlan` docblock is the authority
+	 * and this is now written from it.
+	 *
+	 * **"Never subscribed to" is the half that was true and stays true**, and it is what the
+	 * sentence about nothing being retracted rests on: a context another leaf or another device
+	 * writes is what the next HYDRATE reads, and nothing pushes one at a mounted pane.
+	 */
+	readonly continueContext: () => Promise<ContinueContext | null>;
+	/**
+	 * Remember where the user just went. Fire-and-forget by declaration — it answers `void`,
+	 * not a promise — because every caller is a click handler that navigates in the same tick
+	 * and a failed write costs a Continue row rather than an error.
+	 */
+	readonly rememberContinue: (context: ContinueContext) => void;
 }
 
 export const RENOVATION_PROJECT_CONTEXT: InjectionKey<RenovationProjectDeps> = Symbol(

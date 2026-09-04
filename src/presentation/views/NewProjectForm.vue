@@ -60,6 +60,15 @@ const props = defineProps<{
 	 * not that shape — it is a fault that reaches nobody.
 	 */
 	logger: Logger;
+	/**
+	 * The name to open with, from the Home surface's signature interaction (Task 7): a query
+	 * that matched nothing offers to become a project, and the form arrives carrying what the
+	 * user typed. Empty from every other caller.
+	 *
+	 * Optional rather than required, so the two existing call sites and every existing test
+	 * mount are unchanged — which the compiler enforces rather than a sweep.
+	 */
+	initialName?: string;
 }>();
 
 const emit = defineEmits<{ submit: [values: CreateProjectInput] }>();
@@ -92,7 +101,21 @@ const INITIAL: CreateProjectInput = {
 };
 
 const form = useFormCommit<CreateProjectInput, { project: Loaded<Project> }>({
-	initial: INITIAL,
+	// **THE SPREAD IS HERE TO CARRY `initialName`, and the reason this comment used to give was
+	// false in both of its clauses.** It claimed `INITIAL` could be mutated through a retained
+	// reference and that `useFormCommit` "holds its argument as the value a cancel resyncs to".
+	// Measured: `use-form-commit.ts` does `ref({ ...options.initial })` — it copies once and
+	// retains nothing — and that file contains the words `cancel`, `resync` and `reset` exactly
+	// nowhere; the resync-on-cancel behaviour belongs to `useFieldCommit`, its sibling at the
+	// OTHER commit boundary. `INITIAL` could be passed by reference here and nothing would go
+	// wrong.
+	//
+	// What the spread is actually for is the line it is on: this form is opened both from the
+	// empty state and from a `New project named "<query>"` action, so the name field starts at
+	// whatever the filter held. A false reason for a correct line is what a later reader deletes
+	// the line on — recorded rather than quietly rewritten, because the mistake was to reason
+	// about the composable from its name instead of reading it.
+	initial: { ...INITIAL, name: props.initialName ?? '' },
 	dispatch: props.dispatch,
 	errorMap: NEW_PROJECT_ERRORS,
 	toUserMessage: trError,

@@ -1,0 +1,241 @@
+/*
+ * THE NARROW COMPOSITION — the Renovation Planner Home's rows below the width at which one
+ * line can hold a name, its facts and its status (design spec §6, "Narrow composition").
+ *
+ * Split out of `project-list.css` in Task D, the THIRD region that file's 400-line cap has
+ * pushed out and the second time in two tasks. The cap counts every line, comments and blanks
+ * included, and this surface's rules are mostly the RECORD of why a measured number is what it
+ * is — so the cap turns "write down the derivation" into "take a seam", which is what it is for.
+ *
+ * The seam is the one `continue-row.css` and `project-filter.css` already took, read from a
+ * different axis: those two are a REGION with a component file of its own, and this one is a
+ * STATE — everything that is true of this surface only below the threshold, plus the container
+ * declaration that threshold is measured against. Both cuts leave nothing behind that another
+ * partial reads, which is the property that matters; a cut through
+ * `.rp-project-list .rp-project-list__row`'s descendant pairs would not have it.
+ *
+ * **IMPORT POSITION: after `project-list.css` and before `continue-row.css`, and that is the
+ * position these rules already had.** This block sat in the MIDDLE of `project-list.css`, with
+ * the group, foot and no-match rules after it; none of those declares a property any selector
+ * here sets, so lifting the block to the end of that file's slot is order-equivalent rather than
+ * merely order-compatible — verified by reading the remainder of that file rather than assumed.
+ * What the position IS load-bearing for is `forms.css`: `.rp-project-list .rp-project-row` and
+ * `.rp-project-list .rp-project-list__row` are both (0,2,0), and `justify-content: flex-start`
+ * below wins over that file's `space-between` only by coming later.
+ *
+ * Every colour is an Obsidian variable, at every nesting depth — `scripts/styles-assemble.mjs`
+ * fails the build on a literal, a bare colour word included. There is no colour here at all.
+ */
+
+/*
+ * A CONTAINER query, never a media query, and that is a STRUCTURAL fact about Obsidian's panes
+ * rather than a preference: the width this row has to fit is its leaf's, not the window's, so a
+ * media query asks the wrong element and is right only when the plugin happens to own the whole
+ * window. `?phone` does not substitute for it either — that is a body class answering what the
+ * plugin does when it believes it is on a phone.
+ *
+ * **41rem IS DERIVED, and it has been re-derived three times.** It began as a placeholder 34rem
+ * chosen so a rule existed to measure against, became 36rem when Task 12 measured it in a real
+ * browser IN GERMAN, and is 41rem since Task D widened the tick strip and gave the status and
+ * facts slots a reserved width. A threshold measured only in English is measured against the
+ * easy case: the width at which a one-line row stops fitting is decided by the longest status
+ * word, and `Bestandsdokumentation` (AS_BUILT) is 21 characters against `As built`'s 8.
+ *
+ * THE RULE, unchanged across all three derivations: **the name must keep at least as much room
+ * as the trailing group it sits beside.** Below that the row stops being a named thing with
+ * facts beside it and becomes facts with a name squeezed in.
+ *
+ * THE ARITHMETIC, so the number can be re-derived rather than trusted. Every figure below was
+ * measured in a real browser at 12px `--font-ui-smaller`, where `1ch` is 7.641px:
+ *
+ *   facts slot        12ch                              =  91.7px  (`project-list.css`)
+ *   gap  facts↔status                                   =   8px    (`--size-4-2`)
+ *   status word slot  20ch                              = 152.8px  (`project-list.css`)
+ *   gap  word↔strip                                     =   4px    (`--size-2-2`)
+ *   tick strip        10 × 4px + 9 × 2px                =  58px
+ *                                                        --------
+ *   trailing group                                        314.5px
+ *
+ * A one-line row is `padding | name | gap | trailingGroup | padding`, so what is left for the
+ * name is `W − 16 − 8 − 314.5`, and the rule is that this is at least the trailing group:
+ *
+ *   W  ≥  16 + 8 + 2 × 314.5  =  653px   →  40.8rem  →  41rem
+ *
+ * **The 8px in that sum is the ONE gap outside the trailing group**, and getting this wrong is
+ * how the number arrived at 42rem on its first writing. That version said `32 + 2 × 314.5`,
+ * reading 32 as "16px of padding plus the row's TWO 8px gaps" — but the trailing group is
+ * measured from the facts' left edge to the status's right edge, so the facts↔status gap is
+ * already inside it and was being paid for twice. A derivation whose output disagrees with the
+ * number beside it is worse than no derivation, because a reader who re-derives concludes the
+ * FILE is wrong. Found in review; the rounding is up to the whole rem and nothing else.
+ *
+ * That sum is CHECKED against the tree rather than left as arithmetic: measured on the built
+ * surface at 1280, the widest unmarked trailing group is **314.30px in BOTH locales** — the
+ * 0.2px being `ch` rounding — and it is the same figure in both because it is now a reservation
+ * rather than a content width, which is the whole point of it.
+ *
+ * The two slot widths are Task D's reserved columns and are the reason this number moved: the
+ * trailing group used to be whatever the WIDEST row's own content happened to be (270px in
+ * German, 199px in English — the locale moved it by 71px), and it is now a constant that every
+ * row occupies. `rem` rather than `px` because it must follow the user's interface font size,
+ * which moves both halves of that sum together; 672px is one root size's answer, not a constant.
+ *
+ * It is well above the 460px an Obsidian sidebar leaf actually has, so a sidebar is firmly
+ * narrow — which is the property the whole threshold exists to guarantee, and the one that did
+ * not change when the number did.
+ *
+ * **WHAT THE RESERVATION COSTS, measured rather than predicted.** The rule guarantees the name
+ * as much room as the trailing group and no more, so a name LONGER than that still truncates on
+ * a one-line row — and the reservation makes the trailing group bigger, which moves the width at
+ * which that starts. Driven across widths in German on the 30-row stress fixture: one unmarked
+ * name (`Hinterhaus, Dachgeschossausbau und Bestandsaufnahme`, 50 characters, 379px) truncates
+ * from **657px — the first width above the threshold — to 715px inclusive**, and at no width
+ * above, where before Task D it truncated at none of them. One row of thirty, in a 59px band,
+ * degrading exactly as `forms.css` designs a long name to degrade: an ellipsis with the full name
+ * in `title`. The marked row truncates in the lower part of it too and is outside this
+ * threshold's protection at any width, for the reason below.
+ *
+ * **It is a band rather than a cliff, and that is measured too.** At 657px the name gets 318.7px
+ * and the SECOND-longest name in the fixture is 201px, so it has 117px of headroom — roughly
+ * thirty more characters — before it would join. The cost is an outlier's, not the list's.
+ *
+ * **SHRINKING THE STATUS SLOT DOES NOT SHRINK THE BAND, and the first version of this file
+ * offered it as the one-number escape hatch that would.** It does the opposite, because it moves
+ * BOTH numbers: at 16ch (sized for `Bestandsaufnahme`, the longest word in the un-collapsed
+ * `Projects` group rather than in the whole enum) the trailing group falls to 284.0px, so this
+ * threshold falls with it to `16 + 8 + 2 × 284.0 = 592px → 37rem`, and the band runs from 593px
+ * to about 688px — roughly 95px, wider than the 59px it was offered as a remedy for. "Saves 31px
+ * and shrinks the band" is true only if the threshold is frozen while the slot shrinks, which the
+ * rule above forbids. 20ch is the more defensible number and this is the reason, rather than the
+ * grudging one the first draft gave it. The real lever on the band is the RULE — asking the name
+ * for more than parity with the trailing group — and that is a design change, not one number.
+ *
+ * **The MARKED row is deliberately not what this protects, and that is a decision.** PRD §83's
+ * marker measures 217px on its own in German, so a marked row's trailing content is far past
+ * this and it truncates hard well above the threshold. Sizing for it would put every one of
+ * thirty unmarked rows onto two lines to protect the one row that is marked, in a vault where
+ * the usual number of marked projects is zero.
+ */
+.rp-project-list {
+	container-type: inline-size;
+	container-name: rp-project-list;
+}
+
+@container rp-project-list (max-width: 41rem) {
+	/*
+	 * BOTH row kinds. Task 11 built `.rp-continue`, and Task 12's capture drew it at 460px for
+	 * the first time. It wraps to name / date · status / two buttons and its box grows to 66px —
+	 * measured — because it is a `<div>` and Obsidian's fixed button height never reaches it.
+	 */
+	.rp-project-list .rp-project-row,
+	.rp-project-list .rp-continue {
+		flex-wrap: wrap;
+	}
+
+	/*
+	 * THE BOX HAS TO BE ALLOWED TO GROW, and until Task 12's capture nothing said so: a row is
+	 * a `<button>` and Obsidian's own `button` rule sets `height: var(--input-height)` — a FIXED
+	 * 30px. So the rule above wrapped the content and the box stayed one line tall, and every
+	 * row's second line was drawn over the next row's name. Measured rather than described: 41px
+	 * of content in a 30px box, at 460px, in the first picture ever taken of this surface.
+	 *
+	 * `list-row.css`'s `min-height: var(--size-4-6)` floors it once `height` stops deciding — the
+	 * WCAG 2.5.8 guarantee that file states — so this releases the height and inherits the floor.
+	 *
+	 * ---
+	 *
+	 * THE SECOND LINE IS ONE PHRASE, not two things at opposite edges of the pane.
+	 *
+	 * `forms.css` gives the row `justify-content: space-between`, which is right for the WIDE
+	 * row — two items, name left and trailing column right. A wrapped row applies it to EVERY
+	 * line, so the second line put the status against the leading edge and the facts against the
+	 * trailing one: measured at 460px, `Ausführung` at x=8 and `4 Pläne · EUR` ending at x=452,
+	 * with 280px of nothing between them. §6's own diagram is `Design · 2 plans · EUR` — one
+	 * phrase — and the row's existing `gap` is exactly that separation, so this is a removal
+	 * rather than a new spacing decision. It changes nothing on line one, where the name's 100%
+	 * basis makes it the only item either way.
+	 *
+	 * BOTH are SCOPED to `.rp-project-row`, and for two different reasons rather than one habit.
+	 * The height: the Continue row is a `<div>`, which Obsidian's `button` rule never reaches, so
+	 * it already grows — 66px, measured — and naming it would be a declaration doing nothing. The
+	 * packing: that row's second line ends in two BUTTONS, which belong at the trailing edge,
+	 * so `space-between` is right there and only there.
+	 */
+	.rp-project-list .rp-project-row {
+		height: auto;
+		justify-content: flex-start;
+	}
+
+	/* The name takes the whole first line; the status and the facts share the second. */
+	.rp-project-list .rp-project-list__name {
+		flex-basis: 100%;
+	}
+
+	/*
+	 * THE RESERVED COLUMNS ARE RELEASED, and this is the one place Task D's armature is undone.
+	 *
+	 * `min-width: auto` is the INITIAL value for a flex item, so this restores exactly what the
+	 * wide row's slots had before that task rather than substituting a zero of its own — and it
+	 * is stated at the ONE threshold rather than expressed as a second, complementary container
+	 * query, so the number above cannot drift out of step with a partner it has to agree with.
+	 *
+	 * Reserving width here would fight the wrap: the second line is `status · facts` as one
+	 * phrase, and a column armature across two-line rows aligns nothing a reader can follow.
+	 * `text-align: right` and the word slot's own right alignment need no reset — a shrink-wrapped
+	 * box has no free space for either to distribute, which is checked by a capture at 460 and
+	 * by nothing here.
+	 */
+	.rp-project-list .rp-project-row .rp-project-row__facts,
+	.rp-project-list .rp-project-row .rp-project-row__status-word {
+		min-width: auto;
+	}
+
+	/*
+	 * SECOND LINE ORDER: status, then facts — `Design · 2 plans · EUR`, which is what §6's own
+	 * diagram specifies and what DOM order alone does not give. The row is name, facts, status
+	 * (the wide row's trailing column belongs at the trailing edge), so wrapping without this
+	 * renders `2 plans · EUR` followed by `Design`: the stage word, which is the fact a
+	 * renovator scans for, pushed to the end of the line behind two lesser ones.
+	 *
+	 * `order` rather than reordering the markup, because the WIDE row's sequence is correct and
+	 * is what the armature aligns; this is a narrow-only rearrangement and belongs in the
+	 * narrow-only block. The name keeps the implicit `order: 0` and so keeps line one.
+	 *
+	 * SCOPED TO `.rp-project-row`, and the qualifier is load-bearing rather than tidy: Task 11's
+	 * `ContinueRow` reuses `.rp-project-row__facts` for its date, so an unqualified rule would
+	 * give that date `order: 2` while the Continue row's own status and its two buttons kept the
+	 * default 0 — rearranging `name, date, status, Continue, Open` into a sequence with the date
+	 * stranded after the controls. The wrapping rule above deliberately includes `.rp-continue`;
+	 * the ORDERING deliberately does not, because the two rows have different items to order and
+	 * only one of them has a status/facts pair to swap.
+	 */
+	.rp-project-list .rp-project-row .rp-project-row__status {
+		order: 1;
+	}
+
+	.rp-project-list .rp-project-row .rp-project-row__facts {
+		order: 2;
+	}
+
+	/*
+	 * THE WARNING KEEPS THE TAIL, and giving it an order is not tidiness — the two rules above
+	 * created this. `order` defaults to 0, so the moment status and facts moved to 1 and 2 the
+	 * §83 overlap marker became the LOWEST-ordered item after the name: it would land on the
+	 * first line beside a name whose basis is 100%, and `project-list-overlap.css` sets
+	 * `flex-shrink: 0` on it deliberately (a truncated warning no longer says what it is about),
+	 * so the name is what gives — or the line breaks a third time. A marked row would have laid
+	 * out unlike every other row at exactly the width the design calls a designed state.
+	 */
+	.rp-project-list .rp-project-row .rp-project-list__overlap {
+		order: 3;
+	}
+
+	/*
+	 * THE STRIP IS DROPPED, and nothing is lost: the translated word alone is complete and
+	 * conformant, and a ten-cell strip in a 460px row is exactly the ceremony this direction's
+	 * own recorded risk warns about.
+	 */
+	.rp-project-list .rp-project-row__ticks {
+		display: none;
+	}
+}

@@ -61,6 +61,17 @@ async function mountBeforeTheScan() {
 					// deliberately avoid; see `defaultRenovationProjectDeps`'s docblock.
 					projectId: null,
 					onProjectsChanged,
+					// Task 11's continue read, stated for the same reason `projectId` is: no case
+					// here is about Continue, so `null` — no stored context — is the honest default,
+					// matching `defaultRenovationProjectDeps`'s own.
+					continueContext: () => Promise.resolve(null),
+					// Task 11's write half, stated beside the read half above for a reason the read
+					// half does not have: `ViewRoot.onOpenProject` calls this UNGUARDED, so a literal
+					// omitting it is a `TypeError` waiting for the first case that plain-clicks a row —
+					// which none here does today, so nothing throws and no compiler can say so (a
+					// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
+					// nothing can see.
+					rememberContinue: () => undefined,
 				},
 			},
 		},
@@ -125,6 +136,14 @@ describe('ViewRoot, and an index built after the pane was restored', () => {
 							listeners.push(listener);
 							return () => undefined;
 						},
+						continueContext: () => Promise.resolve(null),
+						// Task 11's write half, stated beside the read half above for a reason the read
+						// half does not have: `ViewRoot.onOpenProject` calls this UNGUARDED, so a literal
+						// omitting it is a `TypeError` waiting for the first case that plain-clicks a row —
+						// which none here does today, so nothing throws and no compiler can say so (a
+						// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
+						// nothing can see.
+						rememberContinue: () => undefined,
 					},
 				},
 			},
@@ -162,7 +181,12 @@ describe('ViewRoot, and an index built after the pane was restored', () => {
 		// insertion — awaited here for the same reason it is invisible to a user.
 		await flushPromises();
 
-		const list = wrapper.get('.rp-project-list');
+		// `DialogHost`'s `syncBackground` walks the view root's DIRECT children — Task 5 nested
+		// `.rp-project-list` (the `<ul>`) inside `.rp-project-list__group--projects`, which is
+		// the direct child now and the one that carries the attribute. The `<ul>` is inert too,
+		// inherited from that ancestor, which is what HTML `inert` means — jsdom does not model
+		// the inherited BEHAVIOUR, only the attribute, so the direct child is what this asserts.
+		const list = wrapper.get('.rp-project-list__group--projects');
 		expect(list.attributes('inert')).toBe('');
 		// The dialog itself is never inerted by its own host, which is the other half of the
 		// rule and the one a blanket sweep of the parent's children would have broken.

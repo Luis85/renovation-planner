@@ -4,6 +4,7 @@ import type { Command } from '../application/commands/Command';
 import type { Query } from '../application/queries/Query';
 import type { Logger } from '../application/ports/Logger';
 import type { LibraryOverlaps } from '../application/ports/LibraryOverlaps';
+import type { ProjectListFacts } from '../application/ports/ProjectListFacts';
 import type { Loaded } from '../application/ports/versioning';
 import type { RepositoryError } from '../application/ports/repositoryErrors';
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
@@ -291,6 +292,12 @@ export function guardedEditorServices(
 		 * than a second query answering it separately — one read, one failure mode.
 		 */
 		overlaps: LibraryOverlaps;
+		/**
+		 * The Home surface's plan count and last-worked time (§8). Beside `overlaps` and
+		 * answered in the same read for its reason: `ListProjects` takes both as collaborators
+		 * so the list, the markers and the counts travel together or fail together.
+		 */
+		listFacts: ProjectListFacts;
 	},
 	diagnosticsSources: {
 		versions: RuntimeVersions;
@@ -299,7 +306,7 @@ export function guardedEditorServices(
 	},
 ): { queries: QueryServices } & GuardedEditorServices {
 	const { projects, plans, zones } = repositories;
-	const { eventBus, files, logger, map, overlaps } = deps;
+	const { eventBus, files, logger, map, overlaps, listFacts } = deps;
 
 	const getProject = guardQuery(new GetProject(projects), 'query.getProject.failed', logger, map);
 	const getPlan = guardQuery(new GetPlan(plans), 'query.getPlan.failed', logger, map);
@@ -329,7 +336,7 @@ export function guardedEditorServices(
 		map,
 	);
 	const zoneInspector = guardQuery(new GetZoneInspector(zones), 'query.zoneInspector.failed', logger, map);
-	const listProjects = guardQuery(new ListProjects(projects, overlaps), 'query.listProjects.failed', logger, map);
+	const listProjects = guardQuery(new ListProjects(projects, overlaps, listFacts), 'query.listProjects.failed', logger, map);
 	const listPlansByProject = guardQuery(new ListPlansByProject(plans), 'query.listPlansByProject.failed', logger, map);
 
 	return {

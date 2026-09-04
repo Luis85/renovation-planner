@@ -40,6 +40,13 @@ export const FIXTURE_PROJECT: ProjectSummaryDto = {
 	status: 'DESIGN',
 	currency: 'EUR',
 	libraryOverlap: false,
+	// See `HARNESS_PROJECT` in `tests/harness/planEditor.ts` for the whole argument: these two
+	// are the Home surface's row facts, required by the DTO and drawn by nothing the editor
+	// mounts, and `0`/`null` is what `createPlanEditorQueries.getProject` genuinely answers.
+	// Both fixtures were written on `origin/main` against a two-field DTO and met the required
+	// fields at the merge.
+	planCount: 0,
+	lastWorked: null,
 };
 
 export const FIXTURE_ZONES: readonly ZoneDto[] = [

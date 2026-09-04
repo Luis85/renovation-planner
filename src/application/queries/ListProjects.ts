@@ -2,6 +2,7 @@ import { isErr, ok, type Result } from '../../core/result/Result';
 import type { Project } from '../../domain/project/Project';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { LibraryOverlaps } from '../ports/LibraryOverlaps';
+import type { ProjectListFacts, ProjectRowFacts } from '../ports/ProjectListFacts';
 import type { ProjectRepository } from '../ports/ProjectRepository';
 import type { RepositoryError } from '../ports/repositoryErrors';
 
@@ -33,6 +34,15 @@ export interface ProjectListResult {
 	 * belongs to the vault-change pipeline rather than to this query.
 	 */
 	readonly overlapping: readonly ProjectId[];
+	/**
+	 * The Home surface's two commissioned row facts (§8), one entry per project in `projects`.
+	 *
+	 * Answered in the SAME read as the list and the overlap markers, and for the identical
+	 * reason `overlapping`'s own comment gives one field up: a second query would need a policy
+	 * for "the list loaded but the counts did not", and the three facts travel together or fail
+	 * together, leaving one failure mode to reason about instead of three.
+	 */
+	readonly facts: ReadonlyMap<string, ProjectRowFacts>;
 }
 
 /**
@@ -57,6 +67,7 @@ export class ListProjects {
 	constructor(
 		private readonly projects: ProjectRepository,
 		private readonly overlaps: LibraryOverlaps,
+		private readonly facts: ProjectListFacts,
 	) {}
 
 	async execute(): Promise<Result<ProjectListResult, RepositoryError>> {
@@ -71,6 +82,9 @@ export class ListProjects {
 			// failure mode nobody would think about again. Answered here, the two facts
 			// travel together or fail together, and there is one failure mode to reason about.
 			overlapping: this.overlaps.overlapping(projects.map((project) => project.id)),
+			// The same pairing, one port further: batched, so this is one walk of the index for
+			// the whole list rather than a lookup per row.
+			facts: this.facts.factsFor(projects.map((project) => project.id)),
 		});
 	}
 }

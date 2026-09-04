@@ -95,24 +95,29 @@
  * pane, so an outside ring would be clipped, while this button is inset and has room.
  */
 .rp-project-list__header .rp-project-list__create:focus-visible,
-.rp-project-list__header .rp-project-list__create-asset:focus-visible,
 .rp-view-aside .rp-view-aside__create-asset:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
 }
 
 /*
- * The catalogue affordance that sits BESIDE the empty state, for the reason `ViewRoot`'s own
- * comment gives: an Asset needs no project, so a fresh vault must be able to build one.
+ * THE BASE THE FOOT LINE BUILDS ON (design spec §5, region 7) — muted and smaller text, which
+ * is what BOTH of this class's callers still take from it. NEITHER draws it bare any more:
+ * `ViewRoot`'s empty-state aside and `ProjectList`'s populated foot each carry
+ * `.rp-project-list__foot` alongside this class now (`grep -rn 'rp-view-aside"' src/` finds
+ * exactly those two elements), and that rule (`project-list.css`, imported after this one, same
+ * specificity) is what decides the padding and the alignment for both — it wins the cascade
+ * outright rather than merging with anything stated here. There is therefore no live caller for
+ * a centred default any more: an earlier draft of this comment claimed `.rp-view-aside` "centres
+ * it by default for the one caller that draws it bare", which stopped being true the moment the
+ * foot line gained this class too, and the `text-align: center` that claim was describing is
+ * gone rather than left to be found unreachable a second time.
  *
- * Centred under the empty state and muted, because it is genuinely secondary — the empty
- * state's own action is the sentence's verb and this is a second path out of the same screen.
  * It is not `.rp-empty-state__action`'s twin and must not read as one.
  */
 .rp-view-aside {
 	margin: 0;
 	padding-block-start: var(--size-4-2);
-	text-align: center;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 }

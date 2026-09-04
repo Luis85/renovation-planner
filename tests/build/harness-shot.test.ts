@@ -566,14 +566,27 @@ describe('the headless harness capture script', () => {
 
 	/**
 	 * DERIVED from the `SHOTS` source rather than remembered, which is the fix for the defect
-	 * this case used to be: the hand-written list here said eighteen while `SHOTS` held twenty,
-	 * missing both price-section captures, and deleting either one would have left this test
-	 * green regardless — it was checking its own list against itself. Slicing the block between
-	 * `const SHOTS = [` and its closing `];` and matching every `name: '…'` inside it reads the
-	 * same names `harness-shot.mjs` actually iterates, so a shot added or removed there changes
-	 * this test's answer without anyone touching this file.
+	 * this case used to be on BOTH sides of the merge that produced this file: one branch's
+	 * hand-written list said fifteen against seventeen entries, the other's said eighteen
+	 * against twenty, and each was internally consistent — a list of names cannot notice a name
+	 * that was never in it. Slicing the block between `const SHOTS = [` and its closing `];`
+	 * and matching every `name: '…'` inside it reads the same names `harness-shot.mjs` actually
+	 * iterates, so a shot added or removed there changes this test's answer without anyone
+	 * touching this file.
+	 *
+	 * **The merge is the reason both instruments are here rather than one.** Each branch
+	 * appended its own shots to a DIFFERENT part of the `SHOTS` array, so `harness-shot.mjs`
+	 * merged cleanly at twenty-eight while the assertion about it conflicted — and NEITHER
+	 * side's number described the merged array. The list below was re-derived from the array,
+	 * not resolved from either side of the conflict.
+	 *
+	 * The whole-FILE count is the second instrument and asks a question the first cannot: the
+	 * derivation above sees only inside `SHOTS`, so an entry written outside that array — a
+	 * second array, or one moved out — is invisible to it. `name: '` counts one per entry: no
+	 * other construct in that file uses that spelling, measured, and a stray one in a comment
+	 * would over-count and fail rather than pass.
 	 */
-	it('defines exactly the twenty-one fixed shots, derived from the SHOTS source rather than remembered', () => {
+	it('defines exactly the twenty-eight fixed shots, derived from the SHOTS source rather than remembered', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 		const shotsBlock = source.slice(source.indexOf('const SHOTS = ['), source.indexOf('];', source.indexOf('const SHOTS = [')));
 		const named = [...shotsBlock.matchAll(/name: '([a-z-]+)'/g)].map((m) => m[1]);
@@ -582,6 +595,13 @@ describe('the headless harness capture script', () => {
 			'dark',
 			'light',
 			'phone',
+			'home-stress',
+			'home-stress-light',
+			'home-stress-de',
+			'home-whole',
+			'home-stress-narrow',
+			'home-no-match-narrow',
+			'home-filter-focus',
 			'project-detail',
 			'project-detail-prices',
 			'project-detail-narrow',
@@ -601,6 +621,10 @@ describe('the headless harness capture script', () => {
 			'index-focus-current',
 			'index-failure',
 		]);
+
+		// The whole FILE, not the sliced block — see the header. A shot entry written outside
+		// `SHOTS` is invisible to the derivation above and fails here instead.
+		expect(source.match(/name: '/gu)?.length).toBe(28);
 	});
 
 	/**

@@ -21,6 +21,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ListProjects } from '../../../src/application/queries/ListProjects';
 import { IndexLibraryOverlaps } from '../../../src/infrastructure/obsidian/repositories/IndexLibraryOverlaps';
+import { IndexProjectListFacts } from '../../../src/infrastructure/obsidian/repositories/IndexProjectListFacts';
 import { InMemoryProjectIndex } from '../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import type { ProjectId } from '../../../src/domain/project/ProjectId';
@@ -53,7 +54,14 @@ describe('ListProjects and the library overlap', () => {
 		await projects.save(kitchen, 'absent');
 		// Where the user left it: a sibling of the library, which is what §83 asks for.
 		index.setPath(kitchen.id, 'Renovation/Kitchen refit/Project.md');
-		query = new ListProjects(projects, new IndexLibraryOverlaps(index, LIBRARY));
+		// The REAL facts adapter over the SAME index these cases move folders in, so this file
+		// describes one world rather than two. Its vault answers nothing, which is the truth
+		// here: the index holds paths this suite invented and no file sits at any of them.
+		query = new ListProjects(
+			projects,
+			new IndexLibraryOverlaps(index, LIBRARY),
+			new IndexProjectListFacts(index, { getAbstractFileByPath: () => null }),
+		);
 	});
 
 	it('reports nothing when every project is a sibling of the library', async () => {

@@ -41,6 +41,7 @@
  * import that reaches `src/presentation/` so the next node-environment consumer of
  * `FakeWorkspace` cannot reopen this by accident.
  */
+import { TFile } from 'obsidian';
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { CreatePlanCommand } from '../../src/application/commands/plan/CreatePlan';
 import { CreateAssetCommand } from '../../src/application/commands/asset/CreateAsset';
@@ -57,6 +58,7 @@ import { ListProjects } from '../../src/application/queries/ListProjects';
 import { ListProjectAssetPrices } from '../../src/application/queries/ListProjectAssetPrices';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
+import { IndexProjectListFacts } from '../../src/infrastructure/obsidian/repositories/IndexProjectListFacts';
 import { IndexLibraryOverlaps } from '../../src/infrastructure/obsidian/repositories/IndexLibraryOverlaps';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
@@ -89,6 +91,37 @@ export interface SeedRepositories {
 	 */
 	readonly assets: InMemoryAssetRepository;
 	readonly overrides: InMemoryAssetPriceOverrideRepository;
+	/**
+	 * The Project INDEX, which is a different world from the repositories above and had to be
+	 * exposed once anything needed a row's own facts.
+	 *
+	 * Three of the SEVEN fields a `ProjectSummaryDto` carries do not come from the project
+	 * repository at all — `id`, `name`, `status` and `currency` are the four that do. (It said
+	 * five, and it said it in the comment explaining why the seed had just grown two members:
+	 * wrong at birth, by exactly the two the same edit added. Counted from the interface rather
+	 * than remembered.) `planCount` and `lastWorked` are derived by `IndexProjectListFacts`
+	 * from index entries plus the vault's file stats, and `libraryOverlap` by
+	 * `IndexLibraryOverlaps` from the folder a project's own note sits in. So a seed that
+	 * reached only `projects` and `plans` produced rows reading `0 plans`, no date and no
+	 * marker however many plans it saved — which is exactly what the Home surface's capture
+	 * fixture needed and could not express.
+	 *
+	 * The REAL adapters over a REAL index, never a stubbed `factsFor`: this file's own rule for
+	 * `overlaps` one paragraph down is that a fake must not be thinner than the thing it stands
+	 * for, and "always zero by construction" is thinner. Seeding the index means the numbers on
+	 * screen are derived by the code that derives them in production.
+	 */
+	readonly index: InMemoryProjectIndex;
+	/**
+	 * Give a path a modification time, so `IndexProjectListFacts` can date a row from it.
+	 *
+	 * The facts adapter asks the vault (`getAbstractFileByPath`) and narrows with `instanceof
+	 * TFile`, so a `Map` of paths is not enough — this mints the `TFile` the narrowing needs.
+	 * A path never touched simply has no file, which is the honest answer for a project whose
+	 * notes the vault cannot account for and is what every existing caller of this factory
+	 * keeps getting.
+	 */
+	readonly touch: (path: string, modified: Date) => void;
 }
 
 /**
@@ -200,6 +233,19 @@ export const defaultRenovationProjectDeps = (
 	// thing, and "always empty by construction" is thinner.
 	const index = new InMemoryProjectIndex();
 	const overlaps = new IndexLibraryOverlaps(index, DEFAULT_SETTINGS.libraryFolder);
+	// The REAL facts adapter over that SAME empty index, for the reason stated just above and
+	// with one addition: sharing the index is what makes these two describe one world rather
+	// than two empty ones that could diverge. Nothing here seeds the INDEX — `seed` reaches the
+	// repositories — so `entries()` is empty, no path is ever stat'd and the vault stand-in
+	// beside it is never called: an honest zero for the right reason rather than a stubbed one.
+	// The vault the facts adapter stats through. A `Map` that starts EMPTY, so every existing
+	// caller gets exactly the `() => null` it always got — an honest zero for the right reason —
+	// while a seed that calls `touch` can date a row. `TFile` here is the same mock class
+	// `IndexProjectListFacts` narrows with, since both resolve `obsidian` through the alias.
+	const files = new Map<string, TFile>();
+	const listFacts = new IndexProjectListFacts(index, {
+		getAbstractFileByPath: (path) => files.get(path) ?? null,
+	});
 	// Real in-memory repositories — an ANSWERING query rather than a refusing double, so the
 	// browser harness's price section has something to render through this factory. Both are in
 	// `SeedRepositories` since the capture of that section needed rows to photograph; see that
@@ -216,20 +262,38 @@ export const defaultRenovationProjectDeps = (
 	// browser harness's `?project=` knob is the only caller today (`tests/harness/mount.ts`):
 	// a detail state has to be OPENED on a project that exists, and every id here is
 	// generated, so a seed is the only way a URL can name one.
-	seed?.({ projects, plans, assets, overrides });
+	seed?.({
+		projects,
+		plans,
+		assets,
+		overrides,
+		index,
+		touch: (path, modified) => {
+			const file = new TFile();
+			file.path = path;
+			// `ctime` beside `mtime` because the REAL `FileStats` requires it and this file is
+			// type-checked against the real `obsidian` types (`tsconfig.json` has no `paths`
+			// mapping) while resolving to the mock at runtime. Same instant: nothing here reads
+			// it, and a creation time later than a modification time would be a lie a future
+			// reader could act on.
+			file.stat = { ctime: modified.getTime(), mtime: modified.getTime(), size: 0 };
+			files.set(path, file);
+		},
+	});
 
 	// ANNOTATED rather than inferred, so a member the interface grows is a compile error here
 	// rather than an `undefined` handed to whoever reads it — which is what this file shipped:
 	// `commands` was built with `createProject` alone, and `RenovationProjectCommandServices`
 	// requires a `logger` beside it.
 	const defaults: RenovationProjectDeps = {
-		queries: createRenovationProjectQueries(
-			new ListProjects(projects, overlaps),
-			new GetProject(projects),
-			new ListPlansByProject(plans),
+		queries: createRenovationProjectQueries({
+			listProjects: new ListProjects(projects, overlaps, listFacts),
+			getProject: new GetProject(projects),
+			listPlansByProject: new ListPlansByProject(plans),
 			overlaps,
-			new ListProjectAssetPrices(assets, overrides, index, recorder),
-		),
+			facts: listFacts,
+			listAssetPrices: new ListProjectAssetPrices(assets, overrides, index, recorder),
+		}),
 		commands: {
 			createProject: new CreateProjectCommand(projects, events, DEFAULT_SETTINGS.defaultCurrency),
 			createPlan: new CreatePlanCommand(plans, projects, events),
@@ -298,6 +362,13 @@ export const defaultRenovationProjectDeps = (
 		// would put every case that mounts a detail state through this factory into the
 		// restored-leaf holding pattern, which is a fake driving behaviour nothing asked for.
 		indexScanCompleted: () => true,
+		// Task 10. `null` rather than a seeded value: no case here is about Continue, and a
+		// default that answered a fabricated context would make the surface's first real
+		// caller the one that finds out this factory was inventing one. `rememberContinue` is
+		// a no-op for the same reason `navigate`/`openPlan`/`openAsset` are inert defaults
+		// above — this harness has no store of its own to remember into.
+		continueContext: () => Promise.resolve(null),
+		rememberContinue: () => undefined,
 	};
 	return defaults;
 };

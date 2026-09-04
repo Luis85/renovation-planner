@@ -38,6 +38,16 @@ function deps(listProjects: () => Promise<unknown>) {
 		// `projectId` to branch on, with nothing to report it. See
 		// `viewRootIndexRebuild.test.ts` for the whole argument.
 		projectId: null,
+		// Task 11's continue read, stated for the same reason: no case in this file is about
+		// Continue, so `null` — no stored context — is the honest default.
+		continueContext: () => Promise.resolve(null),
+		// Task 11's write half, stated beside the read half above for a reason the read
+		// half does not have: `ViewRoot.onOpenProject` calls this UNGUARDED, so a literal
+		// omitting it is a `TypeError` waiting for the first case that plain-clicks a row —
+		// which none here does today, so nothing throws and no compiler can say so (a
+		// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
+		// nothing can see.
+		rememberContinue: () => undefined,
 	};
 }
 
@@ -142,6 +152,14 @@ describe('ViewRoot, creating a project', () => {
 		// `projectId` to branch on, with nothing to report it. See
 		// `viewRootIndexRebuild.test.ts` for the whole argument.
 		projectId: null,
+		continueContext: () => Promise.resolve(null),
+		// Task 11's write half, stated beside the read half above for a reason the read
+		// half does not have: `ViewRoot.onOpenProject` calls this UNGUARDED, so a literal
+		// omitting it is a `TypeError` waiting for the first case that plain-clicks a row —
+		// which none here does today, so nothing throws and no compiler can say so (a
+		// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
+		// nothing can see.
+		rememberContinue: () => undefined,
 		};
 		const wrapper = mount(ViewRoot, {
 			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
@@ -220,5 +238,99 @@ describe('ViewRoot, creating a project', () => {
 
 		expect(wrapper.findAll('.rp-project-list__row')).toHaveLength(1);
 		expect(wrapper.find('.rp-view-notice').exists()).toBe(true);
+	});
+
+	/**
+	 * The Home surface's signature interaction (Task 7), threaded end to end: a query that
+	 * matched no project offers to become one, and the form that opens actually carries what
+	 * the user typed — not merely that SOME form opened.
+	 */
+	it('opens the form pre-filled when the list asks for a named project', async () => {
+		const pinia = createPinia();
+		setActivePinia(pinia);
+		const context = deps(() =>
+			Promise.resolve(ok({ projects: [{ id: 'p1', name: 'Kitchen', status: 'IDEA' }], unreadable: 0 })),
+		);
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+		});
+		await flushPromises();
+
+		await wrapper.get('.rp-project-filter__input').setValue('Cellar conversion');
+		await wrapper.get('.rp-project-list__create-named').trigger('click');
+		await flushPromises();
+
+		const current = useDialogStore(pinia).current;
+		if (current?.kind !== 'form') throw new Error('expected a form dialog to be open');
+		expect(current.props?.initialName).toBe('Cellar conversion');
+	});
+
+	/**
+	 * **The carried Task 7 finding, closed end to end (Task 8).** The `New project named "…"`
+	 * button lives inside `ProjectList`'s no-match block — and the created project, named from
+	 * the query by default, now MATCHES it, so `hydrate()`'s re-read makes that whole block
+	 * unmount. `DialogHost`'s own focus-restore targets the button that opened the dialog,
+	 * which is that same block; its own docblock calls restoring to a removed element "a no-op,
+	 * not a fallback" it declines to compensate for — so whichever of the two removals runs
+	 * last, focus is orphaned to `<body>` unless `ProjectList` catches it, which is what this
+	 * proves happens through the REAL dialog and store, not a stand-in for either.
+	 *
+	 * `attachTo: document.body` and a real `.focus()` before the click — VTU's `trigger('focus')`
+	 * only dispatches a synthetic event and never moves `document.activeElement` at all, the
+	 * same gap `projectListKeyboard.test.ts` documents.
+	 */
+	it('moves focus to the filter when a successful create removes the block focus was in', async () => {
+		const pinia = createPinia();
+		setActivePinia(pinia);
+		let projects: readonly { id: string; name: string; status: string }[] = [
+			{ id: 'p1', name: 'Kitchen', status: 'IDEA' },
+		];
+		const listProjects = vi.fn<() => Promise<unknown>>(() =>
+			Promise.resolve(ok({ projects, unreadable: 0 })),
+		);
+		const context = deps(listProjects);
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+			attachTo: document.body,
+		});
+		await flushPromises();
+
+		await wrapper.get('.rp-project-filter__input').setValue('Cellar conversion');
+		const createNamed = wrapper.get('.rp-project-list__create-named');
+		(createNamed.element as HTMLElement).focus();
+		await createNamed.trigger('click');
+		await flushPromises();
+
+		// The write lands, and the vault now holds a project whose name matches the query still
+		// sitting in the field — exactly the default `initialName` produces when nobody edits it.
+		projects = [{ id: 'p2', name: 'Cellar conversion', status: 'IDEA' }];
+		wrapper.findComponent(NewProjectForm).vm.$emit('submit', { name: 'Cellar conversion' });
+		await flushPromises();
+
+		expect(wrapper.find('.rp-project-list__no-match').exists()).toBe(false);
+		expect(document.activeElement).toBe(wrapper.get('.rp-project-filter__input').element);
+	});
+
+	/**
+	 * `EmptyState` emits `action` with NO payload. Without `onCreateProject`'s parameter
+	 * default this reaches `NewProjectForm` as `initialName: undefined`, and the form's
+	 * `initial: { ...INITIAL, name: props.initialName ?? '' }` line is the only reason that
+	 * does not become the literal string "undefined" in the name field.
+	 */
+	it('opens it empty from the empty state, whose action carries no payload', async () => {
+		const pinia = createPinia();
+		setActivePinia(pinia);
+		const context = deps(() => Promise.resolve(ok({ projects: [], unreadable: 0 })));
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+		});
+		await flushPromises();
+
+		await wrapper.get('.rp-empty-state__action').trigger('click');
+		await flushPromises();
+
+		const current = useDialogStore(pinia).current;
+		if (current?.kind !== 'form') throw new Error('expected a form dialog to be open');
+		expect(current.props?.initialName).toBe('');
 	});
 });

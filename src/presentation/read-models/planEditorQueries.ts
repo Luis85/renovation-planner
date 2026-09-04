@@ -19,6 +19,7 @@ import type { Project as ProjectEntity } from '../../domain/project/Project';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { ZoneListing } from '../../application/ports/ZoneRepository';
 import {
+	UNKNOWN_ROW_FACTS,
 	toPlanDto,
 	toProjectSummaryDto,
 	toZoneDto,
@@ -172,10 +173,31 @@ export function createPlanEditorQueries(queries: {
 			if (isErr(found)) return found;
 			return ok(found.value === null ? null : toPlanDto(found.value.entity));
 		},
+		/**
+		 * `false` and `UNKNOWN_ROW_FACTS` are both FABRICATED, and they are fabricated for one
+		 * reason: this bundle composes neither `LibraryOverlaps` nor `ProjectListFacts`, and the
+		 * Plan Editor renders none of the three fields they feed — `libraryOverlap`,
+		 * `planCount`, `lastWorked` are the Renovation Planner Home surface's, read by
+		 * `ProjectRow.vue`, `ContinueRow.vue` and `projectOrder.ts` and by nothing the editor
+		 * mounts. `createRenovationProjectQueries.getProject` ASKS for both instead, and its own
+		 * comment says why that door has to.
+		 *
+		 * **This call is what a merge found, and the finding is worth more than the argument.**
+		 * The Renovation Planner Home branch made `toProjectSummaryDto`'s third parameter
+		 * required; this door arrived on `origin/main` at the same time and merged CLEANLY,
+		 * because neither branch touched the other's line. `vue-tsc` is what named it — the
+		 * compiler being the only instrument that reads a clean merge for the argument it
+		 * dropped.
+		 *
+		 * What closes the fabrication is a facts port on `PlanEditorQueryServices`, the day the
+		 * editor draws one of these fields. A better placeholder does not.
+		 */
 		async getProject(projectId) {
 			const found = await queries.getProject.execute({ projectId: projectId as ProjectId });
 			if (isErr(found)) return found;
-			return ok(found.value === null ? null : toProjectSummaryDto(found.value.entity, false));
+			return ok(
+				found.value === null ? null : toProjectSummaryDto(found.value.entity, false, UNKNOWN_ROW_FACTS),
+			);
 		},
 		async findZonesByPlan(planId) {
 			const found = await queries.findZonesByPlan.execute({ planId: planId as PlanId });

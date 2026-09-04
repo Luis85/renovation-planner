@@ -12,7 +12,7 @@ import { createEventBus } from '../../../src/core/events/EventBus';
 import { createProjectListChangeSource } from '../../../src/application/events/projectListChangeSource';
 import { projectIndexEntryChanged, projectIndexRebuilt } from '../../../src/application/events/projectIndex.events';
 import { projectCreated } from '../../../src/domain/project/Project.events';
-import { planBackgroundChanged } from '../../../src/domain/plan/Plan.events';
+import { planBackgroundChanged, planCreated } from '../../../src/domain/plan/Plan.events';
 import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { createZoneId } from '../../../src/domain/zone/ZoneId';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
@@ -65,6 +65,37 @@ describe('the project list change source', () => {
 
 		await bus.publish(
 			projectIndexEntryChanged({ entityId: createProjectId(), entityType: 'renovation-project' }),
+		);
+
+		expect(heard).toEqual(['first', 'second']);
+	});
+
+	/**
+	 * `planCount` is a commissioned field (Home spec §8), so a plan created in a background
+	 * leaf — or by `create-sample-project` seeding through the palette — is a number this row
+	 * states and does not have until something re-reads. `PlanCreated` joins the unfiltered
+	 * category list for the same reason `ProjectCreated` already sits there.
+	 */
+	it('tells every listener that a plan was created', async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish(planCreated({ planId: createPlanId(), projectId: createProjectId() }));
+
+		expect(heard).toEqual(['first', 'second']);
+	});
+
+	/**
+	 * There is no `PlanDeleted` in this tree and no command that would raise one — measured,
+	 * not assumed (`grep -rn "PlanDeleted" src/` prints nothing) — so a deleted plan note has to
+	 * arrive through the entry arm instead. `VaultChangeAdapter.announce` runs on `index.remove`
+	 * as well as on upsert, so this one event carries a plan note created by hand, modified,
+	 * copied in, arriving through sync, or deleted alike.
+	 */
+	it('tells every listener that a plan entry changed in the vault, which is how a deleted plan arrives', async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish(
+			projectIndexEntryChanged({ entityId: createPlanId(), entityType: 'renovation-plan' }),
 		);
 
 		expect(heard).toEqual(['first', 'second']);

@@ -37,13 +37,45 @@
 .rp-plan-list .rp-plan-list__row {
 	display: flex;
 	width: 100%;
-	/* WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
-	   photographing the page rather than by any gate. */
+	/*
+	 * WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
+	 * photographing the page rather than by any gate.
+	 *
+	 * **It is a GUARANTEE rather than the mechanism, and Task 12's capture is what established
+	 * the difference.** A row is a `<button>`, and Obsidian's own `button` rule sets
+	 * `height: var(--input-height)` — 30px, measured — so the used height is that and this floor
+	 * is satisfied by something else rather than binding. It is kept because it is what holds if
+	 * that ever changes, and because it states the requirement where the row is; it is NOT what
+	 * produces the resting height, and reading it as such is what would make a later reader
+	 * think a wrapped row could grow. It cannot: `height` is a fixed value, so a row whose
+	 * content wraps OVERFLOWS its box rather than growing, which is exactly what the Home
+	 * surface's narrow rows did — 41px of content in a 30px box, each row's second line drawn
+	 * over the next row's first. `project-list-narrow.css` is where that is released, because
+	 * that is the one place a row here is meant to wrap. (It said `project-list.css`'s narrow
+	 * block, which is where the release lived until Task D moved it out when that file hit the
+	 * 400-line cap; a pointer at a file is a pointer a split invalidates.)
+	 */
 	min-height: var(--size-4-6);
 	padding: var(--size-2-2) var(--size-4-2);
 	border: none;
 	border-radius: var(--radius-s);
 	background-color: transparent;
+	/*
+	 * **`box-shadow` is the fourth thing stripped, and it was missing for as long as this rule
+	 * has existed.** Obsidian's own `button:not(.clickable-icon)` sets
+	 * `box-shadow: var(--input-shadow)`, which `border: none` does not touch — so every row on
+	 * both lists drew as an OUTLINED BOX, and a stack of outlined boxes is the composition the
+	 * Home spec's column armature is written against. Found by the final whole-branch review
+	 * comparing the Continue row (a `<div>`, which inherits none of the button rule) against the
+	 * project rows above it: they were visibly different shapes, in a component whose own header
+	 * says it is distinguished "never by being a different shape".
+	 *
+	 * Stripped here rather than added to the `<div>`, which is the direction this file's own
+	 * first sentence already asks for — "a `<button>` stripped of its button-ness so the row
+	 * reads as a row". The captures decided it: the plan list is 26 outlined boxes edge-to-edge
+	 * before and a readable list after, on both schemes.
+	 */
+	box-shadow: none;
 	color: var(--text-normal);
 	text-align: left;
 	cursor: pointer;

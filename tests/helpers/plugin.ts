@@ -199,9 +199,26 @@ export async function loadedPlugin(
 			if (at >= 0) vaultHandlers.splice(at, 1);
 		},
 	};
+	// Task 10's Continue store, over an in-memory stand-in for Obsidian's real per-device
+	// `loadLocalStorage`/`saveLocalStorage` pair: a plain `Map`, since the real pair already
+	// hands the caller a deserialized value rather than a JSON string (`ContinueContextStore`
+	// carries no `JSON.parse`/`JSON.stringify` of its own for that reason), and `null` on
+	// `saveLocalStorage` clears the entry, matching the real API's own documented behaviour.
+	const localStorageEntries = new Map<string, unknown>();
+
 	// The persistence stack gathers these three from the app; with no surface passed
 	// nothing here behaves, which is honest — an empty collaborator answers no note.
-	const app = { workspace, vault, fileManager: surface?.fileManager ?? {}, metadataCache: surface?.metadataCache ?? {} };
+	const app = {
+		workspace,
+		vault,
+		fileManager: surface?.fileManager ?? {},
+		metadataCache: surface?.metadataCache ?? {},
+		loadLocalStorage: (key: string): unknown => localStorageEntries.get(key) ?? null,
+		saveLocalStorage: (key: string, data: unknown): void => {
+			if (data === null) localStorageEntries.delete(key);
+			else localStorageEntries.set(key, data);
+		},
+	};
 
 	// `RenovationPlannerPlugin extends Plugin` resolves against the REAL `obsidian` package's
 	// types here — `vitest.config.ts`'s alias to `obsidian-mock.ts` is a vitest-only module

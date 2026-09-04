@@ -45,8 +45,15 @@ import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
  * answers for a note deleted between the read and the click (`ProjectOpenOutcome`), because
  * an announcement is not an ordering: it arrives after the fact, and no subscription can make
  * a list that was true a moment ago true now.
+ *
+ * **`PlanCreated` is here because the Home spec commissioned a plan COUNT.** A field the
+ * surface never re-reads is a field that lies, and until this name was added a plan created in
+ * a background leaf reached the index and not this list — the row went on stating a number it
+ * no longer had. The spec also names `PlanDeleted`; there is no such event in this tree and no
+ * delete command to raise one, so the deletion case is carried by the entry arm below rather
+ * than by a subscription to something nothing publishes.
  */
-const PROJECT_LIST_CHANGE_EVENTS = ['ProjectIndexRebuilt', 'ProjectCreated'] as const;
+const PROJECT_LIST_CHANGE_EVENTS = ['ProjectIndexRebuilt', 'ProjectCreated', 'PlanCreated'] as const;
 
 /**
  * Events that name ONE index entry, and are the list's business only when that entry is a
@@ -61,8 +68,21 @@ const PROJECT_LIST_CHANGE_EVENTS = ['ProjectIndexRebuilt', 'ProjectCreated'] as 
  * the subscription would still be correct and the surface would be unusable: a synced plan or
  * a burst of zone notes would make this view re-read every project note in the vault, once per
  * note.
+ *
+ * **`renovation-plan` is admitted beside `renovation-project`, and that is what carries a
+ * DELETED plan.** `VaultChangeAdapter.announce` runs on `index.remove` as well as on upsert —
+ * its call sits directly after the removal, reading the entry's `type` before dropping it — so
+ * this one event covers a plan note created by hand, modified, copied in, arriving through
+ * sync, or deleted. It is bounded on purpose: a project has a handful of plans and a user
+ * creates them one at a time, which is nothing like the zone burst this filter was written
+ * against.
+ *
+ * **Do not widen past `renovation-plan`.** Zones, assets and requirements stay excluded, and a
+ * later number that needs one of them needs a different mechanism rather than a wider filter
+ * here — `projectListChangeSource.test.ts` pins the zone case for exactly that reason.
  */
 const PROJECT_ENTRY_EVENTS = ['ProjectIndexEntryChanged'] as const;
+const LIST_ENTITY_TYPES = new Set(['renovation-project', 'renovation-plan']);
 
 /**
  * `DomainEvent` carries only a `type`. Narrowed with a guard rather than a cast, exactly as
@@ -86,7 +106,8 @@ export function createProjectListChangeSource(events: EventBus): (listener: () =
 			),
 			...PROJECT_ENTRY_EVENTS.map((type) =>
 				events.subscribe(type, (event) => {
-					if (changedEntityTypeOf(event) === 'renovation-project') listener();
+					const changed = changedEntityTypeOf(event);
+					if (changed !== null && LIST_ENTITY_TYPES.has(changed)) listener();
 				}),
 			),
 		];

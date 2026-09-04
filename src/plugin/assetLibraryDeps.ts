@@ -60,11 +60,15 @@ export function assetLibraryDeps(
 				? unavailableAssetLibraryQueries()
 				: createAssetLibraryQueries({
 						...persistence.assetLibrary,
-						// The designer's own guarded query and the delete flow's own, REUSED rather
-						// than composed a second time: two instruments answering one question is
-						// what lets two surfaces disagree about one asset.
+						// THREE queries this root already composed for other surfaces — the designer's
+						// design read and the Plan editor's delete flow's two — REUSED rather than
+						// composed a second time: two instruments answering one question is what lets
+						// two surfaces disagree about one asset. The third arrived with §3.5's
+						// `Delete`, whose reassign branch fills the same picker the editor's own
+						// delete flow does.
 						getDesign: persistence.assetDesign.get,
 						listReferencing: persistence.requirementQueries.listRequirementsReferencing,
+						listReassignmentTargets: persistence.requirementQueries.listReassignmentTargets,
 					}),
 		commands:
 			persistence === null

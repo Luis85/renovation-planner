@@ -8,6 +8,7 @@ import type {
 	ReferencedTarget,
 	ReferencingGroup,
 } from '../../application/queries/ListRequirementsReferencing';
+import type { ReassignmentTargetDto } from '../../application/queries/reassignmentTypes';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { ProjectId } from '../../domain/project/ProjectId';
 
@@ -15,12 +16,19 @@ import type { ProjectId } from '../../domain/project/ProjectId';
  * The ONLY application-layer surface the Asset library depends on — `planEditorQueries.ts`'s
  * shape for a fourth view, and a sibling of `assetDesignerQueries.ts` rather than a member of
  * it: that file is named for the surface that edits ONE asset and answers one door, while this
- * one browses every asset in the vault and answers five.
+ * one browses every asset in the vault and answers six.
  *
- * Five doors because the surface performs five reads with five different lifetimes (§5.5): the
- * catalogue listing is refreshed by events, the marks are read per viewport, and the three
- * selection reads are restarted by a selection. Folding any pair into one query would give two
- * of them one ticket.
+ * FIVE of the six are reads with five different lifetimes (§5.5): the catalogue listing is
+ * refreshed by events, the marks are read per viewport, and the three selection reads are
+ * restarted by a selection. Folding any pair into one query would give two of them one ticket.
+ *
+ * `listReassignmentTargets` is the sixth and is NOT one of those — it belongs to no section, is
+ * ticketed by nothing and is read once, inside a gesture, when a user has chosen to reassign.
+ * It is here because §3.5's `Delete` goes through slice 10's resolution and that resolution
+ * offers a reassignment, so the surface needs the door; and it is the SAME guarded query the
+ * Plan editor's own delete flow already holds (`ListReassignmentTargets` has answered the asset
+ * case since design slice 19 — every other area-kind asset in the vault), reused rather than
+ * composed a second time.
  *
  * `listOutlines` answers a MAP and never a `Result`, which is the one asymmetry here and is
  * §3.4's rule rather than an oversight: an outline settles per asset, so one damaged sidecar
@@ -39,6 +47,10 @@ export interface AssetLibraryQueryServices {
 	 * "a price correction reaches every room it was used in", being false by omission.
 	 */
 	listOverridingProjects(assetId: AssetId): Promise<Result<readonly ProjectId[], RepositoryError>>;
+	/** §3.5's `Delete`, reassign branch — see this interface's own header for why it is here. */
+	listReassignmentTargets(
+		assetId: AssetId,
+	): Promise<Result<readonly ReassignmentTargetDto[], RepositoryError>>;
 }
 
 /**
@@ -92,22 +104,29 @@ export function unavailableAssetLibraryQueries(): AssetLibraryQueryServices {
 		getDesign: refuseUnrecovered,
 		listReferencing: refuseUnrecovered,
 		listOverridingProjects: refuseUnrecovered,
+		listReassignmentTargets: refuseUnrecovered,
 	};
 }
 
 /**
- * The five guarded queries, mapped at the boundary into the read model above.
+ * The six guarded queries, mapped at the boundary into the read model above.
  *
  * Typed structurally (`Query<…>`) and never as the concrete classes, for the reason
  * `guardedServices.ts` states once for every service it wraps: what the composition root hands
  * out is a wrapper object with the same `execute`, and a parameter typed as the class would
  * refuse it.
  *
- * Two mappings happen here and nowhere else. `listReferencing` takes an `AssetId` and the query
- * takes a `ReferencedTarget`, because that query serves the zone flow too — the discriminator
- * is this surface's to supply, not the view's to remember. And `listOutlines` turns the
- * boundary's refusal into one `refused` entry per requested id, which is the honest answer for
- * a batch that could not be read: every mark says *unread*, and none says *no shape yet*.
+ * TWO KINDS of mapping happen here and nowhere else, at three doors.
+ *
+ * `listReferencing` and `listReassignmentTargets` each take an `AssetId` where the query takes
+ * a `ReferencedTarget`: both queries serve the zone flow too, so the discriminator is this
+ * surface's to supply rather than the view's to remember. One rule, applied at two doors —
+ * stated as a kind rather than counted, because the door count is what moved when §3.5's
+ * reassign branch arrived and a sentence counting doors would have gone stale with it.
+ *
+ * And `listOutlines` turns the boundary's refusal into one `refused` entry per requested id,
+ * which is the honest answer for a batch that could not be read: every mark says *unread*, and
+ * none says *no shape yet*.
  */
 export function createAssetLibraryQueries(queries: {
 	readonly listCatalogue: Query<void, Result<CatalogueListing, RepositoryError>>;
@@ -118,6 +137,10 @@ export function createAssetLibraryQueries(queries: {
 	readonly getDesign: Query<AssetId, Result<AssetDesignDto, AssetDesignError>>;
 	readonly listReferencing: Query<ReferencedTarget, Result<readonly ReferencingGroup[], RepositoryError>>;
 	readonly listOverridingProjects: Query<AssetId, Result<readonly ProjectId[], RepositoryError>>;
+	readonly listReassignmentTargets: Query<
+		ReferencedTarget,
+		Result<readonly ReassignmentTargetDto[], RepositoryError>
+	>;
 }): AssetLibraryQueryServices {
 	return {
 		listCatalogue: () => queries.listCatalogue.execute(),
@@ -132,5 +155,8 @@ export function createAssetLibraryQueries(queries: {
 		listReferencing: (assetId) => queries.listReferencing.execute({ kind: 'asset', assetId }),
 
 		listOverridingProjects: (assetId) => queries.listOverridingProjects.execute(assetId),
+
+		listReassignmentTargets: (assetId) =>
+			queries.listReassignmentTargets.execute({ kind: 'asset', assetId }),
 	};
 }

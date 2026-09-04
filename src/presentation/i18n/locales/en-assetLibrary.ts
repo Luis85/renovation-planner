@@ -58,6 +58,10 @@ export const enAssetLibrary = {
 	// §6.2's narrow-composition control, quoted verbatim from the spec.
 	'view.asset-library.back': 'Back to library',
 	'view.asset-library.delete': 'Delete',
+	// §3.5's `Delete` reassign branch — the picker title, its OWN key rather than the Plan
+	// editor's `editor.inspector.delete-zone.reassign-title`, which names a zone. The 63rd key
+	// of §8's inventory, recorded as an amendment there because that count is pinned.
+	'view.asset-library.delete.reassign-title': 'Move these requirements to which asset?',
 	'view.asset-library.shape': 'Shape',
 	'view.asset-library.footprint': 'Footprint',
 	'view.asset-library.clearance': 'Clearance',

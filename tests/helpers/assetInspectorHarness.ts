@@ -33,8 +33,8 @@ import { defaultAssetLibraryDeps } from './makeAssetLibraryView';
 import { settle } from './async';
 
 /**
- * Answers every one of the five doors successfully, which is what makes a case that overrides
- * ONE of them a case about that door — the refusal bundle would leave the other four failing
+ * Answers every one of the six doors successfully, which is what makes a case that overrides
+ * ONE of them a case about that door — the refusal bundle would leave the other five failing
  * and every section drawing its refusal state at once.
  */
 function answeringQueries(
@@ -47,6 +47,7 @@ function answeringQueries(
 		getDesign: (assetId) => Promise.resolve(ok(assetDesign({ assetId }))),
 		listReferencing: () => Promise.resolve(ok([])),
 		listOverridingProjects: () => Promise.resolve(ok([])),
+		listReassignmentTargets: () => Promise.resolve(ok([])),
 	};
 }
 

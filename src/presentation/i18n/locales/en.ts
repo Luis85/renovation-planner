@@ -166,6 +166,11 @@ export const en = {
 	'reference.set-changed': 'The references to this changed while you were deciding. Check them and confirm again.',
 	'reference.resolution-required': 'This is still referenced. Decide what happens to those references before deleting it.',
 	'reference.no-reassignment-target': 'There is no other zone in this project to reassign these requirements to.',
+	// Its own code beside the zone one above, because the two name different scopes: the
+	// catalogue has been project-free since design slice 19, so an asset's alternatives are
+	// bounded by the vault. Minted in `presentation/library/deleteAssetFlow.ts`.
+	'reference.no-reassignment-asset':
+		'There is no other area-based asset in this vault to reassign these requirements to.',
 	'reference.self-reassign': 'References cannot be reassigned to the entry being deleted. Pick a different one.',
 	'reference.cross-project-reassign': 'References can only be reassigned within the same project.',
 	// The delete dialog's reference rows (slice 15 item 6), one row per project. TWO keys

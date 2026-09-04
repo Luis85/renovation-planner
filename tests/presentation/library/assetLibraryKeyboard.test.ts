@@ -19,11 +19,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { VueWrapper } from '@vue/test-utils';
 import { ref } from 'vue';
-import { assembleStyles } from '../../../scripts/styles-assemble.mjs';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
 import { installObsidianDom } from '../../helpers/dom';
 import { settle } from '../../helpers/async';
 import { anEntry, definite, mountRoot } from '../../helpers/assetLibraryRootHarness';
+// §7's stand-in, SHARED with `assetDelete.test.ts` — see that module's own header for why it
+// moved out of this file rather than being copied into the second suite.
+import { installNarrowComposition } from './narrowComposition';
 import { isLaidOut } from '../../../src/presentation/library/shelfFocus';
 
 installObsidianDom();
@@ -31,54 +33,14 @@ installObsidianDom();
 const mounted: VueWrapper[] = [];
 const installed: HTMLStyleElement[] = [];
 
+function narrow(): void {
+	installed.push(installNarrowComposition());
+}
+
 afterEach(() => {
 	for (const wrapper of mounted.splice(0)) wrapper.unmount();
 	for (const style of installed.splice(0)) style.remove();
 });
-
-/**
- * §7's third rung, DERIVED from the assembled sheet rather than transcribed from it — every rule
- * inside every `@container rp-al (width < 35rem)` block, with the wrapper this jsdom cannot
- * evaluate stripped off. Two partials contribute one: the shell hides `.rp-al-body` once
- * something is selected (`styles/asset-library.css`), and the rail takes the pane while its
- * resting and stood-aside states withdraw (`styles/asset-library-inspector.css`).
- *
- * **Copied is not derived, which is why this is a scan.** A hand-transcribed pair of selectors
- * leaves this whole file green on the day the shipped rule changes and production stops hiding
- * anything — the drift would redden only in `tests/build/styles.test.ts`, one file away, and
- * only for the one rule that file pins by text. Reading the sheet means the composition these
- * cases drive IS the composition that ships.
- *
- * Comments are stripped first: both partials discuss `rp-al (width < 35rem)` in prose, and a
- * scan that matched a sentence would slice from the wrong offset.
- */
-function narrowRules(): string {
-	const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//gu, '');
-	const marker = '@container rp-al (width < 35rem)';
-	let rules = '';
-	for (let from = sheet.indexOf(marker); from !== -1; from = sheet.indexOf(marker, from)) {
-		const open = sheet.indexOf('{', from);
-		let depth = 0;
-		let at = open;
-		for (; at < sheet.length; at += 1) {
-			if (sheet[at] === '{') depth += 1;
-			else if (sheet[at] === '}') {
-				depth -= 1;
-				if (depth === 0) break;
-			}
-		}
-		rules += sheet.slice(open + 1, at);
-		from = at;
-	}
-	return rules;
-}
-
-function narrow(): void {
-	const style = document.createElement('style');
-	style.textContent = narrowRules();
-	document.head.append(style);
-	installed.push(style);
-}
 
 const ALDER = anEntry({ assetId: createAssetId(), category: 'material', name: 'Alder plank' });
 const BIRCH = anEntry({ assetId: createAssetId(), category: 'material', name: 'Birch plank' });

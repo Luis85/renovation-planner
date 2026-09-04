@@ -13,9 +13,12 @@ import type { ReferencingGroup } from '../../../src/application/queries/ListRequ
 import type { ProjectId } from '../../../src/domain/project/ProjectId';
 import {
 	deleteZoneWithReferences,
-	rowsFor,
 	type DeleteZoneFlowDeps,
 } from '../../../src/presentation/editor/deleteZoneFlow';
+// `rowsFor` moved with the flow's SHAPE when the Asset library needed the identical gesture
+// (`presentation/references/deleteWithReferences.ts`). The label rule it holds is one
+// derivation for both surfaces, so these cases still pin the only copy of it.
+import { rowsFor } from '../../../src/presentation/references/deleteWithReferences';
 import { toUserMessage } from '../../../src/presentation/i18n/toUserMessage';
 import { en } from '../../../src/presentation/i18n/locales/en';
 import { de } from '../../../src/presentation/i18n/locales/de';

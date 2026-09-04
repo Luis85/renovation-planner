@@ -1664,6 +1664,26 @@ empty.asset-library.no-matches.headline / .body / .action
 second table draws — added WITH that table rather than a round after it, which is the practice
 those two preceding rounds bought.
 
+**Amendment 3 (Task 16b): `view.asset-library.delete.reassign-title` is the 63rd key, and it is
+one this section could not have derived from a state table.** §3.5 item 4 sends `Delete` through
+slice 10's resolution, and that resolution's REASSIGN branch opens slice 15's `EntityPickerDialog`
+— which takes a resolved `title` from its caller, because nothing under `presentation/dialogs/`
+names a key. So the string exists only inside a gesture, appears in no state and on no row, and
+the sweep that walked §3 and §4 could not have found it: the two preceding amendments were keys
+this list had skipped, and this one is a key it had no way to reach.
+
+Reusing the Plan editor's `editor.inspector.delete-zone.reassign-title` was the alternative and it
+is wrong in the one word that matters — it reads *"Move these requirements to which zone?"*, and a
+catalogue has been project-free and zone-free since design slice 19. Its German is `Zu welchem
+Objekt sollen diese Anforderungen verschoben werden?`, per the `Objekt` this plugin's UI already
+pins (`Material` is refused).
+
+One further string this flow can show is deliberately NOT in this inventory:
+`reference.no-reassignment-asset`, the refusal for a vault holding no other area-kind asset, is an
+`AppError` CODE resolved by `toUserMessage` from the shared locale tables — the same place its
+zone sibling `reference.no-reassignment-target` lives. §8's inventory is this surface's own visible
+copy, and an error code's sentence is not keyed by surface.
+
 **The three §4 keys were found by sweeping that section's state table row by row**, which is how
 this list should have been derived in the first place and was not. §4 tabulates six states and the
 inventory carried keys for two of them — the empty ones — so *Loading*, *Some unreadable* and the

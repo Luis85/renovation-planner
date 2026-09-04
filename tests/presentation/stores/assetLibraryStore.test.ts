@@ -98,6 +98,9 @@ function queriesAnswering(
 		listOutlines: (assetIds) =>
 			Promise.resolve(new Map(assetIds.map((assetId) => [assetId, NO_SHAPE]))),
 		getDesign: () => Promise.reject(new Error('not exercised')),
+		// REJECTS for its siblings' reason: no case in this file drives the delete flow, so a
+		// door answering here would let a build reading it from this store pass silently.
+		listReassignmentTargets: () => Promise.reject(new Error('not exercised')),
 		listReferencing: () => Promise.reject(new Error('not exercised')),
 		listOverridingProjects: () => Promise.reject(new Error('not exercised')),
 		...overrides,

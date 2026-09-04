@@ -189,6 +189,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.set-changed': 'Die Referenzen hierauf haben sich während Ihrer Entscheidung geändert. Bitte prüfen und erneut bestätigen.',
 	'reference.resolution-required': 'Dies wird noch referenziert. Entscheiden Sie vor dem Löschen, was mit diesen Referenzen geschehen soll.',
 	'reference.no-reassignment-target': 'In diesem Projekt gibt es keine andere Zone, der diese Anforderungen zugewiesen werden könnten.',
+	'reference.no-reassignment-asset':
+		'In diesem Vault gibt es kein anderes flächenbasiertes Objekt, dem diese Anforderungen zugewiesen werden könnten.',
 	'reference.self-reassign': 'Referenzen können nicht dem zu löschenden Eintrag neu zugewiesen werden. Bitte einen anderen wählen.',
 	'reference.cross-project-reassign': 'Referenzen können nur innerhalb desselben Projekts neu zugewiesen werden.',
 	// Zeilen im Löschdialog (Slice 15, Punkt 6): zwei Schlüssel statt eines mit fest

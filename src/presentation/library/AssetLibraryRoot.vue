@@ -47,12 +47,14 @@ import NewAssetForm from '../views/NewAssetForm.vue';
 import AssetInspector from './AssetInspector.vue';
 import AssetLibraryBody from './AssetLibraryBody.vue';
 import { useAssetLibraryContext } from './AssetLibraryContext';
-import { focusWithin, shelvesWithdrawn } from './shelfFocus';
+import { focusRowAt, focusWithin, rowPositionOf, shelvesWithdrawn } from './shelfFocus';
+import { deleteAssetWithReferences } from './deleteAssetFlow';
 import { useAssetLibraryStore } from '../stores/AssetLibraryStore';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
+import { notifyOperationFailure } from '../notices/notify';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
 import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { AssetId } from '../../domain/asset/AssetId';
@@ -76,6 +78,12 @@ const searchEl = ref<HTMLInputElement | null>(null);
  * vacuously safe while nothing mounted the panel; Task 16a mounting it is what made it false,
  * and the docblock is where this repository's rule says to look — an "only place X" sentence
  * gets a `grep` in the SAME edit.
+ *
+ * **THREE call sites and FOUR calls, which are different facts.** Task 16b's `onDelete` below
+ * calls THIS function rather than the store, so the grep above still prints three; it is
+ * re-measured here rather than assumed, because a count of call sites and a count of callers
+ * of `hydrate` are exactly the pair that drifts. Why the delete awaits one at all is on
+ * `onDelete` itself.
  *
  * **The PATTERN is escaped so that it cannot match this paragraph**, which is the correction a
  * re-review had to make: the first version quoted a bare dot-hydrate pattern and reported three
@@ -291,6 +299,58 @@ function onBack(): void {
 	if (leaving === null) return;
 	void focusAfterSwap(`[data-asset-id="${CSS.escape(leaving)}"]`, () => swappingOut);
 }
+
+/**
+ * §3.5's `Delete` — the FIRST listener `AssetInspector`'s `delete` emit has ever had, and a
+ * deliberately thin one: the resolution lives in `deleteAssetFlow.ts`, and this function is the
+ * three things only the shell knows — which row was where, what to do with a refusal, and where
+ * focus lands afterwards.
+ *
+ * **The position is captured BEFORE anything is dispatched**, because after a successful delete
+ * there is no row left to ask. `rowPositionOf` is the whole of the reading: which list the row
+ * was in, and its index in it. Nothing about which list is branched on here — §6.1's flat
+ * *Results* list and a category shelf are the same `.rp-al-rows` element, so §3.5's two bullets
+ * ("the shelf", "the same rule inside the flat Results list") are ONE rule over whichever list
+ * the row was actually drawn into, rather than a condition on `store.searching` that would have
+ * to be kept in step with what §6.1 mounts.
+ *
+ * **The inspector withdraws BEFORE the re-read**, which is the ordering that matters rather than
+ * a tidy-up: below 35rem the shelves are hidden while something is selected, so a focus computed
+ * with the selection still standing would find every candidate row not laid out and fall through
+ * to the search field in exactly the composition §6.2 exists to serve.
+ *
+ * **And it AWAITS a listing read rather than trusting the event.** `AssetDeleted` does reach
+ * `onLibraryChanged` as `catalogue: true`, but that subscription is fire-and-forget by
+ * construction (`void store.applyChange(…)`), so the row's disappearance is not ordered against
+ * this function at all and the focus would race the re-render. `hydrate` is ticketed
+ * (`latestHydration`), so the event-driven read landing beside this one cannot regress it, and a
+ * second listing read per deletion is what buys a deterministic moment to place the caret at.
+ *
+ * A refusal is `notifyOperationFailure`, matching the Plan editor's own delete action verbatim
+ * and for its reason: the DECISION half already happened — the flow opened slice 15's modal and
+ * the user answered it — so what lands here is the command refusing after that answer, which is
+ * an explicit operation like any other rather than a second decision to put in front of them.
+ * `cancelled` is neither, and says nothing.
+ */
+async function onDelete(assetId: AssetId): Promise<void> {
+	const position = rowPositionOf(shellEl.value, assetId);
+	const outcome = await deleteAssetWithReferences(
+		{ queries: context.queries, deleteAsset: context.commands.deleteAsset, dialogs },
+		assetId,
+		store.entryFor(assetId)?.name ?? '',
+	);
+	if (outcome.kind === 'failed') {
+		notifyOperationFailure(outcome.error);
+		return;
+	}
+	if (outcome.kind === 'cancelled') return;
+	selectedId.value = null;
+	showingSelection.value = true;
+	publish(null, expandedCategories.value);
+	await hydrate();
+	await nextTick();
+	focusRowAt(position, searchEl.value);
+}
 </script>
 
 <template>
@@ -359,6 +419,7 @@ function onBack(): void {
 						:class="{ 'rp-al-inspector--away': !showingSelection }"
 						:asset-id="selectedId"
 						@back="onBack"
+						@delete="(id) => void onDelete(id)"
 					/>
 				</template>
 			</div>

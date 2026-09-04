@@ -41,6 +41,10 @@ export const deAssetLibrary = {
 	'view.asset-library.open-note': 'Notiz öffnen',
 	'view.asset-library.back': 'Zurück zur Bibliothek',
 	'view.asset-library.delete': 'Löschen',
+	// `Objekt` ist das Wort dieser Oberfläche für einen Asset (`Material` ist verboten), und
+	// `Anforderungen` das für Requirements — beide wie in `de.ts` bereits festgelegt.
+	'view.asset-library.delete.reassign-title':
+		'Zu welchem Objekt sollen diese Anforderungen verschoben werden?',
 	'view.asset-library.shape': 'Form',
 	'view.asset-library.footprint': 'Umriss',
 	'view.asset-library.clearance': 'Freiraum',

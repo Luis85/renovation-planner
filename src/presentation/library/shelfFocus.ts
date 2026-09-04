@@ -138,3 +138,73 @@ export function focusWithin(
 	if (target !== null && isLaidOut(target, shell)) target.focus();
 	else fallback?.focus();
 }
+
+/**
+ * Where a row sat, captured BEFORE the deletion that removes it — §3.5's post-deletion focus
+ * rule needs an index, and by the time the rule runs the row is gone and so is the index.
+ *
+ * The `list` is held as a live ELEMENT rather than as a selector or a category, because the
+ * two lists this rule serves cannot be named the same way: §6.1 replaces every shelf with one
+ * flat *Results* list while a search runs, and that list has no category to key on. Holding
+ * the element makes the two cases one rule — the deleted row's own `<ul class="rp-al-rows">`,
+ * whichever list that is — and it makes the one way this can go stale REPRESENTABLE rather
+ * than silent: a shelf that empties out of existence (an undeclared category exists only
+ * because an asset sits in it) leaves a disconnected element, which `focusRowAt` tests for.
+ */
+export interface RowPosition {
+	readonly list: HTMLElement;
+	readonly index: number;
+}
+
+/** The class §3.3's rows are drawn into, by both the shelves and §6.1's flat Results list. */
+const ROWS = '.rp-al-rows';
+
+/**
+ * The position of the row naming `assetId`, or `null` when this surface is not drawing one.
+ *
+ * `CSS.escape` for `AssetRow`'s own reason: an asset id is `z.string().min(1)` in the
+ * frontmatter schema, so a hand-authored one holding a quote or a backslash builds an invalid
+ * selector and `querySelector` THROWS rather than missing.
+ *
+ * `null` covers three real states rather than a defensive arm — the row is inside a shelf this
+ * search has filtered out, the catalogue read has not answered, or `shell` is not mounted —
+ * and every one of them means the same thing to the caller: there is no neighbour to go to.
+ */
+export function rowPositionOf(shell: HTMLElement | null, assetId: string): RowPosition | null {
+	const row = shell?.querySelector<HTMLElement>(`[data-asset-id="${CSS.escape(assetId)}"]`) ?? null;
+	const item = row?.closest('li') ?? null;
+	const list = item?.closest<HTMLElement>(ROWS) ?? null;
+	if (list === null || item === null) return null;
+	return { list, index: [...list.children].indexOf(item) };
+}
+
+/**
+ * §3.5's post-deletion destination: the row that now occupies the deleted row's index, then
+ * the previous surviving row, then `fallback` — which is the search field, and which the spec
+ * calls "every remaining case rather than a rare one".
+ *
+ * **The shelf's own heading is deliberately NOT a step in this chain**, and §3.5 removed it
+ * for a reason worth keeping where the code is: the heading is only reached once the deleted
+ * asset was the shelf's LAST row, and precisely then the shelf is empty — §3.2 renders a
+ * zero-count declared shelf as a non-interactive `<h3>` and drops an undeclared one
+ * altogether, so the step landed nowhere in the one case that reaches it.
+ *
+ * `index` then `index - 1` is one expression rather than a length test: `rows[index]` is
+ * `undefined` exactly when the deleted row was last, and `rows[index - 1]` is `undefined`
+ * exactly when the list is now empty, so the two `??` arms ARE the two clauses §3.5 states.
+ *
+ * `isLaidOut` guards the destination for `focusWithin`'s reason: a neighbour inside a shelf
+ * the user has since collapsed is in the DOM and not on screen, and `focus()` on it silently
+ * does nothing, stranding the caret on `<body>` with the panel already withdrawn.
+ */
+export function focusRowAt(position: RowPosition | null, fallback: HTMLElement | null): void {
+	// A disconnected list is a shelf that emptied out of existence — see `RowPosition`.
+	if (position === null || !position.list.isConnected) {
+		fallback?.focus();
+		return;
+	}
+	const rows = [...position.list.querySelectorAll<HTMLElement>('.rp-al-row')];
+	const target = rows[position.index] ?? rows[position.index - 1] ?? null;
+	if (target !== null && isLaidOut(target, null)) target.focus();
+	else fallback?.focus();
+}

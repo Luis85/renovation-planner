@@ -70,6 +70,9 @@ function queries(overrides: Partial<AssetLibraryQueryServices> = {}): AssetLibra
 		getDesign: (assetId) => Promise.resolve(ok(assetDesign({ assetId }))),
 		listReferencing: () => Promise.resolve(ok([KITCHEN])),
 		listOverridingProjects: () => Promise.resolve(ok([])),
+		// REJECTS like the two above: the reassignment picker belongs to the delete GESTURE and
+		// this store never reads it, so an answering door would hide a build that did.
+		listReassignmentTargets: () => Promise.reject(new Error('not exercised')),
 		...overrides,
 	};
 }

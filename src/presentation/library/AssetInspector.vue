@@ -73,8 +73,10 @@ const props = defineProps<{ assetId: AssetId | null }>();
 /**
  * `delete` carries the id because the panel is not where the gesture is RESOLVED: the
  * reference-resolution flow opens dialogs, and `DialogHost` plus every dialog-opening gesture
- * on this surface (`onCreateAsset`) already live in the root. `back` is §6.2's narrow-
- * composition control, which the shell decides the visibility of.
+ * on this surface already live in the root. Task 16b is what gave this emit its first listener
+ * — `AssetLibraryRoot.onDelete`, beside `onCreateAsset`, which is why this sentence no longer
+ * names one of them by way of example. `back` is §6.2's narrow-composition control, which the
+ * shell decides the visibility of.
  */
 const emit = defineEmits<{ back: []; delete: [assetId: AssetId] }>();
 

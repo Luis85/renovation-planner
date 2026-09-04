@@ -23,6 +23,7 @@ import type {
 import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
 import type { AssetId } from '../../../src/domain/asset/AssetId';
 import type { ProjectId } from '../../../src/domain/project/ProjectId';
+import type { ReassignmentTargetDto } from '../../../src/application/queries/reassignmentTypes';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import { expectErr, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { assetDesign } from '../../helpers/assetDesign';
@@ -71,6 +72,14 @@ function queriesWith(overrides: Partial<Parameters<typeof createAssetLibraryQuer
 				return Promise.resolve(ok([]));
 			},
 		},
+		listReassignmentTargets: {
+			execute: (
+				target: ReferencedTarget,
+			): Promise<Result<readonly ReassignmentTargetDto[], RepositoryError>> => {
+				asked.push(target);
+				return Promise.resolve(ok([]));
+			},
+		},
 		...overrides,
 	});
 	return { bundle, asked };
@@ -90,6 +99,7 @@ describe('createAssetLibraryQueries', () => {
 		expectOk(await bundle.getDesign(TILES));
 		expectOk(await bundle.listReferencing(TILES));
 		expectOk(await bundle.listOverridingProjects(PAINT));
+		expectOk(await bundle.listReassignmentTargets(PAINT));
 
 		expect(asked).toEqual([
 			'listCatalogue',
@@ -100,6 +110,10 @@ describe('createAssetLibraryQueries', () => {
 			// away from asking about a zone.
 			{ kind: 'asset', assetId: TILES },
 			PAINT,
+			// Same discriminator rule, second door: `ListReassignmentTargets` serves the zone
+			// flow too, and since design slice 19 its asset arm answers every OTHER area-kind
+			// asset in the vault rather than a project's zones.
+			{ kind: 'asset', assetId: PAINT },
 		]);
 	});
 

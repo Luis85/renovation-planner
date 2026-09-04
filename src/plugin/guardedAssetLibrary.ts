@@ -30,11 +30,11 @@ import type { ProjectId } from '../domain/project/ProjectId';
  * because it is the one instance every group shares, and it reaches this module the way it
  * reaches every other caller: as the `map` argument the composition root passes.
  *
- * **THREE members, not five.** The library's other two reads — `GetAssetDesign` and
- * `ListRequirementsReferencing` — are already composed and guarded for the designer and for
- * the delete flow, and `assetLibraryDeps` reuses those wrappers rather than building second
- * ones. Two instruments answering one question is what lets two surfaces disagree about one
- * asset.
+ * **THREE members, not six.** The library's other three reads — `GetAssetDesign`,
+ * `ListRequirementsReferencing` and `ListReassignmentTargets` — are already composed and
+ * guarded for the designer and for the Plan editor's delete flow, and `assetLibraryDeps`
+ * reuses those wrappers rather than building second ones. Two instruments answering one
+ * question is what lets two surfaces disagree about one asset.
  */
 export interface GuardedAssetLibraryServices {
 	readonly assetLibrary: {

@@ -164,6 +164,7 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['reference.set-changed', 'Reference', 'error.category.reference', 'application/reference/deleteResolution.ts'],
 	['reference.resolution-required', 'Validation', 'error.category.validation', 'application/reference/deleteResolution.ts'],
 	['reference.no-reassignment-target', 'Validation', 'error.category.validation', 'presentation/editor/deleteZoneFlow.ts'],
+	['reference.no-reassignment-asset', 'Validation', 'error.category.validation', 'presentation/library/deleteAssetFlow.ts'],
 	['reference.self-reassign', 'Validation', 'error.category.validation', 'application/commands/zone/DeleteZone.ts'],
 	['reference.cross-project-reassign', 'Validation', 'error.category.validation', 'application/commands/zone/DeleteZone.ts'],
 	['requirement.unit-not-area', 'Validation', 'error.category.validation', 'application/commands/requirement/AssignAsset.ts'],

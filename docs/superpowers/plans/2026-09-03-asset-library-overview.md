@@ -1997,6 +1997,80 @@ git add -A && git commit -m "feat: harness, axe cases and captures for the asset
 
 ---
 
+### Task 17b: The geometry mark reaches a user
+
+**Added mid-execution, by ruling, after Task 17's captures.** It is the largest between-task gap
+this branch has produced and it was invisible to every gate: `AssetLibraryBody.vue` mounts
+`<AssetShelves>` with `entries`, `searching`, `expanded`, `selected-id`, `@toggle` and `@select`
+and **no `:outline-for`**. That prop is optional (`outlineFor?`, defaulted `undefined`), so
+`AssetShelves.outlineOf` answers `null` for every row and `AssetMark` draws its *not yet read*
+state — 17 marks, one class, measured in a browser. `markFor`, `setVisibleMarks` and
+`invalidateMarks` have no caller outside `AssetLibraryStore.ts`'s own delegations.
+
+**So Task 6's `ListAssetOutlines`, Task 12's five-state `AssetMark`, and §5.3/§5.4's whole
+ViewportMarks machinery reach no user at all.** Four tasks of work behind a prop nobody passed.
+Every one of those tasks is individually correct and fully tested, which is exactly the design
+slice 7 shape this repository already records — a tool registered in no list, invisible to all
+four gates because nothing is wrong with the code — at its largest scale here.
+
+**THE MECHANISM THAT HID IT IS THE LESSON, and it generalises past this task.** `outlineFor?` is
+OPTIONAL with a default. Forgetting it is therefore not a type error, and no test failed because
+every unit test of `AssetShelves` passes the prop explicitly while the only mount site does not.
+Had it been REQUIRED, `vue-tsc` would have named the mount site the moment Task 12 declared it.
+That is the same rule CLAUDE.md states for deps bundles — *a composition that forgets it does not
+compile rather than announcing into nothing* — met from the props side. **Prefer a required prop
+whose absence is a build error to an optional one whose absence is a blank screen**, and when
+optional is genuinely right, the mount site is what needs the test.
+
+**Files:**
+- Modify: `src/presentation/library/AssetLibraryBody.vue` (bind it), `AssetLibraryRoot.vue` or
+  `AssetShelves.vue` as the wiring requires, `src/presentation/library/AssetShelves.vue` (consider
+  making the prop required — decide and say why)
+- Test: `tests/presentation/library/assetMarkWiring.test.ts`, plus whatever pins the viewport
+  behaviour
+
+**Interfaces:**
+- Consumes: Task 6's `ListAssetOutlines`, Task 10's store doors, Task 12's `AssetMark`.
+- Produces: nothing any other task imports.
+
+**§5.3 and §5.4 are the authority on WHEN marks load, and they are not "all of them at mount".**
+`setVisibleMarks` is a viewport read and `invalidateMarks` exists because a sidecar can change
+under the pane. Read both sections before wiring, and read `viewportMarks.ts`'s own header: the
+marks are ticketed on a per-asset GENERATION for the reason §5.4 gives, so a replacement read
+landing after a slower earlier one must not overwrite it.
+
+- [ ] **Step 1: Write the failing test**
+
+The case that matters is the one no unit test could have caught, so write it at the MOUNT:
+
+```ts
+it('draws a measured mark for an asset whose sidecar answered, through the real mount', async () => {
+    const surface = await mountAssetLibrary({ /* an asset with a measured outline */ });
+    await flushPromises();
+    expect(surface.get('svg.rp-al-mark').classes()).toContain('rp-al-mark--measured');
+});
+```
+
+It must fail against today's tree at the assertion, reading `rp-al-mark--pending`. Watch that.
+
+- [ ] **Step 2: Run it and watch it fail with the pending class, not with an error**
+
+- [ ] **Step 3: Wire the marks, per §5.3/§5.4**
+
+- [ ] **Step 4: Mutation-check the wiring AND the staleness rule**
+
+Drop the binding again — the new case must redden. Then defeat the generation check and assert a
+late slower answer cannot overwrite a fresher one.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the geometry mark reaches the row it describes"
+```
+
+---
+
 ### A standing target for the final whole-branch review: SELF-COUNTING GREPS
 
 **Added mid-execution, by ruling, after the fourth instance.** A docblock that quotes a `grep`

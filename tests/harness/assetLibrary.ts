@@ -22,9 +22,18 @@ import { FakeLeaf } from '../helpers/workspace';
 
 /**
  * The REAL Asset library view, mounted outside Obsidian for LOOKING at — `npm run harness`
- * with `?view=asset-library`, and `scripts/harness-shot.mjs`'s five fixed captures of this
- * surface. `planEditor.ts` and `assetDesigner.ts`'s shape for the plugin's fourth workspace
- * view, and the same limit: it draws, it asserts nothing.
+ * with `?view=asset-library`, and every `asset-library-*` shot in `scripts/harness-shot.mjs`'s
+ * own `SHOTS` array. `planEditor.ts` and `assetDesigner.ts`'s shape for the plugin's fourth
+ * workspace view, and the same limit: it draws, it asserts nothing.
+ *
+ * **NO COUNT, and that is a correction rather than a style.** This sentence said *five fixed
+ * captures* over seven for one commit — written when the list was five and not re-read after the
+ * actions and narrow-resting shots were added — in the same commit that fixed three other stale
+ * counts and whose own brief made the class a standing target. The number was never the useful
+ * part of the sentence: what a reader needs is WHICH shots, and the array's name prefix answers
+ * that without anything to keep in step. `grep -oE "name: 'asset-library[a-z-]*'"
+ * scripts/harness-shot.mjs` is the census if one is ever wanted, and
+ * `tests/build/harness-shot.test.ts` is what fails when the array and the pin disagree.
  *
  * **This surface reached Task 17 with no picture of it anywhere.** Sixteen tasks built the
  * queries, the shelves, the rows, the marks, the inspector, the stylesheet, the keyboard, the
@@ -40,12 +49,18 @@ import { FakeLeaf } from '../helpers/workspace';
  * a gesture fails like any other failed write rather than appearing to persist against a vault
  * this page does not have.
  *
- * **`listOutlines` is answered in full and NOTHING CALLS IT**, which is a finding rather than a
- * property of this fixture, and it is stated here because this is the file whose captures show
- * it. `AssetLibraryBody.vue` mounts `<AssetShelves>` with no `outline-for` prop, so
- * `AssetShelves.outlineOf` answers `null` for every row and `AssetMark` draws §3.4's *not yet
- * read* state for the whole catalogue, permanently. `AssetLibraryStore.markFor`,
- * `.setVisibleMarks` and `.invalidateMarks` have no caller anywhere in `src/presentation/`.
+ * **`listOutlines` is answered in full and NO SHIPPED PATH REACHES IT**, which is a finding
+ * rather than a property of this fixture, and it is stated here because this is the file whose
+ * captures show it. The chain breaks in two places, one hop apart, and the precise version
+ * matters because the loose one ("nothing calls it") is falsifiable in a second:
+ * `viewportMarks.ts:94` DOES call `queries.listOutlines`, and what has no caller is
+ * `ViewportMarks`' own entry point — `AssetLibraryStore.markFor`, `.setVisibleMarks` and
+ * `.invalidateMarks` are reachable from nothing in `src/presentation/` outside the store and
+ * that module themselves. One hop further out, `AssetLibraryBody.vue` mounts `<AssetShelves>`
+ * with no `outline-for` prop, so `AssetShelves.outlineOf` answers `null` for every row and
+ * `AssetMark` draws §3.4's *not yet read* state for the whole catalogue, permanently — measured
+ * in a browser against this fixture: 17 marks, one class.
+ *
  * The outlines below are supplied anyway, and deliberately: a harness that refused a query the
  * composed root answers would be a fake HARSHER than the real thing, and the day that prop is
  * wired the marks have something true to draw.

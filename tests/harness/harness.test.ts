@@ -1399,4 +1399,3 @@ describe('the browser harness, asset designer', () => {
 		expect(view.contentEl.querySelector('.renovation-asset-designer-view')).not.toBeNull();
 	});
 });
-

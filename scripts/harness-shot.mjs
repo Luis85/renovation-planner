@@ -106,10 +106,18 @@ const FOCUS_TAB_LIMIT = 12;
  * target that stopped being reachable by keyboard — which is itself the defect this shot exists
  * to watch — is reported rather than photographed as a blank.
  *
- * A no-op for a shot with no `focus`, which is every shot but one. Out here rather than as a
- * branch inside `captureOne` for the reason `viewportFor` gives above: that function runs behind
- * a browser where no test reaches it, and one more branch took its CRAP score to exactly the
- * threshold `npm run analyze` fails at.
+ * A no-op for a shot that carries no `focus`, which is MOST of them. This sentence said "every
+ * shot but one" over two — a count written when there was one and not re-read when the second
+ * arrived, which is the class this file's own header count was corrected for in the same commit
+ * that found this. No number here and NO CENSUS COMMAND either, deliberately twice over: what a
+ * reader needs is that the field is OPTIONAL, and a grep quoted inside the very file it counts
+ * matches its own quoting line — measured, `grep -c "focus: "` went from 2 to 3 the moment this
+ * paragraph named it. `tests/build/harness-shot.test.ts` is what actually holds the field on the
+ * shots that carry it; a sentence here cannot.
+ *
+ * Out here rather than as a branch inside `captureOne` for the reason `viewportFor` gives above:
+ * that function runs behind a browser where no test reaches it, and one more branch took its CRAP
+ * score to exactly the threshold `npm run analyze` fails at.
  */
 /**
  * Bring the region a shot is ABOUT into the picture, when it lives below a scrolling body.
@@ -125,9 +133,14 @@ const FOCUS_TAB_LIMIT = 12;
  * `FOCUS_TAB_LIMIT`. It is also a different QUESTION — that function is for a `:focus-visible`
  * ring, and this shot is about layout at rest.
  *
- * A no-op for a shot with no `scrollTo`, which is every shot but one, and out here rather than
- * as a branch inside `captureOne` for the reason `viewportFor` gives: that function runs behind
- * a browser and no test covers it.
+ * A no-op for a shot that carries no `scrollTo`, which is MOST of them. This sentence said
+ * "every shot but one" and was already wrong over two when Task 17 added the third
+ * (`asset-library-actions`) — the same stale-count class as the `focus` docblock above and as
+ * this file's own header, all three corrected together rather than one at a time. No number, for
+ * the reason stated there.
+ *
+ * Out here rather than as a branch inside `captureOne` for the reason `viewportFor` gives: that
+ * function runs behind a browser and no test covers it.
  */
 async function scrollForShot(page, scrollTo) {
 	if (scrollTo === undefined) return;
@@ -282,8 +295,11 @@ const SHOTS = [
 	},
 	// AND THE ACTIONS ROW, which no RESTING capture of this surface reaches: the rail is its own
 	// scroller, and with §3.5's four sections above it the row sits below the fold at 1280 × 800 —
-	// measured, not predicted, which is exactly what the first capture after this shot's siblings
-	// showed. `Delete` is the reason it is worth a shot of its own: it is this surface's one
+	// seen, not predicted, in the first capture taken after this shot's siblings. Seen with the
+	// provisioned Chromium named through `RP_CHROMIUM_EXECUTABLE` rather than the pinned
+	// revision, which is the caveat every capture-derived sentence on this branch carries and
+	// which this one did not; below-the-fold is unlikely to differ between builds, and the
+	// sentence says which build it was read on either way. `Delete` is the reason it is worth a shot of its own: it is this surface's one
 	// destructive control, its treatment was reasoned from SPECIFICITY alone
 	// (`.rp-al-inspector .rp-al-action--delete` at (0,2,0) against Obsidian's own
 	// `button:not(.clickable-icon)` at (0,1,1)), and this repository has already shipped exactly

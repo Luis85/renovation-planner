@@ -997,20 +997,6 @@ describe('axe against the asset library', () => {
 	/**
 	 * §4's two action-bearing empty states, scanned on the day they ship — that paragraph's own
 	 * requirement, and it names the mechanism as well as the rule: `planEditor.noZones` went seven
-	 * slices unscanned because the case's fixture resolved to a DIFFERENT entry, so each case here
-	 * asserts `.rp-empty-state` and `.rp-empty-state__action` are in the scanned DOM rather than
-	 * trusting the fixture to have produced the state its name claims.
-	 *
-	 * `noMatches` is reached by TYPING rather than by seeding a store: §6.1's query lives in
-	 * `AssetLibraryStore`, and the only door into it from outside the tree is the field the user
-	 * uses. Driving it through the input is also what makes this case a scan of the state a user
-	 * can actually reach — a store poked directly would grade a state and prove nothing about the
-	 * route to it.
-	 */
-
-	/**
-	 * §4's two action-bearing empty states, scanned on the day they ship — that paragraph's own
-	 * requirement, and it names the mechanism as well as the rule: `planEditor.noZones` went seven
 	 * slices unscanned because the case's fixture resolved to a DIFFERENT entry, so both cases
 	 * below assert `.rp-empty-state` and `.rp-empty-state__action` are in the scanned DOM rather
 	 * than trusting the fixture to have produced the state its name claims.

@@ -83,17 +83,23 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 99 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 100 |
 | `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 48 |
 | `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 115 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 12 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 13 |
 
-**287 steps across SIXTEEN cases, and this paragraph has now proved itself a SEVENTH time.** The
+**288 steps across SIXTEEN cases, and this paragraph has now proved itself a SEVENTH time.** The
 asset library increment's Task 17 appended [[Browse the asset library]] to the `## Cases` list
-below — seventeen steps spread over four tiers (`suite` 3, `browser` 9, `obsidian` 1,
+below — eighteen steps spread over four tiers (`suite` 4, `browser` 9, `obsidian` 1,
 `judgement` 4), so every tier but `desktop` moved where the sixth correction moved exactly one.
 Re-run of both greps below against the current tree, taken in the edit that wrote this.
+
+**And it proved itself again WITHIN the same task**, which is worth one clause: the figures here
+first read 287 over seventeen steps, and Task 17's own fix round added an eighteenth (the
+`Back to library` chevron, which had been reported as a defect with no step to find it in). The
+greps were re-run rather than the total incremented, because an arithmetic adjustment is how the
+third and fourth corrections in this paragraph's history went wrong.
 
 **That sentence first claimed the case was the FIRST here to span four tiers, and measuring it
 before committing said otherwise:** [[Zone Editing Walkthrough]], [[Notices and save state]],
@@ -415,7 +421,7 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   because there is no asset-specific fixture and none of this case needs one.
 - [[Browse the asset library]] — the sibling of the case below, and what its own *Deliberately
   NOT checked* list defers: §3's shelves, row, mark and inspector, §6's search and keyboard, and
-  §7's three widths. FIVE of its seventeen steps are written as expected FAILURES, each with the
+  §7's three widths. FIVE of its eighteen steps are written as expected FAILURES, each with the
   browser measurement that found it — a price column whose decimals do not line up under a
   comment promising they do, a geometry mark stuck in one of its five states because nothing
   passes `outline-for`, a category named two ways on two surfaces of one pane, an override chip

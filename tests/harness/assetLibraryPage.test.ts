@@ -2,7 +2,9 @@
  * @vitest-environment jsdom
  *
  * The ASSET LIBRARY half of the browser harness page — `npm run harness` with
- * `?view=asset-library` (Task 17), and the three `?view=` branches' fourth sibling.
+ * `?view=asset-library` (Task 17). `page.ts` routes THREE `?view=` values in total — `plan-editor`,
+ * `asset-designer` and this one — so this is the third of them rather than a fourth sibling, which
+ * is what the first draft of this line said by counting the branches and the default together.
  *
  * **In its own file because `harness.test.ts` is at its `max-lines` cap**, and CLAUDE.md's rule
  * for a budget already spent is an extraction rather than a second reformatting. Measured, not
@@ -15,12 +17,17 @@
  * stylesheet-CLOSURE machinery (a source scan over three roots, glob-branch resolution, a
  * planted-probe tripwire), and *does this surface mount inside the leaf frame* is a different
  * question that happens to live beside it. `assetLibraryFocus.test.ts` already sits in this
- * directory under the same reasoning.
+ * directory under the same reasoning. **`harness.test.ts` has one line of headroom left** (449
+ * effective against the 450 cap, measured after the move), so the next case added there trips the
+ * same rule and this file is where it should go.
  *
- * Same job as `harness.test.ts`'s own three `the browser harness, <surface>` blocks and the same
- * limit: this asserts the FRAME and the plumbing, never appearance, because a browser is where
- * this surface is actually looked at — `scripts/harness-shot.mjs`'s seven library captures, which
- * are what the two cases below exist to keep pointed at something.
+ * Same job as `harness.test.ts`'s own two `the browser harness, <surface>` blocks (`plan editor`
+ * and `asset designer`; the bare `the browser harness` above them is the PAGE's own block rather
+ * than a surface's), and the same limit: this asserts the FRAME and the plumbing, never
+ * appearance, because a browser is where this surface is actually looked at — every
+ * `asset-library-*` shot in `scripts/harness-shot.mjs`, which is what the two cases below exist
+ * to keep pointed at something. Named by their PREFIX rather than counted, for the reason
+ * `tests/harness/assetLibrary.ts`'s own header gives: a count of them shipped wrong once already.
  *
  * No canvas and no resize observer: unlike the Plan Editor and the designer, nothing here
  * constructs a Konva stage.

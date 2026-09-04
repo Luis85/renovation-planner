@@ -1,4 +1,4 @@
-import { contains, distance, translate } from '../../../core/geometry/operations';
+import { translate } from '../../../core/geometry/operations';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
@@ -6,6 +6,7 @@ import type { Vector } from '../../../core/geometry/Vector';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
+import { resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
@@ -88,11 +89,13 @@ type Gesture =
  * The selection tool (design slice 8, SDD §57), scoped to `Zone` because that is the only
  * spatial object type the domain has yet.
  *
- * - **Hit-testing** is a linear scan of the candidate list with Core's point-in-polygon,
- * evaluated TOPMOST-FIRST (reverse array order) so visual stacking order matches
- * selection order on overlapping zones. Correct at any plan size; simply not the fastest
- * at very large ones (SDD §28's spatial index is an optimization this slice deliberately
- * ships without).
+ * - **Hit-testing** is `resolveSelectionTarget` (design spec §6.1, task 11) — the ONE answer
+ * to "what would a click here select", asked by `pointerDown` to act and by `pointerMove` to
+ * predict, so a hover can never promise a target a click would disagree with. It scans the
+ * candidate list TOPMOST-FIRST (reverse array order) with Core's point-in-polygon, so visual
+ * stacking order matches selection order on overlapping zones. Correct at any plan size;
+ * simply not the fastest at very large ones (SDD §28's spatial index is an optimization this
+ * slice deliberately ships without).
  * - **Dragging the body** updates only a transient preview while the pointer moves; domain
  * geometry is untouched mid-drag (SDD §20). On release the total world delta translates
  * the ORIGINAL polygon, every vertex goes back through the snap service, and the result
@@ -121,12 +124,18 @@ export class SelectTool implements EditorTool {
 		this.context = context;
 		this.gesture = null;
 		context.renderState.previewPolygon = null;
+		context.renderState.hoveredObjectId = null;
+		context.renderState.hoveredTargetKind = null;
 	}
 
 	deactivate(): void {
 		const context = this.context;
 		this.gesture = null;
-		if (context !== null) context.renderState.previewPolygon = null;
+		if (context !== null) {
+			context.renderState.previewPolygon = null;
+			context.renderState.hoveredObjectId = null;
+			context.renderState.hoveredTargetKind = null;
+		}
 		this.context = null;
 	}
 
@@ -134,34 +143,28 @@ export class SelectTool implements EditorTool {
 		const context = this.context;
 		if (context === null || event.button !== 'primary') return;
 
-		// ONE materialisation of the candidate list per gesture. `spatialObjects()` maps the
-		// store's reactive zone map into fresh wrapper objects on every call, and this method
-		// used to invoke it twice — once for the handle test and again inside `hitTest`.
-		const candidates = this.deps.spatialObjects();
-
-		// A vertex handle of the ALREADY-SELECTED zone takes precedence over a body hit:
-		// once handles are showing they sit on top of the body visually too.
-		const selectedIds = context.selection.selectedIds;
-		if (selectedIds.length === 1) {
-			const selected = candidates.find((object) => object.id === selectedIds[0]);
-			if (selected !== undefined) {
-				const vertexIndex = this.vertexAt(context, event, selected.points);
-				if (vertexIndex >= 0) {
-					this.gesture = {
-						kind: 'vertex',
-						zoneId: selected.id as ZoneId,
-						original: { points: [...selected.points] },
-						index: vertexIndex,
-						startWorld: event.worldPoint,
-					};
-					return;
-				}
-			}
-		}
-
-		const hit = this.hitTest(candidates, event.worldPoint);
-		if (hit === null) {
+		const { candidates, target } = this.targetAt(context, event.worldPoint);
+		// A press is exactly when the predicted hover stops meaning anything, on every path
+		// out of this method — a body hit, a handle hit, a miss that clears the selection, and
+		// a target the candidate list no longer has: the pointer is about to act rather than
+		// merely look, and the resolved target below is what that action works from. The KIND
+		// goes with the id: they are one fact in two fields (see `RenderState`).
+		context.renderState.hoveredObjectId = null;
+		context.renderState.hoveredTargetKind = null;
+		if (target === null) {
 			context.selection.clear();
+			return;
+		}
+		const hit = candidates.find((candidate) => candidate.id === target.id);
+		if (hit === undefined) return;
+		if (target.kind === 'handle') {
+			this.gesture = {
+				kind: 'vertex',
+				zoneId: hit.id as ZoneId,
+				original: { points: [...hit.points] },
+				index: target.vertexIndex,
+				startWorld: event.worldPoint,
+			};
 			return;
 		}
 		context.selection.select([hit.id as EntityId<string>]);
@@ -176,7 +179,18 @@ export class SelectTool implements EditorTool {
 
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
-		if (context === null || this.gesture === null) return;
+		if (context === null) return;
+		if (this.gesture === null) {
+			// No drag in flight: this move is a HOVER, so it predicts rather than acts —
+			// `resolveSelectionTarget` is the same question `pointerDown` asks, which is what
+			// keeps the cursor's promise and the click's outcome unable to disagree. Both halves
+			// of the resolver's answer are kept: WHICH record, and WHAT of it — a body or one of
+			// its vertex handles — because §6.2 asks the cursor to distinguish the two.
+			const { target } = this.targetAt(context, event.worldPoint);
+			context.renderState.hoveredObjectId = target === null ? null : target.id;
+			context.renderState.hoveredTargetKind = target === null ? null : target.kind;
+			return;
+		}
 		if (this.gesture.kind === 'body') {
 			const by: Vector = {
 				dx: event.worldPoint.x - this.gesture.startWorld.x,
@@ -244,6 +258,11 @@ export class SelectTool implements EditorTool {
 		const context = this.context;
 		this.gesture = null;
 		if (context !== null) context.renderState.previewPolygon = null;
+		// Deliberately clears neither hover field, unlike `activate`/`deactivate`/`pointerDown`
+		// above: a cancelled drag leaves the pointer still resting over its target, so the
+		// prediction (`hoveredObjectId`/`hoveredTargetKind`) is still true. R8's "cleared
+		// together at every site" means "every site that clears one clears both" — this site
+		// satisfies that by clearing neither.
 	}
 
 	/**
@@ -253,6 +272,33 @@ export class SelectTool implements EditorTool {
 	 */
 	abandonGesture(): void {
 		this.cancel();
+	}
+
+	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
+	hasDraft(): boolean {
+		return this.gesture !== null;
+	}
+
+	/**
+	 * `resolveSelectionTarget`'s input, built ONCE — `pointerDown` and `pointerMove`'s hover
+	 * arm ask the identical question of the identical state, and a second hand-built copy of
+	 * this object is a second place a future field has to be added. Candidates travel back out
+	 * alongside the target because `pointerDown` still needs the materialised list for its own
+	 * `.find` afterwards, and re-calling `spatialObjects()` there would be the two-calls-per-
+	 * gesture cost this method already exists to avoid.
+	 */
+	private targetAt(
+		context: EditorContext,
+		worldPoint: Point,
+	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget } {
+		const candidates = this.deps.spatialObjects();
+		const target = resolveSelectionTarget({
+			candidates,
+			selectedIds: context.selection.selectedIds.map(String),
+			worldPoint,
+			handleToleranceWorld: VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
+		});
+		return { candidates, target };
 	}
 
 	private async commit(
@@ -274,35 +320,5 @@ export class SelectTool implements EditorTool {
 			this.deps.createMoveGesture(zoneId, polygonResult.value, inverse),
 		);
 		if (!result.ok) this.deps.reportRejected(result.error);
-	}
-
-	private hitTest(
-		candidates: readonly SpatialObjectCandidate[],
-		worldPoint: Point,
-	): SpatialObjectCandidate | null {
-		// Topmost-first: reverse z-order, so an overlapping stack selects what is on top.
-		// Walked backwards by index rather than copied to reverse — `[...list].toReversed()`
-		// allocated two more arrays per click on top of the one `spatialObjects()` had just
-		// built, since `toReversed` already returns a new array.
-		for (let index = candidates.length - 1; index >= 0; index -= 1) {
-			const candidate = candidates[index];
-			const inside = contains({ points: candidate.points }, worldPoint);
-			if (inside.ok && inside.value) return candidate;
-		}
-		return null;
-	}
-
-	private vertexAt(
-		context: EditorContext,
-		event: EditorPointerEvent,
-		points: readonly Point[],
-	): number {
-		// The grab region is a constant SCREEN size at every zoom, so its world-space
-		// tolerance is derived from the current camera on every gesture.
-		const toleranceWorld = VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel();
-		for (const [index, point] of points.entries()) {
-			if (distance(point, event.worldPoint) <= toleranceWorld) return index;
-		}
-		return -1;
 	}
 }

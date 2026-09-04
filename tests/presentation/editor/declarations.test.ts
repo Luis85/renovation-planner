@@ -56,8 +56,23 @@ function sourceFiles(): string[] {
 	return globSync('**/*.{ts,vue}', { cwd: SRC }).map((file) => toPosix(file));
 }
 
+/**
+ * Memoised at MODULE scope, keyed on the relative path: the four `it.each(NAMES)` cases below
+ * each re-scan every file in `src/`, and the alias case scans them all again — five full reads
+ * of the same tree in one file, on disk, without this. `read` is called from inside a `.some(...)`
+ * per file in the alias case too (see below), which is what turned that into up to four reads of
+ * ONE file rather than five reads of the whole tree, and is the flake that reddened `npm run
+ * check` twice on this branch: every one of those reads is a fresh `readFileSync` under a fresh
+ * `RegExp` construction, in one `it` under the 5000 ms default.
+ */
+const fileCache = new Map<string, string>();
+
 function read(relative: string): string {
-	return readFileSync(join(SRC, relative), 'utf8');
+	const cached = fileCache.get(relative);
+	if (cached !== undefined) return cached;
+	const text = readFileSync(join(SRC, relative), 'utf8');
+	fileCache.set(relative, text);
+	return text;
 }
 
 describe('the instrument', () => {
@@ -111,7 +126,8 @@ describe('the viewport vocabulary', () => {
 		// while `export { screenPoint }` from the owning module is the ordinary case.
 		const aliasing = sourceFiles().filter((file) => {
 			if (file === VIEWPORT_MODULE) return false;
-			return NAMES.some((name) => new RegExp(String.raw`\bas\s+${name}\b`).test(read(file)));
+			const text = read(file);
+			return NAMES.some((name) => new RegExp(String.raw`\bas\s+${name}\b`).test(text));
 		});
 
 		expect(aliasing).toEqual([]);

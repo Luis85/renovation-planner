@@ -1,0 +1,116 @@
+---
+type: Issue
+parent: "[[Open a floor plan in the Obsidian editor shell]]"
+order: 50
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
+horizon: Now
+start: ""
+due: ""
+risk: ""
+priority: medium
+assignee: ""
+iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: S
+complexity: ""
+business-value: ""
+business-value-model: ""
+---
+
+# The warning live-region contract and implementation describe different semantics
+
+## The question
+
+Is each warning an independent live region, or are all warnings updates inside one pre-existing
+live region?
+
+## What is true today
+
+Design spec §5.1 says `PersistentWarningStrip` renders every warning as its own
+`role="status"` element
+(`docs/superpowers/specs/2026-09-02-plan-editor-foundation-read-path-design.md:174-193`).
+The implementation deliberately does the opposite: one unconditional container has
+`role="status"`, while warning items have no live-region role
+(`src/presentation/editor/shell/PersistentWarningStrip.vue:9-20`,
+`src/presentation/editor/shell/PersistentWarningStrip.vue:27-40`).
+
+The current test explicitly pins that container-first model, including the empty live region
+before any warning arrives (`tests/presentation/editor/shell.test.ts:303-317`). Measured with
+`rg -n "role=\"status\"|rp-warning-strip__item"
+src/presentation/editor/shell/PersistentWarningStrip.vue
+tests/presentation/editor/shell.test.ts`: there is one production status role and the test
+requires it on the container.
+
+## Why it matters
+
+The two models have different announcement behaviour. Adding item roles blindly could create
+nested or repeated announcements; retaining the container while claiming per-item live regions
+leaves the accessibility contract false. SDD §85 requires accessible status communication but
+does not decide which of these two announcement models is correct.
+
+## What closes it
+
+Make an explicit accessibility decision, then align the design contract, implementation, and
+tests. The smallest close is to retain the already intentional, pre-existing container live
+region and narrow §5.1 to describe it, unless assistive-technology evidence demonstrates that
+separate item regions are required. Do not add item roles merely to match the stale sentence.
+
+The discriminating DOM test must assert the selected model and reject the other: for the current
+model, exactly one unconditional `.rp-warning-strip[role="status"]` and zero item status roles,
+before and after two warnings arrive independently. If the decision changes, replace that test
+with the opposite contract rather than keeping both.
+
+## Decision
+
+**2026-09-04.** **R4** Ruling: the persistent-warning live region is the CONTAINER (`.rp-warning-strip[role="status"]`, rendered unconditionally), never a per-item role; §5.1's row is narrowed to say so — because a region that exists before its first content announces reliably (`docs/components/Toast.md`'s own rule) and per-item regions would risk nested/duplicate announcements — cost if wrong: two simultaneous warnings are announced as one region update rather than two; if assistive-technology evidence ever demands per-item regions, the test written here is replaced by its opposite.
+
+**R5** Ruling: `EditorWarning` gains `severity: 'warning' | 'error'` (the spec §5.1 field), rendered as a per-item MARK AND WORD (`data-rp-severity` plus a translated label), with `stale` and `background-missing` as `warning` and `unreadable-zones` and `background-unreadable` as `error`; accessible heading, busy state and actions stay UNBUILT and recorded, because no warning has an action to be busy over and a busy flag with no producer is a self-declared shape — cost if wrong: a later retry action adds fields to a model that already has a severity axis; the severity split (data may be out of date vs a read refused) is a taste call a reviewer may move.
+
+## What closed it
+
+**2026-09-04.** R4 is implemented exactly as ruled: the live region stays on
+`.rp-warning-strip`, the container, rendered unconditionally with `role="status"` whether or not
+any warning is inside it; no item carries a role of its own. §5.1's row already reads this way as
+of the ruling above, so no further contract edit was needed here.
+
+The discriminating DOM test the original `## What closes it` asked for is
+`tests/presentation/editor/shell.test.ts` › 'is ONE unconditional live region, and no item is one
+— before and after two warnings arrive': it asserts exactly one `.rp-warning-strip[role="status"]`
+and zero `.rp-warning-strip__item [role]`/`[role]` matches BOTH before any warning exists and after
+two arrive independently (`stale` and `unreadable-zones` together). It replaces the narrower
+existing case (`tests/presentation/editor/shell.test.ts:303-317`, 'carries its live region on the
+container even with no warnings at all'), which only ever asked the empty-strip half; that case is
+kept alongside it rather than deleted, since it still pins the empty-region moment on its own.
+Watched failing against the opposite model: adding `role="status"` to the item `<p>` in
+`PersistentWarningStrip.vue` reddens this case at `itemRoles()` (`expected … to have a length of
++0 but got 2`), which is what proves the test rejects a per-item live region rather than merely
+tolerating either.
+
+R5's severity work is closed in the sibling note (`[[The warning model cannot carry its contract's
+severity]]`), not here — this note's own scope is the announcement model alone, per its `## What
+closes it`.
+
+Commit "feat(warnings): every persistent warning carries a severity as a mark and a word; the live
+region stays the container".
+
+## References
+
+- [[Open a floor plan in the Obsidian editor shell]]
+- [[Render independent simultaneous persistent warnings]]
+- `docs/superpowers/specs/2026-09-02-plan-editor-foundation-read-path-design.md:174-193`
+- `src/presentation/editor/shell/PersistentWarningStrip.vue:9-20`
+- `src/presentation/editor/shell/PersistentWarningStrip.vue:27-40`
+- `tests/presentation/editor/shell.test.ts:303-317`
+- SDD §85, Accessibility
+- Reviewed at commit 16757d6d
+- PASS 2

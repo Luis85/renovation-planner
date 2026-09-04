@@ -72,8 +72,8 @@ export async function describeFailure(page, entry, fallback) {
  * place either says so.
  *
  * A no-op for a fixed shot (no `entry`): `waitForSelector`'s contract is presence, not "and
- * stays clean", and none of today's ten fixed surfaces ever clears itself the way an
- * entry's Suspense boundary can.
+ * stays clean", and none of today's fixed surfaces ever clears itself the way an entry's
+ * Suspense boundary can.
  *
  * `hasDrawn` is the caller's readiness predicate (`entryHasDrawn` in `harness-shot.mjs`),
  * passed in rather than imported here: this function only ever calls it through
@@ -91,7 +91,13 @@ export async function reportIfNoLongerDrawn(page, entry, name, errors, hasDrawn)
 /**
  * Wait for the entry to draw OR for the index to say it will not, whichever comes first.
  *
- * The fixed shots have no such card and wait on their own mount point, unchanged.
+ * The fixed shots have no such card, and wait on their own mount point instead — `selector` is
+ * `string | string[]` there (R14): most name one element, and the three Plan Editor shots this
+ * rule exists for name a selector that is attached only once the STATE the shot is about has
+ * actually landed, rather than the view wrapper that attaches before it. `plan-editor-narrow`
+ * additionally needs the constrained-layout rail beside the canvas, since either alone attaches
+ * before proof the other has — so a list waits on every member, resolving only once all of them
+ * have. Closes "Three plan-editor captures can complete before their intended state appears".
  *
  * For a named entry the wait used to be the readiness predicate alone, so an entry that
  * FAILED — the mistyped id, the mock that throws — spent Playwright's full 30-second timeout
@@ -110,7 +116,8 @@ export async function reportIfNoLongerDrawn(page, entry, name, errors, hasDrawn)
  */
 export async function waitUntilReady(page, selector, entry, hasDrawn) {
 	if (entry === undefined) {
-		await page.waitForSelector(selector, { state: 'attached' });
+		const list = Array.isArray(selector) ? selector : [selector];
+		await Promise.all(list.map((s) => page.waitForSelector(s, { state: 'attached' })));
 		return;
 	}
 

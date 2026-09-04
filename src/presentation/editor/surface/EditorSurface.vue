@@ -33,6 +33,8 @@ import { wheelPixels } from '../wheelDelta';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { EditorPointerEvent, ToolId } from '../tools/editor-tool';
 import type { ToolManager } from '../tools/tool-manager';
+import type { RenderState } from '../tools/render-state';
+import { routeEscape } from '../escapeRouting';
 
 /**
  * What this surface needs of the leaf it is mounted in, and nothing about a Plan.
@@ -40,8 +42,9 @@ import type { ToolManager } from '../tools/tool-manager';
  * `toolManager` and `activeToolId` are `EditorRuntime`'s two members the doors below read; they
  * arrive as props rather than through `useEditorRuntime()` so that a surface mounted outside the
  * Plan Editor's own injection still has them. `activeToolId` is the RUNTIME's `Ref` rather than
- * its value: the pointer doors read it synchronously, in the same tick a toolbar click writes
- * it, and a plain value prop would only be refreshed by the host's next render.
+ * its value: the pointer doors read it synchronously, in the same tick a tool-switching click
+ * writes it — the Plan Editor's Select button or the asset designer's own toolbar — and a plain
+ * value prop would only be refreshed by the host's next render.
  *
  * `framedBounds` is the one question the fit shortcuts ask that names a Plan's own contents —
  * `Shift+1` frames everything, `Shift+2` the selection — so the host answers it and this file
@@ -50,6 +53,13 @@ import type { ToolManager } from '../tools/tool-manager';
 const props = defineProps<{
 	toolManager: ToolManager;
 	activeToolId: Ref<ToolId | null>;
+	/**
+	 * Where `SelectTool.pointerMove` predicts a click's target — read here for exactly one
+	 * question, `cursorClass`'s. Not a `Ref`: `RenderState` is already the reactive object
+	 * every tool writes through (`reactive(new RenderState())` in `runtime.ts`), so a plain
+	 * prop read inside a `computed` tracks it the same way `activeToolId.value` does.
+	 */
+	renderState: RenderState;
 	editor: ReturnType<typeof useEditorStore>;
 	framedBounds: (all: boolean) => BoundingBox | null;
 	/**
@@ -63,11 +73,22 @@ const props = defineProps<{
 	 * required prop makes the second mounter answer the question at compile time.
 	 */
 	canvasLabel: StringKey;
+	/**
+	 * Switches the active tool — `routeEscape`'s `returned-to-select` arm. This file holds no
+	 * selection store and no `runtime.ts`, so the answer arrives as a prop the way `framedBounds`
+	 * does, rather than this surface reaching for either.
+	 */
+	setTool: (id: ToolId | null) => void;
+	/** Whether anything is selected right now — `routeEscape`'s own question, asked at Escape time. */
+	hasSelection: () => boolean;
+	/** Clears the selection — `routeEscape`'s `cleared-selection` arm. */
+	clearSelection: () => void;
 }>();
 
 const editor = props.editor;
 const toolManager = props.toolManager;
 const activeToolId = props.activeToolId;
+const renderState = props.renderState;
 const { viewport } = storeToRefs(editor);
 
 const container = ref<HTMLElement | null>(null);
@@ -160,6 +181,21 @@ const PRECISE_TOOLS: readonly ToolId[] = ['draw-polygon', 'calibrate'];
  */
 const cursorClass = computed(() => {
 	if (panPhase.value !== 'idle') return `rp-plan-canvas-${panPhase.value}`;
+	// Select predicting a body or a vertex handle under the pointer: what a click here would
+	// take, so the cursor says the same thing `resolveSelectionTarget` would answer a click.
+	// `renderState` is the reactive object every tool writes through (`reactive(new
+	// RenderState())` in `runtime.ts`), so reading a property off it here tracks it the same
+	// way `activeToolId.value` does.
+	//
+	// The two hits are DIFFERENT promises and get different cursors (spec §6.2): a body would
+	// be selected, so `pointer`; a vertex handle of an already-selected room would be dragged,
+	// so `grab` — the same keyword the camera's own armed pan uses, because it is the one the
+	// user has already learnt for "this is about to move under your hand".
+	if (activeToolId.value === 'select' && renderState.hoveredObjectId !== null) {
+		return renderState.hoveredTargetKind === 'handle'
+			? 'rp-plan-canvas-grab'
+			: 'rp-plan-canvas-target';
+	}
 	const tool = activeToolId.value;
 	return tool !== null && PRECISE_TOOLS.includes(tool) ? 'rp-plan-canvas-precise' : null;
 });
@@ -759,6 +795,33 @@ const NO_MODIFIERS: ModifierSource = {
 };
 
 /**
+ * Everything a gesture in flight owns, released — the swallowed pointers, the camera's claim
+ * on this canvas, and the tool's interrupted press.
+ *
+ * TWO callers, and they are the same question asked at two doors: `onBlur`, where the user
+ * released the button in another application, and `onBeforeUnmount`, where the element the
+ * press was made on is about to stop existing. A function rather than two spellings, because
+ * the moment this is written out longhand the count of doors that are missing a line of it is
+ * unknowable — which is the lesson four rounds of `isGestureOwner` already bought.
+ *
+ * `cancelInterruptedGesture` and never `cancelGesture`: a multi-click tool sits BETWEEN clicks
+ * with nothing in flight, and neither an alt-tab nor a narrowing split says anything about a
+ * buffer the user is still filling.
+ *
+ * What it deliberately does NOT do is either of the two things its callers disagree about: the
+ * re-issued pointer move (`onBlur` alone, and FIRST — see below) and what becomes of the
+ * remembered position. Both are stated at each door, because each door answers differently
+ * — both below: `onBlur` first, `onBeforeUnmount` last.
+ */
+function releaseInterruptedInputs(): void {
+	swallowedPointers.clear();
+	panOverride.cancel();
+	syncPanPhase();
+	editor.abandonPan();
+	toolManager.cancelInterruptedGesture();
+}
+
+/**
  * Focus left the canvas, and TWO independent things follow from it — both kept, because they
  * answer different questions about a keyboard this element can no longer hear.
  *
@@ -808,11 +871,7 @@ const NO_MODIFIERS: ModifierSource = {
  */
 function onBlur(): void {
 	reissuePointerMove(NO_MODIFIERS);
-	swallowedPointers.clear();
-	panOverride.cancel();
-	syncPanPhase();
-	editor.abandonPan();
-	toolManager.cancelInterruptedGesture();
+	releaseInterruptedInputs();
 	// **And the remembered point goes, which is what makes this handler the idempotent thing
 	// `swallowedPointers`' docblock already called it.** Chromium can deactivate a window
 	// while leaving the focused element focused, so the element's `blur` and the window's are
@@ -895,13 +954,6 @@ function onPointerLeave(event: PointerEvent): void {
 }
 
 /**
- * §85 asks for keyboard-accessible controls, and zoom is the one interaction this slice
- * adds — so it is reachable by key as well as by wheel. Anchored at the middle of the
- * stage, since there is no pointer involved in a keypress. `Escape` abandons the active
- * tool's in-flight gesture (`ToolManager.cancelGesture` is a safe no-op when there is
- * none).
- */
-/**
  * `Shift+1` frames the whole plan and `Shift+2` frames the selection — Obsidian's own Canvas
  * shortcuts, so a user who knows one already knows the other. Answers whether the key was
  * one of them, so the zoom-step branch is not also consulted for it.
@@ -969,6 +1021,16 @@ function zoomShortcut(event: KeyboardEvent): void {
 	reissuePointerMove(event);
 }
 
+/**
+ * §85 asks for keyboard-accessible controls, and every shortcut here answers that — zoom, both
+ * fit shortcuts, and `Escape` below.
+ *
+ * `Escape` is no longer a synonym for "abandon whatever gesture is running": see `routeEscape`
+ * (`../escapeRouting.ts`) for the whole precedence it now carries — a running pan swallows it, a
+ * tool holding a draft cancels the draft and stays active, an empty creation tool returns to
+ * Select, and Select (or camera mode) with a selection clears it. The Escape branch just below
+ * spells out why each rule holds, in the order it holds it.
+ */
 function onKeyDown(event: KeyboardEvent): void {
 	if (!isCanvasKey(event)) return;
 	if (event.key === 'Escape') {
@@ -1006,7 +1068,26 @@ function onKeyDown(event: KeyboardEvent): void {
 		// idempotent, so the two differ only for repeats of a press that already cancelled —
 		// where the second call clears an empty buffer. Escape means cancel once. The space
 		// branch above filters repeats for its own reasons and this is the same sentence.
-		if (!event.repeat && panOverride.phase !== 'panning') toolManager.cancelGesture();
+		//
+		// **What Escape does once it is not a repeat is `routeEscape`'s question now, not a
+		// single unconditional `cancelGesture()`.** A pan still swallows it first, exactly for
+		// the reasons the paragraphs above give — `panning: panPhase.value === 'panning'` is
+		// that same guard, carried into the call as data rather than kept as a condition on it.
+		// Past that: a tool holding a draft — `hasDraft()` — is cancelled and stays active
+		// exactly as before; a creation tool with NOTHING drawn returns to Select instead of
+		// leaving Escape a no-op over an empty buffer; and Select itself, or camera mode with no
+		// tool at all, clears a selection when there is nothing left to cancel.
+		if (!event.repeat) {
+			routeEscape({
+				panning: panPhase.value === 'panning',
+				activeToolId: activeToolId.value,
+				hasDraft: () => toolManager.activeToolHasDraft(),
+				cancelGesture: () => toolManager.cancelGesture(),
+				setTool: (id) => props.setTool(id),
+				hasSelection: props.hasSelection(),
+				clearSelection: () => props.clearSelection(),
+			});
+		}
 		return;
 	}
 	if (event.key === ' ') {
@@ -1050,8 +1131,9 @@ function onKeyDown(event: KeyboardEvent): void {
 		reissuePointerMove(event);
 		return;
 	}
-	// Escape is handled ABOVE this, and deliberately: abandoning a gesture is exactly what a
-	// user wants to be able to do while one is running, and it moves no camera.
+	// Escape is handled ABOVE this, and deliberately: `routeEscape`'s question — cancel a
+	// draft, switch tool, or clear a selection — must be answered whether or not a gesture is
+	// in flight, and none of its outcomes touches the camera.
 	if (gestureInFlight()) return;
 	if (fitShortcut(event)) return;
 	zoomShortcut(event);
@@ -1110,6 +1192,11 @@ onMounted(() => {
 	if (element === null) return;
 	const measure = (): void => {
 		size.value = { width: element.clientWidth, height: element.clientHeight };
+		// The store's own copy (design slice 12), for `selectAndFrame` — reached from the
+		// Inspector's room list, nowhere near this file's `size` ref or the `framedBounds` prop
+		// that already threads it to the fit shortcuts. Written at the same place `size` itself
+		// is, so the two can never disagree about what the stage measures.
+		editor.setStageSize(size.value);
 	};
 	measure();
 	observer = new ResizeObserver(measure);
@@ -1117,6 +1204,31 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+	// **This surface can be unmounted MID-GESTURE, and the manager it was driving is not.**
+	// The responsive shell removes the canvas below its floor width, so a user dragging a
+	// split narrower is a press whose release is never coming — and `ToolManager` is
+	// leaf-scoped, so `gestureInFlight` stayed true into the remount: `cameraIsLocked()`
+	// refused every wheel and both fit shortcuts for the rest of the session, and the fresh
+	// surface's own `toolGesturePointer` was `null`, so the next real press was declined as a
+	// foreign pointer's. The same door as focus loss, and the same answer — `abandonGesture`
+	// and not `cancel`, so a multi-click draft crosses the unmount intact.
+	//
+	// The pointer readout goes with it, which is where this door differs from `onBlur`: focus
+	// can leave with the pointer still resting over the plan, and blanking the status bar then
+	// would be a visible falsehood — but the canvas itself is about to be gone, so a coordinate
+	// readout would be a claim about a pointer over nothing.
+	//
+	// **The other two things `releaseInterruptedInputs`'s own docblock defers to this door, and
+	// both differ from `onBlur`'s.** No pointer move is re-issued here: `reissuePointerMove`
+	// hands its synthetic event to the ACTIVE TOOL, and by the time this handler runs the whole
+	// surface is unmounting, so there is no tool left mounted to hear it — re-issuing would be a
+	// call into a component already gone. And `lastStagePoint` — the component-local ref, a
+	// different value from the `editor.setPointer` readout above — is not forgotten the way
+	// `onBlur` forgets it: the ref dies with this component, so a fresh surface mounted later
+	// starts with its own `lastStagePoint`, `null` by declaration, and there is nothing stale
+	// left for a replay to read.
+	releaseInterruptedInputs();
+	editor.setPointer(null);
 	// A window listener outlives its element unless something removes it, and a closed leaf
 	// still reacting to every window blur would reach into a disposed Pinia store.
 	window.removeEventListener('blur', onBlur);
@@ -1177,12 +1289,16 @@ onBeforeUnmount(() => {
 			The modifiers stop propagation at the BUBBLE phase, so the overlay's own controls
 			have already had the event: their handlers run untouched and only the canvas
 			behind them is kept out of it.
+
+			`wheel` too (2026-09-04): the Add menu is scrollable, and a wheel over its overflow
+			used to pan or zoom the plan.
 		-->
 		<div
 			class="rp-plan-overlay"
 			@pointerdown.stop
 			@pointerup.stop
 			@pointercancel.stop
+			@wheel.stop
 		>
 			<slot name="overlay" />
 		</div>

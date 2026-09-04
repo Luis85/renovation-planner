@@ -20,7 +20,7 @@ import {
 	worldToScreen,
 } from '../../../src/presentation/editor/viewport/Viewport';
 import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
-import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
+import { fakeQueries, FIXTURE_PLAN, FIXTURE_PROJECT, FIXTURE_ZONES } from '../../helpers/planFixtures';
 
 const READ_FAILED = { category: 'Persistence', code: 'plan.read-failed', message: 'boom' } as const;
 
@@ -38,6 +38,7 @@ const POINTER = 1;
 function queries(overrides: Partial<PlanEditorQueryServices> = {}): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(FIXTURE_PLAN)),
+		getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 		findZonesByPlan: () => Promise.resolve(ok({ zones: FIXTURE_ZONES, unreadable: 0 })),
 		getRequirementsForZone: () => Promise.resolve(ok([])),
 		listAssets: () => Promise.resolve(ok([])),
@@ -192,6 +193,61 @@ describe('ProjectStore hydration', () => {
 		expect(store.zones.size).toBe(FIXTURE_ZONES.length);
 	});
 
+	/**
+	 * The same race, gated on the PROJECT read rather than the plan read — its own
+	 * `if (superseded()) return;`, right after `queries.getProject`, needs its own proof.
+	 *
+	 * Answering the STALE read `ok(null)` rather than a stale-but-real project is deliberate:
+	 * a stale SUCCESS is still caught by the `superseded()` check after the later
+	 * `findZonesByPlan` await, so mutating only this guard would not redden a case built on
+	 * that path. `foundProject.value === null` calls `markMissing` and returns immediately,
+	 * with no later guard behind it — so this is the one place a missing project-read guard
+	 * is observable on its own: a project that vanishes on a stale read must not blank a
+	 * plan a fresher hydration has already put on screen.
+	 */
+	it('a SLOW earlier hydration does not blank a fresher one when its project read supersedes', async () => {
+		const store = useProjectStore();
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+
+		let releaseSlow!: () => void;
+		const slowGate = new Promise<void>((resolve) => {
+			releaseSlow = resolve;
+		});
+		// The slow hydration's OWN `getPlan` is the fast default, which resolves after a single
+		// microtask — the same tick a synchronously-started fresh hydration bumps
+		// `latestHydration` in. Without waiting for the slow hydration to actually REACH its
+		// `getProject` call, starting the fresh one right away races the PLAN guard instead of
+		// the PROJECT guard this case exists to exercise, and the slow read never gets far
+		// enough to reach the branch under test.
+		let projectReadStarted!: () => void;
+		const projectReadStartedPromise = new Promise<void>((resolve) => {
+			projectReadStarted = resolve;
+		});
+		const slow = store.hydrate(
+			queries({
+				getProject: () => {
+					projectReadStarted();
+					return slowGate.then(() => ok(null));
+				},
+			}),
+			FIXTURE_PLAN.id,
+		);
+		await projectReadStartedPromise;
+
+		// A second hydration starts and finishes entirely inside the first one's getProject await.
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+
+		releaseSlow();
+		await slow;
+
+		// The slow hydration's project vanished, but it started before the fresh one and must
+		// not retroactively blank what the fresh hydration already established.
+		expect(store.status).toBe('ready');
+		expect(store.plan).toEqual(FIXTURE_PLAN);
+	});
+
 	it('a reset invalidates a hydration still in flight', async () => {
 		// A leaf closing must not have the plan it was reading painted back a tick later.
 		const store = useProjectStore();
@@ -225,6 +281,92 @@ describe('ProjectStore hydration', () => {
 			error: null,
 		});
 	});
+
+	it('hydrates the project beside the plan, so the context bar can name it', async () => {
+		const store = useProjectStore();
+		await store.hydrate(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+		expect(store.project?.id).toBe(FIXTURE_PLAN.projectId);
+		expect(store.project?.name).toBe('Willow House');
+	});
+
+	/**
+	 * [[Project-hydration fakes ignore the requested project ID]]: neither `fakeQueries` nor
+	 * `harnessDeps().queries` used to consult the id passed to `getProject` — they answered
+	 * their fixture project for ANY id — so a `hydrate` that asked for the wrong field (the
+	 * plan's OWN id, say, rather than `foundPlan.value.projectId`) would still have read back
+	 * the right project by coincidence. This spies on the fake's own `getProject` to assert
+	 * the ARGUMENT the store actually calls it with, which only discriminates once the fake
+	 * itself is honest about the id it was given.
+	 */
+	it('asks for the PLAN\'s project, by the id the plan carries', async () => {
+		const store = useProjectStore();
+		const getProject = vi.fn<PlanEditorQueryServices['getProject']>(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES).getProject);
+		await store.hydrate({ ...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), getProject }, FIXTURE_PLAN.id);
+		expect(getProject).toHaveBeenCalledTimes(1);
+		expect(getProject).toHaveBeenCalledWith(FIXTURE_PLAN.projectId);
+		expect(store.project?.name).toBe('Willow House');
+	});
+
+	it('fails the hydration when the project read fails, like a failed plan read', async () => {
+		const store = useProjectStore();
+		const failingProject = {
+			...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+			getProject: () => Promise.resolve(err({ category: 'Persistence', code: 'project.read-failed', message: 'boom' } as const)),
+		};
+		await store.hydrate(failingProject, FIXTURE_PLAN.id);
+		expect(store.status).toBe('failed');
+		expect(store.error?.code).toBe('project.read-failed');
+	});
+
+	it('treats a project that no longer resolves as a missing plan', async () => {
+		const store = useProjectStore();
+		const danglingProject = {
+			...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+			getProject: () => Promise.resolve(ok(null)),
+		};
+		await store.hydrate(danglingProject, FIXTURE_PLAN.id);
+		expect(store.status).toBe('missing');
+	});
+
+	/**
+	 * The `keepOnFailure` arm of the project read — a failed re-read after a committed
+	 * write must not blank a canvas that a moment ago showed real content, mirroring the
+	 * same arm the plan and zone reads already have above.
+	 */
+	it('a failed project re-read keeps the previous contents too, with keepPreviousOnFailure', async () => {
+		const store = useProjectStore();
+		await store.hydrate(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+
+		const failingProject = {
+			...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+			getProject: () => Promise.resolve(err(READ_FAILED)),
+		};
+		await store.hydrate(failingProject, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+
+		expect(store.status).toBe('ready');
+		expect(store.plan).toEqual(FIXTURE_PLAN);
+		expect(store.error).toEqual(READ_FAILED);
+		expect(store.stale).toBe(true);
+	});
+
+	it('a plan that goes missing after a stale re-read blanks the stale flag with the content', async () => {
+		const store = useProjectStore();
+		await store.hydrate(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), FIXTURE_PLAN.id);
+		await store.hydrate(
+			{ ...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), getProject: () => Promise.resolve(err(READ_FAILED)) },
+			FIXTURE_PLAN.id,
+			{ keepPreviousOnFailure: true },
+		);
+		expect(store.stale).toBe(true);
+
+		await store.hydrate(fakeQueries(null, []), FIXTURE_PLAN.id);
+
+		expect(store.status).toBe('missing');
+		expect(store.plan).toBeNull();
+		expect(store.stale).toBe(false);
+	});
 });
 
 describe('EditorStore, the ephemeral half', () => {
@@ -238,6 +380,21 @@ describe('EditorStore, the ephemeral half', () => {
 			drag: store.dragState,
 			draft: store.temporaryPolygon,
 		}).toEqual({ tool: null, hover: null, drag: null, draft: null });
+		expect(store.stageSize).toEqual({ width: 0, height: 0 });
+	});
+
+	/**
+	 * `stageSize` (design slice 12) is `EditorSurface`'s own measured size, written from its
+	 * resize observer at the same place it sets its local `size` ref — a store field rather
+	 * than a second prop path, because `selectAndFrame` reaches it from the Inspector's room
+	 * list, nowhere near the surface's own prop chain.
+	 */
+	it('holds the stage size the surface last measured', () => {
+		const store = useEditorStore();
+
+		store.setStageSize({ width: 800, height: 600 });
+
+		expect(store.stageSize).toEqual({ width: 800, height: 600 });
 	});
 
 	it('zooms about an anchor through the shared transform, not arithmetic of its own', () => {
@@ -362,10 +519,10 @@ describe('EditorStore, the ephemeral half', () => {
 });
 
 describe('WorkspaceStore, the editor chrome', () => {
-	it('opens with both panels open and every layer visible', () => {
+	it('opens in full layout, with no overlay and every layer visible', () => {
 		const store = useWorkspaceStore();
 
-		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([true, true]);
+		expect([store.layoutMode, store.overlay]).toEqual(['full', 'none']);
 		expect(Object.keys(store.layerVisibility)).toEqual([...KONVA_LAYER_IDS]);
 		expect(Object.values(store.layerVisibility).every(Boolean)).toBe(true);
 	});
@@ -393,16 +550,46 @@ describe('WorkspaceStore, the editor chrome', () => {
 		expect(store.layerVisibility).not.toBe(before);
 	});
 
-	it('toggles each panel independently', () => {
-		const store = useWorkspaceStore();
+	/**
+	 * 'toggles each panel independently' stood here, and it was the ONLY caller of
+	 * `toggleLayersPanel`/`toggleInspectorPanel` outside their own definitions — direct store
+	 * calls standing in for a control §5.6 never built. Both actions and both booleans are
+	 * deleted (2026-09-04, R11); the shell renders both full-mode panels unconditionally, and
+	 * `shell.test.ts`'s five-regions case is what proves they still compose.
+	 */
+	it('opens one overlay at a time and closes it when the layout leaves constrained', () => {
+		const workspace = useWorkspaceStore();
+		workspace.setLayoutMode('constrained');
+		workspace.openOverlay('layers');
+		expect(workspace.overlay).toBe('layers');
+		workspace.openOverlay('inspector');
+		expect(workspace.overlay).toBe('inspector');
+		workspace.setLayoutMode('full');
+		expect(workspace.overlay).toBe('none');
+	});
 
-		store.toggleLayersPanel();
+	it('resets layout mode and overlay with everything else', () => {
+		const workspace = useWorkspaceStore();
+		workspace.setLayoutMode('constrained');
+		workspace.openOverlay('layers');
+		workspace.reset();
+		expect(workspace.layoutMode).toBe('full');
+		expect(workspace.overlay).toBe('none');
+	});
 
-		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([false, true]);
+	it('keeps the overlay open when staying in constrained mode, and closes it with closeOverlay()', () => {
+		const workspace = useWorkspaceStore();
+		workspace.setLayoutMode('constrained');
+		workspace.openOverlay('layers');
+		expect(workspace.overlay).toBe('layers');
 
-		store.toggleInspectorPanel();
+		// Staying in constrained mode keeps the overlay open
+		workspace.setLayoutMode('constrained');
+		expect(workspace.overlay).toBe('layers');
 
-		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([false, false]);
+		// closeOverlay() closes it
+		workspace.closeOverlay();
+		expect(workspace.overlay).toBe('none');
 	});
 });
 

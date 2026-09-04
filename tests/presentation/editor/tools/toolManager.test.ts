@@ -38,6 +38,7 @@ function fakeTool(id: ToolId, calls: string[]): EditorTool {
 		abandonGesture: vi.fn<() => void>(() => {
 			calls.push(`${id}:abandonGesture`);
 		}),
+		hasDraft: vi.fn<() => boolean>(() => false),
 	};
 }
 
@@ -461,6 +462,28 @@ describe('gestureInFlight', () => {
 		manager.cancelGesture();
 
 		expect(manager.gestureInFlight).toBe(false);
+	});
+});
+
+describe('activeToolHasDraft', () => {
+	/** A registered `select` tool whose `hasDraft()` answers a chosen value. */
+	function armed(hasDraft: boolean): ToolManager {
+		const calls: string[] = [];
+		const manager = new ToolManager(fakeContext);
+		const select = fakeTool('select', calls);
+		vi.mocked(select.hasDraft).mockReturnValue(hasDraft);
+		manager.register(select);
+		manager.setActiveTool('select');
+		return manager;
+	}
+
+	it('is false with no tool active at all', () => {
+		expect(new ToolManager(fakeContext).activeToolHasDraft()).toBe(false);
+	});
+
+	it('asks the active tool and answers exactly what it answers', () => {
+		expect(armed(false).activeToolHasDraft()).toBe(false);
+		expect(armed(true).activeToolHasDraft()).toBe(true);
 	});
 });
 

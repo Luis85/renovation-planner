@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
+import { overflowFinding, shellMetrics } from './captureMeasures.mjs';
 import {
 	describeFailure,
 	entryHasDrawn,
@@ -14,9 +15,11 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — either the fifteen fixed surfaces (the project
- * view's list state in its dark scheme, light scheme and `?phone`; its detail state wide and
- * at a sidebar's width; the Plan Editor's dark and light schemes; the asset designer's dark and
+ * Headless capture of the browser harness — either the fixed surfaces (the project
+ * view's list state in its dark scheme, light scheme and `?phone`; its detail state wide, at a
+ * sidebar's width and scrolled to its price section at both; the Plan Editor's dark and light
+ * schemes, a zone selected, the Add menu open, the shell at a sidebar's width and the
+ * below-supported shell at 320px; the asset designer's dark and
  * light schemes plus its own sidebar width (Task B10); and the harness index at rest in both
  * schemes, focused, focused on the current row, and showing its failure card) — or, given an
  * entry id, one named prototype or component in both schemes — for a look nobody has to open a
@@ -44,16 +47,28 @@ import { resolveShots } from './entryShots.mjs';
 const OUT_DIR = 'harness-shots';
 const VIEWPORT = { width: 1280, height: 800 };
 // Each surface's own mount point, which is what "the view has drawn" means here — not
-// merely that the page loaded. Per shot rather than one constant, because the two
-// surfaces draw different elements and a shot that waited for the WRONG one would time
+// merely that the page loaded. Per shot rather than one constant, because each surface
+// draws different elements and a shot that waited for the WRONG one would time
 // out on a page that had rendered perfectly.
 const PROJECT_VIEW = '.renovation-planner-view';
-const PLAN_EDITOR_VIEW = '.renovation-plan-editor-view';
 const ASSET_DESIGNER_VIEW = '.renovation-asset-designer-view';
 // The harness's own picker. Present from the first paint and with nothing async under it — the
-// index at `?index` opens no entry — so unlike the two surfaces above there is no "has it really
+// index at `?index` opens no entry — so unlike the surfaces above there is no "has it really
 // drawn" question to answer here beyond the element existing.
 const HARNESS_INDEX = '.rp-harness-index';
+// The Plan Editor's own HYDRATED resting state (R14, closing "Three plan-editor captures can
+// complete before their intended state appears"): drawn only once project hydration has
+// resolved and nothing is selected. The Plan Editor's bare view wrapper attaches before that
+// hydration lands, so waiting on it alone could complete with the intended contents still
+// loading — this is what proves the dark/light shots show the floor rather than a loading
+// frame. There is deliberately no `PLAN_EDITOR_VIEW` constant any more: every Plan Editor shot
+// now waits on a selector that proves its OWN state, and a wrapper-only wait is exactly the
+// defect this rule exists to refuse — see the SHOTS entries below for what each one waits on.
+const FLOOR_STATE = '.rp-floor-inspector';
+// The Konva stage's own mount point, named here because the narrow shot waits on it ALONGSIDE
+// the constrained-layout rail rather than on the wrapper both surround — the canvas alone
+// attaches before the reflow that produces the rail has actually happened.
+const PLAN_CANVAS = '.rp-plan-canvas';
 
 /**
  * The viewport for one shot: `VIEWPORT`, with `width` overriding its one field when a shot
@@ -134,6 +149,28 @@ async function focusForShot(page, focus) {
 	throw new Error(`nothing matching ${focus} took focus within ${FOCUS_TAB_LIMIT} tab presses`);
 }
 
+/**
+ * The unsupported shell's own horizontal-overflow question (R13), pushed onto the shared
+ * errors list rather than thrown: a sideways scroll is reported the same way a page error is,
+ * so `captureAll` keeps taking the rest of the run's shots instead of stopping at the first one
+ * that scrolls.
+ *
+ * `shellMetrics` reads in the page, `overflowFinding` judges in Node — see
+ * `scripts/captureMeasures.mjs` for why the split, and why the page-side half is
+ * self-contained.
+ *
+ * A no-op for a shot with no `measure`, which is every shot but one today, and out here rather
+ * than as a branch inside `captureOne` for the reason `viewportFor` and `focusForShot` above
+ * already give: that function runs behind a browser where no test reaches it, and one more
+ * branch there is what pushes its CRAP score over the threshold `npm run analyze` fails at.
+ */
+async function measureForShot(page, name, measure, errors) {
+	if (measure === undefined) return;
+
+	const finding = overflowFinding(name, await page.evaluate(shellMetrics, measure));
+	if (finding !== null) errors.push(finding);
+}
+
 const SHOTS = [
 	{ name: 'dark', query: '', selector: PROJECT_VIEW },
 	{ name: 'light', query: '?theme=light', selector: PROJECT_VIEW },
@@ -200,8 +237,50 @@ const SHOTS = [
 	// only place the layered Konva scene can be looked at outside a vault. No phone shot —
 	// SDD §61 scopes the MVP to desktop, and a canvas editor is the least mobile of the
 	// surfaces; add one when §61 changes.
-	{ name: 'plan-editor-dark', query: '?view=plan-editor', selector: PLAN_EDITOR_VIEW },
-	{ name: 'plan-editor-light', query: '?view=plan-editor&theme=light', selector: PLAN_EDITOR_VIEW },
+	//
+	// `selector: FLOOR_STATE` rather than the bare view wrapper (R14, 2026-09-04): the wrapper
+	// attaches before asynchronous project hydration establishes the ready floor state, so a
+	// wait on it alone could complete while the intended contents were still loading — a
+	// successful capture of the wrong state, the most dangerous failure this instrument can
+	// produce. `.rp-floor-inspector` draws only once hydration is ready and nothing is
+	// selected, which is exactly the resting state these two shots exist to show.
+	{ name: 'plan-editor-dark', query: '?view=plan-editor', selector: FLOOR_STATE },
+	{ name: 'plan-editor-light', query: '?view=plan-editor&theme=light', selector: FLOOR_STATE },
+	// Task 21's three: the ROOM state (a zone selected, so the Room Inspector is on screen —
+	// the `?select=` knob drives the real click `RoomSummaryList` renders, through
+	// `runtime.selectAndFrame`), the Add menu open (the `?add` knob, same shape), and the
+	// shell at a sidebar's width. Each waits on the element its own knob produces rather than
+	// on the bare view wrapper, which is on screen the whole time either knob is still working —
+	// a selector that could not tell "mounted" from "the knob actually landed" would let a
+	// broken knob exit 0 with a picture of the resting editor under a new name.
+	{
+		name: 'plan-editor-selected',
+		query: '?view=plan-editor&select=harness-kitchen&theme=light',
+		selector: '.rp-room-inspector',
+	},
+	{ name: 'plan-editor-add-menu', query: '?view=plan-editor&add&theme=light', selector: '.rp-add-menu' },
+	// A LIST rather than one selector (R14, 2026-09-04): the canvas alone attaches before the
+	// constrained-layout reflow has actually happened, so a wait on it could complete with the
+	// Layers/Details rail not yet on screen — the same wrong-state shape as `plan-editor-dark`'s
+	// own fix above, for this shot's own extra claim. `waitUntilReady` takes `string | string[]`
+	// for a fixed shot now, and waits on every member.
+	{
+		name: 'plan-editor-narrow',
+		query: '?view=plan-editor&theme=light',
+		selector: [PLAN_CANVAS, '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail'],
+		width: 460,
+	},
+	// The UNSUPPORTED layout at 320 px — the one width the 460 shot cannot show — and the one
+	// capture that MEASURES rather than only draws: M16 refuses a horizontal scrollbar here, and
+	// jsdom lays nothing out, so `measure` reads the shell's scrollWidth against its clientWidth
+	// in the real browser and fails the run on a sideways scroll (R13, 2026-09-04).
+	{
+		name: 'plan-editor-unsupported',
+		query: '?view=plan-editor&theme=light',
+		selector: '.rp-editor-shell[data-layout="unsupported"] .rp-unsupported-width',
+		width: 320,
+		measure: '.rp-editor-shell',
+	},
 	// The asset designer (Task B10, ADR-0015) in both schemes — the plugin's third workspace
 	// view, and the first look at it against a real theme rather than jsdom's semantics-only
 	// scan. `mountAssetDesignerHarness` seeds no shape and no background, so this photographs the
@@ -273,9 +352,9 @@ const SHOTS = [
 	{ name: 'index-failure', query: '?entry=no-such-entry&theme=light', selector: '.rp-harness-failure' },
 ];
 
-/** One capture: navigate, wait for the real view to mount, screenshot, report any page or
- * console error back onto the shared list rather than throwing — one bad shot should not
- * cost the rest of the run its PNGs.
+/** One capture: navigate, wait for the real view to mount, screenshot, MEASURE it when the shot
+ * asks to be (R13), report any page or console error back onto the shared list rather than
+ * throwing — one bad shot should not cost the rest of the run its PNGs.
  *
  * Returns the page's own CLASSIFICATION of the failure it recorded (`readFailureKind`), or
  * `undefined` on a clean capture: `captureAll` reads it to decide whether the SECOND colour
@@ -283,7 +362,7 @@ const SHOTS = [
  * the reason is prose an entry's own error can imitate — see `readFailureKind`. The reason is
  * still pushed here rather than returned: the errors list is what the exit code is built from,
  * and a caller that forgot to push would turn a failure into a green run. */
-async function captureOne(browser, baseUrl, { name, query, selector, entry, width, focus, scrollTo }, errors) {
+async function captureOne(browser, baseUrl, { name, query, selector, entry, width, focus, scrollTo, measure }, errors) {
 	const page = await browser.newPage({ viewport: viewportFor(width) });
 
 	page.on('pageerror', (error) => errors.push(`[${name}] page error: ${error.message}`));
@@ -320,6 +399,7 @@ async function captureOne(browser, baseUrl, { name, query, selector, entry, widt
 		const file = path.join(OUT_DIR, `${name}.png`);
 
 		await page.screenshot({ path: file, fullPage: true });
+		await measureForShot(page, name, measure, errors);
 		await reportIfNoLongerDrawn(page, entry, name, errors, entryHasDrawn);
 
 		console.log(`wrote ${file}`);
@@ -388,8 +468,8 @@ function skipReason({ name, entry }, missing) {
  * capture, which is never a reason to skip anything. */
 const isMissingEntry = ({ entry }, kind) => entry !== undefined && kind === UNKNOWN_ENTRY;
 
-/** Every shot in the list — twelve for a bare run, two for a named entry — and the errors any
- * of them raised, collected rather than thrown, so one bad shot does not cost the rest of
+/** Every shot in the list — every fixed shot for a bare run, two for a named entry — and the
+ * errors any of them raised, collected rather than thrown, so one bad shot does not cost the rest of
  * the run its PNGs.
  *
  * An entry the index says it does not HAVE is not attempted twice. The two shots of one entry
@@ -437,7 +517,7 @@ async function run() {
 	// argument is the entry's qualified id (`entries.ts`), not its basename: the index shows
 	// the label, but the URL and this command both take the id, since a mock and the real
 	// component it stands in for share a basename and need to stay reachable as two entries.
-	// With no argument, the twelve fixed surfaces, exactly as before. `resolveShots` is what
+	// With no argument, every fixed surface, exactly as before. `resolveShots` is what
 	// actually reads `argv[2]` — lifted out of this line so a test can drive it directly
 	// rather than reading this file's source text to check which index it uses.
 	const shots = resolveShots(process.argv, SHOTS, process.env);

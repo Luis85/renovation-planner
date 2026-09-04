@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Start one creation task from Add]]"
 order: 20
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -36,3 +36,24 @@ Canvas key handlers can swallow menu keyboard events.
 ## Outcome
 
 The complete Add choice is usable without a pointer and changes nothing until an item is chosen.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment.
+`tests/presentation/editor/add/addMenu.test.ts` carries every criterion across seventeen cases:
+criterion 1 is 'opens from Add, focuses Room, and closes on Escape with focus back on Add and
+nothing dispatched', which is also criteria 3 and 5; criterion 2 is the traversal set —
+'ArrowDown moves focus through enabled and disabled items alike', 'End jumps to the last item in
+the flat, filtered list', the wrap case, 'typing filters by localized label and synonym', and
+'narrowing the filter past the focused item moves the roving focus to the first remaining one';
+criterion 3's other half is 'click outside closes without dispatch'; criterion 4 is 'an
+unsupported item is aria-disabled with its reason and Enter on it changes nothing', with 'Space on
+an unsupported item changes nothing' beside it.
+
+What no test here reaches is whether Obsidian's OWN keymap fires behind the open menu: jsdom
+models no host `Scope` stack, so `@keydown.stop` proves only that the canvas never sees the key.
+Step 11 of [[Open a floor and select a room]] is the instrument.
+
+**2026-09-04** — see [[The manual keymap claim points to a step that never invokes the keymap]],
+closed: the previous sentence pointed at step 6, which navigates the menu with arrow keys and
+never presses `Ctrl+P`. Step 11 is the one that actually invokes the host keymap.

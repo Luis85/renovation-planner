@@ -13,7 +13,8 @@ import { affectsSaveState } from './save-state/affects-save-state';
  * the three last-stop doors a dispatch that nobody awaits needs.
  *
  * TWO of them are for a dispatch bound to a CLICK — `reportDispatchFault` and `notifyIfRefused`,
- * which the toolbar's undo and redo chain together. The third, `mapDispatchFaults`, is for a
+ * which the Plan Editor's context bar and the asset designer's own toolbar each chain their
+ * undo and redo through. The third, `mapDispatchFaults`, is for a
  * dispatch bound to a GESTURE, which is every tool on both surfaces and which had none at all
  * until a review round asked what happens when `run(...)` rejects.
  *
@@ -184,8 +185,9 @@ export type ToolDispatcher =
 /**
  * The THIRD last-stop door in this file, and the one every canvas gesture goes through.
  *
- * `reportDispatchFault` above covers `undo()` and `redo()`, which are bound straight to toolbar
- * clicks. It never covered `run(...)` — what all five tools across both surfaces call — and
+ * `reportDispatchFault` above covers `undo()` and `redo()`, which are bound straight to a click
+ * on the context bar (or the designer's own toolbar). It never covered `run(...)` — what all
+ * five tools across both surfaces call — and
  * `withStateRefresh`/`withEditorStateRefresh` RE-THROW on rejection by design, while every tool
  * launches its dispatch detached (`void this.commit(...)`, `void this.dispatch(...)`). So a
  * vault fault under a drag was an unhandled rejection: nothing told the user, nothing logged the

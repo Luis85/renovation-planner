@@ -11,6 +11,7 @@ import type { BackgroundVault } from '../editor/layers/background/BackgroundRend
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from './app-id-prefix';
+import { notifyFault } from '../notices/notify';
 
 /**
  * The Plan Editor (SDD §11's second surface).
@@ -243,6 +244,20 @@ export class PlanEditorView extends ItemView {
 			// close it.
 			closeLeaf: () => {
 				this.leaf.detach();
+			},
+			// The same shape as `closeLeaf` above and for the same reason: the leaf is the
+			// VIEW's, so the view is what can reveal it. Detached like every other door
+			// CLAUDE.md's Architecture section names — the promise is the workspace's own
+			// animation and nothing here awaits it — but a rejection still owes a fault door:
+			// this is the ONLY control an unsupported-width pane offers, so a silent `void`
+			// here would be a control that visibly does nothing. `src/plugin/runDetached.ts`
+			// is that door and `presentation/` may not import `plugin/` (the layer bans), so
+			// its one step — map, log, notify — is inlined via `notifyFault` directly, the
+			// same function `runDetached` itself calls.
+			focusLeaf: () => {
+				this.app.workspace.revealLeaf(this.leaf).catch((cause: unknown) => {
+					notifyFault(cause, this.deps.commands.logger, 'plan-editor.focus-leaf-failed');
+				});
 			},
 		};
 

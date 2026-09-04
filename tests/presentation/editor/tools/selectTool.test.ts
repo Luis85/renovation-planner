@@ -205,6 +205,65 @@ describe('SelectTool', () => {
 		expect(h.context.renderState.previewPolygon).toBeNull();
 	});
 
+	it('deactivate clears a predicted hover too, not just the drag preview', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerMove(eventAt(50, 50)); // hovering the body, nothing pressed
+		expect(h.context.renderState.hoveredObjectId).toBe('zone-a');
+		expect(h.context.renderState.hoveredTargetKind).toBe('body');
+
+		tool.deactivate();
+		expect(h.context.renderState.hoveredObjectId).toBeNull();
+		// The KIND is cleared with the id at every site that writes one — two fields, one
+		// fact, so the cursor cannot outlive the hover it was derived from.
+		expect(h.context.renderState.hoveredTargetKind).toBeNull();
+	});
+
+	/**
+	 * [[The hover-click agreement test never clicks]]: the case this replaces only invoked
+	 * `pointerMove`, twice, and never compared a predicted hover against a click's own
+	 * outcome — a resolver moved onto a different order or target mapping for one path and
+	 * not the other could have left it green. This is `resolveSelectionTarget` asked by
+	 * `pointerMove` and then by a real primary click grammar (`pointerDown` plus
+	 * `pointerUp`) over the SAME overlapping candidates, and it asserts the click actually
+	 * lands on what the hover predicted.
+	 */
+	it('a hover with no gesture predicts the same target a click there would take', () => {
+		const candidates = [{ id: 'zone-below', points: squarePoints(0, 0) }, { id: 'zone-above', points: squarePoints(50, 50) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerMove(eventAt(75, 75)); // inside both; the topmost body is the prediction
+		const predicted = h.context.renderState.hoveredObjectId;
+		expect(predicted).toBe('zone-above');
+
+		tool.pointerDown(eventAt(75, 75));
+		tool.pointerUp(eventAt(75, 75));
+		expect(h.context.selection.selectedIds.map(String)).toEqual([predicted]);
+
+		tool.pointerMove(eventAt(9999, 9999));
+		expect(h.context.renderState.hoveredObjectId).toBeNull();
+	});
+
+	it('starting a gesture clears the predicted hover, since the pointer is no longer merely looking', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerMove(eventAt(50, 50));
+		expect(h.context.renderState.hoveredObjectId).toBe('zone-a');
+		expect(h.context.renderState.hoveredTargetKind).toBe('body');
+
+		tool.pointerDown(eventAt(50, 50));
+		expect(h.context.renderState.hoveredObjectId).toBeNull();
+		expect(h.context.renderState.hoveredTargetKind).toBeNull();
+	});
+
 	it('a selection naming an object the candidate list no longer has just does nothing', () => {
 		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
 		const h = harness();
@@ -425,5 +484,39 @@ describe('SelectTool', () => {
 			{ x: 140, y: 100 },
 			{ x: 40, y: 100 },
 		]);
+	});
+});
+
+describe('SelectTool.hasDraft', () => {
+	// Task 9 — Escape asks a tool whether it holds work `cancel()` would discard before
+	// deciding whether to switch away or clear a selection instead.
+	it('is false before any press, true for a drag in flight, and false again after it commits', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		expect(tool.hasDraft()).toBe(false);
+
+		tool.pointerDown(eventAt(10, 10));
+		expect(tool.hasDraft()).toBe(true);
+
+		tool.pointerUp(eventAt(60, 10)); // a real drag, dispatched
+		expect(tool.hasDraft()).toBe(false);
+	});
+
+	it('is false again once cancel() or abandonGesture() discards the drag', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerDown(eventAt(10, 10));
+		tool.cancel();
+		expect(tool.hasDraft()).toBe(false);
+
+		tool.pointerDown(eventAt(10, 10));
+		tool.abandonGesture();
+		expect(tool.hasDraft()).toBe(false);
 	});
 });

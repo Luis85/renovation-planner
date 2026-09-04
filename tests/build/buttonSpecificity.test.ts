@@ -344,7 +344,7 @@ describe('the instrument', () => {
 		const classes = buttonClasses();
 
 		expect(classes.size).toBeGreaterThan(3);
-		expect(classes).toContain('.rp-editor-tool-active');
+		expect(classes).toContain('.rp-designer-tool-active');
 		expect(classes).toContain('.rp-dialog-button-danger');
 	});
 
@@ -801,7 +801,7 @@ describe('every button rule against Obsidian\'s own', () => {
 	});
 
 	it('reports a bare class that sets one of the contested properties', () => {
-		const bare = '.rp-editor-tool-active';
+		const bare = '.rp-designer-tool-active';
 
 		expect(buttonClasses()).toContain(bare);
 		expect(moreSpecific(specificityOf(parseSelector(bare)), OBSIDIAN_BUTTON)).toBe(false);

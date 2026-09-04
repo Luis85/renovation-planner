@@ -3,9 +3,10 @@
  *
  * The editor shell (SDD §60) and the camera on the canvas inside it.
  *
- * The five regions are a layout CONTRACT — slice 6 fills the toolbar and inspector, slice
- * 13 mounts into the status bar's third region by name — so what is asserted here is that
- * each region exists, is labelled, and holds what this slice puts in it.
+ * The five regions are a layout CONTRACT — slice 6 fills the toolbar (Task 13 replaced it
+ * with a context bar and a floating Select/Add group) and the inspector, slice 13 mounts
+ * into the status bar's third region by name — so what is asserted here is that each region
+ * exists, is labelled, and holds what this slice puts in it.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
@@ -17,7 +18,7 @@ import {
 	screenToWorld,
 	STAGE_PIXELS,
 } from '../../../src/presentation/editor/viewport/Viewport';
-import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
+import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import {
 	fakeQueries,
 	mountPlanEditor,
@@ -28,6 +29,7 @@ import {
 	type EditorHarnessOptions,
 } from '../../helpers/editor';
 import { FIXTURE_PLAN } from '../../helpers/planFixtures';
+import { activateTool } from '../../helpers/planEditorRig';
 
 /**
  * What `afterEach` has to unmount, which is the only thing the whole file shares.
@@ -65,13 +67,14 @@ function wheelOver(mounted: CanvasHarness, deltaY: number, at = { clientX: 400, 
 }
 
 describe('the five regions', () => {
-	it('stands up the toolbar, both panels, the canvas and the status bar', async () => {
+	it('stands up the context bar, both panels, the canvas, the floating actions and the status bar', async () => {
 		const harness = await mountCanvas();
 		const { wrapper } = harness;
 
-		expect(wrapper.find('.rp-editor-toolbar').exists()).toBe(true);
+		expect(wrapper.find('.rp-context-bar').exists()).toBe(true);
 		expect(wrapper.find('.rp-editor-layers').exists()).toBe(true);
 		expect(wrapper.find('.rp-plan-canvas').exists()).toBe(true);
+		expect(wrapper.find('.rp-primary-actions').exists()).toBe(true);
 		expect(wrapper.find('.rp-editor-inspector').exists()).toBe(true);
 		expect(wrapper.find('.rp-editor-status-bar').exists()).toBe(true);
 	});
@@ -95,10 +98,16 @@ describe('the five regions', () => {
 		expect(saveState.text()).toBe(t('en', 'save-state.saved'));
 	});
 
+	/**
+	 * Scoped to `.rp-editor-plan-name` rather than the whole `.rp-editor-status` group: Task
+	 * 20 added a pan-override hint to that same region, shown under Select — the tool a fresh
+	 * canvas arms by default (design spec §7.3/task 10) — so the group's full text now
+	 * includes it too.
+	 */
 	it('shows the plan name in the status region', async () => {
 		const harness = await mountCanvas();
 
-		expect(harness.wrapper.find('.rp-editor-status').text()).toBe(FIXTURE_PLAN.name);
+		expect(harness.wrapper.find('.rp-editor-plan-name').text()).toBe(FIXTURE_PLAN.name);
 	});
 
 	/**
@@ -110,34 +119,32 @@ describe('the five regions', () => {
 	it('announces the angle constraint under the tools that take it, and no others', async () => {
 		const harness = await mountCanvas();
 		const hint = () => harness.wrapper.find('.rp-editor-hint');
-		const press = (label: string) => {
-			const button = harness.wrapper.findAll('button').find((candidate) => candidate.text() === label);
-			if (button === undefined) throw new Error(`no toolbar button labelled ${label}`);
-			button.element.click();
-		};
 
 		// Camera mode: no tool, so no constraint to announce.
 		expect(hint().exists()).toBe(false);
 
-		press(t('en', 'editor.toolbar.draw-zone'));
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		expect(hint().text()).toBe(t('en', 'editor.hint.constrain-angle'));
 
-		press(t('en', 'editor.toolbar.calibrate'));
+		activateTool(harness, 'calibrate');
 		await settle();
 		expect(hint().exists()).toBe(true);
 
 		// Select moves and picks; it constrains nothing, so the key would be a dead letter.
-		press(t('en', 'editor.toolbar.select'));
+		activateTool(harness, 'select');
 		await settle();
 		expect(hint().exists()).toBe(false);
 	});
 
-	it('labels the toolbar and the inspector, empty though they are', async () => {
+	it('labels the context bar, the primary actions and the inspector, empty though they are', async () => {
 		const harness = await mountCanvas();
 		const { wrapper } = harness;
 
-		expect(wrapper.find('.rp-editor-toolbar').attributes('aria-label')).toBe(t('en', 'editor.toolbar'));
+		expect(wrapper.find('.rp-context-bar').attributes('aria-label')).toBe(t('en', 'editor.context-bar'));
+		expect(wrapper.find('.rp-primary-actions').attributes('aria-label')).toBe(
+			t('en', 'editor.primary-actions'),
+		);
 		expect(wrapper.find('.rp-editor-inspector').attributes('aria-label')).toBe(t('en', 'editor.inspector'));
 	});
 
@@ -159,34 +166,53 @@ describe('the five regions', () => {
 	/**
 	 * Presence alone does not prove the mount point is correct: `DialogHost`'s
 	 * `inertBackground` walks exactly two levels up from `.rp-dialog` to reach the element
-	 * whose OTHER children it backgrounds. Mounted a level too deep, the toolbar would stay
-	 * live and clickable behind the dialog with nothing erroring anywhere — this is the case
-	 * that would catch that.
+	 * whose OTHER children it backgrounds. Mounted a level too deep, the context bar would
+	 * stay live and clickable behind the dialog with nothing erroring anywhere — this is the
+	 * case that would catch that.
+	 *
+	 * **The attribute lands on the SHELL now, not on the context bar itself, and the case
+	 * asserts both halves for that reason.** Task 19 moved the five regions one level down into
+	 * `ResponsiveEditorShell`, so `DialogHost`'s siblings are the shell and nothing else —
+	 * which is what its own comment asks for ("every region has to be a sibling of it"), now
+	 * satisfied by one element rather than by five. `inert` applies to the element AND its
+	 * subtree, so the context bar is backgrounded exactly as before; the ANCESTRY assertion is
+	 * what keeps this case about the region rather than about whichever element the attribute
+	 * happens to sit on.
 	 */
 	it('makes a shell region inert while the dialog is open, and releases it on close', async () => {
 		const harness = await mountCanvas();
 		const store = useDialogStore(harness.pinia);
+		const shell = harness.rootEl;
+		expect(shell.contains(harness.wrapper.find('.rp-context-bar').element)).toBe(true);
 
 		void store.openDialog({ kind: 'confirm', title: 'T', message: 'M' });
 		await settle();
 
-		expect(harness.wrapper.find('.rp-editor-toolbar').element.hasAttribute('inert')).toBe(true);
+		expect(shell.hasAttribute('inert')).toBe(true);
 
 		store.resolve('cancel');
 		await settle();
 
-		expect(harness.wrapper.find('.rp-editor-toolbar').element.hasAttribute('inert')).toBe(false);
+		expect(shell.hasAttribute('inert')).toBe(false);
 	});
 });
 
+/**
+ * Task 14 replaced the seven-checkbox-per-Konva-layer panel with the truthful two-entry
+ * catalogue (`layerCatalogue.ts`): a row for a layer with no records and no capability was a
+ * fake, and four of the old seven were exactly that. `layerCatalogue.test.ts` and
+ * `layerList.test.ts` own the catalogue's own rules; what belongs here is that the SHELL
+ * mounts the new panel in the old one's place.
+ */
 describe('the layers panel', () => {
-	it('offers one labelled checkbox per Konva layer', async () => {
+	it('offers one labelled checkbox per catalogue entry — Reference plan, then Rooms', async () => {
 		const harness = await mountCanvas();
 
-		const rows = harness.wrapper.findAll('.rp-editor-layer-row');
+		const rows = harness.wrapper.findAll('.rp-layer-list__row');
 
-		expect(rows).toHaveLength(7);
-		expect(rows[2].find('label').text()).toBe(t('en', 'editor.layer.zone'));
+		expect(rows).toHaveLength(2);
+		expect(rows[0].find('label').text()).toBe(t('en', 'editor.layer.reference-plan'));
+		expect(rows[1].find('label').text()).toBe(t('en', 'editor.layer.rooms'));
 		expect(rows.every((row) => row.find('input').attributes('type') === 'checkbox')).toBe(true);
 	});
 
@@ -200,7 +226,7 @@ describe('the layers panel', () => {
 		const zoneLayer = harness.stage.findOne('.zone');
 		expect(zoneLayer?.visible()).toBe(true);
 
-		await harness.wrapper.findAll('.rp-editor-layer-row')[2].find('input').setValue(false);
+		await harness.wrapper.findAll('.rp-layer-list__row')[1].find('input').setValue(false);
 		await settle();
 
 		expect(harness.stage.findOne('.zone')?.visible()).toBe(false);
@@ -248,6 +274,96 @@ describe('the measurements readout', () => {
 	});
 });
 
+describe('the persistent warning strip', () => {
+	/**
+	 * Task 20's keyed collection over the four independent `<p class="rp-editor-notice">`s
+	 * this replaced: `:key="w.id"` is what keeps a warning's identity when a second one
+	 * arrives or leaves, so this asserts on `data-rp-warning` rather than on position or
+	 * translated text alone, and asserts the count both before and after one clears.
+	 */
+	it('keys each warning by its id, and drops one when its own condition clears', async () => {
+		const harness = await mountCanvas({ unreadableZones: 1 });
+		const store = useProjectStore(harness.pinia);
+		store.stale = true;
+		await settle();
+
+		let items = harness.wrapper.findAll('.rp-warning-strip__item');
+		expect(items).toHaveLength(2);
+		expect(items.map((item) => item.attributes('data-rp-warning'))).toStrictEqual(['stale', 'unreadable-zones']);
+
+		store.stale = false;
+		await settle();
+
+		items = harness.wrapper.findAll('.rp-warning-strip__item');
+		expect(items).toHaveLength(1);
+		expect(items[0].attributes('data-rp-warning')).toBe('unreadable-zones');
+	});
+
+	/**
+	 * The live region is the CONTAINER, not an item — `.rp-warning-strip` renders
+	 * unconditionally and carries `role="status"` whether or not anything is inside it, which
+	 * is what `docs/components/Toast.md`'s "explicitly not on a container that appears" asks
+	 * for: the region is already in the document before the first warning's text lands in it.
+	 * An empty `role="status"` is valid and this is the case that proves the region precedes
+	 * its content rather than arriving WITH the first warning.
+	 */
+	it('carries its live region on the container even with no warnings at all', async () => {
+		const harness = await mountCanvas();
+		await settle();
+
+		expect(harness.wrapper.find('.rp-warning-strip[role="status"]').exists()).toBe(true);
+		expect(harness.wrapper.findAll('.rp-warning-strip__item')).toHaveLength(0);
+	});
+
+	/**
+	 * R5: every warning carries its severity as a mark AND a word
+	 * (`docs/components/Toast.md`'s "both, always, never one"), and each warning's own mark
+	 * survives a sibling clearing — the same identity guarantee the keying case above proves
+	 * for the item itself, proven here for the severity it carries.
+	 */
+	it('keeps each warning\'s own severity mark and word when the other one clears', async () => {
+		const harness = await mountCanvas({ unreadableZones: 1 });
+		const store = useProjectStore(harness.pinia);
+		store.stale = true;
+		await settle();
+
+		const marks = () => harness.wrapper.findAll('.rp-warning-strip__item').map((item) => [
+			item.attributes('data-rp-warning'), item.attributes('data-rp-severity'), item.find('.rp-warning-strip__severity').text(),
+		]);
+		expect(marks()).toStrictEqual([
+			['stale', 'warning', t('en', 'editor.warning.severity.warning')],
+			['unreadable-zones', 'error', t('en', 'editor.warning.severity.error')],
+		]);
+
+		store.stale = false;
+		await settle();
+		expect(marks()).toStrictEqual([['unreadable-zones', 'error', t('en', 'editor.warning.severity.error')]]);
+	});
+
+	/**
+	 * R4: exactly one unconditional `.rp-warning-strip[role="status"]` and zero item status
+	 * roles, before and after two warnings arrive independently — the discriminating test the
+	 * note's `## What closes it` asks for, proving the container model rather than a per-item
+	 * one.
+	 */
+	it('is ONE unconditional live region, and no item is one — before and after two warnings arrive', async () => {
+		const harness = await mountCanvas();
+		const regions = () => harness.wrapper.findAll('[role="status"]').filter((el) => el.classes().includes('rp-warning-strip'));
+		const itemRoles = () => harness.wrapper.findAll('.rp-warning-strip__item [role], .rp-warning-strip__item[role]');
+		expect(regions()).toHaveLength(1);
+		expect(itemRoles()).toHaveLength(0);
+
+		const store = useProjectStore(harness.pinia);
+		store.stale = true;
+		store.unreadableZones = 2;
+		await settle();
+
+		expect(harness.wrapper.findAll('.rp-warning-strip__item')).toHaveLength(2);
+		expect(regions()).toHaveLength(1);
+		expect(itemRoles()).toHaveLength(0);
+	});
+});
+
 describe('the camera', () => {
 	it('zooms in on a wheel up and out on a wheel down', async () => {
 		const harness = await mountCanvas();
@@ -267,6 +383,11 @@ describe('the camera', () => {
 
 	it('pans on a primary-button drag', async () => {
 		const harness = await mountCanvas();
+		// Task 10 made Select — not camera mode — the tool a ready plan opens onto, and
+		// (0,0)-(4000,3000) zone-kitchen sits under this drag's start; back to camera mode so
+		// the drag pans rather than moving the zone.
+		activateTool(harness, null);
+		await settle();
 		const positionOf = () => ({ x: harness.stage.findOne('.zone')?.x(), y: harness.stage.findOne('.zone')?.y() });
 		const before = positionOf();
 
@@ -312,6 +433,10 @@ describe('the camera', () => {
 
 	it('stops panning when the button is released', async () => {
 		const harness = await mountCanvas();
+		// Same reason as the case above: an explicit return to camera mode, since Select would
+		// otherwise turn this into a completed (and irrelevant) zone move.
+		activateTool(harness, null);
+		await settle();
 		const positionOf = () => harness.stage.findOne('.zone')?.x();
 
 		harness.canvasEl.dispatchEvent(
@@ -334,6 +459,9 @@ describe('the camera', () => {
 
 	it('ends a pan that leaves the pane, so the view does not stay stuck to the cursor', async () => {
 		const harness = await mountCanvas();
+		// Same reason again: without it, this is a Select press over zone-kitchen instead.
+		activateTool(harness, null);
+		await settle();
 		const positionOf = () => harness.stage.findOne('.zone')?.x();
 
 		harness.canvasEl.dispatchEvent(
@@ -447,28 +575,13 @@ describe('what the shell shows when there is no plan to draw', () => {
 });
 
 /**
- * The panels are collapsible chrome, not content: hiding one is a `WorkspaceStore` toggle
- * with nothing persisted behind it. Driven through the store because there is no toggle
- * CONTROL yet — slice 6's toolbar is where that button goes, and the state it will drive
- * is stood up now so the button is all that has to arrive.
+ * Both full-mode panels compose unconditionally (2026-09-04, spec §5.6, R11). `collapsing a
+ * panel` used to sit here, driving `WorkspaceStore.toggleLayersPanel`/`toggleInspectorPanel`
+ * from the store because there was no CONTROL to click — and there never was one: §5.6 builds
+ * no View menu, because nothing would be in it. The two actions and the two booleans are
+ * deleted, so the states those cases certified are unreachable rather than merely unreached,
+ * and what is left to prove is that the simplified shell still draws both regions. That is the
+ * five regions' case at the top of this file ('stands up the context bar, both panels, the
+ * canvas, the floating actions and the status bar'), which asserts each of them present
+ * against a store that no longer has a way to say otherwise.
  */
-describe('collapsing a panel', () => {
-	it('removes the layers panel and leaves the canvas', async () => {
-		const harness = await mountCanvas();
-		useWorkspaceStore().toggleLayersPanel();
-		await settle();
-
-		expect(harness.wrapper.find('.rp-editor-layers').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(true);
-		expect(harness.wrapper.find('.rp-editor-inspector').exists()).toBe(true);
-	});
-
-	it('removes the inspector independently', async () => {
-		const harness = await mountCanvas();
-		useWorkspaceStore().toggleInspectorPanel();
-		await settle();
-
-		expect(harness.wrapper.find('.rp-editor-inspector').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-editor-layers').exists()).toBe(true);
-	});
-});

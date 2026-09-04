@@ -128,7 +128,7 @@ export function drawTriangle(tool: DrawPolygonTool): void {
 	tool.pointerDown(at(0, 0)); // closes on the first vertex
 }
 
-export function build(h: Harness): DrawPolygonTool {
+export function build(h: Harness, options: { onCompleted?: () => void } = {}): DrawPolygonTool {
 	return new DrawPolygonTool({
 		id: 'draw-polygon',
 		completion: {
@@ -142,5 +142,8 @@ export function build(h: Harness): DrawPolygonTool {
 		// this file asks "was the user told", which is true through either.
 		reportRejected: (error) => h.rejections.push(error.message),
 		reportInvalidInput: (error) => h.rejections.push(error.message),
+		// A no-op default: most cases here have no runtime to hand back to, and only the ones
+		// asserting the completion callback itself supply their own.
+		onCompleted: options.onCompleted ?? (() => undefined),
 	});
 }

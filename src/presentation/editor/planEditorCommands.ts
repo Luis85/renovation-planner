@@ -143,7 +143,7 @@ export interface PlanEditorCommandServices {
 	 *   are only produced together if this door produces both, which is why `notifyFault`
 	 *   takes this and maps once for both halves.
 	 * - `RequirementRow`'s two `useFieldCommit` override fields (design slice 16), reached
-	 *   through `InspectorPanel` as a prop. A coalesced round's own continuation rejects with
+	 *   through `RoomInspector` as a prop. A coalesced round's own continuation rejects with
 	 *   nobody holding that promise, so `faultError` there is likewise the only step where the
 	 *   cause can be recorded at all — the same argument as `notifyFault`'s, one door over.
 	 *

@@ -55,7 +55,7 @@ This screen defines graceful behavior when the editor shares the Obsidian worksp
 
 ## Accessibility and themes
 
-- Overlay panels trap focus only while open and restore it on close.
+- Overlay panels restore focus to the rail button on close and do not trap it while open; the canvas stays reachable by Tab (amended 2026-09-04 — the Inspector PBI requires no trap and the shipped panels implement none).
 - Rail buttons have text labels, not mystery icons.
 - No essential action disappears without an alternate location.
 - Hit targets remain desktop-sized; text is not miniaturized.

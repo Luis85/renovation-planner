@@ -44,6 +44,7 @@ import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import type { BoundingBox } from '../../core/geometry/BoundingBox';
 import type { StringKey } from '../i18n/locales/en';
+import type { ToolId } from '../editor/tools/editor-tool';
 import { useEditorStore } from '../stores/EditorStore';
 import EditorSurface from '../editor/surface/EditorSurface.vue';
 import BackgroundLayer from '../editor/layers/background/BackgroundLayer.vue';
@@ -51,6 +52,7 @@ import type { BackgroundStatus } from '../editor/layers/background/BackgroundRen
 import { useThemeTokens } from '../editor/theme/useThemeTokens';
 import { STAGE_PIXELS, viewportTransform, worldPerScreenPixel } from '../editor/viewport/Viewport';
 import { boundsOfZones } from '../editor/viewport/zoneExtent';
+import { useSelectionStore } from '../editor/selection/selection-store';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import { useDesignerRuntime } from './runtime';
@@ -91,7 +93,31 @@ const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
 // one object. A manager built here would be a second one nothing outside this component could
 // reach — the shape Task B4 shipped while there were no tools to reach.
-const { toolManager, renderState } = useDesignerRuntime();
+const { toolManager, renderState, setTool } = useDesignerRuntime();
+/**
+ * The selection store, for `EditorSurface`'s Escape routing alone — none of this surface's five
+ * registered tools ever call `context.selection.select(...)`, so `selectedIds` never leaves
+ * `[]` today. Wired anyway, the way `PlanCanvas.vue` wires the SAME store class: a second
+ * `useSelectionStore()` call resolves to one Pinia instance per app, so this is not a second
+ * store to keep in step with the one `runtime.ts` already hands every tool through
+ * `EditorContext.selection` — it is that store, read here.
+ */
+const selection = useSelectionStore();
+
+/**
+ * `routeEscape`'s `returned-to-select` arm always asks for the Plan Editor's neutral tool,
+ * `'select'` — a tool this surface never registers (`registerDesignerTools` names
+ * `trace-footprint`, `trace-clearance`, `set-anchor`, `set-facing` and `calibrate`, and no
+ * `select`). `runtime.setTool('select')` would throw `no tool is registered for id 'select'`
+ * the first time a user pressed Escape over an empty-buffered trace or a not-yet-pressed
+ * anchor/facing tool. Camera mode — `null` — is this surface's own neutral state (see the
+ * file header: "Camera mode is still what 'no active tool' means"), so that is what this
+ * surface returns to instead; `routeEscape` itself is unaware of the substitution; the
+ * outcome it reports back is unread here.
+ */
+function escapeSetTool(id: ToolId | null): void {
+	setTool(id === 'select' ? null : id);
+}
 
 const transform = computed(() => viewportTransform(viewport.value));
 
@@ -142,9 +168,13 @@ function framedBounds(all: boolean): BoundingBox | null {
 	<EditorSurface
 		:tool-manager="toolManager"
 		:active-tool-id="editorRefs.activeToolId"
+		:render-state="renderState"
 		:editor="editor"
 		:framed-bounds="framedBounds"
 		:canvas-label="CANVAS_LABEL"
+		:set-tool="escapeSetTool"
+		:has-selection="() => selection.selectedIds.length > 0"
+		:clear-selection="() => selection.clear()"
 	>
 		<template #default="{ size }">
 			<VStage :config="size">

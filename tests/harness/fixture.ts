@@ -51,20 +51,20 @@ import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
  * caller gets back, deps included, so resetting it from outside would need the SAME deps the
  * composition root closed over at first mount — which this module does not hold and has no
  * business inventing a second copy of. What actually needs resetting is its visible field,
- * `dto`, and that self-corrects without help: `InspectorPanel.vue`'s
+ * `dto`, and that self-corrects without help: `RoomInspector.vue`'s
  * `watch(selectedIds, ..., { immediate: true })` re-runs `hydrateFrom` the moment the panel
  * (re)mounts, and `hydrateFrom([])` sets `dto` to `{ kind: 'empty' }` SYNCHRONOUSLY — before
  * its first `await` — so as long as `selection` is reset to `[]` first, the next mount of
- * `InspectorPanel` never has a chance to show a stale `dto`.
+ * `RoomInspector` never has a chance to show a stale `dto`.
  *
  * **That self-correction rests on a precondition this paragraph did not state:
- * `InspectorPanel.vue` must be the ONLY reader of `dto`.** True today —
- * `runtime.ts`'s `inspectorDto` slot reaches `InspectorPanel.vue` and nothing else — but a
+ * `RoomInspector.vue` must be the ONLY reader of `dto`.** True today —
+ * `runtime.ts`'s `inspectorDto` slot reaches `RoomInspector.vue` and nothing else — but a
  * second reader added anywhere in `src/` would break the exclusion silently, since nothing
  * here re-runs when one is. `tests/harness/fixture.test.ts` checks the CATEGORY rather than
  * this one file: a scan of `.inspectorDto` — the property-read spelling, not the
  * declaration — across every file under `src/` must find exactly one occurrence, in
- * `InspectorPanel.vue`. A second occurrence anywhere fails it, present or future, without
+ * `RoomInspector.vue`. A second occurrence anywhere fails it, present or future, without
  * naming that second file in advance; a reader reached through destructuring
  * (`const { inspectorDto } = runtime`) instead of a `.inspectorDto` property read is the
  * scan's stated limit, the same shape as the `.css`-import scan's own stated limit in
@@ -224,5 +224,9 @@ export function harnessEditorContext(): PlanEditorContext {
 		// state here — it just has nothing to act on. Matching every WRITE in this fixture,
 		// which refuses rather than pretending.
 		closeLeaf: () => undefined,
+		// A no-op for the reason `closeLeaf` above is one: no Obsidian, so no leaf to reveal.
+		// `UnsupportedWidthNotice`'s button still renders and still presses — the index can be
+		// opened at any width — it simply has nothing to act on.
+		focusLeaf: () => undefined,
 	};
 }

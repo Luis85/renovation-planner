@@ -1,4 +1,4 @@
-import { inject, onBeforeUnmount, provide, reactive, ref, type InjectionKey, type Ref } from 'vue';
+import { inject, onBeforeUnmount, provide, reactive, ref, watch, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
@@ -31,6 +31,7 @@ import { useDialogStore } from '../dialogs/dialog-store';
 import { knownDistanceSupplier } from './shell/knownDistance';
 import { EDITOR_SNAP_SERVICE } from './snapping/editorSnapping';
 import { editorViewportAdapter } from './viewport/editorViewportAdapter';
+import { boundsOfZones } from './viewport/zoneExtent';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
 import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispatchFault } from './report-failure';
@@ -61,6 +62,17 @@ export interface EditorRuntime {
 	readonly dispatcher: ReturnType<typeof withEditorStateRefresh>;
 	readonly toolManager: ToolManager;
 	/**
+	 * Same as `setTool('select')`, named for the two callers that mean it — the first-ready
+	 * watch below and a finished polygon's completion.
+	 */
+	readonly returnToSelect: () => void;
+	/**
+	 * Task 18's Cancel button. NOT `routeEscape` (R7, 2026-09-04): Cancel LEAVES the active
+	 * creation task in one gesture — discard any draft, return to Select — where Escape steps
+	 * back through the nearest interaction instead. See `createCancelActiveTask` below.
+	 */
+	readonly cancelActiveTask: () => void;
+	/**
 	 * The reactive proxy over this leaf's `RenderState` (SDD §19's transient visuals).
 	 * Tools write plain fields; the InteractionLayer reads them reactively.
 	 */
@@ -89,6 +101,14 @@ export interface EditorRuntime {
 	readonly commitField: (edit: InspectorEdit) => Promise<DispatchResult>;
 	/** The assign-asset picker's options: the vault's whole catalogue, narrowed by no project. */
 	readonly assetOptions: Readonly<Ref<readonly { readonly id: string; readonly name: string }[]>>;
+	/**
+	 * Design slice 12's list-framing seam: selects `id` and fits the camera to its bounds
+	 * through `EditorStore.fitTo`. A degenerate extent (nothing to frame) or an unmeasured
+	 * stage leaves the camera exactly where it was — the selection still lands, because a
+	 * user picking a row from a list wants it highlighted whether or not the camera can also
+	 * move to it.
+	 */
+	readonly selectAndFrame: (id: string) => void;
 }
 
 
@@ -107,11 +127,17 @@ interface EditorToolDeps {
 	readonly projectStore: ReturnType<typeof useProjectStore>;
 	readonly ledger: SessionWriteLedger;
 	readonly dialogs: ReturnType<typeof useDialogStore>;
+	/**
+	 * The draw-polygon tool's `onCompleted`: creation is temporary (design spec §7.3), so a
+	 * closed polygon hands control straight back to Select rather than staying armed for a
+	 * vertex the user did not mean.
+	 */
+	readonly returnToSelect: () => void;
 }
 
 /** The concrete tools of this slice, registered against one shared context factory. */
 function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
-	const { context, planId, projectStore, ledger, dialogs } = deps;
+	const { context, planId, projectStore, ledger, dialogs, returnToSelect } = deps;
 	toolManager.register(
 		new SelectTool({
 			spatialObjects: () =>
@@ -166,6 +192,7 @@ function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): vo
 			},
 			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
+			onCompleted: returnToSelect,
 		}),
 	);
 	toolManager.register(
@@ -396,6 +423,91 @@ function createDeleteZoneAction(
 	};
 }
 
+/**
+ * Design slice 12's list-framing seam (spec §6.5), pulled out of `buildRuntime` for its line
+ * budget rather than for a shared caller: select `id`, then fit the camera to it if there is
+ * anything to fit it into. The selection lands regardless — a row in a list naming an id this
+ * leaf has never hydrated (stale by construction, since the list and this leaf's own `zones`
+ * come from two different reads) is still worth marking as the user's intent, and the camera
+ * simply has nothing to move to.
+ */
+function selectAndFrameOn(
+	projectStore: ReturnType<typeof useProjectStore>,
+	selection: ReturnType<typeof useSelectionStore>,
+	editor: ReturnType<typeof useEditorStore>,
+	id: string,
+): void {
+	selection.select([id as EntityId<string>]);
+	const zone = projectStore.zones.get(id);
+	if (zone === undefined) return;
+	const bounds = boundsOfZones([zone]);
+	if (bounds === null) return; // nothing to frame: the selection stands, the camera stays
+	editor.fitTo(bounds, editor.stageSize);
+}
+
+/**
+ * A selected id the vault no longer holds is RETIRED, never rebound by name or position (spec
+ * §6.5). Watched on the zones map, which every successful hydrate replaces wholesale
+ * (`ProjectStore.hydrate` assigns a fresh `Map`), so this fires exactly when a hydrate lands —
+ * never merely because the map's CONTENTS changed, since Vue's `watch` compares the reference
+ * and a mutated map would be the same reference twice.
+ *
+ * **The HOVER is retired here too, and that is the same rule rather than a second one.** §6.5's
+ * subject is an identity the vault no longer holds, and Select names one through two predictive
+ * channels: the outline the `InteractionLayer` draws, and the cursor `EditorSurface` computes.
+ * The outline withdrew on its own — it looks the hovered id up in the hydrated map and draws
+ * nothing when it is absent — while the cursor read only "is the id non-null", so after a
+ * hovered room was deleted the two channels contradicted each other until some later pointer
+ * move happened to overwrite the stale id. Clearing the id here is what makes the cursor's
+ * withdrawal a fact rather than a race, and the KIND goes with it because the two are one fact
+ * in two fields (see `RenderState.hoveredTargetKind`).
+ */
+function registerSelectionRetirement(
+	projectStore: ReturnType<typeof useProjectStore>,
+	selection: ReturnType<typeof useSelectionStore>,
+	renderState: RenderState,
+): void {
+	watch(
+		() => projectStore.zones,
+		(zones) => {
+			const survivors = selection.selectedIds.filter((id) => zones.has(String(id)));
+			if (survivors.length !== selection.selectedIds.length) selection.select(survivors);
+			if (renderState.hoveredObjectId !== null && !zones.has(renderState.hoveredObjectId)) {
+				renderState.hoveredObjectId = null;
+				renderState.hoveredTargetKind = null;
+			}
+		},
+	);
+}
+
+/**
+ * Task 18's Cancel button. NOT `routeEscape` (R7, 2026-09-04): Escape steps back through the
+ * nearest interaction — a draft first, then the tool, then the selection — while Cancel means
+ * LEAVE THIS TASK, which is what the PBI's criterion 7 and its main flow step 6 say a
+ * cancellation does. So it discards whatever the tool holds and returns to Select in one gesture,
+ * and it never touches the selection, which no cancellation of a creation task is about.
+ * Under Select (or with no tool) there is no task to leave, and it does nothing.
+ *
+ * `cancelGesture()` runs BEFORE `setTool('select')`, deliberately unlike `routeEscape`'s
+ * no-draft arm (R2), which relies on `setTool`'s own outgoing-tool `deactivate()` and calls no
+ * `cancelGesture()` at all (see `escapeRouting.ts`'s "Do not 'restore' the `cancelGesture()`
+ * call" note). Cancel states the discard explicitly because it is user intent independent of
+ * the tool-switch contract, so a tool whose `deactivate` stops cancelling does not silently
+ * change what Cancel means.
+ */
+function createCancelActiveTask(
+	toolManager: ToolManager,
+	activeToolId: Ref<ToolId | null>,
+	setTool: (id: ToolId | null) => void,
+): () => void {
+	return (): void => {
+		const tool = activeToolId.value;
+		if (tool === null || tool === 'select') return;
+		toolManager.cancelGesture();
+		setTool('select');
+	};
+}
+
 function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const editor = useEditorStore();
 	const projectStore = useProjectStore();
@@ -498,20 +610,48 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 			subject: subject(),
 		}),
 	);
-	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs });
-
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather
 	// than in a second `ref` beside it. There were three copies of the active tool id — the
 	// manager's own, a local ref the toolbar read, and this store slot nothing read — and
 	// `setTool` hand-synced all three, which is two chances to drift where the drift is
 	// invisible. The manager stays framework-pure (no Vue), so ONE mirror at this seam is
 	// what a Vue consumer reads.
+	//
+	// Hoisted above `registerEditorTools` (rather than left where the toolbar's own dispatch
+	// used it) so `returnToSelect` exists in time to be threaded into the draw-polygon tool's
+	// `onCompleted` below — `toolManager` is already built at this point, which is all
+	// `createToolSwitch` needs.
 	const { activeToolId } = storeToRefs(editor);
-
 	const setTool = createToolSwitch(toolManager, activeToolId);
+	const returnToSelect = (): void => setTool('select');
+	const cancelActiveTask = createCancelActiveTask(toolManager, activeToolId, setTool);
+
+	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect });
+
+	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
+	// BECOMES `'ready'` — and a `previous !== 'ready'` guard would be dead code here, not a
+	// narrowing: Vue's `watch` calls its callback only on a genuine change (`hasChanged`), and
+	// `ProjectStore.hydrate` sets `status.value = 'loading'` before every read except one
+	// already `'ready'` — so the ONLY way this callback runs with `status === 'ready'` is a
+	// transition INTO it from something else, which is exactly the fresh-scene case Select
+	// belongs to. A post-command or `onPlanChanged` refresh that finds the plan still `'ready'`
+	// never reassigns the ref to the same value, so the watcher never wakes for it and never
+	// re-arms Select over a tool the user chose — no comparison against `previous` required.
+	// Watched on the status rather than on `hydrate`'s own promise, because the root owns the
+	// call to `hydrate` and a second caller (`onPlanChanged`) already exists.
+	watch(
+		() => projectStore.status,
+		(status) => {
+			if (status === 'ready') setTool('select');
+		},
+	);
+
+	const selectAndFrame = (id: string): void => selectAndFrameOn(projectStore, selection, editor, id);
+	registerSelectionRetirement(projectStore, selection, renderState);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
-	// refusal — bound straight to toolbar clicks. `ReversibleCalibratePlanCommand.undo()`
+	// refusal — bound straight to the context bar's Undo/Redo clicks.
+	// `ReversibleCalibratePlanCommand.undo()`
 	// refuses with a revision conflict whenever anything else has touched the plan's
 	// sidecar since (every zone create, move and delete does), and this is what makes THAT
 	// refusal say something rather than nothing.
@@ -570,6 +710,8 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		renderState,
 		activeToolId,
 		setTool,
+		returnToSelect,
+		cancelActiveTask,
 		undo,
 		redo,
 		canUndo,
@@ -581,10 +723,18 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		deleteZone,
 		commitEdit,
 		commitField,
+		selectAndFrame,
 	};
 }
 
-const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-planner:editor-runtime');
+/**
+ * Exported ONLY so a test can reach a mounted leaf's runtime the way `PLAN_EDITOR_CONTEXT`
+ * already lets one supply a `PlanEditorContext` — `provide()` sets this on `PlanEditorRoot`'s
+ * OWN component instance, so `wrapper.vm.$.provides[EDITOR_RUNTIME]` reads it back without
+ * needing a descendant that calls `useEditorRuntime()` itself. Nothing in `src/` outside this
+ * file imports the symbol for any other reason.
+ */
+export const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-planner:editor-runtime');
 
 export function provideEditorRuntime(context: PlanEditorContext): EditorRuntime {
 	const runtime = buildRuntime(context);

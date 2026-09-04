@@ -42,7 +42,7 @@ const CREATE_WINDOW = 300;
  * damage was latent rather than live — which is exactly how the other spelling holes here have
  * looked right up until a file was added.
  *
- * Both bindings, because `rp-editor-tool-active` arrives only through `:class`, and both quote
+ * Both bindings, because `rp-designer-tool-active` arrives only through `:class`, and both quote
  * styles, because nothing stops a template using either.
  */
 const CLASS_ATTRIBUTE = /(?::|v-bind:)?class\s*=\s*(?:"([^"]*)"|'([^']*)')/g;

@@ -205,6 +205,7 @@ describe('DrawPolygonTool', () => {
 			completion: { commandFor: () => stubCommand() },
 			reportRejected: () => undefined,
 			reportInvalidInput: () => undefined,
+			onCompleted: () => undefined,
 		});
 		tool.activate(context);
 
@@ -236,6 +237,7 @@ describe('DrawPolygonTool', () => {
 			completion: { commandFor },
 			reportRejected: (error) => h.rejections.push(error.message),
 			reportInvalidInput: (error) => h.rejections.push(error.message),
+			onCompleted: () => undefined,
 		});
 		tool.activate(h.context);
 
@@ -266,6 +268,7 @@ describe('DrawPolygonTool', () => {
 			completion: { commandFor: () => command },
 			reportRejected: (error) => h.rejections.push(error.message),
 			reportInvalidInput: (error) => h.rejections.push(error.message),
+			onCompleted: () => undefined,
 		});
 		tool.activate(h.context);
 
@@ -290,6 +293,7 @@ describe('DrawPolygonTool', () => {
 			completion: { commandFor: () => stubCommand(null) },
 			reportRejected: (error) => h.rejections.push(error.message),
 			reportInvalidInput: (error) => h.rejections.push(error.message),
+			onCompleted: () => undefined,
 		});
 		tool.activate(h.context);
 
@@ -613,5 +617,71 @@ describe('DrawPolygonTool: Shift constrains the next vertex', () => {
 		expect(h.dispatched).toHaveLength(0);
 		expect(h.context.renderState.polygonSketch?.vertices).toHaveLength(4);
 		expect(h.context.renderState.polygonSketch?.vertices.at(3)?.x).toBeCloseTo(0, 6);
+	});
+});
+
+describe('DrawPolygonTool.hasDraft', () => {
+	// Task 9 — any placed vertex is work Escape must ask about before `cancel()` empties it.
+	it('is false with an empty buffer and true once a vertex is placed', () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		expect(tool.hasDraft()).toBe(false);
+
+		tool.pointerDown(at(0, 0));
+		expect(tool.hasDraft()).toBe(true);
+	});
+
+	it('is false again once cancel() empties the buffer, and once a close dispatches', async () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.cancel();
+		expect(tool.hasDraft()).toBe(false);
+
+		drawTriangle(tool);
+		await flush();
+		expect(tool.hasDraft()).toBe(false);
+	});
+});
+
+/**
+ * Task 10: creation is temporary (design spec §7.3), so a closed polygon hands control back
+ * to whatever `onCompleted` names — the Plan Editor binds it to `returnToSelect`. A refusal
+ * must not fire it: the buffer is kept for the user to retry or cancel deliberately, and the
+ * tool that was drawing is still the right one to be holding the pointer.
+ */
+describe('DrawPolygonTool.onCompleted', () => {
+	it('reports completion after selecting the zone it drew, so the runtime can return to Select', async () => {
+		const h = harness();
+		const onCompleted = vi.fn<() => void>();
+		const tool = build(h, { onCompleted });
+		tool.activate(h.context);
+
+		drawTriangle(tool);
+		await flush();
+
+		expect(h.context.selection.selectedIds).toHaveLength(1);
+		expect(onCompleted).toHaveBeenCalledOnce();
+	});
+
+	it('does not report completion for a refused close', async () => {
+		const h = harness();
+		const onCompleted = vi.fn<() => void>();
+		const tool = build(h, { onCompleted });
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(100, 0));
+		tool.pointerDown(at(0, 100));
+		h.failNextDispatch();
+		tool.pointerDown(at(0, 0)); // close attempt against a failing write
+		await flush();
+
+		expect(h.rejections).toHaveLength(1);
+		expect(onCompleted).not.toHaveBeenCalled();
 	});
 });

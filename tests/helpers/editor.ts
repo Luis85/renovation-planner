@@ -4,12 +4,13 @@ import VueKonva from 'vue-konva';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
+import { EDITOR_RUNTIME, type EditorRuntime } from '../../src/presentation/editor/runtime';
 import {
 	unavailablePlanEditorCommands,
 	type PlanEditorCommandServices,
 } from '../../src/presentation/editor/planEditorCommands';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
-import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from './planFixtures';
+import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES, zoneInspectorAnswering } from './planFixtures';
 
 // Re-exported rather than moved outright: it lives with the fixtures so a NODE test can
 // reach it without loading Vue and Konva, and the jsdom suites already import it from here.
@@ -20,6 +21,16 @@ import { emptyBackgroundVault } from './background';
 import { installCanvas } from './canvas';
 import { installObsidianDom } from './dom';
 import { installResizeObserver, placeAt, resizeTo } from './layout';
+// `settle` is imported for local use below (`mountPlanEditor`); `settleUntil` is re-exported
+// without a local binding, since nothing in this file calls it directly. Both now live in the
+// dependency-free `tests/helpers/settle.ts` rather than here, for the same reason `fakeQueries`
+// is re-exported from `./planFixtures` above: `tests/harness/planEditor.ts` needs `settleUntil`
+// and may not import Konva, Pinia, `@vue/test-utils` or `tests/helpers/canvas.ts`'s native
+// `@napi-rs/canvas` binding — all of which this file pulls in. `settle.ts`'s own header carries
+// the whole story, including the browser-bundle failure this split was written to fix.
+import { settle } from './settle';
+
+export { settle, settleUntil } from './settle';
 
 
 /**
@@ -47,6 +58,17 @@ export interface EditorHarnessOptions {
 	/** The write side; defaults to the refusal commands, for tests that dispatch nothing. */
 	readonly commands?: PlanEditorCommandServices;
 	readonly vault?: BackgroundVault;
+	/**
+	 * Skip the ordinary post-mount `resizeTo` this harness otherwise gives the shell root, so a
+	 * case can size the root a different way — `clientWidthFor` (`tests/helpers/layout.ts`) —
+	 * and read the layout `ResponsiveEditorShell.onMounted` derives BEFORE its `ResizeObserver`
+	 * ever fires. `rootEl` is still located; only the resize is skipped.
+	 *
+	 * [[The fake ResizeObserver hides removal of the mount-time measurement]]: every OTHER
+	 * mount path calls `resizeTo` right after mounting, which supplies the width through the
+	 * observer callback and leaves the direct `onMounted` read unable to be told apart from it.
+	 */
+	readonly skipShellSizing?: boolean;
 }
 
 export interface EditorHarness {
@@ -96,87 +118,85 @@ export interface EditorHarness {
 	readonly themeListeners: () => number;
 	/** How many times the tree asked to close this leaf (`PlanEditorContext.closeLeaf`). */
 	readonly closedLeaf: () => number;
+	/** How many times the tree asked to focus this leaf (`PlanEditorContext.focusLeaf`). */
+	readonly focusedLeaf: () => number;
+	/**
+	 * `ResponsiveEditorShell`'s own root — the element that carries `data-layout`, the one the
+	 * shell's `ResizeObserver` watches, and therefore the one a case resizes to drive a layout
+	 * change (`resizeTo(harness.rootEl, 460, 800)`).
+	 *
+	 * NOT the wrapper's element: `PlanEditorRoot`'s outermost div is `.renovation-plan-editor`,
+	 * which holds the shell and `DialogHost` as siblings, and resizing THAT would tell the
+	 * observer nothing. Non-nullable because the shell renders unconditionally — a mount that
+	 * did not produce one is a broken tree rather than a state, so `mountPlanEditor` throws
+	 * where it looks for it.
+	 */
+	readonly rootEl: HTMLElement;
 	readonly unmount: () => void;
 }
 
+/**
+ * The width and height a mounted editor's shell root is given, standing in for the pane
+ * Obsidian would have laid out. 1280 is `layoutModeFor`'s `full` — the desktop leaf every
+ * case that says nothing about layout means — and it is the width one of the two harness
+ * captures uses, so the suite and the pictures agree on what "an ordinary pane" is.
+ */
+const SHELL_WIDTH_PX = 1280;
+const SHELL_HEIGHT_PX = 800;
 
 /**
- * Two ticks, not one. Hydration awaits two query promises before it sets `ready`, and Vue
- * then needs its own flush to mount the canvas that appears as a result — a single
- * `nextTick` resolves before the second query and the canvas is not there yet.
+ * Give a just-mounted editor's shell root a real width and tell its observer.
+ *
+ * **Every jsdom mount path owes this call**, which is why it is a function rather than two
+ * lines repeated: `ResponsiveEditorShell` measures `root.clientWidth` in `onMounted` and on
+ * every observer callback, jsdom answers 0 for both, and `layoutModeFor(0)` is `unsupported` —
+ * a state that draws no canvas at all. The real `ResizeObserver` reports once on `observe()`
+ * with the element's actual size, so nothing in a browser or a vault is ever in that state for
+ * longer than a frame; the fake in `layout.ts` deliberately fires only when a test says so.
+ *
+ * It THROWS when there is no shell root, rather than answering `null` for callers to check: the
+ * shell renders unconditionally, so its absence means the tree failed to mount and every
+ * assertion after this point would be about markup that is not there.
+ *
+ * `skipResize` is the one door that gives that width some OTHER way — `clientWidthFor`
+ * (`tests/helpers/layout.ts`) ahead of mount — and still wants the root located: every other
+ * caller leaves it unset, so this stays the same call it always was for them.
  */
-export async function settle(): Promise<void> {
-	for (let index = 0; index < 4; index += 1) await Promise.resolve();
-	await new Promise((resolve) => {
-		setTimeout(resolve, 0);
-	});
+export function sizedShellRoot(container: HTMLElement, options: { readonly skipResize?: boolean } = {}): HTMLElement {
+	const root = container.querySelector<HTMLElement>('.rp-editor-shell');
+	if (root === null) {
+		throw new Error('the mounted editor has no .rp-editor-shell root to size');
+	}
+	if (options.skipResize !== true) resizeTo(root, SHELL_WIDTH_PX, SHELL_HEIGHT_PX);
+	return root;
 }
 
 /**
- * How long `settleUntil` will wait before giving up.
+ * The default `zoneInspector` answer for a mounted editor, over every OTHER write still
+ * refusing (`unavailablePlanEditorCommands()`).
  *
- * **A DEADLINE and not a round count, which is the whole fix**; the number below is chosen to
- * sit under vitest's 5000 ms default so a genuine regression still fails as this helper's own
- * named error rather than as an anonymous test timeout — the property the round bound was
- * really protecting.
+ * `zoneInspector` is a READ (SDD §59 groups it with the commands it shares a selection
+ * with), and `tests/harness/planEditor.ts`'s `harnessDeps` already answers it this exact
+ * way for the identical reason: refusing a read for which there is something to answer is
+ * the fake-HARSHER-than-the-real-thing shape CLAUDE.md's Testing section names — the
+ * harness page once showed a selected zone drawn on the canvas and empty in the Inspector,
+ * with no error anywhere. `zoneInspectorAnswering` is what the two now share, in
+ * `planFixtures.ts` rather than here, after `fallow` caught this file's own first version
+ * as a byte-for-byte clone of the harness's.
+ * `tests/presentation/editor/shell/roomInspector.test.ts` carried its own third copy of
+ * this before it became the default here; that copy is gone now, and every case that used
+ * to build one selects a zone against this instead.
+ *
+ * Keyed on the caller's OWN zones (`options.zones ?? FIXTURE_ZONES`, from `mountPlanEditor`
+ * below) rather than on `FIXTURE_ZONES` unconditionally — a case that mounts a zone not in
+ * the fixture (`roomInspector.test.ts`'s "Mystery room") still gets an answer without
+ * having to build its own commands bundle for it.
  */
-const SETTLE_BUDGET_MS = 4_000;
-
-/**
- * `settle()` until something is TRUE, rather than a fixed number of times.
- *
- * `settle()` alone is a fixed four microtasks and one macrotask, which is enough for Vue
- * and for a resolved query but NOT for a real image decode: `tests/helpers/canvas.ts` puts
- * `@napi-rs/canvas` behind `<img>.decode()`, so a background landing is real work whose
- * duration depends on the machine. That made "the fast load has landed" a race — it failed
- * once in a full-suite run while a PDF test was rasterizing two million pixels beside it,
- * and passed on every isolated run, which is the signature of a fixed-tick wait rather than
- * of a defect in the code under test.
- *
- * Bounded and NAMED on failure, both deliberately: an unbounded loop turns a real
- * regression into a hung suite, and "condition never held" with no subject is the least
- * useful failure a test can produce.
- *
- * **The bound was a round COUNT for four slices, and a count is the same mistake this
- * function exists to correct, moved up one level.** A round is four microtasks and one
- * `setTimeout(0)`, which Node clamps to about a millisecond — so fifty rounds is roughly
- * fifty milliseconds of wall clock, whatever the machine, while the work being waited on is
- * a cold Vite transform whose duration is entirely the machine's business. Measured rather
- * than reasoned: `openIndex('entry=prototype:ZonePanel')` settles in four to six rounds
- * locally, which reads as a tenfold margin and is nothing of the sort — it is five
- * milliseconds against fifty, and `verify (ubuntu-latest, 26)` spent all fifty and failed
- * while the three prototypes scanned before it passed.
- *
- * **Warming the entry module first was tried and is NOT sufficient**, which is what settled
- * the fix as a deadline rather than a pre-load. `HarnessEntry.component` is a real loader, so
- * awaiting it moves that one transform out of the polled window — and with the budget starved
- * to a single round `ZonePanel` still failed, because it is a template-only mock composing a
- * real `<StatusBar />` that the index registers through `defineAsyncComponent`. The nested
- * component resolves lazily, INSIDE the window, and no list of things to warm stays correct as
- * mocks compose more of them. A deadline needs no such list.
- *
- * `Date.now()` rather than `performance.now()`: this is a coarse bound on real work, the
- * numbers are milliseconds apart from each other, and jsdom gives the former unconditionally.
- */
-export async function settleUntil(
-	condition: () => boolean | Promise<boolean>,
-	what: string,
-): Promise<void> {
-	// The predicate may be ASYNC: the slice-8 e2e rig waits on vault reads, and it grew its
-	// own second copy of this loop — with a different budget and different failure
-	// text — because the signature did not allow one. A flake fixed by raising the budget
-	// here has to reach every caller, so there is one budget.
-	const deadline = Date.now() + SETTLE_BUDGET_MS;
-	for (;;) {
-		// Asked BEFORE the deadline test, so a condition that became true during the final
-		// `settle()` still returns rather than being thrown away by the clock — the same
-		// re-check the round-bounded version made after its loop.
-		if (await condition()) return;
-		if (Date.now() >= deadline) {
-			throw new Error(`Timed out after ${SETTLE_BUDGET_MS}ms waiting for: ${what}`);
-		}
-		await settle();
-	}
+function defaultPlanEditorCommands(zones: readonly ZoneDto[]): PlanEditorCommandServices {
+	return {
+		...unavailablePlanEditorCommands(),
+		zoneInspector: zoneInspectorAnswering(zones),
+	};
 }
 
 export function installEditorEnvironment(): void {
@@ -195,6 +215,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 
 	const themeListeners = new Set<() => void>();
 	let closedLeaf = 0;
+	let focusedLeaf = 0;
 	const planListeners = new Set<() => void>();
 	const catalogueListeners = new Set<() => void>();
 	const priceListeners = new Set<() => void>();
@@ -210,7 +231,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		planId: plan?.id ?? FIXTURE_PLAN.id,
 		queries:
 			options.queries ?? fakeQueries(plan, options.zones ?? FIXTURE_ZONES, options.unreadableZones),
-		commands: options.commands ?? unavailablePlanEditorCommands(),
+		commands: options.commands ?? defaultPlanEditorCommands(options.zones ?? FIXTURE_ZONES),
 		vault: options.vault ?? emptyBackgroundVault(),
 		onThemeChange: (listener) => {
 			themeListeners.add(listener);
@@ -248,6 +269,11 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		closeLeaf: () => {
 			closedLeaf += 1;
 		},
+		// Counted beside `closeLeaf`, not stubbed: `UnsupportedWidthNotice`'s only action calls
+		// it, and a no-op here would let a build that wired the button to nothing pass.
+		focusLeaf: () => {
+			focusedLeaf += 1;
+		},
 	};
 
 	// Attached to the document, because Konva measures its container and `getComputedStyle`
@@ -260,6 +286,14 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		attachTo: host,
 		global: { plugins: [pinia, VueKonva], provide: { [PLAN_EDITOR_CONTEXT as symbol]: context } },
 	});
+
+	// BEFORE the settle that lets hydration mount a canvas, because the canvas is one of the
+	// things a layout mode decides. `ResponsiveEditorShell` measures its root in `onMounted`
+	// and jsdom answers 0 for every `clientWidth`, which `layoutModeFor` reads — correctly — as
+	// `unsupported`: no canvas at all. So every mounted editor in the suite would sit in a
+	// state no real pane is ever in unless the harness gives its root a width, exactly as it
+	// already gives the canvas container one two blocks below.
+	const rootEl = sizedShellRoot(wrapper.element as HTMLElement, { skipResize: options.skipShellSizing === true });
 
 	await settle();
 
@@ -303,6 +337,8 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		fileListeners: () => fileListeners.size,
 		themeListeners: () => themeListeners.size,
 		closedLeaf: () => closedLeaf,
+		focusedLeaf: () => focusedLeaf,
+		rootEl,
 		unmount: () => {
 			wrapper.unmount();
 			host.remove();
@@ -340,6 +376,26 @@ export async function mountPlanEditorCanvas(options: EditorHarnessOptions = {}):
 		throw new Error('the editor mounted no canvas; use mountPlanEditor for a plan that draws none');
 	}
 	return { ...harness, canvasEl, stage };
+}
+
+/**
+ * The `EditorRuntime` a mounted `PlanEditorRoot` built — for a test that needs to write
+ * `renderState` or call a runtime method directly, rather than driving the gesture that would
+ * produce the same write.
+ *
+ * `PlanEditorRoot.setup()` calls `provideEditorRuntime(context)`, which `provide()`s the
+ * runtime on that component's OWN internal instance rather than only on its descendants' —
+ * so `wrapper.vm.$.provides` (the raw `ComponentInternalInstance`, which the public instance
+ * proxy exposes under `$`) already holds it once `PlanEditorRoot` has run its `setup()`, with
+ * no need for a probe component injected into its fixed template.
+ */
+export function runtimeOf(harness: EditorHarness): EditorRuntime {
+	const instance = (harness.wrapper.vm as unknown as { $: { provides: Record<symbol, unknown> } }).$;
+	const runtime = instance.provides[EDITOR_RUNTIME as unknown as symbol];
+	if (runtime === undefined) {
+		throw new Error('expected the mounted tree to have provided an EditorRuntime');
+	}
+	return runtime as EditorRuntime;
 }
 
 /** Every Konva layer in the stage, by the `name` its component set. */

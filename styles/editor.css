@@ -1,7 +1,7 @@
 /*
  * The Plan Editor shell — SDD §60's five regions, as ordinary DOM around a canvas.
  *
- * Only the CANVAS is Konva. The toolbar, the two side panels and the status bar are
+ * Only the CANVAS is Konva. The context bar, the two side panels and the status bar are
  * regular elements styled the way `view.css` styles the project surface: Obsidian
  * variables only, so a themed vault stays themed (§84), and no colour literal anywhere —
  * `scripts/styles-assemble.mjs` fails the build on one.
@@ -35,202 +35,43 @@
 	position: relative;
 }
 
-.rp-editor-toolbar {
+/*
+ * `ResponsiveEditorShell`'s own root (Task 19), between `.renovation-plan-editor` and the five
+ * regions it arranges. It repeats the column rule above rather than inheriting it: the height
+ * chain this file's header calls load-bearing runs through every ancestor from the leaf to the
+ * canvas, and a plain block element inserted into the middle of it is exactly how that chain
+ * broke here once already.
+ */
+.rp-editor-shell {
 	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-	/* A fixed height even while empty: slice 6 fills it with buttons, and a toolbar that
-	   appeared later would resize every region below it on the day it did. */
-	min-height: var(--size-4-8);
-	padding: 0 var(--size-4-2);
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-
-/*
- * Slice 8's tool buttons. Obsidian's own button styling is not assumed here — these are
- * small toggle states inside a toolbar, so they carry only what the states need, all of
- * it through variables.
- */
-/*
- * QUALIFIED WITH `.rp-editor-toolbar`, and every rule below it for the same reason.
- *
- * Obsidian's own `button:not(.clickable-icon)` (`tests/harness/obsidian.css`) sets
- * `background-color`, `color` AND `box-shadow` at specificity (0,1,1) — `:not()` contributes
- * its argument's specificity — which outranks a bare class at (0,1,0), and source order is
- * never even consulted. This is the same defect `styles/dialogs.css` records for
- * `.rp-dialog-button-danger`; it was fixed there and left standing here.
- *
- * What it cost, measured in a real Chromium against the assembled sheet: `--interactive-accent`
- * and `--text-on-accent` both lost, so **the active tool rendered identically to the inactive
- * ones** — Pan, Select, Draw zone and Calibrate all at `rgb(51,51,51)`/`rgb(218,218,218)`, with
- * no way for a sighted user to tell which tool was selected. `aria-pressed` is bound in
- * `EditorToolbar.vue`, so a screen reader was told what the screen would not say: the inverse
- * of the usual failure, and invisible to every gate here.
- *
- * `box-shadow: none` is part of the fix rather than tidying. Obsidian's rule also sets
- * `var(--input-shadow)`, which this sheet never overrode, so the toolbar's buttons carried the
- * raised chrome of a standalone button while asking for a transparent background — the flat
- * toolbar these declarations describe was never what rendered.
- */
-.rp-editor-toolbar .rp-editor-tool-button {
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid transparent;
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
-
-/*
- * THE FOCUS RING, restored explicitly — and the reason it is the ACCENT rather than Obsidian's
- * own ring is measured, not preferred.
- *
- * The rule above sets `box-shadow: none` at (0,2,0), which outranks Obsidian's
- * `button:focus-visible` at (0,1,1); and Obsidian's global `:focus { outline: none }` had
- * already taken the outline. So flattening these buttons removed the LAST indicator a keyboard
- * user had: measured on a focused toolbar button, `outline: none` and `box-shadow: none`, in
- * both schemes. That is the same defect this pull request opened by fixing on the index's entry
- * links, reintroduced on four other controls by the fix for a different one — found by review,
- * and it is exactly why `box-shadow: none` cannot be written without this rule beside it.
- *
- * Deferring to the host was the obvious repair and is the wrong one, which is worth stating
- * because `PRODUCT.md` says the host's appearance wins. Obsidian's ring is
- * `--background-modifier-border-focus`, and against `--background-primary` it measures
- * **2.29:1 in dark and 1.88:1 in light** — under the 3:1 WCAG 2.2 asks of a non-text indicator
- * (2.4.11), which `PRODUCT.md` binds. `--interactive-accent` measures 4.00:1 and 3.43:1 on the
- * same backgrounds, and 3.46:1/3.17:1 on `--background-secondary`. Host deference stops where it
- * would mean adopting a failure, and this is the one place in the plugin it does.
- *
- * `:focus-visible` and not `:focus`, so a mouse press does not draw it.
- */
-.rp-editor-toolbar .rp-editor-tool-button:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 1px;
-}
-
-.rp-editor-toolbar .rp-editor-tool-button:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.rp-editor-toolbar .rp-editor-tool-button:disabled {
-	color: var(--text-faint);
-	cursor: default;
-}
-
-/*
- * THE ACTIVE TOOL WEARS THE ACCENT AS AN OUTLINE, NOT AS A FILL — measured, not preferred.
- *
- * A filled accent button cannot carry a readable label here at all. `--text-on-accent` is white
- * and `--interactive-accent` measures **4.26:1 in dark and 3.43:1 in light** against it, both
- * under the 4.5:1 AA floor for text this size, and there is no lighter foreground than white to
- * reach for. The pairing is Obsidian's own (`.mod-cta`), so this is the second place in this
- * sheet where host deference would mean adopting a failure — the focus ring above is the first.
- *
- * It became reachable only when the rule started winning: while it lost the cascade the button
- * drew Obsidian's readable defaults, so the fix that made the active tool VISIBLE is the same
- * fix that made its label fail. Both halves are this pull request's.
- *
- * FOUR channels, so the accent is reinforcement rather than the carrier: the tint (an accent
- * `color-mix` the host already defines), the accent border, the weight, and `aria-pressed` in
- * `EditorToolbar.vue` for a reader who sees none of them. `--text-normal` on the tint measures
- * well past the floor in both schemes.
- */
-.rp-editor-toolbar .rp-editor-tool-active,
-.rp-editor-toolbar .rp-editor-tool-active:hover {
-	color: var(--text-normal);
-	background-color: var(--background-modifier-active-hover);
-	border-color: var(--interactive-accent);
-	font-weight: var(--bold-weight);
-}
-
-.rp-editor-toolbar-spacer {
 	flex: 1;
-}
-
-.rp-editor-inspector-empty {
-	margin: 0;
-	font-size: var(--font-ui-small);
-	color: var(--text-muted);
-}
-
-.rp-editor-inspector-fields {
-	display: grid;
-	grid-template-columns: auto 1fr;
-	gap: var(--size-4-1) var(--size-4-2);
-	margin: 0 0 var(--size-4-4);
-	font-size: var(--font-ui-small);
-}
-
-.rp-editor-inspector-fields dt {
-	color: var(--text-muted);
-}
-
-.rp-editor-inspector-fields dd {
-	margin: 0;
-	font-variant-numeric: tabular-nums;
-	overflow-wrap: anywhere;
+	flex-direction: column;
+	min-height: 0;
 }
 
 /*
- * Qualified with `.rp-editor-inspector` for the reason the toolbar block above gives at length.
- * This one lost the most: a DESTRUCTIVE action rendered as an ordinary grey Obsidian button
- * (`rgb(51,51,51)`/`rgb(218,218,218)` measured), with only its red border surviving — Obsidian's
- * rule sets no border, so that one declaration was never contested.
- *
- * **THE LABEL IS `--text-normal`, NOT `--text-error`, and that is a change of design forced by a
- * measurement.** Winning the cascade made this rule draw what it had always asked for, and what
- * it had always asked for does not pass: `--text-error` on the panel measures 4.94:1 in dark and
- * **4.20:1 in light**, under the 4.5:1 AA floor for text this size. Worse, the hover rule below
- * sets `--background-modifier-error` as the background, and in Obsidian's palette that resolves
- * to the SAME `--color-red` as `--text-error` — so hovering rendered red on red at **1.00:1**,
- * both schemes, and the label disappeared entirely. Measured, not computed.
- *
- * None of that was visible while the rule lost. The cascade was handing it `--text-normal`, so
- * the button was legible by accident and its own declarations were never exercised. This is the
- * THIRD rule in this pull request to be wrong only once it started working — `.rp-harness-scheme`
- * and this one's own hover being the others — and it is the argument for re-measuring after a
- * specificity fix rather than treating the fix as inert.
- *
- * So the red moves to where it costs no contrast, exactly as `.rp-harness-failure` does in
- * `tests/harness/theme.css`: the BORDER carries it (a non-text boundary needs 3:1, and
- * `--text-error` clears that in both schemes), the hover tint reinforces it, and the label stays
- * readable. Colour was never the only channel here anyway — the button says "delete" (SDD §85).
+ * `position: relative` for the constrained layout's sake: `.rp-overlay-panel` and
+ * `.rp-inspector-drawer` are absolutely positioned SIBLINGS of the canvas, so this is what
+ * their `inset` resolves against. Set unconditionally rather than under `[data-layout]`,
+ * because a positioned ancestor changes nothing for a row of static children and a rule that
+ * only applies in one mode is one more thing a mode change has to get right.
  */
-.rp-editor-inspector .rp-editor-inspector-delete {
-	width: 100%;
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid var(--text-error);
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
-
-/* The ring, for the reason the toolbar's own `:focus-visible` comment gives at length. */
-.rp-editor-inspector .rp-editor-inspector-delete:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 1px;
-}
-
-/*
- * A TINT rather than the solid `--background-modifier-error` this was. Solid is not available to
- * it: that variable is `--color-red` at full strength, and no foreground token clears 4.5:1 on it
- * — `--text-on-accent` (white) measures 3.45:1 — so a filled destructive button cannot carry a
- * readable label at this size with the palette Obsidian gives. The tint keeps the composite close
- * to the panel it sits on, so the label's contrast on hover stays what it is at rest.
- */
-.rp-editor-inspector .rp-editor-inspector-delete:hover {
-	background-color: color-mix(in oklch, var(--background-modifier-error) 18%, transparent);
-}
-
 .rp-editor-body {
 	display: flex;
+	position: relative;
 	flex: 1;
 	min-height: 0;
+}
+
+/*
+ * The unsupported layout holds one child — `UnsupportedWidthNotice` — and centres it. The
+ * attribute is on the shell root, so this is the one place a `[data-layout]` selector is worth
+ * the specificity: everything else the three modes differ in is a component that is or is not
+ * rendered, decided in TypeScript where a test can read it.
+ */
+[data-layout='unsupported'] .rp-editor-body {
+	align-items: center;
+	justify-content: center;
 }
 
 /*
@@ -239,60 +80,89 @@
  * first browser capture, while every jsdom test passed. jsdom lays nothing out and cannot
  * see it; `npm run harness-shot` is what did.
  */
-.rp-editor-layers,
-.rp-editor-inspector {
+.rp-editor-layers {
 	flex: 0 0 auto;
 	width: 12rem;
 	min-height: 0;
 	overflow-y: auto;
 	padding: var(--size-4-2);
 	background-color: var(--background-secondary);
-}
-
-.rp-editor-layers {
 	border-right: 1px solid var(--background-modifier-border);
 }
 
 /*
- * Wider than the layers panel since slice 10, and the two therefore stopped sharing a
- * width. The Requirements panel puts two labelled text inputs and four buttons per row in
- * here; at 12rem those wrap to one control per line and a three-requirement zone is taller
- * than the pane. The number is a judgement rather than a measurement — jsdom lays nothing
- * out, and the harness draws this panel EMPTY (its fixture selects no zone), so no gate
- * here has seen a populated row. `npm run test-build` is where it gets looked at.
+ * Shared by the frame's own `<h2>` ("Inspector") and the Room Inspector's `<h3>` room name
+ * (Task 16 review round 1: the room name is a SECTION heading, one level under the frame's,
+ * not a second `<h2>`) — every property below is set explicitly, so the rule reads the same
+ * regardless of which heading level it is applied to. Obsidian's own per-level heading rules
+ * would otherwise give either one document proportions.
  */
-.rp-editor-inspector {
-	width: 17rem;
-	border-left: 1px solid var(--background-modifier-border);
-}
-
 .rp-editor-panel-title {
 	margin: 0 0 var(--size-4-2);
 	font-size: var(--font-ui-small);
 	font-weight: var(--font-medium);
 	color: var(--text-muted);
-	/* Obsidian's own h2 rules would otherwise give a panel heading document proportions. */
 	line-height: var(--line-height-tight);
 }
 
-.rp-editor-layer-list {
+.rp-layer-list {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
-.rp-editor-layer-row {
+/*
+ * Wraps rather than a bare row of three inline items: the reason and the Set scale button
+ * both belong to the SAME entry as its checkbox, and a disabled reference row (no
+ * background yet) draws its reason beneath the label rather than fighting the action
+ * button for one line.
+ */
+.rp-layer-list__row {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--size-4-2);
+	gap: var(--size-4-1) var(--size-4-2);
 	padding: var(--size-4-1) 0;
 	font-size: var(--font-ui-small);
 }
 
-.rp-editor-layer-row label {
+.rp-layer-list__row label {
 	/* The whole row is the hit target, not just the box — §85 asks for adequate ones. */
 	flex: 1;
 	cursor: pointer;
+}
+
+.rp-layer-list__reason {
+	flex-basis: 100%;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/* Qualified specificity, same reasoning as `.rp-context-bar .rp-context-bar__button`: a bare
+   class loses to Obsidian's own `button:not(.clickable-icon)` at (0,1,1). */
+.rp-layer-list .rp-layer-list__action {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-layer-list .rp-layer-list__action:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-layer-list .rp-layer-list__action:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-layer-list .rp-layer-list__action:disabled {
+	color: var(--text-faint);
+	cursor: default;
 }
 
 /*
@@ -343,11 +213,60 @@
 	text-align: center;
 }
 
-.rp-editor-notice {
+/*
+ * Task 20's keyed warning strip, over the four independent `.rp-editor-notice` blocks this
+ * rule replaces — same declarations, new name: `PersistentWarningStrip.vue` renders each
+ * warning as `.rp-warning-strip__item`, keyed on its own id, inside one `.rp-warning-strip`
+ * container that adds no styling of its own beyond what stacking its children already gives.
+ */
+.rp-warning-strip__item {
 	margin: 0;
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-smaller);
 	color: var(--text-warning);
 	background-color: var(--background-secondary);
 	border-top: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * R5's per-item severity: a mark (the border) AND a word (`.rp-warning-strip__severity`),
+ * never one alone — `docs/components/Toast.md`'s "both, always, never one". `.rp-warning-strip__item`
+ * colours its text `--text-warning` by default; `--item--error` overrides BOTH the text colour
+ * and the left-border mark to `--text-error`, so an error item's text and its border agree;
+ * `--item--warning` adds only the left-border mark, in `--text-warning`, since the base text
+ * colour is already that colour.
+ */
+.rp-warning-strip__severity {
+	font-weight: var(--bold-weight);
+	margin-right: var(--size-4-1);
+}
+
+.rp-warning-strip__item--error {
+	color: var(--text-error);
+	border-left: 2px solid var(--text-error);
+}
+
+.rp-warning-strip__item--warning {
+	border-left: 2px solid var(--text-warning);
+}
+
+/*
+ * The shell's `role="status"` return-to-floor announcement (`SelectionGuidance.vue`, design
+ * spec §6.6, R15 — moved here 2026-09-04 from `.rp-inspector-guidance` in
+ * `editor-inspector.css`, where it was reachable only while `EntityInspector` happened to be
+ * mounted). It sits in this partial because `SelectionGuidance` is mounted in the warnings
+ * region, BEFORE `.rp-warning-strip` — the same region the rules above lay out.
+ *
+ * Empty text most of the time — cleared shortly after it shows — so `:empty` collapses the
+ * element rather than reserving layout space for a transient line: without it, the warnings
+ * region would carry a blank row on every render where nothing is currently being announced.
+ */
+.rp-selection-guidance {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.rp-selection-guidance:empty {
+	display: none;
 }

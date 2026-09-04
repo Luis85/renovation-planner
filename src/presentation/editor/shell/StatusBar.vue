@@ -4,15 +4,23 @@
  * than inventing a different split — slice 13 mounts its save-state indicator into the
  * third of them BY NAME, and a bar with two regions or four would leave it nowhere to go.
  *
- * The measurements readout is read-only telemetry: the pointer's position in world
- * millimetres, and the zoom. It demonstrates the viewport transform working end to end
- * without any editable state behind it — `screenToWorld` on the last known pointer
- * position, computed in `EditorStore` so no component does its own pixel arithmetic.
+ * The measurements readout is read-only telemetry: whether the plan's scale is set, the
+ * pointer's position in world millimetres, and the zoom. It demonstrates the viewport
+ * transform working end to end without any editable state behind it — `screenToWorld` on
+ * the last known pointer position, computed in `EditorStore` so no component does its own
+ * pixel arithmetic.
  *
  * Save state renders `SaveStateIndicator` now, which is slice 13's whole contribution here:
  * this component still owns the region's `role="status"` and `aria-label`, and the indicator
  * mounts INSIDE that one live region rather than declaring a second one of its own — a nested
  * live region would announce the same change twice.
+ *
+ * **Task 20 added the scale state, a pan-override reminder, and the pointer readout's
+ * withdrawal under M16's constrained layout.** The pointer readout is the one region that
+ * shrinks the pane rather than merely narrowing — a coordinate pair beside a percentage beside
+ * a save-state word does not fit a 460px sidebar leaf — so `layoutMode` (`WorkspaceStore`)
+ * hides it there while the zoom, the scale and save state all stay: none of those three
+ * grows with the pane's width the way a live coordinate readout effectively does.
  */
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -21,6 +29,7 @@ import type { ToolId } from '../tools/editor-tool';
 import { constrainsAngle } from '../snapping/editorSnapping';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import SaveStateIndicator from '../save-state/SaveStateIndicator.vue';
 
 /**
@@ -33,8 +42,9 @@ import SaveStateIndicator from '../save-state/SaveStateIndicator.vue';
  */
 const props = defineProps<{ activeToolId?: ToolId | null }>();
 
-const { plan } = storeToRefs(useProjectStore());
+const { plan, status } = storeToRefs(useProjectStore());
 const { viewport, pointerWorld } = storeToRefs(useEditorStore());
+const { layoutMode } = storeToRefs(useWorkspaceStore());
 
 /**
  * Whether the active tool takes the Shift angle constraint, asked of the ONE list that holds
@@ -48,6 +58,27 @@ const { viewport, pointerWorld } = storeToRefs(useEditorStore());
  * list can never make this bar advertise a tool the Plan Editor cannot activate.
  */
 const showsConstraintHint = computed(() => constrainsAngle(props.activeToolId ?? null));
+
+/**
+ * Task 20's scale state, WITHHELD unless a plan is loaded (R9, 2026-09-04). "Not set" is a fact
+ * about a loaded plan; while the read is in flight the system does not know, and after a
+ * missing or failed read there is no plan whose scale could be reported — so `null` here means
+ * the span is not drawn, never that `null` was relabelled "uncalibrated".
+ */
+const scaleText = computed(() => {
+	const loaded = status.value === 'ready' ? plan.value : null;
+	if (loaded === null) return null;
+	return tr(loaded.calibration ? 'editor.status.scale.calibrated' : 'editor.status.scale.uncalibrated');
+});
+
+/**
+ * Task 20's pan-override reminder, under the same "a modifier nothing mentions is a feature
+ * only its author knows about" argument as the angle-constraint hint above. Select is the
+ * one tool it applies to: camera mode already owns the pointer and needs no reminder about
+ * itself, and every creation/calibration tool's own task banner already occupies the canvas
+ * with its own instruction.
+ */
+const showsPanHint = computed(() => props.activeToolId === 'select');
 
 const zoomPercent = computed(() => `${Math.round(viewport.value.zoom * 100)}%`);
 
@@ -82,14 +113,25 @@ const pointerText = computed(() => {
 				v-if="showsConstraintHint"
 				class="rp-editor-hint"
 			>{{ tr('editor.hint.constrain-angle') }}</span>
+			<span
+				v-if="showsPanHint"
+				class="rp-editor-pan-hint"
+			>{{ tr('editor.hint.pan') }}</span>
 		</div>
 		<div
 			class="rp-editor-measurements"
 			role="group"
 			:aria-label="tr('editor.measurements')"
 		>
+			<span
+				v-if="scaleText !== null"
+				class="rp-editor-scale"
+			>{{ scaleText }}</span>
 			<span>{{ tr('editor.zoom') }} {{ zoomPercent }}</span>
-			<span>{{ pointerText }}</span>
+			<span
+				v-if="layoutMode !== 'constrained'"
+				class="rp-editor-pointer"
+			>{{ pointerText }}</span>
 		</div>
 		<div
 			class="rp-editor-save-state"

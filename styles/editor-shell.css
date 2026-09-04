@@ -1,0 +1,334 @@
+/*
+ * Task 13's shell chrome: the context bar (a breadcrumb plus undo/redo) and the floating
+ * Select/Add group that replaces the toolbar `editor.css` used to carry. Task 14 (Set scale)
+ * and Tasks 17/18 (the Add menu) fill in what these two regions grow next.
+ */
+
+.rp-context-bar {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	min-height: var(--size-4-8);
+	padding: 0 var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-context-bar__crumbs {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-1);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	min-width: 0;
+}
+
+.rp-context-bar__crumb {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.rp-context-bar__crumb:last-child {
+	color: var(--text-normal);
+}
+
+/* The separator is CSS, so the crumb text itself stays clean for a screen reader. */
+.rp-context-bar__crumb + .rp-context-bar__crumb::before {
+	content: '›';
+	margin: 0 var(--size-4-1);
+	color: var(--text-faint);
+}
+
+.rp-context-bar__spacer {
+	flex: 1;
+}
+
+/*
+ * QUALIFIED WITH `.rp-context-bar`, and every rule below it for the same reason — repeated at
+ * `.rp-primary-actions .rp-primary-actions__button` further down, because the two blocks are
+ * two separate cascades and each has to win its own.
+ *
+ * Obsidian's own `button:not(.clickable-icon)` (`tests/harness/obsidian.css`) sets
+ * `background-color`, `color` AND `box-shadow` at specificity (0,1,1) — `:not()` contributes
+ * its argument's specificity — which outranks a bare class at (0,1,0), and source order is
+ * never even consulted.
+ *
+ * What it cost when these two rules were still one `.rp-editor-toolbar` (measured in a real
+ * Chromium against the assembled sheet, before Task 13 split the toolbar into this bar and
+ * the floating group below): `--interactive-accent` and `--text-on-accent` both lost, so
+ * **the active tool rendered identically to the inactive ones** — Pan, Select, Draw zone and
+ * Calibrate all at `rgb(51,51,51)`/`rgb(218,218,218)`, with no way for a sighted user to tell
+ * which tool was selected. `aria-pressed` was bound regardless, so a screen reader was told
+ * what the screen would not say: the inverse of the usual failure, and invisible to every
+ * gate here.
+ *
+ * `box-shadow: none` is part of the fix rather than tidying. Obsidian's rule also sets
+ * `var(--input-shadow)`, which this sheet never overrode, so the buttons carried the raised
+ * chrome of a standalone button while asking for a transparent background.
+ */
+.rp-context-bar .rp-context-bar__button {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+/*
+ * THE FOCUS RING, restored explicitly — and the reason it is the ACCENT rather than Obsidian's
+ * own ring is measured, not preferred.
+ *
+ * The rule above sets `box-shadow: none` at (0,2,0), which outranks Obsidian's
+ * `button:focus-visible` at (0,1,1); and Obsidian's global `:focus { outline: none }` had
+ * already taken the outline. So flattening these buttons removed the LAST indicator a keyboard
+ * user had: measured on a focused toolbar button (before the Task 13 split), `outline: none`
+ * and `box-shadow: none`, in both schemes.
+ *
+ * Deferring to the host was the obvious repair and is the wrong one, which is worth stating
+ * because `PRODUCT.md` says the host's appearance wins. Obsidian's ring is
+ * `--background-modifier-border-focus`, and against `--background-primary` it measures
+ * **2.29:1 in dark and 1.88:1 in light** — under the 3:1 WCAG 2.2 asks of a non-text indicator
+ * (2.4.11), which `PRODUCT.md` binds. `--interactive-accent` measures 4.00:1 and 3.43:1 on the
+ * same backgrounds, and 3.46:1/3.17:1 on `--background-secondary`. Host deference stops where
+ * it would mean adopting a failure, and this is one of the two places in the plugin it does
+ * (the active-state fill below is the other).
+ *
+ * `:focus-visible` and not `:focus`, so a mouse press does not draw it.
+ */
+.rp-context-bar .rp-context-bar__button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-context-bar .rp-context-bar__button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-context-bar .rp-context-bar__button:disabled {
+	color: var(--text-faint);
+	cursor: default;
+}
+
+.rp-primary-actions {
+	position: absolute;
+	left: 50%;
+	bottom: var(--size-4-4);
+	transform: translateX(-50%);
+	display: flex;
+	gap: var(--size-4-1);
+	padding: var(--size-4-1);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+}
+
+/* Same specificity argument as the context bar's own buttons, immediately above. */
+.rp-primary-actions .rp-primary-actions__button {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-primary-actions .rp-primary-actions__button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-primary-actions .rp-primary-actions__button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/*
+ * THE ACTIVE (Select) BUTTON WEARS THE ACCENT AS AN OUTLINE, NOT A FILL — measured, not
+ * preferred.
+ *
+ * A filled accent button cannot carry a readable label here at all. `--text-on-accent` is
+ * white and `--interactive-accent` measures **4.26:1 in dark and 3.43:1 in light** against it,
+ * both under the 4.5:1 AA floor for text this size, and there is no lighter foreground than
+ * white to reach for. The pairing is Obsidian's own (`.mod-cta`), so this is the second place
+ * in this sheet where host deference would mean adopting a failure — the focus ring above is
+ * the first.
+ *
+ * FOUR channels, so the accent is reinforcement rather than the carrier: the tint (an accent
+ * `color-mix` the host already defines), the accent border, the weight, and `aria-pressed` in
+ * `FloatingPrimaryActions.vue` for a reader who sees none of them. `--text-normal` on the tint
+ * measures well past the floor in both schemes.
+ */
+.rp-primary-actions .rp-primary-actions__button[aria-pressed='true'] {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-active-hover);
+	border-color: var(--interactive-accent);
+	font-weight: var(--bold-weight);
+}
+
+/*
+ * Task 17's Add menu — anchored above `.rp-primary-actions` rather than beside it, since Add
+ * is the group's second button and a menu opening downward from it would draw off the pane's
+ * bottom edge. `.rp-plan-canvas` is the nearest `position: relative` ancestor
+ * (`.rp-plan-overlay`, its immediate parent, is `display: contents` and generates no box of
+ * its own — see `editor.css`), which is what this resolves its `absolute` against.
+ */
+.rp-add-menu {
+	position: absolute;
+	left: 50%;
+	bottom: calc(var(--size-4-4) + var(--size-4-12));
+	transform: translateX(-50%);
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	width: min(20rem, calc(100% - var(--size-4-8)));
+	max-height: min(24rem, calc(100% - var(--size-4-12)));
+	padding: var(--size-4-2);
+	border-radius: var(--radius-m);
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+	overflow-y: auto;
+}
+
+.rp-add-menu__search {
+	width: 100%;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: var(--background-modifier-form-field);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+.rp-add-menu__group h3 {
+	margin: var(--size-4-2) 0 var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--bold-weight);
+	color: var(--text-muted);
+	text-transform: uppercase;
+}
+
+/*
+ * `height: auto` overrides Obsidian's own `button` rule, which sets a fixed
+ * `height: var(--input-height)` (30px) at (0,0,1) — lower than this selector's (0,1,0), but
+ * this rule never declared `height` at all, so the cascade served the fixed one anyway. Every
+ * item here carries a label, a description and — for the nine unsupported entries — a reason
+ * line, and clamped to one input's height the second and third lines spilled out of the box
+ * with nothing to reserve room for them: the next item's own box started immediately below
+ * the clamped one and drew over the spillover. `gap` gives the three lines the same spacing
+ * `.rp-add-menu`'s own children (the search box and the menu) already carry.
+ */
+.rp-add-menu__item {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--size-4-1);
+	width: 100%;
+	height: auto;
+	padding: var(--size-4-2);
+	text-align: left;
+	color: var(--text-normal);
+	background-color: transparent;
+	border: none;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+/* Items are plain block siblings inside `.rp-add-menu__group` (a div with no `display` of its
+   own), so nothing separated them vertically until now — each item's box touched the next's. */
+.rp-add-menu__item + .rp-add-menu__item {
+	margin-top: var(--size-4-1);
+}
+
+.rp-add-menu__item:hover,
+.rp-add-menu__item:focus-visible {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-add-menu__item:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.rp-add-menu__item-description {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/* `aria-disabled`, never `disabled`: an unsupported entry stays reachable, so this is colour
+   and cursor only — `DialogHost.vue`'s own header states the reason this plugin keeps that
+   invariant everywhere a control can be "here, but not yet". */
+.rp-add-menu__item--unsupported {
+	cursor: default;
+}
+
+.rp-add-menu__item--unsupported .rp-add-menu__item-label,
+.rp-add-menu__item--unsupported .rp-add-menu__item-description {
+	color: var(--text-faint);
+}
+
+.rp-add-menu__reason {
+	font-size: var(--font-ui-smaller);
+	font-style: italic;
+	color: var(--text-faint);
+}
+
+/*
+ * Task 18's temporary task banner — the top edge's counterpart to `.rp-primary-actions` at the
+ * bottom, resolved against the same `.rp-plan-canvas` ancestor for the reason given above it.
+ */
+.rp-task-banner {
+	position: absolute;
+	top: var(--size-4-2);
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-1) var(--size-4-2);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+}
+
+.rp-task-banner span {
+	color: var(--text-muted);
+}
+
+/*
+ * Same specificity argument as `.rp-context-bar .rp-context-bar__button` and
+ * `.rp-primary-actions .rp-primary-actions__button` above: a bare `.rp-task-banner button`
+ * ties Obsidian's own `button:not(.clickable-icon)` (`tests/harness/obsidian.css`) at (0,1,1) —
+ * `:not()` contributes its argument's specificity — and a tie is not a win, so `box-shadow: none`
+ * and `background-color: transparent` would lose to the host rule and this button would render
+ * with Obsidian's own fill and shadow instead of the flat one this banner asks for. The two-class
+ * compound scores (0,2,0), which is what `tests/build/buttonSpecificity.test.ts` checks for
+ * every button rule in this project rather than trusting this one comment.
+ */
+.rp-task-banner .rp-task-banner__cancel {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-task-banner .rp-task-banner__cancel:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-task-banner .rp-task-banner__cancel:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}

@@ -12,7 +12,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { t } from '../../../src/presentation/i18n/strings';
-import { mountPlanEditor, settle, type EditorHarness } from '../../helpers/editor';
+import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../../helpers/editor';
 import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 
@@ -158,6 +158,13 @@ describe('the plan editor empty states', () => {
 		harness = await mountPlanEditor({ plan: WITH_BACKGROUND, zones: [] });
 		const camera = useEditorStore(harness.pinia);
 		const canvas = harness.wrapper.find('.rp-plan-canvas').element as HTMLElement;
+
+		// Task 10 made Select — not camera mode — the tool armed once the plan is ready, so a
+		// bare primary drag needs an explicit return to camera mode to mean what this case is
+		// actually about: the STAGE's own drag, rather than a Select drag over empty canvas.
+		// Task 13 retired the toolbar's own Pan button; the runtime is asked directly.
+		runtimeOf(harness).setTool(null);
+		await settle();
 
 		press(canvas, 'pointerdown', 100, 100);
 		press(canvas, 'pointermove', 140, 140);

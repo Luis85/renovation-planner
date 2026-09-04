@@ -63,19 +63,58 @@
  * nonsense — the NAME beside it is what gives, and the region itself simply narrows when the
  * hint disappears with the tool.
  */
-.rp-editor-hint {
+/*
+ * `.rp-editor-pan-hint` is Task 20's own — the same faint-text treatment as the Shift hint
+ * above and for the same reason, a standing note about an invisible modifier rather than a
+ * message about the document — kept a SEPARATE class rather than sharing `.rp-editor-hint`,
+ * because `shell.test.ts`'s existing case finds `.rp-editor-hint` by class alone to assert
+ * it is absent under Select: sharing the class would have made that assertion pass on the
+ * wrong element the moment this hint shipped.
+ */
+.rp-editor-hint,
+.rp-editor-pan-hint {
 	flex: 0 0 auto;
 	color: var(--text-faint);
 	white-space: nowrap;
 }
 
+/*
+ * `white-space: nowrap` is INHERITED onto every span this group holds (the scale text, the
+ * bare zoom span, the pointer readout) rather than repeated per child — none of them override
+ * it. Without it, "Scale not set" wrapped across two lines under `constrained`: this group has
+ * no `overflow: hidden` of its own (unlike `.rp-editor-status`, whose `overflow: hidden` gives
+ * it an automatic minimum size of zero per the flex spec), so its automatic minimum size was
+ * each child's normal-wrap min-content — the width of its longest WORD, not its whole phrase —
+ * and the flex layout compressed each span down into that gap, wrapping at every space that
+ * still fit. `nowrap` raises that minimum to the whole phrase, so the group holds its line
+ * rather than folding it.
+ */
 .rp-editor-measurements {
 	display: flex;
 	flex: 1;
 	gap: var(--size-4-3);
 	justify-content: center;
+	white-space: nowrap;
 	/* Tabular figures, so a coordinate readout does not jitter as digits change width. */
 	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * `constrained` is the narrowest layout this bar draws in, and `StatusBar.vue`'s own docblock
+ * is explicit that zoom, scale and save state all stay there — only the pointer readout
+ * withdraws (Task 20), because it is the one region whose content GROWS with a live coordinate
+ * pair rather than staying a short fixed phrase. So this scope tightens spacing rather than
+ * removing anything: the inter-group gap on the bar itself, and the gap between the scale and
+ * zoom spans, both shrink from Obsidian's own step variables to give `nowrap`'s wider minimum
+ * more room to be satisfied by the plan name giving way first — `.rp-editor-status`'s own
+ * `overflow: hidden` already lets it shrink to zero, which is exactly the give this needs.
+ */
+[data-layout='constrained'] .rp-editor-status-bar {
+	gap: var(--size-4-2);
+}
+
+[data-layout='constrained'] .rp-editor-measurements {
+	gap: var(--size-4-2);
 }
 
 .rp-editor-save-state {

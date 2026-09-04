@@ -511,7 +511,8 @@ body {
  * louder and heavier than it asks to be.
  *
  * Every other instance of this in the repository is fixed by qualifying with the container the
- * button sits in (`.rp-dialog`, `.rp-editor-toolbar`, `.rp-editor-inspector`). This one has no
+ * button sits in (`.rp-dialog`, `.rp-context-bar`, `.rp-primary-actions`, `.rp-editor-inspector`).
+ * This one has no
  * container: `theme.ts` appends it straight to `<body>`. The alternatives were each worse —
  * `body .rp-harness-scheme` and `button.rp-harness-scheme` both land on (0,1,1), a TIE that
  * resolves by source order and would silently flip if a sheet were ever linked after this one;

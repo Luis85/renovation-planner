@@ -2161,6 +2161,26 @@ was WITHDRAWN instead. The rule that generalises is structural rather than lexic
 
 > **A census command belongs in a different file from the one it counts.**
 
+**AND ITS SIBLING, EARNED FOUR GENERATIONS DEEP ON ONE CLAIM — re-found a drifting claim on
+something a GATE holds.** A sentence about the state of a test suite goes stale whenever the
+suite moves, and nobody re-runs it; the correction inherits the authority of being a correction
+without being re-measured, which is how one claim here was wrong three times running (a brief's,
+then the controller's fix of it, then the implementer's transcription of that fix under a label
+promising it had been measured). Task 17b's round 1 ended it by making the claim about **types**
+instead: `AssetRow.outline` and `AssetMark.outline` are REQUIRED props, so no mount can omit one
+and `vue-tsc` is what holds the sentence true. **When a claim has gone wrong twice, stop
+rewording it and ask what would make it unable to drift.** The same round dropped a line
+coordinate for the same reason and was vindicated immediately — the error it named had already
+moved from 200 to 227.
+
+**A THIRD SUB-SHAPE, from the same review, which nothing here had recorded: A COMMENT CAN BECOME
+FALSE WITHOUT BEING EDITED.** Four docblock lines said marks are read for *"the rows now IN the
+viewport"*. They were VACUOUS while nothing called that door — no caller, nothing to contradict —
+and became live over-claims the moment Task 17b gave them one. No edit made them false; a new
+caller did. **When a dead door gains its first caller, its docblock's claims become testable for
+the first time and must be re-read as new.** That is a whole-branch sweep the final review can
+run: every seam this branch wired up for the first time.
+
 Prefer that to escaping. Escaping is a property of one pattern and has to be re-earned by every
 later edit; separation is a property of where the sentence LIVES and survives rewording. Where
 neither is available — the count is about the file the sentence must sit in — withdraw the number

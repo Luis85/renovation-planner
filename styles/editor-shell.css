@@ -359,8 +359,15 @@
 /*
  * Task 8's Finish button — same two-class compound as Cancel above, and the same reason:
  * a bare `.rp-task-banner__finish` ties Obsidian's `button:not(.clickable-icon)` at (0,1,1)
- * and loses on source order. `[aria-disabled="true"]` dimming is Obsidian's own selector
- * (`tests/harness/obsidian.css`), so nothing is declared here for that state.
+ * and loses on source order.
+ *
+ * Obsidian's `button[aria-disabled="true"]` (`tests/harness/obsidian.css`) sets `opacity` and
+ * `cursor` at (0,1,1), and the compound below is (0,2,0) — so the DIMMING is inherited (this
+ * rule declares no `opacity`, so nothing contests it) and the CURSOR is not: `cursor: pointer`
+ * here outranks Obsidian's `not-allowed` and the blocked button contradicted its own state.
+ * This comment said "nothing is declared here for that state", which was true of one of the
+ * two properties. The disabled cursor is therefore restated at (0,2,1) below, exactly as
+ * `.rp-new-room__create` restates it for the same `aria-disabled`-not-`:disabled` reason.
  */
 .rp-task-banner .rp-task-banner__finish {
 	padding: var(--size-4-1) var(--size-4-2);
@@ -371,6 +378,14 @@
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
 	cursor: pointer;
+}
+
+/*
+ * (0,2,1), so it beats the rule above rather than depending on source order — and it declares
+ * the cursor ALONE, because the dimming beside it is Obsidian's and correct.
+ */
+.rp-task-banner .rp-task-banner__finish[aria-disabled='true'] {
+	cursor: not-allowed;
 }
 
 .rp-task-banner .rp-task-banner__finish:hover {

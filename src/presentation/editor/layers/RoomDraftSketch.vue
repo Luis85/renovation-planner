@@ -27,6 +27,23 @@ const props = defineProps<{
 
 const draft = useRoomDraftStore();
 
+/**
+ * The unit the two edge labels carry, appended as `` `${formatMetres(…)} ${METRES}` ``.
+ *
+ * A bare glyph rather than a `StringKey`, the same exemption `NewRoomInspector`'s `NO_FIGURE`
+ * takes and for the same reason: `m` is the SI symbol for a metre, identical in English and
+ * German (and in every locale this plugin could ship), so a key for it would be one more entry
+ * two translators have to keep saying the same thing. `I18N_LITERAL_BAN` cannot see it either
+ * way — a Konva `text:` config is none of the six call sites that rule matches — so this is a
+ * decision recorded at the code rather than one a gate is keeping.
+ *
+ * **The trigger is the per-plan units PBI**, which `shell/formatLength.ts` already names as
+ * what replaces `formatMetres` and `formatArea` in one edit: the moment a plan can be in feet,
+ * the unit stops being a constant and becomes a fact about the plan — at which point it comes
+ * from the same place the FORMATTING does, not from a key and not from here.
+ */
+const METRES = 'm';
+
 interface RoomDraftLabel {
 	readonly x: number;
 	readonly y: number;
@@ -66,12 +83,12 @@ const geometry = computed<RoomDraftGeometry | null>(() => {
 		widthLabel: {
 			x: (topLeft.x + topRight.x) / 2,
 			y: topLeft.y - 14,
-			text: `${formatMetres(rect.width)} m`,
+			text: `${formatMetres(rect.width)} ${METRES}`,
 		},
 		depthLabel: {
 			x: topRight.x + 8,
 			y: (topRight.y + bottomRight.y) / 2,
-			text: `${formatMetres(rect.depth)} m`,
+			text: `${formatMetres(rect.depth)} ${METRES}`,
 		},
 	};
 });

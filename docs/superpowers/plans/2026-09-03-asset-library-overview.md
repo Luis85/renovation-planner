@@ -2239,6 +2239,22 @@ skipped note — so the reachable damage today is the focus placement rather tha
 And the remedy depends on what you decide a duplicate delete MEANS, which is this task's opening
 question, so do not fix it before answering that.
 
+**VERIFIED AT `b5258fac`, BEFORE DISPATCH — this task's two load-bearing claims still hold, and
+one of them is stated in a shape that will not.**
+
+- **The three coordinates are exact today**: `noteEntityWrite.ts` is 284 lines, `:228` is
+  `await deps.fileManager.trashFile(opened.file)`, `:250` is `if (indexed) deps.index.upsert
+  (indexed)`, `:261` is `deps.index.remove(id)`. This branch never touched that file, which is
+  why they survived seventeen tasks. **They are still COORDINATES**: your own edits will move
+  them, so read them to find the code and then NAME what you found — do not carry a line number
+  into any sentence you write. This branch has paid for that shape twice, and once inside the
+  fix for it.
+- **"Every promotion case in Task 2's suite drives the out-of-band doors" is true, measured**:
+  `grep -oE '\b(adapter|index)\.[a-zA-Z]+\(' tests/infrastructure/persistence/index/excludedNotes.test.ts`
+  prints `adapter.onDelete` 9 times, `onCreate` 5, `onModify` 4 — and no command driver of any
+  kind. So the feature really is proven only for the doors a user reaches from outside the app,
+  and the in-app delete really is uncovered. That asymmetry is the task.
+
 **Spec:** §5.1a's promotion rule, lines 1021–1040.
 
 **Files:**

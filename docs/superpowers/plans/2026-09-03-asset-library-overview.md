@@ -1925,6 +1925,41 @@ git add -A && git commit -m "feat: harness, axe cases and captures for the asset
 
 ---
 
+### A standing target for the final whole-branch review: SELF-COUNTING GREPS
+
+**Added mid-execution, by ruling, after the fourth instance.** A docblock that quotes a `grep`
+and states the number it prints is this repository's own preferred instrument — CLAUDE.md
+requires the grep be run in the SAME edit as the sentence. The failure mode nobody re-runs is
+that **the sentence containing the pattern is itself matched by the pattern**, so the number is
+one too high and the discrepancy reads as a miscount rather than as a defect in the instrument.
+CLAUDE.md records it once already, against a `MIGRATION_SET` grep whose `awk` range opened on
+the docblock quoting its own pattern and printed ten for an array of nine.
+
+**Four instances are known on this branch**, two fixed and two outstanding:
+- Task 14's fix round shipped a container-declaration check whose explanatory paragraph quoted
+  the declaration it searched for; it passed vacuously against its own mutation on the first
+  attempt. FIXED, by making the check strip comments.
+- Task 16a's fix round 1 wrote a `\.hydrate(` grep claiming three where it printed four. FIXED
+  in round 2, by a pattern that cannot match its own quotation rather than by explaining the
+  extra line.
+- **`styles/asset-library-inspector.css`** claims its container grep "prints three declarations";
+  it prints seven lines, three of them declarations, one of them the claim itself. OUTSTANDING.
+- **`src/presentation/library/AssetLibraryDeps.ts`** says a `settings.unrecovered` grep prints
+  twelve over eleven files; it now prints thirteen, its own quoting line included. OUTSTANDING.
+
+Both outstanding ones were found by Task 16a's implementer sweeping the commands its own rounds
+quoted, and both were correctly REPORTED rather than fixed: neither is that task's claim, and
+reopening a completed task's file to fix a pre-existing sentence is how a fix round grows into a
+second task. They are routed HERE instead.
+
+**The final review's job is the CLASS, not these two.** A count in a comment is only as good as
+the last person to run it, and a pattern that can match its own quotation is wrong the moment it
+is written. Sweep every quoted command in the branch's diff, run each one, and compare. Where a
+count is wrong, prefer the fix that makes the instrument unable to count itself over the fix
+that explains the extra line — the first survives the next edit and the second does not.
+
+---
+
 ### Task 18: The exclusion invariant survives the repository's own index mutations
 
 **Added mid-execution, by ruling, after Task 2's review.** It is last because it is a decision about who owns *"an id was vacated"* rather than a defect in Task 2 — and because the asset library's repair strip is what makes it observable end to end, so it wants the surface to exist first.

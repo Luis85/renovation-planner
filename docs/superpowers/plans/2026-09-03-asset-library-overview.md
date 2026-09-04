@@ -1706,7 +1706,13 @@ jsdom reflects inline styles at every level, so this IS assertable in the suite 
 **Empty shelves are skipped, having no header to focus.** This is §3.2's non-interactive heading arriving in the section that promises the gestures.
 
 **THE CSS RULE THAT HIDES THE SHELVES ALREADY EXISTS — Task 15 shipped it at `1cb2fbdc`**, past
-its own brief's Files list and with its reasoning recorded. So this task's narrow-composition work
+its own brief's Files list and with its reasoning recorded. **AND IT IS UNREACHABLE UNTIL THIS
+TASK MAKES IT REACHABLE**, which is a sharper statement than "nothing has rendered it": the rule
+keys on a state no production code can currently produce, because nothing writes a non-empty
+`context.assetId` — that write-back is this task's. So the first time that rule can fire in a
+vault is the commit in which you close the write-back, and the first eye on it is Task 17's
+460px capture. Treat it as untested rather than as tested-and-working, and do not read its
+presence in the stylesheet as evidence that the narrow composition behaves. So this task's narrow-composition work
 is the BEHAVIOUR only: the focus handoff below, the search rule after it, and whatever `matchMedia`
 question the swap has to ask. Read `styles/asset-library.css` before adding a rule of your own —
 a second declaration of the same swap is two answers to one question, and the one in the

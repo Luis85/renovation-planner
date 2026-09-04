@@ -1495,6 +1495,37 @@ Tasks 12 and 13 shipped and are stale in the direction that matters:**
   reddens on a class NEITHER home declares, so the partial had to exist in the same commit as the
   component. Recorded rather than quietly absorbed, because a task whose Files list is wrong in
   the CREATE direction is one whose implementer overwrites shipped work.
+**THREE EMITTED CLASSES ARE DECLARED BY NO PARTIAL, MEASURED AT `e3d2e8bc`** — and this is the
+concrete half of this task's job rather than a hypothetical. Diffing what the library components
+emit against what `styles/` declares:
+
+```bash
+grep -ohrE 'rp-al-[a-z0-9_-]+' src/presentation/library/*.vue | sort -u > /tmp/emitted
+grep -ohrE 'rp-al-[a-z0-9_-]+' styles/*.css | sort -u > /tmp/declared
+comm -23 /tmp/emitted /tmp/declared
+```
+
+prints `rp-al-action--delete`, `rp-al-action--designer`, `rp-al-action--note` (plus
+`rp-al-mark--`, which is the interpolation prefix `` `rp-al-mark--${kind}` `` and a false
+positive of the grep, not a gap). All three are §3.5's Actions row, emitted at
+`AssetInspector.vue:267,275,290` beside a `.rp-al-action` base whose only rule in the whole tree
+is a `:focus-visible` one. **`--delete` is the destructive control**, and this repository has
+already shipped exactly that defect once: slice 15's `.rp-dialog-button-danger` lost to
+Obsidian's own `button:not(.clickable-icon)` at (0,1,1) and the destructive button rendered plain
+white — the finding `buttonSpecificity.test.ts` exists for. Assume nothing about which of the
+three need a rule; decide, and say why for any you leave undeclared.
+
+**No gate can see this class, which is the second half of the job.**
+`tests/build/prototype-styles.test.ts` refuses a class neither home declares for
+`src/prototypes/**` — it does not read `src/presentation/**`, so a shipped component's emitted
+class is checked by nothing at all. That is why these three survived a green
+`npm run check`. Closing it is an emitted-versus-declared assertion over the library
+components, and it is worth writing generally rather than as three names: a list goes stale
+where a rule does not. Two things it must get right — the interpolation prefix above is not a
+class and must not be reported as one, and the check has to FIND SOMETHING at all, so drive it
+against a fixture first, this repository having shipped an instrument that reached nothing more
+than once.
+
 - **So this task's real job on that file is to READ it and fix what it cannot have got right.**
   Nothing has RENDERED it — the container holds no pinned Chromium — and Task 14's own report
   names three of this repository's recorded rendering defect classes as live in it: a third

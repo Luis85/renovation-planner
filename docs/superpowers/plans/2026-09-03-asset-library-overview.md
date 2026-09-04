@@ -2033,6 +2033,39 @@ optional is genuinely right, the mount site is what needs the test.
 - Consumes: Task 6's `ListAssetOutlines`, Task 10's store doors, Task 12's `AssetMark`.
 - Produces: nothing any other task imports.
 
+**MEASURED AT `80a08a43`, BEFORE YOU START — the gap is NARROWER than "wire up the marks", and
+knowing which half already works stops you rebuilding it.**
+
+- **The INVALIDATION path is already wired end to end.** `AssetLibraryStore.applyChange` calls
+  `marks.invalidate(change.marks, queries)` (`:253`), `AssetLibraryRoot.vue:125` already calls
+  `applyChange`, and `assetLibraryChangeSource` already subscribes to `AssetDesignChanged`
+  (`:144`). Do not touch that chain; it works and has tests.
+- **Exactly two things are missing.** Nothing binds `:outline-for`, so `markFor` never reaches a
+  row; and **nothing ever calls `setVisibleMarks`**, so no outline is ever read in the first
+  place. Both are in the presentation layer. That is the whole task.
+- **`ListAssetOutlines` and the three store doors already exist with the right shapes** —
+  `listOutlines(assetIds)` answers a `ReadonlyMap` and never a `Result` (§3.4's own rule: an
+  outline settles per asset, so one damaged sidecar does not fail the batch), and
+  `markFor`/`setVisibleMarks`/`invalidateMarks` are on the store. You are calling them, not
+  writing them.
+
+**THE ONE REAL DESIGN DECISION IS WHAT TRIGGERS `setVisibleMarks`, AND IT HAS A CONSTRAINT NO
+EARLIER TASK HIT.** `viewportMarks.ts`'s own header anticipates an `IntersectionObserver` — it
+says the API shape *"is what an `IntersectionObserver` callback already gives"* — and **there is
+no `IntersectionObserver` anywhere in `src/` or `tests/`**, nor does jsdom implement one
+(`typeof globalThis.IntersectionObserver` is `undefined`). So an observer would be this
+repository's first, it cannot be exercised by the suite as it stands, and it needs a seam or a
+stub. Two honest routes:
+
+- **An observer behind a seam**, stubbed in tests, which delivers §5.3's promise literally.
+- **Call `setVisibleMarks` with the currently-rendered entries** on hydrate, expand and search.
+  Simpler, needs no new browser API, and reads every mark a shelf has drawn rather than only the
+  ones on screen.
+
+Choose, and **if you take the second, narrow §5.3's claim where the code lives rather than
+leaving a comment implying viewport precision the build does not have**. An over-claimed comment
+beside working code is this branch's single most recurring defect, at twelve instances.
+
 **§5.3 and §5.4 are the authority on WHEN marks load, and they are not "all of them at mount".**
 `setVisibleMarks` is a viewport read and `invalidateMarks` exists because a sidecar can change
 under the pane. Read both sections before wiring, and read `viewportMarks.ts`'s own header: the

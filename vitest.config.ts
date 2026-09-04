@@ -1,6 +1,67 @@
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { configDefaults, defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
+
+/**
+ * The test files that BOOT ESLint, derived rather than listed.
+ *
+ * Booting ESLint costs seconds: it loads the flat config and, for this repository's type-aware
+ * blocks, the whole TypeScript project service. `tests/helpers/eslint.ts` constructs ONE
+ * instance at module scope so its importers can share it — but vitest gives each test FILE its
+ * own module registry, so the boot is paid once per file per WORKER. That is the only reason
+ * anything here is confined to a single worker, and it is why these files are grouped by what
+ * they COST rather than by which directory they sit in.
+ *
+ * **TWO mechanisms, and the second is what made the first version of this rule wrong.** A file
+ * can boot ESLint by importing that shared instance, or by executing `scripts/lint-edited.mjs`,
+ * which spawns a real one per invocation. The reviewed proposal was "the twelve files in
+ * `tests/build/` that import the helper", and shipping exactly that turned the gate RED: it
+ * missed `tests/helpers/eslint.test.ts`, which imports the helper as a sibling (`./eslint`) from
+ * outside `tests/build/`, and `tests/build/lint-edited.test.ts`, which imports nothing and
+ * spawns the linter instead. Both then ran against the full parallel suite and blew their 60s
+ * budgets — measured, not predicted. Hence a scan over all of `tests/` and a pattern naming both
+ * mechanisms.
+ *
+ * **The asymmetry decides how the pattern is drawn.** Over-matching costs a cheap file a few
+ * seconds in the serial group; under-matching costs an intermittent `beforeAll` timeout that
+ * wastes a whole gate and reads as somebody else's CPU — the hazard this repository has
+ * documented for slices and re-run serially rather than closed. So the pattern is deliberately
+ * a little wider than an import graph would be. It is NOT the widest available: a bare
+ * case-insensitive `eslint` matches 25 files, most of them ordinary fast tests that merely
+ * mention it in a comment, and serialising those is a real cost bought for nothing.
+ *
+ * **It THROWS when it finds nothing**, which is what makes deriving safe at all: an instrument
+ * that reaches nothing looks exactly like a clean tree. A moved helper or a renamed directory
+ * would leave this empty, every file would fall into the parallel projects, and the timeouts
+ * would come back with nothing to say why. Failing at config load names the cause instead.
+ *
+ * Text matching rather than a real module graph, so its blind spot is a file that reaches either
+ * mechanism through an intermediate module of its own. There is none today; the failure mode of
+ * missing one is the pre-existing flake rather than a wrong result.
+ */
+function eslintBootingTests(): readonly string[] {
+	const root = fileURLToPath(new URL('./tests/', import.meta.url));
+	const boots = /helpers\/eslint|from '\.\/eslint'|lint-edited\.mjs|new ESLint\(/;
+	const found: string[] = [];
+	const walk = (dir: string, prefix: string): void => {
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			if (entry.isDirectory()) walk(`${dir}${entry.name}/`, `${prefix}${entry.name}/`);
+			else if (entry.name.endsWith('.test.ts') && boots.test(readFileSync(dir + entry.name, 'utf8'))) {
+				found.push(`tests/${prefix}${entry.name}`);
+			}
+		}
+	};
+	walk(root, '');
+	if (found.length === 0) {
+		throw new Error(
+			'vitest.config.ts: no test file boots ESLint — the boot-serialising split has stopped finding its subject',
+		);
+	}
+	return found;
+}
+
+const ESLINT_TESTS = eslintBootingTests();
 
 export default defineConfig({
 	plugins: [vue()],
@@ -19,13 +80,23 @@ export default defineConfig({
 		environment: 'node',
 		// TWO PROJECTS, and the split is a COST decision rather than a taxonomy.
 		//
-		// `tests/build/` is 36 files that boot a type-aware ESLint eleven times over, and
+		// `tests/build/` is **40 files** — 2026-09-05, `ls tests/build/*.test.ts | wc -l` — that
+		// boot a type-aware ESLint eleven times over, and
 		// `tests/helpers/eslint.ts` says what one boot costs (~3s idle, 17.8s seen under full
 		// parallel load). Every boot is paid AGAIN per file, because vitest gives each test
 		// file its own module registry — so the module-level `new ESLint(...)` that file
 		// exists to share is shared within a file and nowhere else. Turning isolation off for
 		// that directory alone shares them across files in a worker: 34.6s to 20.8s measured,
 		// 36 of 36 still passing.
+		//
+		// **Every file count below is a DATED SNAPSHOT of the tree its measurement was taken
+		// on, and the counts differ from each other on purpose** — 36 for the `isolate: false`
+		// pair just above, 39 for the boot-contention measurement, 459 for the end-to-end
+		// timing, 40 today. Each is what the tree held when that run happened; renumbering one
+		// to today's figure would claim a run nobody made. Re-run the command above before
+		// reasoning from any of them: this line has already been one file behind its own tree,
+		// because a merge added `tests/build/appIdPrefix.test.ts` after the numbers were
+		// written and nothing re-measures a number in prose.
 		//
 		// **Only that directory, and that bound is measured rather than cautious.**
 		// `--no-isolate` over the WHOLE suite halves it (121.8s to 61.3s) and is not a flag
@@ -36,7 +107,8 @@ export default defineConfig({
 		// (Konva's `stages` registry, a `npm_package_version` mutation, `@napi-rs/canvas`'s
 		// install against a reused jsdom global, and the harness `import.meta.glob`
 		// registry). `tests/build/` holds none of them, and its own numbers say why it is the
-		// safe half: 605ms of environment across all 36 files, against 82s for the rest.
+		// safe half: 605ms of environment across all 36 files it then held, against 82s for the
+		// rest.
 		//
 		// **`isolate: false` SHARES A BOOT WITHIN A WORKER, WHICH IS NOT THE SAME AS SHARING
 		// ONE.** The paragraph above is right about the mechanism and stops one question short
@@ -44,9 +116,9 @@ export default defineConfig({
 		// PER WORKER, so that sharing bought a division rather than a fix, and each of those
 		// boots then contends with the others for the same cores. That is the `beforeAll`
 		// timeout this repository documents as a hazard and had learned to re-run serially
-		// rather than close — measured on the merged tree at ten `tests/build/` files failing
-		// under default parallelism with no source change, and 39 of 39 passing on a
-		// `--no-file-parallelism` re-run.
+		// rather than close — measured on the merged tree, which held 39 files then, at ten
+		// `tests/build/` files failing under default parallelism with no source change, and
+		// 39 of 39 passing on a `--no-file-parallelism` re-run.
 		//
 		// `maxWorkers: 1` is the lever the note above says does not exist ("a lever that helps
 		// would have to reduce the number of BOOTS, which cross-worker sharing cannot do"). It
@@ -68,7 +140,8 @@ export default defineConfig({
 		// 'suite' have different 'maxWorkers' but same 'sequence.groupOrder'" — so the explicit
 		// `groupOrder` below is not decoration, it is the price of the line above it, and the
 		// two projects now run one after the other rather than together. Measured end to end
-		// on the merged tree: **88.0s → 137.1s, 459 of 459 files passing both ways.** Any
+		// on the merged tree, which held 459 test files then: **88.0s → 137.1s, 459 of 459
+		// files passing both ways.** Any
 		// asymmetric `maxWorkers` pays this; equalising it instead would confine the 420-file
 		// project too, which is the 590s whole-suite serial run this file already refuses.
 		//
@@ -103,14 +176,46 @@ export default defineConfig({
 		// suite once under `isolate: false`, and two cases red from leakage in a directory that
 		// was never meant to be there. Discovery belongs to the projects now.
 		projects: [
+			// THREE projects, and the split between the first two is the whole point: only the
+			// files that BOOT ESLint need one worker, and confining the rest with them was
+			// paying the serialisation for 29 files that boot nothing. Measured on this machine
+			// (2026-09-05, quiet tree, no coverage): the `build` project as one serial group ran
+			// **174s**, of which these twelve files are **34s** — so ~140s, four fifths of it,
+			// was files that had run parallel-safely for their whole lives. Whole suite
+			// **269s → 156s** across the change, 461 of 461 files passing both ways.
+			{
+				extends: true,
+				test: {
+					name: 'build-lint',
+					include: [...ESLINT_TESTS],
+					isolate: false,
+					// One worker, one module registry, ONE `new ESLint(...)` between twelve
+					// files. Not a tuning knob: measured as a boot COUNT rather than a
+					// duration, because the duration cannot see it — a probe beside that
+					// constructor reports one boot per worker, and a quiet machine passes this
+					// directory either way, which is exactly why the flake read as somebody
+					// else's CPU for so long.
+					maxWorkers: 1,
+					sequence: { groupOrder: 0 },
+				},
+			},
+			// The other `tests/build/` files, back at default parallelism where they always
+			// belonged, and sharing a group with `suite` so the two overlap. Vitest 4 refuses to
+			// overlap two projects whose `maxWorkers` differ ("Projects 'x' and 'y' have
+			// different 'maxWorkers' but same 'sequence.groupOrder'"), which is why `build-lint`
+			// above needs a group of its own and why these two must NOT be given one each.
+			//
+			// `exclude` spreads `configDefaults.exclude` rather than replacing it: a project's
+			// `exclude` OVERRIDES the default rather than adding to it, so naming only the lint
+			// files would put `node_modules/**` back in scope.
 			{
 				extends: true,
 				test: {
 					name: 'build',
 					include: ['tests/build/**/*.test.ts'],
+					exclude: [...configDefaults.exclude, ...ESLINT_TESTS],
 					isolate: false,
-					maxWorkers: 1,
-					sequence: { groupOrder: 0 },
+					sequence: { groupOrder: 1 },
 				},
 			},
 			{
@@ -118,7 +223,7 @@ export default defineConfig({
 				test: {
 					name: 'suite',
 					include: ['tests/**/*.test.ts'],
-					exclude: [...configDefaults.exclude, 'tests/build/**'],
+					exclude: [...configDefaults.exclude, 'tests/build/**', ...ESLINT_TESTS],
 					sequence: { groupOrder: 1 },
 				},
 			},

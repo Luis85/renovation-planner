@@ -268,8 +268,15 @@ list steps in [[Canvas Navigation]], for 276 across fifteen cases — `suite` 99
 `obsidian` 113, `desktop` 13 and `judgement` 9. See
 [[The smoke-test census omits the newest case]], closed.
 
-**286 steps across SIXTEEN cases**, re-run in the edit that added [[Add a room]] rather than
-left for the next reader to find stale — which is the one thing every paragraph above it says
+**286 steps across SIXTEEN cases — the figure AS OF the edit that added [[Add a room]], and
+superseded by the merge entry at the top of this document.** Every paragraph in this section is
+a dated entry in a log rather than a live claim, and this one is where that stopped being
+obvious: a reviewer re-ran both greps against the merged tree, read 309 + 17 against the 286
+here, and reported a stale census — when the merge had already re-derived it correctly to 326
+across nineteen. Both numbers are right about the tree each was taken from. The tense is what
+misled, so it is fixed here rather than left for the next reader to re-measure; the live figure
+is the one beside the five keyword rows above, and the two greps below are what settles it.
+It was re-run in the edit that added [[Add a room]] rather than left for the next reader to find stale — which is the one thing every paragraph above it says
 and the reason this one is short. The two greps print **269 table rows across fifteen files**
 and the same **17 list steps** in [[Canvas Navigation]]: `suite` 101, `browser` 44,
 `obsidian` 118, `desktop` 14, `judgement` 9. The whole of the movement is the new case's own

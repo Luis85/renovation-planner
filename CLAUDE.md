@@ -4067,6 +4067,144 @@ the reviews are good, it is that **"the class is closed" is a claim with the sam
 any other claim in this repository: it needs an instrument, and until one exists the honest
 statement is that nobody has looked at the next door yet.**
 
+**A SIXTH review round on that branch found fifteen more, and the shape of the round is worth
+more than the list.** It was a whole-diff review rather than another pass over the doors the
+previous five had been walking, and what it reached were the files the diff does NOT contain
+(`EditorSurface.vue`'s cursor list), the layers under the code (`vue-konva`'s reconciler, a
+regex engine's backtracking, `Intl`'s construction cost), and the instruments themselves (a
+locale check that could not see its own language's plural, a `Record` cast asserting a totality
+nothing held). The paragraph above says "nobody has looked at the next door yet"; this round is
+what looking at a different KIND of door produced. The rules that came out of it:
+
+- **A review's FINDING can be right and its proposed REMEDY wrong, and the remedy is the half
+  nobody re-measures.** Three of these fifteen shipped something other than what the report
+  proposed, each because the proposal was measured before it was taken. The z-order defect
+  offered two fixes and **neither works**: a `<VGroup>` root carrying the `v-if` still draws
+  last, because vue-konva reindexes on the LAYER's `onUpdated` and Vue runs a parent's update
+  job before its child's, so the group does not exist yet when the reindex runs; hoisting the
+  `v-if` to the call site fixes nothing at all, since the defect is the FRAGMENT root and three
+  fragment-rooted siblings are three invisible nodes rather than one. What ships is a `VGroup`
+  mounted UNCONDITIONALLY with the `v-if` inside it — resolvable, so it enters the ordering
+  array, and created in the layer's own first render pass, so its index is right whoever
+  re-renders next. The live-region fix was likewise not the one predicted: the brief argued
+  `:empty { display: none }` could simply be deleted because an empty block generates no line
+  box, and that is true and irrelevant — `.rp-new-room` is a column flex container with a
+  `gap`, and an in-flow flex item earns its gap whatever its size, so deleting the rule adds
+  dead space. `position: absolute` is what is left: out of flow, so no gap, and still IN the
+  accessibility tree, which `display: none` and `visibility: hidden` both forfeit.
+- **The `tests/build/` worker split is the sharpest instance, because the proposed remedy was
+  measured RED.** The finding was right — the `build` project ran **174s** serially on this
+  machine (2026-09-05, quiet tree) of which the twelve ESLint-booting files are **34s**, so four
+  fifths of it was 29 files that boot nothing and had run parallel-safely for their whole lives.
+  The proposed remedy was "a third project holding those twelve". Shipped exactly as written it
+  turns the gate RED, because that filter is scoped to `tests/build/` and keyed on IMPORT, and
+  ESLint gets booted two ways: `tests/helpers/eslint.test.ts` imports the shared instance as a
+  SIBLING (`./eslint`) from outside that directory, and `tests/build/lint-edited.test.ts`
+  imports nothing and SPAWNS a linter per invocation. Both then ran against the full parallel
+  suite and blew their 60s budgets. `vitest.config.ts` derives the set across all of `tests/`
+  from a pattern naming both mechanisms; whole suite **269s to 167s**, 461 of 461 green.
+  Three things about how it is written, each a rule this file already states:
+  - **DERIVED, never listed.** Which files boot ESLint is a fact about the import graph, and a
+    hand-written twelve is right the day it is written and silently wrong the day a thirteenth
+    file imports the helper — silently, because a missing entry makes the run slower or flakier
+    rather than red.
+  - **It THROWS when it finds nothing**, and that is what makes deriving safe: an instrument
+    that reaches nothing looks exactly like a clean tree, so a moved helper would drop every
+    file into the parallel projects and bring the timeouts back with nothing to say why.
+    Verified by planting a pattern that matches nothing and reading the error.
+  - **The pattern is drawn by the ASYMMETRY rather than by precision.** Over-matching costs a
+    cheap file a few serial seconds; under-matching costs an intermittent `beforeAll` timeout
+    that wastes a whole gate and reads as somebody else's CPU. It is still not the widest
+    available — a bare case-insensitive `eslint` matches 25 files, most of them ordinary fast
+    tests mentioning it in a comment.
+- **A JavaScript word boundary is defined over `[A-Za-z0-9_]`, so it cannot see a German plural
+  or an umlaut — and this repository had TWO checks resting on one.** The "Room, never Zone"
+  category check ran `/\bzones?\b/i` over `de` as well as `en`, and it answers **false** for
+  `Die Zonen auf diesem Plan`: after matching `Zone` the trailing `n` is a word character, so
+  the boundary fails. It was structurally unable to report the language the defect is likeliest
+  in — and the German value it could not see is one this very increment had fixed BY HAND. The
+  file already knew: its own `DELETE_FLOW_KEYS` case forty lines below spells `/Zone/i` and says
+  why. The two arms are separate patterns now (`/zone/i` for German, `/zon(e|ing)/i` for
+  English, since English derives a gerund that drops the `e`), and neither goes to a bare
+  `/zon/i`, which would sweep in `horizontal`/`Horizont`. **The same blind spot was live in a
+  second check and was found by asking for the class rather than the instance**: the
+  formal-address rule used a boundary-anchored verb list over German, and an umlaut is a
+  NON-word character, so there is no boundary between a space and `Ö` — the pattern answers
+  false for `Öffne den Bericht`, while `de.ts` already says `Öffnen Sie`, whose du-form is
+  exactly what that list could never express. It uses Unicode-property lookarounds now.
+- **An ambiguous regex alternation is a correctness property, not a tuning one.** In
+  `\d*\.?\d+` the two quantifiers can split N digits N ways, so REFUSING a long digit run is
+  quadratic: measured here, 5,000 digits took 14.3 ms, 20,000 took 220 ms and 50,000 took
+  **1,396 ms** — synchronously, from an `@blur` handler, on Obsidian's single renderer thread,
+  so pasting an id or a CSV cell into a length field and tabbing away froze the app. The
+  unambiguous spelling answers the same question in 0.072 ms. **Equivalence is a claim about a
+  SET, so it was measured rather than asserted** — both patterns driven over every string up to
+  length 4 across an alphabet spelling every construct either knows, twice by two parties
+  (54,241 and 111,150 strings), zero disagreements.
+- **`toLocaleString(locale, options)` builds a whole `Intl.NumberFormat` on every call** — it is
+  SPECIFIED as `new Intl.NumberFormat(locale, options).format(this)` — and five of those sat on
+  the per-`pointermove` path of a room drag (both field texts, both canvas edge labels, the area
+  row). Measured: **40 µs/call against 0.67 µs** through a module-scope constant, ~60x, so
+  ~0.2 ms of pure formatter CONSTRUCTION on every move of a gesture that is nothing but moves.
+  Hoisting it is safe HERE for a reason worth stating rather than assuming, because this
+  repository has already paid for the opposite: a module-scope `setTimeout` alias escaped
+  `vi.useFakeTimers()` by capturing at IMPORT time. The difference is WHAT is captured — both
+  inputs here are literals, and the locale is the hard-coded `'en-US'` those files argue for
+  rather than `getLanguage()`, so there is no later-installed value an early construction could
+  miss. The day the per-plan units PBI makes that locale a variable, the constant has to become
+  a cache keyed on the language.
+- **A predicate and the writer that answers it are ONE invariant, and satisfying it from the
+  wrong side contradicts the spec.** `DrawRoomTool.hasDraft()` read `rect !== null`, which is
+  one of the surfaces a room is built from: a chosen name and one typed side leave `rect` null
+  (`rectFrom` needs both), so Escape skipped its cancel-the-draft arm, left through
+  `setTool('select')` and took the name, both texts and `keepAdding` with the task — while the
+  same keypress over a DRAGGED rectangle only cleared the rectangle and stayed. The rule is that
+  **`hasDraft()` must count EXACTLY what `cancel()` clears**: count less and Escape destroys the
+  task, count more and Escape goes INERT, answering `cancelled-draft` for ever so a second press
+  can never leave. Both directions are mutation-checked (counting more reddens 7 cases, counting
+  less reddens 3). **The first repair satisfied that invariant by widening `cancel()` to clear
+  the name too, and that was the wrong end**: design spec §3 and §9 both keep the name across
+  Escape, and clearing it takes a choice the renovator made for a gesture aimed at the rectangle
+  — `escapeRouting.ts`'s own "step back through the NEAREST interaction". Narrowing the
+  PREDICATE satisfies the same invariant, preserves the spec and loses nothing, because a
+  renovator who chose a name and typed a side is already counted through that side's text.
+  **When one invariant has two ends, the end to move is the one the spec has not already written
+  down.**
+- **A press must take back only what the press wrote.** The click arm restored from a
+  `RoomRect | null`, which cannot express a half-typed draft, so a bare click on the canvas ran
+  `clearRect()` over a typed width — or `setRect(rectBefore)`, which rewrote both texts and
+  cleared both refusals, silently replacing a refused value in defiance of the store's own
+  stated rule four lines away. The store names the seven fields `setRect` writes as one snapshot
+  now, and `restoreRect` is what a click and an abandoned gesture take.
+- **`Record<K, V>` built by `Object.fromEntries` plus a cast asserts a totality nothing holds**,
+  and because `Record` index access is non-optional the compiler sees no `undefined` arm. Adding
+  a union member with no row left `vue-tsc` GREEN and threw `Cannot read properties of undefined
+  (reading 'activate')` from a click handler. A literal object annotated with a mapped type over
+  the union makes four distinct mistakes compile errors — a missing key (`TS2741`), an extra one
+  (`TS2353`), a duplicate (`TS1117`) and a key whose entry names a DIFFERENT id (`TS2322`, a
+  guarantee the array shape never had) — with the ordered list derived from it rather than
+  maintained beside it.
+- **A wait that attaches before its knob has done any work certifies the arming, not the
+  landing.** The narrow room capture waited on `.rp-task-banner__finish`, which renders the
+  moment the tool is armed — two steps before the knob opens the drawer, types either side and
+  closes it again. `[aria-disabled="false"]` is the qualification that discriminates, and it
+  also proves the drawer is shut, which no `attached` wait can spell because that is an ABSENCE.
+
+**And the meta-lesson of this round is about how it was RUN, not about what it found.** The
+fifteen were fixed by five agents working in parallel on disjoint file sets, and every one of
+them reported honestly — including two that corrected their own briefs. Their reports were still
+not evidence. One reported the smoke-suite census as stale drift, having re-run both greps
+against the merged tree and compared 309 + 17 against a recorded 286; acting on that produced a
+"correction" to a document that was already correct, because the 286 sits in a dated HISTORY
+section while the live figure at the top of the same file had been re-derived at the merge to
+exactly the 326 across nineteen the re-run measured. Both numbers were right about the tree each
+was taken from; the TENSE is what misled, and it is fixed where it misled rather than left. The
+rule this repository already states about a subagent — "don't always take them at face value" —
+is not about dishonesty, and that is the part worth carrying: **a careful report of a real
+measurement can still support a false conclusion, and the only defence is to re-derive the
+CONCLUSION rather than to re-check the measurement.** Every finding in this round that was
+verified independently held; the one that was not, did not.
+
 **The Renovation Planner Home increment has landed: the project list is a LAUNCHER.** The
 Renovation project view's list state draws a header, a filter that is also the pane's count
 line, a `Continue` group offering the project and plan the user was last in, `Projects` most
@@ -4310,8 +4448,9 @@ and the suite's own accounting says the cost is not the tests — `transform 13.
 74.3s, tests 143.9s, environment 82.1s` over 362 files, so per-file overhead (a jsdom
 environment and a module registry, both paid once per FILE) exceeds the test bodies. **Every
 number in this paragraph is a DATED SNAPSHOT of one machine and one tree, the file count
-included** — `find tests -name "*.test.ts" | wc -l` prints **450** on 2026-09-04, against 362 in
-the run the timings above come from, so the file count is three measurements behind and the
+included** — `find tests -name "*.test.ts" | wc -l` prints **461** on 2026-09-05, **450** the day
+before, and 362 in the run the timings above come from, so the file count is three measurements
+behind and the
 per-file conclusion is what survives it, since that conclusion is a RATIO rather than a total.
 The 2026-09-04 run of that suite at 429 files reports `transform 22.43s, import 125.34s,
 tests 365.21s, environment 149.02s` in 260s wall clock — import and environment together still
@@ -4319,7 +4458,8 @@ exceed the test bodies, which is the ratio holding across a 19% growth in files.
 **A merge is where a file count moves furthest and where nobody re-takes it**, and this
 paragraph is its own worked example twice over: one branch of this merge read 429 and the other
 418, on the same day, against trees that differed by a merge neither had taken — and the answer
-here is 450. Re-measure before reasoning from any of them. ONE
+here was 450, and one review round later it is 461. Re-measure before reasoning from any of
+them. ONE
 door exists beside `check` for that reason, and it does not replace it:
 
 - **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no
@@ -4926,15 +5066,27 @@ unconfined against **1** confined, and 12 → 2 over the whole run. A quiet 22-c
 that directory either way, which is precisely why this had gone on reading as somebody else's
 CPU.
 
-**It costs ~49 seconds of every run and that was accepted deliberately, so read it as a trade
-rather than a free win.** Vitest 4 refuses to overlap two projects whose `maxWorkers` differ, so
-each needs an explicit `sequence.groupOrder` and the two stop running concurrently: **88.0s →
-137.1s end to end, 459 of 459 files passing both ways.** The first version of the config comment
-claimed it cost nothing, reasoning that the build worker's ~29s would hide inside the suite
-project's ~120s — true of the scheduler that config does not get. Equalising `maxWorkers`
-instead would confine the 420-file project too, which is the 590s whole-suite serial run this
-repository already refuses. `vitest.config.ts` carries the whole account, and reverting it is
-that one option plus the two `groupOrder`s.
+**It cost ~49 seconds of every run and that was accepted deliberately as a trade — and the
+trade has since been RETIRED, because the confinement was applied to the wrong set.** Vitest 4
+refuses to overlap two projects whose `maxWorkers` differ, so each needs an explicit
+`sequence.groupOrder` and the two stop running concurrently: **88.0s → 137.1s end to end, 459 of
+459 files passing both ways** at the time. The first version of the config comment claimed it
+cost nothing, reasoning that the build worker's ~29s would hide inside the suite project's
+~120s — true of the scheduler that config does not get.
+
+**What the sixth review round then measured is that the confinement was buying its property for
+twelve files and charging twenty-nine.** On this machine (2026-09-05, quiet tree, no coverage)
+the whole `build` project ran **174s** serially and its twelve ESLint-booting files are **34s**
+of that, so four fifths of the serialised time was files that boot nothing and had run
+parallel-safely for their whole lives. There are THREE projects now — `build-lint` (the booting
+files, one worker, its own group) and `build` and `suite` sharing the parallel group — and the
+whole suite runs **269s → 167s, 461 of 461 green**. Two things about that set are the durable
+part rather than the numbers: it is **DERIVED** from a pattern over `tests/` rather than listed,
+because which files boot ESLint is a fact about the import graph that a hand-written list gets
+wrong silently; and the derivation **THROWS when it matches nothing**, because an instrument
+that reaches nothing looks exactly like a clean tree and would drop every file back into the
+parallel group with the timeouts returning unexplained. The review round's own section above
+carries why the proposed twelve-file version of this turned the gate red.
 
 **What the fix EXPOSED rather than caused**, since deterministic worker placement is a stronger
 instrument than a lucky one: `tests/build/localeModuleSentenceCase.test.ts` called

@@ -45,9 +45,11 @@ function unsupported(id: CreationEntryId, group: CreationGroup): CreationEntry {
 
 /**
  * M02's catalogue as DATA (design spec §7.1). Room is the one available entry and routes to the
- * existing draw tool, which already creates a Zone typed Room; everything else is unsupported
- * with a reason, so the menu can explain rather than offer a dead control. Order IS the locked
- * group order. The `as StringKey` casts above are the one place a key is built by interpolation;
+ * rectangular room tool (`'draw-room'`); the room itself does not exist until the temporary tool
+ * banner's Finish action turns the draft into a Zone typed Room (Task 8), so `activate` here only
+ * arms the tool rather than creating anything. Everything else is unsupported with a reason, so
+ * the menu can explain rather than offer a dead control. Order IS the locked group order. The
+ * `as StringKey` casts above are the one place a key is built by interpolation;
  * `creationCatalogue.test.ts` resolves every key in both locales, which is what a template
  * string would otherwise escape.
  */
@@ -59,7 +61,7 @@ export const CREATION_CATALOGUE: readonly CreationEntry[] = [
 		descriptionKey: 'editor.add.room.description',
 		synonymKeys: ['editor.add.room.synonyms'],
 		availability: { kind: 'available' },
-		activate: (runtime) => runtime.setTool('draw-polygon'),
+		activate: (runtime) => runtime.setTool('draw-room'),
 	},
 	unsupported('wall', 'structure'),
 	unsupported('door', 'structure'),
@@ -71,6 +73,27 @@ export const CREATION_CATALOGUE: readonly CreationEntry[] = [
 	unsupported('measurement', 'planning'),
 	unsupported('note', 'planning'),
 ];
+
+/**
+ * `CreationEntryId` is closed and `CREATION_CATALOGUE` carries exactly one entry per member, so
+ * this lookup cannot miss — there is no "not found" arm to write, dead or live, and therefore
+ * none to test. Built once at module load rather than re-scanned on every call.
+ */
+const ENTRIES_BY_ID: Record<CreationEntryId, CreationEntry> = Object.fromEntries(
+	CREATION_CATALOGUE.map((entry) => [entry.id, entry]),
+) as Record<CreationEntryId, CreationEntry>;
+
+/**
+ * The ONE door onto a catalogue entry's `activate` (design spec §7.1, Task 10). Both the Add
+ * menu's own click/keyboard activation and the no-rooms empty state's action button
+ * (`PlanEditorRoot.vue`'s `onEmptyStateAction`) call this and nothing else — never
+ * `entry.activate(...)` directly, and never a second, independently-decided route to the same
+ * effect. An unsupported entry's own `activate` already throws (`refuse`, above), so calling
+ * this with an unsupported id throws too; there is no second refusal to write here.
+ */
+export function activateCreationEntry(id: CreationEntryId, runtime: Pick<EditorRuntime, 'setTool'>): void {
+	ENTRIES_BY_ID[id].activate(runtime);
+}
 
 /**
  * Label, description or any synonym contains the (case-folded) query — the whole of the Add

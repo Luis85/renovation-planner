@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { t } from '../../../../src/presentation/i18n/strings';
 import type { ToolId } from '../../../../src/presentation/editor/tools/editor-tool';
 import {
+	activateCreationEntry,
 	CREATION_CATALOGUE,
 	matchesQuery,
 	type CreationEntry,
@@ -26,7 +28,7 @@ describe('the creation catalogue', () => {
 		expect(available.map((e) => e.id)).toEqual(['room']);
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		available[0].activate({ setTool });
-		expect(setTool).toHaveBeenCalledWith('draw-polygon');
+		expect(setTool).toHaveBeenCalledWith('draw-room');
 		expect(setTool).toHaveBeenCalledTimes(1);
 	});
 
@@ -65,5 +67,31 @@ describe('the creation catalogue', () => {
 	it('groups appear in the locked order: structure, property, planning', () => {
 		const groups = [...new Set(CREATION_CATALOGUE.map((e) => e.group))];
 		expect(groups).toEqual(['structure', 'property', 'planning']);
+	});
+
+	it('activateCreationEntry is the one door: Room reaches setTool("draw-room") exactly once', () => {
+		const setTool = vi.fn<(id: ToolId | null) => void>();
+		activateCreationEntry('room', { setTool });
+		expect(setTool).toHaveBeenCalledTimes(1);
+		expect(setTool).toHaveBeenCalledWith('draw-room');
+		expect(() => activateCreationEntry('wall', { setTool })).toThrow(/unsupported/);
+	});
+});
+
+/**
+ * "One door" is a claim about EVERY caller, and a catalogue test cannot see a second one
+ * hiding in a Vue file. This reads `PlanEditorRoot.vue`'s SOURCE TEXT instead — the same
+ * instrument `entityRef.test.ts` uses for a caller list — so it is blind exactly where that
+ * instrument says it is: it cannot tell a comment from code, and a second `setTool('draw-…')`
+ * reached through a re-export or an alias would not match either literal below. What it does
+ * prove is narrow and cheap: the file names `activateCreationEntry('room'` at all, and no
+ * `setTool('draw-` literal sits anywhere in it — so the empty state's action cannot have grown
+ * a second, undocumented route to the room tool without this failing.
+ */
+describe("PlanEditorRoot.vue's empty-state action goes through activateCreationEntry", () => {
+	it("contains activateCreationEntry('room' and no setTool('draw- literal", () => {
+		const source = readFileSync('src/presentation/editor/PlanEditorRoot.vue', 'utf8');
+		expect(source).toContain("activateCreationEntry('room'");
+		expect(source).not.toMatch(/setTool\('draw-/);
 	});
 });

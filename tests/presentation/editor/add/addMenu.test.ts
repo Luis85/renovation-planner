@@ -96,7 +96,7 @@ describe('the Add menu', () => {
 		await settle();
 
 		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(false);
-		expect(runtimeOf(harness).activeToolId.value).toBe('draw-polygon');
+		expect(runtimeOf(harness).activeToolId.value).toBe('draw-room');
 	});
 
 	it('Enter on Room starts exactly one tool and emits exactly one close', async () => {
@@ -111,7 +111,7 @@ describe('the Add menu', () => {
 		await settle();
 
 		expect(setTool).toHaveBeenCalledTimes(1);
-		expect(setTool).toHaveBeenCalledWith('draw-polygon');
+		expect(setTool).toHaveBeenCalledWith('draw-room');
 		expect(menu.emitted('close')).toHaveLength(1);
 		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(false);
 	});
@@ -229,7 +229,7 @@ describe('the Add menu', () => {
 		await settle();
 
 		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(false);
-		expect(runtimeOf(harness).activeToolId.value).toBe('draw-polygon');
+		expect(runtimeOf(harness).activeToolId.value).toBe('draw-room');
 	});
 
 	it('Space on an unsupported item changes nothing', async () => {
@@ -299,7 +299,7 @@ describe('the Add menu', () => {
 		await harness.wrapper.find('[data-rp-entry="room"]').trigger('click');
 		await settle();
 		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(false);
-		expect(runtimeOf(harness).activeToolId.value).toBe('draw-polygon');
+		expect(runtimeOf(harness).activeToolId.value).toBe('draw-room');
 	});
 
 	/**

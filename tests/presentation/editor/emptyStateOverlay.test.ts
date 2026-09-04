@@ -86,16 +86,17 @@ describe('the plan editor empty states', () => {
 
 	/**
 	 * Amendment 3, and the reason the noZones action is usable at all: its own button
-	 * activates `draw-polygon`, and a panel still sitting over the canvas afterwards would
-	 * leave the user in a mode they cannot reach the stage in. One rule for both keys, so
-	 * `noBackground` yields to an active tool too — a plan with no background still has a
-	 * coordinate system, which is precisely what the sample project draws five zones in.
+	 * activates the room tool (`'draw-room'`, Task 10's `activateCreationEntry`), and a panel
+	 * still sitting over the canvas afterwards would leave the user in a mode they cannot
+	 * reach the stage in. One rule for both keys, so `noBackground` yields to an active tool
+	 * too — a plan with no background still has a coordinate system, which is precisely what
+	 * the sample project draws five zones in.
 	 */
 	it('yields to an active tool', async () => {
 		harness = await mountPlanEditor({ plan: WITH_BACKGROUND, zones: [] });
 		expect(overlay(harness).exists()).toBe(true);
 
-		useEditorStore(harness.pinia).activeToolId = 'draw-polygon';
+		useEditorStore(harness.pinia).activeToolId = 'draw-room';
 		await settle();
 
 		expect(overlay(harness).exists()).toBe(false);
@@ -108,7 +109,7 @@ describe('the plan editor empty states', () => {
 		await overlay(harness).find('button.rp-empty-state__action').trigger('click');
 		await settle();
 
-		expect(useEditorStore(harness.pinia).activeToolId).toBe('draw-polygon');
+		expect(useEditorStore(harness.pinia).activeToolId).toBe('draw-room');
 	});
 
 	it('leaves the Space key to the noZones action button, rather than arming the camera', async () => {

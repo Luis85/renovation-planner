@@ -178,6 +178,10 @@ export const editorEn = {
 	'editor.task.banner': 'Current task',
 	'editor.task.draw-room.name': 'Adding a room',
 	'editor.task.draw-room.instruction': 'Click to place corners; click the first corner to finish.',
+	// Task 2's own key: `RoomDraftStore.settle()`'s announced sentence, built from the
+	// draft rect's own width, depth and area — never a translated fragment concatenated
+	// with a number, per this file's own "one key per label" rule.
+	'editor.room.settled': '{width} m by {depth} m, {area}',
 	'editor.task.calibrate.name': 'Setting the scale',
 	'editor.task.calibrate.instruction': 'Click two points a known distance apart.',
 	'editor.task.cancel': 'Cancel',

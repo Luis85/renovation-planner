@@ -122,6 +122,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.task.banner': 'Aktuelle Aufgabe',
 	'editor.task.draw-room.name': 'Raum hinzufügen',
 	'editor.task.draw-room.instruction': 'Klicken Sie, um Ecken zu setzen; klicken Sie auf die erste Ecke, um abzuschließen.',
+	'editor.room.settled': '{width} m mal {depth} m, {area}',
 	'editor.task.calibrate.name': 'Maßstab festlegen',
 	'editor.task.calibrate.instruction': 'Klicken Sie auf zwei Punkte mit bekanntem Abstand.',
 	'editor.task.cancel': 'Abbrechen',

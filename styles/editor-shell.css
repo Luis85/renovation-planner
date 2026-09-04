@@ -332,3 +332,29 @@
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }
+
+/*
+ * Task 8's Finish button — same two-class compound as Cancel above, and the same reason:
+ * a bare `.rp-task-banner__finish` ties Obsidian's `button:not(.clickable-icon)` at (0,1,1)
+ * and loses on source order. `[aria-disabled="true"]` dimming is Obsidian's own selector
+ * (`tests/harness/obsidian.css`), so nothing is declared here for that state.
+ */
+.rp-task-banner .rp-task-banner__finish {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-task-banner .rp-task-banner__finish:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-task-banner .rp-task-banner__finish:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}

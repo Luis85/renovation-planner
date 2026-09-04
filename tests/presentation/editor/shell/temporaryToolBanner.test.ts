@@ -6,11 +6,12 @@
  * interaction at a time. `TemporaryToolBanner.vue`'s own header carries the rest of the design;
  * this file is scoped to what THIS surface draws and what pressing Cancel actually does.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
-import { mountPlanEditorCanvas, runtimeOf, settle } from '../../../helpers/editor';
-import { activateTool, click } from '../../../helpers/planEditorRig';
+import { mountPlanEditorCanvas, runtimeOf, settle, settleUntil as until } from '../../../helpers/editor';
+import { activateTool, click, PLAN_DTO, rig } from '../../../helpers/planEditorRig';
+import { expectOk } from '../../../helpers/domain';
 
 describe('TemporaryToolBanner', () => {
 	it('is absent under Select and names the task under a creation tool', async () => {
@@ -73,5 +74,68 @@ describe('TemporaryToolBanner', () => {
 		runtimeOf(harness).setTool('calibrate');
 		await settle();
 		expect(harness.wrapper.find('.rp-task-banner').text()).toContain(t('en', 'editor.task.calibrate.name'));
+	});
+
+	it('names the room task and offers Finish, aria-disabled with its reason until the draft is valid', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		const banner = harness.wrapper.find('.rp-task-banner');
+		expect(banner.text()).toContain(t('en', 'editor.task.add-room.name'));
+		const finish = banner.find('button.rp-task-banner__finish');
+		expect(finish.attributes('aria-disabled')).toBe('true');
+		expect(harness.wrapper.find(`#${finish.attributes('aria-describedby')}`).text()).toBe(t('en', 'editor.task.add-room.instruction'));
+		runtime.roomDraft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
+		await settle();
+		expect(finish.attributes('aria-disabled')).toBe('false');
+	});
+
+	it('offers no Finish under the calibrate tool, which finishes by gesture', async () => {
+		const harness = await mountPlanEditorCanvas();
+		runtimeOf(harness).setTool('calibrate');
+		await settle();
+		expect(harness.wrapper.find('button.rp-task-banner__finish').exists()).toBe(false);
+	});
+
+	it('Finish creates the room through the same action as the form, and focus lands on the canvas', async () => {
+		const { harness, zonesRepo } = await rig();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		runtime.roomDraft.setRect({ x: 0, y: 0, width: 4200, depth: 3800 });
+		await settle();
+		const finish = harness.wrapper.find('button.rp-task-banner__finish');
+		(finish.element as HTMLButtonElement).focus();
+		await finish.trigger('click');
+		await until(async () => expectOk(await zonesRepo.listByPlan(PLAN_DTO.id as never)).loaded.length === 2, 'the room to be written');
+		await settle();
+		expect(runtime.activeToolId.value).toBe('select');
+		expect(document.activeElement).toBe(harness.canvasEl);
+	});
+
+	/**
+	 * `onFinish` guards on `canCreateRoom` the same way `NewRoomInspector`'s `onCreate` does
+	 * (`newRoomInspector.test.ts`'s "pressing Create while the draft is incomplete writes
+	 * nothing"): a click on an `aria-disabled` button still fires, so the promise the
+	 * attribute makes is kept at the control only if the handler asks again. The outcome
+	 * assertions alone would not discriminate a guarded build from an unguarded one whose
+	 * command independently refuses an invalid draft — `createRoomFromDraft` answers
+	 * `'invalid'` for this same draft — so the spy on `runtime.createRoom` is what tells them
+	 * apart. Mutation-checked: deleting the guard reddens this case at `not.toHaveBeenCalled()`.
+	 */
+	it('pressing Finish while the draft is incomplete calls no action and leaves the tool in place', async () => {
+		const { harness, zonesRepo } = await rig();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room'); // sized never — draft invalid
+		await settle();
+		const finish = harness.wrapper.find('button.rp-task-banner__finish');
+		expect(finish.attributes('aria-disabled')).toBe('true');
+		const createRoom = vi.spyOn(runtime, 'createRoom');
+		await finish.trigger('click');
+		await settle();
+		expect(createRoom).not.toHaveBeenCalled();
+		expect(expectOk(await zonesRepo.listByPlan(PLAN_DTO.id as never)).loaded).toHaveLength(1);
+		expect(runtime.activeToolId.value).toBe('draw-room');
 	});
 });

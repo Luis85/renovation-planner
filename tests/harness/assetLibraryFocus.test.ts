@@ -30,7 +30,16 @@ vi.mock('../../src/prototypes/assetLibraryFixture', async (importOriginal) => {
 });
 
 /**
- * The asset library mock's FOCUS chain, and the only instrument this repository has for it.
+ * The asset library MOCK's FOCUS chain.
+ *
+ * **The mock's, and the shipped surface's separately — which this header claimed to cover and
+ * did not.** Every case here mounts `src/prototypes/AssetLibrary.vue`, so it is evidence about
+ * the mock's chain alone, and a promoted component that dropped one of these moves would leave
+ * every case below green. That is not hypothetical either: `AssetLibraryBody`'s `Clear search`
+ * shipped without the move the case below asserts, and this file went on passing. The shipped
+ * surface's own focus cases live beside it — `assetLibraryRootDoors.test.ts` for this gesture,
+ * `assetLibraryKeyboard.test.ts` and `shelfFocus.test.ts` for the rest — and what THIS file is
+ * the only instrument for is the prototype the promotions are read against.
  *
  * Five review rounds each found one more direction of one gesture — the forward swap, the
  * reverse swap, a destination hidden inside a collapsed shelf, a destination that had been

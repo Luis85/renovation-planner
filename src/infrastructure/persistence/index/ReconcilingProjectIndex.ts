@@ -16,6 +16,7 @@ import {
 } from '../../../application/events/projectIndex.events';
 import { entityRefOf, stringField } from './buildProjectIndexEntries';
 import { promotedSidecarMapping } from './sidecarMapping';
+import { entryById } from './entryLookup';
 import type { EchoWindow } from './EchoWindow';
 import { frontmatterOf } from '../../obsidian/repositories/noteIo';
 
@@ -211,12 +212,16 @@ export class ReconcilingProjectIndex implements ProjectIndex {
 		// **This `if` NARROWS a type and cannot discriminate**, which is why its false arm is
 		// uncovered rather than untested: `getPath` has just answered a path for this id, so the
 		// entry it came from is provably in `entries()`. What the guard buys is
-		// `ProjectIndexEntry` where `find` answers `ProjectIndexEntry | undefined`, and the
+		// `ProjectIndexEntry` where `entryById` answers `ProjectIndexEntry | undefined`, and the
 		// descriptor below needs the displaced note's own `type` — the one thing `getPath` cannot
 		// answer, and the whole reason this second, non-O(1) lookup happens at all. Deleting it is
 		// a build error, not a behaviour change. Same shape, and the same reason, as the guard on
 		// the restored entry in `trashNoteBackedEntity`.
-		const displaced = this.inner.entries().find((candidate) => candidate.id === entry.id);
+		//
+		// `entryById` rather than a scan spelled here: `VaultChangeAdapter` asks the same
+		// question, and it spent a task arguing from a caller count that this module had already
+		// made false.
+		const displaced = entryById(this.inner, entry.id);
 		if (displaced === undefined) return;
 
 		this.deps.logger.warn('persistence.pipeline.duplicate-id', {

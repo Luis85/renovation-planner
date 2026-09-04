@@ -257,11 +257,12 @@ export const en = {
 	// GUARD degrades to the wrong sentence the day the guard moves, and this costs two strings.
 	'asset-price.negative-unit-cost': 'A price cannot be negative.',
 	'error.suffix.migration-failed': 'This note could not be converted to the current format.',
-	// TWO more suffixes, and the instrument that found them is
-	// `grep -rno '\${spec\.kind}\.[a-z-]*\|\${kind}\.[a-z-]*' src/infrastructure/`, which
-	// reports FOUR shared raise sites: `migration-failed` and `schema-version-unsupported`
-	// above, and these two. With them the class is closed, which is a claim that grep can be
-	// re-run against.
+	// THREE more suffixes, and the class they belong to is no longer described here at all: it
+	// is ASSERTED, by `toUserMessage.test.ts`'s 'every per-kind suffix raised in
+	// src/infrastructure/ resolves to something other than its category sentence'. The prose
+	// this replaces quoted a grep and read FOUR off it; the same grep prints SIX, and one of the
+	// six is not a code at all (a logger EVENT name), which is the half no text scan can settle
+	// and why that case carries a named exclusion table rather than a number.
 	//
 	// Both are SUFFIXES rather than per-kind entries because each is raised from ONE site
 	// parameterised by kind, so a direct `asset-price.` entry would answer it for one kind and
@@ -272,6 +273,12 @@ export const en = {
 		"This note's version could not be read, so it was not opened.",
 	'error.suffix.project-folder-unresolved':
 		'This note could not be saved, because the folder of the project it belongs to could not be found.',
+	// Raised when a note's own `id` names a different entity from the one the index sent us
+	// looking for it, which is a STALE INDEX rather than an unreadable vault — so the category
+	// sentence it fell back to ("The vault could not be read or written") named the wrong thing
+	// to do about it as well as the wrong cause.
+	'error.suffix.note-id-mismatch':
+		'This note belongs to a different entry, so it was not opened. Reload the vault to rebuild the index.',
 	'error.category.domain': 'Something about the project data is invalid.',
 	'error.category.validation': 'This data is not in the expected form.',
 	'error.category.persistence': 'The vault could not be read or written.',

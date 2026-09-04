@@ -12,6 +12,7 @@ import {
 	stringField,
 } from './buildProjectIndexEntries';
 import { incrementalSidecarMapping } from './sidecarMapping';
+import { entryById } from './entryLookup';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo';
@@ -443,13 +444,13 @@ export class VaultChangeAdapter {
 	}
 
 	/**
-	 * The by-id sibling of `findByPath`, over the same scan and for the same reason there is no
-	 * port method for either: `ProjectIndex` answers `getPath` and the three bucket queries, and
-	 * none of them hands back an ENTRY. A `getById` would be the smaller change and a wider
-	 * surface — this pipeline is the only caller, and it already pays this scan once per
-	 * processed path.
+	 * The by-id sibling of `findByPath`, and no longer this pipeline's own scan: `entryById`
+	 * holds it, because `ReconcilingProjectIndex.demoteDisplaced` asks the identical question in
+	 * a different module. That module's header carries why it is a function rather than a port
+	 * method, and what the previous version of THIS docblock got wrong by arguing it from a
+	 * caller count.
 	 */
 	private findById(id: ProjectIndexEntry['id']): ProjectIndexEntry | undefined {
-		return this.deps.index.entries().find((entry) => entry.id === id);
+		return entryById(this.deps.index, id);
 	}
 }

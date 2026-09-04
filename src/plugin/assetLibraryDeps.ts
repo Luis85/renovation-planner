@@ -116,9 +116,6 @@ export function assetLibraryDeps(
 		// one activation function is what stops a double click opening two designer tabs, and a
 		// second spelling here would be a second answer to which leaf an asset opens in.
 		openDesigner: renovationProjectOpenAsset(workspace, root.logger),
-		// Obsidian's real `Vault`, passed straight in: `BackgroundVault` is a `Pick` of it, so
-		// there is nothing to adapt and nothing that can drift from the API.
-		vault,
 		// §3.6's status bar folder half. Read from `root.settings` directly rather than from
 		// `persistence`, because the two can disagree (a null `vault` with real settings) — and
 		// it costs nothing to be right about that case: the status bar this feeds is drawn only

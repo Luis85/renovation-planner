@@ -116,6 +116,11 @@ function hydrate(): Promise<void> {
  * `ViewRoot`'s `onProjectsChanged` subscription already carries: Obsidian reuses this view, so
  * a listener outliving its Vue app would re-hydrate a store nothing renders and stack another
  * on the next open.
+ *
+ * ONE call, deliberately, and it hands the whole change over: `AssetLibraryStore.applyChange` is
+ * what splits `AssetLibraryChange` between the two stores, so this line cannot route half of a
+ * change — which is precisely what it did until the branch's final review, three of the five
+ * channels reaching nobody. That store's own header carries the account.
  */
 onMounted(() => {
 	void hydrate();
@@ -250,6 +255,24 @@ async function focusAfterSwap(selector: string, swapped: () => boolean): Promise
 	await nextTick();
 	if (!swapped()) return;
 	focusWithin(shellEl.value, selector, searchEl.value);
+}
+
+/**
+ * §12's fifth focus direction, and the one the promotion dropped: `Clear search` lives INSIDE
+ * the no-matches state, so clearing the query removes the very control the user pressed and the
+ * caret falls to `<body>` in every layout. That is why this path moves focus and the field's
+ * `Escape` path deliberately does not — there the input stays laid out and keeps its own caret.
+ *
+ * `() => true` rather than a swap predicate, because nothing here is conditional on a swap: the
+ * pressed control is going away whatever the pane's width is. Where the caret LANDS needs no
+ * branch either — clearing restores `showingSelection`, so on a narrow pane with a selection
+ * still held the inspector swaps back in and its Back control is the honest destination, and
+ * anywhere else that control is not laid out and `focusWithin`'s own fallback takes the search
+ * field.
+ */
+function onClearSearch(): void {
+	store.query = '';
+	void focusAfterSwap('.rp-al-inspector__back', () => true);
 }
 
 function toggleShelf(category: string): void {
@@ -495,6 +518,7 @@ async function onDelete(assetId: AssetId): Promise<void> {
 						@toggle="toggleShelf"
 						@select="onSelect"
 						@create="onCreateAsset"
+						@clear-search="onClearSearch"
 						@rehydrate="() => void hydrate()"
 					/>
 					<AssetInspector

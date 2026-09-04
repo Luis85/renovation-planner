@@ -1693,6 +1693,35 @@ One further string this flow can show is deliberately NOT in this inventory:
 zone sibling `reference.no-reassignment-target` lives. §8's inventory is this surface's own visible
 copy, and an error code's sentence is not keyed by surface.
 
+**Amendment 4 (final review): `view.asset-library.used-in.overridden` and
+`view.asset-library.note-future-schema` ship and were in neither the inventory nor any amendment,
+and this amendment stops assigning ORDINALS.**
+
+Both keys have producers and both are drawn:
+
+- `view.asset-library.used-in.overridden` is §11 item 6's mark — the word beside the dot on a
+  *Used in* row whose project holds a price override, rendered by `AssetInspectorUsedIn.vue`. It
+  is the one key the mark's own accessible name depends on, the dot being `aria-hidden`.
+- `view.asset-library.note-future-schema` is §3.5's THIRD selection-level failure state, the one
+  `AssetInspector.vue` separates from `note-unreadable`: a note written by a newer build is not a
+  damaged note, and telling its owner it *could not be read* names neither the cause nor the
+  remedy (update the plugin). It interpolates `{path}` like its sibling.
+
+**What went wrong is not that two keys were forgotten — it is that both were DECIDED and only one
+half of each decision was written down.** `en-assetLibrary.ts` calls
+`used-in.overridden` "§8's 61st key (amendment of 2026-09-03, Task 14)", naming an amendment of
+this section that does not exist in it. A key's inventory entry and its locale row are one
+decision recorded in two files, and the file the author was already editing is the one that got
+it. `strings.test.ts`'s pin FIRED for both — it is an exact count — and both times the number was
+bumped and the amendment step skipped, which is the pin working and its hand-off failing.
+
+**No ordinal is assigned here, and the ones already written are withdrawn as facts.** Amendment 3
+calls its key "the 63rd"; `en-assetLibrary.ts` calls `used-in.overridden` "the 61st"; both were
+written while this inventory was two keys short, so neither ordinal can be read off this document.
+The authoritative count is `tests/presentation/i18n/strings.test.ts`'s pin — an assertion in both
+locales, which is a thing a gate holds — and what this section owes is the KEY and its reason, not
+its position in a list nothing re-derives.
+
 **The three §4 keys were found by sweeping that section's state table row by row**, which is how
 this list should have been derived in the first place and was not. §4 tabulates six states and the
 inventory carried keys for two of them — the empty ones — so *Loading*, *Some unreadable* and the

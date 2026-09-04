@@ -240,9 +240,18 @@ describe('interpolation', () => {
 	 *
 	 * It is a RANGE-free exact count on purpose. A `toBeGreaterThan` would pass through exactly
 	 * the additions this exists to make deliberate: §8's inventory is a closed list the spec
-	 * states, so a 63rd key is a spec amendment somebody makes rather than a gap somebody fills,
-	 * and this case is where they find that out. Both locales are counted because an incomplete
-	 * `de.ts` is permitted by the type and would otherwise drift silently.
+	 * states, so a further key is a spec amendment somebody makes rather than a gap somebody
+	 * fills, and this case is where they find that out. Both locales are counted because an
+	 * incomplete `de.ts` is permitted by the type and would otherwise drift silently.
+	 *
+	 * **What this case makes VISIBLE is not what it makes HAPPEN, and the previous wording of the
+	 * sentence above blurred the two.** It fires on the key, whoever bumps the number reads why,
+	 * and the amendment is then a habit — which failed twice: `view.asset-library.used-in
+	 * .overridden` and `view.asset-library.note-future-schema` both reached this pin, both had it
+	 * bumped past them, and neither reached §8 until the branch's final review (the spec's
+	 * Amendment 4 records both, and withdraws the ordinals the two rounds assigned in passing).
+	 * Nothing here can read a design document, so the guarantee is exactly *the count cannot move
+	 * silently* and never *the spec was amended*.
 	 */
 	it('pins the Asset library inventory at 63 keys in both locales', () => {
 		expect(assetLibraryKeys(en)).toHaveLength(63);

@@ -241,6 +241,8 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Die Version dieser Notiz konnte nicht gelesen werden, daher wurde sie nicht geöffnet.',
 	'error.suffix.project-folder-unresolved':
 		'Diese Notiz konnte nicht gespeichert werden, weil der Ordner des zugehörigen Projekts nicht gefunden wurde.',
+	'error.suffix.note-id-mismatch':
+		'Diese Notiz gehört zu einem anderen Eintrag, daher wurde sie nicht geöffnet. Lade den Vault neu, um den Index neu aufzubauen.',
 	'error.category.domain': 'Die Projektdaten sind ungültig.',
 	'error.category.validation': 'Diese Daten haben nicht die erwartete Form.',
 	'error.category.persistence': 'Der Vault konnte nicht gelesen oder geschrieben werden.',

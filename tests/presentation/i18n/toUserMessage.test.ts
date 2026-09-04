@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { toUserMessage, trError } from '../../../src/presentation/i18n/toUserMessage';
 import { t } from '../../../src/presentation/i18n/strings';
@@ -29,6 +31,52 @@ const CATEGORY_KEY: Partial<Record<ErrorCategory, StringKey>> = {
 	Persistence: 'error.category.persistence',
 };
 
+/**
+ * The CATEGORY that the worked examples in `describe('toUserMessage')` are examples OF: every
+ * `${kind}.` and `${spec.kind}.` string raised anywhere under `src/infrastructure/` says
+ * something of its own to a user. (Declared out here rather than inside that block only because
+ * a helper capturing nothing from its scope is an oxlint finding; the case using it is in there.)
+ *
+ * It replaces a sentence — restated in `en.ts`, in `toUserMessage.ts` and in the docblock over
+ * those examples — which quoted a grep, read FOUR shared raise sites off it and concluded that "the
+ * class is closed". The same grep prints SIX, and `note-id-mismatch` really did degrade to
+ * *The vault could not be read or written* on every note-backed kind. A number nobody re-runs
+ * cannot close a class; this scan runs on every gate.
+ *
+ * **What a text scan cannot settle, and therefore what `NOT_A_CODE` is for.** The pattern
+ * finds a per-kind STRING, and this file cannot tell whether that string is handed to
+ * `persistenceError` or to `logger.error` — `delete-compensation-failed` is the second, an
+ * SDD §42 log line for a failed compensation, and the user is answered by the ORIGINAL
+ * refusal (`spec.deleteFailedCode`) rather than by it. A whole review round read the raw grep
+ * as six raise sites and reported that one as reaching users; only opening the file says
+ * otherwise. So an entry here is a READING somebody made, and it is asserted to still match
+ * something the scan finds — a carve-out for a site that no longer exists is a comment that
+ * goes on reading as a live exception.
+ */
+const NOT_A_CODE: Readonly<Record<string, string>> = {
+	'delete-compensation-failed':
+		'a logger event name in noteEntityWrite.ts, never an AppError code: the caller is ' +
+		'answered with the delete failure that provoked the compensation.',
+};
+
+/** `src/infrastructure/**` is a different tree from every file that states this claim, so the
+ *  scan cannot match its own quotation — which is how the previous version of it was
+ *  re-runnable and still never re-run. */
+function perKindSuffixes(): ReadonlySet<string> {
+	const pattern = /\$\{(?:spec\.)?kind\}\.([a-z-]+)/gu;
+	const found = new Set<string>();
+	const walk = (dir: string): void => {
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			const full = join(dir, entry.name);
+			if (entry.isDirectory()) walk(full);
+			else if (entry.name.endsWith('.ts'))
+				for (const match of readFileSync(full, 'utf8').matchAll(pattern)) found.add(match[1]);
+		}
+	};
+	walk(join('src', 'infrastructure'));
+	return found;
+}
+
 describe('toUserMessage', () => {
 	it('resolves a code the table knows through t()', () => {
 		expect(toUserMessage('en', error({ code: 'vault.unexpected-failure' }))).toBe(
@@ -42,15 +90,16 @@ describe('toUserMessage', () => {
 	});
 
 	/**
-	 * The TWO suffixes the price section's own read needed, and the grep that says the class is
-	 * closed rather than merely extended:
-	 * `grep -rno '\${spec\.kind}\.[a-z-]*\|\${kind}\.[a-z-]*' src/infrastructure/` reports
-	 * exactly four shared raise sites, and all four now have a row in `CODE_SUFFIX_KEYS`.
+	 * Worked EXAMPLES of the per-kind fallback, which the case below then asks as a category.
 	 *
 	 * Driven with `plan.` and `zone.` prefixes rather than `asset-price.`, deliberately: both
 	 * sites are ONE raise parameterised by kind, so a per-kind entry would answer for one kind
 	 * and leave the siblings on the generic category sentence — which is where every kind was
 	 * until these rows. Asserting the sibling kinds is what makes that a claim about the class.
+	 *
+	 * This docblock used to carry a grep and a count of what it reports, restating `en.ts`'s and
+	 * `toUserMessage.ts`'s copies of the same sentence. All three read FOUR; the grep prints six.
+	 * The count is gone from all three, and `perKindSuffixes` above asserts the coverage instead.
 	 */
 	it.each([
 		['plan.schema-version-malformed', 'Validation'],
@@ -63,6 +112,23 @@ describe('toUserMessage', () => {
 		const categoryKey = CATEGORY_KEY[category] as StringKey;
 		expect(toUserMessage('en', refusal)).not.toBe(t('en', categoryKey));
 		expect(toUserMessage('de', refusal)).not.toBe(t('de', categoryKey));
+	});
+
+	it('resolves every per-kind suffix raised in src/infrastructure/ to something other than its category sentence', () => {
+		const suffixes = perKindSuffixes();
+		// An instrument that reaches nothing looks exactly like a clean tree.
+		expect(suffixes.size).toBeGreaterThan(3);
+		expect(Object.keys(NOT_A_CODE).filter((suffix) => !suffixes.has(suffix))).toEqual([]);
+
+		for (const suffix of suffixes) {
+			if (suffix in NOT_A_CODE) continue;
+			// `plan.` because no direct key exists for it, so only the SUFFIX table can answer:
+			// a direct-code entry would pass this for one kind and leave its siblings behind,
+			// which is the exact defect these rows exist to close.
+			const refusal = error({ category: 'Persistence', code: `plan.${suffix}` });
+			expect(toUserMessage('en', refusal)).not.toBe(t('en', 'error.category.persistence'));
+			expect(toUserMessage('de', refusal)).not.toBe(t('de', 'error.category.persistence'));
+		}
 	});
 
 	/**

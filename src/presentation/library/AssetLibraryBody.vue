@@ -73,6 +73,8 @@ const emit = defineEmits<{
 	select: [assetId: AssetId];
 	/** §3.1's `New asset`, which opens a dialog and therefore belongs to the root. */
 	create: [];
+	/** §4's other empty-state action — see `onEmptyStateAction` for why it leaves this file. */
+	'clear-search': [];
 	/** The listing this pane was drawn from is stale — see this file's own header. */
 	rehydrate: [];
 }>();
@@ -110,10 +112,18 @@ const empty = computed(() => {
  * `noAssets`'s action CREATES something (`New asset`, the same toolbar gesture the root owns);
  * `noMatches`'s RESTORES the previous view by clearing the query — a create action offered from
  * a no-matches state would be the wrong gesture, per §4's own table.
+ *
+ * **Both arms EMIT, and the second one did not until a review found the focus gone.** Clearing
+ * the query here made `emptyStateKey` null, which removes this whole `EmptyState` — the button
+ * the user just pressed — so focus fell to `<body>` and the next Tab restarted at the top of the
+ * pane. §12's fifth focus direction is exactly this gesture, and the prototype this component
+ * was promoted from splits `clearSearchFromNoMatches` out of `clearSearch` for exactly it. The
+ * move belongs to the root, which owns `focusAfterSwap`, the shell element and the search field;
+ * what belongs here is knowing WHICH of §4's two states the button was drawn in.
  */
 function onEmptyStateAction(): void {
 	if (store.emptyStateKey === 'noAssets') emit('create');
-	else store.query = '';
+	else emit('clear-search');
 }
 
 /**

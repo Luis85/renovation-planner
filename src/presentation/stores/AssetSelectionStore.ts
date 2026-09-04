@@ -150,7 +150,12 @@ export const useAssetSelectionStore = defineStore('asset-selection', () => {
 	 * already implies, so an id in both channels takes the wider restart once rather than
 	 * re-reading the override marks twice.
 	 *
-	 * The other two channels — `catalogue` and `marks` — are `AssetLibraryStore.applyChange`'s.
+	 * The other two channels — `catalogue` and `marks` — are `AssetLibraryStore.applyChange`'s,
+	 * and that function is also this one's ONLY caller: a whole change arrives at one door and is
+	 * split there, never at a subscription that can route half of it. It routed half of it from
+	 * the task that mounted the subscription until the branch's final review;
+	 * `AssetLibraryStore.applyChange`'s header carries what that cost, and why the split moved
+	 * rather than being remembered.
 	 */
 	async function applyChange(
 		change: AssetLibraryChange,

@@ -14,7 +14,6 @@ import type { AssetLibraryChange } from '../../application/events/assetLibraryCh
 import type { Logger } from '../../application/ports/Logger';
 import type { Asset } from '../../domain/asset/Asset';
 import type { AssetId } from '../../domain/asset/AssetId';
-import type { BackgroundVault } from '../editor/layers/background/BackgroundRenderModel';
 import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueries';
 
 /**
@@ -139,13 +138,6 @@ export interface AssetLibraryDeps {
 	readonly openAssetNote: (assetId: AssetId) => Promise<NoteOpenOutcome>;
 	/** Jumps into the designer for one asset — §3.5's `Open designer` action. */
 	readonly openDesigner: (assetId: AssetId) => Promise<void>;
-	/**
-	 * The three `Vault` members the background pipeline calls, so §3.5's spec-sheet row can
-	 * draw the document an asset names. The same slice of Obsidian's `Vault` the Plan Editor
-	 * and the designer take, reached through the same `loadBackground`/`BackgroundLayer` pair
-	 * rather than a second decode path.
-	 */
-	readonly vault: BackgroundVault;
 	/**
 	 * §3.6's status bar folder half — `54 assets · Renovation/Library` — a plain settings echo
 	 * rather than a query, exactly as `RenovationProjectCommandServices.defaultCurrency` mirrors

@@ -14,6 +14,7 @@
  * lesson for the identical door on the sibling surface.
  */
 import { describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
 import { err, ok } from '../../../src/core/result/Result';
 import type { Result } from '../../../src/core/result/Result';
 import type { AppError } from '../../../src/core/errors/AppError';
@@ -24,7 +25,11 @@ import type { CreateAssetInput } from '../../../src/application/commands/asset/C
 import type { SetAssetFootprintFromDimensionsInput } from '../../../src/application/commands/asset/SetAssetFootprint';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import type { AssetLibraryChange } from '../../../src/application/events/assetLibraryChangeSource';
-import type { CatalogueListing } from '../../../src/application/queries/ListCatalogueEntries';
+import type {
+	CatalogueEntryDto,
+	CatalogueListing,
+} from '../../../src/application/queries/ListCatalogueEntries';
+import type { AssetLibraryQueryServices } from '../../../src/presentation/read-models/assetLibraryQueries';
 import { unavailableAssetLibraryQueries } from '../../../src/presentation/read-models/assetLibraryQueries';
 import NewAssetForm from '../../../src/presentation/views/NewAssetForm.vue';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
@@ -184,9 +189,18 @@ describe('AssetLibraryRoot, the empty-state actions', () => {
 		expect(root.findComponent(NewAssetForm).exists()).toBe(true);
 	});
 
-	it('clears the search from the no-matches state, and opens no dialog', async () => {
+	/**
+	 * Attached, because §12's focus half cannot be faked: `focus()` on a detached element does
+	 * nothing at all, so a free-floating mount reports `<body>` for the fixed build and the
+	 * broken one alike.
+	 */
+	it('clears the search from the no-matches state, moves the caret, and opens no dialog', async () => {
 		const { commands } = creationCommands();
-		const root = await mountRoot({ entries: [anEntry({ name: 'Oak plank floor' })], commands });
+		const root = await mountRoot({
+			entries: [anEntry({ name: 'Oak plank floor' })],
+			commands,
+			attach: true,
+		});
 
 		await root.get('.rp-al-search__input').setValue('zzz-no-match');
 		await settle();
@@ -200,6 +214,19 @@ describe('AssetLibraryRoot, the empty-state actions', () => {
 		expect((root.get('.rp-al-search__input').element as HTMLInputElement).value).toBe('');
 		expect(root.find('.rp-al-shelf').exists()).toBe(true);
 		expect(root.findComponent(NewAssetForm).exists()).toBe(false);
+		// The gesture REMOVES the control that was pressed, so the caret has nowhere of its own
+		// to stay — `<body>` here means the next Tab restarts at the top of the pane, which is
+		// what this surface shipped until a review found it.
+		//
+		// WHERE it lands is asserted as *inside the pane* rather than as one element, because
+		// jsdom evaluates no container query: §7's narrow composition is what decides whether
+		// `.rp-al-inspector__back` is laid out at all, so pinning it here would pin this
+		// environment's answer rather than the rule (`shelfFocus.ts`'s own header records the
+		// same blind spot). Both destinations `focusWithin` can choose are in this subtree, and
+		// `<body>` — the defect — is not.
+		expect(document.activeElement).not.toBe(document.body);
+		expect(root.element.contains(document.activeElement)).toBe(true);
+		root.unmount();
 	});
 });
 
@@ -263,8 +290,11 @@ describe('AssetLibraryRoot, the change subscription', () => {
 		await settle();
 		expect(listCatalogue).toHaveBeenCalledTimes(2);
 
-		// A change this store holds no state for costs nothing — the store's own arm decides,
-		// which is why the subscription hands the whole change over rather than re-reading.
+		// A channel the CATALOGUE listing holds no state for costs a listing read nothing — the
+		// store's own arm decides, which is why the subscription hands the whole change over
+		// rather than re-reading. This says nothing about whether that channel reaches anybody
+		// AT ALL; the category cases below are what ask that, and until the branch's final review
+		// the answer for this very channel was no.
 		announce({ catalogue: false, marks: [], design: ['a' as AssetId], usage: [], replaced: [] });
 		await settle();
 		expect(listCatalogue).toHaveBeenCalledTimes(2);
@@ -272,5 +302,99 @@ describe('AssetLibraryRoot, the change subscription', () => {
 		expect(disposed).toBe(false);
 		root.unmount();
 		expect(disposed).toBe(true);
+	});
+});
+
+/**
+ * EVERY channel of `AssetLibraryChange` reaches a read — the CATEGORY, asked of the listener the
+ * root actually registered rather than of either store's door.
+ *
+ * This exists because three of the five reached nobody until the branch's final review: it routed
+ * the whole change to `AssetLibraryStore` alone, so an `AssetPriceOverrideChanged` did literally
+ * nothing (§11 item 6's *Used in* marks never refreshed), a design edit moved a row's mark beside
+ * an inspector still printing the pre-edit millimetres, and `replaced` lost what §5.5 calls the
+ * load-bearing half of the ticket rule. Every gate was green: a store door with no caller is not
+ * a defect a linter or a type has a name for, and the case above passes identically in both
+ * worlds.
+ *
+ * A SIXTH channel cannot slip past this: `CHANNEL_READS` is keyed by `keyof AssetLibraryChange`
+ * and `changeWith` builds a complete literal, so adding one to the interface is two compile
+ * errors before it is a missing case — which is what makes this a rule rather than a list of the
+ * five somebody thought of.
+ */
+const CHANNEL_READS: Record<keyof AssetLibraryChange, keyof AssetLibraryQueryServices> = {
+	catalogue: 'listCatalogue',
+	marks: 'listOutlines',
+	design: 'getDesign',
+	usage: 'listOverridingProjects',
+	replaced: 'listReferencing',
+};
+
+/** One channel carrying `assetId` and every other one empty — the whole point being that a
+ *  build routing four of five passes on the four and fails here on the fifth. */
+function changeWith(channel: keyof AssetLibraryChange, assetId: AssetId): AssetLibraryChange {
+	const ids = [assetId];
+	return {
+		catalogue: channel === 'catalogue',
+		marks: channel === 'marks' ? ids : [],
+		design: channel === 'design' ? ids : [],
+		usage: channel === 'usage' ? ids : [],
+		replaced: channel === 'replaced' ? ids : [],
+	};
+}
+
+/**
+ * The refusing bundle with a real listing over it, every member spied. The selection reads are
+ * left REFUSING deliberately: this asks whether the read was ISSUED, and a refusal is issued
+ * exactly as a success is — while a fixture that had to build a valid `AssetDesignDto` would be
+ * a second answer to what a design is.
+ */
+function countingQueries(entries: readonly CatalogueEntryDto[]): AssetLibraryQueryServices {
+	const base = unavailableAssetLibraryQueries();
+	return {
+		...base,
+		listCatalogue: vi.fn<AssetLibraryQueryServices['listCatalogue']>(() =>
+			Promise.resolve(ok({ entries, unreadable: [] })),
+		),
+		listOutlines: vi.fn<AssetLibraryQueryServices['listOutlines']>(base.listOutlines),
+		getDesign: vi.fn<AssetLibraryQueryServices['getDesign']>(base.getDesign),
+		listReferencing: vi.fn<AssetLibraryQueryServices['listReferencing']>(base.listReferencing),
+		listOverridingProjects: vi.fn<AssetLibraryQueryServices['listOverridingProjects']>(
+			base.listOverridingProjects,
+		),
+	};
+}
+
+describe('AssetLibraryRoot, every change channel', () => {
+	let announce!: (change: AssetLibraryChange) => void;
+
+
+	// `Object.keys` answers `string[]` whatever its argument's key type is — TS's own widening,
+	// not a gap in the table: COMPLETENESS is held by `CHANNEL_READS`'s `Record` key type above,
+	// which is where a sixth channel is refused.
+	const channels = Object.keys(CHANNEL_READS) as (keyof AssetLibraryChange)[];
+
+	it.each(channels)('re-reads for the %s channel', async (channel) => {
+		const entry = anEntry();
+		const queries = countingQueries([entry]);
+		const root = await mountRoot({
+			queries,
+			// Drawn AND selected: `marks` re-reads only what a shelf is drawing, and the other
+			// three arms are about the SELECTED asset. Neither is a property of the change.
+			expanded: ref([entry.category]),
+			assetId: ref<string>(entry.assetId),
+			onLibraryChanged: (listener) => {
+				announce = listener;
+				return () => undefined;
+			},
+		});
+		const read = vi.mocked(queries[CHANNEL_READS[channel]]);
+		const before = read.mock.calls.length;
+
+		announce(changeWith(channel, entry.assetId));
+		await settle();
+
+		expect(read.mock.calls.length).toBeGreaterThan(before);
+		root.unmount();
 	});
 });

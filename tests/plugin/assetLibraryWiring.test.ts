@@ -55,8 +55,13 @@ describe('assetLibraryDeps with a composed root', () => {
 			indexScanCompleted: () => true,
 		});
 
-		// The PASS-THROUGH half of the bundle: these five members are handed on by reference, so
-		// identity is the whole of what there is to check. The QUERIES are the group the bundle
+		// The PASS-THROUGH half of the bundle — every member below is handed on by reference, so
+		// identity is the whole of what there is to check. NO COUNT is stated, and the previous
+		// wording's ("these five members") is what this replaces: a review dropped the `vault`
+		// member for having no consumer anywhere in `src/presentation/library/`, and a number
+		// here is one more thing that has to be kept in step with the block beneath it.
+		//
+		// The QUERIES are the group the bundle
 		// CONSTRUCTS, so they cannot be checked this way and are not — the case below drives
 		// them instead. This case was named "binds every read … and never a second copy" for a
 		// round while asserting not one read; a mutation composing a second `guardAssetLibrary`
@@ -74,7 +79,6 @@ describe('assetLibraryDeps with a composed root', () => {
 		);
 		expect(deps.commands.defaultCurrency).toBe(DEFAULT_SETTINGS.defaultCurrency);
 		expect(deps.logger).toBe(root.logger);
-		expect(deps.vault).toBe(stack.vault);
 		expect(deps.indexScanCompleted()).toBe(true);
 		// §3.6's status-bar half — a settings echo, so identity is again the whole check.
 		// `libraryFolder: ''` passed 406 tests.

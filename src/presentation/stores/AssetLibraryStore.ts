@@ -233,23 +233,40 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 	);
 
 	/**
-	 * The two arms of `AssetLibraryChange` this store owns, routed in one place rather than at
-	 * the subscription site: a view that spelled them out would be a view that can forget one,
-	 * and `marks` is the arm nothing else would notice missing — a stale outline survives *for
-	 * the life of the view*, which is the guarantee §5.4 exists to give.
+	 * ONE door for a whole `AssetLibraryChange` — the two arms this store owns, and the other
+	 * three handed on to `AssetSelectionStore.applyChange` from here rather than from the
+	 * subscription site.
 	 *
-	 * The other three arms are `AssetSelectionStore.applyChange`'s. Nothing here reads them, and
-	 * nothing there reads these two.
+	 * **A subscriber that spelled the two calls out is a subscriber that can make one of them,
+	 * and that is not a hypothetical: it shipped.** `AssetLibraryRoot`'s subscription routed the
+	 * change to this store alone from the task that mounted it until the branch's final review, so
+	 * `usage` reached nobody at all (an `AssetPriceOverrideChanged` did literally nothing, which
+	 * is §11 item 6's whole harm),
+	 * `design` moved a row's mark beside an inspector still printing the pre-edit millimetres,
+	 * and `replaced` lost what §5.5 calls the load-bearing half of the ticket rule while its
+	 * listing backstop went on passing. No gate could see it: a store door with no caller is not
+	 * a defect any linter or type has a name for.
+	 *
+	 * So the routing lives where `applyListing`'s does, one function below, for the reason that
+	 * line already gives about itself — *applied HERE rather than left to whoever calls
+	 * `hydrate`*. This store still READS none of the three arms it forwards, and the selection
+	 * store reads neither of these two; what changed is that neither of them is a call a view
+	 * has to remember.
+	 *
+	 * Resolved above the first await for `hydrate`'s own recorded reason (the module-global
+	 * `activePinia`, and two leaves each with their own pinia).
 	 */
 	async function applyChange(
 		change: AssetLibraryChange,
 		queries: AssetLibraryQueryServices,
 		indexScanCompleted: () => boolean,
 	): Promise<void> {
+		const selection = useAssetSelectionStore();
 		// Concurrently: a sidecar batch and a catalogue listing are independent reads of different
 		// files, and awaiting the marks first only delays the listing behind whatever the slowest
-		// sidecar in the batch costs.
-		const work: Promise<void>[] = [];
+		// sidecar in the batch costs. The selection's three arms join them for the same reason —
+		// they read a different asset's design and referents, and nothing here orders them.
+		const work: Promise<void>[] = [selection.applyChange(change, queries)];
 		if (change.marks.length > 0) work.push(marks.invalidate(change.marks, queries));
 		if (change.catalogue) work.push(hydrate(queries, indexScanCompleted));
 		await Promise.all(work);

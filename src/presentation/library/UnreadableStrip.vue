@@ -32,7 +32,12 @@
 	for. Rather than keep an attribute that claims a behaviour it cannot have, the strip is what
 	it actually is: a static region rendered with the pane. §5.1a asks for a repair strip and
 	names no announcement; the one announcement §6.1 DOES ask for — the search result count — is
-	a persistent, always-drawn region in `AssetLibraryRoot.vue`, written into on each keystroke.
+	a persistent, always-drawn region, written into on each keystroke. It is
+	`AssetLibraryBody.vue`'s `resultsAnnouncement`, and this sentence said `AssetLibraryRoot.vue`
+	until a review ran `grep -n 'role=' src/presentation/library/AssetLibraryRoot.vue` and got
+	NOTHING: Task 16b extracted the body, the region went with it, and the count in the paragraph
+	below stayed right the whole time. A name can point at the wrong thing, and that is quieter
+	than a stale count — nothing about a sentence naming the wrong file reads as unverified.
 
 	**That rule is a CLASS this tree has not swept, and saying so is what stops this comment
 	reading as though it had been.** Measured across `src/presentation/**/*.vue` (comments
@@ -40,7 +45,8 @@
 	`v-if`/`v-else-if` and therefore appear together with their content — four in
 	`PlanEditorRoot.vue`, three in `AssetDesignerRoot.vue`, two in `ProjectDetail.vue`, one in
 	`ViewRoot.vue`'s own partial-read notice, which is this strip's exact twin. Two are
-	unconditional and correct: `StatusBar.vue`'s, and the search-count region beside this one.
+	unconditional and correct: `StatusBar.vue`'s, and the search-count region in this strip's own
+	parent.
 	Fixing the twin alone was offered and declined — it is one of ten, and a partial fix that
 	reads like a complete one is this repository's oldest recorded defect. The remedy is slice
 	13's persistent-region shape applied as a sweep with its own review, and it is neither this

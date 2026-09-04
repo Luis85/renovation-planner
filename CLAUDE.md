@@ -66,13 +66,19 @@ there is nothing here to go stale, and a reader asking what is unbuilt is sent t
 document's amendments rather than here, because a list of exceptions kept in two places is one
 that disagrees with itself.
 
-There are **three workspace surfaces**, each mounting its own isolated Vue app (SDD §12) —
-nothing outside a view knows it is Vue. It said TWO for a slice after the third was
-registered, which is this file's own recurring defect and the reason the count is now
-stated against `registerView`: that call appears FOUR times in
-`RenovationPlannerPlugin.ts`, and the fourth is `GEOMETRY_SIDECAR_VIEW`, a registered view
-that mounts no Vue root at all. So three surfaces, four registrations, and the two numbers
-are different facts. The **Renovation project** view is a singleton with
+There are **four workspace surfaces**, each mounting its own isolated Vue app (SDD §12) —
+nothing outside a view knows it is Vue. This sentence said TWO for a slice after the third was
+registered and THREE for a branch after the fourth was, and the second time it was already
+"re-founded on `registerView`" — so a COUNT is not what fixes it, whatever the count is of. Two
+reasons, and only the first was known: a number written here is a number nothing re-runs, and
+`grep -c "registerView" src/plugin/RenovationPlannerPlugin.ts` answers one MORE than the calls
+because that file's own prose names the call, so the obvious re-measurement misleads too.
+No count is stated here, therefore. **The registered view types are pinned in order, by exact
+array, by `tests/plugin/settings/unrecovered.test.ts`** ("registers the view and the command
+anyway") — that assertion is where a fifth one arrives and fails, rather than here where it
+would read correctly forever. Which of them mounts a Vue ROOT is the different fact and the one
+this paragraph is about: every entry on that list except `GEOMETRY_SIDECAR_VIEW`, which is
+registered and mounts none. The **Renovation project** view is a singleton with
 a ribbon button and a command, and it now draws **a project list** — design slice 16's
 `ProjectList.vue`, not slice 17's: that document is the error-surfacing decision table and
 never once mentions one, so the list was owned by no slice until slice 16 claimed it. This
@@ -141,6 +147,13 @@ records as REJECTED: that note is `status: Done` and says slice 05 registers no 
 while `RenovationPlannerPlugin.ts` registers `PLAN_EDITOR_VIEW`. ADR-0015 follows the code rather
 than the note, says so, and the note carries a pointer back — because a contradiction findable
 from only one side is one the next reader resolves the wrong way.
+
+The **Asset library** is the fourth: one vault-wide catalogue of every `Asset`, reached through
+`revealView` exactly as the Renovation project view is, drawing shelves of rows and an inspector
+for whichever row is selected. Its own design document is
+`docs/user-experience/asset-library-overview-DESIGN-SPEC.md`, which is the authority for every
+section number the `src/presentation/library/` modules cite; this file describes no part of it
+that document already owns.
 
 **Its shell regions are held reachable by an import-graph walk, not by a habit.**
 `tests/presentation/designer/regionsReachable.test.ts` requires every `.vue` under
@@ -1303,8 +1316,12 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   you write. The one hole: `DialogHost`'s check is `FormDialog`'s declared prop type, so it
   is STRUCTURAL — a fifth descriptor carrying a `title` and a `component` would satisfy
   `FormDescriptor` and render as a form rather than fail.
-- **`DeleteReferenceDialog` and `EntityPickerDialog` have a caller now** — slice 10's
-  `presentation/editor/deleteZoneFlow.ts`, reached from the Inspector's Delete button. They
+- **`DeleteReferenceDialog` and `EntityPickerDialog` have callers now** — slice 10's
+  `presentation/editor/deleteZoneFlow.ts`, reached from the Inspector's Delete button, and since
+  the Asset library `presentation/library/deleteAssetFlow.ts` beside it; both open both kinds,
+  which `grep -rn "kind: 'delete-reference'\|kind: 'entity-picker'" src/presentation/` says
+  (four `openDialog` calls, two per flow, plus each descriptor's own declaration and the two
+  docblocks quoting the call). They
   shipped with none for two slices, which was the plan rather than dead code: the queries
   feeding their rows and the command fields carrying their answer were slice 10's to define,
   and declaring them in slice 15 would have been a second derivation of contracts it owns.
@@ -1316,7 +1333,12 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   is the shape rather than the schedule: the first interpolated string in the plugin IS the row
   label item 6 names, so neither could land alone. The query answers
   `readonly ReferencingGroup[]` now, with `projectPath` supplied only where `projectName` is
-  ambiguous among the groups returned, and the row mapping is `rowsFor` in `deleteZoneFlow.ts`.
+  ambiguous among the groups returned, and the row mapping is `rowsFor` — which the Asset
+  library's own delete flow then EXTRACTED, along with the whole reference-resolution sequence,
+  into `presentation/references/deleteWithReferences.ts`, where `grep -rn "function rowsFor" src/`
+  finds it — one declaration, called once, inside the sequence BOTH flows dispatch through
+  (`deleteZoneFlow.ts` and `deleteAssetFlow.ts` each end in `deleteWithReferences(bound, name)`),
+  which is why the caller list is the flows' and not this function's.
   Both items are ticked in slice 15's OWN document with a dated note, which is where a closed
   criterion belongs.
 - **A tool's transient visual goes in `RenderState`, and it needs its own field when it

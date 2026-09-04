@@ -17,7 +17,6 @@ import type { AssetLibraryDeps } from '../../src/presentation/library/AssetLibra
 import { unavailableAssetLibraryCommands } from '../../src/presentation/library/AssetLibraryDeps';
 import { unavailableAssetLibraryQueries } from '../../src/presentation/read-models/assetLibraryQueries';
 import { createAssetLibraryChangeSource } from '../../src/application/events/assetLibraryChangeSource';
-import { emptyBackgroundVault } from './background';
 import { recorder } from './logger';
 import { RecordingEventBus } from './domain';
 import { FakeLeaf } from './workspace';
@@ -43,7 +42,6 @@ export function defaultAssetLibraryDeps(overrides: Partial<AssetLibraryDeps> = {
 		openNote: () => Promise.resolve('opened'),
 		openAssetNote: () => Promise.resolve('opened'),
 		openDesigner: () => Promise.resolve(),
-		vault: emptyBackgroundVault(),
 		libraryFolder: 'Renovation/Library',
 		...overrides,
 	};

@@ -90,7 +90,10 @@ export const en = {
 	'reference.referents-exist': 'Other entries still reference this. Remove or reassign them first.',
 	'reference.set-changed': 'The references to this changed while you were deciding. Check them and confirm again.',
 	'reference.resolution-required': 'This is still referenced. Decide what happens to those references before deleting it.',
-	'reference.no-reassignment-target': 'There is no other zone in this project to reassign these requirements to.',
+	// "room or area", not "zone": the reassign decision this sentence refuses is opened by the
+	// Plan Editor's own Delete button, so it is read beside labels that say Room. ADR-0016's
+	// homeowner split is exactly Room OR Area, and this refusal is true of both.
+	'reference.no-reassignment-target': 'There is no other room or area in this project to reassign these requirements to.',
 	'reference.self-reassign': 'References cannot be reassigned to the entry being deleted. Pick a different one.',
 	'reference.cross-project-reassign': 'References can only be reassigned within the same project.',
 	// The delete dialog's reference rows (slice 15 item 6), one row per project. TWO keys
@@ -665,8 +668,11 @@ export const en = {
 	//
 	// The second sentence points at the diagnostics report, which is why the report is in the
 	// same increment: a sentence naming a surface that does not exist is a promise on screen.
+	//
+	// "rooms or areas", not "zones", for the reason `reference.no-reassignment-target` above
+	// gives: the picker this refusal replaces is opened from the Plan Editor's Delete button.
 	'zone.listing-incomplete':
-		'Some zones in this project could not be read, so the list of places to move this to is incomplete. Open the diagnostics report to see which notes refused.',
+		'Some rooms or areas in this project could not be read, so the list of places to move this to is incomplete. Open the diagnostics report to see which notes refused.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

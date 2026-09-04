@@ -231,6 +231,59 @@ describe('the plan editor speaks of Room, never Zone (ADR-0016, design spec 2026
 	});
 });
 
+/**
+ * The two sentences the DELETE FLOW puts on screen, which §7.2's prefix scope cannot reach.
+ *
+ * `reference.no-reassignment-target` and `zone.listing-incomplete` are both raised by the
+ * reassign decision the Plan Editor's own Delete button opens — the very control the Add Room
+ * increment relabelled — and both said "zone" to a homeowner while every label around them
+ * said "room or area". Neither key carries an `editor.` or an `empty.plan.` prefix, so the
+ * category check above is silent about them BY DESIGN (the scope is the spec's and stays as
+ * drawn): a code raised in `application/` and minted in `presentation/` is not the editor's
+ * vocabulary as a rule, and widening the prefix list would sweep in every `reference.*` and
+ * `zone.*` sentence, most of which no editing surface shows.
+ *
+ * So these two are named. A LIST rather than a rule, which this repository normally refuses —
+ * and the reason it is right here is that the list is what the prefix scope deliberately
+ * excludes: a rule wide enough to cover them is the widening the spec declined. The trigger
+ * for a third entry is a third code the delete flow can surface.
+ */
+/**
+ * ADR-0016's homeowner split is Room OR Area — one thing is one or the other, never both — so
+ * a label that reworded "zone" into a CONJUNCTION says something the split does not.
+ * `editor.calibrate.recalibrate.title` shipped as "rooms and areas" while its own message
+ * three characters away said "rooms or areas", which is two sentences of one dialog
+ * disagreeing about the model.
+ */
+describe('the reworded zone labels use the split ADR-0016 actually draws', () => {
+	it('the recalibration prompt says "or" in its title as well as its message', () => {
+		for (const table of [en, de]) {
+			const title = table['editor.calibrate.recalibrate.title'];
+			const message = table['editor.calibrate.recalibrate.message'];
+			const connective = table === en ? /rooms? or areas?/i : /R(aum|äume) oder Fläche/;
+			expect(title).toMatch(connective);
+			expect(message).toMatch(connective);
+			expect(title).not.toMatch(table === en ? /rooms? and areas?/i : /R(aum|äume) und Fläche/);
+		}
+	});
+});
+
+describe('the delete flow the editor opens speaks the same vocabulary as the editor', () => {
+	const DELETE_FLOW_KEYS = ['reference.no-reassignment-target', 'zone.listing-incomplete'] as const;
+
+	it('says room or area in English and Raum/Fläche in German, never zone', () => {
+		for (const key of DELETE_FLOW_KEYS) {
+			expect(en[key]).not.toMatch(/\bzones?\b/i);
+			expect(en[key]).toMatch(/rooms? or areas?/i);
+			// German's own plural is `Zonen`, which `\bzones?\b` cannot see — measured in the
+			// category check above, and the reason this one spells the German stem itself.
+			expect(de[key]).not.toMatch(/Zone/i);
+			expect(de[key]).toMatch(/R(aum|äume)/);
+			expect(de[key]).toMatch(/Fläche/);
+		}
+	});
+});
+
 /** Every `{name}`-shaped hole in a template, sorted so two lists compare by content alone. */
 const holesIn = (value: string): string[] => [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).toSorted();
 

@@ -117,7 +117,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.calibrate.distance.title': 'Reale Entfernung festlegen',
 	'editor.calibrate.distance.label': 'Entfernung in Millimetern',
 	'editor.calibrate.distance.measured': 'Auf dem Hintergrund gemessen:',
-	'editor.calibrate.recalibrate.title': 'Die Räume und Flächen auf diesem Plan neu skalieren?',
+	'editor.calibrate.recalibrate.title': 'Die Räume oder Flächen auf diesem Plan neu skalieren?',
 	'editor.calibrate.recalibrate.message': 'Auf diesem Plan sind bereits Räume oder Flächen eingezeichnet. Beim Festlegen des Maßstabs werden alle skaliert. Sie können den Vorgang rückgängig machen.',
 	'editor.task.banner': 'Aktuelle Aufgabe',
 	'editor.task.draw-room.name': 'Raum hinzufügen',

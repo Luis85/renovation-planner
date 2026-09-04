@@ -167,7 +167,7 @@ export const editorEn = {
 	// noun true of both surfaces. The key keeps its `editor.` prefix because the FORM lives in
 	// `presentation/editor/shell/` and a key rename orphans nothing but reads as a move.
 	'editor.calibrate.distance.measured': 'Measured on the background:',
-	'editor.calibrate.recalibrate.title': 'Rescale the rooms and areas on this plan?',
+	'editor.calibrate.recalibrate.title': 'Rescale the rooms or areas on this plan?',
 	'editor.calibrate.recalibrate.message': 'This plan already has rooms or areas drawn on it. Setting the scale rescales every one of them. You can undo it.',
 	// Task 18's temporary task banner: names the active creation task over the canvas and
 	// offers a Cancel button. NOT `routeEscape` (R7, 2026-09-04): Cancel LEAVES the task —

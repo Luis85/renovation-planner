@@ -1623,7 +1623,23 @@ git add -A && git commit -m "feat: the asset library stylesheet and its containe
 
 ---
 
-### Task 16: The keyboard, and the narrow composition
+### Task 16a: Mounting the inspector, the keyboard, and the view state
+
+**SPLIT FROM TASK 16 BY RULING, mid-execution, and read why before treating this as bureaucracy.**
+Task 16 arrived carrying its own keyboard work and then inherited TWO more subjects — the
+write-back into Obsidian's view state (folded in when Task 13 shipped only the read half) and
+`Delete`'s reference-resolution flow (handed over by Task 14 with verified reasons). Three
+subjects is not by itself a reason to split. The measurement is: **`AssetLibraryRoot.vue` is 331
+lines against a 400 cap and its cognitive complexity is 12 of fallow's 15, where a conditional
+region at the body-sibling position — exactly where the inspector goes — costs THREE.** Mounting
+the inspector therefore spends the whole remaining budget on its own, and everything after it
+forces the `AssetLibraryBody.vue` extraction that Task 13's review already named. A task that
+must extract a component midway to fit its own second subject is a task whose seam is in the
+wrong place.
+
+So: **16a is navigation and state, 16b is a destructive command flow.** A reviewer can reject
+either while approving the other, which is the test for whether a split is real. 16b genuinely
+depends on 16a — §3.5's post-deletion focus rule names targets only `shelfFocus.ts` can address.
 
 **Spec:** §6.2 lines 1330–1377 in full, §6.1's narrow-search rule, §7's last row.
 
@@ -1632,23 +1648,19 @@ git add -A && git commit -m "feat: the asset library stylesheet and its containe
 - Modify: `src/presentation/library/AssetLibraryRoot.vue`, `AssetInspector.vue`, `AssetLibraryView.ts`, `AssetLibraryContext.ts`
 - Test: `tests/presentation/library/shelfFocus.test.ts`, `assetLibraryKeyboard.test.ts`, `assetLibraryViewState.test.ts`
 
+**MOUNT `AssetInspector` FIRST, AND EXPECT TO EXTRACT.** Task 14 built the panel and nothing
+mounts it — it is reachable from no surface in the shipped app, which is the slice-7 shape this
+repository already records (a tool registered in no list, invisible to all four gates because
+nothing is wrong with the code). Mounting it is this task's first step, not its last, because
+every other thing here depends on the panel being on screen. When the budget bites — and it will
+— take the extraction Task 13's review named rather than an `fallow-ignore-next-line` or a
+lowered threshold. An over-complex template is a seam nobody has drawn yet.
+
 **Interfaces:**
 - Consumes: Tasks 12–15.
 - Produces: nothing any other task imports.
 
-**THIS TASK ALSO OWNS THE DELETE FLOW, handed over by Task 14 with a measured reason.** The
-`Delete` control ships — drawn, and `aria-disabled` with its reason while the usage read has not
-succeeded — but it EMITS rather than running slice 10's reference resolution. Two things forced
-that and both are this task's to resolve. `deleteZoneFlow.ts` is not reusable as written: its
-dispatch takes an `InspectorEdit`, and its reassign branch needs a read for the reassignment
-TARGET that `AssetLibraryQueryServices` has no door for — so reuse means either widening that
-bundle or extracting the flow's shape, which is a decision about a shared seam rather than a wiring
-line. And §3.5's post-deletion focus rule names three targets that live in SIBLING regions (the
-next row in the shelf the asset was in, the same rule inside the flat Results list while a search
-runs, and the search field otherwise) — this task's `shelfFocus.ts` is exactly the thing that can
-address them, and Task 14 could not reach them from inside the panel. **The shelf heading is not a
-fallback**: it can never receive focus in the one case that would reach it, because an empty
-shelf's heading is non-interactive.
+**The `Delete` flow is TASK 16b's**, split out by the same ruling — do not build it here.
 
 **THIS TASK ALSO CLOSES THE WRITE-BACK INTO OBSIDIAN'S VIEW STATE, folded in by ruling
 mid-execution.** Task 13 shipped only the READ half of §6.3 and said so in
@@ -1760,6 +1772,81 @@ All three watched, all three restored.
 ```bash
 npm run check
 git add -A && git commit -m "feat: one focus manager over the shelves, and the narrow composition's focus handoff"
+```
+
+---
+
+### Task 16b: `Delete`, its reference resolution, and where focus lands after it
+
+**Split from Task 16 by the same ruling — see Task 16a's opening.** This is a destructive command
+flow with a shared-seam decision in it, which is a different review surface from navigation.
+**Depends on 16a**: §3.5's post-deletion focus rule names targets only `shelfFocus.ts` can
+address, and the panel must be mounted before its `Delete` can be driven.
+
+**Spec:** §3.5 item 4 in full — the actions row, the resolution, and the post-deletion focus rule.
+
+**Files:**
+- Modify: `src/presentation/library/AssetInspector.vue`, `src/presentation/library/shelfFocus.ts`
+- Probably create: a library-side delete flow module beside `deleteZoneFlow.ts`'s shape
+- Test: `tests/presentation/library/assetDelete.test.ts`
+
+**Interfaces:**
+- Consumes: 16a's `shelfFocus.ts`; slice 15's `DeleteReferenceDialog`/`EntityPickerDialog`; slice
+  10's resolution.
+- Produces: nothing any other task imports.
+
+**WHAT TASK 14 SHIPPED, so you do not rebuild it.** The `Delete` control exists, drawn and
+`aria-disabled` with its reason on it while the usage read has not succeeded. It EMITS rather
+than resolving. Task 14's withdrawal was verified by its reviewer against source, and the two
+reasons are yours to resolve rather than to re-derive:
+- **`deleteZoneFlow.ts` is not reusable as written.** Its `dispatch` takes an `InspectorEdit`
+  (`src/presentation/editor/deleteZoneFlow.ts:13,82`), which is the Plan Editor's vocabulary, and
+  its reassign branch needs a read for the reassignment TARGET that `AssetLibraryQueryServices`
+  has no door for. **Decide which:** widen that bundle, or extract the flow's SHAPE into something
+  both surfaces instantiate. State the decision and its cost; do not quietly copy the flow, which
+  is a second derivation that will answer differently the first time slice 10's rules change.
+- **The focus rule spans sibling regions.** After a successful deletion the inspector withdraws to
+  its resting state and focus goes to the next row in the shelf the asset was in — the row now
+  occupying the deleted row's index, or the previous surviving row if the deleted one was last;
+  the same rule inside the flat Results list when a search is running; and the search field
+  otherwise, which is the most common case. **The shelf's heading is not a fallback** — it can
+  never receive focus in the one case that would reach it, because an empty shelf's heading is
+  non-interactive.
+
+**The `Used in` read IS the resolution's read.** §3.5 says so; do not perform a second one. And
+the read informs while the command enforces — they are allowed to disagree, which is slice 10's
+own recorded rule: a zero count dispatches the ABSENT-resolution form rather than a
+`delete-anyway` the user was never offered.
+
+**A duplicate-id asset is Task 18's subject, not yours.** `DeleteAssetCommand` reassigns every
+requirement, removes the geometry sidecar and clears every price override keyed by an id a loser
+note may share. Do not solve it here; Task 18 begins by deciding what a duplicate delete means.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+it('resolves referents through the Used in read rather than a second one', async () => { /* ... */ });
+it('dispatches the absent-resolution form when the count is zero', async () => { /* ... */ });
+it('moves focus to the row now occupying the deleted row index', async () => { /* ... */ });
+it('moves focus to the previous surviving row when the deleted one was last', async () => { /* ... */ });
+it('moves focus to the search field when a search is running and the list empties', async () => { /* ... */ });
+it('never moves focus to a shelf heading', async () => { /* ... */ });
+```
+
+- [ ] **Step 2: Run them and watch each fail at its assertion**
+
+- [ ] **Step 3: Decide the `deleteZoneFlow` seam, then implement**
+
+- [ ] **Step 4: Mutation-check the focus rule**
+
+Delete a MIDDLE row and a LAST row and assert different targets — a build that always focuses the
+first surviving row passes a suite that only ever deletes the first.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: deleting an asset from the library, and where focus lands after it"
 ```
 
 ---

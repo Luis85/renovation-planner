@@ -8,9 +8,9 @@ import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueri
  * owns both — a mark cache bounded by WHAT THE CALLER SAYS IS ON SCREEN, and a generation per
  * asset so a late answer cannot overwrite a fresh one.
  *
- * **WHAT THE SHIPPED CALLER ACTUALLY SAYS, first, because everything below is written in
- * §5.3's vocabulary and that vocabulary promises more than this surface delivers.** §5.3's own
- * bound is the VIEWPORT. Nothing in this repository observes one: **nothing here constructs an
+ * **WHAT THE SHIPPED CALLER ACTUALLY SAYS, first, because the rest of this header is written
+ * in §5.3's vocabulary and that vocabulary promises more than this surface delivers.** §5.3's
+ * own bound is the VIEWPORT. Nothing in this repository observes one: **nothing here constructs an
  * `IntersectionObserver`** — every occurrence of that name in `src/` and `tests/` is prose,
  * this paragraph and `AssetLibraryBody.vue`'s own included, which is why that is stated as a
  * thing rather than as a count, since a grep for a name quoted inside a file that discusses it
@@ -19,14 +19,14 @@ import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueri
  * `AssetLibraryBody.drawnAssetIds` — every row an OPEN SHELF draws, or every match when §6.1's
  * flat Results list has replaced the shelves — which is a strict SUPERSET of the viewport.
  *
- * So read every *viewport*, *on screen* and *visible* below as **DRAWN**: the names here are
- * §5.3's and are kept, the bound they carry today is the caller's, and `AssetLibraryBody.vue`
- * is where that narrowing and its cost are argued. **This paragraph LEADS the file for a
- * measured reason rather than a stylistic one**: it followed four sentences that contradicted
- * it for one commit, and those sentences were vacuous while nothing called this door and became
- * live over-claims the moment a caller existed. A comment can be made false by a diff that does
- * not touch it. Nothing in this module changes if an observer ever arrives — it would call
- * `setVisible` with a smaller set.
+ * So read every *viewport*, *on screen* and *visible* in the rest of this header as **DRAWN**:
+ * the names here are §5.3's and are kept, the bound they carry today is the caller's, and
+ * `AssetLibraryBody.vue` is where that narrowing and its cost are argued. **This paragraph
+ * LEADS the file for a measured reason rather than a stylistic one**: it followed four
+ * sentences that contradicted it for one commit, and those sentences were vacuous while nothing
+ * called this door and became live over-claims the moment a caller existed. A comment can be
+ * made false by a diff that does not touch it. Nothing in this module changes if an observer
+ * ever arrives — it would call `setVisible` with a smaller set.
  *
  * §5.3's rules, and where each lives here:
  * - a mark is requested when its row **enters the viewport, in batches** — which is §5.3's

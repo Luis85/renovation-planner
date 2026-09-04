@@ -157,12 +157,17 @@ function onEmptyStateAction(): void {
  * file's own header already discusses, since that selector is why this element's position may
  * not move — and this component stays MOUNTED underneath it. So an open shelf's marks are read
  * for rows the pane is not showing at all, which is the narrow composition's own worse case of
- * the cost priced two paragraphs up. It is a COST and not a correctness defect: the marks are
+ * the 34-sidecar costing above. It is a COST and not a correctness defect: the marks are
  * cached, correct, and already there when the user comes back from the inspector.
  *
  * Closing it means asking whether this region is DISPLAYED, which is a container query — and
- * jsdom evaluates none, so the guard would be unassertable by every gate here, which is the
- * same trade the observer lost two paragraphs up and it loses it for the same reason.
+ * jsdom evaluates none, so the guard would be unassertable by every gate here — the same trade
+ * the `IntersectionObserver` lost in this docblock's opening argument, lost for the same reason.
+ *
+ * (Both of those pointers counted PARAGRAPHS for one commit and both counts were wrong: three
+ * and five, not two and two. A count is right until the next insertion and silently wrong
+ * afterwards; a NAME survives every edit that does not delete its subject. Fourteenth instance
+ * of this class on the branch, and the second inside a round fixing an instance of it.)
  */
 const drawnAssetIds = computed((): readonly AssetId[] =>
 	(store.searching
@@ -180,7 +185,7 @@ const drawnAssetIds = computed((): readonly AssetId[] =>
  * `listOutlines`. So the extra pass is real and is harmless TODAY — `read`'s own filter drops
  * an id already cached, so the second pass asks for nothing — which is the point: the effect
  * form is safe only because of a filter one module away, and a `watch` callback is not a
- * tracking context at all, so the source above is the whole of what re-runs this.
+ * tracking context at all, so `drawnAssetIds` is the whole of what re-runs this.
  *
  * `immediate`, because the first paint is already a batch: `AssetLibraryRoot` draws this region
  * only from the ready branch, so the listing has resolved by the time this component exists.

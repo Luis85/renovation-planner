@@ -122,8 +122,9 @@ const props = withDefaults(
 		 * `AssetShelf.outlineFor` one level down stays OPTIONAL, deliberately and for a reason
 		 * that does not apply here: its default is what eleven of its twelve mounts rely on, one
 		 * of them asserting it outright (`assetShelf.test.ts`'s *answers "not yet read" for every
-		 * row when outlineFor is not supplied*), and its only production caller is this component — which can no longer omit
-		 * it, so the compiler already names the one path that reaches a shelf in the app.
+		 * row when outlineFor is not supplied*), and its only production caller is this component
+		 * — which can no longer omit it, so the compiler already names the one path that reaches a
+		 * shelf in the app.
 		 */
 		outlineFor: (assetId: AssetId) => AssetOutline | null;
 	}>(),

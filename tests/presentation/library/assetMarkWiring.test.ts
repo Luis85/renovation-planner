@@ -10,8 +10,9 @@
  * which `assetShelf.test.ts`'s *answers "not yet read" for every row when outlineFor is not
  * supplied* falsifies directly — a case that exists for the omission — and eleven of that
  * file's twelve mounts omit the prop. (Named, never addressed by line: the review that caught
- * this claim quoted line numbers, and the numbers are the half that goes stale.) What holds is narrower and is about TYPES: `AssetRow.outline` and `AssetMark.outline` are
- * required, so no mount of either can omit one. And `AssetShelves` is worse than any of them —
+ * this claim quoted line numbers, and the numbers are the half that goes stale.) What holds is
+ * narrower and is about TYPES: `AssetRow.outline` and `AssetMark.outline` are required, so no
+ * mount of either can omit one. And `AssetShelves` is worse than any of them —
  * its only test mount (`shelfFocus.test.ts`, for §6.2's arrow keys) omitted the prop exactly as
  * the production mount did, so nothing anywhere had ever handed that component an outline.
  *
@@ -175,9 +176,9 @@ describe('the geometry mark, through the real mount', () => {
 	});
 
 	/**
-	 * §5.5's per-asset generation, asked of the drawn MARK: the first read is still out when the
-	 * invalidation above starts its replacement, the replacement lands first, and the slower
-	 * earlier answer must not paint itself over it — *"the stale outline then survives for the
+	 * §5.5's per-asset generation, asked of the drawn MARK: the first read is still out when an
+	 * `AssetDesignChanged` invalidation starts its replacement, the replacement lands first, and
+	 * the slower earlier answer must not paint itself over it — *"the stale outline then survives for the
 	 * life of the view, which is exactly the guarantee §5.4 exists to give."*
 	 *
 	 * Watched failing against the mutation rather than reasoned: deleting `viewportMarks.ts`'s

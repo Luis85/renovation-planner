@@ -249,7 +249,9 @@ describe('project-list-narrow.css', () => {
 			/it is `(\d+)rem`, and it comes from a DERIVATION/u.exec(spec)?.[1],
 		];
 
-		expect(stated.filter((value) => value !== undefined), `${path} states the threshold in both sections`)
+		// "both sentences", not "both sections": the regexes match a derivation SHAPE and a
+		// constraint's wording, neither anchored to a heading, which the docblock records.
+		expect(stated.filter((value) => value !== undefined), `${path} states the threshold in both sentences`)
 			.toHaveLength(stated.length);
 		for (const value of stated) expect(value).toBe(shipped);
 	});

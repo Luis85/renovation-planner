@@ -72,6 +72,21 @@ function deps() {
 			// Task 11's continue read; no case in this file is about Continue, so `null` — no
 			// stored context — is the honest default.
 			continueContext: () => Promise.resolve(null),
+			// Task 11's WRITE half, and it needs stating where the read half does not:
+			// `ViewRoot.onOpenProject` calls this UNGUARDED, so a literal omitting it is a
+			// `TypeError` waiting for the first case that plain-clicks a row — which none here
+			// does today, so nothing throws and no compiler can say so (this object is provided
+			// as `unknown`). Stated, not defaulted: an omitted key is what nothing can see.
+			//
+			// **This was the FOURTH such literal and the sweep that fixed the other three
+			// missed it**, because that sweep ran over the three files a report named rather
+			// than over `tests/` — the partial fix that reads like a complete one, in the
+			// commit that fixed the class. Re-run properly: `grep -rln "continueContext" tests/`
+			// answers ten files, of which four are bare `provide` literals like this one and the
+			// rest are either annotated `RenovationProjectDeps` (`mount.ts`,
+			// `renovationProjectWiring.test.ts`, `makeRenovationProjectView.ts` — the compiler
+			// holds those) or about the parser rather than the deps. There is no fifth.
+			rememberContinue: () => undefined,
 		},
 		createAsset,
 		setAssetFootprintFromDimensions,

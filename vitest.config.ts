@@ -1239,15 +1239,30 @@ export default defineConfig({
 			// it has sat since slice 19, and the next untested callback anywhere in `src/` fails
 			// this gate outright.
 			//
-			// **The first draft of this entry said TWO, and the error is worth keeping because it
-			// is this ledger's own subject.** `ceil(0.99 × 2196)` is 2175 and was written as 2174,
-			// so a headroom of one was reported as two and then EXPLAINED at length as a
-			// denominator artefact — a wrong number given a plausible account, which is harder to
-			// catch than a bare wrong number because the prose reads as though somebody checked.
-			// The figures here are printed by a script over `coverage-final.json` and transcribed;
-			// the arithmetic beside them is what a reader re-derives, so it is the half that has
-			// to be re-derived rather than typed. Do not read a figure from this entry as current
-			// — run `npm run test:coverage`.
+			// **The first draft of this entry was wrong in BOTH halves, and it is kept because
+			// this ledger's own subject is figures that stop being true without failing
+			// anything.**
+			//
+			// The ARITHMETIC: `ceil(0.99 × 2196)` is 2175 and was written as 2174, so a headroom
+			// of one was reported as two and then EXPLAINED at length as a denominator artefact —
+			// a wrong number given a plausible account, which is harder to catch than a bare wrong
+			// number because the prose reads as though somebody checked.
+			//
+			// The TOTALS: four of the eight were stale — 8251/8309, 4333 and 7271/7303 against the
+			// 8250/8307, 4334 and 7270/7302 above. Not a transcription slip and not a re-measured
+			// tree: the draft measured the SUPERSEDED spelling of `newProject`'s guard, the split
+			// `if` the paragraph below records being reverted to a folded `||` in that same commit.
+			// The correcting commit touched only this file, so the tree never moved; the figures
+			// simply described a shape that had already been replaced beside them.
+			//
+			// **An earlier version of this paragraph disclosed only the arithmetic**, and said the
+			// figures are "printed by a script and transcribed" while the arithmetic "is the half
+			// that has to be re-derived" — which reads as an acquittal of the half that had also
+			// failed. Both halves need re-deriving, and the totals need re-deriving LAST, after
+			// the code they are about has stopped changing. The stale totals were disclosed in the
+			// correcting commit's own message, which is the wrong home: nobody greps commit
+			// messages for ledger history, and this entry is the artefact the retention discipline
+			// is about. Do not read a figure from it as current — run `npm run test:coverage`.
 			//
 			// **THE FIX WAVE ADDED NO UNCOVERED POSITION**, which is the claim worth checking
 			// rather than the totals: against the review's own measurement of this tree before the
@@ -1275,6 +1290,17 @@ export default defineConfig({
 			// already names), `ContinueRow.vue`'s `lastWorked === null` arm,
 			// `NewProjectForm.vue`'s three, `ProjectList.vue`'s eight, `ViewRoot.vue`'s four and
 			// `useRovingFocus.ts`'s four. None is in a line this wave wrote.
+			//
+			// **All SIX files are named here because the draft's list named five.** It was scoped
+			// "every OTHER uncovered position in the six changed files" and enumerated the five,
+			// leaning on the paragraph immediately above it for `RenovationPlannerPlugin.ts`'s.
+			// That is accurate as written and it is the wrong shape for a list somebody will read
+			// alone: a per-file enumeration whose completeness depends on an adjacent paragraph
+			// surviving is one that becomes wrong when either is edited, and neither edit fails
+			// anything. Scope a list to N files and name N. (An earlier account of this called it
+			// a list "claiming to name every position" that dropped one, which overstates it —
+			// the word OTHER was there, and a correction that overstates the thing it corrects is
+			// the same defect pointing the other way.)
 			thresholds: {
 				statements: 99,
 				functions: 99,

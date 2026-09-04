@@ -18,11 +18,18 @@
  * makes is kept at the control and not only inside the action — a guard on a door nobody
  * dispatches through is a guard nobody has.
  *
- * **That description is bound only while the draft is BLOCKED**, because the element it names
+ * **That description is bound only while the draft is INCOMPLETE**, because the element it names
  * is rendered only then: an `aria-describedby` pointing at an id no element carries is what
  * axe reports as `aria-valid-attr-value`, and it would have been this component's one ARIA
- * defect. Two states, one condition — `runtime.canCreateRoom` decides the attribute and the
- * `v-if` alike, so the reference and its target cannot disagree.
+ * defect. Two states, one condition — `runtime.roomDraftIncomplete` decides the attribute and
+ * the `v-if` alike, so the reference and its target cannot disagree.
+ *
+ * **Incomplete is NOT the same question as `canCreateRoom`, and one value answered both.** The
+ * button's own `aria-disabled` asks "would pressing this run", which `canCreateRoom` answers and
+ * which is false for the whole of a vault write (`draft.valid` ends `&& !submitting`); the hint
+ * states a REASON, and there is no reason to state about a 4.2 × 3.8 room called Kitchen that is
+ * at this moment being written. Bound together, the form said "Size the room and give it a name
+ * first" about exactly that room. Disabled with no sentence is the honest state.
  *
  * **`settledSize` is announced and the live width/depth are not** (§5.4). The `<dl>` figures
  * are ordinary reactive reads that change on every pointer move; the `role="status"` element
@@ -108,6 +115,30 @@ function commit(axis: DimensionAxis, event: Event): void {
 	draft.commitDimension(axis, (event.target as HTMLInputElement).value, stageCentreWorld);
 }
 
+/**
+ * **A blur is not a gesture, so it commits only what CHANGED.** `beginTask` leaves both texts
+ * `''`, and `parseMetres('')` is `not-a-number` — so clicking into Width and tabbing through to
+ * Create marked both fields `aria-invalid` and printed "Enter a length in metres, such as 4.2"
+ * about input nobody made. `useFieldCommit.commitOnce` exists in this repository for exactly
+ * this and returns early on a CLEAN field; this form hand-wires `@blur` and re-established no
+ * such guard, which is the same walk-past `RequirementRow`'s Reset button already cost once.
+ *
+ * **An empty field is not made silently acceptable**, which is the other direction and the one
+ * a bare "skip empties" would have broken: the distinguishing fact is whether the TEXT MOVED, so
+ * an untouched empty field is clean and a field a renovator emptied is dirty and still refused.
+ *
+ * The guard is HERE and not in `commitDimension`, and `@keydown.enter` deliberately walks past
+ * it: which gesture counts as explicit is a fact about the CONTROL, while the store is
+ * gesture-agnostic by design (§2.2 names two SURFACES, not two keystrokes). `draft.widthText` /
+ * `draft.depthText` are what the field last committed, which is what "unchanged" is measured
+ * against — the same value the `:value` binding renders.
+ */
+function commitOnBlur(axis: DimensionAxis, event: Event): void {
+	const text = (event.target as HTMLInputElement).value;
+	if (text === (axis === 'width' ? draft.widthText : draft.depthText)) return;
+	commit(axis, event);
+}
+
 function onCreate(): void {
 	if (!runtime.canCreateRoom.value) return;
 	void runtime.createRoom();
@@ -189,7 +220,7 @@ onBeforeUnmount(() => {
 					inputmode="decimal"
 					name="width"
 					:value="draft.widthText"
-					@blur="commit('width', $event)"
+					@blur="commitOnBlur('width', $event)"
 					@keydown.enter.prevent="commit('width', $event)"
 				>
 			</div>
@@ -208,7 +239,7 @@ onBeforeUnmount(() => {
 					inputmode="decimal"
 					name="depth"
 					:value="draft.depthText"
-					@blur="commit('depth', $event)"
+					@blur="commitOnBlur('depth', $event)"
 					@keydown.enter.prevent="commit('depth', $event)"
 				>
 			</div>
@@ -233,7 +264,7 @@ onBeforeUnmount(() => {
 				type="button"
 				class="rp-new-room__create"
 				:aria-disabled="!runtime.canCreateRoom.value"
-				:aria-describedby="runtime.canCreateRoom.value ? undefined : hintId"
+				:aria-describedby="runtime.roomDraftIncomplete.value ? hintId : undefined"
 				@click="onCreate"
 			>
 				{{ tr('editor.room.create') }}
@@ -247,7 +278,7 @@ onBeforeUnmount(() => {
 			</button>
 		</div>
 		<p
-			v-if="!runtime.canCreateRoom.value"
+			v-if="runtime.roomDraftIncomplete.value"
 			:id="hintId"
 			class="rp-new-room__hint"
 		>

@@ -115,6 +115,15 @@ export interface EditorRuntime {
 	readonly createRoom: () => Promise<RoomCreationOutcome>;
 	/** Whether `createRoom` would attempt anything right now — the draft's own `valid`. */
 	readonly canCreateRoom: Readonly<Ref<boolean>>;
+	/**
+	 * Whether the draft is MISSING something, which is a different question from the one above
+	 * and used to be answered by it. `valid` ends `&& !submitting`, so while a vault write was
+	 * in flight the form told the renovator to "size the room and give it a name first" about
+	 * the very room being written, and pointed the Create button's `aria-describedby` at that
+	 * sentence. This is what a surface asks before it states a REASON; `canCreateRoom` is what
+	 * it asks before it offers the gesture.
+	 */
+	readonly roomDraftIncomplete: Readonly<Ref<boolean>>;
 	readonly roomDraft: RoomDraftStore;
 }
 
@@ -399,8 +408,13 @@ function createRoomCreationAction(deps: {
 	readonly roomDraft: RoomDraftStore;
 	readonly defaultRoomName: () => string;
 	readonly returnToSelect: () => void;
-}): { readonly createRoom: () => Promise<RoomCreationOutcome>; readonly canCreateRoom: Readonly<Ref<boolean>> } {
+}): {
+	readonly createRoom: () => Promise<RoomCreationOutcome>;
+	readonly canCreateRoom: Readonly<Ref<boolean>>;
+	readonly roomDraftIncomplete: Readonly<Ref<boolean>>;
+} {
 	const canCreateRoom = computed(() => deps.roomDraft.valid);
+	const roomDraftIncomplete = computed(() => !deps.roomDraft.complete);
 	const createRoom = (): Promise<RoomCreationOutcome> =>
 		createRoomFromDraft({
 			planId: deps.planId,
@@ -413,7 +427,7 @@ function createRoomCreationAction(deps: {
 			returnToSelect: deps.returnToSelect,
 			reportRejected: reportDispatchFailure,
 		});
-	return { createRoom, canCreateRoom };
+	return { createRoom, canCreateRoom, roomDraftIncomplete };
 }
 
 /**
@@ -566,7 +580,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const defaultRoomName = (): string => tr('editor.room.default-name', { n: String(projectStore.zones.size + 1) });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName });
 
-	const { createRoom, canCreateRoom } = createRoomCreationAction({
+	const { createRoom, canCreateRoom, roomDraftIncomplete } = createRoomCreationAction({
 		context, planId, ledger, dispatcher: toolDispatcher, selection, roomDraft, defaultRoomName, returnToSelect,
 	});
 
@@ -668,6 +682,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		selectAndFrame,
 		createRoom,
 		canCreateRoom,
+		roomDraftIncomplete,
 		roomDraft,
 	};
 }

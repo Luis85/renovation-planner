@@ -209,6 +209,38 @@ describe('createRoomFromDraft', () => {
 		expect(d.selection.select).toHaveBeenCalledTimes(1);
 	});
 
+	/**
+	 * **Cancel during a write left the store permanently unable to submit.** Cancel is live
+	 * mid-dispatch by design (the header says why), and it reaches `reset()` through
+	 * `deactivate()` — which bumps `taskToken`, so the `finally` below correctly declines to
+	 * clear a flag belonging to a task that no longer exists, and `reset()` did not clear it
+	 * either. The next `valid` was false for the life of the leaf, hidden only because every
+	 * route back into the room tool happens to call `beginTask`, which does clear it.
+	 *
+	 * Driven through `reset()` rather than through a poked flag, because that is the door the
+	 * gesture actually takes, and asserted on the CONSEQUENCE — the next draft is creatable —
+	 * rather than on the flag alone, so a build that clears it somewhere unrelated still has to
+	 * make the store usable.
+	 */
+	it('a task reset while a write is in flight leaves the store able to submit the next room', async () => {
+		let release: (() => void) | undefined;
+		const gate = new Promise<void>((resolve) => { release = resolve; });
+		const { d, draft } = await deps();
+		const inner = d.dispatcher;
+		const held = toolDispatcher(async (command) => { await gate; return inner.run(command); });
+
+		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
+		const inFlight = createRoomFromDraft({ ...d, dispatcher: held });
+		draft.reset(); // the tool's own `deactivate()`, which Cancel reaches through `setTool`
+		release?.();
+		expect(await inFlight).toBe('superseded');
+
+		expect(draft.submitting).toBe(false);
+		draft.setName('Kitchen');
+		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
+		expect(draft.valid).toBe(true);
+	});
+
 	it('a refused write reports once, keeps the draft, and stays in the task', async () => {
 		const { d, draft } = await deps({
 			dispatcher: toolDispatcher(() => Promise.resolve(err(injectedPersistenceError()))),

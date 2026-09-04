@@ -91,6 +91,29 @@ describe('TemporaryToolBanner', () => {
 		expect(finish.attributes('aria-disabled')).toBe('false');
 	});
 
+	/**
+	 * The asymmetry with the form, pinned so it reads as a decision rather than a miss.
+	 * `NewRoomInspector`'s HINT moved off `canCreateRoom` because it states a REASON, and there
+	 * is no reason to state about the room being written; Finish stays on it, because it offers
+	 * a GESTURE and pressing it mid-write answers `'busy'`. Its own description is the task
+	 * instruction, which a write in flight cannot make false — so the button is disabled and
+	 * still described, and nothing here has to be split.
+	 */
+	it('Finish is disabled while a Create is in flight, still described by the task instruction', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		runtime.roomDraft.setRect({ x: 0, y: 0, width: 4200, depth: 3800 });
+		runtime.roomDraft.setSubmitting(true);
+		await settle();
+		const finish = harness.wrapper.find('button.rp-task-banner__finish');
+		expect(finish.attributes('aria-disabled')).toBe('true');
+		expect(harness.wrapper.find(`#${finish.attributes('aria-describedby')}`).text()).toBe(
+			t('en', 'editor.task.add-room.instruction'),
+		);
+	});
+
 	it('offers no Finish under the calibrate tool, which finishes by gesture', async () => {
 		const harness = await mountPlanEditorCanvas();
 		runtimeOf(harness).setTool('calibrate');

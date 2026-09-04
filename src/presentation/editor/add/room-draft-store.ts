@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, ref, type Ref } from 'vue';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import { isOk } from '../../../core/result/Result';
@@ -48,10 +48,11 @@ function polygonForRect(r: RoomRect): Polygon | null {
  * of exactly 0 — and `createPolygon` validates only the count and the finiteness of the
  * coordinates, so a zero-area quadrilateral passed it, passed `Zone.create` behind it, and was
  * written. Refusing at `rect` rather than at `valid` is what makes the two routes agree about
- * what a rectangle IS: `geometry`, `areaMm2`, `valid`, `settle()`, `RoomDraftSketch` and
- * `DrawRoomTool.hasDraft()` all read `rect`, so one answer settles all six — where a guard on
- * `valid` alone would draw a flat outline, announce a 0 m² sentence and print an area, beside
- * a Create button the user cannot press and nothing saying why.
+ * what a rectangle IS: `geometry`, `areaMm2`, `complete`, `settle()` and `RoomDraftSketch`
+ * all read `rect`, so one answer settles all five — where a guard on `valid` alone would draw a
+ * flat outline, announce a 0 m² sentence and print an area, beside a Create button the user
+ * cannot press and nothing saying why. (`DrawRoomTool.hasDraft()` was a sixth reader and is not
+ * any more: Escape asks `hasInput`, which is about every surface rather than the rectangle.)
  *
  * `> 0` rather than `!== 0` on purpose: it refuses a negative side (`setRect` is a public port
  * method, even though `normalised` hands it absolutes) and a `NaN` one in the same test.
@@ -69,6 +70,132 @@ function polygonForRect(r: RoomRect): Polygon | null {
 function rectFrom(corner: Point | null, width: number | null, depth: number | null): RoomRect | null {
 	if (corner === null || width === null || depth === null) return null;
 	return width > 0 && depth > 0 ? { x: corner.x, y: corner.y, width, depth } : null;
+}
+
+/**
+ * The seven refs `setRect` writes, as ONE bundle.
+ *
+ * **A press on the canvas has exactly one writer, and this is its list** — which is what makes
+ * a press reversible: `DrawRoomTool` takes a snapshot at `pointerdown` and restores it when the
+ * gesture turns out to have been a click (or is taken away), so what it gives back is exactly
+ * what the press could have clobbered and nothing else. It used to hand back a `RoomRect | null`
+ * instead, which cannot express a half-typed draft at all — width known, depth not, so `rect` is
+ * null while two fields and one text hold real input — and restoring from it therefore ran
+ * `clearRect()` over a typed width, or `setRect()` over a value the store had refused and the
+ * renovator had not yet corrected.
+ *
+ * `settledSize` is deliberately outside the bundle, because `setRect` never touches it: a press
+ * cannot have moved it, so a restore has nothing to put back.
+ */
+interface RectFields {
+	readonly origin: Ref<Point | null>;
+	readonly widthMm: Ref<number | null>;
+	readonly depthMm: Ref<number | null>;
+	readonly widthText: Ref<string>;
+	readonly depthText: Ref<string>;
+	readonly widthError: Ref<LengthRefusal | null>;
+	readonly depthError: Ref<LengthRefusal | null>;
+}
+
+/** `RectFields`'s seven values, detached from their refs — what a snapshot IS. */
+export interface RoomRectSnapshot {
+	readonly origin: Point | null;
+	readonly widthMm: number | null;
+	readonly depthMm: number | null;
+	readonly widthText: string;
+	readonly depthText: string;
+	readonly widthError: LengthRefusal | null;
+	readonly depthError: LengthRefusal | null;
+}
+
+/** The state a task starts in, and the one `clearRect` puts it back into. */
+const NO_RECT: RoomRectSnapshot = {
+	origin: null, widthMm: null, depthMm: null, widthText: '', depthText: '', widthError: null, depthError: null,
+};
+
+/** A drag's own values: both sides, both texts in canonical metres, and neither error. */
+function fieldsForRect(r: RoomRect): RoomRectSnapshot {
+	return {
+		origin: { x: r.x, y: r.y },
+		widthMm: r.width,
+		depthMm: r.depth,
+		widthText: formatMetres(r.width),
+		depthText: formatMetres(r.depth),
+		widthError: null,
+		depthError: null,
+	};
+}
+
+function snapshotOf(f: RectFields): RoomRectSnapshot {
+	return {
+		origin: f.origin.value,
+		widthMm: f.widthMm.value,
+		depthMm: f.depthMm.value,
+		widthText: f.widthText.value,
+		depthText: f.depthText.value,
+		widthError: f.widthError.value,
+		depthError: f.depthError.value,
+	};
+}
+
+/**
+ * The one writer that moves ALL SEVEN at once — `setRect`, `clearRect` and a restore each go
+ * through it, so a field added to `RectFields` is written by every one of them or by none.
+ * `commitDimension` deliberately does not: it writes one axis at a time and leaves the other
+ * alone, which is what a numeric field means.
+ */
+function restoreInto(f: RectFields, s: RoomRectSnapshot): void {
+	f.origin.value = s.origin;
+	f.widthMm.value = s.widthMm;
+	f.depthMm.value = s.depthMm;
+	f.widthText.value = s.widthText;
+	f.depthText.value = s.depthText;
+	f.widthError.value = s.widthError;
+	f.depthError.value = s.depthError;
+}
+
+/**
+ * Whether this task holds anything Escape's own writer could take back — what
+ * `DrawRoomTool.hasDraft()` answers `routeEscape` with. It used to read `rect !== null`, which
+ * saw one of the surfaces a room is built from: choosing a name and typing ONE side leaves
+ * `rect` null (`rectFrom` needs both), so Escape skipped its cancel-the-draft arm entirely, left
+ * the task through `setTool('select')` and took the name, both texts and `keepAdding` with it —
+ * while the same keypress over a DRAGGED rectangle only cleared the rectangle and stayed. One
+ * gesture, two answers, decided by which surface the renovator had reached for.
+ *
+ * **The invariant is that this counts EXACTLY what `clearRect` clears, and both directions of
+ * that are load-bearing.** Count LESS and Escape destroys the task where it should have cleared
+ * the draft, which is the defect above. Count MORE — anything `clearRect` deliberately keeps —
+ * and Escape goes INERT: `routeEscape` would answer `cancelled-draft` for ever and never reach
+ * its return-to-Select arm, so a second press could not leave the task. So the two are stated
+ * against each other rather than each on its own, and `roomDraftStore.test.ts` asserts the
+ * round trip (anything that makes this true is false again after `clearRect`) rather than a
+ * list.
+ *
+ * What that excludes, and why each exclusion is the right half of the invariant rather than an
+ * oversight:
+ *
+ * - the NAME, which design spec §3 and §9 both keep across Escape ("origin/width/depth/texts/
+ *   errors cleared; name and keepAdding kept"). It is not lost by excluding it: a renovator who
+ *   chose "Kitchen" and typed a side is already counted through that side's text, so Escape
+ *   clears the rectangle and the name survives — which is what `escapeRouting.ts` means by
+ *   stepping back through the NEAREST interaction. With only a name and nothing drawn there is
+ *   no draft to cancel, and Escape does what it does for any creation tool with nothing drawn:
+ *   returns to Select. Counting the name instead would have forced `clearRect` to reset it to
+ *   the counted default on every Escape, taking a choice the renovator made for a gesture
+ *   aimed at the rectangle.
+ * - `keepAdding`: a mode for the TASK ("after this one, start another"), which `clearRect`
+ *   keeps and `createRoomFromDraft` re-applies across a creation.
+ * - `rect` itself, because it is already covered: a rectangle exists only where `setRect` wrote
+ *   both texts from `formatMetres`, which is never empty for a side `rectFrom` accepts.
+ */
+function holdsInput(f: RectFields): boolean {
+	return (
+		f.widthText.value !== '' ||
+		f.depthText.value !== '' ||
+		f.widthError.value !== null ||
+		f.depthError.value !== null
+	);
 }
 
 /** The sentence `settle()` writes to `settledSize` (§5.4); the copy key is this task's own. */
@@ -112,23 +239,29 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 	const depthMm = ref<number | null>(null);
 	const name = ref('');
 	/**
-	 * RESERVED, and read by NOTHING in `src/` today. Measured in the edit that wrote this:
-	 * `grep -rn "nameTouched" src/` prints FIVE lines, and not one is a read — this docblock's
-	 * own mention (self-matching, so it is named rather than counted silently), the
-	 * declaration, `beginTask`'s reset, `setName`'s set, and the store's own return list. Its
-	 * only reader anywhere is `roomDraftStore.test.ts`.
+	 * RESERVED, and read by NOTHING in `src/`. Measured in the edit that wrote this:
+	 * `grep -rn "nameTouched" src/` prints five lines and not one is a read — this docblock's own
+	 * mention (self-matching, so it is named rather than counted silently), the declaration,
+	 * `beginTask`'s reset, `setName`'s set, and the store's own return list. Its only reader
+	 * anywhere is `roomDraftStore.test.ts`.
+	 *
+	 * **It briefly had one and gave it back, which is worth recording rather than quietly
+	 * reverting.** The Escape fix above reached for this flag to tell a CHOSEN name from the
+	 * counted default, so that `holdsInput` could count the name — and counting the name is what
+	 * would have forced Escape to reset it, against design spec §3. Narrowing `holdsInput` to
+	 * what `clearRect` clears removed the need, so the flag is reserved again.
 	 *
 	 * It is kept rather than deleted because the property it records is the one design spec
-	 * §2.4 states: the counted default is applied by `beginTask` alone, so "a name the
-	 * renovator edited is never overwritten" holds today because NOTHING RE-APPLIES A
-	 * DEFAULT — a stronger fact than the flag, and the one the criterion is actually
-	 * discharged by. The flag is what a re-apply would have to ask. Its first reader is the
-	 * increment that gives one a producer: a room TYPE that suggests a name when the type
-	 * changes, which is [[Suggest a localized Room name from its type]]'s own deferred half.
+	 * §2.4 states: the counted default is applied by `beginTask` alone, so "a name the renovator
+	 * edited is never overwritten" holds today because NOTHING RE-APPLIES A DEFAULT — a stronger
+	 * fact than the flag, and the one the criterion is actually discharged by. The flag is what a
+	 * re-apply would have to ask. Its first reader is the increment that gives one a producer: a
+	 * room TYPE that suggests a name when the type changes, which is
+	 * [[Suggest a localized Room name from its type]]'s own deferred half.
 	 *
-	 * If that increment is abandoned, delete the flag rather than leaving a field three
-	 * writers keep current for nobody — this repository's own rule about an event minted with
-	 * no subscriber, applied to a ref.
+	 * If that increment is abandoned, delete the flag rather than leaving a field three writers
+	 * keep current for nobody — this repository's own rule about an event minted with no
+	 * subscriber, applied to a ref.
 	 */
 	const nameTouched = ref(false);
 	const keepAdding = ref(false);
@@ -139,13 +272,23 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 	const settledSize = ref<string | null>(null);
 	const submitting = ref(false);
 
+	const rectFields: RectFields = { origin, widthMm, depthMm, widthText, depthText, widthError, depthError };
+
 	const rect = computed<RoomRect | null>(() => rectFrom(origin.value, widthMm.value, depthMm.value));
 	const geometry = computed<Polygon | null>(() => (rect.value === null ? null : polygonForRect(rect.value)));
 	const areaMm2 = computed<number | null>(() => (rect.value === null ? null : rect.value.width * rect.value.depth));
-	const valid = computed<boolean>(
-		() =>
-			rect.value !== null && name.value.trim() !== '' && widthError.value === null && depthError.value === null && !submitting.value,
+	/**
+	 * **`complete` and `valid` are two questions, and one value used to answer both.** `valid`
+	 * is "pressing Create right now would run", so it ends `&& !submitting`; `complete` is "the
+	 * draft is missing something", which a write in flight says nothing about. The surfaces
+	 * were reading `valid` for BOTH, so for the whole of a vault write the form told the
+	 * renovator to "size the room and give it a name first" about the very room it was writing.
+	 */
+	const complete = computed<boolean>(
+		() => rect.value !== null && name.value.trim() !== '' && widthError.value === null && depthError.value === null,
 	);
+	const valid = computed<boolean>(() => complete.value && !submitting.value);
+	const hasInput = computed<boolean>(() => holdsInput(rectFields));
 
 	/**
 	 * Escape's writer (§3): origin/width/depth/texts/errors cleared; name and keepAdding
@@ -155,10 +298,7 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 	 * caller remembers to re-invoke `settle()`.
 	 */
 	function clearRect(): void {
-		origin.value = null;
-		widthMm.value = depthMm.value = null;
-		widthText.value = depthText.value = '';
-		widthError.value = depthError.value = null;
+		restoreInto(rectFields, NO_RECT);
 		settledSize.value = null;
 	}
 
@@ -192,19 +332,28 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 	}
 
 	/** The drag's writer: origin, width, depth; texts re-formatted into canonical metres. */
-	function setRect(next: RoomRect): void {
-		origin.value = { x: next.x, y: next.y };
-		widthMm.value = next.width;
-		depthMm.value = next.depth;
-		widthText.value = formatMetres(next.width);
-		depthText.value = formatMetres(next.depth);
-		widthError.value = depthError.value = null;
-	}
+	const setRect = (next: RoomRect): void => restoreInto(rectFields, fieldsForRect(next));
 
+	/** What a press could clobber, taken before it starts. See `RectFields`. */
+	const snapshotRect = (): RoomRectSnapshot => snapshotOf(rectFields);
+
+	/** …and put back, when the press turns out to have been a click or is taken away. */
+	const restoreRect = (snapshot: RoomRectSnapshot): void => restoreInto(rectFields, snapshot);
+
+	/**
+	 * `submitting` is cleared here for the reason `clearRect`'s own docblock states about
+	 * `settledSize` — it belongs to the function rather than to whichever caller remembers to
+	 * re-invoke it. `beginTask` cleared it and this did not, so Cancel during a write (which
+	 * reaches here through the tool's `deactivate()`) left the flag set: the bump below makes
+	 * `createRoomFromDraft`'s `finally` correctly decline to clear a flag it no longer owns, and
+	 * nothing else ever did. The store was left permanently invalid, self-healing only because
+	 * every route back into the room tool happens to run `beginTask`.
+	 */
 	function reset(): void {
 		clearRect();
 		name.value = '';
 		keepAdding.value = false;
+		submitting.value = false;
 		taskToken.value += 1;
 	}
 
@@ -221,9 +370,16 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 	}
 
 	/**
-	 * Parse; on refusal keep the typed text and name the reason. On success set the side,
-	 * clear its error, and — once BOTH sides are known and no origin exists yet — place the
-	 * rect centred on `placeAt()`. Either way, re-announce the settled sentence.
+	 * Parse; on refusal keep the typed text and name the reason, and leave the announced
+	 * sentence exactly as it is — a refused value never reaches `widthMm`/`depthMm`, so the
+	 * rect that sentence names has not moved, and clearing it would retract something still
+	 * true. On success set the side, clear its error, and — once BOTH sides are known and no
+	 * origin exists yet — place the rect centred on `placeAt()`, then re-announce.
+	 *
+	 * This is gesture-agnostic on purpose: whether a blur or an Enter is an explicit-enough
+	 * gesture to commit an unchanged field is a fact about the CONTROL, so that guard lives at
+	 * `NewRoomInspector.vue`'s own blur handler rather than here (design spec §2.2 names two
+	 * SURFACES, not two keystrokes).
 	 */
 	function commitDimension(axis: DimensionAxis, text: string, placeAt: () => Point): void {
 		const parsed = parseMetres(text);
@@ -259,16 +415,29 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 
 	return {
 		origin, widthMm, depthMm, name, nameTouched, keepAdding, widthText, depthText,
-		widthError, depthError, settledSize, submitting, taskToken, rect, geometry, areaMm2, valid,
-		beginTask, setRect, clearRect, reset, setName, suggestName, commitDimension, settle,
-		setKeepAdding, setSubmitting,
+		widthError, depthError, settledSize, submitting, taskToken, rect, geometry, areaMm2,
+		complete, valid, hasInput,
+		beginTask, setRect, snapshotRect, restoreRect, clearRect, reset, setName,
+		suggestName, commitDimension, settle, setKeepAdding, setSubmitting,
 	};
 });
 
 export type RoomDraftStore = ReturnType<typeof useRoomDraftStore>;
 
 /**
- * What the drawing tool needs — nothing about names or fields (design spec §3, the free-form
- * increment's plug point). Task 3's tool depends on exactly this shape.
+ * What the drawing tool needs, and only that (design spec §3, the free-form increment's plug
+ * point) — a port listing members nothing on the other side calls is the same gap between a
+ * claim and a check this file's other docblocks are written to close.
+ *
+ * `rect` came off it: the tool asks `hasInput` instead, which is Escape's question about every
+ * dimension surface rather than about the rectangle alone. `clearRect` stayed, and the two are
+ * a PAIR rather than two members that happen to be here — `hasInput` counts exactly what
+ * `clearRect` clears (`holdsInput`'s own docblock argues both directions), so the tool's
+ * `hasDraft()`/`cancel()` are the two ends of one invariant. A press is taken back through
+ * `snapshotRect`/`restoreRect` instead, which restore only what that press overwrote, where
+ * `clearRect` is the whole draft.
  */
-export type RoomDraftPort = Pick<RoomDraftStore, 'rect' | 'setRect' | 'clearRect' | 'reset' | 'beginTask' | 'settle'>;
+export type RoomDraftPort = Pick<
+	RoomDraftStore,
+	'hasInput' | 'setRect' | 'snapshotRect' | 'restoreRect' | 'clearRect' | 'reset' | 'beginTask' | 'settle'
+>;

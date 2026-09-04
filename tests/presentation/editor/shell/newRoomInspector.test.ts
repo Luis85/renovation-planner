@@ -175,6 +175,96 @@ describe('NewRoomInspector', () => {
 		harness.unmount();
 	});
 
+	/**
+	 * **"Pressing Create right now would run" and "the draft is incomplete" are two questions,
+	 * and one value answered both.** `canCreateRoom` is `draft.valid`, whose last conjunct is
+	 * `!submitting` — set synchronously before `createRoomFromDraft`'s one `await` — so for the
+	 * whole of a vault write the form told the renovator "Size the room and give it a name
+	 * first" about a 4.2 × 3.8 room called Kitchen that was at that moment being written, and
+	 * pointed the button's `aria-describedby` at that sentence.
+	 *
+	 * The button stays disabled, which is right (a second press answers `'busy'`); what goes
+	 * is the false reason. `submitting` is set directly rather than by holding a dispatcher
+	 * open, because the state under test is exactly "valid draft, write in flight" and that is
+	 * the store field which represents it.
+	 */
+	it('while a Create is in flight the button is disabled and states no false reason', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		runtime.roomDraft.setName('Kitchen');
+		runtime.roomDraft.setRect({ x: 0, y: 0, width: 4200, depth: 3800 });
+		runtime.roomDraft.setSubmitting(true);
+		await settle();
+		const create = harness.wrapper.find('button.rp-new-room__create');
+		expect(create.attributes('aria-disabled')).toBe('true');
+		expect(harness.wrapper.find('.rp-new-room__hint').exists()).toBe(false);
+		expect(create.attributes('aria-describedby')).toBeUndefined();
+		harness.unmount();
+	});
+
+	/**
+	 * **A blur is not a gesture, and this form hand-wires `@blur` with no cleanliness guard.**
+	 * `beginTask` leaves both texts `''`, so clicking into Width and tabbing through to Create
+	 * ran `commitDimension(axis, '')` twice: `parseMetres('')` is `not-a-number`, and both
+	 * fields rendered `aria-invalid` with "Enter a length in metres" about input nobody made.
+	 * `useFieldCommit.commitOnce` exists in this repository for exactly this reason and returns
+	 * early on a CLEAN field; this form re-established no such guard.
+	 *
+	 * Both directions, because the fix must not make an empty field silently acceptable: an
+	 * UNTOUCHED empty field is clean and an EMPTIED one is dirty, and only the second is
+	 * refused.
+	 */
+	it('tabbing through an untouched field says nothing about input nobody made', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		const width = harness.wrapper.find('input[name="width"]');
+		const depth = harness.wrapper.find('input[name="depth"]');
+		await width.trigger('blur');
+		await depth.trigger('blur');
+		expect(width.attributes('aria-invalid')).toBeUndefined();
+		expect(depth.attributes('aria-invalid')).toBeUndefined();
+		expect(harness.wrapper.find('.rp-field-error__message').exists()).toBe(false);
+		expect(runtime.roomDraft.widthText).toBe('');
+		harness.unmount();
+	});
+
+	it('emptying a field that held a length is still refused when it is left', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		const width = harness.wrapper.find('input[name="width"]');
+		await width.setValue('4.2');
+		await width.trigger('blur');
+		expect(runtime.roomDraft.widthMm).toBe(4200);
+		await width.setValue('');
+		await width.trigger('blur');
+		expect(width.attributes('aria-invalid')).toBe('true');
+		expect(runtime.roomDraft.widthError).toBe('not-a-number');
+		harness.unmount();
+	});
+
+	/**
+	 * The blur guard is at the CONTROL and not in the store, so the other door has to keep
+	 * committing: which gesture counts as explicit is a fact about the input, and the store is
+	 * deliberately gesture-agnostic (§2.2 names two SURFACES, not two keystrokes). Enter on an
+	 * untouched empty field is a renovator asking, and it is answered.
+	 */
+	it('Enter on an untouched empty field still commits, because Enter is an explicit gesture', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		const width = harness.wrapper.find('input[name="width"]');
+		await width.trigger('keydown', { key: 'Enter' });
+		expect(runtime.roomDraft.widthError).toBe('not-a-number');
+		harness.unmount();
+	});
+
 	it('typing in the name field writes the draft name', async () => {
 		const harness = await mountPlanEditorCanvas();
 		const runtime = runtimeOf(harness);

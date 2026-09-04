@@ -21,9 +21,17 @@
  * "no control that does nothing" rule the form's own Create button keeps), bound as a
  * BOOLEAN per Task 7's settled pattern — `vue-tsc` types the attribute `Booleanish`, and the
  * rendered DOM attribute still reads `"true"`/`"false"`. `aria-describedby` names the
- * instruction `<span>` unconditionally: unlike the form's own hint (rendered only while
- * blocked), the instruction here is always in the DOM while the banner is, so the reference
- * can never dangle.
+ * instruction `<span>` unconditionally: unlike the form's own hint (rendered only while the
+ * draft is INCOMPLETE), the instruction here is always in the DOM while the banner is, so the
+ * reference can never dangle.
+ *
+ * **Finish stays keyed on `canCreateRoom` where the form's HINT moved to
+ * `roomDraftIncomplete`, and the asymmetry is the point.** `canCreateRoom` is false for the
+ * whole of a vault write, which is right for the GESTURE — pressing Finish then answers
+ * `'busy'` — and was wrong for the form's sentence, which stated a reason ("size the room and
+ * give it a name first") about the very room being written. This button's description is the
+ * task INSTRUCTION rather than a blocked-reason, so it says nothing that a write in flight
+ * could make false, and there is nothing here to split.
  *
  * `role="status"` on the whole banner: its very appearance is the announcement, the same
  * shape `StatusBar.vue`'s save-state region already uses for `aria-label` on a `role="status"`

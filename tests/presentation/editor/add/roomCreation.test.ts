@@ -139,6 +139,76 @@ describe('createRoomFromDraft', () => {
 		expect(draft.keepAdding).toBe(true); // an explicit choice survives one creation
 	});
 
+	/**
+	 * **A continuation that crosses an `await` re-checks whether its task is still its own** —
+	 * `DrawPolygonTool` and `CalibrateTool` each carry a generation counter for exactly this,
+	 * and this async path was written without one.
+	 *
+	 * The window is DELIBERATELY open: `roomCreation.ts`'s own header argues that Cancel must
+	 * stay live while a write is in flight, because disabling it strands a user behind a fault
+	 * they cannot escape. So a user can cancel, reactivate Room and draw again before the
+	 * first write resolves — and the stale continuation then read the NEW task's `keepAdding`
+	 * and either called `beginTask` (clearing the rectangle the user had just drawn) or
+	 * `returnToSelect` (ending a task they had just started). Neither is a vault defect; both
+	 * destroy work the user can see.
+	 *
+	 * Driven through the real `beginTask`, which is the door a cancel-and-redraw actually goes
+	 * through, rather than by poking a counter — so the case would still hold if the token
+	 * moved somewhere else in the store. The dispatcher's promise is held open with an
+	 * explicit resolver, because the whole subject is the state DURING the await.
+	 */
+	it('a completion from a superseded task leaves the replacement task alone', async () => {
+		let release: (() => void) | undefined;
+		const gate = new Promise<void>((resolve) => { release = resolve; });
+		const { d, draft } = await deps();
+		const inner = d.dispatcher;
+		const held = toolDispatcher(async (command) => { await gate; return inner.run(command); });
+
+		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
+		const inFlight = createRoomFromDraft({ ...d, dispatcher: held });
+
+		// The user cancels and starts another room while the first write is still in flight.
+		draft.beginTask('Room 7');
+		draft.setKeepAdding(true);
+		draft.setRect({ x: 9000, y: 9000, width: 2000, depth: 2000 });
+
+		release?.();
+		expect(await inFlight).toBe('superseded');
+
+		// The replacement task is untouched: its rectangle, its name and its checkbox.
+		expect(draft.rect).toEqual({ x: 9000, y: 9000, width: 2000, depth: 2000 });
+		expect(draft.name).toBe('Room 7');
+		expect(draft.keepAdding).toBe(true);
+		expect(d.returnToSelect).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The other half, so the guard above is not a blanket refusal: the write still LANDED and
+	 * the new Room is still selected. `roomCreation.ts`'s header says so ("the write still
+	 * lands and the new Room is still selected"), and only a case can keep it true — a guard
+	 * that returned early before selecting would pass the case above and silently drop the
+	 * selection this one asserts.
+	 */
+	it('a superseded completion still wrote the room and still selects it', async () => {
+		let release: (() => void) | undefined;
+		const gate = new Promise<void>((resolve) => { release = resolve; });
+		const { d, draft, zones } = await deps();
+		const inner = d.dispatcher;
+		const held = toolDispatcher(async (command) => { await gate; return inner.run(command); });
+
+		draft.setName('Kitchen');
+		draft.setRect({ x: 1000, y: 2000, width: 4200, depth: 3800 });
+		const inFlight = createRoomFromDraft({ ...d, dispatcher: held });
+		draft.beginTask('Room 7');
+		release?.();
+		expect(await inFlight).toBe('superseded');
+
+		const listed = expectOk(await zones.listByPlan(d.planId)).loaded;
+		expect(listed).toHaveLength(1);
+		expect(listed[0].entity.name).toBe('Kitchen');
+		expect(d.selection.select).toHaveBeenCalledTimes(1);
+	});
+
 	it('a refused write reports once, keeps the draft, and stays in the task', async () => {
 		const { d, draft } = await deps({
 			dispatcher: toolDispatcher(() => Promise.resolve(err(injectedPersistenceError()))),

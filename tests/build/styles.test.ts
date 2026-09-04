@@ -415,3 +415,132 @@ describe('assembling the stylesheet', () => {
 		});
 	});
 });
+
+
+/**
+ * Every `@container <name>` query in the SHIPPED sheet names a container the shipped sheet also
+ * declares.
+ *
+ * **This class has now shipped twice on one branch, three files apart.** `styles/asset-shelf.css`
+ * lines 259-269 record `@container rp-al-shelves` rules being inert because only a PROTOTYPE's
+ * scoped block declared that container, name the task that fixed it, and close with "a comment
+ * that names its trigger is a comment nothing re-reads when the trigger fires". Task 14 then
+ * ported two `@container rp-al` blocks out of a prototype whose own scoped block declared `rp-al`,
+ * into a sheet where nothing did — and the ported comment asserted the container WAS declared.
+ * `Back to library` was `display: none` at every width, which also removes it from the tab order.
+ *
+ * Nothing else here can see it: `assembleStyles` checks colour literals and the line cap, jsdom
+ * lays nothing out, and a `@container` naming no container simply never matches — no error, no
+ * warning, no visible difference from a rule whose condition is false. A capture read by eye is
+ * the only other instrument, and none had been taken.
+ *
+ * A rule rather than a list, so it holds for the next partial: the two regexes are asserted to
+ * still match before the comparison is trusted, because a name regex that stopped matching would
+ * compare an empty set against anything and pass.
+ *
+ * **COMMENTS ARE STRIPPED FIRST, and the first version of this case did not strip them.**
+ * Measured: deleting the real `container: rp-al / inline-size` declaration left this file GREEN,
+ * because the paragraph explaining that declaration QUOTES it four lines above — an instrument
+ * written inside the text it measures counting itself, which is the shape CLAUDE.md records
+ * against a self-matching grep. It reddens now, which is what makes it a check.
+ */
+describe('the shipped stylesheet\'s container queries', () => {
+	const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//g, '');
+	const queried = new Set(
+		[...sheet.matchAll(/@container\s+([A-Za-z_][\w-]*)\s*\(/g)].map(([, name]) => name),
+	);
+	// `container: <name> / <type>` and the longhand `container-name: <name>` alike — the shorthand
+	// is what this repository writes and the longhand is what the next author may.
+	const declared = new Set([
+		...[...sheet.matchAll(/container:\s*([A-Za-z_][\w-]*)\s*\//g)].map(([, name]) => name),
+		...[...sheet.matchAll(/container-name:\s*([A-Za-z_][\w-]*)/g)].map(([, name]) => name),
+	]);
+
+	it('is measured by regexes that still match', () => {
+		expect(queried.size).toBeGreaterThan(0);
+		expect(declared.size).toBeGreaterThan(0);
+	});
+
+	it('queries no container the sheet does not declare', () => {
+		expect([...queried].filter((name) => !declared.has(name))).toEqual([]);
+	});
+});
+
+/**
+ * §7's responsive table, pinned at the two boxes it actually measures — Task 15's own job on
+ * this file, over what Task 12 and Task 14's fix round already shipped.
+ *
+ * TWO LADDERS, TWO CONTAINERS, and this is what proves neither collapsed into the other.
+ * `rp-al-shelves` (`styles/asset-shelf.css`) drops the row's own supplier slot below 40rem and
+ * its waste slot below 32.5rem, measuring the SHELVES REGION per §3.3's own row table (spec
+ * lines 305-306: 640px / 520px). `rp-al` (`styles/asset-library-inspector.css`,
+ * `styles/asset-library.css`) narrows the inspector rail below 45rem and collapses it to a
+ * single pane below 35rem, measuring the PANE per §7's own table (720px / 560px). A regression
+ * that quietly renamed one ladder's rem value to the other's — an easy slip, since both pairs
+ * are "the same two numbers" in a loose reading — would pass every other check here: the
+ * no-orphan-container case above only asks that a queried name is DECLARED somewhere, never at
+ * what width, and jsdom lays nothing out to notice a wrong breakpoint either.
+ *
+ * **The brief for this task quoted `(max-width: 720px)` for this ladder, and that syntax
+ * appears nowhere in the shipped sheet.** Task 12 and Task 14 both wrote lightningcss's RANGE
+ * syntax instead (`width < 45rem`), so this pins what actually ships rather than the stale
+ * pseudocode — the same "substitute throughout" the brief already says about the class names in
+ * its own remaining text.
+ *
+ * The two ladders are NOT required to line up numerically once the rail is subtracted from the
+ * pane — see this task's own report for the arithmetic and why the spec's §7 prose narrative
+ * ("the row drops its supplier slot, then its waste slot" inside the 560-720px rung) describes
+ * intent rather than a bit-for-bit claim this test could hold. What this case pins is only that
+ * each ladder's own four numbers are the ones its own spec section names, on the container that
+ * section actually measures.
+ */
+describe('§7 and §3.3\'s two width ladders', () => {
+	const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//g, '');
+
+	it('is measured by a regex that still matches', () => {
+		expect(sheet).toMatch(/@container\s+rp-al\s*\(/);
+		expect(sheet).toMatch(/@container\s+rp-al-shelves\s*\(/);
+	});
+
+	it('narrows the rail at 45rem (720px) and collapses it at 35rem (560px), on the PANE container', () => {
+		expect(sheet).toMatch(/@container\s+rp-al\s*\(width\s*<\s*45rem\)/);
+		expect(sheet).toMatch(/@container\s+rp-al\s*\(width\s*<\s*35rem\)/);
+	});
+
+	it('drops the supplier slot at 40rem (640px) and the waste slot at 32.5rem (520px), on the SHELVES container', () => {
+		expect(sheet).toMatch(/@container\s+rp-al-shelves\s*\(width\s*<\s*40rem\)/);
+		expect(sheet).toMatch(/@container\s+rp-al-shelves\s*\(width\s*<\s*32\.5rem\)/);
+	});
+
+	/**
+	 * §3.3: "a row is a flattened `<button>` … selected UNDER its block class
+	 * (`.rp-al-shelf .rp-al-row`)". A bare `.rp-al-row` would still pass every other gate here —
+	 * `buttonSpecificity.test.ts` reads whatever selector actually ships rather than demanding
+	 * this exact one — so this is a narrower, direct pin of the one shape the spec names by text.
+	 */
+	it('declares a rule the row\'s emitted class can match, under its block', () => {
+		expect(sheet).toContain('.rp-al-shelf .rp-al-row');
+	});
+
+	/**
+	 * §7's THIRD rung's other half — "selecting a row replaces the shelves with the inspector in
+	 * full" — which `styles/asset-library.css`'s own comment says lives in the SHELL rather than
+	 * in the rail's own partial (`styles/asset-library-inspector.css` carries a SECOND, unrelated
+	 * `rp-al (width < 35rem)` block of its own, which is why this asks for the selector directly
+	 * inside the opening brace rather than merely somewhere in the sheet — a lazy `[\s\S]*?` scan
+	 * to the next bare `}` would stop at the first NESTED rule's own close and could match either
+	 * block, or neither, depending on which one the concatenation puts first).
+	 *
+	 * A TEXT pin rather than a behavioural one: jsdom lays nothing out and the container has no
+	 * pinned Chromium, so this is the one thing a gate here can hold — that the selector EXISTS
+	 * inside the narrow-composition rung, never that it actually hides anything on screen. Driven
+	 * directly rather than trusted: deleting the rule, or widening it to `[data-selected-asset-id]`
+	 * alone (which would hide the shelves with NOTHING selected too, since the attribute is `''`
+	 * rather than absent per §6.3), both stop this pattern matching.
+	 */
+	it('hides the shelves region in the narrow composition once something is selected', () => {
+		expect(sheet).toMatch(
+			/@container\s+rp-al\s*\(width\s*<\s*35rem\)\s*\{\s*\.renovation-asset-library\[data-selected-asset-id\]:not\(\[data-selected-asset-id=(['"])\1\]\)\s+\.rp-al-body\s*\{\s*display:\s*none;/u,
+		);
+	});
+});

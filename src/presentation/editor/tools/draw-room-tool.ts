@@ -71,6 +71,14 @@ export class DrawRoomTool implements EditorTool {
 			else this.deps.draft.setRect(this.rectBefore);
 			return;
 		}
+		// The RELEASE names the rectangle, not the last `pointermove` — `SelectTool`'s own rule
+		// ("computes the commit from the release's world coordinate"), which this tool owes for
+		// the same reason: W3C Pointer Events guarantees no move between a down and an up, so a
+		// fast flick is a legal stream with none and settling the last move settles either a
+		// null rect or a stale one. `moved` above is already measured against this same point,
+		// so writing it here is what makes the gesture that was judged a drag the gesture that
+		// gets committed.
+		this.deps.draft.setRect(normalised(anchor, event.worldPoint));
 		this.deps.draft.settle();
 	}
 	cancel(): void {

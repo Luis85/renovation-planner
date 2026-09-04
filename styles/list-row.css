@@ -1,12 +1,19 @@
 /**
- * The flattened button both list rows are drawn as.
+ * The flattened button every list row is drawn as.
  *
  * `.rp-project-list__row` (design slice 16) and `.rp-plan-list__row` (design slice 21) declared
  * the same ten properties each, which `npm run analyze` reported as a clone group once `main`
- * drove duplication to zero — and the sameness is INTENT rather than coincidence: both are one
+ * drove duplication to zero — and the sameness is INTENT rather than coincidence: each is one
  * entity per row, edge-to-edge in a pane, a `<button>` stripped of its button-ness so the row
  * reads as a row and still answers the keyboard. A designer changing what a row looks like
- * means both.
+ * means all of them.
+ *
+ * **THREE rows now, not two**, since the asset library joined this list — and the header said
+ * "both" in three places while the selector list below already named a third. `.rp-al-row` is a
+ * GRID rather than a flex row, so it takes the seven properties that are genuinely shared and
+ * overrides `display`, `padding` and `border-radius` in `asset-shelf.css`, which loads after
+ * this file at equal specificity. That also makes the `text-align: left` note below untrue of
+ * it: inert on the two flex rows, and load-bearing on the grid one.
  *
  * A SELECTOR LIST rather than a shared class in the markup, for the reason `message-panel.css`
  * gives: it buys the same single definition and costs no template change, so every existing
@@ -24,7 +31,8 @@
  * which has one and whose first capture showed twelve plan names centred in the pane. And the
  * focus ring, whose offset is negative on the plan row for a reason that file states.
  *
- * `text-align: left` is shared and is INERT on both, which is written down rather than quietly
+ * `text-align: left` is shared and is INERT on the two FLEX rows — but not on `.rp-al-row`,
+ * which is a grid and needs it. Written down rather than quietly
  * dropped: it positions inline content and a flex item is not inline content —
  * `project-detail.css` records finding exactly that. It is kept because removing it is a
  * behaviour question rather than a duplication one, and this extraction is meant to preserve
@@ -33,23 +41,67 @@
  * Imported BEFORE both component partials in `index.css`, so either can still override a
  * property from its own file at equal specificity when one needs to differ.
  */
+/*
+ * `.rp-al-shelf .rp-al-row` (design "Asset library overview" §3.3, task 12 review round 1)
+ * joined this list rather than restating seven of these ten properties a second time — the
+ * same clone this file's own header already refused once, under the clone detector's floor
+ * and therefore undeclared to `npm run analyze`. `styles/asset-shelf.css`'s own `.rp-al-row`
+ * rule, loaded after this one, still overrides `display` (a GRID, not a flex row — five slots
+ * rather than two or one), `padding` and `border-radius` at equal specificity, exactly as
+ * `project-detail.css` already does for its own two properties — this
+ * partial's own header states that's what the import order is FOR.
+ */
 .rp-project-list .rp-project-list__row,
-.rp-plan-list .rp-plan-list__row {
+.rp-plan-list .rp-plan-list__row,
+.rp-al-shelf .rp-al-row {
 	display: flex;
 	width: 100%;
-	/* WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
-	   photographing the page rather than by any gate. */
+	/*
+	 * WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
+	 * photographing the page rather than by any gate.
+	 *
+	 * **It is a GUARANTEE rather than the mechanism, and Task 12's capture is what established
+	 * the difference.** A row is a `<button>`, and Obsidian's own `button` rule sets
+	 * `height: var(--input-height)` — 30px, measured — so the used height is that and this floor
+	 * is satisfied by something else rather than binding. It is kept because it is what holds if
+	 * that ever changes, and because it states the requirement where the row is; it is NOT what
+	 * produces the resting height, and reading it as such is what would make a later reader
+	 * think a wrapped row could grow. It cannot: `height` is a fixed value, so a row whose
+	 * content wraps OVERFLOWS its box rather than growing, which is exactly what the Home
+	 * surface's narrow rows did — 41px of content in a 30px box, each row's second line drawn
+	 * over the next row's first. `project-list-narrow.css` is where that is released, because
+	 * that is the one place a row here is meant to wrap. (It said `project-list.css`'s narrow
+	 * block, which is where the release lived until Task D moved it out when that file hit the
+	 * 400-line cap; a pointer at a file is a pointer a split invalidates.)
+	 */
 	min-height: var(--size-4-6);
 	padding: var(--size-2-2) var(--size-4-2);
 	border: none;
 	border-radius: var(--radius-s);
 	background-color: transparent;
+	/*
+	 * **`box-shadow` is the fourth thing stripped, and it was missing for as long as this rule
+	 * has existed.** Obsidian's own `button:not(.clickable-icon)` sets
+	 * `box-shadow: var(--input-shadow)`, which `border: none` does not touch — so every row on
+	 * both lists drew as an OUTLINED BOX, and a stack of outlined boxes is the composition the
+	 * Home spec's column armature is written against. Found by the final whole-branch review
+	 * comparing the Continue row (a `<div>`, which inherits none of the button rule) against the
+	 * project rows above it: they were visibly different shapes, in a component whose own header
+	 * says it is distinguished "never by being a different shape".
+	 *
+	 * Stripped here rather than added to the `<div>`, which is the direction this file's own
+	 * first sentence already asks for — "a `<button>` stripped of its button-ness so the row
+	 * reads as a row". The captures decided it: the plan list is 26 outlined boxes edge-to-edge
+	 * before and a readable list after, on both schemes.
+	 */
+	box-shadow: none;
 	color: var(--text-normal);
 	text-align: left;
 	cursor: pointer;
 }
 
 .rp-project-list .rp-project-list__row:hover,
-.rp-plan-list .rp-plan-list__row:hover {
+.rp-plan-list .rp-plan-list__row:hover,
+.rp-al-shelf .rp-al-row:hover {
 	background-color: var(--background-modifier-hover);
 }

@@ -15,6 +15,6 @@ export class ListAssets {
 	async execute(): Promise<Result<Asset[], RepositoryError>> {
 		const listed = await this.assets.listAll();
 		if (isErr(listed)) return listed;
-		return ok(listed.value.map((a) => a.entity));
+		return ok(listed.value.loaded.map((a) => a.entity));
 	}
 }

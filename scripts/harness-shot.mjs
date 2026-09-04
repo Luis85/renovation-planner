@@ -15,15 +15,22 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — either the fixed surfaces (the project
- * view's list state in its dark scheme, light scheme and `?phone`; its detail state wide, at a
- * sidebar's width and scrolled to its price section at both; the Plan Editor's dark and light
- * schemes, a zone selected, the Add menu open, the shell at a sidebar's width and the
- * below-supported shell at 320px; the asset designer's dark and
- * light schemes plus its own sidebar width (Task B10); and the harness index at rest in both
- * schemes, focused, focused on the current row, and showing its failure card) — or, given an
- * entry id, one named prototype or component in both schemes — for a look nobody has to open a
- * browser for. This is how a real layout defect was found earlier in this plan (the view
+ * Headless capture of the browser harness — either the fixed surfaces (the project view's list
+ * state in its dark scheme, light scheme and `?phone`; its detail state wide, at a sidebar's
+ * width and scrolled to its price section at both; the Plan Editor's dark and light schemes, a
+ * zone selected, the Add menu open, the shell at a sidebar's width and the below-supported shell
+ * at 320px; the asset designer's dark and light schemes plus its own sidebar width (Task B10);
+ * the asset library at three of §7's widths, resting and with an asset selected (Task 17); and
+ * the harness index at rest in both schemes, focused, focused on the current row, and showing
+ * its failure card) — or, given an entry id, one named prototype or component in both schemes —
+ * for a look nobody has to open a browser for.
+ *
+ * **The header used to open with a COUNT, and it said fifteen over seventeen shots** — the two
+ * `project-detail-prices` captures landed without it, and the test below carried the same
+ * fifteen in its own name and in a list that omitted the same two. Neither is a number now:
+ * a total in prose is a fact about the array at the moment somebody last read it, and this one
+ * had been wrong for an increment with nothing able to notice. The list above is deliberately
+ * unnumbered for the same reason, and it grew again at this merge. This is how a real layout defect was found earlier in this plan (the view
  * collapsing to 39px of a 700px pane): nothing in the suite could see it because jsdom draws
  * nothing, and a screenshot is the only artifact that shows it. The asset designer's sidebar-
  * width shot is the same shape found a second time, in this same task: an AD-HOC capture at
@@ -70,6 +77,16 @@ const FLOOR_STATE = '.rp-floor-inspector';
 // attaches before the reflow that produces the rail has actually happened.
 const PLAN_CANVAS = '.rp-plan-canvas';
 
+const ASSET_LIBRARY_VIEW = '.renovation-asset-library';
+
+/**
+ * The asset the four selected shots open on — `tests/harness/assetLibrary.ts`'s one DESIGNED
+ * seed, so §3.5's Shape section draws a footprint, a clearance and a spec sheet rather than
+ * three "nothing yet" lines. Named once here because four shots share it and a fifth would
+ * otherwise be a fifth place to keep in step.
+ */
+const LIBRARY_SELECTED_ASSET = 'base-cabinet-600';
+
 /**
  * The viewport for one shot: `VIEWPORT`, with `width` overriding its one field when a shot
  * carries one.
@@ -104,10 +121,18 @@ const FOCUS_TAB_LIMIT = 12;
  * target that stopped being reachable by keyboard — which is itself the defect this shot exists
  * to watch — is reported rather than photographed as a blank.
  *
- * A no-op for a shot with no `focus`, which is every shot but one. Out here rather than as a
- * branch inside `captureOne` for the reason `viewportFor` gives above: that function runs behind
- * a browser where no test reaches it, and one more branch took its CRAP score to exactly the
- * threshold `npm run analyze` fails at.
+ * A no-op for a shot that carries no `focus`, which is MOST of them. This sentence said "every
+ * shot but one" over two — a count written when there was one and not re-read when the second
+ * arrived, which is the class this file's own header count was corrected for in the same commit
+ * that found this. No number here and NO CENSUS COMMAND either, deliberately twice over: what a
+ * reader needs is that the field is OPTIONAL, and a grep quoted inside the very file it counts
+ * matches its own quoting line — measured, `grep -c "focus: "` went from 2 to 3 the moment this
+ * paragraph named it. `tests/build/harness-shot.test.ts` is what actually holds the field on the
+ * shots that carry it; a sentence here cannot.
+ *
+ * Out here rather than as a branch inside `captureOne` for the reason `viewportFor` gives above:
+ * that function runs behind a browser where no test reaches it, and one more branch took its CRAP
+ * score to exactly the threshold `npm run analyze` fails at.
  */
 /**
  * Bring the region a shot is ABOUT into the picture, when it lives below a scrolling body.
@@ -123,9 +148,14 @@ const FOCUS_TAB_LIMIT = 12;
  * `FOCUS_TAB_LIMIT`. It is also a different QUESTION — that function is for a `:focus-visible`
  * ring, and this shot is about layout at rest.
  *
- * A no-op for a shot with no `scrollTo`, which is every shot but one, and out here rather than
- * as a branch inside `captureOne` for the reason `viewportFor` gives: that function runs behind
- * a browser and no test covers it.
+ * A no-op for a shot that carries no `scrollTo`, which is MOST of them. This sentence said
+ * "every shot but one" and was already wrong over two when Task 17 added the third
+ * (`asset-library-actions`) — the same stale-count class as the `focus` docblock above and as
+ * this file's own header, all three corrected together rather than one at a time. No number, for
+ * the reason stated there.
+ *
+ * Out here rather than as a branch inside `captureOne` for the reason `viewportFor` gives: that
+ * function runs behind a browser and no test covers it.
  */
 async function scrollForShot(page, scrollTo) {
 	if (scrollTo === undefined) return;
@@ -175,6 +205,108 @@ const SHOTS = [
 	{ name: 'dark', query: '', selector: PROJECT_VIEW },
 	{ name: 'light', query: '?theme=light', selector: PROJECT_VIEW },
 	{ name: 'phone', query: '?phone', selector: PROJECT_VIEW },
+	// THE HOME SURFACE, POPULATED (Task 12). The three shots above photograph the EMPTY state —
+	// the bare harness root's world is empty by construction — so until this knob existed, the
+	// launcher's rows, its filter line, its `Completed` group, its Continue row and its foot line
+	// had never been rendered by anything at all. jsdom lays nothing out, so spacing, wrapping,
+	// overflow, hit size and the lifecycle strip's legibility are measurements no gate here
+	// performs and a capture is the only instrument.
+	//
+	// `?projects=30` is §9's stress case: past what fits a pane, so the ordering and the scroll
+	// have something to do, and wide enough a spread of statuses that the strip shows real stages
+	// side by side rather than ten copies of one. `tests/harness/mount.ts` carries what the
+	// fixture holds and why each field is in it.
+	//
+	// TWO WIDE SHOTS, one per scheme, where `project-detail-narrow` deliberately takes only one:
+	// that trade rests on nothing about the surface changing with the palette, and it does not
+	// survive here. The lifecycle tick strip is `--text-normal` against `--text-faint` and it is
+	// DROPPED at narrow, so it exists ONLY in a wide shot — and whether a reached cell can be
+	// told from an unreached one is exactly a contrast question. A single default-scheme wide
+	// shot would never photograph the strip in light at all.
+	{ name: 'home-stress', query: '?projects=30', selector: PROJECT_VIEW },
+	{ name: 'home-stress-light', query: '?projects=30&theme=light', selector: PROJECT_VIEW },
+	// THE WIDE ROW IN GERMAN, which is the INPUT to `project-list.css`'s container-query
+	// threshold and was in no fixed shot until a review round asked how anyone would re-derive
+	// that number. The measurement is the widest trailing group at 1280 — 270px in German
+	// (`Bestandsdokumentation`) against 199px in English — and every other Home shot is either
+	// English or narrow, where the strip is dropped and the group is a different width. So the
+	// one state the threshold is computed from was reachable only by an ad-hoc URL.
+	//
+	// This script's own header records why that is not good enough: an ad-hoc capture "taken
+	// once and never watched again" is exactly what the asset designer's sidebar shot exists to
+	// replace. A status label retranslated longer moves this threshold and nothing else here
+	// would show it.
+	{ name: 'home-stress-de', query: '?projects=30&theme=light&lang=de', selector: PROJECT_VIEW },
+	// THE WHOLE SURFACE IN ONE FRAME, and this is the fifth Home shot rather than the four the
+	// plan named — added because reading the first four against §5's regions showed that TWO of
+	// them were in no picture at all. Thirty rows are taller than an 800px viewport, so the
+	// `Completed` disclosure and the foot line (region 7 — the key legend and `New asset`) sit
+	// below the fold in every one of the shots above, and the no-match shot has no `Completed`
+	// group to show. A region no capture contains is a region nobody looks at, which is the
+	// whole failure this script exists against.
+	//
+	// TEN is the count that fits: `HOME_PROJECTS`' first ten walk the lifecycle exactly once
+	// each, so both terminal stages are present and the disclosure draws, and the foot lands at
+	// y≈465 of 800 — measured. LIGHT because what this shot is FOR is two regions made entirely
+	// of muted and faint text, which is a contrast question, and light is the scheme that
+	// breaches first.
+	{ name: 'home-whole', query: '?projects=10&theme=light', selector: PROJECT_VIEW },
+	// 460 is an Obsidian sidebar leaf's real width and the one this surface's whole narrow
+	// composition is a container query on: the row wraps to two lines, the strip goes, and the
+	// status and the facts share the second line. LIGHT and single-scheme, which is
+	// `project-detail-narrow`'s own trade taken for its own reason — what this shot is FOR is
+	// wrapping and the two-line row, none of which moves with the palette, and light is the
+	// scheme a contrast regression breaches first.
+	//
+	// **IN GERMAN, and that is the whole point of the shot rather than a flourish.** The width at
+	// which a one-line row stops holding name, facts and status is decided by the longest status
+	// word, and `Bestandsaufnahme` is 16 characters against `Survey`'s 6 — so a threshold
+	// measured in English is measured against the easy case. `styles/project-list.css`'s
+	// container query cites this capture for its number.
+	{ name: 'home-stress-narrow', query: '?projects=30&theme=light&lang=de', selector: PROJECT_VIEW, width: 460 },
+	// FILTERED TO NOTHING, at 460 — §3's signature interaction, and the state a capture could not
+	// reach at all until `?q=` existed: `harness-shot` navigates and screenshots and types
+	// nothing, so without a URL-seeded query both narrow shots would sit at an empty query
+	// forever and the create action would never be on screen to be looked at.
+	//
+	// The query is ONE UNBROKEN TOKEN, and "unbroken" means NO HYPHENS — which the first version
+	// of this shot got wrong, in exactly the way the plan warned it could be got wrong. It
+	// seeded `Dachgeschossausbau-Wintergarten-Sanierungsplanung`, and a hyphen-minus is a
+	// UAX #14 break opportunity: ordinary wrapping has two of them, so the line broke after
+	// `Wintergarten-` where normal line breaking puts it anyway. MEASURED rather than reasoned —
+	// deleting `overflow-wrap: anywhere` from `project-list.css` and re-running this shot
+	// produced a BYTE-IDENTICAL PNG (same md5), so the capture certified a declaration it never
+	// exercised while reading as though it had.
+	//
+	// `project-list.css` states the precondition in its own words: "normal wrapping breaks at
+	// OPPORTUNITIES, and one long unspaced token has none". A query with a break opportunity in
+	// it photographs the easy case. This one has none, so the only thing that can break it is
+	// the declaration under test.
+	{
+		name: 'home-no-match-narrow',
+		query: '?projects=30&theme=light&q=Dachgeschossausbauwintergartensanierungsplanungsbesprechung',
+		selector: PROJECT_VIEW,
+		width: 460,
+	},
+	// THE FILTER FIELD WITH THE CARET IN IT, and this shot exists because nothing else here can
+	// see the one thing it photographs. Task D made the filter a bordered WRAPPER around a
+	// chrome-less input, which moves the focus ring from the input to `:focus-within` on that
+	// wrapper — and the ring is the half of that change with no other instrument: jsdom resolves
+	// no CSS, so `projectFilterStyles.test.ts` can assert the sheet DECLARES the rule and can
+	// never see whether the ring is drawn, is drawn twice, or is clipped by the border it sits
+	// outside of. This repository has already shipped exactly that defect once, on the harness
+	// index's own entry links, and the remedy it built then was a `focus`-selector shot.
+	//
+	// LIGHT, because that is the scheme `--interactive-accent` measures worst against (3.43:1
+	// there and 4.00:1 dark, both over WCAG 1.4.11's 3:1 floor for a non-text indicator), so a
+	// regression breaches here first — the same trade `index-focus` takes for the same reason.
+	//
+	// A RESTING shot cannot substitute: nothing is focused in a headless page until something
+	// presses Tab, which is what `focusForShot` does and why it does it that way — setting focus
+	// programmatically does not satisfy `:focus-visible`, and while THIS ring hangs off
+	// `:focus-within` rather than `:focus-visible`, the input's own suppressed host ring is
+	// `:focus-visible` and is half of what this picture is for.
+	{ name: 'home-filter-focus', query: '?projects=10&theme=light', selector: PROJECT_VIEW, focus: '.rp-project-filter__input' },
 	// The project view's DETAIL state (design slice 21), which the harness index cannot
 	// photograph: it mounts a component bare, and `ProjectDetail` requires three props and
 	// reads `project.name` immediately, so the picture would be the index's own failure card.
@@ -321,6 +453,74 @@ const SHOTS = [
 	// it, wrapping is not a colour question — nothing here behaves differently by scheme, so
 	// there is nothing to measure and dark is simply this file's own default.
 	{ name: 'asset-designer-narrow', query: '?view=asset-designer', selector: ASSET_DESIGNER_VIEW, width: 460 },
+	// THE ASSET LIBRARY (Task 17), and this is the surface with the largest gap between what was
+	// built and what has ever been looked at: sixteen tasks shipped the shelves, the rows, the
+	// marks, the inspector, the stylesheet, the keyboard and the narrow composition, and every
+	// rendering question any of them raised was deferred to a capture nobody could take.
+	//
+	// SEVEN shots and not two, which is a deviation from this task's own brief and is argued from
+	// §7 rather than from appetite: that section specifies a ladder with THREE rungs (a 280px
+	// rail at and above 45rem, 240px between 35 and 45, and one pane below 35), and the middle
+	// rung has already shipped MISSING once — reported by a review bot, with that partial's own
+	// comment recording why nothing saw it: "no capture had been taken between the two widths
+	// that were". A ladder photographed at one width is a ladder with two untested rungs.
+	//
+	//   - Rest, BOTH schemes at 1280: the shelves, the rows' five slots, §5.1a's repair strip and
+	//     the resting inspector rail. The whole palette of this surface is here and nowhere else.
+	//   - Selected at 1280, LIGHT: §3.5's inspector in full — four sections, the editable field
+	//     grid, the `Used in` list and the three actions. Light because the one control on this
+	//     surface with a colour argument is the destructive `Delete`, whose border is
+	//     `--text-error`: the pair already measured for that variable in this file (the index's
+	//     failure card) puts it at 3.89:1 in light against 4.27:1 in dark, so light is the scheme
+	//     a regression toward a contrast floor breaches first.
+	//   - Selected at 700, LIGHT: §7's MIDDLE rung, the 240px rail, which no picture has ever
+	//     held. Same scheme as the shot above so the only difference between the two is the width.
+	//   - Rest at 460, DARK: the row at an Obsidian sidebar leaf's real width, where §7 says the
+	//     supplier slot goes first and the waste slot second. Dark for `asset-designer-narrow`'s
+	//     own stated reason — wrapping is not a colour question, so there is nothing to measure
+	//     and dark is this file's default.
+	//   - Selected at 460, LIGHT: §7's THIRD rung, the one composition in this plugin where a rail
+	//     stops being a rail. `.rp-al-body` is hidden, the inspector takes the pane and
+	//     `‹ Back to library` appears — three rules that have never drawn together anywhere,
+	//     stood in for until now by a unit test that strips the `@container` wrapper off the
+	//     shipped selector, which is a stand-in and not evidence the query fires.
+	{ name: 'asset-library-dark', query: '?view=asset-library', selector: ASSET_LIBRARY_VIEW },
+	{ name: 'asset-library-light', query: '?view=asset-library&theme=light', selector: ASSET_LIBRARY_VIEW },
+	{
+		name: 'asset-library-selected',
+		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
+		selector: ASSET_LIBRARY_VIEW,
+	},
+	{
+		name: 'asset-library-middle',
+		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
+		selector: ASSET_LIBRARY_VIEW,
+		width: 700,
+	},
+	// AND THE ACTIONS ROW, which no RESTING capture of this surface reaches: the rail is its own
+	// scroller, and with §3.5's four sections above it the row sits below the fold at 1280 × 800 —
+	// seen, not predicted, in the first capture taken after this shot's siblings. Seen with the
+	// provisioned Chromium named through `RP_CHROMIUM_EXECUTABLE` rather than the pinned
+	// revision, which is the caveat every capture-derived sentence on this branch carries and
+	// which this one did not; below-the-fold is unlikely to differ between builds, and the
+	// sentence says which build it was read on either way. `Delete` is the reason it is worth a shot of its own: it is this surface's one
+	// destructive control, its treatment was reasoned from SPECIFICITY alone
+	// (`.rp-al-inspector .rp-al-action--delete` at (0,2,0) against Obsidian's own
+	// `button:not(.clickable-icon)` at (0,1,1)), and this repository has already shipped exactly
+	// that reasoning being wrong once, when a danger button rendered plain white.
+	{
+		name: 'asset-library-actions',
+		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
+		selector: ASSET_LIBRARY_VIEW,
+		scrollTo: '.rp-al-actions',
+	},
+	{ name: 'asset-library-narrow', query: '?view=asset-library', selector: ASSET_LIBRARY_VIEW, width: 460 },
+	{
+		name: 'asset-library-narrow-selected',
+		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
+		selector: ASSET_LIBRARY_VIEW,
+		width: 460,
+	},
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

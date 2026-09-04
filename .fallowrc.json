@@ -14,7 +14,7 @@
 	// background, and it imports nothing under `src/` or `tests/`. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
 	// reaches it through the graph — and it having to be reachable is the point of it being
 	// one file rather than a copy in each.
-	// The seven `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
+	// The eight `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
 	// nothing imports them and no npm script runs them either — `vue-tsc -noEmit`
 	// type-checks them because `tsconfig.json`'s `include` names each one directly, and
 	// compiling is the whole point. `type-safety.test-d.ts` holds the screen/world brand
@@ -32,7 +32,12 @@
 	// only way to hold one is to have gone through `parseCurrency` or `currencyOf`;
 	// `costPipelineInput.test-d.ts` holds `CostPipelineInput.expectedCurrency` being REQUIRED — a
 	// claim only the compiler can hold, since a runtime test cannot distinguish "omitted" from
-	// "omitted and defaulted". In all seven, an
+	// "omitted and defaulted"; `assetLibraryContext.test-d.ts` (Task 11 review) holds
+	// `AssetLibraryContext.assetId`/`.expanded` being `DeepReadonly<Ref<T>>` rather than a bare
+	// `Ref<T>` — a claim about what the injected TYPE refuses a consumer, which is identical at
+	// runtime either way (both are the same writable ref underneath, assigned with NO cast at
+	// the one `provide()` call — a writable `Ref<T>` is structurally assignable into a
+	// `DeepReadonly<Ref<T>>`-typed slot) and so has no runtime form. In all eight, an
 	// unsatisfied `@ts-expect-error` or assignment failure is itself a compile error, which is the
 	// mechanism. Named one at a time rather than
 	// globbed `tests/**/*.test-d.ts`, for the reason `dynamicallyLoaded`'s own comment gives:
@@ -43,11 +48,14 @@
 	// through `import.meta.glob`, which is a VITE feature resolved at build time and invisible
 	// to a static import graph — so fallow sees a tree nothing imports and reports every file
 	// dead. Declared as entries rather than as `dynamicallyLoaded` because a prototype is a
-	// starting point of the harness's graph and fallow has to walk outward from it. NOT because
-	// a prototype imports anything: it cannot — `vue/no-restricted-block` bans `<script>` in
-	// that tree, so a prototype composes real components through the index's global registry,
-	// never through an import. An earlier version of this comment said otherwise, in the third
-	// of three places that made the same wrong claim.
+	// starting point of the harness's graph and fallow has to walk outward from it — and
+	// walking outward is load-bearing now rather than vacuous: a prototype CAN import, and
+	// `AssetLibrary.vue` imports two sibling mocks and a fixture that imports
+	// `src/core/geometry/Point`. This paragraph used to end "NOT because a prototype imports
+	// anything: it cannot — `vue/no-restricted-block` bans `<script>` in that tree", which was
+	// true when it was written and stopped being true when a `<script setup>` became legal here.
+	// `src/prototypes/README.md` records that same claim going stale in three other places; this
+	// was the fourth, and it survived them because nothing in any gate reads a comment.
 	// `tests/fixtures/promotion/ZoneSummary.promoted.vue` is a sixth kind: Task 7's
 	// `tests/build/prototype-promotion.test.ts` reads it with `readFileSync`, not `import`, so
 	// no import graph — static or dynamic — can ever reach it, the same way
@@ -75,6 +83,7 @@
 		"tests/application/errors/exceptionMapper.test-d.ts",
 		"tests/core/money/currency.test-d.ts",
 		"tests/domain/cost/costPipelineInput.test-d.ts",
+		"tests/presentation/library/assetLibraryContext.test-d.ts",
 		"src/prototypes/**/*.vue",
 		"tests/fixtures/promotion/ZoneSummary.promoted.vue",
 		"tests/build/fixtures/brokenFake.fixture.ts",
@@ -191,9 +200,29 @@
 	"ignoreExports": [
 		{ "file": "tests/helpers/logger.ts", "exports": ["consoleLoggerMock"] }
 	],
+	// `src/prototypes/**` joins `tests/**` here for a reason that is about THIS FILE rather than
+	// about any mock: `vitest.config.ts` excludes that tree from coverage (line 35, "nothing in
+	// the tree ships, so measuring it would report on scaffolding"), and fallow's CRAP score is
+	// complexity weighted by coverage — so every function in a prototype is scored against 0%
+	// and breaches by construction the moment it carries a branch. Measured rather than
+	// reasoned: `AssetInspector.vue`'s `shapeNote`, a four-case switch of eight lines, scored
+	// CRAP 30.0 against a threshold of 30.
+	//
+	// It never fired before because no prototype had ever had real logic in it — `<script setup>`
+	// only became legal in this tree recently and `WorkPackageFilters.vue`, the first mock to use
+	// one, holds a single `ref`. The first mock with a state machine is the first to meet the gap,
+	// which is exactly when a config that only ever half-covered a tree gets found.
+	//
+	// What goes with it, stated rather than smuggled: the SFC template-complexity findings for
+	// this tree go too. That is the acceptable half. A mock's template branches BECAUSE it draws
+	// states — four mark states, a header with and without a disclosure control, a shelf that is
+	// empty — and those states are the entire reason a screen is prototyped before it is built.
+	// A mock that shed states to satisfy a complexity metric would be a worse mock, and the
+	// metric would have measured it doing its job. `max-lines` (400, ESLint, this tree included)
+	// is still the size gate, and it has already forced one decomposition here.
 	"health": {
 		"coverage": "coverage/coverage-final.json",
-		"ignore": ["tests/**"]
+		"ignore": ["tests/**", "src/prototypes/**"]
 	},
 	"rules": {
 		"unused-dev-dependencies": "error",

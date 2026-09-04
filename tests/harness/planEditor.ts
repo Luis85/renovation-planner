@@ -69,6 +69,20 @@ const HARNESS_PROJECT: ProjectSummaryDto = {
 	status: 'DESIGN',
 	currency: 'EUR',
 	libraryOverlap: false,
+	// The two Renovation Planner Home facts, which this fixture carries because
+	// `ProjectSummaryDto` requires them and NOT because the editor draws either — nothing it
+	// mounts reads `planCount` or `lastWorked`. `0` and `null` rather than plausible-looking
+	// numbers, so the fixture states the same thing `createPlanEditorQueries.getProject`
+	// really answers (`UNKNOWN_ROW_FACTS`) rather than a richer world than production has.
+	//
+	// Spelled out rather than spread from that constant: a fixture that agrees with production
+	// BY CONSTRUCTION cannot disagree with it, and disagreeing is the whole job of a fixture.
+	//
+	// Added at the merge that brought this file and the required fields together from two
+	// branches. It is one of five sites `vue-tsc` named and no test could: the file compiled
+	// on `origin/main` and the field was required on the other side.
+	planCount: 0,
+	lastWorked: null,
 };
 
 /**

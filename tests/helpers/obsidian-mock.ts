@@ -27,11 +27,40 @@ export interface Command {
 }
 
 /**
- * The real call answers the user's app-language setting. English here, because tests and
- * the harness run in English; `t()` itself is pure and is driven per locale directly.
+ * The real call answers the user's app-language setting. English by default, because tests and
+ * the harness run in English; `t()` itself is pure and is driven per locale directly, so no
+ * suite has ever needed another value here.
+ *
+ * **The browser harness does.** `styles/project-list.css`'s container-query threshold is the
+ * width at which a row's name, facts and status stop fitting on one line, and that is a
+ * question about the LONGEST STATUS WORD: `Bestandsaufnahme` is 16 characters against
+ * `Survey`'s 6, so a threshold measured in English is measured against the easy case. Nothing
+ * in this repository renders `de.ts` in any gate, and a headless capture is the only instrument
+ * that can see a wrap at all — so `?lang=de` has to reach `currentLanguage()`, and this is the
+ * one function it resolves through.
+ *
+ * The `Platform.isMacOS` shape, for its reason: a mutable module value the caller assigns
+ * before mounting, defaulting to what every existing fixture already assumes. Not a parameter,
+ * because `getLanguage()` is Obsidian's own zero-argument call and a fake must not be a
+ * different shape from the thing it stands for.
  */
+let language = 'en';
+
 export function getLanguage(): string {
-	return 'en';
+	return language;
+}
+
+/**
+ * Point `getLanguage` at another locale — the browser harness's `?lang=` knob and nothing else.
+ *
+ * Exported rather than left as a mutable binding for the reason `Platform` is a plain object:
+ * a module-level `let` cannot be assigned across an ES module boundary, so a setter is what a
+ * caller actually has. NO suite calls this, and one that did would owe every later file in its
+ * worker the reset — which is exactly why the harness, whose page is torn down with the tab, is
+ * the only caller.
+ */
+export function setLanguage(tag: string): void {
+	language = tag;
 }
 
 /**
@@ -39,6 +68,21 @@ export function getLanguage(): string {
  * is what a fixed app reports; the plugin treats it as opaque text either way.
  */
 export const apiVersion = '1.13.0';
+
+/**
+ * Obsidian's static platform flags. The real export carries a dozen members; `isMacOS` is the
+ * only one anything in `src/` reads (`platformModifier.ts`'s `opensNote`/`modifierLabel`), so
+ * per this file's own policy it is the only one modelled — a member nothing exercises cannot
+ * be caught drifting from the real API.
+ *
+ * A plain mutable object, matching the real declaration's `boolean` (not `readonly boolean`):
+ * a test drives the non-default platform by assigning `Platform.isMacOS` directly before
+ * mounting, and defaults to `false` because that is the platform every other fixture here
+ * already assumes (`getLanguage` answers `'en'`, not a German locale, for the same reason).
+ */
+export const Platform = {
+	isMacOS: false,
+};
 
 /**
  * The real `normalizePath`, and no kinder: it is what a path handed to the vault adapter

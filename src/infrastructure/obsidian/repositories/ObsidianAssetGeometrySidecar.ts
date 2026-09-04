@@ -4,6 +4,7 @@ import type { AssetId } from '../../../domain/asset/AssetId';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import type {
 	AssetGeometryDocument,
+	AssetGeometryError,
 	AssetGeometrySidecar,
 	AssetGeometrySnapshot,
 } from '../../../application/ports/AssetGeometrySidecar';
@@ -124,21 +125,26 @@ const shapeToPersistence = (shape: AssetShape): StoredShape => ({
 export class ObsidianAssetGeometrySidecar implements AssetGeometrySidecar {
 	constructor(private readonly store: AssetGeometryStore) {}
 
-	async read(assetId: AssetId): Promise<Result<AssetGeometrySnapshot, RepositoryError>> {
+	async read(assetId: AssetId): Promise<Result<AssetGeometrySnapshot, AssetGeometryError>> {
 		const snapshot = await this.store.read(assetId);
 		if (!snapshot.ok) return snapshot;
 
+		// The store's own read has already SUCCEEDED here, so `snapshot.value.path` is the
+		// file these two validators are refusing — a sidecar that is well-formed JSON with a
+		// nonsense shape or calibration (§3.5's "a domain `asset.*` or `calibration.*` code"
+		// row) is still a damaged sidecar to name, not merely a retryable vault fault.
+		const path = snapshot.value.path;
 		const dto = snapshot.value.dto;
 		let shape: AssetShape | null = null;
 		if (dto.shape !== null) {
 			const validated = shapeFromPersistence(dto.shape);
-			if (!validated.ok) return err(validated.error);
+			if (!validated.ok) return err({ ...validated.error, sidecarPath: path });
 			shape = validated.value;
 		}
 		let calibration: Calibration | null = null;
 		if (dto.calibration) {
 			const validated = calibrationFromStored(dto.calibration);
-			if (!validated.ok) return err(validated.error);
+			if (!validated.ok) return err({ ...validated.error, sidecarPath: path });
 			calibration = validated.value;
 		}
 
@@ -155,7 +161,7 @@ export class ObsidianAssetGeometrySidecar implements AssetGeometrySidecar {
 		assetId: AssetId,
 		document: AssetGeometryDocument,
 		expected?: EntityVersion,
-	): Promise<Result<EntityVersion, RepositoryError>> {
+	): Promise<Result<EntityVersion, AssetGeometryError>> {
 		const content: AssetSidecarContent = {
 			calibration: document.calibration ? calibrationToPersistence(document.calibration) : null,
 			shape: document.shape === null ? null : shapeToPersistence(document.shape),

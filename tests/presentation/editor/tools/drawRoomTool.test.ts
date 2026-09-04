@@ -37,6 +37,37 @@ describe('DrawRoomTool', () => {
 	});
 
 	/**
+	 * **The release decides the rectangle, and `pointerUp` used to settle whatever the last
+	 * `pointermove` had left.** W3C Pointer Events guarantees no move between a `pointerdown`
+	 * and a `pointerup`, so a fast flick is a legal stream with none — and this tool computed
+	 * `moved` from `event.worldPoint` (so the gesture correctly read as a DRAG, 4200 units
+	 * against an epsilon of 4) and then settled a rect nothing had ever written. With no
+	 * earlier rectangle that is `settle()` over a null rect: a drag the user completed
+	 * produced no Room and no error.
+	 *
+	 * It is the house rule stated for the sibling tool and not carried here — `SelectTool`
+	 * "records where a drag started in WORLD coordinates and computes the commit from the
+	 * release's world coordinate". Two cases, because the two ways it goes wrong are
+	 * different: with no prior rectangle the drag vanishes, and with one it silently keeps
+	 * the OLD one, which is worse — the user sees a rectangle and it is the wrong rectangle.
+	 */
+	it('a drag with no move event at all still commits the rectangle the release names', () => {
+		const { tool, draft } = armed();
+		tool.pointerDown(pointerAt(1000, 200));
+		tool.pointerUp(pointerAt(5200, 4000));
+		expect(draft.rect).toEqual({ x: 1000, y: 200, width: 4200, depth: 3800 });
+		expect(draft.valid).toBe(true);
+	});
+
+	it('a release away from the last move commits the release, not the last move', () => {
+		const { tool, draft } = armed();
+		tool.pointerDown(pointerAt(1000, 200));
+		tool.pointerMove(pointerAt(2000, 1000));
+		tool.pointerUp(pointerAt(5200, 4000));
+		expect(draft.rect).toEqual({ x: 1000, y: 200, width: 4200, depth: 3800 });
+	});
+
+	/**
 	 * The drag route's own half of design spec §2.7's "a side must be positive", which the
 	 * numeric route has always kept (`parseMetres('0')` is `not-positive`) and this one did
 	 * not. A drag straight along one axis clears the click epsilon — `moved` is 4200 world

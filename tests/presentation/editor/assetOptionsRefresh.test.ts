@@ -49,7 +49,7 @@ describe('the assign picker options', () => {
 			makeAsset({ name: 'Floor tiles', unit: 'm2', wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		);
-		const asset = expectOk(await r.assetsRepo.listAll())[0];
+		const asset = expectOk(await r.assetsRepo.listAll()).loaded[0];
 		if (asset === undefined) throw new Error('expected the asset to have been saved');
 
 		r.harness.changeCatalogue();

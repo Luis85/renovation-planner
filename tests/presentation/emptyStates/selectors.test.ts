@@ -7,11 +7,30 @@
 import { describe, expect, it } from 'vitest';
 import {
 	selectAssetDesignerEmptyState,
+	selectAssetLibraryEmptyState,
 	selectPlanEditorEmptyState,
 	selectRenovationProjectEmptyState,
 } from '../../../src/presentation/emptyStates/selectors';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../../src/presentation/read-models/PlanDto';
+import type { CatalogueEntryDto } from '../../../src/application/queries/ListCatalogueEntries';
 import { assetDesign } from '../../helpers/assetDesign';
+import { createAssetId } from '../../../src/domain/asset/AssetId';
+import { currencyOf } from '../../../src/core/money/Money';
+
+const anEntry = (): CatalogueEntryDto => ({
+	assetId: createAssetId(),
+	name: 'Oak plank floor',
+	category: 'material',
+	unit: 'm2',
+	unitCostAmount: '34.95',
+	currency: currencyOf('EUR'),
+	wasteFactorDefault: '0.08',
+	supplier: null,
+	sku: null,
+	height: null,
+	notes: null,
+	background: null,
+});
 
 const PLAN: PlanDto = {
 	id: 'plan-1',
@@ -115,7 +134,7 @@ describe('selectRenovationProjectEmptyState', () => {
 	});
 
 	it('asks for nothing once there is one', () => {
-		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', currency: 'EUR', libraryOverlap: false };
+		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null };
 
 		expect(selectRenovationProjectEmptyState([project], 0)).toBeNull();
 	});
@@ -136,7 +155,7 @@ describe('selectRenovationProjectEmptyState', () => {
 	 * projects to report the fifth.
 	 */
 	it('asks for nothing when some projects loaded and others refused', () => {
-		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', currency: 'EUR', libraryOverlap: false };
+		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null };
 
 		expect(selectRenovationProjectEmptyState([project], 1)).toBeNull();
 	});
@@ -192,5 +211,58 @@ describe('which empty state the asset designer is in', () => {
 	 */
 	it('asks for a background before a footprint, when the asset has neither', () => {
 		expect(selectAssetDesignerEmptyState(assetDesign({ shape: null, background: null }))).toBe('noBackground');
+	});
+});
+
+/**
+ * Design "Asset library overview" §4's fourth selector. Unlike its three siblings, `entries`
+ * is never an `Err` to guard against — `ListCatalogueEntries` has already succeeded by the
+ * time this is asked, and a failed read is `ViewFailure`'s state, not this registry's.
+ *
+ * `searching` is the third, independent input this file's header argues for: an empty result
+ * says nothing about whether a query is running, and the two answers this function gives for
+ * an empty list are opposite states with opposite hand-offs. `unreadable` sits second, matching
+ * the order its two list-shaped siblings above already take theirs in.
+ */
+describe('which empty state the asset library is in', () => {
+	it('asks for nothing when the library has entries, even while searching', () => {
+		expect(selectAssetLibraryEmptyState([anEntry()], 0, true)).toBeNull();
+	});
+
+	it('asks for nothing when the library has entries and no search is running', () => {
+		expect(selectAssetLibraryEmptyState([anEntry()], 0, false)).toBeNull();
+	});
+
+	it('asks for noAssets on an empty library with no search running', () => {
+		expect(selectAssetLibraryEmptyState([], 0, false)).toBe('noAssets');
+	});
+
+	/**
+	 * The case that discriminates this selector from a plain `entries.length === 0` check: the
+	 * SAME empty list answers `noMatches` here rather than `noAssets`, because a search is
+	 * running. Mutating the two branches into one (`entries.length === 0 ? 'noAssets' : null`,
+	 * dropping `searching` entirely) reddens this case at its assertion while leaving the two
+	 * above it green — which is what makes it the one worth keeping when the others are cut.
+	 */
+	it('asks for noMatches on an empty library while a search is running', () => {
+		expect(selectAssetLibraryEmptyState([], 0, true)).toBe('noMatches');
+	});
+
+	/**
+	 * The guard is UNCONDITIONAL — refused whatever `searching` is — per the ruling on the
+	 * finding that this selector originally omitted it entirely: a library whose notes all
+	 * refused is not "no assets at all" (§4's own row for that vault is *Some unreadable*,
+	 * whose shelves still draw), and narrowing the guard to the `noAssets` arm alone would give
+	 * this selector two different policies for `unreadable` to reconcile. Both arms are pinned
+	 * here rather than one, because a guard tested only on the arm somebody was thinking about
+	 * is this repository's oldest recurring defect — and `searching: true` is the arm a version
+	 * of this fix that special-cased `noAssets` alone would still get wrong.
+	 */
+	it('refuses to answer noAssets when the library has unreadable notes', () => {
+		expect(selectAssetLibraryEmptyState([], 1, false)).toBeNull();
+	});
+
+	it('refuses to answer noMatches too, when the library has unreadable notes', () => {
+		expect(selectAssetLibraryEmptyState([], 1, true)).toBeNull();
 	});
 });

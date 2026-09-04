@@ -17,7 +17,7 @@ import type { AssetPriceRowDto } from '../../../src/application/queries/ListProj
 // `libraryOverlap` is slice 19's §83 marker, required on the DTO and `false` here because
 // these cases are about the DETAIL state, which draws no marker — stated rather than omitted,
 // so a fixture never carries a value nothing chose.
-const PROJECT: ProjectSummaryDto = { id: 'project-01JAAA', name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false };
+const PROJECT: ProjectSummaryDto = { id: 'project-01JAAA', name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null };
 const READ_FAILED = { category: 'Persistence', code: 'project.read-failed', message: 'boom' } as const;
 
 /**

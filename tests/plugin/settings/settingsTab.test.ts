@@ -274,9 +274,10 @@ describe('moving the library', () => {
 	it('offers only folders that do not overlap a project folder', async () => {
 		const { plugin, tab } = await withStored(null);
 		equipVault(plugin, { folders: ['Shared/Catalogue', 'Renovation/Kitchen refit'] });
-		plugin.root.persistence?.index.rebuild([
-			{ id: 'p1' as never, type: 'renovation-project', path: 'Renovation/Kitchen refit/Project.md' },
-		]);
+		plugin.root.persistence?.index.rebuild(
+			[{ id: 'p1' as never, type: 'renovation-project', path: 'Renovation/Kitchen refit/Project.md' }],
+			[],
+		);
 
 		moveRow(tab).action(0);
 		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<string>;

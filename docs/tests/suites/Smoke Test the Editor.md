@@ -75,7 +75,7 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the fourteen cases whose
+Every step below carries a **`Reachable by`** verdict — a column in the fifteen cases whose
 steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
 procedure is a list. The verdict names the **cheapest instrument that could discharge that
 step as written**. It is a claim about the step's own pass condition, not a report on what is
@@ -83,20 +83,164 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 101 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 44 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 118 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 108 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 54 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 137 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 14 |
-| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 9 |
+| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 13 |
 
-**264 steps across FOURTEEN cases, and this paragraph has now proved itself a FIFTH time — at
+**326 steps across NINETEEN cases, re-derived at the Add Room merge.** Both sides of that
+conflict carried their own five figures — this branch 300 across seventeen, `main` 316 across
+eighteen — and neither could be taken, because each had counted a tree without the other's case
+in it ([[Add a room]] and [[Browse the asset library]] / [[Find and resume a project]]
+respectively). The five figures above are a fresh run of BOTH greps below against the merged
+tree, taken in the edit that resolved it, and they sum to 326 rather than being asserted to;
+the nineteen is `ls docs/tests/cases/*.md`, checked per file to be sure every one of them
+actually carries verdicts rather than assumed from the `## Cases` list.
+
+**The arithmetic would have agreed this time, per row and not merely in total, and that is luck
+rather than a method.** [[Add a room]] carries `suite` 2, `browser` 2, `obsidian` 5, `desktop` 1
+and no `judgement`, and `main`'s five figures plus exactly those give the five above — 316 + 10
+= 326 as well. So an incremented set would have been right, which is exactly the reasoning that
+went wrong at the third, fourth and eighth corrections below, where the other side had also
+moved rows in shared cases. It agrees here only because this branch edited no verdict row
+outside its own new case; nothing about an incremented sentence would have said so, and the
+per-row agreement was established by running the greps rather than by trusting the sum.
+
+**The agreeing-row hazard did NOT bite this time, and saying so took measuring rather than
+recalling.** `main`'s account below records the two non-conflicting rows of ITS merge as
+`desktop` and `judgement`; the first draft of THIS paragraph asserted the same shape here —
+that `judgement` agreed and `desktop` moved — and it was false. All five rows differed
+(`suite` 101/106, `browser` 44/52, `obsidian` 118/132, `desktop` 14/13, `judgement` 9/13), so
+git offered every one of them and no row was resolved unexamined. Read that as luck for the
+second time rather than as the hazard being closed: it happened only because `main` had moved
+`judgement` from 9 to 13 for reasons of its own, and had it not, the row would have agreed at 9
+and been wrong by the same mechanism. The claim was checked with
+`git show :2:… ` against `git show :3:…` after being written from memory and getting it
+backwards, which is the instrument to use rather than the recollection.
+
+**The ordinal collided one merge earlier and stays retired.** This branch's account below called
+itself the EIGHTH correction and `main`'s called itself the SEVENTH; both were counting
+the same paragraph's history, both incremented honestly, and the two numbers now describe
+overlapping pasts that cannot be reconciled into a sequence. A counter maintained on two
+branches is a counter that is wrong on at least one of them the moment they merge, and nothing
+about either sentence reads as unverified. So this paragraph stops counting itself: what it
+records is WHAT happened and WHEN, and the accounts below keep their own ordinals as the
+branch-local facts they always were.
+
+**The account from the merge before this one follows, and it stands as the branch-local fact it
+was.** *Neither side of the conflict could be taken, again.* This branch measured 300 across
+seventeen and `main` measured 292 across sixteen; each was correct on the day and neither is
+correct now, because each had counted a tree without the other's case in it ([[Browse the asset
+library]] and [[Find and resume a project]] respectively). The five figures above were a fresh
+run of BOTH greps below against the merged tree, taken in the edit that resolved it, and they
+summed to 316 rather than being asserted to.
+
+*And `main`'s account below names the defect that merge had to be checked against, so it was:
+a row that AGREES across a conflict is never offered to anyone.* Git shows you the lines that
+differ. Measured there rather than assumed — the two rows that did NOT conflict that time were
+`desktop` and `judgement`, both at 13 on each side, and that merged tree held 13 for each, so
+both were right. That was luck, not a method, and it was the second merge running where the
+question had to be asked by hand because no tool asks it. **The third merge is where the luck
+ran out** — see the `desktop` row above.
+
+**This branch's own account follows, and it stands.**
+**300 steps across SEVENTEEN cases, and this paragraph has now proved itself an EIGHTH time — at
+a merge, which is the shape the fifth correction had and the sixth deliberately did not.** This
+branch measured 288 across sixteen and `main` measured 276 across fifteen; both were correct on
+the day and neither is correct now, because each had counted a tree without the other's case in
+it ([[Browse the asset library]] and [[Open a floor and select a room]] respectively).
+**Neither side of the conflict could be taken.** The five figures above are a fresh run of BOTH
+greps below against the merged tree, taken in the edit that resolved it, and they sum to 300
+rather than being asserted to. `main` also moved rows this branch never touched — a step 11 in
+[[Open a floor and select a room]] and a tenth-numbered hover step in [[Canvas Navigation]] —
+which is why an arithmetic 288 + 11 would have answered 299 and been wrong by one in a way
+nothing would have caught.
+
+**The seventh correction's own account follows, and it stands.** *288 steps across SIXTEEN
+cases, and this paragraph has now proved itself a SEVENTH time.* The
+asset library increment's Task 17 appended [[Browse the asset library]] to the `## Cases` list
+below — eighteen steps spread over four tiers (`suite` 4, `browser` 9, `obsidian` 1,
+`judgement` 4), so every tier but `desktop` moved where the sixth correction moved exactly one.
+Re-run of both greps below against the current tree, taken in the edit that wrote this.
+
+**And it proved itself again WITHIN the same task**, which is worth one clause: the figures here
+first read 287 over seventeen steps, and Task 17's own fix round added an eighteenth (the
+`Back to library` chevron, which had been reported as a defect with no step to find it in). The
+greps were re-run rather than the total incremented, because an arithmetic adjustment is how the
+third and fourth corrections in this paragraph's history went wrong.
+
+**That sentence first claimed the case was the FIRST here to span four tiers, and measuring it
+before committing said otherwise:** [[Zone Editing Walkthrough]], [[Notices and save state]],
+[[Empty States Walkthrough]], [[Create a Project]] and [[Calibrate a Plan]] each already span
+four, and [[Canvas Navigation]] spans all five. What is true is the narrower thing — a case
+whose subject is the gap between what each instrument can settle ends up spread rather than
+concentrated — and it is worth recording that the false version was caught by a one-line loop
+over the same two greps this section already names as its authority, rather than by review.
+
+**The sixth correction's own account follows, and it stands.** *270 steps across FIFTEEN cases,
+and this paragraph has now proved itself a SIXTH time — this time in the commit that ADDED the
+case, which is a shape the previous five did not have.* The asset library increment appended
+[[Open the Asset Library]] to the `## Cases` list below and left this paragraph reading 264
+across fourteen, so the file contradicted itself within one commit rather than across a merge.
+`obsidian` moved 108 → 114 with it; the other four verdicts did not move.
+
+**The remedy is no longer a more careful paragraph.** Five previous corrections were each careful
+and each went stale, so a sixth careful sentence predicts a seventh staleness. What changes here is
+that the greps are the authority and this prose is a snapshot of them — read the number by running
+them, and treat any figure written above as the day it was taken. Earlier account follows.** The per-project price override branch
+
+**`main`'s account follows, and it stands.**
+**292 steps across SIXTEEN cases, and this paragraph has now proved itself a SEVENTH time — at a
+merge, and with a face this file had not yet recorded: TWO of the five rows agreed across the
+conflict and were therefore never offered to anyone to check.** The Renovation Planner Home
+branch measured 280 across fifteen and `origin/main` measured 276 across fifteen; each was
+correct on the day and neither is correct now, because each had counted a tree without the
+other's case in it ([[Find and resume a project]] and [[Open a floor and select a room]]
+respectively). Three rows conflicted and were resolved by re-running; `suite` and `judgement`
+did not conflict at all, because both branches happened to write the SAME number — `suite` 99
+and `judgement` 9 — over two different trees. `judgement` was right by luck, since neither case
+added one. **`suite` was wrong and silent**: both branches had added exactly three `suite` steps
+to the base's 96, so git saw one line and merged it, and the merged tree holds 102. A number
+that agrees across a conflict is not a number two branches have checked; it is a number nobody
+was asked about. The five figures above are a fresh run of BOTH greps below against the tree
+this merge produced, taken in the edit that resolved it — 275 table rows across fifteen
+table-form cases and 17 list steps in [[Canvas Navigation]] — and they sum to 292 rather than
+being asserted to. They are also additive against the merge base to the step: base `suite` 96,
+`browser` 39, `obsidian` 108, `desktop` 12, `judgement` 9, plus this branch's 16 and
+`origin/main`'s 12, which is what says nothing was dropped in the resolution.
+
+**280 steps across FIFTEEN cases** was this branch's own pre-merge measurement, superseded by
+the re-run above and kept for what the rest of the paragraph says. It was taken by running both
+greps below over the tree that
+holds [[Find and resume a project]], which contributes sixteen steps — twelve `obsidian`, three
+`suite` and one `browser`. It is the Renovation Planner Home surface's case, and it is
+disproportionately `obsidian` for a reason worth reading before the tier figures are used to
+price anything: nothing on that surface has ever been drawn by Obsidian, every picture of it is
+a substitute Chromium through a stylesheet carrying Obsidian's *default* palette, and its eight
+tab stops opt their focus rings back in per control — **five declaration blocks across four
+stylesheets** cover the eight, with a sixth for the two the filtered-to-nothing state swaps in —
+because Obsidian's own `:focus { outline: none }` reaches every one of them.
+
+**Adding it also found a PRE-EXISTING disagreement between this section's table and its own
+prose, and it is inherited rather than introduced here** — see the `browser` sequence further
+down, which ended at *33* while the table above read *39* on `origin/main`, both figures
+attributed to the same re-run. One of the two was transcribed wrong on the day and nothing here
+compares them; the table is the authority by this section's own rule, and the sequence is
+corrected below rather than quietly re-ended.
+
+**264 steps across FOURTEEN cases, and this paragraph had by then proved itself a FIFTH time — at
 the merge it predicted, in the shape it predicted.** The per-project price override branch
 measured 239 across thirteen and the asset designer branch measured 243 across thirteen; both
 were correct on the day and neither is correct now, because each had counted a tree without the
 other's case in it ([[Price a shared asset for one project]] and [[Design an Asset]]
-respectively). **Neither side of the conflict could be taken.** The five figures above are a
-fresh run of BOTH greps below against the merged tree, taken in the edit that resolved it, and
-they sum to 264 rather than being asserted to. The asset designer branch's own note that
+respectively). **Neither side of the conflict could be taken.** Those five figures were a
+fresh run of BOTH greps below against the tree that merge produced, taken in the edit that
+resolved it, and they summed to 264 rather than being asserted to. *(The table above no longer
+holds them — the Home case's own re-run replaced every one. The sentence used to say "the five
+figures above", which stopped being true the moment a newer measurement was written above it: a
+paragraph that POINTS at a number rather than naming it is one insertion away from pointing at
+somebody else's, and this file's whole subject is counts that go stale.)* The asset designer branch's own note that
 [[Create a Project]] had been missing from the `## Cases` list for the whole of its life stands
 and is unaffected by this re-run: the greps read files, not the prose beside them.
 
@@ -110,8 +254,9 @@ project]] together, so the current figures are one measurement of the whole tree
 two arithmetic corrections stacked. A count is only as current as its last grep, and the
 increment that adds a case is the one that has a reason to take it.
 
-**276 steps across FIFTEEN cases, and this paragraph has now proved itself a SIXTH time — not at
-a merge this time, but at an omission inside one tree.** [[Open a floor and select a room]] had
+**276 steps across FIFTEEN cases — `origin/main`'s own pre-merge measurement, superseded by the
+re-run at the head of this section — and this paragraph proving itself a SIXTH time, not at
+a merge that time, but at an omission inside one tree.** [[Open a floor and select a room]] had
 been in `docs/tests/cases/` since the plan editor foundation's first increment, so the case count
 here was never wrong; only the step total was, because the census had not been re-run since that
 case's own step 6 and step 9 were written, and it had not been re-run again after this
@@ -258,8 +403,22 @@ fifteen `obsidian` steps of its own, for the same kind of reason. The
 `browser` tier is the one this triage was made to price, and three review rounds moved it in
 both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
 `obsidian` or `desktop` on a closer read, and five `suite` steps then turned out to be
-`browser` under the rule above. It has been 35, 27, 33, 32, 31, 30, 29, 30 and now **33** —
-the last of those measured by the re-run above rather than reasoned from the one before it.
+`browser` under the rule above. It has been 35, 27, 33, 32, 31, 30, 29, 30, 39, then 40 on the
+Renovation Planner Home branch and 42 on `origin/main` at the same time — two concurrent
+readings of two trees rather than two steps of one sequence — and now **43** on the tree their
+merge produced. Each of the last four was measured by a re-run rather than reasoned from the one
+before it, and the pair in the middle is the reason this line reads as a fork rather than a
+chain: a sequence written as a chain would have implied one of them followed the other.
+
+**The ninth figure used to read `33`, and that is the pre-existing transcription defect the
+head of this section names.** It and the table's `39` were attributed to one re-run of one
+pair of greps, so they cannot both be what those greps printed; re-running them over
+`origin/main` prints **39**, so the sequence carried the wrong one and the table carried the
+right one. Corrected in place rather than dropped, because the sequence's whole value is that
+it shows the tier moving in both directions and a silently repaired entry teaches its next
+reader nothing. **A number written twice in one file is a number that will disagree with
+itself**, and this file already says so about counts — what it did not have is anything that
+compares its own two copies, which is still true and is why the table is named the authority.
 It moved by three rather than by the six [[Price a shared asset for one project]] first
 carried, because that case was re-read against this section's own rule before it landed and
 four of its verdicts moved: its Inspector steps need a VAULT, not a browser, since the harness
@@ -362,6 +521,19 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   `obsidian.d.ts` does not answer — whether `Notice.containerEl` is the per-notice element or
   the shared stack container — and the queue's slot accounting is wrong in a way that wedges
   it at three notices if the answer is the second one.
+- [[Find and resume a project]] — the Renovation Planner Home surface: the pane's LIST state,
+  the launcher the returning renovator lands on. Twelve of its sixteen steps need Obsidian, and
+  the reason is not that the surface is complicated: **nothing on it has ever been drawn by
+  Obsidian at all.** Every picture taken of it — seven fixed shots, more than any other surface
+  here — went through the vendored `tests/harness/obsidian.css`, which carries Obsidian's
+  *default* palette and no theme, in a **substitute Chromium** because the container held no
+  pinned build. So its contrast figures, its 24px measurements and its 41rem container threshold
+  are all readings of one palette in one browser. Its step 3 is the sharpest thing in this suite
+  about focus: Obsidian's global `:focus { outline: none }` reaches every control on the pane and
+  its own `:focus-visible` shadow measures under the 3:1 floor, so each of the eight tab stops
+  opts a ring back in separately and exactly one of them has ever been photographed. Its step 6
+  is the only instrument anywhere for `Space` on a row — a printable character and a `<button>`'s
+  native activation at once, which jsdom cannot dispatch.
 - [[Navigate into a project and back]] — design slice 21's second state for the project
   surface, and the case is about the ROUND TRIP rather than about the state: `FakeLeaf`
   records what `setViewState` was asked for and runs no view factory, so the suite can see
@@ -416,6 +588,21 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   suite's second PDF-rendering step and the only caller either has for
   `editor-background-pdf-test.pdf` on the asset surface — reused rather than duplicated,
   because there is no asset-specific fixture and none of this case needs one.
+- [[Browse the asset library]] — the sibling of the case below, and what its own *Deliberately
+  NOT checked* list defers: §3's shelves, row, mark and inspector, §6's search and keyboard, and
+  §7's three widths. FIVE of its eighteen steps are written as expected FAILURES, each with the
+  browser measurement that found it — a price column whose decimals do not line up under a
+  comment promising they do, a geometry mark stuck in one of its five states because nothing
+  passes `outline-for`, a category named two ways on two surfaces of one pane, an override chip
+  breaking a project name one character per line at §7's middle rung, and a repair strip whose
+  reason column is 70px ragged. A case that predicts its own failures is what stops the next run
+  reporting them as discoveries.
+- [[Open the Asset Library]] — Task 11's own surface: a FOURTH workspace view, its Obsidian
+  lifecycle, its two in-app doors and its rebind on a settings save, scoped to what that task
+  built rather than to §3's still-unbuilt shelves. Its step 6 is where a Task 11 review
+  round's own judgement on the `box`/`boxes` icon pair — "no collision … worth an eye in a
+  vault" — is finally looked at rather than left standing as prose in a task report nothing
+  else inherits.
 - [[Open a floor and select a room]] — the plan editor foundation's first increment: the read
   path and selection, with Select as the resting state, the toolbar gone, and the shell rearranged
   around one canvas instance by leaf width. FIVE of its eleven steps are tagged `obsidian` — 1, 8,

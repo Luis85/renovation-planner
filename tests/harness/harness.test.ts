@@ -772,7 +772,7 @@ describe('the browser harness', () => {
 	 * this task's reviewer.
 	 */
 	it('opens the detail state on a seeded project when given one, plans and all', async () => {
-		const { view } = mountHarness(document.body, 'project-1');
+		const { view } = mountHarness(document.body, { projectId: 'project-1' });
 
 		await flushPromises();
 

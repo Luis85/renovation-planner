@@ -162,12 +162,33 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 		settledSize.value = null;
 	}
 
+	/**
+	 * Bumped by `beginTask` and by `reset`, so anything holding an older value is holding a
+	 * task the user has since left — the generation counter `DrawPolygonTool` and
+	 * `CalibrateTool` each carry, for a path that crosses an `await` rather than a gesture.
+	 *
+	 * It exists because `createRoomFromDraft` awaits a vault write while Cancel stays live
+	 * (deliberately — `roomCreation.ts`'s header argues that disabling Cancel mid-write
+	 * strands a user behind a fault they cannot escape). So the continuation can resume into a
+	 * task that is not the one it submitted, and without this it read the NEW task's
+	 * `keepAdding` and either cleared a rectangle the user had just drawn or ended a task they
+	 * had just started.
+	 *
+	 * A COUNTER rather than a boolean or an id: two successive tasks must be distinguishable
+	 * from each other, not merely from "no task", and `keepAdding` restarts a task on the
+	 * creation path itself — so `created` and `superseded` differ by whether the token moved,
+	 * which a flag somebody has to clear could not express. Never reset to zero: `reset()`
+	 * bumps it too, since a task cleared and re-entered is not the task that was submitted.
+	 */
+	const taskToken = ref(0);
+
 	function beginTask(defaultName: string): void {
 		clearRect();
 		submitting.value = false;
 		name.value = defaultName;
 		nameTouched.value = false;
 		keepAdding.value = false;
+		taskToken.value += 1;
 	}
 
 	/** The drag's writer: origin, width, depth; texts re-formatted into canonical metres. */
@@ -184,6 +205,7 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 		clearRect();
 		name.value = '';
 		keepAdding.value = false;
+		taskToken.value += 1;
 	}
 
 	function setName(text: string): void {
@@ -237,7 +259,7 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 
 	return {
 		origin, widthMm, depthMm, name, nameTouched, keepAdding, widthText, depthText,
-		widthError, depthError, settledSize, submitting, rect, geometry, areaMm2, valid,
+		widthError, depthError, settledSize, submitting, taskToken, rect, geometry, areaMm2, valid,
 		beginTask, setRect, clearRect, reset, setName, suggestName, commitDimension, settle,
 		setKeepAdding, setSubmitting,
 	};

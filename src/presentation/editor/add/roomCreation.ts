@@ -7,7 +7,7 @@ import type { ToolDispatcher } from '../report-failure';
 import type { SelectionStore } from '../selection/selection-store';
 import type { RoomDraftStore } from './room-draft-store';
 
-export type RoomCreationOutcome = 'created' | 'invalid' | 'refused' | 'busy';
+export type RoomCreationOutcome = 'created' | 'invalid' | 'refused' | 'busy' | 'superseded';
 
 /**
  * `createRoomFromDraft`'s collaborators (design spec §5.2's ONE action). `commands` is
@@ -90,6 +90,9 @@ export async function createRoomFromDraft(deps: RoomCreationDeps): Promise<RoomC
 		},
 	);
 
+	// The task this dispatch belongs to, read BEFORE the await. Everything below that touches
+	// the draft is conditional on it still being the current one.
+	const token = draft.taskToken;
 	draft.setSubmitting(true);
 	try {
 		const result = await deps.dispatcher.run(command);
@@ -98,13 +101,31 @@ export async function createRoomFromDraft(deps: RoomCreationDeps): Promise<RoomC
 			return 'refused';
 		}
 	} finally {
-		draft.setSubmitting(false);
+		// Only for the task that opened it. Cancel-and-redraw runs `beginTask`, which sets
+		// `submitting` false itself, so clearing it here unconditionally would release a
+		// REPLACEMENT task's own in-flight guard and let a second dispatch of it through.
+		if (draft.taskToken === token) draft.setSubmitting(false);
 	}
 
 	// `null` here means the dispatcher resolved without ever calling `command.execute()` —
 	// nothing was drawn to select, but the dispatch still succeeded.
 	const createdId = command.createdZoneId;
 	if (createdId !== null) deps.selection.select([createdId]);
+
+	/**
+	 * The write landed; the TASK it was submitted from is gone. Cancel stays live during a
+	 * dispatch by design (see the header), so the user can cancel, reactivate Room and draw
+	 * again before this line runs — and every branch below reads or writes the draft, which is
+	 * now somebody else's. Reading `draft.keepAdding` here meant obeying the REPLACEMENT
+	 * task's checkbox: `beginTask` cleared the rectangle the user had just drawn, or
+	 * `returnToSelect` ended a task they had just started.
+	 *
+	 * It returns AFTER selecting, not before, and that ordering is the behaviour rather than a
+	 * detail: the room really was created and selecting it is what the header promises ("the
+	 * write still lands and the new Room is still selected"). What is abandoned is only the
+	 * task bookkeeping — the part that belongs to a task that no longer exists.
+	 */
+	if (draft.taskToken !== token) return 'superseded';
 
 	if (draft.keepAdding) {
 		// `beginTask` clears the checkbox along with everything else the task holds, so this

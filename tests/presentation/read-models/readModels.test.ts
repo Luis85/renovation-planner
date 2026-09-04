@@ -8,14 +8,19 @@ import { describe, expect, it } from 'vitest';
 import { err, ok } from '../../../src/core/result/Result';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
+/**
+ * `GetProject` and `InMemoryProjectRepository` are here because `wired()` composes the plan
+ * editor boundary's own `getProject` door, and they are worth a comment because THE MERGE THAT
+ * BROUGHT THAT DOOR HERE DROPPED THEM. This branch moved the renovation-project boundary's
+ * cases out to `renovationProjectQueries.test.ts` and removed these two imports with them,
+ * correctly, because nothing left in this file used them; `origin/main` meanwhile added the
+ * `getProject` door and enriched `wired()` to compose it. Neither edit touched the other's
+ * lines, so git applied both — a deletion and a new use of the deleted thing — and produced a
+ * file that no longer compiled. `vue-tsc` named it; no test could, because a file that does
+ * not compile runs none of them.
+ */
 import { GetProject } from '../../../src/application/queries/GetProject';
-import { ListPlansByProject } from '../../../src/application/queries/ListPlansByProject';
-import { ListProjects } from '../../../src/application/queries/ListProjects';
-import type { Query } from '../../../src/application/queries/Query';
-import type { AssetPriceRowDto } from '../../../src/application/queries/ListProjectAssetPrices';
-import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
-import type { Result } from '../../../src/core/result/Result';
-import type { LibraryOverlaps } from '../../../src/application/ports/LibraryOverlaps';
+import type { ProjectRowFacts } from '../../../src/application/ports/ProjectListFacts';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
@@ -24,18 +29,17 @@ import {
 	unavailablePlanEditorQueries,
 } from '../../../src/presentation/read-models/planEditorQueries';
 import {
-	createRenovationProjectQueries,
-	unavailableRenovationProjectQueries,
-} from '../../../src/presentation/read-models/renovationProjectQueries';
-import {
 	toPlanDto,
 	toPlanSummaryDto,
 	toProjectSummaryDto,
 	toZoneDto,
 } from '../../../src/presentation/read-models/PlanDto';
-import { createProjectId, type ProjectId } from '../../../src/domain/project/ProjectId';
+import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makePlan, makeProject, makeZone } from '../../helpers/entities';
+
+/** What `toProjectSummaryDto` is handed where the case is not about either Home fact. */
+const NO_ROW_FACTS: ProjectRowFacts = { planCount: 0, lastWorked: null };
 
 describe('mapping an entity to a read model', () => {
 	it('flattens a plan, background reference and all', () => {
@@ -104,12 +108,14 @@ describe('mapping an entity to a read model', () => {
 	it('summarises a project down to what a header needs', () => {
 		const project = makeProject({ name: 'Barn conversion' });
 
-		expect(toProjectSummaryDto(project, false)).toEqual({
+		expect(toProjectSummaryDto(project, false, NO_ROW_FACTS)).toEqual({
 			id: project.id,
 			name: 'Barn conversion',
 			status: project.status,
 			currency: project.currency,
 			libraryOverlap: false,
+			planCount: 0,
+			lastWorked: null,
 		});
 	});
 
@@ -127,8 +133,8 @@ describe('mapping an entity to a read model', () => {
 	it('carries the caller own overlap answer rather than deriving one', () => {
 		const project = makeProject({ name: 'Barn conversion' });
 
-		expect(toProjectSummaryDto(project, true).libraryOverlap).toBe(true);
-		expect(toProjectSummaryDto(project, false).libraryOverlap).toBe(false);
+		expect(toProjectSummaryDto(project, true, NO_ROW_FACTS).libraryOverlap).toBe(true);
+		expect(toProjectSummaryDto(project, false, NO_ROW_FACTS).libraryOverlap).toBe(false);
 	});
 });
 
@@ -181,14 +187,23 @@ describe('the plan editor query boundary', () => {
 
 	/**
 	 * The same mapping the renovation-project boundary's own `getProject` makes, below —
-	 * except `libraryOverlap` is fixed `false` here, since the editor draws no overlap marker.
+	 * except `libraryOverlap` is fixed `false` here, since the editor draws no overlap marker,
+	 * and the row facts are fixed the same way, since the editor composes no facts port and
+	 * draws neither `planCount` nor `lastWorked`. Both fabrications are argued at that call
+	 * site; asserting them HERE is what makes a build that starts inventing a different
+	 * placeholder fail rather than quietly answering a project a number nobody counted.
+	 *
+	 * Written against `NO_ROW_FACTS` — this file's own literal — rather than importing
+	 * `UNKNOWN_ROW_FACTS`, so the two are compared rather than being the same object twice.
 	 */
 	it('answers the plan’s project as a DTO, not as an entity', async () => {
 		const { project, queries } = await wired();
 
 		const found = expectOk(await queries.getProject(project.id));
 
-		expect(found).toEqual(toProjectSummaryDto(project, false));
+		expect(found).toEqual(toProjectSummaryDto(project, false, NO_ROW_FACTS));
+		expect(found?.planCount).toBe(0);
+		expect(found?.lastWorked).toBeNull();
 	});
 
 	/**
@@ -339,304 +354,5 @@ describe('the plan editor query boundary', () => {
 		expect(expectOk(await bare.listAssets())).toEqual([]);
 		expect(expectOk(await bare.listRequirementsReferencing('zone-1'))).toEqual([]);
 		expect(expectOk(await bare.listReassignmentTargets('zone-1'))).toEqual([]);
-	});
-});
-
-/**
- * The §83 overlap port, answering nothing — there is no vault and no Project Index behind
- * these in-memory repositories, so no folder is derivable and there is genuinely nothing to
- * report. `overlapping` is not part of `ProjectListView` anyway: the read model maps the two
- * fields the view draws today, and this file is about that boundary rather than about §83.
- */
-const NO_OVERLAPS: LibraryOverlaps = { overlapping: () => [] };
-
-/**
- * This file is about the getProject/listProjects/listPlansByProject boundary; none of its
- * cases exercise the price list, so every call gets the same empty answer rather than a
- * fifth `NO_OVERLAPS`-shaped literal repeated at each site.
- */
-const NO_ASSET_PRICES: Query<ProjectId, Result<AssetPriceRowDto[], RepositoryError>> = {
-	execute: () => Promise.resolve(ok([])),
-};
-
-describe('the renovation project query boundary', () => {
-	it('answers every project as a DTO, not as an entity', async () => {
-		const projects = new InMemoryProjectRepository();
-		const project = makeProject({ name: 'Barn conversion' });
-		expectOk(await projects.save(project, 'absent'));
-		const queries = createRenovationProjectQueries(
-			new ListProjects(projects, NO_OVERLAPS),
-			new GetProject(projects),
-			new ListPlansByProject(new InMemoryPlanRepository()),
-			NO_OVERLAPS,
-			NO_ASSET_PRICES,
-		);
-
-		const found = expectOk(await queries.listProjects());
-
-		expect(found.projects).toEqual([toProjectSummaryDto(project, false)]);
-		// Flat and serializable all the way down — no domain method survived the boundary.
-		expect(JSON.parse(JSON.stringify(found))).toEqual(found);
-	});
-
-	/**
-	 * The §83 mapping, which the `NO_OVERLAPS` port above cannot reach: it answers `[]`, so
-	 * every case in this block would be equally green against a boundary that dropped
-	 * `overlapping` entirely — which is exactly what this boundary did until design slice 19.
-	 *
-	 * Both directions in ONE read, over two projects, because that is the claim: the flag
-	 * lands on the project the port NAMED and on no other. A mapping that set every row's
-	 * flag from `overlapping.length > 0` would pass a single-project case in both directions.
-	 */
-	it('marks the projects the overlap port names, and only those', async () => {
-		const projects = new InMemoryProjectRepository();
-		const overlapping = makeProject({ name: 'Barn conversion' });
-		const ordinary = makeProject({ name: 'Loft conversion' });
-		expectOk(await projects.save(overlapping, 'absent'));
-		expectOk(await projects.save(ordinary, 'absent'));
-		const queries = createRenovationProjectQueries(
-			new ListProjects(projects, { overlapping: () => [overlapping.id] }),
-			new GetProject(projects),
-			new ListPlansByProject(new InMemoryPlanRepository()),
-			NO_OVERLAPS,
-			NO_ASSET_PRICES,
-		);
-
-		const found = expectOk(await queries.listProjects());
-
-		expect(
-			Object.fromEntries(found.projects.map((project) => [project.name, project.libraryOverlap])),
-		).toEqual({ 'Barn conversion': true, 'Loft conversion': false });
-	});
-
-	it('answers an empty vault with an empty list and no refusals, not an error', async () => {
-		const projects = new InMemoryProjectRepository();
-		const queries = createRenovationProjectQueries(
-			new ListProjects(projects, NO_OVERLAPS),
-			new GetProject(projects),
-			new ListPlansByProject(new InMemoryPlanRepository()),
-			NO_OVERLAPS,
-			NO_ASSET_PRICES,
-		);
-
-		expect(expectOk(await queries.listProjects())).toEqual({ projects: [], unreadable: 0 });
-	});
-
-	/**
-	 * The `isErr` branch of `createRenovationProjectQueries` — a failed read must stay
-	 * distinguishable from a legitimately empty vault, which is the whole reason the
-	 * `Result` travels through unflattened.
-	 */
-	it('answers a failed read with isErr, never with an empty list', async () => {
-		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
-
-		const result = await createRenovationProjectQueries(failing as never, undefined as never, undefined as never, NO_OVERLAPS, NO_ASSET_PRICES).listProjects();
-
-		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
-	});
-
-	/**
-	 * A session whose settings could not be read composes no repository at all, so the view
-	 * is handed a query service that REFUSES — the same reasoning
-	 * `unavailablePlanEditorQueries` states, and the same `settings.unrecovered` code rather
-	 * than a second one for the identical fact.
-	 */
-	it('refuses the read when settings were never recovered', async () => {
-		const queries = unavailableRenovationProjectQueries();
-
-		expect(expectErr(await queries.listProjects())).toMatchObject({
-			category: 'Persistence',
-			code: 'settings.unrecovered',
-		});
-	});
-});
-
-/**
- * Both new doors map at THIS seam, not in the query: `application/` may not name
- * `presentation/`, so the query hands back domain entities and the DTO is minted here —
- * the same division `createPlanEditorQueries` draws for `getPlan` and `findZonesByPlan`.
- */
-describe('createRenovationProjectQueries — the detail state’s two reads', () => {
-	it('maps a found project to its summary DTO', async () => {
-		const projects = new InMemoryProjectRepository();
-		const saved = expectOk(await projects.save(makeProject({ name: 'Hallway' }), 'absent'));
-		const queries = createRenovationProjectQueries(
-			new ListProjects(projects, NO_OVERLAPS),
-			new GetProject(projects),
-			new ListPlansByProject(new InMemoryPlanRepository()),
-			NO_OVERLAPS,
-			NO_ASSET_PRICES,
-		);
-
-		const found = expectOk(await queries.getProject(saved.entity.id));
-
-		// EXHAUSTIVE on purpose, which is why slice 19 broke it: `toEqual` pins "and no more",
-		// so the DTO gaining `libraryOverlap` failed here rather than passing over a field this
-		// case had never heard of. `false` is the port's ANSWER — `NO_OVERLAPS` above returns an
-		// empty overlapping set — not a value this fixture states.
-		expect(found).toEqual({
-			id: saved.entity.id,
-			name: 'Hallway',
-			status: saved.entity.status,
-			currency: saved.entity.currency,
-			libraryOverlap: false,
-		});
-	});
-
-	/**
-	 * **`getProject` ASKS the overlaps port**, and nothing proved it until this case.
-	 *
-	 * `ProjectSummaryDto.libraryOverlap` is required because the list row draws a mark and a
-	 * word from it, and this door answers the same type — so the merge of slices 19 and 21 left
-	 * a choice: hard-code `false`, which compiles and passes every case above because the
-	 * detail state draws no marker, or ask the same instrument the list reaches through
-	 * `ListProjects`. The second was taken, and this is what makes that a behaviour rather than
-	 * a comment: a port answering "this one overlaps" must reach the DTO.
-	 *
-	 * It fails against the `false` — which is the whole point, since that build is otherwise
-	 * indistinguishable from this one.
-	 */
-	it('answers the overlaps port rather than a fixed false', async () => {
-		const projects = new InMemoryProjectRepository();
-		const saved = expectOk(await projects.save(makeProject({ name: 'Hallway' }), 'absent'));
-		const queries = createRenovationProjectQueries(
-			new ListProjects(projects, NO_OVERLAPS),
-			new GetProject(projects),
-			new ListPlansByProject(new InMemoryPlanRepository()),
-			{ overlapping: () => [saved.entity.id] },
-			NO_ASSET_PRICES,
-		);
-
-		const found = expectOk(await queries.getProject(saved.entity.id));
-
-		expect(found?.libraryOverlap).toBe(true);
-	});
-
-	/**
-	 * `ok(null)` travels through UNCHANGED — it is not an error and must not become one.
-	 * `ProjectDetailStore` branches on exactly this to tell "no such project" from "the read
-	 * failed", and flattening the two is what would tell a user their project was deleted
-	 * because their vault hiccuped.
-	 */
-	it('passes a missing project through as ok(null)', async () => {
-		const queries = createRenovationProjectQueries(
-			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
-			new GetProject(new InMemoryProjectRepository()),
-			new ListPlansByProject(new InMemoryPlanRepository()),
-			NO_OVERLAPS,
-			NO_ASSET_PRICES,
-		);
-
-		const found = expectOk(await queries.getProject('project-01JNOPE'));
-
-		expect(found).toBeNull();
-	});
-
-	it('maps a project’s plans to summary DTOs', async () => {
-		const plans = new InMemoryPlanRepository();
-		const projectId = 'project-01JAAA' as ProjectId;
-		expectOk(await plans.save(makePlan({ projectId, name: 'Ground floor' }), 'absent'));
-		const queries = createRenovationProjectQueries(
-			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
-			new GetProject(new InMemoryProjectRepository()),
-			new ListPlansByProject(plans),
-			NO_OVERLAPS,
-			NO_ASSET_PRICES,
-		);
-
-		const listed = expectOk(await queries.listPlansByProject(projectId));
-
-		expect(listed.plans.map((plan) => plan.name)).toEqual(['Ground floor']);
-		expect(listed.unreadable).toBe(0);
-	});
-
-	/**
-	 * The `isErr` branch of `getProject` — a failed read must stay distinguishable from a
-	 * project that does not exist, the same rule `listProjects`'s own isErr case pins for
-	 * its sibling door.
-	 */
-	it('answers a failed project read with isErr, never as a missing project', async () => {
-		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
-		const queries = createRenovationProjectQueries(
-			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
-			failing as never,
-			new ListPlansByProject(new InMemoryPlanRepository()),
-			NO_OVERLAPS,
-			NO_ASSET_PRICES,
-		);
-
-		const result = await queries.getProject('project-01JAAA');
-
-		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
-	});
-
-	/** The `isErr` branch of `listPlansByProject` — the same distinction, one door over. */
-	it('answers a failed plans read with isErr, never as an empty list', async () => {
-		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
-		const queries = createRenovationProjectQueries(
-			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
-			new GetProject(new InMemoryProjectRepository()),
-			failing as never,
-			NO_OVERLAPS,
-			NO_ASSET_PRICES,
-		);
-
-		const result = await queries.listPlansByProject('project-01JAAA');
-
-		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
-	});
-
-	/**
-	 * `listAssetPrices` is a straight pass-through — `ListProjectAssetPrices` already builds
-	 * the row this view renders, so there is no mapping step here for a second query to
-	 * disagree with the first about. Asserted on BOTH arms, the same way the other two doors
-	 * above are: an `ok` result travels unchanged, and so does a failure, never collapsed to
-	 * an empty list.
-	 */
-	it('passes listAssetPrices straight through, both when it answers and when it refuses', async () => {
-		const row: AssetPriceRowDto = {
-			assetId: 'asset-1',
-			assetName: 'Oak flooring',
-			catalogue: null,
-			override: null,
-			overrideId: null,
-			overrideVersion: null,
-			assetStatus: 'known',
-		};
-		const answering = createRenovationProjectQueries(
-			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
-			new GetProject(new InMemoryProjectRepository()),
-			new ListPlansByProject(new InMemoryPlanRepository()),
-			NO_OVERLAPS,
-			{ execute: () => Promise.resolve(ok([row])) },
-		);
-		expect(await answering.listAssetPrices('project-01JAAA')).toEqual(ok([row]));
-
-		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
-		const refusing = createRenovationProjectQueries(
-			new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS),
-			new GetProject(new InMemoryProjectRepository()),
-			new ListPlansByProject(new InMemoryPlanRepository()),
-			NO_OVERLAPS,
-			failing as never,
-		);
-		const result = await refusing.listAssetPrices('project-01JAAA');
-		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
-	});
-
-	/**
-	 * ONE logical failure must not arrive under two codes when something downstream branches
-	 * on it — the rule `unavailableRenovationProjectQueries` already states for `listProjects`.
-	 */
-	it('refuses all three new doors with settings.unrecovered when settings could not be recovered', async () => {
-		const queries = unavailableRenovationProjectQueries();
-
-		const project = await queries.getProject('project-01JAAA');
-		const plans = await queries.listPlansByProject('project-01JAAA');
-		const prices = await queries.listAssetPrices('project-01JAAA');
-
-		expect(expectErr(project).code).toBe('settings.unrecovered');
-		expect(expectErr(plans).code).toBe('settings.unrecovered');
-		expect(expectErr(prices).code).toBe('settings.unrecovered');
 	});
 });

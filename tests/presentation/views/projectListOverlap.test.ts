@@ -34,13 +34,13 @@ import ProjectList from '../../../src/presentation/views/ProjectList.vue';
 import { en } from '../../../src/presentation/i18n/locales/en';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
-const KITCHEN: ProjectSummaryDto = { id: 'p1', name: 'Kitchen', status: 'IDEA', currency: 'EUR', libraryOverlap: false };
+const KITCHEN: ProjectSummaryDto = { id: 'p1', name: 'Kitchen', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null };
 
-const listOf = (...projects: readonly ProjectSummaryDto[]) => mount(ProjectList, { props: { projects } });
+const listOf = (...projects: readonly ProjectSummaryDto[]) => mount(ProjectList, { props: { projects, unreadable: 0 } });
 
 describe('the §83 library-overlap marker on a project row', () => {
 	it('marks a row whose project overlaps the library', () => {
-		const list = listOf({ ...KITCHEN, libraryOverlap: true });
+		const list = listOf({ ...KITCHEN, libraryOverlap: true, planCount: 0, lastWorked: null });
 
 		expect(list.find('.rp-project-list__overlap').exists()).toBe(true);
 	});
@@ -57,7 +57,7 @@ describe('the §83 library-overlap marker on a project row', () => {
 	 * a string that merely happens to be non-empty.
 	 */
 	it('carries a word beside the mark, not a colour alone', () => {
-		const list = listOf({ ...KITCHEN, libraryOverlap: true });
+		const list = listOf({ ...KITCHEN, libraryOverlap: true, planCount: 0, lastWorked: null });
 
 		expect(list.get('.rp-project-list__overlap').text()).toBe(en['view.project.library-overlap']);
 	});
@@ -73,12 +73,16 @@ describe('the §83 library-overlap marker on a project row', () => {
 			status: 'IDEA',
 			currency: 'EUR',
 			libraryOverlap: true,
+			planCount: 0,
+			lastWorked: null,
 		});
 
 		const rows = list.findAll('.rp-project-list__row');
 
-		expect(rows[0].find('.rp-project-list__overlap').exists()).toBe(false);
-		expect(rows[1].find('.rp-project-list__overlap').exists()).toBe(true);
+		// Both fixtures carry `lastWorked: null`, so Task 5's ordering ties them and falls back
+		// to name ascending — 'Bathroom' (p2, overlapping) before 'Kitchen' (p1, not).
+		expect(rows[0].find('.rp-project-list__overlap').exists()).toBe(true);
+		expect(rows[1].find('.rp-project-list__overlap').exists()).toBe(false);
 	});
 });
 
@@ -132,29 +136,30 @@ describe('the mark the §85 contract requires beside the word', () => {
 });
 
 /**
- * BOTH header buttons carry the explicit focus ring, not just the older one.
+ * BOTH of the surface's own secondary buttons carry the explicit focus ring, not just the older
+ * one — `.rp-project-list__create` in the header and `.rp-view-aside__create-asset`, which
+ * design slice A10 originally put beside it in the same header and Task 9 moved to the foot line
+ * shared with the empty state.
  *
  * `forms.css`'s own comment says Obsidian's default focus shadow on a button is below WCAG
- * 2.2's 3:1 non-text contrast requirement, which is why `.rp-project-list__create` and
- * `.rp-empty-state__action` each get an outline — and design slice A10 added a second button to
- * the same header without joining that rule, so a keyboard user tabbing across the header saw
- * the indicator appear, vanish, and appear again. The accessibility scan cannot catch it:
+ * 2.2's 3:1 non-text contrast requirement, which is why each gets an outline — and slice A10's
+ * second button shipped without joining that rule, so a keyboard user tabbing across the header
+ * saw the indicator appear, vanish, and appear again. The accessibility scan cannot catch it:
  * `tests/harness/accessibility.test.ts`'s own header records that jsdom has no rendering engine
  * to measure a focus indicator with, so this is asserted as TEXT over the stylesheet, like the
  * layout rule above and for the same reason.
  *
- * Asserted as a SET rather than one selector at a time, so a third header button inherits the
+ * Asserted as a SET rather than one selector at a time, so a third such button inherits the
  * question instead of being added silently beside the two that answer it.
  */
-describe('the focus indicator on the list header', () => {
+describe('the focus indicator on the list header and foot', () => {
 	const css = readFileSync('styles/forms.css', 'utf8');
 
 	it.each([
 		'.rp-project-list__create',
-		'.rp-project-list__create-asset',
-		// The empty state's sibling affordance, which is the same button on the screen a fresh
-		// vault actually opens on — and is in a different container, so it would not have been
-		// swept up by a selector list keyed on the header.
+		// Task 9 moved `New asset` off the header and into the foot line, which shares this
+		// class with the empty state's own sibling affordance — one selector for both now
+		// rather than a header-specific class and a separate one beside the empty state.
 		'.rp-view-aside__create-asset',
 	])(
 		'gives %s an outline Obsidian\'s default shadow does not',

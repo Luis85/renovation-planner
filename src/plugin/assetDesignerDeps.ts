@@ -22,10 +22,15 @@ import type { CompositionRoot } from './composition-root';
  *
  * This is a whole VIEW-DEPS builder rather than whatever happened to fit — the seam
  * `renovationProjectOpenSeams.ts` and `renovationProjectCommandBundle.ts` already draw out of
- * the same function. Nothing about the wiring moved, and `planEditorDeps` and
- * `renovationProjectDeps` deliberately stay where they are: this one is the only one of the
- * three whose every collaborator is the designer's own, so it is the only one an extraction
- * does not split.
+ * the same function. Nothing about the wiring moved.
+ *
+ * **This paragraph said `planEditorDeps` and `renovationProjectDeps` "deliberately stay where
+ * they are", and half of that stopped being true at the next merge.** `planEditorDeps` moved to
+ * `planEditorDeps.ts` when `composition-root.ts` crossed its cap again, on the same argument
+ * this file was extracted on — every collaborator is the editor's own, so the extraction splits
+ * nothing. What survives is the claim about `renovationProjectDeps`, which is the one builder
+ * the root still assembles inline, because its collaborators ARE shared with the root's other
+ * wiring.
  */
 /**
  * The asset designer's own dependency bundle (design slice B3, ADR-0015; the picker since

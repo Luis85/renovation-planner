@@ -18,9 +18,10 @@ import { ReferenceLocks } from '../../../src/application/reference/ReferenceLock
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { ObsidianAssetGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { assetSidecarPathFor } from '../../../src/infrastructure/obsidian/repositories/paths';
-import { createAssetId } from '../../../src/domain/asset/AssetId';
+import { createAssetId, type AssetId } from '../../../src/domain/asset/AssetId';
 import type { AssetGeometryDocument } from '../../../src/application/ports/AssetGeometrySidecar';
 import type { AssetShape, FootprintOrigin } from '../../../src/domain/asset/AssetShape';
+import { footprintFromDimensions } from '../../../src/domain/asset/AssetShape';
 import type { Calibration } from '../../../src/domain/plan/Calibration';
 import type { Point } from '../../../src/core/geometry/Point';
 import { createRepositoryStack, parseFrontmatter, serializeFrontmatter } from '../../helpers/vault';
@@ -244,6 +245,13 @@ describe('GetAssetDesign', () => {
 	 * a wrong answer: the surface would offer to draw a first outline over a file that
 	 * already holds one, and the unscaled warning that damaged shape may be owed would be
 	 * unreachable.
+	 *
+	 * **And it names the file, per §3.5's fifth row.** The sidecar's own JSON parsed fine —
+	 * `snapshot.value.path` is in scope at `ObsidianAssetGeometrySidecar.read` the moment
+	 * `shapeFromPersistence` refuses — so this is a damaged-sidecar state exactly like
+	 * `asset-geometry.corrupt`, and re-reading the same unchanged bytes cannot fix a typed
+	 * footprint marked pending. Without the path this state cannot say which file to repair,
+	 * which is the one thing it exists for.
 	 */
 	it('surfaces a sidecar the domain refuses rather than reporting a shapeless asset', async () => {
 		const { query, assetId, sidecarPath, stack } = await seeded();
@@ -268,7 +276,51 @@ describe('GetAssetDesign', () => {
 			}),
 		);
 
-		expect(expectErr(await query.execute(assetId)).code).toBe('asset.typed-footprint-cannot-be-pending');
+		const error = expectErr(await query.execute(assetId));
+
+		expect(error.code).toBe('asset.typed-footprint-cannot-be-pending');
+		expect(error.sidecarPath).toBe(sidecarPath);
+	});
+
+	/**
+	 * §3.5's refusal table: a damaged-sidecar message names the file, and `BaseError.message`
+	 * is developer English with no structured path field to carry one — so the path rides on
+	 * the read model's own `sidecarPath` instead. Asserted on the CODE as well as the path, so
+	 * a fixture that trips a different guard cannot pass this case for the wrong reason.
+	 */
+	it('names the sidecar on a damaged-sidecar refusal', async () => {
+		const { query, assetId, sidecarPath, stack } = await seeded();
+		stack.vault.entries.set(sidecarPath, 'not json at all');
+
+		const error = expectErr(await query.execute(assetId));
+
+		expect(error.code).toBe('asset-geometry.corrupt');
+		expect(error.sidecarPath).toBe(sidecarPath);
+	});
+
+	/**
+	 * `AssetGeometryStore.pathFor` runs `usableAsFilename` BEFORE it ever derives a path, so
+	 * an id it refuses has no file to name — which is exactly why §3.5 withholds `Open
+	 * designer` in favour of `Open note` for this one code alone. Reached the way a real vault
+	 * reaches it: a hand edit to the note's frontmatter `id`, which `AssetFrontmatterSchemaV1`
+	 * accepts with no format restriction (`z.string().min(1)`) — the asset stays indexed and
+	 * readable and becomes impossible to design. `rebuildIndex()` is the full scan standing in
+	 * for the reindex a real vault would run after such an edit; `metadataCache.catchUp()`
+	 * alone drains the parse lag and says nothing about the index.
+	 */
+	it('carries no sidecar path for an id that cannot name a file', async () => {
+		const { query, assetId, stack } = await seeded();
+		const path = stack.index.getPath(assetId) ?? '';
+		const hostileId = 'has/slash' as AssetId;
+		const { frontmatter, body } = parseFrontmatter(stack.vault.entries.get(path) ?? '');
+		stack.vault.entries.set(path, serializeFrontmatter({ ...frontmatter, id: hostileId }) + body);
+		stack.metadataCache.catchUp();
+		stack.rebuildIndex();
+
+		const error = expectErr(await query.execute(hostileId));
+
+		expect(error.code).toBe('asset-geometry.unusable-id');
+		expect(error.sidecarPath).toBeUndefined();
 	});
 
 	/**
@@ -308,6 +360,54 @@ describe('GetAssetDesign', () => {
 		});
 
 		expect(expectErr(await query.execute(assetId)).code).toBe('dimensions-overflow');
+	});
+
+	/**
+	 * The CLEARANCE's own extent goes through the same guarded `dimensionsOf` call the
+	 * footprint's does, and `validateAssetShape` does not close the gap on its own:
+	 * `enclosesArea` tests `Number.isFinite` on the AREA, and this needle has a finite
+	 * shoelace sum and an infinite SPAN — the identical fixture the footprint case above
+	 * uses, copied deliberately rather than invented, moved to the clearance instead of the
+	 * footprint. An axis-aligned rectangle spanning -1e308 to 1e308 would trip
+	 * `asset.degenerate-clearance` one guard earlier and never reach `dimensionsOf` at all —
+	 * a green test exercising a different guard.
+	 */
+	it('refuses a clearance whose span overflows rather than reporting Infinity', async () => {
+		const { query, assetId, seed } = await seeded();
+		await seed({
+			calibration: null,
+			shape: {
+				...shapeWith('traced', false),
+				clearance: {
+					points: [
+						{ x: 0, y: 1e-300 },
+						{ x: 1e308, y: 0 },
+						{ x: -1e308, y: 0 },
+					],
+				},
+			},
+		});
+
+		expect(expectErr(await query.execute(assetId)).code).toBe('dimensions-overflow');
+	});
+
+	/**
+	 * Beside the footprint's, not instead of it: an ordinary shape carries both a footprint
+	 * and a clearance, each with its own extent, and this is the case that would have printed
+	 * `Infinity mm` before either overflow guard existed to say why it could not.
+	 */
+	it('derives the clearance extent beside the footprint on an ordinary shape', async () => {
+		const { query, assetId, seed } = await seeded();
+		const clearance = expectOk(footprintFromDimensions(1400, 400));
+		await seed({
+			calibration: null,
+			shape: { ...shapeWith('traced', false), clearance },
+		});
+
+		const design = expectOk(await query.execute(assetId));
+
+		expect(design.clearanceExtent).toEqual({ width: 1400, depth: 400 });
+		expect(design.dimensions).toEqual({ width: 100, depth: 60 });
 	});
 
 	/**

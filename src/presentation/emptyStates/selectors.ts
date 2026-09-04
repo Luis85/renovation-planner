@@ -1,5 +1,6 @@
 import type { PlanDto, PlanSummaryDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto';
 import type { AssetDesignDto } from '../../application/queries/GetAssetDesign';
+import type { CatalogueEntryDto } from '../../application/queries/ListCatalogueEntries';
 
 /**
  * Which empty state a view is in — decided from query results that have ALREADY succeeded,
@@ -132,4 +133,44 @@ export function selectProjectDetailEmptyState(
 export function selectAssetDesignerEmptyState(design: AssetDesignDto): 'noBackground' | 'noShape' | null {
 	if (design.shape !== null) return null;
 	return design.background === null ? 'noBackground' : 'noShape';
+}
+
+/**
+ * Which empty state the Asset library is in (design "Asset library overview" §4). `entries`,
+ * `unreadable` — the same pair `ListCatalogueEntries` answers together
+ * (`src/application/queries/ListCatalogueEntries.ts`) — then `searching` as the one input
+ * specific to this surface, matching the order its two list-shaped siblings above
+ * (`selectRenovationProjectEmptyState`, `selectProjectDetailEmptyState`) already take theirs
+ * in: the list, then `unreadable`.
+ *
+ * **`unreadable > 0` refuses UNCONDITIONALLY, before `searching` is ever read** — the same
+ * first-statement guard both of those siblings carry, and for the identical reason: a library
+ * whose asset notes ALL refused answers `entries: []` with no assets it could actually be
+ * missing, and §4's own table gives that vault's row to *Some unreadable* — "The shelves still
+ * draw" — which cannot hold at the same time as *Empty*'s "Replaces the shelves region,"
+ * whichever of `noAssets` or `noMatches` this function would otherwise answer. Refusing
+ * unconditionally, rather than narrowing the guard to the `noAssets` arm alone, keeps this
+ * selector to ONE policy for `unreadable` rather than two the next reader has to reconcile —
+ * the no-matches feedback a search is running is not lost, since the status region announces
+ * the match count independently of this registry.
+ *
+ * **Takes `searching` as its own input, and it cannot be derived from `entries`.** An empty
+ * list with a query running is `noMatches` (§4: "search returns nothing"); an empty list with
+ * no query running is `noAssets` (§4: "no assets at all"). The two want opposite copy and
+ * opposite actions — `noMatches`'s hands off to clearing the search field rather than to
+ * creating something — so folding `searching` into a property of the list itself would make
+ * the two states indistinguishable at exactly the boundary that matters.
+ *
+ * No `Err` to guard against, for a different reason than its siblings: `entries` and
+ * `unreadable` are `ListCatalogueEntries`'s successful pair, and a failed read is
+ * `ViewFailure`'s to draw, never this registry's.
+ */
+export function selectAssetLibraryEmptyState(
+	entries: readonly CatalogueEntryDto[],
+	unreadable: number,
+	searching: boolean,
+): 'noAssets' | 'noMatches' | null {
+	if (unreadable > 0) return null;
+	if (entries.length > 0) return null;
+	return searching ? 'noMatches' : 'noAssets';
 }

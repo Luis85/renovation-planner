@@ -2,7 +2,7 @@ import { ok, type Result } from '../../../core/result/Result';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
-import type { AssetRepository } from '../../../application/ports/AssetRepository';
+import type { AssetListing, AssetRepository } from '../../../application/ports/AssetRepository';
 import type {
 	EntityVersion,
 	Expected,
@@ -38,7 +38,8 @@ export class InMemoryAssetRepository implements AssetRepository {
 		return Promise.resolve(this.store.remove(id, expected, 'asset'));
 	}
 
-	listAll(): Promise<Result<Loaded<Asset>[], PersistenceError>> {
-		return Promise.resolve(ok(this.store.values()));
+	/** Nothing this store holds can fail to read, so `skipped` is always empty. */
+	listAll(): Promise<Result<AssetListing, PersistenceError>> {
+		return Promise.resolve(ok({ loaded: this.store.values(), skipped: [] }));
 	}
 }

@@ -56,6 +56,7 @@ function context(
 					calibration: document.calibration,
 					shape: document.shape,
 					dimensions: null,
+					clearanceExtent: null,
 					dimensionsUnscaled: false,
 					noteVersion: asset.version,
 					geometryVersion: await harness.geometryVersion(),

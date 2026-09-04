@@ -565,44 +565,177 @@ describe('the headless harness capture script', () => {
 	});
 
 	/**
-	 * DERIVED from the `SHOTS` source rather than remembered, which is the fix for the defect
-	 * this case used to be: the hand-written list here said eighteen while `SHOTS` held twenty,
-	 * missing both price-section captures, and deleting either one would have left this test
-	 * green regardless — it was checking its own list against itself. Slicing the block between
-	 * `const SHOTS = [` and its closing `];` and matching every `name: '…'` inside it reads the
-	 * same names `harness-shot.mjs` actually iterates, so a shot added or removed there changes
-	 * this test's answer without anyone touching this file.
+	 * **NO NUMBER IN THE NAME, BOTH DIRECTIONS, AND TWO INSTRUMENTS.** Every clause of that was
+	 * paid for separately, and the last two came from opposite sides of one merge.
+	 *
+	 * This case was *the fifteen fixed shots* against seventeen entries on one branch and
+	 * *the eighteen* against twenty on the other; each was internally consistent, because a
+	 * hand-written list cannot notice a name that was never in it. Both branches independently
+	 * replaced it with a DERIVATION from the `SHOTS` source, and neither branch's derived list
+	 * described the merged array: each had appended to a different part of it, so
+	 * `harness-shot.mjs` merged cleanly while the assertion about it conflicted. The list below
+	 * was re-derived from the array at each merge, not resolved from either side.
+	 *
+	 * **It has happened a THIRD time, which is what makes it the shape rather than an
+	 * incident.** The Add Room branch appended `plan-editor-add-room` and its narrow sibling to
+	 * the plan-editor run of the array while `main` appended the asset-library and Home shots
+	 * elsewhere in it, so `harness-shot.mjs` merged cleanly again and this assertion conflicted
+	 * again — the same two-branches-two-regions collision the paragraph above describes, one
+	 * merge later. Re-derived rather than resolved, for the third time. No count is quoted here
+	 * for that reason: the case's own name carries none, the assertion below is a derivation,
+	 * and `grep -c "name: '" scripts/harness-shot.mjs` is what answers the question at the
+	 * moment somebody asks it.
+	 *
+	 * **Why a set comparison and not a loop.** `for (name of […]) expect(source).toContain(…)`
+	 * proves *at least these*, so a shot added to `SHOTS` and not listed here stays green —
+	 * which is exactly how `project-detail-prices` landed unpinned. Measured rather than argued:
+	 * appending `{ name: 'zzz-unlisted', query: '?index', selector: HARNESS_INDEX }` to `SHOTS`
+	 * left this file entirely green under the `toContain` form and reddens here.
+	 *
+	 * **Why TWO narrowings on the slice**, one from each branch and neither subsuming the other:
+	 * the slice is bounded to the `SHOTS` array itself (structural), and `withoutCommentary`
+	 * runs first so a `name: '…'` written inside a docblock — including one INSIDE that array —
+	 * cannot join the census (lexical). An instrument that starts counting prose is the shape
+	 * this block has now paid for twice.
+	 *
+	 * **Why a WHOLE-FILE count beside it**, which is the other branch's instrument and asks a
+	 * question the first cannot: the derivation sees only inside `SHOTS`, so an entry written
+	 * outside that array — a second array, or one moved out — is invisible to it. It is taken
+	 * over the commentary-stripped source for the same reason the slice is, which is the one
+	 * change either instrument needed to survive being put beside the other.
 	 */
-	it('defines exactly the twenty-one fixed shots, derived from the SHOTS source rather than remembered', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-		const shotsBlock = source.slice(source.indexOf('const SHOTS = ['), source.indexOf('];', source.indexOf('const SHOTS = [')));
-		const named = [...shotsBlock.matchAll(/name: '([a-z-]+)'/g)].map((m) => m[1]);
+	it('defines exactly the fixed shots this file lists, in both directions', () => {
+		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
+		const shotsBlock = source.slice(
+			source.indexOf('const SHOTS = ['),
+			source.indexOf('];', source.indexOf('const SHOTS = [')),
+		);
 
-		expect(named).toEqual([
-			'dark',
-			'light',
-			'phone',
-			'project-detail',
-			'project-detail-prices',
-			'project-detail-narrow',
-			'project-detail-prices-narrow',
-			'plan-editor-dark',
-			'plan-editor-light',
-			'plan-editor-selected',
-			'plan-editor-add-menu',
-			'plan-editor-add-room',
-			'plan-editor-add-room-narrow',
-			'plan-editor-narrow',
-			'plan-editor-unsupported',
+		const declared = [...shotsBlock.matchAll(/name: '([a-z0-9-]+)'/g)].map((match) => match[1]);
+
+		expect(declared.toSorted()).toEqual([
 			'asset-designer-dark',
 			'asset-designer-light',
 			'asset-designer-narrow',
+			'asset-library-actions',
+			'asset-library-dark',
+			'asset-library-light',
+			'asset-library-middle',
+			'asset-library-narrow',
+			'asset-library-narrow-selected',
+			'asset-library-selected',
+			'dark',
+			'home-filter-focus',
+			'home-no-match-narrow',
+			'home-stress',
+			'home-stress-de',
+			'home-stress-light',
+			'home-stress-narrow',
+			'home-whole',
 			'index-dark',
-			'index-light',
+			'index-failure',
 			'index-focus',
 			'index-focus-current',
-			'index-failure',
+			'index-light',
+			'light',
+			'phone',
+			'plan-editor-add-menu',
+			'plan-editor-add-room',
+			'plan-editor-add-room-narrow',
+			'plan-editor-dark',
+			'plan-editor-light',
+			'plan-editor-narrow',
+			'plan-editor-selected',
+			'plan-editor-unsupported',
+			'project-detail',
+			'project-detail-narrow',
+			'project-detail-prices',
+			'project-detail-prices-narrow',
 		]);
+
+		// The whole FILE, not the sliced block — see the header. A shot entry written outside
+		// `SHOTS` is invisible to the derivation above and fails here instead.
+		expect(source.match(/name: '/gu)?.length).toBe(declared.length);
+	});
+
+	/**
+	 * THE SEVEN ASSET LIBRARY SHOTS, each pinned on the ONE field that makes it different from a
+	 * sibling — the convention `project-detail-narrow` and `asset-designer-narrow` already state
+	 * two cases below, applied to a surface that arrived with seven shots and no pins at all.
+	 *
+	 * What each pin is FOR, because "pin the fields" is not an argument:
+	 *
+	 * - **`&asset=` on the four selected shots.** Every one of them waits on
+	 *   `.renovation-asset-library`, which the RESTING pane satisfies just as well — so a dropped
+	 *   parameter photographs the shelves under a name promising the inspector, four times, and
+	 *   exits 0. `tests/harness/assetLibraryPage.test.ts` closes that hazard for the jsdom mount
+	 *   and could not close it for the shots.
+	 * - **`width` on the three that carry one.** 460 is §7's third rung and 700 its middle one;
+	 *   without the field each becomes a byte-identical duplicate of a 1280 shot under a second
+	 *   name. The middle rung has already shipped MISSING once with nothing to notice.
+	 * - **`scrollTo` on `asset-library-actions`.** That shot exists because the Actions row sits
+	 *   below the fold in the 280px rail; without the field it is a second copy of
+	 *   `asset-library-selected`, and `Delete` — this surface's one destructive control — goes
+	 *   back to being photographed by nothing.
+	 * - **`theme=light` on the four selected shots.** Chosen by MEASUREMENT rather than taste:
+	 *   the one control here with a colour argument is `Delete`, whose border is `--text-error`,
+	 *   and this script's own recorded pair for that variable puts it at 3.89:1 light against
+	 *   4.27:1 dark. A scheme chosen by measurement and recorded only in prose is a scheme that
+	 *   silently flips back — the sentence the index shots' own scheme case already makes.
+	 *
+	 * Source-text assertions, like every case in this block, for its stated reason: `SHOTS` runs
+	 * at module scope behind a browser and no test can import it.
+	 */
+	it('pins what makes each asset library shot different from its siblings', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		/**
+		 * One shot's own fields, from its `name` to the next entry's.
+		 *
+		 * `[^}]*` is what the three cases below this one use and it CANNOT work here: these
+		 * queries are template literals interpolating `LIBRARY_SELECTED_ASSET`, so a closing
+		 * brace sits between the name and every field after it and the class stops there.
+		 * Measured — the first draft of this case failed at `width: 700` for exactly that.
+		 *
+		 * Comments are stripped BOTH ways first, because a `//` line above an entry falls inside
+		 * the PREVIOUS entry's slice, and these shots' comments quote the very fields being
+		 * pinned. `withoutCommentary` alone handles only the block form.
+		 */
+		const fieldsOf = (name: string): string => {
+			const bare = withoutCommentary(source).replace(/^\s*\/\/.*$/gm, '');
+			const from = bare.indexOf(`name: '${name}'`);
+			const next = bare.indexOf("name: '", from + 1);
+			return bare.slice(from, next === -1 ? bare.length : next);
+		};
+
+		// The four that open on a selection: the route AND the measured scheme.
+		for (const name of [
+			'asset-library-selected',
+			'asset-library-middle',
+			'asset-library-actions',
+			'asset-library-narrow-selected',
+		]) {
+			// A REGEX and not a string, because the thing being matched is source text that
+			// happens to be a template placeholder: `no-template-curly-in-string` refuses the
+			// string form outright, and it is right to — a reader meeting `'…${X}'` in a test
+			// cannot tell an intended literal from a template string somebody forgot to mark.
+			expect(fieldsOf(name)).toMatch(/asset=\$\{LIBRARY_SELECTED_ASSET\}/);
+			expect(fieldsOf(name)).toContain('theme=light');
+		}
+
+		// The three widths of §7's ladder, and the two resting shots that hold the palette.
+		expect(fieldsOf('asset-library-middle')).toContain('width: 700');
+		expect(fieldsOf('asset-library-narrow')).toContain('width: 460');
+		expect(fieldsOf('asset-library-narrow-selected')).toContain('width: 460');
+		expect(fieldsOf('asset-library-dark')).toContain("query: '?view=asset-library'");
+		expect(fieldsOf('asset-library-light')).toContain('theme=light');
+
+		// The one shot whose subject is below the fold.
+		expect(fieldsOf('asset-library-actions')).toContain("scrollTo: '.rp-al-actions'");
+
+		// And the id those four resolve — named once in the script so a fifth selected shot
+		// cannot introduce a second spelling.
+		expect(source).toMatch(/const LIBRARY_SELECTED_ASSET = '[a-z0-9-]+';/);
 	});
 
 	/**

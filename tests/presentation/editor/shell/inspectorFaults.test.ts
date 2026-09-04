@@ -61,7 +61,7 @@ async function selectedZone(seedAssets = 1) {
 
 /** Pick the first offered asset and press Assign. */
 async function assign(r: Awaited<ReturnType<typeof selectedZone>>): Promise<void> {
-	const asset = expectOk(await r.assetsRepo.listAll())[0];
+	const asset = expectOk(await r.assetsRepo.listAll()).loaded[0];
 	if (asset === undefined) throw new Error('expected a seeded asset');
 	await until(() => {
 		const el = r.harness.wrapper.find('#rp-assign-asset').element as HTMLSelectElement;

@@ -15,6 +15,8 @@ import type { VaultChangeAdapter } from '../infrastructure/persistence/index/Vau
 import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../presentation/designer/AssetDesignerView';
 import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerContext';
+import { ASSET_LIBRARY_VIEW, AssetLibraryView } from '../presentation/library/AssetLibraryView';
+import type { AssetLibraryDeps } from '../presentation/library/AssetLibraryDeps';
 import { ProjectSuggestModal } from '../presentation/modals/ProjectSuggestModal';
 import { entriesOfType } from './indexEntries';
 import { registerPlanEditorCommands } from './planEditorCommands';
@@ -23,9 +25,10 @@ import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import { activateNotices, disposeNotices, notifyFault } from '../presentation/notices/notify';
 import { assetDesignerDeps } from './assetDesignerDeps';
+import { planEditorDeps } from './planEditorDeps';
+import { assetLibraryDeps } from './assetLibraryDeps';
 import {
 	createCompositionRoot,
-	planEditorDeps,
 	renovationProjectDeps,
 	type CompositionRoot,
 	type VaultStack,
@@ -34,6 +37,7 @@ import type { RenovationProjectDeps } from '../presentation/views/RenovationProj
 import { isDataAbsent, settingsFrom, type RenovationPlannerSettings, type SettingsPatch } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
+import { ContinueContextStore } from '../infrastructure/obsidian/plugin-data/continueContextStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
 import { runDetached } from './runDetached';
 import { showDiagnosticsReport } from './diagnostics/showDiagnosticsReport';
@@ -223,6 +227,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// registering the type here is what lets a leaf restored from the workspace layout find
 		// a view at all, which is why the registration does not wait for a command to open it.
 		this.registerView(ASSET_DESIGNER_VIEW, (leaf) => new AssetDesignerView(leaf, this.assetDesignerViewDeps()));
+		// §2's fourth registration: the vault-wide catalogue, a SINGLETON like the project
+		// view rather than per-subject like the two above it. Registering the type here is
+		// what lets a leaf restored from the workspace layout find a view at all, ahead of
+		// either in-app door existing to open one.
+		this.registerView(ASSET_LIBRARY_VIEW, (leaf) => new AssetLibraryView(leaf, this.assetLibraryViewDeps()));
 		// Sidecars are visible, openable files (ADR-011): without the extension
 		// registration they render as unsupported attachments in the explorer.
 		this.registerExtensions(['rpgeo'], GEOMETRY_SIDECAR_VIEW);
@@ -278,6 +287,45 @@ export default class RenovationPlannerPlugin extends Plugin {
 			name: tr('command.show-diagnostics-report'),
 			callback: () => {
 				this.openDiagnosticsReport();
+			},
+		});
+
+		/**
+		 * §2's fourth registration's own command: a plain callback, never a `checkCallback` —
+		 * `open-plan-editor` already paid for the lesson that a command gated on the active
+		 * note is a command absent from the palette in every vault that has none of the thing,
+		 * and the library needs no active note at all. No ribbon icon joins it: §2 refuses one
+		 * by name, the ribbon being shared real estate across every installed plugin and this
+		 * surface being reached often but not constantly.
+		 */
+		this.addCommand({
+			id: 'open-asset-library',
+			name: tr('command.open-asset-library'),
+			callback: () => {
+				this.openAssetLibrary();
+			},
+		});
+
+		/**
+		 * `New project` as a REAL command rather than a pane-local key handler — the Home
+		 * design spec's §14 decision, taken.
+		 *
+		 * Obsidian binds hotkeys to command IDs, so a pane-local handler cannot be rebound and
+		 * may silently collide with one the user already has. Registering also puts the action
+		 * in the palette, which is where a stranger to this plugin looks — and it is why the
+		 * pane's key legend names the modifier rather than claiming a binding the user may have
+		 * changed.
+		 *
+		 * No default hotkey is declared. `hotkeys: []` would claim `Mod+N` for this plugin on
+		 * every install, over whatever the user already had there.
+		 *
+		 * The id is DATA: a user's hotkey is bound to it, so it does not get renamed.
+		 */
+		this.addCommand({
+			id: 'new-project',
+			name: tr('command.new-project'),
+			callback: () => {
+				runDetached(this.newProject(), this.root.logger, 'view.project.create-failed');
 			},
 		});
 
@@ -541,9 +589,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 				void navigateToProject(
 					{
 						workspace: this.app.workspace,
-						reportFault: (cause: unknown): void => {
-							notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
-						},
+						reportFault: this.reportRevealFault,
 					},
 					RENOVATION_PROJECT_VIEW,
 					next,
@@ -551,6 +597,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 				);
 			},
 			indexScanCompleted: () => this.indexScanCompleted,
+			// Task 10. `void` is correct rather than a lint appeasement, not a shortcut around
+			// one: `ContinueContextStore.write` cannot reject (its own docblock states why), so
+			// there is no rejection here for `runDetached` or a `.catch` to have to catch.
+			continueContext: () => this.continueContextStore(this.root.logger).read(),
+			rememberContinue: (context) => void this.continueContextStore(this.root.logger).write(context),
 		});
 	}
 
@@ -562,6 +613,13 @@ export default class RenovationPlannerPlugin extends Plugin {
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */
 	private assetDesignerViewDeps(): AssetDesignerDeps {
 		return assetDesignerDeps(this.root, this.app, { indexScanCompleted: () => this.indexScanCompleted });
+	}
+
+	/** ONE spelling of the Asset library's bundle, for the factory and the rebind. */
+	private assetLibraryViewDeps(): AssetLibraryDeps {
+		return assetLibraryDeps(this.root, this.app.workspace, this.app.vault, {
+			indexScanCompleted: () => this.indexScanCompleted,
+		});
 	}
 
 	/**
@@ -579,12 +637,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 *
 	 * It walks EVERY view type that holds a composition root rather than the one that was
 	 * reported, because "a view built against a replaced root" is a category and the second
-	 * member of it was already there when the first was found. It has been THREE since ADR-0015
-	 * (the sidecar viewer is the one registered view that holds no root and needs no loop) — a
-	 * category, so a fourth is a loop here rather than a decision.
-	 * `instanceof` rather than a view-type string comparison: `getLeavesOfType` is already
-	 * keyed by type, and what this needs to know is that the object has the method — a leaf
-	 * holding some other plugin's view under our type is not a thing to guess about.
+	 * member of it was already there when the first was found. It is FOUR loops now, the
+	 * fourth being the Asset library's — the sidecar viewer stays the one registered view that
+	 * holds no root and needs none — and this is the surface the category matters most for:
+	 * §83's library-folder migration MOVES every catalogue note and then swaps the root, so an
+	 * un-rebound library goes on resolving asset notes at the folder they have just left,
+	 * showing an empty or wrong catalogue right after the one gesture most likely to be
+	 * performed from it. `instanceof` rather than a view-type string comparison:
+	 * `getLeavesOfType` is already keyed by type, and what this needs to know is that the
+	 * object has the method — a leaf holding some other plugin's view under our type is not a
+	 * thing to guess about.
 	 */
 	private rebindOpenViews(): void {
 		for (const leaf of this.app.workspace.getLeavesOfType(RENOVATION_PROJECT_VIEW)) {
@@ -613,6 +675,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 			const view: AssetDesignerView = leaf.view;
 			view.rebind(this.assetDesignerViewDeps());
 		}
+		for (const leaf of this.app.workspace.getLeavesOfType(ASSET_LIBRARY_VIEW)) {
+			if (!(leaf.view instanceof AssetLibraryView)) continue;
+			// ANNOTATED, for the reason the three loops above give: `fallow` resolves a class
+			// member through an explicit type and never through a property access, so a
+			// `rebind` reached only via `instanceof` is reported as an unused class member.
+			const view: AssetLibraryView = leaf.view;
+			view.rebind(this.assetLibraryViewDeps());
+		}
 	}
 
 	private vaultStack: VaultStack | null = null;
@@ -633,6 +703,24 @@ export default class RenovationPlannerPlugin extends Plugin {
 			logger,
 		);
 		return this.markerStore;
+	}
+
+	/**
+	 * Task 10's Continue context — one instance per session, the same reason `markerStore` is:
+	 * the storage key it points at survives root swaps, and a store rebuilt per swap would buy
+	 * nothing. Unlike `markerStore`, this one is not keyed to `this.manifest.dir` at all — it
+	 * persists through `App.loadLocalStorage`/`saveLocalStorage`, Obsidian's own PER-DEVICE
+	 * storage rather than a file under the vault's `.obsidian/` tree, which is what keeps a
+	 * last-visit context from following the vault to another device over Obsidian Sync. The
+	 * key is namespaced by `manifest.id` because that pair is scoped to the VAULT and not to
+	 * this plugin — a second plugin calling `saveLocalStorage('continue-context', …)` would
+	 * otherwise collide.
+	 */
+	private continueStore: ContinueContextStore | null = null;
+
+	private continueContextStore(logger: Logger): ContinueContextStore {
+		this.continueStore ??= new ContinueContextStore(this.app, `${this.manifest.id}:continue-context`, logger);
+		return this.continueStore;
 	}
 
 	/**
@@ -658,14 +746,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 		const persistence = this.root.persistence;
 		if (!persistence || !this.vaultStack) return;
 
-		persistence.index.rebuild(
-			buildProjectIndexEntries({
-				vault: this.vaultStack.vault,
-				metadataCache: this.vaultStack.metadataCache,
-				echo: persistence.vaultDeps.echo,
-				logger: this.root.logger,
-			}),
-		);
+		// Both halves of one scan, in one call: the entries and the notes of ours the scan could
+		// not index. A rebuild that replaced only the first would leave a repair surface naming
+		// collisions the vault no longer has.
+		const scan = buildProjectIndexEntries({
+			vault: this.vaultStack.vault,
+			metadataCache: this.vaultStack.metadataCache,
+			echo: persistence.vaultDeps.echo,
+			logger: this.root.logger,
+		});
+		persistence.index.rebuild(scan.entries, scan.exclusions);
 
 		// Set BEFORE the announce, so a subscriber re-hydrating on that event already sees a
 		// completed scan. Announcing first would leave the very re-read this flag exists for
@@ -731,6 +821,23 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
+	 * The one `reportFault` every activation door into this view hands `revealView` or
+	 * `navigateToProject` — `openProject`, `openProjectDetail` and `projectViewDeps`'s own
+	 * `navigate` each carried an identical inline closure before this field existed, and Task
+	 * 9's `newProject` was the copy that made four worth naming as one rather than a new fifth.
+	 * All four now hand over `reportFault: this.reportRevealFault` rather than a copy, so this
+	 * body is the single remaining place that calls `notifyFault` for a reveal fault — a count
+	 * stated in prose rather than as a grep line count, because a docblock quoting its own grep
+	 * pattern verbatim is a docblock that matches itself, and this repository has already paid
+	 * for that exact shape once (CLAUDE.md's account of the notice-door count). A bound class
+	 * field rather than a method, so a call site can hand it over directly with no wrapping
+	 * arrow that would just be a fifth copy of the same shape.
+	 */
+	private reportRevealFault = (cause: unknown): void => {
+		notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
+	};
+
+	/**
 	 * Both ways into the project view, and the place their fault door is COMPOSED — no longer
 	 * the place it is called.
 	 *
@@ -747,11 +854,31 @@ export default class RenovationPlannerPlugin extends Plugin {
 		void revealView(
 			{
 				workspace: this.app.workspace,
-				reportFault: (cause: unknown): void => {
-					notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
-				},
+				reportFault: this.reportRevealFault,
 			},
 			RENOVATION_PROJECT_VIEW,
+		);
+	}
+
+	/**
+	 * The palette command's own way into the library — a plain `revealView`, exactly
+	 * `openProject`'s shape above and for the identical reason: `revealView` answers every
+	 * fault itself and cannot reject, so there is nothing left for `runDetached` to catch.
+	 * `ProjectList`'s header and `ViewRoot`'s no-projects aside reach the same view through
+	 * `RenovationProjectDeps.openAssetLibrary`, composed at `renovationProjectOpenSeams.ts` —
+	 * a separate binding rather than a call to this method, since that seam already composes
+	 * the fault door for the other bundle it belongs to and a call across the two would be a
+	 * second answer to who owns it.
+	 */
+	private openAssetLibrary(): void {
+		void revealView(
+			{
+				workspace: this.app.workspace,
+				reportFault: (cause: unknown): void => {
+					notifyFault(cause, this.root.logger, 'view.asset-library.reveal-failed');
+				},
+			},
+			ASSET_LIBRARY_VIEW,
 		);
 	}
 
@@ -767,6 +894,69 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 */
 	openDiagnosticsReport(): void {
 		runDetached(showDiagnosticsReport(this), this.root.logger, 'diagnostics.report.failed');
+	}
+
+	/**
+	 * `new-project`'s whole behaviour: reveal the pane through the same `revealView` door every
+	 * other input uses — ONE action, every input — and then ask it to open the creation form.
+	 *
+	 * `await`ed rather than `void`ed at ITS call site, because `view.openNewProjectDialog()` can
+	 * reject (a rejecting dispatch, a fault inside the Vue tree it forwards to) and `addCommand`'s
+	 * callback returns nothing — so the caller wraps this whole method in `runDetached`, the same
+	 * treatment `openDiagnosticsReport` gives its own awaited chain and for the identical reason:
+	 * `revealView` answers every fault itself and cannot reject, so there is nothing left to catch
+	 * on that half alone.
+	 *
+	 * `leaf` can be `undefined` — a failed reveal answers its own fault through `reportFault` and
+	 * resolves nothing to write into — and `RENOVATION_PROJECT_VIEW`'s registered factory is what
+	 * makes `leaf.view` a real `RenovationProjectView` on every reachable path, so the `instanceof`
+	 * guard is defensive against a foreign view under this plugin's own type rather than a case
+	 * expected to fail in production.
+	 *
+	 * **IT LEAVES THE PANE IN THE LIST STATE FIRST, and without that step this command's SUCCESS
+	 * was indistinguishable from a no-op.** `revealView` reveals the singleton leaf without
+	 * resetting its view state, so invoked while the pane sits in the DETAIL state the form opened
+	 * over the detail screen — and on success `ViewRoot.hydrate()` re-reads the LIST store, which
+	 * nothing renders there. The dialog closed with no navigation, no notice and no visible
+	 * change: the project WAS created, and the user had no way to tell. Found by the final
+	 * whole-branch review, and invisible to every gate here because both halves are correct
+	 * alone — the reveal reveals, the create creates.
+	 *
+	 * **`navigateToProject` with the leaf `revealView` just answered**, rather than a second
+	 * reveal: passing it as `targetLeaf` skips the candidate lookup entirely and shares the write
+	 * lane a row click in that same pane uses, which is the ambiguity that module's own parameter
+	 * exists to refuse. Already in the list, `sync()`'s guard makes it a no-op, so nobody loses a
+	 * scroll position for a command they invoked from the list.
+	 *
+	 * **It deliberately does NOT then navigate to the created project.** A user who asked to
+	 * create a project is answered by the list the new project is now in; going further is a
+	 * design decision nobody has taken. What it does cost is a user in a detail state losing their
+	 * place — the correct trade, because the list is where projects are.
+	 */
+	private async newProject(): Promise<void> {
+		const deps = {
+			workspace: this.app.workspace,
+			reportFault: this.reportRevealFault,
+		};
+		const leaf = await revealView(deps, RENOVATION_PROJECT_VIEW);
+		const view = leaf?.view;
+		// **ONE condition rather than two, and that is a MEASUREMENT rather than a style
+		// preference.** `leaf` has to be narrowed for the `navigateToProject` call below, and the
+		// obvious spelling — an early `if (leaf === undefined) return;` followed by the guard —
+		// was written first with a comment asserting it "costs no branch". It costs one: driven
+		// through `registration.test.ts` with per-file coverage, the split form leaves TWO
+		// uncovered statements and TWO uncovered branch arms in this method and the folded form
+		// leaves ONE of each, which is the inherited position the coverage ledger already names.
+		// At a functions headroom of one and a branches headroom of eight, a spelling that spends
+		// an arm for readability is a spelling that has to say so. The `||` narrows `leaf` on the
+		// fall-through exactly as the early return would have.
+		if (leaf === undefined || !(view instanceof RenovationProjectView)) return;
+		await navigateToProject(deps, RENOVATION_PROJECT_VIEW, null, leaf);
+		// ANNOTATED rather than left to the narrowing, for the reason `rebindOpenViews` already
+		// carries: `fallow` resolves a class member through an explicit type, never through a
+		// property access, so a member reached only via `instanceof` is reported as unused.
+		const projectView: RenovationProjectView = view;
+		await projectView.openNewProjectDialog();
 	}
 
 	/**
@@ -790,9 +980,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		const projects = entriesOfType(this.root.persistence?.index, 'renovation-project');
 		const deps = {
 			workspace: this.app.workspace,
-			reportFault: (cause: unknown): void => {
-				notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
-			},
+			reportFault: this.reportRevealFault,
 		};
 		if (projects.length === 0) {
 			// The list, not a picker: see the command's own docblock.

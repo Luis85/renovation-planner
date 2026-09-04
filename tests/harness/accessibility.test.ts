@@ -34,7 +34,8 @@
  *      element in jsdom regardless of its CSS — so even forcing the rule on would not
  *      make it catch a real hit-target defect, it would make it silently pass one.
  *
- *    All three are disabled below (`LAYOUT_DEPENDENT_RULES`) so this file's assertion
+ *    All three are disabled by `./axeOptions`'s `LAYOUT_DEPENDENT_RULES` — shared with
+ *    `accessibilityAssetLibrary.test.ts` rather than copied — so this file's assertion
  *    doesn't depend on an `incomplete` result it can never act on, or on a rule that
  *    would pass a genuine defect if left forced on. axe has no rule at all for a visible
  *    focus indicator — verified by reading its full rule list — so nothing here checks
@@ -104,6 +105,8 @@ import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountAssetDesignerHarness } from './assetDesigner';
+import { runOptions } from './axeOptions';
+import { detailDeps, mountWithDrawRoom, price, refusingWith } from './accessibilityFixtures';
 import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../helpers/editor';
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
@@ -112,110 +115,12 @@ import { installResizeObserver, resizeTo } from '../helpers/layout';
 import { useSelectionStore } from '../../src/presentation/editor/selection/selection-store';
 import { defaultRenovationProjectDeps, makeView } from '../helpers/makeRenovationProjectView';
 import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
-import { err, ok } from '../../src/core/result/Result';
-import type { Result } from '../../src/core/result/Result';
-import type { RepositoryError } from '../../src/application/ports/repositoryErrors';
-import type { RenovationProjectQueryServices } from '../../src/presentation/read-models/renovationProjectQueries';
+import { ok } from '../../src/core/result/Result';
 import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
 import NewProjectForm from '../../src/presentation/views/NewProjectForm.vue';
 import type { ViewStateResult } from 'obsidian';
-import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
-import type { PlanSummaryDto } from '../../src/presentation/read-models/PlanDto';
 import type { AssetPriceRowDto } from '../../src/application/queries/ListProjectAssetPrices';
-import { createMoney, type Money } from '../../src/core/money/Money';
 
-/**
- * A read side where every door refuses with the same code — which is what production does for
- * a session that has one (`unavailableRenovationProjectQueries` builds all three members out
- * of one `refuseUnrecovered`). The two cases below grade the FAILURE state, so refusing is
- * the honest stand-in rather than the fake-harsher-than-the-real-thing CLAUDE.md's fifth
- * instance names: there is no production answer being hidden. Design slice 21's two detail
- * doors refuse beside `listProjects` rather than answering, because a bundle that half-refused
- * would model no session this plugin can be in.
- */
-const refusingWith = (code: string): RenovationProjectQueryServices => {
-	const refuse = (): Promise<Result<never, RepositoryError>> =>
-		Promise.resolve(err({ category: 'Persistence', code, message: 'refused' }));
-	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse, listAssetPrices: refuse };
-};
-
-/**
- * A view whose DETAIL state has something to draw, for the two scans at the end of this
- * describe block.
- *
- * Over `defaultRenovationProjectDeps()` rather than a hand-built literal, for that factory's
- * own stated reason: it is the one place an honest default per member is written down, so a
- * widened `RenovationProjectDeps` meets this file at the same moment it meets every other
- * consumer — which is exactly what stranded this file's own four-member literal when design
- * slice 21's Task 5 grew the interface by five members.
- *
- * **It sets no `projectId`, and that is a measurement rather than an omission.**
- * `RenovationProjectView.mount` provides `{ ...this.deps, projectId }` with the VIEW's own
- * field last, so `deps.projectId` is written over on every mount and a value set here would be
- * inert — measured directly: a view built with `projectId: 'project-1'` in its bundle and no
- * `setState` draws the LIST. `setState` is what puts the view in the detail state, so that is
- * what both cases below drive, and a member that looked load-bearing here would send the next
- * reader to the wrong line when one of them fails.
- */
-function detailDeps(over: {
-	projectId: string;
-	plans: readonly PlanSummaryDto[];
-	/**
-	 * The price section's rows. `undefined` leaves the factory's own answer — an empty catalogue,
-	 * which draws the section's empty state — and the last case in this block supplies real rows,
-	 * because a scan of an empty state grades none of the controls the section exists for.
-	 */
-	prices?: readonly AssetPriceRowDto[];
-}): RenovationProjectDeps {
-	const base = defaultRenovationProjectDeps();
-	return {
-		...base,
-		queries: {
-			...base.queries,
-			getProject: () =>
-				Promise.resolve(
-					ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false }),
-				),
-			listPlansByProject: () => Promise.resolve(ok({ plans: over.plans, unreadable: 0 })),
-			listAssetPrices:
-				over.prices === undefined ? base.queries.listAssetPrices : () => Promise.resolve(ok([...over.prices ?? []])),
-		},
-	};
-}
-
-/**
- * See LAYOUT in the header for the three separate, verified reasons these cannot work
- * here: one throws inside axe itself (jsdom has no canvas), two are simply shipped
- * disabled and would pass a real defect if forced on. Disabled here explicitly rather
- * than left to their defaults, so the rule set this file actually asserts against does
- * not silently change if a future axe-core release flips a default — and rather than
- * filtering an `incomplete`/false-pass result out afterward, so the rule set this file
- * asserts against matches the rule set the header claims. A filter written once and
- * forgotten is exactly the kind of drift `CLAUDE.md`'s "write the guarantee to the check"
- * warns about.
- */
-/** A fixture amount, through the constructor the price row itself mints with. */
-function price(amount: string): Money {
-	const minted = createMoney(amount, 'EUR');
-	if (!minted.ok) throw new Error('unmintable fixture');
-	return minted.value;
-}
-
-const LAYOUT_DEPENDENT_RULES = ['color-contrast', 'color-contrast-enhanced', 'target-size'];
-
-const runOptions: Parameters<typeof axe.run>[1] = {
-	rules: Object.fromEntries(LAYOUT_DEPENDENT_RULES.map((id) => [id, { enabled: false }])),
-};
-
-/** A mounted Plan Editor with `draw-room` already active, for Task 13's four scans below. */
-async function mountWithDrawRoom(): Promise<EditorHarness> {
-	const mounted = await mountPlanEditor();
-	runtimeOf(mounted).setTool('draw-room');
-	await settle();
-	return mounted;
-}
-
-/** One state of the index, scanned and torn down — the mount must not outlive the scan. */
 /**
  * `document.body`, not the wrapper's own element.
  *
@@ -315,10 +220,13 @@ describe('axe against the mounted view', () => {
 	 * project rather than merely naming it.
 	 *
 	 * The case above grades the EMPTY state and can never reach a row: `mountHarness` takes no
-	 * `deps`, so its list is empty by construction. This one hands `makeView` a list holding one
-	 * marked project — rather than exposing the helper's own `IndexLibraryOverlaps`, which is
-	 * built over an empty `InMemoryProjectIndex` and so is incapable of answering "overlapping"
-	 * at all. What is graded is the marker's MARKUP, which is what axe can see at this file's
+	 * `deps`, so its list is empty by construction. This one hands `makeView` a list holding TWO
+	 * projects — one marked, one COMPLETE — rather than exposing the helper's own
+	 * `IndexLibraryOverlaps`, which is built over an empty `InMemoryProjectIndex` and so is
+	 * incapable of answering "overlapping" at all. The second project is what makes the
+	 * `Completed` disclosure render at all, and Task 12 added it with the assertion that needs
+	 * it; the fixture is now the smallest one that puts every graded region in the scanned DOM
+	 * at once, which is what stops any of those assertions quietly reaching nothing. What is graded is the marker's MARKUP, which is what axe can see at this file's
 	 * ceiling; the mark itself is CSS-drawn and jsdom resolves no CSS, so the "mark and a word"
 	 * contract is held by `projectListOverlap.test.ts` against the stylesheet instead.
 	 *
@@ -347,7 +255,16 @@ describe('axe against the mounted view', () => {
 				listProjects: () =>
 					Promise.resolve(
 						ok({
-							projects: [{ id: 'p1', name: 'Kitchen refit', status: 'IDEA', currency: 'EUR', libraryOverlap: true }],
+							projects: [
+								{ id: 'p1', name: 'Kitchen refit', status: 'IDEA', currency: 'EUR', libraryOverlap: true, planCount: 0, lastWorked: null },
+								// A COMPLETE project, so the `Completed` disclosure actually renders —
+								// `isCompleted` files exactly `COMPLETE` and `AS_BUILT` into it, and the
+								// assertion below is worthless without one in the list. It also carries
+								// real facts where `p1` carries none, so the row's facts slot is in the
+								// scanned DOM in both of its shapes: a project with plans and one
+								// without, which §8's content rule renders differently on purpose.
+								{ id: 'p2', name: 'Loft conversion', status: 'COMPLETE', currency: 'EUR', libraryOverlap: false, planCount: 6, lastWorked: '2026-08-01T00:00:00.000Z' },
+							],
 							unreadable: 0,
 						}),
 					),
@@ -364,6 +281,21 @@ describe('axe against the mounted view', () => {
 
 		expect(view.contentEl.querySelector('.rp-project-list__row')).not.toBeNull();
 		expect(view.contentEl.querySelector('.rp-project-list__overlap')).not.toBeNull();
+		// THE FILTER, asserted present for the reason the empty-state cases assert
+		// `.rp-empty-state__action`: a populated list draws it (the guard is
+		// `projects.length > 0`), it is this surface's only text input, and its accessible name
+		// comes from a visually-hidden `<label>` — which is precisely the shape a scan grades
+		// and a green `violations: []` is equally true of a subtree that has no input in it.
+		expect(view.contentEl.querySelector('.rp-project-filter__input')).not.toBeNull();
+		// THE COLLAPSED GROUP, for the same reason and one more of its own. Same reason: a green
+		// `violations: []` is equally true of a subtree that has no disclosure in it, and this
+		// group has real semantics to grade — a native `<details>`/`<summary>` whose expanded
+		// state the HOST announces, carrying an `<h3>` INSIDE the summary so the heading order
+		// (`<h2>` then `<h3>`) that §11 asks for is unbroken for a group whose contents are
+		// hidden by default. Its own: it renders under a `v-if` on `completed.length > 0`, so it
+		// is present only because this fixture was given a completed project — an assertion that
+		// would silently stop reaching anything if that row were ever dropped.
+		expect(view.contentEl.querySelector('.rp-project-list__completed')).not.toBeNull();
 		expect(results.violations).toEqual([]);
 		await view.onClose();
 	});

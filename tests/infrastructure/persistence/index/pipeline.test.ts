@@ -74,7 +74,7 @@ describe('vault change detection', () => {
 		const incremental = stack.index.entries().map((entry) => sorted(entry));
 
 		// A rebuild over the same final contents must answer identically.
-		stack.index.rebuild([]);
+		stack.index.rebuild([], []);
 		stack.rebuildIndex();
 		expect(stack.index.entries().map((entry) => sorted(entry))).toEqual(incremental);
 	});

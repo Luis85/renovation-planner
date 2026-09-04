@@ -1,3 +1,5 @@
+import { setLanguage } from '../helpers/obsidian-mock';
+
 /**
  * What the page tells the plugin's stylesheet about its environment: the colour scheme,
  * and whether this is a phone. Both are a body class in Obsidian and nothing more, which
@@ -22,6 +24,34 @@ const SCHEMES: Scheme[] = ['dark', 'light'];
 function wantedScheme(search: string): Scheme {
 	const asked = new URLSearchParams(search).get('theme');
 	return SCHEMES.find((scheme) => scheme === asked) ?? 'dark';
+}
+
+/**
+ * `?lang=de` — the app language the plugin reads through `currentLanguage()`.
+ *
+ * It belongs beside the scheme and the phone class for the reason this module's header gives
+ * about those two: it is something the PAGE tells the plugin about its environment, applied
+ * from a URL because a headless screenshot needs nothing to click. In Obsidian it is the user's
+ * own app-language setting; here it is the mock's, which is what makes it a one-line switch.
+ *
+ * It exists for a MEASUREMENT rather than for completeness. The Home row's container-query
+ * threshold is the width at which name, facts and status stop fitting on one line, and the
+ * longest status word decides it — `Bestandsaufnahme` against `Survey`. Nothing renders `de.ts`
+ * in any gate, so a capture is the only instrument, and without this knob the threshold could
+ * only ever be measured against the easy locale.
+ *
+ * Applied BEFORE the mount for the same reason `applyPlatform` is: `ProjectList` resolves its
+ * collator and its key legend once at setup, so a language set afterwards would leave a
+ * half-translated pane.
+ *
+ * Any tag, not a list of two: `t()` falls back to `en` per key for a locale it does not have,
+ * so an unknown tag draws English and says nothing — the same degradation a user with an
+ * untranslated Obsidian language already gets, rather than a refusal this page would have to
+ * report.
+ */
+export function applyLanguage(search: string): void {
+	const asked = new URLSearchParams(search).get('lang');
+	if (asked !== null && asked.length > 0) setLanguage(asked);
 }
 
 /**

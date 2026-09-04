@@ -73,6 +73,40 @@ step to [[Canvas Navigation]]): 259 table rows across fourteen files plus 17 lis
 cases whose steps are a table" (now fourteen) are both updated in place. Commit "docs(review):
 correct the records the review found overclaiming, and defer the vault walk".
 
+**Amended 2026-09-04, at the merge of the Renovation Planner Home branch, which is this note's
+own subject arriving through a mechanism the closure did not anticipate.** Both figures above
+are superseded: the merged tree measures **292 steps across sixteen cases** — `suite` 102,
+`browser` 43, `obsidian` 125, `desktop` 13, `judgement` 9 — and the table-form denominator is
+FIFTEEN, not fourteen. What is worth carrying past the arithmetic is that only THREE of the five
+tier rows conflicted. Both branches had written `suite` 99 and `judgement` 9, so git merged those
+two lines without offering them to anyone; `judgement` was right by luck and `suite` was wrong,
+because each branch had added exactly three `suite` steps to the base's 96. **A census row that
+agrees across a conflict is not a row two branches checked** — it is a row nobody was asked
+about, and it is invisible to the very re-run this note prescribes unless the re-run covers all
+five rows rather than the ones git flagged.
+
+**Amended 2026-09-04, at the merge of the Add Room branch — the third merge in a row where this
+note's own subject arrived, and the first where the prescribed re-run was the only thing that
+worked.** Both figures above are superseded again: the merged tree measures **326 steps across
+nineteen cases** — `suite` 108, `browser` 54, `obsidian` 137, `desktop` 14, `judgement` 13 — over
+nineteen case files, every one of which was checked individually to carry verdicts rather than
+inferred from the `## Cases` list. This branch had 300 across seventeen and `main` 316 across
+eighteen; neither described the merged tree, because each had counted without the other's case
+([[Add a room]] and [[Browse the asset library]] / [[Find and resume a project]]).
+
+Two things this recurrence adds, and the second is the one worth carrying:
+
+- **All five rows conflicted this time**, so the agreeing-row hazard the amendment above names
+  did not bite. That is luck for the second time rather than the hazard being closed: it held
+  only because `main` had moved `judgement` from 9 to 13 for its own reasons, and had it not,
+  that row would have agreed at 9 and been wrong by exactly the documented mechanism.
+- **The prose written to record all this got the hazard BACKWARDS on its first draft** — it
+  asserted that `judgement` agreed and `desktop` moved, from memory, in the paragraph whose
+  entire subject is that agreement must be measured. It was corrected by
+  `git show :2:<path>` against `git show :3:<path>`, which is the instrument this note should
+  have prescribed alongside the grep re-run and now does: **at a merge, read both sides of the
+  census table off the index rather than recalling which rows git showed you.**
+
 ## References
 
 - [[Errors, diagnostics and the test harness]]

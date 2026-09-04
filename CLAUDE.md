@@ -66,13 +66,27 @@ there is nothing here to go stale, and a reader asking what is unbuilt is sent t
 document's amendments rather than here, because a list of exceptions kept in two places is one
 that disagrees with itself.
 
-There are **three workspace surfaces**, each mounting its own isolated Vue app (SDD §12) —
-nothing outside a view knows it is Vue. It said TWO for a slice after the third was
-registered, which is this file's own recurring defect and the reason the count is now
-stated against `registerView`: that call appears FOUR times in
-`RenovationPlannerPlugin.ts`, and the fourth is `GEOMETRY_SIDECAR_VIEW`, a registered view
-that mounts no Vue root at all. So three surfaces, four registrations, and the two numbers
-are different facts. The **Renovation project** view is a singleton with
+**Every workspace surface mounts its own isolated Vue app** (SDD §12) — nothing outside a view
+knows it is Vue. **This sentence carried a NUMBER until the merge that read it beside its own
+conclusion**, which is the sharpest form this defect has taken here: the lead said *four* in
+bold and the sentence four lines below it said *No count is stated here, therefore* — one
+paragraph, written in one commit, disagreeing with itself about whether it was allowed to
+count. Neither half was wrong about the tree; the paragraph was wrong about the paragraph, and
+nothing in any gate reads whether a passage's argument survives its own opening clause. This
+sentence said TWO for a slice after the third was
+registered and THREE for a branch after the fourth was, and the second time it was already
+"re-founded on `registerView`" — so a COUNT is not what fixes it, whatever the count is of. Two
+reasons, and only the first was known: a number written here is a number nothing re-runs, and
+`grep -c "registerView" src/plugin/RenovationPlannerPlugin.ts` answers one MORE than the calls
+because that file's own prose names the call, so the obvious re-measurement misleads too.
+No count is stated here, therefore. **The registered view types are pinned in order, by exact
+array, by `tests/plugin/settings/unrecovered.test.ts`** ("registers the view and the command
+anyway") — that assertion is where the NEXT one arrives and fails, rather than here where it
+would read correctly forever. Not *a fifth*, which this sentence said while the array already
+held five: the pin is over REGISTRATIONS and the paragraph is about Vue ROOTS, and an ordinal
+borrowed from one of those two counts the other. Which of them mounts a Vue ROOT is the different fact and the one
+this paragraph is about: every entry on that list except `GEOMETRY_SIDECAR_VIEW`, which is
+registered and mounts none. The **Renovation project** view is a singleton with
 a ribbon button and a command, and it now draws **a project list** — design slice 16's
 `ProjectList.vue`, not slice 17's: that document is the error-surfacing decision table and
 never once mentions one, so the list was owned by no slice until slice 16 claimed it. This
@@ -98,6 +112,14 @@ view, opened from the empty state's action button and from `ProjectList`'s own h
 `{ loaded, refused }`, and the rename across that seam is deliberate — and the empty state is the `'ready'` status
 with BOTH halves clear: an empty list with `unreadable > 0` is a vault that has projects this
 build could not read, so it gets the notice and no "no projects yet".
+
+**That list is a LAUNCHER since the Renovation Planner Home increment**, and this paragraph
+describes the bare `<ul>` it grew out of rather than what draws today — a filter that is also
+the pane's count line, two facts per row, a ten-step status strip, a `Continue` group, a
+collapsed `Completed` group and a foot line, with the header and the empty state unchanged.
+Left standing rather than rewritten, because every sentence in it is still true of the seam it
+is about (`ListProjects`, the `'ready'` gate, the two-halves empty state, `DialogHost`); the
+Home section far below carries what was added and what building it taught.
 
 **Design slice 21 gave that view a SECOND state, and everything above describes the first
 one.** A project row NAVIGATES now rather than opening `Project.md`, into a detail state that
@@ -141,6 +163,13 @@ records as REJECTED: that note is `status: Done` and says slice 05 registers no 
 while `RenovationPlannerPlugin.ts` registers `PLAN_EDITOR_VIEW`. ADR-0015 follows the code rather
 than the note, says so, and the note carries a pointer back — because a contradiction findable
 from only one side is one the next reader resolves the wrong way.
+
+The **Asset library** is the fourth: one vault-wide catalogue of every `Asset`, reached through
+`revealView` exactly as the Renovation project view is, drawing shelves of rows and an inspector
+for whichever row is selected. Its own design document is
+`docs/user-experience/asset-library-overview-DESIGN-SPEC.md`, which is the authority for every
+section number the `src/presentation/library/` modules cite; this file describes no part of it
+that document already owns.
 
 **Its shell regions are held reachable by an import-graph walk, not by a habit.**
 `tests/presentation/designer/regionsReachable.test.ts` requires every `.vue` under
@@ -1305,8 +1334,12 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   you write. The one hole: `DialogHost`'s check is `FormDialog`'s declared prop type, so it
   is STRUCTURAL — a fifth descriptor carrying a `title` and a `component` would satisfy
   `FormDescriptor` and render as a form rather than fail.
-- **`DeleteReferenceDialog` and `EntityPickerDialog` have a caller now** — slice 10's
-  `presentation/editor/deleteZoneFlow.ts`, reached from the Inspector's Delete button. They
+- **`DeleteReferenceDialog` and `EntityPickerDialog` have callers now** — slice 10's
+  `presentation/editor/deleteZoneFlow.ts`, reached from the Inspector's Delete button, and since
+  the Asset library `presentation/library/deleteAssetFlow.ts` beside it; both open both kinds,
+  which `grep -rn "kind: 'delete-reference'\|kind: 'entity-picker'" src/presentation/` says
+  (four `openDialog` calls, two per flow, plus each descriptor's own declaration and the two
+  docblocks quoting the call). They
   shipped with none for two slices, which was the plan rather than dead code: the queries
   feeding their rows and the command fields carrying their answer were slice 10's to define,
   and declaring them in slice 15 would have been a second derivation of contracts it owns.
@@ -1318,7 +1351,12 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   is the shape rather than the schedule: the first interpolated string in the plugin IS the row
   label item 6 names, so neither could land alone. The query answers
   `readonly ReferencingGroup[]` now, with `projectPath` supplied only where `projectName` is
-  ambiguous among the groups returned, and the row mapping is `rowsFor` in `deleteZoneFlow.ts`.
+  ambiguous among the groups returned, and the row mapping is `rowsFor` — which the Asset
+  library's own delete flow then EXTRACTED, along with the whole reference-resolution sequence,
+  into `presentation/references/deleteWithReferences.ts`, where `grep -rn "function rowsFor" src/`
+  finds it — one declaration, called once, inside the sequence BOTH flows dispatch through
+  (`deleteZoneFlow.ts` and `deleteAssetFlow.ts` each end in `deleteWithReferences(bound, name)`),
+  which is why the caller list is the flows' and not this function's.
   Both items are ticked in slice 15's OWN document with a dated note, which is where a closed
   criterion belongs.
 - **A tool's transient visual goes in `RenderState`, and it needs its own field when it
@@ -1486,10 +1524,13 @@ are load-bearing:
 from where its `Project.md` sits rather than storing one: nothing goes stale, and a user who
 drags the folder in Obsidian's file explorer has moved the project, which is ADR-011's
 sidecar-folder argument turned to a second use. `entityRefOf` is now the one answer to "is this
-note ours" (`type` plus a non-empty `id`), with exactly two callers — the Project Index's full
-scan and `VaultChangeAdapter`'s incremental one — so the two cannot disagree about a note the
-way two hand-spelled copies of the same test could; `entityRef.test.ts` measures that caller
-list by reading `src/` rather than asserting it. `NoteVaultDeps.projectFolder` is gone; the
+note ours" (`type` plus a non-empty `id`), so no two doors can disagree about a note the way two
+hand-spelled copies of the same test could; `entityRef.test.ts` measures that caller list by
+reading `src/` rather than asserting it. **It was "exactly two callers — the full scan and
+`VaultChangeAdapter`'s incremental one" for many slices and is THREE since the duplicate-id
+promotion rule moved to `ReconcilingProjectIndex`**, which re-asks the notes an exclusion
+descriptor names rather than the note that changed. Read the count off that test, which is the
+thing that fails when it moves; this sentence is the thing that does not. `NoteVaultDeps.projectFolder` is gone; the
 five repositories that cached it in a constructor now resolve each INSERT's folder from the
 entity being saved, through `projectFolderOf(index, projectId)`, and refuse with a
 `PersistenceError` rather than default when that resolves to nothing — an UPDATE writes where
@@ -1555,9 +1596,13 @@ id on a name collision. Four rules came out of it, the last two from the review 
   indexed) — a genuine pair is reported in either
   order under a per-door event name, and a sidecar re-affirming its own mapping is not reported
   at all. "Both doors" is a category claim, so it is MEASURED rather than asserted: the second
-  `it` in `tests/infrastructure/persistence/index/entityRef.test.ts` pins its two callers the
-  same way that file pins `entityRefOf`'s, and a `processSidecar` that goes back to
-  adjudicating for itself drops the list to one and fails there.
+  `it` in `tests/infrastructure/persistence/index/entityRef.test.ts` pins its callers the same
+  way that file pins `entityRefOf`'s. **Its two are the full scan and `sidecarMapping.ts` now,
+  not the scan and the pipeline**: promotion moved to `ReconcilingProjectIndex` and asks the same
+  question, so the incremental answer was extracted where both incremental doors can reach it,
+  and a THIRD `it` pins `incrementalSidecarMapping`'s own two callers. A `processSidecar` that
+  goes back to adjudicating for itself is what that third one catches; it is no longer the second
+  one's job.
   Reporting and adjudication are separate steps in it for a reason worth keeping: the
   first draft returned early when the arriving file was the derived one, which silenced the copy
   in exactly one of the two scan orders.
@@ -3368,9 +3413,16 @@ recurring shapes arriving again:**
 draws the line here and no item beneath it may claim otherwise:**
 
 - **Nothing draws this shape on a Plan.** A footprint, a clearance, an anchor and a facing
-  exist on the asset's OWN canvas and nowhere else — [[Asset placement]] is a separate epic
-  that does not exist yet, and no code anywhere in this plugin reads an asset's geometry from
-  a Plan's own render path.
+  exist on the asset's OWN canvas and nowhere else, and no code anywhere in this plugin reads
+  an asset's geometry from a Plan's own render path. This bullet said "[[Asset placement]] is a
+  separate epic that does not exist yet" and both halves were false: that note is `type:
+  Feature` with `parent: "[[Asset library]]"`, so it is a sibling of [[Searchable asset catalog]],
+  [[Asset definitions and categories]] and [[Geometry-linked quantities]] under an **Active MVP
+  epic** — which makes the exclusion sharper rather than softer, since the epic it belongs to is
+  not done without it. Found while reading that epic's children against
+  `docs/user-experience/asset-library-overview-DESIGN-SPEC.md`, which carried the identical
+  sentence; a claim living in two files is one a reader can only check from the side they are
+  standing on.
 - **Nothing computes with the height, and nothing consumes the clearance.** Both are stored,
   shown and round-tripped; neither is read by a calculation, a fit check or an overlap test
   anywhere in the product. *Does the worktop clear the window sill* is a question this
@@ -3458,12 +3510,14 @@ announcing into nothing. The rules that came out of it:
   HOLDS**: the discovery file's *"every module a disposition names carries a row for every
   direction it claims"* case fails the moment a `rows:` disposition and `CENSUS_TABLE`
   disagree. The disposition TOTAL is held by nothing —
-  `grep -oE "'src/[^']+\.ts::[A-Za-z_]+':" | sort -u | wc -l` over that file printed **42** on
-  2026-09-03, the balance being `notAnAdapter` with a stated reason — so read it as a dated
+  `grep -oE "'src/[^']+\.ts::[A-Za-z_]+':" | sort -u | wc -l` over that file printed **43** on
+  2026-09-04, the balance being `notAnAdapter` with a stated reason — so read it as a dated
   measurement and re-run the grep rather than quoting the number. It said **40** for two
   increments, because the increment that added `ReferenceLocks`'s two dispositions did not
-  re-run this file's own grep, and the disposition table is exactly where additions land
-  routinely: **a number no check holds is a number every later author inherits unexamined**,
+  re-run this file's own grep, and **42** for one more, because a MERGE brought a disposition
+  neither branch's author was looking at — the grep was re-run at that merge only because this
+  sentence tells its reader to, which is the whole return on dating it. The disposition table
+  is exactly where additions land routinely: **a number no check holds is a number every later author inherits unexamined**,
   which is why the pinned pair leads and the total is dated. The table lives in a plain
   module rather than being exported from either `.test.ts`, because vitest registers a test
   file's whole suite on IMPORT and a cross-file import would silently run every one of its
@@ -3566,9 +3620,15 @@ fail loudly, which is what stops the chain being built, and is not a proof that 
 exists. The full module-graph traversal was the reported remedy and is more than the question
 needs while the tripwire holds the entrance; the rest of what it cannot reach (a glob or a
 template specifier that does not SPELL the suffix) is enumerated where the predicate is.
-Re-measured in this edit, `find src tests/harness tests/helpers -name "*.test.ts" | wc -l`
-still prints **17**, none of them imported by a non-test module — so the hole was latent when
-it was closed, which is the cheapest moment to close one and the moment nothing forces you to.
+Re-measured 2026-09-04 on the merged tree,
+`find src tests/harness tests/helpers -name "*.test.ts" | wc -l` prints **22**, none of them
+imported by a non-test module — so the hole is still latent, which is the cheapest state for one
+to be in and the state nothing forces you to check. **It said 17 when written and was one behind
+its own tree even then**, which is why the figure is dated rather than asserted as current. Both
+branches of this merge re-took it and got **21** and **19** against two different trees; neither
+is the merged answer, which is what makes the tripwire rather than the number the thing that
+holds the property. Five files later it still holds, because it is a rule and not a list.
+
 **The plan editor foundation's first increment has landed: the read path and selection.** A floor
 opens into the Standard Plan View with **Select already active and nothing selected**, and the
 toolbar is DELETED rather than renamed — Undo and Redo moved to a context bar reading
@@ -3909,6 +3969,225 @@ it.**
   that shares its subject**, including the ones the author never thought about, so the
   question is not "did my declaration win" but "what else did it take with it".
 
+**Three more defects came back from the review bot AFTER that final review, and all three are
+one shape: a rule this repository states somewhere else, not carried to the door that owed
+it.** Worth reading as a set rather than as three items, because the set is the finding.
+
+- **The RELEASE names the rectangle, and `DrawRoomTool.pointerUp` settled whatever the last
+  `pointermove` had left.** It measured `moved` from `event.worldPoint` — so the gesture read
+  correctly as a drag — and then called `settle()` without ever writing that point, so the
+  committed rect ended at the last move rather than where the hand let go. W3C Pointer Events
+  guarantees NO move between a `pointerdown` and a `pointerup`, so a fast flick is a legal
+  stream with none: measured, that drag settled a null rect and produced no Room and no error,
+  and with an earlier rectangle present it silently kept the OLD one, which is worse because
+  the user sees a rectangle and it is the wrong one. `SelectTool` had the rule already
+  ("computes the commit from the release's world coordinate") — the sibling tool, in the same
+  directory, quoted in this file two sections up.
+- **A continuation that crosses an `await` re-checks whether its task is still its own**, which
+  `DrawPolygonTool` and `CalibrateTool` each do with a generation counter and
+  `createRoomFromDraft` did not. The window is open BY DESIGN: that module's own header argues
+  Cancel must stay live during a vault write, so a user can cancel, reactivate Room and draw
+  again before the first write resolves — and the stale continuation then read the REPLACEMENT
+  task's `keepAdding`, either calling `beginTask` (clearing the rectangle just drawn) or
+  `returnToSelect` (ending a task just started). `RoomDraftStore.taskToken` is that counter,
+  bumped by `beginTask` and `reset`; the outcome union gained `'superseded'`. **A COUNTER and
+  not a flag**, because two successive tasks must be distinguishable from each other rather
+  than from "no task", and `keepAdding` restarts a task on the success path itself. Two things
+  the fix had to keep: the guard returns AFTER selecting, since the write really did land and
+  the header promises the new Room is still selected — a guard placed one line earlier passes
+  the supersession case and silently drops that selection, which is why there is a case for
+  each half — and the `finally` clears `submitting` only for its OWN token, since `beginTask`
+  clears it too and an unconditional clear would release a replacement task's in-flight guard.
+- **The positivity rule is about the MILLIMETRE and `parseMetres` checked the metre.** Anything
+  under half a millimetre is positive as typed and `Math.round`s to `mm: 0`, so `0.0001`
+  answered `{ ok: true, mm: 0 }`: `commitDimension` cleared the field's error while `rect`'s
+  own `> 0` guard refused the rectangle, leaving every field apparently accepted and Create
+  blocked with nothing naming a side. **The same defect the final review had just closed on
+  the DRAG route, arriving at the numeric one** — that review put the guard at `rect` because
+  six readers share it, and this is the half `rect` cannot do, since `rect` decides whether a
+  rectangle exists and cannot say why not. So the refusal is at BOTH doors rather than moved:
+  `parseMetres` is the only place a `LengthRefusal` is minted and therefore the only path to a
+  per-field message.
+
+**The meta-point, and it is this file's oldest lesson arriving at its own final review.** That
+review closed two defects and wrote up six false sentences, and reported the branch as done.
+Every one of these three was live underneath it, and none is exotic: each is a rule already
+written down in this file or in the module next door, missing at exactly one door. **A review
+that finds defects is not evidence that the class is closed** — the two the final review found
+were the zero-side rectangle and the phantom brand, and the zero-side one has a THIRD door
+(`parseMetres`) that the same review did not look at while fixing the first two.
+
+**The Renovation Planner Home increment has landed: the project list is a LAUNCHER.** The
+Renovation project view's list state draws a header, a filter that is also the pane's count
+line, a `Continue` group offering the project and plan the user was last in, `Projects` most
+recently worked first, a collapsed `Completed`, and a foot line carrying the key legend and
+`New asset`. A row states two commissioned facts beside its name — `planCount` and
+`lastWorked`, both REQUIRED on `ProjectSummaryDto` — plus its lifecycle stage as a word and a
+ten-step tick strip. Both row lists are roving-`tabindex` groups, so thirty projects cost one
+Tab rather than thirty. `docs/user-experience/renovation-planner-home-DESIGN-SPEC.md` is the
+contract, and every place the build disagreed with it is a DATED amendment in place, never a
+silent edit — its Sources section tabulates them and says why the count is a table rather than
+a grep. `docs/tests/cases/Find and resume a project.md` is what only a vault can answer, and it
+is **written and has not been run**. The rules that came out of building it:
+
+- **A snippet a plan mandates VERBATIM can produce the exact opposite of its own stated
+  default, and eighteen rounds of a bot reading the text cannot see it — because it is not a
+  defect in the text.** `:tabindex="(tabbable ?? true) ? 0 : -1"` reads as "tabbable unless
+  told otherwise" and ships `tabindex="-1"` on every row that does not pass the prop: **Vue
+  casts an ABSENT prop typed `boolean` to `false`, not `undefined`**, so `??` never fires and
+  every row in the list would have been silently skipped by Tab. Measured rather than
+  reasoned — `wrapper.props()` resolved `false` on a mount passing nothing. `withDefaults` is
+  the fix, and taking it immediately tripped `vue/require-default-prop` on the sibling `query`
+  prop, which is a second-order consequence no reading finds either: that rule activates the
+  moment ANY prop is defaulted through `withDefaults`. **A plan is INTENT and not source**, and
+  the sharpest form of that is a plan whose prose is impeccable about a runtime it never ran.
+- **The conflicts are the SAFE part of a merge.** Merging 237 commits of `origin/main` into
+  this surface produced nineteen conflicting hunks across six files, every one of them looked
+  at by two agents — and the finding that mattered was not among them. **Six call sites git
+  auto-merged CLEANLY from only one side, silently dropping the other's argument**, caught by
+  `vue-tsc` as arity errors. What is flagged gets read; what merges cleanly and is semantically
+  wrong does not. The sweep that followed went looking for the same class where the compiler
+  CANNOT see it — untyped `provide` literals, runtime enumerations — and found one benign
+  instance, which is the half worth copying: after a merge, the question is not "did I resolve
+  the conflicts" but "where would a clean merge have been wrong".
+- **A recorded derivation has THREE ways to be wrong and only two of them have an instrument,
+  and the third is the one that actually bit.** `styles/project-list-narrow.css`'s container
+  threshold is derived rather than picked, and it moved 34rem (placeholder) → 36rem (measured)
+  → 42rem → **41rem**. Two cases hold it: one requires every recorded sum to balance, one
+  requires the derivation's final `→ Nrem` to equal the container query. **Neither could have
+  caught the 42rem defect**, and a controller asserting they would have was corrected by an
+  implementer that checked against `git show`: `32 + 2 × 314.5 = 661` balances, 661px IS 42rem,
+  and it transcribes correctly. Its error was the PREMISE — 32 counted a gap the 314.5 already
+  contained — and **no arithmetic checker sees a wrong premise.** So: a wrong SUM → the
+  balancing case; a wrong TRANSCRIPTION → the arrow case; a wrong MODEL → a human re-deriving
+  from the layout, which is how it was found. Write that division down beside the checker, or
+  its next reader trusts it for a class it does not reach.
+
+  **Two of that division's three arms have since been NARROWED, by asking what the derivation's
+  inputs rest on rather than what its arithmetic does.** The threshold's own document stated the
+  number a THIRD time and nothing compared it to anything, so the arrow case is pointed at the
+  design spec too — the first test in this suite that reads `docs/`, with the `docs/`-is-user-land
+  rule it bends stated at the code and the reason a design CONTRACT is not the fixture that rule
+  was written about. And the PREMISE under the whole sum — that `Bestandsdokumentation` is the
+  longest translated stage word, which sizes the `20ch` slot and through it the threshold — lived
+  in three prose copies with `grep -rln Bestandsdokumentation tests/` printing nothing, under a
+  sentence predicting its own failure: *a status label retranslated longer would move the 41rem
+  threshold and nothing would show it.* `projectListStyles.test.ts` re-runs the `max` over the
+  shipped `de.ts` now. **What it deliberately does not claim is the useful half**: it compares
+  CHARACTER COUNTS and the slot is in `ch`, jsdom measures no text, so a new winner still needs
+  a human to measure it — the case is what tells them to. **A premise is not automatically
+  uncheckable because the quantity it decides is unmeasurable here**, and "nothing can check
+  this" is worth one attempt before it is written down as a residue.
+- **A COUNT in one document and a LIST of the same thing in another disagree in the commit that
+  writes both.** This file's whole account of counts is about them going stale over time; this
+  one was wrong at birth. The spec's header said the captures found *five* defects; the manual
+  case enumerated *four*; one author, one commit, twenty minutes apart — and the omitted fifth
+  was the resting filter field, which is exactly what that case's step 1 sends a runner to
+  inspect, so the section written so a runner *"does not re-derive it"* sent them to re-derive
+  it. The remedy is not a more careful number: **one document holds the list and the other
+  points at it**, so there is no second copy to disagree. Found by a reviewer reading the two
+  halves of one commit against each other, which is the reading nobody does on their own work.
+- **A capture that cannot SEE what it certifies reads exactly like one that can, and removing
+  the obstacle was not enough.** The no-match shot was graded as proving `overflow-wrap:
+  anywhere` while its query was hyphenated — a hyphen-minus is a UAX #14 break opportunity, so
+  ordinary wrapping did the work; deleting the declaration produced a **byte-identical PNG**.
+  De-hyphenating gave a 47-character token and the PNG was byte-identical AGAIN, because that
+  token renders 362px inside a 420px button and never has to break. Only a 59-character, 453px
+  token makes the rule load-bearing. **Two plausible fixes in a row looked right and proved
+  nothing; running the mutation twice is what told them apart.** Grade a capture by mutating
+  the rule it certifies, never by looking at it.
+- **A row is a `<button>`, and Obsidian's own `button` rule sets a FIXED `height`.** At 460px —
+  the width an Obsidian sidebar leaf actually has — the container query wrapped every row's
+  content to two lines while its box stayed 30px around 41px of content, so each row's second
+  line was drawn over the next row's name. The surface would have shipped unusable in a
+  sidebar, with 5,600 tests green: jsdom lays nothing out. `list-row.css`'s
+  `min-height: var(--size-4-6)` does not save it, and **not for the reason it looks like** —
+  `min-height` beats `height` when it is the larger, and 24px simply never is. The fix is
+  `height: auto` scoped to `.rp-project-row` inside the narrow block, deliberately not in
+  `list-row.css`, where it would drop every one-line row in both lists to 24px as a side effect
+  of an overflow fix.
+- **A spec can commission an event that has no producer, and the remedy is neither to add the
+  name nor to write the producer.** §8 asked for `PlanCreated` **and `PlanDeleted`**; there is
+  no `PlanDeleted` anywhere in this tree and no delete-plan command to raise one, so putting it
+  in a subscription list would have been a list naming something nothing publishes — correct
+  looking, inert, and invisible to every gate, since subscribing to an event nobody fires fails
+  nothing. The remedy is to find which arm already carries the case and write that down where
+  the list is: `VaultChangeAdapter.announce` runs on `index.remove` as well as on upsert, so
+  admitting `renovation-plan` to `projectListChangeSource`'s ENTRY filter covers a plan note
+  created by hand, modified, copied in, synced **or deleted**, in one arm.
+- **A REQUIRED DTO field is what makes the compiler name the second door.** `planCount` and
+  `lastWorked` are non-optional on `ProjectSummaryDto` for the reason `libraryOverlap`'s own
+  docblock already gave — an absent field and a zero read identically at the site that renders
+  them — and the consequence is a build error at `toProjectSummaryDto`'s SECOND caller, which
+  is not the list. An optional third parameter would have compiled at both and left `getProject`
+  silently answering `0` about a project it never counted.
+- **A roving group whose list gets SHORTER can end up with no tabbable member at all** —
+  silently, for the rest of the mount, because `tabindex="0"` lives on exactly one row and an
+  index past the end selects none. The filter is what makes that reachable on every keystroke.
+  `reconcile` does two things rather than one, and the second is the non-obvious half:
+  it follows the active row's ID when that row survived the filter, and clamps only when it did
+  not. An index-only clamp passes the case everyone tests — `[A, B, C]` shortened to `[B, C]`
+  leaves index 1 in range, so nothing clamps and **C** silently becomes the tab stop while B is
+  the row the user was on.
+- **`Space` is a printable character and a row is a `<button>`.** The type-to-filter rule —
+  which is what lets this pane refuse autofocus — collides on the one key that has both
+  meanings: seeding from it would either suppress the button's native activation or do both at
+  once. `Space` is carved out, which costs nothing because a query never usefully begins with
+  one. **Nothing in this repository can observe that collision**: jsdom dispatches no native
+  activation at all, so it is `docs/tests/cases/Find and resume a project.md` step 6 or nowhere.
+  A modified keystroke is left alone for the neighbouring reason — `Ctrl+P` is Obsidian's
+  command palette, and a bare printable-character test swallows every host shortcut a user
+  presses while a row has focus.
+- **A legend may only name keys that are true on a FRESH INSTALL, which is what took a spec'd
+  clause out.** §7 wrote `{mod}N new project` into the key legend. `New project` is a
+  registered command with **no default hotkey** — declaring one would claim `Mod+N` on every
+  install over whatever the user already had — and reading back what the user actually bound
+  needs Obsidian's internal hotkey registry, reachable only through the global `app` the
+  marketplace rules refuse. So the clause would advertise either a dead key or a binding this
+  build cannot read. Two clauses ship. **The recommendation that produced it was two clauses
+  and only one of them was buildable**, which reading it as a single "register the command"
+  would have hidden.
+- **The unreached cells of a progress strip are a TRACK, so the contrast that matters is
+  reached-against-unreached and not unreached-against-the-page.** Raising them from
+  `--text-faint` to `--text-muted` — proposed because this branch had just deleted that token
+  from the foot line for measuring 2.30:1 — makes every cell easy to see and collapses the
+  distinction to **1.50:1 in dark**, in Obsidian's own default scheme: ten cells of one grey
+  where a ten-stage arc should be. The real finding was the cell SIZE (3px at a 1px gap
+  anti-aliases into one bar; 4px at 2px is countable), and the token change was a second remedy
+  for a defect the first had already closed. Both builds were captured and read; the token
+  vocabulary was then searched for a third option and there is none — a grey clearing 3:1 both
+  ways exists per scheme, and the light and dark windows do not overlap in any named token.
+- **A controller instruction stated more absolutely than the brief supports is a defect in the
+  DISPATCH.** The `Continue` context was briefed to a plugin-local FILE with a `KeyedQueues`
+  chain, and the dispatch called the queue "not optional" — written from the brief's default
+  branch without reading its conditional, which said to use a per-device host door if the
+  typings expose one. They do: `App.loadLocalStorage`/`saveLocalStorage`, promised at
+  `minAppVersion`, per device by construction, **synchronous** (so two writes cannot interleave
+  and a queue would have nothing to guard), and serializing for the caller (so the store holds
+  no `JSON.parse` and both fakes hold live objects). The file the dispatch insisted on would
+  have sat under `.obsidian/`, which Obsidian Sync can carry — narrowing away the device-local
+  guarantee the constraint existed to state. The implementer followed the brief over the
+  instruction and FLAGGED the conflict rather than resolving it silently, which is the
+  authority order working as written.
+- **A grep quoted inside the comment it is evidence for counts itself.** A docblock added to
+  prove a call site was unique asserted that `grep -n "notifyFault(cause" …` prints ONE line —
+  and the sentence contains that substring, so it printed TWO. The code was right; the
+  verification added to prove it was false in the same edit. This file already carries the same
+  shape from the notice-door count, and it recurred anyway. **A claim about the tree is cheap
+  to make and cheap to check, and only one of those two has been reliable.**
+- **The declined candidate's donation is what stops a search box being furniture.** A filter
+  over a two-project vault is an empty rectangle nobody types in — the direction's own recorded
+  risk — and the answer is that at rest the field IS the pane's count line (`10 projects`),
+  turning into a ratio (`2 of 30`) while typing. The first capture showed that count rendered
+  **outside** the field's border, which is the risk shipped by the region written to answer it;
+  the count sits inside the border now and the ring is drawn on the wrapper with
+  `:focus-within`, so a focused field is one ring rather than a rectangle inside a rectangle.
+  **The count must not be the placeholder** and must not be debounced: a placeholder vanishes on
+  the first keystroke, and the count's whole value is that it changes WHILE you type — so the
+  debounce belongs to the `role="status"` announcement in a separate hidden region, and an
+  earlier version that debounced the visible number made the pane's state line wrong for 400ms
+  after every keystroke over rows that had already filtered.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was
@@ -3981,9 +4260,16 @@ and the suite's own accounting says the cost is not the tests — `transform 13.
 74.3s, tests 143.9s, environment 82.1s` over 362 files, so per-file overhead (a jsdom
 environment and a module registry, both paid once per FILE) exceeds the test bodies. **Every
 number in this paragraph is a DATED SNAPSHOT of one machine and one tree, the file count
-included** — `find tests -name "*.test.ts" | wc -l` prints **374** as of 2026-09-03, so the
-362 is already behind and the per-file conclusion is what survives it, since that conclusion
-is a RATIO rather than a total. Re-measure before reasoning from any of them. ONE
+included** — `find tests -name "*.test.ts" | wc -l` prints **450** on 2026-09-04, against 362 in
+the run the timings above come from, so the file count is three measurements behind and the
+per-file conclusion is what survives it, since that conclusion is a RATIO rather than a total.
+The 2026-09-04 run of that suite at 429 files reports `transform 22.43s, import 125.34s,
+tests 365.21s, environment 149.02s` in 260s wall clock — import and environment together still
+exceed the test bodies, which is the ratio holding across a 19% growth in files.
+**A merge is where a file count moves furthest and where nobody re-takes it**, and this
+paragraph is its own worked example twice over: one branch of this merge read 429 and the other
+418, on the same day, against trees that differed by a merge neither had taken — and the answer
+here is 450. Re-measure before reasoning from any of them. ONE
 door exists beside `check` for that reason, and it does not replace it:
 
 - **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no
@@ -4175,7 +4461,12 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   equal the floors already in force ratchets NOTHING, which is what slices 5, 11, 13, 15, 16,
   18 and 19 did.
   The suite
-  includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
+  includes `tests/harness/accessibility.test.ts` and, since two branches each appended cases
+  to it and the sum crossed the 450-line cap, `tests/harness/accessibilityAssetLibrary.test.ts`
+  beside it — one seam, drawn where the file already had three top-level `describe`s, with
+  `runOptions` shared through `./axeOptions` rather than copied, because the alternative to
+  sharing it is two copies of the list naming the rules this suite cannot honestly grade. Both
+  are axe-core driven in jsdom against the
   real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
   three states — never a fixture), checking
   roles, accessible names, form labels, heading order and ARIA attribute validity. It
@@ -4574,6 +4865,35 @@ exactly double. The contention is real and the obvious fix for it is worse than 
 a lever that helps would have to reduce the number of BOOTS, which cross-worker sharing
 cannot do because each test file gets its own module registry.
 
+**THAT LAST SENTENCE WAS RIGHT ABOUT THE REQUIREMENT AND WRONG ABOUT THERE BEING NO LEVER, AND
+THE LEVER IS NOW TAKEN.** Sharing across workers cannot reduce the boots; REMOVING the workers
+can. The `build` project runs at `maxWorkers: 1` since the Add Room merge, so its files go
+through one worker against one module registry and pay one `new ESLint(...)` between them —
+which is what `isolate: false` was already reaching for and could only ever achieve *within* a
+worker. **Measured as a boot COUNT rather than as a duration**, because the duration cannot see
+it: a probe appending `process.pid` beside that constructor printed **12 boots in 12 processes**
+unconfined against **1** confined, and 12 → 2 over the whole run. A quiet 22-core machine passes
+that directory either way, which is precisely why this had gone on reading as somebody else's
+CPU.
+
+**It costs ~49 seconds of every run and that was accepted deliberately, so read it as a trade
+rather than a free win.** Vitest 4 refuses to overlap two projects whose `maxWorkers` differ, so
+each needs an explicit `sequence.groupOrder` and the two stop running concurrently: **88.0s →
+137.1s end to end, 459 of 459 files passing both ways.** The first version of the config comment
+claimed it cost nothing, reasoning that the build worker's ~29s would hide inside the suite
+project's ~120s — true of the scheduler that config does not get. Equalising `maxWorkers`
+instead would confine the 420-file project too, which is the 590s whole-suite serial run this
+repository already refuses. `vitest.config.ts` carries the whole account, and reverting it is
+that one option plus the two `groupOrder`s.
+
+**What the fix EXPOSED rather than caused**, since deterministic worker placement is a stronger
+instrument than a lucky one: `tests/build/localeModuleSentenceCase.test.ts` called
+`resolveConfig` under vitest's default 5s case budget with no `beforeAll(warmUpEslint)`, and had
+been passing only when the scheduler happened to drop it in a worker some sibling had already
+warmed. **A case whose pass depends on which sibling ran first is not a case anybody has
+checked** — it is the fake-too-thin rule pointed at a test runner — and it carries the warm-up
+its siblings carry now.
+
 **It does not prevent the edit and it does not roll one back**, and every description of it
 has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own
 table reads "Shows stderr to Claude; the tool already ran". Only `PreToolUse` blocks, and
@@ -4628,10 +4948,19 @@ DOM code gets jsdom, per file. The `obsidian` module is aliased to one small moc
 suite, the harness and nothing else share.
 
 **Known limits of the fakes**, so nothing trusts them wider than they are: the module mock
-models only the members something drives, and its `getLanguage()` always answers `'en'` —
-a call site resolving the language wrongly is invisible to the suite, which is why `t` is
-pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
-behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
+models only the members something drives, and its `getLanguage()` answers `'en'` **unless a
+caller sets it** — the Home surface branch made it a module-level `let` behind a `setLanguage`
+setter for the browser harness's `?lang=` knob, and **no suite calls that setter**, so the
+suite's own exposure is unchanged: a call site resolving the language wrongly is still
+invisible to it, which is why `t` is pure and driven per locale directly. What DID change is
+that the value is now mutable across a worker, so a suite that ever calls it owes every later
+file in that worker the reset — the setter's own docblock is the authority and says so. (This
+sentence read "always answers `'en'`" for the whole of the branch that falsified it, in a
+paragraph the same branch edited by 179 lines: the count of a claim's readers is not the count
+of its editors.) **`Platform.isMacOS` is the second mutable member and it IS driven by the
+suite** — `platformModifier`'s cases assign it directly to reach the macOS arm — so it is the
+one that actually owes the reset in practice. `FakeLeaf`/`FakeWorkspace` RECORD asks rather
+than behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
 **`npm run build` type-checks `tests/**` in full** — `tsconfig.json`'s `include` is `src/**`
 plus `tests/**`, with no `paths` mapping, so a test is checked against the same types `src/`
 is. Vitest still transpiles without checking; the compiler that matters runs in `build`.

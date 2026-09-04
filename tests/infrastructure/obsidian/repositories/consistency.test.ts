@@ -357,7 +357,7 @@ describe('unload and reload (Increment 3)', () => {
 		const beforeZone = expectFound(await stack.zones.getById(zoneId));
 
 		// Unload: the index is pure derived data — drop it entirely, rebuild from the Vault.
-		stack.index.rebuild([]);
+		stack.index.rebuild([], []);
 		stack.rebuildIndex();
 
 		const afterProject = expectFound(await stack.projects.getById(projectId));

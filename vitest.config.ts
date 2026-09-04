@@ -38,6 +38,53 @@ export default defineConfig({
 		// registry). `tests/build/` holds none of them, and its own numbers say why it is the
 		// safe half: 605ms of environment across all 36 files, against 82s for the rest.
 		//
+		// **`isolate: false` SHARES A BOOT WITHIN A WORKER, WHICH IS NOT THE SAME AS SHARING
+		// ONE.** The paragraph above is right about the mechanism and stops one question short
+		// of the consequence: 39 files spread across a 22-core machine's ~21 workers pay a boot
+		// PER WORKER, so that sharing bought a division rather than a fix, and each of those
+		// boots then contends with the others for the same cores. That is the `beforeAll`
+		// timeout this repository documents as a hazard and had learned to re-run serially
+		// rather than close — measured on the merged tree at ten `tests/build/` files failing
+		// under default parallelism with no source change, and 39 of 39 passing on a
+		// `--no-file-parallelism` re-run.
+		//
+		// `maxWorkers: 1` is the lever the note above says does not exist ("a lever that helps
+		// would have to reduce the number of BOOTS, which cross-worker sharing cannot do"). It
+		// does not share across workers — it removes them, so this project's files run in ONE
+		// worker against ONE module registry and therefore ONE `new ESLint(...)`.
+		//
+		// **The boot count is MEASURED, not inferred from a duration**, because the duration
+		// cannot see it: a probe appending `process.pid` beside that `new ESLint(...)` reports
+		// **12 boots in 12 processes** for this project unconfined and **1** with the line
+		// below, and 12 → 2 across the whole run. That is the mechanism stated as a fact.
+		// Timing alone would have proved nothing — a quiet 22-core machine passes this
+		// directory either way, which is exactly why the flake reads as a machine problem.
+		//
+		// **IT COSTS ~49s OF WALL CLOCK, AND THE FIRST VERSION OF THIS COMMENT CLAIMED IT COST
+		// NOTHING.** The argument was that this worker's ~29s would run alongside the `suite`
+		// project's ~420 files on the other cores, so serializing inside `build` was free. It
+		// is not, and the reason is a constraint rather than an arithmetic slip: **Vitest 4
+		// refuses to overlap two projects with different `maxWorkers`** — "Projects 'build' and
+		// 'suite' have different 'maxWorkers' but same 'sequence.groupOrder'" — so the explicit
+		// `groupOrder` below is not decoration, it is the price of the line above it, and the
+		// two projects now run one after the other rather than together. Measured end to end
+		// on the merged tree: **88.0s → 137.1s, 459 of 459 files passing both ways.** Any
+		// asymmetric `maxWorkers` pays this; equalising it instead would confine the 420-file
+		// project too, which is the 590s whole-suite serial run this file already refuses.
+		//
+		// So it is a TRADE and was taken deliberately: 49s on every run against an
+		// intermittent `beforeAll` timeout that wastes a whole gate plus its diagnosis, and
+		// which six task reports of one increment recorded hitting. Reverting it is two lines
+		// (this `maxWorkers` and both `groupOrder`s) if that balance ever changes.
+		//
+		// **What it EXPOSED rather than caused**, named because the next reader will meet it as
+		// a regression: `localeModuleSentenceCase.test.ts` called `resolveConfig` under
+		// vitest's default 5s case budget with no `beforeAll(warmUpEslint)`, and passed only
+		// when the scheduler happened to place it in a worker a sibling had already warmed.
+		// Deterministic placement turned that luck into a reproducible timeout. The case had
+		// never actually been checked — a pass that depends on which sibling ran first is not
+		// evidence about the case — and it carries the warm-up its siblings carry now.
+		//
 		// WHAT THE SPLIT COSTS, said out loud rather than left to be discovered: a file in
 		// `tests/build/` no longer proves anything about its own isolation, so a leak between
 		// two of those files now reads as a pass. Nothing there asserts one today — every
@@ -58,7 +105,13 @@ export default defineConfig({
 		projects: [
 			{
 				extends: true,
-				test: { name: 'build', include: ['tests/build/**/*.test.ts'], isolate: false },
+				test: {
+					name: 'build',
+					include: ['tests/build/**/*.test.ts'],
+					isolate: false,
+					maxWorkers: 1,
+					sequence: { groupOrder: 0 },
+				},
 			},
 			{
 				extends: true,
@@ -66,6 +119,7 @@ export default defineConfig({
 					name: 'suite',
 					include: ['tests/**/*.test.ts'],
 					exclude: [...configDefaults.exclude, 'tests/build/**'],
+					sequence: { groupOrder: 1 },
 				},
 			},
 		],
@@ -1168,6 +1222,139 @@ export default defineConfig({
 			// both branches added to `guardedServices.ts` and `composition-root.ts` and the
 			// merged tree measured 427 and 428 counted lines against a 400 cap. Every one is a
 			// move or a call-shape change over code both branches already covered.
+			//
+			// **THE MERGE OF `origin/main` INTO THE RENOVATION PLANNER HOME SURFACE (2026-09-03),
+			// measured on the merged tree:** 8244/8302 statements, 4326/4407 branches,
+			// 2175/2195 functions, 7266/7298 lines — 99.3 / 98.16 / 99.08 / 99.56 as the
+			// reporter prints them. **NOTHING RATCHETS**: rounded down these are 99 / 98 / 99 / 99,
+			// exactly the floors already in force, which makes it eleven increments in a row.
+			//
+			// This entry exists for the reason the entry above states in full and this merge
+			// reproduced exactly: NEITHER of the two measurements above is about this tree. The
+			// newest one measures main without this branch's ~2,460 lines of `src/` in it, and
+			// this branch's own measurement was taken before 237 commits of main landed beside
+			// it. Both were correct on the day; the merge made both stale at once.
+			//
+			// The headroom, in UNITS, arithmetic written out: statements need
+			// `ceil(0.99 × 8302) = 8219` covered and 8244 are (**25**); branches need
+			// `ceil(0.98 × 4407) = 4319` against 4326 (**7**); functions need
+			// `ceil(0.99 × 2195) = 2174` against 2175 (**1**); lines need
+			// `ceil(0.99 × 7298) = 7226` against 7266 (**40**). **FUNCTIONS is the tight metric
+			// at ONE**, where it has sat since slice 19 — this merge did not buy a second, and
+			// the next untested callback anywhere in `src/` fails this gate outright.
+			//
+			// **Read that pairing carefully, because it was got wrong in review and the error is
+			// the more useful half.** The reviewer of this merge was briefed that BRANCHES was
+			// the tight metric and reported it as such. Branches is the lowest PERCENTAGE
+			// (98.16) and the lowest floor (98), which is what makes the mistake natural — and
+			// at 4407 branches those 0.16pp are SEVEN covered arms, while functions' apparently
+			// comfortable 99.08 over a smaller denominator is ONE. A percentage cannot be read
+			// as headroom without its denominator, which is why this ledger's convention is
+			// units; and a fact carried into a review as a briefing is not a measurement, so it
+			// arrives unchecked by the one instrument that would have caught it.
+			//
+			// **The merge itself added NO uncovered position.** Nine `src/` files differ from
+			// BOTH parents — derived with `comm -12` over `git diff --name-only HEAD^1 HEAD --
+			// src/` and the same against `HEAD^2`, never a filename filter, per the entry above
+			// that records what a hand-written one over- and under-matches. Eight measure 100%
+			// of all four. The ninth, `RenovationPlannerPlugin.ts`, carries one uncovered
+			// statement and one uncovered branch arm at its `!(view instanceof
+			// RenovationProjectView)` guard — INHERITED, attributed with
+			// `git log -L 858,858:src/plugin/RenovationPlannerPlugin.ts` to 15d94aa, a commit on
+			// this branch rather than the merge. Read per changed file out of
+			// `coverage-final.json`, which is the instrument that can see one arm; the summary
+			// line cannot, and at a headroom of one function that is the difference between a
+			// gate that fails and a gate that says nothing.
+			//
+			// What the merge changed in `src/` is the union of two features landing on four
+			// shared seams — both locale tables, `renovationProjectQueries`'s parameter list,
+			// `composition-root`'s destructure and its query construction, and
+			// `repositoryComposition`'s bundle — plus one signature change a lint budget forced:
+			// `createRenovationProjectQueries` reached six positional parameters against a
+			// `max-params` cap of five and became ONE named bundle, which is
+			// `createPlanEditorQueries`'s own shape one file over. Every one is a union or a
+			// call-shape change over code both branches already covered.
+			//
+			// **THE HOME SURFACE'S TASKS 12, D AND 13, AND THE FINAL WHOLE-BRANCH REVIEW'S FIX
+			// WAVE (2026-09-04), measured on this tree:** 8250/8307 statements, 4334/4413
+			// branches, 2176/2196 functions, 7270/7302 lines — 99.31 / 98.21 / 99.09 / 99.56.
+			// **NOTHING RATCHETS**: rounded down these are 99 / 98 / 99 / 99, exactly the floors
+			// already in force, which makes it twelve increments in a row.
+			//
+			// This entry exists because the one above measures the MERGE and three tasks changed
+			// `src/` after it — the same shape that entry records about its own two parents, met
+			// once more by the branch that wrote the warning.
+			//
+			// The headroom, in UNITS, arithmetic written out: statements need
+			// `ceil(0.99 × 8307) = 8224` covered and 8250 are (**26**); branches need
+			// `ceil(0.98 × 4413) = 4325` against 4334 (**9**); functions need
+			// `ceil(0.99 × 2196) = 2175` against 2176 (**1**); lines need
+			// `ceil(0.99 × 7302) = 7229` against 7270 (**41**). **FUNCTIONS IS STILL ONE**, where
+			// it has sat since slice 19, and the next untested callback anywhere in `src/` fails
+			// this gate outright.
+			//
+			// **The first draft of this entry was wrong in BOTH halves, and it is kept because
+			// this ledger's own subject is figures that stop being true without failing
+			// anything.**
+			//
+			// The ARITHMETIC: `ceil(0.99 × 2196)` is 2175 and was written as 2174, so a headroom
+			// of one was reported as two and then EXPLAINED at length as a denominator artefact —
+			// a wrong number given a plausible account, which is harder to catch than a bare wrong
+			// number because the prose reads as though somebody checked.
+			//
+			// The TOTALS: four of the eight were stale — 8251/8309, 4333 and 7271/7303 against the
+			// 8250/8307, 4334 and 7270/7302 above. Not a transcription slip and not a re-measured
+			// tree: the draft measured the SUPERSEDED spelling of `newProject`'s guard, the split
+			// `if` the paragraph below records being reverted to a folded `||` in that same commit.
+			// The correcting commit touched only this file, so the tree never moved; the figures
+			// simply described a shape that had already been replaced beside them.
+			//
+			// **An earlier version of this paragraph disclosed only the arithmetic**, and said the
+			// figures are "printed by a script and transcribed" while the arithmetic "is the half
+			// that has to be re-derived" — which reads as an acquittal of the half that had also
+			// failed. Both halves need re-deriving, and the totals need re-deriving LAST, after
+			// the code they are about has stopped changing. The stale totals were disclosed in the
+			// correcting commit's own message, which is the wrong home: nobody greps commit
+			// messages for ledger history, and this entry is the artefact the retention discipline
+			// is about. Do not read a figure from it as current — run `npm run test:coverage`.
+			//
+			// **THE FIX WAVE ADDED NO UNCOVERED POSITION**, which is the claim worth checking
+			// rather than the totals: against the review's own measurement of this tree before the
+			// wave (8246/8304, 4329/4409, 2175/2195, 7268/7300 — headroom 25 / 8 / 1 / 41) it
+			// added four covered statements over three new ones, five covered branch arms over
+			// four, one covered function over one and two covered lines over two. Statements and
+			// branches each gained a unit of headroom; functions and lines are unmoved. Read per
+			// changed file out of `coverage-final.json` over
+			// `git diff --name-only origin/main...HEAD -- src/`, never a filename filter.
+			//
+			// One position in it was MEASURED rather than inherited or accepted, and it is the
+			// reason this paragraph exists. `newProject` had to narrow its leaf for the
+			// `navigateToProject` call the wave gave it, and the readable spelling — an early
+			// `if (leaf === undefined) return;` — was written first under a comment asserting it
+			// cost no branch. Driven with per-file coverage over `registration.test.ts`, the
+			// split form leaves TWO uncovered statements and TWO uncovered branch arms where the
+			// folded `||` leaves ONE of each, which is the position this ledger's merge entry
+			// already names as inherited. The folded form ships and the comment beside it is
+			// written from the measurement. **A claim about what a spelling costs is a
+			// measurement, and at this headroom it is one worth taking before the comment.**
+			//
+			// Every uncovered position in the six changed files is INHERITED and was carried into
+			// the wave, enumerated per file rather than counted: `RenovationPlannerPlugin.ts`'s
+			// `!(view instanceof RenovationProjectView)` guard (the one the merge entry above
+			// already names), `ContinueRow.vue`'s `lastWorked === null` arm,
+			// `NewProjectForm.vue`'s three, `ProjectList.vue`'s eight, `ViewRoot.vue`'s four and
+			// `useRovingFocus.ts`'s four. None is in a line this wave wrote.
+			//
+			// **All SIX files are named here because the draft's list named five.** It was scoped
+			// "every OTHER uncovered position in the six changed files" and enumerated the five,
+			// leaning on the paragraph immediately above it for `RenovationPlannerPlugin.ts`'s.
+			// That is accurate as written and it is the wrong shape for a list somebody will read
+			// alone: a per-file enumeration whose completeness depends on an adjacent paragraph
+			// surviving is one that becomes wrong when either is edited, and neither edit fails
+			// anything. Scope a list to N files and name N. (An earlier account of this called it
+			// a list "claiming to name every position" that dropped one, which overstates it —
+			// the word OTHER was there, and a correction that overstates the thing it corrects is
+			// the same defect pointing the other way.)
 			thresholds: {
 				statements: 99,
 				functions: 99,

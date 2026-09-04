@@ -142,7 +142,7 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 				count: notes.length,
 			});
 		});
-		const rows: AssetPriceRowDto[] = assets.value.map((loaded) => {
+		const rows: AssetPriceRowDto[] = assets.value.loaded.map((loaded) => {
 			const override = byAsset.get(loaded.entity.id) ?? null;
 			return {
 				assetId: loaded.entity.id,
@@ -179,7 +179,14 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 		// neither set. `readable` is "did `listAll` return it"; `indexed` is "does the Project
 		// Index still know a note with this id" — and `assetStatus` is the two questions read
 		// together, which is what a caller must branch on now rather than `assetName === null`.
-		const readable = new Set(assets.value.map((loaded) => loaded.entity.id));
+		// `.loaded` and never `skipped`: this query already models an unreadable asset
+		// DELIBERATELY, through the `readable`/`indexed` pair below, and reports it per row as
+		// `assetStatus` rather than refusing the whole read. That is the opposite choice from
+		// `ListReassignmentTargets`, which refuses — and the difference is the consumer, not the
+		// entity: a picker offered before a delete must not be silently short, while a price
+		// list that can SAY which rows it could not read is more useful complete-with-gaps than
+		// withheld.
+		const readable = new Set(assets.value.loaded.map((loaded) => loaded.entity.id));
 		const indexed = new Set(this.index.getIdsByType('renovation-asset') as AssetId[]);
 		for (const [assetId, override] of byAsset) {
 			if (readable.has(assetId)) continue;

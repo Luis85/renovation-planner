@@ -1,6 +1,9 @@
 import type { LogLevel, Logger } from '../../src/application/ports/Logger';
 import { EchoWindow } from '../../src/infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
+import { ReconcilingProjectIndex } from '../../src/infrastructure/persistence/index/ReconcilingProjectIndex';
+import type { ProjectIndex } from '../../src/application/ports/ProjectIndex';
+import { createEventBus, type EventBus } from '../../src/core/events/EventBus';
 import { InMemoryDiagnosticsLedger } from '../../src/infrastructure/logging/diagnosticsLedger';
 import { createMigrationRunner, type MigrationRunner } from '../../src/infrastructure/persistence/migration/MigrationRunner';
 import { MIGRATION_SET } from '../../src/infrastructure/persistence/migration/migrationSet';
@@ -26,7 +29,18 @@ import type { Line } from './logger';
  * free of a cycle back into `vault.ts`.
  */
 export interface StackFoundation {
-	index: InMemoryProjectIndex;
+	/**
+	 * The `ReconcilingProjectIndex` the composition root hands out, not the bare store beneath
+	 * it — a stack whose repositories wrote through the store would keep §5.1a's promotion and
+	 * demotion in the app and lose them here.
+	 */
+	index: ProjectIndex;
+	/**
+	 * The bus the index announces its own exclusion and promotion changes on. Shared rather
+	 * than per-caller: a suite that built its own would subscribe to a bus the index never
+	 * publishes to and read the silence as an absence.
+	 */
+	events: EventBus;
 	echo: EchoWindow;
 	migrations: MigrationRunner;
 	logged: Line[];
@@ -98,8 +112,19 @@ const recorder = (): { logged: Line[]; logger: Logger } => {
  */
 export const stackFoundation = (hosts: StackHosts, projectFolder: string): StackFoundation => {
 	const { logged, logger } = recorder();
-	const index = new InMemoryProjectIndex();
 	const echo = new EchoWindow();
+	const events = createEventBus(() => undefined);
+	// The composition root's own wrapping, and for the reason that wrapping exists: the
+	// two-collection invariant belongs to the index every writer holds, so a stack whose
+	// repositories wrote through a bare `InMemoryProjectIndex` would be a fake thinner than the
+	// thing it stands for — promotion and demotion would hold in the app and not here.
+	const index: ProjectIndex = new ReconcilingProjectIndex(new InMemoryProjectIndex(), {
+		vault: hosts.vault as never,
+		metadataCache: hosts.metadataCache as never,
+		echo,
+		events,
+		logger,
+	});
 	const migrations = createMigrationRunner(MIGRATION_SET);
 	const ledger = new InMemoryDiagnosticsLedger();
 
@@ -112,6 +137,7 @@ export const stackFoundation = (hosts: StackHosts, projectFolder: string): Stack
 
 	return {
 		index,
+		events,
 		echo,
 		migrations,
 		logged,
@@ -121,7 +147,8 @@ export const stackFoundation = (hosts: StackHosts, projectFolder: string): Stack
 		deps,
 		projectFolder,
 		rebuildIndex() {
-			index.rebuild(buildProjectIndexEntries({ vault, metadataCache, echo, logger }));
+			const scan = buildProjectIndexEntries({ vault, metadataCache, echo, logger });
+			index.rebuild(scan.entries, scan.exclusions);
 		},
 	};
 };

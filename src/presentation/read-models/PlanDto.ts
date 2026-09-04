@@ -1,3 +1,4 @@
+import type { ProjectRowFacts } from '../../application/ports/ProjectListFacts';
 import type { Point } from '../../core/geometry/Point';
 import type { PlanBackgroundRef } from '../../domain/plan/PlanBackgroundRef';
 import type { Calibration } from '../../domain/plan/Calibration';
@@ -90,6 +91,20 @@ export interface ProjectSummaryDto {
 	 * as the drag lands. `IndexLibraryOverlaps` carries the mechanism.
 	 */
 	readonly libraryOverlap: boolean;
+	/**
+	 * How many plans this project has (Home spec §8). REQUIRED rather than optional, for the
+	 * reason `libraryOverlap` states one field up: an absent field and a zero read identically
+	 * at the site that renders them, so every producer of a summary states the answer.
+	 */
+	readonly planCount: number;
+	/**
+	 * ISO 8601, the most recent modification time across the project's own notes, or `null`
+	 * when the vault could answer for none of them.
+	 *
+	 * An ABSOLUTE date at the render, never a relative one: a relative time needs a live ticker
+	 * and makes every test time-dependent.
+	 */
+	readonly lastWorked: string | null;
 }
 
 /**
@@ -131,18 +146,51 @@ export function toZoneDto(zone: Zone): ZoneDto {
 }
 
 /**
+ * What a door answers when it does not KNOW a project's row facts — never "this project has
+ * no plans and was never worked on", which is the same value and a different claim.
+ *
+ * One exported constant rather than a literal per door, because both spellings of
+ * `{ planCount: 0, lastWorked: null }` have to keep meaning the same thing and nothing would
+ * notice them drifting. There are two such doors and their reasons differ:
+ * `createRenovationProjectQueries` uses it as a defensive fallback when `ProjectListFacts`
+ * answers no entry for an id it was asked about — which that port's own docblock says cannot
+ * happen — and `createPlanEditorQueries.getProject` uses it because the Plan Editor composes
+ * no facts port at all.
+ *
+ * **The Plan Editor case is a fabrication and is safe only while nothing there renders either
+ * field.** Measured: `planCount` and `lastWorked` are read by `ProjectRow.vue`,
+ * `ContinueRow.vue` and `projectOrder.ts`, all of them the Renovation Planner Home surface,
+ * and by nothing the editor mounts. That is exactly the argument the `libraryOverlap: false`
+ * beside it already makes at the same call — the day the editor draws one of these, a
+ * hard-coded placeholder is a defect with no failing test in front of it, and what closes it
+ * is a facts port on `PlanEditorQueryServices` rather than a better constant.
+ */
+export const UNKNOWN_ROW_FACTS: ProjectRowFacts = { planCount: 0, lastWorked: null };
+
+/**
  * `libraryOverlap` is a PARAMETER rather than something read off the entity, because a
  * `Project` does not know it: §83's answer is derived per read from the project index and the
  * configured library folder (`LibraryOverlaps`), and an entity carrying it would be an entity
  * carrying a fact about a setting.
+ *
+ * `facts` is a parameter for the same reason and is REQUIRED rather than defaulted: an absent
+ * argument and a genuine zero read identically at the site that renders them, and the required
+ * form is what made the compiler name `createPlanEditorQueries`'s door at the merge that
+ * introduced it. `UNKNOWN_ROW_FACTS` above is what a door with nothing to ask passes.
  */
-export function toProjectSummaryDto(project: Project, libraryOverlap: boolean): ProjectSummaryDto {
+export function toProjectSummaryDto(
+	project: Project,
+	libraryOverlap: boolean,
+	facts: ProjectRowFacts,
+): ProjectSummaryDto {
 	return {
 		id: project.id,
 		name: project.name,
 		status: project.status,
 		currency: project.currency,
 		libraryOverlap,
+		planCount: facts.planCount,
+		lastWorked: facts.lastWorked,
 	};
 }
 

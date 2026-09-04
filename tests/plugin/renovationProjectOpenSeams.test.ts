@@ -19,7 +19,13 @@ import { installObsidianDom } from '../helpers/dom';
 import { activateNotices } from '../../src/presentation/notices/notify';
 import { recorder, resetRecorder, lines } from '../helpers/logger';
 import { FakeWorkspace } from '../helpers/workspace';
-import { renovationProjectOpenAsset, renovationProjectOpenPlan } from '../../src/plugin/renovationProjectOpenSeams';
+import { settle } from '../helpers/async';
+import {
+	renovationProjectOpenAsset,
+	renovationProjectOpenAssetLibrary,
+	renovationProjectOpenPlan,
+} from '../../src/plugin/renovationProjectOpenSeams';
+import { ASSET_LIBRARY_VIEW } from '../../src/presentation/library/AssetLibraryView';
 
 installObsidianDom();
 
@@ -91,6 +97,51 @@ describe('renovationProjectOpenAsset', () => {
 		await expect(openAsset('asset-chair')).resolves.toBeUndefined();
 
 		const logged = lines.find((line) => line.event === 'view.asset-designer.reveal-failed');
+		expect(logged?.level).toBe('error');
+		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('workspace exploded');
+	});
+});
+
+describe('renovationProjectOpenAssetLibrary', () => {
+	/**
+	 * `void` rather than `Promise<void>` here, unlike its two siblings above: the library is a
+	 * SINGLETON with no id to resolve, so this is a plain `revealView` and there is no per-
+	 * subject state to assert on the leaf — only the type it opened.
+	 */
+	it('opens a leaf of the asset library view, through the real revealView', async () => {
+		const workspace = new FakeWorkspace();
+		const openAssetLibrary = renovationProjectOpenAssetLibrary(workspace as never, recorder);
+
+		// `openAssetLibrary` is `void`-returning by design (its own docblock's whole reason),
+		// so there is no promise to await — `settle()` is the right instrument, not a counted
+		// `await Promise.resolve()`.
+		openAssetLibrary();
+		await settle();
+
+		expect(workspace.leaves).toHaveLength(1);
+		expect(workspace.leaves[0]?.state?.type).toBe(ASSET_LIBRARY_VIEW);
+	});
+
+	/**
+	 * The one path `renovationProjectWiring.test.ts` cannot reach: that file would mock
+	 * `revealView` outright to prove which function `openAssetLibrary` is bound to, so its own
+	 * `reportFault` closure — mapping a real activation fault to
+	 * `view.asset-library.reveal-failed` — never runs there.
+	 */
+	it('reports a real activation fault as view.asset-library.reveal-failed', async () => {
+		activateNotices();
+		resetRecorder();
+		const exploding = {
+			getLeavesOfType: () => {
+				throw new Error('workspace exploded');
+			},
+		};
+		const openAssetLibrary = renovationProjectOpenAssetLibrary(exploding as never, recorder);
+
+		openAssetLibrary();
+		await settle();
+
+		const logged = lines.find((line) => line.event === 'view.asset-library.reveal-failed');
 		expect(logged?.level).toBe('error');
 		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('workspace exploded');
 	});

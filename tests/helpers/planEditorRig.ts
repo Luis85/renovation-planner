@@ -43,7 +43,7 @@ import { InMemoryRequirementRepository } from '../../src/infrastructure/persiste
 import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
-import { projectFolderOf } from '../../src/infrastructure/obsidian/repositories/paths';
+import { projectLocationOf } from '../../src/infrastructure/obsidian/repositories/paths';
 import { makePlan, makeProject, makeZone } from './entities';
 import type { PlanId } from '../../src/domain/plan/PlanId';
 import { createProjectId } from '../../src/domain/project/ProjectId';
@@ -191,7 +191,7 @@ export async function rig(seed?: (repos: {
 		listRequirementsReferencing: new ListRequirementsReferencing(
 			requirementsRepo,
 			projects,
-			(projectId) => projectFolderOf(index, projectId),
+			(projectId) => projectLocationOf(index, projectId),
 		),
 		listReassignmentTargets: new ListReassignmentTargets(zonesRepo, assetsRepo),
 	});

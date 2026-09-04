@@ -32,9 +32,43 @@
 @import "./view-failure.css";
 @import "./list-row.css";
 @import "./forms.css";
+/*
+ * AFTER `forms.css`, which is load-bearing: that file holds the shipped `.rp-project-list__*`
+ * rules, and the Home surface's own partial must be able to override one at equal specificity.
+ * Before `project-list-overlap.css`, which declares only `.rp-project-list__overlap` and is
+ * untouched by anything here.
+ */
+@import "./project-list.css";
+/*
+ * AFTER `project-list.css` and BEFORE `continue-row.css`, which is the slot these rules already
+ * occupied: they were the middle of `project-list.css` until Task D lifted them out, and nothing
+ * left in that file declares a property one of their selectors sets, so the lift is
+ * order-equivalent rather than merely order-compatible. What the position IS load-bearing for is
+ * `forms.css`: the narrow row's `justify-content: flex-start` and that file's `space-between`
+ * are both (0,2,0), so this must come later or the wrapped row's second line goes back to
+ * putting the status and the facts at opposite edges of the pane.
+ */
+@import "./project-list-narrow.css";
+/*
+ * AFTER `project-list.css`, and load-bearing for the same reason that file's own position is:
+ * the Continue row's rules override shared row declarations from `list-row.css`. It was split
+ * out of that file in Task 12 because the file had reached the 400-line cap exactly — a budget,
+ * not a new organising idea; `continue-row.css`'s own header carries the seam's argument.
+ */
+@import "./continue-row.css";
+/*
+ * The filter line, split out of `project-list.css` in the same task and for the same reason.
+ * Its position here is NOT load-bearing — every selector in it names a class no other partial
+ * declares — so it sits beside its siblings for a reader's sake rather than the cascade's.
+ */
+@import "./project-filter.css";
 @import "./project-list-overlap.css";
 @import "./notices.css";
 @import "./project-detail.css";
 @import "./asset-prices.css";
 @import "./designer.css";
 @import "./diagnostics.css";
+@import "./asset-library.css";
+@import "./asset-mark.css";
+@import "./asset-shelf.css";
+@import "./asset-library-inspector.css";

@@ -3,7 +3,7 @@ import { ListRequirementsReferencing } from '../../../src/application/queries/Li
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryRequirementRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
 import { InMemoryProjectIndex } from '../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
-import { projectFolderOf } from '../../../src/infrastructure/obsidian/repositories/paths';
+import { projectLocationOf } from '../../../src/infrastructure/obsidian/repositories/paths';
 import { createAssetId, type AssetId } from '../../../src/domain/asset/AssetId';
 import { createZoneId } from '../../../src/domain/zone/ZoneId';
 import type { ProjectId } from '../../../src/domain/project/ProjectId';
@@ -21,6 +21,13 @@ import { makeProject, makeRequirement } from '../../helpers/entities';
  * holds each project's `Project.md` NOTE and a group must carry the FOLDER it sits in, so a
  * build handing back `index.getPath(id)` verbatim fails here rather than shipping a dialog
  * row labelled `…/Project.md`.
+ *
+ * **Except where the folder does not separate two rows**, which is the widening the Asset
+ * library's §3.5 asked for: two notes declaring `type: renovation-project` can sit in ONE
+ * directory under different filenames, so two projects can share a display name AND a folder
+ * and the disambiguator then disambiguates nothing. The note path is what separates them, and
+ * a lookup answering only a folder has nothing to answer with — so this file drives BOTH: the
+ * folder on the ordinary collision, the note path on the collision the folder cannot resolve.
  */
 
 const KITCHEN_ZONE = createZoneId();
@@ -42,9 +49,23 @@ interface Fixture {
  */
 async function fixture(
 	names: readonly [string, string] = ['Kitchen refit', 'Bathroom refit'],
-	options: { readonly indexed?: boolean; readonly saved?: boolean } = {},
+	options: {
+		readonly indexed?: boolean;
+		readonly saved?: boolean;
+		/**
+		 * Where each project's `Project.md` sits. A knob rather than a constant because the
+		 * folder is DERIVED from it (`parentOf`), so two projects sharing a directory is a
+		 * fixture only the whole note path can express — two notes in one folder must differ
+		 * by filename, which `<folder>/Project.md` cannot say.
+		 */
+		readonly notePaths?: readonly [string, string];
+	} = {},
 ): Promise<Fixture> {
-	const { indexed = true, saved = true } = options;
+	const {
+		indexed = true,
+		saved = true,
+		notePaths = ['Renovation/Kitchen refit/Project.md', 'Renovation/Bathroom refit/Project.md'],
+	} = options;
 	const projects = new InMemoryProjectRepository();
 	const requirements = new InMemoryRequirementRepository();
 	const index = new InMemoryProjectIndex();
@@ -52,16 +73,16 @@ async function fixture(
 
 	const kitchen = makeProject({ name: names[0] });
 	const bathroom = makeProject({ name: names[1] });
-	for (const [project, folder] of [
-		[kitchen, 'Renovation/Kitchen refit'],
-		[bathroom, 'Renovation/Bathroom refit'],
+	for (const [project, path] of [
+		[kitchen, notePaths[0]],
+		[bathroom, notePaths[1]],
 	] as const) {
 		if (saved) expectOk(await projects.save(project, 'absent'));
 		if (indexed) {
 			index.upsert({
 				id: project.id,
 				type: 'renovation-project',
-				path: `${folder}/Project.md`,
+				path,
 				projectId: project.id,
 			});
 		}
@@ -82,7 +103,7 @@ async function fixture(
 	}
 
 	return {
-		query: new ListRequirementsReferencing(requirements, projects, (id) => projectFolderOf(index, id)),
+		query: new ListRequirementsReferencing(requirements, projects, (id) => projectLocationOf(index, id)),
 		requirements,
 		projects,
 		tiles,
@@ -121,6 +142,34 @@ describe('ListRequirementsReferencing groups by project', () => {
 			'Renovation/Kitchen refit',
 			'Renovation/Bathroom refit',
 		]);
+	});
+
+	it('falls back to the NOTE path where two projects share a name AND a folder', async () => {
+		// The case a folder lookup cannot answer: `projectFolderOf` is `parentOf(path)`, so both
+		// of these derive `Renovation/Shared` and two identical rows are drawn for the two
+		// things the user is being asked to tell apart, immediately before an edit or a
+		// deletion. Nothing refuses this vault — a project's folder is wherever its note sits
+		// (ADR-0013) and no command decides which directory that is.
+		const f = await fixture(['Refit', 'Refit'], {
+			notePaths: ['Renovation/Shared/Kitchen.md', 'Renovation/Shared/Bathroom.md'],
+		});
+		const groups = expectOk(await f.query.execute({ kind: 'asset', assetId: f.tiles }));
+		expect(groups.map((g) => g.projectPath)).toEqual([
+			'Renovation/Shared/Kitchen.md',
+			'Renovation/Shared/Bathroom.md',
+		]);
+	});
+
+	it("supplies '' for a colliding project whose note sits at the vault root", async () => {
+		// `parentOf` slices to the last `/`, so a note at the root derives the empty string —
+		// a SUPPLIED answer and not an absence, which is why `view.asset-library.used-in.
+		// vault-root` exists as copy. The two folders differ, so the folder still separates the
+		// rows and the note-path fallback must not fire.
+		const f = await fixture(['Refit', 'Refit'], {
+			notePaths: ['Refit.md', 'Renovation/Bathroom refit/Project.md'],
+		});
+		const groups = expectOk(await f.query.execute({ kind: 'asset', assetId: f.tiles }));
+		expect(groups.map((g) => g.projectPath)).toEqual(['', 'Renovation/Bathroom refit']);
 	});
 
 	it('omits projectPath when names are unambiguous', async () => {

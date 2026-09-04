@@ -14,9 +14,13 @@ import type { Expected, EntityVersion, Loaded } from './versioning';
  * for a pair that has two notes, and the implementation logs a diagnostic when it finds a
  * duplicate: last-writer-wins, deliberately not a refusal, because the notes are user-editable.
  *
- * `listByAsset` exists for ONE caller — `onAssetUpdated`'s skip test, which fans out across
- * every project referencing a shared asset and needs the overrides for all of them in one read
- * rather than one read per requirement. It is what makes that correction cost one query.
+ * `listByAsset` is the FAN-OUT read: one query answering every project that holds an override
+ * for a shared asset, where the alternative is a `getForPair` per project. Stated as the rule
+ * rather than as a count, because the count has already been wrong — this sentence said "exists
+ * for ONE caller" while `grep -rn "overrides\.listByAsset" src/` printed three
+ * (`onAssetUpdated`'s skip test, `DeleteAsset`'s override cleanup and `ListOverridingProjects`),
+ * two of which pre-date the edit that finally re-ran the grep. A rule about the SHAPE of the
+ * read survives a fourth caller; a number does not.
  *
  * **There is deliberately no `getById`, and every sibling entity port has one.** `AssetRepository`
  * and `ProjectRepository` both declare it because commands there hold an id and want the entity;

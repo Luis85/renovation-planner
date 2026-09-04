@@ -22,5 +22,13 @@ export function parseMetres(text: string): { ok: true; mm: number } | { ok: fals
 	if (metres <= 0) return { ok: false, reason: 'not-positive' };
 	const mm = Math.round(metres * 1000);
 	if (mm > MAX_ROOM_SIDE_MM) return { ok: false, reason: 'too-large' };
+	// The positivity rule is about the MILLIMETRE this returns, not the metre that was typed:
+	// anything under half a millimetre is positive as written and rounds to 0, and a zero side
+	// is no rectangle. Refused HERE as well as at `RoomDraftStore.rect`'s own `> 0` guard,
+	// because the two doors answer different questions — `rect` decides whether a rectangle
+	// exists and cannot say why not, while this is the only place a `LengthRefusal` is minted
+	// and therefore the only path to a per-field message. Without it the field cleared its
+	// error and Create stayed blocked with nothing naming the side.
+	if (mm <= 0) return { ok: false, reason: 'not-positive' };
 	return { ok: true, mm };
 }

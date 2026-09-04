@@ -26,9 +26,14 @@ const props = defineProps<{ query: string; shown: number; total: number }>();
 const emit = defineEmits<{ 'update:query': [value: string]; cancel: []; keydown: [event: KeyboardEvent] }>();
 
 /**
- * `useId` rather than a hard-coded id, and `app.config.idPrefix` is set at BOTH `createApp`
- * sites (`app-id-prefix.ts`) so two Vue apps' ids cannot collide — the mechanism design slice
+ * `useId` rather than a hard-coded id, and `app.config.idPrefix` is set at EVERY `createApp`
+ * site (`app-id-prefix.ts`) so two Vue apps' ids cannot collide — the mechanism design slice
  * 16's `FieldError` established.
+ *
+ * "Every" rather than a count, and `tests/build/appIdPrefix.test.ts` is what makes it true.
+ * This sentence read "BOTH `createApp` sites" until the Add Room merge, which was correct when
+ * slice 16 wrote it and wrong by the time two other branches had each added a surface — three
+ * sibling docblocks said the same thing and every one of them read correctly in isolation.
  */
 const inputId = useId();
 

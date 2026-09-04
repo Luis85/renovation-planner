@@ -2205,8 +2205,23 @@ a per-form `FieldErrorMap` and answers either the field(s) it names or a form-le
 when nothing does — `calibration.coincident-points` is the banner's own worked example,
 since neither `pointA` nor `pointB` alone is wrong. `<FieldError>` mints its own input id and
 hands `{ inputId, aria }` down a scoped slot rather than looking one up, with
-`app.config.idPrefix` set at BOTH `createApp` sites (`app-id-prefix.ts`) so two Vue apps'
-`useId()` calls cannot collide; `<FormBanner>` renders the fallback. Two composables share
+`app.config.idPrefix` set at EVERY `createApp` site (`app-id-prefix.ts`) so two Vue apps'
+`useId()` calls cannot collide; `<FormBanner>` renders the fallback. **That said "BOTH" for
+five slices and it is the count paragraph at the top of this file all over again, in the one
+shape that paragraph names as the hardest to see:** it was true when slice 16 wrote it, the
+asset designer made it three and the asset library made it four, each on its own branch, and
+the merge of them left FOUR docblocks — this line, `ProjectFilter.vue`, `AssetShelf.vue` and
+`ProjectHome.vue` — each reading correctly in isolation and all four wrong about the tree.
+`AssetLibraryView.ts`'s own header had even predicted the move ("a fourth `createApp` call here
+is what moves it to four"), which is a prediction with nothing to fire it. So all four say
+EVERY now and none of them counts, and `tests/build/appIdPrefix.test.ts` is what makes that a
+fact: the RULE (every discovered mount site sets the prefix, which holds for files nobody has
+written yet) plus the SET (exactly those four paths, so a walk that reaches nothing is
+distinguishable from a clean tree, and a FIFTH surface fails at that assertion beside the
+reasoning rather than passing while five sentences go quietly stale). Both mutations were run:
+dropping one assignment reddens the rule and names the file, and adding a fifth mount that
+REMEMBERS the prefix passes the rule and is caught only by the set — which is why it is two
+assertions rather than one. Two composables share
 that vocabulary at two different commit boundaries: `useFieldCommit` (blur/enter — Task 9
 moved the Inspector's two Requirement override fields onto it) and `useFormCommit` (one
 explicit submit — `NewProjectForm`, this slice's only creation dialog). A rejected commit

@@ -60,6 +60,7 @@ import type { AssetId } from '../../domain/asset/AssetId';
 import type { AssetCategory } from '../../domain/asset/AssetCategory';
 import { ASSET_CATEGORY_LABELS } from '../views/assetLabels';
 import { currentLanguage, tr } from '../i18n/strings';
+import { moveFocus } from './shelfFocus';
 import AssetShelf from './AssetShelf.vue';
 
 const props = withDefaults(
@@ -137,7 +138,18 @@ function outlineOf(assetId: AssetId): AssetOutline | null {
 </script>
 
 <template>
-	<div class="rp-al-shelves">
+	<!--
+		§6.2's arrow keys, bound ONCE on the region rather than per shelf — `shelfFocus.ts`'s own
+		header carries why the wrap then falls out rather than being written, and why the rows of
+		a collapsed shelf are filtered rather than walked around. The handler belongs here because
+		this element IS the region: `event.currentTarget` is what `moveFocus` walks, so there is
+		nothing for a parent to keep in step with which shelves exist.
+	-->
+	<div
+		class="rp-al-shelves"
+		@keydown.down="moveFocus($event, 1)"
+		@keydown.up="moveFocus($event, -1)"
+	>
 		<AssetShelf
 			v-if="searching"
 			:label="resultsLabel"

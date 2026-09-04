@@ -85,6 +85,10 @@ export async function mountInspector(options: InspectorOptions = {}): Promise<Mo
 		}),
 		assetId: ref(''),
 		expanded: ref<readonly string[]>([]),
+		// The panel's subject is its `assetId` PROP, never the context — this file's own header
+		// and `AssetInspector.vue`'s both say so — so nothing mounted here has any reason to
+		// publish, and a no-op is the honest stand-in rather than a writer nothing reads back.
+		publishViewState: () => undefined,
 	};
 	const pinia = createPinia();
 	setActivePinia(pinia);

@@ -42,6 +42,32 @@ export interface AssetLibraryContext extends AssetLibraryDeps {
 	readonly assetId: DeepReadonly<Ref<string>>;
 	/** The shelf categories currently expanded (§3.2), read LIVE. */
 	readonly expanded: DeepReadonly<Ref<readonly string[]>>;
+	/**
+	 * The other half of §6.3, and the ONE door out of this tree into Obsidian's own view state.
+	 *
+	 * The two refs above are `DeepReadonly` precisely so no component can write them
+	 * (`assetLibraryContext.test-d.ts` is the compile-time proof), which leaves a gesture made
+	 * in this session — a row selected, a shelf toggled — reaching nothing that survives a leaf
+	 * reopen. It cannot be closed from inside a component and that is the design rather than an
+	 * obstacle: `AssetLibraryView` is the one writer, so it supplies the door and keeps the
+	 * writing.
+	 *
+	 * Takes BOTH values on every call rather than one door per field: the view publishes one
+	 * state object to Obsidian, so a call naming half of it would have to read the other half
+	 * back off the refs it is in the middle of replacing.
+	 *
+	 * `assetId` is §6.3's own sentinel vocabulary — `''` for nothing selected, never `null` —
+	 * so the string this takes is the string `getState` reports, with no second spelling in
+	 * between.
+	 *
+	 * Answers nothing. The round trip that follows is Obsidian's, and what a caller needs to
+	 * know about it is that it is IDEMPOTENT: the view writes its refs first, so the `watch` on
+	 * `context.assetId` that `AssetLibraryRoot` keeps fires with the value the tree already
+	 * holds, and re-entering is impossible because assigning a ref its current value triggers
+	 * nothing. `assetLibraryViewState.test.ts` asserts that rather than assuming it — a
+	 * publish that re-entered would be an infinite loop no type can see.
+	 */
+	readonly publishViewState: (assetId: string, expanded: readonly string[]) => void;
 }
 
 export const ASSET_LIBRARY_CONTEXT: InjectionKey<AssetLibraryContext> = Symbol(

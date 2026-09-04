@@ -123,6 +123,28 @@
 }
 
 /*
+ * The ROW §7's first two rungs describe — the shelves region beside the inspector rail — and
+ * the wrapper `.rp-al-body`'s own block above predicted: *"Task 14's inspector rail is a row
+ * beside the shelves, not beside these four — so it belongs inside the shelves region's own
+ * row, or in a wrapper of its own, rather than by reverting this direction."* This is that
+ * wrapper, added by Task 16a in the commit that first mounts the rail.
+ *
+ * It declares NO container of its own. §7's inspector ladder measures `.renovation-asset-
+ * library` (the PANE) on purpose, because measuring the box the rail's own width decides would
+ * be circular — a container here would be exactly that box, and a second one for the ladder to
+ * be pointed at by mistake.
+ *
+ * `min-height: 0` for the reason every flex ancestor on this surface carries it: without it a
+ * flex item's automatic minimum size is its content, so the rail's and the shelves' own
+ * `overflow-y: auto` would never engage and the pane would grow instead of scrolling.
+ */
+.rp-al-main {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+/*
  * §7's THIRD rung, the shell's own half of it. `styles/asset-library-inspector.css` narrows the
  * rail at `rp-al (width < 45rem)` and turns it into the whole pane at `rp-al (width < 35rem)`;
  * that same file's own comment has said since Task 14's fix round that "the shell hides the

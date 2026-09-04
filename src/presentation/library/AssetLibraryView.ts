@@ -193,6 +193,46 @@ export class AssetLibraryView extends ItemView {
 	private readonly expandedRef: Ref<readonly string[]> = ref([]);
 
 	/**
+	 * §6.3's WRITE half, and the one door the Vue tree has into Obsidian's own view state.
+	 *
+	 * Task 13 shipped the read half alone — a restored leaf opened on the selection and the
+	 * expansion it was saved with, and neither a row clicked nor a shelf toggled in THIS session
+	 * ever reached `getState()`. This closes it, and it has to live here rather than in a
+	 * component because `AssetLibraryContext.assetId`/`.expanded` are `DeepReadonly<Ref<T>>` by
+	 * deliberate design: a component write is a compile error, so the view supplies a callback
+	 * and keeps the writing.
+	 *
+	 * **The refs move FIRST, and the round trip second.** Everything this view answers about
+	 * itself reads those two refs — `getState()` reports them, `mount()` provided them — so the
+	 * tree is correct the instant this returns, and Obsidian's round trip is what makes the
+	 * change survive a reopen rather than what performs it. That ordering is also what makes the
+	 * round trip IDEMPOTENT: `setViewState` reaches `setState` below with the values already in
+	 * the refs, assigning a ref its own value triggers nothing, and `AssetLibraryRoot`'s `watch`
+	 * on `context.assetId` therefore cannot re-enter this. Asserted rather than assumed in
+	 * `assetLibraryViewState.test.ts`, because a re-entrant publish is an infinite loop no type
+	 * can see.
+	 *
+	 * **No `active`.** `navigateToProject` passes `active: true` because it is a NAVIGATION and
+	 * the user is going somewhere; this is a state publish for the leaf the user is already in,
+	 * and activating it here would fight §6.2's focus handoff, which moves focus deliberately
+	 * on exactly the gestures that publish.
+	 *
+	 * **No ticket, unlike `navigateToProject`'s.** That door reads a leaf and may create one, so
+	 * two `setViewState` calls can genuinely settle out of order; here `setState` below returns
+	 * an already-resolved promise and does no work between, so two publishes in one tick reach
+	 * it in the order they were made. The residue is named rather than hidden: if `setState`
+	 * ever grows an `await`, this needs the ticket that door already carries.
+	 *
+	 * An arrow-function FIELD rather than a method: `mount` hands it into the context, where a
+	 * method would arrive unbound and write `assetIdRef` on whatever called it.
+	 */
+	private readonly publishViewState = (assetId: string, expanded: readonly string[]): void => {
+		this.assetIdRef.value = assetId;
+		this.expandedRef.value = expanded;
+		void this.leaf.setViewState({ type: ASSET_LIBRARY_VIEW, state: this.getState() });
+	};
+
+	/**
 	 * The Vue app this view mounted, held only so `unmount` can unmount the same one. `null`
 	 * between a close and the next open — Obsidian keeps the leaf and reuses the view.
 	 *
@@ -234,6 +274,7 @@ export class AssetLibraryView extends ItemView {
 			...this.deps,
 			assetId: this.assetIdRef,
 			expanded: this.expandedRef,
+			publishViewState: this.publishViewState,
 		};
 		app.provide(ASSET_LIBRARY_CONTEXT, context);
 		// Onto `contentEl` itself, with no wrapper — see the class docblock's height chain.

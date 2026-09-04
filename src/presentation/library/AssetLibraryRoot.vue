@@ -3,54 +3,53 @@
  * The Vue root of the Asset library view — one isolated app per Obsidian `ItemView` (ADR-004,
  * SDD §12), exactly as `ViewRoot.vue` and `AssetDesignerRoot.vue` are for their own surfaces.
  *
- * This task (13) fills in Task 11's minimal placeholder with real content: the toolbar (one
- * search field bound straight to `AssetLibraryStore.query`, and `New asset`), the shelves
- * region (`AssetShelves.vue`, or one of §4's two `EmptyState` entries in its place, or the
- * `.rp-view-notice` repair strip drawn ABOVE it), the status bar, and every state §4 tabulates.
- *
- * **The two data attributes Task 11 built this file to prove stay exactly where they were.**
- * `data-selected-asset-id`/`data-expanded-categories` on the ROOT element are what
- * `assetLibraryView.test.ts` reads to assert the in-place-update mechanism (§6.3: a selection
- * or an expansion changes what is drawn without the view remounting the tree).
- *
- * **What is DRAWN follows them, and the first version of this file did not.** `selectedId` and
- * `expandedCategories` below are seeded from the context pair at setup AND kept in step with it
- * by two `watch`es, because for one review round they were a second, desynchronised copy: a leaf
- * restored carrying a selection published `data-selected-asset-id` and marked no row, and a
- * `setState` on an open leaf moved `data-expanded-categories` while every shelf stayed
- * `aria-expanded="false"`. Task 11's proof then certified a mechanism this surface no longer
- * honoured, which is worse than an untested gap because the test still passed. Both directions
- * are pinned by `assetLibraryRoot.test.ts`'s *follows the view state* cases.
- *
- * The refs are still LOCAL rather than the context's own, because the context's are
- * `DeepReadonly<Ref<T>>` by deliberate design (`assetLibraryContext.test-d.ts` proves a write
- * through them is a compile error) — so this file reads them and cannot write them. The
- * remaining half, a WRITE back into Obsidian's view state so a selection made here survives a
- * leaf reopen, is genuinely outside this file and is recorded in this task's report with the
- * route it should take.
- *
  * **Four shell regions** (§3, "the Asset designer's count rather than the Plan editor's five"):
- * toolbar, shelves, inspector, status. The INSPECTOR is Task 14's (`AssetInspector.vue`) and
- * Task 16's to wire in here — this file draws the other three, plus every one of §4's states,
- * which is this task's own stated scope.
+ * toolbar, shelves, inspector, status. Task 13 drew three of them; Task 16a mounts the fourth.
+ * What is drawn INSIDE the shelves region moved to `AssetLibraryBody.vue` in the same commit
+ * and for the reason that file's own header measures — this root owns the SHELL, the doors
+ * (`New asset`, the failure retry), §6.2's focus handoff and §6.3's view state.
  *
- * No `<style>` block, ever: `vue/no-restricted-block` fails one, because Obsidian's
- * marketplace rejects inline styles and this plugin's CSS lives in `styles/`, assembled into
- * one sheet. `.renovation-asset-library` (`styles/asset-library.css`) is this file's one entry
- * point into it; Task 15 is what actually STYLES the classes this file emits.
+ * **`data-selected-asset-id` names the asset this PANE IS SHOWING, which is the selection
+ * except while a search is running**, and that widening is §6.1's narrow-composition rule
+ * rather than a second meaning invented here. Below 35rem the inspector owns the whole pane, so
+ * a user typing into the search field filtered a list they could not see and the surface
+ * appeared to ignore them; the shipped stylesheet hides `.rp-al-body` off exactly this
+ * attribute, so returning the narrow composition to the shelves IS emptying it. Writing a
+ * second CSS rule keyed on "is a search running" would be two answers to one question, which is
+ * what `styles/asset-library.css` already warns against. `showingSelection` is the flag, and it
+ * is named for what it MEANS rather than for how it gets set — the prototype's own review found
+ * three successive booleans named after their trigger and each one wrong for a different
+ * transition.
+ *
+ * `data-expanded-categories` is unchanged: it reads the context directly, which the write-back
+ * below keeps in step with what is drawn.
+ *
+ * **What is DRAWN follows the view state, and the first version of this file did not.**
+ * `selectedId` and `expandedCategories` are seeded from the context pair at setup AND kept in
+ * step with it by two `watch`es, because for one review round they were a second,
+ * desynchronised copy. Both directions are pinned by `assetLibraryRoot.test.ts`'s *follows the
+ * view state* cases.
+ *
+ * The refs are LOCAL rather than the context's own, because the context's are
+ * `DeepReadonly<Ref<T>>` by deliberate design (`assetLibraryContext.test-d.ts` proves a write
+ * through them is a compile error). The write-back Task 13 recorded as missing is
+ * `context.publishViewState` — the view's own callback, which writes ITS refs and asks Obsidian
+ * to record the state; the watches above then fire with the value they already hold, which is
+ * what makes the round trip idempotent rather than re-entrant.
+ *
+ * No `<style>` block, ever: `vue/no-restricted-block` fails one, because Obsidian's marketplace
+ * rejects inline styles and this plugin's CSS lives in `styles/`, assembled into one sheet.
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import DialogHost from '../dialogs/DialogHost.vue';
-import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import NewAssetForm from '../views/NewAssetForm.vue';
-import AssetShelves from './AssetShelves.vue';
-import UnreadableStrip from './UnreadableStrip.vue';
+import AssetInspector from './AssetInspector.vue';
+import AssetLibraryBody from './AssetLibraryBody.vue';
 import { useAssetLibraryContext } from './AssetLibraryContext';
+import { focusWithin, shelvesWithdrawn } from './shelfFocus';
 import { useAssetLibraryStore } from '../stores/AssetLibraryStore';
 import { useDialogStore } from '../dialogs/dialog-store';
-import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
-import { resolveEmptyState } from '../emptyStates/resolve';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
@@ -61,6 +60,11 @@ import type { AssetId } from '../../domain/asset/AssetId';
 const context = useAssetLibraryContext();
 const store = useAssetLibraryStore();
 const dialogs = useDialogStore();
+
+/** §6.2's two focus anchors that live in THIS file's markup: the shell the handoff searches,
+ *  and the search field it falls back to when the target it wanted is not laid out. */
+const shellEl = ref<HTMLElement | null>(null);
+const searchEl = ref<HTMLInputElement | null>(null);
 
 /**
  * The ONE read this view has, on every occasion it runs — open, a retry, and every `catalogue`
@@ -77,10 +81,6 @@ function hydrate(): Promise<void> {
  * `ViewRoot`'s `onProjectsChanged` subscription already carries: Obsidian reuses this view, so
  * a listener outliving its Vue app would re-hydrate a store nothing renders and stack another
  * on the next open.
- *
- * `applyChange` rather than a blanket re-`hydrate()`: the store's own arm decides which of
- * `catalogue`/`marks` actually need the work, so a `design`-only or `usage`-only change this
- * store does not itself hold state for costs nothing here.
  */
 onMounted(() => {
 	void hydrate();
@@ -115,14 +115,10 @@ const failure = computed(() => {
 
 /**
  * §3.1's `New asset` — `ViewRoot.onCreateAsset`'s identical sequence, over the SAME
- * `NewAssetForm` and the guarded `createAsset`/`setAssetFootprintFromDimensions` pair this
- * task widened `AssetLibraryCommandServices` to carry (see this task's own report). It does
- * NOT re-hydrate on success, unlike `ViewRoot.onCreateProject`: `AssetCreated` already reaches
- * `catalogue: true` on `AssetLibraryChange` (`assetLibraryChangeSource.ts`), so the
- * `onLibraryChanged` subscription above re-reads the listing on its own — a second explicit
- * read here would be a second answer to what refreshed this list. Opening the designer on what
- * it made mirrors `ViewRoot.onCreateAsset`'s own hand-off, since a freshly created catalogue
- * entry has no shape yet.
+ * `NewAssetForm` and the guarded `createAsset`/`setAssetFootprintFromDimensions` pair. It does
+ * NOT re-hydrate on success: `AssetCreated` already reaches `catalogue: true` on
+ * `AssetLibraryChange`, so the `onLibraryChanged` subscription above re-reads the listing on
+ * its own.
  */
 const newAssetBusy = ref(false);
 
@@ -148,66 +144,12 @@ async function onCreateAsset(): Promise<void> {
 }
 
 /**
- * `null` for a normal render, or the resolved props for whichever of §4's two action-bearing
- * keys `AssetLibraryStore.emptyStateKey` answers. That getter is already guarded on
- * `status === 'ready'` and already refuses unconditionally on `unreadable.length > 0` — this
- * component adds no second policy on top of it.
- */
-/**
- * §6.1's announcement, and `''` when nothing is being searched for.
- *
- * The `<p role="status">` it feeds is drawn UNCONDITIONALLY, which is design slice 13's own
- * finding applied here rather than rediscovered: a live region attributed on a container that
- * APPEARS is announced by nothing, because the region and its first content arrive together.
- * The region is present and empty from the ready branch's first paint and is written into on
- * each keystroke, which is the shape that actually speaks. It also costs one template branch
- * LESS than the `v-if` it replaces, which this template — at fallow's cognitive threshold
- * exactly — has no room to spend.
- */
-const matchCount = computed(() =>
-	store.searching
-		? tr('view.asset-library.search.results', { count: String(store.visibleEntries.length) })
-		: '',
-);
-
-/**
- * §3.6's `54 assets`, and `''` until the read has actually answered.
- *
- * The status bar stays drawn during loading (§4 keeps the SHELL), and for one review round it
- * drew `0 assets` while the read was in flight — `total` is `entries.length`, so an empty store
- * asserts an empty library. A count is a claim, and there is no true one to make yet; the region
- * holds its place and says nothing rather than saying something false. Resolved here rather than
- * with a `v-if` in the template for the headroom reason above, and with no new locale key: §8's
- * inventory is pinned at 60.
+ * §3.6's `54 assets`, and `''` until the read has actually answered — a count is a claim, and
+ * an empty store asserting `0 assets` while the read is in flight is a false one.
  */
 const assetCount = computed(() =>
 	store.status === 'ready' ? tr('view.asset-library.assets', { count: String(store.total) }) : '',
 );
-
-const empty = computed(() => {
-	const key = store.emptyStateKey;
-	return key === null ? null : resolveEmptyState(EMPTY_STATE_CONTENT.assetLibrary[key]);
-});
-
-/**
- * `noAssets`'s action CREATES something (`New asset`, the same toolbar gesture); `noMatches`'s
- * RESTORES the previous view by clearing the query — a create action offered from a no-matches
- * state would be the wrong gesture, per §4's own table.
- */
-function onEmptyStateAction(): void {
-	if (store.emptyStateKey === 'noAssets') void onCreateAsset();
-	else store.query = '';
-}
-
-/**
- * The strip's per-row action. `'missing'` means the listing this row was drawn from is stale —
- * the note the path named is gone — so this is the one strip row that re-reads, mirroring
- * `ProjectDetailState.onOpenNote`'s identical rule for its own repair action. `'failed'` is not
- * a stale row: the composition root has already put a notice in front of the user for it.
- */
-async function onOpenNoteRow(path: string): Promise<void> {
-	if ((await context.openNote(path)) === 'missing') await hydrate();
-}
 
 /** §6.3's own sentinel: `context.assetId` is `''` for "nothing selected", never `null`, and
  *  `AssetRow`'s `selected` prop compares against an id — so the two vocabularies meet here and
@@ -217,18 +159,9 @@ function selectionOf(assetId: string): AssetId | null {
 }
 
 /**
- * The shelves' own selection and expansion — held HERE rather than inside `AssetShelves.vue`
- * for `AssetShelves.vue`'s own reason: a search that briefly matches nothing swaps the shelves
- * region for an `EmptyState`, unmounting `AssetShelves` entirely, and a value only that
- * component held would reset with it — exactly the loss §6.1's "a search must not cost a user
- * the arrangement they had" refuses. A value the parent holds survives that swap.
- *
- * SEEDED from the context at setup and WATCHED after it, which is §6.3's whole mechanism: the
- * view state is what a restored leaf and every `setState` speak through, so it is the authority
- * and this pair follows it. The watches are not deep — `setState` REPLACES both refs — and they
- * overwrite whatever the user last toggled, which is correct while nothing writes back: a state
- * change arriving from outside is newer than a local gesture, and the alternative (ignoring it)
- * is the desynchronisation these two lines exist to close.
+ * The shelves' own selection and expansion, SEEDED from the context at setup and WATCHED after
+ * it — §6.3's whole mechanism, since the view state is what a restored leaf and every
+ * `setState` speak through.
  */
 const expandedCategories = ref<ReadonlySet<string>>(new Set(context.expanded.value));
 const selectedId = ref<AssetId | null>(selectionOf(context.assetId.value));
@@ -240,21 +173,90 @@ watch(context.expanded, (categories) => {
 	expandedCategories.value = new Set(categories);
 });
 
+/**
+ * §6.1: is this pane showing the SELECTION, or the LIST? One line is the whole state machine —
+ * typing anything shows the list, because you are looking for something; emptying the field
+ * shows the selection again, because you have stopped; picking a row shows it too.
+ */
+const showingSelection = ref(true);
+watch(
+	() => store.searching,
+	(searching) => {
+		showingSelection.value = !searching;
+	},
+);
+
+/** What the shell ANNOUNCES it is showing — see this file's header for why the attribute means
+ *  the pane's subject rather than the raw selection. */
+const paneAssetId = computed(() => (showingSelection.value ? context.assetId.value : ''));
+
+/** §6.3's write half: one call carries both values, because the view publishes one state. */
+function publish(assetId: AssetId | null, expanded: ReadonlySet<string>): void {
+	context.publishViewState(assetId ?? '', [...expanded]);
+}
+
+/**
+ * §6.2's focus handoff, in the one shape the prototype's own review rounds landed on: the
+ * question "did the pane swap" is asked of the DOM, and WHICH MOMENT it is asked at differs by
+ * direction. Selecting HIDES the shelves, so the forward swap is only visible after the render;
+ * `Back to library` REVEALS them, so by the time this ran the answer would be "laid out" and
+ * the return would be skipped every time, in every layout. The predicate is therefore passed
+ * in, and the back path takes its reading before it mutates anything.
+ */
+async function focusAfterSwap(selector: string, swapped: () => boolean): Promise<void> {
+	await nextTick();
+	if (!swapped()) return;
+	focusWithin(shellEl.value, selector, searchEl.value);
+}
+
 function toggleShelf(category: string): void {
 	const next = new Set(expandedCategories.value);
 	if (!next.delete(category)) next.add(category);
 	expandedCategories.value = next;
+	publish(selectedId.value, next);
 }
 
 function onSelect(assetId: AssetId): void {
 	selectedId.value = assetId;
+	showingSelection.value = true;
+	publish(assetId, expandedCategories.value);
+	void focusAfterSwap('.rp-al-inspector__back', () => shelvesWithdrawn(shellEl.value));
+}
+
+/**
+ * §6.2's mirror: leaving the inspector returns focus to the row it was opened from — and
+ * REVEALS that row, because a selection can outlive its shelf being open. Returning focus to a
+ * row that is in the DOM and not laid out focuses nothing at all, with the inspector already
+ * gone, which is the stranding this pair exists to prevent.
+ *
+ * The reveal is withheld while a search is running: the row is drawn in §6.1's flat Results
+ * list whatever its shelf is doing, so expanding here would silently rewrite an expansion state
+ * §6.1 says is the user's.
+ *
+ * `CSS.escape`: an asset id is `z.string().min(1)` in the frontmatter schema, so a
+ * hand-authored one holding a quote or a backslash builds an invalid selector and
+ * `querySelector` THROWS rather than missing.
+ */
+function onBack(): void {
+	const leaving = selectedId.value;
+	const swappingOut = shelvesWithdrawn(shellEl.value);
+	const category = leaving === null || store.searching ? undefined : store.entryFor(leaving)?.category;
+	const expanded = new Set(expandedCategories.value);
+	if (category !== undefined) expanded.add(category);
+	expandedCategories.value = expanded;
+	selectedId.value = null;
+	showingSelection.value = true;
+	publish(null, expanded);
+	if (leaving === null) return;
+	void focusAfterSwap(`[data-asset-id="${CSS.escape(leaving)}"]`, () => swappingOut);
 }
 </script>
 
 <template>
 	<div
+		ref="shellEl"
 		class="renovation-asset-library"
-		:data-selected-asset-id="context.assetId.value"
+		:data-selected-asset-id="paneAssetId"
 		:data-expanded-categories="context.expanded.value.join(',')"
 	>
 		<h2 class="rp-al-title">
@@ -270,6 +272,7 @@ function onSelect(assetId: AssetId): void {
 				<label class="rp-al-search">
 					<span class="rp-al-search__label">{{ tr('view.asset-library.search.label') }}</span>
 					<input
+						ref="searchEl"
 						v-model="store.query"
 						type="search"
 						class="rp-al-search__input"
@@ -285,40 +288,21 @@ function onSelect(assetId: AssetId): void {
 					{{ tr('view.asset-library.new-asset') }}
 				</button>
 			</div>
-			<div class="rp-al-body">
-				<div
-					v-if="store.status !== 'ready'"
-					class="rp-view-message"
-				>
-					<p>{{ tr('view.asset-library.loading') }}</p>
-				</div>
-				<template v-else>
-					<p
-						class="rp-al-results"
-						role="status"
-					>
-						{{ matchCount }}
-					</p>
-					<UnreadableStrip
-						v-if="store.unreadable.length > 0"
-						:entries="store.unreadable"
-						@open="(path) => void onOpenNoteRow(path)"
-					/>
-					<EmptyState
-						v-if="empty !== null"
-						v-bind="empty"
-						@action="onEmptyStateAction"
-					/>
-					<AssetShelves
-						v-else
-						:entries="store.visibleEntries"
-						:searching="store.searching"
-						:expanded="expandedCategories"
-						:selected-id="selectedId"
-						@toggle="toggleShelf"
-						@select="onSelect"
-					/>
-				</template>
+			<div class="rp-al-main">
+				<AssetLibraryBody
+					:expanded="expandedCategories"
+					:selected-id="selectedId"
+					@toggle="toggleShelf"
+					@select="onSelect"
+					@create="onCreateAsset"
+					@rehydrate="() => void hydrate()"
+				/>
+				<AssetInspector
+					v-if="store.status === 'ready'"
+					:class="{ 'rp-al-inspector--away': !showingSelection }"
+					:asset-id="selectedId"
+					@back="onBack"
+				/>
 			</div>
 			<footer class="rp-al-status">
 				<span class="rp-al-status__count">{{ assetCount }}</span>

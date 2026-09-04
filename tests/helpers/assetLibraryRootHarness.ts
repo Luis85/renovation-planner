@@ -106,6 +106,25 @@ export interface MountOptions {
 	 */
 	assetId?: Ref<string>;
 	expanded?: Ref<readonly string[]>;
+	/**
+	 * §6.3's WRITE half, which `AssetLibraryView` supplies in production. The default below
+	 * models the view faithfully in the one respect a bare mount can — it writes the refs above,
+	 * exactly as `publishViewState` does BEFORE its `setViewState` round trip — so a case that
+	 * clicks a row sees the same `context.assetId` a leaf would. What it deliberately does not
+	 * model is Obsidian's round trip back through `setState`; `assetLibraryViewState.test.ts`
+	 * drives the real view for that.
+	 */
+	publishViewState?: (assetId: string, expanded: readonly string[]) => void;
+	/**
+	 * Mount INTO `document.body` rather than into a free-floating element.
+	 *
+	 * Off by default because it costs every case a `wrapper.unmount()` it would not otherwise
+	 * need. §6.2's cases require it and cannot fake it: `focus()` on a detached element does
+	 * nothing at all, and `getComputedStyle` only resolves a STYLESHEET rule for an element that
+	 * is actually in the document — which is how a case stands in for §7's container query, the
+	 * one mechanism this jsdom does not evaluate.
+	 */
+	attach?: boolean;
 }
 
 export async function mountRoot(options: MountOptions = {}): Promise<VueWrapper> {
@@ -118,10 +137,18 @@ export async function mountRoot(options: MountOptions = {}): Promise<VueWrapper>
 		openDesigner: options.openDesigner ?? (() => Promise.resolve()),
 		onLibraryChanged: options.onLibraryChanged ?? base.onLibraryChanged,
 	});
+	const assetId = options.assetId ?? ref('');
+	const expanded = options.expanded ?? ref<readonly string[]>([]);
 	const context: AssetLibraryContext = {
 		...deps,
-		assetId: options.assetId ?? ref(''),
-		expanded: options.expanded ?? ref<readonly string[]>([]),
+		assetId,
+		expanded,
+		publishViewState:
+			options.publishViewState ??
+			((id, categories): void => {
+				assetId.value = id;
+				expanded.value = categories;
+			}),
 	};
 	// The SAME pinia the tree installs is made active here, so a case reaching for
 	// `useDialogStore()` after the mount resolves the store this root is actually writing.
@@ -130,6 +157,7 @@ export async function mountRoot(options: MountOptions = {}): Promise<VueWrapper>
 	const pinia = createPinia();
 	setActivePinia(pinia);
 	const wrapper = mount(AssetLibraryRoot, {
+		...(options.attach === true ? { attachTo: document.body } : {}),
 		global: { plugins: [pinia], provide: { [ASSET_LIBRARY_CONTEXT as symbol]: context } },
 	});
 	await settle();

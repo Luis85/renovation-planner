@@ -282,8 +282,17 @@
 	 * the mirror-image case, and the two halves live in two files because a scoped rule may
 	 * not reach into a composed component's markup — which is `prototype-styles.test.ts`'s
 	 * rule and also just how Vue's scoping works.
+	 *
+	 * `--away` is §6.1's own half of the same withdrawal and a DIFFERENT fact from `--rest`,
+	 * which is why it is a second selector on one rule rather than a reuse of the first: the
+	 * panel is not resting — an asset is still selected and the rail still shows it at every
+	 * width above this one — the user is SEARCHING, and below 35rem *"searching returns the
+	 * narrow composition to the shelves"*. Applied by `AssetLibraryRoot.vue`, which is the one
+	 * place that knows both halves of that question; `AssetInspector.vue` neither knows nor
+	 * needs to know a search is running.
 	 */
-	.rp-al-inspector--rest {
+	.rp-al-inspector--rest,
+	.rp-al-inspector--away {
 		display: none;
 	}
 }

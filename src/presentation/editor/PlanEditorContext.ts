@@ -70,10 +70,15 @@ export interface PlanEditorContext {
 	 * work.
 	 *
 	 * A FOURTH door rather than more traffic through the third: the catalogue door answers
-	 * "the shared library moved" and this one answers "this project's own price moved", and
-	 * the Inspector's unit-cost block shows both figures side by side. Wiring only one of them
-	 * would leave that block showing a stale library price next to a fresh project one, which
-	 * is a worse picture than two stale numbers.
+	 * "the shared library moved" and this one answers "this project's own price moved" — and,
+	 * since `projectPricesChangeSource.ts`'s `REQUIREMENT_LIST_EVENTS` folded in
+	 * `RequirementCreated`/`RequirementDeleted`/`RequirementRestored` (T6, A2), "this zone's set
+	 * of requirement rows changed" too, on the SAME wire: `runtime.ts` wires this callback
+	 * straight to `reloadInspector` with no per-id filter, so all three land on one unconditional
+	 * reload rather than three doors. The Inspector's unit-cost block shows a library price and a
+	 * project price side by side, with the requirement list beneath it read by the same call;
+	 * wiring only the price half through this door would leave one of those facts stale next to
+	 * two fresh ones, which is a worse picture than reading them together.
 	 */
 	onProjectPricesChanged(listener: () => void): () => void;
 	/**

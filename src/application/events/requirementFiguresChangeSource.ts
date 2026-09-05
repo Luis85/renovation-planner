@@ -25,8 +25,10 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * `RequirementInvalidated`'s own docblock calls it transient and "not persisted", which is
  * true of the EVENT and not of the moment it is published: the cascade publishes it AFTER
  * the marker is written, so a listener reading then reads the marker. A successful
- * recalculation therefore delivers two events, invalidated then recalculated — which is the
- * single-flight loader's job at the consumer, not a reason to pick one.
+ * recalculation therefore ALWAYS delivers two of these three events, invalidated then
+ * recalculated — reconciling the two is the single-flight loader's job at the consumer, not a
+ * reason to pick one — and a third, `CostEstimateChanged`, exactly when the effective cost
+ * actually moved (below).
  *
  * **The callback carries the `requirementId` and the CALLER filters**, rather than this
  * module filtering on a project. `RequirementInvalidated`'s payload is `{ requirementId }`

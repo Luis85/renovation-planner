@@ -1,7 +1,5 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { ProjectId } from '../../domain/project/ProjectId';
-import type { AssetPriceOverrideEventPayload } from '../../domain/asset-price/AssetPriceOverride.events';
-import type { RequirementEventPayload } from '../../domain/requirement/Requirement.events';
 import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
 import { disposeAll, subscribeAll } from './subscriptions';
 
@@ -106,26 +104,20 @@ function changedEntityTypeOf(event: DomainEvent): string | null {
 }
 
 /**
- * The project a domain event names, narrowed with the same kind of guard and for the same
- * reason `changedEntityTypeOf` above is: an event added to `PRICE_CHANGE_EVENTS` WITHOUT this
- * payload reports `null` — "cannot say", which every narrowing caller treats as a match — rather
+ * The project a domain event names — shared by `PRICE_CHANGE_EVENTS` and
+ * `REQUIREMENT_LIST_EVENTS` alike, unlike `subscriptions.ts`'s `changedEntry`/`changedSidecar`
+ * pair: those stay two functions because their payloads are read differently by DIFFERENT
+ * consumer files reaching for different fields, where here `AssetPriceOverrideEventPayload` and
+ * `RequirementEventPayload` are two payloads read the SAME way (a bare `projectId: ProjectId`)
+ * by the same two `subscribeAll` arms below — one reader typed generically over the field, not
+ * over either interface, has nothing left to mislabel. Narrowed with a guard rather than a cast,
+ * for the same reason `changedEntityTypeOf` above is: an event added to either list WITHOUT this
+ * field reports `null` — "cannot say", which every narrowing caller treats as a match — rather
  * than an `undefined` compared against a project id and matching nothing.
  */
 function changedProjectOf(event: DomainEvent): ProjectId | null {
-	const payload = (event as { payload?: Partial<AssetPriceOverrideEventPayload> }).payload;
-	return typeof payload?.projectId === 'string' ? payload.projectId : null;
-}
-
-/**
- * The project a `RequirementEventPayload` names — a SEPARATE reader from `changedProjectOf`
- * above rather than a shared one, for the reason `subscriptions.ts`'s `changedEntry` and
- * `changedSidecar` stay two functions over alike shapes: `AssetPriceOverrideEventPayload` and
- * `RequirementEventPayload` are two different payloads that happen to share a field name, and
- * one reader typed as either would mislabel whichever event it is not.
- */
-function requirementProjectOf(event: DomainEvent): ProjectId | null {
-	const payload = (event as { payload?: Partial<RequirementEventPayload> }).payload;
-	return typeof payload?.projectId === 'string' ? payload.projectId : null;
+	const payload = (event as { payload?: { projectId?: unknown } }).payload;
+	return typeof payload?.projectId === 'string' ? (payload.projectId as ProjectId) : null;
 }
 
 export function createProjectPricesChangeSource(
@@ -144,7 +136,7 @@ export function createProjectPricesChangeSource(
 				if (changedEntityTypeOf(event) === 'renovation-asset-price') listener(null);
 			}),
 			...subscribeAll(events, REQUIREMENT_LIST_EVENTS, (event) => {
-				listener(requirementProjectOf(event));
+				listener(changedProjectOf(event));
 			}),
 		];
 		return disposeAll(subscriptions);

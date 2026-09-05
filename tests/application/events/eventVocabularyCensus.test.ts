@@ -13,15 +13,42 @@
  * asks whether the NAME was ever handed to `subscribeAll` at all, which is the gap A2 found:
  * `CostEstimateChanged` was in no list, so no test file could have driven a delivery of it.
  *
- * **What the walk cannot see, named rather than assumed.** A source that subscribes an event
- * directly (`events.subscribe('X', …)`, `assetLibraryChangeSource.ts`'s shape) rather than
- * through a `*_EVENTS` array is invisible to this scan — every event that module subscribes
- * this way is ALSO named in a `*_EVENTS` list elsewhere (`AssetCreated`, `AssetUpdated`,
- * `AssetDeleted`, `AssetDesignChanged`, `AssetPriceOverrideChanged`), so today's tree has no
- * gap hiding behind that blind spot, but a NINTH source subscribing a domain event only that
- * way would pass this file while genuinely being the defect A2 describes. And an array whose
- * name does not end `_EVENTS` (there is none today) would be invisible the same way a
- * differently-named `DISPOSITIONS` key would be to the sibling census.
+ * **What the walk cannot see, named from a grep rather than assumed**
+ * (`grep -n "subscribeAll\|subscribe(" src/application/events/*.ts`).
+ * `assetLibraryChangeSource.ts` subscribes SEVEN events directly (`events.subscribe('X', …)` at
+ * lines 110, 124, 137, 151, 163, 188 and 201 — `AssetDeleted`, `AssetDesignChanged`,
+ * `GeometrySidecarChanged`, `ProjectIndexEntryChanged`, `ProjectIndexRebuilt`,
+ * `AssetPriceOverrideChanged` and `ProjectIndexExclusionChanged`), invisible to
+ * `subscribedEventTypes()` below because none of them is a string literal inside a
+ * `const SOMETHING_EVENTS = [...]` array. Four of the seven (`GeometrySidecarChanged`,
+ * `ProjectIndexEntryChanged`, `ProjectIndexRebuilt`, `ProjectIndexExclusionChanged`) are also
+ * out of `publishedEventTypes()`'s scope — declared in
+ * `src/application/events/projectIndex.events.ts`, not under an `.events.ts` file inside
+ * `src/domain/` — so for those four the two blind spots miss each other rather than one
+ * covering for the other. The remaining three (`AssetDeleted`, `AssetDesignChanged`,
+ * `AssetPriceOverrideChanged`) ARE published under `src/domain/` and ARE also named in a
+ * `*_EVENTS` list elsewhere, so today's tree has no gap hiding behind THIS blind spot — but a
+ * NINTH source subscribing a domain event only this way, named nowhere else, would pass this
+ * file while genuinely being the defect A2 describes. (`AssetCreated`/`AssetUpdated`, despite
+ * reading like the module's other direct subscriptions, are NOT among the seven — they reach
+ * `subscribeAll` at line 101, which is the second blind spot below.)
+ *
+ * **The second blind spot is live too, not merely possible.** `assetLibraryChangeSource.ts:101`
+ * passes `['AssetCreated', 'AssetUpdated'] as const` straight to `subscribeAll` as an inline
+ * literal, naming no constant at all — a stronger miss than the "array whose name does not end
+ * `_EVENTS`" case the sibling census warns about for its own differently-named `DISPOSITIONS`
+ * key. The regex only matches an assignment to `const [A-Z][A-Z0-9_]*_EVENTS`, so this array is
+ * invisible to `subscribedEventTypes()` as well; `AssetCreated` and `AssetUpdated` pass the join
+ * only because both are also named in `assetCatalogueChangeSource.ts`'s and
+ * `assetDesignChangeSource.ts`'s own `*_EVENTS` lists.
+ *
+ * **Either blind spot produces a false RED, never a silent pass.** A published event this scan
+ * cannot see as subscribed is reported as orphaned and fails the join loudly — it does not read
+ * as clean coverage. Two more blind spots belong to the walk itself, named rather than assumed:
+ * it is exactly ONE level deep under `src/domain/<category>/` (a `.events.ts` nested a level
+ * deeper is invisible, and a plain file sitting directly under `src/domain/` rather than a
+ * directory throws instead of being skipped), and the subscribed-side regex reads comments as
+ * readily as code, so a name only mentioned in prose counts as subscribed.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';

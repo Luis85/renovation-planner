@@ -197,20 +197,6 @@ describe('createProjectPricesChangeSource', () => {
 		expect(delivered).toEqual([aProject]);
 	});
 
-	/**
-	 * The narrowing guard on `requirementProjectOf`, the twin of `changedProjectOf`'s own case
-	 * above and there for the same reason: an event added to `REQUIREMENT_LIST_EVENTS` without
-	 * this payload reports `null` — a MATCH every narrowing caller refreshes for — rather than
-	 * an `undefined` compared against a project id and matching nothing.
-	 */
-	it('reports null for a requirement lifecycle event carrying no project id', async () => {
-		const { bus, delivered } = wired();
-
-		await bus.publish({ type: 'RequirementRestored', payload: { requirementId: createRequirementId() } } as never);
-
-		expect(delivered).toEqual([null]);
-	});
-
 	/** Disposal, asserted for ALL THREE lists — a source that unsubscribed one would leave a
 	 *  retired Vue tree still re-reading on the others. */
 	it('stops delivering all three events once disposed', async () => {

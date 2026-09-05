@@ -77,9 +77,10 @@ proof. Which test holds each criterion:
    `rebuildIndex()` on the original stack would NOT have given: `frontmatterOf` falls back to what
    this plugin last wrote while the cache lags, so a read through the WRITING stack can be answered
    by our own memory of our own write. The presentation half is
-   `tests/presentation/views/planEditorView.test.ts`'s 'reopening the same plan shows the same
-   room', which mounts `PlanEditorView` twice over real in-memory repositories — a static fixture
-   literal cannot tell a reopen that re-read from one that replayed a constant.
+   `tests/presentation/views/planEditorReopen.test.ts`'s 'reopening the same plan shows the same
+   room', split out of `planEditorView.test.ts` when that file reached its cap. It mounts
+   `PlanEditorView` twice over real in-memory repositories — a static fixture literal cannot tell
+   a reopen that re-read from one that replayed a constant.
 2. **Reopening does not write merely to display.** The round-trip case reads the note's own bytes
    back and no save runs on the read path; the view-level reopen dispatches nothing.
 3. **An unreadable room is distinguishable from a plan with no rooms.** Pre-existing and unchanged:
@@ -102,7 +103,7 @@ proof. Which test holds each criterion:
 
 Extensions: **4a** is criterion 3's. **4b** is criterion 4's, with its narrowing.
 **4c** — a selection or draft naming no valid entity opens in safe Select with every valid room
-drawn — is `planEditorView.test.ts`'s 'a leaf reopened onto a floor whose room is gone opens in
+drawn — is `planEditorReopen.test.ts`'s 'a leaf reopened onto a floor whose room is gone opens in
 Select with every remaining room drawn', written from the REOPEN side because a restored view state
 carries a plan id and nothing else (see [[Undo and redo]]'s own amendment for the measurement), and
 `selectionRetirement`'s suite for the within-a-leaf half. The draft half is asserted by reopening

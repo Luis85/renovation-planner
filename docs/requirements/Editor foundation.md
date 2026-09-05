@@ -99,10 +99,10 @@ they lost the noun altogether ("Delete"). Recorded in
 **2026-09-05** — the THIRD increment has landed on `claude/plan-editor-trust-path`: the **trust
 path**, checkpoint C3, designed in
 `docs/superpowers/specs/2026-09-04-plan-editor-trust-path-design.md`. It belongs mostly to
-[[Release hardening]], whose first two PBIs it closes; what it closes HERE is [[Undo and redo]] —
-this Feature's own last unclosed PBI, whose mechanisms all pre-dated the increment and whose
-criteria nothing pinned until it — and two of the Active task halves this Feature's earlier
-increments recorded:
+[[Release hardening]], whose first two PBIs it closes; what it closes HERE is [[Undo and redo]],
+whose mechanisms all pre-dated the increment and whose criteria nothing pinned until it — this
+Feature's other PBIs are untouched and six of them remain Active — and two of the Active task
+halves this Feature's earlier increments recorded:
 
 - [[Preserve room inspection across layout and read changes]]'s criterion 4 was HALF met, and its
   own amendment named the gap in as many words: *"nothing is disabled while stale — `stale` reaches

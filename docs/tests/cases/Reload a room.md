@@ -29,8 +29,8 @@ one.
 `tests/infrastructure/persistence/editorRoundTrip.test.ts` writes a room through the REAL
 `CreateZoneCommand` and reads it back over the same `FakeVault` through a fresh index, a fresh
 echo window and a fresh geometry store, which is as close to a reopen as an in-process test gets;
-`tests/presentation/views/planEditorView.test.ts`'s two reopen cases mount `PlanEditorView` twice
-over real in-memory repositories. Five things sit outside both:
+`tests/presentation/views/planEditorReopen.test.ts`'s three reopen cases mount `PlanEditorView`
+twice over real in-memory repositories. Five things sit outside both:
 
 1. **A restart is a new PROCESS, and neither test is one.** Both model a reopen with fresh
    objects over a vault that never left memory. Obsidian's own workspace restoration, its

@@ -44,7 +44,7 @@ requirements.
 plan's checkpoint C3, designed in
 `docs/superpowers/specs/2026-09-04-plan-editor-trust-path-design.md` and built on
 `claude/plan-editor-trust-path`. It closes the first two of this Feature's eight PBIs and starts
-the third — the ordering is deliberate, because *"valid work survives reload and recoverable
+none of the other six — the ordering is deliberate, because *"valid work survives reload and recoverable
 failure"* is the half of the release claim every other half rests on: a themed, keyboard-operable,
 localized editor over data that can be silently lost is not releasable, and the reverse is merely
 unfinished.

@@ -56,8 +56,12 @@ Criterion 3 — **a revision conflict overwrites nothing and surfaces once** —
 `history.e2e.test.ts`'s fourth case. **How it surfaces was measured and is not what the plan
 said:** `zone.external-modification` is one of `WRITE_BOUNDARY_CODES`, which `affectsSaveState`
 carves back out of the pre-write categories, so it flips the BADGE — and `reportDispatchFailure`
-therefore routes it to the `autosave-write` origin whose toast sink is deliberately a no-op, per
-design slice 17's one-failure-one-widget rule. So the case asserts the badge flips AND that
+therefore routes it at the `autosave-write` origin, which `surfaceFor` maps to the `save-state`
+surface rather than to a toast — and whose save-state SINK is itself a no-op, because
+`withSaveStateTracking` one layer below has already flipped the badge. One failure, one widget, per
+design slice 17. The no-toast is the POLICY's doing and not the sink's: `AUTOSAVE_SINKS` spreads
+`noticeOnlySinks`, whose `toast` is a live `notifyError` that nothing on this path reaches. So the
+case asserts the badge flips AND that
 `Notice.shown` did not move, **over a live notice queue**: over an inactive one that absence would
 be true of every build ever written.
 

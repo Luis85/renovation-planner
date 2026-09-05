@@ -46,7 +46,7 @@ Criterion 1 — **reversible actions from different surfaces share one stack** �
 composition: `buildDispatcherChain` builds one history and one wrapped dispatcher, and the tools,
 the Inspector's commits, the delete action and room creation all take it. Pinned by
 `tests/presentation/editor/runtime.test.ts` and, as source text over the exact wiring this
-increment changed, by `tests/presentation/editor/saveState/saveStateWiring.test.ts`'s two cases —
+increment changed, by `tests/presentation/editor/saveState/saveStateWiring.test.ts`'s last two cases (of its five) —
 the gate is built from the TRACKED dispatcher, and `wrapDispatcher` receives the GATED one.
 `tests/presentation/editor/history.e2e.test.ts`'s second case reaches it behaviourally with two
 DIFFERENT gestures, so it cannot pass by the second command being the same object.

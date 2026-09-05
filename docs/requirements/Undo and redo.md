@@ -113,7 +113,7 @@ holds each criterion:
    dispatch — the tools' `commandDispatcher`, the Inspector's `commit`, the delete action, room
    creation — funnels through the one wrapped dispatcher built around it
    (`tests/presentation/editor/runtime.test.ts` and
-   `tests/presentation/editor/saveState/saveStateWiring.test.ts`, whose two cases assert the chain
+   `tests/presentation/editor/saveState/saveStateWiring.test.ts`, whose last two cases assert the chain
    is built from the tracked dispatcher and that `wrapDispatcher` receives the GATED one — a
    source-text pin over exactly the wiring this increment changed). `history.e2e.test.ts`'s second
    case reaches it behaviourally, with two DIFFERENT gestures so it cannot pass by the second
@@ -134,8 +134,14 @@ holds each criterion:
    conflicting Undo refuses, the vault is unchanged, and `canUndo` stays true with a second press
    refusing identically — the recorded `undo.superseded` behaviour, pinned AS the recorded
    behaviour rather than fixed here.
-6. **A no-write success creates no misleading history or save-state transition.** Half of this was
-   measured FALSE as the brief stated it and the case pins what is true instead — see below.
+6. **A no-write success creates no misleading history or save-state transition. — NARROWED.**
+   `history.e2e.test.ts`'s third case, 'a no-write success writes nothing, keeps a standing save
+   error, and still takes a history entry', holds the SAVE-STATE half — the badge does not move,
+   made discriminating by a REAL standing `save-error` behind it. The HISTORY half was measured
+   false as the plan stated it: `CommandHistory.runNow` puts a no-write gesture on the stack by
+   design and says so in as many words, so the case pins that documented behaviour instead of the
+   plan's. See below, and [[Record editor writes in one shared history]], where its own criterion
+   2 is withdrawn for the same reason.
 7. **A failed post-write refresh retries hydration only.** `history.e2e.test.ts`'s fifth case (4b):
    the inverse WROTE (one save, geometry restored) and the read-back did not; Try again then reads
    exactly once more and runs no save and no delete. The gate lets `undo` and `redo` through by
@@ -164,8 +170,12 @@ read them as drift:
 - **"A revision conflict on Undo raises a toast."** It does not, and the reason is design slice 17's
   own rule. `zone.external-modification` is one of `WRITE_BOUNDARY_CODES`, which `affectsSaveState`
   carves back out of the pre-write categories, so it flips the BADGE — and `reportDispatchFailure`
-  therefore routes it to the `autosave-write` origin whose toast sink is deliberately a no-op, one
-  failure through one widget. The case asserts the badge flips AND that `Notice.shown` is unchanged
+  therefore routes it at the `autosave-write` origin, which `surfaceFor` maps to the `save-state`
+  surface rather than to a toast — and whose save-state SINK is itself a no-op, because
+  `withSaveStateTracking` one layer below has already flipped the badge. One failure, one widget.
+  (`AUTOSAVE_SINKS` spreads `noticeOnlySinks`, whose `toast` IS `notifyError`; nothing reaches it,
+  because the policy never routes this origin to a toast at all.)
+  The case asserts the badge flips AND that `Notice.shown` is unchanged
   **over a live queue**, since over an inactive one that absence would be true of every build ever
   written.
 - **"A restored view state naming a deleted zone."** Cannot be written as stated: a restored

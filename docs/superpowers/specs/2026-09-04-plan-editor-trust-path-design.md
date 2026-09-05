@@ -359,8 +359,13 @@ and would otherwise read them as drift:
 3. **"A revision conflict on Undo surfaces once as a toast."** It raises no toast at all.
    `zone.external-modification` is one of `WRITE_BOUNDARY_CODES`, so `affectsSaveState` carves it
    back out of the pre-write categories and it flips the BADGE — and `reportDispatchFailure`
-   routes it to the `autosave-write` origin whose toast sink is deliberately a no-op, per slice
-   17's one-failure-one-widget rule. The badge is the whole surface. The case asserts
+   routes it at the `autosave-write` origin, which `surfaceFor` maps to the `save-state` surface
+   rather than to a toast — and whose save-state SINK is itself a no-op, because
+   `withSaveStateTracking` one layer below has already flipped the badge. One failure, one widget,
+   per slice 17. **The mechanism is the POLICY and not the sink**, which is worth stating because
+   `AUTOSAVE_SINKS` spreads `noticeOnlySinks` and that bundle's `toast` is a live `notifyError`:
+   nothing reaches it here, because the origin never routes to a toast at all. The badge is the
+   whole surface. The case asserts
    `Notice.shown` is unchanged **over a live queue**, since over an inactive one that absence is
    true of every build ever written.
 4. **"A restored view state naming a deleted zone."** Cannot be written as stated: a restored
@@ -386,7 +391,9 @@ deliberately and none changes what the section asks for:
   `useId()` inside `buildDispatcherChain`, which `buildRuntime` calls synchronously in setup; both
   spellings yield one id per leaf and every consumer reads it off the runtime.
 - **§4's conditional `deleteZoneAction.ts` extraction was NOT performed** (Ruling 3): `runtime.ts`
-  measured 321 counted lines before and **366** after, under the 380 threshold. A different budget
+  measured 321 counted lines before and **366** after — under the **380** threshold the
+  implementation PLAN's own step sets as the extraction trigger, which is a different number from
+  the 400 `max-lines` cap Ruling 3 names, and both were clear. A different budget
   bit instead — `buildRuntime`'s own `max-lines-per-function` — and the answer was the
   `buildDispatcherChain` extraction named above, which is the file's own existing pattern.
 - **§2.6's `PlanEditorDeps.openNote` returns `ProjectOpenOutcome`, not `ProjectNoteOpenOutcome`.**
@@ -457,6 +464,23 @@ round, and is written here rather than lost:
 - `PlanEditorRoot`'s `retry` and `openSourceNote` closures `void` their promises. Traced rather
   than left open: `createProjectionRefresh` and `openProjectNote` resolve on every arm, so neither
   is a detached rejection today. If either starts throwing, both owe `runDetached` handling.
+
+Five more from Task 12's own review, which reached the ledger after this section's first draft and
+are added here rather than left in it:
+
+- **A THIRD copy of the room-drag gesture** now exists — the rig's exported helper, plus
+  `roomCreation.e2e.test.ts`'s own. Point the third at the rig's copy before `npm run analyze`'s
+  clone detector notices, which is the trigger rather than the deadline.
+- The stale label is asserted through the `t()` KEY rather than the rendered literal, so a case
+  passes over copy nobody has read.
+- Scenario D's drag RELEASES at a point that differs from its last move — legal as a pointer
+  stream, and not the grammar the gesture it stands for actually sends.
+- `.rp-room-inspector` asserted `toBeNull` in the deleted-zone reopen case is decoration: the
+  Inspector is empty in that state whatever the reopen did.
+- `planEditorView.test.ts` sat at 400 counted lines against its 450 cap BEFORE the reopen split,
+  which is why design spec §8's third reload clause could not have gone into it at any size — the
+  split was forced rather than chosen, and the seam it found is a real one (that file is ONE leaf's
+  Obsidian lifecycle; `planEditorReopen.test.ts` is what a SECOND leaf sees).
 
 **2026-09-05 — the gates.** Wave 1's gate was RED at lint on two size caps, both in one task's
 files (`ProjectStore.ts`'s setup arrow at 106 against a 100-line function cap, and

@@ -4333,7 +4333,10 @@ moved — no schema, no write path, no event. The rules that came out of it:
 - **A TEMPLATE has cognitive complexity, and `analyze` is the only step of the gate that sees it.**
   The paused state gave `RoomInspector.vue` a run of ternaries in its markup — `aria-disabled` as
   `blocked || …`, `aria-describedby` joining an existing id with the paused one, per control — and
-  the file crossed fallow's threshold of 21. Neither `vue-tsc`, nor `eslint .`, nor the suite has
+  the file's template crossed fallow's cognitive-complexity threshold, at 21 — a MEASURED value
+  against the tool's own default, since `.fallowrc.json` configures no threshold for it, and this
+  sentence said "fallow's threshold of 21" until a review read the config. Neither `vue-tsc`, nor
+  `eslint .`, nor the suite has
   anything to say about it: `max-lines` counts lines and `max-lines-per-function` counts a
   function's, and a template is neither. It took a FOURTH review round on that task to surface,
   which is what a check nobody thinks of as a check costs. **Fixed by extracting the conditions
@@ -4373,8 +4376,14 @@ moved — no schema, no write path, no event. The rules that came out of it:
   Each is the code deliberately doing otherwise with the reason written where the code is: a
   no-write success DOES take a history entry (`CommandHistory.runNow` says so in as many words),
   a revision conflict on Undo raises NO toast (`zone.external-modification` is a write-boundary
-  code, so it flips the badge and routes to the `autosave-write` origin whose toast sink is a
-  no-op — one failure, one widget), a restored view state carries a plan id and NOTHING else so
+  code, so it flips the badge and routes at the `autosave-write` origin, which `surfaceFor` maps
+  to the `save-state` SURFACE rather than to a toast — and whose save-state sink is itself a no-op,
+  because `withSaveStateTracking` one layer below has already flipped the badge. One failure, one
+  widget. **The no-toast is the POLICY's doing and not the sink's**, which four of this
+  increment's own documents got backwards before a review caught it: `AUTOSAVE_SINKS` spreads
+  `noticeOnlySinks`, whose `toast` is a live `notifyError` — so "the toast sink is a no-op" reads
+  as a mechanism and names the wrong one, and the sink that IS a no-op is the save-state one, for
+  the opposite reason), a restored view state carries a plan id and NOTHING else so
   "naming a deleted zone" has no subject at a reopen, and the gate-removed mutation reddens
   neither of the two assertions the plan predicted. All four are written into `Undo and redo`'s
   own amendments and into the spec, because the next reader meets the cases before the reasoning.
@@ -6014,7 +6023,8 @@ Not oversights; each has a trigger.
   of the Add Room increment** (2026-09-04 — no new dependency, so that 41 kB is this
   repository's own code: a tool, a store, an action, a form, a sketch and their strings), and
   **945.60 kB (gzip 284.50 kB) at the Wave 2 gate of the trust path** (2026-09-05 — again no new
-  dependency; a dispatcher decorator, a named refresh, three store fields, ten locale keys and
+  dependency; a dispatcher decorator, a named refresh, three store fields, eleven locale keys per
+  language and
   every paused surface), each
   verified by running `npm run build` rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.

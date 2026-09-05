@@ -38,11 +38,12 @@ Editor hydration reconstructs one coherent room projection.
 
 ## Closing evidence
 
-**2026-09-05**, the trust path increment. Two cases in a new `reopening a floor` describe in
-`tests/presentation/views/planEditorView.test.ts`, both mounting `PlanEditorView` twice over REAL
-in-memory repositories rather than a static fixture literal — which is the point this task's own
-Risks paragraph names: a fixture literal cannot tell a reopen that re-read from one that replayed
-a constant, and the second case has to be able to change what the vault holds between two mounts.
+**2026-09-05**, the trust path increment. Three cases in a new `reopening a floor` describe in
+`tests/presentation/views/planEditorReopen.test.ts` — split out of `planEditorView.test.ts` when
+that file reached its cap — each mounting `PlanEditorView` twice over REAL in-memory repositories
+rather than a static fixture literal, which is the point this task's own Risks paragraph names: a
+fixture literal cannot tell a reopen that re-read from one that replayed a constant, and the
+second case has to be able to change what the vault holds between two mounts.
 
 Criterion 1 — **reopen shows the last successful room state in every projection** — is
 'reopening the same plan shows the same room', comparing the canvas, the room list and the
@@ -50,9 +51,13 @@ Inspector's own reading. Both potentially vacuous comparisons are guarded (the r
 length 2 and the compared Inspector reading really is the room's name, type and floor), so it
 cannot pass by two empty readings agreeing.
 
-Criterion 2 — **no transient draft is restored as a room** — is asserted by reopening and finding
-none: `RoomDraftStore` is per leaf and dies with it, so a draft that survived would be a draft
-something persisted.
+Criterion 2 — **no transient draft is restored as a room** — is the describe's THIRD case, 'a room
+draft abandoned by closing the leaf is not persisted and not restored'. It drives Add → Room, a
+real pointer drag and a typed name, closes the leaf with Create never pressed, and asserts the
+reopened leaf has no form, no banner, no rectangle and opens in Select, with the repository
+unchanged. **Leaf A is asserted to hold all of it FIRST**, so the absences are assertions rather
+than a description of a leaf where nothing ever happened — `RoomDraftStore` is per leaf and dies
+with it, and a draft that survived would be a draft something persisted.
 
 Criterion 3 — **a missing prior selection does not hide valid rooms** — is 'a leaf reopened onto a
 floor whose room is gone opens in Select with every remaining room drawn'. **It is written from

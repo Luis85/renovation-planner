@@ -124,8 +124,10 @@ checkpoint C3. Which test holds each criterion:
    pre-write category anywhere else is still under-reported**, and neither a linter nor the suite
    can see one, because the category axis cannot see a write. This increment adds one more stamped
    producer; it does not close the class.
-5. **Error copy and diagnostics use the canonical authorities.** Ten new keys route through `t()`
-   in both locales (`en/editor.ts`, `de/editor.ts`, `en.ts`, `de.ts`); the two uncompensated codes
+5. **Error copy and diagnostics use the canonical authorities.** Eleven new keys in both locales
+   (two `zone.sidecar-*-uncompensated` and `editor.stale-write-refused` reaching the user through
+   `toUserMessage`, the other eight through `t()`), across
+   `en/editor.ts`, `de/editor.ts`, `en.ts` and `de.ts`; the two uncompensated codes
    are rows in `tests/presentation/i18n/toUserMessage.test.ts`'s MINTED table, copied from the
    repository's own raise sites rather than from `en.ts`; `tests/presentation/i18n/strings.test.ts`
    holds locale completeness, the interpolation-hole rule and the two pinned German terms; and

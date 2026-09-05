@@ -32,6 +32,7 @@ import { opensNote } from './platformModifier';
  * exactly the class of defect `unused-component-props` exists to catch.
  */
 const props = defineProps<{
+	readOnly?: boolean;
 	project: ProjectSummaryDto;
 	/** The resolved plan this will resume, or `null` when the context names the project alone. */
 	plan: PlanSummaryDto | null;
@@ -117,6 +118,7 @@ const worked = computed(() => {
 		<button
 			type="button"
 			class="rp-continue__resume"
+			:disabled="readOnly && plan !== null"
 			@click="$emit('resume')"
 		>
 			{{ tr('view.project.continue.resume') }}

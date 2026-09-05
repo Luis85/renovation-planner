@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Release hardening]]"
 order: 90
-status: New
-started: ""
+status: Active
+started: "2026-09-05"
 finished: ""
 horizon: "MVP"
 start: ""
@@ -97,6 +97,12 @@ against what that finds. Writing the guard first would be guarding a guess.
   broken canvas.
 - With the platform reported as desktop, nothing above applies and no control changes.
 - A manual case records what was actually reachable in a real mobile vault, and what was not.
+
+## Project-surface implementation (2026-09-05)
+
+Partially implemented for the project surface: Platform.isMobile selects readable project/price presentation, creation controls are hidden and plan-editor launch controls are disabled. This does not complete this PBI’s disabled-with-reason policy or its plugin-wide scope: restored editor/designer leaves, other entry points and real-device capability measurement remain open. Narrow desktop editing is preserved.
+
+Evidence and remaining limitations: [execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
 
 ## Sources
 

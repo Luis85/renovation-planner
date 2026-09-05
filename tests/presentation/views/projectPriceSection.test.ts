@@ -118,6 +118,7 @@ async function mountSection(options: {
 	const base = defaultRenovationProjectDeps();
 	const context: RenovationProjectDeps = {
 		...base,
+		section: 'prices',
 		projectId: PROJECT_ID,
 		queries: {
 			...base.queries,
@@ -190,6 +191,7 @@ describe('the project detail state’s price section', () => {
 
 		expect(wrapper.get('.rp-asset-price-failure').text()).toBe(trError(refusal));
 		expect(wrapper.find('.rp-asset-price-list').exists()).toBe(false);
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(false);
 		expect(wrapper.find('.rp-project-detail__back').exists()).toBe(true);
 		expect(wrapper.find('.rp-project-detail__name').exists()).toBe(true);
 	});
@@ -299,7 +301,7 @@ describe('the project detail state’s price section', () => {
 		harness.setRows([priceRow(money('19.50'))]);
 		const input = harness.wrapper.get('.rp-asset-price-input');
 		await input.setValue('19.50');
-		await input.trigger('blur');
+		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(harness.setAssetPriceOverride).toHaveBeenCalledWith(
@@ -328,7 +330,7 @@ describe('the project detail state’s price section', () => {
 
 		const input = harness.wrapper.get('.rp-asset-price-input');
 		await input.setValue('19.50');
-		await input.trigger('blur');
+		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(harness.listAssetPrices).toHaveBeenCalledTimes(1);
@@ -386,4 +388,42 @@ describe('the project detail state’s price section', () => {
 		expect(harness.listAssetPrices).toHaveBeenCalledTimes(2);
 		expect((harness.wrapper.get('.rp-asset-price-input').element as HTMLInputElement).value).toBe('');
 	});
+	it('reports a saved write separately from refresh failure and retries only the read', async () => {
+		let failRead = false;
+		const refusal: RepositoryError = { category: 'Persistence', code: 'asset-price.frontmatter-invalid', message: 'read failed' };
+		const harness = await mountSection({ listAssetPrices: () => Promise.resolve(failRead ? err(refusal) : ok([priceRow(money('19.50'))])) });
+		failRead = true;
+		await harness.wrapper.get('input').setValue('12,50');
+		await harness.wrapper.get('.rp-asset-price-apply').trigger('click');
+		await flushPromises();
+		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
+		expect(harness.wrapper.get('.rp-asset-price-failure').text()).toContain('Saved;');
+		expect(harness.wrapper.get('input').attributes('disabled')).toBeDefined();
+		failRead = false;
+		await harness.wrapper.get('.rp-price-refresh').trigger('click'); await flushPromises();
+		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
+		expect(harness.wrapper.find('.rp-asset-price-failure').exists()).toBe(false);
+	});
+
+	it.each([true, false])('coalesces events received during a write (accepted: %s)', async (accepted) => {
+		const harness = await mountSection();
+		let release!: () => void;
+		const hold = new Promise<void>((resolve) => { release = resolve; });
+		harness.clearAssetPriceOverride.mockImplementationOnce(async () => {
+			harness.catalogueChanged(); harness.pricesChanged(null);
+			await hold;
+			return accepted ? ok({ cleared: true }) : err({ category: 'Validation', code: 'asset-price.revision-conflict', message: 'conflict' });
+		});
+		harness.setRows([priceRow(money('19.50'))]); harness.catalogueChanged(); await flushPromises();
+		const readsBefore = harness.listAssetPrices.mock.calls.length;
+		await harness.wrapper.get('.rp-asset-price-clear').trigger('click'); await flushPromises();
+		expect(harness.listAssetPrices).toHaveBeenCalledTimes(readsBefore);
+		release(); await flushPromises();
+		expect(harness.listAssetPrices).toHaveBeenCalledTimes(readsBefore + 1);
+		expect(harness.clearAssetPriceOverride).toHaveBeenCalledTimes(1);
+		harness.wrapper.unmount();
+		harness.catalogueChanged(); harness.pricesChanged(null); await flushPromises();
+		expect(harness.listAssetPrices).toHaveBeenCalledTimes(readsBefore + 1);
+	});
+
 });

@@ -2,8 +2,8 @@
 type: Issue
 parent: "[[User Interface]]"
 order: 80
-status: New
-started: ""
+status: Active
+started: "2026-09-05"
 finished: ""
 horizon: "MVP"
 start: ""
@@ -77,6 +77,12 @@ items across two packages, and every one of them is a different spelling of this
 
 That a rejected commit keeps the user's input. Design slice 16 decided it, both packages restate
 it, and no option here reopens it.
+
+## Project-surface implementation (2026-09-05)
+
+The project-price part adopts explicit Apply/Enter and Cancel/Escape, with versioned expectations and dirty-navigation protection. The shared useFieldCommit API remains unchanged: it exposes onInput/onCommit/onCancel; DOM blur binding belongs to its callers. Removing that binding on project price rows does not change the Plan Editor Inspector’s contract. This deliberately leaves different commit gestures across surfaces. Asset Library implementation and any product-wide unification remain separate work; this issue is not closed by the project increment.
+
+Evidence and remaining limitations: [execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
 
 ## Sources
 

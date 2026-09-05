@@ -180,7 +180,7 @@ describe('the singleton case, unchanged by the shared mechanism', () => {
 			],
 		};
 
-		await expect(revealPlanEditor(depsFor(exploding), TYPE, 'plan-ground')).resolves.toBeUndefined();
+		await expect(revealPlanEditor(depsFor(exploding), TYPE, 'plan-ground')).resolves.toBe('failed');
 
 		expect(faults).toHaveLength(1);
 		expect((faults[0] as Error).message).toBe('state exploded');

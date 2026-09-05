@@ -3,8 +3,8 @@ type: PBI
 parent: "[[Project dashboard and navigation]]"
 order: 40
 dependsOn: "[[Continue when the last plan is unavailable]]"
-status: New
-started: ""
+status: Active
+started: "2026-09-05"
 finished: ""
 horizon: "MVP"
 start: ""
@@ -84,6 +84,12 @@ timestamp is derived from the stored context either: it records what was opened,
   B with A's plan id.
 - A target recorded for a project with no plan offers the project and opens its detail state.
 - With nothing remembered, no `Continue` region is drawn.
+
+## Project-surface implementation (2026-09-05)
+
+Partially implemented: project-surface opens return an explicit host leaf/reveal result, and failed or stale opening results do not replace the target. This is deliberately narrower than this PBI’s load-success guarantee: asynchronous editor hydration and palette-originated opens are not confirmed by this increment. They remain open acceptance work. Plain Open preserves a plan on the same project and clears it when selecting another project; no per-project persisted history was added.
+
+Evidence and remaining limitations: [execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
 
 ## Sources
 

@@ -124,13 +124,14 @@ describe('ProjectDetailStore', () => {
 	 * No partial state: either both reads answered and the detail draws, or neither did. There
 	 * is no honest picture of a project whose identity loaded but whose plans did not.
 	 */
-	it('draws nothing at all when the plans read refuses and the project read succeeded', async () => {
+	it('retains the project and exposes a regional failure when plans cannot be read', async () => {
 		const store = useProjectDetailStore();
 
 		await store.hydrate(queriesAnswering({ listPlansByProject: () => Promise.resolve(err(READ_FAILED)) }), PROJECT.id, true);
 
-		expect(store.status).toBe('failed');
-		expect(store.project).toBeNull();
+		expect(store.status).toBe('ready');
+		expect(store.plansError).toEqual(READ_FAILED);
+		expect(store.project).toEqual(PROJECT);
 		expect(store.plans).toEqual([]);
 	});
 
@@ -367,7 +368,7 @@ describe('ProjectDetailStore', () => {
 		 * second read rather than a third arm of `hydrate`: a project whose prices could not be
 		 * read is still a project the user can look at and work in.
 		 */
-		it('clears the rows and records the failure without disturbing the project', async () => {
+		it('retains stale rows and records the failure without disturbing the project', async () => {
 			const store = useProjectDetailStore();
 			await store.hydrate(queriesAnswering({}), PROJECT.id, true);
 			await store.hydratePrices(
@@ -380,7 +381,7 @@ describe('ProjectDetailStore', () => {
 				PROJECT.id,
 			);
 
-			expect(store.assetPrices).toEqual([]);
+			expect(store.assetPrices).toHaveLength(1);
 			expect(store.assetPricesError).toEqual(READ_FAILED);
 			expect(store.status).toBe('ready');
 			expect(store.error).toBeNull();

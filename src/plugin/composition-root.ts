@@ -562,7 +562,7 @@ export function renovationProjectDeps(
 	vault: Vault,
 	options: {
 		projectId: string | null;
-		navigate: (projectId: string | null) => void;
+		navigate: (projectId: string | null, section?: 'details' | 'prices') => void;
 		indexScanCompleted: () => boolean;
 		/**
 		 * The Continue context and its writer — plugin-local, per-device state Task 10 composes
@@ -581,7 +581,7 @@ export function renovationProjectDeps(
 		indexScanCompleted: options.indexScanCompleted,
 		continueContext: options.continueContext,
 		rememberContinue: options.rememberContinue,
-		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve(),
+		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve('failed'),
 		openAsset: persistence ? renovationProjectOpenAsset(workspace, root.logger) : () => Promise.resolve(),
 		// UNCONDITIONAL, persistence or not — `onProjectsChanged`'s own reason two screens down:
 		// revealing the library needs no repository at all, and a refusing bundle underneath it

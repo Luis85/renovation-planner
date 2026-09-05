@@ -45,6 +45,7 @@ import DialogHost from '../dialogs/DialogHost.vue';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import ProjectList from './ProjectList.vue';
+import ResumeRecovery from './ResumeRecovery.vue';
 import ProjectDetailState from './ProjectDetailState.vue';
 import NewProjectForm from './NewProjectForm.vue';
 import { openNewAssetDialog } from './newAssetDialog';
@@ -59,6 +60,7 @@ import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import { isErr } from '../../core/result/Result';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
 import type { ContinueContext } from '../../application/continueContext';
+import type { ProjectSession } from './RenovationProjectContext';
 import type { PlanSummaryDto } from '../read-models/PlanDto';
 
 const context = useRenovationProjectContext();
@@ -77,6 +79,9 @@ const { projects, emptyStateKey, status, error, unreadable } = storeToRefs(store
  * the compiler cannot check.
  */
 const openProjectId = context.projectId;
+function updateSession(snapshot: Partial<ProjectSession>): void {
+	if (context.session) Object.assign(context.session, snapshot);
+}
 
 /**
  * `FormDescriptor.busy`'s other end. ONE ref, read and written by TWO places at once: it is
@@ -95,134 +100,65 @@ const newProjectBusy = ref(false);
  */
 const newAssetBusy = ref(false);
 
-/**
- * The stored context, resolved against the list this mount actually read — §7's "validation is
- * a READ, not a subscription".
- *
- * The PROJECT half is a `computed` over `projects` rather than a second query: it must still
- * exist, and the list in front of us is the freshest answer to that there is. It therefore
- * re-resolves for free on every hydrate, and a project deleted underneath simply stops being
- * found — nothing redirects, nothing announces, nothing is retracted.
- *
- * The PLAN half cannot ride that list, because this surface's list holds projects. It is read by
- * `resolveStored` below and held in `storedPlan`, which is why the two halves are two fields
- * rather than one predicate — and why `resolveStored` runs on every hydrate rather than once at
- * mount. §7 says "resolve the stored ids against the project index AT HYDRATE TIME"; a mount-only
- * read does not do that, and the case it loses is the one Continue exists for. Obsidian restores
- * its leaves BEFORE `onLayoutReady` and the index scan runs FROM it (SDD §47), so a pane restored
- * with the app resolves its plan against an EMPTY index, finds nothing, and pins `storedPlan` to
- * `'gone'` for the life of that mount. The project half self-heals — it is a `computed` over
- * `projects`, which the `ProjectIndexRebuilt` subscription re-hydrates — so the two halves
- * recovered differently and only the one nothing re-ran stayed broken. Continue-across-restart is
- * exactly the flow this feature advertises, so it would have failed in its headline case.
- */
 const stored = ref<ContinueContext | null>(null);
-/**
- * How the stored context's PLAN resolved: `'none'` when it names no plan, `'gone'` when the
- * plan read did not find it, or the plan itself.
- *
- * **The plan rather than a boolean**, because the row has to NAME it. §7's own Continue diagram
- * is `House Renovation 2026 · Kitchen › Work`, and a first version reduced this read to
- * `true`/`false` — so the row said which project it would resume and not which plan, which on a
- * project with several plans is the one thing a user needs it to say. The read was already being
- * made; only its answer was being thrown away.
- */
-const storedPlan = ref<PlanSummaryDto | 'none' | 'gone'>('gone');
-
+const storedPlan = ref<PlanSummaryDto | null>(null);
+const resumeState = ref<'none' | 'ready' | 'indexing' | 'missing-project' | 'missing-plan' | 'unreadable'>('none');
+let resolveTicket = 0;
+let disposed = false;
 const continueProject = computed(() => {
 	const resume = stored.value;
-	if (resume === null || storedPlan.value === 'gone') return null;
-	const project = projects.value.find((candidate) => candidate.id === resume.projectId);
-	if (project === undefined) return null;
-	return {
-		project,
-		planId: resume.planId,
-		plan: storedPlan.value === 'none' ? null : storedPlan.value,
-	};
+	const project = projects.value.find((candidate) => candidate.id === resume?.projectId);
+	return resumeState.value === 'ready' && resume && project
+		? { project, planId: resume.planId, plan: storedPlan.value } : null;
 });
-
-/**
- * **BOTH ids are resolved, which is what §7 asks for**: "resolve the stored ids against the
- * project index at hydrate time, and if EITHER misses, the group does not render."
- *
- * Validating only the project would leave `onResume` calling `openPlan` on a plan that is gone —
- * and `renovationProjectOpenPlan` reveals a Plan Editor leaf for that id, whose `missing` state
- * draws `editor.plan-missing.*` and asks the user to close the tab. So Continue on a deleted
- * plan would open a dead editor. The plan half costs ONE extra read, and only when a stored
- * context names a plan: the query bundle already carries `listPlansByProject`, so nothing new is
- * commissioned for it. A project whose plans could not be read is treated as a miss — the group
- * is an offer, and an offer that might open a dead editor is worse than no offer.
- *
- * Running on every hydrate makes this concurrently callable, which it was not at mount, so it
- * carries the request ticket `store.hydrate` already has: two hydrates can be in flight at once
- * — the create path awaits its own while the rebuild subscription fires — and without the ticket
- * both resolutions end in bare assignments to `stored` and `storedPlan`, so the slower earlier one
- * overwrites the newer. Worse than stale, the two fields are written at different awaits, so an
- * interleaving can leave `storedPlan` describing a different context than `stored` holds — the
- * group then vanishes or offers the wrong work. This is the same shape `ProjectStore.hydrate` and
- * `InspectorStore` already use: a store two things hydrate needs a ticket, or the slower earlier
- * read wins.
- *
- * **No `try`/`catch` here, and `hydrate()` — which this now runs inside — is called as `void
- * hydrate()` at three sites**, none of which awaits a rejection. That is safe only because both
- * doors this function can throw through already refuse to: `ContinueContextStore.read` (behind
- * `context.continueContext`) catches everything and resolves `null` rather than rejecting, and
- * `listPlansByProject` is a guarded query, mapped to a resolved `Result` rather than a thrown
- * fault. The safety belongs to those two callees, not to this function — a fourth caller reaching
- * an unguarded door here would be an unhandled rejection reaching nobody, exactly the shape
- * `hydrate()`'s own callers already have to reason about.
- */
-let resolveTicket = 0;
-
+const resumeMessage = computed(() => {
+	switch (resumeState.value) {
+		case 'indexing': return tr('view.project.resume-indexing');
+		case 'missing-project': return tr('view.project.resume-missing-project');
+		case 'missing-plan': return tr('view.project.resume-missing-plan');
+		case 'unreadable': return tr('view.project.resume-unreadable');
+		default: return null;
+	}
+});
+const recoveryProjectId = computed(() => resumeState.value === 'missing-plan' ? stored.value?.projectId ?? null : null);
+function openRecoveryProject(): void {
+	if (recoveryProjectId.value !== null) context.navigate(recoveryProjectId.value);
+}
+async function resolvePlan(resume: ContinueContext, ticket: number): Promise<void> {
+	const listed = await context.queries.listPlansByProject(resume.projectId);
+	if (ticket !== resolveTicket || disposed) return;
+	if (isErr(listed)) { resumeState.value = 'unreadable'; return; }
+	storedPlan.value = listed.value.plans.find((plan) => plan.id === resume.planId) ?? null;
+	resumeState.value = storedPlan.value ? 'ready' : listed.value.unreadable > 0 ? 'unreadable' : 'missing-plan';
+}
 async function resolveStored(): Promise<void> {
-	// Taken BEFORE the first await, and compared before every assignment below: this runs on
-	// every hydrate, and two hydrates can be in flight at once.
 	const ticket = ++resolveTicket;
 	const resume = await context.continueContext();
-	if (ticket !== resolveTicket) return;
-
-	// RESOLVED INTO LOCALS, and both refs committed together at the end. The ticket keeps two
-	// concurrent resolutions from interleaving; it does nothing about the window INSIDE one, and
-	// assigning `stored` here while leaving the previous `storedPlan` standing across the plan
-	// lookup below would describe a context that never existed — project B with plan A — and,
-	// worse, clickable: the row emits from `stored`, so a click would resume B's
-	// not-yet-validated plan id, opening the dead editor this validation exists to prevent. The
-	// pair is one fact and is written once.
-	let plan: PlanSummaryDto | 'none' | 'gone';
-	if (resume === null) {
-		plan = 'gone';
-	} else if (resume.planId === null) {
-		plan = 'none';
-	} else {
-		const plans = await context.queries.listPlansByProject(resume.projectId);
-		if (ticket !== resolveTicket) return;
-		// The matched plan is KEPT, not counted: the row names it.
-		plan = (isErr(plans) ? undefined : plans.value.plans.find((p) => p.id === resume.planId)) ?? 'gone';
-	}
-
+	if (ticket !== resolveTicket || disposed) return;
 	stored.value = resume;
-	storedPlan.value = plan;
+	storedPlan.value = null;
+	resumeState.value = 'none';
+	if (!resume) return;
+	if (!context.indexScanCompleted()) { resumeState.value = 'indexing'; return; }
+	const found = await context.queries.getProject(resume.projectId);
+	if (ticket !== resolveTicket || disposed) return;
+	if (isErr(found)) { resumeState.value = 'unreadable'; return; }
+	if (!found.value) { resumeState.value = 'missing-project'; return; }
+	if (resume.planId === null) { resumeState.value = 'ready'; return; }
+	await resolvePlan(resume, ticket);
 }
-
-/**
- * Continue's own destination, which is the whole of what makes it different from Open: it
- * restores where the user WAS — the plan editor when the context names one — while Open always
- * goes to the project's detail state.
- *
- * It goes through the SAME doors a row already uses. Nothing here reclaims a leaf by identity,
- * which is what makes surviving a restart a non-question rather than a behaviour to design.
- *
- * The `planId` branch is safe to take unguarded ONLY because `resolveStored` established that
- * the plan exists — this function has no fallback of its own and must not grow one, because a
- * fallback here would be a second answer to a question the resolution already owns.
- */
-function onResume(resume: ContinueContext): void {
-	if (resume.planId === null) {
-		context.navigate(resume.projectId);
-		return;
-	}
-	void context.openPlan(resume.planId);
+async function onResume(resume: ContinueContext): Promise<void> {
+	if (context.readOnly && resume.planId !== null) return;
+	await resolveStored();
+	if (disposed || resumeState.value !== 'ready' || stored.value?.projectId !== resume.projectId || stored.value.planId !== resume.planId) return;
+	if (resume.planId === null) { context.navigate(resume.projectId); return; }
+	const ticket = resolveTicket;
+	const outcome = await context.openPlan(resume.planId);
+	if (disposed || ticket !== resolveTicket) return;
+	if (outcome === 'opened') context.rememberContinue(resume);
+	else resumeState.value = 'unreadable';
 }
+onBeforeUnmount(() => { disposed = true; resolveTicket += 1; });
 
 /**
  * A project row's plain click, and the one place the LIST state remembers a visit: this is what
@@ -231,7 +167,8 @@ function onResume(resume: ContinueContext): void {
  * which only meant to change the first.
  */
 function onOpenProject(id: string): void {
-	context.rememberContinue({ projectId: id, planId: null });
+	resolveTicket += 1;
+	context.rememberContinue({ projectId: id, planId: stored.value?.projectId === id ? stored.value.planId : null });
 	context.navigate(id);
 }
 
@@ -264,8 +201,8 @@ async function hydrate(): Promise<void> {
  * that two clicks landing in the same synchronous tick still only ever reach `openDialog`
  * once, since the first call sets `current` before its own `await` yields control back.
  *
- * The re-hydrate is not optional politeness: without it a created project is written and
- * never appears, which is indistinguishable from a create that silently failed.
+ * The successful dispatch supplies the destination ID. A re-hydrate is retained for
+ * form completion without a captured dispatch result, as supported by the dialog seam.
  *
  * `initialName` defaults to `''` so `EmptyState`'s `@action` — which emits no payload —
  * keeps calling this with nothing, and the header button's own `create` emit carries the
@@ -274,14 +211,18 @@ async function hydrate(): Promise<void> {
  * one, and the form opens carrying what the user already typed.
  */
 async function onCreateProject(initialName = ''): Promise<void> {
-	if (dialogs.current !== null) return;
-
+	if (context.readOnly || dialogs.current !== null) return;
+	let createdId: string | null = null;
 	const result = await dialogs.openDialog({
 		kind: 'form',
 		title: tr('form.new-project.title'),
 		component: NewProjectForm,
 		props: {
-			dispatch: (input: CreateProjectInput) => context.commands.createProject.execute(input),
+			dispatch: async (input: CreateProjectInput) => {
+				const saved = await context.commands.createProject.execute(input);
+				if (!isErr(saved)) createdId = saved.value.project.entity.id;
+				return saved;
+			},
 			busy: newProjectBusy,
 			// The form's own door for a dispatch that THROWS, which `createProject` being a
 			// guarded command means it cannot — but the guard is the ROOT's property, not this
@@ -292,6 +233,7 @@ async function onCreateProject(initialName = ''): Promise<void> {
 		busy: newProjectBusy,
 	});
 	if (result === 'cancel') return;
+	if (createdId !== null) { onOpenProject(createdId); return; }
 	await hydrate();
 }
 
@@ -319,6 +261,7 @@ async function onCreateProject(initialName = ''): Promise<void> {
  * created — not an object, unlike the shape a caller might expect by analogy with a DTO.
  */
 async function onCreateAsset(): Promise<void> {
+	if (context.readOnly) return;
 	if (dialogs.current !== null) return;
 
 	const assetId = await openNewAssetDialog({
@@ -368,6 +311,8 @@ const empty = computed(() => {
  * answers to one question and splitting them would let a later edit give a session failure a
  * retry while its headline still said it could not start.
  */
+const emptyActionLabel = computed(() => context.readOnly ? undefined : empty.value?.actionLabel);
+
 const failure = computed(() => {
 	if (error.value === null) return null;
 	const session =
@@ -437,11 +382,21 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 
 <template>
 	<div class="renovation-planner-view">
-		<template v-if="openProjectId === null">
+		<div
+			v-if="openProjectId === null"
+			class="rp-project-overview"
+		>
 			<template v-if="status === 'ready'">
+				<ResumeRecovery
+					:message="resumeMessage"
+					:project-id="recoveryProjectId"
+					@retry="resolveStored"
+					@open-project="openRecoveryProject"
+				/>
 				<template v-if="empty !== null">
 					<EmptyState
 						v-bind="empty"
+						:action-label="emptyActionLabel"
 						@action="onCreateProject"
 					/>
 					<!--
@@ -467,6 +422,7 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 					-->
 					<p class="rp-project-list__foot rp-view-aside">
 						<button
+							v-if="!context.readOnly"
 							type="button"
 							class="rp-view-aside__create-asset"
 							@click="onCreateAsset"
@@ -510,6 +466,9 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 					:unreadable="unreadable"
 					:continue-project="continueProject"
 					:initial-query="context.initialQuery"
+					:session="context.session"
+					:read-only="context.readOnly"
+					@update-session="updateSession"
 					@open="onOpenProject"
 					@open-note="onOpenNote"
 					@create="onCreateProject"
@@ -529,7 +488,7 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 			>
 				<p>{{ tr('view.project.loading') }}</p>
 			</div>
-		</template>
+		</div>
 		<!--
 			The whole detail state, in its own component. NOT for the line cap — `max-lines` skips
 			blanks and comments and neither file is near it; see `ProjectDetailState`'s own header.

@@ -329,7 +329,7 @@ const SHOTS = [
 	// the page's top.
 	{
 		name: 'project-detail-prices',
-		query: '?project=project-1',
+		query: '?project=project-1&section=prices',
 		selector: PROJECT_VIEW,
 		scrollTo: '.rp-asset-price-header',
 	},
@@ -360,7 +360,7 @@ const SHOTS = [
 	// are mostly made of measures tighter against 1.4.3's floor there.
 	{
 		name: 'project-detail-prices-narrow',
-		query: '?project=project-1&theme=light',
+		query: '?project=project-1&section=prices&theme=light',
 		selector: PROJECT_VIEW,
 		width: 460,
 		scrollTo: '.rp-asset-price-header',

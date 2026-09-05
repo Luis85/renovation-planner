@@ -491,7 +491,7 @@ describe('axe against the mounted view', () => {
 		);
 		document.body.appendChild(view.containerEl);
 		await view.onOpen();
-		await view.setState({ projectId: 'project-1' }, {} as ViewStateResult);
+		await view.setState({ projectId: 'project-1', section: 'prices' }, {} as ViewStateResult);
 		await flushPromises();
 
 		expect(view.contentEl.querySelector('.rp-asset-price-title')).not.toBeNull();

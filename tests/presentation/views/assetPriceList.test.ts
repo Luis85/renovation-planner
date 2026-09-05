@@ -164,11 +164,19 @@ describe('AssetPriceList', () => {
 		expect(wrapper.find('label .rp-visually-hidden').exists()).toBe(true);
 	});
 
-	it('dispatches a set for a typed price on blur', async () => {
+	it.each([['0', '0'], ['12,50', '12.50'], ['12.5', '12.5']])('applies the decimal input %s without grouping or floating-point conversion', async (draft, amount) => {
+		const { wrapper, commit } = mountSection();
+		await wrapper.get('input').setValue(draft);
+		await wrapper.get('.rp-asset-price-apply').trigger('click'); await flushPromises();
+		expect(commit).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ kind: 'set', unitCost: expect.objectContaining({ amount, currency: 'GBP' }) }));
+		expect(wrapper.find('.rp-asset-price-apply').exists()).toBe(false);
+	});
+
+	it('dispatches a set for a typed price on explicit Apply', async () => {
 		const { wrapper, commit } = mountSection();
 
 		await wrapper.get('input').setValue('19.50');
-		await wrapper.get('input').trigger('blur');
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledTimes(1);
@@ -186,7 +194,7 @@ describe('AssetPriceList', () => {
 		const { wrapper, commit } = mountSection({ rows: [row({ override: money('19.50'), overrideRevision: 3 })] });
 
 		await wrapper.get('input').setValue('21.00');
-		await wrapper.get('input').trigger('blur');
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledWith(
@@ -198,7 +206,7 @@ describe('AssetPriceList', () => {
 		const { wrapper, commit } = mountSection();
 
 		await wrapper.get('input').setValue('19.50');
-		await wrapper.get('input').trigger('blur');
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledWith(expect.objectContaining({ expected: 'absent' }));
@@ -225,7 +233,7 @@ describe('AssetPriceList', () => {
 		await wrapper.get('input').setValue('21.00');
 		// Another leaf's write, landing under an uncommitted draft.
 		await wrapper.setProps({ rows: [row({ override: money('30.00'), overrideRevision: 2 })] });
-		await wrapper.get('input').trigger('blur');
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledWith(
@@ -246,7 +254,7 @@ describe('AssetPriceList', () => {
 		});
 
 		await wrapper.get('input').setValue('19.50');
-		await wrapper.get('input').trigger('blur');
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect((wrapper.get('input').element as HTMLInputElement).value).toBe('19.50');
@@ -258,16 +266,16 @@ describe('AssetPriceList', () => {
 	 * override must dispatch NOTHING. A command for a no-op is a read, an event nobody needs and
 	 * a gesture standing for a change nobody made.
 	 */
-	it('dispatches nothing when clear is pressed on a clean row that has no override', async () => {
+	it('offers no removal for a first draft, and discards it without writing', async () => {
 		const { wrapper, commit } = mountSection();
-
-		await wrapper.get('.rp-asset-price-clear').trigger('click');
-		await flushPromises();
-
+		expect(wrapper.find('.rp-asset-price-clear').exists()).toBe(false);
+		await wrapper.get('input').setValue('12,50');
+		await wrapper.get('input').trigger('blur');
 		expect(commit).not.toHaveBeenCalled();
-	});
-
-	/**
+		await wrapper.get('.rp-asset-price-cancel').trigger('click');
+		expect((wrapper.get('input').element as HTMLInputElement).value).toBe('');
+		expect(commit).not.toHaveBeenCalled();
+	});	/**
 	 * The other half, which an `override === null` test alone certifies WRONG: type a price into
 	 * an empty row, **Tab to the clear button** — so the blur really is a separate commit gesture
 	 * — and press it before the vault answers. Treating that as a no-op discards the user's
@@ -286,34 +294,22 @@ describe('AssetPriceList', () => {
 	 * pair the set had just created and refuse — the user's cancellation failing for the second
 	 * time in one gesture.
 	 */
-	it('cancels a set that is still in flight when clear is reached by keyboard', async () => {
-		let release: (() => void) | undefined;
-		const held = new Promise<void>((resolve) => {
-			release = resolve;
-		});
-		const { wrapper, commit } = mountSection({
-			commit: async () => {
-				await held;
-				return accepts();
-			},
-		});
-
-		const input = wrapper.get('input');
-		await input.setValue('19.50');
-		// Tab away: the browser blurs the input, which IS the commit gesture.
-		await input.trigger('blur');
-		await wrapper.get('.rp-asset-price-clear').trigger('click');
-		release?.();
+	it('locks the row while Apply is writing; cancel is never undo', async () => {
+		let release!: () => void;
+		const held = new Promise<void>((resolve) => { release = resolve; });
+		const { wrapper, commit } = mountSection({ rows: [row({ override: money('19.50') })], commit: async () => { await held; return accepts(); } });
+		await wrapper.get('input').setValue('12,50');
+		await wrapper.get('.rp-asset-price-apply').trigger('click');
+		expect(wrapper.get('input').attributes('disabled')).toBeDefined();
+		expect(wrapper.get('.rp-asset-price-cancel').attributes('disabled')).toBeDefined();
+		expect(wrapper.get('.rp-asset-price-clear').attributes('disabled')).toBeDefined();
+		await wrapper.get('input').trigger('keydown.esc');
+		expect(commit).toHaveBeenCalledTimes(1);
+		release();
 		await flushPromises();
-
-		expect(commit).toHaveBeenCalledTimes(2);
-		expect(commit.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ kind: 'set' }));
-		expect(commit.mock.calls[1]?.[0]).toEqual(
-			expect.objectContaining({ kind: 'clear', expected: { id: 'op-2', version: version(9) } }),
-		);
-	});
-
-	/**
+		expect(commit).toHaveBeenCalledTimes(1);
+		expect(commit.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ unitCost: money('12.50') }));
+	});	/**
 	 * The POINTER path, and the guard that makes it differ: a browser blurs the input on the
 	 * button's `mousedown`, before the `click` that runs the handler, so one gesture on a dirty
 	 * field becomes a set THEN a clear — two writes, two events and two project-wide cascades for
@@ -342,7 +338,7 @@ describe('AssetPriceList', () => {
 		const button = wrapper.get('.rp-asset-price-clear');
 		const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
 		button.element.dispatchEvent(mousedown);
-		if (!mousedown.defaultPrevented) await input.trigger('blur');
+		if (!mousedown.defaultPrevented) await input.trigger('keydown', { key: 'Enter' });
 		await button.trigger('click');
 		await flushPromises();
 
@@ -355,7 +351,7 @@ describe('AssetPriceList', () => {
 	 * who types a price and presses Enter without leaving the field would otherwise watch it sit
 	 * there unsaved, which is the defect `RequirementRow` shipped once and had to bind Enter for.
 	 */
-	it('dispatches on Enter as well as on blur', async () => {
+	it('dispatches once on Enter', async () => {
 		const { wrapper, commit } = mountSection();
 
 		await wrapper.get('input').setValue('19.50');
@@ -400,7 +396,7 @@ describe('AssetPriceList', () => {
 		});
 
 		await wrapper.get('input').setValue('19.50');
-		await wrapper.get('input').trigger('blur');
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(Notice.shown.length - before).toBe(1);
@@ -492,7 +488,7 @@ describe('AssetPriceList', () => {
 		});
 
 		await wrapper.get('input').setValue('19.50');
-		await wrapper.get('input').trigger('blur');
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledWith(
@@ -516,7 +512,7 @@ describe('AssetPriceList', () => {
 		const { wrapper, commit } = mountSection();
 
 		await wrapper.get('input').setValue('-1.00');
-		await wrapper.get('input').trigger('blur');
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).not.toHaveBeenCalled();
@@ -529,11 +525,11 @@ describe('AssetPriceList', () => {
 	 * `canBeMoney`: `+1`, `.5` and `1e3` all pass `LITERAL_PATTERN`, so the commit is reached
 	 * holding a `Result` it has no arm for. `abc` is the control that fails either way.
 	 */
-	it.each(['abc', '.5', '+1', '1e3'])('refuses %s at the field, dispatching nothing', async (draft) => {
+	it.each(['abc', '.5', '+1', '1e3', '1.234', '1,234.50', '01', '', '-0'])('refuses %s at the field, dispatching nothing', async (draft) => {
 		const { wrapper, commit } = mountSection();
 
 		await wrapper.get('input').setValue(draft);
-		await wrapper.get('input').trigger('blur');
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).not.toHaveBeenCalled();
@@ -560,7 +556,7 @@ describe('AssetPriceList', () => {
 		await wrapper.setProps({ rows: [row({ override: money('30.00'), overrideRevision: 2 })] });
 		await input.trigger('keydown.esc');
 		await input.setValue('31.00');
-		await input.trigger('blur');
+		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledWith(
@@ -653,14 +649,14 @@ describe('AssetPriceList', () => {
 		const input = wrapper.get('input');
 
 		await input.setValue('20.00');
-		await input.trigger('blur');
+		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		// Somebody else moves the pair while this field is clean, so the row must follow it.
 		await wrapper.setProps({ rows: [row({ override: money('30.00'), overrideRevision: 2 })] });
 
 		await input.setValue('21.00');
-		await input.trigger('blur');
+		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledTimes(2);
@@ -690,47 +686,16 @@ describe('AssetPriceList', () => {
 	 * Asserted on the SUBMITTED EXPECTATION alone: the field's text, its error and the call count
 	 * read identically in both worlds.
 	 */
-	it('keeps the expectation frozen when a coalesced round is refused', async () => {
-		let release: (() => void) | undefined;
-		const held = new Promise<void>((resolve) => {
-			release = resolve;
-		});
-		const { wrapper, commit } = mountSection({
-			rows: [row({ override: money('19.50'), overrideRevision: 1 })],
-			commit: async () => {
-				await held;
-				return {
-					dispatch: ok('wrote' as const),
-					settled: { id: 'op-1' as AssetPriceOverrideId, version: version(1) },
-				};
-			},
-		});
-		const input = wrapper.get('input');
-
-		// A dispatch that will succeed, held open.
-		await input.setValue('20.00');
-		await input.trigger('blur');
-		// An INVALID draft blurred while that write is in flight: queued, not dispatched.
-		await input.setValue('abc');
-		await input.trigger('blur');
-
-		// The held write settles, and its continuation runs the queued invalid round, which is
-		// refused at `validate` — and `pending` falls for the first time since the first blur.
-		release?.();
+	it('does not queue edits while a price is being saved', async () => {
+		let release!: () => void;
+		const held = new Promise<void>((resolve) => { release = resolve; });
+		const { wrapper, commit } = mountSection({ commit: async () => { await held; return accepts(); } });
+		await wrapper.get('input').setValue('20.00');
+		await wrapper.get('.rp-asset-price-apply').trigger('click');
+		await wrapper.get('input').setValue('21.00');
+		release();
 		await flushPromises();
 		expect(commit).toHaveBeenCalledTimes(1);
-
-		// Somebody else moves the pair while the invalid draft is still on screen.
-		await wrapper.setProps({ rows: [row({ override: money('30.00'), overrideRevision: 2 })] });
-
-		await input.setValue('21.00');
-		await input.trigger('blur');
-		await flushPromises();
-
-		expect(commit).toHaveBeenCalledTimes(2);
-		expect(commit.mock.calls[1]?.[0]).toEqual(
-			expect.objectContaining({ expected: { id: 'op-1', version: version(1) } }),
-		);
 	});
 
 	it('keeps the expectation frozen across a round the field refused', async () => {
@@ -748,13 +713,13 @@ describe('AssetPriceList', () => {
 
 		// 1. A round that succeeds, which records the acceptance and releases the snapshot.
 		await input.setValue('20.00');
-		await input.trigger('blur');
+		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		// 2. An INVALID draft, which mints a fresh snapshot at the version on screen.
 		await input.setValue('abc');
 		// 3. Blur: refused at `validate`, nothing dispatched — and `pending` still falls.
-		await input.trigger('blur');
+		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 		expect(commit).toHaveBeenCalledTimes(1);
 
@@ -763,7 +728,7 @@ describe('AssetPriceList', () => {
 
 		// 5. The user corrects their value and submits it.
 		await input.setValue('21.00');
-		await input.trigger('blur');
+		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledTimes(2);

@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Project dashboard and navigation]]"
 order: 30
-status: New
-started: ""
+status: Active
+started: "2026-09-05"
 finished: ""
 horizon: "MVP"
 start: ""
@@ -77,6 +77,12 @@ with their input intact — and no branch creates a second project or opens a di
 - A refused or faulted create keeps the form and its input and does not navigate.
 - Deleting the note between the command's success and the first detail read draws the missing
   state rather than creating anything.
+
+## Project-surface implementation (2026-09-05)
+
+The successful command now supplies the destination ID directly. Existing form validation and cancellation behavior remain in place, and tests exercise duplicate-name creation and the returned-ID navigation. Real-vault acceptance remains pending.
+
+Evidence and remaining limitations: [execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
 
 ## Sources
 

@@ -174,7 +174,7 @@ describe('ViewRoot, and an index built after the pane was restored', () => {
 		await wrapper.get('.rp-empty-state button').trigger('click');
 		await flushPromises();
 		expect(wrapper.find('.rp-dialog').exists()).toBe(true);
-		expect(wrapper.get('.rp-empty-state').attributes('inert')).toBe('');
+		expect(wrapper.get('.rp-project-overview').attributes('inert')).toBe('');
 
 		await rebuildTheIndex();
 		// A `MutationObserver` callback is a microtask, so the sync lands a tick after the
@@ -186,7 +186,7 @@ describe('ViewRoot, and an index built after the pane was restored', () => {
 		// the direct child now and the one that carries the attribute. The `<ul>` is inert too,
 		// inherited from that ancestor, which is what HTML `inert` means — jsdom does not model
 		// the inherited BEHAVIOUR, only the attribute, so the direct child is what this asserts.
-		const list = wrapper.get('.rp-project-list__group--projects');
+		const list = wrapper.get('.rp-project-overview');
 		expect(list.attributes('inert')).toBe('');
 		// The dialog itself is never inerted by its own host, which is the other half of the
 		// rule and the one a blanket sweep of the parent's children would have broken.

@@ -48,6 +48,7 @@ function deps(listProjects: () => Promise<unknown>) {
 		// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
 		// nothing can see.
 		rememberContinue: () => undefined,
+		navigate: vi.fn<(id: string | null) => void>(),
 	};
 }
 
@@ -160,6 +161,7 @@ describe('ViewRoot, creating a project', () => {
 		// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
 		// nothing can see.
 		rememberContinue: () => undefined,
+		navigate: vi.fn<(id: string | null) => void>(),
 		};
 		const wrapper = mount(ViewRoot, {
 			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },

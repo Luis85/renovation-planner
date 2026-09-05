@@ -390,3 +390,5 @@
 .rp-project-list__foot .rp-view-aside__create-asset {
 	margin-inline-start: auto;
 }
+
+.rp-project-overview { flex: 1; min-height: 0; overflow-y: auto; }

@@ -13,6 +13,9 @@ status: Ready
 
 # Price a shared asset for one project
 
+Current project-entry expectations were updated on 2026-09-05; see the [execution record](../../user-experience/renovation-planner-project-specs/implementation/execution-record.md). Earlier capture descriptions below are historical. This update records no new live-vault pass.
+
+
 The per-project price override increment in a real vault: the **price section** on the project
 detail state, where a project sets its own price for a shared catalogue asset, and the Plan
 Editor Inspector's **three-figure block**, where a requirement shows the library price, the
@@ -21,8 +24,7 @@ project's own, and the price its cost was actually derived from.
 and points here.
 
 Run [[Navigate into a project and back]] first, or at least its steps 1–2, so the detail state
-is familiar: this case is about a region BELOW the plans on that same surface, and its scroll
-behaviour is the first thing step 3 asks about.
+is familiar: this case opens the dedicated Project prices subsection from that surface.
 
 **Why a vault is the sole instrument for most of this, stated precisely rather than as a
 slogan.** Two claims here are drawn by nothing in this repository:
@@ -61,9 +63,7 @@ Then, in the vault:
 2. **`Create sample renovation project`** from the palette. It seeds a project, a plan and five
    zones through the real commands, and **no asset and no requirement** — exactly three commands,
    which `src/plugin/sampleProject.ts` states and this case depends on.
-3. **Two catalogue asset notes, written BY HAND.** There is still no Asset creation UI anywhere
-   in the plugin — slice 10 recorded that, slice 16 built the project form and not this one, and
-   nothing since has added one — so a hand-written note is the only way a catalogue exists. Put
+3. **Two catalogue asset notes, written BY HAND.** Hand-written fixtures make the currency scenario reproducible. Put
    both under `Renovation/Library/Assets/` (the `libraryFolder` default, and the folder slice 19
    moved the catalogue to), with any non-empty `id`:
 
@@ -110,25 +110,25 @@ because it is *about* layout would promise an instrument that does not exist her
 
 | # | Reachable by | Do this | It passes when | It exists to catch |
 | --- | --- | --- | --- | --- |
-| 1 | `suite` | Open the Renovation project pane and click the sample project's row | The detail state draws, its header says **Priced in GBP**, and below the plans there is an **Asset prices** section: a heading, one sentence of scope, and one row per catalogue asset | The section existing at all on the surface the increment chose for it. `ProjectDetail.vue` puts it BELOW the plans deliberately — a list of every catalogue asset between a project's name and its plans is the layout that decision refuses |
+| 1 | `suite` | Open the sample project, then select **Project prices** | A dedicated price subsection retains the project header and GBP currency, with scope disclosure and catalogue rows | Prices are independently reachable from the project details |
 | 2 | `suite` | Read the sentence under the heading | It says a price set here applies to **every requirement in this project** that uses the asset | The project-wide disclosure that justifies this affordance living on the project surface rather than on a requirement row. It is drawn ONCE for the section; `I18N_LITERAL_BAN` fires at a literal and never at an absent one, so nothing but one jsdom case can see whether it is present |
-| 3 | `browser` | With the sample project's plan list and both asset rows in the pane, scroll the body | The plans and the price section scroll TOGETHER under a header whose Back, project name and **Open note** stay put — and the pane has no second scrollbar of its own | `.rp-project-detail__body` being the pane's one scroller. Already measured headlessly, with a SUBSTITUTE Chromium: the resting capture of this surface showed 26 plan rows and no prices at all, which is why `project-detail-prices` scrolls before it shoots |
-| 4 | `browser` | Look at the two rows side by side at a full-width pane | The asset names sit left; **Library price: 48.00 EUR** and the field label, input and **Use the library price** button form COLUMNS across both rows, whatever the two names' lengths | The defect the first capture of this section had: the field's label sized its own column, so a long asset name shoved that row's input and button right and the controls stopped lining up — slice 19's `.rp-project-list__overlap` finding arriving on a third surface. The visible label is short and the distinguishing half is `.rp-visually-hidden` for exactly this |
-| 5 | `browser` | Read the field's own label | It says **Set a price (GBP)** — the PROJECT's currency, on the label, beside a library price reading `48.00 EUR` | The confusion this increment exists to end. A user reading two numbers in one row reads them in one currency unless something says otherwise, and the one other place the currency is stated — the header's `Priced in GBP` — has scrolled out of the pane by the time a row is on screen (step 3 is what puts it there) |
-| 6 | `suite` | Type `41.50` into the terrace tile's field and press Enter | The row gains **This project: 41.50 GBP** beside the library price, and the field keeps showing `41.50` | The write path end to end: `SetAssetPriceOverrideCommand` through `ProjectDetailState.commitAssetPrice` and the awaited re-read behind it. §89's "beside what it replaced" is the figure appearing next to the library default rather than in place of it — a control holding a number is not a statement about what is in force |
+| 3 | `browser` | Scroll the price subsection, then use its Back button | Rows scroll beneath the project header; Back returns to details and plans | One body scroller and a distinct host subsection |
+| 4 | `browser` | Compare two rows at full width | Names, currency-labelled figures and inputs align; **Remove project price** appears only for a saved override | Readable rows without an action for an absent override |
+| 5 | `browser` | Read the field label beside the EUR library amount | The input says **Set a price (GBP)**; the library amount retains EUR and is identified as foreign currency | Different currencies must not imply a usable fallback |
+| 6 | `suite` | Type `41.50`, blur the field, then select Apply or press Enter | Blur performs no write; Apply saves **This project: 41.50 GBP** beside the library price | Explicit commit only |
 | 7 | `obsidian` | Look in the vault's file tree for the note it wrote | A note under the project's own **`Asset Prices/`** folder, named by its id, carrying `type: renovation-asset-price`, the project, the asset, `unit-cost: "41.50"` and `currency: GBP` | Where the note lands, which is a decision rather than a detail: the ASSET is the vault's and lives under the library, and the price this project pays for it is the project's. `Asset Prices/<id>.md`, never the illustrative `Asset Prices/<asset name>.md` an earlier draft of the design carried |
-| 8 | `suite` | Type `19,50` into the other row's field — a comma — and press Enter | The row shows an inline error under the field reading **Enter a price like 19.50**, the typed `19,50` is still there, and no note is written | The one Important defect this increment's final review found, from the user's side. `createMoney`'s `AMOUNT_PATTERN` admits only `.`, and the German copy for this key said `19,50` until that review — an instruction to type the form the validator refuses, which loops. Also slice 16's rule: a rejected commit KEEPS the draft and never reverts it |
-| 9 | `suite` | Correct it to `19.50` and press Enter | The error clears as the field changes, and the row gains its own price | `useFieldCommit`'s retire-on-edit: a message the user has already corrected is a lie if it survives |
-| 10 | `suite` | Press **Use the library price** on the terrace tile row | **This project: 41.50 GBP** disappears, the field empties, the library price stays, and the note from step 7 is gone from the vault | `ClearAssetPriceOverrideCommand`, and that it clears the PAIR rather than the one note a read happened to return |
-| 11 | `suite` | Press **Use the library price** again on the same row, now holding no override | Nothing happens: no error, no flicker, and no new note anywhere | The both-halves guard on that button. Without it, Clear on a row with no override dispatches a real override-clearing command — a vault write, a revision bump and a project-wide cascade standing for a change nobody made |
-| 12 | `obsidian` | Type a price into a row, and with the caret still in the field press **Use the library price** with the MOUSE | ONE gesture, one outcome: the typed price is discarded and the row keeps the library price. Not a set followed by a clear | `@mousedown.prevent`. A browser blurs the focused input on that button's `mousedown`, before the `click` that runs the handler, so without it one click is two commands, two `AssetPriceOverrideChanged` events and two project-wide cascades — and if the clear then refuses, the discarded price stands. A real pointer is the only thing that produces the gesture; reaching the button by Tab is a different, and correct, story |
+| 8 | `suite` | Type `19,50` in the other row and press Enter | The project price saves as 19.50 GBP | Decimal comma is normalized before validation |
+| 9 | `suite` | Type `1,234.50` and Apply; then correct to `19.50` | Mixed separators are rejected without writing and retain the draft; correction clears the error | Grouping and mixed decimal notation are not silently guessed |
+| 10 | `suite` | Select **Remove project price** on the terrace tile | The saved project price and note disappear; the EUR library price remains visible with its foreign-currency warning | Clearing does not make a foreign library price applicable to GBP |
+| 11 | `suite` | Inspect the row after removing its override | The Remove button is absent | No clear action on an absent override |
+| 12 | `obsidian` | Save an override, type another draft, then click **Remove project price** | One clear command removes the persisted override; the draft never produces an intervening set | Pointer blur cannot commit a draft |
 | 13 | `suite` | Set a price on the terrace tile again, then open the plan and assign that asset to a zone through the Inspector | The requirement's cost is derived from the PROJECT's price, not the library's | The precedence itself: `resolveEffectiveUnitCost` replaces an INPUT, and this is the assign path reading it. Before this increment a GBP project assigning an EUR asset was refused outright with no way to fix it — the dead end the whole increment exists to close |
 | 14 | `suite` | Look at that requirement's row in the Inspector | **Library price** and **Project price** are both drawn, each with its figure and currency, and only the project's carries the **In force** mark | §89 at the INPUT level, and the precedence rule: the mark is decided by PRECEDENCE, never by equality. A project price that happens to EQUAL the library's is still the price in force, and marking every figure equal to the resolved one would claim two figures are being used at once |
 | 15 | `obsidian` | Hand-edit the price note from step 7 in the vault — change `unit-cost` to `35.00` — then look at the Inspector row again, reloading if the pane has not caught up | **THREE** figures: Library price, Project price (In force) at the edited figure, and **Derived from** at the figure the cost was actually calculated with. The third carries no In force mark | Decision 6's "three numbers in the worst case", in the one state a user can actually hold it in: a hand edit publishes no `AssetPriceOverrideChanged`, so no cascade runs and the recorded provenance stays behind. **This is the layout claim nothing here has ever drawn** — a third `dt`/`dd` pair in a 17rem panel whose row already carried two |
 | 16 | `obsidian` | Narrow the pane to a sidebar's width and look at both surfaces again | The price row's input and its button drop to their own line rather than crushing the asset's name; the Inspector's three figures stack rather than truncating | 460 is the width an Obsidian sidebar leaf actually has, and the row's `14rem` field basis is what decides the wrap. Measured headlessly for the price section with a substitute build; NOT measured anywhere for the Inspector |
-| 17 | `obsidian` | Delete one of the two library asset notes while its project still holds a price for it, then reload | That asset's row is still in the section, LAST, saying **This asset is no longer in the library** — with its price input DISABLED and **Use the library price** still live | The orphan row, and why the two disabled states are not one. The row exists so the user can get rid of the stranded override; a set against it would refuse every time, which is the live-control-that-does-nothing slice 14's amendment refuses |
+| 17 | `obsidian` | Delete one of the two library asset notes while its project still holds a price for it, then reload | That asset's row is still in the section, LAST, saying **This asset is no longer in the library** — with its price input DISABLED and **Remove project price** still live | The orphan row, and why the two disabled states are not one. The row exists so the user can get rid of the stranded override; a set against it would refuse every time, which is the live-control-that-does-nothing slice 14's amendment refuses |
 | 18 | `obsidian` | Break the OTHER asset note's body — keep `type` and `id`, corrupt a required key such as `unit-cost` — and reload | That row says **could not be read** instead, also last, also with a disabled input and a live Clear — and the rest of the section is unaffected | The state that used to collapse into the orphan row, which would have deleted a perfectly good override on a false diagnosis. Two sentences, two classes, two opposite remedies: one names a deletion, the other a note the user can still fix |
-| 19 | `obsidian` | Switch Obsidian's language to German (Settings → General → Language) and repeat steps 1, 6 and 8 | The heading, the scope sentence, both figures' labels, the field label and the error all render in German — and step 8's error shows `19.50`, with a POINT | Every string this increment added is a `StringKey` resolved through `t`/`tr`. `strings.test.ts` now refuses a German monetary example the parser would reject, which is what step 8's German half is: the check exists, and this is the only place anybody LOOKS at the sentence around it |
+| 19 | `obsidian` | Switch Obsidian to German and repeat steps 1, 6, 8 and 9 | Labels and messages render in German; decimal comma succeeds and mixed separators are refused | Localized instructions agree with the parser |
 | 20 | `obsidian` | Reload the vault and revisit both surfaces | Every price, mark and row state from the steps above is exactly as it was | The round trip through real notes and a real `MetadataCache`, which is where three of the first four defects this suite ever found actually lived |
 
 ## Acceptance criteria
@@ -137,9 +137,9 @@ because it is *about* layout would promise an instrument that does not exist her
 2. Steps 3–5 leave no unreachable row, no broken column and no figure whose currency is
    unstated.
 3. Steps 6, 7 and 10 set and clear a price, and the vault agrees with the screen both times.
-4. Steps 8 and 9 refuse a bad price against the field, keep the draft, and retire the message on
+4. Decimal comma succeeds; mixed separators fail without a write and retain the draft.
    the correction.
-5. Steps 11 and 12 leave no write behind for a gesture that changed nothing.
+5. Step 11 offers no removal without an override; step 12 performs one clear and no draft save.
 6. Step 13 prices a requirement at the project's own figure rather than the library's.
 7. Steps 14 and 15 draw two figures and three, with exactly one In force mark in each.
 8. Steps 17 and 18 tell the two unhappy rows apart, in words, and disable only what a refusal

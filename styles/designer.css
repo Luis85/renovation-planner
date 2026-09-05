@@ -261,6 +261,8 @@
 .rp-designer-inspector .rp-designer-edit-dimensions {
 	width: 100%;
 	margin: 0 0 var(--size-4-4);
+	/* The same reviewed flat-button clone also starts here, after the component-specific dimensions. */
+	/* fallow-ignore-next-line code-duplication */
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);

@@ -77,7 +77,6 @@ function createPriceSection(): {
 			const listed = await queries.listAssetPrices(projectId);
 			if (request !== latest) return;
 			if (isErr(listed)) {
-				assetPrices.value = [];
 				assetPricesError.value = listed.error;
 				return;
 			}
@@ -111,6 +110,7 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	const unreadablePlans = ref(0);
 	const status = ref<ProjectDetailStatus>('idle');
 	const error = ref<RepositoryError | null>(null);
+	const plansError = ref<RepositoryError | null>(null);
 	const prices = createPriceSection();
 	const { assetPrices, assetPricesError } = prices;
 
@@ -162,8 +162,8 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	 * which is why only the `'gone'` assignment below is conditioned on `indexScanCompleted`
 	 * and not on `status`.
 	 *
-	 * The two reads COMBINE all-or-nothing: there is no honest picture of a project whose
-	 * identity loaded but whose plans did not.
+	 * Project identity and plans have separate failure regions: a refused plan listing keeps
+	 * the project available without claiming that it has no plans.
 	 */
 	async function hydrate(
 		queries: RenovationProjectQueryServices,
@@ -193,9 +193,12 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 		const listed = await queries.listPlansByProject(projectId);
 		if (superseded()) return;
 		if (isErr(listed)) {
-			fail(listed.error);
+			project.value = found.value;
+			plansError.value = listed.error;
+			status.value = 'ready';
 			return;
 		}
+		plansError.value = null;
 
 		project.value = found.value;
 		plans.value = listed.value.plans;
@@ -245,19 +248,17 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	 * from an empty state rather than merely unreached by convention.
 	 */
 	const emptyStateKey = computed(() =>
-		status.value === 'ready'
+		status.value === 'ready' && plansError.value === null
 			? selectProjectDetailEmptyState(plans.value, unreadablePlans.value)
 			: null,
 	);
 
 	/**
-	 * Rebuilds this store to its opening state (ADR-005). Nothing calls it today: every
-	 * navigation REMOUNTS, so each detail state gets a fresh `createPinia()` and this store
-	 * has no cross-navigation lifetime to protect. Declared for the reason
-	 * `RenovationProjectStore.reset` is — a shape deleted whenever nothing calls it stops
-	 * being a declared shape.
+	 * Rebuilds this store to its opening state (ADR-005) and invalidates pending reads
+	 * when the detail component unmounts.
 	 */
 	function reset(): void {
+		plansError.value = null;
 		latestHydration += 1;
 		prices.clear();
 		project.value = null;
@@ -275,6 +276,7 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 		assetPricesError,
 		status,
 		error,
+		plansError,
 		emptyStateKey,
 		hydrate,
 		hydratePrices: prices.hydrate,

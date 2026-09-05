@@ -15,8 +15,9 @@
  * this same change: a sentence about another commit's behaviour needs re-reading by whoever
  * lands that commit, and the component the sentence is ABOUT is the one nobody re-read.
  */
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import type { PlanSummaryDto, ProjectSummaryDto } from '../read-models/PlanDto';
+import type { ProjectSession } from './RenovationProjectContext';
 import type { ContinueContext } from '../../application/continueContext';
 import ProjectRow from './ProjectRow.vue';
 import ProjectFilter from './ProjectFilter.vue';
@@ -35,6 +36,8 @@ import { modifierLabel } from './platformModifier';
  * (`ViewRoot`), which is what makes the compiler's check cheap.
  */
 const props = defineProps<{
+	session?: ProjectSession;
+	readOnly?: boolean;
 	projects: readonly ProjectSummaryDto[];
 	unreadable: number;
 	/**
@@ -65,7 +68,8 @@ const props = defineProps<{
  * whatever the user had typed, so a query that matched nothing becomes the fastest path to
  * the project that did not exist yet.
  */
-defineEmits<{
+const emit = defineEmits<{
+	updateSession: [snapshot: Partial<ProjectSession>];
 	open: [projectId: string];
 	/** The project's own NOTE (Task 8, design spec §7) — re-emitted from a row unchanged. */
 	openNote: [projectId: string];
@@ -106,16 +110,8 @@ const keyLegend = tr('view.project.keys', { mod: modifierLabel() });
  */
 const sortKeys = new Map<string, string | null>();
 
-/**
- * NOT PERSISTED, per §7 — it resets on remount, which is every navigation. A query surviving a
- * round trip into a project would have the pane come back showing a filtered vault the user has
- * no memory of typing.
- *
- * Seeded from `initialQuery`, which is absent in production and so resets to `''` exactly as
- * before. The seed does not weaken the rule above: a remount reads the same fixed starting
- * value it was built with rather than carrying anything forward from the mount before it.
- */
-const query = ref(props.initialQuery ?? '');
+/** Leaf-local state survives navigation; initialQuery remains a harness-only override. */
+const query = ref(props.initialQuery ?? props.session?.query ?? '');
 
 const ordered = computed(() => orderProjects(props.projects, collator, sortKeys));
 
@@ -131,13 +127,8 @@ const matching = computed(() =>
 const active = computed(() => matching.value.filter((project) => !isCompleted(project)));
 const completed = computed(() => matching.value.filter(isCompleted));
 
-/**
- * The `Completed` group's disclosure state. Declared here rather than read from the `<details>`
- * element on demand, because Task 8 needs it to drive roving focus into whichever group is
- * actually open — deliberately NOT persisted across a remount, which is every navigation,
- * exactly like the filter's own query (Task 6).
- */
-const completedOpen = ref(false);
+/** The leaf session restores the disclosure together with the filter. */
+const completedOpen = ref(props.session?.completedOpen ?? false);
 
 /**
  * ONE ROVING CONTROLLER PER ROW LIST (Task 8, design spec §7), because the tab sequence names
@@ -294,14 +285,41 @@ watch(
 	},
 	{ flush: 'post' },
 );
+const listHeader = ref<HTMLElement | null>(null);
+onMounted(() => {
+	const session = props.session;
+	if (!session) return;
+	const root = listHeader.value?.closest<HTMLElement>('.rp-project-overview');
+	const row = Array.from(root?.querySelectorAll<HTMLElement>('[data-project-id]') ?? [])
+		.find((element) => element.dataset.projectId === session.focusedProjectId);
+	if (session.focusedProjectId !== null) {
+		if (row) row.focus({ preventScroll: true });
+		else filterInput.value?.focus();
+	}
+	if (root) root.scrollTop = session.scrollTop;
+});
+onBeforeUnmount(() => {
+	const session = props.session;
+	if (!session) return;
+	const root = listHeader.value?.closest<HTMLElement>('.rp-project-overview');
+	emit('updateSession', { query: query.value, completedOpen: completedOpen.value, scrollTop: root?.scrollTop ?? 0 });
+});
+function rememberRow(event: Event): void {
+	const row = (event.target as HTMLElement).closest<HTMLElement>('[data-project-id]');
+	if (row?.dataset.projectId) emit('updateSession', { focusedProjectId: row.dataset.projectId });
+}
 </script>
 
 <template>
-	<div class="rp-project-list__header">
+	<div
+		ref="listHeader"
+		class="rp-project-list__header"
+	>
 		<h2 class="rp-project-list__title">
 			{{ tr('view.project.list-title') }}
 		</h2>
 		<button
+			v-if="!readOnly"
 			type="button"
 			class="rp-project-list__create"
 			@click="$emit('create', '')"
@@ -379,6 +397,7 @@ watch(
 			<li>
 				<ContinueRow
 					:project="continueProject.project"
+					:read-only="readOnly"
 					:plan="continueProject.plan"
 					@resume="$emit('resume', { projectId: continueProject.project.id, planId: continueProject.planId })"
 					@open="$emit('open', continueProject.project.id)"
@@ -397,6 +416,8 @@ watch(
 		<ul
 			ref="activeList"
 			class="rp-project-list"
+			@focusin.capture="rememberRow"
+			@click.capture="rememberRow"
 			@keydown="(e) => onListKeydown(e, activeRoving)"
 			@focusin="activeRoving.syncFromFocus"
 		>
@@ -432,6 +453,7 @@ watch(
 	<details
 		v-if="completed.length > 0"
 		class="rp-project-list__completed"
+		:open="completedOpen"
 		@toggle="completedOpen = ($event.target as HTMLDetailsElement).open"
 	>
 		<!--
@@ -450,6 +472,8 @@ watch(
 		<ul
 			ref="completedList"
 			class="rp-project-list"
+			@focusin.capture="rememberRow"
+			@click.capture="rememberRow"
 			@keydown="(e) => onListKeydown(e, completedRoving)"
 			@focusin="completedRoving.syncFromFocus"
 		>
@@ -492,6 +516,7 @@ watch(
 			{{ tr('view.project.filter.clear') }}
 		</button>
 		<button
+			v-if="!readOnly"
 			type="button"
 			class="rp-project-list__create-named"
 			@click="$emit('create', query.trim())"
@@ -515,6 +540,7 @@ watch(
 	<p class="rp-project-list__foot rp-view-aside">
 		<span class="rp-project-list__keys">{{ keyLegend }}</span>
 		<button
+			v-if="!readOnly"
 			type="button"
 			class="rp-view-aside__create-asset"
 			@click="$emit('createAsset')"

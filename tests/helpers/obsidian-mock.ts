@@ -82,6 +82,7 @@ export const apiVersion = '1.13.0';
  */
 export const Platform = {
 	isMacOS: false,
+	isMobile: false,
 };
 
 /**

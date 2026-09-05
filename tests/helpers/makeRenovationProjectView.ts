@@ -350,7 +350,7 @@ export const defaultRenovationProjectDeps = (
 		// two in Task B9 and `openAssetLibrary` in Task 11, the same shape and for the same
 		// reason `openPlan` already states.
 		navigate: () => undefined,
-		openPlan: () => Promise.resolve(),
+		openPlan: () => Promise.resolve('opened'),
 		openAsset: () => Promise.resolve(),
 		openAssetLibrary: () => undefined,
 		onPlansChanged: () => () => undefined,

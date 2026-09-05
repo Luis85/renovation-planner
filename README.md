@@ -3,9 +3,14 @@
 An Obsidian plugin that plans a renovation as a work breakdown of rooms, trades and tasks,
 with budgets and a schedule.
 
-> Early scaffold. The build, the quality gates and the release pipeline are in place; the
-> capability itself is not built yet. The target architecture is
-> [`docs/development/sdds/obsidian-renovation-planner-SDD.md`](./docs/development/sdds/obsidian-renovation-planner-SDD.md).
+> Pre-release. The build, the quality gates and the release pipeline are in place, and four
+> workspace surfaces ship: the **Renovation project** view (a project list with a detail state
+> per project), the per-plan **Plan editor** (image or PDF background, calibration, pan/zoom,
+> polygon zones, undo/redo), the per-asset **Asset designer** and the vault-wide **Asset
+> library**. The target architecture is
+> [`docs/development/sdds/obsidian-renovation-planner-SDD.md`](./docs/development/sdds/obsidian-renovation-planner-SDD.md);
+> the product intent is [`PRODUCT.md`](PRODUCT.md) and `docs/product/`; the design each
+> surface is built towards is under [`docs/user-experience/`](docs/user-experience/), see below.
 
 ## Installation
 
@@ -46,6 +51,21 @@ live-vault check.
   and how to rebuild it elsewhere.
 - [`docs/README.md`](docs/README.md) — the backlog in `docs/`: what each folder holds, what
   each kind of note says, and what is not enforced.
+- [`docs/product/`](docs/product/) — the product definition: vision, problem, capability map,
+  the PRDs the epics are derived from, and the business rules.
+- [`docs/user-experience/`](docs/user-experience/) — the design packages the surfaces are
+  built towards. Three are current, each with screen specifications, mockups, interaction
+  rules and its own proposed backlog: the
+  [editor](docs/user-experience/renovation-planner-editor-specs/README.md) (M00–M17), the
+  [project overview and details](docs/user-experience/renovation-planner-project-specs/README.md)
+  (P00–P07) and the
+  [asset library](docs/user-experience/asset-library-delivery/README.md) (AL00–AL11).
+  `archive/` holds the specifications the shipped surfaces were first built from, kept
+  because the code still cites their section numbers. A package's PBIs are proposals, not this
+  backlog's items; what was adopted from each is in
+  [`docs/reviews/2026-09-05-design-package-adoption.md`](docs/reviews/2026-09-05-design-package-adoption.md).
+  The mockups are generated images, not screenshots of the plugin, and the project and
+  library packages' images carry German labels as localization references.
 - [`RELEASING.md`](RELEASING.md) — cutting a release, and the live-vault sweep before the tag.
 - [`docs/setup/publishing.md`](docs/setup/publishing.md) — the path to the community plugin
   list, and what the review rejects.

@@ -9,6 +9,54 @@
 
 ---
 
+## Design amendments — 2026-09-05
+
+This PRD is kept as received. The design package
+[`docs/user-experience/renovation-planner-project-specs/`](../../user-experience/renovation-planner-project-specs/README.md)
+(P00–P07) is the authority for the project overview and project details it describes, and the
+[editor package](../../user-experience/renovation-planner-editor-specs/README.md) (M00–M17) for
+everything below a plan. Where the body below disagrees with either, the package wins, and these
+are the places it does:
+
+- **The information architecture (§8, §19, Feature 4.1) is superseded.** The seven-item primary
+  navigation (Overview, Spaces, Design, Work, Budget, Schedule, Documentation) is not built and
+  not designed. What is: a project overview that is a launcher (P00), a project detail state
+  (P02) with three guided entries — *Describe your renovation*, *Start with a plan*, *Set
+  project prices* — and the editor's three perspectives, Plan / Renovate / Review. Obsidian's own
+  view state and history are the navigation authority; nothing duplicates them.
+- **Progress is not computed (Feature 3.2).** Domain project status is not calculated completion;
+  opening a note or a price section marks nothing complete; no milestone percentages. The
+  package's guidance is neither a wizard nor a checklist and its order never changes.
+- **The Home view carries no budget summary, progress indication, image or counts beyond the
+  plan count (Epic 1 in §10, Feature 3.1).** No cross-project money totals, no room or work-item counts, no
+  thumbnails. *Last worked* is not *last opened*, and there is no activity feed (Feature 3.4).
+- **Project shortcuts (Feature 3.5) are three entries, not five.** Rooms, work, budget and schedule
+  arrive with their own domain increments; the three entries are extensible, not a wall.
+- **Continue (Features 6.3 and 6.4) is *Resume*, and it is distinct from *Open project*.** Open goes to
+  details and never straight into the editor. Resume names its target before it acts, validates
+  it, and falls back through six ordered cases (`states-and-navigation.md`): a missing last
+  plan is explained (P03), a gone project returns to the overview, a failed read keeps the saved
+  context. An unsuccessful opening attempt is never recorded as work.
+- **Mobile (§27) is decided, not "where feasible": read-only.** Narrow desktop keeps its
+  editing; a CSS breakpoint grants no writing. See `PRODUCT.md`.
+- **§21 lists Zone as a user-exposed concept; it is not.** The editor speaks *Room, Wall, Area,
+  Reference plan, Work*. Zone stays the internal and persisted concept, on the hidden side of
+  §21's own line. The same goes for *calibrate* as a user action (Feature 3.3's next actions,
+  Feature 7.1's guidance rules): the user sets up a reference plan (M06).
+- **§37's open questions 5–8 are answered** by the above: navigation is contextual over
+  Obsidian's history; room detail is Inspector drill-down (M08–M14), not tabs; meaningful
+  progress is refused rather than defined; guidance order is fixed. Questions 1–4, 9 and 10 stay
+  open.
+- **Cross-project dashboards (§34) are not a direction.** The completed group is a
+  disclosure, not a portfolio mode.
+
+What the package proposes and has NOT been adopted is recorded item by item in
+[`docs/reviews/2026-09-05-design-package-adoption.md`](../../reviews/2026-09-05-design-package-adoption.md);
+the one decision it raises — explicit Apply against the shipped blur commit — is an open issue,
+not a package's to take.
+
+---
+
 # 1. Purpose
 
 The Renovation Planner already has a technically sound foundation for spatial planning, zones, assets, quantities, costs, work packages, scheduling, and project documentation.

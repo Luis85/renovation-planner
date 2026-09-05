@@ -9,11 +9,18 @@ sources:
   - PRD §39
   - PRD §67
   - SDD §60
+  - "Editor component library §10 — EditorStatusBar, CompactStatusBar"
 type: component
 image: "[[status-bar.png]]"
 ---
 
 # Status bar
+
+**Design authority since 2026-09-05:** the editor package's `EditorStatusBar`
+([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)) — zoom, grid, snapping, scale, save state and optional gesture hints —
+and `CompactStatusBar`, which keeps zoom, snapping, scale and save state at constrained width and
+moves the rest into View (M16). `docs/tasks/Build full and compact editor status bars.md` claims
+it.
 
 The bottom band: selection, measurements, save state — the three facts a renovator glances at
 rather than goes looking for. A readout, not a control, and the surface two canvas components
@@ -21,11 +28,15 @@ depend on for the channel they cannot draw.
 
 ## Specimen
 
-![Status bar, and the states it owes, in Obsidian's default light and dark](status-bar.png)
+![Status bar, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/status-bar.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -86,6 +97,10 @@ not. Which is which is a decision slice 13 has to make and this note cannot make
 2. **What the bar shows in project mode**, if it exists there at all. SDD §60 draws it inside the
    editor layout only, and [[The plan editor is a mode, not a second view]] makes that a mode
    rather than a view — so the bar's presence is now a per-mode question nothing has answered.
+
+**Since 2026-09-05:** question 1 is answered by the [[Snap guide]] split — the bar shows the
+snapping control, the guide shows the fired snap. Question 2 is answered by the project package:
+P00–P07 draw no status bar, so it is the editor's alone.
 
 ## Sources
 

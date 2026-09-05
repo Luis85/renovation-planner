@@ -20,10 +20,11 @@ installs *this* plugin into it) and open `Product Backlog.base`. That view belon
 | `adrs/` | **How** it is built — architecture decision records | *(none — not backlog items)* |
 | `prds/` | Requirements documents as received, which the epics here are derived from | *(none — not backlog items)* |
 | `sdds/` | Design documents as received, the architecture those epics are built against | *(none — not backlog items)* |
+| `user-experience/` | Design specifications and delivery packages as received — screens, interaction rules, decision registers, and the packages' own proposed item lists. `archive/` holds the ones a later package superseded | *(none — not backlog items)* |
 | `actors/` | Who and what the plugin deals with — one note per human or system actor. Derived | *(none — not backlog items)* |
 | `entities/` | The business objects the plugin works with — one note per object. Derived | *(none — not backlog items)* |
 | `business-rules/` | The rules the product must obey — one note per rule, only where no single entity owns it. Derived | *(none — not backlog items)* |
-| `components/` | The UI parts every screen is assembled from — one note per component, each `partOf` a [[Design System]]. Derived | *(none — not backlog items)* |
+| `components/` | The UI parts every screen is assembled from — one note per component, each `partOf` a [[Design System]]. Derived. Since 2026-09-05 each names the design-package component that supersedes the archived concept drawing it was written from | *(none — not backlog items)* |
 | `reviews/` | Findings ledgers from code and document reviews, and the record of what was done about each | *(none — not backlog items)* |
 | `setup/` | How this repository's own tooling was built and is released | *(none — not backlog items)* |
 | `superpowers/` | Claude's design specs and implementation plans, not the product's | *(none — not backlog items)* |
@@ -48,7 +49,12 @@ whether a document may be edited.** A received document is corrected only by rec
 is expected to change as the design is refined, and a refinement that contradicts its source
 names the source section it refines and lands in a slice, a deliverable or an ADR, never in
 `prds/` or `sdds/`. `requirements/Architecture and Software Design.md` states that rule for
-the slices, and carries the conventions and vocabulary all seventeen share.
+the slices, and carries the conventions and vocabulary all seventeen share. **One bounded
+exception, taken 2026-09-05:** a `product/` document that a design package supersedes in part
+carries a dated *Design amendments* block ABOVE its body — the body itself stays as received,
+its section numbers still resolve, and the block names the sections it overrides and the
+package that does. The reason is the one ADR-0015 already paid for: a contradiction findable
+from only one side is one the next reader resolves the wrong way.
 
 **Derived and non-backlog are different axes, and the slices are the case that separates
 them.** They are typed `Task` under the *Architecture and Software Design* Feature, so they
@@ -64,6 +70,31 @@ true when they were typed.
 Deliverable is derived *and* in the backlog, because an artifact a Feature owes is something
 somebody is scheduled to produce. Derived says whether it may be edited; typed says whether it
 has a rank. Neither answer implies the other.
+
+**`user-experience/` is the third received folder, and the one whose notes look most like backlog
+items without being any.** Three packages live there. The editor package
+(`renovation-planner-editor-specs/`, M00–M17) arrived first and proposes no PBIs — it carries an
+implementation plan in phases. The two delivery packages that arrived on 2026-09-05
+(`renovation-planner-project-specs/`, P00–P07, and `asset-library-delivery/`, AL00–AL11) carry
+their own frontmatter (`id`, `epic`, `feature`, `priority`, `depends_on`, `screens`), their own
+status vocabulary (`designed`, `scoped`, and an eleven-state lifecycle running to `shipped`), and
+their own `PBI-01`…`PBI-18` numbering — which those two share, so their IDs collide with each
+other. **None of it is this register's**, and the distinction is the same one `prds/` and `sdds/`
+rest on: a received document is what a backlog is derived *from*. What was derived from the two
+delivery packages is recorded in
+[`reviews/2026-09-05-design-package-adoption.md`](reviews/2026-09-05-design-package-adoption.md),
+item by item, so a reader holding one of them can trace any ID to its disposition; the editor
+package's screens and plan were derived into `tasks/` notes that cite them, and have no ledger. The
+product-side view of all three — what each supersedes in `product/` — is written as a dated
+*Design amendments* block at the top of each affected `product/` document, so a contradiction is
+findable from the PRD's side and not only from the package's.
+
+Two consequences worth stating where the index is. **A status census must not read this folder** —
+those `status: designed` and `status: proposed` values (forty-one in initial frontmatter blocks,
+read on 2026-09-05 the way the census below reads them) are a package's lifecycle and not this
+one's, and the table further down says which folders it counts. And **a package's feature groups
+and IDs are deliberately not adopted**: the Features they duplicate already exist, and giving one
+body of work two parents is what the `parent` key exists to prevent.
 
 **`actors/` and `entities/` answer *who* and *what*, which is the one axis the backlog does
 not have.** `requirements/` is organised by the work to be done, so a [[Zone]] is described
@@ -299,12 +330,12 @@ row above is not enough on its own:
 
 | Value | Means | On | Count today |
 | --- | --- | --- | --- |
-| `New` | Just added. Written, not yet triaged | anything | 12 |
-| `Ready` | Triaged. Somebody has judged it and it is ready to pick up. Also what an **open iteration** carries (`iterationOpenStates`) | anything | 4 |
-| `Active` | In flight. The base's `startedStates`, so it is the value that expects a `started` date | anything | 12 |
+| `New` | Just added. Written, not yet triaged | anything | 276 |
+| `Ready` | Triaged. Somebody has judged it and it is ready to pick up. Also what an **open iteration** carries (`iterationOpenStates`) | anything | 16 |
+| `Active` | In flight. The base's `startedStates`, so it is the value that expects a `started` date | anything | 41 |
 | `Resolved` | Settled without being produced — answered, superseded, no longer needed. What a **closed iteration** carries (`iterationResolvedStates`) | anything | 0 |
-| `Done` | Finished | anything | 21 |
-| *(empty)* | **Legacy.** Written before the vocabulary was used, and to be migrated | — | 116 |
+| `Done` | Finished | anything | 102 |
+| *(empty)* | **Legacy.** Written before the vocabulary was used, and to be migrated | — | 94 |
 
 **Two types run narrower ladders, and the base names both.** A `Deliverable` takes
 `New`, `Active`, `Done` only (`deliverableStateValues`) — an artifact is drafted, worked or
@@ -314,7 +345,10 @@ written and agreed rather than about whether work is done; there are none yet. N
 a subset of the other, which is why reading them off the base beats remembering them.
 
 Those counts are measured rather than remembered, and they are a snapshot — the row above is
-the vocabulary and this table is today's reading of it. The twelve notes carrying `Accepted`
+the vocabulary and this table is today's reading of it. **Re-derived 2026-09-05 over 535 notes**,
+against 182 when the previous reading was taken; every figure in the column moved, and the one
+worth reading is that `(empty)` fell from 116 to 94 while the population tripled, which is the
+migration below happening by the one mechanism it names. The twelve notes carrying `Accepted`
 are **ADRs** and are not in it: an ADR's frontmatter is its own (`adr`, `title`, `status`,
 `date`, `area`, plus `revised` where one has been), the view reads none of it, and `Accepted`
 is that vocabulary rather than a sixth value here.
@@ -329,10 +363,12 @@ vocabulary**, so it is left as one edit somebody makes on purpose instead of a g
 
 An earlier version of this section said empty "means nobody has set one, which is where every
 note here starts", which blessed the default and made all five named values optional. It is
-struck, because 116 of the 182 notes whose FRONTMATTER carries a `status:` key have it empty, and
+struck, because 94 of the 535 notes whose FRONTMATTER carries a `status:` key have it empty, and
 that is not a convention being followed — it is a convention nobody has applied yet, and
-describing it as correct is what kept it that way. (Twelve of the 182 are ADRs, whose own
-vocabulary the table above excludes by name.) The figure was 125 of 142 when this was written:
+describing it as correct is what kept it that way. (The seventeen ADRs are excluded by the count above, as is
+everything under `user-experience/`, `superpowers/` and `product/`: the census reads the seven
+backlog folders and nothing else. Reading it wider is how a package's own `status: designed`
+gets counted as this register's.) The figure was 125 of 142 when this was written:
 the count has fallen while the population grew, so the migration below is happening, slowly, by
 the one mechanism it names.
 

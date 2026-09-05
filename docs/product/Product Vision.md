@@ -758,7 +758,10 @@ Future product decisions should follow these principles:
     
 8. **Preserve planned and actual information separately.**
     
-9. **Optimise for real-world and mobile capture.**
+9. **Optimise for real-world and mobile capture.** *(Amended 2026-09-05: a principle about
+   the product's eventual shape, not its current scope — today's mobile is read-only, decided in
+   `PRODUCT.md` and the project design package's precedence rule 9. The mobile PRD carries the
+   direction this principle points at, and its own amendment says so.)*
     
 10. **Always help the user make progress.**
     

@@ -2,6 +2,16 @@
 
 ## 1. Purpose
 
+> **Design amendment — 2026-09-05.** The screens this map deliberately did not define now
+> exist, as three design packages under [`docs/user-experience/`](../user-experience/): the
+> editor (M00–M17), the project overview and details (P00–P07) and the asset library
+> (AL00–AL11). §34's recommended next step — an experience layer over these capabilities — is
+> what they are. One capability they refuse: **§29's readiness percentage.** The project package
+> rules that domain project status is not calculated completion and that guidance is neither a
+> wizard nor a checklist, so *Planning readiness: 58%* is not a surface. §29's IDEA survives as
+> the editor's Review perspective (M17), which lists what is unresolved rather than scoring it.
+> Where §29 and M17 disagree, M17 is the design.
+
 This map translates the Renovation Planner problem space into product capabilities without prematurely defining screens, workflows, or technical implementation.
 
 It connects:

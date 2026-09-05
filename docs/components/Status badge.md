@@ -10,11 +10,20 @@ sources:
   - PRD §44
   - SDD §64
   - SDD §66
+  - "Editor component library §9 — CalculatedBadge, DependencyBadge, ReadinessStatus"
+  - "Asset library component contracts — AssetMark states"
 type: component
 image: "[[status-badge.png]]"
 ---
 
 # Status badge
+
+**Design authority since 2026-09-05:** the editor package's `CalculatedBadge` (a derived
+value shows its provenance and never masquerades as a stored one), `DependencyBadge` and
+`ReadinessStatus` ([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)); the library package's `AssetMark`, whose states are
+not read, no shape, unscaled, measured and error, and whose category icon is never proof of
+geometry ([contracts](../user-experience/asset-library-delivery/specification/component-library.md)); and the project package's rule that a project's status is TEXT the
+reader understands, with colour as a supplement.
 
 A **persisted** condition, shown where the thing it is about lives. The surface for a state that
 is neither transient (a [[Toast]]), nor blocking (a [[Modal]]), nor about one field (an
@@ -23,11 +32,15 @@ component exists because slice 17 needed a fourth answer and the other three wer
 
 ## Specimen
 
-![Status badge, and the states it owes, in Obsidian's default light and dark](status-badge.png)
+![Status badge, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/status-badge.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -93,6 +106,11 @@ most obviously about.
 2. **Whether a badge may be the only report of a failure.** Slice 17's table decides which
    category lands where, and a persisted badge that nothing ever announced is a failure a user
    discovers by accident.
+
+**Since 2026-09-05:** question 1 is narrowed rather than decided — the editor package draws
+object CHANGE state (existing, to remove, new) through `ChangeLegend`'s stroke patterns and
+symbols, and readiness through `ReadinessStatus`, so the two vocabularies have two homes and
+neither is this badge's. Question 2 stands.
 
 ## Sources
 

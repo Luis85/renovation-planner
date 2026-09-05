@@ -17,7 +17,7 @@
  * than after.
  *
  * **The counts are not written down.** Each shelf's count is `assets.length` for that category
- * and the status bar's total is the array's own length, because `docs/user-experience/concepts/`
+ * and the status bar's total is the array's own length, because `docs/user-experience/archive/concepts/`
  * already records what a hand-written number costs: four drawn zones whose displayed areas no
  * single calibration could have produced, invisible because nobody multiplies a polygon by hand.
  */

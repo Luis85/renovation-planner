@@ -863,7 +863,7 @@ describe('the browser harness', () => {
 
 	/**
 	 * The one-sheet claim, which is the entire reason prototypes moved out of
-	 * `docs/user-experience/concepts/`. A mock drawn against a second sheet is approved
+	 * `docs/user-experience/archive/concepts/`. A mock drawn against a second sheet is approved
 	 * against something that will not ship, and the page offering one is all it would take.
 	 *
 	 * Asserted on the page rather than on a rendered screen: there is no rendering engine
@@ -1288,7 +1288,7 @@ describe('the browser harness', () => {
 
 	/**
 	 * A stylesheet can import a stylesheet, and that is a fourth route. `@import
-	 * '../../docs/user-experience/concepts/concept.css';` added to `tests/harness/theme.css`
+	 * '../../docs/user-experience/archive/concepts/concept.css';` added to `tests/harness/theme.css`
 	 * loads the proposal sheet: the HTML still has its three links, no module imports a
 	 * `.css`, no template renders a `<link>`, and every list above stays empty. The walker
 	 * excludes `.css` files entirely, so it cannot see it.

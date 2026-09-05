@@ -60,3 +60,6 @@ No interactive prototype, runtime test, contrast measurement, or user study was 
 
 The older Workspace UXD is future context, not approval for portfolio metrics or unimplemented modules. Commit-pinned implementation evidence is in the reconciliation document.
 
+## User journeys
+
+The [standalone user journey catalogue](../user-journeys/README.md) extracts the project flows with frontmatter, source references, and explicit concept status.

@@ -9,11 +9,16 @@ sources:
   - SDD §19
   - SDD §21
   - SDD §85
+  - "Editor component library §5, §10 — SnapGuideLayer, EditorStatusBar"
 type: component
 image: "[[snap-guide.png]]"
 ---
 
 # Snap guide
+
+**Design authority since 2026-09-05:** the editor package's `SnapGuideLayer`
+([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)), rendering alignment, endpoint and angle guides from the snapping
+service, while `EditorStatusBar` carries the snapping CONTROL beside zoom, grid and scale.
 
 The drawn feedback that a snap is in effect — the line or marker saying *this edge aligned with
 that one*. The only component in this inventory that is pure output: it is never a target, it
@@ -21,11 +26,15 @@ takes no input, and a user cannot interact with it at all.
 
 ## Specimen
 
-![Snap guide, and the states it owes, in Obsidian's default light and dark](snap-guide.png)
+![Snap guide, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/snap-guide.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -82,6 +91,10 @@ one component in the inventory whose accessibility answer lives in a different c
 2. **Is there a snap the user can decline?** SDD §21 makes snapping a service and says nothing
    about disabling it. A guide for a snap that cannot be refused is a notification; a guide for
    one that can is an affordance, and they are drawn differently.
+
+**Since 2026-09-05:** both questions are answered by that split — the bar shows whether
+snapping is on and the guide shows which snap fired, so no fact is drawn twice; and a snap the
+user can decline exists, because the bar's control is a toggle.
 
 ## Sources
 

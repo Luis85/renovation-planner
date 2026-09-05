@@ -11,11 +11,18 @@ sources:
   - PRD §82
   - SDD §19
   - SDD §25
+  - "Editor component library §5 — DimensionLabel, EditableDimensionLabel"
 type: component
 image: "[[measurement-label.png]]"
 ---
 
 # Measurement label
+
+**Design authority since 2026-09-05:** the editor package's `DimensionLabel` and
+`EditableDimensionLabel` ([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)) — normalized value, unit, editable and
+validation state; begin edit, commit a parsed value, cancel — under the rule that direct
+manipulation and numeric entry converge on the same command. The *Measure tool* this note's
+sources name is not in the package's creation catalog.
 
 The number drawn beside a measurement — the Measure tool's output, and the one value a renovator
 reads more often than any other. It is a small component with the inventory's most consequential
@@ -23,11 +30,15 @@ rule attached to it: it is the place a plugin most easily tells a confident lie.
 
 ## Specimen
 
-![Measurement label, and the states it owes, in Obsidian's default light and dark](measurement-label.png)
+![Measurement label, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/measurement-label.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -86,6 +97,10 @@ kept one. Neither is optional.
    does not choose.
 2. **What an uncalibrated measurement actually renders as.** A pixel count, a placeholder, or a
    refusal. The rule says it must not read as true; it does not say what it reads as instead.
+
+**Since 2026-09-05:** question 2 moves: a plan is prepared through Reference Plan Setup (M06)
+rather than a Calibrate tool, and the business rule that an uncalibrated plan never presents a
+measurement as true still says nothing about what is drawn instead. Question 1 stands.
 
 ## Sources
 

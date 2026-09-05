@@ -134,6 +134,54 @@ Everything in the DOM half is a Vue component because ADR-004 said so, mounted p
 SDD §12 — not a decision this note makes, and `docs/setup/vue-conventions.md` carries the
 contract for the day Vue arrives.
 
+## The package component libraries, and what this index is since 2026-09-05
+
+The concept gallery every row above was drawn from — `component-gallery.html` and its
+`plan-editor.html` — is **archived** at `docs/user-experience/archive/concepts/` and no longer
+drives the app. Three design packages replaced it, each with a component library of its own, and
+**each of those is the design authority for its surface**:
+
+| Surface | Component library |
+| --- | --- |
+| Plan editor (M00–M17) | [`renovation-planner-editor-specs/components/component-library.md`](../user-experience/renovation-planner-editor-specs/components/component-library.md) |
+| Project overview and details (P00–P07) | [`renovation-planner-project-specs/components/component-library.md`](../user-experience/renovation-planner-project-specs/components/component-library.md) |
+| Asset library (AL00–AL11) | [`asset-library-delivery/specification/component-library.md`](../user-experience/asset-library-delivery/specification/component-library.md) |
+
+What this note keeps: the index below, the state vocabulary, the canvas constraint and the
+mechanism — the things the three libraries share and none of them owns. What moves: the anatomy
+of any one component, which is now the package's, and the seventeen notes say so at their top,
+each naming the package component that supersedes its drawing. The mapping, so it is findable
+from this side too:
+
+| Note | Package component |
+| --- | --- |
+| [[View shell]] | editor `ResponsiveEditorShell`; library `AssetLibraryShell` |
+| [[Toolbar]] | WITHDRAWN as a permanent ribbon — editor `EditorContextBar` + `FloatingPrimaryActions` + `CreationToolBar` |
+| [[Tool button]] | editor `FloatingPrimaryActions`, `AddMenuItem`, `TemporaryToolBanner` |
+| [[Left rail]] | editor `PropertyLayerPanel` (`PropertyTree`, `LayerList`, `ChangeLegend`); `PanelRail` when constrained |
+| [[Layer toggle]] | editor `LayerList` descriptors |
+| [[Plan canvas]] | editor `PlanCanvas`, geometry shapes, overlays, marker layers |
+| [[Selection handle]] | editor `SelectionOverlay`, `MultiSelectionOverlay` |
+| [[Snap guide]] | editor `SnapGuideLayer` |
+| [[Measurement label]] | editor `DimensionLabel` / `EditableDimensionLabel` |
+| [[Inspector]] | editor `EntityInspector` and its content components; library `AssetInspector` |
+| [[Status bar]] | editor `EditorStatusBar` / `CompactStatusBar` |
+| [[Save-state indicator]] | editor `SaveStateIndicator` — five states, the fifth *Saved · refresh needed* |
+| [[Toast]] | none — Obsidian's `Notice`; the persistent counterpart is editor `PersistentWarningStrip` |
+| [[Empty state]] | editor and project `EmptyState`, paired with `ViewFailure`; library `AssetShelves` empty state and AL08 |
+| [[Modal]] | `UnsavedChangesDialog`, `NewAssetDialog`, editor `ImpactConfirmationDialog`, over the shipped `DialogHost` |
+| [[Inline field error]] | editor `Field` / `UnitInput` / `MoneyInput` validation; library `AssetDefinitionForm` |
+| [[Status badge]] | editor `CalculatedBadge`, `DependencyBadge`, `ReadinessStatus`; library `AssetMark` |
+
+Components a package names and this folder has no note for — `PerspectiveSwitch`,
+`PropertyTree`, `AddMenu`, `HomeownerQuestionNav`, the project package's `ProjectEntryGuidance`,
+the library's `AssetShelf` and `AssetRow`, and the rest — are deliberately NOT given one: the
+package's contract is the note, and a copy here would be a second statement of the same thing.
+A note is written here only for what the libraries share and none of them specifies.
+
+The inventory table's `Source` column is now historical — the PRD and SDD sections a row was
+first derived from — and `Slice` still names what built it. Neither is the design authority.
+
 ## States, and the second channel each one owes
 
 [[Accessibility]] owns the requirement that status is never colour-only. This note owns the

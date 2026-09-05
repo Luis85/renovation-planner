@@ -122,6 +122,18 @@ function reasonIdFor(entry: CreationEntry): string | undefined {
 }
 
 /**
+ * The one reason an item's `aria-describedby` names — never both. An UNSUPPORTED entry
+ * already has its own reason (`reasonIdFor` above); a supported entry paused by
+ * `runtime.writesBlocked` (design spec §2.9) is described by the shared paused-reason
+ * sentence instead, and a live entry names nothing.
+ */
+function describedBy(entry: CreationEntry): string | undefined {
+	const unsupported = reasonIdFor(entry);
+	if (unsupported !== undefined) return unsupported;
+	return runtime.writesBlocked.value ? runtime.pausedReasonId : undefined;
+}
+
+/**
  * Moves the roving `tabindex` AND the real DOM focus together — the ARIA menu pattern's own
  * rule.
  *
@@ -180,9 +192,14 @@ function moveFocus(delta: 1 | -1): void {
  * activation) rather than calling that entry's field directly — the empty state's own action
  * reaches the same tool through the same door, and `creationCatalogue.test.ts` reads this
  * file's source text to hold that neither caller grows a second, undocumented route to it.
+ *
+ * **Returns early while `runtime.writesBlocked`** (design spec §2.9), same as every other
+ * write control this task pauses: the entry stays `aria-disabled` rather than `:disabled` so
+ * the menu still opens and the reason still reads, and the GATE is the guard here, not the
+ * attribute alone.
  */
 function activate(entry: CreationEntry): void {
-	if (entry.availability.kind !== 'available') return;
+	if (entry.availability.kind !== 'available' || runtime.writesBlocked.value) return;
 	emit('close');
 	activateCreationEntry(entry.id, runtime);
 }
@@ -368,8 +385,8 @@ onBeforeUnmount(() => {
 					:class="{ 'rp-add-menu__item--unsupported': entry.availability.kind === 'unsupported' }"
 					:data-rp-entry="entry.id"
 					:tabindex="focusedId === entry.id ? 0 : -1"
-					:aria-disabled="entry.availability.kind === 'unsupported'"
-					:aria-describedby="reasonIdFor(entry)"
+					:aria-disabled="entry.availability.kind === 'unsupported' || runtime.writesBlocked.value"
+					:aria-describedby="describedBy(entry)"
 					@click="onItemClick(entry)"
 					@focus="focusedId = entry.id"
 				>

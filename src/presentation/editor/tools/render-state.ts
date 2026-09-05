@@ -56,10 +56,10 @@ export interface PolygonSketch {
  * state — a Plan closed and reopened starts every one of them fresh.
  *
  * **A plain class, not a slot on `EditorStore`** (`src/presentation/stores/EditorStore.ts`,
- * Pinia). That file already carries `hoveredObjectId` and `temporaryPolygon` refs, each
- * marked `// fallow-ignore-next-line unused-store-member` and commented as waiting for
- * a concrete tool to give them a reader — this class deliberately does not become that reader,
- * and those two slots are left exactly as they are. The reason: nothing in design slice 6
+ * Pinia). That file already carries `hoveredObjectId` and `temporaryPolygon` refs — no
+ * production reader yet, only `stores.test.ts`'s direct assert of the store's default shape —
+ * this class deliberately does not become that reader, and those two slots are left exactly as
+ * they are. The reason: nothing in design slice 6
  * is wired into the composition root yet (no `ToolManager`, no concrete tool constructs an
  * `EditorContext`), so there is no seam at which `EditorStore` could actually own this
  * state today. Wiring these two homes for "hovered object id" together — by retiring

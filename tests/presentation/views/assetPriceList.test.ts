@@ -579,7 +579,11 @@ describe('AssetPriceList', () => {
 	 * the empty state are mounted, because each draws classes the happy row does not.
 	 */
 	it('declares a rule for every class it actually emits', () => {
-		const css = readFileSync('styles/asset-prices.css', 'utf8');
+		// Both partials: `rp-visually-hidden` moved to its own partial (`visually-hidden.css`)
+		// at its second caller, and this harvest must keep seeing a real declaration for it
+		// rather than coincidentally matching prose in a comment.
+		const css = readFileSync('styles/asset-prices.css', 'utf8')
+			+ readFileSync('styles/visually-hidden.css', 'utf8');
 		const emitted = new Set<string>();
 		for (const rows of [
 			[row({ override: money('19.50') })],
@@ -792,7 +796,10 @@ describe('AssetPriceList', () => {
 		const css = readFileSync('styles/asset-prices.css', 'utf8');
 		const field = css.slice(css.indexOf('.rp-asset-price-row .rp-field-error {'));
 		const label = css.slice(css.indexOf('.rp-asset-price-row .rp-field-error label {'));
-		const hidden = css.slice(css.indexOf('.rp-visually-hidden {'));
+		// `.rp-visually-hidden` moved to its own partial at its second caller (this row was the
+		// first); read from there rather than from `asset-prices.css`, which no longer holds it.
+		const hiddenCss = readFileSync('styles/visually-hidden.css', 'utf8');
+		const hidden = hiddenCss.slice(hiddenCss.indexOf('.rp-visually-hidden {'));
 
 		// A basis rather than `flex-grow`: the name takes the slack, and every item after it has
 		// to keep its own size or the columns move per row.

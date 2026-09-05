@@ -8,7 +8,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { computed, nextTick } from 'vue';
 import {
 	mountPlanEditorCanvas as mountPlanEditorCanvasRaw,
 	runtimeOf,
@@ -467,17 +467,30 @@ describe('the Add menu', () => {
 	});
 });
 
+/**
+ * A stand-in `EditorRuntime` for a component that cannot supply its one dependency to
+ * itself (`roomSummaryList.test.ts` uses the same shape). `writesBlocked`/`pausedReasonId`
+ * joined `setTool` on this stub the day the template started reading them unconditionally
+ * for every entry (design spec §2.9) — a stub thinner than the real `EditorRuntime` threw
+ * on mount rather than merely under-testing.
+ */
+function stubRuntime(setTool: (id: ToolId | null) => void): EditorRuntime {
+	return {
+		setTool,
+		writesBlocked: computed(() => false),
+		pausedReasonId: 'stub-paused-reason',
+	} as unknown as EditorRuntime;
+}
+
 describe('the Add menu, mounted standalone', () => {
 	/**
 	 * `PlanEditorRoot` always resolves a real Add button before opening this menu, so the real
 	 * tree can never drive `anchor: null` — the one shape `PlanEditorRoot.vue`'s own docblock
-	 * still declares (`anchor: HTMLElement | null`). Mounted here directly, with a stub
-	 * `EditorRuntime` the same shape `roomSummaryList.test.ts` uses for a component that
-	 * cannot supply its one dependency to itself.
+	 * still declares (`anchor: HTMLElement | null`).
 	 */
 	it('does not throw with no anchor to return focus to, and closes on a press outside with no anchor to except', async () => {
 		const setTool = vi.fn<(id: ToolId | null) => void>();
-		const runtime = { setTool } as unknown as EditorRuntime;
+		const runtime = stubRuntime(setTool);
 		const wrapper = mount(AddMenu, {
 			props: { anchor: null },
 			attachTo: document.body,
@@ -504,7 +517,7 @@ describe('the Add menu, mounted standalone', () => {
 			order.push('setTool');
 			throw new Error('activation faulted');
 		});
-		const runtime = { setTool } as unknown as EditorRuntime;
+		const runtime = stubRuntime(setTool);
 		const wrapper = mount(AddMenu, {
 			props: { anchor: null },
 			attrs: { onClose: () => order.push('close') },

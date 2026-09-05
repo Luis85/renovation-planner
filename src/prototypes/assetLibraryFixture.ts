@@ -60,6 +60,7 @@
  */
 import type { AssetBackgroundRef } from '../domain/asset/Asset';
 import type { Point } from '../core/geometry/Point';
+import { extentOf } from '../core/geometry/operations';
 
 export type ShapeState = 'measured' | 'unscaled' | 'none' | 'pending' | 'unreadable';
 
@@ -345,16 +346,7 @@ export function boundsOf(outline: readonly Point[]): {
 	width: number;
 	depth: number;
 } {
-	let minX = Infinity;
-	let maxX = -Infinity;
-	let minY = Infinity;
-	let maxY = -Infinity;
-	for (const point of outline) {
-		if (point.x < minX) minX = point.x;
-		if (point.x > maxX) maxX = point.x;
-		if (point.y < minY) minY = point.y;
-		if (point.y > maxY) maxY = point.y;
-	}
+	const { minX, maxX, minY, maxY } = extentOf(outline);
 	return { minX, minY, width: maxX - minX, depth: maxY - minY };
 }
 

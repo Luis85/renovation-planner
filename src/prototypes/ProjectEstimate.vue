@@ -85,7 +85,6 @@ const props = withDefaults(
 		 * `CLAUDE.md` names and nothing in any gate reads.
 		 */
 		rooms?: number | null;
-
 		/**
 		 * Stale rows a recalculation could actually fix — SUPPLIED, not derived here.
 		 *
@@ -142,9 +141,6 @@ const props = withDefaults(
 		requirements: 24,
 		summed: 23,
 		rooms: 11,
-		// 3 stale = 1 fixable + 1 unreadable referent + 1 deleted target. The specimen has to add
-		// up: a capture caught this reading `2` beside those two, which is four obstacles for
-		// three rows — the demo state asserting something the query could never produce.
 		recalculable: 1,
 		unreadableReferents: 1,
 		missingTargets: 1,

@@ -487,6 +487,70 @@ describe('SelectTool', () => {
 	});
 });
 
+describe('SelectTool while writes are blocked', () => {
+	// Design spec §2.9, "Canvas: a Select drag" — the gate would refuse the commit anyway,
+	// so a ghost the release cannot keep is a promise this tool must not make. Selecting
+	// still works (inspecting stays available); no body drag and no vertex drag may begin.
+
+	it('selects but starts no BODY gesture — no ghost, and pointerUp dispatches nothing', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		setActivePinia(createPinia());
+		const { context, dispatched, rejections } = toolContext({ writesBlocked: true });
+		const h: Harness = { context, gestures: [], rejections };
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerDown(eventAt(10, 10)); // inside zone-a's body
+		expect(h.context.selection.selectedIds).toEqual(['zone-a']);
+
+		tool.pointerMove(eventAt(9999, 9999)); // far away — a real drag if a gesture existed
+		expect(h.context.renderState.previewPolygon).toBeNull();
+
+		tool.pointerUp(eventAt(9999, 9999));
+		expect(dispatched).toHaveLength(0);
+		expect(h.gestures).toHaveLength(0);
+	});
+
+	it('selects a vertex handle but starts no VERTEX gesture — no ghost, no dispatch', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		setActivePinia(createPinia());
+		const { context, dispatched, rejections } = toolContext({ writesBlocked: true });
+		const h: Harness = { context, gestures: [], rejections };
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		// Select the zone first, so its handles are live targets, and release the click so no
+		// stale gesture from this press can leak into the handle grab below.
+		tool.pointerDown(eventAt(10, 10));
+		tool.pointerUp(eventAt(10, 10));
+		expect(h.context.selection.selectedIds).toEqual(['zone-a']);
+
+		// ...then grab vertex 1 at (100, 0): screen identity, so its projection is (100, 0).
+		tool.pointerDown(eventAt(100, 2));
+		tool.pointerMove(eventAt(150, 40));
+		expect(h.context.renderState.previewPolygon).toBeNull();
+
+		tool.pointerUp(eventAt(150, 40));
+		expect(dispatched).toHaveLength(0);
+		expect(h.gestures).toHaveLength(0);
+	});
+
+	it('clicking empty canvas while blocked still clears the selection', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		setActivePinia(createPinia());
+		const { context, rejections } = toolContext({ writesBlocked: true });
+		const h: Harness = { context, gestures: [], rejections };
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerDown(eventAt(10, 10));
+		expect(h.context.selection.selectedIds).toEqual(['zone-a']);
+
+		tool.pointerDown(eventAt(9999, 9999)); // empty canvas
+		expect(h.context.selection.selectedIds).toEqual([]);
+	});
+});
+
 describe('SelectTool.hasDraft', () => {
 	// Task 9 — Escape asks a tool whether it holds work `cancel()` would discard before
 	// deciding whether to switch away or clear a selection instead.

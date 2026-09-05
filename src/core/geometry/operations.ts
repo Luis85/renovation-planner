@@ -92,6 +92,42 @@ function chainLength(points: readonly Point[]): number {
 }
 
 /**
+ * The axis-aligned extent of a raw point set, SCANNED rather than spread: `Math.min(...xs)`
+ * passes every coordinate as a function argument and V8 overflows the call stack around
+ * 125,000 of them, and nothing here bounds a vertex count.
+ *
+ * **Deliberately not `boundingBoxOf`, and the difference is what makes it a separate export.**
+ * That one takes a VALIDATED `Polyline | Polygon` and answers a `Result`, refusing an empty or
+ * non-finite input; this takes bare points and answers whatever they say, `Infinity` for an
+ * empty set included, because two of its three callers need the numbers precisely in order to
+ * ask their own question about them (a midpoint that must stay finite, a mark that refuses a
+ * non-finite extent). Routing them through the validated door would refuse first and leave each
+ * caller's own guard unreachable.
+ *
+ * Three copies of this loop stood in `src/` — here, `AssetMark.minimumOf` and the asset library
+ * fixture's `boundsOf`, the latter two already carrying comments about the same stack hazard —
+ * before fallow reported the pair it could see.
+ */
+export function extentOf(points: readonly Point[]): {
+	readonly minX: number;
+	readonly maxX: number;
+	readonly minY: number;
+	readonly maxY: number;
+} {
+	let minX = Infinity;
+	let maxX = -Infinity;
+	let minY = Infinity;
+	let maxY = -Infinity;
+	for (const point of points) {
+		if (point.x < minX) minX = point.x;
+		if (point.x > maxX) maxX = point.x;
+		if (point.y < minY) minY = point.y;
+		if (point.y > maxY) maxY = point.y;
+	}
+	return { minX, maxX, minY, maxY };
+}
+
+/**
  * Signed twice-area — the shoelace sum Σ(x_i·y_{i+1} − x_{i+1}·y_i), whose half IS the
  * signed area. Internal only; `area` exports its unsigned magnitude.
  *
@@ -129,18 +165,7 @@ function chainLength(points: readonly Point[]): number {
  * because it costs nothing, not because anything here can catch its loss.
  */
 function boundsMidpoint(points: readonly Point[]): Point {
-	let minX = Infinity;
-	let maxX = -Infinity;
-	let minY = Infinity;
-	let maxY = -Infinity;
-	// The prototype computes raw bounds; core geometry computes a bounds centre. Similar loops, different contracts.
-	// fallow-ignore-next-line code-duplication
-	for (const point of points) {
-		if (point.x < minX) minX = point.x;
-		if (point.x > maxX) maxX = point.x;
-		if (point.y < minY) minY = point.y;
-		if (point.y > maxY) maxY = point.y;
-	}
+	const { minX, maxX, minY, maxY } = extentOf(points);
 	return { x: minX / 2 + maxX / 2, y: minY / 2 + maxY / 2 };
 }
 

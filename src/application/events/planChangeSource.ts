@@ -1,6 +1,6 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { PlanEventPayload } from '../../domain/plan/Plan.events';
-import type { GeometrySidecarChangedPayload } from './projectIndex.events';
+import { changedSidecar, disposeAll, subscribeAll } from './subscriptions';
 
 /**
  * "Tell me when THIS Plan changed" — the domain event vocabulary, turned into one filtered
@@ -75,35 +75,20 @@ function planIdOf(event: DomainEvent): string | null {
 	return typeof payload?.planId === 'string' ? payload.planId : null;
 }
 
-/**
- * The same narrowing for the sidecar event's own payload, which names an entity TYPE as well as
- * an id. A separate guard rather than a widened `planIdOf`, because these are two payload shapes
- * and one function reading both would have to accept a partial of either.
- */
-function changedSidecar(event: DomainEvent): Partial<GeometrySidecarChangedPayload> {
-	return (event as { payload?: Partial<GeometrySidecarChangedPayload> }).payload ?? {};
-}
-
 export function createPlanChangeSource(
 	events: EventBus,
 ): (planId: string, listener: () => void) => () => void {
 	return (planId: string, listener: () => void) => {
 		const subscriptions = [
-			...PLAN_CHANGE_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					if (planIdOf(event) === planId) listener();
-				}),
-			),
-			...EVERY_PLAN_EVENTS.map((type) => events.subscribe(type, () => listener())),
-			...PLAN_SIDECAR_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					const sidecar = changedSidecar(event);
-					if (sidecar.entityType === 'renovation-plan' && sidecar.entityId === planId) listener();
-				}),
-			),
+			...subscribeAll(events, PLAN_CHANGE_EVENTS, (event) => {
+				if (planIdOf(event) === planId) listener();
+			}),
+			...subscribeAll(events, EVERY_PLAN_EVENTS, () => listener()),
+			...subscribeAll(events, PLAN_SIDECAR_EVENTS, (event) => {
+				const sidecar = changedSidecar(event);
+				if (sidecar.entityType === 'renovation-plan' && sidecar.entityId === planId) listener();
+			}),
 		];
-		return () => {
-			for (const subscription of subscriptions) subscription.dispose();
-		};
+		return disposeAll(subscriptions);
 	};
 }

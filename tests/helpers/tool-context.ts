@@ -44,6 +44,8 @@ export interface ToolContextOptions {
 	readonly snapPoint?: (point: Point) => Point;
 	/** What this editor is editing (design slice B2's rename of `activePlan`). */
 	readonly subject?: EditorContext['subject'];
+	/** The trust path (design spec §2.2): defaults to `false`, since no suite here is about it. */
+	readonly writesBlocked?: boolean;
 }
 
 /** A selection store double narrowed to `SelectionStore`'s four members, and nothing else. */
@@ -124,6 +126,7 @@ export function toolContext(options: ToolContextOptions = {}): ToolContextHarnes
 		// checked. The subject's id is `EntityId<string>` since design slice B2, so a
 		// readable literal now casts to the type this field actually declares.
 		subject: options.subject ?? { id: 'plan-1' as EntityId<string>, calibration: null },
+		writesBlocked: () => options.writesBlocked ?? false,
 	};
 
 	return { context, dispatched, rejections };

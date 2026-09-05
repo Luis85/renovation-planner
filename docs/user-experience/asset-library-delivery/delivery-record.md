@@ -186,3 +186,20 @@ identical computed styles for all 55 button/state combinations (11 selectors,
 normal/focus/hover/disabled/pressed), including borders and interactive states.
 The PR records the subsequent remote CI outcome. Real-vault and installed-theme
 acceptance remains open.
+
+
+### Integration with the editor trust-path delivery
+
+Merged `origin/main` at `ce990bcb` after PR #72. Overlapping analysis repairs now
+use main's event subscription/disposal helpers, shared geometry extent scan,
+requirement fixture and component-local button rules. The earlier shared button
+partial and superseded local analysis annotations are removed in this merge.
+Main's editor write-blocking and recovery changes remain intact.
+
+The library now calls main's `openNewAssetDialog` helper, while retaining its own
+draft guard and post-create catalogue refresh/selection. It does not regain the
+older automatic designer navigation. The shared helper's documentation reflects
+both callers. The PR records verification of this integration commit.
+
+Integration verification: production build, lint and whole-project analysis pass.
+Targeted regression run: 139 files / 1,832 tests passed. Staged diff check passes.

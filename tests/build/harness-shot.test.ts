@@ -646,6 +646,8 @@ describe('the headless harness capture script', () => {
 			'plan-editor-light',
 			'plan-editor-narrow',
 			'plan-editor-selected',
+			'plan-editor-stale',
+			'plan-editor-stale-narrow',
 			'plan-editor-unsupported',
 			'project-detail',
 			'project-detail-narrow',

@@ -131,6 +131,17 @@ export interface PlanEditorContext {
 	 * above gives and `onThemeChange` gives before it: the tree's only interest is "focus me".
 	 */
 	focusLeaf(): void;
+	/**
+	 * Open THIS Plan's own source note (design spec §2.6) — the one control the trust path's
+	 * `unrecovered` warning row offers, and the one door the write-boundary account still
+	 * calls "the only surface left that opens the raw note". Partially applied by the VIEW
+	 * with this leaf's plan id, the same shape as `closeLeaf` and `focusLeaf` above.
+	 *
+	 * Answers nothing on its own: a `'missing'` outcome is notified here
+	 * (`editor.source-note-missing`), and a `'failed'` one has already been reported once,
+	 * inside the opener — routing it a second time would be the double report slice 17 forbids.
+	 */
+	openPlanNote(): Promise<void>;
 }
 
 export const PLAN_EDITOR_CONTEXT: InjectionKey<PlanEditorContext> = Symbol('renovation-planner:editor-context');

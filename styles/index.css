@@ -15,7 +15,6 @@
  * which of an equal-specificity pair wins. Each partial's own header carries its account.
  */
 @import "./view.css";
-@import "./editor-button-primitives.css";
 @import "./editor.css";
 @import "./editor-status.css";
 @import "./editor-requirements.css";
@@ -66,6 +65,7 @@
 @import "./project-list-overlap.css";
 @import "./notices.css";
 @import "./project-detail.css";
+@import "./visually-hidden.css";
 @import "./asset-prices.css";
 @import "./designer.css";
 @import "./diagnostics.css";

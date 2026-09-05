@@ -3,7 +3,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useLibraryDraftGuard } from './libraryDraftGuard';
 import DialogHost from '../dialogs/DialogHost.vue';
 import ViewFailure from '../components/ViewFailure.vue';
-import NewAssetForm from '../views/NewAssetForm.vue';
 import AssetInspector from './AssetInspector.vue';
 import AssetLibraryBody from './AssetLibraryBody.vue';
 import { useAssetLibraryContext } from './AssetLibraryContext';
@@ -11,12 +10,11 @@ import { focusRowAt, focusWithin, rowPositionOf, shelvesWithdrawn } from './shel
 import { deleteAssetWithReferences } from './deleteAssetFlow';
 import { useAssetLibraryStore } from '../stores/AssetLibraryStore';
 import { useDialogStore } from '../dialogs/dialog-store';
+import { openNewAssetDialog } from '../views/newAssetDialog';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
-import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
-import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { AssetId } from '../../domain/asset/AssetId';
 
 const context = useAssetLibraryContext();
@@ -150,28 +148,16 @@ async function deleteSelectedAsset(assetId: AssetId): Promise<void> {
 	}
 }
 
-// Explicit per-view command composition; post-dialog selection/navigation differs between the two hosts.
-// fallow-ignore-next-line code-duplication
 async function createAsset(): Promise<void> {
 	if (dialogs.current !== null) return;
-
-	const result = await dialogs.openDialog({
-		kind: 'form',
-		title: tr('form.new-asset.title'),
-		component: NewAssetForm,
-		props: {
-			createAsset: (input: CreateAssetInput) => context.commands.createAsset.execute(input),
-			setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) =>
-				context.commands.setAssetFootprintFromDimensions.execute(input),
-			busy: newAssetBusy,
-			logger: context.logger,
-			defaultCurrency: context.commands.defaultCurrency,
-		},
+	const createdId = await openNewAssetDialog({
+		dialogs,
 		busy: newAssetBusy,
+		commands: context.commands,
+		logger: context.logger,
 	});
-	if (result === 'cancel') return;
+	if (createdId === null) return;
 	await hydrate();
-	const createdId = result.values as AssetId;
 	const created = store.entryFor(createdId);
 	if (created !== null) {
 		store.query = '';

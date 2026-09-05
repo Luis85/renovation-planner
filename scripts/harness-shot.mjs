@@ -441,6 +441,32 @@ const SHOTS = [
 		selector: '.rp-task-banner__finish[aria-disabled="false"]',
 		width: 460,
 	},
+	// Task 14's third and fourth: the trust path's own stale-projection warning (design spec
+	// §2.3/§2.4), reached through `?stale` — which drives a REAL zero-referent zone deletion
+	// through the Inspector's own Delete button and lets its own post-write read-back fail, so
+	// `ProjectStore.stale` becomes true the same way a real vault fault would set it. `&select=`
+	// is applied AFTER that write lands (`tests/harness/planEditor.ts`'s own
+	// `driveStaleKnobOnceReady`), so the picture shows the persistent warning strip's Retry and
+	// Open source note buttons beside the SEEDED Kitchen selected and its own Delete visibly
+	// paused — `runtime.writesBlocked` reads `projectStore.stale`, so every write control on the
+	// canvas dims once the knob has landed, Delete included.
+	//
+	// The selector waits on the STALE ROW's own button rather than on the strip's container
+	// (`.rp-warning-strip`, present from the first render per that component's own header): a
+	// wait on the container would certify the strip MOUNTED, not that the knob's write actually
+	// landed — the same "arming versus landing" hazard `plan-editor-add-room-narrow`'s own
+	// comment states for its `[aria-disabled="false"]` wait, met a second time here.
+	{
+		name: 'plan-editor-stale',
+		query: '?view=plan-editor&select=harness-kitchen&stale&theme=light',
+		selector: '[data-rp-warning="stale"] button',
+	},
+	{
+		name: 'plan-editor-stale-narrow',
+		query: '?view=plan-editor&select=harness-kitchen&stale',
+		selector: '[data-rp-warning="stale"] button',
+		width: 460,
+	},
 	// A LIST rather than one selector (R14, 2026-09-04): the canvas alone attaches before the
 	// constrained-layout reflow has actually happened, so a wait on it could complete with the
 	// Layers/Details rail not yet on screen — the same wrong-state shape as `plan-editor-dark`'s

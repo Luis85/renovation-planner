@@ -1,5 +1,3 @@
-/* Button defaults are shared in editor-button-primitives.css, loaded before this partial.
- * Surface-specific focus, hover, pressed and disabled rules remain here. */
 /*
  * Task 19's constrained and unsupported layouts (design spec §5.4/§5.5): the rail that replaces
  * the two persistent panels, the overlay and the drawer they slide into, and what a pane too
@@ -33,6 +31,17 @@
 	padding: var(--size-4-2) var(--size-4-1);
 	background-color: var(--background-secondary);
 	border-right: 1px solid var(--background-modifier-border);
+}
+
+.rp-panel-rail .rp-panel-rail__button {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
 }
 
 .rp-panel-rail .rp-panel-rail__button:hover {
@@ -101,7 +110,14 @@
 .rp-inspector-drawer .rp-inspector-drawer__close {
 	align-self: flex-end;
 	margin: var(--size-4-1) var(--size-4-1) 0;
-
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
 }
 
 .rp-overlay-panel .rp-overlay-panel__close:hover,
@@ -148,6 +164,20 @@
 	margin: 0;
 	font-size: var(--font-ui-small);
 	color: var(--text-muted);
+}
+
+/* REVIEWED CLONE: the bordered variant, `.rp-unsupported-width__action` — the flat button is per-component by
+   necessity; the argument is on `.rp-designer-tool-button` in `styles/designer.css`. */
+/* fallow-ignore-next-line code-duplication */
+.rp-unsupported-width .rp-unsupported-width__action {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
 }
 
 .rp-unsupported-width .rp-unsupported-width__action:hover {

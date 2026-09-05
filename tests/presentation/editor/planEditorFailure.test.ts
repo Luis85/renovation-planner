@@ -210,7 +210,10 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(true);
 		expect(harness.wrapper.find('.rp-view-failure').exists()).toBe(false);
 		// R5: `stale` is `warning`, so the item's text carries that word beside the message.
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+		// `toContain` rather than `toBe`: Task 9 gave this row Try again and Open source note
+		// buttons, so the item's full text now carries their labels too — the message prefix
+		// this asserts is unchanged.
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toContain(
 			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
 		);
 
@@ -246,7 +249,7 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		await store.hydrate(flaky, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		await flushPromises();
 		// R5: `stale` is `warning`, so the item's text carries that word beside the message.
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toContain(
 			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
 		);
 
@@ -255,7 +258,7 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		const inFlight = store.hydrate(flaky, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		await flushPromises();
 		// R5: `stale` is `warning`, so the item's text carries that word beside the message.
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toContain(
 			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
 		);
 
@@ -297,7 +300,7 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		await store.hydrate(flaky, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		await flushPromises();
 		// R5: `stale` is `warning`, so the item's text carries that word beside the message.
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toContain(
 			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
 		);
 
@@ -305,7 +308,7 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		const inFlight = store.hydrate(flaky, FIXTURE_PLAN.id);
 		await flushPromises();
 		// R5: `stale` is `warning`, so the item's text carries that word beside the message.
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toContain(
 			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
 		);
 
@@ -347,11 +350,14 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		await flushPromises();
 
 		// BOTH, in order. Asserted as the whole list rather than by picking one out, because
-		// `find` answers the first match and would have been satisfied by the defect.
-		expect(harness.wrapper.findAll('.rp-warning-strip__item').map((el) => el.text())).toStrictEqual([
-			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
-			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.background-missing')}`,
-		]);
+		// `find` answers the first match and would have been satisfied by the defect. The
+		// first item's own text is checked with `toContain`, not `toBe`: Task 9's Try again
+		// and Open source note buttons extend it beyond this prefix; the background row gets
+		// no actions and keeps its exact text.
+		const items = harness.wrapper.findAll('.rp-warning-strip__item').map((el) => el.text());
+		expect(items).toHaveLength(2);
+		expect(items[0]).toContain(`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`);
+		expect(items[1]).toBe(`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.background-missing')}`);
 
 		harness.wrapper.unmount();
 	});

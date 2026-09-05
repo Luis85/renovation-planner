@@ -157,6 +157,12 @@ export const en = {
 	// `routeError` to place. Keyed by the field rather than by any code for that reason.
 	'error.requirement.quantity.unparseable': 'Enter a number, or reset to the calculated figure.',
 	'error.requirement.cost.unparseable': 'Enter an amount, or reset to the calculated figure.',
+	// A write that landed half-way and could not be put back. Names the manual action, because
+	// the vault is the only thing that knows its own state now.
+	'zone.sidecar-insert-uncompensated':
+		'A room was written but its shape could not be saved, and the note could not be removed again. Inspect the room’s note before editing further.',
+	'zone.sidecar-update-uncompensated':
+		'A room was changed but its shape could not be saved, and the note could not be restored. Inspect the room’s note before editing further.',
 	// The Asset library inspector's two unconvertible drafts — `moneyOf` and `new Decimal(...)`
 	// both THROW on a malformed literal, so these are `useFieldCommit`'s own `validate` refusals
 	// rather than a command's, and there is no `AppError` for `routeError` to place. Under
@@ -779,6 +785,9 @@ export const en = {
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',
 	'save-state.save-error': 'Save error',
+	// Derived, not a fifth state: `saved` AND `ProjectStore.stale`. The middle dot is the
+	// component library's own spelling of this label.
+	'save-state.saved-refresh-needed': 'Saved · refresh needed',
 	...enAssetLibrary,
 } as const;
 

@@ -12,7 +12,7 @@
  * has the screen footprint (198,198)-(488,388), inside the 800×600 stage.
  */
 import type Konva from 'konva';
-import { mountPlanEditor, runtimeOf, type EditorHarness } from './editor';
+import { mountPlanEditor, runtimeOf, settle, settleUntil, type EditorHarness } from './editor';
 import type { ToolId } from '../../src/presentation/editor/tools/editor-tool';
 import { expectOk } from './domain';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
@@ -34,7 +34,10 @@ import { GetZoneInspector } from '../../src/application/queries/GetZoneInspector
 import { FindZonesByPlan } from '../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../src/application/queries/GetPlan';
 import { GetProject } from '../../src/application/queries/GetProject';
-import { createPlanEditorQueries } from '../../src/presentation/read-models/planEditorQueries';
+import {
+	createPlanEditorQueries,
+	type PlanEditorQueryServices,
+} from '../../src/presentation/read-models/planEditorQueries';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
@@ -112,11 +115,28 @@ export function planEditorQueriesFor(
 	});
 }
 
-export async function rig(seed?: (repos: {
-	assets: InMemoryAssetRepository;
-	requirements: InMemoryRequirementRepository;
-	zones: InMemoryZoneRepository;
-}) => Promise<void>): Promise<Rig> {
+/**
+ * How a caller may put its own decorator between the real query bundle and the mounted
+ * editor — the ONE seam the trust path's Scenario D needs and no other rig option gives.
+ *
+ * Deliberately a wrapper over the real bundle rather than a replacement for it: the case
+ * that uses it (`stalePath.e2e.test.ts`) turns exactly one method flaky and needs every
+ * other read to keep going through the real repositories, because "the write LANDS and the
+ * read-back fails" is only a claim about this editor if the write really landed. A `queries`
+ * override would have let a case hand over a bundle whose zones list agreed with nothing.
+ */
+export interface RigOptions {
+	readonly wrapQueries?: (queries: PlanEditorQueryServices) => PlanEditorQueryServices;
+}
+
+export async function rig(
+	seed?: (repos: {
+		assets: InMemoryAssetRepository;
+		requirements: InMemoryRequirementRepository;
+		zones: InMemoryZoneRepository;
+	}) => Promise<void>,
+	options?: RigOptions,
+): Promise<Rig> {
 	const plans = new InMemoryPlanRepository();
 	// The project this rig's plan belongs to, seeded and INDEXED the way the composition root
 	// has both: since slice 19 `ListRequirementsReferencing` names each referent group after
@@ -265,7 +285,10 @@ export async function rig(seed?: (repos: {
 	const harness = await mountPlanEditor({
 		plan: PLAN_DTO,
 		zones: [ZONE_A_DTO],
-		queries,
+		// The wrapper, when a caller supplied one — applied AFTER `seed`, so a decorator that
+		// counts or refuses reads sees only what the mounted editor asks for and none of the
+		// seeding a case did through the repositories directly.
+		queries: options?.wrapQueries?.(queries) ?? queries,
 		commands,
 	});
 	return { harness, zonesRepo, assetsRepo, requirementsRepo };
@@ -337,6 +360,69 @@ export function click(element: HTMLElement, x: number, y: number, button = 0): v
 	pointer(element, 'pointerup', x, y, button);
 }
 
+
+/** The canvas container the camera listens on, asserted rather than cast: a null one means
+ * the editor drew no canvas at all, which is a different failure from the one a gesture case
+ * is about. */
+export function canvasOf(harness: EditorHarness): HTMLElement {
+	const canvas = harness.canvasEl;
+	if (canvas === null) throw new Error('expected a mounted canvas');
+	return canvas;
+}
+
+/**
+ * The add-room suite's own drag: press at screen (100,100), three intermediate moves,
+ * release at (520,480) — world (520,520) to (4720,4320), a 4200 × 3800 rectangle with its
+ * min corner at (520,520).
+ *
+ * Three intermediate moves rather than one, because a rectangle tool that wrote only on
+ * release would pass a one-move drag identically; and a real `pointerup` at the last move's
+ * own coordinates, which is the grammar a mouse actually sends.
+ */
+export function dragRoom(canvas: HTMLElement): void {
+	pointer(canvas, 'pointerdown', 100, 100);
+	pointer(canvas, 'pointermove', 240, 230);
+	pointer(canvas, 'pointermove', 380, 350);
+	pointer(canvas, 'pointermove', 520, 480);
+	pointer(canvas, 'pointerup', 520, 480);
+}
+
+/**
+ * Add → Room → drag → name → Create, through the real menu, the real canvas and the real
+ * form, resolving once the room is in the repository.
+ *
+ * Lives here rather than in either caller because the trust path's two e2e suites both want
+ * it verbatim — the same reason `rig` itself moved out of `zoneEditing.test.ts`. It goes
+ * through the Add MENU rather than `activateTool(harness, 'draw-room')` deliberately: the
+ * menu entry is the door a user has, and it is also the door the stale gate pauses, so a
+ * case that armed the tool directly would be driving a route no renovator can take.
+ *
+ * `expected` is what `listByPlan` should hold once the write lands — 2 for the usual case of
+ * one fixture zone plus one drawn room — because "wait for the room" cannot be spelled as a
+ * fixed number by a caller that has already created some.
+ */
+export async function drawRoomThroughAdd(
+	harness: EditorHarness,
+	zonesRepo: InMemoryZoneRepository,
+	name: string,
+	expected = 2,
+): Promise<void> {
+	await harness.wrapper.find('button[data-rp-action="add"]').trigger('click');
+	await settle();
+	await harness.wrapper.find('[data-rp-entry="room"]').trigger('click');
+	await settle();
+	if (!harness.wrapper.find('.rp-new-room').exists()) throw new Error('expected the New room form');
+
+	dragRoom(canvasOf(harness));
+	await settle();
+	await harness.wrapper.find('input.rp-new-room__name').setValue(name);
+	await harness.wrapper.find('button.rp-new-room__create').trigger('click');
+	await settleUntil(
+		async () => expectOk(await zonesRepo.listByPlan(PLAN_DTO.id as PlanId)).loaded.length === expected,
+		'the drawn room to be written',
+	);
+	await settle();
+}
 
 /**
  * A button anywhere in the mounted tree, found by its exact text — Task 13 retired the

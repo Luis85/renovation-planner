@@ -173,6 +173,10 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Diese beiden Punkte und dieser Abstand ergeben keinen brauchbaren Maßstab. Wählen Sie zwei weiter entfernte Punkte, oder prüfen Sie den eingegebenen Abstand.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',
+	'zone.sidecar-insert-uncompensated':
+		'Ein Raum wurde geschrieben, aber seine Form konnte nicht gespeichert werden, und die Notiz konnte nicht wieder entfernt werden. Prüfen Sie die Notiz des Raums, bevor Sie weiter bearbeiten.',
+	'zone.sidecar-update-uncompensated':
+		'Ein Raum wurde geändert, aber seine Form konnte nicht gespeichert werden, und die Notiz konnte nicht wiederhergestellt werden. Prüfen Sie die Notiz des Raums, bevor Sie weiter bearbeiten.',
 	'error.asset.unit-cost.unparseable': 'Geben Sie einen Betrag ein, zum Beispiel 34.95.',
 	'error.asset.waste.unparseable': 'Geben Sie einen Bruchteil zwischen 0 und 1 ein, zum Beispiel 0.08.',
 	'error.suffix.schema-version-unsupported':
@@ -468,5 +472,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',
 	'save-state.save-error': 'Fehler beim Speichern',
+	'save-state.saved-refresh-needed': 'Gespeichert · Aktualisierung nötig',
 	...deAssetLibrary,
 };

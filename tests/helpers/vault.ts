@@ -169,6 +169,27 @@ class FakeVault {
 	failedOps: string[] = [];
 
 	/**
+	 * A failure targeting one OCCURRENCE of a key, keyed like `failures`: `failOnHit.get(key)`
+	 * names which hit (1-based) of `<op>:<path>` should throw, every other hit passing through.
+	 *
+	 * Exists for a case a permanent failure and a plain one-shot cannot reach: TWO DIFFERENT
+	 * writes sharing one key, where only the SECOND must fail. The update-path compensation is
+	 * exactly that — step 3 of a zone update and the restore that follows both write the note
+	 * through `modify`, so `modify:<notePath>` is hit exactly twice, in that order, with
+	 * nothing else calling `op()` for that key in between (the sidecar mutation between them
+	 * writes a DIFFERENT path). `failOnHit.set('modify:<path>', 2)` lets step 3's own write
+	 * through and fails the restore.
+	 *
+	 * A one-shot failure is the degenerate case of this — hit 1, and nothing else — so there is
+	 * one counting mechanism here rather than a plain Set living beside it for an idea the Set
+	 * only half expressed: this replaces an earlier `failOnce: Set<string>` that turned out
+	 * unable to reach the update-path scenario it was written for at all, because "the first
+	 * hit" is never the one that needs to fail.
+	 */
+	readonly failOnHit = new Map<string, number>();
+	private readonly hitCounts = new Map<string, number>();
+
+	/**
 	 * Every operation this fake performed, in order, as `<op>:<path>` — the instrument for
 	 * asserting how MANY vault reads a repository call costs.
 	 *
@@ -407,9 +428,12 @@ class FakeVault {
 	}
 
 	private op(name: string, path: string): void {
-		this.operations.push(`${name}:${path}`);
-		if (this.failures.has(`${name}:${path}`)) {
-			this.failedOps.push(`${name}:${path}`);
+		const key = `${name}:${path}`;
+		this.operations.push(key);
+		const hit = (this.hitCounts.get(key) ?? 0) + 1;
+		this.hitCounts.set(key, hit);
+		if (this.failOnHit.get(key) === hit || this.failures.has(key)) {
+			this.failedOps.push(key);
 			throw new Error(`Injected failure: ${name} ${path}`);
 		}
 	}

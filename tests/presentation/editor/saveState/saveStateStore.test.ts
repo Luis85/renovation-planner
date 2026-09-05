@@ -2,6 +2,17 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
 
+type Store = ReturnType<typeof useSaveStateStore>;
+// Named references, not anonymous closures: the exhaustive walk below has to recognise WHICH
+// action a given prefix entry is, to compute the expected `unrecoveredWrite` for that
+// sequence, and a name on the array element is cheaper than re-deriving it from what the
+// store looks like afterwards.
+const beginSavingAction = (store: Store): void => store.beginSaving();
+const resolveOkAction = (store: Store): void => store.resolveOk();
+const resolveErrAction = (store: Store): void => store.resolveErr();
+const resolveNeutralAction = (store: Store): void => store.resolveNeutral();
+const markUnrecoveredAction = (store: Store): void => store.markUnrecovered();
+
 describe('the save-state store', () => {
 	beforeEach(() => {
 		setActivePinia(createPinia());
@@ -125,13 +136,28 @@ describe('the save-state store', () => {
 		expect(store.state).toBe('save-error');
 	});
 
-	it('never reaches unsaved-changes through any sequence of its own actions', () => {
-		type Store = ReturnType<typeof useSaveStateStore>;
+	it('records an unrecovered write, and only a write that later SUCCEEDS clears it', () => {
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.markUnrecovered();
+		store.resolveErr();
+		expect(store.state).toBe('save-error');
+		expect(store.unrecoveredWrite).toBe(true);
+		store.beginSaving();
+		store.resolveNeutral(); // a refusal that wrote nothing
+		expect(store.unrecoveredWrite).toBe(true);
+		store.beginSaving();
+		store.resolveOk(); // a write that landed whole
+		expect(store.unrecoveredWrite).toBe(false);
+	});
+
+	it('never reaches unsaved-changes through any sequence of its own actions, and settles unrecoveredWrite exactly at resolveOk', () => {
 		const actions: ((store: Store) => void)[] = [
-			(store) => store.beginSaving(),
-			(store) => store.resolveOk(),
-			(store) => store.resolveErr(),
-			(store) => store.resolveNeutral(),
+			beginSavingAction,
+			resolveOkAction,
+			resolveErrAction,
+			resolveNeutralAction,
+			markUnrecoveredAction,
 		];
 
 		/**
@@ -141,6 +167,11 @@ describe('the save-state store', () => {
 		 * A store that assigns `'unsaved-changes'` only when an action sees the store at rest
 		 * (e.g. `resolveOk` doing so exactly when `state === 'saved'`) is caught at depth 1,
 		 * because every sequence here genuinely starts from `'saved'`.
+		 *
+		 * `unrecoveredWrite` is asserted at every depth too, from the prefix alone: it is `true`
+		 * exactly when the LAST `markUnrecoveredAction` in the sequence comes after the last
+		 * `resolveOkAction` (an absent action reads as index -1, so a sequence with neither, or
+		 * with only a trailing `resolveOk`, both resolve to `false` — the initial value).
 		 */
 		const walk = (prefix: readonly ((store: Store) => void)[], depth: number): void => {
 			setActivePinia(createPinia());
@@ -149,6 +180,9 @@ describe('the save-state store', () => {
 				act(store);
 				expect(store.state).not.toBe('unsaved-changes');
 			}
+			const lastResolveOk = prefix.lastIndexOf(resolveOkAction);
+			const lastMarkUnrecovered = prefix.lastIndexOf(markUnrecoveredAction);
+			expect(store.unrecoveredWrite).toBe(lastMarkUnrecovered > lastResolveOk);
 			if (depth === 0) return;
 			for (const act of actions) {
 				walk([...prefix, act], depth - 1);
@@ -160,9 +194,17 @@ describe('the save-state store', () => {
 	it('exposes exactly its own action surface, so a future action cannot slide in unnoticed', () => {
 		const store = useSaveStateStore();
 		expect(Object.keys(store)).toEqual(
-			expect.arrayContaining(['state', 'beginSaving', 'resolveOk', 'resolveErr', 'resolveNeutral']),
+			expect.arrayContaining([
+				'state',
+				'unrecoveredWrite',
+				'beginSaving',
+				'markUnrecovered',
+				'resolveOk',
+				'resolveErr',
+				'resolveNeutral',
+			]),
 		);
-		// The exact key set Pinia hands back for this store today — its own five members plus
+		// The exact key set Pinia hands back for this store today — its own seven members plus
 		// the setup-store machinery ($dispose, $patch, …) Pinia attaches to every store. An
 		// exact match, not a negative check for a name (like the never-existed `markUnsaved`)
 		// that no implementation would plausibly add: a genuinely new action changes this set
@@ -179,10 +221,12 @@ describe('the save-state store', () => {
 			'_hotUpdate',
 			'_p',
 			'beginSaving',
+			'markUnrecovered',
 			'resolveErr',
 			'resolveNeutral',
 			'resolveOk',
 			'state',
+			'unrecoveredWrite',
 		]);
 	});
 

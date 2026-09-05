@@ -2,6 +2,7 @@ import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { AssetPriceOverrideEventPayload } from '../../domain/asset-price/AssetPriceOverride.events';
 import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
+import { disposeAll, subscribeAll } from './subscriptions';
 
 /**
  * "A project's own price for some asset may have moved — re-read it": the domain event
@@ -89,23 +90,17 @@ export function createProjectPricesChangeSource(
 ): (listener: (projectId: ProjectId | null) => void) => () => void {
 	return (listener: (projectId: ProjectId | null) => void) => {
 		const subscriptions = [
-			...PRICE_CHANGE_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					listener(changedProjectOf(event));
-				}),
-			),
+			...subscribeAll(events, PRICE_CHANGE_EVENTS, (event) => {
+				listener(changedProjectOf(event));
+			}),
 			// `null` rather than a project id, because there is none to give: this payload is
 			// `{ entityId, entityType }` and the entry is a price NOTE whose owning project only
 			// a vault read could name. See the header for why that is a MATCH at every narrowing
 			// caller rather than a miss.
-			...PRICE_ENTRY_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					if (changedEntityTypeOf(event) === 'renovation-asset-price') listener(null);
-				}),
-			),
+			...subscribeAll(events, PRICE_ENTRY_EVENTS, (event) => {
+				if (changedEntityTypeOf(event) === 'renovation-asset-price') listener(null);
+			}),
 		];
-		return () => {
-			for (const subscription of subscriptions) subscription.dispose();
-		};
+		return disposeAll(subscriptions);
 	};
 }

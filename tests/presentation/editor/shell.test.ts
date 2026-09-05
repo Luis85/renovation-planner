@@ -8,7 +8,7 @@
  * into the status bar's third region by name — so what is asserted here is that each region
  * exists, is labelled, and holds what this slice puts in it.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { err, ok } from '../../../src/core/result/Result';
 import { t } from '../../../src/presentation/i18n/strings';
@@ -19,10 +19,12 @@ import {
 	STAGE_PIXELS,
 } from '../../../src/presentation/editor/viewport/Viewport';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
+import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
 import {
 	fakeQueries,
 	mountPlanEditor,
 	mountPlanEditorCanvas,
+	runtimeOf,
 	settle,
 	type CanvasHarness,
 	type EditorHarness,
@@ -338,6 +340,106 @@ describe('the persistent warning strip', () => {
 		store.stale = false;
 		await settle();
 		expect(marks()).toStrictEqual([['unreadable-zones', 'error', t('en', 'editor.warning.severity.error')]]);
+	});
+
+	/**
+	 * Task 9 (design spec §2.3): Try again is `runtime.refreshProjection`, and nothing else —
+	 * a re-read that takes no command parameter, so it cannot replay a write. Asserted by
+	 * COUNTING the read it actually causes, rather than by trusting the wiring: a retry
+	 * hoisted to dispatch a command instead would leave `getPlan` at zero here (mutation
+	 * checked in the task report), since the refusing command bundle this harness mounts
+	 * would refuse before ever reaching a query.
+	 */
+	it('renders each action as a button inside its row, aria-busy while refreshing, and Try again re-reads only', async () => {
+		const queries = fakeQueries(FIXTURE_PLAN);
+		const getPlan = vi.spyOn(queries, 'getPlan');
+		const harness = await mountCanvas({ queries });
+		const store = useProjectStore(harness.pinia);
+		store.stale = true;
+		await settle();
+		const row = harness.wrapper.find('[data-rp-warning="stale"]');
+		const buttons = row.findAll('button.rp-warning-strip__action');
+		expect(buttons.map((b) => b.text())).toEqual([
+			t('en', 'editor.warning.retry'),
+			t('en', 'editor.warning.open-source-note'),
+		]);
+
+		getPlan.mockClear();
+		await buttons[0].trigger('click');
+		await settle();
+		// No command ran: the harness commands are the refusing bundle, so a retry that
+		// dispatched one instead would leave this at zero.
+		expect(getPlan).toHaveBeenCalledTimes(1);
+
+		store.refreshing = true;
+		await settle();
+		expect(row.attributes('aria-busy')).toBe('true');
+		expect(buttons[0].attributes('aria-disabled')).toBe('true');
+
+		// A click on a busy button still fires — it is `aria-disabled`, never `:disabled` — so
+		// the template's own `a.busy ? undefined : a.run()` guard is what has to withhold it.
+		getPlan.mockClear();
+		await buttons[0].trigger('click');
+		await settle();
+		expect(getPlan).not.toHaveBeenCalled();
+	});
+
+	it('Open source note asks the context for THIS plan’s note', async () => {
+		const harness = await mountCanvas();
+		useProjectStore(harness.pinia).stale = true;
+		await settle();
+		await harness.wrapper.find('[data-rp-warning="stale"] button[data-rp-action="open-source-note"]').trigger('click');
+		expect(harness.openedNote()).toBe(1);
+	});
+
+	it('keeps the stale row’s DOM node while its message changes after a failed retry', async () => {
+		const harness = await mountCanvas();
+		const store = useProjectStore(harness.pinia);
+		store.stale = true;
+		await settle();
+		const node = harness.wrapper.find('[data-rp-warning="stale"]').element;
+		store.retriesFailed = 1;
+		await settle();
+		expect(harness.wrapper.find('[data-rp-warning="stale"]').element).toBe(node);
+		expect(harness.wrapper.find('[data-rp-warning="stale"]').text()).toContain(
+			t('en', 'editor.refresh-failed.again'),
+		);
+	});
+
+	it('draws the unrecovered row from the save-state store, and a successful refresh does not clear it', async () => {
+		const harness = await mountCanvas();
+		useSaveStateStore(harness.pinia).markUnrecovered();
+		await settle();
+		expect(harness.wrapper.find('[data-rp-warning="unrecovered"]').exists()).toBe(true);
+
+		await runtimeOf(harness).refreshProjection();
+		await settle();
+		expect(harness.wrapper.find('[data-rp-warning="unrecovered"]').exists()).toBe(true);
+	});
+
+	/**
+	 * Design spec §10: the same focus-recovery shape `TemporaryToolBanner.vue` gives the
+	 * add-room task, reached through `onBeforeUpdate`/`onUpdated` rather than through
+	 * `onBeforeUnmount` — this component's rows are `v-for` children of ONE component, so
+	 * there is no per-row unmount hook to reach for; see `PersistentWarningStrip.vue`'s own
+	 * header for why those two hooks are the equivalent pair here.
+	 */
+	it('moves focus to the strip when the focused Try again unmounts with a successful retry', async () => {
+		const harness = await mountCanvas();
+		const store = useProjectStore(harness.pinia);
+		store.stale = true;
+		await settle();
+
+		const retryButton = harness.wrapper
+			.find('[data-rp-warning="stale"] button[data-rp-action="retry"]')
+			.element as HTMLElement;
+		retryButton.focus();
+		expect(document.activeElement).toBe(retryButton);
+
+		store.stale = false;
+		await settle();
+
+		expect(document.activeElement).toBe(harness.wrapper.find('.rp-warning-strip').element);
 	});
 
 	/**

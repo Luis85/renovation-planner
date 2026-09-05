@@ -64,10 +64,11 @@ const instructionId = useId();
  * The `aria-disabled` promise kept at the control, not only at the action — the same shape
  * `NewRoomInspector.vue`'s own `onCreate` uses, and it dispatches through the identical
  * `runtime.createRoom()` door: a click on an `aria-disabled` button still fires, so nothing
- * downstream may assume the guard already ran.
+ * downstream may assume the guard already ran. `writesBlocked` (design spec §2.9) is the
+ * second half of that same promise.
  */
 function onFinish(): void {
-	if (!runtime.canCreateRoom.value) return;
+	if (!runtime.canCreateRoom.value || runtime.writesBlocked.value) return;
 	void runtime.createRoom();
 }
 
@@ -126,8 +127,8 @@ watch(task, (next) => {
 			v-if="task.finish"
 			type="button"
 			class="rp-task-banner__finish"
-			:aria-disabled="!runtime.canCreateRoom.value"
-			:aria-describedby="instructionId"
+			:aria-disabled="!runtime.canCreateRoom.value || runtime.writesBlocked.value"
+			:aria-describedby="[instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' ')"
 			@click="onFinish"
 		>
 			{{ tr('editor.task.finish') }}

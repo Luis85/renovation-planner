@@ -116,13 +116,31 @@ export class AssetDesignerView extends ItemView {
 		// showing an asset nobody asked it to open, and `getState()` reported that asset's id, so
 		// Obsidian persisted it into the workspace layout. A state this view cannot read means it
 		// does not know what is being asked for, and the honest answer to that is nothing.
-		// Obsidian ItemView lifecycle boilerplate is intentionally per view (ADR-0015); no shared stateful base class.
-		// fallow-ignore-next-line code-duplication
 		this.assetId = assetIdFrom(state)?.assetId ?? null;
 		this.sync();
 		return Promise.resolve();
 	}
 
+	/*
+	 * REVIEWED CLONE with `PlanEditorView` (the tail of `setState`, the whole of `onOpen`, the
+	 * whole of `onClose` — seven statements of code, the rest each file's own comments). This
+	 * reason used to live in `.fallowrc.json` under a key whose `-N` group index had drifted
+	 * onto an entirely different pair; it lives at the code now.
+	 *
+	 * Not extracted, and the reason is what the block IS: six of the seven statements are
+	 * Obsidian's INTERFACE rather than a rule of this plugin's — `onOpen`/`onClose` are hooks
+	 * every `ItemView` mounting a framework tree writes the same way — and a base class holding
+	 * them would couple two view types for a clone detector rather than for a reason. What could
+	 * genuinely drift is asserted instead, per view: "both entry points route through one
+	 * `sync`" and "close unmounts" each have a case in each suite, and
+	 * `renovation-planner-container`, the one line that IS a rule of ours (`styles/chrome.css`
+	 * keys off it), is asserted in all three view suites.
+	 *
+	 * The trigger for merging them is ADR-0015's *Revisit when*: one view type with a `subject`
+	 * discriminator, once the designer and the editor want the same shell badly enough that one
+	 * is less code than two. Tasks B1 and B2 already extracted the halves they really do share.
+	 */
+	// fallow-ignore-next-line code-duplication
 	onOpen(): Promise<void> {
 		this.containerEl.addClass('renovation-planner-container');
 		this.sync();

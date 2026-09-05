@@ -228,5 +228,8 @@ export function harnessEditorContext(): PlanEditorContext {
 		// `UnsupportedWidthNotice`'s button still renders and still presses — the index can be
 		// opened at any width — it simply has nothing to act on.
 		focusLeaf: () => undefined,
+		// Bound to `harnessDeps()`'s own `openNote`, which answers `'opened'` without touching
+		// anything — the honest result for a page with no vault, matching every other door here.
+		openPlanNote: () => deps.openNote(HARNESS_PLAN.id).then(() => undefined),
 	};
 }

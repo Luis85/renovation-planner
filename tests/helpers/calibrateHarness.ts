@@ -144,6 +144,8 @@ export const harness = (): Harness => {
 		// shared helper, already builds one.
 		renderState: new RenderState(),
 		subject: { id: PLAN_ID, calibration: null },
+		// The trust path (design spec §2.2): no case here is about it.
+		writesBlocked: () => false,
 	};
 
 	return {

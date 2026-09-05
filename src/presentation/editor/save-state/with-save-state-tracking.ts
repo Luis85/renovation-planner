@@ -1,4 +1,4 @@
-import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
+import { leftWritesBehind, type DispatchResult } from '../../../application/commands/DispatchOutcome';
 import { isErr } from '../../../core/result/Result';
 import type { RefreshedHistory } from '../tools/with-state-refresh';
 import type { useSaveStateStore } from './save-state-store';
@@ -6,7 +6,7 @@ import { affectsSaveState } from './affects-save-state';
 
 export type SaveStateTracker = Pick<
 	ReturnType<typeof useSaveStateStore>,
-	'beginSaving' | 'resolveOk' | 'resolveErr' | 'resolveNeutral'
+	'beginSaving' | 'resolveOk' | 'resolveErr' | 'resolveNeutral' | 'markUnrecovered'
 >;
 
 /**
@@ -51,8 +51,12 @@ export function withSaveStateTracking(
 			// A refusal that never reached the repository wrote NOTHING, so it is neither a
 			// failure to report nor evidence that anything was saved. Resolving it as `ok` would
 			// let a validation refusal clear a `save-error` left by a real persistence failure.
-			else if (affectsSaveState(result.error)) saveState.resolveErr();
-			else saveState.resolveNeutral();
+			else if (affectsSaveState(result.error)) {
+				// `markUnrecovered` BEFORE `resolveErr`, so a consumer watching `state` finds the
+				// flag already set — the two are one fact about this refusal, not two.
+				if (leftWritesBehind(result.error)) saveState.markUnrecovered();
+				saveState.resolveErr();
+			} else saveState.resolveNeutral();
 			return result;
 		} catch (cause) {
 			// **A THROWN fault settles the batch too, and forgetting this is worse than

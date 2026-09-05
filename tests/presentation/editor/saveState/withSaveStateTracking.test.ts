@@ -27,7 +27,37 @@ const tracker = () => ({
 	resolveOk: vi.fn<() => void>(),
 	resolveErr: vi.fn<() => void>(),
 	resolveNeutral: vi.fn<() => void>(),
+	markUnrecovered: vi.fn<() => void>(),
 });
+
+/**
+ * A `SaveStateTracker` fake that records the ORDER its methods are called in, which is the
+ * one thing `tracker()`'s independent `vi.fn`s cannot show. `markUnrecovered` has to land
+ * BEFORE `resolveErr` for a consumer watching `state` to find the flag already set (design
+ * spec §2.8), and only a call sequence proves that — a set of per-method call counts is blind
+ * to it.
+ */
+const recordingTracker = () => {
+	const calls: string[] = [];
+	return {
+		calls,
+		beginSaving: (): void => {
+			calls.push('beginSaving');
+		},
+		resolveOk: (): void => {
+			calls.push('resolveOk');
+		},
+		resolveErr: (): void => {
+			calls.push('resolveErr');
+		},
+		resolveNeutral: (): void => {
+			calls.push('resolveNeutral');
+		},
+		markUnrecovered: (): void => {
+			calls.push('markUnrecovered');
+		},
+	};
+};
 
 const command = {} as UndoableCommand;
 
@@ -229,6 +259,30 @@ describe('withSaveStateTracking', () => {
 	});
 
 	/**
+	 * **§2.8: a refusal that left writes standing is stamped BEFORE it is reported as failed.**
+	 * `leftWritesBehind` reads the same `markUncompensated` stamp `affectsSaveState` already
+	 * asks about — this is the ONE reachable place, on the refusal channel, where the tracker
+	 * has to say something beyond "this failed": the vault's coherence is in question and the
+	 * only evidence it is coherent again is a write that lands whole, not a refresh. Asserted
+	 * as an ORDER, through `recordingTracker`, because a call-count fake cannot tell "marked
+	 * then reported" from "reported then marked" and the design spec requires the former so a
+	 * consumer watching `state` finds the flag already set.
+	 */
+	it('stamps an unrecovered write on the store when the refusal left writes behind', async () => {
+		const recorded = recordingTracker();
+		const history = historyResolving(err(markUncompensated(errorOf('Persistence'))));
+		await withSaveStateTracking(history, recorded).run(command);
+		expect(recorded.calls).toEqual(['beginSaving', 'markUnrecovered', 'resolveErr']);
+	});
+
+	it('does not stamp an ordinary persistence refusal that left nothing standing', async () => {
+		const recorded = recordingTracker();
+		const history = historyResolving(err(errorOf('Persistence')));
+		await withSaveStateTracking(history, recorded).run(command);
+		expect(recorded.calls).toEqual(['beginSaving', 'resolveErr']);
+	});
+
+	/**
 	 * **The case the whole `DispatchOutcome` widening exists for**, and the one a reviewer
 	 * found: a SUCCESS that wrote nothing. `AssignAssetCommand` answers `ok({ created: false })`
 	 * from a read when the asset is already linked to the zone, and `CommandHistory` answers
@@ -338,6 +392,7 @@ describe('withSaveStateTracking', () => {
 			}),
 			resolveErr: vi.fn<() => void>(),
 			resolveNeutral: vi.fn<() => void>(),
+			markUnrecovered: vi.fn<() => void>(),
 		};
 		const history = {
 			run: vi.fn<() => Promise<DispatchResult>>(() => {

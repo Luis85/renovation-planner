@@ -1811,9 +1811,19 @@ it:
   (`rp-save-state-error` against a template emitting `rp-save-state-save-error`) under a comment
   saying nothing here could catch it. The test now BUILDS `.rp-save-state-${state}` from the
   same expression the template interpolates and asserts the stylesheet declares it. The
-  distinctness of the four marks is still a claim only an eye settles, which is what the
+  distinctness of those marks is still a claim only an eye settles, which is what the
   capture is for — and reading it produced the residual now written beside the CSS: held still
   under reduced motion, the saving arc and the unsaved-changes ring differ by one gap.
+  **This bullet said FOUR marks throughout, and the trust path made the indicator able to draw
+  FIVE without adding a `SaveState`.** `saved-refresh-needed` is DERIVED — the component reads
+  `ProjectStore.stale` beside the store's own state — so the type still has four members and every
+  sentence above about the store is unmoved, while the count of MARKS is not the same count. The
+  selector test grew with it, because it builds the class from the template's own expression and
+  therefore had nothing to remember. `SaveStateMarks.vue` did NOT: the specimen that exists to
+  draw every mark for an eye still draws four, so the one mark whose distinctness matters most —
+  a settled disc with a gap, beside a settled disc — is the one no capture has ever shown. Which
+  is the count lesson at the top of this file arriving at a component: the instrument that
+  DERIVES its subject survived, and the one that ENUMERATES it went one short in silence.
 - **A slot released by INFERENCE is a slot released on an assumption about Obsidian, and there
   are TWO gestures that know, not one.** The dismiss button called `notice.hide()` and then
   swept, and the sweep asks `isConnected` — still true for as long as an animated `Notice`
@@ -4021,6 +4031,247 @@ measurement can still support a false conclusion, and the only defence is to re-
 CONCLUSION rather than to re-check the measurement.** Every finding in this round that was
 verified independently held; the one that was not, did not.
 
+**The trust path has landed: a stale read is a state you can act on.** The plan editor
+foundation's THIRD increment, checkpoint C3. A renovator commits a room edit, the write lands and
+the read-back fails: the floor stays exactly where it was, a keyed warning strip above it says
+what happened and offers **Try again** and **Open source note**, the status bar reads
+`Saved · refresh needed`, and every control that would write against data the last read could not
+confirm is paused with one shared reason. Undo and Redo stay live, because their inverse comes
+from the history's own record and not from the screen. `withStaleGate(dispatcher, isStale)` is a
+fifth member of the per-leaf chain — after the save-state tracker, before `wrapDispatcher`, so a
+refused dispatch never opens a saving batch — refusing `run` with a resolved `ValidationError`
+carrying `editor.stale-write-refused` and passing `undo`/`redo` through untouched. Retry IS the
+post-command refresh: `createProjectionRefresh` was split out of `withEditorStateRefresh`'s
+anonymous closure into a NAMED `refreshProjection()` the runtime hands to both callers, so *"a
+retry cannot replay the write"* is a fact about a signature — `type-safety.test-d.ts` holds its
+parameter list equal to `[]` — rather than a sentence. `Saved · refresh needed` is DERIVED, not a
+fifth `SaveState`. And `ObsidianZoneRepository.compensateFailedSidecarWrite` stopped calling
+itself compensated when it is not: two new codes, stamped with `markUncompensated`, feeding a new
+`unrecovered` warning row that only a write landing WHOLE can clear. Nothing about the model
+moved — no schema, no write path, no event. The rules that came out of it:
+
+- **A guard whose absence produces the same OUTCOME as its presence is a guard no outcome test
+  can see, and this increment shipped SIX of them before anyone noticed.** The stale gate refuses
+  at the dispatcher; each paused control ALSO returns early. That is defence in depth and it is
+  right — a doomed round-trip becomes a silent no-op, and an override field stops routing an
+  unmapped refusal to a banner — but it means **removing either alone leaves the vault-side
+  assertion green.** Four handler guards (`onDeleteZone`, `assignSelected`, `resetQuantity`,
+  `resetCost`) were mutated out and every case stayed green, because `withStaleGate` refused the
+  write underneath them; the gate itself was mutated out and the whole Scenario D case stayed
+  green, because `SelectTool.writesBlocked` and the components' own attributes held every
+  assertion. The fix is an instrument per mechanism: a spy UPSTREAM of the dispatcher for each
+  handler, and one e2e case driven at `runtime.createRoom()` past every `aria-disabled` control
+  for the gate. **When two mechanisms produce one outcome, an outcome test is a test of neither.**
+- **Two of those four guards were green for a SECOND reason on top of the first, and the mutation
+  is what found it.** `assignSelected` returns at its own pre-existing empty-picker guard unless
+  the asset is re-selected (the first, unblocked Assign clears `pickedAssetId`), and `resetCost`
+  takes `reset()`'s "nothing to reset" branch unless a cost override is actually set. Each case
+  therefore proved its guard only after its FIXTURE was corrected — which is the same shape as a
+  test passing on the wrong refusal, met at a handler rather than at a command.
+- **A spy on a value handed down as a PROP is inert if it is installed after the render that
+  handed it down.** `commitField` reaches `RequirementRow` as `:commit="runtime.commitField"`, and
+  `runtime` is a plain object, never `reactive()` — so `vi.spyOn(runtime, 'commitField')` mutates
+  the property in place while the already-mounted row keeps calling the reference it was handed at
+  the last patch. The `resetQuantity` mutation PASSED for exactly this reason, not because the
+  guard was untested. Both `commitField` spies are installed BEFORE the stale flip now, so the
+  flip's own re-render carries them into the child's props. **A spy is a claim about a reference,
+  and a prop is a copy of one taken at a moment.**
+- **A code unreachable against the FAKE is not a code unreachable in production, and the
+  difference is one primitive.** The first pass DROPPED `zone.sidecar-update-uncompensated`,
+  correctly reasoned against the fake it had: `failOnce`, a one-shot set keyed `<op>:<path>`,
+  cannot separate an update's own `writeOwnedFrontmatter` write from its restore, because both are
+  `modify:<notePath>` and the one-shot fires on the first. A COUNTED failure can —
+  `FakeVault.failOnHit`, "fail exactly hit N of this key" — and on an update hit 2 of that key IS
+  the restore, with the sidecar mutation between them keyed elsewhere. The spec was right and the
+  reading of the fake was what was wrong. **The proof is POSITIVE rather than an absence**: the
+  note on disk still carries the failed update's new name, so hit 1 landed and only hit 2 refused.
+  `failOnce` was retired rather than kept beside it — it had zero real call sites, and a one-shot
+  is the degenerate `failOnHit.set(key, 1)`; two counting mechanisms for one idea, with no test
+  distinguishing them, is the self-declared shape this file already refuses.
+- **A guard the plan asked for can be DEAD, and the mutation the plan named for it is what says
+  so.** `ProjectStore`'s `done()` helper was specified with an internal `if (!superseded())`, and
+  making it unconditional reddened nothing. Measured rather than argued: a coverage run over 115
+  tests reported that branch `[113, 0]` — the false arm never taken by anything — because every
+  `done()` call site sits immediately after its own `if (superseded()) return;` with **no `await`
+  between them**, so the value cannot change. It was removed, because at this repository's floors
+  an unreachable arm is not free. **The load-bearing invariant is its inverse** — that the three
+  BARE superseded returns must not call `done()` — and that one is mutation-verified. All six
+  sites plus `reset()` have their own assertion now, each watched red by deleting that one call.
+- **An ordering claim that no runtime behaviour can discriminate is held by a docblock, and the
+  honest move is to say so rather than invent an assertion.** The gate sits AFTER the save-state
+  tracker so a refused dispatch cannot open a saving batch. Swapping the two and probing the
+  indicator's state before and after a refused `run` reads `saved` → `saved` under BOTH orderings,
+  because the refusal is a `Validation` category that `affectsSaveState` treats as neutral either
+  way. The property is held by `saveStateWiring.test.ts`'s SOURCE-TEXT check — the gate is built
+  from the tracked dispatcher, and `wrapDispatcher` receives the gated one — and by the
+  `buildDispatcherChain` docblock. A behavioural assertion was written, measured non-discriminating
+  and deleted rather than kept as decoration.
+- **The two live-vault cases are written and have NOT been run**, and the record says so in five
+  places rather than one: both Runs tables, both walk TASKS, and
+  `Reload the editor without losing room data`'s criterion 5 — *"the create/select/reload journey
+  passes in a live Obsidian vault"* — which is recorded as **outstanding rather than ticked** under
+  a PBI marked Done. An unrun manual case is a plan to find out, not a finding; design slice 21
+  already paid for reading one the other way.
+  **And the two TASKS whose whole deliverable is the walk stay ACTIVE under Done parents**, which
+  is the shape to copy rather than the inconsistency it looks like: a task that delivers a RUN is
+  not discharged by delivering the procedure the run follows, however good the procedure is. The
+  first draft of this record closed both of them on the strength of the cases being written and
+  censused — the same reasoning, one level down, that this file already records slice 21 paying
+  for. A parent PBI can still be Done, because its criteria are behavioural claims with named
+  tests; the distinction is between a criterion that is a claim about the code and a task that is
+  a claim about somebody having looked.
+- **The fault a manual case names is part of the case, and two of the obvious ones are WRONG.**
+  `docs/tests/cases/Recover from a stale read.md` carries a *fault setup* section rather than one
+  recipe, because which READ fails decides what you get. `ProjectStore.hydrate` reads plan, then
+  project, then zones, and `CreateZoneCommand` reads the PLAN and never the project — so breaking
+  the PROJECT note's `schema-version` lets the room write land while the read-back after it
+  refuses, and breaking the floor's own `Plan.md` first refuses the WRITE instead, which is an
+  ordinary refusal and not Scenario D. Making the note read-only at the OS produces no failed read
+  at all, and is listed because it is the first guess. **A case that names the faults that do not
+  work is what stops the first run reporting them as discoveries.**
+- **The harness knob had to drive a REAL write, because there is no other door to `stale`.** The
+  plan's own mechanism — arm a counting `getPlan`, trigger the second read through the view's
+  `onPlanChanged` listener — cannot set it: `PlanEditorRoot.hydrate()` passes no
+  `keepPreviousOnFailure`, so a failure there calls `fail()` and blanks the floor.
+  `keepPreviousOnFailure` has exactly ONE production caller, `createProjectionRefresh`, reached
+  only after a SUCCESSFUL dispatch. So `?stale` selects a sacrificial zone, clicks the Inspector's
+  own Delete (a zero-referent delete dispatches with no dialog), and fails the automatic
+  post-command refresh that follows. It is the one place the harness's *"every write refuses"*
+  claim has an exception, scoped to one zone id and documented where the exception is.
+- **Reading the two captures found one defect and one residual, and neither was visible to any
+  gate.** The Layers panel drew *"No reference plan has been added to this floor."* TWICE — the
+  entry's own reason, plus a new per-action reason span carrying the same key — which is what a
+  second reason id introduced for the right reason (the two reasons CAN differ) costs when both
+  resolve to the same string today. Fixed. And at 460 px the status bar CLIPS its hint text, so
+  the paused hint is not visible in a narrow leaf while the strip and the save-state label still
+  say it: a residual belonging to the Active task *Build full and compact editor status bars*,
+  written into the manual case as a step expected to FAIL rather than left to be met cold.
+- **A TEMPLATE has cognitive complexity, and `analyze` is the only step of the gate that sees it.**
+  The paused state gave `RoomInspector.vue` a run of ternaries in its markup — `aria-disabled` as
+  `blocked || …`, `aria-describedby` joining an existing id with the paused one, per control — and
+  the file's template crossed fallow's cognitive-complexity threshold, at 21 — a MEASURED value
+  against the tool's own default, since `.fallowrc.json` configures no threshold for it, and this
+  sentence said "fallow's threshold of 21" until a review read the config. Neither `vue-tsc`, nor
+  `eslint .`, nor the suite has
+  anything to say about it: `max-lines` counts lines and `max-lines-per-function` counts a
+  function's, and a template is neither. It took a FOURTH review round on that task to surface,
+  which is what a check nobody thinks of as a check costs. **Fixed by extracting the conditions
+  into named computeds rather than by suppressing the finding** — the same answer this file's
+  `runtime.ts` budget note reaches from the other side, and the one that leaves the condition
+  readable at a name instead of spelled inline three times. The rule worth carrying: when a
+  cross-cutting state lands on a dozen controls at once, the cost shows up in the markup, and
+  `npm run analyze` is the only instrument pointed at it.
+- **A rule moved out of a stylesheet is a rule some test was reading from that stylesheet, and one
+  of them was passing on a COMMENT.** `.rp-visually-hidden` moved to its own partial for its
+  second caller; the gate caught one reader immediately, and the grep for the others found a
+  second in the same file that had been green because the moved-away comment spelled the class
+  WITH its leading dot, so a `/\.rp-visually-hidden/` harvest matched prose rather than a
+  declaration. Confirmed by mutation — reverting the fix left that case green. The comment is
+  reworded to name the class without its dot, because a harvest case is only honest if a comment
+  cannot stand in for a rule.
+- **A required member is what makes the compiler enumerate the fixtures, and it named six.**
+  `EditorContext.writesBlocked: () => boolean` is REQUIRED, so every construction site was a build
+  error until it decided — the plan editor's own runtime, the asset DESIGNER's runtime (which
+  answers `false`: it has no `ProjectStore` and nothing that can go stale over an asset's design),
+  and four test builders. `PlanEditorContext.openPlanNote` named one more, in a harness fixture
+  nobody's brief listed. This is the same instrument the `onThemeChange` widening used, and it is
+  still the cheapest census of a chain there is.
+- **`presentation/` may not import `infrastructure/`, and a brief's illustrative code does not
+  know that.** The plan spelled `PlanEditorDeps.openNote` as returning
+  `ProjectNoteOpenOutcome` — a type that lives behind the layer ban. `AssetLibraryDeps.ts`'s own
+  docblock had already declared the third copy of that three-member union and predicted that the
+  next one should SHARE rather than repeat, so the door imports the sibling `presentation/` type
+  instead of minting a fifth. Worth flagging as a trap: copying a brief's snippet verbatim is
+  exactly how a layer ban gets crossed, and the first lint pass reported only an unused import.
+- **A test file at its cap does not get a smaller case; it gets a sibling.** Three axe scans would
+  have pushed `tests/harness/accessibility.test.ts` from 450 to 459 counted lines, so they are
+  `tests/harness/accessibilityTrustPath.test.ts`, sharing `runOptions` from `./axeOptions` exactly
+  as `accessibilityAssetLibrary.test.ts` already does — the alternative to sharing that list being
+  two copies of the rules this suite cannot honestly grade. No violations in any of the three.
+- **Four claims in the plan's own §8 were measured FALSE, and none was a production defect.**
+  Each is the code deliberately doing otherwise with the reason written where the code is: a
+  no-write success DOES take a history entry (`CommandHistory.runNow` says so in as many words),
+  a revision conflict on Undo raises NO toast (`zone.external-modification` is a write-boundary
+  code, so it flips the badge and routes at the `autosave-write` origin, which `surfaceFor` maps
+  to the `save-state` SURFACE rather than to a toast — and whose save-state sink is itself a no-op,
+  because `withSaveStateTracking` one layer below has already flipped the badge. One failure, one
+  widget. **The no-toast is the POLICY's doing and not the sink's**, which four of this
+  increment's own documents got backwards before a review caught it: `AUTOSAVE_SINKS` spreads
+  `noticeOnlySinks`, whose `toast` is a live `notifyError` — so "the toast sink is a no-op" reads
+  as a mechanism and names the wrong one, and the sink that IS a no-op is the save-state one, for
+  the opposite reason), a restored view state carries a plan id and NOTHING else so
+  "naming a deleted zone" has no subject at a reopen, and the gate-removed mutation reddens
+  neither of the two assertions the plan predicted. All four are written into `Undo and redo`'s
+  own amendments and into the spec, because the next reader meets the cases before the reasoning.
+- **`ok` is not evidence of a write, and neither is a badge that did not move.** The no-write case
+  had to be given a REAL standing `save-error` behind it before "moves no badge" could
+  discriminate anything: without one, a neutral resolution and a successful one both leave a fresh
+  leaf reading `Saved`. Same shape as the notice-count assertion that only means something over a
+  LIVE queue.
+- **A fake HARSHER than the real thing, for the second recorded time and in the same bundle.**
+  `unavailablePlanEditorCommands()` refuses `zoneInspector` — which is a READ, grouped with the
+  commands it shares a selection with — so selecting a room in the reopen case drew an empty
+  Inspector body until that one member was made real. The write side stays the refusal bundle.
+- **A reopen needs a fresh ECHO WINDOW, not just a fresh index.** `editorRoundTrip.test.ts`'s
+  reopen case builds a whole new `stackFoundation` over the SAME `FakeVault`, because
+  `frontmatterOf` falls back to what this plugin last wrote while the cache lags — so a read
+  through the WRITING stack can be answered by our own memory of our own write, and the case would
+  prove nothing about what is on disk. It also has to drain `metadataCache.catchUp()` first, which
+  is a true statement about the milliseconds after a save and NOT about reopening a vault; the
+  fixture says which.
+- **A store field named for one reader is a field two readers can want, and the answer is still
+  one field.** `refreshing` is true from a hydrate's first line until the read holding the LATEST
+  ticket settles, so a superseded read never clears it. The strip's busy state and any future
+  consumer read the same one; a per-caller busy flag was refused as a second answer to one
+  question. `retriesFailed` is the same discipline: it increments only when a keep-on-failure read
+  fails while the canvas was ALREADY stale, because the failure that SETS stale is not a retry.
+- **A row that keeps its DOM NODE is what stops a live region re-announcing.** A failed retry keeps
+  the stale row, its severity, its actions and its element, and moves only the message to
+  `editor.refresh-failed.again` — asserted as node identity rather than as text, since a strip that
+  unmounted and remounted the row would read identically on text and announce twice.
+- **Focus recovery has to be keyed on the hook that actually fires.** The strip's rows are `v-for`
+  children of ONE component, so `onBeforeUpdate`/`onUpdated` bracket every re-render its own update
+  effect runs — where `TemporaryToolBanner`, whose ROOT carries the `v-if`, needed `watch` for the
+  same job. The hook reads `document.activeElement === document.body` (the removal fallback) and
+  moves focus to the container, which gains `tabindex="-1"`. Watched failing first by commenting
+  the `.focus()` out, which also confirms the jsdom fallback the case rests on is real rather than
+  the assertion passing vacuously.
+- **The gates, and what each red one was.** Wave 1's gate was RED at lint on two size caps, both in
+  one task's files — `ProjectStore.ts`'s setup arrow at 106 against a 100-line FUNCTION cap, and
+  `stores.test.ts` at 531 against 450 — and green after extracting `runHydrationReads` and
+  splitting `projectStore.test.ts` out. Wave 2's gate was RED on ONE test, the stylesheet reader
+  above. Coverage at the green Wave 1 gate: statements 99.31, functions 99.14 (about **three**
+  covered units above the 99 floor), lines 99.59, branches 98.27. `dist/main.js` measured
+  **945.60 kB (gzip 284.50 kB)** at the Wave 2 gate of the trust path (2026-09-05) — read it as the
+  size on that day, the way every bundle figure in this file is meant to be read.
+
+**The residues this increment leaves standing** are enumerated in the spec's own Amendments
+section and in the three PBIs' amendments, because those are the documents a reader of this work
+opens. Five are worth naming here because a later reader is most likely to meet them as a
+surprise:
+
+- **The gate cannot see a write that bypasses the dispatcher.** The plugin's own palette commands
+  (`set-plan-background`, `create-sample-project`) never enter the leaf's chain, and `notifyFault`'s
+  raw ports sit outside the guarded boundary as this file already records. The PBI's "unsafe menu,
+  command, keyboard and pointer paths" clause is checked against the doors that EXIST, and the
+  manual case's step 4a expects the command to work and says why — a step asserting a refusal would
+  assert a guarantee the code does not make.
+- **The unrecovered row fires from a STAMP, and the stamp cannot see the class.** A post-write
+  refusal raised in a pre-write category anywhere else is still under-reported, exactly as the
+  `affectsSaveState` account above records. This increment adds one more stamped producer; it does
+  not close the class, and neither a linter nor the suite can see one, because the category axis
+  cannot see a write.
+- **`undo.superseded` still pins the stack.** A refused undo stays on it, `canUndo` reads true, and
+  every further press refuses for the leaf's life. Pinned as the recorded behaviour rather than
+  fixed; the remedy is a decision about `CommandHistory` every surface inherits.
+- **`withEditorStateRefresh` has no production caller left.** `createProjectionRefresh` was split
+  out of it and `runtime.ts` composes `withStateRefresh` directly, so the wrapper is kept alive by
+  its own test file and by the docblocks that name it. Retire it or repoint it.
+- **The two application-layer residues are untouched** — a successfully recalculated reassignment
+  that cannot be rolled back, and two marker failures reading as an interrupted sequence. Both
+  PRE-EXISTING, both already in this file and in the lock/publish plan's "Not in scope". This
+  increment SURFACES an unrecovered result; it does not change what produces one.
+
 **The Renovation Planner Home increment has landed: the project list is a LAUNCHER.** The
 Renovation project view's list state draws a header, a filter that is also the pane's count
 line, a `Continue` group offering the project and plan the user was last in, `Projects` most
@@ -4885,7 +5136,12 @@ already made about itself. `fallow` counted the same 1193 files either way.
   close of the plan editor foundation's first increment** (2026-09-03, after the asset-designer
   merge — the two arrivals are not separated here), and **867.05 kB (gzip 262.83 kB) at the close
   of the Add Room increment** (2026-09-04 — no new dependency, so that 41 kB is this
-  repository's own code: a tool, a store, an action, a form, a sketch and their strings), each
+  repository's own code: a tool, a store, an action, a form, a sketch and their strings), and
+  **945.60 kB (gzip 284.50 kB) at the Wave 2 gate of the trust path** (2026-09-05 — again no new
+  dependency; a dispatcher decorator, a named refresh, three store fields, eleven locale keys per
+  language and
+  every paused surface), and **945.52 kB (gzip 284.52 kB) at that increment's final gate**
+  (2026-09-05), each
   verified by running `npm run build` rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 

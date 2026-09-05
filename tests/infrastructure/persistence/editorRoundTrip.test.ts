@@ -7,6 +7,9 @@ import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../src/domain/zone/ZoneId';
 import { createPolygon } from '../../../src/core/geometry/Polygon';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
+import { stackFoundation } from '../../helpers/repositoryStack';
+import { ObsidianZoneRepository } from '../../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
+import { ObsidianPlanRepository } from '../../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
 
 /**
  * WP0's round-trip instrument (design spec §2.5): a Project, a Plan and a Room-classified
@@ -144,6 +147,78 @@ describe('editor round trip: Project, Plan and a Room-classified Zone', () => {
 		expect(Object.keys(frontmatter)).not.toContain('width');
 		expect(Object.keys(frontmatter)).not.toContain('depth');
 		expect(Object.keys(frontmatter)).not.toContain('room');
+	});
+
+	/**
+	 * **Reload, at the layer that owns it** (design spec §8): the same room, read back by a
+	 * repository stack that has never seen it written.
+	 *
+	 * The case above proves the round trip through the stack that did the writing, which
+	 * cannot tell a note on disk from a cache. This one throws that stack's whole memory away
+	 * — a fresh `stackFoundation` over the SAME `FakeVault` bytes, so a fresh
+	 * `ReconcilingProjectIndex`, a fresh `EchoWindow` and a fresh `PlanGeometryStore` — and
+	 * rebuilds the index with the real scan the plugin runs at load. What comes back therefore
+	 * came from the note and its sidecar and from nothing else.
+	 *
+	 * **A fresh `EchoWindow` is the part that matters and the part a `rebuildIndex()` on the
+	 * original stack would not have given.** `frontmatterOf` falls back to "what this plugin
+	 * last wrote here" while the metadata cache lags, so a read taken through the writing
+	 * stack can be answered by this plugin's own memory of its own write — exactly the
+	 * mechanism `FakeVault.pendingParse` exists to model. Reopening Obsidian has no such
+	 * memory, and neither does this.
+	 */
+	it('reopening over the same vault bytes reads the room back whole: id, name, type, points and area', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		const planId = createPlanId();
+		expectOk(await stack.projects.save(makeProject({ id: projectId, name: 'Willow House' }), 'absent'));
+		expectOk(await stack.plans.save(makePlan({ id: planId, projectId, name: 'Ground floor' }), 'absent'));
+
+		const command = new CreateZoneCommand(stack.zones, stack.plans, new RecordingEventBus());
+		const geometry = expectOk(
+			createPolygon([
+				{ x: 1000, y: 2000 },
+				{ x: 5200, y: 2000 },
+				{ x: 5200, y: 5800 },
+				{ x: 1000, y: 5800 },
+			]),
+		);
+		const created = expectOk(
+			await command.execute({ planId, name: 'Kitchen', zoneType: 'Room', geometry }),
+		).zone;
+
+		// The reopen: a second stack over the same bytes, with the scan the plugin runs at load.
+		//
+		// `catchUp()` first, because a reopened Obsidian has a fully parsed `MetadataCache` and
+		// this fake deliberately models the parse LAG that follows a write. Without it the scan
+		// asks a cache that has not reached the note yet and — with a fresh `EchoWindow` holding
+		// no memory of our own write — finds none of ours, which is a true statement about the
+		// milliseconds after a save and not about reopening a vault.
+		stack.metadataCache.catchUp();
+		const reopened = stackFoundation(
+			{ vault: stack.vault, fileManager: stack.fileManager, metadataCache: stack.metadataCache },
+			stack.projectFolder,
+		);
+		reopened.rebuildIndex();
+		const zones = new ObsidianZoneRepository(reopened.deps, reopened.store);
+
+		const read = expectFound(await zones.getById(created.entity.id));
+		expect(read.entity.id).toBe(created.entity.id);
+		expect(read.entity.name).toBe('Kitchen');
+		expect(read.entity.zoneType).toBe('Room');
+		expect(read.entity.planId).toBe(planId);
+		expect(read.entity.geometry.points).toEqual([
+			{ x: 1000, y: 2000 },
+			{ x: 5200, y: 2000 },
+			{ x: 5200, y: 5800 },
+			{ x: 1000, y: 5800 },
+		]);
+		expect(expectOk(read.entity.area())).toBe(15_960_000);
+
+		// And the plan it belongs to, since the editor reopens on a plan id rather than a zone.
+		expect(expectFound(await new ObsidianPlanRepository(reopened.deps, reopened.store).getById(planId)).entity.name).toBe(
+			'Ground floor',
+		);
 	});
 
 	it('keeps a user-authored body across a plugin save', async () => {

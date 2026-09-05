@@ -1,7 +1,8 @@
 import type { Result } from '../../../../src/core/result/Result';
 import { expectOk } from '../../../helpers/domain';
 import { makeZone } from '../../../helpers/entities';
-import { assignedRequirementFixture, type requirementFixture, TEN_SQUARE_METERS } from '../../../helpers/slice10';
+import { assignedRequirementFixture, TEN_SQUARE_METERS } from '../../../helpers/slice10';
+import type { requirementFixture } from '../../../helpers/slice10';
 
 /**
  * The seams the requirement-command refusal suites inject through, shared by
@@ -47,6 +48,12 @@ export function withConflictingReads<TId, T extends Pokeable<TId>>(inner: T): T 
 	});
 }
 
+/**
+ * The refusal suites' own name for `assignedRequirementFixture` — a 10 m² zone, an asset with
+ * a 10% waste factor, and the Requirement the assign produced. It WAS a byte-for-byte second
+ * copy of that helper until fallow reported the pair; what is left is the alias, because both
+ * suites read as `wiredWithLink()` and renaming their call sites buys nothing.
+ */
 export const wiredWithLink = assignedRequirementFixture;
 
 /** One saved 10 square-meter zone in the fixture's plan -- shared by the arms below. */

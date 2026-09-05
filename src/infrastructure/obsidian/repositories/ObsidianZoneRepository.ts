@@ -40,6 +40,7 @@ import { KeyedQueues } from './KeyedQueues';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import type { PlanGeometryStore } from './PlanGeometryStore';
+import { markUncompensated } from '../../../application/commands/DispatchOutcome';
 
 /**
  * The Obsidian-backed ZoneRepository (SDD §42). A Zone's state spans TWO files — its
@@ -276,6 +277,25 @@ export class ObsidianZoneRepository {
 	 * Step 5: compensate according to what step 2 recorded — restore the snapshot for an
 	 * update, DELETE the created note for an insert — then fail honestly. Runs INSIDE the
 	 * entity queue (its caller holds it), so a restore cannot race the next writer.
+	 *
+	 * **The two arms answer a DIFFERENT question once compensation itself fails, and both get
+	 * their own code and stamp for it.** `zone.sidecar-insert-failed` and
+	 * `zone.sidecar-update-failed` both said "the note was compensated" unconditionally — true
+	 * when `compensated.ok`, and a lie the one time it matters most: the note is on disk in a
+	 * state the sidecar does not match, and the caller was told everything was put back.
+	 * `zone.sidecar-insert-uncompensated` and `zone.sidecar-update-uncompensated` are the
+	 * honest answers, each stamped with `markUncompensated` (`DispatchOutcome.ts`) so
+	 * `affectsSaveState` and the save-state strip read a write left standing from the stamp
+	 * rather than inferring it from the code.
+	 *
+	 * **The update arm needed a counted fake failure to reach at all, which is why it took a
+	 * second review round to land.** Step 3's own frontmatter write and this restore both write
+	 * the SAME note path through `modify`, so a PERMANENT injected failure on that key fails
+	 * both identically and a plain one-shot fires on the first of the two — step 3's own
+	 * write, before the sidecar mutation the scenario needs ever runs. `FakeVault.failOnHit`
+	 * targets one occurrence of a key (`modify:<notePath>` is hit exactly twice on an update, in
+	 * order, with nothing else touching that key in between), which is what lets a test fail
+	 * the restore alone.
 	 */
 	private async compensateFailedSidecarWrite(
 		zoneId: ZoneId,
@@ -292,6 +312,21 @@ export class ObsidianZoneRepository {
 				id: zoneId,
 				cause: compensated.error,
 			});
+			// The note is on disk in a state the sidecar does not match, and nothing here
+			// could put it back either. A DIFFERENT code, because `affectsSaveState` and the
+			// strip read the stamp, and a message that tells the truth: the return below says
+			// "was compensated" and that would be false here.
+			return err(
+				markUncompensated(
+					persistenceError(
+						wasUpdate ? 'zone.sidecar-update-uncompensated' : 'zone.sidecar-insert-uncompensated',
+						wasUpdate
+							? `The geometry entry for zone ${zoneId} could not be written, and the note could NOT be restored; inspect it by hand.`
+							: `The geometry entry for zone ${zoneId} could not be written, and the note could NOT be removed again; inspect it by hand.`,
+						cause,
+					),
+				),
+			);
 		}
 		return err(
 			persistenceError(

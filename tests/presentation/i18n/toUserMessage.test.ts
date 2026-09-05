@@ -534,6 +534,27 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	// second of the two.
 	['calibration.coincident-points', 'Calculation', 'error.category.calculation', 'domain/plan/Calibration.ts'],
 	['calibration.degenerate-scale', 'Calculation', 'error.category.calculation', 'domain/plan/Calibration.ts'],
+	// A failed compensation stops calling itself compensated (the trust-path increment). Both
+	// arms, unlike a first draft of this branch that dropped the update one as unreachable
+	// through `FakeVault`'s own failure mechanism at the time — `FakeVault.failOnHit` (a
+	// counted failure targeting one occurrence of a key) is what let a test isolate the
+	// restore from the update's own write, both of which write the SAME note path through
+	// `modify`.
+	[
+		'zone.sidecar-insert-uncompensated',
+		'Persistence',
+		'error.category.persistence',
+		'infrastructure/obsidian/repositories/ObsidianZoneRepository.ts',
+	],
+	[
+		'zone.sidecar-update-uncompensated',
+		'Persistence',
+		'error.category.persistence',
+		'infrastructure/obsidian/repositories/ObsidianZoneRepository.ts',
+	],
+	// The trust path's own gate (checkpoint C3): Validation on purpose, per that file's own
+	// docblock, so a paused write settles the save indicator neutral rather than badging one.
+	['editor.stale-write-refused', 'Validation', 'error.category.validation', 'presentation/editor/tools/with-stale-gate.ts'],
 ];
 
 // Named for the shape rather than for a slice: the table below has carried codes from slices

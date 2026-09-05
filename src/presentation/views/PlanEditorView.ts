@@ -11,7 +11,8 @@ import type { BackgroundVault } from '../editor/layers/background/BackgroundRend
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from './app-id-prefix';
-import { notifyFault } from '../notices/notify';
+import { notifyFault, notifyWarning } from '../notices/notify';
+import type { ProjectOpenOutcome } from './RenovationProjectContext';
 
 /**
  * The Plan Editor (SDD §11's second surface).
@@ -40,6 +41,19 @@ export interface PlanEditorDeps {
 	readonly queries: PlanEditorQueryServices;
 	/** The write side the editor's tools dispatch through — see `planEditorCommands.ts`. */
 	readonly commands: PlanEditorCommandServices;
+	/**
+	 * Opens THIS plan's own note (design spec §2.6) — the SAME `openProjectNote` the project
+	 * view's `openProject` binds, because that function resolves any entity id through the
+	 * index and a plan's note needs no second opener. The composition root knows the workspace
+	 * and the index; this view has neither.
+	 *
+	 * `ProjectOpenOutcome` rather than a fourth declaration of the same three-member union:
+	 * `AssetLibraryDeps.NoteOpenOutcome`'s own docblock names the THIRD copy in
+	 * `presentation/` as the point past which the next author should share rather than repeat
+	 * — there is no layer ban between two `presentation/` folders, only between this layer and
+	 * `infrastructure/`.
+	 */
+	readonly openNote: (entityId: string) => Promise<ProjectOpenOutcome>;
 	readonly vault: BackgroundVault;
 	readonly onThemeChange: (listener: () => void) => () => void;
 	/**
@@ -258,6 +272,14 @@ export class PlanEditorView extends ItemView {
 				this.app.workspace.revealLeaf(this.leaf).catch((cause: unknown) => {
 					notifyFault(cause, this.deps.commands.logger, 'plan-editor.focus-leaf-failed');
 				});
+			},
+			// §2.6: partially applied with THIS leaf's plan id, the same shape as `closeLeaf`
+			// and `focusLeaf` above — the composition root composes services and knows nothing
+			// about which leaf this is, so the leaf is what binds the id.
+			openPlanNote: async () => {
+				const outcome = await this.deps.openNote(planId);
+				if (outcome === 'missing') notifyWarning(tr('editor.source-note-missing'));
+				// 'failed' has already been reported once, inside the opener.
 			},
 		};
 

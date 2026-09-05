@@ -24,16 +24,20 @@ import { nextTick } from 'vue';
 // the same statics — proven, not assumed — and the import now says which surface it
 // wants.
 import { Notice } from '../../helpers/obsidian-mock';
-import { expectOk } from '../../helpers/domain';
+import { expectErr, expectOk } from '../../helpers/domain';
 import { actionButton, click, pointer, rig, type Rig } from '../../helpers/planEditorRig';
 import { mountPlanEditor, mountPlanEditorCanvas, runtimeOf, settle } from '../../helpers/editor';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import type { ZoneDto } from '../../../src/presentation/read-models/PlanDto';
+import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installObsidianDom } from '../../helpers/dom';
+import { ok } from '../../../src/core/result/Result';
+import type { DispatchOutcome } from '../../../src/application/commands/DispatchOutcome';
+import type { UndoableCommand } from '../../../src/presentation/editor/tools/undoable-command';
 
 // `activateNotices` — reached here through the real plugin/editor wiring — appends its
 // two live regions with Obsidian's `createDiv`, one of the prototype extensions the app
@@ -75,6 +79,19 @@ async function moveZoneA(harness: Rig['harness']): Promise<void> {
 	pointer(canvas, 'pointermove', 260, 200);
 	pointer(canvas, 'pointerup', 260, 200);
 	await settle();
+}
+
+/**
+ * A command that would write, standing in for an ordinary gesture — never dispatched through a
+ * tool, so it drives `runtime.dispatcher` directly rather than through a canvas gesture, which
+ * is what the trust-path gate below is about: it sits on the ONE dispatcher every door funnels
+ * through (design spec §2.2), so asserting it here is asserting it everywhere.
+ */
+function noopWriteCommand(): UndoableCommand {
+	return {
+		execute: () => Promise.resolve(ok<DispatchOutcome>('wrote')),
+		undo: () => Promise.resolve(ok<DispatchOutcome>('wrote')),
+	};
 }
 
 /**
@@ -348,6 +365,75 @@ describe('selectAndFrame (Task 12: list framing)', () => {
 		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-kitchen']);
 		expect(runtime.renderState.hoveredObjectId).toBe('zone-kitchen');
 		expect(runtime.renderState.hoveredTargetKind).toBe('body');
+		harness.unmount();
+	});
+});
+
+/**
+ * The trust path (design spec §2.2, §2.3, §2.9): a stale projection refuses a NEW write at
+ * the runtime's own dispatcher — the one object every door in a leaf funnels through — lets
+ * undo/redo pass through untouched, mints one reason id per leaf, and offers the same refresh
+ * function the post-command queue itself calls, so a retry can only ever re-read.
+ */
+describe('the trust path (design spec §2.2, §2.3, §2.9)', () => {
+	it('refuses a NEW write while stale and lets undo through, at the runtime dispatcher', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		useProjectStore(harness.pinia).stale = true;
+
+		const result = await runtime.dispatcher.run(noopWriteCommand());
+
+		expect(expectErr(result).code).toBe('editor.stale-write-refused');
+		expect(runtime.writesBlocked.value).toBe(true);
+
+		// Undo passes straight through the gate even while stale: its inverse is the ledger's
+		// own snapshot, never the stale projection, so it is not "unsafe" in the trust path's
+		// own definition — and it is how a user backs out of the write whose read-back failed.
+		// The undo stack is empty (the run above was refused, so nothing was pushed to it),
+		// which is CommandHistory's own no-op success rather than a refusal.
+		const undoResult = await runtime.dispatcher.undo();
+		expect(undoResult.ok).toBe(true);
+
+		useProjectStore(harness.pinia).stale = false;
+		await settle();
+		expect(runtime.writesBlocked.value).toBe(false);
+
+		harness.unmount();
+	});
+
+	it('mints one paused-reason id per leaf', async () => {
+		const harness = await mountPlanEditorCanvas();
+
+		// `mountPlanEditorCanvas` mounts `PlanEditorRoot` directly through `@vue/test-utils`,
+		// never through the real `createApp()` + `app.config.idPrefix = nextAppIdPrefix()` step
+		// `PlanEditorView.ts` performs — so this harness's own Vue app never gets one of this
+		// repository's `rp-<n>` prefixes, and `useId()` falls back to Vue's own bare default.
+		expect(runtimeOf(harness).pausedReasonId).toMatch(/^v-/);
+
+		harness.unmount();
+	});
+
+	it('refreshProjection re-reads and never dispatches', async () => {
+		let planReads = 0;
+		const queries: PlanEditorQueryServices = {
+			...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+			getPlan: () => {
+				planReads += 1;
+				return Promise.resolve(ok(FIXTURE_PLAN));
+			},
+		};
+		const harness = await mountPlanEditorCanvas({ queries });
+		const runtime = runtimeOf(harness);
+		const readsBeforeRefresh = planReads;
+
+		await runtime.refreshProjection();
+
+		// One more READ, and nothing on the undo stack — a retry cannot replay a write, because
+		// `refreshProjection` takes no command at all (`type-safety.test-d.ts` holds that as a
+		// fact about the signature).
+		expect(planReads).toBe(readsBeforeRefresh + 1);
+		expect(runtime.canUndo.value).toBe(false);
+
 		harness.unmount();
 	});
 });

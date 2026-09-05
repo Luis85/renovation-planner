@@ -185,8 +185,12 @@ function commitOnBlur(axis: DimensionAxis, event: Event): void {
 	commitIfChanged(axis, (event.target as HTMLInputElement).value);
 }
 
+/**
+ * Guards on `writesBlocked` too, beside `canCreateRoom` — design spec §2.9: a paused floor is
+ * a second reason this door must not open, and the button's `aria-disabled` promises both.
+ */
 function onCreate(): void {
-	if (!runtime.canCreateRoom.value) return;
+	if (!runtime.canCreateRoom.value || runtime.writesBlocked.value) return;
 	void runtime.createRoom();
 }
 
@@ -312,8 +316,11 @@ onBeforeUnmount(() => {
 			<button
 				type="button"
 				class="rp-new-room__create"
-				:aria-disabled="!runtime.canCreateRoom.value"
-				:aria-describedby="runtime.roomDraftIncomplete.value ? hintId : undefined"
+				:aria-disabled="!runtime.canCreateRoom.value || runtime.writesBlocked.value"
+				:aria-describedby="[
+					runtime.roomDraftIncomplete.value ? hintId : null,
+					runtime.writesBlocked.value ? runtime.pausedReasonId : null,
+				].filter(Boolean).join(' ') || undefined"
 				@click="onCreate"
 			>
 				{{ tr('editor.room.create') }}

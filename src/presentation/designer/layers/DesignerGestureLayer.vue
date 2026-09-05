@@ -51,6 +51,21 @@ function vertexFill(index: number): string {
 </script>
 
 <template>
+	<!--
+		REVIEWED CLONE with `InteractionLayer.vue`'s own sketch and measurement blocks. The two
+		layers draw the same gesture visuals over the same `gestureGeometry` projections and the
+		same close-target rule, which is deliberate — that shared half is already three shared
+		modules (`gestureGeometry.ts`, `closeTarget.ts`, `handleMetrics.ts`).
+
+		What is left is the vue-konva TEMPLATE, and extracting it into a child component is
+		refused on a defect this repository has already paid for: vue-konva reindexes on the
+		LAYER's `onUpdated`, and Vue runs a parent's update job before its child's, so a
+		fragment-rooted child does not enter the layer's ordering array in the pass that
+		reindexes it — the z-order defect whose fix was to mount a `VGroup` UNCONDITIONALLY with
+		the `v-if` inside it. A shared component reintroduces exactly that shape, in the layer
+		where draw order decides what the user can see.
+	-->
+	<!-- fallow-ignore-next-line code-duplication -->
 	<VLayer :config="{ name: GESTURE_LAYER, listening: false }">
 		<template v-if="sketch !== null">
 			<VLine

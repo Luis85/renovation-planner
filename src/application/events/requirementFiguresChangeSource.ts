@@ -1,5 +1,6 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { RequirementId } from '../../domain/requirement/RequirementId';
+import { disposeAll, subscribeAll } from './subscriptions';
 
 /**
  * "One requirement's stored figures moved — re-read the rows that show them": the domain
@@ -50,14 +51,10 @@ export function createRequirementFiguresChangeSource(
 	events: EventBus,
 ): (listener: (requirementId: RequirementId) => void) => () => void {
 	return (listener: (requirementId: RequirementId) => void) => {
-		const subscriptions = REQUIREMENT_FIGURE_EVENTS.map((type) =>
-			events.subscribe(type, (event) => {
-				const requirementId = requirementIdOf(event);
-				if (requirementId !== null) listener(requirementId);
-			}),
-		);
-		return () => {
-			for (const subscription of subscriptions) subscription.dispose();
-		};
+		const subscriptions = subscribeAll(events, REQUIREMENT_FIGURE_EVENTS, (event) => {
+			const requirementId = requirementIdOf(event);
+			if (requirementId !== null) listener(requirementId);
+		});
+		return disposeAll(subscriptions);
 	};
 }

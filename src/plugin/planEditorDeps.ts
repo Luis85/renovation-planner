@@ -9,7 +9,10 @@ import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/th
 import { unavailablePlanEditorQueries } from '../presentation/read-models/planEditorQueries';
 import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
+import { tr } from '../presentation/i18n/strings';
+import { notifyWarning } from '../presentation/notices/notify';
 import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from './guardedServices';
+import { planEditorOpenNote } from './renovationProjectOpenSeams';
 import type { CompositionRoot } from './composition-root';
 
 /**
@@ -91,6 +94,16 @@ export function planEditorDeps(
 						),
 				}
 			: unavailablePlanEditorCommands(),
+		// §2.6: the SAME `openProjectNote` the project view uses — a plan's note needs no
+		// second opener, since that function resolves any entity id through the index. With
+		// settings unrecovered there is no index to resolve against, so the refusal shape is
+		// the same one every other `unavailable*` bundle uses.
+		openNote: persistence
+			? planEditorOpenNote(workspace, vault, persistence.index, root.logger)
+			: () => {
+					notifyWarning(tr('settings.unrecovered'));
+					return Promise.resolve('failed' as const);
+				},
 		vault,
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),

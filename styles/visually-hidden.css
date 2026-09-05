@@ -1,0 +1,21 @@
+/*
+ * Off the screen and IN the accessible name — the standard clip, not `display: none` and not
+ * `visibility: hidden`, both of which take the text out of the accessibility tree along with
+ * the picture.
+ *
+ * Promoted from `asset-prices.css` at its SECOND caller — that file's own docblock reserved
+ * this move for exactly this moment: `AssetPriceRow.vue`'s row name was the first, and the
+ * Plan Editor's paused-reason sentence (design spec §2.9, `PlanEditorRoot.vue`) is the second.
+ * A shared utility with one caller is a needless indirection; with two, a copy is a rule two
+ * files can quietly disagree about.
+ */
+.rp-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

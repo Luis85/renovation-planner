@@ -24,9 +24,11 @@ describe('LayerList, mounted inside the editor', () => {
 
 	/**
 	 * `FIXTURE_PLAN.background` is `null`, so the reference row is `supported-empty`: its
-	 * checkbox is disabled, and both it and the Set scale action point at the same reason.
+	 * checkbox is disabled, and the Set scale action carries the SAME REASON but its OWN
+	 * id now (design spec §2.9 gave Set scale a second reason — `editor.paused.reason` — that
+	 * can differ from the checkbox's, so the two controls no longer share one span).
 	 */
-	it('renders the reference row disabled with its reason when there is no background, and the Set scale action disabled with the same reason', async () => {
+	it('renders the reference row disabled with its reason when there is no background, and the Set scale action aria-disabled with the same reason', async () => {
 		const harness = await mountPlanEditorCanvas();
 
 		const boxes = harness.wrapper.findAll('.rp-layer-list input[type="checkbox"]');
@@ -38,8 +40,17 @@ describe('LayerList, mounted inside the editor', () => {
 		expect(harness.wrapper.find(`#${reasonId}`).text()).toBe(t('en', 'editor.layer.reference-plan.none'));
 
 		const action = harness.wrapper.find('button[data-rp-action="set-scale"]');
-		expect(action.attributes('disabled')).toBeDefined();
-		expect(action.attributes('aria-describedby')).toBe(reasonId);
+		expect(action.attributes('aria-disabled')).toBe('true');
+		expect(action.attributes('disabled')).toBeUndefined();
+		const actionReasonId = action.attributes('aria-describedby');
+		expect(actionReasonId).toBeTruthy();
+		expect(actionReasonId).not.toBe(reasonId);
+		expect(harness.wrapper.find(`#${actionReasonId}`).text()).toBe(t('en', 'editor.layer.reference-plan.none'));
+
+		// aria-disabled, never disabled: the click still fires, so the template's own guard
+		// is what withholds it, not the browser refusing a disabled control.
+		await action.trigger('click');
+		expect(runtimeOf(harness).activeToolId.value).not.toBe('calibrate');
 	});
 
 	it('Set scale activates the calibrate tool when a background exists', async () => {
@@ -48,7 +59,7 @@ describe('LayerList, mounted inside the editor', () => {
 		});
 
 		const action = harness.wrapper.find('button[data-rp-action="set-scale"]');
-		expect(action.attributes('disabled')).toBeUndefined();
+		expect(action.attributes('aria-disabled')).toBeUndefined();
 
 		await action.trigger('click');
 

@@ -135,23 +135,13 @@
 }
 
 /*
- * Off the screen and IN the accessible name — the standard clip, not `display: none` and not
- * `visibility: hidden`, both of which take the text out of the accessibility tree along with
- * the picture and would leave every row's input labelled `Set a price`.
- *
- * Declared here rather than as a shared utility because this is its first and only caller;
- * promote it to a partial of its own at the second.
+ * `.rp-visually-hidden` — off the screen and IN the accessible name, which is what keeps this
+ * row's input labelled by its own asset name rather than by the generic `Set a price` — moved
+ * to `styles/visually-hidden.css` at its SECOND caller (the Plan Editor's paused-reason
+ * sentence, design spec §2.9). This was its first and only caller when the rule lived here;
+ * a shared class with two callers is one two files could quietly disagree about if each kept
+ * its own copy.
  */
-.rp-visually-hidden {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	margin: -1px;
-	padding: 0;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
-}
 
 /*
  * TWO selectors, not one styled two ways. They draw identically today and they must not share a

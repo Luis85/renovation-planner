@@ -180,6 +180,11 @@ function mountStandalone(dto: InspectorDto) {
 		hydrateInspector: () => Promise.resolve(),
 		commitEdit: () => Promise.resolve(true),
 		deleteZone: () => Promise.resolve(),
+		// Read unconditionally by the template since design spec §2.9 (Delete and the assign
+		// button pause while blocked) — a stub without them threw on mount rather than
+		// merely leaving the pause untested.
+		writesBlocked: ref(false),
+		pausedReasonId: 'stub-paused-reason',
 	} as unknown as EditorRuntime;
 	const context = { commands: { logger: recorder } } as unknown as PlanEditorContext;
 	return mount(RoomInspector, {

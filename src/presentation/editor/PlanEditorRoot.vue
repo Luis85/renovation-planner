@@ -88,8 +88,14 @@ const overlay = computed(() => {
  * `noBackground` has no button (settled at the top of this task): slice 5's picker is a
  * PLUGIN COMMAND, not a member of the editor's bundle, so there is nothing here to call that
  * would not be either a new seam or a reach for the global `app`.
+ *
+ * **Returns early while `runtime.writesBlocked`** (design spec §2.9): the button stays
+ * `aria-disabled` rather than `:disabled` so it is still focusable and its reason still
+ * readable, and the GATE is here rather than trusted to the attribute alone — a control that
+ * only looks paused is not a control that pauses.
  */
 function onEmptyStateAction(): void {
+	if (runtime.writesBlocked.value) return;
 	activateCreationEntry('room', runtime);
 }
 
@@ -310,6 +316,8 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 						v-if="overlay !== null"
 						v-bind="overlay"
 						overlay
+						:action-disabled="runtime.writesBlocked.value"
+						:action-described-by="runtime.writesBlocked.value ? runtime.pausedReasonId : undefined"
 						@action="onEmptyStateAction()"
 					/>
 					<TemporaryToolBanner />
@@ -364,6 +372,20 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					constrained drawer unmounts it while closed, and a watcher that is not mounted
 					hears nothing.
 				-->
+				<!--
+					Design spec §2.9: the ONE hidden sentence every paused control's `aria-describedby`
+					points at, minted here as `runtime.pausedReasonId` (one `useId()` per leaf) and
+					rendered only while `runtime.writesBlocked` — a reference naming an id no element
+					carries is what axe reports as `aria-valid-attr-value`, so the two share this one
+					`v-if` rather than the sentence being always in the DOM.
+				-->
+				<p
+					v-if="runtime.writesBlocked.value"
+					:id="runtime.pausedReasonId"
+					class="rp-visually-hidden"
+				>
+					{{ tr('editor.paused.reason') }}
+				</p>
 				<SelectionGuidance />
 				<PersistentWarningStrip :warnings="warnings" />
 			</template>

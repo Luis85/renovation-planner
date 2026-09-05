@@ -124,16 +124,35 @@ const overview = computed<RoomOverviewDto | null>(() => {
 	return zone && plan ? buildRoomOverview(zone, plan) : null;
 });
 
+/**
+ * Both guards return early: an empty picker selection is inert rather than a command
+ * refused for an id that is the empty string, and `writesBlocked` (design spec §2.9) is a
+ * second reason this door must not open — the `aria-disabled` on the button beside it
+ * promises exactly this.
+ */
 function assignSelected(zoneId: string): void {
-	// The picker starts on no selection, so pressing Assign first is inert rather than a
-	// command refused for an id that is the empty string.
-	if (pickedAssetId.value === '') return;
+	if (pickedAssetId.value === '' || runtime.writesBlocked.value) return;
 	void runtime.commitEdit({
 		kind: 'assign',
 		zoneId: zoneId as never,
 		assetId: pickedAssetId.value as never,
 	});
 	pickedAssetId.value = '';
+}
+
+/**
+ * The Delete flow's own guard, kept at this control the same way every other write control
+ * in this task guards its handler: a paused floor must not open the reference-resolution
+ * dialog `runtime.deleteZone` can raise.
+ *
+ * The `kind === 'zone'` check is never false at the one place this is called — the template
+ * renders this whole body only `v-if="dto.kind === 'zone'"` — and it is repeated here rather
+ * than cast past, so the compiler rather than that outer `v-if` is what proves `dto.id` and
+ * `dto.name` exist.
+ */
+function onDeleteZone(): void {
+	if (runtime.writesBlocked.value || dto.value.kind !== 'zone') return;
+	void runtime.deleteZone(dto.value.id, dto.value.name);
 }
 </script>
 
@@ -179,6 +198,8 @@ function assignSelected(zoneId: string): void {
 					:row="row"
 					:commit="runtime.commitField"
 					:logger="logger"
+					:paused="runtime.writesBlocked.value"
+					:paused-reason-id="runtime.pausedReasonId"
 				/>
 			</ul>
 
@@ -198,6 +219,8 @@ function assignSelected(zoneId: string): void {
 				</select>
 				<button
 					type="button"
+					:aria-disabled="runtime.writesBlocked.value ? 'true' : undefined"
+					:aria-describedby="runtime.writesBlocked.value ? runtime.pausedReasonId : undefined"
 					@click="assignSelected(dto.id)"
 				>
 					{{ tr('editor.inspector.assign.button') }}
@@ -217,7 +240,9 @@ function assignSelected(zoneId: string): void {
 		<button
 			type="button"
 			class="rp-editor-inspector-delete"
-			@click="runtime.deleteZone(dto.id, dto.name)"
+			:aria-disabled="runtime.writesBlocked.value ? 'true' : undefined"
+			:aria-describedby="runtime.writesBlocked.value ? runtime.pausedReasonId : undefined"
+			@click="onDeleteZone"
 		>
 			{{ tr('editor.inspector.delete-zone') }}
 		</button>

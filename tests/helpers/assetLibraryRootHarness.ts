@@ -1,3 +1,4 @@
+import type { ObservationToken } from '../../src/application/ports/versioning';
 /**
  * Mounts `AssetLibraryRoot.vue` BARE — a Pinia plugin and a provided context, never the whole
  * `AssetLibraryView` lifecycle, which `assetLibraryView.test.ts` already owns.
@@ -45,6 +46,7 @@ export function definite<T>(value: T | undefined): T {
 
 export function anEntry(overrides: Partial<CatalogueEntryDto> = {}): CatalogueEntryDto {
 	return {
+		version: { revision: 1, observed: 'fixture' as ObservationToken },
 		assetId: createAssetId(),
 		name: 'Oak plank floor',
 		category: 'material',

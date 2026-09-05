@@ -1,7 +1,7 @@
 ---
 id: PBI-10
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F03
 priority: P0
@@ -12,6 +12,8 @@ screens: [AL06]
 ---
 # PBI-10 — Understand project usage and each project’s price source
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F03 — Explore usage and source information
@@ -20,7 +22,7 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Understand project usage and each project’s price source.
 
-**References:** [AL06](../specification/screens/AL06-usage-and-price.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL06](../specification/screens/AL06-usage-and-price.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 

@@ -1,3 +1,4 @@
+import type { ObservationToken } from '../../src/application/ports/versioning';
 /**
  * @vitest-environment jsdom
  *
@@ -58,6 +59,7 @@ beforeEach(() => {
  *  reading of the DTO. */
 function anAxeCatalogueEntry(): CatalogueEntryDto {
 	return {
+		version: { revision: 1, observed: 'fixture' as ObservationToken },
 		assetId: createAssetId(),
 		name: 'Oak plank floor',
 		category: 'material',

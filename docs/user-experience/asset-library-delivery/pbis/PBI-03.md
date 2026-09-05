@@ -1,7 +1,7 @@
 ---
 id: PBI-03
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F01
 priority: P0
@@ -12,6 +12,8 @@ screens: [AL02]
 ---
 # PBI-03 — Find an asset by name, supplier, or SKU
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F01 — Find and browse the catalogue
@@ -20,7 +22,7 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Find an asset by name, supplier, or SKU.
 
-**References:** [AL02](AL02-search-results.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL02](../specification/screens/AL02-search-results.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 

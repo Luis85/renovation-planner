@@ -1,7 +1,7 @@
 ---
 id: PBI-12
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F03
 priority: P0
@@ -11,6 +11,8 @@ depends_on: [PBI-06]
 screens: [AL07]
 ---
 # PBI-12 — Inspect the actual asset outline and open it in the designer
+
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
 
 ## Context and value
 

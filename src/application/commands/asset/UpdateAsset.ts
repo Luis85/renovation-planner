@@ -11,9 +11,9 @@ import type { Money } from '../../../core/money/Money';
 import type { AssetCategory } from '../../../domain/asset/AssetCategory';
 import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
-import { assetUpdated } from '../../../domain/asset/Asset.events';
+import { assetUpdated, assetDesignChanged } from '../../../domain/asset/Asset.events';
 import { assetNotFound } from '../../../domain/asset/Asset.errors';
-import type { Expected } from '../../ports/versioning';
+import { checkExpectedVersion, type Expected, type EntityVersion } from '../../ports/versioning';
 import type { Command } from '../Command';
 import type { AssetRepository } from '../../ports/AssetRepository';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
@@ -22,6 +22,7 @@ import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 export interface UpdateAssetInput {
 	readonly assetId: AssetId;
 	/** Omitted: this command's own read supplies it. A caller with an OLDER read is stale by construction. */
+	readonly expected?: EntityVersion;
 	readonly changes: Partial<{
 		name: string;
 		category: AssetCategory;
@@ -31,6 +32,7 @@ export interface UpdateAssetInput {
 		unitCost: Money;
 		wasteFactorDefault: Decimal;
 		notes: string | null;
+		height: number | null;
 	}>;
 }
 
@@ -67,6 +69,10 @@ export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asse
 		if (isErr(loaded)) return loaded;
 		if (loaded.value === null) return err(assetNotFound(input.assetId));
 		const current: Asset = loaded.value.entity;
+		if (input.expected !== undefined) {
+			const conflict = checkExpectedVersion('asset', input.assetId, loaded.value.version, input.expected);
+			if (conflict !== null) return err(conflict);
+		}
 		const nextUnit = input.changes.unit ?? current.unit;
 		const kindChanges = UNIT_KIND[nextUnit] !== UNIT_KIND[current.unit];
 
@@ -84,8 +90,11 @@ export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asse
 				expected = refreshed.value.expected;
 			}
 
-			const saved = await this.assets.save(candidate, expected);
+			const saved = await this.assets.save(candidate, input.expected ?? expected);
 			if (isErr(saved)) return saved;
+			if (candidate.height !== current.height) {
+				await this.events.publish(assetDesignChanged({ assetId: current.id }));
+			}
 			await this.events.publish(
 				assetUpdated({ assetId: saved.value.entity.id }),
 			);

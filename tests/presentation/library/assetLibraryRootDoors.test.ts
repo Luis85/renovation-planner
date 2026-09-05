@@ -78,7 +78,7 @@ function refusingWith(code: string) {
 }
 
 describe('AssetLibraryRoot, the New asset door', () => {
-	it('hands the form the composed commands and opens the designer on what it made', async () => {
+	it('hands the form the composed commands and selects the created asset', async () => {
 		const { commands, createAsset, setAssetFootprintFromDimensions, openDesigner } =
 			creationCommands();
 		const root = await mountRoot({ entries: [anEntry()], commands, openDesigner });
@@ -89,6 +89,7 @@ describe('AssetLibraryRoot, the New asset door', () => {
 		expect(form.exists()).toBe(true);
 
 		await form.get('[data-field="name"]').setValue('Kitchen island');
+		await form.get('[data-field="unitCostAmount"]').setValue('450.00');
 		await form.get('[data-field="width"]').setValue('1200');
 		await form.get('[data-field="depth"]').setValue('800');
 		await form.get('form').trigger('submit');
@@ -103,7 +104,8 @@ describe('AssetLibraryRoot, the New asset door', () => {
 		expect(setAssetFootprintFromDimensions.mock.calls[0][0]).toEqual(
 			expect.objectContaining({ assetId: ASSET.id, width: 1200, depth: 800 }),
 		);
-		expect(openDesigner).toHaveBeenCalledWith(ASSET.id);
+		expect(openDesigner).not.toHaveBeenCalled();
+		expect(root.attributes('data-selected-asset-id')).toBe(ASSET.id);
 	});
 
 	/** The other half: a cancelled dialog made nothing, so there is nothing to open. */

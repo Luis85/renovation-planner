@@ -198,7 +198,7 @@ if (wantsIndex) {
 		: wantsAssetDesigner
 			? mountAssetDesignerHarness(document.body).view
 			: wantsAssetLibrary
-				? mountAssetLibraryHarness(document.body, params.get('asset')).view
+				? mountAssetLibraryHarness(document.body, params.get('asset'), params.get('assets') === '0').view
 				: mountHarness(document.body, {
 						projectId: params.get('project'),
 						projects: Number.isFinite(asked) ? asked : undefined,

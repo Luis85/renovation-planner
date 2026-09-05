@@ -1,7 +1,7 @@
 ---
 id: PBI-18
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F03
 priority: P1
@@ -12,6 +12,8 @@ screens: [AL07]
 ---
 # PBI-18 — Access asset information through native Obsidian notes and Bases
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F03 — Explore usage and source information
@@ -20,11 +22,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Access asset information through native Obsidian notes and Bases.
 
-**References:** [AL07](../specification/screens/AL07-shape-and-note.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL07](../specification/screens/AL07-shape-and-note.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [EN-01](EN-01.md), [PBI-11](PBI-11.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [EN-01](../enablers/EN-01.md), [PBI-11](PBI-11.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 

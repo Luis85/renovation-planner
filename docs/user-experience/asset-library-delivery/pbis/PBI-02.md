@@ -1,7 +1,7 @@
 ---
 id: PBI-02
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F01
 priority: P0
@@ -12,6 +12,8 @@ screens: [AL00, AL01]
 ---
 # PBI-02 — Compare and select assets within category groups
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F01 — Find and browse the catalogue
@@ -20,7 +22,7 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Compare and select assets within category groups.
 
-**References:** [AL00](AL00-browse.md), [AL01](AL01-selected-object.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL00](../specification/screens/AL00-browse.md), [AL01](../specification/screens/AL01-selected-object.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 

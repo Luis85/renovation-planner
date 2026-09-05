@@ -1,8 +1,8 @@
 # Asset Library — Implementation backlog
 
-Version 1.1 · 2026-09-05 · English project documentation · 18 PBIs, 2 technical enablers · Status: designed
+Version 1.1 · 2026-09-05 · English project documentation · 18 PBIs, 2 technical enablers · Status: implementation in review
 
-This plan elaborates the previously created UI/UX specification. The codebase was inspected during the design session, but this backlog was not rechecked against a current commit. EN-01 is therefore the mandatory first step. Existing functionality is recognized as fulfilled rather than rebuilt.
+The implementation has been reconciled against `origin/main` at `d00e9993`. The [delivery record](delivery-record.md) maps all PBIs to production code, tests and decisions. Existing functionality was retained; final real-vault acceptance remains open.
 
 The English edition preserves IDs, dependencies, scope, and acceptance intent. Existing screenshots are retained as **German-localized UI references**; they are not English-screen acceptance evidence. All document prose and executable-example wording is English.
 
@@ -20,35 +20,35 @@ The English edition preserves IDs, dependencies, scope, and acceptance intent. E
 
 | ID | Use case | Feature | Dependencies |
 | --- | --- | --- | --- |
-| [PBI-01](PBI-01.md) | Open and resume the shared asset library | F01 | EN-01 |
-| [PBI-02](PBI-02.md) | Compare and select assets within category groups | F01 | PBI-01 |
-| [PBI-03](PBI-03.md) | Find an asset by name, supplier, or SKU | F01 | PBI-02 |
-| [PBI-04](PBI-04.md) | Inspect the complete definition of a selected asset | F02 | PBI-02 |
-| [PBI-05](PBI-05.md) | Explicitly save or discard asset metadata changes | F02 | PBI-04, EN-02 |
-| [PBI-06](PBI-06.md) | Switch assets without accidentally losing input | F02 | PBI-05 |
-| [PBI-07](PBI-07.md) | Change the library price while preserving project-specific prices | F02 | PBI-05, PBI-10 |
-| [PBI-08](PBI-08.md) | Change an asset’s unit and waste allowance correctly | F02 | PBI-05 |
-| [PBI-09](PBI-09.md) | Create a new asset without an existing project | F02 | PBI-01, PBI-06 |
-| [PBI-10](PBI-10.md) | Understand project usage and each project’s price source | F03 | PBI-04 |
-| [PBI-11](PBI-11.md) | Navigate from an asset to its note or a project using it | F03 | PBI-06, PBI-10 |
+| [PBI-01](pbis/PBI-01.md) | Open and resume the shared asset library | F01 | EN-01 |
+| [PBI-02](pbis/PBI-02.md) | Compare and select assets within category groups | F01 | PBI-01 |
+| [PBI-03](pbis/PBI-03.md) | Find an asset by name, supplier, or SKU | F01 | PBI-02 |
+| [PBI-04](pbis/PBI-04.md) | Inspect the complete definition of a selected asset | F02 | PBI-02 |
+| [PBI-05](pbis/PBI-05.md) | Explicitly save or discard asset metadata changes | F02 | PBI-04, EN-02 |
+| [PBI-06](pbis/PBI-06.md) | Switch assets without accidentally losing input | F02 | PBI-05 |
+| [PBI-07](pbis/PBI-07.md) | Change the library price while preserving project-specific prices | F02 | PBI-05, PBI-10 |
+| [PBI-08](pbis/PBI-08.md) | Change an asset’s unit and waste allowance correctly | F02 | PBI-05 |
+| [PBI-09](pbis/PBI-09.md) | Create a new asset without an existing project | F02 | PBI-01, PBI-06 |
+| [PBI-10](pbis/PBI-10.md) | Understand project usage and each project’s price source | F03 | PBI-04 |
+| [PBI-11](pbis/PBI-11.md) | Navigate from an asset to its note or a project using it | F03 | PBI-06, PBI-10 |
 | [PBI-12](pbis/PBI-12.md) | Inspect the actual asset outline and open it in the designer | F03 | PBI-06 |
 | [PBI-13](pbis/PBI-13.md) | Keep valid content after loading failures and retry the affected read | F04 | PBI-04 |
 | [PBI-14](pbis/PBI-14.md) | Continue safely after save failures or external changes | F04 | PBI-05, PBI-13 |
 | [PBI-15](pbis/PBI-15.md) | Use the library in narrow panels and host themes | F05 | PBI-03, PBI-06 |
 | [PBI-16](pbis/PBI-16.md) | Complete library actions using only the keyboard | F05 | PBI-09, PBI-15 |
-| [PBI-17](PBI-17.md) | Delete an unused asset without damaging its references | F04 | PBI-10, PBI-14 |
-| [PBI-18](PBI-18.md) | Access asset information through native Obsidian notes and Bases | F03 | EN-01, PBI-11 |
+| [PBI-17](pbis/PBI-17.md) | Delete an unused asset without damaging its references | F04 | PBI-10, PBI-14 |
+| [PBI-18](pbis/PBI-18.md) | Access asset information through native Obsidian notes and Bases | F03 | EN-01, PBI-11 |
 
 ## Technical prerequisites
 
-- [EN-01 — Existing versus required behavior](EN-01.md)
-- [EN-02 — Saving and conflicts](EN-02.md)
+- [EN-01 — Existing versus required behavior](enablers/EN-01.md)
+- [EN-02 — Saving and conflicts](enablers/EN-02.md)
 
 ## Related documents
 
-- [Implementation plan](docs/user-experience/asset-library-delivery/implementation-plan.md)
+- [Implementation plan](implementation-plan.md)
 - [Delivery rules and readiness/completion criteria](delivery-rules.md)
-- [Screen and interaction specifications with images](docs/user-experience/asset-library-delivery/specification/README.md)
+- [Screen and interaction specifications with images](specification/README.md)
 
 All files are repository-ready Markdown. This package creates no external issues and makes no repository changes.
 
@@ -93,7 +93,7 @@ Do not expand testing indiscriminately for layout-only changes. Reuse existing t
 ---
 id: EN-01
 type: Enabler
-status: designed
+status: in-review
 depends_on: []
 ---
 # EN-01 — Consolidate existing asset-library contracts
@@ -127,7 +127,7 @@ No rebuild or blanket refactoring. Persistence-schema or category-configuration 
 ---
 id: EN-02
 type: Enabler
-status: designed
+status: in-review
 depends_on: [EN-01]
 ---
 # EN-02 — Establish safe explicit saving and conflict handling
@@ -161,7 +161,7 @@ The contract states actual guarantees and boundaries. No path reports an incompl
 ---
 id: PBI-01
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F01
 priority: P0
@@ -180,11 +180,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Open and resume the shared asset library.
 
-**References:** [AL00](AL00-browse.md), [AL08](specification/screens/AL08-empty-library.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL00](specification/screens/AL00-browse.md), [AL08](specification/screens/AL08-empty-library.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [EN-01](EN-01.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [EN-01](enablers/EN-01.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -242,7 +242,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-02
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F01
 priority: P0
@@ -261,11 +261,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Compare and select assets within category groups.
 
-**References:** [AL00](AL00-browse.md), [AL01](AL01-selected-object.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL00](specification/screens/AL00-browse.md), [AL01](specification/screens/AL01-selected-object.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-01](PBI-01.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-01](pbis/PBI-01.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -324,7 +324,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-03
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F01
 priority: P0
@@ -343,11 +343,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Find an asset by name, supplier, or SKU.
 
-**References:** [AL02](AL02-search-results.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL02](specification/screens/AL02-search-results.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-02](PBI-02.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-02](pbis/PBI-02.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -406,7 +406,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-04
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F02
 priority: P0
@@ -425,11 +425,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Inspect the complete definition of a selected asset.
 
-**References:** [AL01](AL01-selected-object.md), [AL07](specification/screens/AL07-shape-and-note.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL01](specification/screens/AL01-selected-object.md), [AL07](specification/screens/AL07-shape-and-note.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-02](PBI-02.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-02](pbis/PBI-02.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -486,7 +486,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-05
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F02
 priority: P0
@@ -505,11 +505,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Explicitly save or discard asset metadata changes.
 
-**References:** [AL04](AL04-edit-definition.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL04](specification/screens/AL04-edit-definition.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-04](PBI-04.md), [EN-02](EN-02.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-04](pbis/PBI-04.md), [EN-02](enablers/EN-02.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -569,7 +569,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-06
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F02
 priority: P0
@@ -588,11 +588,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Switch assets without accidentally losing input.
 
-**References:** [AL05](AL05-unsaved-changes.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL05](specification/screens/AL05-unsaved-changes.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-05](PBI-05.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-05](pbis/PBI-05.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -652,7 +652,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-07
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F02
 priority: P0
@@ -671,11 +671,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Change the library price while preserving project-specific prices.
 
-**References:** [AL04](AL04-edit-definition.md), [AL06](specification/screens/AL06-usage-and-price.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL04](specification/screens/AL04-edit-definition.md), [AL06](specification/screens/AL06-usage-and-price.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-05](PBI-05.md), [PBI-10](PBI-10.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-05](pbis/PBI-05.md), [PBI-10](pbis/PBI-10.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -734,7 +734,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-08
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F02
 priority: P0
@@ -753,11 +753,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Change an asset’s unit and waste allowance correctly.
 
-**References:** [AL04](AL04-edit-definition.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL04](specification/screens/AL04-edit-definition.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-05](PBI-05.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-05](pbis/PBI-05.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -815,7 +815,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-09
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F02
 priority: P0
@@ -834,11 +834,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Create a new asset without an existing project.
 
-**References:** [AL03](AL03-create-object.md), [AL08](specification/screens/AL08-empty-library.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL03](specification/screens/AL03-create-object.md), [AL08](specification/screens/AL08-empty-library.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-01](PBI-01.md), [PBI-06](PBI-06.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-01](pbis/PBI-01.md), [PBI-06](pbis/PBI-06.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -898,7 +898,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-10
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F03
 priority: P0
@@ -917,11 +917,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Understand project usage and each project’s price source.
 
-**References:** [AL06](specification/screens/AL06-usage-and-price.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL06](specification/screens/AL06-usage-and-price.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-04](PBI-04.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-04](pbis/PBI-04.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -979,7 +979,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-11
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F03
 priority: P0
@@ -998,11 +998,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Navigate from an asset to its note or a project using it.
 
-**References:** [AL06](specification/screens/AL06-usage-and-price.md), [AL07](specification/screens/AL07-shape-and-note.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL06](specification/screens/AL06-usage-and-price.md), [AL07](specification/screens/AL07-shape-and-note.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-06](PBI-06.md), [PBI-10](PBI-10.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-06](pbis/PBI-06.md), [PBI-10](pbis/PBI-10.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -1061,7 +1061,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-12
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F03
 priority: P0
@@ -1080,11 +1080,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Inspect the actual asset outline and open it in the designer.
 
-**References:** [AL07](specification/screens/AL07-shape-and-note.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL07](specification/screens/AL07-shape-and-note.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-06](PBI-06.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-06](pbis/PBI-06.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -1142,7 +1142,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-13
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F04
 priority: P0
@@ -1161,11 +1161,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Keep valid content after loading failures and retry the affected read.
 
-**References:** [AL09](specification/screens/AL09-loading-and-errors.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL09](specification/screens/AL09-loading-and-errors.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-04](PBI-04.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-04](pbis/PBI-04.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -1223,7 +1223,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-14
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F04
 priority: P0
@@ -1242,11 +1242,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Continue safely after save failures or external changes.
 
-**References:** [AL04](AL04-edit-definition.md), [AL09](specification/screens/AL09-loading-and-errors.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL04](specification/screens/AL04-edit-definition.md), [AL09](specification/screens/AL09-loading-and-errors.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-05](PBI-05.md), [PBI-13](pbis/PBI-13.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-05](pbis/PBI-05.md), [PBI-13](pbis/PBI-13.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -1304,7 +1304,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-15
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F05
 priority: P0
@@ -1323,11 +1323,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Use the library in narrow panels and host themes.
 
-**References:** [AL10](specification/screens/AL10-narrow-and-theme.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL10](specification/screens/AL10-narrow-and-theme.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-03](PBI-03.md), [PBI-06](PBI-06.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-03](pbis/PBI-03.md), [PBI-06](pbis/PBI-06.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -1386,7 +1386,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-16
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F05
 priority: P1
@@ -1405,11 +1405,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Complete library actions using only the keyboard.
 
-**References:** [AL00](AL00-browse.md), [AL03](AL03-create-object.md), [AL04](AL04-edit-definition.md), [AL05](AL05-unsaved-changes.md), [AL10](specification/screens/AL10-narrow-and-theme.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL00](specification/screens/AL00-browse.md), [AL03](specification/screens/AL03-create-object.md), [AL04](specification/screens/AL04-edit-definition.md), [AL05](specification/screens/AL05-unsaved-changes.md), [AL10](specification/screens/AL10-narrow-and-theme.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-09](PBI-09.md), [PBI-15](pbis/PBI-15.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-09](pbis/PBI-09.md), [PBI-15](pbis/PBI-15.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -1467,7 +1467,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-17
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F04
 priority: P0
@@ -1486,11 +1486,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Delete an unused asset without damaging its references.
 
-**References:** [AL11](AL11-delete-object.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL11](specification/screens/AL11-delete-object.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-10](PBI-10.md), [PBI-14](pbis/PBI-14.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-10](pbis/PBI-10.md), [PBI-14](pbis/PBI-14.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 
@@ -1549,7 +1549,7 @@ The Product Owner or RE/UX reviews the visible flow; engineering supplies the re
 ---
 id: PBI-18
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F03
 priority: P1
@@ -1568,11 +1568,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Access asset information through native Obsidian notes and Bases.
 
-**References:** [AL07](specification/screens/AL07-shape-and-note.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL07](specification/screens/AL07-shape-and-note.md). The [interaction rules](specification/interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [EN-01](EN-01.md), [PBI-11](PBI-11.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [EN-01](enablers/EN-01.md), [PBI-11](pbis/PBI-11.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 

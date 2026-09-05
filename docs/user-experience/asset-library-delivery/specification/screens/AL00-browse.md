@@ -19,7 +19,7 @@ Open the library through the Obsidian command or the project-overview entry poin
 
 ## Visual reference
 
-![Browse the library — reference](selected-direction.png)
+![Browse the library — reference](../images/selected-direction.png)
 
 **Image status:** Layout reference with a selected asset; the neutral inspector is not shown. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -27,13 +27,13 @@ Open the library through the Obsidian command or the project-overview entry poin
 
 Title and vault-wide scope; search and New asset; one set of column headings; collapsible category groups; rows containing name, unit, price, waste allowance, and supplier; status bar.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](../component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
 Expand or collapse a category. Select a row by click or Enter. Show selection through a leading rule and background; focus is independent. Double-clicking does not automatically open the designer.
 
-The [central interaction rules](interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
+The [central interaction rules](../interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
 
 ## Exceptions and boundaries
 

@@ -292,14 +292,14 @@ describe('AssetLibraryRoot, the shelf list', () => {
 
 	/** §6.1: a search collapses every shelf into ONE flat result list, and that heading is not
 	 *  a disclosure control — there is nothing left to collapse it into. */
-	it('collapses the shelves into one non-collapsible Results shelf while searching', async () => {
+	it('expands matching categories while searching', async () => {
 		const root = await mountRoot({ entries: [anEntry({ name: 'Oak plank floor' })] });
 
 		await root.get('.rp-al-search__input').setValue('Oak');
 		await settle();
 
 		expect(root.findAll('.rp-al-shelf')).toHaveLength(1);
-		expect(root.get('.rp-al-shelf__name').text()).toBe(tr('view.asset-library.results'));
+		expect(root.get('.rp-al-shelf__name').text()).toBe('Material');
 		expect(root.find('.rp-al-shelf__head').exists()).toBe(false);
 	});
 });

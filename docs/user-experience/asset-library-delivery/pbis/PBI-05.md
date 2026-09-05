@@ -1,7 +1,7 @@
 ---
 id: PBI-05
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F02
 priority: P0
@@ -12,6 +12,8 @@ screens: [AL04]
 ---
 # PBI-05 — Explicitly save or discard asset metadata changes
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F02 — Create and maintain definitions
@@ -20,11 +22,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Explicitly save or discard asset metadata changes.
 
-**References:** [AL04](AL04-edit-definition.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL04](../specification/screens/AL04-edit-definition.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [PBI-04](PBI-04.md), [EN-02](EN-02.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [PBI-04](PBI-04.md), [EN-02](../enablers/EN-02.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 

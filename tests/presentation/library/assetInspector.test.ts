@@ -5,7 +5,7 @@
  * failure table one level up from the Shape section's, and the three actions — including the two
  * withdrawals that are the difference between a live control and one that cannot work.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { err, ok } from '../../../src/core/result/Result';
 import { installObsidianDom } from '../../helpers/dom';
 import { anEntry, aNoIdNote } from '../../helpers/assetLibraryRootHarness';
@@ -13,6 +13,8 @@ import { mountInspector } from '../../helpers/assetInspectorHarness';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createRequirementId } from '../../../src/domain/requirement/RequirementId';
 import { createAssetId, type AssetId } from '../../../src/domain/asset/AssetId';
+import type { AssetLibraryQueryServices } from '../../../src/presentation/read-models/assetLibraryQueries';
+import { assetDesign } from '../../helpers/assetDesign';
 import { settle } from '../../helpers/async';
 
 installObsidianDom();
@@ -52,7 +54,7 @@ describe('AssetInspector sections', () => {
 
 		expect(inspector.panel.get('.rp-al-inspector__name').text()).toBe('Oak plank floor');
 		const headings = inspector.panel.findAll('.rp-al-inspector__title').map((h) => h.text());
-		expect(headings).toEqual(['Shape', 'Used in']);
+		expect(headings).toEqual(['Used in', 'Shape']);
 		// The Definition fields come FIRST and carry the editable controls; the actions row is
 		// last. Asserted on the DOM order rather than on presence, because "all four are there"
 		// is equally true of a panel that draws them in any order at all.
@@ -357,4 +359,34 @@ describe('AssetInspector actions', () => {
 
 		expect(inspector.panel.emitted('back')).toHaveLength(1);
 	});
+});
+
+
+describe('section recovery and project navigation', () => {
+	it('retries failed sections locally and opens the actual referencing project', async () => {
+		const entry = anEntry(); const projectId = createProjectId(); let fail = true;
+		const openProject = vi.fn<() => Promise<'opened'>>(() => Promise.resolve('opened'));
+		const getDesign = vi.fn<AssetLibraryQueryServices['getDesign']>(() => Promise.resolve(fail ? err({ category: 'Persistence' as const, code: 'vault.read-failed', message: 'failed' }) : ok(assetDesign({ assetId: entry.assetId }))));
+		const listReferencing = vi.fn<AssetLibraryQueryServices['listReferencing']>(() => Promise.resolve(fail ? err({ category: 'Persistence' as const, code: 'vault.read-failed', message: 'failed' }) : ok([{ projectId, projectName: 'Kitchen refit', requirementIds: [createRequirementId()] }])));
+		const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry], openProject, queries: { getDesign, listReferencing } });
+		fail = false;
+		for (const button of panel.findAll('button').filter((control) => control.text() === 'Try again')) await button.trigger('click');
+		await settle();
+		expect(getDesign).toHaveBeenCalledTimes(2); expect(listReferencing).toHaveBeenCalledTimes(2);
+		await panel.get('.rp-al-used__name').trigger('click'); await settle();
+		expect(openProject).toHaveBeenCalledWith(projectId); panel.unmount();
+	});
+});
+
+
+it.each(['missing', 'failed', 'opened'] as const)('refreshes usage only when opening a project reports %s', async (outcome) => {
+	const entry = anEntry(); const projectId = createProjectId(); let missing = false;
+	const listReferencing = vi.fn<AssetLibraryQueryServices['listReferencing']>(() => Promise.resolve(ok(missing ? [] : [{ projectId, projectName: 'Deleted project', requirementIds: [createRequirementId()] }])));
+	const openProject = vi.fn<() => Promise<typeof outcome>>(() => { missing = outcome === 'missing'; return Promise.resolve(outcome); });
+	const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry], openProject, queries: { listReferencing } });
+	await panel.get('.rp-al-used__name').trigger('click'); await settle();
+	expect(openProject).toHaveBeenCalledWith(projectId);
+	expect(listReferencing).toHaveBeenCalledTimes(outcome === 'missing' ? 2 : 1);
+	expect(panel.text().includes('Deleted project')).toBe(outcome !== 'missing');
+	panel.unmount();
 });

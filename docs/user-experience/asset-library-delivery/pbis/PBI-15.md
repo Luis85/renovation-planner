@@ -1,7 +1,7 @@
 ---
 id: PBI-15
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F05
 priority: P0
@@ -11,6 +11,8 @@ depends_on: [PBI-03, PBI-06]
 screens: [AL10]
 ---
 # PBI-15 — Use the library in narrow panels and host themes
+
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
 
 ## Context and value
 

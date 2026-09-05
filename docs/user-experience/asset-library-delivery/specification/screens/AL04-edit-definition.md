@@ -19,7 +19,7 @@ Select a readable asset and change a field.
 
 ## Visual reference
 
-![Edit the definition — reference](prototype-desktop.jpg)
+![Edit the definition — reference](../images/prototype-desktop.jpg)
 
 **Image status:** Shows fields in the clean state; saving and error states are not shown. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -27,13 +27,13 @@ Select a readable asset and change a field.
 
 Fields as in the selected design; Unsaved changes status; contextual Save and Discard actions; field-level errors.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](../component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
 Input creates a local draft. Blur does not save. Save validates all changed fields, executes the agreed command path, and reads back the result. Discard restores the last confirmed baseline.
 
-The [central interaction rules](interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
+The [central interaction rules](../interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
 
 ## Exceptions and boundaries
 

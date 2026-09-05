@@ -24,10 +24,9 @@ import { tr } from '../i18n/strings';
  * than one function, which is what this module makes true.
  *
  * **What it deliberately does NOT do is decide where the user goes next.** The two callers
- * differ in exactly that — the library opens the designer on what it made, the project view
+ * differ in exactly that — the library selects what it made after refreshing its catalogue, the project view
  * opens it through `renovationProjectOpenAsset` — so this answers the created `AssetId` (or
- * `null` for a cancel) and each caller keeps its own hand-off, along with the reason it does
- * not re-hydrate.
+ * `null` for a cancel) and each caller keeps its own hand-off, along with its refresh policy.
  */
 export interface NewAssetDialogDeps {
 	readonly dialogs: Pick<ReturnType<typeof useDialogStore>, 'openDialog'>;

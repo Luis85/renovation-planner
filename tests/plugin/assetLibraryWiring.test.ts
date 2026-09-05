@@ -19,6 +19,7 @@ import { installObsidianDom } from '../helpers/dom';
 import { FakeWorkspace } from '../helpers/workspace';
 import { recorder, resetRecorder, lines } from '../helpers/logger';
 import { expectErr } from '../helpers/domain';
+import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import { ok } from '../../src/core/result/Result';
 import type { CatalogueListing } from '../../src/application/queries/ListCatalogueEntries';
@@ -288,6 +289,18 @@ describe('assetLibraryDeps with a composed root', () => {
 		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('workspace exploded');
 	});
 
+	it('opens a used project through its indexed native note', async () => {
+		const { root, stack } = composedRoot();
+		if (root.persistence === null) throw new Error('expected persistence');
+		await stack.vault.createFolder('Projects');
+		await stack.vault.create('Projects/Project.md', '---\ntype: renovation-project\nid: prj-test\n---\n');
+		root.persistence.index.upsert({ id: 'prj-test' as ProjectId, type: 'renovation-project', path: 'Projects/Project.md' });
+		const workspace = new FakeWorkspace();
+		const deps = assetLibraryDeps(root, workspace as never, stack.vault as never, { indexScanCompleted: () => true });
+		expect(await deps.openProject('prj-test')).toBe('opened');
+		expect(workspace.leaves).toHaveLength(1);
+		expect(await deps.openProject('prj-missing')).toBe('missing');
+	});
 	it('opens the designer through the one activation every other door already uses', async () => {
 		const { root, stack } = composedRoot();
 		const workspace = new FakeWorkspace();
@@ -314,6 +327,7 @@ describe('assetLibraryDeps with settings unrecovered', () => {
 			indexScanCompleted: () => false,
 		});
 
+		expect(await deps.openProject('prj-test')).toBe('failed');
 		expect(expectErr(await deps.queries.listCatalogue()).code).toBe('settings.unrecovered');
 		expect(expectErr(await deps.commands.updateAsset.execute({} as never)).code).toBe(
 			'settings.unrecovered',

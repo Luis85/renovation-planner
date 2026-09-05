@@ -227,6 +227,7 @@ const SEEDS: readonly Seed[] = [
 ];
 
 const HARNESS_ENTRIES: readonly CatalogueEntryDto[] = SEEDS.map((seed) => ({
+	version: { revision: 4, observed: 'harness-asset-library' as ObservationToken },
 	assetId: seed.id as AssetId,
 	name: seed.name,
 	category: seed.category,
@@ -329,14 +330,14 @@ const USED_IN: readonly ReferencingGroup[] = [
 /** One of the three, so §11 item 6's override mark is drawn beside two rows without one. */
 const OVERRIDING: readonly ProjectId[] = ['prj-hamburg-b' as ProjectId];
 
-function harnessQueries(): AssetLibraryQueryServices {
+function harnessQueries(empty: boolean): AssetLibraryQueryServices {
 	return {
 		// A fresh listing per call, never the module constant: `planEditor.ts`'s `getPlan` carries
 		// the rule — the real query builds its answer from notes it has just read, and handing back
 		// the module object lets a mutation through Pinia's reactive state edit the fixture.
 		listCatalogue: () =>
 			Promise.resolve(
-				ok({ entries: structuredClone(HARNESS_ENTRIES), unreadable: structuredClone(HARNESS_UNREADABLE) }),
+				ok({ entries: empty ? [] : structuredClone(HARNESS_ENTRIES), unreadable: empty ? [] : structuredClone(HARNESS_UNREADABLE) }),
 			),
 		listOutlines: (assetIds) =>
 			Promise.resolve(
@@ -365,8 +366,8 @@ function harnessQueries(): AssetLibraryQueryServices {
  */
 const HARNESS_EXPANDED: readonly string[] = ['material', 'furniture'];
 
-function assetLibraryHarnessDeps(): AssetLibraryDeps {
-	return defaultAssetLibraryDeps({ queries: harnessQueries() });
+function assetLibraryHarnessDeps(empty: boolean): AssetLibraryDeps {
+	return defaultAssetLibraryDeps({ queries: harnessQueries(empty) });
 }
 
 export interface MountedAssetLibrary {
@@ -379,14 +380,14 @@ export interface MountedAssetLibrary {
  * `''`-means-nothing-selected sentinel `AssetLibraryView.getState` writes, translated here at
  * the one place a URL meets it.
  */
-export function mountAssetLibraryHarness(root: HTMLElement, assetId: string | null): MountedAssetLibrary {
+export function mountAssetLibraryHarness(root: HTMLElement, assetId: string | null, empty = false): MountedAssetLibrary {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();
 	root.empty();
 
 	const leafEl = root.createDiv('rp-harness-leaf');
 	const leaf = new FakeLeaf();
-	const view = new AssetLibraryView(leaf as never, assetLibraryHarnessDeps());
+	const view = new AssetLibraryView(leaf as never, assetLibraryHarnessDeps(empty));
 	// So that `publishViewState`'s round trip through `leaf.setViewState` reaches this view's own
 	// `setState` the way Obsidian's does, rather than being recorded and dropped. The selection
 	// works either way — `publishViewState` writes the refs before it publishes — but a page for

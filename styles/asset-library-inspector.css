@@ -1,23 +1,6 @@
-/*
- * The Asset library's inspector (design "Asset library overview" §3.5) — its rail, its
- * definition list, its per-section headings and its three actions.
- *
- * Ported from `src/prototypes/AssetInspector.vue`'s own `<style scoped>` block, which is GONE
- * with this file rather than kept beside it. That is Task 12's own move on `asset-shelf.css`,
- * for the reason `tests/build/prototype-styles.test.ts` states as a rule: once the mock's
- * classes are a real component's classes, a scoped block in the mock is a second, unreachable
- * copy of these rules that a designer nudging the mock would think was styling the shipped
- * panel. The gate refuses it, and the refusal is what promoted this file.
- *
- * Every colour is an Obsidian variable (SDD §84) — nothing here names one, so a themed vault
- * stays themed.
- *
- * **What the prototype had no rules for, because it could not represent the states:** the
- * per-section wrapper, the two refusal lines, the editable controls, the override mark and the
- * withheld-`Delete` reason. Those are new here, in the same vocabulary.
- */
+
 .rp-al-inspector {
-	flex: 0 0 280px;
+	flex: 0 0 clamp(280px, 32%, 440px);
 	min-height: 0;
 	padding: var(--size-4-3);
 	border-left: 1px solid var(--background-modifier-border);
@@ -391,3 +374,25 @@
 	font-size: var(--font-ui-smaller);
 	line-height: var(--line-height-normal);
 }
+
+/* Explicit definition commit: controls stay reachable within the scrolling inspector. */
+.rp-al-definition { min-width: 0; }
+.rp-al-draft-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+	padding-block: var(--size-4-3);
+	position: sticky;
+	bottom: 0;
+	background: var(--background-primary);
+	z-index: 1;
+}
+.rp-al-draft-actions [role="status"] { flex-basis: 100%; color: var(--text-muted); }
+.rp-al-differences { overflow-wrap: anywhere; }
+.renovation-asset-library .rp-al-used__name { white-space: normal; text-align: start; }
+
+.rp-al-shape-preview .rp-al-mark { width: 100%; height: 110px; stroke-width: 0.2; }
+
+.rp-al-draft-actions button[type="submit"]:enabled { background: var(--interactive-accent); color: var(--text-on-accent); }
+.rp-al-draft-actions button:focus-visible,
+.rp-al-used__name:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }

@@ -19,7 +19,7 @@ Focus the search field and enter a term.
 
 ## Visual reference
 
-![Search and evaluate results — reference](prototype-desktop.jpg)
+![Search and evaluate results — reference](../images/prototype-desktop.jpg)
 
 **Image status:** Composition reference only; not a capture of a filtered list. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -27,13 +27,13 @@ Focus the search field and enter a term.
 
 Search field with an accessible clear action; results in their existing groups; result count; No matching assets where applicable.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](../component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
 Search ignores case and surrounding whitespace. Search name, supplier, SKU, and category. Matching groups are open during search. Clearing search restores the prior group state.
 
-The [central interaction rules](interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
+The [central interaction rules](../interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
 
 ## Exceptions and boundaries
 

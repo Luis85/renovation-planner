@@ -6,7 +6,7 @@ Version 1.1 · 2026-09-05 · English project documentation · Design direction s
 
 This package continues the **second displayed concept**, selected by the user: compact category shelves with aligned columns and a narrower right inspector. It specifies the vault-wide asset library inside an Obsidian workspace leaf. Production remains Vue 3, TypeScript and Pinia. The React prototype demonstrates interactions; it is not production architecture or a replacement domain model.
 
-![Selected design direction — German-localized UI reference](selected-direction.png)
+![Selected design direction — German-localized UI reference](images/selected-direction.png)
 
 The visual direction is selected. New behavior defined here is a proposed implementation contract, not evidence of user validation or current implementation. Existing domain safety rules remain authoritative. Consolidate conflicts explicitly before implementation; see the [decision register](decision-register.md).
 
@@ -18,9 +18,9 @@ English is the project language for documentation, PBI titles, tasks, acceptance
 
 1. [Interaction rules](interaction-rules.md)
 2. Individual screen specifications below
-3. [Component contracts](docs/user-experience/asset-library-delivery/specification/component-library.md)
+3. [Component contracts](component-library.md)
 4. [Decision and reconciliation register](decision-register.md)
-5. [Implementation and verification plan](docs/user-experience/asset-library-delivery/specification/implementation-plan.md)
+5. [Implementation and verification plan](implementation-plan.md)
 
 ## Mental model
 
@@ -48,15 +48,15 @@ Repository files were inspected earlier in this design session on main; no immut
 
 | ID | Screen | User goal |
 | --- | --- | --- |
-| AL00 | [Browse the library](AL00-browse.md) | Recognize an existing asset before defining it again. |
-| AL01 | [Inspect an asset definition](AL01-selected-object.md) | Understand an asset’s definition, shape, and usage together. |
-| AL02 | [Search and evaluate results](AL02-search-results.md) | Find an asset by name, supplier, or SKU. |
-| AL03 | [Create a new asset](AL03-create-object.md) | Capture a reusable definition with a small number of inputs. |
-| AL04 | [Edit the definition](AL04-edit-definition.md) | Deliberately correct metadata and the library price. |
-| AL05 | [Leave an asset with unsaved changes](AL05-unsaved-changes.md) | Prevent accidental loss of user input. |
+| AL00 | [Browse the library](screens/AL00-browse.md) | Recognize an existing asset before defining it again. |
+| AL01 | [Inspect an asset definition](screens/AL01-selected-object.md) | Understand an asset’s definition, shape, and usage together. |
+| AL02 | [Search and evaluate results](screens/AL02-search-results.md) | Find an asset by name, supplier, or SKU. |
+| AL03 | [Create a new asset](screens/AL03-create-object.md) | Capture a reusable definition with a small number of inputs. |
+| AL04 | [Edit the definition](screens/AL04-edit-definition.md) | Deliberately correct metadata and the library price. |
+| AL05 | [Leave an asset with unsaved changes](screens/AL05-unsaved-changes.md) | Prevent accidental loss of user input. |
 | AL06 | [Understand usage and price impact](screens/AL06-usage-and-price.md) | Recognize which projects use the shared price. |
 | AL07 | [Open the shape and note](screens/AL07-shape-and-note.md) | Navigate from the catalogue to geometry or documentation. |
 | AL08 | [Start with an empty library](screens/AL08-empty-library.md) | Create the first asset even before a project exists. |
 | AL09 | [Handle loading, saving, and data errors](screens/AL09-loading-and-errors.md) | Work with incomplete data without false confidence. |
 | AL10 | [Work in a narrow panel](screens/AL10-narrow-and-theme.md) | Use the library and details safely with limited space. |
-| AL11 | [Delete an asset safely](AL11-delete-object.md) | Remove a definition without damaging its usage references. |
+| AL11 | [Delete an asset safely](screens/AL11-delete-object.md) | Remove a definition without damaging its usage references. |

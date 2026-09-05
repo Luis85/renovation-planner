@@ -10,7 +10,7 @@ import {
 	unavailableAssetLibraryCommands,
 	type AssetLibraryDeps,
 } from '../presentation/library/AssetLibraryDeps';
-import { renovationProjectOpenAsset } from './renovationProjectOpenSeams';
+import { renovationProjectOpenAsset, renovationProjectOpenProject } from './renovationProjectOpenSeams';
 import type { CompositionRoot } from './composition-root';
 
 /**
@@ -111,6 +111,9 @@ export function assetLibraryDeps(
 			if (persistence === null) return Promise.resolve('failed');
 			const path = persistence.index.getPath(assetId);
 			return path === undefined ? Promise.resolve('missing') : openNote(path);
+		},
+		openProject: (projectId) => {
+			return persistence === null ? Promise.resolve('failed') : renovationProjectOpenProject(workspace, vault, persistence.index, root.logger)(projectId);
 		},
 		// The SAME binding the project view's `openAsset` takes, reused rather than duplicated:
 		// one activation function is what stops a double click opening two designer tabs, and a

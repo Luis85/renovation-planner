@@ -1,3 +1,4 @@
+import type { ProjectOpenOutcome } from '../views/RenovationProjectContext';
 import { err, type Result } from '../../core/result/Result';
 import type { AppError, PersistenceError } from '../../core/errors/AppError';
 import { currencyOf, type Currency } from '../../core/money/Money';
@@ -136,6 +137,8 @@ export interface AssetLibraryDeps {
 	 * for that id at all, which is the honest answer for an asset that has just been deleted.
 	 */
 	readonly openAssetNote: (assetId: AssetId) => Promise<NoteOpenOutcome>;
+	/** Opens a referencing project; missing targets require a fresh usage query. */
+	readonly openProject: (projectId: string) => Promise<ProjectOpenOutcome>;
 	/** Jumps into the designer for one asset — §3.5's `Open designer` action. */
 	readonly openDesigner: (assetId: AssetId) => Promise<void>;
 	/**

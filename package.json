@@ -8,6 +8,7 @@
 		"build": "vue-tsc -noEmit && vite build",
 		"test-build": "vue-tsc -noEmit && vite build --mode development && node scripts/test-build.mjs",
 		"harness": "vite --config vite.harness.config.ts",
+		"asset-library-shots": "node scripts/asset-library-shots.mjs",
 		"harness-shot": "node scripts/harness-shot.mjs",
 		"concept-shots": "node scripts/concept-shots.mjs",
 		"background-fixture": "node scripts/background-fixture.mjs",

@@ -1,7 +1,7 @@
 ---
 id: PBI-01
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F01
 priority: P0
@@ -12,6 +12,8 @@ screens: [AL00, AL08]
 ---
 # PBI-01 — Open and resume the shared asset library
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F01 — Find and browse the catalogue
@@ -20,11 +22,11 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Open and resume the shared asset library.
 
-**References:** [AL00](AL00-browse.md), [AL08](../specification/screens/AL08-empty-library.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL00](../specification/screens/AL00-browse.md), [AL08](../specification/screens/AL08-empty-library.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 
-Required predecessors: [EN-01](EN-01.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
+Required predecessors: [EN-01](../enablers/EN-01.md). Necessary application collaborators have been checked against the target commit; fixtures include the normal and failure conditions described here. The trigger is the user action in the main flow.
 
 ## Main flow
 

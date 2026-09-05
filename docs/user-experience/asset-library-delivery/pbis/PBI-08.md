@@ -1,7 +1,7 @@
 ---
 id: PBI-08
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F02
 priority: P0
@@ -12,6 +12,8 @@ screens: [AL04]
 ---
 # PBI-08 — Change an asset’s unit and waste allowance correctly
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F02 — Create and maintain definitions
@@ -20,7 +22,7 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Change an asset’s unit and waste allowance correctly.
 
-**References:** [AL04](AL04-edit-definition.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL04](../specification/screens/AL04-edit-definition.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 

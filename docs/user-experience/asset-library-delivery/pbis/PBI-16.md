@@ -1,7 +1,7 @@
 ---
 id: PBI-16
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F05
 priority: P1
@@ -11,6 +11,8 @@ depends_on: [PBI-09, PBI-15]
 screens: [AL00, AL03, AL04, AL05, AL10]
 ---
 # PBI-16 — Complete library actions using only the keyboard
+
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
 
 ## Context and value
 

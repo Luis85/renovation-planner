@@ -19,7 +19,7 @@ Secondary Delete asset action in the detail menu; not the primary action on a ca
 
 ## Visual reference
 
-![Delete an asset safely — reference](prototype-desktop.jpg)
+![Delete an asset safely — reference](../images/prototype-desktop.jpg)
 
 **Image status:** Detail context only; the delete action is not implemented in the prototype. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -27,13 +27,13 @@ Secondary Delete asset action in the detail menu; not the primary action on a ca
 
 Current asset name, checked usage, explicit effects; Cancel and a clearly labelled final delete action only when allowed.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](../component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
 Recheck references before confirmation. Delete an unreferenced asset through the existing DeleteAsset path. For references, use only existing supported resolution; otherwise show usage and block deletion.
 
-The [central interaction rules](interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
+The [central interaction rules](../interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
 
 ## Exceptions and boundaries
 

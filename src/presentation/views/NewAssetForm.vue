@@ -177,7 +177,7 @@ const INITIAL: NewAssetValues = {
 	name: '',
 	category: 'material',
 	unit: 'piece',
-	unitCostAmount: '0',
+	unitCostAmount: '',
 	currency: '',
 	width: '',
 	depth: '',

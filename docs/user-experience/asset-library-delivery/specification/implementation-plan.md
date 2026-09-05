@@ -80,4 +80,4 @@ Extend existing Vitest and harness tests for concrete risks. Earlier browser che
 
 ## Delivery
 
-Place screens and images under `docs/user-experience/renovation-planner-asset-library-specs/`. Amend the older specification with a link and identify exactly which sections are superseded. Component mapping and implementation plans reference the inspected commit. This download does not modify the repository. The detailed delivery baseline is [the package implementation plan](docs/user-experience/asset-library-delivery/implementation-plan.md).
+Place screens and images under `docs/user-experience/renovation-planner-asset-library-specs/`. Amend the older specification with a link and identify exactly which sections are superseded. Component mapping and implementation plans reference the inspected commit. This download does not modify the repository. The detailed delivery baseline is [the package implementation plan](../implementation-plan.md).

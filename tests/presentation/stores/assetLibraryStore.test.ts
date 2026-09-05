@@ -1,3 +1,4 @@
+import type { ObservationToken } from '../../../src/application/ports/versioning';
 /**
  * `AssetLibraryStore` in isolation (design "Asset library overview" §5.3, §5.4, §5.5, §6.1).
  *
@@ -46,6 +47,7 @@ const READ_FAILED = { category: 'Persistence', code: 'vault.unexpected-failure',
 
 function anEntry(overrides: Partial<CatalogueEntryDto> = {}): CatalogueEntryDto {
 	return {
+		version: { revision: 1, observed: 'fixture' as ObservationToken },
 		assetId: createAssetId(),
 		name: 'Oak plank floor',
 		category: 'material',
@@ -228,15 +230,15 @@ describe('AssetLibraryStore hydration', () => {
 		expect(store.error).toBeNull();
 	});
 
-	it('leaves no stale rows behind a failed listing', async () => {
+	it('retains the last valid listing beside a refresh failure', async () => {
 		const store = useAssetLibraryStore();
 		await store.hydrate(queriesAnswering({ entries: [anEntry()], unreadable: [A_NO_ID_NOTE] }), scanned);
 
 		await store.hydrate(queriesAnswering({}, { listCatalogue: () => Promise.resolve(err(READ_FAILED)) }), scanned);
 
-		expect(store.status).toBe('failed');
-		expect(store.visibleEntries).toEqual([]);
-		expect(store.unreadable).toEqual([]);
+		expect(store.status).toBe('ready');
+		expect(store.visibleEntries).toHaveLength(1);
+		expect(store.unreadable).toEqual([A_NO_ID_NOTE]);
 		expect(store.error).toEqual(READ_FAILED);
 	});
 
@@ -555,5 +557,22 @@ describe('AssetLibraryStore change routing', () => {
 		);
 
 		expect(store.visibleEntries).toEqual([entry]);
+	});
+});
+
+
+describe('localized category search', () => {
+	it.each([
+		['de', 'Möbel', 'furniture'], ['de', 'Baustoff', 'material'],
+		['en', 'Building element', 'building-element'], ['de', 'furniture', 'furniture'],
+		['en', 'custom-category', 'custom-category'],
+	])('matches %s query %s to category %s', async (language, query, category) => {
+		host.language = language;
+		const matching = anEntry({ name: 'One', category, supplier: null, sku: null });
+		const other = anEntry({ name: 'Two', category: 'consumable', supplier: null, sku: null });
+		const store = useAssetLibraryStore();
+		await store.hydrate(queriesAnswering({ entries: [matching, other] }), scanned);
+		store.query = query;
+		expect(store.visibleEntries).toEqual([matching]);
 	});
 });

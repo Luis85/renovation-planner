@@ -210,6 +210,7 @@ describe('ViewRoot, creating an asset', () => {
 		const wrapper = await openTheForm(context);
 
 		await wrapper.get('[data-field="name"]').setValue('Kitchen island');
+		await wrapper.get('[data-field="unitCostAmount"]').setValue('450.00');
 		await wrapper.get('form').trigger('submit');
 		await flushPromises();
 
@@ -229,6 +230,7 @@ describe('ViewRoot, creating an asset', () => {
 		const wrapper = await openTheForm(context);
 
 		await wrapper.get('[data-field="name"]').setValue('Kitchen island');
+		await wrapper.get('[data-field="unitCostAmount"]').setValue('450.00');
 		await wrapper.get('[data-field="width"]').setValue('1200');
 		await wrapper.get('[data-field="depth"]').setValue('800');
 		await wrapper.get('form').trigger('submit');
@@ -255,6 +257,7 @@ describe('ViewRoot, creating an asset', () => {
 		const wrapper = await openTheForm(context);
 
 		await wrapper.get('[data-field="name"]').setValue('Kitchen island');
+		await wrapper.get('[data-field="unitCostAmount"]').setValue('450.00');
 		await wrapper.get('form').trigger('submit');
 		await flushPromises();
 

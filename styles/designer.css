@@ -257,9 +257,10 @@
  */
 /* REVIEWED CLONE: the bordered variant with a leading `width`/`margin` — the flat button is per-component by
    necessity; the argument is on `.rp-designer-tool-button`, above in this file. */
-/* fallow-ignore-next-line code-duplication */
 .rp-designer-inspector .rp-designer-edit-dimensions {
 	width: 100%;
+	/* The reviewed clone starts at margin; target the declaration rather than the selector. */
+	/* fallow-ignore-next-line code-duplication */
 	margin: 0 0 var(--size-4-4);
 	/* The same reviewed flat-button clone also starts here, after the component-specific dimensions. */
 	/* fallow-ignore-next-line code-duplication */

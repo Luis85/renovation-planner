@@ -6,6 +6,7 @@ import { de } from '../../../src/presentation/i18n/locales/de';
 import { en } from '../../../src/presentation/i18n/locales/en';
 import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import { createMoney } from '../../../src/core/money/Money';
+import { parseCoordinateMetres } from '../../../src/presentation/editor/shell/formatLength';
 import { isErr } from '../../../src/core/result/Result';
 import { REPO, repoRelative } from '../../helpers/repo';
 
@@ -197,7 +198,18 @@ describe('the German locale', () => {
 	 * than widening the digit-token heuristic to guess which parser a key is about — one key
 	 * excluded, with the reason written here rather than left for the next reader to rediscover.
 	 */
-	const NOT_A_MONEY_EXAMPLE: ReadonlySet<StringKey> = new Set(['editor.room.error.not-a-number']);
+	// Coordinates use the same comma-aware length grammar, not the monetary parser.
+	const NOT_A_MONEY_EXAMPLE: ReadonlySet<StringKey> = new Set(['editor.room.error.not-a-number', 'editor.area.coordinate-invalid']);
+
+	it('shows coordinate examples accepted by the coordinate parser in both locales', () => {
+		for (const locale of [en, de]) {
+			const examples = (locale['editor.area.coordinate-invalid'] as string).match(/-?\d+(?:[.,]\d+)?/g) ?? [];
+			expect(examples).toHaveLength(3);
+			expect(examples.map((example) => parseCoordinateMetres(example))).toEqual([
+				{ ok: true, mm: 0 }, { ok: true, mm: -1500 }, { ok: true, mm: 4200 },
+			]);
+		}
+	});
 
 	it('never shows a monetary example the amount parser refuses', () => {
 		const offenders: string[] = [];

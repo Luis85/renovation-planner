@@ -424,11 +424,6 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 		// fallow-ignore-next-line unused-store-member
 		taskToken,
 		rect, geometry, areaMm2,
-		// The only consumer is `runtime.ts`'s `deps.roomDraft.complete`, inside
-		// `createRoomCreationAction` — a function `buildRuntime` calls rather than the one
-		// that binds `useRoomDraftStore()` itself, and `buildRuntime` is already at its
-		// 100-line cap. Same shape as `taskToken` above: real, indirect, invisible to fallow.
-		// fallow-ignore-next-line unused-store-member
 		complete,
 		valid, hasInput,
 		beginTask, setRect, snapshotRect, restoreRect, clearRect, reset, setName,

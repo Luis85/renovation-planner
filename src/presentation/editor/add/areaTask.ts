@@ -4,6 +4,7 @@ import type { ToolManager } from '../tools/tool-manager';
 import type { RenderState } from '../tools/render-state';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import { areaOutline } from './areaOutline';
+import { createAreaCornerInput } from './areaCornerInput';
 
 /** Per-leaf task preferences and the button facade over the geometry tool's one completion. */
 export function createAreaTask(deps: {
@@ -18,9 +19,12 @@ export function createAreaTask(deps: {
 	watch(deps.activeToolId, () => { keepAddingAreas.value = false; }, { flush: 'sync' });
 	const onAreaCompleted = (): void => { if (!keepAddingAreas.value) deps.returnToSelect(); };
 	const saveState = useSaveStateStore();
+	const editable = computed(() => deps.activeToolId.value === 'draw-area' && !deps.writesBlocked.value && saveState.state !== 'saving');
+	const areaCorners = createAreaCornerInput(deps.renderState, deps.toolManager, editable);
+	watch(deps.activeToolId, areaCorners.reset, { flush: 'sync' });
 	const canFinishArea = computed(() => deps.activeToolId.value === 'draw-area'
 		&& areaOutline(deps.renderState.polygonSketch?.vertices ?? []).ok
-		&& !deps.writesBlocked.value && saveState.state !== 'saving');
+		&& editable.value && !areaCorners.pending.value);
 	const finishArea = (): void => { if (canFinishArea.value) deps.toolManager.finishActiveTool(); };
-	return { keepAddingAreas, onAreaCompleted, canFinishArea, finishArea };
+	return { keepAddingAreas, onAreaCompleted, canFinishArea, finishArea, areaCorners };
 }

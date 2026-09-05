@@ -28,6 +28,7 @@ import type { PlanEditorContext } from '../PlanEditorContext';
  * single site — see `subject` below, which is built from the same value.
  */
 export interface EditorToolDeps {
+	readonly canFinishArea: () => boolean;
 	readonly onAreaCompleted: () => void;
 	readonly context: PlanEditorContext;
 	readonly planId: PlanId;
@@ -71,6 +72,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 		toolManager.register(
 			new DrawPolygonTool({
 				id: entry.id,
+				...(entry.id === 'draw-area' ? { canFinish: deps.canFinishArea } : {}),
 				validateOutline: entry.validateOutline,
 				// What a closed polygon MEANS in the Plan Editor: a new Zone on this plan. The tool
 				// itself names none of it — see `PolygonCompletion`, which the designer supplies a

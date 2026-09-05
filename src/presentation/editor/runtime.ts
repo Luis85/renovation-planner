@@ -70,6 +70,7 @@ import { makeCommitField } from './commitField';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly areaCorners: ReturnType<typeof createAreaTask>['areaCorners'];
 	readonly keepAddingAreas: Ref<boolean>;
 	readonly canFinishArea: Readonly<Ref<boolean>>;
 	readonly finishArea: () => void;
@@ -683,7 +684,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
 	});
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect });
-	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted });
+	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
 	// BECOMES `'ready'` — and a `previous !== 'ready'` guard would be dead code here, not a

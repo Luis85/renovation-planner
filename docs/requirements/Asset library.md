@@ -47,6 +47,17 @@ instead of inventing one.
 Derived from PRD §17 (Epic 6), with quantity semantics from §75, custom types from §84 and
 derived data from §88.
 
+**`docs/user-experience/asset-library-delivery/` arrived on 2026-09-05** — a UI/UX specification for
+the catalogue surface plus eighteen proposed use cases under five feature groups of its own. It was
+written without being rechecked against a commit, and says so; its own EN-01 is the reconciliation
+that check needs. Reconciled against the shipped surface, thirteen of the eighteen describe
+behaviour that already exists, two are the commit-model change held as
+[[A field edit commits on blur, and two design packages ask for an explicit Apply]], two are partial
+consequences of that same decision, and one — Bases access — is the definition-of-done item above.
+The package's F01–F05 groups are its own planning aids and are deliberately not adopted as
+Features here: the four beneath this epic already carry the same ground, and a second set would
+give one body of work two parents.
+
 ## Definition of done
 
 An item beneath this epic is done when:
@@ -60,8 +71,22 @@ An item beneath this epic is done when:
   chain instead of starting a parallel one.
 - Asset categories are configurable (§84) and Custom stays available; an unrecognised category
   is kept as written.
+  **UNMET, and today's behaviour is its opposite.** `assetFrontmatter.ts` validates `category`
+  through `kebabEnum(ASSET_CATEGORIES)`, which returns `z.NEVER` outside the seven — so an
+  unrecognised category is not kept as written, it takes the whole note down with it and the asset
+  disappears into the library's unreadable count. [[Keep an unrecognised asset category as written]]
+  is that item. Recording it here rather than leaving the criterion reading as merely unbuilt,
+  because a criterion whose code does the opposite is a different fact from one nobody has got to.
 - The catalog is searchable, and reachable through Bases (§41) rather than only through this
   plugin's own views.
+  **HALF MET.** The Asset library view ships — a vault-wide catalogue as a place, with category
+  shelves, a search matching name, supplier and SKU, an inspector that edits nine fields, a
+  geometry mark, a where-used roll-up and a delete flow that checks references. That discharges
+  *searchable* and discharges nothing of *rather than only through this plugin's own views*: that
+  surface is precisely a picker this plugin draws, and its own specification says so. The second
+  half is [[Reach the asset catalogue without this plugin's own view]], which is blocked on
+  [[What discharges the catalogue's Bases access is undecided]] — the earlier decision settled
+  that the route is a Bases view and not what has to ship for it to be reachable.
 - **A project can record its own price against a shared definition**, as an override stored
   beside the shared default rather than replacing it (§89). The definition is shared across
   projects (§59) and the currency is not (§72), so a project whose currency differs from an

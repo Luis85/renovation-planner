@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **`npm run check` passes before every commit** (build + oxlint + ESLint + `test:coverage` + fallow), in the FOREGROUND with `timeout: 600000`, on a QUIET tree — nothing else running. Between edits run `npm run check:fast -- <test paths>`. Two known artifacts: a single 5000 ms timeout in a `src/`-walking test, and a 60 s `beforeAll` timeout in ESLint-booting `tests/build/*` files under default parallelism — re-run the file alone before believing either.
-- **Baseline at `a1b3e3c4`:** 469 files / 6539 tests; coverage 99.33 / 98.20 / 99.18 / 99.62 (statements / branches / functions / lines) against floors 99 / 98 / 99 / 98. **Functions has about five units of headroom, branches about eleven.** Every new function and every new arm ships with the test that reaches it, in the same task. Read `coverage/coverage-final.json` for the changed files before calling a task done. A guard whose other arm no test can take is not free — restructure so the arm does not exist.
+- **Baseline.** The review measured `a1b3e3c4`: 469 files / 6539 tests; coverage 99.33 / 98.20 / 99.18 / 99.62 (statements / branches / functions / lines) against floors 99 / 98 / 99 / 98. While the review ran, PR #70 (`codex/asset-library-delivery`) and three docs commits landed on `main`; at `c92c6c91` the gate collects **471 files / 6562 tests** and is green (its first run reddened on a 120 s timeout in `tests/build/test-environments.test.ts` under contention — the file passes alone in 60 s, the artifact CLAUDE.md names). PR #70 changed 18 `src/` files, all under `src/presentation/library/` plus `UpdateAsset.ts` and `definitionDraft.ts`; the three this plan cites were re-read and carry their findings at the lines given. **The other fifteen were not re-reviewed** — a library-focused pass over PR #70's diff is a separate ask. **Functions has about five units of headroom, branches about eleven** (re-measure at task start: `npm run test:coverage`). Every new function and every new arm ships with the test that reaches it, in the same task. Read `coverage/coverage-final.json` for the changed files before calling a task done. A guard whose other arm no test can take is not free — restructure so the arm does not exist.
 - **Layer bans are lint rules.** `presentation → application → domain → core`; `infrastructure → application (ports) → domain → core`; only `src/plugin/` composes. `vue`, `pinia`, `konva`, `obsidian` are banned by name in `core/`, `domain/`, `application/`.
 - **No user-facing string literal.** Every new key lands in `src/presentation/i18n/locales/en.ts` AND `de.ts` in the same edit (editor keys in `en/editor.ts` AND `de/editor.ts`, which is a `Record<keyof typeof editorEn, string>`). German is formal (Sie). Sentence case in English; a capitalised word mid-sentence fails the build.
 - **`aria-disabled`, never `:disabled`, on a PAUSED control**; a paused control stays focusable. `:disabled` is for a control that is not an option at all (`assetStatus !== 'known'`, Undo with nothing to undo).
@@ -31,7 +31,8 @@
 
 ```bash
 git fetch origin && git checkout main && git pull
-git log -1 --format=%H                                   # expect a1b3e3c4 or a descendant
+git log -1 --format=%H                                   # expect c92c6c91 or a descendant
+git merge-base --is-ancestor a1b3e3c4 HEAD && echo ok    # the reviewed tree is in the history
 git checkout -b claude/polish-pass-2026-09
 mkdir -p .superpowers/sdd/2026-09-05-polish-pass
 grep -n "ledger" src/presentation/editor/inspector-wiring.ts | head -3      # expect: a `ledger: SessionWriteLedger` parameter

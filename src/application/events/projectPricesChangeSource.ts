@@ -1,12 +1,14 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { AssetPriceOverrideEventPayload } from '../../domain/asset-price/AssetPriceOverride.events';
+import type { RequirementEventPayload } from '../../domain/requirement/Requirement.events';
 import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
 import { disposeAll, subscribeAll } from './subscriptions';
 
 /**
- * "A project's own price for some asset may have moved — re-read it": the domain event
- * vocabulary, turned into one subscription a view can take without naming an event.
+ * "A project's own price for some asset may have moved, OR a project's requirements gained or
+ * lost a row" — the domain event vocabulary, turned into one subscription a view can take
+ * without naming an event.
  *
  * It lives in `application/` for the reason its siblings do: this layer may know both the
  * `EventBus` port and the event names, so `presentation/` gets a callback and learns
@@ -33,11 +35,25 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * `runtime.ts` gives its own empty-snapshot arm: a filter exists to skip work, so an unanswered
  * question does the work.
  *
- * **ONE domain event, because there is one.** Set, replace and clear all publish
- * `AssetPriceOverrideChanged` — `AssetPriceOverride.events.ts` states that as its own
+ * **ONE domain event for the PRICE half, because there is one.** Set, replace and clear all
+ * publish `AssetPriceOverrideChanged` — `AssetPriceOverride.events.ts` states that as its own
  * decision ("every subscriber's question is 'this project's price for this asset may have
- * moved'"), so this list is that decision read back rather than a narrowing of a wider
- * vocabulary.
+ * moved'"), so `PRICE_CHANGE_EVENTS` is that decision read back rather than a narrowing of a
+ * wider vocabulary.
+ *
+ * **THREE more for a different question (A2), on the Plan Editor's caller alone.** `REQUIREMENT_LIST_EVENTS`
+ * below answers "the SET of rows a zone's Inspector draws just changed" — `RequirementCreated`,
+ * `RequirementDeleted`, `RequirementRestored` — which had no subscriber anywhere in `src/`
+ * before this. It lives in THIS module rather than a fifth source of its own because the Plan
+ * Editor already wires this source's listener straight to an unconditional reload with no
+ * per-id filter: `runtime.ts`'s `context.onProjectPricesChanged(reloadInspector)` re-reads the
+ * WHOLE list for the selected zone on every delivery, which is exactly what a row appearing or
+ * disappearing needs and what the requirement-figures source's `drawsRequirement` guard cannot
+ * give it — that guard can only match a row already in the list it is asked to refresh, so a
+ * brand-new row would never pass it. The project pane also hears these now and re-reads its
+ * price rows for a Requirement lifecycle change in its own project; harmless under the same
+ * "each caller decides" rule the price events already live by, and cheaper than a fifth source
+ * for three deliveries a session rarely produces.
  */
 const PRICE_CHANGE_EVENTS = ['AssetPriceOverrideChanged'] as const;
 
@@ -63,6 +79,21 @@ const PRICE_CHANGE_EVENTS = ['AssetPriceOverrideChanged'] as const;
 const PRICE_ENTRY_EVENTS = ['ProjectIndexEntryChanged'] as const;
 
 /**
+ * **A third list, for a different fact than either above (A2).** `PRICE_CHANGE_EVENTS` and
+ * `PRICE_ENTRY_EVENTS` both answer "this project's price for some asset may have moved" — a
+ * figure on a row that is already there. These three answer a different question: the SET of
+ * rows a zone's Inspector draws just changed, because a Requirement was created, deleted, or
+ * restored. Landed here rather than in a source of their own (T6's ledger ruling) because the
+ * Plan Editor's caller of this source already wires its listener straight to an unconditional
+ * reload with no per-id filter — unlike the requirement-figures source's `drawsRequirement`
+ * guard, which a brand-new row could never satisfy, since that guard can only match a row that
+ * is already in the list it is asked to refresh. `RequirementRestored` is also A4's compensation
+ * for the reassign arm's inline recalculation (`deleteResolution.ts`'s `AppliedStep` docblock):
+ * a peer leaf that read the intermediate state now hears the correction.
+ */
+const REQUIREMENT_LIST_EVENTS = ['RequirementCreated', 'RequirementDeleted', 'RequirementRestored'] as const;
+
+/**
  * `DomainEvent` carries only a `type`. Narrowed with a guard rather than a cast, exactly as
  * `assetCatalogueChangeSource.changedEntityTypeOf` is and for the same reason: an event added
  * to the list above WITHOUT this payload is then simply never delivered, instead of comparing
@@ -85,6 +116,18 @@ function changedProjectOf(event: DomainEvent): ProjectId | null {
 	return typeof payload?.projectId === 'string' ? payload.projectId : null;
 }
 
+/**
+ * The project a `RequirementEventPayload` names — a SEPARATE reader from `changedProjectOf`
+ * above rather than a shared one, for the reason `subscriptions.ts`'s `changedEntry` and
+ * `changedSidecar` stay two functions over alike shapes: `AssetPriceOverrideEventPayload` and
+ * `RequirementEventPayload` are two different payloads that happen to share a field name, and
+ * one reader typed as either would mislabel whichever event it is not.
+ */
+function requirementProjectOf(event: DomainEvent): ProjectId | null {
+	const payload = (event as { payload?: Partial<RequirementEventPayload> }).payload;
+	return typeof payload?.projectId === 'string' ? payload.projectId : null;
+}
+
 export function createProjectPricesChangeSource(
 	events: EventBus,
 ): (listener: (projectId: ProjectId | null) => void) => () => void {
@@ -99,6 +142,9 @@ export function createProjectPricesChangeSource(
 			// caller rather than a miss.
 			...subscribeAll(events, PRICE_ENTRY_EVENTS, (event) => {
 				if (changedEntityTypeOf(event) === 'renovation-asset-price') listener(null);
+			}),
+			...subscribeAll(events, REQUIREMENT_LIST_EVENTS, (event) => {
+				listener(requirementProjectOf(event));
 			}),
 		];
 		return disposeAll(subscriptions);

@@ -13,7 +13,7 @@ status: Ready
 
 The Renovation project pane's **list state** — the launcher — in a real vault: the filter that
 is also the pane's count line, the ten-step status strip, the roving keyboard model, the
-`Continue` row, and the foot line. `docs/user-experience/renovation-planner-home-DESIGN-SPEC.md`
+`Continue` row, and the foot line. `docs/user-experience/archive/renovation-planner-home-DESIGN-SPEC.md`
 is the contract and this case is §11's *"what no gate here can check, and where it is checked
 instead"*.
 

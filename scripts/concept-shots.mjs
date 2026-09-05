@@ -5,7 +5,7 @@ import { chromium } from 'playwright-core';
 import { resolveChromiumExecutable } from './chromium.mjs';
 
 /**
- * One PNG per component specimen out of `docs/user-experience/concepts/component-gallery.html`,
+ * One PNG per component specimen out of `docs/user-experience/archive/concepts/component-gallery.html`,
  * each showing
  * that specimen twice — light beside dark — for embedding in the matching note under
  * `docs/components/`.
@@ -52,8 +52,8 @@ import { resolveChromiumExecutable } from './chromium.mjs';
  * document is its own origin.
  */
 
-const GALLERY = path.join('docs', 'user-experience', 'concepts', 'component-gallery.html');
-const OUT_DIR = path.join('docs', 'user-experience', 'concepts', 'shots');
+const GALLERY = path.join('docs', 'user-experience', 'archive', 'concepts', 'component-gallery.html');
+const OUT_DIR = path.join('docs', 'user-experience', 'archive', 'concepts', 'shots');
 
 /* The width each specimen is shot at — wider than the ~350px column the same specimen gets
    in the gallery's four-up grid, since here it has a note to itself. */

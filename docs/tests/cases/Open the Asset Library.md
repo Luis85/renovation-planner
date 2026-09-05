@@ -3,8 +3,8 @@ type: Test case
 parent: "[[Smoke Test the Editor]]"
 order: 85
 sources:
-  - docs/user-experience/asset-library-overview-DESIGN-SPEC.md §2
-  - docs/user-experience/asset-library-overview-DESIGN-SPEC.md §6.3
+  - docs/user-experience/archive/asset-library-overview-DESIGN-SPEC.md §2
+  - docs/user-experience/archive/asset-library-overview-DESIGN-SPEC.md §6.3
   - SDD §12
 status: Ready
 ---

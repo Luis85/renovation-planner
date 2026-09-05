@@ -1,7 +1,7 @@
 <!--
 	The asset library overview, drawn before it is built.
 
-	Specified in `docs/user-experience/asset-library-overview-DESIGN-SPEC.md`; this is that
+	Specified in `docs/user-experience/archive/asset-library-overview-DESIGN-SPEC.md`; this is that
 	document's §12, the look that has to happen before any of it is wired. The structure came out
 	of an impeccable surface roll (seed 140a13d1) as CATEGORY SHELVES: the library as a builder's
 	merchant with departments, where finding what you already defined is a matter of recognition —

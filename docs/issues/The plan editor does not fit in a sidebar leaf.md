@@ -2,7 +2,7 @@
 type: Issue
 parent: "[[Plan editor and canvas]]"
 order: 50
-status: Removed
+status: New
 started: ""
 finished: 2026-08-30
 start: ""
@@ -26,7 +26,7 @@ business-value: ""
 business-value-model: ""
 ---
 
-# The plan editor is unusable in a sidebar leaf
+# The plan editor does not fit in a sidebar leaf
 
 Found while capturing design slice 14's finished empty states at a sidebar's width, not
 introduced by that slice and not caused by it.

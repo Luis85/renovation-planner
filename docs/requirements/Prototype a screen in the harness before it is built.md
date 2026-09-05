@@ -30,7 +30,7 @@ business-value-model: ""
 # Prototype a screen in the harness before it is built
 
 A design that has never been drawn against the stylesheet it will ship on is a design nobody
-has actually seen. Today the drawing happens in [`docs/user-experience/concepts/`](docs/user-experience/archive/concepts/README.md),
+has actually seen. Today the drawing happens in [`docs/user-experience/archive/concepts/`](docs/user-experience/archive/concepts/README.md),
 where six hand-written pages are styled by `concept.css` — a **proposal** sheet, deliberately
 separate from the assembled `styles/` the plugin ships. That separation is what makes a mock
 cheap to write and it is also what makes it a dead end: turning an approved mock into a
@@ -163,7 +163,7 @@ shown without extending the fixture, and extending it changes what every other e
 3. **`npm run harness-shot` gains an argument.** It writes a fixed set of pages today. Taking an
    entry name is what turns the agent's loop from write-and-hope into write-and-look, and it is
    the reason step 3 of the main flow exists at all.
-4. **[`docs/user-experience/concepts/`](docs/user-experience/archive/concepts/README.md) takes no new
+4. **[`docs/user-experience/archive/concepts/`](docs/user-experience/archive/concepts/README.md) takes no new
    pages.** Its six existing ones stay, frozen, as the record of what was proposed and of the
    six findings its README documents — several of which no other instrument could have produced.
    New prototyping happens in `src/prototypes/`. Two mock homes with one rule for which is which
@@ -258,7 +258,7 @@ in this folder and is stated so nobody looks for a PRD section behind it:
 - [`CLAUDE.md`](../../CLAUDE.md) — what `npm run check` refuses, what the harness is and is not,
   the layer bans and `WRITE_BOUNDARY` as the shape a category invariant takes here, and the
   record of what the Vue arrival cost in configuration.
-- [`docs/user-experience/concepts/README.md`](docs/user-experience/archive/concepts/README.md) — the six
+- [`docs/user-experience/archive/concepts/README.md`](docs/user-experience/archive/concepts/README.md) — the six
   pages, `concept.css` as a proposal sheet, and the six findings the mocks measured.
 - [`docs/setup/quality-harness.md`](../setup/quality-harness.md) — the gates this note has to
   survive.

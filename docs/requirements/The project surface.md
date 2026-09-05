@@ -5,7 +5,7 @@ order: 10
 status: New
 started: ""
 finished: ""
-horizon: Now
+horizon: "MVP"
 start: ""
 due: ""
 risk: ""
@@ -74,6 +74,46 @@ a dead end rather than friction, and it sits inside the MVP by the same reasonin
 
 An MVP child under a V1 parent reads oddly in the tree, which is why it is explained here
 rather than fixed by moving a Feature this work does not own.
+
+## What has since been built, and what the design packages found still open
+
+**Both states ship.** The list state is the Renovation Planner Home increment — a filter that is
+also the pane's count line, two commissioned facts per row (`planCount`, `lastWorked`), a ten-step
+status strip, a `Continue` group, a collapsed `Completed` group and a roving-tabindex keyboard
+model. The detail state is design slice 21 — one project's name, status, plans, an `Open note`
+action and a `New plan` form over the real `CreatePlanCommand`. The dead end this note was written
+about is closed: a renovator can create a plan without `create-sample-project`.
+
+**`docs/user-experience/renovation-planner-project-specs/` arrived on 2026-09-05** and reconciled
+that build against its own ten proposed use cases, pinned to commit `7b6bb2b2`. Most of them
+describe what already ships. Four gaps survived the reconciliation and are notes of their own
+rather than a list here, because a list of open items inside a parent is a list that goes stale
+when one of them closes:
+
+- [[Return to the project list with my search context]] — the remount drops the filter, the
+  expansion and the scroll by design, and this decides to pay them back.
+- [[Enter a project immediately after creating it]] — a confirmed create re-hydrates the list and
+  does not navigate.
+- [[Resume the last plan on a confirmed opening]] — `openPlan` proves intent rather than success,
+  so a plan that never opened can be remembered.
+- [[Continue when the last plan is unavailable]] — a failed read and a deleted plan answer the same
+  sentinel, so a transient fault reads as a deletion.
+
+Item by item, that reconciliation is
+[`reviews/2026-09-05-design-package-adoption.md`](../reviews/2026-09-05-design-package-adoption.md).
+Two of the package's ten are not listed above and are not this note's: its device-scope item became
+[[Bound the mobile surface to what it can actually do]] under [[Release hardening]], because a
+narrow leaf is a width and mobile is a platform; and its guidance panel is a design proposal rather
+than a gap.
+
+One further proposal is a **change** rather than a gap and is held as a decision instead:
+[[A field edit commits on blur, and two design packages ask for an explicit Apply]], which governs
+the price rows here and the asset library's definition fields at once.
+
+**Two facts the row reserves and may not invent** — planned budget and planning progress. Both are
+this Feature's own V1 outcome, and until a query derives them from real requirements and real costs
+the slots render nothing at all. Approximating either is the one thing the surface's design refuses
+by name.
 
 ## What it does not cover
 

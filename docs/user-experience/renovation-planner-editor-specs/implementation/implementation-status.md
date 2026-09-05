@@ -27,6 +27,8 @@ behavior on `cf536f32` from the current contribution. It does not declare the wh
 - M11 numbers follow the ordered unique selected IDs. A badge, selected body or M11 member row
   focuses a member without changing membership. Removing that member focuses the first survivor.
 - All selected outlines remain visible. Only a single selection has editable corner handles.
+- Escape also works from the property list and restored panel-rail focus. Add and overlays
+  close first; draft/tool cancellation precedes clearing, and held-key repeats do not cascade.
 - The Inspector labels mixed types and the sum of individual areas. Overlap is explicitly counted
   separately. No batch deletion, removal marking or shared Work/Evidence action is advertised.
 - All added user-facing strings have English and German translations. No vault migration occurs.
@@ -59,6 +61,15 @@ errors in those four scenarios. Keyboard Space/Enter exercised the multiple-sele
 control, member selection, focus without membership loss, and clearing back to Floor.
 The pinned Chromium installation was blocked by a shared cache lock; these captures are
 therefore Edge evidence. Live Obsidian acceptance and a complete accessibility audit remain open.
+
+PR #74's Escape review added regression cases for the property row, selection checkbox,
+Details rail and Layers rail; all four failed before the fix. The five targeted keyboard,
+menu, responsive-shell and selection suites pass 85 tests after the correction. Real Edge
+keyboard input also confirms property-row focus retention and the two-press Details-close /
+selection-clear sequence at 460 px.
+The review follow-up also passes `VITEST_MAX_WORKERS=2 npm run check`: 473 test files,
+6,584 passing tests (70 skipped), build, lint and Fallow. Coverage is 99.25% statements,
+98.04% branches, 99.22% functions and 99.58% lines.
 
 ## Delivery sequence
 

@@ -1050,6 +1050,9 @@ function zoomShortcut(event: KeyboardEvent): void {
 function onKeyDown(event: KeyboardEvent): void {
 	if (!isCanvasKey(event)) return;
 	if (event.key === 'Escape') {
+		// This press belongs to the canvas; the root must not route it a second time.
+		event.stopPropagation();
+		event.preventDefault();
 		// **The fourth door to take the rule the three pointer handlers already carry**: while
 		// a pan is RUNNING the canvas belongs to the camera, and every other input is swallowed
 		// rather than handed to the active tool. Escape was the one input still routed straight

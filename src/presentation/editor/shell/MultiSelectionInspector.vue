@@ -18,20 +18,12 @@ async function clearSelection(): Promise<void> {
 	inspector?.focus();
 }
 
-function onEscape(event: KeyboardEvent): void {
-	// An open drawer owns Escape before selection; the full Inspector has no drawer.
-	if ((event.currentTarget as HTMLElement).closest('.rp-inspector-drawer') !== null) return;
-	event.stopPropagation();
-	event.preventDefault();
-	void clearSelection();
-}
 </script>
 
 <template>
 	<section
 		ref="root"
 		class="rp-multi-selection"
-		@keydown.esc="onEscape"
 	>
 		<p>{{ tr('editor.inspector.multiple') }}</p>
 		<dl class="rp-editor-inspector-fields">

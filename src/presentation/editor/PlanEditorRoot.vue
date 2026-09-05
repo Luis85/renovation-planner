@@ -7,7 +7,7 @@
  * routine (slice 8 re-runs the same one after a committed command), and the context it
  * needs arrives through the one injection the view provides.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
@@ -37,6 +37,7 @@ import { editorWarnings } from './shell/warnings';
 import AddMenu from './add/AddMenu.vue';
 import TemporaryToolBanner from './shell/TemporaryToolBanner.vue';
 import { useSelectionStore } from './selection/selection-store';
+import { routeEscape } from './escapeRouting';
 
 const context = usePlanEditorContext();
 // The return value is USED now, not discarded: `activeToolId` is what displaces the empty
@@ -182,14 +183,33 @@ function onOpenAdd(): void {
  * could do with the same key, and it reaches only THIS editor leaf's tree rather than every
  * Plan Editor leaf a document-global handler would also close.
  *
- * Guarded on `addMenuOpen` so Escape with the menu already closed falls through untouched —
- * to the canvas's own draft-cancel/deselect routing, which this root has no opinion about.
+ * With the menu closed, descendants handle their own Escape first. The root's bubbling
+ * handler supplies the multi-selection fallback for controls outside the canvas.
  */
 function onRootKeydown(event: KeyboardEvent): void {
 	if (!addMenuOpen.value || event.key !== 'Escape') return;
 	event.stopPropagation();
 	event.preventDefault();
 	addMenuOpen.value = false;
+}
+
+/** Overlays and the canvas consume Escape first; list and rail controls bubble here. */
+function onSelectionKeydown(event: KeyboardEvent): void {
+	if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || selection.selectedIds.length < 2) return;
+	event.stopPropagation();
+	event.preventDefault();
+	const inspector = (event.target as HTMLElement).closest<HTMLElement>('[data-rp-region="inspector"]');
+	const outcome = routeEscape({
+		panning: false, // The canvas consumes its camera/gesture keys before bubbling.
+		activeToolId: runtime.activeToolId.value,
+		hasDraft: () => runtime.toolManager.activeToolHasDraft(),
+		cancelGesture: () => runtime.toolManager.cancelGesture(),
+		setTool: runtime.setTool,
+		hasSelection: true,
+		clearSelection: () => selection.clear(),
+	});
+	// M11 controls unmount on clear; persistent list/rail controls keep their own focus.
+	if (outcome === 'cleared-selection' && inspector !== null) void nextTick(() => inspector.focus());
 }
 
 /**
@@ -288,6 +308,7 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 		ref="root"
 		class="renovation-plan-editor"
 		@keydown.capture="onRootKeydown"
+		@keydown="onSelectionKeydown"
 	>
 		<!--
 			The layout is `ResponsiveEditorShell`'s (Task 19, design spec §5.4) and the CONTENT

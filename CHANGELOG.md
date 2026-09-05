@@ -14,7 +14,8 @@ entries are added by the pull request that earns them, never invented at release
 
 - Plan editor: ordered multi-selection with numbered canvas badges, member focus, shared type
   and area summaries, and a persistent room/area list with an option for selection without
-  modifier keys. Shift-click toggles membership; Alt-click cycles overlapping areas.
+  modifier keys. Shift-click toggles membership; Alt-click cycles overlapping areas. Escape
+  clears multi-selection from list, Inspector and rail controls after closing overlays.
 
 - **The Asset catalogue is shared across the vault** (design slice 19, PRD §59 as amended on
   2026-08-26). An `Asset` carries no project id at all — the field, the `project:` frontmatter

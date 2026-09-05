@@ -140,6 +140,12 @@ export const en = {
 		'There is no other area-based asset in this vault to reassign these requirements to.',
 	'reference.self-reassign': 'References cannot be reassigned to the entry being deleted. Pick a different one.',
 	'reference.cross-project-reassign': 'References can only be reassigned within the same project.',
+	// A6: four more reference refusals minted in `deleteResolution.ts` and the delete commands,
+	// none of which the "still referenced" or "changed while deciding" sentences above fit.
+	'reference.reassign-target-gone': 'The entry you chose to reassign to is no longer there. Pick another.',
+	'reference.entity-gone': 'This entry was removed while you were deciding.',
+	'reference.resolution-without-set': 'Nothing references this any more; delete it directly.',
+	'reference.reassign-without-target': 'Choose where these references should go.',
 	// The delete dialog's reference rows (slice 15 item 6), one row per project. TWO keys
 	// rather than one plus a hand-built separator: word order and the punctuation around an
 	// interpolated name are the translator's to choose ([[Multilanguage]]). The path form is
@@ -149,6 +155,12 @@ export const en = {
 	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'This asset is not measured by area, so a zone area cannot drive its quantity.',
 	'requirement.negative-quantity': 'A quantity cannot be negative.',
+	// A6: three more requirement refusals — `loadRequirement`'s open-a-command guard and
+	// `RecalculateRequirement`'s two referent-gone checks — none of which the Reference or
+	// Calculation category sentence names.
+	'requirement.not-found': 'That requirement is no longer there.',
+	'requirement.zone-gone': 'The room this requirement belongs to is no longer there.',
+	'requirement.asset-gone': 'The asset this requirement uses is no longer in the library.',
 	// The currency invariant (design increment "the currency the pipeline is told"): the copy
 	// names the RELATIONSHIP rather than the two currencies, because `toUserMessage` takes no
 	// params — the developer message in the raised error is where GBP and EUR actually appear.
@@ -772,6 +784,12 @@ export const en = {
 	// something they did not do is what stands in the way.
 	'undo.superseded':
 		'This change was edited elsewhere after this step, so undoing it would discard that edit. Reload and undo again if you still want it reversed.',
+	// A6: two more undo-stack refusals, one per reversible-adapter family (zone create/delete,
+	// requirement assign/override), both raised when there is no recorded step to undo. Both
+	// name the same fact from the user's side, so one English sentence serves them; kept as two
+	// keys because they are two distinct `AppError.code`s minted in different modules.
+	'zone.nothing-to-undo': 'Nothing to undo yet.',
+	'undo.before-execute': 'Nothing to undo yet.',
 	// The diagnostics report's own keys. `session-only` is the first of this increment's two
 	// recorded limitations, put on the surface where the user meets it rather than only in a
 	// docblock: the ledger is in-memory, so reopening the vault empties the report.

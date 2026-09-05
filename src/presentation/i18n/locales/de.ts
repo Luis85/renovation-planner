@@ -178,6 +178,11 @@ export const de: Partial<Record<StringKey, string>> = {
 		'In diesem Vault gibt es kein anderes flächenbasiertes Objekt, dem diese Anforderungen zugewiesen werden könnten.',
 	'reference.self-reassign': 'Referenzen können nicht dem zu löschenden Eintrag neu zugewiesen werden. Bitte einen anderen wählen.',
 	'reference.cross-project-reassign': 'Referenzen können nur innerhalb desselben Projekts neu zugewiesen werden.',
+	'reference.reassign-target-gone':
+		'Der Eintrag, dem Sie neu zuweisen wollten, ist nicht mehr vorhanden. Wählen Sie einen anderen.',
+	'reference.entity-gone': 'Dieser Eintrag wurde während Ihrer Entscheidung entfernt.',
+	'reference.resolution-without-set': 'Nichts referenziert dies mehr; löschen Sie es direkt.',
+	'reference.reassign-without-target': 'Wählen Sie, wohin diese Referenzen gehen sollen.',
 	// Zeilen im Löschdialog (Slice 15, Punkt 6): zwei Schlüssel statt eines mit fest
 	// verdrahtetem Trennzeichen — Wortstellung und Interpunktion um einen eingesetzten
 	// Namen gehören der Übersetzung.
@@ -185,6 +190,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'Dieses Objekt wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
 	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',
+	'requirement.not-found': 'Dieser Bedarf ist nicht mehr vorhanden.',
+	'requirement.zone-gone': 'Der Raum, zu dem dieser Bedarf gehört, ist nicht mehr vorhanden.',
+	'requirement.asset-gone': 'Das Objekt, das dieser Bedarf verwendet, ist nicht mehr in der Bibliothek.',
 	'cost.currency-mismatch':
 		'Der Preis dieses Objekts ist nicht in der Währung dieses Projekts, daher kann keine Schätzung erstellt werden. Öffnen Sie die Notiz des Objekts und erfassen Sie den Preis in der Währung dieses Projekts.',
 	'requirement.project-not-found': 'Diese Zone gehört zu einem Projekt, das nicht mehr vorhanden ist.',
@@ -493,6 +501,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.dimensions.depth': 'Tiefe in Millimetern',
 	'undo.superseded':
 		'Diese Änderung wurde nach diesem Schritt an anderer Stelle bearbeitet; ein Rückgängigmachen würde diese Bearbeitung verwerfen. Laden Sie neu und machen Sie es erneut rückgängig, wenn Sie es weiterhin möchten.',
+	'zone.nothing-to-undo': 'Noch nichts rückgängig zu machen.',
+	'undo.before-execute': 'Noch nichts rückgängig zu machen.',
 	'save-state.saved': 'Gespeichert',
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',

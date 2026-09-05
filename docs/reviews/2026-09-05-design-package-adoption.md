@@ -100,3 +100,11 @@ Both packages number their PBIs `01`…`10`, so the two sets collide. This regis
 **basename**, which dissolves the collision rather than resolving it — but only for notes. Inside
 this ledger and inside each package, an ID is meaningful only with its package named, and every
 reference above carries one.
+
+## Project-surface implementation follow-through
+
+The tables above preserve the adoption baseline. The project-plan implementation now supplies leaf-local return context, direct created-ID entry, optional guidance and an explicit project-price subsection with guarded drafts. The corresponding PBIs are Active pending their remaining acceptance work; they are not recorded as Done merely because UI code exists.
+
+The strict Resume PBI still requires editor load confirmation beyond host leaf opening. The unavailable-target PBI still requires clearing a missing-project target. The mobile PBI still requires its plugin-wide disabled-with-reason policy and real-device measurement. The shared Apply issue records the project-price decision without changing the shared hook or claiming the Asset Library work.
+
+Current contracts, automated evidence and live-host blockers are in the [project execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).

@@ -33,7 +33,20 @@ export type ProjectOpenOutcome = 'opened' | 'missing' | 'failed';
  * exactly like `RenovationProjectView` would be once it has data needs." This is that data
  * need, extending the seam by a field rather than relocating it.
  */
+/** Ephemeral UI state owned by one host leaf, surviving Vue remounts. */
+export interface ProjectSession {
+	query: string;
+	completedOpen: boolean;
+	focusedProjectId: string | null;
+	scrollTop: number;
+	guidanceHidden: boolean;
+	canLeave?: () => Promise<boolean>;
+}
+
 export interface RenovationProjectDeps {
+	readonly session?: ProjectSession;
+	readonly section?: 'details' | 'prices';
+	readonly readOnly?: boolean;
 	readonly queries: RenovationProjectQueryServices;
 	/** Design slice 16's write side — guarded at the root, refusing when settings are unrecovered. */
 	readonly commands: RenovationProjectCommandServices;
@@ -108,13 +121,13 @@ export interface RenovationProjectDeps {
 	 * `ViewStateResult.history`, so each navigation is an entry in Obsidian's own leaf
 	 * navigation history. A `showList()` method on the view would be a second decider.
 	 */
-	readonly navigate: (projectId: string | null) => void;
+	readonly navigate: (projectId: string | null, section?: 'details' | 'prices') => void;
 	/**
 	 * Open a plan in the Plan Editor — bound to `revealPlanEditor` at the root, the same shape
 	 * and for the same reason as `openProject`: `presentation/` may not reach Obsidian's
 	 * workspace, and a `PlanSummaryDto` carries no path.
 	 */
-	readonly openPlan: (planId: string) => Promise<void>;
+	readonly openPlan: (planId: string) => Promise<'opened' | 'failed'>;
 	/**
 	 * Open the Asset Designer on ONE asset — bound to `revealAssetDesigner` at the root
 	 * (`renovationProjectOpenAsset`), `openPlan`'s exact shape and for the same reason:

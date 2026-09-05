@@ -40,7 +40,7 @@ interface Overrides {
 	continueContext?: () => Promise<ContinueContext | null>;
 	listPlansByProject?: RenovationProjectQueryServices['listPlansByProject'];
 	navigate?: (projectId: string | null) => void;
-	openPlan?: (planId: string) => Promise<void>;
+	openPlan?: (planId: string) => Promise<'opened' | 'failed'>;
 	rememberContinue?: (context: ContinueContext) => void;
 }
 
@@ -60,6 +60,7 @@ function mountList(over: Overrides): VueWrapper {
 		continueContext: over.continueContext ?? base.continueContext,
 		queries: {
 			...base.queries,
+			getProject: (id) => Promise.resolve(ok(over.projects?.find((p) => p.id === id) ?? null)),
 			listProjects: () => Promise.resolve(ok({ projects: over.projects ?? [], unreadable: 0 })),
 			listPlansByProject: over.listPlansByProject ?? base.queries.listPlansByProject,
 		},
@@ -115,7 +116,7 @@ describe('ViewRoot, the Continue group', () => {
 	 * dispatch.
 	 */
 	it('is absent when the stored plan is not among the project’s plans, and never opens it', async () => {
-		const openPlan = vi.fn<(planId: string) => Promise<void>>(() => Promise.resolve());
+		const openPlan = vi.fn<(planId: string) => Promise<'opened' | 'failed'>>(() => Promise.resolve('opened'));
 		const wrapper = mountList({
 			projects: [PROJECT],
 			continueContext: () => Promise.resolve({ projectId: PROJECT.id, planId: 'ghost-plan' }),
@@ -157,7 +158,7 @@ describe('ViewRoot, the Continue group', () => {
 
 	it('Continue on a plan context opens the plan and never navigates', async () => {
 		const navigate = vi.fn<(projectId: string | null) => void>();
-		const openPlan = vi.fn<(planId: string) => Promise<void>>(() => Promise.resolve());
+		const openPlan = vi.fn<(planId: string) => Promise<'opened' | 'failed'>>(() => Promise.resolve('opened'));
 		const wrapper = mountList({
 			projects: [PROJECT],
 			continueContext: () => Promise.resolve({ projectId: PROJECT.id, planId: PLAN.id }),
@@ -168,6 +169,7 @@ describe('ViewRoot, the Continue group', () => {
 		await flushPromises();
 
 		await wrapper.get('.rp-continue__resume').trigger('click');
+		await flushPromises();
 
 		expect(openPlan).toHaveBeenCalledWith(PLAN.id);
 		expect(navigate).not.toHaveBeenCalled();
@@ -175,7 +177,7 @@ describe('ViewRoot, the Continue group', () => {
 
 	it('Continue on a project context (no plan) navigates', async () => {
 		const navigate = vi.fn<(projectId: string | null) => void>();
-		const openPlan = vi.fn<(planId: string) => Promise<void>>(() => Promise.resolve());
+		const openPlan = vi.fn<(planId: string) => Promise<'opened' | 'failed'>>(() => Promise.resolve('opened'));
 		const wrapper = mountList({
 			projects: [PROJECT],
 			continueContext: () => Promise.resolve({ projectId: PROJECT.id, planId: null }),
@@ -185,6 +187,7 @@ describe('ViewRoot, the Continue group', () => {
 		await flushPromises();
 
 		await wrapper.get('.rp-continue__resume').trigger('click');
+		await flushPromises();
 
 		expect(navigate).toHaveBeenCalledWith(PROJECT.id);
 		expect(openPlan).not.toHaveBeenCalled();

@@ -57,7 +57,7 @@ describe('renovationProjectOpenPlan', () => {
 		};
 		const openPlan = renovationProjectOpenPlan(exploding as never, recorder);
 
-		await expect(openPlan('plan-ground')).resolves.toBeUndefined();
+		await expect(openPlan('plan-ground')).resolves.toBe('failed');
 
 		const logged = lines.find((line) => line.event === 'view.plan-editor.reveal-failed');
 		expect(logged?.level).toBe('error');

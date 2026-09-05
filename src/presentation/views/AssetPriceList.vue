@@ -24,6 +24,9 @@ import { tr } from '../i18n/strings';
 import type { AssetPriceCommitResult, AssetPriceEdit } from './assetPriceEdit';
 
 defineProps<{
+	readOnly?: boolean;
+	draftReset?: number;
+	refreshBlocked?: boolean;
 	rows: readonly AssetPriceRowDto[];
 	/**
 	 * The PROJECT's currency, on the LIST rather than on every row: one project, one currency,
@@ -35,6 +38,7 @@ defineProps<{
 	commit: (edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>;
 	logger: Logger;
 }>();
+defineEmits<{ editState: [assetId: string, dirty: boolean, pending: boolean] }>();
 </script>
 
 <template>
@@ -78,9 +82,13 @@ defineProps<{
 			v-for="row in rows"
 			:key="row.assetId"
 			:row="row"
+			:read-only="readOnly"
+			:draft-reset="draftReset"
+			:refresh-blocked="refreshBlocked"
 			:currency="currency"
 			:commit="commit"
 			:logger="logger"
+			@edit-state="(dirty, pending) => $emit('editState', row.assetId, dirty, pending)"
 		/>
 	</ul>
 </template>

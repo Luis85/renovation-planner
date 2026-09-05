@@ -15,7 +15,7 @@
 import type { PlanSummaryDto } from '../read-models/PlanDto';
 import { tr } from '../i18n/strings';
 
-defineProps<{ plans: readonly PlanSummaryDto[] }>();
+defineProps<{ readOnly?: boolean; plans: readonly PlanSummaryDto[] }>();
 defineEmits<{ open: [planId: string]; create: [] }>();
 </script>
 
@@ -25,6 +25,7 @@ defineEmits<{ open: [planId: string]; create: [] }>();
 			{{ tr('view.project.plans-title') }}
 		</h3>
 		<button
+			v-if="!readOnly"
 			type="button"
 			class="rp-plan-list__create"
 			@click="$emit('create')"
@@ -40,6 +41,7 @@ defineEmits<{ open: [planId: string]; create: [] }>();
 			<button
 				type="button"
 				class="rp-plan-list__row"
+				:disabled="readOnly"
 				@click="$emit('open', plan.id)"
 			>
 				<span class="rp-plan-list__name">{{ plan.name }}</span>

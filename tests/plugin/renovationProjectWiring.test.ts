@@ -378,7 +378,7 @@ describe('the renovation project dependencies', () => {
 			rememberContinue: () => undefined,
 		});
 
-		await expect(deps.openPlan('plan-1')).resolves.toBeUndefined();
+		await expect(deps.openPlan('plan-1')).resolves.toBe('failed');
 		expect(revealPlanEditorSpy).not.toHaveBeenCalled();
 	});
 

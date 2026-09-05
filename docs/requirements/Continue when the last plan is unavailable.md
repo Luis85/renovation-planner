@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Project dashboard and navigation]]"
 order: 50
-status: New
-started: ""
+status: Active
+started: "2026-09-05"
 finished: ""
 horizon: "MVP"
 start: ""
@@ -90,6 +90,12 @@ still there.
   that project is opened.
 - With the project deleted, `Continue` offers the list and the stored target is cleared.
 - A resolution that resolves after a newer one has started does not change what is drawn.
+
+## Project-surface implementation (2026-09-05)
+
+Indexing, read failure, missing project and missing plan now have distinct recovery states. Resume revalidates on click and rejects stale responses; a missing plan offers its project without substitution. The stored context is retained even for a missing project in this increment. The clearing requirement in extension 2d is therefore still open, as is real-vault acceptance.
+
+Evidence and remaining limitations: [execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
 
 ## Sources
 

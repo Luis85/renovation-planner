@@ -4,6 +4,10 @@ Date: 2026-09-05. Baseline: main at commit `7b6bb2b27b9ae2aaccba7e90009098a39ad4
 
 English revision of the reconciliation supplement to renovation-planner-project-specs, especially WP-00. Selected direction: optional guided project details asking “What would you like to do next?”. This is a source-grounded backlog proposal, not implementation or evidence of passed runtime tests. No issues, commits, or pull requests were created.
 
+## Implementation follow-through
+
+The [execution record](execution-record.md) reconciles the baseline, resolves the implementation spikes, and records delivery and verification for PBI-01–10. The scoped statuses below describe the original proposal; current delivery status is in that record.
+
 ## Outcome
 
 Most of the direction can use existing queries, commands, and host views. This scope proposes no new Project frontmatter version. It requires clearer UI states/navigation and targeted read-model/adapter changes. The largest risks are Resume, explicit saving, and asynchronous price refresh.

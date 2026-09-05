@@ -1,4 +1,4 @@
-import { setLanguage } from '../helpers/obsidian-mock';
+import { Platform, setLanguage } from '../helpers/obsidian-mock';
 
 /**
  * What the page tells the plugin's stylesheet about its environment: the colour scheme,
@@ -71,6 +71,7 @@ export function applyLanguage(search: string): void {
  */
 export function applyPlatform(search: string): void {
 	const phone = new URLSearchParams(search).has('phone');
+	Platform.isMobile = phone;
 	// `classList`, not `toggleClass` — Obsidian's prototype extensions are installed by
 	// `mountHarness`, which has not run yet at the one call site that matters. The suite
 	// cannot see that: every jsdom file installs them at module top, so `toggleClass` here

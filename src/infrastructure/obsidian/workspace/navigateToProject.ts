@@ -191,6 +191,7 @@ export async function navigateToProject(
 	// originating leaf — the type lookup answers, exactly as before, and the leaf it answers
 	// is what picks the lane: an in-view call naming that same leaf shares it.
 	targetLeaf?: WorkspaceLeaf,
+	section?: 'details' | 'prices',
 ): Promise<void> {
 	// Before the first `await`, so this is arrival order and not resume order.
 	const issue = ++issued;
@@ -239,7 +240,7 @@ export async function navigateToProject(
 			// this same leaf — while it waited its turn must not write at all, and by here this
 			// lane's ticket reflects every call that has resolved to this leaf.
 			if (issue !== chain.ticket) return;
-			await leaf.setViewState({ type, active: true, state: { projectId: projectId ?? '' } });
+			await leaf.setViewState({ type, active: true, state: { projectId: projectId ?? '', ...(section === 'prices' ? { section } : {}) } });
 			return;
 		} catch (cause) {
 			// This step sits OUTSIDE `revealView`'s boundary, whose contract is that it does

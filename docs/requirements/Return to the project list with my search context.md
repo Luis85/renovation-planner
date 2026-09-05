@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Project dashboard and navigation]]"
 order: 20
-status: New
-started: ""
+status: Active
+started: "2026-09-05"
 finished: ""
 horizon: "MVP"
 start: ""
@@ -89,6 +89,12 @@ neither can be mistaken for a vault that changed.
   leaves the query visible.
 - Two leaves on this view hold two independent queries; typing in one changes nothing in the other.
 - Reopening the pane after an Obsidian restart draws an empty filter and the full list.
+
+## Project-surface implementation (2026-09-05)
+
+Implemented for the life of one project leaf: filter, completed expansion, scroll and stable-ID focus survive host view remounts. A missing selected row returns focus to the filter; separate leaves remain independent. Automated host-seam journeys cover the round trip. Real Obsidian history and restart observations remain pending, so this PBI is Active rather than Done.
+
+Evidence and remaining limitations: [execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
 
 ## Sources
 

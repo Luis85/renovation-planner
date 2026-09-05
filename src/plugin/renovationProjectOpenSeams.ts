@@ -17,7 +17,7 @@ import { notifyFault } from '../presentation/notices/notify';
  * extraction rather than a second collapsed literal. Same seam, same reasoning, just no
  * longer inline.
  */
-export function renovationProjectOpenPlan(workspace: Workspace, logger: Logger): (planId: string) => Promise<void> {
+export function renovationProjectOpenPlan(workspace: Workspace, logger: Logger): (planId: string) => Promise<'opened' | 'failed'> {
 	return (planId) =>
 		revealPlanEditor(
 			{

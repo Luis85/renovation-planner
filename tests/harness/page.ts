@@ -203,6 +203,7 @@ if (wantsIndex) {
 						projectId: params.get('project'),
 						projects: Number.isFinite(asked) ? asked : undefined,
 						initialQuery: params.get('q') ?? undefined,
+						section: params.get('section') === 'prices' ? 'prices' : 'details',
 					}).view;
 }
 

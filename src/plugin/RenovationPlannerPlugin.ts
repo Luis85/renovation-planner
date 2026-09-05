@@ -585,7 +585,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// Back action and the palette command now reach ONE door rather than two that
 			// have to be kept in step. `leaf` is passed as the target: see this method's own
 			// docblock for why the type-lookup fallback is not this door's answer.
-			navigate: (next) => {
+			navigate: (next, section) => {
 				void navigateToProject(
 					{
 						workspace: this.app.workspace,
@@ -594,6 +594,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 					RENOVATION_PROJECT_VIEW,
 					next,
 					leaf,
+					section,
 				);
 			},
 			indexScanCompleted: () => this.indexScanCompleted,

@@ -1,5 +1,7 @@
 # Implementation plan — Projects
 
+Implementation progress and adopted contracts: [execution record](execution-record.md). Live-host acceptance is tracked separately from automated verification.
+
 ## Goal and boundaries
 Deliver a coherent increment: Find → Open project → Optional guidance → Plan or note → Predictable return. Existing commands and persistence remain the foundation. Rooms, work packages, budget aggregation, schedules, document aggregates, and portfolio features are outside this slice unless separately validated.
 
@@ -95,5 +97,5 @@ Tasks under each PBI cover domain reconciliation, UI, query/command integration,
 - Schema/migration need is explicit.
 - The implementation team has reviewed effort, dependencies, and risks.
 
-Use the project lifecycle; this backlog is scoped and awaiting technical refinement/estimation, not ready. Recommended first slice: PBI-01 → PBI-02 → PBI-03.
+The initial backlog required technical reconciliation before PBI-01 → PBI-02 → PBI-03. The [execution record](execution-record.md) now records the adopted scope, implementation status and remaining live-host acceptance; the original backlog is retained as the planning baseline.
 

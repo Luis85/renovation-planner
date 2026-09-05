@@ -82,7 +82,7 @@ interface Overrides {
 	listPlansByProject?: RenovationProjectQueryServices['listPlansByProject'];
 	navigate?: (projectId: string | null) => void;
 	openProject?: (projectId: string) => Promise<ProjectOpenOutcome>;
-	openPlan?: (planId: string) => Promise<void>;
+	openPlan?: (planId: string) => Promise<'opened' | 'failed'>;
 	rememberContinue?: (context: { projectId: string; planId: string | null }) => void;
 	/**
 	 * Wired into `commands`, NOT `queries` — it is a write, and `ViewRoot` dispatches it through
@@ -226,7 +226,7 @@ describe('ViewRoot in the detail state', () => {
 
 	/** Criterion 2's presentation half; the `revealPlanEditor` half is Task 5's wiring case. */
 	it('opens a plan row through context.openPlan', async () => {
-		const openPlan = vi.fn<(planId: string) => Promise<void>>(() => Promise.resolve());
+		const openPlan = vi.fn<(planId: string) => Promise<'opened' | 'failed'>>(() => Promise.resolve('opened'));
 		const wrapper = mountRoot({
 			projectId: 'project-1',
 			openPlan,
@@ -235,6 +235,7 @@ describe('ViewRoot in the detail state', () => {
 		await flushPromises();
 
 		await wrapper.get('.rp-plan-list__row').trigger('click');
+		await flushPromises();
 
 		expect(openPlan).toHaveBeenCalledWith('plan-1');
 	});
@@ -254,9 +255,10 @@ describe('ViewRoot in the detail state', () => {
 	 * still uncalled when this case's assertion runs, which is exactly what it is watched failing
 	 * against.
 	 */
-	it('remembers the plan before opening it', async () => {
+	it('remembers the plan after its editor opened', async () => {
 		const rememberContinue = vi.fn<(context: { projectId: string; planId: string | null }) => void>();
-		const openPlan = vi.fn<(planId: string) => Promise<void>>(() => new Promise<void>(() => {}));
+		let release!: (outcome: 'opened' | 'failed') => void;
+		const openPlan = vi.fn<(planId: string) => Promise<'opened' | 'failed'>>(() => new Promise((resolve) => { release = resolve; }));
 		const wrapper = mountRoot({
 			projectId: 'project-1',
 			rememberContinue,
@@ -266,7 +268,11 @@ describe('ViewRoot in the detail state', () => {
 		await flushPromises();
 
 		await wrapper.get('.rp-plan-list__row').trigger('click');
+		await flushPromises();
 
+		expect(rememberContinue).not.toHaveBeenCalled();
+		release('opened');
+		await flushPromises();
 		expect(rememberContinue).toHaveBeenCalledWith({ projectId: 'project-1', planId: 'plan-1' });
 		expect(openPlan).toHaveBeenCalledWith('plan-1');
 	});
@@ -491,7 +497,10 @@ describe('ViewRoot in the detail state', () => {
 		// error's CATEGORY — `Persistence`. Asserting the category sentence rather than
 		// `toUserMessage('en', READ_FAILED)` pins which sentence the user sees; deriving it
 		// from the same mapper the component uses would pass for any mapping at all.
-		expect(wrapper.get('.rp-view-message').text()).toBe(t('en', 'error.category.persistence'));
+		expect(wrapper.get('.rp-view-message p').text()).toBe(t('en', 'error.category.persistence'));
+		await wrapper.get('.rp-view-message button:first-of-type').trigger('click');
+		await flushPromises();
+		expect(wrapper.get('.rp-view-message p').text()).toBe(t('en', 'error.category.persistence'));
 		expect(navigate).not.toHaveBeenCalled();
 	});
 
@@ -574,7 +583,10 @@ describe('ViewRoot in the detail state', () => {
 		await flushPromises();
 
 		expect(navigate).not.toHaveBeenCalled();
-		expect(wrapper.get('.rp-view-message').text()).toBe(t('en', 'view.project.loading'));
+		expect(wrapper.get('.rp-view-message p').text()).toBe(t('en', 'view.project.loading'));
+		expect(wrapper.findAll('.rp-view-message button')).toHaveLength(1);
+		await wrapper.get('.rp-view-message button').trigger('click');
+		expect(navigate).toHaveBeenCalledWith(null);
 	});
 
 	/**

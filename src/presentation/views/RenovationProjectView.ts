@@ -1,8 +1,8 @@
-import { ItemView, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
+import { Platform, ItemView, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { createApp, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import ViewRoot from './ViewRoot.vue';
-import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps } from './RenovationProjectContext';
+import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps, type ProjectSession } from './RenovationProjectContext';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from './app-id-prefix';
 
@@ -150,7 +150,7 @@ export class RenovationProjectView extends ItemView {
 	 * carries meaning — `''` IS the list.
 	 */
 	getState(): Record<string, unknown> {
-		return { projectId: this.projectId ?? '' };
+		return { projectId: this.projectId ?? '', ...(this.section === 'prices' ? { section: 'prices' } : {}) };
 	}
 
 	/**
@@ -165,8 +165,11 @@ export class RenovationProjectView extends ItemView {
 	 * spec's *Deliberately out of scope* so the register can see it, rather than left as a
 	 * comment nothing schedules.
 	 */
-	setState(state: unknown, result: ViewStateResult): Promise<void> {
+	async setState(state: unknown, result: ViewStateResult): Promise<void> {
 		const parsed = projectIdFrom(state);
+		const section = parsed?.projectId && (state as Record<string, unknown>)['section'] === 'prices' ? 'prices' : 'details';
+		const changed = parsed !== null && (parsed.projectId !== this.projectId || section !== this.section);
+		if (changed && this.session.canLeave && !(await this.session.canLeave())) return;
 		// Only an ACCEPTED, CHANGED state is a navigation. `ViewStateResult.history` is
 		// documented as "there is a state change which should be recorded in the navigation
 		// history", and an unconditional assignment claims one where there is none: a refused
@@ -174,8 +177,8 @@ export class RenovationProjectView extends ItemView {
 		// already open would each add a back entry that restores the state the pane is
 		// already in, so the arrow appears to do nothing. Reported by a review bot against an
 		// earlier draft of this step.
-		if (parsed !== null && parsed.projectId !== this.projectId) result.history = true;
-		if (parsed !== null) this.projectId = parsed.projectId;
+		if (changed) result.history = true;
+		if (parsed !== null) { this.projectId = parsed.projectId; this.section = section; }
 		// Only once the view is OPEN. A `setState` arriving BEFORE `onOpen` — one of the two
 		// orderings this class's docblock refuses to assume between — used to mount a Vue tree
 		// into a leaf Obsidian had not opened yet, which the `onOpen` that followed then
@@ -203,6 +206,11 @@ export class RenovationProjectView extends ItemView {
 
 	/** Which state this view is showing: `null` is the LIST, a string is that project. */
 	private projectId: string | null = null;
+	private section: 'details' | 'prices' = 'details';
+	private mountedSection: 'details' | 'prices' = 'details';
+	private readonly session: ProjectSession = {
+		query: '', completedOpen: false, focusedProjectId: null, scrollTop: 0, guidanceHidden: false,
+	};
 
 	/**
 	 * The Vue app this view mounted, held only so `unmount` can unmount the same one. `null`
@@ -297,7 +305,7 @@ export class RenovationProjectView extends ItemView {
 	 * mounts exactly once.
 	 */
 	private sync(): void {
-		if (this.mounted && this.projectId === this.mountedProjectId) return;
+		if (this.mounted && this.projectId === this.mountedProjectId && this.section === this.mountedSection) return;
 		this.unmount();
 		this.mount(this.projectId);
 	}
@@ -319,7 +327,7 @@ export class RenovationProjectView extends ItemView {
 		// builds its context locally rather than asking the root for a per-mount one. Nothing
 		// in `plugin/` changes, and `projectId` stays the VIEW's field, which is the property
 		// that mattered.
-		app.provide(RENOVATION_PROJECT_CONTEXT, { ...this.deps, projectId });
+		app.provide(RENOVATION_PROJECT_CONTEXT, { ...this.deps, projectId, section: this.section, session: this.session, readOnly: Platform.isMobile });
 		// Onto `contentEl` itself, with no wrapper — see the class docblock's height chain.
 		// Vue types `app.mount(...)`'s return as the generic `ComponentPublicInstance`, and
 		// `<script setup>`'s own exposed shape is not recoverable from that type — one cast,
@@ -327,6 +335,7 @@ export class RenovationProjectView extends ItemView {
 		this.root = app.mount(this.contentEl) as unknown as ViewRootProxy;
 		this.vueApp = app;
 		this.mountedProjectId = projectId;
+		this.mountedSection = this.section;
 		this.mounted = true;
 	}
 

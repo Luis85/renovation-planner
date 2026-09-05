@@ -1,30 +1,4 @@
 <script setup lang="ts">
-/**
- * The Renovation Project view's DETAIL state (design slice 21): one project, its plans, and
- * the four intents that state raises — back to the list, open the project's note, open a plan,
- * create a plan.
- *
- * **Extracted from `ViewRoot` rather than written beside it, and the reason is the COMPILER, not
- * the line count.** An earlier draft of this comment said the combined file "measured 414 lines
- * against `max-lines`'s 400". That was `wc -l`, and `max-lines` is configured with
- * `skipBlankLines` and `skipComments` — these two files measure 77 and 98 EFFECTIVE lines, so
- * the cap was never close and the extraction cannot rest on it. Found by this task's reviewer,
- * and it is the ordinary shape of a false claim: a real number, measured with the wrong
- * instrument, attributed to a rule that counts something else.
- *
- * What does hold: the detail state's `projectId` is a `string | null` on `ViewRoot`: `vue-tsc` narrows a `v-if` for
- * a direct binding but not inside a template's arrow function, so every handler there needed a
- * non-null assertion the compiler could not check. A PROP is `string`, so the assertions
- * disappear rather than being written down — which is the same trade `PlanEditorRoot` makes
- * against its own shell components.
- *
- * It owns its store, its subscription and its dialog, which is what makes the split a seam
- * rather than a file boundary: the list state instantiates none of them, and `ViewRoot` keeps
- * exactly what the list state needs.
- *
- * No `<style>` block, ever: `vue/no-restricted-block` fails one. The classes below are
- * `styles/`-owned, assembled into one sheet.
- */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import EmptyState from '../components/EmptyState.vue';
@@ -44,11 +18,6 @@ import { isErr, ok } from '../../core/result/Result';
 import { singleFlight } from '../composables/single-flight';
 import type { AssetPriceCommitResult, AssetPriceEdit } from './assetPriceEdit';
 
-/**
- * WHICH project this mount draws. A prop rather than a read of `context.projectId`, and never
- * reactive: the view REMOUNTS per navigation (`RenovationProjectView.sync`), so this component
- * exists for exactly one project and the two cannot disagree.
- */
 const props = defineProps<{ projectId: string }>();
 
 const context = useRenovationProjectContext();
@@ -62,182 +31,99 @@ const {
 	assetPricesError,
 	status,
 	error,
+	plansError,
 	emptyStateKey,
 } = storeToRefs(detail);
 
-/**
- * `FormDescriptor.busy`'s other end. ONE ref, read and written by TWO places at once: it is
- * handed to `NewPlanForm` as its own `busy` prop (which writes `submitting` into it) and to
- * `openDialog`'s descriptor (which `DialogHost` reads to refuse Escape and disable Cancel).
- * Passing it to only one of the two is this mechanism's most-repeated defect — every line reads
- * as correct and the flag never moves.
- */
 const newPlanBusy = ref(false);
+const guidanceHidden = ref(context.session?.guidanceHidden ?? false);
+const section = context.section ?? 'details';
+const draftReset = ref(0);
+const edits = new Map<string, { dirty: boolean; pending: boolean }>();
+const pricesLoading = ref(true);
+const savedRefreshFailed = ref(false);
+let refreshRequested = false;
+let disposed = false;
+function onEditState(id: string, dirty: boolean, pending: boolean): void {
+	if (dirty || pending) edits.set(id, { dirty, pending });
+	else edits.delete(id);
+}
+async function canLeave(): Promise<boolean> {
+	if (Array.from(edits.values()).some((edit) => edit.pending) || dialogs.current !== null) return false;
+	if (edits.size === 0) return true;
+	const result = await dialogs.openDialog({ kind: 'confirm', title: tr('view.project.draft-title'),
+		message: tr('view.project.draft-body'), confirmLabel: tr('view.project.draft-discard'),
+		cancelLabel: tr('view.project.draft-stay') });
+	if (result !== 'confirm') return false;
+	draftReset.value += 1;
+	edits.clear();
+	return true;
+}
+if (context.session) context.session.canLeave = canLeave;
+onBeforeUnmount(() => {
+	disposed = true;
+	if (context.session) delete context.session.canLeave;
+	detail.reset();
+});
+function toggleGuidance(): void {
+	guidanceHidden.value = !guidanceHidden.value;
+	if (context.session) context.session.guidanceHidden = guidanceHidden.value;
+}
+function back(): void { context.navigate(section === 'prices' ? props.projectId : null); }
 
-/**
- * The ONE read this state has, on every occasion it runs — mount, a rebuilt index, a plan
- * changed anywhere in this project, and after a successful create. A second "refresh" path
- * would be a second answer to what this pane is showing; `ViewRoot.hydrate` and
- * `PlanEditorRoot` both state the identical rule about their own.
- */
 function hydrate(): Promise<void> {
 	return detail.hydrate(context.queries, props.projectId, context.indexScanCompleted());
 }
 
-/**
- * The price section's read, and its own function rather than a third read inside `hydrate`.
- *
- * The two answer different questions on different occasions: `hydrate` is "which project is this
- * and what plans does it have", re-run on a rebuilt index and on this project's plans moving,
- * while this one is "what does this project pay", re-run on the catalogue and on a price moving.
- * Folding them together would re-read every asset note in the vault on every plan gesture, which
- * is the cost `createAssetCatalogueChangeSource` was written to stop paying on the other surface.
- */
-function hydratePrices(): Promise<void> {
-	return detail.hydratePrices(context.queries, props.projectId);
+async function hydratePrices(): Promise<void> {
+	if (disposed) return;
+	refreshRequested = false;
+	await detail.hydratePrices(context.queries, props.projectId);
+	pricesLoading.value = false;
+	if (assetPricesError.value === null) savedRefreshFailed.value = false;
 }
 
-/**
- * The ONE trailing single-flight loader behind BOTH price subscriptions, and it is not belt and
- * braces beside the store's own ticket.
- *
- * The producer that needs it is a SYNC, or a library move: `ProjectIndexEntryChanged` fires once
- * per note, both sources are subscribed to it, and each callback runs a full `listAll` plus
- * `listByProject`. A vault syncing a large catalogue would otherwise launch one whole price-list
- * scan per arriving note, all concurrent, every one but the last discarded by the ticket AFTER
- * its reads had already happened. The ticket orders reads it did not issue — a fresh mount, a
- * navigation racing a refresh — and only the loader can stop a read STARTING; two mechanisms,
- * two jobs, and neither does the other's.
- *
- * ONE loader shared by the two subscriptions rather than one each, because a burst that mixes
- * asset notes and price notes is still one sync, and two loaders would answer it with two scans.
- */
-const reloadPrices = singleFlight(hydratePrices);
+let writes = 0;
+const queuePrices = singleFlight(hydratePrices);
+function reloadPrices(): void {
+	if (disposed) return;
+	if (writes > 0) { refreshRequested = true; return; }
+	queuePrices();
+}
 
-/**
- * `null` for a normal render — `PlanList` drawing this project's plans — or the resolved props
- * for the one key this state can be in (`renovationProject.noPlans`).
- *
- * `EMPTY_STATE_CONTENT.renovationProject` is keyed to match `selectProjectDetailEmptyState`'s
- * own return type, so a widened selector fails here at the type of this lookup rather than at a
- * runtime `undefined`. It is handed DOWN to `ProjectDetail`, which draws it inside its plans
- * region: an empty state replacing the whole detail state would take the Back and Open note
- * controls with it, which is slice 14's own rule about a region and the thing it exists to show.
- */
 const emptyState = computed(() => {
 	const key = emptyStateKey.value;
 	return key === null ? null : resolveEmptyState(EMPTY_STATE_CONTENT.renovationProject[key]);
 });
 
-/**
- * Non-null exactly when the read failed: `hydrate` clears `error` before every read and `fail`
- * is its only writer. Branching on the error rather than on the status keeps this to one arm,
- * exactly as `ViewRoot`'s `failure` does for the list.
- *
- * The mapped SENTENCE and no retry, which is where this deliberately stops short of slice 17's
- * `ViewFailure`: that component's headline copy names the LIST ("Projects could not be
- * loaded"), so giving the detail state a failure state of its own is a surface with its own
- * copy rather than a line of wiring here. `.rp-view-message` is the region the loading line
- * already lives in, and the two are the same kind of claim about a read.
- */
 const failureMessage = computed(() => (error.value === null ? null : trError(error.value)));
 
-/**
- * The mapped sentence for a price read that failed, or `null`. Its own computed rather than a
- * second arm of the one above, because the two replace different regions: that one replaces the
- * whole detail state, and this one replaces the price list while the project stays drawn.
- */
 const assetPricesFailure = computed(() =>
-	assetPricesError.value === null ? null : trError(assetPricesError.value),
+	assetPricesError.value === null ? null : savedRefreshFailed.value ? tr('view.project.price-saved-refresh-failed') : trError(assetPricesError.value),
 );
 
-/**
- * **An open dialog is retired whenever this state becomes `'gone'`, from ANY producer.**
- *
- * Keyed on the STATUS rather than added at each call site, and that is the whole point. The
- * commit that retired the `'gone'` redirect gave `onProjectGone` its own `dialogs.resolve` —
- * correct for the command path, and blind to the READ path: the project note is deleted while
- * the New plan dialog is up, `onProjectsChanged` fires, `hydrate` is answered `ok(null)`
- * against a completed scan, and `'gone'` is reached without `onProjectGone` ever running. The
- * pane drew its gone screen with a form still modal over it. Before the redirect was retired
- * that path was covered BY ACCIDENT — the navigation remounted the tree and
- * `DialogHost.onBeforeUnmount` settled the dialog — so retiring it moved a guarantee from a
- * side effect to nowhere. Reported by a review bot.
- *
- * A watcher rather than a third call site: a producer of `'gone'` nobody has written yet gets
- * this for free, which a list of call sites cannot promise. It REPLACES `onProjectGone`'s own
- * resolve rather than sitting beside it — two answers to one question is what produced the gap.
- *
- * The KIND is read from the store rather than assumed to be `'form'`, and **that is kept for
- * correctness rather than because anything here can tell the difference** — the distinction
- * this repository asks for by name. `cancelResultFor` is the one place each kind's cancel shape
- * is stated, so hardcoding `'form'` would settle a future dialog with a payload its opener
- * cannot read; measured, hardcoding it passes every case in `viewRootProjectDetail.test.ts`,
- * because this state opens exactly one kind today. `resolve` is already a no-op with nothing
- * open, so the `null` guard is what makes the kind readable, not a safety check.
- *
- * NOT a navigation, which is the distinction the retired watcher got wrong: closing a dialog
- * whose subject has vanished is housekeeping the user did not ask for and cannot be hurt by,
- * while moving them to another screen is a decision that belongs to them and that Obsidian
- * records in its history.
- */
 watch(status, (value) => {
 	const open = dialogs.current;
 	if (value === 'gone' && open !== null) dialogs.resolve(cancelResultFor(open.kind));
 });
 
-/**
- * The detail header's **Open note** action, and the one gesture here that has to do more than
- * it says. It is what is left of `ViewRoot.onOpenProject`: criterion 1 makes a project row a
- * NAVIGATION, so the list no longer opens `Project.md` at all and this is the only surface that
- * does.
- *
- * `'missing'` means the id resolved to nothing, so what is drawn is stale — and THIS state is
- * what re-reads, never the list. That read answers `ok(null)`, settles `'gone'`, and the pane
- * draws the screen that says so. Re-reading the LIST from here would refresh something nobody is
- * looking at, which is what an earlier draft of this slice's plan specified: the user would have
- * sat on a project whose note is gone with no correction coming.
- *
- * `'failed'` is not a stale id — the composition root has already put a notice in front of the
- * user for it, and what is behind the action is not stale.
- */
 async function onOpenNote(): Promise<void> {
+	if (!(await canLeave())) return;
 	if ((await context.openProject(props.projectId)) === 'missing') await hydrate();
 }
 
-/**
- * Where the user is, recorded at the moment they go there. `props.projectId` is this state's
- * own subject, so the pair is complete without a lookup.
- *
- * BEFORE the open rather than after: `openPlan` is fire-and-forget and this must not depend on
- * its resolution, and a context stored for a plan that then failed to open still describes
- * where the user asked to be.
- *
- * **This is the only path in the app that opens a plan from this view's tree**, and therefore
- * the only thing that can ever store a non-null `planId` — the row above (`ViewRoot.
- * onOpenProject`) remembers a PROJECT alone. Both are needed, because they are two different
- * places the user can have been.
- */
-function onOpenPlan(planId: string): void {
-	context.rememberContinue({ projectId: props.projectId, planId });
-	void context.openPlan(planId);
+let opening = 0;
+async function onOpenPlan(planId: string): Promise<void> {
+	if (context.readOnly) return;
+	const ticket = ++opening;
+	if (!(await canLeave()) || disposed || ticket !== opening) return;
+	if ((await context.openPlan(planId)) === 'opened' && !disposed && ticket === opening) {
+		context.rememberContinue({ projectId: props.projectId, planId });
+	}
 }
 
-/**
- * The plans region's hand-off, from BOTH controls that raise it — the empty state's action and
- * `PlanList`'s own header button — for the reason `ViewRoot.onCreateProject` states about its
- * own two: one handler, never two independently-decided ways to open the same form.
- *
- * `dialogs.openDialog` THROWS `DialogStackingError` while a dialog is already open, so the guard
- * is the same `dialogs.current` check that sibling uses: the first call sets `current` before
- * its own `await` yields, so two clicks in one synchronous tick still only ever reach it once.
- *
- * The form OWNS its dispatch (`NewPlanForm`'s own docblock says why), so this awaits the
- * dialog's result and re-reads on a submit: without that, a created plan is written and never
- * appears, which is indistinguishable from a create that silently failed.
- */
 async function onCreatePlan(): Promise<void> {
-	if (dialogs.current !== null) return;
+	if (context.readOnly || dialogs.current !== null) return;
 
 	const result = await dialogs.openDialog({
 		kind: 'form',
@@ -253,14 +139,7 @@ async function onCreatePlan(): Promise<void> {
 			// `useFormCommit` has one door no guard stands behind — a dispatch that THROWS —
 			// where the unmapped cause is the only detail that exists at all.
 			logger: context.commands.logger,
-			/**
-			 * A mounted component's EMIT, reached from a descriptor: `FormDialog` spreads
-			 * `descriptor.props` onto the component with `v-bind`, and Vue reads an `onXxx` prop
-			 * as the listener for `xxx`. Verified by driving this path end to end
-			 * (`viewRootProjectDetail.test.ts`) rather than by reading the spread, because a
-			 * forwarding that silently did not happen looks exactly like a refusal that never
-			 * fired.
-			 */
+
 			onProjectGone: () => {
 				// The one `CreatePlanCommand` refusal that reaches the user through neither of
 				// `useFormCommit`'s doors — and since the `'gone'` state stopped redirecting, it
@@ -289,27 +168,7 @@ async function onCreatePlan(): Promise<void> {
 	await hydrate();
 }
 
-/**
- * The price section's ONE write path — the seam `AssetPriceCommitResult` exists for.
- *
- * It brands both ids here, at the boundary, which is the same assertion every other edge of this
- * view makes (`createRenovationProjectQueries` states it for `as ProjectId` at its own doors):
- * the project id is this mount's own subject and the asset id came from a row this query built.
- * `expected` arrives ALREADY branded, because the row constructs it from its frozen snapshot
- * rather than passing a value through — see `AssetPriceEdit`.
- *
- * **`settled` is what the command established about the pair**, and it is the whole reason this
- * returns more than a `DispatchResult`: `DispatchOutcome` is `'wrote' | 'no-write'` and carries
- * no entity, so without this channel a queued clear built while a set was still in flight would
- * submit `'absent'` against the pair the set had just created and refuse. `null` on a refusal, so
- * the row's snapshot stays exactly where it was.
- *
- * The re-read after a successful write is awaited rather than left to
- * `onProjectPricesChanged`: that subscription is what keeps the section true when somebody ELSE
- * writes, and relying on it here would make this gesture's own refresh depend on the event bus
- * round trip — a price the user just set appearing, or not, according to delivery order.
- */
-async function commitAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitResult> {
+async function writeAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitResult> {
 	const projectId = props.projectId as ProjectId;
 	const assetId = edit.assetId as AssetId;
 	if (edit.kind === 'clear') {
@@ -320,6 +179,7 @@ async function commitAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitR
 		});
 		if (isErr(result)) return { dispatch: result, settled: null };
 		await hydratePrices();
+		savedRefreshFailed.value = assetPricesError.value !== null;
 		// `'absent'` whether or not a note was actually removed: either way the pair now HAS no
 		// override, which is what an expectation states. `cleared` is what says whether anything
 		// moved, and it is the honest `DispatchOutcome` — a clear on a pair with no override
@@ -337,6 +197,7 @@ async function commitAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitR
 	});
 	if (isErr(result)) return { dispatch: result, settled: null };
 	await hydratePrices();
+	savedRefreshFailed.value = assetPricesError.value !== null;
 	// `'wrote'` for every accepted set, including the command's own no-op arm (a price re-typed
 	// to the value it already holds), which its result does not distinguish from an update:
 	// `created` is false for both. Nothing on this surface reads the outcome — there is no save
@@ -347,6 +208,15 @@ async function commitAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitR
 		dispatch: ok('wrote'),
 		settled: { id: result.value.override.id, version: result.value.version },
 	};
+}
+
+async function commitAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitResult> {
+	writes += 1;
+	try { return await writeAssetPrice(edit); }
+	finally {
+		writes -= 1;
+		if (writes === 0 && refreshRequested) reloadPrices();
+	}
 }
 
 onMounted(() => {
@@ -360,16 +230,6 @@ onMounted(() => {
 	reloadPrices();
 });
 
-/**
- * Two subscriptions, one disposal each. `onProjectsChanged` is the index rebuild — a leaf
- * restored BEFORE `onLayoutReady` read an empty index and would otherwise draw a project that
- * "does not exist" forever — and `onPlansChanged` is this project's own plans moving under it,
- * which is what a plan created in another leaf, a sync, or a hand-edited note produces.
- *
- * Registered at setup and disposed on unmount, the same shape and for the same reason as
- * `PlanEditorRoot`'s `onPlanChanged`: Obsidian REUSES a view, so a listener outliving its Vue
- * app would re-hydrate a store nothing renders and stack another on the next open.
- */
 onBeforeUnmount(
 	context.onProjectsChanged(() => {
 		void hydrate();
@@ -382,25 +242,6 @@ onBeforeUnmount(
 	}),
 );
 
-/**
- * Two more subscriptions, both about the PRICE section and neither about the project itself.
- *
- * `onCatalogueChanged` is the shared library moving — an asset renamed, repriced, added by hand
- * or arriving through sync — and it is REUSED rather than duplicated: a source covering both
- * halves of this section's question would be a second copy of an event list that goes stale.
- *
- * `onProjectPricesChanged` is this project's own price moving, and it NARROWS. The source cannot
- * do that for us: its other caller is the Plan Editor, which holds a PLAN id and would need an
- * async read to resolve a project, so a filtered source would charge the caller that cannot pay.
- * It reports which project changed instead and each caller decides — and without deciding, a
- * price set in project A re-read the whole catalogue in every open pane for project B.
- *
- * **`null` is a MATCH, never a miss**, and that arm is load-bearing rather than defensive: it is
- * how the index event arrives, because `ProjectIndexEntryChangedPayload` carries `entityId` and
- * `entityType` and no project id at all. That event is the half no COMMAND can raise — a price
- * note added by hand, copied in, or arriving through sync — so treating "cannot say" as a miss
- * would make exactly those invisible to this pane for the life of the leaf.
- */
 onBeforeUnmount(context.onCatalogueChanged(reloadPrices));
 
 onBeforeUnmount(
@@ -414,6 +255,12 @@ onBeforeUnmount(
 	<ProjectDetail
 		v-if="status === 'ready' && project !== null"
 		:project="project"
+		:draft-reset="draftReset"
+		:section="section"
+		:read-only="context.readOnly"
+		:guidance-hidden="guidanceHidden"
+		:plans-failure="plansError === null ? null : trError(plansError)"
+		:prices-loading="pricesLoading"
 		:plans="plans"
 		:unreadable-plans="unreadablePlans"
 		:empty-state="emptyState"
@@ -421,45 +268,17 @@ onBeforeUnmount(
 		:asset-prices-failure="assetPricesFailure"
 		:commit-asset-price="commitAssetPrice"
 		:logger="context.commands.logger"
-		@back="context.navigate(null)"
+		@toggle-guidance="toggleGuidance"
+		@prices="context.navigate(projectId, 'prices')"
+		@refresh="reloadPrices"
+		@retry-plans="hydrate"
+		@edit-state="onEditState"
+		@back="back"
 		@open-note="() => void onOpenNote()"
 		@open-plan="onOpenPlan"
 		@create-plan="() => void onCreatePlan()"
 	/>
-	<!--
-		**`'gone'` is a SCREEN, and since this task it is the only answer to a project that is not
-		there.** It shipped as a fallback under a `watch(status)` that navigated back to the list
-		on `'gone'`; that watcher is retired, and the argument is a history entry nobody asked
-		for. `RenovationProjectView.setState` sets `ViewStateResult.history` for any accepted,
-		changed state and cannot tell a deliberate navigation from a correction — measured, all
-		three of list→project, project→list (corrective) and a back-arrow-shaped restore answer
-		`true` — so the redirect put the DEAD project on the back stack, and Back restored it,
-		re-read it, found it still gone and bounced forward again.
 
-		Two candidate fixes were raised on PR 42. Threading a `corrective` flag from the caller
-		down to `setState` keeps the redirect and adds a context seam, a mutable one-shot flag on
-		a view instance, and a lifetime question (`navigateToProject` DROPS a superseded write, so
-		a flag set and never consumed poisons the next navigation) — and every claim about what it
-		buys lives in Obsidian's history semantics, which `FakeLeaf` cannot answer. Retiring the
-		watcher instead removes the entry, the bounce and a mechanism, and what it leaves behind
-		is checkable right here: Back restores the dead project and this screen draws, which is a
-		true and actionable picture rather than a redirect that looks like nothing happened.
-
-		What it costs is stated where it is paid: the user is no longer moved for them. This
-		screen is what makes that the better half — it names what happened and its action is a
-		DELIBERATE navigation, so the entry Obsidian records for it is one the user asked for.
-
-		**No `heading-level`, so this takes `EmptyState`'s default `<h2>`** — and that is the
-		component's own rule rather than a preference: an empty state that REPLACES a region
-		inherits that region's heading level, and one EMBEDDED in a section takes the section's.
-		This one replaces the whole view, so `ProjectDetail` and its project `<h2>` are not
-		rendered at all and an `<h3>` here would announce a subsection with no parent. The
-		no-plans state a few lines away is the embedded case and does pass `3`.
-
-		The first version of this branch passed `3`, one commit after that rule was written into
-		`EmptyState`'s docblock — the prop added to tell those two cases apart, applied to the
-		wrong one. Reported by a review bot.
-	-->
 	<EmptyState
 		v-else-if="status === 'gone'"
 		:headline="tr('view.project.gone')"
@@ -477,5 +296,18 @@ onBeforeUnmount(
 		<p v-else>
 			{{ tr('view.project.loading') }}
 		</p>
+		<button
+			v-if="failureMessage !== null"
+			type="button"
+			@click="hydrate"
+		>
+			{{ tr('view.project.resume-retry') }}
+		</button>
+		<button
+			type="button"
+			@click="context.navigate(null)"
+		>
+			{{ tr('view.project.back') }}
+		</button>
 	</div>
 </template>

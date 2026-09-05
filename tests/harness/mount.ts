@@ -385,8 +385,8 @@ const harnessDetailDeps = (projectId: string, view: () => RenovationProjectView)
 	...defaultRenovationProjectDeps(seedProject(projectId)),
 	// `''` is the LIST, which is the sentinel `RenovationProjectView.getState` writes and
 	// `projectIdFrom` parses back — not a value this page invents.
-	navigate: (id) => {
-		void view().setState({ projectId: id ?? '' }, { history: true });
+	navigate: (id, section) => {
+		void view().setState({ projectId: id ?? '', ...(section === 'prices' ? { section } : {}) }, { history: true });
 	},
 });
 
@@ -423,8 +423,8 @@ const harnessHomeDeps = (
 		expectSeeded(repositories.plans.save(plan, 'absent'));
 	}),
 	initialQuery,
-	navigate: (id) => {
-		void view().setState({ projectId: id ?? '' }, { history: true });
+	navigate: (id, section) => {
+		void view().setState({ projectId: id ?? '', ...(section === 'prices' ? { section } : {}) }, { history: true });
 	},
 	continueContext: () =>
 		Promise.resolve(count < 1 ? null : { projectId: 'home-1', planId: CONTINUE_PLAN_ID }),
@@ -449,6 +449,7 @@ export interface MountedHarness {
 export interface HarnessMountOptions {
 	/** `?project=<id>`: the DETAIL state on a seeded project of that id. */
 	readonly projectId?: string | null;
+	readonly section?: 'details' | 'prices';
 	/** `?projects=<n>`: the LIST state over that many of `HOME_PROJECTS`. */
 	readonly projects?: number;
 	/** `?q=<text>`: what the filter starts with. Only meaningful beside `projects`. */
@@ -499,7 +500,7 @@ export function mountHarness(root: HTMLElement, options: HarnessMountOptions = {
 	// `projectId` in `deps`: `RenovationProjectView.mount` writes its own field over that
 	// member on every mount, so a bundle naming a project would be silently ignored and this
 	// page would draw the list while claiming to draw a project.
-	if (projectId !== undefined && projectId !== null) void view.setState({ projectId }, { history: false });
+	if (projectId !== undefined && projectId !== null) void view.setState({ projectId, section: options.section }, { history: false });
 
 	return { leafEl, view };
 }

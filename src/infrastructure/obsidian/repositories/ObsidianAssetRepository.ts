@@ -98,19 +98,24 @@ export class ObsidianAssetRepository implements AssetRepository {
 	 * carries why the order is this way round.
 	 */
 	delete(id: AssetId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
-		// BEFORE anything is trashed, because the note's own delete event can take the index
-		// entry out while `trashNoteBackedEntity` awaits the trash — and `alsoRemove` runs after
-		// that await. Resolved here, a moved sidecar is deleted with its asset; resolved inside
-		// the callback, the lookup misses, the derivation answers a path with no file at it, and
-		// the asset goes leaving its geometry behind. The same capture, for the same reason, that
-		// `PlanGeometryStore.delete`'s own call site makes.
-		const sidecarPath = this.deps.index.getGeometrySidecarPath(id);
-		return this.queues.run(`asset:${id}`, () =>
-			trashNoteBackedEntity(this.deps, 'asset', id, expected, {
+		return this.queues.run(`asset:${id}`, () => {
+			// BEFORE anything is trashed, because the note's own delete event can take the index
+			// entry out while `trashNoteBackedEntity` awaits the trash — and `alsoRemove` runs
+			// after that await. Resolved here, a moved sidecar is deleted with its asset;
+			// resolved after the trash, the lookup misses, the derivation answers a path with no
+			// file at it, and the asset goes leaving its geometry behind.
+			//
+			// **Inside the queue, which is what makes it match `ObsidianPlanRepository.delete`**
+			// — the comment already claimed the match while sitting outside it. Read before the
+			// lock is taken, the hint is whatever the index said while an earlier operation on
+			// this same asset was still running: a queued delete behind a create or a move
+			// captured a mapping that operation went on to change.
+			const sidecarPath = this.deps.index.getGeometrySidecarPath(id);
+			return trashNoteBackedEntity(this.deps, 'asset', id, expected, {
 				deleteFailedCode: 'asset.delete-failed',
 				alsoRemove: () => this.geometry.delete(id, sidecarPath),
-			}),
-		);
+			});
+		});
 	}
 
 	/**

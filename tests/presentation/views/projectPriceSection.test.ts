@@ -400,7 +400,8 @@ describe('the project detail state’s price section', () => {
 		await flushPromises();
 		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
 		expect(harness.wrapper.get('.rp-asset-price-failure').text()).toContain('Saved;');
-		expect(harness.wrapper.get('input').attributes('disabled')).toBeDefined();
+		expect(harness.wrapper.get('input').attributes('readonly')).toBeDefined();
+		expect(harness.wrapper.get('input').attributes('aria-disabled')).toBe('true');
 		failRead = false;
 		await harness.wrapper.get('.rp-price-refresh').trigger('click'); await flushPromises();
 		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);

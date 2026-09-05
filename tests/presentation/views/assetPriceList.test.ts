@@ -91,6 +91,9 @@ function mountSection(options: {
 	rows?: readonly AssetPriceRowDto[];
 	currency?: string;
 	commit?: (edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>;
+	refreshBlocked?: boolean;
+	/** `document.activeElement` only tracks an attached element — pass a live host to assert focus. */
+	attachTo?: Element;
 } = {}) {
 	const commit = vi.fn<(edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>>(
 		options.commit ?? (() => Promise.resolve(accepts())),
@@ -99,9 +102,11 @@ function mountSection(options: {
 		props: {
 			rows: options.rows ?? [row()],
 			currency: options.currency ?? 'GBP',
+			refreshBlocked: options.refreshBlocked,
 			commit,
 			logger,
 		},
+		...(options.attachTo === undefined ? {} : { attachTo: options.attachTo }),
 	});
 	return { wrapper, commit };
 }
@@ -164,7 +169,7 @@ describe('AssetPriceList', () => {
 		expect(wrapper.find('label .rp-visually-hidden').exists()).toBe(true);
 	});
 
-	it.each([['0', '0'], ['12,50', '12.50'], ['12.5', '12.5']])('applies the decimal input %s without grouping or floating-point conversion', async (draft, amount) => {
+	it.each([['0', '0'], ['12,50', '12.50'], ['12.5', '12.5'], ['1.234', '1.234']])('applies the decimal input %s without grouping or floating-point conversion', async (draft, amount) => {
 		const { wrapper, commit } = mountSection();
 		await wrapper.get('input').setValue(draft);
 		await wrapper.get('.rp-asset-price-apply').trigger('click'); await flushPromises();
@@ -218,7 +223,7 @@ describe('AssetPriceList', () => {
 	 * Reading it at dispatch time defeats the whole guard at exactly the moment it is needed:
 	 * `useFieldCommit` deliberately keeps an uncommitted draft while the canonical value moves
 	 * underneath it, so a sync or another leaf refreshes the row to a new
-	 * `overrideId`/`overrideVersion`, the user's blur then builds `expected` from the REFRESHED
+	 * `overrideId`/`overrideVersion`, the user's Enter then builds `expected` from the REFRESHED
 	 * row, and the stale draft saves over the price the user never saw. That is the lost update
 	 * the required expectation exists to stop, reintroduced one layer above the command.
 	 *
@@ -275,24 +280,18 @@ describe('AssetPriceList', () => {
 		await wrapper.get('.rp-asset-price-cancel').trigger('click');
 		expect((wrapper.get('input').element as HTMLInputElement).value).toBe('');
 		expect(commit).not.toHaveBeenCalled();
-	});	/**
-	 * The other half, which an `override === null` test alone certifies WRONG: type a price into
-	 * an empty row, **Tab to the clear button** — so the blur really is a separate commit gesture
-	 * — and press it before the vault answers. Treating that as a no-op discards the user's
-	 * cancellation and lets the set persist: the gesture the user made is the one thing that does
-	 * not happen. Routed through `onCommit` instead, it becomes the queued follow-up the
-	 * composable's coalescing already knows how to answer.
+	});
+
+	/**
+	 * `pricePaused` (`price.pending.value || refreshBlocked`) is what locks the row while
+	 * Apply's write is in flight — `readonly` and `aria-disabled` on the input, `aria-disabled`
+	 * on Clear/Cancel, never `:disabled` (ruling R2), so focus stays on the field through the
+	 * commit rather than being dropped to `body`.
 	 *
-	 * **The keyboard is load-bearing in this setup.** With `@mousedown.prevent` on the button a
-	 * CLICK no longer blurs, so a version of this case driven by a click would assert the
-	 * opposite of its pointer sibling below and one of the two would have to be wrong. Tab
-	 * commits and click does not; that asymmetry is the contract.
-	 *
-	 * The clear's `expected` names what the SET wrote, which is the whole reason `commit` returns
-	 * `settled` rather than a bare `DispatchResult`: the queued clear is built after the set
-	 * settles, so with no channel from the set's own result it would submit `'absent'` against a
-	 * pair the set had just created and refuse — the user's cancellation failing for the second
-	 * time in one gesture.
+	 * Escape while paused is not undo: `onPriceCancel` returns early on `price.pending.value`,
+	 * so the queued write still lands once the vault answers. There is no `draftToken` and no
+	 * blur commit on this path — Apply's click is what dispatched, and the single `commit` call
+	 * this case asserts carries the value that was actually applied.
 	 */
 	it('locks the row while Apply is writing; cancel is never undo', async () => {
 		let release!: () => void;
@@ -300,35 +299,74 @@ describe('AssetPriceList', () => {
 		const { wrapper, commit } = mountSection({ rows: [row({ override: money('19.50') })], commit: async () => { await held; return accepts(); } });
 		await wrapper.get('input').setValue('12,50');
 		await wrapper.get('.rp-asset-price-apply').trigger('click');
-		expect(wrapper.get('input').attributes('disabled')).toBeDefined();
-		expect(wrapper.get('.rp-asset-price-cancel').attributes('disabled')).toBeDefined();
-		expect(wrapper.get('.rp-asset-price-clear').attributes('disabled')).toBeDefined();
+		expect(wrapper.get('input').attributes('readonly')).toBeDefined();
+		expect(wrapper.get('input').attributes('aria-disabled')).toBe('true');
+		expect(wrapper.get('.rp-asset-price-cancel').attributes('aria-disabled')).toBe('true');
+		expect(wrapper.get('.rp-asset-price-clear').attributes('aria-disabled')).toBe('true');
 		await wrapper.get('input').trigger('keydown.esc');
 		expect(commit).toHaveBeenCalledTimes(1);
 		release();
 		await flushPromises();
 		expect(commit).toHaveBeenCalledTimes(1);
 		expect(commit.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ unitCost: money('12.50') }));
-	});	/**
-	 * The POINTER path, and the guard that makes it differ: a browser blurs the input on the
-	 * button's `mousedown`, before the `click` that runs the handler, so one gesture on a dirty
-	 * field becomes a set THEN a clear — two writes, two events and two project-wide cascades for
-	 * one click, with the discarded price left standing if the clear refuses.
+	});
+
+	/**
+	 * V1: `5b4031ae` added `price.pending` to the input's `:disabled` and deleted its blur
+	 * commit. Disabling the focused control moves focus with nothing to restore it — Chromium
+	 * blurs it to `body` — so a user who presses Enter loses their place mid-commit. Ruling R2:
+	 * a paused control is `readonly` + `aria-disabled`, never `:disabled`, so it stays focusable
+	 * (`RequirementRow.vue`'s house shape).
+	 */
+	it('keeps focus on the price input while a commit is pending, instead of disabling it', async () => {
+		const host = document.createElement('div');
+		document.body.append(host);
+		let release!: () => void;
+		const held = new Promise<void>((resolve) => { release = resolve; });
+		const { wrapper } = mountSection({ commit: async () => { await held; return accepts(); }, attachTo: host });
+		const input = wrapper.get('input').element as HTMLInputElement;
+
+		input.focus();
+		await wrapper.get('input').setValue('12.50');
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
+		await flushPromises();
+
+		expect(document.activeElement).toBe(input);
+		expect(input.getAttribute('aria-disabled')).toBe('true');
+		expect(input.hasAttribute('readonly')).toBe(true);
+
+		release();
+		await flushPromises();
+		wrapper.unmount();
+		host.remove();
+	});
+
+	/**
+	 * `pricePaused` is `price.pending.value || refreshBlocked`, and this is the OTHER half of
+	 * that `||`: a refresh in flight pauses the row with no commit of its own pending. Asserted
+	 * beside `aria-busy`, which must stay `false` here — it names an in-flight WRITE, not a
+	 * paused field, and a row blocked only by a refresh has made neither.
+	 */
+	it('pauses the price input while a refresh is blocked, with no commit in flight', () => {
+		const { wrapper } = mountSection({ refreshBlocked: true });
+		const input = wrapper.get('input').element as HTMLInputElement;
+
+		expect(input.getAttribute('aria-disabled')).toBe('true');
+		expect(input.hasAttribute('readonly')).toBe(true);
+		expect(input.getAttribute('aria-busy')).toBe('false');
+	});
+
+	/**
+	 * `@mousedown.prevent` on Clear exists to stop a stray commit from firing before the click
+	 * reaches `onClear` — real when the input committed on blur, which it no longer does: there
+	 * is no `draftToken` and no blur handler left on this input at all.
 	 *
-	 * The real sequence is driven (`mousedown`, then blur, then `click`) rather than `click()`
-	 * alone, which jsdom does not expand into it: a case that only clicks passes against a button
-	 * with no guard at all.
-	 *
-	 * **The blur is CONDITIONAL on the mousedown's `defaultPrevented`**, and an unconditional one
-	 * inverts this case. jsdom never links `mousedown` to focus loss —
-	 * `requirementRowFieldErrors.test.ts`'s identical guard already says so — so hand-firing blur
-	 * regardless would fire it whether or not `@mousedown.prevent` ran, and the CORRECT component
-	 * would also commit a set before the clear: red on correct and no redder on the mutation. So
-	 * the browser's own default action is what is modelled: dispatch a cancelable `mousedown`,
-	 * read `defaultPrevented` off that SAME event, and blur only when it reads `false`.
-	 *
-	 * Watched failing with `@mousedown.prevent` removed: `defaultPrevented` then reads `false`,
-	 * the blur fires, and `commit` is called twice with the set first.
+	 * With nothing left for the guard to prevent, `if (!mousedown.defaultPrevented)` is what
+	 * keeps this a real mutation check rather than a vacuous one: remove `.prevent` and the
+	 * branch fires an Enter commit in its place, turning the single `commit` call below into two
+	 * and failing the assertion. The sequence is driven as a real cancelable `mousedown` followed
+	 * by `click` rather than `click()` alone, which jsdom does not expand into a `mousedown` at
+	 * all — a version that only clicks would pass against a button with no guard whatsoever.
 	 */
 	it('dispatches only the clear when the button is clicked on a dirty field', async () => {
 		const { wrapper, commit } = mountSection({ rows: [row({ override: money('19.50') })] });
@@ -525,7 +563,7 @@ describe('AssetPriceList', () => {
 	 * `canBeMoney`: `+1`, `.5` and `1e3` all pass `LITERAL_PATTERN`, so the commit is reached
 	 * holding a `Result` it has no arm for. `abc` is the control that fails either way.
 	 */
-	it.each(['abc', '.5', '+1', '1e3', '1.234', '1,234.50', '01', '', '-0'])('refuses %s at the field, dispatching nothing', async (draft) => {
+	it.each(['abc', '.5', '+1', '1e3', '1,234.50', '01', '', '-0'])('refuses %s at the field, dispatching nothing', async (draft) => {
 		const { wrapper, commit } = mountSection();
 
 		await wrapper.get('input').setValue(draft);
@@ -666,25 +704,13 @@ describe('AssetPriceList', () => {
 	});
 
 	/**
-	 * The same rule, on the path where the release is actually REACHABLE — the COALESCED one.
-	 *
-	 * The simple chain in the case below is inert, and the measurement is worth more than the
-	 * case: on a round rejected at `validate`, `commitOnce` has no `await` before its early
-	 * return, so `pending` goes true and false inside ONE synchronous stretch and a default
-	 * `flush: 'pre'` watcher — comparing against the last value it observed, which is `false` —
-	 * never fires at all. Measured by giving that watcher `flush: 'sync'`, which turns the case
-	 * below red at its expectation assertion.
-	 *
-	 * A rejection that arrives as a coalesced CONTINUATION is different, and this is where the
-	 * lost update lives: a first blur dispatches and holds, a second blur queues an invalid
-	 * draft, and when the first settles `commitOnce` fires the queued round, which rejects. By
-	 * then `pending` has been true across several ticks, so its fall is a real transition the
-	 * watcher does see — with the FIRST round's acceptance still recorded. The snapshot is
-	 * released under an invalid draft, an external write moves the row, and the corrected submit
-	 * re-freezes from the refreshed props and overwrites a price the user never saw.
-	 *
-	 * Asserted on the SUBMITTED EXPECTATION alone: the field's text, its error and the call count
-	 * read identically in both worlds.
+	 * There is no coalescing to lose an edit to here, and that is the whole of the answer:
+	 * `onPriceInput` returns early on `price.pending.value` (`AssetPriceRow.vue:99`), so the
+	 * second `setValue` below never reaches `useFieldCommit` at all — no draft is recorded and no
+	 * round is queued. `useFieldCommit`'s own coalescing, the mechanism `RequirementRow`'s fields
+	 * rely on, never engages here. One `commit` call is the whole of what this case can see,
+	 * because it is the whole of what happens: the field ignores every keystroke between Apply's
+	 * click and the write settling.
 	 */
 	it('does not queue edits while a price is being saved', async () => {
 		let release!: () => void;

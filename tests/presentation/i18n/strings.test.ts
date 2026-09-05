@@ -48,8 +48,14 @@ const assetLibraryKeys = (table: Record<string, string>): string[] =>
 /**
  * The currency is irrelevant to the question and any valid code answers it: `AMOUNT_PATTERN` is
  * the half under test and it never sees the currency.
+ *
+ * `token.replace(',', '.')` runs first because the parser under test is `AssetPriceRow`'s
+ * `validatePrice`, not `createMoney` alone: the field accepts a comma and normalises it before
+ * minting (`raw.trim().replace(',', '.')`), so a German `19,50` is a form the field accepts even
+ * though `AMOUNT_PATTERN` itself still reads only the dot. Testing `createMoney` raw would refuse
+ * the very separator `de.ts` is now written to show.
  */
-const parsesAsAmount = (raw: string): boolean => !isErr(createMoney(raw, 'EUR'));
+const parsesAsAmount = (raw: string): boolean => !isErr(createMoney(raw.replace(',', '.'), 'EUR'));
 
 /**
  * Pure lookups, asked of the function — no view, no mock, no language global. The
@@ -161,12 +167,19 @@ describe('the German locale', () => {
 	/**
 	 * **A string whose job is to SHOW an accepted form must show one the code accepts**, and
 	 * the defect that bought this case is what that reads like when it goes wrong:
-	 * `view.project.price-invalid` said `Geben Sie einen Preis wie 19,50 ein` while
-	 * `AssetPriceRow.validatePrice` mints through `createMoney`, whose `AMOUNT_PATTERN` admits
-	 * only a `.`. A German user who typed the example was refused and shown the example again.
-	 * Worse than an ordinary mistranslation, because the English entry's own comment fixes the
-	 * copy's purpose as showing the SHAPE — so localizing the separator inverts exactly what the
-	 * string is for.
+	 * `view.project.price-invalid` once said `Geben Sie einen Preis wie 19,50 ein` while
+	 * `AssetPriceRow.validatePrice` minted straight through `createMoney`, whose `AMOUNT_PATTERN`
+	 * admitted only a `.`. A German user who typed the example was refused and shown the example
+	 * again. Worse than an ordinary mistranslation, because the English entry's own comment fixes
+	 * the copy's purpose as showing the SHAPE — so localizing the separator inverted exactly what
+	 * the string was for.
+	 *
+	 * **The field has since caught up (PR #73), and the check has to grade the field rather than
+	 * `createMoney` alone.** `validatePrice` normalises a comma (`raw.trim().replace(',', '.')`)
+	 * before minting, so `19,50` is a form the FIELD accepts even though `AMOUNT_PATTERN` itself
+	 * still reads only the dot; `parsesAsAmount` below runs that same normalisation first, and
+	 * `de.ts` says `19,50` again for exactly this reason. Grading bare `createMoney` would refuse
+	 * the correction this string was rewritten to show.
 	 *
 	 * Asked from the ENGLISH side, like the Vault case above and for the same reason: a
 	 * forbidden-spelling row can only refuse a separator somebody thought of. A key QUALIFIES
@@ -179,7 +192,8 @@ describe('the German locale', () => {
 	 * checkable in general: nothing ties a key to the validator its copy is about, and an
 	 * instruction can be prose with no example in it at all (`use a decimal point` carries no
 	 * digit and is invisible here). What this pins is the one expressible half — a shown
-	 * EXAMPLE, checked against the one parser this plugin's copy has ever quoted. Its blind
+	 * EXAMPLE, checked against the one parser this plugin's copy has ever quoted:
+	 * `validatePrice`'s, comma normalisation included. Its blind
 	 * spots, named rather than left to be discovered: a key whose ENGLISH example is itself
 	 * refused drops out of the qualifying set entirely rather than being reported (the check
 	 * has no other way to know which side is the mistake); a translation that drops the example
@@ -210,7 +224,7 @@ describe('the German locale', () => {
 			}
 		}
 
-		expect(offenders, 'a shown price must be one `createMoney` accepts').toEqual([]);
+		expect(offenders, 'a shown price must be one `validatePrice` accepts').toEqual([]);
 	});
 
 	/**

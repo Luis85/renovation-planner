@@ -251,6 +251,23 @@
 }
 
 /*
+ * Task 9's row actions (Try again, Open source note): inline after the message rather than
+ * on their own line, so a row stays one line of text with its affordance beside it — the
+ * strip is a persistent region, not a dialog, and every row here is short enough not to need
+ * one.
+ */
+.rp-warning-strip__actions {
+	display: inline-flex;
+	gap: var(--size-4-1);
+	margin-left: var(--size-4-2);
+}
+
+.rp-warning-strip__action {
+	font-size: var(--font-ui-smaller);
+	padding: 0 var(--size-4-2);
+}
+
+/*
  * The shell's `role="status"` return-to-floor announcement (`SelectionGuidance.vue`, design
  * spec §6.6, R15 — moved here 2026-09-04 from `.rp-inspector-guidance` in
  * `editor-inspector.css`, where it was reachable only while `EntityInspector` happened to be

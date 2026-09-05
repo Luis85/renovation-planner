@@ -16,6 +16,7 @@ import { usePlanEditorContext } from './PlanEditorContext';
 import { provideEditorRuntime } from './runtime';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
+import { useSaveStateStore } from './save-state/save-state-store';
 import DialogHost from '../dialogs/DialogHost.vue';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
 import EmptyState from '../components/EmptyState.vue';
@@ -42,8 +43,9 @@ const context = usePlanEditorContext();
 // every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
 const projectStore = useProjectStore();
-const { status, error, stale, unreadableZones, plan } = storeToRefs(projectStore);
+const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
+const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
 
 /**
  * The overlay's props, or `null` for no overlay.
@@ -116,15 +118,25 @@ const { tokens, refresh } = useThemeTokens(root, context.onThemeChange);
 const backgroundStatus = ref<BackgroundStatus>('none');
 
 /**
- * Task 20's keyed collection over the same three facts the four `<p class="rp-editor-notice">`
- * blocks used to read independently — see `editorWarnings`' own header for the fixed order and
- * why the collection replaced four separate `v-if`s.
+ * Task 20's keyed collection over the facts the shell used to read independently — see
+ * `editorWarnings`' own header for the fixed order and why the collection replaced four
+ * separate `v-if`s. Task 9 widens the input with the trust path's own facts
+ * (`unrecoveredWrite`, `refreshing`, `retriesFailed`) and the two callbacks every action here
+ * dispatches through: `retry` is `runtime.refreshProjection` and nothing else (§2.3 — a
+ * retry re-reads, it cannot replay a write, because this closure takes no command), and
+ * `openSourceNote` is `runtime.openPlanNote`, forwarded from the context so every row's
+ * action reaches the same door `EditorContextBar`'s own note-opening affordance would.
  */
 const warnings = computed(() =>
 	editorWarnings({
+		unrecoveredWrite: unrecoveredWrite.value,
 		stale: staleAfterRefresh.value,
+		refreshing: refreshing.value,
+		retriesFailed: retriesFailed.value,
 		unreadableZones: unreadableZones.value,
 		backgroundStatus: backgroundStatus.value,
+		retry: () => void runtime.refreshProjection(),
+		openSourceNote: () => void runtime.openPlanNote(),
 	}),
 );
 

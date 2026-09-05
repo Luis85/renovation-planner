@@ -336,7 +336,8 @@
  * compound scores (0,2,0), which is what `tests/build/buttonSpecificity.test.ts` checks for
  * every button rule in this project rather than trusting this one comment.
  */
-.rp-task-banner .rp-task-banner__cancel {
+.rp-task-banner .rp-task-banner__cancel,
+.rp-task-banner .rp-task-banner__finish {
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
@@ -357,9 +358,13 @@
 }
 
 /*
- * Task 8's Finish button — same two-class compound as Cancel above, and the same reason:
- * a bare `.rp-task-banner__finish` ties Obsidian's `button:not(.clickable-icon)` at (0,1,1)
- * and loses on source order.
+ * Task 8's Finish button. Its FLAT rule is Cancel's, joined to it as a selector list above —
+ * the two were byte-identical declaration blocks and fallow reported them, and a list keeps each
+ * compound's own (0,2,0) intact where a shared single class would score (0,1,0) and lose. Both
+ * members stay in this partial, because a rule moved to a foreign one would depend on the
+ * cascade ORDER `styles/index.css` happens to give them against each component's own overrides.
+ *
+ * What stays its own rule is the part that is only Finish's:
  *
  * Obsidian's `button[aria-disabled="true"]` (`tests/harness/obsidian.css`) sets `opacity` and
  * `cursor` at (0,1,1), and the compound below is (0,2,0) — so the DIMMING is inherited (this
@@ -369,17 +374,6 @@
  * two properties. The disabled cursor is therefore restated at (0,2,1) below, exactly as
  * `.rp-new-room__create` restates it for the same `aria-disabled`-not-`:disabled` reason.
  */
-.rp-task-banner .rp-task-banner__finish {
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
-
 /*
  * (0,2,1), so it beats the rule above rather than depending on source order — and it declares
  * the cursor ALONE, because the dimming beside it is Obsidian's and correct.

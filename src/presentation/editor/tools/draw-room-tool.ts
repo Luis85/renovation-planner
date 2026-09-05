@@ -25,16 +25,32 @@ export class DrawRoomTool implements EditorTool {
 	private context: EditorContext | null = null;
 	private anchor: Point | null = null;
 	/**
-	 * What the press is about to overwrite, taken at `pointerdown` — a definite assignment
-	 * rather than a nullable field, for the reason `pointerUp`'s own docblock gives about
-	 * `context`: it is written beside `anchor` and read only where `anchor !== null`, so a
-	 * null branch here would be an arm nothing can drive.
+	 * What this gesture has overwritten, or `null` while it has overwritten nothing.
 	 *
-	 * It used to be a `RoomRect | null`, which is not enough to give a press back: `rect` is
-	 * null for a draft holding a typed width and no depth, so a click restored it by CLEARING
-	 * both sides, both texts and both errors. See `RectFields`.
+	 * **Taken at the first `pointerMove`, immediately before the overwrite — NOT at
+	 * `pointerdown`** — which is what makes "a click takes back exactly what this press
+	 * overwrote" literally true rather than approximately true. A press does not itself write
+	 * anything; `pointerMove` does. Snapshotting at the press instead captures a moment that
+	 * can still be overtaken by a write nobody here made, and one such write is ordinary:
+	 *
+	 * A renovator types `4.2` into Width and clicks the canvas. `NewRoomInspector` keeps that
+	 * text in the DOM until a `blur`, and a browser moves focus as `pointerdown`'s own DEFAULT
+	 * ACTION, which runs AFTER this handler returns — the ordering `DialogHost` already records
+	 * paying for. So the order really is: press (snapshot taken), blur (the field commits
+	 * `4.2`), release. A snapshot from the press predates that commit, so the click branch put
+	 * the store back to before it and the typed width vanished with no gesture having replaced
+	 * it. Note the canvas calls no `preventDefault` on an ordinary primary press, so nothing
+	 * suppresses that focus shift.
+	 *
+	 * Deferring the capture fixes the CLASS rather than the blur: any write between the press
+	 * and the first move is simply part of the state this gesture then overwrites, whoever made
+	 * it. And a click with NO move — which is a legal stream, since W3C guarantees no move
+	 * between a down and an up — now has nothing to take back, because nothing was taken.
+	 *
+	 * Nullable for that reason, where the earlier field was a definite assignment: the empty
+	 * arm is reachable by exactly that click, and is the case this whole comment is about.
 	 */
-	private pressUndo!: RoomRectSnapshot;
+	private pressUndo: RoomRectSnapshot | null = null;
 
 	constructor(private readonly deps: DrawRoomToolDeps) {}
 
@@ -50,10 +66,12 @@ export class DrawRoomTool implements EditorTool {
 	pointerDown(event: EditorPointerEvent): void {
 		if (event.button !== 'primary') return;
 		this.anchor = event.worldPoint;
-		this.pressUndo = this.deps.draft.snapshotRect();
+		this.pressUndo = null;
 	}
 	pointerMove(event: EditorPointerEvent): void {
 		if (this.anchor === null) return;
+		// Captured on the FIRST move only, and before the write it is about — see `pressUndo`.
+		this.pressUndo ??= this.deps.draft.snapshotRect();
 		this.deps.draft.setRect(normalised(this.anchor, event.worldPoint));
 	}
 	/**
@@ -74,10 +92,11 @@ export class DrawRoomTool implements EditorTool {
 		const worldPerPixel = context.viewport.worldPerScreenPixel();
 		const moved = Math.hypot(event.worldPoint.x - anchor.x, event.worldPoint.y - anchor.y);
 		if (moved <= CLICK_EPSILON_PX * worldPerPixel) {
-			// The move above wrote a tiny rect during the press; a click takes back exactly what
-			// that press overwrote and nothing else — never a typed side, its text, or a refusal
-			// the renovator has not corrected yet.
-			this.deps.draft.restoreRect(this.pressUndo);
+			// A click takes back exactly what this gesture overwrote and nothing else — never a
+			// typed side, its text, or a refusal the renovator has not corrected yet, and never
+			// a commit that landed between the press and the release. `restore` is a no-op when
+			// the gesture wrote nothing, which is the plain click with no move at all.
+			this.restore();
 			return;
 		}
 		// The RELEASE names the rectangle, not the last `pointermove` — `SelectTool`'s own rule
@@ -113,7 +132,18 @@ export class DrawRoomTool implements EditorTool {
 	abandonGesture(): void {
 		if (this.anchor === null) return;
 		this.anchor = null;
+		this.restore();
+	}
+
+	/**
+	 * Undo whatever this gesture overwrote, if it overwrote anything. One function for the two
+	 * doors that owe it, so the "only if a snapshot was taken" half cannot be kept at one and
+	 * forgotten at the other.
+	 */
+	private restore(): void {
+		if (this.pressUndo === null) return;
 		this.deps.draft.restoreRect(this.pressUndo);
+		this.pressUndo = null;
 	}
 	/**
 	 * Escape's question (`routeEscape`), and it is about every DIMENSION surface a room is

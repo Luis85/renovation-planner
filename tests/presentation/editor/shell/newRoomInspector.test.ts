@@ -419,3 +419,75 @@ describe('NewRoomInspector, unmounted with a field still being typed into', () =
 		harness.unmount();
 	});
 });
+
+/**
+ * **A press is not a write, and the browser commits the field between the two halves of a
+ * click.** `NewRoomInspector` keeps a dimension edit in the DOM until a `blur`, and a browser
+ * moves focus as `pointerdown`'s own DEFAULT ACTION — after the handler returns. So typing
+ * `4.2` and clicking the canvas really does deliver: press, then the field's blur commits, then
+ * release. Nothing suppresses that shift here: `EditorSurface.onPointerDown` calls no
+ * `preventDefault` on an ordinary primary press (only on a claimed pan, a swallowed second
+ * pointer, or the middle button at `onMouseDown`).
+ *
+ * **jsdom implements no focus-on-mousedown at all** — a fact this repository already records
+ * where `DialogHost` paid for it — so a real `click()` here would not blur anything and the
+ * sequence could not be reached. The blur is therefore dispatched EXPLICITLY, between the press
+ * and the release, which is a faithful model of the browser's order rather than a convenient
+ * one. That is the whole of what makes this case meaningful, so it is stated rather than left
+ * for a reader to infer.
+ */
+describe('a canvas click while a dimension field is still being typed into', () => {
+	it('keeps the width the blur commits between the press and the release', async () => {
+		const harness = await mountPlanEditor();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected the editor canvas');
+
+		const width = harness.wrapper.find('input[name="width"]');
+		(width.element as HTMLInputElement).focus();
+		await width.setValue('4.2');
+		expect(runtime.roomDraft.widthText).toBe(''); // still only in the DOM
+
+		pointer(canvas, 'pointerdown', 300, 300);
+		// The browser's own default action, which runs after the handler above returns.
+		await width.trigger('blur');
+		expect(runtime.roomDraft.widthText).toBe('4.2'); // the field committed, mid-gesture
+		pointer(canvas, 'pointerup', 300, 300);
+		await settle();
+
+		expect(runtime.roomDraft.widthText).toBe('4.2');
+		expect(runtime.roomDraft.widthMm).toBe(4200);
+		harness.unmount();
+	});
+
+	/**
+	 * The other direction, so the fix is not an unconditional "never restore": a press that
+	 * really did overwrite something still gives it back. A move writes a rectangle, and a
+	 * release close enough to the press to read as a click takes that rectangle away again —
+	 * leaving the typed width, which the gesture never touched.
+	 */
+	it('still takes back the rectangle a click-with-a-nudge wrote', async () => {
+		const harness = await mountPlanEditor();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected the editor canvas');
+
+		const width = harness.wrapper.find('input[name="width"]');
+		(width.element as HTMLInputElement).focus();
+		await width.setValue('4.2');
+		pointer(canvas, 'pointerdown', 300, 300);
+		await width.trigger('blur');
+		pointer(canvas, 'pointermove', 301, 301); // inside CLICK_EPSILON_PX: still a click
+		expect(runtime.roomDraft.rect).not.toBeNull(); // the nudge wrote one
+		pointer(canvas, 'pointerup', 301, 301);
+		await settle();
+
+		expect(runtime.roomDraft.rect).toBeNull(); // and the click took it back
+		expect(runtime.roomDraft.widthText).toBe('4.2'); // without touching the commit
+		harness.unmount();
+	});
+});

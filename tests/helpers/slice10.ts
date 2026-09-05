@@ -75,13 +75,13 @@ export function makeDeleteZoneCommand(
 	const overrides = new InMemoryAssetPriceOverrideRepository();
 	const recalculate = new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides });
 	return new DeleteZoneCommand({
+		...zoneSequenceCollaborators(),
 		zones,
 		requirements,
 		recalculate,
 		events,
 		locks,
 		logger: recorder,
-		...zoneSequenceCollaborators(),
 	});
 }
 

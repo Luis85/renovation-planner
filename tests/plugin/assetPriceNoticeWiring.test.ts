@@ -29,12 +29,14 @@ import { InMemorySequenceMarkerStore } from '../../src/infrastructure/persistenc
 installObsidianDom();
 
 /**
- * `DeleteAssetDeps.notify` is OPTIONAL, for the suite's benefit — which is exactly what lets
- * a composition that forgets to bind `priceCleanupFailed` compile, pass and say nothing: the
- * promised user-visible warning would silently degrade back to the log line Task 7a exists to
- * stop it being. This wires `composeSlice10` for real — the module `deleteAsset` and
- * `sequenceNotices` are both actually built in — and drives an override-delete failure through
- * it, the same shape `sequenceNoticeWiring.test.ts` already uses for its marker-clear sibling.
+ * `DeleteAssetDeps.notify` is REQUIRED now — the compiler refuses a composition that leaves it
+ * unbound — but that only holds that SOMETHING answers `priceCleanupFailed`, not that it is the
+ * notice door rather than a no-op: a composition binding a stub that swallows the call would
+ * still compile, pass and say nothing, and the promised user-visible warning would silently
+ * degrade back to the log line Task 7a exists to stop it being. This wires `composeSlice10` for
+ * real — the module `deleteAsset` and `sequenceNotices` are both actually built in — and drives
+ * an override-delete failure through it, the same shape `sequenceNoticeWiring.test.ts` already
+ * uses for its marker-clear sibling.
  */
 async function wired() {
 	const projects = new InMemoryProjectRepository();

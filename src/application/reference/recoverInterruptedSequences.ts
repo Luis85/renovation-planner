@@ -79,7 +79,10 @@ async function restoreEntry(
 	// further on: this port is raw at this boundary, so a vault fault arrives as a REJECTION
 	// rather than a refusal, and a bare `await` exits through the module's outer boundary —
 	// abandoning every marker after this one. The `isErr` arm below already says the right
-	// thing about a refusal; this makes a fault reach it.
+	// thing about a refusal; this makes a fault reach it. The residual: a SYNCHRONOUS throw
+	// out of `save` — one raised before a promise is ever returned — still exits through the
+	// module's outer boundary and abandons every later marker, since `.catch` only attaches
+	// to a promise that was actually returned.
 	const saved = await deps.requirements
 		.save(snapshot.entity, expected)
 		.catch((cause: unknown) =>

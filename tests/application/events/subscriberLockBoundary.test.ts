@@ -24,8 +24,13 @@ import path from 'node:path';
  * rather than this. Stated rather than implied: an undocumented residue reads as ground
  * nobody walked.
  *
- * It is also blind to a registration spelled anything but `.subscribe(` — a bare
- * `subscribe(...)` reached off a destructured binding, or a wrapper under another name.
+ * It is also blind to a registration spelled anything but `.subscribe(` or `subscribeAll(` —
+ * a bare `subscribe(...)` reached off a destructured binding, or a wrapper under another name.
+ * `subscribeAll` is named here because it EXISTS: `application/events/subscriptions.ts` took the
+ * `...LIST.map((type) => events.subscribe(type, handler))` spread off all eight change sources,
+ * and with only `.subscribe(` in the scan seven of them stopped being discovered — measured, as
+ * the failure of the case below, which is the discovery half's control doing its job. **A
+ * wrapper is not a blind spot once it is written; it is a second spelling this scan owes.**
  *
  * **BOTH halves of this instrument are guarded, because it has two.** The discovery half is
  * the file scan — a scan reaching nothing looks exactly like a clean tree. The JUDGEMENT half
@@ -70,8 +75,13 @@ const sources = (dir: string): string[] =>
 		return entry.name.endsWith('.ts') ? [full] : [];
 	});
 
+const REGISTRATION_SPELLINGS = ['.subscribe(', 'subscribeAll('] as const;
+
 const registrars = (): string[] =>
-	sources('src').filter((file) => readFileSync(file, 'utf8').includes('.subscribe('));
+	sources('src').filter((file) => {
+		const text = readFileSync(file, 'utf8');
+		return REGISTRATION_SPELLINGS.some((spelling) => text.includes(spelling));
+	});
 
 /**
  * The judgement half's three arms, spelled ONCE so the rule below and the controls below that

@@ -1,5 +1,6 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
+import { disposeAll, subscribeAll } from './subscriptions';
 
 /**
  * "The set of projects may have changed — re-read it": the domain event vocabulary, turned
@@ -99,20 +100,14 @@ function changedEntityTypeOf(event: DomainEvent): string | null {
 export function createProjectListChangeSource(events: EventBus): (listener: () => void) => () => void {
 	return (listener: () => void) => {
 		const subscriptions = [
-			...PROJECT_LIST_CHANGE_EVENTS.map((type) =>
-				events.subscribe(type, () => {
-					listener();
-				}),
-			),
-			...PROJECT_ENTRY_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					const changed = changedEntityTypeOf(event);
-					if (changed !== null && LIST_ENTITY_TYPES.has(changed)) listener();
-				}),
-			),
+			...subscribeAll(events, PROJECT_LIST_CHANGE_EVENTS, () => {
+				listener();
+			}),
+			...subscribeAll(events, PROJECT_ENTRY_EVENTS, (event) => {
+				const changed = changedEntityTypeOf(event);
+				if (changed !== null && LIST_ENTITY_TYPES.has(changed)) listener();
+			}),
 		];
-		return () => {
-			for (const subscription of subscriptions) subscription.dispose();
-		};
+		return disposeAll(subscriptions);
 	};
 }

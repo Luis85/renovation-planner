@@ -1,9 +1,6 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { AssetEventPayload } from '../../domain/asset/Asset.events';
-import type {
-	GeometrySidecarChangedPayload,
-	ProjectIndexEntryChangedPayload,
-} from './projectIndex.events';
+import { changedEntry, changedSidecar, disposeAll, subscribeAll } from './subscriptions';
 
 /**
  * "Tell me when THIS asset moved" — the domain event vocabulary, turned into one filtered
@@ -110,46 +107,24 @@ function assetIdOf(event: DomainEvent): string | null {
 	return typeof payload?.assetId === 'string' ? payload.assetId : null;
 }
 
-/** The same guard for the entry event's own payload, which names a type as well as an id. */
-function changedEntry(event: DomainEvent): Partial<ProjectIndexEntryChangedPayload> {
-	return (event as { payload?: Partial<ProjectIndexEntryChangedPayload> }).payload ?? {};
-}
-
-/**
- * And for the sidecar event's, which names the same two fields about a different subject. Two
- * guards rather than one over a shared shape, because a single reader would make the two events
- * interchangeable at exactly the seam that keeps them apart.
- */
-function changedSidecar(event: DomainEvent): Partial<GeometrySidecarChangedPayload> {
-	return (event as { payload?: Partial<GeometrySidecarChangedPayload> }).payload ?? {};
-}
-
 export function createAssetDesignChangeSource(
 	events: EventBus,
 ): (assetId: string, listener: () => void) => () => void {
 	return (assetId: string, listener: () => void) => {
 		const subscriptions = [
-			...ASSET_SUBJECT_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					if (assetIdOf(event) === assetId) listener();
-				}),
-			),
-			...EVERY_ASSET_EVENTS.map((type) => events.subscribe(type, () => listener())),
-			...ASSET_ENTRY_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					const entry = changedEntry(event);
-					if (entry.entityType === 'renovation-asset' && entry.entityId === assetId) listener();
-				}),
-			),
-			...ASSET_SIDECAR_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					const sidecar = changedSidecar(event);
-					if (sidecar.entityType === 'renovation-asset' && sidecar.entityId === assetId) listener();
-				}),
-			),
+			...subscribeAll(events, ASSET_SUBJECT_EVENTS, (event) => {
+				if (assetIdOf(event) === assetId) listener();
+			}),
+			...subscribeAll(events, EVERY_ASSET_EVENTS, () => listener()),
+			...subscribeAll(events, ASSET_ENTRY_EVENTS, (event) => {
+				const entry = changedEntry(event);
+				if (entry.entityType === 'renovation-asset' && entry.entityId === assetId) listener();
+			}),
+			...subscribeAll(events, ASSET_SIDECAR_EVENTS, (event) => {
+				const sidecar = changedSidecar(event);
+				if (sidecar.entityType === 'renovation-asset' && sidecar.entityId === assetId) listener();
+			}),
 		];
-		return () => {
-			for (const subscription of subscriptions) subscription.dispose();
-		};
+		return disposeAll(subscriptions);
 	};
 }

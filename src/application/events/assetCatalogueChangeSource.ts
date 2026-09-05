@@ -1,5 +1,6 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
+import { disposeAll, subscribeAll } from './subscriptions';
 
 /**
  * "The vault's asset catalogue may have changed — re-read it": the domain event vocabulary,
@@ -63,19 +64,13 @@ function changedEntityTypeOf(event: DomainEvent): string | null {
 export function createAssetCatalogueChangeSource(events: EventBus): (listener: () => void) => () => void {
 	return (listener: () => void) => {
 		const subscriptions = [
-			...CATALOGUE_CHANGE_EVENTS.map((type) =>
-				events.subscribe(type, () => {
-					listener();
-				}),
-			),
-			...ASSET_ENTRY_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					if (changedEntityTypeOf(event) === 'renovation-asset') listener();
-				}),
-			),
+			...subscribeAll(events, CATALOGUE_CHANGE_EVENTS, () => {
+				listener();
+			}),
+			...subscribeAll(events, ASSET_ENTRY_EVENTS, (event) => {
+				if (changedEntityTypeOf(event) === 'renovation-asset') listener();
+			}),
 		];
-		return () => {
-			for (const subscription of subscriptions) subscription.dispose();
-		};
+		return disposeAll(subscriptions);
 	};
 }

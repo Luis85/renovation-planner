@@ -34,7 +34,7 @@ describe('explicit asset definition draft', () => {
 		expect(execute).not.toHaveBeenCalled();
 		await panel.get('[data-field="name"]').setValue('Oak cabinet');
 		await panel.get('[data-field="category"]').setValue('furniture');
-		await panel.get('[data-field="unitCost"]').setValue('249.50');
+		await panel.get('[data-field="unitCost"]').setValue(' 249.50 ');
 		await panel.get('[data-field="sku"]').setValue('OC-100');
 		await panel.get('[data-field="notes"]').setValue('Site delivery');
 		await panel.get('[data-field="waste"]').setValue('12.5');
@@ -67,7 +67,7 @@ describe('explicit asset definition draft', () => {
 		expect((panel.get('[data-field="unit"]').element as HTMLSelectElement).value).toBe('m');
 		panel.unmount();
 	});
-	it.each([['unitCost', 'NaN'], ['waste', '101'], ['waste', 'Infinity'], ['height', '-1'], ['name', '   ']])('rejects invalid %s input %s before dispatch', async (field, value) => {
+	it.each([['unitCost', 'NaN'], ['unitCost', '0xff'], ['unitCost', '1_000'], ['waste', '101'], ['waste', 'Infinity'], ['height', '-1'], ['name', '   ']])('rejects invalid %s input %s before dispatch', async (field, value) => {
 		const entry = anEntry(); const execute = vi.fn<Update>(() => Promise.resolve(refused()));
 		const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry], commands: { updateAsset: { execute } } });
 		await panel.get(`[data-field="${field}"]`).setValue(value);
@@ -128,5 +128,36 @@ describe('explicit asset definition draft', () => {
 		await useAssetLibraryStore().hydrate({ listCatalogue } as never, () => true); await settle();
 		expect(panel.text()).toContain('external'); expect((panel.get('[data-field="supplier"]').element as HTMLInputElement).value).toBe('my draft');
 		await panel.get('.rp-al-definition').trigger('submit'); expect(execute).not.toHaveBeenCalled(); panel.unmount();
+	});
+});
+
+
+describe('write-boundary conflict recovery', () => {
+	it.each(['asset.revision-conflict', 'asset.external-modification'])('requires a successful read and explicit discard after %s', async (code) => {
+		let entry = anEntry(); let failRead = false;
+		const execute = vi.fn<Update>(() => Promise.resolve(err({ category: 'Persistence', code, message: 'conflict' })));
+		const listCatalogue = () => Promise.resolve(failRead ? err({ category: 'Persistence' as const, code: 'vault.read-failed', message: 'read failed' }) : ok({ entries: [entry], unreadable: [] }));
+		const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry], queries: { listCatalogue }, commands: { updateAsset: { execute } } });
+		await panel.get('[data-field="supplier"]').setValue('my draft');
+		await panel.get('.rp-al-definition').trigger('submit'); await settle();
+		const retry = () => panel.get('.rp-al-draft-actions button:last-child');
+		expect(retry().text()).toBe('Try again');
+		expect(panel.get('button[type="submit"]').attributes('disabled')).toBeDefined();
+		await panel.get('.rp-al-definition').trigger('submit'); expect(execute).toHaveBeenCalledTimes(1);
+		failRead = true;
+		await retry().trigger('click'); await settle();
+		expect(panel.get('button[type="submit"]').attributes('disabled')).toBeDefined();
+		expect((panel.get('[data-field="supplier"]').element as HTMLInputElement).value).toBe('my draft');
+		failRead = false;
+		entry = { ...entry, supplier: 'external', version: { revision: 2, observed: 'fresh' as ObservationToken } };
+		await retry().trigger('click'); await settle();
+		expect(panel.text()).toContain('external');
+		expect(panel.get('button[type="submit"]').attributes('disabled')).toBeDefined();
+		await panel.get('.rp-al-draft-actions button[type="button"]').trigger('click');
+		await panel.get('[data-field="supplier"]').setValue('new draft');
+		await panel.get('.rp-al-definition').trigger('submit'); await settle();
+		expect(execute).toHaveBeenCalledTimes(2);
+		expect(execute.mock.calls[1]?.[0].expected).toEqual(entry.version);
+		panel.unmount();
 	});
 });

@@ -101,6 +101,11 @@ function onDelete(): void {
 	if (!canDelete.value || props.assetId === null) return;
 	emit('delete', props.assetId);
 }
+async function onOpenProject(projectId: string): Promise<void> {
+	await draftGuard.leave(async () => {
+		if ((await context.openProject(projectId)) === 'missing') await selection.refreshUsedIn(context.queries);
+	});
+}
 async function onOpenNote(): Promise<void> {
 	await draftGuard.leave(openNote);
 }
@@ -140,7 +145,7 @@ async function onOpenNote(): Promise<void> {
 				:overriding="selection.overriding"
 				:status="selection.usedInStatus"
 				:error="selection.usedInError"
-				@open-project="(id) => draftGuard.leave(() => context.openProject(id))"
+				@open-project="onOpenProject"
 			/>
 			<button
 				v-if="selection.usedInStatus === 'failed'"

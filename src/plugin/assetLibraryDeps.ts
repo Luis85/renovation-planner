@@ -112,8 +112,8 @@ export function assetLibraryDeps(
 			const path = persistence.index.getPath(assetId);
 			return path === undefined ? Promise.resolve('missing') : openNote(path);
 		},
-		openProject: async (projectId) => {
-			if (persistence !== null) await renovationProjectOpenProject(workspace, vault, persistence.index, root.logger)(projectId);
+		openProject: (projectId) => {
+			return persistence === null ? Promise.resolve('failed') : renovationProjectOpenProject(workspace, vault, persistence.index, root.logger)(projectId);
 		},
 		// The SAME binding the project view's `openAsset` takes, reused rather than duplicated:
 		// one activation function is what stops a double click opening two designer tabs, and a

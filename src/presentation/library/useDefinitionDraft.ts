@@ -20,8 +20,9 @@ export function useDefinitionDraft(entry: () => CatalogueEntryDto) {
 	const status = ref<'idle' | 'saving' | 'saved' | 'refresh' | 'unknown' | 'rejected'>('idle');
 	const banner = ref<string | null>(null);
 	const reading = ref(false);
+	const writeConflict = ref(false);
 	const dirty = computed(() => JSON.stringify(values.value) !== JSON.stringify(definitionDraft(baseline.value)));
-	const conflict = computed(() => !sameVersion(entry().version, baseline.value.version));
+	const conflict = computed(() => writeConflict.value || !sameVersion(entry().version, baseline.value.version));
 	const busy = computed(() => status.value === 'saving' || reading.value);
 	const locked = computed(() => busy.value || status.value === 'refresh' || status.value === 'unknown');
 	const canSave = computed(() => dirty.value && !locked.value && !conflict.value);
@@ -58,13 +59,16 @@ export function useDefinitionDraft(entry: () => CatalogueEntryDto) {
 		reading.value = true;
 		try {
 			await library.hydrate(context.queries, context.indexScanCompleted);
-			if (library.error === null && status.value === 'refresh') discard();
+			if (library.error === null) {
+				writeConflict.value = false;
+				if (status.value === 'refresh') discard();
+			}
 		} finally { reading.value = false; }
 		// An unknown outcome still requires an explicit discard after inspecting the current note.
 	}
 	async function save(): Promise<void> {
 		if (!canSave.value) return;
-		errors.value = validateDefinition(values.value);
+		errors.value = validateDefinition(values.value, baseline.value.currency);
 		if (Object.keys(errors.value).length > 0) return;
 		status.value = 'saving'; banner.value = null;
 		try {
@@ -73,6 +77,7 @@ export function useDefinitionDraft(entry: () => CatalogueEntryDto) {
 				changes: definitionChanges(values.value, baseline.value),
 			});
 			if (isErr(result)) {
+				writeConflict.value = ['asset.revision-conflict', 'asset.external-modification'].includes(result.error.code);
 				status.value = isTechnicalFault(result.error) ? 'unknown' : 'rejected';
 				if (status.value === 'unknown') { banner.value = tr('view.asset-library.draft.unknown'); return; }
 				const field = DEFINITION_ERRORS[result.error.code];

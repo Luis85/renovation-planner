@@ -29,13 +29,14 @@ export function definitionDraft(entry: CatalogueEntryDto): DefinitionDraft {
 		supplier: entry.supplier ?? '', sku: entry.sku ?? '', notes: entry.notes ?? '',
 		height: entry.height === null ? '' : String(entry.height) };
 }
-export function validateDefinition(draft: DefinitionDraft): Partial<Record<keyof DefinitionDraft, string>> {
+export function validateDefinition(draft: DefinitionDraft, currency: string): Partial<Record<keyof DefinitionDraft, string>> {
 	const errors: Partial<Record<keyof DefinitionDraft, string>> = {};
 	if (!draft.name.trim()) errors.name = tr('view.asset-library.draft.required');
 	for (const key of ['unitCost', 'waste', 'height'] as const) {
 		if (key === 'height' && draft[key].trim() === '') continue;
 		try {
-			const value = new Decimal(draft[key]);
+			const value = new Decimal(draft[key].trim());
+			if (key === 'unitCost') moneyOf(draft[key].trim(), currency);
 			if (!value.isFinite() || value.isNegative() || (key === 'waste' && value.gt(100))) {
 				errors[key] = tr('view.asset-library.draft.number');
 			}
@@ -52,7 +53,7 @@ export function definitionChanges(draft: DefinitionDraft, baseline: CatalogueEnt
 	}
 	if (draft.category !== before.category) changes.category = draft.category as AssetCategory;
 	if (draft.unit !== before.unit) changes.unit = draft.unit as MeasurementUnit;
-	if (draft.unitCost !== before.unitCost) changes.unitCost = moneyOf(draft.unitCost, baseline.currency);
+	if (draft.unitCost !== before.unitCost) changes.unitCost = moneyOf(draft.unitCost.trim(), baseline.currency);
 	if (draft.waste !== before.waste) changes.wasteFactorDefault = new Decimal(draft.waste).div(100);
 	if (draft.height !== before.height) changes.height = draft.height.trim() === '' ? null : Number(draft.height);
 	return changes;

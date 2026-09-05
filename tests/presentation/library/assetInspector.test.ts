@@ -365,7 +365,7 @@ describe('AssetInspector actions', () => {
 describe('section recovery and project navigation', () => {
 	it('retries failed sections locally and opens the actual referencing project', async () => {
 		const entry = anEntry(); const projectId = createProjectId(); let fail = true;
-		const openProject = vi.fn<() => Promise<void>>(() => Promise.resolve());
+		const openProject = vi.fn<() => Promise<'opened'>>(() => Promise.resolve('opened'));
 		const getDesign = vi.fn<AssetLibraryQueryServices['getDesign']>(() => Promise.resolve(fail ? err({ category: 'Persistence' as const, code: 'vault.read-failed', message: 'failed' }) : ok(assetDesign({ assetId: entry.assetId }))));
 		const listReferencing = vi.fn<AssetLibraryQueryServices['listReferencing']>(() => Promise.resolve(fail ? err({ category: 'Persistence' as const, code: 'vault.read-failed', message: 'failed' }) : ok([{ projectId, projectName: 'Kitchen refit', requirementIds: [createRequirementId()] }])));
 		const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry], openProject, queries: { getDesign, listReferencing } });
@@ -376,4 +376,17 @@ describe('section recovery and project navigation', () => {
 		await panel.get('.rp-al-used__name').trigger('click'); await settle();
 		expect(openProject).toHaveBeenCalledWith(projectId); panel.unmount();
 	});
+});
+
+
+it.each(['missing', 'failed', 'opened'] as const)('refreshes usage only when opening a project reports %s', async (outcome) => {
+	const entry = anEntry(); const projectId = createProjectId(); let missing = false;
+	const listReferencing = vi.fn<AssetLibraryQueryServices['listReferencing']>(() => Promise.resolve(ok(missing ? [] : [{ projectId, projectName: 'Deleted project', requirementIds: [createRequirementId()] }])));
+	const openProject = vi.fn<() => Promise<typeof outcome>>(() => { missing = outcome === 'missing'; return Promise.resolve(outcome); });
+	const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry], openProject, queries: { listReferencing } });
+	await panel.get('.rp-al-used__name').trigger('click'); await settle();
+	expect(openProject).toHaveBeenCalledWith(projectId);
+	expect(listReferencing).toHaveBeenCalledTimes(outcome === 'missing' ? 2 : 1);
+	expect(panel.text().includes('Deleted project')).toBe(outcome !== 'missing');
+	panel.unmount();
 });

@@ -52,7 +52,7 @@ function answeringQueries(
 }
 
 export interface InspectorOptions {
-	openProject?: (projectId: string) => Promise<void>;
+	openProject?: (projectId: string) => Promise<'opened' | 'missing' | 'failed'>;
 	assetId?: AssetId | null;
 	entries?: readonly CatalogueEntryDto[];
 	unreadable?: readonly UnreadableEntry[];

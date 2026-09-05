@@ -203,3 +203,19 @@ both callers. The PR records verification of this integration commit.
 
 Integration verification: production build, lint and whole-project analysis pass.
 Targeted regression run: 139 files / 1,832 tests passed. Staged diff check passes.
+
+### PR review recovery fixes
+
+Review findings 3941094351, 3941151581 and 3941151586 are addressed together:
+project-opening outcomes reach the inspector and a missing project refreshes Used in;
+price validation and construction use the same trimmed Money input, rejecting unsupported
+literal syntax before dispatch; conditional-write conflicts require a successful catalogue
+refresh before Save can resume. Local values survive both conflict rejection and a failed
+refresh. A changed baseline still requires explicit discard before a subsequent edit/save.
+
+Regression coverage includes missing/opened/failed project outcomes, whitespace and
+non-decimal prices, both write-conflict codes, failed refresh and fresh-version submission.
+
+Verification: build and lint pass; 17 library/wiring files (221 tests) pass.
+Whole-project analysis passes after relocating an existing reviewed CSS-clone annotation
+to the reported declaration; no CSS values or global analysis thresholds changed.

@@ -108,6 +108,7 @@ describe('ProjectStore hydration', () => {
 		// beside an error saying it is not — the worse of the two wrong answers.
 		expect(store.plan).toBeNull();
 		expect(store.zones.size).toBe(0);
+		expect(store.refreshing).toBe(false);
 	});
 
 	/** Listing the zones of a plan that does not exist is a vault read with one answer. */
@@ -333,6 +334,7 @@ describe('ProjectStore hydration', () => {
 		await store.hydrate(failingProject, FIXTURE_PLAN.id);
 		expect(store.status).toBe('failed');
 		expect(store.error?.code).toBe('project.read-failed');
+		expect(store.refreshing).toBe(false);
 	});
 
 	it('treats a project that no longer resolves as a missing plan', async () => {
@@ -343,6 +345,7 @@ describe('ProjectStore hydration', () => {
 		};
 		await store.hydrate(danglingProject, FIXTURE_PLAN.id);
 		expect(store.status).toBe('missing');
+		expect(store.refreshing).toBe(false);
 	});
 
 	/**

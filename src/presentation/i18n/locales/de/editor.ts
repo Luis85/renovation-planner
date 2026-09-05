@@ -164,4 +164,12 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.hint.pan': 'Leertaste oder mittlere Maustaste halten, um zu verschieben',
 	'editor.warning.severity.warning': 'Warnung',
 	'editor.warning.severity.error': 'Fehler',
+	'editor.stale-write-refused': 'Die Bearbeitung ist angehalten, bis der Grundriss neu gelesen wurde.',
+	'editor.paused.reason': 'Die Bearbeitung ist angehalten: Der Grundriss konnte nach der letzten Änderung nicht neu gelesen werden. Verwenden Sie oben „Erneut versuchen“.',
+	'editor.hint.paused': 'Bearbeitung angehalten, bis der Grundriss neu gelesen wurde',
+	'editor.refresh-failed.again': 'Das erneute Lesen ist wieder fehlgeschlagen; die Anzeige ist möglicherweise weiterhin nicht aktuell.',
+	'editor.warning.retry': 'Erneut versuchen',
+	'editor.warning.open-source-note': 'Quellnotiz öffnen',
+	'editor.unrecovered': 'Eine Änderung wurde geschrieben, konnte aber weder abgeschlossen noch rückgängig gemacht werden. Prüfen Sie die Notiz des Grundrisses, bevor Sie weiter bearbeiten.',
+	'editor.source-note-missing': 'Die Notiz des Grundrisses wurde nicht gefunden.',
 };

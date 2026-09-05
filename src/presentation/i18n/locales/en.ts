@@ -785,6 +785,9 @@ export const en = {
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',
 	'save-state.save-error': 'Save error',
+	// Derived, not a fifth state: `saved` AND `ProjectStore.stale`. The middle dot is the
+	// component library's own spelling of this label.
+	'save-state.saved-refresh-needed': 'Saved · refresh needed',
 	...enAssetLibrary,
 } as const;
 

@@ -472,5 +472,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',
 	'save-state.save-error': 'Fehler beim Speichern',
+	'save-state.saved-refresh-needed': 'Gespeichert · Aktualisierung nötig',
 	...deAssetLibrary,
 };

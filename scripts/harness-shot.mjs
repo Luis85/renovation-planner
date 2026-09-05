@@ -391,6 +391,22 @@ const SHOTS = [
 		selector: '.rp-room-inspector',
 	},
 	{ name: 'plan-editor-add-menu', query: '?view=plan-editor&add&theme=light', selector: '.rp-add-menu' },
+	{
+		name: 'plan-editor-multiple',
+		query: '?view=plan-editor&select=harness-kitchen,harness-terrace&theme=light',
+		selector: '.rp-multi-selection',
+	},
+	{
+		name: 'plan-editor-multiple-dark',
+		query: '?view=plan-editor&select=harness-kitchen,harness-terrace',
+		selector: '.rp-multi-selection',
+	},
+	{
+		name: 'plan-editor-multiple-narrow',
+		query: '?view=plan-editor&select=harness-kitchen,harness-terrace&theme=light&lang=de',
+		selector: '.rp-multi-selection',
+		width: 460,
+	},
 	// Task 14's two: the ROOM TASK under way at both widths, reached through `?room=<w>x<d>`,
 	// which presses Add, the catalogue's Room item and then both length fields — the numeric
 	// route of design spec §3, so the picture shows a placed rectangle nobody dragged.

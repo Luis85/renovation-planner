@@ -156,7 +156,7 @@ async function openOn(planId: string, viewDeps: PlanEditorDeps): Promise<PlanEdi
 
 /** Every room the floor summary lists, as `[id, name]` pairs in the order drawn. */
 function roomRows(view: PlanEditorView): [string, string][] {
-	return [...view.contentEl.querySelectorAll<HTMLElement>('.rp-room-list__row')].map((row) => [
+	return [...view.contentEl.querySelectorAll<HTMLElement>('.rp-floor-inspector .rp-room-list__row')].map((row) => [
 		row.dataset['rpId'] ?? '',
 		row.textContent?.trim() ?? '',
 	]);

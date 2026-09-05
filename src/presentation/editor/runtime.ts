@@ -20,6 +20,7 @@ import type { ZoneId } from '../../domain/zone/ZoneId';
 import { useEditorStore } from '../stores/EditorStore';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
+import { selectSpatial } from './selection/selectSpatial';
 import type { InspectorDto, InspectorEdit } from './inspector/inspector-store';
 import type { RequirementInspectorDTO } from '../../application/queries/GetRequirementsForZone';
 import { CommandHistory } from './tools/command-history';
@@ -118,7 +119,7 @@ export interface EditorRuntime {
 	 * user picking a row from a list wants it highlighted whether or not the camera can also
 	 * move to it.
 	 */
-	readonly selectAndFrame: (id: string) => void;
+	readonly selectAndFrame: (id: string, toggle?: boolean) => void;
 	/**
 	 * Design spec §5.2's one action: dispatch the room draft as a `ReversibleCreateZoneCommand`
 	 * through this leaf's one dispatcher. See `roomCreation.ts` for the two doors, one action
@@ -384,9 +385,11 @@ function selectAndFrameOn(
 	projectStore: ReturnType<typeof useProjectStore>,
 	selection: ReturnType<typeof useSelectionStore>,
 	editor: ReturnType<typeof useEditorStore>,
-	id: string,
+	target: { readonly id: string; readonly toggle: boolean },
 ): void {
-	selection.select([id as EntityId<string>]);
+	const { id, toggle } = target;
+	selectSpatial(selection, id, toggle);
+	if (toggle) return;
 	const zone = projectStore.zones.get(id);
 	if (zone === undefined) return;
 	const bounds = boundsOfZones([zone]);
@@ -695,7 +698,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		},
 	);
 
-	const selectAndFrame = (id: string): void => selectAndFrameOn(projectStore, selection, editor, id);
+	const selectAndFrame = (id: string, toggle = false): void => selectAndFrameOn(projectStore, selection, editor, { id, toggle });
 	registerSelectionRetirement(projectStore, selection, renderState);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved

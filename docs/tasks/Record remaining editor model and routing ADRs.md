@@ -61,3 +61,8 @@ them, and spec §2.3 gives the reason — a decision nothing pins drifts. Criter
 Criteria 6 and 7 remain open — perspective state, typed selection, Inspector routing, adapter
 ownership and event/refresh ownership are not yet assigned to one layer by an accepted record,
 and no enforceable boundary among them names its check.
+
+
+## Implementation update — 2026-09-05
+
+ADR-0018 records selection, Inspector, adapter/refresh and future perspective ownership with concrete existing checks and explicit future obligations. EPW/SO/RL and future perspective transition checks remain open; this amendment does not mark criteria for unimplemented domains complete.

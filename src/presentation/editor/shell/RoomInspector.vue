@@ -52,7 +52,7 @@
 import { computed, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
-import type { StringKey } from '../../i18n/locales/en';
+import { zoneTypeLabel } from './zoneTypeLabel';
 import { useSelectionStore } from '../selection/selection-store';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
@@ -98,19 +98,7 @@ const pickedAssetId = ref('');
  * `Custom`/"Other" entry, exactly the fallback `zoneFillToken` already takes for its own
  * unknown-type case.
  */
-const ZONE_TYPE_LABELS: Readonly<Record<string, StringKey>> = {
-	Room: 'editor.zone-type.Room',
-	Garden: 'editor.zone-type.Garden',
-	Terrace: 'editor.zone-type.Terrace',
-	Driveway: 'editor.zone-type.Driveway',
-	Roof: 'editor.zone-type.Roof',
-	ConstructionArea: 'editor.zone-type.ConstructionArea',
-	Custom: 'editor.zone-type.Custom',
-};
 
-function zoneTypeLabel(zoneType: string): StringKey {
-	return ZONE_TYPE_LABELS[zoneType] ?? 'editor.zone-type.Custom';
-}
 
 /**
  * The homeowner overview Task 7 derives, or `null` for the one moment described in the

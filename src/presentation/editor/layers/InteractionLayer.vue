@@ -31,6 +31,7 @@ import {
 	POLYGON_CLOSE_TARGET_RADIUS_PX,
 	POLYGON_VERTEX_RADIUS_PX,
 	VERTEX_HANDLE_RADIUS_PX,
+	SELECTION_BADGE_RADIUS_PX,
 } from '../handleMetrics';
 import { paintRulerMarks } from './rulerGeometry';
 import { measurementScreenMarks, sketchScreenGeometry } from './gestureGeometry';
@@ -41,7 +42,7 @@ const props = defineProps<{ tokens: ThemeTokens }>();
 const editorStore = useEditorStore();
 const projectStore = useProjectStore();
 const { zones } = storeToRefs(projectStore);
-const { selectedIds } = storeToRefs(useSelectionStore());
+const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 const runtime = useEditorRuntime();
 
 function toScreen(point: { x: number; y: number }) {
@@ -107,8 +108,7 @@ const hoverOutlineFlat = computed(() => {
 });
 
 /**
- * The selected zone's outline and vertex handles. Exactly one zone is selectable in this
- * slice (`SelectTool` sets one id); anything else renders nothing rather than guessing.
+ * Vertex handles belong to a single selection. Multiple selections use numbered outlines.
  */
 const selectedScreenPoints = computed(() => {
 	const ids = selectedIds.value;
@@ -124,6 +124,22 @@ const selectedFlat = computed(() =>
 		? null
 		: selectedScreenPoints.value.flatMap((at) => [at.x, at.y]),
 );
+
+/** Multiple selections show all outlines, without handles suggesting a group edit. */
+const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selectedIds.value.flatMap((id) => {
+	const zone = zones.value.get(id);
+	return zone === undefined ? [] : [{
+		id,
+		number: selectedIds.value.indexOf(id) + 1,
+		anchor: zone.points.length > 0 ? toScreen(zone.points[0]) : null,
+		strokeWidth: focusedId.value === id ? 3 : 2,
+		badgeStrokeWidth: focusedId.value === id ? 3 : 1.5,
+		points: zone.points.flatMap((point) => {
+			const at = toScreen(point);
+			return [at.x, at.y];
+		}),
+	}];
+}));
 
 /**
  * The first vertex is the close target, so it is drawn larger than the rest even at rest and
@@ -247,6 +263,44 @@ function vertexFill(index: number): string {
 					listening: false,
 				}"
 			/>
+		</template>
+		<template
+			v-for="outline in multiOutlines"
+			:key="outline.id"
+		>
+			<VLine
+				:config="{
+					name: 'selection-outline',
+					points: outline.points,
+					closed: true,
+					stroke: props.tokens.accent,
+					strokeWidth: outline.strokeWidth,
+					strokeScaleEnabled: false,
+					listening: false,
+				}"
+			/>
+			<template v-if="outline.anchor !== null">
+				<VCircle
+					:config="{
+						name: 'selection-badge',
+						x: outline.anchor.x, y: outline.anchor.y,
+						radius: SELECTION_BADGE_RADIUS_PX,
+						fill: props.tokens.canvasBackground,
+						stroke: props.tokens.accent,
+						strokeWidth: outline.badgeStrokeWidth,
+						listening: false,
+					}"
+				/>
+				<VText
+					:config="{
+						x: outline.anchor.x - SELECTION_BADGE_RADIUS_PX,
+						y: outline.anchor.y - 6,
+						width: SELECTION_BADGE_RADIUS_PX * 2,
+						text: String(outline.number), fontSize: 12, align: 'center',
+						fill: props.tokens.zoneLabel, listening: false,
+					}"
+				/>
+			</template>
 		</template>
 	</VLayer>
 </template>

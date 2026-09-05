@@ -102,6 +102,8 @@ function pointerEvent(): EditorPointerEvent {
 function stubSelection(): SelectionStore {
 	return {
 		selectedIds: [],
+		focusedId: null,
+		focus: () => undefined,
 		select: () => undefined,
 		clear: () => undefined,
 		isSelected: () => false,

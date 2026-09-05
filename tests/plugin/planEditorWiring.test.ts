@@ -102,11 +102,12 @@ describe('the plan editor dependencies', () => {
 	 */
 	it('answers failed and notifies when settings were never recovered', async () => {
 		activateNotices();
-		Notice.shown.length = 0;
+		const before = Notice.shown.length;
 		const root = createCompositionRoot(null, recorder, vaultStack());
 		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault);
 
 		expect(await deps.openNote('any')).toBe('failed');
+		expect(Notice.shown.length).toBe(before + 1);
 		expect(Notice.shown.at(-1)).toBe(t('en', 'settings.unrecovered'));
 	});
 

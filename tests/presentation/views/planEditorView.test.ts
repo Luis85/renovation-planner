@@ -18,9 +18,13 @@ import { EDITOR_RUNTIME, type EditorRuntime } from '../../../src/presentation/ed
 import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
+import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installEditorEnvironment, settle, sizedShellRoot } from '../../helpers/editor';
 import { resizeTo } from '../../helpers/layout';
 import { FIXTURE_PLAN, FIXTURE_PROJECT, FIXTURE_ZONES } from '../../helpers/planFixtures';
+// Mock-only surface, imported BY NAME — see `tests/plugin/sequenceNoticeWiring.test.ts`'s own
+// comment for why this is the same class the `'obsidian'` alias resolves to.
+import { Notice } from '../../helpers/obsidian-mock';
 import { FakeLeaf } from '../../helpers/workspace';
 
 installEditorEnvironment();
@@ -171,6 +175,11 @@ beforeEach(() => {
 	priceListeners = 0;
 	figureListeners = 0;
 	fileListeners = 0;
+	// Only the two `openPlanNote` notify-arm cases below read `Notice.shown`; activating here
+	// rather than inside each of them keeps this file's one `beforeEach` the single place
+	// state resets, and `activateNotices()` itself is safe to call repeatedly — it disposes
+	// whatever the previous call built before replacing it.
+	activateNotices();
 });
 
 afterEach(async () => {
@@ -489,5 +498,55 @@ describe('mount and unmount', () => {
 		await runtimeOfView(view).openPlanNote();
 
 		expect(openedIds).toEqual([FIXTURE_PLAN.id]);
+	});
+
+	/**
+	 * The other half of `openPlanNote`'s two-arm contract (design spec §2.6): `'missing'` is
+	 * the one outcome the CONTEXT itself notifies on, because a note the vault no longer holds
+	 * is not something `deps.openNote` can already have reported — `openProjectNote` answers
+	 * `'missing'` for an id that resolved to nothing, which is silence rather than a fault.
+	 *
+	 * Asserted with the relative before/after count idiom (`assetPriceNoticeWiring.test.ts`'s
+	 * own shape) rather than resetting `Notice.shown.length`, so this case cannot start passing
+	 * silently because some earlier case in the same run happened to clear the array first.
+	 */
+	it("notifies the source-note-missing warning when the deps answer 'missing'", async () => {
+		const view = new PlanEditorView(new FakeLeaf() as never, {
+			...deps(),
+			openNote: () => Promise.resolve('missing'),
+		});
+		openViews.push(view);
+		await view.setState({ planId: FIXTURE_PLAN.id }, {} as never);
+		await view.onOpen();
+
+		const before = Notice.shown.length;
+		await runtimeOfView(view).openPlanNote();
+
+		expect(Notice.shown.length).toBe(before + 1);
+		expect(Notice.shown.at(-1)).toBe(t('en', 'editor.source-note-missing'));
+	});
+
+	/**
+	 * The docblocks on `PlanEditorContext.openPlanNote` and on `PlanEditorView.mount`'s binding
+	 * both claim a `'failed'` outcome has "already been reported once, inside the opener" — a
+	 * claim about `deps.openNote`'s own caller, not about this view. Proven rather than left as
+	 * prose: a stub `openNote` that resolves `'failed'` without calling `notifyFault` or
+	 * `notifyWarning` itself must leave `Notice.shown` untouched, which is exactly what a real
+	 * refused open does from THIS view's side — whatever the opener did with its own fault door
+	 * happened before `deps.openNote` resolved, and is not this case's to re-assert.
+	 */
+	it("reports nothing further when the deps answer 'failed'", async () => {
+		const view = new PlanEditorView(new FakeLeaf() as never, {
+			...deps(),
+			openNote: () => Promise.resolve('failed'),
+		});
+		openViews.push(view);
+		await view.setState({ planId: FIXTURE_PLAN.id }, {} as never);
+		await view.onOpen();
+
+		const before = Notice.shown.length;
+		await runtimeOfView(view).openPlanNote();
+
+		expect(Notice.shown.length).toBe(before);
 	});
 });

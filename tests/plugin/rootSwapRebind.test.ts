@@ -95,6 +95,31 @@ describe('a root swap retires the outgoing root before composing the next one', 
 		expect(flush).toHaveBeenCalledTimes(1);
 		expect(dispose).toHaveBeenCalledTimes(1);
 	});
+
+	/**
+	 * G2/R7: the reference-lock set survives the swap, because what it serializes is a
+	 * SESSION's work rather than a root's.
+	 *
+	 * It was `new ReferenceLocks()` inside `composeSlice10Wiring`, so a settings save built a
+	 * second one — and a link or unlink already inside a lane held a key nothing in the new
+	 * root knew about, leaving that entity's lane empty for the very next write. `markerStore`
+	 * and `continueStore` are memoised on the plugin for exactly this reason; this is the third
+	 * collaborator with the same lifetime and it was the one still being rebuilt.
+	 *
+	 * Asserted by IDENTITY rather than by driving two overlapping writes: the property is that
+	 * there is one object, and a behavioural case would pass against two lock sets that simply
+	 * did not collide in the window the test happened to open.
+	 */
+	it('keeps ONE reference-lock set across the swap, since a lane belongs to the session', async () => {
+		resetRecorder();
+		const { plugin } = await loadedPlugin();
+		const before = plugin.root.persistence?.locks;
+		expect(before).toBeDefined();
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
+
+		expect(plugin.root.persistence?.locks).toBe(before);
+	});
 });
 
 describe('a view already open when the root is replaced', () => {

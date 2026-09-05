@@ -50,6 +50,15 @@ export interface VaultStack {
  * two (`IndexLibraryOverlaps`, `IndexProjectListFacts`). The lesson is not the number: a
  * count that arrives by MERGE is the one no author of either branch is looking at, because
  * both sentences read correctly in isolation.
+ *
+ * **Everything built here is PER ROOT, and every `KeyedQueues` in it therefore is too**
+ * (G2/R7). `applySettings` calls this again on a settings save, so a write already in flight
+ * holds a lane in a set nothing consults afterwards, and the next write for that entity finds
+ * an empty lane in the new stack and runs beside it. That window is RECORDED rather than
+ * closed: it needs a settings save to land during a write on the same entity, and closing it
+ * means hoisting six repositories to the session — a change to what a root owns. The
+ * reference LOCK set was hoisted (`SessionCollaborators.locks`) because it is one object the
+ * plugin can hold; these are not, and the difference is the whole of why one moved.
  */
 export function composeRepositories(
 	deps: NoteVaultDeps,

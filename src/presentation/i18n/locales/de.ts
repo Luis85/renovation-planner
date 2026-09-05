@@ -73,6 +73,8 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Der Katalog wurde verschoben, aber die App konnte die Änderung nicht nachvollziehen. Bitte Obsidian neu laden und dann den Bibliotheksordner auf den neuen Ort setzen.',
 	'settings.library-persist-failed':
 		'Der Katalog wurde verschoben, aber die Einstellung konnte nicht gespeichert werden. Bitte den Bibliotheksordner auf den neuen Ort setzen.',
+	'settings.library-apply-failed':
+		'Die Einstellung wurde gespeichert, die Sitzung konnte aber nicht darauf umschalten. Bitte laden Sie Obsidian neu.',
 	'project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',
 	'settings.default-currency.name': 'Standardwährung',
 	'settings.default-currency.desc':

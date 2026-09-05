@@ -203,7 +203,19 @@ export interface PersistenceServices
 	 * that the seven-name detonation list had not yet named.
 	 */
 	readonly overrides: AssetPriceOverrideRepositoryPort;
-	/** The one reference-lock set per plugin; every command that links or unlinks shares it. */
+	/**
+	 * The reference-lock set every command that links or unlinks shares.
+	 *
+	 * **One per SESSION, and this sentence said "per plugin" while the code built a new one
+	 * per ROOT** (G2). `applySettings` replaces the root mid-session, so a link already inside
+	 * a lane held a key the next root's set had never heard of, and that entity's next write
+	 * found an empty lane. It comes from `SessionCollaborators` now, alongside the ledger and
+	 * the marker store, which are memoised on the plugin for the identical reason.
+	 *
+	 * The repositories' own `KeyedQueues` are still per ROOT and deliberately so — see
+	 * `repositoryComposition.ts` for what that leaves open and why closing it is a different
+	 * job from this one.
+	 */
 	readonly locks: ReferenceLocks;
 	readonly queries: QueryServices;
 	/** Does a raw Vault file exist — what `SetPlanBackgroundCommand` validates through. */
@@ -285,6 +297,16 @@ export interface PersistenceServices
 export interface SessionCollaborators {
 	readonly ledger?: DiagnosticsLedger;
 	readonly markers?: SequenceMarkerStore;
+	/**
+	 * The reference-lock set (G2/R7), and the third member here for the same reason as the
+	 * two above: what a lane serializes is a SESSION's linking work, not one root's. Composed
+	 * fresh per root, a settings save left a link already inside a lane holding a key nothing
+	 * in the new root knew about, and the next write for that entity found an empty lane.
+	 *
+	 * Optional like its siblings, so a test composing a root directly gets one of its own —
+	 * which is correct for a caller with no session to share.
+	 */
+	readonly locks?: ReferenceLocks;
 }
 
 /**
@@ -304,12 +326,13 @@ function composeSlice10Wiring(
 	index: ProjectIndex,
 	events: EventBus,
 	logger: Logger,
-	markers: SequenceMarkerStore | undefined,
-): { locks: ReferenceLocks; wiring: Slice10Wiring; slice10: ReturnType<typeof composeSlice10> } {
+	// The two SESSION collaborators this wiring needs, as one parameter: `max-params` is five,
+	// and these are the same KIND of thing — which is what makes the grouping a statement
+	// rather than a workaround, exactly as `SessionCollaborators` argues above.
+	session: { markers: SequenceMarkerStore | undefined; locks: ReferenceLocks },
+): { wiring: Slice10Wiring; slice10: ReturnType<typeof composeSlice10> } {
+	const { markers, locks } = session;
 	const { projects, zones, assets, requirements, overrides } = repositories;
-	// One lock set per plugin: assignment, unit changes and delete resolutions across
-	// every view serialize against the same keys.
-	const locks = new ReferenceLocks();
 	const recalculate = new RecalculateRequirementCommand({
 		requirements,
 		zones,
@@ -331,7 +354,7 @@ function composeSlice10Wiring(
 		markers,
 		overrides,
 	};
-	return { locks, wiring, slice10: composeSlice10(wiring) };
+	return { wiring, slice10: composeSlice10(wiring) };
 }
 
 /**
@@ -424,6 +447,10 @@ export function createCompositionRoot(
 
 	const ledger = session.ledger ?? new InMemoryDiagnosticsLedger();
 	const markers = session.markers;
+	// G2/R7: the plugin's own set when there is a session to share one, and a fresh one for a
+	// caller composing a root directly — which is correct, since such a caller has no session
+	// whose lanes could be split.
+	const locks = session.locks ?? new ReferenceLocks();
 	const echo = new EchoWindow();
 	// The index every writer holds is the RECONCILING one, and that is the whole of how §5.1a's
 	// two-collection invariant reaches the six repositories: they mutate the index themselves on
@@ -461,7 +488,7 @@ export function createCompositionRoot(
 		settings.defaultCurrency,
 	);
 	const { geometryStore, projects, plans, zones, assets, requirements, overrides } = repositories;
-	const { locks, wiring, slice10 } = composeSlice10Wiring(repositories, index, eventBus, logger, markers);
+	const { wiring, slice10 } = composeSlice10Wiring(repositories, index, eventBus, logger, { markers, locks });
 
 	const files = createVaultFileProbe(vault.vault);
 	const guarded = composeGuarded(repositories, slice10, wiring, files, {

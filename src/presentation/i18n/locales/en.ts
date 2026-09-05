@@ -647,6 +647,12 @@ export const en = {
 		'The catalogue moved, but the app could not catch up with the change. Reload Obsidian, then set the library folder to the new location.',
 	'settings.library-persist-failed':
 		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',
+	// The other side of that same step, and the one sentence in this group that says the
+	// setting DID reach the file. Sharing the persist copy would send the user to re-apply a
+	// value data.json already holds; only the running session is behind, and a reload is what
+	// catches it up.
+	'settings.library-apply-failed':
+		'The setting was saved; the session could not switch to it. Reload Obsidian.',
 	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',
 	// Design slice B3 (ADR-0015): the asset designer's own surface. The two empty states are
 	// OVERLAYS inside the canvas region, never a replacement for it — slice 14's rule, and here

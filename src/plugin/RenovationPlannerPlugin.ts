@@ -35,10 +35,12 @@ import {
 } from './composition-root';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import { isDataAbsent, settingsFrom, type RenovationPlannerSettings, type SettingsPatch } from './settings/settings';
+import type { LibraryPersistOutcome } from './settings/libraryMigration';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { ContinueContextStore } from '../infrastructure/obsidian/plugin-data/continueContextStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
+import { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { runDetached } from './runDetached';
 import { showDiagnosticsReport } from './diagnostics/showDiagnosticsReport';
 
@@ -207,7 +209,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			logger,
 			this.vaultStack,
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			{ ledger: this.ledger, markers: this.sequenceMarkerStore(logger) },
+			{ ledger: this.ledger, markers: this.sequenceMarkerStore(logger), locks: this.sessionLocks() },
 		);
 		// The cascade handlers and the adapter's pending flush are retired together, last in
 		// push order — the drain loop is synchronous, so nothing can land between disposers.
@@ -418,8 +420,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * The tail of the settings write chain, so that no two settings writes are ever in
 	 * flight together.
 	 *
-	 * There are two write doors and they take opposite orderings around their own
-	 * `saveData` — see `persistLibraryFolder` — which is exactly why they must not overlap:
+	 * There are two write doors and they take the SAME ordering around their own `saveData`
+	 * since G3/N3 — write, then swap — which does not make overlapping safe, because the
+	 * window this exists for is the write itself rather than the difference between the two:
 	 * `persistLibraryFolder` leaves `this.root.settings` naming the SOURCE folder for the
 	 * whole length of its write, and every other control in the settings pane is live
 	 * throughout it. A write composed in that window carries the stale `libraryFolder`, and
@@ -442,7 +445,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * however carefully it is ordered afterwards. So a caller hands over a function rather
 	 * than an object, and it runs against the state current at the moment it writes.
 	 */
-	private queueSettingsWrite(write: () => Promise<void>): Promise<void> {
+	private queueSettingsWrite<T>(write: () => Promise<T>): Promise<T> {
 		const result = this.settingsWrites.then(write);
 		this.settingsWrites = result.then(swallow, swallow);
 		return result;
@@ -464,6 +467,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * `settingsFrom` is still the gate: it drops a key this version does not declare and
 	 * falls back on a value outside the vocabulary, so a patch is validated exactly as a
 	 * whole object was.
+	 *
+	 * **It WRITES first and swaps second** (G3/N3), which is the order `persistLibraryFolder`
+	 * argued for itself while this door had the opposite one. The argument generalises: a
+	 * session running on a value the file does not hold creates notes under a root the next
+	 * start will not know about, and `projectFolder` is a setting that names a folder. And the
+	 * failure is CAUGHT rather than rethrown, because there is nobody to rethrow to —
+	 * `setControlValue` discards the promise Obsidian hands it, and `queueSettingsWrite`'s tail
+	 * swallows on both arms so the chain survives. This is the one place that can report it.
 	 */
 	saveSettings(patch: SettingsPatch): Promise<void> {
 		return this.queueSettingsWrite(async () => {
@@ -474,42 +485,74 @@ export default class RenovationPlannerPlugin extends Plugin {
 			if (current === null) return;
 
 			const composed = settingsFrom({ ...current, ...patch, libraryFolder: current.libraryFolder });
+			// WRITE, then swap — `persistLibraryFolder`'s own argument, which holds for every
+			// setting that names a folder: a session running on a value the file does not hold
+			// creates notes under a root the next start will not know about, and `projectFolder`
+			// is such a setting. This door had the opposite order for eighteen slices, and the
+			// failure reached NOBODY: `setControlValue` discards the promise Obsidian hands it
+			// and the queue's own tail swallows, so the rejection had no awaiter at all. Hence
+			// the catch rather than a rethrow — the one place that could report this is here.
+			try {
+				await this.saveData(composed);
+			} catch (cause) {
+				notifyFault(cause, this.root.logger, 'settings.save-failed');
+				return;
+			}
 			this.applySettings(composed);
-			await this.saveData(composed);
 		});
 	}
 
 	/**
 	 * The library folder's write door, and it is a SEPARATE method rather than a call to
-	 * `saveSettings` for one reason: the order.
+	 * `saveSettings` for two reasons that are no longer the same one.
 	 *
-	 * `saveSettings` swaps the composition root and rebinds the views BEFORE its own
-	 * `saveData` settles, which is right for a preference — the pane's control has already
-	 * shown the new value — and destructive here. A rejecting write would leave the running
-	 * session composed against the DESTINATION while `data.json` still named the SOURCE, and
-	 * the remedy `settings.library-persist-failed` names ("set the library folder to the new
-	 * location") cannot be applied, because the library row binds no control. A restart would
-	 * then compose against the source and write new catalogue entries there, splitting the
-	 * catalogue in two — the outcome that failure arm exists to prevent rather than cause.
+	 * **The ORDER is no longer one of them.** This method argued write-then-swap for itself
+	 * while `saveSettings` swapped first — a rejecting write there left the running session
+	 * composed against a setting `data.json` does not hold, which is destructive for every
+	 * folder-naming setting and not only this one (G3/N3). Both doors write first and swap
+	 * second now, and the argument this docblock carried is the general rule rather than this
+	 * method's own exception: if the write rejects, nothing has been swapped and the session is
+	 * still coherent with the file — for a library move, the notes are at the destination and
+	 * the setting is not, which is exactly the state `settings.library-persist-failed`
+	 * describes and the remedy it names can be applied to.
 	 *
-	 * So: write the file, and only then swap. If the write rejects, nothing has been swapped
-	 * and the session is still coherent with the file — the notes are at the destination and
-	 * the setting is not, which is exactly the state the error's copy describes.
+	 * What is still its own are the two things `saveSettings` cannot express: it writes
+	 * `libraryFolder`, which `saveSettings` deliberately pins to the current value (a control
+	 * bound to it would persist a folder with no notes moved), and it REPORTS which side of
+	 * its own `saveData` failed, because the migration's two error codes say opposite things
+	 * about whether the setting reached the file (N4).
+	 *
+	 * `'apply-failed'` is a resolution rather than a rejection: the write SUCCEEDED, so the
+	 * caller's contract was met and only the session is behind. A rejection is reserved for
+	 * the write itself, which is what every caller already treats as the failure.
 	 */
-	persistLibraryFolder(libraryFolder: string): Promise<void> {
+	persistLibraryFolder(libraryFolder: string): Promise<LibraryPersistOutcome> {
 		// On the same chain as `saveSettings`, and composed inside it for the same reason:
 		// this door's whole hazard is the window between its `saveData` and its root swap,
 		// and a write queued behind it must read the settings that swap leaves behind.
-		return this.queueSettingsWrite(async () => {
+		return this.queueSettingsWrite(async (): Promise<LibraryPersistOutcome> => {
 			// The same guard `saveSettings` carries, for the same whole-session reason: a
 			// transient read failure must not stamp defaults over a `data.json` sitting there
-			// intact.
+			// intact. `'unrecovered'` rather than `'persisted'`, so a caller cannot read
+			// "nothing was written" as "the setting is now what you asked for".
 			const current = this.root.settings;
-			if (current === null) return;
+			if (current === null) return 'unrecovered';
 
 			const next = settingsFrom({ ...current, libraryFolder });
+			// Deliberately NOT inside the try below: a rejecting write is this method's
+			// rejection, and every caller already treats it as the failure.
 			await this.saveData(next);
-			this.applySettings(next);
+			try {
+				this.applySettings(next);
+			} catch (cause) {
+				// N4: the write LANDED and the swap did not, so the migration's persist code —
+				// "the setting could not be saved" — would be false about the half that worked.
+				// Logged here rather than notified: the caller owns the message, because only it
+				// knows what the setting was being changed FOR.
+				this.root.logger.error('settings.library-apply-failed', { libraryFolder, cause });
+				return 'apply-failed';
+			}
+			return 'persisted';
 		});
 	}
 
@@ -542,8 +585,19 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/**
 	 * Everything a settings change does to the RUNNING session, with no write in it. Both
-	 * write doors call this; what differs is which side of their own `saveData` they call it
-	 * on, which is the whole of `persistLibraryFolder`'s reason to exist.
+	 * write doors call this, on the SAME side of their own `saveData` — after it — since
+	 * G3/N3 gave `saveSettings` the ordering `persistLibraryFolder` had argued for itself.
+	 * What is left of that method's own reason to exist is which key it writes and what it
+	 * reports, not when it applies.
+	 *
+	 * **Its rebuild is NOT skippable by a caller that just rebuilt, and G8's remedy was to
+	 * make it so.** `createCompositionRoot` builds a NEW `ProjectIndex` per root, so the scan
+	 * a library migration runs at its step 5 fills the OUTGOING root's index and the incoming
+	 * one starts empty — a skip here leaves the session reading a catalogue of nothing until
+	 * the next reload. Measured rather than reasoned: `settingsTab.test.ts`'s
+	 * 'moves the catalogue…' case asserts the index is populated after a move, and it goes red
+	 * against exactly that skip. Three scans per move is the honest cost of a per-root index;
+	 * cutting it is a change to what a root OWNS, not a parameter here.
 	 */
 	private applySettings(next: RenovationPlannerSettings): void {
 		// FIRST, before the swap: the outgoing root's pending flush and cascade subscriptions
@@ -560,7 +614,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			this.root.logger,
 			this.vaultStack,
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			{ ledger: this.ledger, markers: this.sequenceMarkerStore(this.root.logger) },
+			{ ledger: this.ledger, markers: this.sequenceMarkerStore(this.root.logger), locks: this.sessionLocks() },
 		);
 		// The new root carries an EMPTY index. Re-running the build is what makes the swap
 		// complete; without it the session reads an index of nothing until the next reload,
@@ -737,6 +791,22 @@ export default class RenovationPlannerPlugin extends Plugin {
 			logger,
 		);
 		return this.markerStore;
+	}
+
+	/**
+	 * G2/R7's third session collaborator, memoised for the reason `markerStore` above is: what
+	 * a reference lane serializes is a SESSION's linking work, and a set rebuilt with the root
+	 * leaves a write already inside a lane holding a key the new set never heard of — so the
+	 * very next write for that entity finds an empty lane and runs beside it.
+	 *
+	 * A plain field rather than a `?? new` at the call site, so `applySettings` cannot compose
+	 * a root with a different one by forgetting a line.
+	 */
+	private referenceLocks: ReferenceLocks | null = null;
+
+	private sessionLocks(): ReferenceLocks {
+		this.referenceLocks ??= new ReferenceLocks();
+		return this.referenceLocks;
 	}
 
 	/**

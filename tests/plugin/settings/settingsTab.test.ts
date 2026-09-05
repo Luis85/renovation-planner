@@ -10,7 +10,7 @@
  * Nothing here asserts markup: since 1.13 the app renders the controls from the
  * definitions, so what the pane looks like is Obsidian's answer and only a live vault's.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SettingDefinition, SettingDefinitionAction, SettingDefinitionItem } from 'obsidian';
 // `opened`, `shown`, `choose` and `chooseAfterClose` exist on the MOCK and not on the real
 // surface, so they are imported from it by name — the migration main completed in #46/#47.
@@ -22,6 +22,9 @@ import { t } from '../../../src/presentation/i18n/strings';
 import { loadedPlugin } from '../../helpers/plugin';
 import { installObsidianDom } from '../../helpers/dom';
 import { settle } from '../../helpers/async';
+import { lines, resetRecorder } from '../../helpers/logger';
+
+vi.mock('../../../src/infrastructure/logging/consoleLogger', async () => (await import('../../helpers/logger')).consoleLoggerMock());
 
 // `activateNotices` — reached here through the real plugin/editor wiring — appends its
 // two live regions with Obsidian's `createDiv`, one of the prototype extensions the app
@@ -158,6 +161,41 @@ describe('the settings pane', () => {
 
 		expect(row?.desc).toBe(t('en', 'settings.library-folder.current', { folder: 'Shared/Catalogue' }));
 		expect(row?.desc).toContain('Shared/Catalogue');
+	});
+});
+
+/**
+ * G3/N3: the write door's ORDER, asked at the one setting where getting it wrong is
+ * destructive rather than merely untidy.
+ *
+ * `saveSettings` applied the change to the running session and only then awaited its own
+ * `saveData`, so a rejecting write left the session composed against a setting `data.json`
+ * does not hold — and `projectFolder` is a folder-naming setting, which is exactly the state
+ * `persistLibraryFolder`'s docblock already argues write-then-swap for: a session running on
+ * a value the file does not hold creates notes under a root the next start will not know
+ * about. Nothing reported it either — `setControlValue` discards the promise Obsidian hands
+ * it, and `queueSettingsWrite` swallows only on its own tail.
+ *
+ * All three halves are asserted, because each alone passes against a different wrong build:
+ * the session's own settings (an apply-first build flips them), the log line (a build that
+ * ordered correctly and said nothing leaves the user guessing), and the notice (a build that
+ * logged and never announced reaches a developer console and nobody else).
+ */
+describe('a settings write that cannot reach data.json', () => {
+	beforeEach(() => {
+		resetRecorder();
+		Notice.shown.length = 0;
+	});
+
+	it('leaves the session on the value the file still holds, and says so', async () => {
+		const { plugin } = await loadedPlugin(null);
+		plugin.saveData = (): Promise<void> => Promise.reject(new Error('data.json is read-only'));
+
+		await plugin.saveSettings({ units: 'imperial', projectFolder: 'Somewhere Else' });
+
+		expect(plugin.root.settings).toEqual(DEFAULT_SETTINGS);
+		expect(lines.filter((line) => line.event === 'settings.save-failed')).toHaveLength(1);
+		expect(Notice.shown).toEqual([t('en', 'vault.unexpected-failure')]);
 	});
 });
 
@@ -305,6 +343,12 @@ describe('moving the library', () => {
 		// `update()` call the pane keeps showing the folder the catalogue has just left.
 		expect(currentFolderRow(tab.settingItems)?.desc).toContain('Shared/Catalogue');
 		expect(currentFolderRow(tab.getSettingDefinitions())?.desc).toContain('Shared/Catalogue');
+		// G8: the SESSION is left usable, which is the property any rebuild economy has to keep.
+		// `persistLibraryFolder` swaps in a composition root whose index is a NEW, EMPTY object —
+		// the migration's own step-5 rebuild filled the OUTGOING root's — so an `applySettings`
+		// that skipped its rebuild would leave the plugin reading a catalogue of nothing until
+		// the next reload, with every gate green.
+		expect(plugin.root.persistence?.index.getIdsByType('renovation-asset')).toHaveLength(1);
 	});
 
 	/**
@@ -534,9 +578,35 @@ describe('moving the library', () => {
 	it('refuses to persist a library folder when the settings were never recovered', async () => {
 		const { plugin } = await loadedPlugin(null, new Error('unreadable'));
 
-		await plugin.persistLibraryFolder('Shared/Catalogue');
+		await expect(plugin.persistLibraryFolder('Shared/Catalogue')).resolves.toBe('unrecovered');
 
 		expect(plugin.saved).toEqual([]);
 		expect(plugin.root.settings).toBeNull();
+	});
+
+	/**
+	 * N4's other arm, at the door that produces it: the write LANDED and the swap threw.
+	 *
+	 * It must RESOLVE rather than reject, and it must say which side failed — a rejection here
+	 * would be indistinguishable from a rejected write, which is the state the migration then
+	 * describes with the opposite sentence. Both halves are asserted, because a build that
+	 * reported the outcome and swallowed the throw silently would satisfy the first alone.
+	 *
+	 * The throw is planted at `disposeCascade`, `applySettings`'s own first line, because it is
+	 * the one step there with no catch of its own: `startPersistence` already reports its own
+	 * faults and `rebindOpenViews` walks an empty workspace here.
+	 */
+	it('says the write landed and the swap did not, rather than rejecting', async () => {
+		resetRecorder();
+		const { plugin } = await loadedPlugin(null);
+		const persistence = plugin.root.persistence as NonNullable<typeof plugin.root.persistence>;
+		vi.spyOn(persistence.changeAdapter, 'flush').mockImplementation(() => {
+			throw new Error('the outgoing adapter is wedged');
+		});
+
+		await expect(plugin.persistLibraryFolder('Shared/Catalogue')).resolves.toBe('apply-failed');
+
+		expect(plugin.saved).toEqual([{ ...DEFAULT_SETTINGS, libraryFolder: 'Shared/Catalogue' }]);
+		expect(lines.filter((line) => line.event === 'settings.library-apply-failed')).toHaveLength(1);
 	});
 });

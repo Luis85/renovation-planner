@@ -5,7 +5,7 @@ order: 30
 status: ""
 started: ""
 finished: ""
-horizon: Later
+horizon: "V1"
 start: ""
 due: ""
 risk: ""

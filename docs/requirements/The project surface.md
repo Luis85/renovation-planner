@@ -99,6 +99,13 @@ when one of them closes:
 - [[Continue when the last plan is unavailable]] — a failed read and a deleted plan answer the same
   sentinel, so a transient fault reads as a deletion.
 
+Item by item, that reconciliation is
+[`reviews/2026-09-05-design-package-adoption.md`](../reviews/2026-09-05-design-package-adoption.md).
+Two of the package's ten are not listed above and are not this note's: its device-scope item became
+[[Bound the mobile surface to what it can actually do]] under [[Release hardening]], because a
+narrow leaf is a width and mobile is a platform; and its guidance panel is a design proposal rather
+than a gap.
+
 One further proposal is a **change** rather than a gap and is held as a decision instead:
 [[A field edit commits on blur, and two design packages ask for an explicit Apply]], which governs
 the price rows here and the asset library's definition fields at once.

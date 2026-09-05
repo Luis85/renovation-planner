@@ -57,6 +57,9 @@ consequences of that same decision, and one — Bases access — is the definiti
 The package's F01–F05 groups are its own planning aids and are deliberately not adopted as
 Features here: the four beneath this epic already carry the same ground, and a second set would
 give one body of work two parents.
+Item by item, that reconciliation is
+[`reviews/2026-09-05-design-package-adoption.md`](../reviews/2026-09-05-design-package-adoption.md),
+which is where a reader holding the package traces any `PBI-nn` to its disposition.
 
 ## Definition of done
 

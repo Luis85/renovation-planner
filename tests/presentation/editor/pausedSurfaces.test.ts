@@ -95,12 +95,22 @@ describe('write controls while the floor is stale', () => {
 		}
 	});
 
+	/**
+	 * The dialog-null assertion alone cannot discriminate `onDeleteZone`'s own guard: with
+	 * this fixture's empty referent list, `deleteZoneWithReferences` never opens a dialog
+	 * either way — a zero count dispatches the ABSENT-resolution form straight through, per
+	 * that module's own docblock — so a dropped guard would leave `current` at `null` too.
+	 * The spy asks the question the dialog check cannot: `runtime.deleteZone` is the first
+	 * thing the guard stands in front of, and "not called" is true only while the guard fires.
+	 */
 	it('Delete while paused opens no dialog', async () => {
 		const harness = await stalePane(true);
+		const deleteZone = vi.spyOn(runtimeOf(harness), 'deleteZone');
 
 		await harness.wrapper.find('.rp-editor-inspector-delete').trigger('click');
 		await settle();
 
+		expect(deleteZone).not.toHaveBeenCalled();
 		expect(useDialogStore(harness.pinia).current).toBeNull();
 	});
 
@@ -212,28 +222,64 @@ describe('write controls while the floor is stale', () => {
 		await assignButton.trigger('click');
 		await settle();
 
-		// An override, set BEFORE going stale, so Reset while paused has something to
-		// discard if its guard is ever dropped.
+		// Overrides on BOTH fields, set BEFORE going stale, so Reset while paused has
+		// something to discard if either guard is ever dropped — `resetCost` takes the
+		// short-circuit "nothing to reset" branch (a draft discard, no dispatch at all) when
+		// there is no override, which would make ITS OWN guard untestable by a spy on the
+		// commit door: nothing reaches that door either way without one.
 		const qtyInput = r.harness.wrapper.find('input[data-field="quantity"]');
 		await qtyInput.setValue('7');
 		await qtyInput.trigger('blur');
+		const costInput = r.harness.wrapper.find('input[data-field="cost"]');
+		await costInput.setValue('99.99');
+		await costInput.trigger('blur');
 		await settle();
 		expect(r.harness.wrapper.text()).toContain('Overridden');
 		const before = expectOk(await r.requirementsRepo.listByZone('zone-a' as never));
 
+		// `withStaleGate` (design spec §2.2, wired well below this row into
+		// `wrappedDispatcher`) would refuse any of these dispatches on its own, so the OUTCOME
+		// alone (revision unchanged, badge still reading Overridden) cannot tell
+		// `assignSelected`'s/`resetQuantity`'s/`resetCost`'s OWN early returns apart from that
+		// deeper gate. The spies can: `commitEdit` is the first thing `assignSelected` calls,
+		// `commitField` the first thing `reset()` calls once it actually decides to commit —
+		// each asserted right after ITS OWN click, so a dropped guard reddens at the specific
+		// arm it used to guard rather than at one shared, later assertion.
+		//
+		// Installed BEFORE `stale = true`, and that ordering is load-bearing: `runtime` is a
+		// plain object, never `reactive()`, so `vi.spyOn` replacing `commitField`/`commitEdit`
+		// on it is invisible to Vue's own change detection. `RequirementRow` receives `commit`
+		// as a PROP (`:commit="runtime.commitField"`), which Vue only re-evaluates and re-patches
+		// on the CHILD when the PARENT re-renders — so a spy installed AFTER the one render this
+		// stale flip causes would sit on the object while the mounted row keeps calling the OLD
+		// reference it was already handed, and every assertion below would pass whether or not
+		// the guard fired. `commitEdit` has no such prop hop (`assignSelected` reads
+		// `runtime.commitEdit` from its own closure at call time), but both are installed here
+		// together rather than splitting the reasoning across two places.
+		const runtime = runtimeOf(r.harness);
+		const commitEdit = vi.spyOn(runtime, 'commitEdit');
+		const commitField = vi.spyOn(runtime, 'commitField');
+
 		useProjectStore(r.harness.pinia).stale = true;
 		await settle();
 
-		// Neither writes: a second Assign while paused creates no second requirement, and
-		// Reset while paused leaves the override in place. `withStaleGate` (design spec §2.2,
-		// wired into `wrappedDispatcher` well below this row) refuses either dispatch on its
-		// own, so this asserts the OUTCOME two mechanisms both protect rather than
-		// discriminating `assignSelected`'s and `resetQuantity`'s OWN early returns from that
-		// deeper gate — the guards here exist to make the click a no-op rather than a refused
-		// round-trip, which is what the mutation checks in the task report measure instead.
+		// The first successful Assign already reset the picker to '', so without RE-selecting
+		// here the click below would return at `assignSelected`'s PRE-EXISTING empty-picker
+		// guard regardless of `writesBlocked` — proving nothing about the guard under test.
+		await select.setValue(areaAsset.entity.id);
+		await settle();
 		await assignButton.trigger('click');
+		await settle();
+		expect(commitEdit).not.toHaveBeenCalled();
+
 		await r.harness.wrapper.find('.rp-requirement-reset-quantity').trigger('click');
 		await settle();
+		expect(commitField).not.toHaveBeenCalled();
+
+		await r.harness.wrapper.find('.rp-requirement-reset-cost').trigger('click');
+		await settle();
+		expect(commitField).not.toHaveBeenCalled();
+
 		const after = expectOk(await r.requirementsRepo.listByZone('zone-a' as never));
 		expect(after).toHaveLength(1);
 		expect(after[0].version.revision).toBe(before[0].version.revision);

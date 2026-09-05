@@ -21,6 +21,7 @@ import { createZoneId } from '../../../../src/domain/zone/ZoneId';
 import { projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { ObsidianAssetPriceOverrideRepository } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetPriceOverrideRepository';
 import { makeOverride } from '../../../contracts/asset-price-override-repository.contract';
+import { leftWritesBehind } from '../../../../src/application/commands/DispatchOutcome';
 
 /**
  * The failure branches of every repository method — each one a diagnostic a user's
@@ -499,6 +500,65 @@ describe('zone repository failure branches', () => {
 
 		expect(expectErr(result).code).toBe('zone.sidecar-remove-failed');
 		expect(stack.logged.some((line) => line.event === 'zone.delete-compensation-failed')).toBe(true);
+	});
+
+	/**
+	 * `compensateFailedSidecarWrite`'s INSERT arm: the sidecar write fails, the just-created
+	 * note is trashed to compensate, and the trash itself refuses. Before this pair, both
+	 * `zone.sidecar-insert-failed` and `zone.sidecar-update-failed` said "the note was
+	 * compensated" whether or not that was true — this is the one case where it was not, and
+	 * the two cases below are the positive/negative control for the STAMP `leftWritesBehind`
+	 * reads, not merely for the code.
+	 *
+	 * The UPDATE twin (`zone.sidecar-update-uncompensated`) is not driven here, for the reason
+	 * `ObsidianZoneRepository.compensateFailedSidecarWrite`'s own docblock gives: an update's
+	 * own frontmatter write and the restore that follows both write the note through `modify`,
+	 * so a `FakeVault.failOnce` armed on that path fires on the FIRST of the two — the update's
+	 * own write, before the sidecar mutation this scenario needs ever runs — and never reaches
+	 * the restore. That code was dropped rather than shipped behind a guard nothing can drive
+	 * red; the update path keeps its pre-existing behaviour.
+	 */
+	it('an INSERT whose sidecar write fails AND whose note trash refuses reports itself as uncompensated', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		const planId = createPlanId();
+		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId, name: 'Ground' }), 'absent'));
+		const zone = makeZoneEntity({ planId, projectId, name: 'Kitchen' });
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+		const notePath = `${folder}/Zones/Kitchen.md`;
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
+		stack.vault.failures.add(`delete:${notePath}`);
+
+		const saved = await stack.zones.save(zone, 'absent');
+		expect(saved.ok).toBe(false);
+		if (saved.ok) return;
+		expect(saved.error.code).toBe('zone.sidecar-insert-uncompensated');
+		expect(leftWritesBehind(saved.error)).toBe(true);
+		expect(saved.error.message).not.toContain('was compensated');
+		// The note is still on disk: the whole reason the code has to say so.
+		expect(stack.vault.getAbstractFileByPath(notePath)).not.toBeNull();
+	});
+
+	it('an INSERT whose sidecar write fails but whose note trash succeeds keeps the compensated code and no stamp', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		const planId = createPlanId();
+		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId, name: 'Ground' }), 'absent'));
+		const zone = makeZoneEntity({ planId, projectId, name: 'Kitchen' });
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+		const notePath = `${folder}/Zones/Kitchen.md`;
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
+
+		const saved = await stack.zones.save(zone, 'absent');
+		expect(saved.ok).toBe(false);
+		if (saved.ok) return;
+		expect(saved.error.code).toBe('zone.sidecar-insert-failed');
+		expect(leftWritesBehind(saved.error)).toBe(false);
+		expect(stack.vault.getAbstractFileByPath(notePath)).toBeNull();
 	});
 });
 

@@ -169,6 +169,24 @@ class FakeVault {
 	failedOps: string[] = [];
 
 	/**
+	 * One-shot injected failures, keyed like `failures` and DELETED on first hit. Exists for
+	 * the update-path compensation: step 3 of a zone update and the restore that follows both
+	 * write the note through `modify`, so a permanent failure cannot reach the second without
+	 * having already failed the first. `failOnce` fails the first `modify` and lets the restore
+	 * through — or, added twice with `failures`, fails both.
+	 *
+	 * That was the intent it was written for; reading `ObsidianZoneRepository.saveQueued`
+	 * shows why it cannot deliver it for THAT case. Step 3's own write and the restore share
+	 * the identical key (`modify:<notePath>`), so a one-shot failure on that key fires on the
+	 * FIRST of the two — step 3's write, before the sidecar mutation the scenario needs ever
+	 * runs — never on the restore. `errorPaths.test.ts`'s zone describe block records that
+	 * this arm is therefore left untested rather than shipped behind an unreachable guard.
+	 * `failOnce` is still a general one-shot mechanism for a case where the two operations it
+	 * distinguishes DO differ in path or op name.
+	 */
+	readonly failOnce = new Set<string>();
+
+	/**
 	 * Every operation this fake performed, in order, as `<op>:<path>` — the instrument for
 	 * asserting how MANY vault reads a repository call costs.
 	 *
@@ -407,9 +425,11 @@ class FakeVault {
 	}
 
 	private op(name: string, path: string): void {
-		this.operations.push(`${name}:${path}`);
-		if (this.failures.has(`${name}:${path}`)) {
-			this.failedOps.push(`${name}:${path}`);
+		const key = `${name}:${path}`;
+		this.operations.push(key);
+		const once = this.failOnce.delete(key);
+		if (once || this.failures.has(key)) {
+			this.failedOps.push(key);
 			throw new Error(`Injected failure: ${name} ${path}`);
 		}
 	}

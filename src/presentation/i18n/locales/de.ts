@@ -173,6 +173,10 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Diese beiden Punkte und dieser Abstand ergeben keinen brauchbaren Maßstab. Wählen Sie zwei weiter entfernte Punkte, oder prüfen Sie den eingegebenen Abstand.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',
+	// The English table's neighbouring comment carries the whole account of why there is no
+	// update twin.
+	'zone.sidecar-insert-uncompensated':
+		'Ein Raum wurde geschrieben, aber seine Form konnte nicht gespeichert werden, und die Notiz konnte nicht wieder entfernt werden. Prüfen Sie die Notiz des Raums, bevor Sie weiter bearbeiten.',
 	'error.asset.unit-cost.unparseable': 'Geben Sie einen Betrag ein, zum Beispiel 34.95.',
 	'error.asset.waste.unparseable': 'Geben Sie einen Bruchteil zwischen 0 und 1 ein, zum Beispiel 0.08.',
 	'error.suffix.schema-version-unsupported':

@@ -534,6 +534,21 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	// second of the two.
 	['calibration.coincident-points', 'Calculation', 'error.category.calculation', 'domain/plan/Calibration.ts'],
 	['calibration.degenerate-scale', 'Calculation', 'error.category.calculation', 'domain/plan/Calibration.ts'],
+	// A failed compensation stops calling itself compensated (the trust-path increment). ONE
+	// row rather than the insert/update pair a first reading would expect:
+	// `zone.sidecar-update-uncompensated` was never minted. `ObsidianZoneRepository`'s own
+	// docblock on `compensateFailedSidecarWrite` says why — the update path's own frontmatter
+	// write and its restore write the SAME note path through `modify`, so `FakeVault.failOnce`
+	// cannot isolate the second from the first, and an arm nothing can drive red is not shipped
+	// here. The update path keeps the pre-existing `zone.sidecar-update-failed`, unstamped and
+	// still resolving the generic `error.category.persistence` sentence exactly as before this
+	// increment — a known residual, not a row this table is missing.
+	[
+		'zone.sidecar-insert-uncompensated',
+		'Persistence',
+		'error.category.persistence',
+		'infrastructure/obsidian/repositories/ObsidianZoneRepository.ts',
+	],
 ];
 
 // Named for the shape rather than for a slice: the table below has carried codes from slices

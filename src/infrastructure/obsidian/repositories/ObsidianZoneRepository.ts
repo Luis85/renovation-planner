@@ -40,6 +40,7 @@ import { KeyedQueues } from './KeyedQueues';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import type { PlanGeometryStore } from './PlanGeometryStore';
+import { markUncompensated } from '../../../application/commands/DispatchOutcome';
 
 /**
  * The Obsidian-backed ZoneRepository (SDD §42). A Zone's state spans TWO files — its
@@ -276,6 +277,26 @@ export class ObsidianZoneRepository {
 	 * Step 5: compensate according to what step 2 recorded — restore the snapshot for an
 	 * update, DELETE the created note for an insert — then fail honestly. Runs INSIDE the
 	 * entity queue (its caller holds it), so a restore cannot race the next writer.
+	 *
+	 * **The two arms answer a DIFFERENT question once compensation itself fails, and that is
+	 * why the insert one gets its own code and stamp.** `zone.sidecar-insert-failed` and
+	 * `zone.sidecar-update-failed` both said "the note was compensated" unconditionally — true
+	 * when `compensated.ok`, and a lie the one time it matters most: the note is on disk in a
+	 * state the sidecar does not match, and the caller was told everything was put back.
+	 * `zone.sidecar-insert-uncompensated` is the honest INSERT answer, stamped with
+	 * `markUncompensated` (`DispatchOutcome.ts`) so `affectsSaveState` and the save-state strip
+	 * read it as a write left standing rather than inferring from the code.
+	 *
+	 * **The UPDATE twin is deliberately NOT shipped, and the reason is a property of the fake,
+	 * not of the design.** Step 3's own frontmatter write and this restore both write the SAME
+	 * note path through `modify`, so `FakeVault.failOnce` — keyed `<op>:<path>` — fires on the
+	 * FIRST of the two (step 3's own write, before the sidecar mutation this scenario needs
+	 * ever runs) and can never isolate the second. A permanent failure on that key fails both
+	 * writes identically, which reaches neither this method nor the scenario. So the update arm
+	 * keeps its ORIGINAL behaviour below — `zone.sidecar-update-failed`, unstamped, "was
+	 * compensated" even when the restore refused — as a known, pre-existing residual rather
+	 * than a new arm shipped with no test to hold it red. `errorPaths.test.ts`'s zone describe
+	 * block records the same limitation for `delete`'s sibling compensation.
 	 */
 	private async compensateFailedSidecarWrite(
 		zoneId: ZoneId,
@@ -284,18 +305,39 @@ export class ObsidianZoneRepository {
 		snapshotText: string,
 		cause: RepositoryError,
 	): Promise<Result<Loaded<Zone>, RepositoryError>> {
-		const compensated = wasUpdate
-			? await restoreNoteText(this.deps.vault, 'zone', notePath, snapshotText)
-			: await this.deleteCreatedNote(notePath);
+		if (wasUpdate) {
+			const compensated = await restoreNoteText(this.deps.vault, 'zone', notePath, snapshotText);
+			if (!compensated.ok) {
+				this.deps.logger.error('zone.update-compensation-failed', { id: zoneId, cause: compensated.error });
+			}
+			return err(
+				persistenceError(
+					'zone.sidecar-update-failed',
+					`The geometry entry for zone ${zoneId} could not be written; the note was compensated.`,
+					cause,
+				),
+			);
+		}
+
+		const compensated = await this.deleteCreatedNote(notePath);
 		if (!compensated.ok) {
-			this.deps.logger.error(wasUpdate ? 'zone.update-compensation-failed' : 'zone.insert-compensation-failed', {
-				id: zoneId,
-				cause: compensated.error,
-			});
+			this.deps.logger.error('zone.insert-compensation-failed', { id: zoneId, cause: compensated.error });
+			// The note is still on disk and the sidecar does not know about it, and nothing
+			// here could remove it either. A message that tells the truth, unlike the one
+			// below: THIS time the note was NOT compensated.
+			return err(
+				markUncompensated(
+					persistenceError(
+						'zone.sidecar-insert-uncompensated',
+						`The geometry entry for zone ${zoneId} could not be written, and the note could NOT be removed again; inspect it by hand.`,
+						cause,
+					),
+				),
+			);
 		}
 		return err(
 			persistenceError(
-				wasUpdate ? 'zone.sidecar-update-failed' : 'zone.sidecar-insert-failed',
+				'zone.sidecar-insert-failed',
 				`The geometry entry for zone ${zoneId} could not be written; the note was compensated.`,
 				cause,
 			),

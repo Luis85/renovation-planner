@@ -63,7 +63,7 @@ deals with.
 
 [`requirements/Prototype a screen in the harness before it is built.md`](../requirements/Prototype%20a%20screen%20in%20the%20harness%20before%20it%20is%20built.md) ·
 [`deliverables/Design System.md`](../deliverables/Design%20System.md) ·
-[`user-experience/concepts/README.md`](../user-experience/concepts/README.md).
+[`user-experience/concepts/README.md`](docs/user-experience/archive/concepts/README.md).
 
 **Checked by** — the acceptance criteria of
 [[Prototype a screen in the harness before it is built]], which is BUILT. `src/prototypes/` holds

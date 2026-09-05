@@ -20,11 +20,11 @@ CSS and it changes nothing a CSS rule can see.
 
 ## Specimen
 
-![Layer toggle, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/layer-toggle.png)
+![Layer toggle, and the states it owes, in Obsidian's default light and dark](layer-toggle.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 

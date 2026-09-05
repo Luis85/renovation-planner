@@ -21,11 +21,11 @@ depend on for the channel they cannot draw.
 
 ## Specimen
 
-![Status bar, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/status-bar.png)
+![Status bar, and the states it owes, in Obsidian's default light and dark](status-bar.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 

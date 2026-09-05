@@ -51,3 +51,7 @@ The English edition preserves IDs, dependencies, scope, and acceptance intent. E
 - [Screen and interaction specifications with images](docs/user-experience/asset-library-delivery/specification/README.md)
 
 All files are repository-ready Markdown. This package creates no external issues and makes no repository changes.
+
+## User journeys
+
+The [standalone user journey catalogue](../user-journeys/README.md) extracts the asset library flows with frontmatter, source references, and explicit concept status.

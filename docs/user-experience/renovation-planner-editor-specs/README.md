@@ -83,3 +83,7 @@ Renovation states must additionally use line weight, dash patterns, markers, lab
 - Engineering uses the component library as the shared UI decomposition.
 - Requirements engineering can convert each use case and acceptance criterion into PBIs and tests.
 - The implementation plan sequences delivery without requiring a complete domain expansion upfront.
+
+## User journeys
+
+The [standalone user journey catalogue](../user-journeys/README.md) extracts the editor flows with frontmatter, source references, and explicit concept status.

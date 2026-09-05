@@ -16,11 +16,12 @@ import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto
  */
 type ProjectStoreStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'failed';
 
-/** The three refs `handleFailedRead` reads and writes, bundled to stay under `max-params`. */
+/** The four refs `handleFailedRead` reads and writes, bundled to stay under `max-params`. */
 interface HydrationFailureRefs {
 	readonly status: Ref<ProjectStoreStatus>;
 	readonly error: Ref<RepositoryError | null>;
 	readonly stale: Ref<boolean>;
+	readonly retriesFailed: Ref<number>;
 }
 
 /**
@@ -38,7 +39,10 @@ function handleFailedRead(
 	fail: (cause: RepositoryError) => void,
 ): void {
 	if (keepOnFailure && refs.status.value === 'ready') {
-		// Real content is still on screen and the vault has moved past it.
+		// Real content is still on screen and the vault has moved past it. The failure that
+		// SET `stale` is not a retry — only a keep-on-failure read that fails while the canvas
+		// was ALREADY stale counts, since that is the one asking "has the vault settled yet".
+		if (refs.stale.value) refs.retriesFailed.value += 1;
 		refs.error.value = cause;
 		refs.stale.value = true;
 		return;
@@ -124,6 +128,19 @@ export const useProjectStore = defineStore('project', () => {
 	 */
 	const stale = ref(false);
 	/**
+	 * Is a hydration in flight for the LATEST ticket? Set on a hydrate's first line, cleared
+	 * only when the read that holds the current ticket settles — a superseded read leaves it
+	 * alone, because the canvas is still waiting on the later one. The strip's Try again is
+	 * `aria-busy` on this and nothing else; a per-caller busy flag would be a second answer.
+	 */
+	const refreshing = ref(false);
+	/**
+	 * How many keep-on-failure reads have failed since the canvas went stale. The failure that
+	 * SET `stale` is not a retry, so it does not count; the read that clears `stale` resets it.
+	 * `PersistentWarningStrip` swaps the stale row's message on the first failed retry.
+	 */
+	const retriesFailed = ref(0);
+	/**
 	 * The ticket every `hydrate` call takes before its first await, so a slower earlier
 	 * read cannot land on top of a faster later one.
 	 *
@@ -184,8 +201,23 @@ export const useProjectStore = defineStore('project', () => {
 	): Promise<void> {
 		const request = ++latestHydration;
 		const superseded = (): boolean => request !== latestHydration;
+		refreshing.value = true;
+		/**
+		 * Clears `refreshing` for every non-superseded return past this point — failure,
+		 * missing or success alike. A superseded read's OWN `if (superseded()) return;` check
+		 * (right after each await, below) never calls this at all, which is what leaves the
+		 * flag alone for a read that is no longer the latest — so by the time any call site
+		 * below reaches `done()`, that same check has already confirmed this read still holds
+		 * the ticket, synchronously, with no `await` in between. A `superseded()` re-check
+		 * inside `done()` itself would therefore guard a branch no caller can ever reach: every
+		 * such guard was measured against real coverage and found to have a permanently-zero
+		 * arm, so it is not repeated here.
+		 */
+		const done = (): void => {
+			refreshing.value = false;
+		};
 		const keepOnFailure = options?.keepPreviousOnFailure === true;
-		const failureRefs: HydrationFailureRefs = { status, error, stale };
+		const failureRefs: HydrationFailureRefs = { status, error, stale, retriesFailed };
 		const missingRefs: HydrationMissingRefs = { project, plan, zones, unreadableZones, status, stale };
 		// A RE-hydration does not blank the editor. The root mounts its canvas on `ready`, so
 		// dropping to `loading` here would unmount the Konva stage and build a fresh one on
@@ -204,10 +236,12 @@ export const useProjectStore = defineStore('project', () => {
 		const foundPlan = await queries.getPlan(planId);
 		if (superseded()) return;
 		if (isErr(foundPlan)) {
+			done();
 			handleFailedRead(foundPlan.error, keepOnFailure, failureRefs, fail);
 			return;
 		}
 		if (foundPlan.value === null) {
+			done();
 			markMissing(missingRefs);
 			return;
 		}
@@ -215,10 +249,12 @@ export const useProjectStore = defineStore('project', () => {
 		const foundProject = await queries.getProject(foundPlan.value.projectId);
 		if (superseded()) return;
 		if (isErr(foundProject)) {
+			done();
 			handleFailedRead(foundProject.error, keepOnFailure, failureRefs, fail);
 			return;
 		}
 		if (foundProject.value === null) {
+			done();
 			markMissing(missingRefs);
 			return;
 		}
@@ -226,10 +262,12 @@ export const useProjectStore = defineStore('project', () => {
 		const foundZones = await queries.findZonesByPlan(planId);
 		if (superseded()) return;
 		if (isErr(foundZones)) {
+			done();
 			handleFailedRead(foundZones.error, keepOnFailure, failureRefs, fail);
 			return;
 		}
 
+		done();
 		project.value = foundProject.value;
 		plan.value = foundPlan.value;
 		zones.value = new Map(foundZones.value.zones.map((zone) => [zone.id, zone]));
@@ -239,6 +277,7 @@ export const useProjectStore = defineStore('project', () => {
 		// vault just now. Every hydration path ends here on success, whatever its options, which
 		// is what makes the lifetime a property of the store rather than of a caller.
 		stale.value = false;
+		retriesFailed.value = 0;
 	}
 
 	/**
@@ -293,6 +332,10 @@ export const useProjectStore = defineStore('project', () => {
 		error.value = null;
 		stale.value = false;
 		status.value = 'idle';
+		// A hydration left in flight above is now permanently superseded, so its own `done()`
+		// will never fire — this is the only clearer it has left.
+		refreshing.value = false;
+		retriesFailed.value = 0;
 	}
 
 	/**
@@ -309,6 +352,8 @@ export const useProjectStore = defineStore('project', () => {
 		status,
 		error,
 		stale,
+		refreshing,
+		retriesFailed,
 		emptyStateKey,
 		hydrate,
 		reset,

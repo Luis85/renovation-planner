@@ -21,6 +21,7 @@ import {
 } from '../../../src/presentation/editor/viewport/Viewport';
 import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_PROJECT, FIXTURE_ZONES } from '../../helpers/planFixtures';
+import { defer } from '../../helpers/async';
 
 const READ_FAILED = { category: 'Persistence', code: 'plan.read-failed', message: 'boom' } as const;
 
@@ -365,6 +366,86 @@ describe('ProjectStore hydration', () => {
 
 		expect(store.status).toBe('missing');
 		expect(store.plan).toBeNull();
+		expect(store.stale).toBe(false);
+	});
+});
+
+describe('refreshing and failed retries', () => {
+	it('is refreshing from the first line of a hydrate until its read settles', async () => {
+		const store = useProjectStore();
+		const gate = defer<Awaited<ReturnType<PlanEditorQueryServices['getPlan']>>>();
+		const reading = { ...fakeQueries(FIXTURE_PLAN), getPlan: () => gate.promise };
+
+		const run = store.hydrate(reading, FIXTURE_PLAN.id);
+		expect(store.refreshing).toBe(true);
+
+		gate.resolve(ok(FIXTURE_PLAN));
+		await run;
+
+		expect(store.refreshing).toBe(false);
+	});
+
+	it('stays refreshing while a LATER read is still open, even after an earlier one settles', async () => {
+		const store = useProjectStore();
+		const first = defer<Awaited<ReturnType<PlanEditorQueryServices['getPlan']>>>();
+		const second = defer<Awaited<ReturnType<PlanEditorQueryServices['getPlan']>>>();
+		let call = 0;
+		const reading = {
+			...fakeQueries(FIXTURE_PLAN),
+			getPlan: () => (++call === 1 ? first.promise : second.promise),
+		};
+
+		const a = store.hydrate(reading, FIXTURE_PLAN.id);
+		const b = store.hydrate(reading, FIXTURE_PLAN.id);
+
+		first.resolve(ok(FIXTURE_PLAN));
+		await a;
+		// The superseded read must not clear it: `b` still holds the latest ticket.
+		expect(store.refreshing).toBe(true);
+
+		second.resolve(ok(FIXTURE_PLAN));
+		await b;
+		expect(store.refreshing).toBe(false);
+	});
+
+	it('counts a failed RETRY, not the failure that made the canvas stale', async () => {
+		const store = useProjectStore();
+		let call = 0;
+		const reading = {
+			...fakeQueries(FIXTURE_PLAN),
+			getPlan: () => Promise.resolve(++call === 1 ? ok(FIXTURE_PLAN) : err(READ_FAILED)),
+		};
+
+		await store.hydrate(reading, FIXTURE_PLAN.id);
+		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+		expect(store.stale).toBe(true);
+		expect(store.retriesFailed).toBe(0);
+
+		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+		expect(store.retriesFailed).toBe(1);
+
+		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+		expect(store.retriesFailed).toBe(2);
+	});
+
+	it('resets the failed-retry count on the read that succeeds', async () => {
+		const store = useProjectStore();
+		const outcomes = [ok(FIXTURE_PLAN), err(READ_FAILED), err(READ_FAILED), ok(FIXTURE_PLAN)];
+		let call = 0;
+		const reading = { ...fakeQueries(FIXTURE_PLAN), getPlan: () => Promise.resolve(outcomes[call++]) };
+
+		await store.hydrate(reading, FIXTURE_PLAN.id);
+		expect(store.stale).toBe(false);
+
+		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+		expect(store.stale).toBe(true);
+		expect(store.retriesFailed).toBe(0);
+
+		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+		expect(store.retriesFailed).toBe(1);
+
+		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+		expect(store.retriesFailed).toBe(0);
 		expect(store.stale).toBe(false);
 	});
 });

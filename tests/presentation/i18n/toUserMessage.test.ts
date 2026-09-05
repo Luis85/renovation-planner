@@ -534,17 +534,20 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	// second of the two.
 	['calibration.coincident-points', 'Calculation', 'error.category.calculation', 'domain/plan/Calibration.ts'],
 	['calibration.degenerate-scale', 'Calculation', 'error.category.calculation', 'domain/plan/Calibration.ts'],
-	// A failed compensation stops calling itself compensated (the trust-path increment). ONE
-	// row rather than the insert/update pair a first reading would expect:
-	// `zone.sidecar-update-uncompensated` was never minted. `ObsidianZoneRepository`'s own
-	// docblock on `compensateFailedSidecarWrite` says why — the update path's own frontmatter
-	// write and its restore write the SAME note path through `modify`, so `FakeVault.failOnce`
-	// cannot isolate the second from the first, and an arm nothing can drive red is not shipped
-	// here. The update path keeps the pre-existing `zone.sidecar-update-failed`, unstamped and
-	// still resolving the generic `error.category.persistence` sentence exactly as before this
-	// increment — a known residual, not a row this table is missing.
+	// A failed compensation stops calling itself compensated (the trust-path increment). Both
+	// arms, unlike a first draft of this branch that dropped the update one as unreachable
+	// through `FakeVault`'s own failure mechanism at the time — `FakeVault.failOnHit` (a
+	// counted failure targeting one occurrence of a key) is what let a test isolate the
+	// restore from the update's own write, both of which write the SAME note path through
+	// `modify`.
 	[
 		'zone.sidecar-insert-uncompensated',
+		'Persistence',
+		'error.category.persistence',
+		'infrastructure/obsidian/repositories/ObsidianZoneRepository.ts',
+	],
+	[
+		'zone.sidecar-update-uncompensated',
 		'Persistence',
 		'error.category.persistence',
 		'infrastructure/obsidian/repositories/ObsidianZoneRepository.ts',

@@ -510,13 +510,10 @@ describe('zone repository failure branches', () => {
 	 * the two cases below are the positive/negative control for the STAMP `leftWritesBehind`
 	 * reads, not merely for the code.
 	 *
-	 * The UPDATE twin (`zone.sidecar-update-uncompensated`) is not driven here, for the reason
-	 * `ObsidianZoneRepository.compensateFailedSidecarWrite`'s own docblock gives: an update's
-	 * own frontmatter write and the restore that follows both write the note through `modify`,
-	 * so a `FakeVault.failOnce` armed on that path fires on the FIRST of the two — the update's
-	 * own write, before the sidecar mutation this scenario needs ever runs — and never reaches
-	 * the restore. That code was dropped rather than shipped behind a guard nothing can drive
-	 * red; the update path keeps its pre-existing behaviour.
+	 * The UPDATE twin follows this pair, driven with `FakeVault.failOnHit` rather than
+	 * `failures`/a one-shot: an update's own frontmatter write and its restore both write the
+	 * note through `modify`, so only a failure counted to the SECOND occurrence of that key
+	 * reaches the restore without also failing the write that has to succeed first.
 	 */
 	it('an INSERT whose sidecar write fails AND whose note trash refuses reports itself as uncompensated', async () => {
 		const stack = createRepositoryStack();
@@ -559,6 +556,54 @@ describe('zone repository failure branches', () => {
 		expect(saved.error.code).toBe('zone.sidecar-insert-failed');
 		expect(leftWritesBehind(saved.error)).toBe(false);
 		expect(stack.vault.getAbstractFileByPath(notePath)).toBeNull();
+	});
+
+	/**
+	 * `compensateFailedSidecarWrite`'s UPDATE arm, the twin of the INSERT pair above. Reading
+	 * `saveQueued` confirms `modify:<notePath>` is hit exactly twice on an update, in order,
+	 * with nothing else calling `op()` for that key in between: step 3's own frontmatter write,
+	 * then (once the sidecar mutate fails) step 5's `restoreNoteText`. `failOnHit.set(key, 2)`
+	 * lets the first through and fails only the second — the restore.
+	 */
+	it('an UPDATE whose sidecar write fails AND whose note restore refuses reports itself as uncompensated', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = createZoneId();
+		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Kitchen' }), 'absent'));
+		const read = expectFound(await stack.zones.getById(zoneId));
+		const notePath = stack.index.getPath(zoneId) ?? '';
+
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
+		stack.vault.failOnHit.set(`modify:${notePath}`, 2);
+
+		const saved = await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Pantry' }), read.version);
+		expect(saved.ok).toBe(false);
+		if (saved.ok) return;
+		expect(saved.error.code).toBe('zone.sidecar-update-uncompensated');
+		expect(leftWritesBehind(saved.error)).toBe(true);
+		expect(saved.error.message).not.toContain('was compensated');
+		// The update's own write landed (hit 1 of `modify:<notePath>`) and only the restore
+		// (hit 2) refused, so the note on disk still carries the failed update's new name.
+		expect(stack.vault.entries.get(notePath) ?? '').toContain('Pantry');
+	});
+
+	it('an UPDATE whose sidecar write fails but whose note restore succeeds keeps the compensated code and no stamp', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = createZoneId();
+		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Kitchen' }), 'absent'));
+		const read = expectFound(await stack.zones.getById(zoneId));
+		const notePath = stack.index.getPath(zoneId) ?? '';
+
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
+
+		const saved = await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Pantry' }), read.version);
+		expect(saved.ok).toBe(false);
+		if (saved.ok) return;
+		expect(saved.error.code).toBe('zone.sidecar-update-failed');
+		expect(leftWritesBehind(saved.error)).toBe(false);
+		// The restore succeeded: the OLD name is back, nothing half-updated.
+		expect(stack.vault.entries.get(notePath) ?? '').toContain('Kitchen');
 	});
 });
 

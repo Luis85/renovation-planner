@@ -158,13 +158,11 @@ export const en = {
 	'error.requirement.quantity.unparseable': 'Enter a number, or reset to the calculated figure.',
 	'error.requirement.cost.unparseable': 'Enter an amount, or reset to the calculated figure.',
 	// A write that landed half-way and could not be put back. Names the manual action, because
-	// the vault is the only thing that knows its own state now. The UPDATE twin
-	// (`zone.sidecar-update-uncompensated`) does not exist: `ObsidianZoneRepository`'s own
-	// docblock says why (`FakeVault.failOnce` cannot isolate the restore from the update's own
-	// write, both sharing one `modify:<path>` key), so that arm keeps the generic
-	// `error.category.persistence` sentence rather than a code with no test to hold it red.
+	// the vault is the only thing that knows its own state now.
 	'zone.sidecar-insert-uncompensated':
 		'A room was written but its shape could not be saved, and the note could not be removed again. Inspect the room’s note before editing further.',
+	'zone.sidecar-update-uncompensated':
+		'A room was changed but its shape could not be saved, and the note could not be restored. Inspect the room’s note before editing further.',
 	// The Asset library inspector's two unconvertible drafts — `moneyOf` and `new Decimal(...)`
 	// both THROW on a malformed literal, so these are `useFieldCommit`'s own `validate` refusals
 	// rather than a command's, and there is no `AppError` for `routeError` to place. Under

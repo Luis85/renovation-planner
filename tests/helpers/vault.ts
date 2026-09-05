@@ -169,22 +169,25 @@ class FakeVault {
 	failedOps: string[] = [];
 
 	/**
-	 * One-shot injected failures, keyed like `failures` and DELETED on first hit. Exists for
-	 * the update-path compensation: step 3 of a zone update and the restore that follows both
-	 * write the note through `modify`, so a permanent failure cannot reach the second without
-	 * having already failed the first. `failOnce` fails the first `modify` and lets the restore
-	 * through — or, added twice with `failures`, fails both.
+	 * A failure targeting one OCCURRENCE of a key, keyed like `failures`: `failOnHit.get(key)`
+	 * names which hit (1-based) of `<op>:<path>` should throw, every other hit passing through.
 	 *
-	 * That was the intent it was written for; reading `ObsidianZoneRepository.saveQueued`
-	 * shows why it cannot deliver it for THAT case. Step 3's own write and the restore share
-	 * the identical key (`modify:<notePath>`), so a one-shot failure on that key fires on the
-	 * FIRST of the two — step 3's write, before the sidecar mutation the scenario needs ever
-	 * runs — never on the restore. `errorPaths.test.ts`'s zone describe block records that
-	 * this arm is therefore left untested rather than shipped behind an unreachable guard.
-	 * `failOnce` is still a general one-shot mechanism for a case where the two operations it
-	 * distinguishes DO differ in path or op name.
+	 * Exists for a case a permanent failure and a plain one-shot cannot reach: TWO DIFFERENT
+	 * writes sharing one key, where only the SECOND must fail. The update-path compensation is
+	 * exactly that — step 3 of a zone update and the restore that follows both write the note
+	 * through `modify`, so `modify:<notePath>` is hit exactly twice, in that order, with
+	 * nothing else calling `op()` for that key in between (the sidecar mutation between them
+	 * writes a DIFFERENT path). `failOnHit.set('modify:<path>', 2)` lets step 3's own write
+	 * through and fails the restore.
+	 *
+	 * A one-shot failure is the degenerate case of this — hit 1, and nothing else — so there is
+	 * one counting mechanism here rather than a plain Set living beside it for an idea the Set
+	 * only half expressed: this replaces an earlier `failOnce: Set<string>` that turned out
+	 * unable to reach the update-path scenario it was written for at all, because "the first
+	 * hit" is never the one that needs to fail.
 	 */
-	readonly failOnce = new Set<string>();
+	readonly failOnHit = new Map<string, number>();
+	private readonly hitCounts = new Map<string, number>();
 
 	/**
 	 * Every operation this fake performed, in order, as `<op>:<path>` — the instrument for
@@ -427,8 +430,9 @@ class FakeVault {
 	private op(name: string, path: string): void {
 		const key = `${name}:${path}`;
 		this.operations.push(key);
-		const once = this.failOnce.delete(key);
-		if (once || this.failures.has(key)) {
+		const hit = (this.hitCounts.get(key) ?? 0) + 1;
+		this.hitCounts.set(key, hit);
+		if (this.failOnHit.get(key) === hit || this.failures.has(key)) {
 			this.failedOps.push(key);
 			throw new Error(`Injected failure: ${name} ${path}`);
 		}

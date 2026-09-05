@@ -29,6 +29,7 @@
 import { computed } from 'vue';
 import type { AssetOutline } from '../../application/queries/ListAssetOutlines';
 import type { Point } from '../../core/geometry/Point';
+import { extentOf } from '../../core/geometry/operations';
 
 /**
  * The task brief's own "Produces" line also named an `ordinal` prop here. It was dropped
@@ -60,12 +61,7 @@ const kind = computed((): MarkKind => {
  * needed: `AssetOutline.extent` already carries the width and depth this fit divides by.
  */
 function minimumOf(points: readonly Point[]): { readonly x: number; readonly y: number } {
-	let minX = Infinity;
-	let minY = Infinity;
-	for (const point of points) {
-		if (point.x < minX) minX = point.x;
-		if (point.y < minY) minY = point.y;
-	}
+	const { minX, minY } = extentOf(points);
 	return { x: minX, y: minY };
 }
 

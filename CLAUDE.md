@@ -4296,6 +4296,14 @@ moved — no schema, no write path, no event. The rules that came out of it:
   passes in a live Obsidian vault"* — which is recorded as **outstanding rather than ticked** under
   a PBI marked Done. An unrun manual case is a plan to find out, not a finding; design slice 21
   already paid for reading one the other way.
+  **And the two TASKS whose whole deliverable is the walk stay ACTIVE under Done parents**, which
+  is the shape to copy rather than the inconsistency it looks like: a task that delivers a RUN is
+  not discharged by delivering the procedure the run follows, however good the procedure is. The
+  first draft of this record closed both of them on the strength of the cases being written and
+  censused — the same reasoning, one level down, that this file already records slice 21 paying
+  for. A parent PBI can still be Done, because its criteria are behavioural claims with named
+  tests; the distinction is between a criterion that is a claim about the code and a task that is
+  a claim about somebody having looked.
 - **The fault a manual case names is part of the case, and two of the obvious ones are WRONG.**
   `docs/tests/cases/Recover from a stale read.md` carries a *fault setup* section rather than one
   recipe, because which READ fails decides what you get. `ProjectStore.hydrate` reads plan, then
@@ -4322,6 +4330,18 @@ moved — no schema, no write path, no event. The rules that came out of it:
   the paused hint is not visible in a narrow leaf while the strip and the save-state label still
   say it: a residual belonging to the Active task *Build full and compact editor status bars*,
   written into the manual case as a step expected to FAIL rather than left to be met cold.
+- **A TEMPLATE has cognitive complexity, and `analyze` is the only step of the gate that sees it.**
+  The paused state gave `RoomInspector.vue` a run of ternaries in its markup — `aria-disabled` as
+  `blocked || …`, `aria-describedby` joining an existing id with the paused one, per control — and
+  the file crossed fallow's threshold of 21. Neither `vue-tsc`, nor `eslint .`, nor the suite has
+  anything to say about it: `max-lines` counts lines and `max-lines-per-function` counts a
+  function's, and a template is neither. It took a FOURTH review round on that task to surface,
+  which is what a check nobody thinks of as a check costs. **Fixed by extracting the conditions
+  into named computeds rather than by suppressing the finding** — the same answer this file's
+  `runtime.ts` budget note reaches from the other side, and the one that leaves the condition
+  readable at a name instead of spelled inline three times. The rule worth carrying: when a
+  cross-cutting state lands on a dozen controls at once, the cost shows up in the markup, and
+  `npm run analyze` is the only instrument pointed at it.
 - **A rule moved out of a stylesheet is a rule some test was reading from that stylesheet, and one
   of them was passing on a COMMENT.** `.rp-visually-hidden` moved to its own partial for its
   second caller; the gate caught one reader immediately, and the grep for the others found a

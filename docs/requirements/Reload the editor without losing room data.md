@@ -96,7 +96,9 @@ proof. Which test holds each criterion:
    it has **not been run**. A `Done` status on this PBI asserts that every automatable half is held
    and that the instrument for the rest exists; it does not assert that anyone has walked it, and
    this criterion is the one place that distinction bites. An unrun manual case is a plan to find
-   out, not a finding. See [[Walk a room reload in a live vault]].
+   out, not a finding. [[Walk a room reload in a live vault]] is the task that runs it, and it
+   stays **Active** rather than closing with this increment, because its whole deliverable is the
+   walk and not the procedure.
 
 Extensions: **4a** is criterion 3's. **4b** is criterion 4's, with its narrowing.
 **4c** — a selection or draft naming no valid entity opens in safe Select with every valid room

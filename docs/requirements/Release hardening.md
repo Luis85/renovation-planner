@@ -59,6 +59,14 @@ tables say so, and both are in [[Smoke Test the Editor]]'s census. An unrun manu
 to find out, not a finding, and this Feature is the one place in the tree where that distinction
 decides a release claim rather than a paragraph.
 
+**So the two tasks whose whole deliverable IS the walk stay Active under Done parents**, which
+looks inconsistent and is the honest shape: [[Verify stale recovery in Obsidian]] and
+[[Walk a room reload in a live vault]] deliver a run, not a procedure, and neither run has
+happened. Their parents are Done because every behavioural criterion under them is held by a named
+test — with Reload's fifth, the one criterion that is itself a vault run, recorded as outstanding.
+This repository has already shipped one outcome row claiming a walkthrough that never happened;
+these two statuses are what refuses to repeat it.
+
 What landed: a stale read is a state a renovator can act on. The write lands, the read-back fails,
 the floor stays exactly where it was, a keyed warning strip says what happened and offers **Try
 again** and **Open source note**, the status bar reads `Saved · refresh needed`, every control that

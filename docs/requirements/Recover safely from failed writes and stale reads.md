@@ -149,10 +149,16 @@ constrained drawer in the same state. No violations. It is a NEW file rather tha
 
 Narrowings and residues, recorded rather than ticked:
 
-- **The live-vault walk is written and has NOT been run.** [[Recover from a stale read]] is in the
-  smoke census with its fault setup documented — including which faults do NOT produce Scenario D
-  and why — and a `Done` status here asserts that the instrument exists, never that anyone has
-  walked it. Its Runs table says so. See [[Verify stale recovery in Obsidian]].
+- **The live-vault walk is written and has NOT been run, and this PBI is `Done` anyway — for a
+  reason worth stating rather than assuming.** None of the five criteria above is a claim about a
+  vault run; every one is a behavioural claim with a named test, which is what a `Done` here
+  asserts and the whole of it. The walk is a TASK-level obligation, and its task is
+  [[Verify stale recovery in Obsidian]], which stays **Active** for exactly that reason — its whole
+  deliverable is the walk, not the procedure. (Contrast [[Reload the editor without losing room
+  data]], whose criterion 5 IS a vault run and is therefore recorded there as **outstanding**
+  rather than ticked.) [[Recover from a stale read]] is in the smoke census with its fault setup
+  documented — including which faults do NOT produce Scenario D and why — and its Runs table
+  carries the same sentence. An unrun manual case is a plan to find out, not a finding.
 - **The status bar clips its paused hint at a sidebar's width**, found by reading
   `plan-editor-stale-narrow` at 460 px in the pinned Chromium. The strip and the save-state label
   still carry the fact. It belongs to [[Build full and compact editor status bars]] and is step 4b

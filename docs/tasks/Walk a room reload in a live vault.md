@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Reload the editor without losing room data]]"
 order: 30
-status: Done
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -36,14 +36,17 @@ Visual similarity can hide an identity change; inspect the persisted ID.
 
 Live-host evidence covers the reload behavior automation cannot model.
 
-## Closing evidence
+## Progress
 
-**2026-09-05**, the trust path increment. **What this task delivered is the instrument, and the
-walk has NOT been run** — [[Reload a room]]'s own Runs table says so. `Done` here means the case
-exists, is in [[Smoke Test the Editor]]'s census (seven steps, six of them `obsidian`), and names
-what to record; it does not mean anyone has restarted Obsidian and compared. This is why
+**2026-09-05**, the trust path increment. **The instrument exists and NOBODY HAS RUN IT in a
+vault.** This task runs [[Reload a room]] — seven steps, six of them `obsidian`, in
+[[Smoke Test the Editor]]'s census — and that case's own Runs table carries the same sentence.
+This task stays **Active** for exactly that reason: its whole deliverable is the WALK, not the
+procedure, and an unrun manual case is a plan to find out rather than a finding. This repository
+has already shipped one outcome row claiming a walkthrough that never happened; that is the
+mistake this status refuses to repeat. It is also why
 [[Reload the editor without losing room data]]'s criterion 5 is recorded there as **outstanding**
-rather than ticked: an unrun manual case is a plan to find out, not a finding.
+rather than ticked.
 
 It is **the only case in this suite that requires a full restart**, which is exactly the gap the
 automated reopen cases cannot close: both of them model a reopen with fresh objects over a vault

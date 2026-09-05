@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Recover safely from failed writes and stale reads]]"
 order: 40
-status: Done
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -37,13 +37,15 @@ An uncontrolled filesystem fault may make the result irreproducible; document th
 
 Manual evidence confirms the complete stale-recovery journey in Obsidian.
 
-## Closing evidence
+## Progress
 
-**2026-09-05**, the trust path increment. **What this task delivered is the instrument, and the
-walk has NOT been run** — [[Recover from a stale read]]'s own Runs table says so, and an unrun
-manual case is a plan to find out rather than a finding. `Done` here means the case exists, is in
-[[Smoke Test the Editor]]'s census (eleven steps, ten of them `obsidian`), and carries what a
-runner needs to reproduce the fault. It does not mean anyone has walked it.
+**2026-09-05**, the trust path increment. **The instrument exists and NOBODY HAS RUN IT in a
+vault.** This task runs [[Recover from a stale read]] — eleven steps, ten of them `obsidian`, in
+[[Smoke Test the Editor]]'s census — and that case's own Runs table carries the same sentence.
+This task stays **Active** for exactly that reason: its whole deliverable is the WALK, not the
+procedure, and an unrun manual case is a plan to find out rather than a finding. This repository
+has already shipped one outcome row claiming a walkthrough that never happened; that is the
+mistake this status refuses to repeat.
 
 The case's own *fault setup* section is the part this task's Risks paragraph asked for — "an
 uncontrolled filesystem fault may make the result irreproducible; document the injection" — and it

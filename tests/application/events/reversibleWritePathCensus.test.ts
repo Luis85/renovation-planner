@@ -326,11 +326,13 @@ function overrideAdapterFor(kind: 'quantity' | 'cost', w: Awaited<ReturnType<typ
 					new SetRequirementQuantityOverrideCommand(w.requirements, events, w.locks),
 					w.requirements,
 					events,
+					new SessionWriteLedger(),
 				)
 			: new ReversibleSetRequirementCostOverrideCommand(
 					new SetRequirementCostOverrideCommand(w.requirements, events, w.locks),
 					w.requirements,
 					events,
+					new SessionWriteLedger(),
 				);
 	const input =
 		kind === 'quantity'

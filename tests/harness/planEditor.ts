@@ -397,6 +397,8 @@ export interface PlanEditorHarnessOptions {
 	readonly select?: string;
 	/** Opens the Add menu once the editor is ready. */
 	readonly add?: boolean;
+	/** M02 Area: activate through Add and place an unfinished outline. Writes still refuse in this visual fixture. */
+	readonly area?: boolean;
 	/**
 	 * Enters the room task and types both sides, in WORLD MILLIMETRES — the unit every geometry
 	 * in this plugin is stored in, turned into the metres the field takes by the same
@@ -603,6 +605,23 @@ async function enterRoomTaskOnceReady(
 	if (inDrawer) root.querySelector<HTMLButtonElement>('.rp-inspector-drawer__close')?.click();
 }
 
+async function enterAreaTaskOnceReady(root: HTMLElement): Promise<void> {
+	await openAddMenuOnceReady(root);
+	await settleUntil(() => root.querySelector('[data-rp-entry="area"]') !== null, 'the Area catalogue item');
+	root.querySelector<HTMLButtonElement>('[data-rp-entry="area"]')?.click();
+	await settleUntil(() => root.querySelector('.rp-task-banner__repeat') !== null, 'the Area task');
+	const canvas = root.querySelector<HTMLElement>('.rp-plan-canvas') as HTMLElement;
+	const box = canvas.getBoundingClientRect();
+	// Lower half stays clear of the wrapped task banner, including German at 460 px.
+	for (const [x, y] of [[0.2, 0.55], [0.7, 0.55], [0.7, 0.8], [0.2, 0.8]]) {
+		for (const type of ['pointerdown', 'pointerup']) {
+			canvas.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1, button: 0,
+				buttons: type === 'pointerdown' ? 1 : 0, clientX: box.left + box.width * x, clientY: box.top + box.height * y }));
+		}
+	}
+	canvas.focus();
+}
+
 export function mountPlanEditorHarness(
 	root: HTMLElement,
 	options: PlanEditorHarnessOptions = {},
@@ -637,6 +656,7 @@ export function mountPlanEditorHarness(
 		void selectZoneOnceReady(leafEl, options.select);
 	}
 	if (options.add === true) void openAddMenuOnceReady(leafEl);
+	if (options.area === true) void enterAreaTaskOnceReady(leafEl);
 	if (options.room !== undefined) void enterRoomTaskOnceReady(leafEl, options.room);
 
 	return { leafEl, view };

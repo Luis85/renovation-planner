@@ -202,6 +202,9 @@ async function measureForShot(page, name, measure, errors) {
 }
 
 const SHOTS = [
+	{ name: 'plan-editor-area-dark', query: '?view=plan-editor&area', selector: '.rp-task-banner__repeat' },
+	{ name: 'plan-editor-area-light', query: '?view=plan-editor&area&theme=light', selector: '.rp-task-banner__repeat' },
+	{ name: 'plan-editor-area-constrained-de', query: '?view=plan-editor&area&lang=de', selector: '.rp-task-banner__repeat', width: 460 },
 	{ name: 'dark', query: '', selector: PROJECT_VIEW },
 	{ name: 'light', query: '?theme=light', selector: PROJECT_VIEW },
 	{ name: 'phone', query: '?phone', selector: PROJECT_VIEW },

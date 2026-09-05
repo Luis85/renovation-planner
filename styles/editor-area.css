@@ -1,0 +1,10 @@
+.rp-task-banner__repeat {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	min-height: 36px;
+}
+
+.rp-task-banner__repeat input {
+	flex-shrink: 0;
+}

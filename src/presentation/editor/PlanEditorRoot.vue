@@ -184,7 +184,7 @@ function onOpenAdd(): void {
  * Plan Editor leaf a document-global handler would also close.
  *
  * With the menu closed, descendants handle their own Escape first. The root's bubbling
- * handler supplies the multi-selection fallback for controls outside the canvas.
+ * handler routes temporary tasks and selection from controls outside the canvas.
  */
 function onRootKeydown(event: KeyboardEvent): void {
 	if (!addMenuOpen.value || event.key !== 'Escape') return;
@@ -193,11 +193,14 @@ function onRootKeydown(event: KeyboardEvent): void {
 	addMenuOpen.value = false;
 }
 
+/** Native fields own their editing keys. Buttons and non-editable list controls bubble. */
+function isEditingField(target: EventTarget | null): boolean {
+	return target instanceof HTMLElement && target.closest('input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]:not([contenteditable="false"])') !== null;
+}
+
 /** Overlays and the canvas consume Escape first; list and rail controls bubble here. */
 function onSelectionKeydown(event: KeyboardEvent): void {
-	if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || selection.selectedIds.length < 2) return;
-	event.stopPropagation();
-	event.preventDefault();
+	if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || isEditingField(event.target)) return;
 	const inspector = (event.target as HTMLElement).closest<HTMLElement>('[data-rp-region="inspector"]');
 	const outcome = routeEscape({
 		panning: false, // The canvas consumes its camera/gesture keys before bubbling.
@@ -205,9 +208,12 @@ function onSelectionKeydown(event: KeyboardEvent): void {
 		hasDraft: () => runtime.toolManager.activeToolHasDraft(),
 		cancelGesture: () => runtime.toolManager.cancelGesture(),
 		setTool: runtime.setTool,
-		hasSelection: true,
+		hasSelection: selection.selectedIds.length > 0,
 		clearSelection: () => selection.clear(),
 	});
+	if (outcome === 'nothing') return;
+	event.stopPropagation();
+	event.preventDefault();
 	// M11 controls unmount on clear; persistent list/rail controls keep their own focus.
 	if (outcome === 'cleared-selection' && inspector !== null) void nextTick(() => inspector.focus());
 }

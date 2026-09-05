@@ -58,6 +58,14 @@ function fakeContext(): EditorContext {
 }
 
 describe('ToolManager', () => {
+	it('explicit completion is inert for a tool without a completion action', () => {
+		const calls: string[] = [];
+		const manager = new ToolManager(fakeContext);
+		manager.register(fakeTool('select', calls));
+		manager.setActiveTool('select');
+		manager.finishActiveTool();
+		expect(calls).toEqual(['select:activate']);
+	});
 	it('clearActiveTool runs the switch lifecycle back to no tool (design slice 8 camera mode)', () => {
 		const calls: string[] = [];
 		const select = fakeTool('select', calls);

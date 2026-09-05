@@ -23,13 +23,18 @@ function entryById(id: CreationEntryId): CreationEntry {
  * filters through. No Vue, no Pinia, no Konva — pure logic, asked of the function.
  */
 describe('the creation catalogue', () => {
-	it('offers exactly one available entry, Room, and it activates the draw tool', () => {
+	it('offers Room and Area, each activating its own geometry path', () => {
 		const available = CREATION_CATALOGUE.filter((e) => e.availability.kind === 'available');
-		expect(available.map((e) => e.id)).toEqual(['room']);
+		expect(available.map((e) => e.id)).toEqual(['room', 'area']);
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		available[0].activate({ setTool });
 		expect(setTool).toHaveBeenCalledWith('draw-room');
 		expect(setTool).toHaveBeenCalledTimes(1);
+		setTool.mockClear();
+		activateCreationEntry('area', { setTool });
+		expect(setTool).toHaveBeenCalledExactlyOnceWith('draw-area');
+		expect(matchesQuery(entryById('area'), 'Terrasse', 'de')).toBe(true);
+		expect(matchesQuery(entryById('area'), 'garden', 'en')).toBe(true);
 	});
 
 	it('every unsupported entry carries a reason and throws if activated', () => {

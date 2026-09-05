@@ -8,7 +8,7 @@ behavior on `cf536f32` from the current contribution. It does not declare the wh
 | 0 | Existing Room/Zone and Floor/Plan ADRs; ADR-0018 records selection, Inspector and refresh ownership | New-domain contracts, perspective implementation and stakeholder acceptance |
 | 1 | Responsive shell, context bar, rails and drawers already exist | Perspective controls when their domains are available; full theme/release acceptance |
 | 2 | This contribution adds ordered unique multi-selection, independent member focus, badges, overlap cycling, persistent list access and shared-property summary | Wall/Opening/Object hit priority and inspectors when those entities exist |
-| 3 | Select/Add, keyboard menu, temporary room tools and room repetition already exist | Additional creation capabilities, including Area, and cross-tool lifecycle coverage |
+| 3 | Select/Add and temporary Room tools exist; the Area continuation adds its catalogue path, validated outline, one-shot/repeated completion and keyboard routing | Unavailable creation domains, complete cross-tool/non-canvas routes and release acceptance |
 | 4 | Rectangular room drag/numeric creation and reversible command already exist | Existing-room naming/resizing refinements, room-kind decision and complete M03 acceptance |
 | 5 | Not delivered | Walls, hosted openings, connected creation, exact-length impact and composite undo |
 | 6 | Background display and calibration exist | Transactional prepare/scale/review setup, persistent appearance and transforms |
@@ -76,3 +76,54 @@ The review follow-up also passes `VITEST_MAX_WORKERS=2 npm run check`: 473 test 
 Continue with separately reviewable contributions following increments A–E. The current
 selection contribution advances A; it does not close A's still-open domain-dependent criteria
 or substitute for B–E. Each PR must record its actual verification and leave unmet criteria open.
+
+## Area continuation on PR #74 — 2026-09-05
+
+Base: remote `codex/editor-implementation` at `f7aa3c5e0876df35c52885c5d75f669d1e7cb3dd`.
+PR #74 was open when this worktree was created. Its existing review fix and regression tests
+are retained; its CI matrix subsequently passed. The later single-selection Escape finding
+is corrected in this continuation without modifying PR #74's branch.
+
+Delivered criteria:
+
+- Area activates once through the existing catalogue and writes no entity until completion.
+- First-corner close, Enter and Create area share one geometry-tool completion and dispatcher.
+- Valid outlines create a `Custom` Zone through existing commands and Markdown/sidecar ports;
+  Room completion still produces `Room`. Zero/unrepresentable area is rejected only at the
+  new creation boundary; existing files keep their compatibility contract.
+- Success selects the new Area and returns to Select. Explicit repetition clears the outline
+  and keeps the tool active; leaving the task resets the checkbox. Busy closes dispatch once.
+- Draft/tool cancellation preserves selection. In-flight write responses respect tool generation;
+  retries retain the outline, and stale projection blocks further writes.
+- Root Escape now also handles empty-selection tasks and idle single list selections; native
+  editing fields own their keys. Existing Add, drawer, pan and held-key precedence stays intact.
+- English/German homeowner labels, a browser harness outline scenario, real keyboard checks,
+  and light/dark/custom-accent/constrained-layout captures accompany the implementation.
+
+Traceability:
+
+| Contract | Evidence |
+|---|---|
+| Catalogue activation/search and localization | `add/creationCatalogue.test.ts`, `areaCreation.e2e.test.ts` |
+| Valid/invalid completion, refusal, busy, repetition, superseded task, Undo/Redo | `areaCreation.e2e.test.ts`, `add/areaOutline.test.ts`, `tools/polygonFinish.test.ts` |
+| Zone type, Markdown metadata, sidecar readback and Area projection | `areaPersistence.test.ts` |
+| Selection/Escape regression, pan and fields | `shell/multiSelectionInspector.test.ts`, `canvasNavigation.test.ts`, `areaCreation.e2e.test.ts` |
+| Harness/ARIA at 1280 and 460 px | `tests/harness/areaCreation.test.ts` |
+| Browser keyboard/theme/layout | `scripts/editor-area-check.mjs`; `harness-shots/area-verification/` |
+
+Verification: `VITEST_MAX_WORKERS=2 npm run check` passes build, zero-warning lint, all 478 test
+files (6,604 passing tests; 70 skipped), coverage thresholds and Fallow. Coverage: 99.24%
+statements (10,521/10,601), 98.03% branches (5,899/6,017), 99.23% functions (2,841/2,863),
+99.58% lines (9,143/9,181). The changed-file coverage review found complete coverage of the
+Area validator/task/catalogue/banner and polygon completion. It prompted one further assertion
+that idle Escape stays unconsumed; the eight Area E2E cases and targeted lint pass after that
+test-only addition. No quality threshold was lowered. Real Edge 152.0.4191.62 keyboard and
+visual checks pass in all four documented scenarios.
+
+The visual browser fixture remains read-only: it deliberately refuses writes. The E2E suite uses real commands with
+in-memory repositories, and the persistence test uses the actual Obsidian repository stack
+against a fake vault. Neither is a live Obsidian acceptance run.
+
+Remaining scope: Area metadata editing and a numeric route for individual corners, robust
+self-intersection/repair rules, the unavailable M02 entries, domain-dependent Phase 2 criteria,
+and the remainder of increments B–E. The implementation plan and Increment A remain open.

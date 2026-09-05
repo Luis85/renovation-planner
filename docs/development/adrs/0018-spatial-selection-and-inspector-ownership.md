@@ -27,10 +27,13 @@ Room/Area objects would make hydration, deletion and narrow-layout changes recon
 - `EntityInspector` owns the route: active room draft, floor, multiple selection, or one room.
   `MultiSelectionInspector` shows individual-area sums and explicit mixed types. The area sum
   counts overlap separately; it is not a polygon union, floor footprint or cost estimate.
-- `PlanEditorRoot` handles unconsumed multi-selection Escape events from list, Inspector and
+- `PlanEditorRoot` handles unconsumed Escape events from list, Inspector, task buttons and
   rail controls through `routeEscape`. Add, overlays and canvas consume their own key first;
   repeat events do not clear selection after an overlay restores focus to its rail. Clearing
-  preserves persistent control focus and returns disappearing M11 controls to the Inspector.
+  preserves persistent control focus and returns disappearing Inspector controls to the Inspector.
+  Native text/number fields, textareas, selects and editable content own their editing keys.
+  Checkboxes and buttons bubble Escape; a temporary task is cancelled even with no selection,
+  and idle single selections clear through the same route as multiple selections.
 - `ResponsiveEditorShell` owns placement only. It may remount panels without replacing the
   per-leaf stores. `runtime` owns command decoration and projection refresh; components do not
   call repositories or retain versions for writes.

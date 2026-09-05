@@ -179,7 +179,7 @@ function syncPanPhase(): void {
  * `crosshair` is checked by nothing here at all (`styles/editor-cursors.css` says so where
  * the keyword is, and `docs/tests/cases/Canvas Navigation.md` is the instrument).
  */
-const PRECISE_TOOLS: readonly ToolId[] = ['draw-polygon', 'draw-room', 'calibrate'];
+const PRECISE_TOOLS: readonly ToolId[] = ['draw-polygon', 'draw-room', 'draw-area', 'calibrate'];
 
 /**
  * The ONE cursor class on the canvas, and the place the precedence between the camera and
@@ -1154,6 +1154,11 @@ function onKeyDown(event: KeyboardEvent): void {
 	// draft, switch tool, or clear a selection — must be answered whether or not a gesture is
 	// in flight, and none of its outcomes touches the camera.
 	if (gestureInFlight()) return;
+	if (event.key === 'Enter' && activeToolId.value === 'draw-area') {
+		event.preventDefault();
+		if (!event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) toolManager.finishActiveTool();
+		return;
+	}
 	if (fitShortcut(event)) return;
 	zoomShortcut(event);
 }

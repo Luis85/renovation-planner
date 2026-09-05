@@ -11,6 +11,7 @@ import {
 	type Ref,
 } from 'vue';
 import { storeToRefs } from 'pinia';
+import { createAreaTask } from './add/areaTask';
 import { SessionWriteLedger, type WriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import { createInspector } from './inspector-wiring';
@@ -69,6 +70,9 @@ import { makeCommitField } from './commitField';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly keepAddingAreas: Ref<boolean>;
+	readonly canFinishArea: Readonly<Ref<boolean>>;
+	readonly finishArea: () => void;
 	/** The decorated history every dispatch in this leaf funnels through. */
 	readonly dispatcher: RefreshedHistory;
 	readonly toolManager: ToolManager;
@@ -452,29 +456,32 @@ function createRoomCreationAction(deps: {
 	readonly ledger: WriteLedger;
 	readonly dispatcher: ToolDispatcher;
 	readonly selection: ReturnType<typeof useSelectionStore>;
-	readonly roomDraft: RoomDraftStore;
-	readonly defaultRoomName: () => string;
 	readonly returnToSelect: () => void;
 }): {
 	readonly createRoom: () => Promise<RoomCreationOutcome>;
 	readonly canCreateRoom: Readonly<Ref<boolean>>;
 	readonly roomDraftIncomplete: Readonly<Ref<boolean>>;
+	readonly roomDraft: RoomDraftStore;
+	readonly defaultRoomName: () => string;
 } {
-	const canCreateRoom = computed(() => deps.roomDraft.valid);
-	const roomDraftIncomplete = computed(() => !deps.roomDraft.complete);
+	const roomDraft = useRoomDraftStore();
+	const projectStore = useProjectStore();
+	const defaultRoomName = (): string => tr('editor.room.default-name', { n: String(projectStore.zones.size + 1) });
+	const canCreateRoom = computed(() => roomDraft.valid);
+	const roomDraftIncomplete = computed(() => !roomDraft.complete);
 	const createRoom = (): Promise<RoomCreationOutcome> =>
 		createRoomFromDraft({
 			planId: deps.planId,
 			commands: deps.context.commands,
 			ledger: deps.ledger,
 			dispatcher: deps.dispatcher,
-			draft: deps.roomDraft,
+			draft: roomDraft,
 			selection: deps.selection,
-			defaultName: deps.defaultRoomName,
+			defaultName: defaultRoomName,
 			returnToSelect: deps.returnToSelect,
 			reportRejected: reportDispatchFailure,
 		});
-	return { createRoom, canCreateRoom, roomDraftIncomplete };
+	return { createRoom, canCreateRoom, roomDraftIncomplete, roomDraft, defaultRoomName };
 }
 
 /**
@@ -672,13 +679,11 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const returnToSelect = (): void => setTool('select');
 	const cancelActiveTask = createCancelActiveTask(toolManager, activeToolId, setTool);
 
-	const roomDraft = useRoomDraftStore();
-	const defaultRoomName = (): string => tr('editor.room.default-name', { n: String(projectStore.zones.size + 1) });
-	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName });
-
-	const { createRoom, canCreateRoom, roomDraftIncomplete } = createRoomCreationAction({
-		context, planId, ledger, dispatcher: toolDispatcher, selection, roomDraft, defaultRoomName, returnToSelect,
+	const { createRoom, canCreateRoom, roomDraftIncomplete, roomDraft, defaultRoomName } = createRoomCreationAction({
+		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
 	});
+	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect });
+	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
 	// BECOMES `'ready'` — and a `previous !== 'ready'` guard would be dead code here, not a
@@ -780,6 +785,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		canCreateRoom,
 		roomDraftIncomplete,
 		roomDraft,
+		...areaTask,
 		refreshProjection,
 		writesBlocked,
 		pausedReasonId,

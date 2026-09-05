@@ -30,6 +30,7 @@ export type ToolId =
 	| 'pan'
 	| 'draw-polygon'
 	| 'draw-room'
+	| 'draw-area'
 	| 'place-asset'
 	| 'measure'
 	| 'annotation'
@@ -86,6 +87,8 @@ export interface EditorPointerEvent {
  * the method is REQUIRED rather than optional so that a tool which grows one has to say so.
  */
 export interface EditorTool {
+	/** Optional explicit completion; pointer and keyboard share the same tool action. */
+	finish?(): void;
 	readonly id: ToolId;
 	activate(context: EditorContext): void;
 	deactivate(): void;

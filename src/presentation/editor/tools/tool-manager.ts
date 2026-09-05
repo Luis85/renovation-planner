@@ -57,6 +57,10 @@ export class ToolManager {
 		return this.activeTool?.hasDraft() ?? false;
 	}
 
+	finishActiveTool(): void {
+		this.activeTool?.finish?.();
+	}
+
 	/**
 	 * Whether a tool is between a press and its release — read by the pan override, which
 	 * refuses to claim the middle button while one is running (a camera moving beneath a live

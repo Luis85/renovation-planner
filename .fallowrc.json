@@ -74,6 +74,8 @@
 		"tests/harness/page.ts",
 		"scripts/lint-edited.mjs",
 		"scripts/harness-shot.mjs",
+		// Manual browser verification, invoked by the M02 acceptance case.
+		"scripts/editor-area-check.mjs",
 		"scripts/asset-library-shots.mjs",
 		"scripts/concept-shots.mjs",
 		"scripts/background-fixture.mjs",

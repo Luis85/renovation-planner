@@ -559,3 +559,20 @@ describe('AssetLibraryStore change routing', () => {
 		expect(store.visibleEntries).toEqual([entry]);
 	});
 });
+
+
+describe('localized category search', () => {
+	it.each([
+		['de', 'Möbel', 'furniture'], ['de', 'Baustoff', 'material'],
+		['en', 'Building element', 'building-element'], ['de', 'furniture', 'furniture'],
+		['en', 'custom-category', 'custom-category'],
+	])('matches %s query %s to category %s', async (language, query, category) => {
+		host.language = language;
+		const matching = anEntry({ name: 'One', category, supplier: null, sku: null });
+		const other = anEntry({ name: 'Two', category: 'consumable', supplier: null, sku: null });
+		const store = useAssetLibraryStore();
+		await store.hydrate(queriesAnswering({ entries: [matching, other] }), scanned);
+		store.query = query;
+		expect(store.visibleEntries).toEqual([matching]);
+	});
+});

@@ -46,7 +46,7 @@ export function useDefinitionDraft(entry: () => CatalogueEntryDto) {
 		values.value = definitionDraft(entry());
 		errors.value = {}; banner.value = null; status.value = 'idle';
 	}
-	guard.register(discard);
+	guard.register({ discard, name: () => baseline.value.name });
 	watch([dirty, busy, status], () => {
 		guard.dirty = (dirty.value && status.value !== 'refresh') || status.value === 'unknown';
 		guard.busy = busy.value;

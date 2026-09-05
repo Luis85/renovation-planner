@@ -103,7 +103,7 @@ export const deAssetLibrary = {
 		'Keine Objekte entsprechen dieser Suche. Versuchen Sie einen anderen Namen, Lieferanten oder eine andere SKU.',
 	'empty.asset-library.no-matches.action': 'Suche löschen',
 	"view.asset-library.draft.title": "Ungespeicherte Änderungen",
-	"view.asset-library.draft.leave": "Dieses Objekt enthält ungespeicherte Änderungen. Verwerfen und fortfahren?",
+	"view.asset-library.draft.leave": "„{name}“ enthält ungespeicherte Änderungen. Verwerfen und fortfahren?",
 	"view.asset-library.draft.discard-continue": "Verwerfen und fortfahren",
 	"view.asset-library.draft.keep": "Weiter bearbeiten",
 	"view.asset-library.draft.required": "Einen Namen eingeben.",

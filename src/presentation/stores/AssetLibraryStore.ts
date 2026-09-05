@@ -6,7 +6,9 @@ import type { AssetLibraryChange } from '../../application/events/assetLibraryCh
 import type { CatalogueEntryDto, UnreadableEntry } from '../../application/queries/ListCatalogueEntries';
 import type { AssetId } from '../../domain/asset/AssetId';
 import { selectAssetLibraryEmptyState } from '../emptyStates/selectors';
-import { currentLanguage } from '../i18n/strings';
+import { ASSET_CATEGORY_LABELS } from '../views/assetLabels';
+import type { AssetCategory } from '../../domain/asset/AssetCategory';
+import { currentLanguage, tr } from '../i18n/strings';
 import { createViewportMarks } from '../library/viewportMarks';
 import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueries';
 import { useAssetSelectionStore } from './AssetSelectionStore';
@@ -21,14 +23,16 @@ import { useAssetSelectionStore } from './AssetSelectionStore';
 type AssetLibraryStatus = 'idle' | 'loading' | 'ready' | 'failed';
 
 /**
- * §6.1's whole matching rule: **name, supplier and SKU, and never notes** — a free-text field
+ * §6.1's whole matching rule: **name, supplier, SKU and category (stored and displayed), never notes** — a free-text field
  * whose matches a row does not show and therefore cannot explain.
  *
  * Case-folded on both sides, and `null` fields simply do not match rather than being coerced to
  * a string, which would let a search for `null` find every asset that has no supplier.
  */
 function matches(entry: CatalogueEntryDto, needle: string): boolean {
-	return [entry.name, entry.supplier, entry.sku, entry.category].some(
+	const label = Object.keys(ASSET_CATEGORY_LABELS).includes(entry.category)
+		? tr(ASSET_CATEGORY_LABELS[entry.category as AssetCategory]) : entry.category;
+	return [entry.name, entry.supplier, entry.sku, entry.category, label].some(
 		(field) => field !== null && field.toLowerCase().includes(needle),
 	);
 }

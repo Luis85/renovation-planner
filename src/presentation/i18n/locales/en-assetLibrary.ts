@@ -163,7 +163,7 @@ export const enAssetLibrary = {
 		'No asset matches that search. Try a different name, supplier or SKU.',
 	'empty.asset-library.no-matches.action': 'Clear search',
 	"view.asset-library.draft.title": "Unsaved changes",
-	"view.asset-library.draft.leave": "This asset has unsaved changes. Discard them and continue?",
+	"view.asset-library.draft.leave": "“{name}” has unsaved changes. Discard them and continue?",
 	"view.asset-library.draft.discard-continue": "Discard and continue",
 	"view.asset-library.draft.keep": "Keep editing",
 	"view.asset-library.draft.required": "Enter a name.",

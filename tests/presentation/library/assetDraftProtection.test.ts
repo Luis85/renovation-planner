@@ -9,11 +9,13 @@ import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 installObsidianDom();
 describe('asset draft navigation protection', () => {
 	it('keeps A on cancellation and performs the requested B selection once after discard', async () => {
-		const a = anEntry(); const b = anEntry({ name: 'Paint' });
+		const a = anEntry({ name: 'Oak cabinet' }); const b = anEntry({ name: 'Paint' });
 		const root = await mountRoot({ entries: [a, b], assetId: ref(a.assetId), expanded: ref(['material']) });
 		await root.get('[data-field="supplier"]').setValue('my draft');
+		await root.get('[data-field="name"]').setValue('');
 		await root.get(`[data-asset-id="${b.assetId}"]`).trigger('click'); await settle();
 		expect(root.text()).toContain('Discard and continue');
+		expect(root.get('[role="dialog"]').text()).toContain('“Oak cabinet” has unsaved changes');
 		useDialogStore().resolve('cancel'); await settle();
 		expect(root.attributes('data-selected-asset-id')).toBe(a.assetId);
 		expect((root.get('[data-field="supplier"]').element as HTMLInputElement).value).toBe('my draft');

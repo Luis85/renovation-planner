@@ -219,3 +219,17 @@ non-decimal prices, both write-conflict codes, failed refresh and fresh-version 
 Verification: build and lint pass; 17 library/wiring files (221 tests) pass.
 Whole-project analysis passes after relocating an existing reviewed CSS-clone annotation
 to the reported declaration; no CSS values or global analysis thresholds changed.
+
+### Localized search and named draft confirmation
+
+Review findings 3941231348 and 3941231351 are addressed: category search includes
+the translated label displayed by the shelves, retaining raw category matches and
+unknown-category fallback. The abandonment dialog interpolates the registered
+baseline asset name in English and German, so clearing or editing the name field
+does not remove the subject of the discard decision.
+
+Regression tests cover German and English category labels, raw/unknown categories,
+and confirmation of the original asset after clearing its draft name.
+
+Verification: build, lint, whole-project analysis and diff check pass; 18 library,
+store and localization test files / 264 tests pass.

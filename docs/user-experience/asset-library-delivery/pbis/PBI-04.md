@@ -1,7 +1,7 @@
 ---
 id: PBI-04
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F02
 priority: P0
@@ -12,6 +12,8 @@ screens: [AL01, AL07]
 ---
 # PBI-04 — Inspect the complete definition of a selected asset
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F02 — Create and maintain definitions
@@ -20,7 +22,7 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Inspect the complete definition of a selected asset.
 
-**References:** [AL01](AL01-selected-object.md), [AL07](../specification/screens/AL07-shape-and-note.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL01](../specification/screens/AL01-selected-object.md), [AL07](../specification/screens/AL07-shape-and-note.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 

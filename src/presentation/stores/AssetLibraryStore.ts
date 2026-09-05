@@ -28,7 +28,7 @@ type AssetLibraryStatus = 'idle' | 'loading' | 'ready' | 'failed';
  * a string, which would let a search for `null` find every asset that has no supplier.
  */
 function matches(entry: CatalogueEntryDto, needle: string): boolean {
-	return [entry.name, entry.supplier, entry.sku].some(
+	return [entry.name, entry.supplier, entry.sku, entry.category].some(
 		(field) => field !== null && field.toLowerCase().includes(needle),
 	);
 }
@@ -106,12 +106,10 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 	 */
 	let latestHydration = 0;
 
-	/** A failed read leaves NO stale rows behind — `ProjectStore.fail` states the same rule. */
+	/** A failed refresh keeps the last successful catalogue visible beside the failure. */
 	function fail(cause: RepositoryError): void {
-		entries.value = [];
-		unreadable.value = [];
 		error.value = cause;
-		status.value = 'failed';
+		if (status.value !== 'ready') status.value = 'failed';
 	}
 
 	/**

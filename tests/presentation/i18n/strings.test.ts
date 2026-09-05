@@ -418,9 +418,9 @@ describe('interpolation', () => {
 	 * Nothing here can read a design document, so the guarantee is exactly *the count cannot move
 	 * silently* and never *the spec was amended*.
 	 */
-	it('pins the Asset library inventory at 63 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(63);
-		expect(assetLibraryKeys(de)).toHaveLength(63);
+	it('pins the Asset library inventory at 78 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(78);
+		expect(assetLibraryKeys(de)).toHaveLength(78);
 	});
 });
 

@@ -41,6 +41,7 @@ export function defaultAssetLibraryDeps(overrides: Partial<AssetLibraryDeps> = {
 		indexScanCompleted: () => true,
 		openNote: () => Promise.resolve('opened'),
 		openAssetNote: () => Promise.resolve('opened'),
+		openProject: () => Promise.resolve(),
 		openDesigner: () => Promise.resolve(),
 		libraryFolder: 'Renovation/Library',
 		...overrides,

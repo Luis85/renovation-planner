@@ -74,6 +74,7 @@
 		"tests/harness/page.ts",
 		"scripts/lint-edited.mjs",
 		"scripts/harness-shot.mjs",
+		"scripts/asset-library-shots.mjs",
 		"scripts/concept-shots.mjs",
 		"scripts/background-fixture.mjs",
 		"tests/application/ports/diagnostics.test-d.ts",
@@ -90,7 +91,7 @@
 		"tests/build/fixtures/vitest.brokenFake.config.ts"
 	],
 	// Loaded by a page, never imported by a module — which is what this key is for.
-	// `docs/user-experience/concepts/*.css` are the concept mocks' sheets: the static HTML
+	// `docs/user-experience/archive/concepts/*.css` are the concept mocks' sheets: the static HTML
 	// files beside them link these, and those files are documentation rather than an entry
 	// point, so fallow's import graph cannot reach any of them and reports them dead.
 	// Declared as the three files they are rather than as `docs/**/*.css`, so the next
@@ -103,9 +104,9 @@
 		"styles/**/*.css",
 		"tests/harness/theme.css",
 		"tests/harness/obsidian.css",
-		"docs/user-experience/concepts/concept.css",
-		"docs/user-experience/concepts/page.css",
-		"docs/user-experience/concepts/canvas.css"
+		"docs/user-experience/archive/concepts/concept.css",
+		"docs/user-experience/archive/concepts/page.css",
+		"docs/user-experience/archive/concepts/canvas.css"
 	],
 	// `entry` has no "dev tooling" role the way a framework plugin's `entryPointRole` does —
 	// every manual entry is otherwise treated as production-reachable code, so

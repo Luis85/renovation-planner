@@ -1,7 +1,7 @@
 ---
 id: PBI-11
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F03
 priority: P0
@@ -12,6 +12,8 @@ screens: [AL06, AL07]
 ---
 # PBI-11 — Navigate from an asset to its note or a project using it
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F03 — Explore usage and source information
@@ -20,7 +22,7 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Navigate from an asset to its note or a project using it.
 
-**References:** [AL06](../specification/screens/AL06-usage-and-price.md), [AL07](../specification/screens/AL07-shape-and-note.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL06](../specification/screens/AL06-usage-and-price.md), [AL07](../specification/screens/AL07-shape-and-note.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 

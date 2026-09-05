@@ -52,6 +52,7 @@ function answeringQueries(
 }
 
 export interface InspectorOptions {
+	openProject?: (projectId: string) => Promise<void>;
 	assetId?: AssetId | null;
 	entries?: readonly CatalogueEntryDto[];
 	unreadable?: readonly UnreadableEntry[];
@@ -78,6 +79,7 @@ export async function mountInspector(options: InspectorOptions = {}): Promise<Mo
 	const context: AssetLibraryContext = {
 		...defaultAssetLibraryDeps({
 			queries,
+			openProject: options.openProject ?? base.openProject,
 			commands: { ...base.commands, ...options.commands },
 			openNote: options.openNote ?? (() => Promise.resolve('opened')),
 			openAssetNote: options.openAssetNote ?? (() => Promise.resolve('opened')),

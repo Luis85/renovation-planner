@@ -134,7 +134,7 @@
  */
 .rp-al-shelf .rp-al-row {
 	display: grid;
-	grid-template-columns: 20px minmax(0, 1fr) auto 5ch minmax(0, 16ch);
+	grid-template-columns: 20px minmax(0, 1fr) 14ch 5ch minmax(0, 16ch);
 	align-items: center;
 	gap: var(--size-4-2);
 	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
@@ -285,4 +285,16 @@
 	.rp-al-row__waste {
 		display: none;
 	}
+}
+
+.rp-al-columns {
+	display: grid;
+	grid-template-columns: 20px minmax(0, 1fr) 14ch 5ch minmax(0, 16ch);
+	gap: var(--size-4-2);
+	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+@container rp-al-shelves (width < 40rem) {
+	.rp-al-columns { display: none; }
 }

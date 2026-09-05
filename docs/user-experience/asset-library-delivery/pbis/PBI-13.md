@@ -1,7 +1,7 @@
 ---
 id: PBI-13
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F04
 priority: P0
@@ -11,6 +11,8 @@ depends_on: [PBI-04]
 screens: [AL09]
 ---
 # PBI-13 — Keep valid content after loading failures and retry the affected read
+
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
 
 ## Context and value
 

@@ -6,7 +6,9 @@ Version 1.1 · 2026-09-05 · English project documentation · Design direction s
 
 This package continues the **second displayed concept**, selected by the user: compact category shelves with aligned columns and a narrower right inspector. It specifies the vault-wide asset library inside an Obsidian workspace leaf. Production remains Vue 3, TypeScript and Pinia. The React prototype demonstrates interactions; it is not production architecture or a replacement domain model.
 
-![Selected design direction — German-localized UI reference](selected-direction.png)
+![Selected design direction — German-localized UI reference](images/selected-direction.png)
+
+Implementation decisions and engineering evidence are recorded in the [delivery record](../delivery-record.md); its explicit-save contract resolves the former blur-save behavior.
 
 The visual direction is selected. New behavior defined here is a proposed implementation contract, not evidence of user validation or current implementation. Existing domain safety rules remain authoritative. Consolidate conflicts explicitly before implementation; see the [decision register](decision-register.md).
 
@@ -18,9 +20,9 @@ English is the project language for documentation, PBI titles, tasks, acceptance
 
 1. [Interaction rules](interaction-rules.md)
 2. Individual screen specifications below
-3. [Component contracts](docs/user-experience/asset-library-delivery/specification/component-library.md)
+3. [Component contracts](component-library.md)
 4. [Decision and reconciliation register](decision-register.md)
-5. [Implementation and verification plan](docs/user-experience/asset-library-delivery/specification/implementation-plan.md)
+5. [Implementation and verification plan](implementation-plan.md)
 
 ## Mental model
 
@@ -48,18 +50,18 @@ Repository files were inspected earlier in this design session on main; no immut
 
 | ID | Screen | User goal |
 | --- | --- | --- |
-| AL00 | [Browse the library](AL00-browse.md) | Recognize an existing asset before defining it again. |
-| AL01 | [Inspect an asset definition](AL01-selected-object.md) | Understand an asset’s definition, shape, and usage together. |
-| AL02 | [Search and evaluate results](AL02-search-results.md) | Find an asset by name, supplier, or SKU. |
-| AL03 | [Create a new asset](AL03-create-object.md) | Capture a reusable definition with a small number of inputs. |
-| AL04 | [Edit the definition](AL04-edit-definition.md) | Deliberately correct metadata and the library price. |
-| AL05 | [Leave an asset with unsaved changes](AL05-unsaved-changes.md) | Prevent accidental loss of user input. |
+| AL00 | [Browse the library](screens/AL00-browse.md) | Recognize an existing asset before defining it again. |
+| AL01 | [Inspect an asset definition](screens/AL01-selected-object.md) | Understand an asset’s definition, shape, and usage together. |
+| AL02 | [Search and evaluate results](screens/AL02-search-results.md) | Find an asset by name, supplier, or SKU. |
+| AL03 | [Create a new asset](screens/AL03-create-object.md) | Capture a reusable definition with a small number of inputs. |
+| AL04 | [Edit the definition](screens/AL04-edit-definition.md) | Deliberately correct metadata and the library price. |
+| AL05 | [Leave an asset with unsaved changes](screens/AL05-unsaved-changes.md) | Prevent accidental loss of user input. |
 | AL06 | [Understand usage and price impact](screens/AL06-usage-and-price.md) | Recognize which projects use the shared price. |
 | AL07 | [Open the shape and note](screens/AL07-shape-and-note.md) | Navigate from the catalogue to geometry or documentation. |
 | AL08 | [Start with an empty library](screens/AL08-empty-library.md) | Create the first asset even before a project exists. |
 | AL09 | [Handle loading, saving, and data errors](screens/AL09-loading-and-errors.md) | Work with incomplete data without false confidence. |
 | AL10 | [Work in a narrow panel](screens/AL10-narrow-and-theme.md) | Use the library and details safely with limited space. |
-| AL11 | [Delete an asset safely](AL11-delete-object.md) | Remove a definition without damaging its usage references. |
+| AL11 | [Delete an asset safely](screens/AL11-delete-object.md) | Remove a definition without damaging its usage references. |
 
 
 ---
@@ -85,7 +87,7 @@ Open the library through the Obsidian command or the project-overview entry poin
 
 ## Visual reference
 
-![Browse the library — reference](selected-direction.png)
+![Browse the library — reference](images/selected-direction.png)
 
 **Image status:** Layout reference with a selected asset; the neutral inspector is not shown. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -93,7 +95,7 @@ Open the library through the Obsidian command or the project-overview entry poin
 
 Title and vault-wide scope; search and New asset; one set of column headings; collapsible category groups; rows containing name, unit, price, waste allowance, and supplier; status bar.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -139,7 +141,7 @@ Select a row or restore a saved valid selection.
 
 ## Visual reference
 
-![Inspect an asset definition — reference](prototype-desktop.jpg)
+![Inspect an asset definition — reference](images/prototype-desktop.jpg)
 
 **Image status:** Browser capture of this baseline state; usage data is illustrative. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -147,7 +149,7 @@ Select a row or restore a saved valid selection.
 
 Identity; Used in above Definition; editable fields; read-only outline and dimensions; Edit shape and Open note.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -193,7 +195,7 @@ Focus the search field and enter a term.
 
 ## Visual reference
 
-![Search and evaluate results — reference](prototype-desktop.jpg)
+![Search and evaluate results — reference](images/prototype-desktop.jpg)
 
 **Image status:** Composition reference only; not a capture of a filtered list. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -201,7 +203,7 @@ Focus the search field and enter a term.
 
 Search field with an accessible clear action; results in their existing groups; result count; No matching assets where applicable.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -247,7 +249,7 @@ Activate New asset; handle any pending changes through AL05 first.
 
 ## Visual reference
 
-![Create a new asset — reference](selected-direction.png)
+![Create a new asset — reference](images/selected-direction.png)
 
 **Image status:** The entry point is visible; the creation dialog is specified in text. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -255,7 +257,7 @@ Activate New asset; handle any pending changes through AL05 first.
 
 Dialog with name, category, unit, and a clearly labelled price including currency; other existing metadata is secondary; Create and Cancel.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -301,7 +303,7 @@ Select a readable asset and change a field.
 
 ## Visual reference
 
-![Edit the definition — reference](prototype-desktop.jpg)
+![Edit the definition — reference](images/prototype-desktop.jpg)
 
 **Image status:** Shows fields in the clean state; saving and error states are not shown. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -309,7 +311,7 @@ Select a readable asset and change a field.
 
 Fields as in the selected design; Unsaved changes status; contextual Save and Discard actions; field-level errors.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -355,7 +357,7 @@ Request another selection, New asset, note/designer/project navigation, or closu
 
 ## Visual reference
 
-![Leave an asset with unsaved changes — reference](prototype-desktop.jpg)
+![Leave an asset with unsaved changes — reference](images/prototype-desktop.jpg)
 
 **Image status:** Context reference only; the protection dialog is not shown. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -363,7 +365,7 @@ Request another selection, New asset, note/designer/project navigation, or closu
 
 Dialog identifying the asset and explaining the situation; Keep editing as the safe return; Discard and continue; no automatic save.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -409,7 +411,7 @@ Read Used in, particularly before changing a price.
 
 ## Visual reference
 
-![Understand usage and price impact — reference](prototype-desktop.jpg)
+![Understand usage and price impact — reference](images/prototype-desktop.jpg)
 
 **Image status:** Usage section is visible; data and project links are simulated in the prototype. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -417,7 +419,7 @@ Read Used in, particularly before changing a price.
 
 Project name and requirement count; price source Library price or Project-specific price; explicit notice when the read is incomplete.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -463,7 +465,7 @@ Activate Edit shape or Open note on the selected asset.
 
 ## Visual reference
 
-![Open the shape and note — reference](prototype-desktop.jpg)
+![Open the shape and note — reference](images/prototype-desktop.jpg)
 
 **Image status:** Actions are visible; prototype dialogs only explain the intended transitions. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -471,7 +473,7 @@ Activate Edit shape or Open note on the selected asset.
 
 Measured outline with dimensions or an explicitly named state; two distinct action labels.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -517,7 +519,7 @@ A successful catalogue read returns zero readable assets and zero known unreadab
 
 ## Visual reference
 
-![Start with an empty library — reference](selected-direction.png)
+![Start with an empty library — reference](images/selected-direction.png)
 
 **Image status:** Style reference only; the empty state is not shown. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -525,7 +527,7 @@ A successful catalogue read returns zero readable assets and zero known unreadab
 
 Title; short explanation of the shared catalogue; Create first asset; no empty inspector form or invented examples.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -571,7 +573,7 @@ Initial loading, a failed read/write, an external edit, or a disappeared selecti
 
 ## Visual reference
 
-![Handle loading, saving, and data errors — reference](prototype-desktop.jpg)
+![Handle loading, saving, and data errors — reference](images/prototype-desktop.jpg)
 
 **Image status:** Layout reference only; error states still require dedicated visual acceptance. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -579,7 +581,7 @@ Initial loading, a failed read/write, an external edit, or a disappeared selecti
 
 Initial loading notice; persistent warning strip when previous data exists; explanation and appropriate action within the affected section.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -625,7 +627,7 @@ The Obsidian leaf becomes narrower; layout responds to container width.
 
 ## Visual reference
 
-![Work in a narrow panel — reference](prototype-narrow-dark.jpg)
+![Work in a narrow panel — reference](images/prototype-narrow-dark.jpg)
 
 **Image status:** Browser capture of the dark 460px detail panel; not native smartphone certification. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -633,7 +635,7 @@ The Obsidian leaf becomes narrower; layout responds to container width.
 
 Below 560px display one content surface: list or inspector with Back to library. Keep status visible. Inherit the host theme.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -679,7 +681,7 @@ Secondary Delete asset action in the detail menu; not the primary action on a ca
 
 ## Visual reference
 
-![Delete an asset safely — reference](prototype-desktop.jpg)
+![Delete an asset safely — reference](images/prototype-desktop.jpg)
 
 **Image status:** Detail context only; the delete action is not implemented in the prototype. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -687,7 +689,7 @@ Secondary Delete asset action in the detail menu; not the primary action on a ca
 
 Current asset name, checked usage, explicit effects; Cancel and a clearly labelled final delete action only when allowed.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
@@ -1026,4 +1028,4 @@ Extend existing Vitest and harness tests for concrete risks. Earlier browser che
 
 ## Delivery
 
-Place screens and images under `docs/user-experience/renovation-planner-asset-library-specs/`. Amend the older specification with a link and identify exactly which sections are superseded. Component mapping and implementation plans reference the inspected commit. This download does not modify the repository. The detailed delivery baseline is [the package implementation plan](docs/user-experience/asset-library-delivery/implementation-plan.md).
+Place screens and images under `docs/user-experience/renovation-planner-asset-library-specs/`. Amend the older specification with a link and identify exactly which sections are superseded. Component mapping and implementation plans reference the inspected commit. This download does not modify the repository. The detailed delivery baseline is [the package implementation plan](../implementation-plan.md).

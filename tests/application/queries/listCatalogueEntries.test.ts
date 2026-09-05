@@ -64,6 +64,7 @@ describe('ListCatalogueEntries', () => {
 
 		expect(listing.entries).toEqual([
 			{
+				version: saved.version,
 				assetId: saved.entity.id,
 				name: 'Porcelain Terrace Tile',
 				category: 'material',

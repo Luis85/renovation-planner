@@ -1,7 +1,7 @@
 ---
 id: PBI-06
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F02
 priority: P0
@@ -12,6 +12,8 @@ screens: [AL05]
 ---
 # PBI-06 — Switch assets without accidentally losing input
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F02 — Create and maintain definitions
@@ -20,7 +22,7 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Switch assets without accidentally losing input.
 
-**References:** [AL05](AL05-unsaved-changes.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL05](../specification/screens/AL05-unsaved-changes.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 

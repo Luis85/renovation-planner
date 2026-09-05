@@ -279,7 +279,7 @@ describe('Escape, at its two scopes', () => {
 	 * editor's Inspector already behaves. The second half is only reachable at all because this
 	 * task mounts the panel.
 	 */
-	it('clears the search on Escape and resyncs one inspector field on Escape', async () => {
+	it('clears search on Escape while preserving the definition draft', async () => {
 		const root = await mountLibrary();
 		await root.get('.rp-al-search__input').setValue('plank');
 		await settle();
@@ -298,7 +298,7 @@ describe('Escape, at its two scopes', () => {
 		await name.trigger('keydown.esc');
 		await settle();
 
-		expect((root.get('[data-field="name"]').element as HTMLInputElement).value).toBe(ALDER.name);
+		expect((root.get('[data-field="name"]').element as HTMLInputElement).value).toBe('Something else');
 		// ONE field, never the panel: the heading beside it is drawn from the catalogue entry and
 		// was never a draft, so a build that resynced the whole panel would read the same here —
 		// which is why the discriminating assertion is the input's own value above.

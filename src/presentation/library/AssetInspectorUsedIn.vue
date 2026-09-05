@@ -47,6 +47,8 @@ const props = defineProps<{
 	error: AppError | null;
 }>();
 
+defineEmits<{ 'open-project': [projectId: ProjectId] }>();
+
 interface UsedInRow {
 	readonly projectId: ProjectId;
 	readonly label: string;
@@ -54,6 +56,8 @@ interface UsedInRow {
 	readonly path: string | null;
 	readonly overridden: boolean;
 }
+
+const failureLabel = computed(() => props.error === null ? tr('view.asset-library.used-in.failed') : trError(props.error));
 
 const rows = computed((): readonly UsedInRow[] => {
 	const overriding = new Set(props.overriding);
@@ -89,7 +93,7 @@ const rows = computed((): readonly UsedInRow[] => {
 			v-else-if="status === 'failed'"
 			class="rp-al-inspector__refusal"
 		>
-			{{ error === null ? tr('view.asset-library.used-in.failed') : trError(error) }}
+			{{ failureLabel }}
 		</p>
 		<ul
 			v-else-if="rows.length > 0"
@@ -102,7 +106,11 @@ const rows = computed((): readonly UsedInRow[] => {
 				:data-project-id="row.projectId"
 			>
 				<span class="rp-al-used__project">
-					<span class="rp-al-used__name">{{ row.label }}</span>
+					<button
+						type="button"
+						class="rp-al-used__name"
+						@click="$emit('open-project', row.projectId)"
+					>{{ row.label }}</button>
 					<span
 						v-if="row.path !== null"
 						class="rp-al-used__path"
@@ -120,6 +128,10 @@ const rows = computed((): readonly UsedInRow[] => {
 					/>
 					{{ tr('view.asset-library.used-in.overridden') }}
 				</span>
+				<span
+					v-else
+					class="rp-al-note"
+				>{{ tr('view.asset-library.used-in.library-price') }}</span>
 			</li>
 		</ul>
 		<p

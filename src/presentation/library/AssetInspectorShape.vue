@@ -36,6 +36,8 @@
  * `Open designer` lives in the panel's Actions row rather than here — see `AssetInspector.vue`,
  * which withdraws it for every refusal this section can report.
  */
+import AssetMark from './AssetMark.vue';
+import type { AssetOutline } from '../../application/queries/ListAssetOutlines';
 import { computed } from 'vue';
 import type { AssetDesignDto, AssetDesignError } from '../../application/queries/GetAssetDesign';
 import type { AssetBackgroundRef } from '../../domain/asset/Asset';
@@ -151,6 +153,13 @@ const refusal = computed((): string | null => {
 	// code, rather than a fabricated path.
 	return trError(error);
 });
+const outline = computed((): AssetOutline | null => {
+	const design = answered.value;
+	if (design === null) return null;
+	if (design.shape === null || design.dimensions === null) return { kind: 'none' };
+	return { kind: design.dimensionsUnscaled ? 'unscaled' : 'measured',
+		points: design.shape.footprint.points, extent: design.dimensions };
+});
 </script>
 
 <template>
@@ -170,6 +179,18 @@ const refusal = computed((): string | null => {
 		>
 			{{ refusal }}
 		</p>
+		<div
+			v-if="outline !== null"
+			class="rp-al-shape-preview"
+		>
+			<AssetMark :outline="outline" />
+			<p
+				v-if="outline.kind === 'none'"
+				class="rp-al-note"
+			>
+				{{ tr('view.asset-library.shape.none') }}
+			</p>
+		</div>
 		<dl class="rp-al-fields">
 			<template v-if="footprint !== null">
 				<dt class="rp-al-fields__key">

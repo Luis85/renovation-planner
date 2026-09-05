@@ -6,6 +6,7 @@ import type { Currency } from '../../core/money/Money';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
 import type { AssetRepository } from '../ports/AssetRepository';
 import type { ProjectIndex } from '../ports/ProjectIndex';
+import type { EntityVersion } from '../ports/versioning';
 
 /**
  * The Asset Library's own read model (design "Asset library overview" §5.1) — a DTO rather
@@ -20,6 +21,7 @@ import type { ProjectIndex } from '../ports/ProjectIndex';
  * decomposed exactly as it crosses every other boundary — a float is what ADR-010 refuses.
  */
 export interface CatalogueEntryDto {
+	version: EntityVersion;
 	assetId: AssetId;
 	name: string;
 	category: string;
@@ -62,8 +64,9 @@ export interface CatalogueListing {
 	unreadable: readonly UnreadableEntry[];
 }
 
-function toCatalogueEntryDto(entity: Asset): CatalogueEntryDto {
+function toCatalogueEntryDto(entity: Asset, version: EntityVersion): CatalogueEntryDto {
 	return {
+		version,
 		assetId: entity.id,
 		name: entity.name,
 		category: entity.category,
@@ -101,7 +104,7 @@ export class ListCatalogueEntries {
 		const listed = await this.assets.listAll();
 		if (isErr(listed)) return listed;
 
-		const entries = listed.value.loaded.map((loaded) => toCatalogueEntryDto(loaded.entity));
+		const entries = listed.value.loaded.map((loaded) => toCatalogueEntryDto(loaded.entity, loaded.version));
 
 		const readFailed: UnreadableEntry[] = listed.value.skipped.map((skipped) => ({
 			assetId: skipped.assetId,

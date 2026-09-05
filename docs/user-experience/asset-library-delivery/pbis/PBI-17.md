@@ -1,7 +1,7 @@
 ---
 id: PBI-17
 type: PBI
-status: designed
+status: in-review
 epic: Asset library
 feature: F04
 priority: P0
@@ -12,6 +12,8 @@ screens: [AL11]
 ---
 # PBI-17 — Delete an unused asset without damaging its references
 
+Implementation and test evidence: [delivery record](../delivery-record.md). Engineering implementation is in review; the acceptance checklist remains for reviewer and real-vault confirmation.
+
 ## Context and value
 
 **Epic:** Asset library · **Feature:** F04 — Handle errors and manage assets safely
@@ -20,7 +22,7 @@ As a private renovator, I want to complete this activity independently and under
 
 **Outcome:** Delete an unused asset without damaging its references.
 
-**References:** [AL11](AL11-delete-object.md). The [interaction rules](interaction-rules.md) and [shared delivery rules](delivery-rules.md) also apply.
+**References:** [AL11](../specification/screens/AL11-delete-object.md). The [interaction rules](../specification/interaction-rules.md) and [shared delivery rules](../delivery-rules.md) also apply.
 
 ## Preconditions and trigger
 

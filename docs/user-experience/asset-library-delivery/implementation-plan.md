@@ -2,6 +2,8 @@
 
 Version 1.1 · 2026-09-05 · Planning baseline, not a calendar or capacity commitment.
 
+Implementation status: in review. See the [delivery record](delivery-record.md) for the baseline, completed engineering delta, evidence and remaining acceptance.
+
 ## Goal and scope
 
 Integrate the second selected Asset Library direction into the existing Vue 3 Obsidian interface. Deliver reviewable flows for browsing, editing, usage context, navigation, failure handling and safe management. The package contains 18 PBIs and two enablers; the [backlog index](README.md) links them all.

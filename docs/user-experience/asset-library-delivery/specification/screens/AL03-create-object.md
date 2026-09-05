@@ -19,7 +19,7 @@ Activate New asset; handle any pending changes through AL05 first.
 
 ## Visual reference
 
-![Create a new asset — reference](selected-direction.png)
+![Create a new asset — reference](../images/selected-direction.png)
 
 **Image status:** The entry point is visible; the creation dialog is specified in text. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -27,13 +27,13 @@ Activate New asset; handle any pending changes through AL05 first.
 
 Dialog with name, category, unit, and a clearly labelled price including currency; other existing metadata is secondary; Create and Cancel.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](../component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
 Focus Name. Explicit creation performs exactly one create operation. Categories and units match the domain catalogue. Zero is a deliberately supplied price, not a substitute for unknown. After success select the new asset and category and reset search deliberately.
 
-The [central interaction rules](interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
+The [central interaction rules](../interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
 
 ## Exceptions and boundaries
 

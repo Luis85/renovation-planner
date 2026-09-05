@@ -1,3 +1,4 @@
+import type { ObservationToken } from '../../../src/application/ports/versioning';
 /**
  * `AssetSelectionStore` in isolation (design "Asset library overview" §5.5).
  *
@@ -43,6 +44,7 @@ const QUIET: AssetLibraryChange = { catalogue: false, marks: [], design: [], usa
 
 function entryFor(assetId: string): CatalogueEntryDto {
 	return {
+		version: { revision: 1, observed: 'fixture' as ObservationToken },
 		assetId: assetId as CatalogueEntryDto['assetId'],
 		name: 'Oak plank floor',
 		category: 'material',

@@ -1,3 +1,4 @@
+import type { ObservationToken } from '../../../src/application/ports/versioning';
 /**
  * The empty-state selectors: the full input/output table from the slice's Design §3.
  *
@@ -18,6 +19,7 @@ import { createAssetId } from '../../../src/domain/asset/AssetId';
 import { currencyOf } from '../../../src/core/money/Money';
 
 const anEntry = (): CatalogueEntryDto => ({
+	version: { revision: 1, observed: 'fixture' as ObservationToken },
 	assetId: createAssetId(),
 	name: 'Oak plank floor',
 	category: 'material',

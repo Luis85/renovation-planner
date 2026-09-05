@@ -137,6 +137,7 @@ export interface AssetLibraryDeps {
 	 */
 	readonly openAssetNote: (assetId: AssetId) => Promise<NoteOpenOutcome>;
 	/** Jumps into the designer for one asset — §3.5's `Open designer` action. */
+	readonly openProject: (projectId: string) => Promise<void>;
 	readonly openDesigner: (assetId: AssetId) => Promise<void>;
 	/**
 	 * §3.6's status bar folder half — `54 assets · Renovation/Library` — a plain settings echo

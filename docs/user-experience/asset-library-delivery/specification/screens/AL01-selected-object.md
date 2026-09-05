@@ -19,7 +19,7 @@ Select a row or restore a saved valid selection.
 
 ## Visual reference
 
-![Inspect an asset definition — reference](prototype-desktop.jpg)
+![Inspect an asset definition — reference](../images/prototype-desktop.jpg)
 
 **Image status:** Browser capture of this baseline state; usage data is illustrative. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -27,13 +27,13 @@ Select a row or restore a saved valid selection.
 
 Identity; Used in above Definition; editable fields; read-only outline and dimensions; Edit shape and Open note.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](../component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
 Selection loads definition, geometry, and usage independently. Results may appear only for the current asset. A project row opens the corresponding project while preserving library context.
 
-The [central interaction rules](interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
+The [central interaction rules](../interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
 
 ## Exceptions and boundaries
 

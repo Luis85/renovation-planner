@@ -1,3 +1,4 @@
+import type { ObservationToken } from '../../../src/application/ports/versioning';
 /**
  * @vitest-environment jsdom
  *
@@ -15,6 +16,7 @@ import { currencyOf } from '../../../src/core/money/Money';
 
 function anEntry(overrides: Partial<CatalogueEntryDto> = {}): CatalogueEntryDto {
 	return {
+		version: { revision: 1, observed: 'fixture' as ObservationToken },
 		assetId: createAssetId(),
 		name: 'Oak plank floor',
 		category: 'material',

@@ -95,14 +95,14 @@ describe('a gesture made in this session reaches Obsidian\'s view state', () => 
 	});
 
 	/** And `Back to library` publishes the DESELECTION rather than only redrawing one. */
-	it('carries a deselection into getState', async () => {
+	it('preserves selection when returning to the list', async () => {
 		const { view } = await openLibrary();
 		await click(view, 'button.rp-al-shelf__head');
 		await click(view, `[data-asset-id="${ALDER.assetId}"]`);
 
 		await click(view, '.rp-al-inspector__back');
 
-		expect(view.getState().assetId).toBe('');
+		expect(view.getState().assetId).toBe(ALDER.assetId);
 	});
 
 	/**

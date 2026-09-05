@@ -19,7 +19,7 @@ Request another selection, New asset, note/designer/project navigation, or closu
 
 ## Visual reference
 
-![Leave an asset with unsaved changes — reference](prototype-desktop.jpg)
+![Leave an asset with unsaved changes — reference](../images/prototype-desktop.jpg)
 
 **Image status:** Context reference only; the protection dialog is not shown. This retained image uses German-localized UI labels; the English prose defines the behavior and is not an assertion that an English screen has been captured.
 
@@ -27,13 +27,13 @@ Request another selection, New asset, note/designer/project navigation, or closu
 
 Dialog identifying the asset and explaining the situation; Keep editing as the safe return; Discard and continue; no automatic save.
 
-Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](docs/user-experience/asset-library-delivery/specification/component-library.md). Domain commands do not belong inside presentation components.
+Uses the shared `AssetLibraryShell`, `AssetShelves`, `AssetRow`, `AssetInspector`, and state-dependent fields, dialogs, or feedback from the [component library](../component-library.md). Domain commands do not belong inside presentation components.
 
 ## Interactions and transitions
 
 Remember the triggering navigation as a pending action. Keep editing returns to the triggering field. Discard resets the draft and executes the pending action exactly once. Esc means Keep editing.
 
-The [central interaction rules](interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
+The [central interaction rules](../interaction-rules.md) additionally apply, particularly focus management, local-draft protection, and explicit write outcomes.
 
 ## Exceptions and boundaries
 

@@ -43,7 +43,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import DialogHost from '../dialogs/DialogHost.vue';
 import ViewFailure from '../components/ViewFailure.vue';
-import NewAssetForm from '../views/NewAssetForm.vue';
 import AssetInspector from './AssetInspector.vue';
 import AssetLibraryBody from './AssetLibraryBody.vue';
 import { useAssetLibraryContext } from './AssetLibraryContext';
@@ -51,6 +50,7 @@ import { focusRowAt, focusWithin, rowPositionOf, shelvesWithdrawn } from './shel
 import { deleteAssetWithReferences } from './deleteAssetFlow';
 import { useAssetLibraryStore } from '../stores/AssetLibraryStore';
 import { useDialogStore } from '../dialogs/dialog-store';
+import { openNewAssetDialog } from '../views/newAssetDialog';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
@@ -154,33 +154,31 @@ const failure = computed(() => {
 });
 
 /**
- * §3.1's `New asset` — `ViewRoot.onCreateAsset`'s identical sequence, over the SAME
- * `NewAssetForm` and the guarded `createAsset`/`setAssetFootprintFromDimensions` pair. It does
- * NOT re-hydrate on success: `AssetCreated` already reaches `catalogue: true` on
- * `AssetLibraryChange`, so the `onLibraryChanged` subscription above re-reads the listing on
- * its own.
+ * §3.1's `New asset` — the sequence itself lives in `openNewAssetDialog`, which
+ * `ViewRoot.onCreateAsset` opens too; this docblock used to call that sequence "identical"
+ * over a second copy of it.
+ *
+ * What stays here is the HAND-OFF, which is the half the two surfaces differ in, and the
+ * refresh decision: it does NOT re-hydrate on success, because `AssetCreated` already reaches
+ * `catalogue: true` on `AssetLibraryChange` and the `onLibraryChanged` subscription above
+ * re-reads the listing on its own.
  */
 const newAssetBusy = ref(false);
 
 async function onCreateAsset(): Promise<void> {
 	if (dialogs.current !== null) return;
 
-	const result = await dialogs.openDialog({
-		kind: 'form',
-		title: tr('form.new-asset.title'),
-		component: NewAssetForm,
-		props: {
-			createAsset: (input: CreateAssetInput) => context.commands.createAsset.execute(input),
-			setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) =>
-				context.commands.setAssetFootprintFromDimensions.execute(input),
-			busy: newAssetBusy,
-			logger: context.logger,
-			defaultCurrency: context.commands.defaultCurrency,
-		},
+	const assetId = await openNewAssetDialog({
+		dialogs,
 		busy: newAssetBusy,
+		createAsset: (input: CreateAssetInput) => context.commands.createAsset.execute(input),
+		setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) =>
+			context.commands.setAssetFootprintFromDimensions.execute(input),
+		logger: context.logger,
+		defaultCurrency: context.commands.defaultCurrency,
 	});
-	if (result === 'cancel') return;
-	await context.openDesigner(result.values as AssetId);
+	if (assetId === null) return;
+	await context.openDesigner(assetId);
 }
 
 /**

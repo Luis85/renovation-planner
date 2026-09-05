@@ -47,7 +47,7 @@ import ViewFailure from '../components/ViewFailure.vue';
 import ProjectList from './ProjectList.vue';
 import ProjectDetailState from './ProjectDetailState.vue';
 import NewProjectForm from './NewProjectForm.vue';
-import NewAssetForm from './NewAssetForm.vue';
+import { openNewAssetDialog } from './newAssetDialog';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import { useRenovationProjectContext } from './RenovationProjectContext';
@@ -60,7 +60,6 @@ import { isErr } from '../../core/result/Result';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
 import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
-import type { AssetId } from '../../domain/asset/AssetId';
 import type { ContinueContext } from '../../application/continueContext';
 import type { PlanSummaryDto } from '../read-models/PlanDto';
 
@@ -324,25 +323,17 @@ async function onCreateProject(initialName = ''): Promise<void> {
 async function onCreateAsset(): Promise<void> {
 	if (dialogs.current !== null) return;
 
-	const result = await dialogs.openDialog({
-		kind: 'form',
-		title: tr('form.new-asset.title'),
-		component: NewAssetForm,
-		props: {
-			createAsset: (input: CreateAssetInput) => context.commands.createAsset.execute(input),
-			setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) =>
-				context.commands.setAssetFootprintFromDimensions.execute(input),
-			busy: newAssetBusy,
-			// The form's own door for a dispatch that THROWS, which both of these being guarded
-			// commands means they cannot — but the guard is the ROOT's property, not this call
-			// site's, and `useFormCommit` requires the door rather than assuming the caller.
-			logger: context.commands.logger,
-			defaultCurrency: context.commands.defaultCurrency,
-		},
+	const assetId = await openNewAssetDialog({
+		dialogs,
 		busy: newAssetBusy,
+		createAsset: (input: CreateAssetInput) => context.commands.createAsset.execute(input),
+		setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) =>
+			context.commands.setAssetFootprintFromDimensions.execute(input),
+		logger: context.commands.logger,
+		defaultCurrency: context.commands.defaultCurrency,
 	});
-	if (result === 'cancel') return;
-	await context.openAsset(result.values as AssetId);
+	if (assetId === null) return;
+	await context.openAsset(assetId);
 }
 
 /**

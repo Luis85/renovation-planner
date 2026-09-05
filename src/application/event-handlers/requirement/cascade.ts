@@ -5,6 +5,7 @@ import type { Loaded } from '../../ports/versioning';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import { requirementInvalidated } from '../../../domain/requirement/Requirement.events';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
+import type { AssetId } from '../../../domain/asset/AssetId';
 
 /** What the handlers need; the repositories stay ports, never concrete classes. */
 export interface CascadeDeps {
@@ -95,4 +96,29 @@ export async function runRecalculationCascade(
 		() => worker(),
 	);
 	await Promise.all(workers);
+}
+
+/**
+ * The prologue both asset-driven cascade subscribers share: read every Requirement on this
+ * asset, or say so LOUDLY and stop. `null` means stop — the caller has nothing left to do and
+ * the failure has already been both logged and notified, once.
+ *
+ * A shared step rather than two copies because what is duplicated is POLICY and not shape: the
+ * log EVENT NAME and the `cascadeAborted` notice are the two things a second copy drifts on, and
+ * the reason this branch is the noisy one is stated on `CascadeDeps.notify` rather than at each
+ * caller. What each caller keeps is its own narrowing — `onAssetUpdated` skips a Requirement
+ * whose recorded inputs still match, `onAssetPriceOverrideChanged` filters to one project —
+ * which is exactly the half `onAssetUpdated`'s header calls the difference between them.
+ */
+export async function requirementsOnAsset(
+	deps: CascadeDeps,
+	assetId: AssetId,
+): Promise<readonly Loaded<Requirement>[] | null> {
+	const listed = await deps.requirements.listByAsset(assetId);
+	if (isErr(listed)) {
+		deps.logger.error('requirement.list-by-asset.failed', { assetId, cause: listed.error });
+		deps.notify?.cascadeAborted(assetId);
+		return null;
+	}
+	return listed.value;
 }

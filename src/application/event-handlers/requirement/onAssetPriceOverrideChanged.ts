@@ -1,9 +1,8 @@
-import { isErr } from '../../../core/result/Result';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { Disposable } from '../../../core/events/Disposable';
 import type { AssetPriceOverrideChanged } from '../../../domain/asset-price/AssetPriceOverride.events';
 import type { CascadeDeps } from './cascade';
-import { runRecalculationCascade } from './cascade';
+import { requirementsOnAsset, runRecalculationCascade } from './cascade';
 
 /**
  * A project's own price for a shared Asset moved, so every Requirement IN THAT PROJECT
@@ -25,13 +24,9 @@ import { runRecalculationCascade } from './cascade';
 export function registerOnAssetPriceOverrideChanged(events: EventBus, deps: CascadeDeps): Disposable {
 	return events.subscribe('AssetPriceOverrideChanged', async (event) => {
 		const { projectId, assetId } = (event as AssetPriceOverrideChanged).payload;
-		const listed = await deps.requirements.listByAsset(assetId);
-		if (isErr(listed)) {
-			deps.logger.error('requirement.list-by-asset.failed', { assetId, cause: listed.error });
-			deps.notify?.cascadeAborted(assetId);
-			return;
-		}
-		const inProject = listed.value.filter((r) => r.entity.projectId === projectId);
+		const listed = await requirementsOnAsset(deps, assetId);
+		if (listed === null) return;
+		const inProject = listed.filter((r) => r.entity.projectId === projectId);
 		if (inProject.length === 0) return;
 		await runRecalculationCascade(deps, inProject);
 	});

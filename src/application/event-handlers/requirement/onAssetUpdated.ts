@@ -8,7 +8,7 @@ import type { AssetUpdated } from '../../../domain/asset/Asset.events';
 import type { Money } from '../../../core/money/Money';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { CascadeDeps } from './cascade';
-import { runRecalculationCascade } from './cascade';
+import { requirementsOnAsset, runRecalculationCascade } from './cascade';
 import { assetMatchesCalculatedFrom } from '../../commands/requirement/deriveRequirementFigures';
 import { effectiveUnitCostFrom } from '../../commands/requirement/resolveEffectiveUnitCost';
 
@@ -38,16 +38,8 @@ export interface AssetCascadeDeps extends CascadeDeps {
 export function registerOnAssetUpdated(events: EventBus, deps: AssetCascadeDeps): Disposable {
 	return events.subscribe('AssetUpdated', async (event) => {
 		const { assetId } = (event as AssetUpdated).payload;
-		const listed = await deps.requirements.listByAsset(assetId);
-		if (isErr(listed)) {
-			deps.logger.error('requirement.list-by-asset.failed', {
-				assetId,
-				cause: listed.error,
-			});
-			deps.notify?.cascadeAborted(assetId);
-			return;
-		}
-		if (listed.value.length === 0) return;
+		const listed = await requirementsOnAsset(deps, assetId);
+		if (listed === null || listed.length === 0) return;
 
 		const asset = await deps.assets.getById(assetId);
 		// **Two causes, one fallback, two log lines.** The RECOVERY is the same either way and
@@ -63,12 +55,12 @@ export function registerOnAssetUpdated(events: EventBus, deps: AssetCascadeDeps)
 		// was the diagnosis.
 		if (isErr(asset)) {
 			deps.logger.error('requirement.cascade-asset-unreadable', { assetId, cause: asset.error });
-			await runRecalculationCascade(deps, listed.value);
+			await runRecalculationCascade(deps, listed);
 			return;
 		}
 		if (asset.value === null) {
 			deps.logger.error('requirement.cascade-asset-gone', { assetId });
-			await runRecalculationCascade(deps, listed.value);
+			await runRecalculationCascade(deps, listed);
 			return;
 		}
 		const current = asset.value.entity;
@@ -83,7 +75,7 @@ export function registerOnAssetUpdated(events: EventBus, deps: AssetCascadeDeps)
 			// Same recovery as an unreadable asset: treat every link as changed. Recalculation
 			// refuses against an endpoint it cannot establish and leaves each requirement
 			// visibly stale, which is the honest outcome for a read we could not perform.
-			await runRecalculationCascade(deps, listed.value);
+			await runRecalculationCascade(deps, listed);
 			return;
 		}
 		// `winnersBy`, NOT `new Map(list.map(...))`. That spelling keeps whichever note came last
@@ -98,7 +90,7 @@ export function registerOnAssetUpdated(events: EventBus, deps: AssetCascadeDeps)
 			[...winners].map(([projectId, override]) => [projectId, override.entity.unitCost]),
 		);
 
-		const changed = listed.value.filter(
+		const changed = listed.filter(
 			(r) =>
 				!assetMatchesCalculatedFrom(r.entity.calculatedFrom, {
 					// The EFFECTIVE cost this requirement's figures were derived from — the

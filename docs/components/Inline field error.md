@@ -10,11 +10,19 @@ sources:
   - SDD §59
   - SDD §64
   - SDD §65
+  - "Editor component library §9 — Field, UnitInput, MoneyInput validation state"
+  - "Asset library component contracts — AssetDefinitionForm field errors"
 type: component
 image: "[[inline-field-error.png]]"
 ---
 
 # Inline field error
+
+**Design authority since 2026-09-05:** the editor package's `Field`, `UnitInput` and
+`MoneyInput` validation state ([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)); the library package's
+`AssetDefinitionForm`, which holds an ID-bound draft and its field errors through clean, dirty,
+validating, saving and error ([contracts](../user-experience/asset-library-delivery/specification/component-library.md)); and the project package's rule for an invalid
+price draft — a field message, the input retained, never cleared or silently rounded.
 
 The message beside the field that caused it. The narrowest error surface in the inventory, and
 the one that keeps a validation failure from being escalated into a [[Toast]] a user has to
@@ -22,11 +30,15 @@ translate back into which box they typed in wrong.
 
 ## Specimen
 
-![Inline field error, and the states it owes, in Obsidian's default light and dark](inline-field-error.png)
+![Inline field error, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/inline-field-error.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -91,6 +103,11 @@ useless.
    is a different experience from one that waits. Slice 16 has to pick the moment.
 2. **What happens to an error when the field is edited again.** Clearing on input hides a real
    problem; keeping it shows a stale one.
+
+**Since 2026-09-05:** question 1 is exactly the open issue
+[[A field edit commits on blur, and two design packages ask for an explicit Apply]] — the moment
+of validation follows the moment of commit, and that decision is not this note's. Question 2
+stands.
 
 ## Sources
 

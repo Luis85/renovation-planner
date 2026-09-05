@@ -9,11 +9,19 @@ sources:
   - PRD §39
   - PRD §64
   - SDD §85
+  - "Project and asset library component contracts — UnsavedChangesDialog, NewAssetDialog"
+  - "Editor component library §9 — ImpactPreview, ImpactConfirmationDialog"
 type: component
 image: "[[modal.png]]"
 ---
 
 # Modal
+
+**Design authority since 2026-09-05:** the dialogs the packages name — `UnsavedChangesDialog`
+(project and library: keep editing or discard and continue), `NewAssetDialog` ([contracts](../user-experience/asset-library-delivery/specification/component-library.md)),
+and the editor's `ImpactConfirmationDialog` with its `ImpactPreview` ([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)) —
+all of them through the existing `DialogHost`, which every view mounts and which is invisible
+until something opens a dialog.
 
 The blocking surface for a decision that cannot be deferred. PRD §64's deletion dialog is the
 worked case, and **the confirmation dialog is a use of this component rather than a second
@@ -21,11 +29,15 @@ one** — the four choices are content, not a variant.
 
 ## Specimen
 
-![Modal, and the states it owes, in Obsidian's default light and dark](modal.png)
+![Modal, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/modal.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -91,6 +103,10 @@ first.
 2. **Whether *Reassign* needs a second step.** PRD §64 lists it as one of four choices, but
    reassigning references requires choosing a target — which is either a modal inside a modal or
    a different component this note does not have.
+
+**Since 2026-09-05:** question 1 is answered by what shipped — the plugin's own `DialogHost`,
+mounted per view, and the packages build on it rather than on Obsidian's `Modal`. Question 2
+stands.
 
 ## Sources
 

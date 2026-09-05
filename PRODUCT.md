@@ -97,6 +97,41 @@ explicitly not the target.
 
 **Confirmed accessibility standard: WCAG 2.2 AA** — see `## Accessibility & Inclusion`.
 
+**Surfaces.** Four workspace views ship, and each has a design authority under
+`docs/user-experience/`:
+
+- **Renovation project** — a project list that is a launcher (search, Resume, active and
+  completed groups) and a detail state per project (name, status, currency, plans, project
+  prices, note access). Authority: `renovation-planner-project-specs/` (P00–P07). The
+  detail state's three guided entries — *Describe your renovation*, *Start with a plan*,
+  *Set project prices* — are a design proposal not yet built.
+- **Plan editor** — per plan: image or PDF background, calibration, pan/zoom, polygon zones,
+  selection, Inspector, undo/redo. Authority: `renovation-planner-editor-specs/` (M00–M17),
+  a locked visual direction. Its first vertical slice is built through checkpoint C3 — the
+  shell and read path, room-first creation (*Add → Room*, a dragged rectangle or two typed
+  lengths) and the trust path (a failed refresh keeps the floor on screen and says so) — and
+  its Plan / Renovate / Review perspectives, property tree, walls, openings, change states,
+  Materials, Costs, Evidence and Review readiness are proposed extensions, not shipped
+  behaviour.
+- **Asset library** — one vault-wide catalogue: category shelves and a right inspector,
+  search by name, supplier or SKU, usage and price source, delete with a reference check.
+  Authority: `asset-library-delivery/` (AL00–AL11).
+- **Asset designer** — per asset, the shape behind a library row. Its design is in the
+  editor package's component library and the archived library specification; no package of
+  its own.
+
+**UX decisions the packages make binding.** Obsidian is the design system: no plugin
+palette, logo, account, or standalone shell, and semantic Obsidian variables everywhere.
+The editor exposes homeowner vocabulary — *Room, Wall, Area, Reference plan, Work* — and
+never *Zone, Polygon, Vertex, Scene* or *Calibrate*; the domain and the vault format keep
+their names, and the mapping is explicit and tested rather than a rename. *Open project*
+goes to details and never straight into the editor; *Resume* names its target before it
+acts and validates it first. A missing read is never shown as zero or as "no projects yet".
+No cross-project budgets, progress percentages or plan thumbnails on the overview.
+Starting without a plan is valid. A field edit that commits on blur is the shipped
+behaviour, and both the project and the library packages ask instead for an explicit
+Apply — that is an open decision (`docs/issues/`), not a package's to take.
+
 Scope is staged, and the stage matters because a surface designed for a later stage is
 scope the product has not reached:
 
@@ -135,7 +170,12 @@ type; German is partial and falls back per string. The language comes from Obsid
 
 **Open, and not to be invented:** which locales beyond English and German; regional
 fallback (`de-AT` → `de`), which arrives with the first regional locale; whether a demo
-project ships (PRD §95 leaves it optional).
+project ships (PRD §95 leaves it optional); whether field edits keep committing on blur or
+move to an explicit Apply; what has to ship for the asset catalogue's Bases route to count
+as reachable; and the editor package's own open design questions (its §86 — left-panel
+composition, the perspective control's form, Inspector tabs versus stacked sections,
+whether Existing/Planned is a property or a comparison), each of which it says needs
+prototype evidence rather than a decision on paper.
 
 ## Brand Commitments
 
@@ -150,7 +190,11 @@ capitalization sits deliberately outside that rule.
 **The host's appearance wins.** The plugin lives inside someone else's themed vault, so it
 adopts Obsidian's own variables rather than asserting a palette over them.
 
-No logo, wordmark, colour system or typographic identity exists or has been committed.
+No logo, wordmark, colour system or typographic identity exists or has been committed, and
+the design packages confirm rather than open that: their mockups show light and dark
+appearances without defining a palette, and each states that the plugin has no logo,
+account menu or standalone shell. A generic app frame drawn in a mockup is the image's
+scaffolding, not a commitment.
 
 ## Evidence on Hand
 
@@ -164,11 +208,19 @@ users, benchmarks or adoption numbers — there are none.
 The PRD's §95 example project does not exist; it would have to be authored, and that is an
 undecided product fact rather than an available asset.
 
-What *does* exist to design against: the PRD (`docs/product/prds/`), the SDD (`docs/development/sdds/`), 109
-requirement notes in `docs/requirements/`, and a working scaffold whose one view renders an
-empty mount point. `npm run harness` draws the real view against Obsidian's default
-app.css in a browser — faithful about markup, spacing, hierarchy and Obsidian's default
-colours, not about a themed vault's colours or accent.
+What *does* exist to design against: the PRDs (`docs/product/prds/`), the SDD
+(`docs/development/sdds/`), the requirement, entity and business-rule notes under `docs/`,
+four shipped surfaces (see *Surfaces* above), and three design packages under
+`docs/user-experience/` — the editor (M00–M17), the project overview and details (P00–P07)
+and the asset library (AL00–AL11). Each carries screen specifications, interaction rules,
+a component library and its own proposed backlog. **Their mockups are generated images,
+not screenshots of running software**, the project and library packages' images carry
+German labels as localization references, and every figure in them (room areas, costs,
+project names) is invented sample content. No package was validated with users; each says
+so, and each names what it leaves undecided. `npm run harness` draws the real surfaces
+against Obsidian's default app.css in a browser — faithful about markup, spacing,
+hierarchy and Obsidian's default colours, not about a themed vault's colours or accent —
+and `npm run harness-shot` captures them.
 
 ## Product Principles
 

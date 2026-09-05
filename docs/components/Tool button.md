@@ -11,11 +11,18 @@ sources:
   - SDD §56
   - SDD §57
   - SDD §85
+  - "Editor component library §6, §7 — FloatingPrimaryActions, AddMenuItem, TemporaryToolBanner"
 type: component
 image: "[[tool-button.png]]"
 ---
 
 # Tool button
+
+**Design authority since 2026-09-05:** the editor package has no six-tool ribbon, so the
+buttons this note owes are fewer: the two of `FloatingPrimaryActions` (Select, Add), the items of
+the `AddMenu` — drawn from a declarative creation catalog — and `TemporaryToolBanner`'s Esc/Enter
+hints during a creation task ([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)). The exactly-one-active invariant moves
+to the shell's safe-default rule: a completed creation returns to Select.
 
 One control, one tool. The reusable half of the [[Toolbar]] row, and the component with the
 most states in the whole inventory — which is why it is its own note rather than a column in
@@ -23,11 +30,15 @@ its container's.
 
 ## Specimen
 
-![Tool button, and the states it owes, in Obsidian's default light and dark](tool-button.png)
+![Tool button, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/tool-button.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -87,6 +98,10 @@ tool needs `aria-pressed`, and focus needs a ring with its own thickness.
    undiscoverable.
 2. **Which Obsidian icon each of the six tools takes.** Unanswerable here, per the anatomy note
    above — this is the first component whose design needs the icon renderer that does not exist.
+
+**Since 2026-09-05:** question 2 is still unanswerable here — no icon renderer — and the set
+of icons it asks about is now Select, Add and the creation catalog's entries rather than six
+tools.
 
 ## Sources
 

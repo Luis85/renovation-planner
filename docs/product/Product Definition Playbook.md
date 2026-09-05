@@ -1043,6 +1043,13 @@ Now define:
 
 # 18. Phase 14 — Create the UX / Product Design Specification
 
+> **In this repository (2026-09-05):** this phase's artifact is not one `design-spec.md` but
+> three packages under `docs/user-experience/`, one per surface — the editor, the project
+> overview and details, and the asset library — each with screen specifications, interaction
+> rules, a component library and its own proposed backlog, plus an `archive/` of what they
+> superseded. `docs/README.md` says why a package's items are not the backlog's, and
+> `docs/reviews/2026-09-05-design-package-adoption.md` records what was derived from each.
+
 ## Goal
 
 Translate requirements into interaction design.

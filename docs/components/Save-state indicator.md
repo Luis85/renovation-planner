@@ -10,11 +10,20 @@ sources:
   - PRD §66
   - PRD §67
   - SDD §85
+  - "Editor component library §9, §10 — SaveStateIndicator (five states)"
+  - "Asset library component contracts — PersistentWarning / SaveState"
 type: component
 image: "[[save-state-indicator.png]]"
 ---
 
 # Save-state indicator
+
+**Design authority since 2026-09-05:** the editor package's `SaveStateIndicator`
+([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)) with FIVE canonical states — Saved, Saving, Unsaved changes, Save
+failed, and **Saved · refresh needed**, the one this note's four lacked: a confirmed write whose
+read-back failed, shipped by the editor's trust path (checkpoint C3). The library package's
+`PersistentWarning / SaveState` ([contracts](../user-experience/asset-library-delivery/specification/component-library.md)) carries the same five, and the project
+package rules that a saved-but-stale display must not require another Apply.
 
 Which of PRD §67's four states the document is in: **Saved**, **Saving**, **Unsaved Changes**,
 **Save Error**. Four values, and they are the component's entire content — which is what makes
@@ -22,11 +31,15 @@ it the canonical case for the rule that status is never colour alone.
 
 ## Specimen
 
-![Save-state indicator, and the states it owes, in Obsidian's default light and dark](save-state-indicator.png)
+![Save-state indicator, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/save-state-indicator.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 

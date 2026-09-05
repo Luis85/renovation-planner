@@ -6,6 +6,33 @@
 **Target:** Consumer homeowners / serious DIY renovators  
 **Host:** Obsidian Mobile
 
+## Design amendments — 2026-09-05
+
+This PRD is kept as received, and it describes a mobile that WRITES: §4 marks photos,
+problems, receipts and tasks as mobile-primary, §6 puts *Capture* at the centre of a five-tab
+navigation, and §28's MVP and §29's success criteria are capture flows. **The current product
+scope is narrower, and the two documents are not equal authorities on it.** `PRODUCT.md` and
+the [project package](../../user-experience/renovation-planner-project-specs/README.md)'s
+precedence rule 9 bound today's mobile to READ-ONLY: project data stays readable, no surface
+requires touch drawing, and a CSS breakpoint grants no writing — narrow desktop editing and
+mobile reading are tested separately. Everything below is the direction a later scope decision
+would reopen, not a commitment the shipped plugin makes; the backlog item that bounds the
+shipped surface is `docs/requirements/Bound the mobile surface to what it can actually do.md`.
+
+Three specifics, so the body is read against what is decided:
+
+- **§30's assumptions 7 and 8 are decided rather than validated** — read/inspect-first mobile
+  is the scope, and plan editing stays desktop.
+- **§22's "does not optimize for precise wall drawing" now describes mobile only.** On desktop
+  the editor package makes walls first-class (M04, M07), as a proposed extension.
+- **§7's home sketch shows `Planning 62%` and a budget roll-up.** Neither is a design: domain
+  project status is not calculated completion, and the overview carries no money totals
+  (project package, P00 and `states-and-navigation.md`).
+
+The appendix from *Research Traceability* onward duplicates
+[`../research/renovation-planner-user-research-synthesis.md`](../research/renovation-planner-user-research-synthesis.md);
+that file is the one to edit.
+
 ## 1. Vision
 
 Mobile is not a smaller desktop editor. Renovation happens while walking through rooms, measuring, speaking to trades, buying materials, discovering problems, taking photos, checking work and collecting receipts.

@@ -228,7 +228,7 @@ describe('project-list-narrow.css', () => {
 	 * than closed, so the guarantee is not read wider than the check.
 	 */
 	it('agrees with the threshold stated by the spec’s derivation and by its constraint 3', () => {
-		const path = 'docs/user-experience/renovation-planner-home-DESIGN-SPEC.md';
+		const path = 'docs/user-experience/archive/renovation-planner-home-DESIGN-SPEC.md';
 		const shipped = /@container rp-project-list \(max-width: (\d+)rem\)/u
 			.exec(readFileSync('styles/project-list-narrow.css', 'utf8'))?.[1];
 

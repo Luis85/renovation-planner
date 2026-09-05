@@ -5,7 +5,7 @@
  * that travels in the leaf's own view state.
  */
 import { readFileSync } from 'node:fs';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Konva from 'konva';
 import { ok } from '../../../src/core/result/Result';
 import {
@@ -14,6 +14,7 @@ import {
 	PlanEditorView,
 	type PlanEditorDeps,
 } from '../../../src/presentation/views/PlanEditorView';
+import { EDITOR_RUNTIME, type EditorRuntime } from '../../../src/presentation/editor/runtime';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
@@ -48,6 +49,7 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 		},
 		// The lifecycle tests here dispatch nothing; the refusal commands keep that honest.
 		commands: unavailablePlanEditorCommands(),
+		openNote: vi.fn<(entityId: string) => Promise<'opened' | 'missing' | 'failed'>>().mockResolvedValue('opened'),
 		vault: {
 			getAbstractFileByPath: () => null,
 			getResourcePath: () => '',
@@ -127,6 +129,29 @@ function makeView(
 async function sizeShell(view: PlanEditorView): Promise<void> {
 	sizedShellRoot(view.contentEl);
 	await settle();
+}
+
+/**
+ * Reaches a mounted view's `EditorRuntime` the way `tests/helpers/editor.ts`'s `runtimeOf`
+ * reaches a `@vue/test-utils`-mounted one: `provide()` sets it on `PlanEditorRoot`'s OWN
+ * component instance. This file mounts through the real `PlanEditorView` rather than through
+ * `mountPlanEditor`, so there is no `VueWrapper` here — the root Vue `App` Obsidian's own
+ * `createApp(...).mount(...)` returns sets its `_instance` to that same root instance once
+ * mounted, which is the one other place `provides` is reachable from outside the tree.
+ *
+ * Only this file's own binding test needs it: everything else here asserts through the DOM,
+ * which is the honest instrument for a lifecycle case.
+ */
+function runtimeOfView(view: PlanEditorView): EditorRuntime {
+	const app = (view as unknown as { vueApp: { _instance: { provides: Record<symbol, unknown> } } | null }).vueApp;
+	if (app === null) {
+		throw new Error('expected the view to have mounted a Vue app');
+	}
+	const runtime = app._instance.provides[EDITOR_RUNTIME as unknown as symbol];
+	if (runtime === undefined) {
+		throw new Error('expected the mounted tree to have provided an EditorRuntime');
+	}
+	return runtime as EditorRuntime;
 }
 
 /** Opening a view that already knows which Plan it shows — the restored-leaf path. */
@@ -437,5 +462,32 @@ describe('mount and unmount', () => {
 		await settle();
 
 		expect(leaf.detached).toBe(1);
+	});
+
+	/**
+	 * `PlanEditorContext.openPlanNote`, at the seam that supplies it (design spec §2.6): the
+	 * VIEW partially applies `PlanEditorDeps.openNote` with THIS leaf's plan id, the same shape
+	 * `closeLeaf` and `focusLeaf` already have. Driven through `runtimeOfView`'s
+	 * `EditorRuntime.openPlanNote` rather than through a rendered control, because no shell
+	 * region calls it yet — that is the trust path's `unrecovered` warning row, a later task's
+	 * surface — and this is the one place the binding itself, from `deps.openNote` down to the
+	 * leaf's own id, can be checked today.
+	 */
+	it("openPlanNote asks the deps for THIS leaf's plan note", async () => {
+		const openedIds: string[] = [];
+		const view = new PlanEditorView(new FakeLeaf() as never, {
+			...deps(),
+			openNote: (id) => {
+				openedIds.push(id);
+				return Promise.resolve('opened');
+			},
+		});
+		openViews.push(view);
+		await view.setState({ planId: FIXTURE_PLAN.id }, {} as never);
+		await view.onOpen();
+
+		await runtimeOfView(view).openPlanNote();
+
+		expect(openedIds).toEqual([FIXTURE_PLAN.id]);
 	});
 });

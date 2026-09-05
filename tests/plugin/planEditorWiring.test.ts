@@ -12,8 +12,13 @@ import { planEditorDeps } from '../../src/plugin/planEditorDeps';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
 import { planBackgroundChanged } from '../../src/domain/plan/Plan.events';
+import { t } from '../../src/presentation/i18n/strings';
+import { activateNotices } from '../../src/presentation/notices/notify';
 import { installObsidianDom } from '../helpers/dom';
 import { recorder, lines, resetRecorder } from '../helpers/logger';
+// Mock-only surface, imported BY NAME — see `sequenceNoticeWiring.test.ts`'s own comment for
+// why this is the same class the `'obsidian'` alias resolves to.
+import { Notice } from '../helpers/obsidian-mock';
 import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
 
 installObsidianDom();
@@ -72,6 +77,37 @@ describe('the plan editor dependencies', () => {
 
 		expect(deps.queries).toBe(root.persistence?.planEditorQueries);
 		expect(deps.vault).toBeDefined();
+	});
+
+	/**
+	 * Design spec §2.6: the SAME `openProjectNote` the project view uses, because that
+	 * function resolves ANY entity id through the index — a plan's note needs no second
+	 * opener. `'missing'` is `openProjectNote`'s own answer for an id the index does not
+	 * resolve, which a made-up id always is.
+	 */
+	it('binds openNote to the real index-resolving opener when persistence is composed', async () => {
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+		const workspace = new FakeWorkspace();
+		const stack = vaultStack();
+		const deps = planEditorDeps(root, workspace as never, stack.vault);
+
+		expect(await deps.openNote('no-such-id')).toBe('missing');
+	});
+
+	/**
+	 * The refusal shape every sibling `unavailable*` bundle uses (`showDiagnosticsReport`,
+	 * `unavailablePlanEditorCommands`'s own `settings.unrecovered` codes): with no persistence
+	 * there is no index to resolve through, so the honest answer is `'failed'`, notified once
+	 * here rather than left to whatever called `openNote` to discover silently.
+	 */
+	it('answers failed and notifies when settings were never recovered', async () => {
+		activateNotices();
+		Notice.shown.length = 0;
+		const root = createCompositionRoot(null, recorder, vaultStack());
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault);
+
+		expect(await deps.openNote('any')).toBe('failed');
+		expect(Notice.shown.at(-1)).toBe(t('en', 'settings.unrecovered'));
 	});
 
 	/**

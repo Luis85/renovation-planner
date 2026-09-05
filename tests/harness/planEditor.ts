@@ -215,6 +215,9 @@ export function harnessDeps(): PlanEditorDeps {
 			...unavailablePlanEditorCommands(),
 			zoneInspector: zoneInspectorAnswering(HARNESS_ZONES),
 		},
+		// Nothing on this page opens a note — there is no vault behind it — the door
+		// works and answers the way an ordinary click would; nothing here dispatches it.
+		openNote: () => Promise.resolve('opened' as const),
 		vault: {
 			getAbstractFileByPath: () => null,
 			getResourcePath: () => '',

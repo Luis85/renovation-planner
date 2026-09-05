@@ -75,6 +75,35 @@ export function renovationProjectOpenAssetLibrary(workspace: Workspace, logger: 
 }
 
 /**
+ * `PlanEditorDeps.openNote`: the SAME `openProjectNote` the project view uses, because that
+ * function resolves any entity id through the index — a plan's note needs no second opener.
+ * The fault mapping is this door's own event name (`plan-editor.open-note-failed`), so a log
+ * line says which of the two callers of `openProjectNote` faulted; the coalescing
+ * (`openingByPath`, inside `openProjectNote` itself) is shared with the project view's own
+ * binding, which is correct — the two ids never collide, since a plan's note and a project's
+ * note are never the same file.
+ */
+export function planEditorOpenNote(
+	workspace: Workspace,
+	vault: Vault,
+	index: ProjectIndex,
+	logger: Logger,
+): (entityId: string) => Promise<ProjectNoteOpenOutcome> {
+	return (entityId) =>
+		openProjectNote(
+			{
+				workspace,
+				vault,
+				index,
+				reportFault: (cause: unknown): void => {
+					notifyFault(cause, logger, 'plan-editor.open-note-failed');
+				},
+			},
+			entityId,
+		);
+}
+
+/**
  * `RenovationProjectDeps.openProject`, bound to the real `openProjectNote` — the same
  * line-budget extraction as `renovationProjectOpenPlan` above, and nothing about the
  * behaviour moved: the fault mapping (`view.project.open-failed`) and the coalescing this

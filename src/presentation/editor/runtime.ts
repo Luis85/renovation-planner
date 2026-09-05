@@ -162,6 +162,13 @@ export interface EditorRuntime {
 	 * value threaded once through the runtime rather than re-derived per consumer.
 	 */
 	readonly pausedReasonId: string;
+	/**
+	 * Design spec §2.6: opens this leaf's Plan's own source note. A straight pass-through to
+	 * `PlanEditorContext.openPlanNote` — the id is bound at the VIEW, not here — so the shell
+	 * region that offers it (the trust path's `unrecovered` warning row) has one door to call
+	 * regardless of which leaf it is drawn in.
+	 */
+	readonly openPlanNote: () => Promise<void>;
 }
 
 
@@ -763,6 +770,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		refreshProjection,
 		writesBlocked,
 		pausedReasonId,
+		openPlanNote: () => context.openPlanNote(),
 	};
 }
 

@@ -7,95 +7,55 @@ and the product intent is in `docs/product/prds/`. **Read the SDD before proposi
 has already refused things that look obvious from the code alone, and where this guide and
 the SDD disagree, the SDD is the authority and this file is the bug.
 
-Today the build, the gates, the browser harness and the release pipeline work; the
-settings pane declares **seven rows and four of them bind a control** — units, the default
-projects folder (where a NEW project's folder is created, since slice 18; an EXISTING project's
-folder derives from where its `Project.md` sits instead, ADR-0013), the currency increment's
-`defaultCurrency` and slice 11's verbose
-logging, plus slice 19's two library-folder rows, one INFORMATIONAL and one an ACTION, and the
-unreadable-note increment's diagnostics-report ACTION row, the second of that report's two
-doors beside the palette command. The three that bind nothing each have their own reason, and
-only the library pair share one: `setControlValue` writes through `saveSettings` on every
-change, and a control on `libraryFolder` would persist a folder with no notes moved and strand
-the catalogue.
-Counted in `getSettingDefinitions` rather than remembered — this sentence said "the one setting
-there is" for several slices after it stopped being one, then "the three settings there are"
-through slice 19, then **"five rows and only three of them bind a control" for slice 21 and
-through the currency increment that added the sixth row**, which is the same failure a third
-time in a sentence that already recorded the first two. The distinction between a row and a
-control did not save it; only counting did. **The seventh row arrived by MERGE rather than by
-an edit to this file**, which is the fourth way this count can go wrong and the one no author
-of either branch is looking at: two branches each added a row, each correctly updated the
-sentence to six, and the merge of them is seven with both sentences reading right in isolation.
-`tests/plugin/settings/unrecovered.test.ts` is what caught it, because it asserts the count
-rather than describing it. The persistence layer of design slice 4 is in
-place — Obsidian repositories, the geometry sidecar store, the project index and its
-vault-change pipeline
-(bounded since slice 18 by what a note DECLARES, not by where it sits, which closes slice 4's
-own recorded multi-root prerequisite without registering a single root), and the migration
-runner.
+Today the build, the gates, the browser harness and the release pipeline work; the settings pane
+declares **seven rows and four of them bind a control** — units, the default projects folder
+(where a NEW project's folder is created, since slice 18; an EXISTING project's folder derives
+from where its `Project.md` sits instead, ADR-0013), the currency increment's `defaultCurrency`
+and slice 11's verbose logging, plus slice 19's two library-folder rows, one INFORMATIONAL and
+one an ACTION, and the unreadable-note increment's diagnostics-report ACTION row, the second of
+that report's two doors beside the palette command. The three that bind nothing each have their
+own reason, and only the library pair share one: `setControlValue` writes through `saveSettings`
+on every change, and a control on `libraryFolder` would persist a folder with no notes moved and
+strand the catalogue. Counted from `getSettingDefinitions` rather than remembered: this sentence
+has been wrong four times, most recently by a MERGE where two branches each added a row and each
+correctly updated the count to six. `tests/plugin/settings/unrecovered.test.ts` asserts the
+number rather than describing it, which is the only reason any of those were caught. The
+persistence layer of design slice 4 is in place — Obsidian repositories, the geometry sidecar
+store, the project index and its vault-change pipeline (bounded since slice 18 by what a note
+DECLARES, not by where it sits, which closes slice 4's own recorded multi-root prerequisite
+without registering a single root), and the migration runner.
 
-**Every entity and mechanism the MVP architecture needs now exists**, which is what slice
-10 closing means: `Project`, `Plan`, `Zone`, `Asset` and `Requirement`, the quantity and
-cost engine behind them, the reference-integrity engine that guards deleting either end of
-a link, and the recalculation cascade that keeps a figure honest when its inputs move.
-Everything past this point is feature work on a proven template. Slice 11 closed
-the first half of the cross-cutting pair — the Error Boundary, the logging policy,
-diagnostics and the data-safety rules — and **slice 12, its second half, has since closed
-too**: `docs/requirements/Errors, diagnostics and the test harness.md` opens
-"Slices 11 and 12: the two cross-cutting slices", so those two are the pair and nothing else
-can be a half of it. An earlier draft of this passage gave that half to slice 13 in the same
-breath as it listed slice 12 as outstanding — a sentence contradicting itself two clauses
-later. Slice 13 belongs to *Shared UI vocabulary* (slices 13–17), and what it closed there is
-the toast and the save-state badge — the notice queue and
-the save-state indicator, the surface any view or command reports a transient message or a
-save state through. **That group is now complete: 14 and 15 landed first, then 16, and slice
-17 — the integration slice the map calls "17 integrates them" — has closed it.** **Design slice
-19 has closed since**, which is what took slice 10's own document from seven open criteria to
-none: the Asset catalogue left the project, so a catalogue entry carries no project id at all.
-**Design slice 21 has closed too, and slice 20 has now closed BOTH of its halves** — the currency
-invariant first, then the per-project price override it was split from. This sentence has been
-wrong here three times running, each time in the same direction and each time about a slice whose
-own section further down this file already said otherwise: it read "slices **20 and 21**, which
-are written and unbuilt" for a slice after 21 landed; then "20 has closed its FIRST HALF … the one
-increment written and unbuilt now" through the increment that built the second. The remedy is not
-a more careful sentence — it is that **this paragraph names no slice as outstanding at all**, so
-there is nothing here to go stale, and a reader asking what is unbuilt is sent to
-`docs/tasks/` where the checkboxes are. Also not done are the items slices 16, 17, 19,
-**20** and 21 WITHDREW or narrowed rather than ticked; each is recorded in its own task
-document's amendments rather than here, because a list of exceptions kept in two places is one
-that disagrees with itself.
+**Every entity and mechanism the MVP architecture needs now exists**: `Project`, `Plan`,
+`Zone`, `Asset` and `Requirement`, the quantity and cost engine behind them, the
+reference-integrity engine that guards deleting either end of a link, and the recalculation
+cascade that keeps a figure honest when its inputs move. Everything past this point is feature
+work on a proven template.
+
+**This paragraph names no slice as outstanding, deliberately**, because a status sentence here
+is one nothing re-runs — it went stale three times in the same direction, each time about a
+slice whose own section already said otherwise. `docs/tasks/` carries the checkboxes, and the
+items that were WITHDRAWN or narrowed rather than ticked are in each task document's own
+amendments, because a list of exceptions kept in two places is one that disagrees with itself.
 
 **Every workspace surface mounts its own isolated Vue app** (SDD §12) — nothing outside a view
-knows it is Vue. **This sentence carried a NUMBER until the merge that read it beside its own
-conclusion**, which is the sharpest form this defect has taken here: the lead said *four* in
-bold and the sentence four lines below it said *No count is stated here, therefore* — one
-paragraph, written in one commit, disagreeing with itself about whether it was allowed to
-count. Neither half was wrong about the tree; the paragraph was wrong about the paragraph, and
-nothing in any gate reads whether a passage's argument survives its own opening clause. This
-sentence said TWO for a slice after the third was
-registered and THREE for a branch after the fourth was, and the second time it was already
-"re-founded on `registerView`" — so a COUNT is not what fixes it, whatever the count is of. Two
-reasons, and only the first was known: a number written here is a number nothing re-runs, and
-`grep -c "registerView" src/plugin/RenovationPlannerPlugin.ts` answers one MORE than the calls
-because that file's own prose names the call, so the obvious re-measurement misleads too.
-No count is stated here, therefore. **The registered view types are pinned in order, by exact
-array, by `tests/plugin/settings/unrecovered.test.ts`** ("registers the view and the command
-anyway") — that assertion is where the NEXT one arrives and fails, rather than here where it
-would read correctly forever. Not *a fifth*, which this sentence said while the array already
-held five: the pin is over REGISTRATIONS and the paragraph is about Vue ROOTS, and an ordinal
-borrowed from one of those two counts the other. Which of them mounts a Vue ROOT is the different fact and the one
-this paragraph is about: every entry on that list except `GEOMETRY_SIDECAR_VIEW`, which is
-registered and mounts none. The **Renovation project** view is a singleton with
-a ribbon button and a command, and it now draws **a project list** — design slice 16's
-`ProjectList.vue`, not slice 17's: that document is the error-surfacing decision table and
-never once mentions one, so the list was owned by no slice until slice 16 claimed it. This
-paragraph said "still no project list" for slices 14 and 15, which was true until slice 16
-landed. `ViewRoot.vue` renders `ProjectList` whenever the empty state does not apply, and slice 14's
+knows it is Vue. **No count is stated here**, deliberately: a number written in this file is a
+number nothing re-runs, and this one was wrong twice. **The registered view types are pinned in
+order, by exact array, by `tests/plugin/settings/unrecovered.test.ts`** ("registers the view and
+the command anyway") — that assertion is where the next one arrives and fails, rather than here
+where it would read correctly forever. Beware borrowing that array's length: the pin is over
+REGISTRATIONS and this paragraph is about Vue ROOTS, and the two differ by exactly
+`GEOMETRY_SIDECAR_VIEW`, which is registered and mounts none. Do not re-measure with
+`grep -c "registerView" src/plugin/RenovationPlannerPlugin.ts` either — that file's own prose
+names the call, so it answers one more than the calls. The **Renovation project** view is a
+singleton with a ribbon button and a command, and its list state is a **LAUNCHER**:
+`ProjectList.vue` draws a header, a filter that doubles as the pane's count line, one row per
+project carrying two facts and a ten-step status strip, a `Continue` group offering the project
+and plan last worked in, a collapsed `Completed` group and a foot line.
+`ViewRoot.vue` renders it whenever the empty state does not apply, and
 `renovationProject.noProjects` in its place when it does — the two never draw together, gated
 on the same `'ready'` status the rest of this paragraph describes. **"Whenever the empty state
-does not apply" is not "once the vault holds at least one project", and this sentence said the
-second for a review round:** `selectRenovationProjectEmptyState` answers `null` on
+does not apply" is not "once the vault holds at least one project":**
+`selectRenovationProjectEmptyState` answers `null` on
 `unreadable > 0` BEFORE it ever looks at the length, so a vault whose only projects are ones
 this build cannot read draws an empty LIST — its header, its Create button and no rows —
 beside the refusal notice, which is the right picture and not the one the sentence promised.
@@ -104,8 +64,8 @@ future; the mapped failure sentence for the refusing `AppError`'s own code
 (`.rp-view-message`, via `trError`, so unrecovered settings and a vault fault say different
 things); a loading line in that same region while the read is in flight; and
 `.rp-view-notice`, the one ADDITIVE one, when SOME project notes refused
-(`view.project.some-unreadable`). Slice 15's `DialogHost` mounts here too and is invisible
-until something opens a dialog — slice 16's `NewProjectForm` is its first caller in this
+(`view.project.some-unreadable`). `DialogHost` mounts here too and is invisible
+until something opens a dialog — `NewProjectForm` is its first caller in this
 view, opened from the empty state's action button and from `ProjectList`'s own header.
 `ListProjects()` resolves to a `ProjectListResult` —
 `{ projects, unreadable }`, not a bare array; the PORT below it answers a `ProjectListing`,
@@ -113,16 +73,8 @@ view, opened from the empty state's action button and from `ProjectList`'s own h
 with BOTH halves clear: an empty list with `unreadable > 0` is a vault that has projects this
 build could not read, so it gets the notice and no "no projects yet".
 
-**That list is a LAUNCHER since the Renovation Planner Home increment**, and this paragraph
-describes the bare `<ul>` it grew out of rather than what draws today — a filter that is also
-the pane's count line, two facts per row, a ten-step status strip, a `Continue` group, a
-collapsed `Completed` group and a foot line, with the header and the empty state unchanged.
-Left standing rather than rewritten, because every sentence in it is still true of the seam it
-is about (`ListProjects`, the `'ready'` gate, the two-halves empty state, `DialogHost`); the
-Home section far below carries what was added and what building it taught.
-
-**Design slice 21 gave that view a SECOND state, and everything above describes the first
-one.** A project row NAVIGATES now rather than opening `Project.md`, into a detail state that
+**That view has a SECOND state, and everything above describes the first.** A project row
+NAVIGATES now rather than opening `Project.md`, into a detail state that
 draws one project — its name, its lifecycle status, an **Open note** action (the only surface
 left that opens the raw note), a **‹ back**, and that project's plans with a `New plan` form
 dispatching the real `CreatePlanCommand`. A project that turns out not to be there draws a
@@ -151,10 +103,8 @@ next section: slice 6 built the tool framework underneath it (`EditorTool` and i
 lifecycle, `CommandHistory` undo/redo, the reversible move-zone command, transformer
 normalization, the snap service, the selection store and the Inspector's
 selection-to-DTO-to-command pipeline), slice 7 added the first concrete tool, slice 8 wired
-the framework into the editor for real, and slice 15 made slice 7's tool reachable. This
-paragraph said "nothing on that canvas is editable" for four slices after it stopped being
-true, contradicting the sentence immediately below it. The one thing slice 5 writes is which
-document a Plan's background IS.
+the framework into the editor for real, and slice 15 made slice 7's tool reachable. The one
+thing slice 5 writes is which document a Plan's background IS.
 
 The **Asset designer** is the third, and it is per-ASSET rather than per-plan — design slice B3,
 ADR-0015, keyed by an `assetId` in Obsidian's own view state exactly as the Plan editor is keyed
@@ -209,32 +159,26 @@ every vault that had no plan notes — and nothing in the app could create one, 
 every vault. It is a plain callback over a `FuzzySuggestModal` of the Project Index's plan
 entries now. The command ID did not change, because a user's hotkey is bound to it.
 
-**`create-sample-project` is SCAFFOLDING and says so in its name, and it is now a
-CONVENIENCE rather than the only source of anything.** One command seeds a project, a plan and
-five zones through the real `CreateProjectCommand` / `CreatePlanCommand` /
-`CreateZoneCommand`, then opens the editor on what it made — the vault-side equivalent of
-`npm run harness`. Exactly three commands and nothing else: no asset and no requirement, which
-is worth saying because a reader reasoning from slice 10's closed loop would expect them.
-Zones stopped needing it once slices 6 and 8 gave `DrawPolygonTool` a way
-to draw one by hand; the PROJECT half stopped needing it once slice 16 gave
-`renovationProject.noProjects` a real action (`NewProjectForm` / `CreateProjectCommand` —
-Amendment 1's "ships with no action at all" held through slices 14 and 15 and stopped being
-true here) and gave `ProjectList` its own header button beside it; and the PLAN half stopped
-needing it in slice 21, whose detail state carries a `New plan` button over the real
-`CreatePlanCommand`. This paragraph said "the PLAN half is what this module is still the only
-source of … there is no project-detail surface a 'new plan' action could live on" until that
-slice landed, which is a trigger stated in prose firing without anything to notice it. What is
-left is the reason it was written for: one gesture produces a scene worth LOOKING AT, where
-assembling the same one by hand is two forms, two navigations and five polygons drawn vertex
-by vertex. **Its trigger is now that it stops being USED** — a fact about a habit, which no
-gate can report. `src/plugin/sampleProject.ts` carries that and why the partial notes a failed
-seed leaves behind are deliberate.
+**`create-sample-project` is SCAFFOLDING and says so in its name, and it is now a CONVENIENCE
+rather than the only source of anything.** One command seeds a project, a plan and five zones
+through the real `CreateProjectCommand` / `CreatePlanCommand` / `CreateZoneCommand`, then opens
+the editor on what it made — the vault-side equivalent of `npm run harness`. Exactly three
+commands and nothing else: no asset and no requirement, which is worth saying because a reader
+reasoning from slice 10's closed loop would expect them. Zones stopped needing it once slices 6
+and 8 gave `DrawPolygonTool` a way to draw one by hand; the PROJECT half stopped needing it once
+slice 16 gave `renovationProject.noProjects` a real action (`NewProjectForm` /
+`CreateProjectCommand` — Amendment 1's "ships with no action at all" held through slices 14 and
+15 and stopped being true here) and gave `ProjectList` its own header button beside it; and the
+PLAN half stopped needing it in slice 21, whose detail state carries a `New plan` button over the
+real `CreatePlanCommand`. What is left is the reason it was written for: one gesture produces a
+scene worth LOOKING AT, where assembling the same one by hand is two forms, two navigations and
+five polygons drawn vertex by vertex. **Its trigger is now that it stops being USED** — a fact
+about a habit, which no gate can report. `src/plugin/sampleProject.ts` carries that and why the
+partial notes a failed seed leaves behind are deliberate.
 
-Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
-each is written up where the code is: the seed's first run failed on Obsidian's
-asynchronously-populated `MetadataCache`, then on a missing `Geometry/` folder, and toggling
-the plugin off and on logged `Several Konva instances detected`. `npm run check` was green
-for all three, and each one was a FAKE that accepted what Obsidian refuses.
+Both of those were **found by a human running the plugin in Obsidian**, not by a gate — three
+defects in a row, each one a FAKE that accepted what Obsidian refuses, with `npm run check`
+green throughout. The Testing section's fake rule is the general form.
 
 Requires Obsidian 1.13.0+.
 
@@ -273,20 +217,10 @@ gate.** Measured on a quiet four-core box: `vue-tsc` 14.0s + `vite build` 1.6s, 
 1.0s + `eslint .` 23.8s, `test:coverage` 159.7s, `fallow` ~2s. **The suite is 79% of it**,
 and the suite's own accounting says the cost is not the tests — `transform 13.7s, import
 74.3s, tests 143.9s, environment 82.1s` over 362 files, so per-file overhead (a jsdom
-environment and a module registry, both paid once per FILE) exceeds the test bodies. **Every
-number in this paragraph is a DATED SNAPSHOT of one machine and one tree, the file count
-included** — `find tests -name "*.test.ts" | wc -l` prints **461** on 2026-09-05, **450** the day
-before, and 362 in the run the timings above come from, so the file count is three measurements
-behind and the
-per-file conclusion is what survives it, since that conclusion is a RATIO rather than a total.
-The 2026-09-04 run of that suite at 429 files reports `transform 22.43s, import 125.34s,
-tests 365.21s, environment 149.02s` in 260s wall clock — import and environment together still
-exceed the test bodies, which is the ratio holding across a 19% growth in files.
-**A merge is where a file count moves furthest and where nobody re-takes it**, and this
-paragraph is its own worked example twice over: one branch of this merge read 429 and the other
-418, on the same day, against trees that differed by a merge neither had taken — and the answer
-here was 450, and one review round later it is 461. Re-measure before reasoning from any of
-them. ONE
+environment and a module registry, both paid once per FILE) exceeds the test bodies.
+**Every number here is a DATED SNAPSHOT of one machine and one tree**, the test-file count
+included — re-measure before reasoning from any of them; what survives is the per-file
+conclusion, because that is a RATIO rather than a total. ONE
 door exists beside `check` for that reason, and it does not replace it:
 
 - **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no
@@ -303,19 +237,6 @@ destroyed `coverage/.tmp/coverage-N.json`, and `tests/build/` ESLint boots over 
 parallel run `check:fast` — which touches no `coverage/` and boots ESLint for one file at
 most — and the full `npm run check` runs ONCE, before a commit, by whoever is committing.
 One gate at a time falls out of that rule; nothing has to enforce it.
-
-**A machine-wide lock was built for this and then deleted, which is worth recording because
-the deletion is the finding.** `scripts/gate-lock.mjs` reached 475 lines and its suite 590 —
-91% of that increment's whole diff — through eight review rounds: an unlink race, validation
-over a free path, a put-back clobbering a fresh empty claim, `spawnSync` blocking every
-signal, handlers armed after the claim, `child.kill` reaching only `npm`, and a group signal
-that did not wait for descendants. Every one was real. **It bought zero seconds**, and two
-races remained that the shape could not close: `rename` can only atomically replace an EMPTY
-directory, and an empty directory is exactly what another process's claim looks like between
-its `mkdirSync` and its `writeFileSync` — atomicity needs them indistinguishable, safety
-needs them told apart. Reach for the workflow rule before the mutex; if one is ever wanted
-again, the argument to beat is a kernel-released primitive (a held socket, released by the OS
-on any death including SIGKILL), not a directory protocol.
 
 Two things make the gate itself cheaper, and both are measured rather than argued.
 `tsconfig.json` is `incremental` with its build info under `node_modules/.cache/` — 14.3s
@@ -364,15 +285,10 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)`, `addCommand`'s `name` and
   `addRibbonIcon`'s title — and passes a call to `t`/`tr`
   untouched, since that is a `CallExpression`, not a `Literal`, at the position it checks.
-  The last two arrived with design slice 21's improvement pass, and what made them cheap is
-  what the widening MEASURED rather than assumed: `docs/tasks/21` had declined to close that
-  gap because widening "touches every existing call site's evidence", and it touches none —
-  every one of them already passes `tr(...)`. `tests/build/i18n-literal-boundary.test.ts` is
-  that rule's first instrument in fifteen slices, and it is a whole selector's blind spots
-  read back for the first time: `id` stays a literal because a command id is DATA a hotkey
-  binds to, and the ribbon selector keys on the ARGUMENT POSITION because the icon beside the
-  title is a literal too — widen it to "a literal anywhere in the call" and two allow-cases go
-  red, measured.
+  `tests/build/i18n-literal-boundary.test.ts` asserts the selector's blind spots as blind
+  spots: `id` stays a literal because a command id is DATA a hotkey binds to, and the ribbon
+  selector keys on the ARGUMENT POSITION because the icon beside the title is a literal too —
+  widen it to "a literal anywhere in the call" and two allow-cases go red, measured.
   **`NOTICE_TEXT_BAN` is the notice door, and it is a SECOND rule rather than a widening of
   that one**: it refuses a `.message`/`.stack` read anywhere inside a `notify(...)`,
   `notifySuccess(...)`, `notifyWarning(...)` or `new Notice(...)` call, and a bare string
@@ -453,34 +369,27 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   nothing in ESLint's configuration reaches oxlint's directive handling. A rule that does
   not fit is turned off in `.oxlintrc.json`, where the reason is written down and review
   sees it.
-- **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
-  metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
-  reach — defensive double-fault logging, an Obsidian-runtime view callback. Floors of
-  99/99/99/98 (statements/functions/lines/branches), against 99.22/99.10/99.46/98.05
-  measured at design slice 19's close. **Read branches and FUNCTIONS again: the headroom is
-  ONE covered unit on each — 2780 branches covered where 2779 is the floor, and 1432
-  functions where 1431 is — which is the tightest either metric has ever been here.** Count
-  in UNITS rather than in percentage points, because a unit is what an untested arm actually
-  costs: one branch is 0.035pp and one function 0.069pp, both below the hundredth the summary
-  line prints, so a figure that did not visibly move is not evidence that nothing moved. **A
-  passing gate is not a review either** — slice 16's review pass left an arm uncovered while
-  branches read 98.12 against a floor of 98, and the three units of headroom it had then
-  swallowed it silently; it was found by reading `coverage-final.json` for the CHANGED FILES,
-  which is the instrument that can see one arm. At today's margin an untested arm in a tight
-  metric fails the gate outright and one in a slack metric hides completely, so plan the test
-  with the code rather than after it — and **an UNREACHABLE guard is not free**: the first
-  draft of slice 13's live-region fix carried a `regions?.[…]` null arm no test could drive,
-  and removing it by handing the regions to the host as an argument is what put that figure
-  back. Do not read a figure from this line as current; run `npm run test:coverage`. The exact
-  numbers, which increment moved them, and what every remaining uncovered arm IS live in
-  `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
-  rise to what a FINISHED increment measures — so an increment whose rounded-down figures
-  equal the floors already in force ratchets NOTHING, which is what slices 5, 11, 13, 15, 16,
-  18 and 19 did.
-  The suite
-  includes `tests/harness/accessibility.test.ts` and, since two branches each appended cases
-  to it and the sum crossed the 450-line cap, `tests/harness/accessibilityAssetLibrary.test.ts`
-  beside it — one seam, drawn where the file already had three top-level `describe`s, with
+- **test:coverage** — the suite plus the coverage floors, **99/99/99/98**
+  (statements/functions/lines/branches) in `vitest.config.ts`, which also carries the live
+  measurements, what every remaining uncovered arm IS, and the ratchet policy: floors only
+  rise, and they rise to what a FINISHED increment measures. **Do not read a figure from this
+  file as current; run `npm run test:coverage`.** Three rules about that margin, each paid
+  for:
+
+  - **Count in UNITS, not percentage points** — one branch is ~0.035pp and one function
+    ~0.069pp, both below the hundredth the summary line prints, so a figure that did not
+    visibly move is not evidence that nothing moved.
+  - **A passing gate is not a review** — an untested arm in a TIGHT metric fails outright, and
+    one in a SLACK metric hides completely. `coverage-final.json` read for the CHANGED FILES
+    is the instrument that can see a single arm; the threshold is not. Plan the test with the
+    code rather than after it.
+  - **An UNREACHABLE guard is not free.** It costs a branch it can never pay back, so removing
+    one is a real way to recover headroom.
+
+  The suite includes `tests/harness/accessibility.test.ts` and, since two branches each
+  appended cases to it and the sum crossed the 450-line cap,
+  `tests/harness/accessibilityAssetLibrary.test.ts` beside it — one seam, drawn where the
+  file already had three top-level `describe`s, with
   `runOptions` shared through `./axeOptions` rather than copied, because the alternative to
   sharing it is two copies of the list naming the rules this suite cannot honestly grade. Both
   are axe-core driven in jsdom against the
@@ -541,17 +450,6 @@ anyway, since `deps` and `store` are built in one place so the arguments cannot 
 is `src/**` plus `tests/**`, and there is no second program and no fifth gate. That was not
 free and the cost is worth knowing: `vue-tsc` goes from about 8 seconds to about 16, on each
 of the four CI legs.
-
-It arrived through a RATCHET that no longer exists. Turning the compiler on reported 562
-errors across 114 of 307 files, so the debt was held as a baseline of files permitted to
-fail, cleared over five increments, and the script and its baseline deleted when the list
-emptied. What that bought is in the Testing section below; what it cost is the eight seconds.
-
-**One thing the ratchet proved before it was retired, and the reason this now sits inside
-`check` rather than beside it:** while it was a separate command nobody ran, four files
-silently stopped type-checking between two merges — a deps type that grew a member, a
-function that grew a parameter, two new test files. A gate outside `npm run check` is a gate
-that reports only when somebody remembers to ask it.
 
 `npm audit` is deliberately NOT in `check`: an advisory with no patched version is a red
 nobody can clear, and a gate people learn to ignore protects nothing. It is its own CI job.
@@ -638,93 +536,11 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   failure this module exists to convert into an early one. The EXECUTABLE bit is deliberately
   not asked with it: Windows has no such bit and `accessSync(path, X_OK)` succeeds there for
   any file, so the check would hold on one CI platform and be theatre on the other.
-  `tests/build/chromium.test.ts` drives all of it, half in ONE CHILD PROCESS
-  because `chromium.executablePath()` reads `PLAYWRIGHT_BROWSERS_PATH` at IMPORT and not at
-  call — its own first draft set that variable in `beforeEach`, was answered from the real
-  cache throughout, and planted an empty file called `chrome` in this machine's provisioned
-  Playwright directory, which every later case then read as an installed pinned build.
-  **ONE child, not one per case, and that is a CI lesson rather than tidiness**: a spawn that
-  imports playwright-core costs about 650ms, and six of them cost 3.76s of a two-core runner
-  in synchronous bursts — beside test files whose waits are bounded in TICKS rather than
-  seconds. `settleUntil`'s own docblock already records a fixed-tick wait failing next to a
-  PDF rasterizing two million pixels; this file reproduced that shape, timing out
-  `accessibility.test.ts`'s cold Vite transform on one CI leg while the other three passed.
-  Nothing needed a process each: the import happens once and the FILESYSTEM and ENVIRONMENT
-  are read at CALL time, so one child walks every state and the `it`s read the results back.
-  **A test file's CPU cost is part of its correctness when anything in the suite waits in
-  ticks**, and a green local run on a four-core machine cannot see it.
-
-  **`settleUntil`'s own bound was that same mistake one level up, and it took a red CI leg to
-  see it.** The helper exists because a fixed `settle()` is a fixed tick count; its remedy was
-  a loop bounded at 50 ROUNDS, and a round is four microtasks and one `setTimeout(0)` that Node
-  clamps to about a millisecond — so the budget was about fifty milliseconds of wall clock on
-  every machine, while the work it waits on is a cold Vite transform whose duration is entirely
-  the machine's business. Measured rather than reasoned: `openIndex('entry=prototype:ZonePanel')`
-  settles in four to six rounds locally, which READS as a tenfold margin and is five
-  milliseconds against fifty. `verify (ubuntu-latest, 26)` spent all fifty and failed, while
-  the three prototypes scanned before it passed — a per-MODULE cost, so no ordering makes one
-  of them "the cold one". It is a DEADLINE now (4s, under vitest's 5000ms default so a real
-  regression still fails as this helper's named error rather than as an anonymous test
-  timeout).
-  **Pre-warming the entry module was tried first and is the more useful half of the finding**:
-  `HarnessEntry.component` is a real loader, so awaiting it does move that transform out of the
-  polled window — and with the budget starved to one round `ZonePanel` still failed, because it
-  is a template-only mock composing a real `<StatusBar />` that the index registers through
-  `defineAsyncComponent`, which resolves lazily INSIDE the window. **A list of things to warm
-  goes stale as mocks compose more of them; a deadline needs no list.** `settleUntil.test.ts`
-  pins boundedness with a STUBBED `Date.now` rather than by waiting the budget out — four
-  seconds on every CI leg to prove one `throw` is a bad trade — and says so, since what it
-  cannot measure is whether the VALUE is right for a contended runner.
-
-  **It has now caught ten defects the whole of `npm run check` could not**, which is the
-  argument for running it on anything that draws: the view collapsing to a sliver of its
-  pane (slice 1); and in slice 5, a layers panel sized with `--size-4-18` — 72 pixels,
-  clipping every label to "Backg" — a zone caption offset multiplied by the scale twice
-  over, putting three of four names off the top of the pane, and every zone type drawn in
-  the same grey because the harness page applied its theme class AFTER mounting, so the
-  editor resolved its palette when no `--color-*` existed. Every one passed the suite:
-  jsdom lays nothing out, and the tests set the theme variables themselves.
-
-  The fifth is the harness index's own entry list, where every row read `ZonePanelprototype`:
-  Vue's default `whitespace: 'condense'` removes whitespace between two elements when it
-  contains a newline, so an `<a>` and a `<span>` on adjacent template lines render with nothing
-  between them. It was found by CAPTURING a PNG and looking at it, on the first thing a designer
-  sees, after forty-four review rounds over that file.
-
-  **What that fifth one says about the instrument, and it is the reason to keep running it:** the
-  suite is not blind to the missing separator — jsdom's `textContent` reads `ZonePanelprototype`
-  perfectly well. It is blind to SPACING, so it cannot see the defect once the remedy is CSS, and
-  it could not have told anyone the rendered page looked wrong in the first place. Anything whose
-  symptom is a measurement no layout engine performs — spacing, wrapping, overflow, contrast, hit
-  size — is outside every gate this repository has, and a capture read by eye is the only
-  instrument here that reaches it.
-
-  **Six to ten came from the first design review of the harness index itself**, and they are the
-  paragraph above proved rather than restated — every one is a measurement no layout engine in
-  this repository performs, and `npm run check` was green on all five at once. The entry links
-  had NO visible focus indicator: the vendored app.css carries `:focus { outline: none }` and
-  `a { outline: none }`, and its reduction kept no `a:focus-visible` to put one back, so the
-  page's only navigation was invisible to a keyboard — WCAG 2.2 2.4.7 at AA, which `PRODUCT.md`
-  binds by name. The rows were 19.5px tall against 2.5.8's 24px minimum. The kind label was
-  dimmed with `opacity: 0.6`, which composites to **4.29:1** on the light scheme's background
-  and passes in dark — a contrast value no source file contains, which is the general lesson
-  about dimming text with opacity. `.rp-harness-failure` — the tree's one live region — was
-  applied in the template and declared in NO stylesheet, so a failed entry and an unpicked one
-  drew the same picture. And the fix for the first four introduced the fifth: `.rp-harness-index
-  h2` is a descendant selector, the stage lives inside that element, and the picker's uppercase
-  type was drawn over every entry's own headings until a capture showed `WorkPackages.vue`'s
-  title reading "WORK PACKAGES". `tests/harness/indexChrome.test.ts` refuses a selector that
-  reaches the mounted entry now, from any of the three roots that lead there — the picker, the
-  stage and the leaf — rather than only the one that shipped.
-
-  **Which capture watches which of the other four**, because the resting pair cannot watch all
-  of them and saying it could is how a state stops being looked at: `index-dark`/`index-light`
-  hold the row height and the kind label's contrast, both of which are on screen at rest.
-  A focus ring is not — nothing is focused in a headless page until something presses Tab — so
-  that one is `index-focus`, which is why that shot takes a `focus` selector and why
-  `focusForShot` presses Tab rather than calling `page.focus()`, which does not satisfy
-  `:focus-visible`. The failure card is not on screen either, since no entry has failed: it is
-  `index-failure`, which asks for an entry id that does not exist.
+  `tests/build/chromium.test.ts` drives all of it. **The captures have caught ten defects the
+  whole of `npm run check` could not** — every one a measurement no layout engine in this
+  repository performs (spacing, wrapping, overflow, contrast, hit size), which is the argument
+  for running this on anything that draws. The ten, and the CI lessons `chromium.test.ts` and
+  `settleUntil` each paid for, are in the increment history.
 - `npm run test-build` — builds into `.obsidian/plugins/<id>/` in this repository, which IS
   a vault. Naming this is a shorter ask than "please set up a vault", and it is the only
   way appearance and any assumed API get verified.
@@ -833,13 +649,13 @@ script resolves its paths from the WORKING DIRECTORY rather than from its own lo
 sibling directory, which needed no ignore rule and was exactly the problem: a path outside the
 repository is invisible to `git status`, so an abandoned worktree holding uncommitted work was
 findable only by `git worktree list`, and four accumulated before anyone looked. A worktree is a
-FULL COPY of `src/`, `tests/` and `styles/`, so moving them inside had to be measured rather
-than assumed — `npm run check` was run with one in place. **`build` and `oxlint` ignored it and
-`eslint .` did not**: flat config reads no `.gitignore` and no longer skips dot-directories, so
-it walked in, found a second `tsconfig.json` beside the root's, and failed EVERY file with
-"multiple candidate TSConfigRootDirs are present". `.worktrees/**` is in `eslint.config.mjs`'s
-global `ignores` for that reason, which is the load-bearing claim that block's own comment
-already made about itself. `fallow` counted the same 1193 files either way.
+FULL COPY of `src/`, `tests/` and `styles/`, so moving them inside was measured rather than
+assumed — `npm run check` was run with one in place. **`build`, `oxlint` and `fallow` ignored
+it and `eslint .` did not**: flat config reads no `.gitignore` and no longer skips
+dot-directories, so it walked in, found a second `tsconfig.json` beside the root's, and failed
+EVERY file with "multiple candidate TSConfigRootDirs are present". `.worktrees/**` is in
+`eslint.config.mjs`'s global `ignores` for that reason, which is the load-bearing claim that
+block's own comment already makes about itself.
 
 ## The linter in the edit loop
 
@@ -870,9 +686,7 @@ each test file its own module registry — and each boot loads the whole type-aw
 service. Under vitest's DEFAULT file-parallelism on Windows those boots contend, and
 `beforeAll(warmUpEslint)` can exceed even its deliberately large `ESLINT_BOOT_MS` (60s):
 measured, six such files timed out in one run and every one of them passed on a
-`--no-file-parallelism` re-run of the same tree. (An earlier draft of this sentence put a
-file count on that re-run. No subtree of `tests/` has that many files, so the figure was
-unverifiable and is gone rather than replaced by a second guess.) A parallelism artifact, not a broken gate
+`--no-file-parallelism` re-run of the same tree. A parallelism artifact, not a broken gate
 — so re-run serially before believing a `beforeAll` timeout in that directory, and count the
 cost of the next ESLint-booting test file against it. **Serial is the diagnostic, not the
 remedy, and the difference is measured rather than assumed**: the twelve files that boot an
@@ -994,50 +808,9 @@ than behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `set
 plus `tests/**`, with no `paths` mapping, so a test is checked against the same types `src/`
 is. Vitest still transpiles without checking; the compiler that matters runs in `build`.
 
-**It arrived through a ratchet, and the ratchet is gone.** For a long time this said "two
-entries", then four, five, six, seven — one file at a time, each admitted because a specific
-proof needed a compiler and each paying for itself on its first run. Turning the whole tree on
-reported **562 errors across 114 of 307 files**, so the rest was held as a baseline of files
-permitted to fail (`scripts/typecheck-tests-baseline.json`, enforced by
-`scripts/typecheck-tests.mjs`), cleared over five increments, and both deleted with the list.
-What is worth carrying is not the mechanism but what it found, because every one of these was
-green in all four gates beforehand:
-
-- **A command bundle missing `calibratePlan` entirely**, so slice 15's calibrate button would
-  have TypeErrored in the e2e rig rather than refusing or working.
-- **Two cascade registrations passing the command OBJECT** where `CascadeDeps` declares a
-  METHOD — `deps.recalculate({…})` would have been "not a function", unreached only because
-  both cases abort at a failing list step.
-- **A `createZoneId()` handed to `InMemoryRequirementRepository.poke`**, which takes a
-  `RequirementId` — a foreign brand reaching a method, in the file that tests that repository.
-- **`saveSettings({ …, projectsFolder })` where the setting is `projectFolder`.** `settingsFrom`
-  is a trust boundary that drops a key this version does not declare, so six cases certified a
-  rebind on a settings change that never happened. **A SEVENTH was living on an open branch and
-  arrived at the merge**, in design slice 21's `rootSwapRebind.test.ts` — invisible to the sweep
-  that found the other six, because that file did not exist on `main` when the sweep ran. It
-  cost nothing behaviourally, and saying why is the point: `saveSettings` calls
-  `rebindOpenViews()` unconditionally rather than comparing old settings against new, so the
-  rebind those cases are about really did happen. What it cost is that the case reads as
-  changing a setting and does not — and it would go on passing on the day `saveSettings` learns
-  to short-circuit an unchanged save. **This is the argument for the gate being PERMANENT rather
-  than a sweep**: a one-off cleanup measures the tree in front of it, and every open branch is a
-  tree it cannot see.
-- **A confirm dialog handed `body:` where `ConfirmDescriptor` declares `message`** — an excess
-  property, so that fixture's dialog rendered no message at all.
-- **`argumentsOf` guarding a lightningcss pseudo-class with `Array.isArray`**, which cannot
-  discriminate there: `Selector` is itself `SelectorComponent[]`, so the guard answered true
-  for every variant and handed `:host`'s single selector back as a LIST of them.
-- **Dead code that read as belt and braces** — `zone.withChanges?.({})` on a `Zone` with no
-  such member, immediately `void`ed, under a comment describing the two lines below it.
-- **A local `type ResultLike<T> = { ok: true; value: T }`** asserting that a validating call
-  cannot refuse.
-- **`withConflictingReads` typed to a port while calling `poke`**, which no port declares.
-  That one is also its own lesson: narrowing to `InMemoryRequirementRepository` was the
-  obvious next answer and was wrong in the OTHER direction, since a second call site wraps the
-  ASSET repository — a fix written against the case in front of the author rather than the
-  class, caught only because the compiler was still running.
-
-Three rules came out of the exercise and outlive it:
+**`tests/**` was type-checked through a ratchet that no longer exists**, and the ten defects
+it found while all four gates were green are in the increment history, along with why each
+`.test-d.ts` entry was worth a compiler. Three rules came out of that exercise and outlive it:
 
 - **A fixture is usually behind a change it was the REASON for.** `PolygonSketch`'s docblock
   records `cursor` being split into `pointer` and `nextVertex`, and a fixture still wrote
@@ -1051,123 +824,7 @@ Three rules came out of the exercise and outlive it:
   `let settle: (() => void) | null = null` locals stopped being callable. The house spelling is
   a definite assignment (`let settle!: () => void`), which `drawPolygonTool.test.ts` already used.
 
-**And the argument for it living in `build` rather than beside it:** while the gate was a
-separate command, four files silently stopped type-checking between two merges, and nothing
-reported it until somebody ran it by hand. The eight seconds it adds to `vue-tsc` is what that
-costs.
-
-The seven entries that were admitted one at a time are still worth reading for WHY each was
-worth a compiler, since the same reasons apply to the next proof somebody needs:
-
-`tests/harness/**/*.vue` is the first, and it is about SCOPE rather than about a proof:
-`IndexPage.vue` is the largest Vue file in the repository and the surface every prototype is
-viewed through, and it was reached by neither `vue-tsc` nor `eslint-plugin-vue` (whose
-`VUE_FILES` was `src/` only). The first run over it found `HARNESS_PLAN` missing a required
-`PlanDto` field while annotated as one. Both globs are asked of the tools rather than read,
-in `tests/build/lint-scope.test.ts` — TypeScript's own config parser, with `.vue` declared as
-an extra extension, and ESLint's `calculateConfigForFile`.
-
-`tests/presentation/editor/type-safety.test-d.ts` is the second, and it is a proof: slice 6's
-screen/world brand
-separation and the narrowing of `SelectionStore` to the four members `EditorContext` may
-hand a tool are both claims only a compiler can settle, and `vue-tsc --noEmit` in
-`npm run build` is the whole mechanism by which a compile-time proof exists here — a
-`// @ts-expect-error` that goes unenforced is just a comment. It carries both directions:
-what must NOT compile (the two brand mixes) and what must (the live Pinia store still
-satisfying that four-member contract). Outside that one file, an `implements` still binds
-the editor, not the gate.
-
-`tests/application/ports/diagnostics.test-d.ts` is the third, and it is the other proof only
-a compiler can carry: slice 11's "diagnostics contain no project content" is a claim about
-`DiagnosticsLedger.record`'s PARAMETERS, so it has no runtime form at all. Five
-`@ts-expect-error` directives — a zone's NAME, a note PATH, a free-text third argument, a
-kind outside the union, and the old three-string call shape — plus one line asserting what
-must still compile, which is an `AppError` whose `message` and `cause` DO hold content and
-are dropped by the ledger rather than refused at the door. An unsatisfied directive is itself
-an error, so widening `record` back to strings fails the build at the directive that no
-longer has anything to suppress.
-
-`tests/helpers/makeRenovationProjectView.ts` is the fourth, and it is neither scope nor a
-proof but a FAKE held to the contract it stands for. That file's own docblock promises that a
-grown constructor requirement "meets every consumer at the same time" — a compile-time claim
-with no compiler behind it, and it had already been broken: slice 16 gave
-`RenovationProjectDeps` a `commands` bundle whose `logger` is required, the factory built
-`commands` out of `createProject` alone, and `ViewRoot` then handed `logger: undefined` to
-`useFormCommit` — where a REJECTING dispatch TypeErrors inside the very catch that exists so a
-fault reaches somebody. Invisible to all four gates, and doubly so because every dispatch wired
-today is a guarded command that cannot throw. **The wider instrument was measured before the
-narrow one was chosen**: every `.ts` under `tests/helpers` in that same `include` reports 29
-errors, at least four of them this repository's own fake-too-thin shape rather than scaffolding
-noise — `calibrateHarness`'s viewport missing `worldPerScreenPixel`, `planEditorRig`'s bundle
-missing `calibratePlan`, two `PlanDto` fixtures missing `calibration`. Worth closing, and not
-inside a review pass on another slice, so the number is written down where the next reader
-finds it rather than left to be re-measured.
-
-`tests/helpers/fixtureVault.test-d.ts` is the fifth, and it is a KIND of its own rather than
-a fourth instance of scope, of a `@ts-expect-error` proof, or of a fake held to a contract.
-It asserts BIDIRECTIONAL assignability — that slice 12's disk-backed `FixtureStack` satisfies
-the same structural `VaultSurface` that `FakeVault`'s in-memory `RepositoryStack` already
-does, and that `RepositoryStack` still satisfies it too, so the widening that let the surface
-admit a second implementation is proven not to have narrowed what the first one already
-promised.
-Neither half is a `@ts-expect-error`: both assignments must compile, which is the opposite
-shape from the two `.test-d.ts` files above it. Naming `RepositoryStack` is what gives it its
-second effect, incidental to the proof it was written for: that type lives in
-`tests/helpers/vault.ts`, which no earlier `*.test-d.ts` had ever pulled into a real program,
-and `tests/**` is normally transpiled without checking — so this was the first time anything
-type-checked that file's ANNOTATIONS against its CODE, and it found two pre-existing defects
-on its first run. `tests/helpers/logger.ts` carried `Logger` only as a LOCAL, unexported
-type-only import (`TS2459: declares 'Logger' locally, but it is not exported`), which
-`vault.ts` had been importing from there regardless, unchecked, for its own
-`RepositoryStack.logger: Logger` field; and `RepositoryStack` itself never declared the
-`ledger` field `createRepositoryStack` had always returned, invisible for as long as the gap
-between a factory's return value and its declared interface had no compiler pointed at it.
-Both were fixed at their source rather than augmented around here. The technique
-generalises past this one file: pulling a single `*.test-d.ts` into `tsconfig.json`'s
-`include` does not check only the assertions written in it — it type-checks every module that
-file imports, transitively, for the first time, which is a cheap way to point a compiler at a
-helper subtree nothing else reaches.
-
-`tests/presentation/errors/errorSurfacePolicy.test-d.ts` is the sixth, and it is a second
-instance of the `@ts-expect-error` kind rather than a new one — with the difference that what
-it proves is an ACCESS rule rather than a parameter's shape. Slice 17's `ErrorSurface` carries
-a `unique symbol` its own module declares and never exports, so the three literals in this file
-are structurally perfect and still unassignable: the only way to hold a surface is to have
-called `surfaceFor`, which is what makes "a call site cannot reach a toast without asking the
-policy" a `tsc` guarantee rather than a lint one. Measured, not asserted — deleting `& Routed`
-from the seven union members reports exactly three `TS2578: Unused '@ts-expect-error'`
-directives, one per literal. **What it deliberately does not prove is written into the file**:
-that a call site asked with the RIGHT origin, which no type can hold, and for which the spec's
-origin table plus review are the whole instrument.
-
-`tests/application/errors/exceptionMapper.test-d.ts` is the seventh, and it is the same kind
-put to a claim about code NOBODY HAS WRITTEN YET. `ExceptionMapper`'s declared return is
-`AppError & TechnicalFault`, so a mapper that forgets to stamp the fault it mints fails at its
-own `return` — which is the only form in which "every `AppError` minted from a thrown cause
-carries the stamp" can be checked at all, since the mappers it quantifies over are the future
-geometry and import ones the type's own docblock promises. Its two directives are held for
-DIFFERENT reasons and both mutations were run rather than reasoned: widening `ExceptionMapper`
-to a bare `AppError` unsatisfies the first and leaves the second biting, because
-`VaultExceptionMapper` restates the obligation in its own call signature; widening only that
-signature reports nothing at all, because the interface EXTENDS `ExceptionMapper` and inherits
-the stamped one. The first draft of the file's own comment asserted the two were independent
-and that widening one would leave the other open — false in both directions, and the sentence
-is now what the mutations printed.
-
-**It exists because the rule's earlier, REMEMBERED form was kept at one of its two sites.**
-Slice 17 stamped by hand in `faultError`, under a docblock calling that "the single site where
-a thrown cause becomes an `AppError`"; `guardAgainstThrowing.ts`'s catch is the second, and it
-is the one every guarded command and query goes through. So a repository exception under a
-dispatched editor command arrived in Presentation unstamped, was read as an ordinary
-save-affecting refusal, and was routed to the save indicator — badge raised, toast suppressed
-as a double-report, and the mapped sentence, which is the only account of a fault that will
-ever exist, reaching nobody. Reported by a review bot on the pull request; `CLAUDE.md`'s own
-rule is that a docblock saying "the only place X" gets a `grep` in the SAME edit, and that one
-never did. **The two report doors then collapsed into one**, which is the part worth carrying:
-`reportCommitFailure` existed as a separate function ONLY because its callers were the only
-ones whose faults were stamped, so the fault arm would have been dead in its sibling. Making
-the stamp a type obligation removed the asymmetry, and with it the reason for the second
-function — a split kept alive by a defect rather than by a distinction.
+The rules this suite is actually held to:
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the
@@ -1187,169 +844,12 @@ function — a split kept alive by a defect rather than by a distinction.
   thing nests — `ItemView` in `tests/helpers/obsidian-mock.ts`, since the harness-collapse
   fix.
 
-  **The most expensive instance so far, because it hid a shipped defect behind 860 green
-  tests:** `FakeMetadataCache` parsed the vault's own text SYNCHRONOUSLY, while Obsidian
-  populates `MetadataCache` asynchronously — so a note read back in the tick it was created
-  has no cache entry at all. Every read-after-write passed here and failed in a vault, where
-  `create-sample-project` reported "Migrating the project note failed" on a note it had just
-  written correctly (an absent `schema-version` reads as version 0, and there is no migration
-  step from 0). Making the fake honest turned **65 tests across 12 files** red at once, which
-  is the measure of what a kind fake was concealing. Two things came out of it and both are
-  load-bearing: `frontmatterOf` falls back to `EchoWindow` — already "what this plugin last
-  wrote here" — when there is no cache entry (and, since the modify window below, when the
-  entry it has predates our own write), and it keys on the cache ENTRY rather than on
-  `entry?.frontmatter`, because `getFileCache` answers `null` for "never parsed" but an
-  object with no `frontmatter` for "parsed, and the user deleted it". Collapse those two and
-  a note whose frontmatter was deleted is served this plugin's own stale bytes forever. The
-  fake states what it models and what it still does not: the create window, not the parse lag
-  after a modify, where Obsidian holds a STALE entry rather than none.
-
-  **That last sentence stood for eleven slices and named the defect it was hiding.** The
-  MODIFY window is real and it shipped: `SetPlanBackground` wrote the reference, published
-  `PlanBackgroundChanged`, the Plan Editor re-hydrated off that event INSIDE the window, and
-  `GetPlan` answered a plan with no background — so the canvas drew none, and the background
-  appeared only much later, when some unrelated action (a calibration, in the report) re-read
-  a note the parse queue had caught up with in the meantime. Every gate was green: the fake
-  cleared its own lag record on `modify`, so every read-after-modify in the suite read the
-  bytes on disk. **A fake that says what it does not model is still a fake that does not model
-  it**, and writing the gap down bought exactly nothing — the sentence was read as a survey of
-  the ground rather than as a live exposure, which is this file's own "a documented residue
-  reads as surveyed ground" rule, arriving in the one place that had already written it out.
-
-  What closed it: `FakeVault.pendingParse` models BOTH windows (a create leaves the cache with
-  no entry, a modify leaves it the PREVIOUS text, and a second write inside one window keeps
-  the earliest, because the cache is behind both), and `frontmatterOf` now detects the modify
-  window rather than declaring it undetectable. The detection is a READING and not a guess:
-  every writer takes `cacheReading` — the cache's own answer, immediately before it writes —
-  and hands it to `markFrontmatter` as `supersedes`; a cache still answering exactly that has
-  not been re-parsed, so the echo record is the truthful answer, and a cache answering
-  anything else has moved on and wins. **A revision comparison was tried first and is the
-  instructive failure**: it cannot tell a lagging cache from a hand edit that DROPPED the
-  `revision` key, and it made `VaultChangeAdapter` blind to exactly such an edit — measured,
-  on the two `announcements.test.ts` cases that drive one, which is the whole reason the
-  discriminator is a token of the pre-write reading. `cacheReading` is also deliberately not
-  `observeFrontmatter(frontmatterOf(...))`: inside the window that digests what this plugin
-  WROTE rather than what the cache SHOWED, which breaks the chain on the second consecutive
-  write and read the stale marker back in the slice-10 cascade. Blast radius of the honest
-  fake: **9 tests**, every one of them a genuine read-after-modify, against 65 and 86 for the
-  two instances above — the number is not the shape, which is why all three are recorded.
-
-  **Two review rounds then found that the fix's own fallback was the new hazard, and the
-  second round's lesson is the one worth keeping.** A cache TOKEN cannot tell "the cache is
-  behind US" from "the cache is behind SOMEBODY ELSE", and it cannot see an external edit at
-  all — an unparsed edit is by definition invisible to the cache. So the echo is served only
-  when BOTH questions answer yes: is the FILE still the one we wrote (`EchoWindow` records
-  `TFile.stat` after each write), and is the cache showing a state of ours we have since
-  superseded (a CHAIN, because Obsidian may parse an intermediate write while a later one is
-  still unparsed). The first of those was a REGRESSION this fix introduced and it was data
-  loss: a hand edit landing inside the window was hidden by the echo, and the next
-  conditional save — which the stale cached revision used to REFUSE — then overwrote it.
-
-  - **A reading about "the file WE wrote" is only true while that is still what is on disk,
-    and that is a rule about the CALL SITE no signature can carry.** Four writers take the
-    stat with nothing but synchronous index bookkeeping since their write;
-    `ObsidianZoneRepository` awaits a whole sidecar mutation in between and took it after,
-    so an external edit landing in that window was recorded as OURS and `frontmatterOf`
-    vouched for somebody else's bytes. Found by a review bot reading the ONE writer whose
-    shape differs — which is the search worth copying: when a rule is kept correctly at four
-    sites, look for the fifth that is not shaped like them.
-  - **"Both directions of that error are SAFE" was false, and it was false because it
-    measured the wrong baseline.** `observedFileStat`'s docblock argued that the guard "can
-    only refuse the echo more often than a version without it" — true, and the version
-    without the guard is the one that shipped the overwrite, so being no worse than it is not
-    a safety property. Against the behaviour BEFORE the fallback existed the two directions
-    differ: a stat MISMATCH withdraws (safe, and only lets the parse-lag defect resurface),
-    while a stat COLLISION serves the echo over bytes that are not ours (an overwrite that
-    used to be a refusal). A safety claim names its baseline or it is not a claim.
-  - **`mtime:size` cannot be strengthened here and the sentence says so rather than
-    promising more.** It is the whole of what a file states about itself synchronously, and
-    `frontmatterOf` is synchronous by construction — `VaultChangeAdapter` calls it and has no
-    `await` to spend — so a content hash is unavailable at the only moment the question is
-    asked. The residue is PINNED as behaviour (`noteIo.echo.test.ts`) rather than described,
-    so a build that closes it fails a case instead of leaving a paragraph quietly stale.
-  - **A residue has as many faces as it has readers, and this one had a second nobody
-    named.** `VaultChangeAdapter.processNote` reads through `frontmatterOf` and then asks
-    `echo.matches` of the RESULT — so inside the window the fallback hands back exactly the
-    value that comparison is against, and a colliding external edit is suppressed as our own
-    echo. The read half self-corrects the moment the parse queue catches up; the INDEX half
-    does not, because that path's one event has already been spent
-    (`echoCollision.test.ts`). Both instruments had to be hand-built, because the fake
-    vault's mtime is a monotonic COUNTER and every write there moves the stat — a fake
-    kinder than a real clock, in the one property the guard rests on, and its own docblock
-    says so.
-  - **The CREATE window deliberately takes no stat guard, and that asymmetry needed writing
-    down before it read as an oversight.** With no cache entry the only thing to withdraw to
-    is `{}`, which every caller reads as a version-0 document — the original create-window
-    defect. In the MODIFY window withdrawing yields the stale cache: wrong, harmless, and it
-    refuses the next save. Withdrawing is only the safe direction where there is something
-    safe to withdraw TO.
-  - **Two claims that survived the fix and were still wrong, both found by re-reading rather
-    than by any gate.** `markFrontmatter` said starting a fresh chain "stops this set growing
-    for the life of the session" — it resets only when a write OBSERVES the cache caught up, so
-    the real bound is the writes inside one un-drained parse window, and a queue that never
-    drained would grow it. And the five writers disagree on how an INSERT spells "nothing to
-    supersede" — four pass `{ reading: undefined, stat }` because `cacheReading` is branch-free
-    by design, `ObsidianPlanRepository` splits its arms and passes none — which is equivalent
-    (a fresh path leaves the chain empty either way, so the stat an insert records is DEAD),
-    and nothing said so. Both are now written to what the code does, and the equivalence is
-    pinned by a pair of cases rather than asserted, because "these two spellings mean the same
-    thing" is exactly the sentence that stops being true without anything failing.
-  **Third instance, same shape, found the same way — by running the plugin.** `FakeVault`'s
-  `create` accepted a path whose PARENT FOLDER did not exist; Obsidian refuses one. So
-  `PlanGeometryStore` had no `ensureFolder` in front of the geometry sidecar — the project,
-  plans and zones folders each get one from the repository that writes into them, and
-  ADR-011's `Geometry/` is a folder no note ever lands in — and on a fresh vault the first
-  write of the first plan ever saved failed with "the geometry sidecar could not be
-  created". Making the fake refuse turned **86 tests** red. The lesson that generalises: when
-  a fake stands in for something that ENFORCES a precondition, the fake has to enforce it
-  too, or the precondition is only ever checked in production.
-  **Fourth instance, found by review rather than by a gate.** The slice 8 e2e rig drove
-  gestures with bare `pointerdown` events that no `pointerup` ever followed — a sequence
-  no mouse can produce, since a real click always delivers both. `ToolManager` clears its
-  in-flight flag on `pointerUp`, so between two vertices of a polygon the flag is false,
-  and Escape-cancels-the-drawing was certified by a test whose event stream never left
-  the state the flag models. The fix (cancelGesture reaches any active tool) is fine; the
-  lesson is about the RIG: a simulated event stream must respect the grammar of the real
-  input device — clicks are down+up pairs, drags are down/move…/up — and the rig now
-  spells them that way (`click()` in `zoneEditing.test.ts`), so the next gesture test
-  cannot accidentally model an impossible input.
-
-  **Fifth instance, and the THIRD face of the rule** — the one the heading gained the word
-  "harsher" for. `tests/harness/planEditor.ts` handed the browser harness
-  `unavailablePlanEditorCommands()`, the bundle a session with unrecovered settings gets, under
-  a comment reading "every write refuses". But that bundle also carries `zoneInspector`, a READ
-  (SDD §59 groups the Inspector query with the commands it shares a selection with), and the
-  refusal refused it too — on a page whose fixture holds the zone in full. `InspectorDto` has no
-  error variant, so a failed read and an empty selection are the same `{ kind: 'empty' }`: the
-  canvas showed the seeded Kitchen selected and the Inspector showed nothing, with no error
-  anywhere and two of the five shell regions contradicting each other. The lesson generalises
-  past this bundle: a stand-in that REFUSES what production answers turns a tool built for
-  looking into one that shows a false picture, and it does it silently wherever the consumer has
-  no shape for an error. A refusal bundle is the honest stand-in only where the real thing would
-  also have nothing to give.
-
-  **The FOURTH face of the rule, and the one that hides a defect completely: FASTER than the
-  real thing.** `FakeLeaf.openFile` and `FakeLeaf.setViewState` each established their leaf's
-  view state SYNCHRONOUSLY, where Obsidian reads a file or runs a view factory and `onOpen`
-  first. That models a guarantee `Promise<void>` does not make — nothing in that signature
-  says the side effect has landed before the promise resolves — and the consequence is worse
-  than a thin fake's: the racing second call always won the lookup, so a regression case
-  written for the duplicate-tab race PASSED against the live defect. Measured both ways, in
-  both files. `FakeVault.createFolder` was the same rule's older face, kind rather than fast:
-  idempotent where Obsidian throws on an existing folder, one method away from a `create` that
-  already refused a duplicate file. **All three corrections cost 0 tests**, which is the figure
-  worth remembering beside the 86 and the 65 for the same reason those are: the blast radius
-  is not the shape. When a fake stands in for something ASYNC, ask what its signature promises
-  rather than what one implementation happens to do first — and where the fake must stay
-  fast, say so, because "faster" reads exactly like "correct" from every green test.
-
-  **And a fake's speed changes what a test's EVENT STREAM means.** `registration.test.ts` drove
-  a ribbon click and a command invocation one `await Promise.resolve()` apart — an input no
-  human can produce — which was harmless until `revealCandidate` learned to coalesce in-flight
-  activations, at which point the case was asserting on a gesture that had not happened. The
-  gap between two human gestures is a MACROTASK turn (`tests/helpers/async.ts`'s `settle()`),
-  never a counted number of microtask hops: a count is a fact about today's implementation and
-  goes stale silently, in the direction of a green test.
+  The recorded instances — every one a fake that was kinder, thinner, harsher or faster than
+  the real thing, with its blast radius in tests — are in the increment history. The numbers
+  there (0, 9, 65 and 86 tests turned red) are deliberately not a pattern: the blast radius is
+  not the shape.
+  They are numbered there (first through fifth instance, and the four FACES of the rule), so a
+  comment citing "CLAUDE.md's fifth fake-instance lesson" resolves against that document.
 - **A global a dependency installs is a global this plugin has to remove.** Konva assigns
   `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
   deactivating and reactivating logged `Several Konva instances detected` at `console.error`
@@ -1369,21 +869,8 @@ function — a split kept alive by a defect rather than by a distinction.
   reproduced on a stash of the branch and therefore nothing to do with the change under review.
   `tests/helpers/plantedProbe.ts` now owns both the NAME and the predicate, with the planter and
   both walkers importing it, because a naming convention two files agree about by hand is one
-  rename away from silently reaching nothing. Three things came out of it:
-  - **Hoisting the working version verbatim would have been a silent no-op on one CI leg.** The
-    regex was `/^tests\/harness\/…/` and its original caller builds `${dir}/${entry.name}`;
-    `harness.test.ts` uses `path.join`, which is a BACKSLASH on Windows. Measured as a mutation:
-    restoring the POSIX-only shape reddens two cases of `planted-probe.test.ts`. **A predicate
-    moving to a second caller is a predicate meeting a second spelling of its input**, and the
-    old caller's correctness says nothing about the new one's.
-  - **A comment naming a helper that does not exist reads exactly like one naming a helper that
-    does.** `lint-scope.test.ts` said "see `isPlantedProbe`" while the thing was called
-    `PLANTED_PROBE`, and a grep for the name it gave returned that comment and nothing else.
-    Now it is the real name, in a real module.
-  - **Removing a `const` orphans the docblock above it**, which is this file's own
-    attached-docblock rule read backwards: the paragraph about the probe regex was left sitting
-    over `walk`, describing something two definitions away. Nothing in any gate reads whether a
-    docblock still belongs to what follows it.
+  rename away from silently reaching nothing. Three things came out of it, recorded in the
+  increment history.
 - `tests/**` has a larger line budget than `src/**`, not none. The one suite without a cap
   is the one that grows into the place tests hide.
 
@@ -1551,20 +1038,13 @@ Not oversights; each has a trigger.
   binary state.
 
   **The trigger is a third level of nesting AND a genuine need for a history independent of
-  Obsidian's** — both, not either. *"Epic 4 arrives"* is explicitly NOT the trigger, and that
-  is a measurement rather than a hedge — and the measurement had to be corrected once, which is
-  the useful half: this sentence said "Epic 4's whole navigation set" over SIX destinations, and
-  PRD Feature 4.1 lists SEVEN (Overview, Spaces, Design, Work, Budget, Schedule, **Documentation**
-  — the one dropped). It was also wrong about its own scope: 4.1 is one feature of Epic 4, which
-  also carries the project switcher (4.2), breadcrumbs (4.3) and context preservation (4.4).
-  The argument survives both corrections, which is why it is corrected rather than withdrawn:
-  seven destinations fit in `{ projectId, section }` exactly as six do — one more key rather than
-  a router — and 4.3 and 4.4 are DERIVED from that state rather than additional history, while
-  4.2 is the picker this slice already built. Found by a reviewer reading the PRD rather than the
-  sentence.
+  Obsidian's** — both, not either. *"Epic 4 arrives"* is explicitly NOT the trigger, and that is
+  a measurement: PRD Feature 4.1's seven destinations fit in `{ projectId, section }` as one
+  more key rather than a router, 4.3 (breadcrumbs) and 4.4 (context preservation) are DERIVED
+  from that state rather than additional history, and 4.2 is the picker slice 21 already built.
 
   **decimal.js is NOT on this list any more.** It arrived with slice 9's money arithmetic
-  (ADR-010) and this line said otherwise for two slices. `core/money/Money.ts` is the ONLY
+  (ADR-010). `core/money/Money.ts` is the ONLY
   module that touches a `Decimal` for a monetary amount — `amount` is a decimal STRING
   across every boundary, because a float is exactly what ADR-010 refuses — and quantities
   carry a `Decimal` directly. Three decimals is the figure that catches a coercion:
@@ -1589,17 +1069,13 @@ Not oversights; each has a trigger.
   `konva` is `vue-konva`'s PEER dependency: `src/` never names it (the components use
   `<VStage>` and friends), so `npm run analyze` reads it as test-only and would have it
   moved to devDependencies — which would build here and fail in a vault. It is in
-  `.fallowrc.json`'s `ignoreDependencies` with that reason. The bundle went from about
-  60 KB to **488 KB** at design slice 5's close; that is what ADR-003 and §54 cost, and it
-  is worth knowing before the next dependency. **488 KB is that slice's own figure, not
-  today's** — `dist/main.js` measured 670.06 kB (gzip 211.08 kB) at design slice 16's close and
-  **703.39 kB (gzip 221.71 kB) at design slice 19's**, and **825.68 kB (gzip 252.79 kB) at the
-  close of the plan editor foundation's first increment** (2026-09-03, after the asset-designer
-  merge — the two arrivals are not separated here), and **867.05 kB (gzip 262.83 kB) at the close
-  of the Add Room increment** (2026-09-04 — no new dependency, so that 41 kB is this
-  repository's own code: a tool, a store, an action, a form, a sketch and their strings), each
-  verified by running `npm run build` rather than carried forward from an earlier entry here. Read every bundle figure in this file the
-  same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
+  `.fallowrc.json`'s `ignoreDependencies` with that reason. Adding the canvas stack took the
+  bundle from about **60 kB to 488 kB** in one slice; that is what ADR-003 and §54 cost, and it
+  is worth knowing before the next dependency. **Last measured: 867.05 kB (gzip 262.83 kB) on
+  2026-09-04**, at the close of the Add Room increment — 41 kB of which was this repository's
+  own code rather than a dependency. **Read that as the size on the date named, never as a
+  standing total**; the full series is in the increment history, and `npm run build` prints
+  today's.
 
   **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a
   production one for exactly one increment, and the bill was 1728 KB of a 2216 KB bundle —

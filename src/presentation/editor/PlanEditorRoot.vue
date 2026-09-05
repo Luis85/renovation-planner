@@ -36,6 +36,7 @@ import StatusBar from './shell/StatusBar.vue';
 import { editorWarnings } from './shell/warnings';
 import AddMenu from './add/AddMenu.vue';
 import TemporaryToolBanner from './shell/TemporaryToolBanner.vue';
+import { useSelectionStore } from './selection/selection-store';
 
 const context = usePlanEditorContext();
 // The return value is USED now, not discarded: `activeToolId` is what displaces the empty
@@ -43,6 +44,7 @@ const context = usePlanEditorContext();
 // every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
 const projectStore = useProjectStore();
+const selection = useSelectionStore();
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
 const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
@@ -69,6 +71,8 @@ const overlay = computed(() => {
 	const key = emptyStateKey.value;
 	const tool = runtime.activeToolId.value;
 	if (key === null || (tool !== null && tool !== 'select')) return null;
+	// Reference onboarding must not obscure selected geometry or its focus badges.
+	if (key === 'noBackground' && selection.selectedIds.length > 0) return null;
 	return resolveEmptyState(EMPTY_STATE_CONTENT.planEditor[key]);
 });
 

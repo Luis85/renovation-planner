@@ -24,6 +24,18 @@
  * `editor.room.default-name` in the source file's reading order. They stayed in `en.ts`.
  */
 export const editorEn = {
+	'editor.selection.toggle-mode': 'Select multiple elements',
+	'editor.selection.shared-type': 'Shared type',
+	'editor.selection.mixed': 'Different types',
+	'editor.selection.unavailable': 'Unavailable selected elements: {count}. Measurements cover readable elements only.',
+	'editor.selection.unknown': 'Unavailable',
+	'editor.selection.count': 'Selected elements',
+	'editor.selection.area-sum': 'Sum of areas',
+	'editor.selection.area-sum-hint': 'Overlapping areas are counted separately.',
+	'editor.selection.members': 'Selected rooms and areas',
+	'editor.selection.records': 'Rooms and areas',
+	'editor.selection.clear': 'Clear selection',
+	'editor.selection.hint': 'Shift-click to add or remove a selection. Alt-click on the plan to cycle overlapping elements.',
 	'editor.context-bar': 'Editor context',
 	'editor.context.undo': 'Undo',
 	'editor.context.redo': 'Redo',

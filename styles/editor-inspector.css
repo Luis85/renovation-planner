@@ -225,3 +225,8 @@
 	color: var(--text-muted);
 	font-style: italic;
 }
+.rp-multi-selection {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	font-size: var(--font-ui-small);
+}

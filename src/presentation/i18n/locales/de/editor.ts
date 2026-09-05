@@ -11,6 +11,18 @@ import type { editorEn } from '../en/editor';
  * (`...editorDe`).
  */
 export const editorDe: Record<keyof typeof editorEn, string> = {
+	'editor.selection.toggle-mode': 'Mehrere Elemente auswählen',
+	'editor.selection.shared-type': 'Gemeinsamer Typ',
+	'editor.selection.mixed': 'Verschiedene Typen',
+	'editor.selection.unavailable': 'Nicht verfügbare ausgewählte Elemente: {count}. Messwerte umfassen nur lesbare Elemente.',
+	'editor.selection.unknown': 'Nicht verfügbar',
+	'editor.selection.count': 'Ausgewählte Elemente',
+	'editor.selection.area-sum': 'Summe der Flächen',
+	'editor.selection.area-sum-hint': 'Überlappende Flächen werden einzeln gezählt.',
+	'editor.selection.members': 'Ausgewählte Räume und Flächen',
+	'editor.selection.records': 'Räume und Flächen',
+	'editor.selection.clear': 'Auswahl aufheben',
+	'editor.selection.hint': 'Umschalt-Klick erweitert oder verkleinert die Auswahl. Alt-Klick im Plan wechselt zwischen überlappenden Elementen.',
 	'editor.context-bar': 'Editor-Kontext',
 	'editor.context.undo': 'Rückgängig',
 	'editor.context.redo': 'Wiederholen',

@@ -867,6 +867,13 @@ Inspector, so the three never disagree about what is selected (spec INV-01). Whe
 overlap, selection priority is predictable — handle → object → opening → wall → room →
 background — and hover previews what a click would select.
 
+ADR-0018 assigns selection and Inspector ownership. Room/Area selection now uses ordered unique
+IDs, Shift toggling and Alt overlap cycling. M11 badges and rows focus a member independently of
+membership; a missing member is explicitly unavailable in aggregates. Wall/Opening/Object
+priority remains reserved until those types exist. The property panel keeps the non-canvas list
+reachable while an Inspector subject is selected, including a modifier-free multiple-selection
+option. Selected geometry is not covered by reference-plan onboarding.
+
 ---
 
 # 21. Snapping Architecture
@@ -1729,7 +1736,9 @@ information: selection-driven, context-sensitive, progressively disclosed.
 - **No selection** shows the floor summary (rooms, areas, scale state) and guidance.
 - **One room** shows Overview and the homeowner's questions as sections — Existing, Planned,
   Work, Materials, Costs, Documents, Photos, Notes (M08–M14).
-- **Several entities** show shared actions and aggregates (M11).
+- **Several entities** show numbered members, shared or mixed type and the sum of individual
+  areas (M11). Overlap is counted separately. Unavailable members are disclosed and do not become
+  a fabricated zero or shared property. Shared renovation actions remain future domain work.
 
 **Unavailable is not empty.** A section whose domain does not exist yet is marked *not yet
 supported*; a section whose query answered nothing is *empty*; and the two never look alike

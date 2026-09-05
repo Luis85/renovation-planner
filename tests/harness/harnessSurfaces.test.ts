@@ -37,6 +37,18 @@ beforeEach(() => {
  * constructed here; a browser has both natively, and jsdom has neither.
  */
 describe('the browser harness, plan editor', () => {
+	it.each([1280, 460])('drives M11 through list controls at %i px', async (width) => {
+		installCanvas();
+		installResizeObserver();
+		const { leafEl, view } = mountPlanEditorHarness(document.body, { select: 'harness-terrace,harness-kitchen' });
+		const root = sizedShellRoot(leafEl);
+		resizeTo(root, width, 700);
+		await settleUntil(() => leafEl.querySelector('.rp-multi-selection') !== null, 'M11 through the selection controls');
+		const rows = [...leafEl.querySelectorAll('.rp-multi-selection .rp-room-list__row')];
+		expect(rows.map((row) => row.getAttribute('data-rp-id'))).toEqual(['harness-terrace', 'harness-kitchen']);
+		expect(rows.map((row) => row.textContent?.trim())).toEqual(['1. Terrace', '2. Kitchen']);
+		await view.onClose();
+	});
 	it('mounts the real plan editor inside the same leaf frame', () => {
 		installCanvas();
 		installResizeObserver();

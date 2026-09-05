@@ -61,6 +61,35 @@ interface HydrationMissingRefs {
 }
 
 /**
+ * Every ref `runHydrationReads` touches across its three arms (failure, missing, success) —
+ * a strict superset of `HydrationFailureRefs` and `HydrationMissingRefs`, so passing this one
+ * bundle to either satisfies them structurally with nothing narrowed away. One bundle rather
+ * than two, because `hydrate` used to build both separately and that construction was itself
+ * two of the lines pushing the setup arrow over its own budget.
+ */
+interface HydrationRefs {
+	readonly project: Ref<ProjectSummaryDto | null>;
+	readonly plan: Ref<PlanDto | null>;
+	readonly zones: Ref<ReadonlyMap<string, ZoneDto>>;
+	readonly unreadableZones: Ref<number>;
+	readonly status: Ref<ProjectStoreStatus>;
+	readonly error: Ref<RepositoryError | null>;
+	readonly stale: Ref<boolean>;
+	readonly retriesFailed: Ref<number>;
+}
+
+/**
+ * The per-call pieces `runHydrationReads` needs beside `queries`/`planId`/`refs`/`fail`,
+ * bundled to keep that function's own parameter count under `max-params`: whether a failed
+ * read may keep the previous contents, and the ticket helpers `hydrate` builds once per call.
+ */
+interface HydrationTicket {
+	readonly keepOnFailure: boolean;
+	readonly superseded: () => boolean;
+	readonly done: () => void;
+}
+
+/**
  * `hydrate` reaches this from two places — a plan `GetPlan` never found, and a project
  * `GetProject` never found for a plan that otherwise resolved — and blanks the same five
  * fields either way: a plan whose project is gone is a plan nothing owns, the same
@@ -77,6 +106,68 @@ function markMissing(refs: HydrationMissingRefs): void {
 	refs.unreadableZones.value = 0;
 	refs.status.value = 'missing';
 	refs.stale.value = false;
+}
+
+/**
+ * `hydrate`'s three-read sequence (plan, then project, then zones), each guarded by
+ * `ticket.superseded()` and routed to `handleFailedRead`/`markMissing` on failure, ending in
+ * the one write that retires `stale` and resets `retriesFailed` on success. Module-level for
+ * the same reason `handleFailedRead` is: a nested function's lines still count against the
+ * enclosing arrow's `max-lines-per-function` budget, and this sequence is the bulk of what
+ * pushed it over.
+ */
+async function runHydrationReads(
+	queries: PlanEditorQueryServices,
+	planId: string,
+	ticket: HydrationTicket,
+	refs: HydrationRefs,
+	fail: (cause: RepositoryError) => void,
+): Promise<void> {
+	const foundPlan = await queries.getPlan(planId);
+	if (ticket.superseded()) return;
+	if (isErr(foundPlan)) {
+		ticket.done();
+		handleFailedRead(foundPlan.error, ticket.keepOnFailure, refs, fail);
+		return;
+	}
+	if (foundPlan.value === null) {
+		ticket.done();
+		markMissing(refs);
+		return;
+	}
+
+	const foundProject = await queries.getProject(foundPlan.value.projectId);
+	if (ticket.superseded()) return;
+	if (isErr(foundProject)) {
+		ticket.done();
+		handleFailedRead(foundProject.error, ticket.keepOnFailure, refs, fail);
+		return;
+	}
+	if (foundProject.value === null) {
+		ticket.done();
+		markMissing(refs);
+		return;
+	}
+
+	const foundZones = await queries.findZonesByPlan(planId);
+	if (ticket.superseded()) return;
+	if (isErr(foundZones)) {
+		ticket.done();
+		handleFailedRead(foundZones.error, ticket.keepOnFailure, refs, fail);
+		return;
+	}
+
+	ticket.done();
+	refs.project.value = foundProject.value;
+	refs.plan.value = foundPlan.value;
+	refs.zones.value = new Map(foundZones.value.zones.map((zone) => [zone.id, zone]));
+	refs.unreadableZones.value = foundZones.value.unreadable;
+	refs.status.value = 'ready';
+	// The ONE event that retires a stale-data warning: what is on screen came back from the
+	// vault just now. Every hydration path ends here on success, whatever its options, which
+	// is what makes the lifetime a property of the store rather than of a caller.
+	refs.stale.value = false;
+	refs.retriesFailed.value = 0;
 }
 
 /**
@@ -216,9 +307,8 @@ export const useProjectStore = defineStore('project', () => {
 		const done = (): void => {
 			refreshing.value = false;
 		};
-		const keepOnFailure = options?.keepPreviousOnFailure === true;
-		const failureRefs: HydrationFailureRefs = { status, error, stale, retriesFailed };
-		const missingRefs: HydrationMissingRefs = { project, plan, zones, unreadableZones, status, stale };
+		const ticket: HydrationTicket = { keepOnFailure: options?.keepPreviousOnFailure === true, superseded, done };
+		const refs: HydrationRefs = { project, plan, zones, unreadableZones, status, error, stale, retriesFailed };
 		// A RE-hydration does not blank the editor. The root mounts its canvas on `ready`, so
 		// dropping to `loading` here would unmount the Konva stage and build a fresh one on
 		// every committed command — the whole canvas flashing because one background
@@ -233,51 +323,7 @@ export const useProjectStore = defineStore('project', () => {
 		// rather than a third condition on this one.
 		error.value = null;
 
-		const foundPlan = await queries.getPlan(planId);
-		if (superseded()) return;
-		if (isErr(foundPlan)) {
-			done();
-			handleFailedRead(foundPlan.error, keepOnFailure, failureRefs, fail);
-			return;
-		}
-		if (foundPlan.value === null) {
-			done();
-			markMissing(missingRefs);
-			return;
-		}
-
-		const foundProject = await queries.getProject(foundPlan.value.projectId);
-		if (superseded()) return;
-		if (isErr(foundProject)) {
-			done();
-			handleFailedRead(foundProject.error, keepOnFailure, failureRefs, fail);
-			return;
-		}
-		if (foundProject.value === null) {
-			done();
-			markMissing(missingRefs);
-			return;
-		}
-
-		const foundZones = await queries.findZonesByPlan(planId);
-		if (superseded()) return;
-		if (isErr(foundZones)) {
-			done();
-			handleFailedRead(foundZones.error, keepOnFailure, failureRefs, fail);
-			return;
-		}
-
-		done();
-		project.value = foundProject.value;
-		plan.value = foundPlan.value;
-		zones.value = new Map(foundZones.value.zones.map((zone) => [zone.id, zone]));
-		unreadableZones.value = foundZones.value.unreadable;
-		status.value = 'ready';
-		// The ONE event that retires a stale-data warning: what is on screen came back from the
-		// vault just now. Every hydration path ends here on success, whatever its options, which
-		// is what makes the lifetime a property of the store rather than of a caller.
-		stale.value = false;
-		retriesFailed.value = 0;
+		await runHydrationReads(queries, planId, ticket, refs, fail);
 	}
 
 	/**

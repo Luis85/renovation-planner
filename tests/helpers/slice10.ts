@@ -4,6 +4,7 @@ import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { InMemoryRequirementRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
 import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
+import { InMemorySequenceMarkerStore } from '../../src/infrastructure/persistence/in-memory/InMemorySequenceMarkerStore';
 import { err } from '../../src/core/result/Result';
 import { RecalculateRequirementCommand } from '../../src/application/commands/requirement/RecalculateRequirement';
 import { AssignAssetCommand } from '../../src/application/commands/requirement/AssignAsset';
@@ -26,6 +27,39 @@ import type { AssetId } from '../../src/domain/asset/AssetId';
 import type { RequirementId } from '../../src/domain/requirement/RequirementId';
 
 /**
+ * The two collaborators the delete-resolution engine REQUIRES, for the many cases that
+ * assert on neither: a real in-memory marker store (never a no-op one — a store that
+ * forgets is a fake kinder than the real thing, and every case here that does look at a
+ * marker looks at this one) and a toast surface that says nothing.
+ *
+ * A function rather than a constant because the store is STATEFUL: one shared instance
+ * would carry a marker from whichever case failed into the next case in the file.
+ */
+export function zoneSequenceCollaborators(): {
+	markers: InMemorySequenceMarkerStore;
+	notify: { markerClearFailed(entityId: string): void };
+} {
+	return { markers: new InMemorySequenceMarkerStore(), notify: { markerClearFailed: () => undefined } };
+}
+
+/** The same pair for `DeleteAssetDeps`, whose toast surface carries the price-cleanup door too. */
+export function assetSequenceCollaborators(): {
+	markers: InMemorySequenceMarkerStore;
+	notify: { markerClearFailed(entityId: string): void; priceCleanupFailed(assetId: string): void };
+} {
+	return {
+		markers: new InMemorySequenceMarkerStore(),
+		notify: { markerClearFailed: () => undefined, priceCleanupFailed: () => undefined },
+	};
+}
+
+/** `CascadeDeps.notify` for a case asserting on neither door. Stateless, so a constant. */
+export const noopCascadeNotify = {
+	cascadeAborted: () => undefined,
+	staleMarkerFailed: () => undefined,
+};
+
+/**
  * The slice-10 collaborators the zone commands grew, wired to in-memory doubles — what
  * every pre-existing zone test needs to keep constructing a `DeleteZoneCommand` without
  * caring that delete is now reference-aware.
@@ -40,7 +74,15 @@ export function makeDeleteZoneCommand(
 	const assets = new InMemoryAssetRepository();
 	const overrides = new InMemoryAssetPriceOverrideRepository();
 	const recalculate = new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides });
-	return new DeleteZoneCommand({ zones, requirements, recalculate, events, locks, logger: recorder });
+	return new DeleteZoneCommand({
+		zones,
+		requirements,
+		recalculate,
+		events,
+		locks,
+		logger: recorder,
+		...zoneSequenceCollaborators(),
+	});
 }
 
 /**

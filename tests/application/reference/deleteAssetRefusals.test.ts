@@ -17,7 +17,7 @@ import { InMemoryRequirementRepository } from '../../../src/infrastructure/persi
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makeAsset, makePlan, makeProject, makeZone } from '../../helpers/entities';
-import { dispatchingEventBus, requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
+import { TEN_SQUARE_METERS, assetSequenceCollaborators, dispatchingEventBus, requirementFixture, zoneSequenceCollaborators } from '../../helpers/slice10';
 
 /**
  * The per-kind closures DeleteAssetCommand hands unDeleteResolution: the
@@ -58,7 +58,7 @@ async function wiredAssetWithLink() {
 	);
 	const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
 	if (!assigned.ok) throw new Error('unexpected assign failure');
-	const command = new DeleteAssetCommand({
+	const command = new DeleteAssetCommand({ ...assetSequenceCollaborators(),
 		assets: w.assets,
 		requirements: w.requirements,
 		recalculate: w.recalculate,
@@ -82,7 +82,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new DeleteAssetCommand({
+			await new DeleteAssetCommand({ ...assetSequenceCollaborators(),
 				assets,
 				requirements: w.requirements,
 				recalculate: w.recalculate,
@@ -130,7 +130,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 					: Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new DeleteAssetCommand({
+			await new DeleteAssetCommand({ ...assetSequenceCollaborators(),
 				assets,
 				requirements: w.requirements,
 				recalculate: w.recalculate,
@@ -171,7 +171,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 			},
 		});
 		const error = expectErr(
-			await new DeleteAssetCommand({
+			await new DeleteAssetCommand({ ...assetSequenceCollaborators(),
 				assets: w.assets,
 				requirements,
 				recalculate: w.recalculate,
@@ -210,7 +210,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 			},
 		});
 		const error = expectErr(
-			await new DeleteAssetCommand({
+			await new DeleteAssetCommand({ ...assetSequenceCollaborators(),
 				assets: w.assets,
 				requirements,
 				recalculate: w.recalculate,
@@ -243,7 +243,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 			},
 		});
 		const error = expectErr(
-			await new DeleteAssetCommand({
+			await new DeleteAssetCommand({ ...assetSequenceCollaborators(),
 				assets: w.assets,
 				requirements,
 				recalculate: w.recalculate,
@@ -282,7 +282,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 			},
 		});
 		const error = expectErr(
-			await new DeleteAssetCommand({
+			await new DeleteAssetCommand({ ...assetSequenceCollaborators(),
 				assets: w.assets,
 				requirements,
 				recalculate: w.recalculate,
@@ -325,7 +325,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 			},
 		});
 		const error = expectErr(
-			await new DeleteAssetCommand({
+			await new DeleteAssetCommand({ ...assetSequenceCollaborators(),
 				assets: w.assets,
 				requirements,
 				recalculate: w.recalculate,
@@ -387,7 +387,7 @@ async function deleteAssetRig(options: { readonly referentsInProjects: readonly 
 		referentIds.push(assigned.value.requirement.id);
 	}
 
-	const command = new DeleteAssetCommand({
+	const command = new DeleteAssetCommand({ ...assetSequenceCollaborators(),
 		assets,
 		requirements,
 		recalculate,
@@ -482,7 +482,7 @@ describe('the reassignment-target project rule is asymmetric', () => {
 				'absent',
 			),
 		);
-		const deleteZone = new DeleteZoneCommand({
+		const deleteZone = new DeleteZoneCommand({ ...zoneSequenceCollaborators(),
 			zones: w.zones,
 			requirements: w.requirements,
 			recalculate: w.recalculate,

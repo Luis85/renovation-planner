@@ -888,14 +888,12 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// was no catch anywhere in that module, so a faulting vault read at load became an
 			// unhandled rejection. `tests/application/reference/recovery.test.ts` is what fails
 			// without the catch that makes the sentence true.
-			if (persistence.markers) {
-				void recoverInterruptedSequences({
-					markers: persistence.markers,
-					requirements: persistence.requirements,
-					events: this.root.eventBus,
-					logger: this.root.logger,
-				});
-			}
+			void recoverInterruptedSequences({
+				markers: persistence.markers,
+				requirements: persistence.requirements,
+				events: this.root.eventBus,
+				logger: this.root.logger,
+			});
 
 			if (this.listenersRegistered) return;
 			this.listenersRegistered = true;

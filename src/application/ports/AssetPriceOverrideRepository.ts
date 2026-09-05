@@ -101,8 +101,11 @@ export function winnersBy<K>(
 	 * project whose only surface is the price section (no requirements, so no `getForPair`
 	 * on that pair) resolves duplicates silently for the life of the vault, and the design's
 	 * promised diagnostic is one no user can ever provoke. Optional-with-a-no-op default is
-	 * the shape this repository has already paid for twice (`CascadeDeps.notify`,
-	 * `ResolutionOps.notify`): the caller that forgets it compiles, passes and says nothing.
+	 * the shape this repository had already paid for twice when this was written
+	 * (`CascadeDeps.notify`, `ResolutionOps.notify`): the caller that forgets it compiles,
+	 * passes and says nothing. Both of those are REQUIRED now, on this paragraph's own
+	 * argument — which is the sentence that had been quoted for two slices while the two
+	 * members it named went on being optional.
 	 */
 	onDuplicate: (key: K, notes: readonly Loaded<AssetPriceOverride>[]) => void,
 ): Map<K, Loaded<AssetPriceOverride>> {

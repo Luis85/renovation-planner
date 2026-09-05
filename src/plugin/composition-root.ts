@@ -71,6 +71,7 @@ import { ReconcilingProjectIndex } from '../infrastructure/persistence/index/Rec
 import { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { guardCommand } from '../application/errors/guardAgainstThrowing';
 import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnosticsLedger';
+import { InMemorySequenceMarkerStore } from '../infrastructure/persistence/in-memory/InMemorySequenceMarkerStore';
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
 import {
 	VAULT_EXCEPTION_MAPPER,
@@ -274,11 +275,11 @@ export interface PersistenceServices
 	/** Subscriptions the plugin must dispose on unload; filled at composition time. */
 	readonly subscriptions: { dispose(): void }[];
 	/**
-	 * The durable marker store behind multi-entity sequences, when composed over real
-	 * plugin-local storage — what load-time recovery walks. Absent only in tests that
-	 * compose without one.
+	 * The durable marker store behind multi-entity sequences — what load-time recovery
+	 * walks. Always present: a root composed without a session gets an in-memory one, so
+	 * every caller downstream has a store rather than a branch on whether it has one.
 	 */
-	readonly markers?: SequenceMarkerStore;
+	readonly markers: SequenceMarkerStore;
 	/** Debounced create/modify/rename/delete → incremental index maintenance. */
 	readonly changeAdapter: VaultChangeAdapter;
 }
@@ -329,7 +330,7 @@ function composeSlice10Wiring(
 	// The two SESSION collaborators this wiring needs, as one parameter: `max-params` is five,
 	// and these are the same KIND of thing — which is what makes the grouping a statement
 	// rather than a workaround, exactly as `SessionCollaborators` argues above.
-	session: { markers: SequenceMarkerStore | undefined; locks: ReferenceLocks },
+	session: { markers: SequenceMarkerStore; locks: ReferenceLocks },
 ): { wiring: Slice10Wiring; slice10: ReturnType<typeof composeSlice10> } {
 	const { markers, locks } = session;
 	const { projects, zones, assets, requirements, overrides } = repositories;
@@ -446,7 +447,11 @@ export function createCompositionRoot(
 	}
 
 	const ledger = session.ledger ?? new InMemoryDiagnosticsLedger();
-	const markers = session.markers;
+	// The plugin's own store when there is a session to share one, and an in-memory one for a
+	// caller composing a root directly — the `locks` shape below, for the same reason and with
+	// the same consequence: such a caller has no session whose markers could outlive it, and
+	// every collaborator downstream takes a store rather than an optional one.
+	const markers = session.markers ?? new InMemorySequenceMarkerStore();
 	// G2/R7: the plugin's own set when there is a session to share one, and a fresh one for a
 	// caller composing a root directly — which is correct, since such a caller has no session
 	// whose lanes could be split.

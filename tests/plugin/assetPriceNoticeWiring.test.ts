@@ -24,6 +24,7 @@ import { of as moneyOf } from '../../src/core/money/Money';
 import { recorder as logger } from '../helpers/logger';
 import { expectOk } from '../helpers/domain';
 import { makeAsset, makeProject } from '../helpers/entities';
+import { InMemorySequenceMarkerStore } from '../../src/infrastructure/persistence/in-memory/InMemorySequenceMarkerStore';
 
 installObsidianDom();
 
@@ -46,6 +47,7 @@ async function wired() {
 	const index = new InMemoryProjectIndex();
 	const recalculate = new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides });
 	const slice10 = composeSlice10({
+		markers: new InMemorySequenceMarkerStore(),
 		zones,
 		assets,
 		requirements,

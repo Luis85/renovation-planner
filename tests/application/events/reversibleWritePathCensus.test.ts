@@ -49,12 +49,7 @@ import { expectOk, RecordingEventBus } from '../../helpers/domain';
 import { makeAsset, makePlan, makeRequirement, makeZone, squareAt } from '../../helpers/entities';
 import { InMemoryPlanGeometrySidecar } from '../../helpers/geometry-sidecar';
 import { recorder } from '../../helpers/logger';
-import {
-	assignedRequirementFixture as withRequirement,
-	makeDeleteZoneCommand,
-	requirementFixture,
-	TEN_SQUARE_METERS,
-} from '../../helpers/slice10';
+import { TEN_SQUARE_METERS, assignedRequirementFixture as withRequirement, makeDeleteZoneCommand, requirementFixture, zoneSequenceCollaborators } from '../../helpers/slice10';
 import { drawn, seeded } from '../../helpers/assetDesignHarness';
 import { CENSUS_TABLE } from '../../helpers/reversibleWriteCensusTable';
 
@@ -159,6 +154,7 @@ async function wiredDeleteZone(referentCount: number) {
 	}
 	const ledger = new SessionWriteLedger();
 	const plain = new DeleteZoneCommand({
+		...zoneSequenceCollaborators(),
 		zones: w.zones,
 		requirements: w.requirements,
 		recalculate: w.recalculate,

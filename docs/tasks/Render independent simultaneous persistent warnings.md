@@ -79,3 +79,44 @@ action, so there is nothing to be busy over and nothing for a keyboard user to r
 that adds a retry action supplies the producer those fields need. `warnings.test.ts`'s
 `@ts-expect-error` case is what makes a bare `{ id, messageKey }` fixture a build error rather than
 a passing type.
+
+**2026-09-05** — the trust path increment supplies the producer the amendment above predicted, and
+closes criterion 3's BUSY-STATE clause and criterion 6's KEYBOARD-REACH clause. **Criterion 3's
+HEADING clause stays OPEN, and stays open deliberately: no warning has a heading, and none was
+asked for here.**
+
+`EditorWarning` gains `actions?: readonly WarningAction[]` — `{ id, labelKey, run, busy }` — and a
+fifth row, `unrecovered`, first in the fixed order. Two conditions now carry actions: the `stale`
+row carries **Try again** (bound to `runtime.refreshProjection`, whose signature has no command
+parameter at all) and **Open source note**; the `unrecovered` row carries Open source note alone,
+because there is nothing to re-read that would change it.
+
+- **Criterion 3's busy state** is `ProjectStore.refreshing` — ONE flag, true from a hydrate's first
+  line until the read holding the LATEST ticket settles, so a superseded read never clears it and
+  there is no second answer to the same question. `PersistentWarningStrip.vue` puts `aria-busy` on
+  the ITEM while any of its actions is busy and `aria-disabled` (never `:disabled`) on the busy
+  button, and the click handler withholds `run()` while busy — mutation-checked by removing the
+  guard and watching the read count move.
+- **Criterion 6's keyboard-reach clause** is those buttons being ordinary focusable controls inside
+  the row, plus the focus recovery when the row unmounts under a focused button: `onBeforeUpdate` /
+  `onUpdated` (not `onBeforeUnmount` — the rows are `v-for` children of ONE component, and only
+  that pair brackets its re-render) move focus to the strip container, which gains `tabindex="-1"`.
+  Watched failing first by commenting the `.focus()` call out.
+- **Criterion 2 gains its hardest case.** A failed retry keeps the row, its severity, its actions
+  and its DOM NODE, and moves only the message to `editor.refresh-failed.again` — asserted as node
+  identity in `tests/presentation/editor/shell.test.ts`, which is what stops the container's live
+  region re-announcing a row that never left. `shell.test.ts`'s fourth new case is the other half:
+  the `unrecovered` row is NOT cleared by a successful refresh, only by a write that landed whole.
+- **Criterion 5's order** is unchanged and still a property of `editorWarnings` rather than of
+  template source order; the new row is named in that function's fixed list.
+- **Criterion 3's HEADING clause remains open.** The contract asks each warning for its own
+  accessible heading; a row today is a severity mark, a translated severity word, a message and its
+  actions, with the live region on the container. No heading was designed, built or asked for by
+  this increment, and there is no subject to test — recorded rather than quietly folded into the
+  clauses that did close.
+- **Criterion 4 remains open** for the reason the 2026-09-03 amendment gives, unchanged: the
+  collection is DERIVED per render from its inputs rather than published, so "repeated publication
+  of one condition" has no producer to de-duplicate.
+
+Accessibility: `tests/harness/accessibilityTrustPath.test.ts` scans the stale strip with both of
+its action buttons present, and finds no violations.

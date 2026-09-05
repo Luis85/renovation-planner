@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Reload the editor without losing room data]]"
 order: 20
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -35,3 +35,35 @@ A test can mount a fresh fixture instead of reopening the written one; assert th
 ## Outcome
 
 Editor hydration reconstructs one coherent room projection.
+
+## Closing evidence
+
+**2026-09-05**, the trust path increment. Two cases in a new `reopening a floor` describe in
+`tests/presentation/views/planEditorView.test.ts`, both mounting `PlanEditorView` twice over REAL
+in-memory repositories rather than a static fixture literal — which is the point this task's own
+Risks paragraph names: a fixture literal cannot tell a reopen that re-read from one that replayed
+a constant, and the second case has to be able to change what the vault holds between two mounts.
+
+Criterion 1 — **reopen shows the last successful room state in every projection** — is
+'reopening the same plan shows the same room', comparing the canvas, the room list and the
+Inspector's own reading. Both potentially vacuous comparisons are guarded (the row list really has
+length 2 and the compared Inspector reading really is the room's name, type and floor), so it
+cannot pass by two empty readings agreeing.
+
+Criterion 2 — **no transient draft is restored as a room** — is asserted by reopening and finding
+none: `RoomDraftStore` is per leaf and dies with it, so a draft that survived would be a draft
+something persisted.
+
+Criterion 3 — **a missing prior selection does not hide valid rooms** — is 'a leaf reopened onto a
+floor whose room is gone opens in Select with every remaining room drawn'. **It is written from
+the REOPEN side because the other side cannot be written as the plan stated it**: a restored
+`setViewState` carries a plan id and nothing else, and a selection dies with the leaf's Pinia, so
+"a restored view state naming a deleted zone" has no subject at a reopen. The case's docblock says
+plainly what it does not reach and points at `selectionRetirement`'s own suite for the
+within-a-leaf half.
+
+**One fake was HARSHER than the real thing, and it cost a whole projection.**
+`unavailablePlanEditorCommands()` refuses `zoneInspector` too — which is a READ, grouped with the
+commands it shares a selection with — so selecting a room in the reopen case drew an empty
+Inspector body until that one member was made real. `planEditorRig` already records that trap from
+one direction; this is it met from a second. The write side stays the refusal bundle.

@@ -334,3 +334,138 @@ Automatic retry; a `'stale'` status; a fifth `SaveState`; hotkeys for Undo and R
 door for any entity but the plan; any fix to the two application-layer residues; snapping, move,
 resize and delete PBIs; C4's theme, constrained-layout and usability acceptance; any schema
 change, migration, repository method or event.
+
+## Amendments
+
+**2026-09-05 — §8, four claims measured FALSE while building the cases it asks for.** None is a
+production defect; each is the code deliberately doing otherwise, with the reason written where the
+code is, and the cases pin what is true. They are recorded here and in
+`docs/requirements/Undo and redo.md` because the next reader meets the cases before the reasoning
+and would otherwise read them as drift:
+
+1. **"Removing `withStaleGate` reddens the 'commits nothing' and 'Delete is paused' assertions."**
+   It reddens NEITHER. `SelectTool.pointerDown` returns early on `context.writesBlocked()`, and the
+   paused attributes come from each component reading the same computed — so **the gate and the
+   control guards are defence in depth over one outcome, and removing either alone leaves that
+   outcome green.** `stalePath.e2e.test.ts`'s third case exists for exactly this: driven at
+   `runtime.createRoom()` past every `aria-disabled` control, it is the only case in either e2e
+   file that mutation reddens.
+2. **"A no-write success creates no history entry."** `CommandHistory.runNow` says the opposite in
+   as many words — *"A gesture that wrote nothing still goes on the undo stack: it happened, and
+   asking to undo it is legal."* The case pins the documented behaviour with the instrument that
+   can see it (the following Undo pops the NO-WRITE assign and leaves the requirement standing);
+   the half that IS the PBI criterion — no badge moves — is kept and made discriminating with a
+   REAL standing `save-error` behind it.
+3. **"A revision conflict on Undo surfaces once as a toast."** It raises no toast at all.
+   `zone.external-modification` is one of `WRITE_BOUNDARY_CODES`, so `affectsSaveState` carves it
+   back out of the pre-write categories and it flips the BADGE — and `reportDispatchFailure`
+   routes it to the `autosave-write` origin whose toast sink is deliberately a no-op, per slice
+   17's one-failure-one-widget rule. The badge is the whole surface. The case asserts
+   `Notice.shown` is unchanged **over a live queue**, since over an inactive one that absence is
+   true of every build ever written.
+4. **"A restored view state naming a deleted zone."** Cannot be written as stated: a restored
+   `setViewState` carries a plan id and nothing else, and a selection dies with the leaf's Pinia.
+   The case is written from the half observable at a reopen and says what it does not reach.
+
+**2026-09-05 — §2.7 stands UNAMENDED, and the plan's own fallback is moot.** The implementation's
+first pass dropped `zone.sidecar-update-uncompensated` as unreachable and flagged this section for
+an amendment saying so. Controller Ruling 6 rejected that: the code was unreachable against the
+FAKE rather than in production. A one-shot `failOnce` set keyed `<op>:<path>` cannot separate an
+update's own `writeOwnedFrontmatter` write from its restore — both are `modify:<notePath>` — but a
+COUNTED failure can, and hit 2 of that key on an update is the restore, with the sidecar mutation
+between them keyed elsewhere. `FakeVault.failOnHit` is that primitive (`failOnce` retired: it had
+zero real call sites, and a one-shot is the degenerate `failOnHit.set(key, 1)`), both codes ship,
+and the case proves the counting positively — the note on disk still carries the FAILED update's
+new name, so hit 1 landed and only hit 2 refused. **This paragraph is a NOTE and not a change:
+§2.7 as written is what shipped.**
+
+**2026-09-05 — deviations from this document, each with its reason.** Every one was taken
+deliberately and none changes what the section asks for:
+
+- **§2.9's reason id is minted in `runtime.ts`, not in `PlanEditorRoot`** (controller Ruling 2).
+  `useId()` inside `buildDispatcherChain`, which `buildRuntime` calls synchronously in setup; both
+  spellings yield one id per leaf and every consumer reads it off the runtime.
+- **§4's conditional `deleteZoneAction.ts` extraction was NOT performed** (Ruling 3): `runtime.ts`
+  measured 321 counted lines before and **366** after, under the 380 threshold. A different budget
+  bit instead — `buildRuntime`'s own `max-lines-per-function` — and the answer was the
+  `buildDispatcherChain` extraction named above, which is the file's own existing pattern.
+- **§2.6's `PlanEditorDeps.openNote` returns `ProjectOpenOutcome`, not `ProjectNoteOpenOutcome`.**
+  The named type lives in `infrastructure/`, which `presentation/` may not import;
+  `AssetLibraryDeps.ts`'s own docblock already declares the third copy of that union and predicts
+  that the next one should share. It imports the sibling `presentation/` type instead of minting a
+  fifth.
+- **§2.9's layer-panel formula is `hasReference && writesBlocked ? paused : none`**, not the
+  spelling this document implies: the literal `!hasReference ? … : paused` answers the paused
+  reason whenever a background exists, even unblocked, which falsifies the pre-existing "offers Set
+  scale when a background exists" case.
+- **§6's `editor.paused.reason` uses the sentence-case fallback wording** — *"Editing is paused:
+  the floor could not be re-read after the last change. Retry from the warning above."* — because
+  `obsidianmd/ui/sentence-case-locale-module` fails the build on a capitalised `Try` mid-sentence,
+  the same measurement the Shift-constraint hint already paid for.
+- **§2.4 and §3 spell the new store fields `Readonly<Ref<…>>`; they ship as plain `Ref`**, matching
+  every other exposed ref in every store in this codebase. A per-field exception would have been a
+  new convention for two fields.
+- **§9's accessibility row lives in a NEW file.** The three scans would have pushed
+  `tests/harness/accessibility.test.ts` from 450 to 459 counted lines, so they are
+  `tests/harness/accessibilityTrustPath.test.ts`, sharing `runOptions` from `./axeOptions` exactly
+  as `accessibilityAssetLibrary.test.ts` already does. No violations in any of the three.
+- **§9's harness row describes a knob that does not work.** Arming a call-counting `getPlan` and
+  triggering the second read through the view's `onPlanChanged` listener cannot set `stale`:
+  `PlanEditorRoot.hydrate()` passes no `keepPreviousOnFailure`, so a failure there calls `fail()`
+  and blanks the floor. `?stale` drives a REAL successful write instead — it selects a sacrificial
+  zone and clicks the Inspector's own Delete, whose zero-referent branch dispatches with no dialog,
+  and the automatic post-command `refreshProjection` is the read the knob fails. Both captures were
+  taken with the PINNED Chromium, so neither carries an approximate-build caveat.
+- **§9's refresh row asks for identity held by a SPY.** Identity is held by CONSTRUCTION today —
+  one `const` handed to both callers — plus call-count assertions. A spy would additionally catch a
+  future second closure; left standing below.
+
+**2026-09-05 — what the captures showed.** `plan-editor-stale` (1280, light) and
+`plan-editor-stale-narrow` (460, dark) were read by the controller. At 1280 the strip's sentence
+and both buttons sit on one line, the status bar carries the paused hint and
+`Saved · refresh needed`, every Inspector section reads *Not available yet*, and Delete is present
+and paused. At 460 the strip wraps to two lines (sentence, then both buttons) — acceptable — with
+the drawer open over the canvas showing the paused Inspector. **One layout defect was found by
+reading them and fixed**: the Layers panel rendered *"No reference plan has been added to this
+floor."* TWICE, once as the entry's own reason and once as the new per-action reason span carrying
+the same key. **One residual was found and is NOT fixed here**: at 460 the status bar CLIPS its
+hint text, so the paused hint is not visible in a narrow leaf, while the strip and the save-state
+label still carry the fact. It belongs to `docs/tasks/Build full and compact editor status bars.md`
+and is step 4b of `docs/tests/cases/Recover from a stale read.md`. The *Harness: light/dark* badge
+overlapping the save-state label in both shots is pre-existing harness furniture, verified against
+untouched captures.
+
+**2026-09-05 — deferred minors, left standing.** Each was raised in review, judged not worth the
+round, and is written here rather than lost:
+
+- `selectTool.test.ts`'s comment about releasing the click "so no stale gesture can leak" is
+  misleading under `writesBlocked` — no gesture was ever built. Cosmetic.
+- `withEditorStateRefresh` (the wrapper, not `createProjectionRefresh`) has no production caller
+  left; it is kept alive by its own test file and by the docblocks that name it. Retire it or
+  repoint it in a later task.
+- `mountStatusBar` is a local helper inside `statusBar.test.ts`; it could move to
+  `tests/helpers/editor.ts` once that file is free.
+- The strip's busy case asserts `aria-disabled` on `buttons[0]` only; `buttons[1]` would widen it.
+- `tests/harness/fixture.ts`'s `openPlanNote` door is type-checked and not asserted, matching that
+  fixture's other doors.
+- The accessibility file's third case copies its drawer-presence assertion from a relied-upon
+  sibling pattern rather than watching that one assertion red independently.
+- `AddMenu`'s unsupported-AND-blocked combination is untested, and the "everything live again"
+  case samples one control rather than every one it cleared.
+- `runtime.ts`'s `pausedReasonId` is minted inside `buildDispatcherChain` rather than
+  `buildRuntime` directly, which stretches Ruling 2's wording; the one-id-per-leaf constraint holds.
+- `PlanEditorRoot`'s `retry` and `openSourceNote` closures `void` their promises. Traced rather
+  than left open: `createProjectionRefresh` and `openProjectNote` resolve on every arm, so neither
+  is a detached rejection today. If either starts throwing, both owe `runDetached` handling.
+
+**2026-09-05 — the gates.** Wave 1's gate was RED at lint on two size caps, both in one task's
+files (`ProjectStore.ts`'s setup arrow at 106 against a 100-line function cap, and
+`stores.test.ts` at 531 against 450) and GREEN after the extraction of `runHydrationReads` and the
+split of `stores.test.ts` into `projectStore.test.ts`. Wave 2's gate was RED on ONE test — an
+`assetPriceList.test.ts` case reading `.rp-visually-hidden` from `styles/asset-prices.css` after
+this increment moved that rule to its own partial — and the repair found that a SECOND reader in
+the same file had been passing for the wrong reason, matching a comment that spelled the class with
+its leading dot rather than a real declaration. Coverage at the green Wave 1 gate: statements
+99.31, functions 99.14 (about **three** covered units above the 99 floor), lines 99.59, branches
+98.27. `dist/main.js` measured **945.60 kB (gzip 284.50 kB)** at the Wave 2 gate of the trust path
+(2026-09-05); read that as the size on that day rather than as a standing total.

@@ -222,8 +222,18 @@ describe('one history per leaf', () => {
 	 * pinned here as the recorded `undo.superseded`-shaped behaviour rather than fixed: the
 	 * button stays live and every further press refuses identically, which the second press
 	 * below is what says.
+	 *
+	 * **The CODE is asserted, not merely the consequences.** A badge reading `save-error`, an
+	 * unmoved polygon and a live Undo button are satisfied by ANY write refusal — a detonated
+	 * save, a revision conflict, a domain rule — so a case resting on those three alone is this
+	 * repository's own "a test can pass on the wrong refusal". The refusal is observable where
+	 * it is minted: `vi.spyOn` keeps each call's returned promise, and the in-memory store's
+	 * conditional write is what resolves the `Result` this reads back. The case is named for
+	 * `external-modification` rather than for a revision conflict because that is the arm
+	 * `poke` actually reaches — it moves the observed token and leaves the revision alone,
+	 * which `checkExpectedVersion` separates on purpose, since the two recoveries differ.
 	 */
-	it('a revision conflict on Undo surfaces once and leaves the stack coherent', async () => {
+	it('an external modification refusing an Undo surfaces once and leaves the stack coherent', async () => {
 		const { harness, zonesRepo } = await rig();
 		const runtime = runtimeOf(harness);
 
@@ -237,10 +247,16 @@ describe('one history per leaf', () => {
 		// Somebody else touched the note between the move and the Undo.
 		zonesRepo.poke('zone-a' as never);
 
+		const saves = vi.spyOn(zonesRepo, 'save');
 		const noticesBefore = Notice.shown.length;
 		await runtime.undo();
 		await settle();
 
+		// The inverse REACHED the repository and was refused there, by the one code that means
+		// "changed outside this plugin since it was read".
+		const refusal = await saves.mock.results.at(-1)?.value;
+		expect(refusal?.ok).toBe(false);
+		expect(refusal?.error?.code).toBe('zone.external-modification');
 		// The badge is the whole surface; no toast, so the two cannot drift apart.
 		expect(harness.wrapper.find('.rp-save-state-label').classes()).toContain('rp-save-state-save-error');
 		expect(Notice.shown.length).toBe(noticesBefore);

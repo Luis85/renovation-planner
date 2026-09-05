@@ -142,6 +142,11 @@ export class SelectTool implements EditorTool {
 		const hit = candidates.find((candidate) => candidate.id === target.id);
 		if (hit === undefined) return;
 		if (target.kind === 'handle') {
+			// While the canvas is stale the gate would refuse the commit anyway; a ghost the
+			// release cannot keep is a promise, so no gesture begins — the vertex handle stays
+			// on an already-selected zone, but grabbing it starts no drag (design spec §2.9,
+			// trust path).
+			if (context.writesBlocked()) return;
 			this.gesture = {
 				kind: 'vertex',
 				zoneId: hit.id as ZoneId,
@@ -152,6 +157,10 @@ export class SelectTool implements EditorTool {
 			return;
 		}
 		context.selection.select([hit.id as EntityId<string>]);
+		// While the canvas is stale the gate would refuse the commit anyway; a ghost the release
+		// cannot keep is a promise, so no gesture begins. Selection still happens — inspecting
+		// stays available (design spec §2.9).
+		if (context.writesBlocked()) return;
 		this.gesture = {
 			kind: 'body',
 			zoneId: hit.id as ZoneId,

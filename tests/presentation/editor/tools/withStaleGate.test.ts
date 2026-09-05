@@ -45,11 +45,17 @@ describe('withStaleGate', () => {
 		expect(calls).toEqual(['run']);
 	});
 	it('lets undo and redo through in BOTH states', async () => {
-		const { calls, history } = recording();
-		const gated = withStaleGate(history, () => true);
-		await gated.undo();
-		await gated.redo();
-		expect(calls).toEqual(['undo', 'redo']);
+		const stale = recording();
+		const gatedStale = withStaleGate(stale.history, () => true);
+		await gatedStale.undo();
+		await gatedStale.redo();
+		expect(stale.calls).toEqual(['undo', 'redo']);
+
+		const fresh = recording();
+		const gatedFresh = withStaleGate(fresh.history, () => false);
+		await gatedFresh.undo();
+		await gatedFresh.redo();
+		expect(fresh.calls).toEqual(['undo', 'redo']);
 	});
 	it('reads the flag at dispatch time, not at construction', async () => {
 		let stale = true;

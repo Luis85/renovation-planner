@@ -16,6 +16,7 @@ import {
 	COINCIDENT_TOLERANCE_MM,
 	contains,
 	distance,
+	extentOf,
 	intersect,
 	length,
 	perimeter,
@@ -370,5 +371,27 @@ describe('coincident', () => {
 		// component-wise test would wrongly call the same point.
 		const offset = COINCIDENT_TOLERANCE_MM * 0.8;
 		expect(coincident({ x: 0, y: 0 }, { x: offset, y: offset })).toBe(false);
+	});
+});
+
+/**
+ * Pins the empty-set contract the function's own docblock states — `Infinity` for an empty
+ * set, deliberately unrefused — because `boundsMidpoint`, `AssetMark` and the asset library
+ * fixture each rely on exactly this shape rather than on a thrown error or a `Result`.
+ */
+describe('extentOf', () => {
+	it('answers Infinity on every axis for an empty set, rather than refusing', () => {
+		expect(extentOf([])).toEqual({ minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+	});
+
+	it('collapses to the one point on both min and max', () => {
+		expect(extentOf([{ x: 7, y: -3 }])).toEqual({ minX: 7, maxX: 7, minY: -3, maxY: -3 });
+	});
+
+	// NaN comparisons are always false, so a NaN coordinate updates neither seed: the scan
+	// keeps its Infinity/-Infinity starting values on the axis a NaN lands on, rather than
+	// propagating NaN into a min or max the way `Math.min`/`Math.max` would.
+	it('leaves the seeds in place for an axis a NaN coordinate lands on', () => {
+		expect(extentOf([{ x: NaN, y: 5 }])).toEqual({ minX: Infinity, maxX: -Infinity, minY: 5, maxY: 5 });
 	});
 });

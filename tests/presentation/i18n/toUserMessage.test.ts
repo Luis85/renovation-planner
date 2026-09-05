@@ -552,6 +552,9 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.persistence',
 		'infrastructure/obsidian/repositories/ObsidianZoneRepository.ts',
 	],
+	// The trust path's own gate (checkpoint C3): Validation on purpose, per that file's own
+	// docblock, so a paused write settles the save indicator neutral rather than badging one.
+	['editor.stale-write-refused', 'Validation', 'error.category.validation', 'presentation/editor/tools/with-stale-gate.ts'],
 ];
 
 // Named for the shape rather than for a slice: the table below has carried codes from slices

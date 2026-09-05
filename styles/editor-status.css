@@ -186,6 +186,15 @@
 }
 
 /*
+ * Saved · refresh needed: the write landed (a filled disc) and the picture may be behind the
+ * vault (a gap cut from it). Held still, it is the only mark that is both filled and open.
+ */
+.rp-save-state-saved-refresh-needed .rp-save-state-mark {
+	background-color: currentColor;
+	clip-path: polygon(0 0, 100% 0, 100% 45%, 55% 45%, 55% 55%, 100% 55%, 100% 100%, 0 100%);
+}
+
+/*
  * Saving is the Design System's *Loading*: a MOVING indicator and text. An arc rather than a
  * pulse, so it reads as in-flight rather than as a state that merely differs.
  */

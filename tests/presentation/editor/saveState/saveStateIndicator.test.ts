@@ -8,6 +8,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import SaveStateIndicator from '../../../../src/presentation/editor/save-state/SaveStateIndicator.vue';
 import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
 import { SAVE_STATE_KEYS, type SaveState } from '../../../../src/presentation/editor/save-state/save-state';
+import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 
 describe('the save-state indicator', () => {
 	beforeEach(() => {
@@ -32,6 +33,37 @@ describe('the save-state indicator', () => {
 		store.resolveErr();
 		await wrapper.vm.$nextTick();
 		expect(wrapper.text()).toBe('Save error');
+	});
+});
+
+/**
+ * SDD companion §2.5: "Saved · refresh needed" is DERIVED from `state === 'saved'` plus
+ * `ProjectStore.stale`, never a fifth `SaveState` member — the write really did land, and
+ * `stale` is the qualifier on top of it. A save error over a stale store still reads "Save
+ * error": the qualifier applies to `saved` alone, never to any other state.
+ */
+describe('the derived Saved · refresh needed label', () => {
+	beforeEach(() => {
+		setActivePinia(createPinia());
+	});
+
+	it('reads Saved · refresh needed when saved AND the project store is stale, with its own mark class', async () => {
+		const wrapper = mount(SaveStateIndicator);
+		useProjectStore().stale = true;
+		await wrapper.vm.$nextTick();
+		expect(wrapper.text()).toBe('Saved · refresh needed');
+		expect(wrapper.find('.rp-save-state-saved-refresh-needed').exists()).toBe(true);
+	});
+
+	it('does not say refresh needed over a save error', async () => {
+		const wrapper = mount(SaveStateIndicator);
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.resolveErr();
+		useProjectStore().stale = true;
+		await wrapper.vm.$nextTick();
+		expect(wrapper.text()).toBe('Save error');
+		expect(wrapper.find('.rp-save-state-saved-refresh-needed').exists()).toBe(false);
 	});
 });
 
@@ -96,11 +128,12 @@ describe('every save state has a mark rule the template can actually reach', () 
 	 * spec asks for, so it needs no override. Recorded as a decision rather than omitted from
 	 * the list, because an absent key and a deliberate one look identical in a loop.
 	 */
-	const MARK_RULE: Readonly<Record<SaveState, 'base' | 'own'>> = {
+	const MARK_RULE: Readonly<Record<SaveState | 'saved-refresh-needed', 'base' | 'own'>> = {
 		saved: 'base',
 		saving: 'own',
 		'unsaved-changes': 'own',
 		'save-error': 'own',
+		'saved-refresh-needed': 'own',
 	};
 
 	it('declares the base mark the word sits beside', () => {
@@ -108,14 +141,19 @@ describe('every save state has a mark rule the template can actually reach', () 
 	});
 
 	it.each(
-		(Object.keys(MARK_RULE) as SaveState[]).filter((state) => MARK_RULE[state] === 'own'),
+		(Object.keys(MARK_RULE) as (SaveState | 'saved-refresh-needed')[]).filter(
+			(state) => MARK_RULE[state] === 'own',
+		),
 	)('declares a distinct mark for %s', (state) => {
 		expect(css).toContain(`.rp-save-state-${state} .rp-save-state-mark`);
 	});
 
-	// The list above is the states, not a copy of them: the type's own keys drive it.
+	// The list above is the states PLUS the derived label, not a copy of either: the type's
+	// own keys drive it.
 	it('covers every state the type declares', () => {
-		expect(Object.keys(MARK_RULE).toSorted()).toEqual(Object.keys(SAVE_STATE_KEYS).toSorted());
+		expect(Object.keys(MARK_RULE).toSorted()).toEqual(
+			[...Object.keys(SAVE_STATE_KEYS), 'saved-refresh-needed'].toSorted(),
+		);
 	});
 
 	/**

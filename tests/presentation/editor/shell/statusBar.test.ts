@@ -4,13 +4,28 @@
  * readout withdrawing under the constrained layout (M16), and the pan-override reminder
  * beside the angle-constraint hint this file's sibling case already covers.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { nextTick } from 'vue';
+import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import { err } from '../../../../src/core/result/Result';
 import { t } from '../../../../src/presentation/i18n/strings';
+import type { ToolId } from '../../../../src/presentation/editor/tools/editor-tool';
+import StatusBar from '../../../../src/presentation/editor/shell/StatusBar.vue';
+import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { useWorkspaceStore } from '../../../../src/presentation/stores/WorkspaceStore';
 import { mountPlanEditor, mountPlanEditorCanvas, settle } from '../../../helpers/editor';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../../helpers/planFixtures';
 import { activateTool } from '../../../helpers/planEditorRig';
+
+/**
+ * `StatusBar` reads `useProjectStore().stale` directly rather than through the runtime, so
+ * it stays mountable standalone — the same guarantee the harness index relies on. No
+ * `PlanEditorContext` and no full `mountPlanEditor` rig are needed for this one prop.
+ */
+function mountStatusBar(props: { activeToolId?: ToolId | null } = {}) {
+	return mount(StatusBar, { props });
+}
 
 const CALIBRATION = {
 	pointA: { x: 0, y: 0 },
@@ -67,6 +82,30 @@ describe('StatusBar', () => {
 		await settle();
 		expect(harness.wrapper.find('.rp-editor-pan-hint').exists()).toBe(false);
 		harness.wrapper.unmount();
+	});
+});
+
+/**
+ * SDD companion §2.9: while `runtime.writesBlocked` holds, the status bar says so beside the
+ * pan hint (§2.5's derived label is the save-state indicator's own share of the same fact).
+ * Mounted standalone — no `PlanEditorContext` — because the store this reads is Pinia's, not
+ * the runtime's.
+ */
+describe('the paused hint', () => {
+	beforeEach(() => {
+		setActivePinia(createPinia());
+	});
+
+	it('shows the paused hint while the store is stale', async () => {
+		const wrapper = mountStatusBar({ activeToolId: 'select' });
+		useProjectStore().stale = true;
+		await nextTick();
+		expect(wrapper.find('.rp-editor-paused-hint').text()).toBe(t('en', 'editor.hint.paused'));
+	});
+
+	it('shows no paused hint while the store is not stale', () => {
+		const wrapper = mountStatusBar({ activeToolId: 'select' });
+		expect(wrapper.find('.rp-editor-paused-hint').exists()).toBe(false);
 	});
 });
 

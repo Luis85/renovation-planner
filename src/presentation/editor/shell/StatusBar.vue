@@ -21,6 +21,11 @@
  * a save-state word does not fit a 460px sidebar leaf — so `layoutMode` (`WorkspaceStore`)
  * hides it there while the zoom, the scale and save state all stay: none of those three
  * grows with the pane's width the way a live coordinate readout effectively does.
+ *
+ * SDD companion §2.9 adds the paused hint (`editor.hint.paused`), beside the pan hint, while
+ * `ProjectStore.stale` holds — this component's own share of "which controls pause, and how
+ * each says why". Read directly from `ProjectStore` rather than from the runtime's
+ * `writesBlocked`, so this bar stays mountable standalone in the harness index.
  */
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -42,7 +47,7 @@ import SaveStateIndicator from '../save-state/SaveStateIndicator.vue';
  */
 const props = defineProps<{ activeToolId?: ToolId | null }>();
 
-const { plan, status } = storeToRefs(useProjectStore());
+const { plan, status, stale } = storeToRefs(useProjectStore());
 const { viewport, pointerWorld } = storeToRefs(useEditorStore());
 const { layoutMode } = storeToRefs(useWorkspaceStore());
 
@@ -117,6 +122,10 @@ const pointerText = computed(() => {
 				v-if="showsPanHint"
 				class="rp-editor-pan-hint"
 			>{{ tr('editor.hint.pan') }}</span>
+			<span
+				v-if="stale"
+				class="rp-editor-hint rp-editor-paused-hint"
+			>{{ tr('editor.hint.paused') }}</span>
 		</div>
 		<div
 			class="rp-editor-measurements"

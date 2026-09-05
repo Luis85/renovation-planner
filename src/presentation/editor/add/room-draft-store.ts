@@ -415,8 +415,22 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 
 	return {
 		origin, widthMm, depthMm, name, nameTouched, keepAdding, widthText, depthText,
-		widthError, depthError, settledSize, submitting, taskToken, rect, geometry, areaMm2,
-		complete, valid, hasInput,
+		widthError, depthError, settledSize, submitting,
+		// The only consumer is `roomCreation.ts`'s `draft.taskToken`, reached through
+		// `RoomCreationDeps` — a dependency-injected parameter, never this store's own
+		// `useRoomDraftStore()` call, which is the one thing fallow's cross-file
+		// member-access resolution actually follows. A real reader the analyzer cannot
+		// see, not a dead declaration.
+		// fallow-ignore-next-line unused-store-member
+		taskToken,
+		rect, geometry, areaMm2,
+		// The only consumer is `runtime.ts`'s `deps.roomDraft.complete`, inside
+		// `createRoomCreationAction` — a function `buildRuntime` calls rather than the one
+		// that binds `useRoomDraftStore()` itself, and `buildRuntime` is already at its
+		// 100-line cap. Same shape as `taskToken` above: real, indirect, invisible to fallow.
+		// fallow-ignore-next-line unused-store-member
+		complete,
+		valid, hasInput,
 		beginTask, setRect, snapshotRect, restoreRect, clearRect, reset, setName,
 		suggestName, commitDimension, settle, setKeepAdding, setSubmitting,
 	};

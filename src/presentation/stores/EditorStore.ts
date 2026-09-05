@@ -273,22 +273,22 @@ export const useEditorStore = defineStore('editor', () => {
 	 * `EditorSurface`'s tool-versus-camera routing both come from here. It briefly had a
 	 * second writer and a private copy beside
 	 * it: three places holding the active tool, the one this comment named as the consumer
-	 * being the dead one. `hoveredObjectId` and `temporaryPolygon` are still inert — slice 8's tools
-	 * broadcast transients through `RenderState` (a reactive proxy over
+	 * being the dead one. `hoveredObjectId` and `temporaryPolygon` are still unwritten by any
+	 * tool — slice 8's tools broadcast transients through `RenderState` (a reactive proxy over
 	 * `../editor/tools/render-state.ts`) instead, which is the reconciliation this file's
-	 * older notes anticipated: these two slots remain declared vocabulary awaiting a
-	 * reader, each with its own suppression so one can gain a consumer without the group
-	 * rotting as a block.
+	 * older notes anticipated. Their `fallow-ignore-next-line unused-store-member` marks are
+	 * gone now: `stores.test.ts` reads both straight off `useEditorStore()`'s own return,
+	 * asserting the store opens with no hover and no draft polygon, and that direct read is
+	 * what fallow's cross-file member-access resolution counts as a consumer — a real one by
+	 * that measure, though still no PRODUCTION reader, and neither slot has gained a tool.
 	 */
 	return {
 		viewport,
 		activeToolId,
-		// fallow-ignore-next-line unused-store-member
 		hoveredObjectId,
 		// Read by a test that asserts a gesture is running, so it needs no suppression — which
 		// is why these are one per line rather than one comment over the group.
 		dragState,
-		// fallow-ignore-next-line unused-store-member
 		temporaryPolygon,
 		stageSize,
 		pointerWorld,

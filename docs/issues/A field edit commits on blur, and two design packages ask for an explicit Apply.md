@@ -87,6 +87,6 @@ Evidence and remaining limitations: [execution record](../user-experience/renova
 ## Sources
 
 `docs/user-experience/asset-library-delivery/specification/decision-register.md` (D03);
-`docs/user-experience/asset-library-delivery/pbis/PBI-05.md`, `PBI-06.md`, `PBI-14.md`;
+`docs/requirements/Explicitly save or discard asset metadata changes.md`, `Switch assets without accidentally losing input.md`, `Continue safely after save failures or external changes.md`;
 `docs/user-experience/renovation-planner-project-specs/implementation/repository-reconciliation-and-backlog.md`
 (PBI-07, PBI-09, and its §1 row on the price row).

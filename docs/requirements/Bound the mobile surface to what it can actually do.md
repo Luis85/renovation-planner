@@ -109,6 +109,6 @@ Evidence and remaining limitations: [execution record](../user-experience/renova
 `PRODUCT.md` (Capabilities and Constraints — the confirmed device scope, and §105's resolution);
 `manifest.json` (`isDesktopOnly: false`);
 `docs/user-experience/renovation-planner-project-specs/implementation/repository-reconciliation-and-backlog.md`
-PBI-10 and its §1 device-scope row; `docs/user-experience/asset-library-delivery/pbis/PBI-15.md`;
+PBI-10 and its §1 device-scope row; `docs/requirements/Use the library in narrow panels and host themes.md`;
 [[The alternative list route is a Bases view]], which made the Bases route the mobile read surface
 and is what this item leaves standing rather than duplicating.

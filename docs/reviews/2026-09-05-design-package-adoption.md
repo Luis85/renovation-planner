@@ -63,6 +63,14 @@ fails to parse and the asset disappears. → [[Keep an unrecognised asset catego
 [[Asset library]] already carry the same ground, and a second set would give one body of work two
 parents.
 
+**Amended 2026-09-05, later the same day.** Pull request #70 (`codex/asset-library-delivery`)
+implemented the package against this table's verdicts, and all eighteen PBIs were then adopted into
+`docs/requirements/` as register-shaped notes under the two existing Features — so a `PBI-NN` in this
+table resolves through the **Sources** footer of the note carrying that id, and the two Gap/Change
+notes this ledger produced ([[Reach the asset catalogue without this plugin's own view]] and the
+Apply issue) each point at their adopted counterpart. The verdicts above are the state before that
+branch and are left as written.
+
 ## `renovation-planner-project-specs` — 10 PBIs
 
 | ID | Verdict | Evidence or destination |

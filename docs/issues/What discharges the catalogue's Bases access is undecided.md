@@ -68,6 +68,6 @@ That the library view may not be the only route. §2a states the rule and states
 ## Sources
 
 [[The alternative list route is a Bases view]]; [[Asset library]]'s definition of done;
-`docs/user-experience/asset-library-delivery/pbis/PBI-18.md`;
+`docs/requirements/Access asset information through native Obsidian notes and Bases.md`;
 `docs/user-experience/asset-library-delivery/specification/decision-register.md` (D12);
 `docs/user-experience/archive/asset-library-overview-DESIGN-SPEC.md` §2a; PRD §41.

@@ -90,6 +90,6 @@ answered. What is *not* undecided is the guarantee above, which holds for all th
 ## Sources
 
 [[Asset library]]'s definition of done; [[The alternative list route is a Bases view]];
-`docs/user-experience/asset-library-delivery/pbis/PBI-18.md`;
+`docs/requirements/Access asset information through native Obsidian notes and Bases.md`; since 2026-09-05 that note is itself in the tree, as [[Access asset information through native Obsidian notes and Bases]] under the same parent, recording the recipe pull request #70 shipped over existing frontmatter — this note stays open on the Bases decision it depends on;
 `docs/user-experience/archive/asset-library-overview-DESIGN-SPEC.md` §2a; PRD §41; PRODUCT.md
 principle 5.

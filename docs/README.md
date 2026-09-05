@@ -96,6 +96,18 @@ one's, and the table further down says which folders it counts. And **a package'
 and IDs are deliberately not adopted**: the Features they duplicate already exist, and giving one
 body of work two parents is what the `parent` key exists to prevent.
 
+**Amended 2026-09-05, after pull request #70 delivered the asset-library package.** Its eighteen
+PBIs were adopted into `requirements/` — one register-shaped note each (actor, main flow, extensions,
+guarantee, acceptance criteria, sources), a sentence basename, and a `parent` of
+[[Searchable asset catalog]] (package groups F01, F03, F05) or [[Asset definitions and categories]]
+(F02, F04) — because once a merged branch had implemented them they were work done rather than a
+proposal, and the reason above for not adopting them (a second set of parents) is met by parenting
+them under the existing Features rather than the package's groups. The package's `pbis/` folder is
+gone; its README table links into `requirements/`, each note's **Sources** names the package id it
+came from, and the adoption ledger maps the other way. The two enablers stay in the package with no
+`type`, as sources rather than items. Nothing about the census changes: `user-experience/` is still
+excluded, and the eighteen are counted where they now live.
+
 **`actors/` and `entities/` answer *who* and *what*, which is the one axis the backlog does
 not have.** `requirements/` is organised by the work to be done, so a [[Zone]] is described
 across a dozen notes and nowhere in particular; these two folders give every actor and every

@@ -10,11 +10,20 @@ sources:
   - SDD §57
   - SDD §60
   - SDD §61
+  - "Editor component library §3, §6, §7 — EditorContextBar, FloatingPrimaryActions, CreationToolBar"
 type: component
 image: "[[toolbar.png]]"
 ---
 
 # Toolbar
+
+**Design authority since 2026-09-05:** the editor package WITHDRAWS the permanent tool ribbon
+this note describes. What replaces it, in
+[its component library](../user-experience/renovation-planner-editor-specs/components/component-library.md): `EditorContextBar` (breadcrumbs, the `PerspectiveSwitch` for Plan /
+Renovate / Review, Undo, Redo, View), `FloatingPrimaryActions` keeping Select and Add reachable
+without a ribbon, and `CreationToolBar` shown only during a creation task. Select is the safe
+default state and pan/zoom are gestures, not tools. Its reuse map refactors `EditorToolbar.vue`
+into those three. Everything below about the six-button band is the archived proposal.
 
 The horizontal band at the top of the plan editor holding the tool buttons. A **container**:
 it owns which tools are present, their order, and which one is active — never what a tool
@@ -23,11 +32,15 @@ it.
 
 ## Specimen
 
-![Toolbar, and the states it owes, in Obsidian's default light and dark](toolbar.png)
+![Toolbar, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/toolbar.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -79,6 +92,11 @@ roles and names, not keyboard behaviour. `npm run test-build` is where it is ver
 2. **Whether the toolbar is the only home for a tool.** PRD §39 also asks for keyboard
    shortcuts, and a shortcut that activates a tool is a second input to one action — which
    `CLAUDE.md`'s *one action, every input* rule makes a wiring question, not a UI one.
+
+**Since 2026-09-05:** question 1 is answered by M16 and the `CompactStatusBar` / `PanelRail`
+pair — at constrained width the controls move into View and overlay panels, not into a second
+row. Question 2 stands, and the package's `AddMenu` answers it the same way: activation delegates
+to the one canonical tool or command entry point.
 
 ## Sources
 

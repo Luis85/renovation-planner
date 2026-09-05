@@ -9,6 +9,48 @@
 
 ---
 
+## Design amendments — 2026-09-05
+
+This PRD is kept as received. Three design packages under
+[`docs/user-experience/`](../../user-experience/) now specify the surfaces it asks for, and where
+the body below and a package disagree, the package is the authority for what the user SEES and
+this PRD stays the authority for what the product IS:
+
+- **§39 User Experience Requirements → the
+  [editor package](../../user-experience/renovation-planner-editor-specs/README.md) (M00–M17).**
+  §39's shell, tool list and shortcuts predate the package's three perspectives — Plan /
+  Renovate / Review — and its Existing / Work / Planned semantics. §39's tool list already
+  carries no Calibrate tool, which agrees with M06 (a reference plan is *set up*, not
+  calibrated with a tool); do not "fix" it the other way. §40's rule that spatial objects stay
+  reachable without the canvas is the package's principle 10, now with screens behind it.
+- **§17 Epic 6 Asset Library → the
+  [asset library package](../../user-experience/asset-library-delivery/README.md) (AL00–AL11).**
+  The library is a **vault-wide surface** of its own, reached by command or from the project
+  overview — not the `Library` pane §39's shell drawing puts in the editor's left panel. §17's
+  seven categories are the production vocabulary the package's decision D04 defends; its four
+  demo categories are fixtures.
+- **The user-facing vocabulary is *Room, Wall, Area, Reference plan, Work*; never *Zone,
+  Polygon, Vertex, Scene* or a *Calibrate* step.** This PRD does not distinguish a domain term
+  from a UI label, so read every occurrence by where it sits: §6's domain model, §8's `Zone`
+  entity, §68's commands, §82's calibration model and §86's events are INTERNAL and keep
+  their names — the persisted `type: renovation-zone` does not change. §3.5's *Import →
+  Calibrate → Mark areas* flow, §5's *Calibrate Scale* step, §93's onboarding ending in *Create
+  First Zone* and §101's `create zone` flow are USER-FACING and are read as *set up a reference
+  plan* (M06) and *add a room* (M02–M03). The mapping is explicit and tested rather than a
+  rename.
+- **§105's open questions: two are answered.** Mobile is read-only (`PRODUCT.md`, and the
+  project package's precedence rule 9). Walls are first-class: M04 draws them and M07 selects
+  them, though as a proposed extension not yet built. The other six stay open.
+- **Home, project details and Resume** are the
+  [project package](../../user-experience/renovation-planner-project-specs/README.md)'s (P00–P07);
+  the workspace PRD beside this one carries the amendments for those.
+
+Each package proposes its own backlog; what was adopted from each is in
+[`docs/reviews/2026-09-05-design-package-adoption.md`](../../reviews/2026-09-05-design-package-adoption.md),
+and the packages' own open questions are listed in `PRODUCT.md` rather than repeated here.
+
+---
+
 # 1. Product Vision
 
 The **Obsidian Renovation Planner** is a local-first planning tool for house, apartment, property, and garden renovation projects.

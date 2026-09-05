@@ -10,11 +10,18 @@ sources:
   - SDD §20
   - SDD §21
   - SDD §85
+  - "Editor component library §5 — SelectionOverlay, MultiSelectionOverlay, EditableDimensionLabel"
 type: component
 image: "[[selection-handle.png]]"
 ---
 
 # Selection handle
+
+**Design authority since 2026-09-05:** the editor package's `SelectionOverlay`
+([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)) — outline, handles, dimensions and focus state for one entity,
+emitting begin / preview / commit transform and request-dimension-edit — and
+`MultiSelectionOverlay`'s stable numbered badges for several (M11). Its rule: direct manipulation
+and numeric entry converge on the same command.
 
 The drawn transform affordance on a selected spatial object — corners, edges, and a rotation
 grip. Purely drawn: it has no DOM node, no CSS, and no accessible name of its own, which makes
@@ -23,11 +30,15 @@ control normally gets for free.
 
 ## Specimen
 
-![Selection handle, and the states it owes, in Obsidian's default light and dark](selection-handle.png)
+![Selection handle, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/selection-handle.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -89,6 +100,11 @@ that reaches a canvas at all. `npm run test-build` is the only place a handle's 
    two spellings of one.
 2. **Whether rotation is in the MVP at all.** SDD §21 lists `snapRotation()`; PRD §39's tool list
    does not name a rotate tool, and the six initial tools in SDD §57 do not include one.
+
+**Since 2026-09-05:** question 1 has the package's answer in principle — every canvas-only
+affordance has a non-canvas route (its acceptance criterion), and the route for a transform is
+`EditableDimensionLabel` and the Inspector, not a keyboard transform mode. Question 2 stands:
+no package screen names rotation.
 
 ## Sources
 

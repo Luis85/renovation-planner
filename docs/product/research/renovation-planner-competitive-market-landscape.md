@@ -5,6 +5,20 @@
 **Version:** 0.1  
 **Date:** 2026-08-24
 
+## Design amendments — 2026-09-05
+
+§17 addresses "the existing PRD / UXD" and §17's last line "the JTBD research backlog". Both
+documents have moved: the UXD is
+`docs/user-experience/archive/renovation-project-workspace-UXD.md` and the backlog is
+`docs/user-experience/archive/renovation-planner-JTBD-research-backlog.md`, archived because the
+three packages under `docs/user-experience/` superseded them. Read §17's supported directions
+against those packages: *Continue Project* is now *Resume*, distinct from *Open project*;
+*deterministic next actions* became three fixed guided entries on the project details, in a
+stable order; and Opportunity 1's *What is over budget?* is not a launcher question — the
+overview carries no cross-project money totals, and prices live in a project's own section
+(P04). §17's caution that construction terminology "can rapidly introduce zones" anticipated
+the editor package's vocabulary rule, and stands.
+
 # 1. Executive Summary
 
 Renovation Planner enters a fragmented but substantial market. Strong products exist for floor plans and visualization, property capture and estimating, professional construction management, inspiration/contractor discovery, and generic project management. Far fewer products treat the **homeowner's complete renovation as a durable knowledge-and-planning system** spanning:

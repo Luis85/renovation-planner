@@ -9,11 +9,22 @@ sources:
   - PRD §39
   - SDD §59
   - SDD §60
+  - "Editor component library §8 — EntityInspector, InspectorDrawer, HomeownerQuestionNav, content components"
+  - "Asset library component contracts — AssetInspector"
 type: component
 image: "[[inspector.png]]"
 ---
 
 # Inspector
+
+**Design authority since 2026-09-05:** the editor package's `EntityInspector` frame
+([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)) with Floor, Room, Wall, Multi-selection and Review variants,
+`InspectorDrawer` at constrained width reusing the same content, `HomeownerQuestionNav`'s three
+rows — *What's here* (Existing), *What will change* (Planned), *What needs doing* (Work) —
+`TransformationSummary`, `SemanticStateSwitch`, `LinkedContentList`, and twelve content
+components from `FloorInspector` to `ReviewInspector`. The library package's
+[`AssetInspector`](../user-experience/asset-library-delivery/specification/component-library.md) is the same shape over one asset (neutral, ready, missing, unreadable).
+*Properties · Relations* below is the archived proposal.
 
 The right column: what is selected, its properties, its relations, and what can be done to it.
 The only component in this inventory through which a user **changes** a domain object, which is
@@ -21,11 +32,15 @@ why its contract is the longest section rather than its anatomy.
 
 ## Specimen
 
-![Inspector, and the states it owes, in Obsidian's default light and dark](inspector.png)
+![Inspector, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/inspector.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -89,6 +104,11 @@ The Delete action needs its destructiveness conveyed in text, not in colour — 
    labels in one column and neither says which.
 2. **What a multi-selection inspector shows.** Common fields only, the count, or nothing.
    Undecided, and it is the case a single-selection design silently fails at.
+
+**Since 2026-09-05:** question 1 is still open and the editor package says so — its §86
+leaves Inspector tabs versus stacked sections to prototype evidence. Question 2 is answered by
+M11: `MultiSelectionInspector` shows shared properties and batch actions, and
+`MultiSelectionActionBar` carries the count.
 
 ## Sources
 

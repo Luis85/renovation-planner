@@ -8,6 +8,32 @@
 
 ---
 
+## Design amendments — 2026-09-05
+
+Three of §25's assumptions were settled by a design decision rather than by research, and the
+record should say which, so nobody schedules a study to validate a question that no longer has
+the shape it had:
+
+- **Assumption B (Project Home is valuable):** the
+  [project package](../../user-experience/renovation-planner-project-specs/README.md) chose
+  BOTH answers as separate labelled actions — *Open project* goes to details, *Resume* goes to
+  the validated last context. Whether users want the hub is still unmeasured; what the hub is,
+  is decided.
+- **Assumption C (Open vs Continue is understandable):** kept, and *Continue* is now *Resume*,
+  with a six-case resolution ladder and its own recovery screen (P03). The vocabulary half is
+  closed; the comprehension half is exactly what the package's own §15 evaluation tasks would
+  test, and none has been run.
+- **Assumption D (Spaces and Design are separate concepts):** resolved by dropping both terms.
+  The [editor package](../../user-experience/renovation-planner-editor-specs/README.md) speaks
+  Plan / Renovate / Review, and no package screen carries a *Spaces* or *Design* item.
+
+§32's "current prototype" is the archived
+`docs/user-experience/archive/renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md`; the
+questions it lists are now the packages' own validation criteria, which each package states are
+proposed and unmeasured.
+
+---
+
 # 1. Executive Summary
 
 Renovation is not one job. It is a prolonged coordination problem spanning:

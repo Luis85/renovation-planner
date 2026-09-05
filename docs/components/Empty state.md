@@ -9,11 +9,20 @@ sources:
   - PRD §39
   - PRD §94
   - PRD §95
+  - "Editor, project and asset library component libraries — EmptyState; ViewFailure"
 type: component
 image: "[[empty-state.png]]"
 ---
 
 # Empty state
+
+**Design authority since 2026-09-05:** the editor and project packages name `EmptyState` —
+heading, explanation, one action, heading level; the project package's word for it is *truthful
+emptiness* ([contracts](../user-experience/renovation-planner-project-specs/components/component-library.md)) — and both pair it with `ViewFailure`, because a failed read
+is never presented as an empty dataset. The library package draws the same rule as the `empty`
+state of `AssetShelves` and the AL08 screen. AL08 is the empty library, P00 the empty list
+(exactly one primary creation action; all-unreadable is not "No projects yet"), M05 the floor a
+homeowner starts with nothing on.
 
 What a surface shows when it has nothing. PRD §94 is one sentence long — *every central view
 should provide actionable empty states* — and the load-bearing word is **actionable**: a message
@@ -21,11 +30,15 @@ alone is a dead end with better manners.
 
 ## Specimen
 
-![Empty state, and the states it owes, in Obsidian's default light and dark](empty-state.png)
+![Empty state, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/empty-state.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -92,6 +105,9 @@ keyboard user and to axe's name-role-value rules alike.
 2. **Whether the [[Plan canvas]]'s empty state is drawn or DOM.** The canvas is the one surface
    where an in-flow DOM overlay and a drawn message are both available, and they behave
    differently under zoom.
+
+**Since 2026-09-05:** question 1 is answered — a failed load is `ViewFailure`, never this
+component. Question 2 stands.
 
 ## Sources
 

@@ -24,7 +24,7 @@ installs *this* plugin into it) and open `Product Backlog.base`. That view belon
 | `actors/` | Who and what the plugin deals with — one note per human or system actor. Derived | *(none — not backlog items)* |
 | `entities/` | The business objects the plugin works with — one note per object. Derived | *(none — not backlog items)* |
 | `business-rules/` | The rules the product must obey — one note per rule, only where no single entity owns it. Derived | *(none — not backlog items)* |
-| `components/` | The UI parts every screen is assembled from — one note per component, each `partOf` a [[Design System]]. Derived | *(none — not backlog items)* |
+| `components/` | The UI parts every screen is assembled from — one note per component, each `partOf` a [[Design System]]. Derived. Since 2026-09-05 each names the design-package component that supersedes the archived concept drawing it was written from | *(none — not backlog items)* |
 | `reviews/` | Findings ledgers from code and document reviews, and the record of what was done about each | *(none — not backlog items)* |
 | `setup/` | How this repository's own tooling was built and is released | *(none — not backlog items)* |
 | `superpowers/` | Claude's design specs and implementation plans, not the product's | *(none — not backlog items)* |
@@ -49,7 +49,12 @@ whether a document may be edited.** A received document is corrected only by rec
 is expected to change as the design is refined, and a refinement that contradicts its source
 names the source section it refines and lands in a slice, a deliverable or an ADR, never in
 `prds/` or `sdds/`. `requirements/Architecture and Software Design.md` states that rule for
-the slices, and carries the conventions and vocabulary all seventeen share.
+the slices, and carries the conventions and vocabulary all seventeen share. **One bounded
+exception, taken 2026-09-05:** a `product/` document that a design package supersedes in part
+carries a dated *Design amendments* block ABOVE its body — the body itself stays as received,
+its section numbers still resolve, and the block names the sections it overrides and the
+package that does. The reason is the one ADR-0015 already paid for: a contradiction findable
+from only one side is one the next reader resolves the wrong way.
 
 **Derived and non-backlog are different axes, and the slices are the case that separates
 them.** They are typed `Task` under the *Architecture and Software Design* Feature, so they
@@ -67,18 +72,26 @@ somebody is scheduled to produce. Derived says whether it may be edited; typed s
 has a rank. Neither answer implies the other.
 
 **`user-experience/` is the third received folder, and the one whose notes look most like backlog
-items without being any.** Two delivery packages arrived on 2026-09-05 carrying their own
-frontmatter (`id`, `epic`, `feature`, `priority`, `depends_on`, `screens`), their own status
-vocabulary (`designed`, `scoped`, and an eleven-state lifecycle running to `shipped`), and their
-own `PBI-01`…`PBI-18` numbering — which the two packages share, so their IDs collide with each
+items without being any.** Three packages live there. The editor package
+(`renovation-planner-editor-specs/`, M00–M17) arrived first and proposes no PBIs — it carries an
+implementation plan in phases. The two delivery packages that arrived on 2026-09-05
+(`renovation-planner-project-specs/`, P00–P07, and `asset-library-delivery/`, AL00–AL11) carry
+their own frontmatter (`id`, `epic`, `feature`, `priority`, `depends_on`, `screens`), their own
+status vocabulary (`designed`, `scoped`, and an eleven-state lifecycle running to `shipped`), and
+their own `PBI-01`…`PBI-18` numbering — which those two share, so their IDs collide with each
 other. **None of it is this register's**, and the distinction is the same one `prds/` and `sdds/`
-rest on: a received document is what a backlog is derived *from*. What was derived from these two
-is recorded in
+rest on: a received document is what a backlog is derived *from*. What was derived from the two
+delivery packages is recorded in
 [`reviews/2026-09-05-design-package-adoption.md`](reviews/2026-09-05-design-package-adoption.md),
-item by item, so a reader holding a package can trace any ID to its disposition.
+item by item, so a reader holding one of them can trace any ID to its disposition; the editor
+package's screens and plan were derived into `tasks/` notes that cite them, and have no ledger. The
+product-side view of all three — what each supersedes in `product/` — is written as a dated
+*Design amendments* block at the top of each affected `product/` document, so a contradiction is
+findable from the PRD's side and not only from the package's.
 
 Two consequences worth stating where the index is. **A status census must not read this folder** —
-those fifty `status: designed` and `status: proposed` values are a package's lifecycle and not this
+those `status: designed` and `status: proposed` values (forty-one in initial frontmatter blocks,
+read on 2026-09-05 the way the census below reads them) are a package's lifecycle and not this
 one's, and the table further down says which folders it counts. And **a package's feature groups
 and IDs are deliberately not adopted**: the Features they duplicate already exist, and giving one
 body of work two parents is what the `parent` key exists to prevent.

@@ -11,11 +11,20 @@ sources:
   - SDD §30
   - SDD §64
   - SDD §66
+  - "Editor component library §3 — PersistentWarningStrip (the persistent counterpart; no package names a toast)"
 type: component
 image: "[[toast.png]]"
 ---
 
 # Toast
+
+**Design authority since 2026-09-05:** none of the three packages names a toast component,
+which is itself the finding — a toast is Obsidian's `Notice` through slice 13's notice door, not
+a component the plugin draws. What the editor package adds beside it is the PERSISTENT
+counterpart, `PersistentWarningStrip` ([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)): a recoverable condition above
+the canvas (M15, reference-plan warnings) with actions and a busy state, under the rule that
+independent warnings must not suppress one another for sharing a region. A failure that needs to
+outlive a timeout goes there, not here.
 
 A transient message about something that **already happened**. Not a question, and not a failure
 the user has to act on — those are [[Modal]]'s and [[Inline field error]]'s. The narrowest
@@ -24,11 +33,15 @@ failure gets routed to when nobody decided where it belonged.
 
 ## Specimen
 
-![Toast, and the states it owes, in Obsidian's default light and dark](toast.png)
+![Toast, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/toast.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 

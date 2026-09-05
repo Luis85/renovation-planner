@@ -11,11 +11,20 @@ sources:
   - SDD §18
   - SDD §19
   - SDD §60
+  - "Editor component library §5 — PlanCanvas, geometry shapes, overlays, marker layers"
 type: component
 image: "[[plan-canvas.png]]"
 ---
 
 # Plan canvas
+
+**Design authority since 2026-09-05:** the editor package's `PlanCanvas`
+([component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)) — the Konva stage, viewport, ordered layers, pointer routing and
+overlays, emitting normalized intents only and persisting nothing — with `RoomShape`,
+`WallShape`, `OpeningShape`, `AreaShape` and `ReferenceImageLayer` beneath it, and
+`SelectionOverlay`, `MultiSelectionOverlay`, `HoverOverlay`, `SnapGuideLayer` and the semantic
+marker layers above. `ZoneLayer.vue` / `ZoneShape.vue` keep the internal zone render model and
+expose Room / Area variants.
 
 The centre column, and the one canvas element everything spatial is drawn into. Two components
 in one boundary: a DOM host that owns the size, and a Konva stage that owns the scene. That is
@@ -28,11 +37,15 @@ note and a viewport.
 
 ## Specimen
 
-![Plan canvas, and the states it owes, in Obsidian's default light and dark](plan-canvas.png)
+![Plan canvas, and the states it owes, in Obsidian's default light and dark](../user-experience/archive/concepts/shots/plan-canvas.png)
 
-A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
-Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+A drawing of the ORIGINAL proposal — the 2026-08 concept gallery — and not a screenshot of
+anything built. That gallery is archived at
+[`component-gallery.html`](../user-experience/archive/concepts/component-gallery.html) and no longer drives the app;
+`npm run concept-shots` still regenerates these shots from it, as a record of what was proposed.
+Obsidian's **default** light and dark, so a themed vault differs. What the shipped surface looks
+like is `npm run harness-shot`'s to show, and what it is designed TOWARDS is the package component
+named at the top of this note.
 
 ## Anatomy
 
@@ -100,6 +113,9 @@ consequences, none of them optional:
    `app.css` read per scheme, which `tests/harness/cssVars.test.ts` explicitly does not do.
 2. **Whether the host or the shell owns the three-column grid** — the same question
    [[View shell]] records from the other side.
+
+**Since 2026-09-05:** question 2 is answered — `ResponsiveEditorShell` owns the layout.
+Question 1 stands, and the package's §11 theme-token roles are the list the mapping has to cover.
 
 ## Sources
 

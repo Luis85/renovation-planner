@@ -232,6 +232,62 @@ describe('ProjectStore hydration', () => {
 		expect(store.plan).toEqual(FIXTURE_PLAN);
 	});
 
+	/**
+	 * The same race a third time, gated on the ZONES read — the last of the three, whose own
+	 * `if (superseded()) return;` has no later guard behind it to catch a stale write on its
+	 * behalf. Unlike the project-read case above, a stale zones ANSWER (rather than a vanished
+	 * entity) is what proves the guard: a build that dropped it would let the slow hydration's
+	 * zones land after the fresh one has already painted its own, silently reverting the canvas
+	 * to a superseded set nobody asked to see again.
+	 */
+	it('a SLOW earlier hydration does not overwrite a fresher one when its zones read supersedes', async () => {
+		const store = useProjectStore();
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+
+		const staleZones = defer<Awaited<ReturnType<PlanEditorQueryServices['findZonesByPlan']>>>();
+		const freshZones = defer<Awaited<ReturnType<PlanEditorQueryServices['findZonesByPlan']>>>();
+		// Signalled the same way the project-read case above signals it: starting the fresh
+		// hydration right away, with no proof the slow one has actually REACHED its zones read,
+		// would race an earlier guard (plan or project) instead of the one under test.
+		let zonesReadStarted!: () => void;
+		const zonesReadStartedPromise = new Promise<void>((resolve) => {
+			zonesReadStarted = resolve;
+		});
+
+		const slow = store.hydrate(
+			queries({
+				findZonesByPlan: () => {
+					zonesReadStarted();
+					return staleZones.promise;
+				},
+			}),
+			FIXTURE_PLAN.id,
+		);
+		await zonesReadStartedPromise;
+
+		// A second hydration starts and finishes entirely inside the first one's zones-read
+		// await — its own zones read is left pending too, so `refreshing` can be asked while
+		// BOTH are still open, exactly as the sibling case above does for the project read.
+		const fresh = [{ ...FIXTURE_ZONES[0], id: 'zone-fresh' }];
+		const freshRun = store.hydrate(queries({ findZonesByPlan: () => freshZones.promise }), FIXTURE_PLAN.id);
+
+		const stale = [{ ...FIXTURE_ZONES[0], id: 'zone-stale' }];
+		staleZones.resolve(ok({ zones: stale, unreadable: 0 }));
+		await slow;
+
+		// The slow hydration's zones answer must not have landed, and the fresh hydration is
+		// now the latest and has not settled yet: `refreshing` stays true until it does.
+		expect(store.refreshing).toBe(true);
+		expect([...store.zones.keys()]).toEqual(FIXTURE_ZONES.map((zone) => zone.id));
+
+		freshZones.resolve(ok({ zones: fresh, unreadable: 0 }));
+		await freshRun;
+
+		expect(store.refreshing).toBe(false);
+		expect([...store.zones.keys()]).toEqual(['zone-fresh']);
+	});
+
 	it('a reset invalidates a hydration still in flight', async () => {
 		// A leaf closing must not have the plan it was reading painted back a tick later.
 		const store = useProjectStore();

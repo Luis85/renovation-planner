@@ -536,7 +536,16 @@ function buildDispatcherChain(
 	const inspectorRef: { current: { refresh(): Promise<void> } | null } = { current: null };
 	const refreshProjection = createProjectionRefresh({
 		projectStore,
-		inspectorStore: { refresh: () => inspectorRef.current?.refresh() ?? Promise.resolve() },
+		// `inspectorRef.current` is always set by the time anything calls this: the mutable
+		// cell exists only to break the construction-order cycle below (the dispatcher chain
+		// is built before the Inspector store that needs it, and nothing dispatches before
+		// `buildRuntime` finishes assigning `inspectorRef.current`). `?? Promise.resolve()`
+		// read as "inspector not yet created" and was never taken in production — v8's own
+		// branch count on that operator's right-hand side was 0 across the whole suite,
+		// which is the unreachable-guard shape this repository restructures rather than
+		// leaves uncovered. `async`/`await` still tolerates the type-level nullability
+		// `EditorContextDeps` and this cell both carry, with no second branch left to cover.
+		inspectorStore: { refresh: async () => { await inspectorRef.current?.refresh(); } },
 		queries: context.queries,
 		planId: context.planId,
 	});

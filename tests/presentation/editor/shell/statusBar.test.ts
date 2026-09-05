@@ -4,6 +4,7 @@
  * readout withdrawing under the constrained layout (M16), and the pan-override reminder
  * beside the angle-constraint hint this file's sibling case already covers.
  */
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
@@ -106,6 +107,19 @@ describe('the paused hint', () => {
 	it('shows no paused hint while the store is not stale', () => {
 		const wrapper = mountStatusBar({ activeToolId: 'select' });
 		expect(wrapper.find('.rp-editor-paused-hint').exists()).toBe(false);
+	});
+
+	/**
+	 * jsdom resolves no CSS, so an emitted class the stylesheet does not declare would pass
+	 * every case above unnoticed — the same hole `saveStateIndicator.test.ts` closes for the
+	 * save-state marks, here for the class this hint carries alone.
+	 */
+	it('declares a rule the emitted paused-hint class can actually reach', () => {
+		const css = readFileSync('styles/editor-status.css', 'utf8');
+		// The selector line itself, not merely the class name — the surrounding docblock
+		// quotes the same name in backticks, which `toContain` would match with nothing
+		// underneath it.
+		expect(css).toContain('.rp-editor-paused-hint {');
 	});
 });
 

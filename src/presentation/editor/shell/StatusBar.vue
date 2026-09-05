@@ -124,7 +124,7 @@ const pointerText = computed(() => {
 			>{{ tr('editor.hint.pan') }}</span>
 			<span
 				v-if="stale"
-				class="rp-editor-hint rp-editor-paused-hint"
+				class="rp-editor-paused-hint"
 			>{{ tr('editor.hint.paused') }}</span>
 		</div>
 		<div

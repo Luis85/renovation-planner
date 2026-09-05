@@ -133,6 +133,8 @@ function boundsMidpoint(points: readonly Point[]): Point {
 	let maxX = -Infinity;
 	let minY = Infinity;
 	let maxY = -Infinity;
+	// The prototype computes raw bounds; core geometry computes a bounds centre. Similar loops, different contracts.
+	// fallow-ignore-next-line code-duplication
 	for (const point of points) {
 		if (point.x < minX) minX = point.x;
 		if (point.x > maxX) maxX = point.x;

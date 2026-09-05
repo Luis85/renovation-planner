@@ -1,3 +1,5 @@
+/* Button defaults are shared in editor-button-primitives.css, loaded before this partial.
+ * Surface-specific focus, hover, pressed and disabled rules remain here. */
 /*
  * The Plan Editor shell — SDD §60's five regions, as ordinary DOM around a canvas.
  *
@@ -140,16 +142,6 @@
 
 /* Qualified specificity, same reasoning as `.rp-context-bar .rp-context-bar__button`: a bare
    class loses to Obsidian's own `button:not(.clickable-icon)` at (0,1,1). */
-.rp-layer-list .rp-layer-list__action {
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
 
 .rp-layer-list .rp-layer-list__action:focus-visible {
 	outline: 2px solid var(--interactive-accent);

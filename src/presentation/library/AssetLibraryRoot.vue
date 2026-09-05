@@ -150,6 +150,8 @@ async function deleteSelectedAsset(assetId: AssetId): Promise<void> {
 	}
 }
 
+// Explicit per-view command composition; post-dialog selection/navigation differs between the two hosts.
+// fallow-ignore-next-line code-duplication
 async function createAsset(): Promise<void> {
 	if (dialogs.current !== null) return;
 

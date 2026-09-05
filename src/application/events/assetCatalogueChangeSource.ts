@@ -63,6 +63,8 @@ function changedEntityTypeOf(event: DomainEvent): string | null {
 export function createAssetCatalogueChangeSource(events: EventBus): (listener: () => void) => () => void {
 	return (listener: () => void) => {
 		const subscriptions = [
+			// Subscription wiring names different event sets and filters; only the listener forwarding pattern coincides.
+			// fallow-ignore-next-line code-duplication
 			...CATALOGUE_CHANGE_EVENTS.map((type) =>
 				events.subscribe(type, () => {
 					listener();

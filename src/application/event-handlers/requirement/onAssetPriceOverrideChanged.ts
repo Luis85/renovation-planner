@@ -24,6 +24,8 @@ import { runRecalculationCascade } from './cascade';
  */
 export function registerOnAssetPriceOverrideChanged(events: EventBus, deps: CascadeDeps): Disposable {
 	return events.subscribe('AssetPriceOverrideChanged', async (event) => {
+		// The same read-failure policy precedes different cascade/override semantics; handlers retain separate entry points.
+		// fallow-ignore-next-line code-duplication
 		const { projectId, assetId } = (event as AssetPriceOverrideChanged).payload;
 		const listed = await deps.requirements.listByAsset(assetId);
 		if (isErr(listed)) {

@@ -182,6 +182,8 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 	): Promise<Result<Loaded<AssetPriceOverride>[], RepositoryError>> {
 		const loaded: Loaded<AssetPriceOverride>[] = [];
 		for (const id of ids) {
+			// Separate typed repository scans share failure propagation, not entity hydration or filtering contracts.
+			// fallow-ignore-next-line code-duplication
 			const found = await this.readById(id);
 			if (isErr(found)) return found;
 			if (found.value !== null && predicate(found.value.entity)) loaded.push(found.value);

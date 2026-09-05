@@ -1,3 +1,5 @@
+/* Button defaults are shared in editor-button-primitives.css, loaded before this partial.
+ * Surface-specific focus, hover, pressed and disabled rules remain here. */
 /*
  * Task 13's shell chrome: the context bar (a breadcrumb plus undo/redo) and the floating
  * Select/Add group that replaces the toolbar `editor.css` used to carry. Task 14 (Set scale)
@@ -66,16 +68,6 @@
  * `var(--input-shadow)`, which this sheet never overrode, so the buttons carried the raised
  * chrome of a standalone button while asking for a transparent background.
  */
-.rp-context-bar .rp-context-bar__button {
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid transparent;
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
 
 /*
  * THE FOCUS RING, restored explicitly — and the reason it is the ACCENT rather than Obsidian's
@@ -127,16 +119,6 @@
 }
 
 /* Same specificity argument as the context bar's own buttons, immediately above. */
-.rp-primary-actions .rp-primary-actions__button {
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid transparent;
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
 
 .rp-primary-actions .rp-primary-actions__button:focus-visible {
 	outline: 2px solid var(--interactive-accent);
@@ -336,16 +318,6 @@
  * compound scores (0,2,0), which is what `tests/build/buttonSpecificity.test.ts` checks for
  * every button rule in this project rather than trusting this one comment.
  */
-.rp-task-banner .rp-task-banner__cancel {
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
 
 .rp-task-banner .rp-task-banner__cancel:hover {
 	background-color: var(--background-modifier-hover);
@@ -369,16 +341,6 @@
  * two properties. The disabled cursor is therefore restated at (0,2,1) below, exactly as
  * `.rp-new-room__create` restates it for the same `aria-disabled`-not-`:disabled` reason.
  */
-.rp-task-banner .rp-task-banner__finish {
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
 
 /*
  * (0,2,1), so it beats the rule above rather than depending on source order — and it declares

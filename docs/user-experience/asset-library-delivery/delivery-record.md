@@ -123,7 +123,7 @@ real vault. Code rollback restores the old UI with no data migration or deletion
 The full gate exposed stale archive paths already present at `d00e9993`. The three executable paths (analysis CSS entries, concept capture paths and the project-list specification test) are corrected to their existing archive destinations, matching the narrow path correction in local commit `6ada6f3d` without importing its unrelated edits.
 
 
-### Static-analysis baseline comparison
+### Initial static-analysis baseline comparison (e04c392c)
 
 Fallow 3.19.0 was run both on this branch and on a `git archive` snapshot of `d00e9993`,
 with the same installed dependencies made available to the snapshot. Baseline dead-code analysis:
@@ -141,7 +141,7 @@ is therefore not claimed green. Real-vault acceptance and this pre-existing anal
 review limitations.
 
 
-### Final verification (2026-09-05, Node 24.19.0)
+### Initial verification (2026-09-05, Node 24.19.0)
 
 | Check | Result |
 | --- | --- |
@@ -161,3 +161,28 @@ in an SFC, which oxlint cannot see at all”. Large concurrent test runs on this
 the timeouts; that observation is not a claim that the test passed. The full gate is not green because
 of this timeout and the baseline analysis findings above. The implementation is submitted as a draft
 PR for review with these limitations visible.
+
+### CI repair follow-up (2026-09-05)
+
+The initial limitations above describe e04c392c. GitHub run 33971992875 passed all
+463 test files in each of the four platform/Node variants; only Fallow analysis
+failed. The local lint-hook timeout did not recur in that CI run.
+
+The follow-up repairs six archived HTML stylesheet paths, removes the unused
+prototype `stale` prop, shares the assigned-requirement fixture and extracts the
+identical editor/designer button defaults into `editor-button-primitives.css`.
+Original selectors, specificity and local state overrides are preserved.
+
+Seven narrowly placed `unused-store-member` annotations document actual consumers
+that Fallow cannot trace through the injected editor and room-draft stores. Eight
+`code-duplication` annotations retain intentionally separate domain adapters,
+event payload guards, repository hydration, view lifecycle/composition and
+production/prototype geometry contracts. Each annotation explains its local
+reason; no global analysis gate or threshold is disabled or lowered.
+
+Local follow-up verification: build, lint and whole-project analysis pass;
+115 targeted test files / 1,598 tests pass. A headless Edge comparison confirms
+identical computed styles for all 55 button/state combinations (11 selectors,
+normal/focus/hover/disabled/pressed), including borders and interactive states.
+The PR records the subsequent remote CI outcome. Real-vault and installed-theme
+acceptance remains open.

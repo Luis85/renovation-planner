@@ -185,7 +185,7 @@ export async function requirementFixture(
  * than as a byte-for-byte copy in each of them.
  */
 export async function assignedRequirementFixture(): Promise<
-	RequirementFixture & { readonly zoneId: ZoneId; readonly requirementId: RequirementId }
+	RequirementFixture & { readonly zoneId: ZoneId; readonly assetId: ReturnType<typeof makeAsset>['id']; readonly requirementId: RequirementId }
 > {
 	const w = await requirementFixture();
 	const zoneEntity = expectOk(
@@ -209,5 +209,5 @@ export async function assignedRequirementFixture(): Promise<
 		assetId: assetEntity.entity.id,
 	});
 	if (!assigned.ok) throw new Error(String(assigned.error));
-	return { ...w, zoneId: zoneEntity.entity.id, requirementId: assigned.value.requirement.id };
+	return { ...w, zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id, requirementId: assigned.value.requirement.id };
 }

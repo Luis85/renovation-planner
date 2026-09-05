@@ -415,8 +415,14 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 
 	return {
 		origin, widthMm, depthMm, name, nameTouched, keepAdding, widthText, depthText,
-		widthError, depthError, settledSize, submitting, taskToken, rect, geometry, areaMm2,
-		complete, valid, hasInput,
+		widthError, depthError, settledSize, submitting, rect, geometry, areaMm2,
+		// roomCreation.ts reads the injected draft.taskToken before and after async writes.
+		// fallow-ignore-next-line unused-store-member
+		taskToken,
+		// Read through the typed draft dependency in roomCreation.ts / runtime.ts.
+		// fallow-ignore-next-line unused-store-member
+		complete,
+		valid, hasInput,
 		beginTask, setRect, snapshotRect, restoreRect, clearRect, reset, setName,
 		suggestName, commitDimension, settle, setKeepAdding, setSubmitting,
 	};

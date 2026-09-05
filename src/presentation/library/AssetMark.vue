@@ -94,6 +94,8 @@ const path = computed((): string => {
 
 	const { width, depth } = outline.extent;
 	const span = BOX_SIZE - INSET * 2;
+	// The design fixture fits raw points; the production mark consumes validated extents. Keep the prototype independent.
+	// fallow-ignore-next-line code-duplication
 	const scales = [width > 0 ? span / width : Infinity, depth > 0 ? span / depth : Infinity];
 	const scale = Math.min(...scales);
 	if (!Number.isFinite(scale)) return '';

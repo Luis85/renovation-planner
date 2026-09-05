@@ -164,9 +164,8 @@ const plans = [
  */
 const dates: string | null = 'Started 4 March 2026 · target 30 November 2026';
 
-const staleCount = 3;
 /**
- * A SUBSET of `staleCount`, and bound explicitly below rather than left to the child's default.
+ * The fixable subset of the three stale fixture rows, and bound explicitly below rather than left to the child's default.
  * `ProjectEstimate` needs it to subtract — "3 need recalculating" is a false instruction for a
  * row whose referent note cannot be read — and `withDefaults` would have supplied the child's own
  * specimen value regardless of what this page holds, so the badges would have described a
@@ -264,7 +263,6 @@ const summedCount = 23;
 				:requirements="counts[2]?.value ?? 0"
 				:rooms="counts[1]?.value ?? null"
 				:summed="summedCount"
-				:stale="staleCount"
 				:recalculable="recalculableCount"
 				:unreadable-referents="unreadableReferentCount"
 				:missing-targets="missingTargetCount"

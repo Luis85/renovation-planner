@@ -23,12 +23,13 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const obsidianCss = readFileSync('tests/harness/obsidian.css', 'utf8');
+const primitivesCss = readFileSync('styles/editor-button-primitives.css', 'utf8');
 const shellCss = readFileSync('styles/editor-shell.css', 'utf8');
 
 beforeEach(() => {
 	document.head.innerHTML = '';
 	document.body.innerHTML = '';
-	for (const css of [obsidianCss, shellCss]) {
+	for (const css of [obsidianCss, primitivesCss, shellCss]) {
 		const style = document.createElement('style');
 		style.textContent = css;
 		document.head.appendChild(style);

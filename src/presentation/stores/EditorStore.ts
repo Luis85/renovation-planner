@@ -292,14 +292,24 @@ export const useEditorStore = defineStore('editor', () => {
 		temporaryPolygon,
 		stageSize,
 		pointerWorld,
+		// EditorSurface.vue calls this on its typed editor prop; the store instance is injected.
+		// fallow-ignore-next-line unused-store-member
 		zoomAt,
+		// EditorSurface.vue calls this on its typed editor prop; the store instance is injected.
+		// fallow-ignore-next-line unused-store-member
 		zoomByFactor,
 		beginPan,
 		continuePan,
 		endPan,
+		// EditorSurface.vue calls this on its typed editor prop; the store instance is injected.
+		// fallow-ignore-next-line unused-store-member
 		abandonPan,
+		// EditorSurface.vue calls this on its typed editor prop; the store instance is injected.
+		// fallow-ignore-next-line unused-store-member
 		panByScreen,
 		fitTo,
+		// EditorSurface.vue calls this on its typed editor prop; the store instance is injected.
+		// fallow-ignore-next-line unused-store-member
 		setPointer,
 		setStageSize,
 		reset,

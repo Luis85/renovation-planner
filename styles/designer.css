@@ -1,3 +1,5 @@
+/* Button defaults are shared in editor-button-primitives.css, loaded before this partial.
+ * Surface-specific focus, hover, pressed and disabled rules remain here. */
 /*
  * The asset designer's shell (design slice B3, ADR-0015) — the same ordinary DOM around a
  * canvas that `editor.css` describes, for the surface that draws ONE asset instead of one plan.
@@ -91,16 +93,6 @@
  * `var(--input-shadow)`, so without it these buttons carry the raised chrome of a standalone
  * button while asking for a transparent background.
  */
-.rp-designer-tools .rp-designer-tool-button {
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid transparent;
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
 
 /*
  * THE FOCUS RING, restored explicitly, and the accent rather than Obsidian's own for the reason
@@ -233,14 +225,7 @@
 .rp-designer-inspector .rp-designer-edit-dimensions {
 	width: 100%;
 	margin: 0 0 var(--size-4-4);
-	padding: var(--size-4-1) var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	background-color: transparent;
-	box-shadow: none;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	cursor: pointer;
+
 }
 
 .rp-designer-inspector .rp-designer-edit-dimensions:hover {

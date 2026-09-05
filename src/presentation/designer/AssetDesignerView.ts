@@ -116,6 +116,8 @@ export class AssetDesignerView extends ItemView {
 		// showing an asset nobody asked it to open, and `getState()` reported that asset's id, so
 		// Obsidian persisted it into the workspace layout. A state this view cannot read means it
 		// does not know what is being asked for, and the honest answer to that is nothing.
+		// Obsidian ItemView lifecycle boilerplate is intentionally per view (ADR-0015); no shared stateful base class.
+		// fallow-ignore-next-line code-duplication
 		this.assetId = assetIdFrom(state)?.assetId ?? null;
 		this.sync();
 		return Promise.resolve();

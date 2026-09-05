@@ -105,6 +105,8 @@ const ASSET_SIDECAR_EVENTS = ['GeometrySidecarChanged'] as const;
  * list WITHOUT the payload is simply never delivered, instead of comparing `undefined` against
  * an asset id and matching whichever leaf also has none.
  */
+// Typed event-payload guards intentionally keep asset, index-entry and sidecar subjects distinct.
+// fallow-ignore-next-line code-duplication
 function assetIdOf(event: DomainEvent): string | null {
 	const payload = (event as { payload?: Partial<AssetEventPayload> }).payload;
 	return typeof payload?.assetId === 'string' ? payload.assetId : null;

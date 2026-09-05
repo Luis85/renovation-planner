@@ -2,7 +2,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
-import { mountPlanEditorCanvas, runtimeOf, settle, settleUntil as until } from '../../../helpers/editor';
+import { mountPlanEditor, mountPlanEditorCanvas, runtimeOf, settle, settleUntil as until } from '../../../helpers/editor';
+import { resizeTo } from '../../../helpers/layout';
 import { PLAN_DTO, pointer, rig } from '../../../helpers/planEditorRig';
 import { expectOk } from '../../../helpers/domain';
 
@@ -329,6 +330,92 @@ describe('NewRoomInspector', () => {
 		expect(createRoom).not.toHaveBeenCalled();
 		expect(expectOk(await zonesRepo.listByPlan(PLAN_DTO.id as never)).loaded).toHaveLength(1);
 		expect(runtime.activeToolId.value).toBe('draw-room');
+		harness.unmount();
+	});
+});
+
+
+/**
+ * **A control removed from the document fires no `blur`** (measured: `document.activeElement`
+ * falls to `<body>` with no event at all), so the form's commit-on-blur contract owes its
+ * fields one last read on the way out — `NewRoomInspector.onBeforeUnmount`.
+ *
+ * Driven through the REAL constrained shell rather than by unmounting the component directly,
+ * because the thing that decides these three outcomes is not in this component: it is whether
+ * `ResponsiveEditorShell` moves focus BEFORE or AFTER Vue patches the drawer away, and a
+ * fixture that called `unmount()` itself would model one of those two orders by accident and
+ * certify whichever it happened to pick.
+ */
+/**
+ * Opens the drawer on a constrained pane with the room tool live, types into Width and
+ * leaves it focused and UNBLURRED — the state every case here is about.
+ */
+async function typingIntoWidth(): Promise<{ harness: Awaited<ReturnType<typeof mountPlanEditor>>; runtime: ReturnType<typeof runtimeOf> }> {
+	const harness = await mountPlanEditor();
+	const runtime = runtimeOf(harness);
+	resizeTo(harness.rootEl, 460, 800);
+	await settle();
+	runtime.setTool('draw-room');
+	await settle();
+	await harness.wrapper.find('button[data-rp-rail="details"]').trigger('click');
+	await settle();
+	const width = harness.wrapper.find('input[name="width"]');
+	(width.element as HTMLInputElement).focus();
+	await width.setValue('4.2');
+	expect(runtime.roomDraft.widthText).toBe(''); // nothing committed yet: no blur, no Enter
+	return { harness, runtime };
+}
+
+describe('NewRoomInspector, unmounted with a field still being typed into', () => {
+	/**
+	 * The reported defect. `measure` must defer its focus move to `nextTick` — the persistent
+	 * region it targets does not exist until the `full` branch renders — so by the time focus
+	 * lands the input is already gone and no blur ever fired. Watched red before the fix, at
+	 * this assertion, reading `''`.
+	 */
+	it('keeps the typed width when a growth back to the full layout unmounts the drawer', async () => {
+		const { harness, runtime } = await typingIntoWidth();
+		resizeTo(harness.rootEl, 1280, 800);
+		await settle();
+		expect(harness.wrapper.find('.rp-inspector-drawer').exists()).toBe(false);
+		expect(runtime.roomDraft.widthText).toBe('4.2');
+		expect(runtime.roomDraft.widthMm).toBe(4200);
+		harness.unmount();
+	});
+
+	/**
+	 * The other unmount route, which was already safe and is asserted so it stays that way:
+	 * `closeOverlay` focuses the rail button SYNCHRONOUSLY, so the input is still in the
+	 * document and fires a real blur. The unmount commit's dirty guard is what keeps this from
+	 * being written twice — `commitDimension` stores the raw text, so the second read finds it
+	 * unchanged and returns.
+	 */
+	it('keeps the typed width when Escape on the drawer unmounts it', async () => {
+		const { harness, runtime } = await typingIntoWidth();
+		harness.wrapper.find('input[name="width"]').element
+			.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		await settle();
+		expect(harness.wrapper.find('.rp-inspector-drawer').exists()).toBe(false);
+		expect(runtime.roomDraft.widthText).toBe('4.2');
+		harness.unmount();
+	});
+
+	/**
+	 * The guard, and the reason it is `activeToolId` rather than an unconditional commit: Cancel
+	 * ends the task by leaving the tool, and the tool's `deactivate` resets the draft BEFORE
+	 * this form unmounts — so the abandoned `4.2` is still sitting in the DOM input when the
+	 * hook runs, with a draft that has just been cleared to receive the NEXT room. Committing it
+	 * there resurrects a dimension nobody typed into a fresh task.
+	 *
+	 * Mutation-checked by deleting the `activeToolId` guard and watching this go red at `''`.
+	 */
+	it('does not resurrect the abandoned text into the draft Cancel has just reset', async () => {
+		const { harness, runtime } = await typingIntoWidth();
+		await harness.wrapper.find('button.rp-new-room__cancel').trigger('click');
+		await settle();
+		expect(runtime.activeToolId.value).toBe('select');
+		expect(runtime.roomDraft.widthText).toBe('');
+		expect(runtime.roomDraft.widthMm).toBeNull();
 		harness.unmount();
 	});
 });

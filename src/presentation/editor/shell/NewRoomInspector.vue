@@ -133,10 +133,56 @@ function commit(axis: DimensionAxis, event: Event): void {
  * `draft.depthText` are what the field last committed, which is what "unchanged" is measured
  * against — the same value the `:value` binding renders.
  */
-function commitOnBlur(axis: DimensionAxis, event: Event): void {
-	const text = (event.target as HTMLInputElement).value;
+/**
+ * The dirty test itself, shared by the unmount below and by the blur handler further down — one rule
+ * with two doors, which this repository keeps in one function rather than in two that agree
+ * today. `draft.widthText` / `draft.depthText` are what the field last committed, which is both
+ * what "unchanged" is measured against and what the `:value` binding renders.
+ */
+function commitIfChanged(axis: DimensionAxis, text: string): void {
 	if (text === (axis === 'width' ? draft.widthText : draft.depthText)) return;
-	commit(axis, event);
+	draft.commitDimension(axis, text, stageCentreWorld);
+}
+
+/**
+ * **A control removed from the document fires no `blur`**, so a form that commits on blur owes
+ * its fields one last read on the way out. Measured rather than assumed: removing a focused
+ * input leaves `document.activeElement` at `<body>` with no event of any kind, in a browser and
+ * in jsdom alike.
+ *
+ * Only ONE of the two unmount routes actually loses the text, and the difference is an ordering
+ * in `ResponsiveEditorShell.vue` rather than anything here:
+ *
+ * - **Escape, or the drawer's close button**, goes through `closeOverlay`, which focuses the
+ *   rail button SYNCHRONOUSLY — Vue's re-render is asynchronous, so the input is still in the
+ *   document and a real `blur` fires and commits. This path was already safe, and the guard
+ *   below is what keeps this call from committing the same text twice.
+ * - **A growth back to `full`** goes through `measure`, whose focus move must wait for
+ *   `nextTick` because the persistent region it targets does not exist yet. By then Vue has
+ *   patched and the input is gone, unmounted with no blur — so a renovator who typed `4.2` and
+ *   widened the pane got their draft back without it.
+ *
+ * **Gated on the task still being live, because an unmount is not always an interruption.**
+ * Create and Cancel end the task by leaving the tool, and the tool's `deactivate` resets the
+ * draft BEFORE this component unmounts — so an unconditional commit here would read the stale
+ * text still sitting in the DOM and write it into the draft that reset just cleared,
+ * resurrecting a dimension into a fresh task. `activeToolId` is the discriminator rather than
+ * `taskToken`: a `keepAdding` success restarts the task under this same mounted form, so a
+ * token captured at mount goes stale while the form the renovator is typing into does not.
+ */
+function commitPendingFields(): void {
+	if (runtime.activeToolId.value !== 'draw-room') return;
+	const form = root.value as HTMLElement;
+	for (const axis of ['width', 'depth'] as const) {
+		// Cast rather than null-checked, the guarantee this component's other `root` reads
+		// already state: both inputs are rendered unconditionally for the whole of a mounted
+		// lifetime, so a null arm here is one nothing could drive.
+		commitIfChanged(axis, (form.querySelector(`input[name="${axis}"]`) as HTMLInputElement).value);
+	}
+}
+
+function commitOnBlur(axis: DimensionAxis, event: Event): void {
+	commitIfChanged(axis, (event.target as HTMLInputElement).value);
 }
 
 function onCreate(): void {
@@ -160,6 +206,9 @@ const areaText = computed<string>(() => (draft.areaMm2 === null ? NO_FIGURE : fo
  * same one every unmount with focus elsewhere takes.
  */
 onBeforeUnmount(() => {
+	// The uncommitted text goes first, so it is read while the DOM still holds it and while
+	// the tool still says the task is live — the focus hand-off below changes neither.
+	commitPendingFields();
 	const form = root.value as HTMLElement;
 	const aside = form.contains(document.activeElement) ? form.closest<HTMLElement>('.rp-editor-inspector') : null;
 	if (aside !== null) void nextTick(() => aside.focus());

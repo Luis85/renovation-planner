@@ -30,15 +30,26 @@ import { tr } from '../i18n/strings';
 export interface NewAssetDialogDeps {
 	readonly dialogs: Pick<ReturnType<typeof useDialogStore>, 'openDialog'>;
 	readonly busy: Ref<boolean>;
-	readonly createAsset: (input: CreateAssetInput) => Promise<Result<Asset, AppError>>;
-	readonly setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) => Promise<DispatchResult>;
+	/**
+	 * The command bundle, STRUCTURALLY — the three members this form needs, named as a shape
+	 * rather than as either surface's own `…Commands` type, because the two callers hold
+	 * different bundles. Taking the bundle rather than two hand-written adapter closures is what
+	 * leaves each call site four lines: with the closures spelled at both, the two sites were
+	 * still a clone group of their own after the sequence had been shared.
+	 */
+	readonly commands: {
+		readonly createAsset: { execute(input: CreateAssetInput): Promise<Result<Asset, AppError>> };
+		readonly setAssetFootprintFromDimensions: {
+			execute(input: SetAssetFootprintFromDimensionsInput): Promise<DispatchResult>;
+		};
+		readonly defaultCurrency: string;
+	};
 	/**
 	 * The form's own door for a dispatch that THROWS, which both of these being guarded
 	 * commands means they cannot — but the guard is the ROOT's property, not this call site's,
 	 * and `useFormCommit` requires the door rather than assuming the caller.
 	 */
 	readonly logger: Logger;
-	readonly defaultCurrency: string;
 }
 
 export async function openNewAssetDialog(deps: NewAssetDialogDeps): Promise<AssetId | null> {
@@ -47,11 +58,12 @@ export async function openNewAssetDialog(deps: NewAssetDialogDeps): Promise<Asse
 		title: tr('form.new-asset.title'),
 		component: NewAssetForm,
 		props: {
-			createAsset: deps.createAsset,
-			setFootprintFromDimensions: deps.setFootprintFromDimensions,
+			createAsset: (input: CreateAssetInput) => deps.commands.createAsset.execute(input),
+			setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) =>
+				deps.commands.setAssetFootprintFromDimensions.execute(input),
 			busy: deps.busy,
 			logger: deps.logger,
-			defaultCurrency: deps.defaultCurrency,
+			defaultCurrency: deps.commands.defaultCurrency,
 		},
 		busy: deps.busy,
 	});

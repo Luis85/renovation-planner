@@ -58,8 +58,6 @@ import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import { isErr } from '../../core/result/Result';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
-import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
-import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { ContinueContext } from '../../application/continueContext';
 import type { PlanSummaryDto } from '../read-models/PlanDto';
 
@@ -326,11 +324,8 @@ async function onCreateAsset(): Promise<void> {
 	const assetId = await openNewAssetDialog({
 		dialogs,
 		busy: newAssetBusy,
-		createAsset: (input: CreateAssetInput) => context.commands.createAsset.execute(input),
-		setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) =>
-			context.commands.setAssetFootprintFromDimensions.execute(input),
+		commands: context.commands,
 		logger: context.commands.logger,
-		defaultCurrency: context.commands.defaultCurrency,
 	});
 	if (assetId === null) return;
 	await context.openAsset(assetId);

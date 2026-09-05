@@ -55,8 +55,6 @@ import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
-import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
-import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { AssetId } from '../../domain/asset/AssetId';
 
 const context = useAssetLibraryContext();
@@ -171,11 +169,8 @@ async function onCreateAsset(): Promise<void> {
 	const assetId = await openNewAssetDialog({
 		dialogs,
 		busy: newAssetBusy,
-		createAsset: (input: CreateAssetInput) => context.commands.createAsset.execute(input),
-		setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) =>
-			context.commands.setAssetFootprintFromDimensions.execute(input),
+		commands: context.commands,
 		logger: context.logger,
-		defaultCurrency: context.commands.defaultCurrency,
 	});
 	if (assetId === null) return;
 	await context.openDesigner(assetId);

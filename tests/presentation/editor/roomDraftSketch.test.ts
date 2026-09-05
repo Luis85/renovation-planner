@@ -83,4 +83,53 @@ describe('the room draft sketch', () => {
 		expect(lastLabel).toBeGreaterThan(-1);
 		expect(lastLabel).toBeLessThan(order.indexOf('selection-outline'));
 	});
+
+	/**
+	 * **A Konva `Text` is positioned by its top-left corner, and both labels are handed an edge
+	 * MIDPOINT** — so without an offset each coordinate means something other than what the
+	 * component's own docblock says it means. Measured before the fix, on this same fixture: the
+	 * width label's centre sat at 373 against a top-edge midpoint of 358 (it began at the
+	 * midpoint and ran rightwards, an error that grows with the text), and the depth label's
+	 * centre sat at 344 against a right-edge midpoint of 338.
+	 *
+	 * The report named the width label; the depth label is the same mistake on the other axis,
+	 * and fixing only the reported one would have read exactly like fixing the class.
+	 *
+	 * **This is measurable here at all** because `tests/helpers/canvas.ts` puts `@napi-rs/canvas`
+	 * behind jsdom's `<canvas>`, so Konva's own text measurement is real — `getTextWidth()`
+	 * answers 30.01 for `4.2 m` rather than 0. Layout is normally outside every gate in this
+	 * repository; this particular question is not, because it is arithmetic Konva performs and
+	 * hands back.
+	 *
+	 * **Both halves of the width assertion are load-bearing.** The client rect is the 120px BOX,
+	 * so its centre lands on the midpoint whatever the glyphs inside it do — `align: 'center'` is
+	 * what puts them in the middle of that box, and dropping it leaves the box centred and the
+	 * text left-aligned inside it, which the rect alone cannot see.
+	 *
+	 * What it does NOT claim: that the result is legible. Nothing here rasterizes, so whether
+	 * the two labels crowd each other on a small room is `docs/tests/cases/Add a room.md`.
+	 */
+	it('centres each dimension label on the edge it measures', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-room');
+		await settle();
+		runtime.roomDraft.setRect({ x: 1000, y: 1000, width: 4200, depth: 3800 });
+		await settle();
+		// default camera: screen = (world + 480) / 10, so the outline is [148,148 .. 568,528]
+		const [width, depth] = harness.stage.find<Konva.Text>('.room-draft-label');
+		if (width === undefined || depth === undefined) throw new Error('expected both draft labels');
+
+		const widthRect = width.getClientRect();
+		expect(widthRect.x + widthRect.width / 2).toBe(358); // the top edge's midpoint
+		expect(width.align()).toBe('center');
+		expect(width.wrap()).toBe('none');
+
+		const depthRect = depth.getClientRect();
+		expect(depthRect.y + depthRect.height / 2).toBe(338); // the right edge's midpoint
+		// Its outward offset is untouched: still the left edge of the text, 8px clear of the
+		// rectangle's right edge, which is what keeps it beside the room rather than over it.
+		expect(depthRect.x).toBe(576);
+		harness.unmount();
+	});
 });

@@ -81,6 +81,21 @@ const draft = useRoomDraftStore();
  */
 const METRES = 'm';
 
+/** Shared by both labels, so the offsets that centre them can be derived rather than guessed. */
+const LABEL_FONT_PX = 12;
+
+/**
+ * The box the width label is centred INSIDE, so that centring needs no text measurement: the
+ * node is offset by half this box, and `align: 'center'` puts the glyphs in the middle of it.
+ *
+ * A box rather than an `offsetX` of half the measured width, because a declarative config has
+ * no node to measure — Konva does that internally, after this object is built. Wide enough for
+ * the longest label the draft can hold (`1000 m`, against `MAX_ROOM_SIDE_MM`), and a longer one
+ * would still be centred rather than clipped: with `wrap: 'none'` an over-long line overflows a
+ * centred box symmetrically.
+ */
+const LABEL_BOX_PX = 120;
+
 interface RoomDraftLabel {
 	readonly x: number;
 	readonly y: number;
@@ -100,8 +115,16 @@ interface RoomDraftGeometry {
  *
  * The width label sits centred above the top edge (`y - 14`, screen pixels — this layer is
  * screen-space throughout, like every other node here); the depth label sits beside the
- * right edge, offset outward by 8. Both stay upright rather than rotating with their edge,
- * per spec §2.2.
+ * right edge, offset outward by 8 and centred on it. Both stay upright rather than rotating
+ * with their edge, per spec §2.2.
+ *
+ * **Both `x`/`y` below are EDGE MIDPOINTS, and a Konva `Text` is positioned by its top-left
+ * corner** — so each needs an offset to make the coordinate mean what this docblock says. It
+ * did not, and the sentence above is the one that was false: the width label began AT the
+ * midpoint and ran rightwards (measured: centre 373 against an edge midpoint of 358, a 15px
+ * error that grows with the text), and the depth label hung down from its midpoint by half
+ * its height. The offsets live in the template beside the `x`/`y` they correct, because that
+ * is the only place both halves of the claim are visible at once.
  */
 const geometry = computed<RoomDraftGeometry | null>(() => {
 	const rect = draft.rect;
@@ -152,7 +175,11 @@ const geometry = computed<RoomDraftGeometry | null>(() => {
 					text: geometry.widthLabel.text,
 					x: geometry.widthLabel.x,
 					y: geometry.widthLabel.y,
-					fontSize: 12,
+					width: LABEL_BOX_PX,
+					offsetX: LABEL_BOX_PX / 2,
+					align: 'center',
+					wrap: 'none',
+					fontSize: LABEL_FONT_PX,
 					fill: props.tokens.zoneLabel,
 					listening: false,
 				}"
@@ -163,7 +190,8 @@ const geometry = computed<RoomDraftGeometry | null>(() => {
 					text: geometry.depthLabel.text,
 					x: geometry.depthLabel.x,
 					y: geometry.depthLabel.y,
-					fontSize: 12,
+					offsetY: LABEL_FONT_PX / 2,
+					fontSize: LABEL_FONT_PX,
 					fill: props.tokens.zoneLabel,
 					listening: false,
 				}"

@@ -14,6 +14,26 @@ const walk = (dir: string): string[] => {
 	return found;
 };
 
+/**
+ * **PRE-EXISTING**, and labelled so it does not read as a cost of whatever branch meets it.
+ *
+ * The case below asks Vitest itself which specifications it collects, which means building a
+ * whole `createVitest` instance — config resolution, project setup, a glob over the tree —
+ * inside a test. That is real work whose duration is the machine's business, and it runs
+ * CONCURRENTLY with the suite project rather than alone: measured on a quiet four-core box,
+ * 2.3s on its own and 5.3–5.8s during `npm run check`, against vitest's 5000ms default. So it
+ * failed the gate reproducibly here while passing every CI leg, which is the signature of a
+ * budget nobody chose rather than of a slow oracle.
+ *
+ * Verified pre-existing rather than assumed: reproduced at `HEAD` with the working tree
+ * stashed, at 5435ms.
+ *
+ * Bounded rather than removed, and generously: what this case can fail for OTHER than the
+ * clock is a real disagreement between the tree and the collection, which is an assertion and
+ * not a hang. The same trade `ESLINT_BOOT_MS` and the harness scans already make.
+ */
+const COLLECTION_ORACLE_MS = 30_000;
+
 describe('test file naming', () => {
 	/**
 	 * Both trees, because measuring a set and then guarding a subset of it is this
@@ -84,5 +104,5 @@ describe('test file naming', () => {
 		const collected = [...new Set(specs.map((spec) => repoRelative(spec.moduleId)))].toSorted();
 
 		expect(collected).toEqual(onDisk);
-	});
+	}, COLLECTION_ORACLE_MS);
 });

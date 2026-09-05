@@ -1,6 +1,7 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { PlanEventPayload } from '../../domain/plan/Plan.events';
 import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
+import { disposeAll, subscribeAll } from './subscriptions';
 
 /**
  * "Some plan of THIS project changed, from anywhere" — design slice 21's third change source.
@@ -58,19 +59,13 @@ export function createProjectPlansChangeSource(
 ): (projectId: string, listener: () => void) => () => void {
 	return (projectId: string, listener: () => void) => {
 		const subscriptions = [
-			...PROJECT_PLAN_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					if (projectIdOf(event) === projectId) listener();
-				}),
-			),
-			...PLAN_ENTRY_EVENTS.map((type) =>
-				events.subscribe(type, (event) => {
-					if (changedEntityTypeOf(event) === 'renovation-plan') listener();
-				}),
-			),
+			...subscribeAll(events, PROJECT_PLAN_EVENTS, (event) => {
+				if (projectIdOf(event) === projectId) listener();
+			}),
+			...subscribeAll(events, PLAN_ENTRY_EVENTS, (event) => {
+				if (changedEntityTypeOf(event) === 'renovation-plan') listener();
+			}),
 		];
-		return () => {
-			for (const subscription of subscriptions) subscription.dispose();
-		};
+		return disposeAll(subscriptions);
 	};
 }

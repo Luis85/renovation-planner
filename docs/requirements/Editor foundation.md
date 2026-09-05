@@ -96,5 +96,34 @@ own new ones, because "room" is not true of a Garden or a Terrace. They read "ro
 they lost the noun altogether ("Delete"). Recorded in
 [[Draw and name a rectangular room]]'s amendments and in CLAUDE.md.
 
-Checkpoint C3 — the trust path, where a stale or failed floor disables unsafe follow-up edits — is
-the next increment.
+**2026-09-05** — the THIRD increment has landed on `claude/plan-editor-trust-path`: the **trust
+path**, checkpoint C3, designed in
+`docs/superpowers/specs/2026-09-04-plan-editor-trust-path-design.md`. It belongs mostly to
+[[Release hardening]], whose first two PBIs it closes; what it closes HERE is [[Undo and redo]],
+whose mechanisms all pre-dated the increment and whose criteria nothing pinned until it — this
+Feature's other PBIs are untouched and six of them remain Active — and two of the Active task
+halves this Feature's earlier increments recorded:
+
+- [[Preserve room inspection across layout and read changes]]'s criterion 4 was HALF met, and its
+  own amendment named the gap in as many words: *"nothing is disabled while stale — `stale` reaches
+  exactly one computed in `PlanEditorRoot.vue` and feeds the strip alone, so Delete stays live over
+  data the last read-back could not confirm."* Writes are paused now, at the leaf's one dispatcher
+  and at every control in the design spec's own table, each saying why through one shared
+  visually-hidden reason. `tests/presentation/editor/pausedSurfaces.test.ts` holds it. Criterion
+  3's resize-driven focus half is unchanged and still open.
+- [[Render independent simultaneous persistent warnings]] closes criterion 3's BUSY-STATE clause
+  and criterion 6's KEYBOARD-REACH clause, because this increment is the one that supplies the
+  producer those fields had been waiting for: a warning can carry actions now, and two of them do.
+  **Criterion 3's HEADING clause stays OPEN and is recorded as open** — no warning has a heading,
+  and none was asked for here. Criterion 4 stays open for its recorded reason: the collection is
+  derived per render rather than published, so there is nothing to de-duplicate.
+
+Three of this increment's four measured-false claims were about `Undo and redo`'s own criteria and
+are written into that PBI's amendments rather than here, because that is the document a reader of
+them opens. The one worth naming in this Feature's own record is the shape rather than any of the
+four: **the gate and the paused controls are defence in depth over one outcome, and removing either
+alone leaves that outcome green** — which is why the e2e file carries a case driven at
+`runtime.createRoom()`, past every `aria-disabled` control, as the gate's own instrument.
+
+Checkpoint C4 — themes, constrained layouts and the moderated usability acceptance — is the next
+increment, and it belongs to [[Release hardening]] rather than to this Feature.

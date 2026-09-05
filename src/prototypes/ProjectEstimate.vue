@@ -86,18 +86,6 @@ const props = withDefaults(
 		 */
 		rooms?: number | null;
 		/**
-		 * Figures whose inputs have moved — a STATE, and no claim about the amount.
-		 *
-		 * `unsummable` is the only thing that excludes a row from the amount, so a row counted
-		 * here contributes unless it is counted there too. This said "They ARE in the amount"
-		 * flat, which is the same defect the spec's `ProjectSummary` carried in four places; the
-		 * rule lives once, above those counts, and the props here name states and stop.
-		 *
-		 * **Includes `unreadableReferents`**, which is why the badge below subtracts rather than
-		 * printing this number: the two counts overlap by design.
-		 */
-		stale?: number;
-		/**
 		 * Stale rows a recalculation could actually fix — SUPPLIED, not derived here.
 		 *
 		 * This was `stale - unreadableReferents`, which was right for one obstacle and wrong the
@@ -153,10 +141,6 @@ const props = withDefaults(
 		requirements: 24,
 		summed: 23,
 		rooms: 11,
-		stale: 3,
-		// 3 stale = 1 fixable + 1 unreadable referent + 1 deleted target. The specimen has to add
-		// up: a capture caught this reading `2` beside those two, which is four obstacles for
-		// three rows — the demo state asserting something the query could never produce.
 		recalculable: 1,
 		unreadableReferents: 1,
 		missingTargets: 1,

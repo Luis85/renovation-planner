@@ -13,6 +13,7 @@ import type {
 import type { AppError } from '../../../src/core/errors/AppError';
 import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
+import type { createProjectionRefresh } from '../../../src/presentation/editor/tools/with-editor-state-refresh';
 
 declare const screen: ScreenPoint;
 declare const world: Point;
@@ -125,3 +126,14 @@ declare const buffer: Point[];
 // @ts-expect-error a raw vertex buffer is not a validated polygon.
 completion.commandFor(buffer);
 completion.commandFor({ points: buffer });
+
+/**
+ * The trust path (design spec §2.3): "a retry cannot replay a write" is a fact about
+ * `createProjectionRefresh`'s SIGNATURE — it takes no command at all — held here rather than as
+ * a sentence, since `runtime.ts` hands the exact same function out as
+ * `EditorRuntime.refreshProjection` and nothing may widen it to accept one without this failing.
+ */
+type RefreshParameters = Parameters<ReturnType<typeof createProjectionRefresh>>;
+declare const noParameters: RefreshParameters;
+const _checked: [] = noParameters;
+void _checked;

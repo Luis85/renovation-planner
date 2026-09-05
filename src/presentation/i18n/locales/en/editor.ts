@@ -248,4 +248,14 @@ export const editorEn = {
 	// is not a colour" cost: both, never one.
 	'editor.warning.severity.warning': 'Warning',
 	'editor.warning.severity.error': 'Error',
+	// The trust path (checkpoint C3). `editor.stale-write-refused` IS an error code: the gate
+	// refuses with it and `toUserMessage` resolves the code as its own key.
+	'editor.stale-write-refused': 'Editing is paused until the floor is re-read.',
+	'editor.paused.reason': 'Editing is paused: the floor could not be re-read after the last change. Retry from the warning above.',
+	'editor.hint.paused': 'Editing paused until the floor is re-read',
+	'editor.refresh-failed.again': 'Re-reading failed again; what you see may still be out of date.',
+	'editor.warning.retry': 'Try again',
+	'editor.warning.open-source-note': 'Open source note',
+	'editor.unrecovered': 'A change was written but could not be completed or undone. Inspect the floor’s note before editing further.',
+	'editor.source-note-missing': 'The floor’s note could not be found.',
 } as const;

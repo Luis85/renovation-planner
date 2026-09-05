@@ -1071,11 +1071,11 @@ Not oversights; each has a trigger.
   moved to devDependencies — which would build here and fail in a vault. It is in
   `.fallowrc.json`'s `ignoreDependencies` with that reason. Adding the canvas stack took the
   bundle from about **60 kB to 488 kB** in one slice; that is what ADR-003 and §54 cost, and it
-  is worth knowing before the next dependency. **Last measured: 867.05 kB (gzip 262.83 kB) on
-  2026-09-04**, at the close of the Add Room increment — 41 kB of which was this repository's
-  own code rather than a dependency. **Read that as the size on the date named, never as a
-  standing total**; the full series is in the increment history, and `npm run build` prints
-  today's.
+  is worth knowing before the next dependency. **Last measured: 945.52 kB (gzip 284.52 kB) on
+  2026-09-05**, at the trust path's final gate — again no new dependency, so the growth since
+  the Add Room increment is this repository's own code rather than a dependency. **Read that as
+  the size on the date named, never as a standing total**; the full series is in the increment
+  history, and `npm run build` prints today's.
 
   **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a
   production one for exactly one increment, and the bill was 1728 KB of a 2216 KB bundle —

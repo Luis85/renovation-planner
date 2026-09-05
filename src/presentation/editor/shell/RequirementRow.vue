@@ -44,6 +44,14 @@ const props = defineProps<{
 	 * mapping the cause a second time for a Notice alone.
 	 */
 	logger: Logger;
+	/**
+	 * Design spec §2.9: whether this leaf's floor writes are blocked, from
+	 * `runtime.writesBlocked` — read here as a plain prop rather than injected, so a row
+	 * mounted with a spy (this file's own header) stays mountable without the runtime.
+	 */
+	paused?: boolean;
+	/** `runtime.pausedReasonId`, appended to each field's own `aria-describedby` while paused. */
+	pausedReasonId?: string;
 }>();
 
 /**
@@ -162,7 +170,12 @@ async function reset(field: UseFieldCommit<string>, overridden: boolean): Promis
 	await field.onCommit();
 }
 
+/**
+ * Guarded on `paused` beside `reset`'s own guards (design spec §2.9): a commit reaching the
+ * gate anyway is refused inline, but the button's `aria-disabled` promise is kept here first.
+ */
 async function resetQuantity(): Promise<void> {
+	if (props.paused === true) return;
 	await reset(quantity, props.row.quantity.override !== null);
 }
 
@@ -217,7 +230,21 @@ function onCostInput(raw: string): void {
 }
 
 async function resetCost(): Promise<void> {
+	if (props.paused === true) return;
 	await reset(cost, props.row.cost.override !== null);
+}
+
+/**
+ * The merged `aria-describedby` every paused input and its Reset button need: `FieldError`'s
+ * own `aria['aria-describedby']` (the field's error message, or absent) plus the shared
+ * paused-reason id while `paused` — never both spread as one object, because `aria` also
+ * carries `aria-invalid`, which every input keeps regardless of pause state (spread
+ * separately at each `v-bind` below).
+ */
+function pausedDescribedBy(fieldDescribedBy: string | undefined): string | undefined {
+	return [fieldDescribedBy, props.paused === true ? props.pausedReasonId : undefined]
+		.filter((id): id is string => id !== undefined)
+		.join(' ') || undefined;
 }
 </script>
 
@@ -297,9 +324,12 @@ async function resetCost(): Promise<void> {
 				</label>
 				<input
 					:id="inputId"
-					v-bind="aria"
+					v-bind="{ 'aria-invalid': aria['aria-invalid'] }"
 					type="text"
 					data-field="quantity"
+					:readonly="paused"
+					:aria-disabled="paused ? 'true' : undefined"
+					:aria-describedby="pausedDescribedBy(aria['aria-describedby'])"
 					:aria-busy="quantity.pending.value"
 					:value="quantity.draft.value"
 					@input="onQuantityInput(($event.target as HTMLInputElement).value)"
@@ -311,6 +341,8 @@ async function resetCost(): Promise<void> {
 			<button
 				type="button"
 				class="rp-requirement-reset-quantity"
+				:aria-disabled="paused ? 'true' : undefined"
+				:aria-describedby="paused ? pausedReasonId : undefined"
 				@mousedown.prevent
 				@click="resetQuantity"
 			>
@@ -326,9 +358,12 @@ async function resetCost(): Promise<void> {
 				</label>
 				<input
 					:id="inputId"
-					v-bind="aria"
+					v-bind="{ 'aria-invalid': aria['aria-invalid'] }"
 					type="text"
 					data-field="cost"
+					:readonly="paused"
+					:aria-disabled="paused ? 'true' : undefined"
+					:aria-describedby="pausedDescribedBy(aria['aria-describedby'])"
 					:aria-busy="cost.pending.value"
 					:value="cost.draft.value"
 					@input="onCostInput(($event.target as HTMLInputElement).value)"
@@ -340,6 +375,8 @@ async function resetCost(): Promise<void> {
 			<button
 				type="button"
 				class="rp-requirement-reset-cost"
+				:aria-disabled="paused ? 'true' : undefined"
+				:aria-describedby="paused ? pausedReasonId : undefined"
 				@mousedown.prevent
 				@click="resetCost"
 			>

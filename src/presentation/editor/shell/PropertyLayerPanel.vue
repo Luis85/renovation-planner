@@ -18,15 +18,25 @@
  * surviving TARGET, not a new Tab stop, and the panel's own controls are what a user tabs to.
  */
 import { computed } from 'vue';
+import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
+import { useProjectStore } from '../../stores/ProjectStore';
 import type { PlanDto } from '../../read-models/PlanDto';
 import { layerCatalogue } from '../layers/layerCatalogue';
 import LayerList from './LayerList.vue';
 
 const props = defineProps<{ plan: PlanDto | null }>();
 const runtime = useEditorRuntime();
-const entries = computed(() => layerCatalogue(props.plan));
+/**
+ * Design spec §2.9's `writesBlocked`, read directly from `ProjectStore` rather than from
+ * `runtime.writesBlocked` — the same call `StatusBar.vue`'s own header makes for the
+ * identical reason: this component is discoverable and mountable STANDALONE by the harness
+ * index (every real `.vue` under `src/presentation/` is), and injecting the runtime there
+ * throws with no `PlanEditorRoot` above it to provide one.
+ */
+const { stale } = storeToRefs(useProjectStore());
+const entries = computed(() => layerCatalogue(props.plan, stale.value));
 // Computed rather than interpolated inline: a plan-less heading (still loading, missing,
 // failed) is just the region name, and building that branch in the template needs a nested
 // `<template>` that fails `vue/singleline-html-element-content-newline`.

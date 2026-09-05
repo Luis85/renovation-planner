@@ -252,6 +252,19 @@ class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput>
 		// The one place this adapter can SEE a foreign write: two readings of the same
 		// resource, one of them this history's own. Asked before the forward write, so the
 		// inverse captured below is known to post-date whatever it finds.
+		/*
+		 * REVIEWED CLONE with the note adapter's `execute` below: read-before-write, observe the
+		 * ledger, run forward, keep the inverse, record the resulting version.
+		 *
+		 * Not extracted, because the SHAPE is all they share and the two things that differ are
+		 * the two things a reader has to get right: WHICH ledger (geometry against note) and WHAT
+		 * the inverse holds (a whole sidecar document against a whole entity). A generic over
+		 * both would take a read, an observe, a record and a snapshot type as parameters —
+		 * every line of the body — for two uses in one file, and the long comments beside each
+		 * step are about that step's own resource. `runForward` is the half they genuinely
+		 * share and it already is one method.
+		 */
+		// fallow-ignore-next-line code-duplication
 		const generation = geometryLedger.observe(assetId, before.value.version);
 
 		const ran = await this.runForward(before.value.version);

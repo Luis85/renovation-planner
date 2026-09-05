@@ -16,6 +16,7 @@ import { usePlanEditorContext } from './PlanEditorContext';
 import { provideEditorRuntime } from './runtime';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
+import { useSaveStateStore } from './save-state/save-state-store';
 import DialogHost from '../dialogs/DialogHost.vue';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
 import EmptyState from '../components/EmptyState.vue';
@@ -42,8 +43,9 @@ const context = usePlanEditorContext();
 // every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
 const projectStore = useProjectStore();
-const { status, error, stale, unreadableZones, plan } = storeToRefs(projectStore);
+const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
+const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
 
 /**
  * The overlay's props, or `null` for no overlay.
@@ -86,8 +88,14 @@ const overlay = computed(() => {
  * `noBackground` has no button (settled at the top of this task): slice 5's picker is a
  * PLUGIN COMMAND, not a member of the editor's bundle, so there is nothing here to call that
  * would not be either a new seam or a reach for the global `app`.
+ *
+ * **Returns early while `runtime.writesBlocked`** (design spec §2.9): the button stays
+ * `aria-disabled` rather than `:disabled` so it is still focusable and its reason still
+ * readable, and the GATE is here rather than trusted to the attribute alone — a control that
+ * only looks paused is not a control that pauses.
  */
 function onEmptyStateAction(): void {
+	if (runtime.writesBlocked.value) return;
 	activateCreationEntry('room', runtime);
 }
 
@@ -116,15 +124,25 @@ const { tokens, refresh } = useThemeTokens(root, context.onThemeChange);
 const backgroundStatus = ref<BackgroundStatus>('none');
 
 /**
- * Task 20's keyed collection over the same three facts the four `<p class="rp-editor-notice">`
- * blocks used to read independently — see `editorWarnings`' own header for the fixed order and
- * why the collection replaced four separate `v-if`s.
+ * Task 20's keyed collection over the facts the shell used to read independently — see
+ * `editorWarnings`' own header for the fixed order and why the collection replaced four
+ * separate `v-if`s. Task 9 widens the input with the trust path's own facts
+ * (`unrecoveredWrite`, `refreshing`, `retriesFailed`) and the two callbacks every action here
+ * dispatches through: `retry` is `runtime.refreshProjection` and nothing else (§2.3 — a
+ * retry re-reads, it cannot replay a write, because this closure takes no command), and
+ * `openSourceNote` is `runtime.openPlanNote`, forwarded from the context so every row's
+ * action reaches the same door `EditorContextBar`'s own note-opening affordance would.
  */
 const warnings = computed(() =>
 	editorWarnings({
+		unrecoveredWrite: unrecoveredWrite.value,
 		stale: staleAfterRefresh.value,
+		refreshing: refreshing.value,
+		retriesFailed: retriesFailed.value,
 		unreadableZones: unreadableZones.value,
 		backgroundStatus: backgroundStatus.value,
+		retry: () => void runtime.refreshProjection(),
+		openSourceNote: () => void runtime.openPlanNote(),
 	}),
 );
 
@@ -298,6 +316,8 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 						v-if="overlay !== null"
 						v-bind="overlay"
 						overlay
+						:action-disabled="runtime.writesBlocked.value"
+						:action-described-by="runtime.writesBlocked.value ? runtime.pausedReasonId : undefined"
 						@action="onEmptyStateAction()"
 					/>
 					<TemporaryToolBanner />
@@ -352,6 +372,20 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					constrained drawer unmounts it while closed, and a watcher that is not mounted
 					hears nothing.
 				-->
+				<!--
+					Design spec §2.9: the ONE hidden sentence every paused control's `aria-describedby`
+					points at, minted here as `runtime.pausedReasonId` (one `useId()` per leaf) and
+					rendered only while `runtime.writesBlocked` — a reference naming an id no element
+					carries is what axe reports as `aria-valid-attr-value`, so the two share this one
+					`v-if` rather than the sentence being always in the DOM.
+				-->
+				<p
+					v-if="runtime.writesBlocked.value"
+					:id="runtime.pausedReasonId"
+					class="rp-visually-hidden"
+				>
+					{{ tr('editor.paused.reason') }}
+				</p>
 				<SelectionGuidance />
 				<PersistentWarningStrip :warnings="warnings" />
 			</template>

@@ -12,9 +12,15 @@ import { planEditorDeps } from '../../src/plugin/planEditorDeps';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
 import { planBackgroundChanged } from '../../src/domain/plan/Plan.events';
+import { t } from '../../src/presentation/i18n/strings';
+import { activateNotices } from '../../src/presentation/notices/notify';
 import { installObsidianDom } from '../helpers/dom';
 import { recorder, lines, resetRecorder } from '../helpers/logger';
+// Mock-only surface, imported BY NAME — see `sequenceNoticeWiring.test.ts`'s own comment for
+// why this is the same class the `'obsidian'` alias resolves to.
+import { Notice } from '../helpers/obsidian-mock';
 import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
+import { createRepositoryStack } from '../helpers/vault';
 
 installObsidianDom();
 
@@ -72,6 +78,77 @@ describe('the plan editor dependencies', () => {
 
 		expect(deps.queries).toBe(root.persistence?.planEditorQueries);
 		expect(deps.vault).toBeDefined();
+	});
+
+	/**
+	 * Design spec §2.6: the SAME `openProjectNote` the project view uses, because that
+	 * function resolves ANY entity id through the index — a plan's note needs no second
+	 * opener. `'missing'` is `openProjectNote`'s own answer for an id the index does not
+	 * resolve, which a made-up id always is.
+	 */
+	it('binds openNote to the real index-resolving opener when persistence is composed', async () => {
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+		const workspace = new FakeWorkspace();
+		const stack = vaultStack();
+		const deps = planEditorDeps(root, workspace as never, stack.vault);
+
+		expect(await deps.openNote('no-such-id')).toBe('missing');
+	});
+
+	/**
+	 * The refusal shape every sibling `unavailable*` bundle uses (`showDiagnosticsReport`,
+	 * `unavailablePlanEditorCommands`'s own `settings.unrecovered` codes): with no persistence
+	 * there is no index to resolve through, so the honest answer is `'failed'`, notified once
+	 * here rather than left to whatever called `openNote` to discover silently.
+	 */
+	it('answers failed and notifies when settings were never recovered', async () => {
+		activateNotices();
+		const before = Notice.shown.length;
+		const root = createCompositionRoot(null, recorder, vaultStack());
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault);
+
+		expect(await deps.openNote('any')).toBe('failed');
+		expect(Notice.shown.length).toBe(before + 1);
+		expect(Notice.shown.at(-1)).toBe(t('en', 'settings.unrecovered'));
+	});
+
+	/**
+	 * The other `'failed'` path — the seam's own `reportFault`, reached only when the id
+	 * RESOLVES and the open itself faults, never when there is no index to resolve against
+	 * (the case above) or when the index answers nothing (`'missing'`). Mirrors
+	 * `renovationProjectWiring.test.ts`'s "reports rather than rejecting when opening the
+	 * note faults", with a plan note in the index rather than a project one, so this door's
+	 * own event name (`plan-editor.open-note-failed`) is asserted rather than assumed shared
+	 * with `view.project.open-failed`.
+	 */
+	it('reports rather than rejecting when opening a plan note faults', async () => {
+		resetRecorder();
+		activateNotices();
+		const stack = createRepositoryStack();
+		await stack.vault.create('Ground.md', '---\nid: plan-1\n---\n');
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, stack as never);
+		root.persistence?.index.upsert({
+			id: 'plan-1' as never,
+			type: 'renovation-plan',
+			path: 'Ground.md',
+		});
+		// `getLeavesOfType` answers none, which is the case this is about: no tab is already
+		// showing the note, so the reuse path is skipped and the faulting `openFile` is
+		// reached — the same shape `renovationProjectWiring.test.ts` drives for its own door.
+		const workspace = {
+			getLeavesOfType: () => [],
+			getLeaf: () => ({ openFile: () => Promise.reject(new Error('disk exploded')) }),
+		};
+		const before = Notice.shown.length;
+
+		const deps = planEditorDeps(root, workspace as never, stack.vault as never);
+
+		await expect(deps.openNote('plan-1')).resolves.toBe('failed');
+		expect(Notice.shown.length).toBe(before + 1);
+		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
+		const logged = lines.find((line) => line.event === 'plan-editor.open-note-failed');
+		expect(logged?.level).toBe('error');
+		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('disk exploded');
 	});
 
 	/**

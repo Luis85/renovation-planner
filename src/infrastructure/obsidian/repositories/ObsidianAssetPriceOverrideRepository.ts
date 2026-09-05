@@ -182,6 +182,17 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 	): Promise<Result<Loaded<AssetPriceOverride>[], RepositoryError>> {
 		const loaded: Loaded<AssetPriceOverride>[] = [];
 		for (const id of ids) {
+			/*
+			 * REVIEWED CLONE with `ObsidianRequirementRepository.filterLoaded`: read each id,
+			 * propagate the first failure, keep what the predicate admits.
+			 *
+			 * Not extracted. What is common is `for` and `if` — the language, not a rule of this
+			 * plugin's — and the two differ in their entity type, their id brand and their read
+			 * DOOR (`readById` against `getById`, which are not the same method). A generic
+			 * higher-order helper taking a read function would be five lines of indirection over
+			 * five lines of loop, at two call sites, and reads worse at both.
+			 */
+			// fallow-ignore-next-line code-duplication
 			const found = await this.readById(id);
 			if (isErr(found)) return found;
 			if (found.value !== null && predicate(found.value.entity)) loaded.push(found.value);

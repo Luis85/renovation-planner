@@ -136,56 +136,41 @@
 		// `ignore`, so only this REVIEWED pair is silenced and the two files still get every
 		// other duplication check a future edit to either might trip.
 		//
-		// The second, reviewed with a different verdict and worth the paragraph. ADR-0015's
-		// `AssetDesignerView` and slice 5's `PlanEditorView` share twenty lines: the tail of
-		// `setState`, the whole of `onOpen` and the whole of `onClose`. Seven statements of it
-		// are code and the rest is each file's own comments.
+		// **It is the ONLY key here, and that is a decision about the KEY FORMAT rather than
+		// about how many clones this repository has reviewed.** A key is the id fallow PRINTS
+		// plus `:<instance count>` — `dup:7fd5d625` in the report is `dup:7fd5d625:2` here, the
+		// bare printed id being rejected by the parser. That works for a fingerprint that stands
+		// alone. It does NOT work for one carrying a `-N` suffix, and the `-N` is the trap:
 		//
-		// Not extracted, and the reason is what the block IS. Six of the seven statements are
-		// Obsidian's INTERFACE rather than a rule of this plugin's — `onOpen`/`onClose` are
-		// hooks every `ItemView` that mounts a framework tree writes the same way, and a base
-		// class holding them would couple two view types for a clone detector rather than for
-		// a reason. What could genuinely drift is asserted instead, per view: "both entry
-		// points route through one `sync`" has a case in each suite (`mounts … once for state
-		// first` / `open first`), "close unmounts" has one in each, and the one line that is a
-		// shared rule of ours — `renovation-planner-container`, which `styles/chrome.css` keys
-		// off — is now asserted in all THREE view suites, having been asserted in two while
-		// the third quietly did without it.
+		// **`-N` is a GROUP INDEX over the REPORT, not part of the content hash.** Most clone
+		// groups in this tree share the fingerprint `c77b3abb6f87acd9` and are told apart only by
+		// that ordinal — so it renumbers whenever any group appears or disappears, including
+		// because another key hid one. Two keys stood here, `dup:c77b3abb6f87acd9-1:2` and
+		// `-2:2`, written for the two decisions the paragraphs below used to argue. Measured at
+		// the head of this branch by emptying this list and re-running: `-1` was
+		// `DesignerGestureLayer.vue` against `InteractionLayer.vue` and `-2` was
+		// `ReversibleAssetDesignCommands.ts` against itself — two groups nobody had ever
+		// reviewed, hidden by two keys written about entirely different code, while the pairs
+		// those keys were FOR were printing in the report unhidden. The old note predicted "a
+		// suppression that hides no group while reading exactly like one that does"; the live
+		// failure was one step worse, a suppression that hides the WRONG group and still reads
+		// exactly like one that does. Both keys are gone.
 		//
-		// The trigger for actually merging them is written down where the decision lives:
-		// ADR-0015's *Revisit when* names one view type with a `subject` discriminator, once
-		// the designer and the editor want the same shell badly enough that one is less code
-		// than two. Tasks B1 and B2 already extracted the halves they really do share — the
-		// gesture surface and the tool context.
-		//
-		// **A clone key is a hash of the clone's own CONTENT, so editing either side retires the
-		// suppression** — measured rather than assumed: Task B3a added three members to
-		// `AssetDesignerView.mount`'s context literal, the fingerprint moved from `6f87acd9` to
-		// `c77b3abb6f87acd9`, and the pair reappeared unhidden having been reviewed once already.
-		// Worth knowing before the next edit to either view: a re-keyed group is the same
-		// reviewed decision, not a new one, and re-reading the paragraph above is the whole of
-		// what it asks for. The key is the id fallow PRINTS plus `:<instance count>`, so
-		// `dup:c77b3abb6f87acd9-1` in the report is `dup:c77b3abb6f87acd9-1:2` here — the bare
-		// printed id is rejected by the config parser, and a fingerprint without its group index
-		// parses and then matches nothing, which is a suppression that hides no group while
-		// reading exactly like one that does. Both were measured; the second is the dangerous
-		// spelling, because `analyze` still exits 0 for an unhidden duplicate and only the
-		// printed report says the key stopped working.
-		//
-		// The third, and it is a REAL overlap rather than an interface. `createAssetDesignChangeSource`
-		// and `createAssetCatalogueChangeSource` share seven lines: the `...EVENTS.map((type) =>
-		// events.subscribe(...))` spread and the disposer that walks the list. So do the three
-		// other sources in that directory — `planChangeSource`, `projectListChangeSource` and
-		// `projectPlansChangeSource` — which is exactly why nothing was extracted for the two the
-		// detector happens to pair. A helper adopted by two of five is a third spelling of one
-		// mechanism, and half-adoption is how the count of places that disagree becomes
-		// unknowable. What the clone spans is MECHANISM and never policy: the event LISTS and the
-		// filters differ in every one, and those are the parts a reader has to get right.
-		//
-		// The trigger: a sixth source, or any change to how a subscription is released — at which
-		// point one `subscribeToAll(events, registrations)` in `application/events/` should take
-		// ALL FIVE in one edit, and this key should go rather than grow.
-		"ignoredClones": ["dup:7fd5d625:2", "dup:c77b3abb6f87acd9-1:2", "dup:c77b3abb6f87acd9-2:2"]
+		// **So a reviewed clone whose fingerprint carries a `-N` is recorded INLINE instead**, at
+		// one instance, as `fallow-ignore-next-line code-duplication` with the reason written
+		// above the directive (never ON it — prose on the directive line reads as part of it).
+		// An inline directive is addressed by POSITION rather than by an ordinal nothing pins, it
+		// travels with the code it is about, and fallow reports it as a STALE suppression the
+		// moment it stops matching — so a clone that changes says so instead of silently hiding a
+		// neighbour. Every reviewed clone in this tree carries one; `npx fallow` names them under
+		// Stale suppressions if any goes bad. The two decisions the deleted keys stood for are
+		// written at the code now: `AssetDesignerView.onOpen` (the two `ItemView` shells, which
+		// ADR-0015's *Revisit when* still owns) and, for the change sources, nothing — their
+		// trigger fired. This block used to argue at length that five change sources were too few
+		// to share a `subscribeToAll`; there are eight, so `application/events/subscriptions.ts`
+		// took the spread, the disposer walk and the two payload readers off all of them, and the
+		// paragraph went with the key rather than growing, exactly as it said it should.
+		"ignoredClones": ["dup:7fd5d625:2"]
 	},
 	// The harness page's plugin stylesheet is SERVED, not imported: the dev server answers
 	// `/styles.css` from styles/ (scripts/vite-assembled-styles.mjs), so there is no file on

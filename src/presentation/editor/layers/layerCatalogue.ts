@@ -28,8 +28,15 @@ export interface LayerEntry {
  * Set scale is the calibrate tool's ONLY door since the toolbar went (Task 13); it sits on the
  * thing being calibrated and is disabled, with a reason, while there is nothing to calibrate
  * against.
+ *
+ * **`writesBlocked` (design spec §2.9) joins the reason mechanism Set scale already has**,
+ * rather than adding a second one: with no background, the row's own "no background" reason
+ * stays — that is the more useful thing to tell a user, whether or not the floor also happens
+ * to be paused — and the paused reason applies only once there IS a background to calibrate
+ * against but writes are blocked anyway. Defaulted to `false` so `PropertyLayerPanel.vue`'s
+ * existing call and every fixture that predates this task keep answering what they always did.
  */
-export function layerCatalogue(plan: PlanDto | null): readonly LayerEntry[] {
+export function layerCatalogue(plan: PlanDto | null, writesBlocked = false): readonly LayerEntry[] {
 	if (plan === null) return [];
 	const hasReference = plan.background !== null;
 	return [
@@ -42,8 +49,8 @@ export function layerCatalogue(plan: PlanDto | null): readonly LayerEntry[] {
 			action: {
 				labelKey: 'editor.layer.reference-plan.set-scale',
 				toolId: 'calibrate',
-				enabled: hasReference,
-				reasonKey: 'editor.layer.reference-plan.none',
+				enabled: hasReference && !writesBlocked,
+				reasonKey: hasReference && writesBlocked ? 'editor.paused.reason' : 'editor.layer.reference-plan.none',
 			},
 		},
 		{ id: 'rooms', konvaLayer: 'zone', labelKey: 'editor.layer.rooms', state: 'available', reasonKey: null, action: null },

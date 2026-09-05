@@ -65,6 +65,7 @@
 @import "./project-list-overlap.css";
 @import "./notices.css";
 @import "./project-detail.css";
+@import "./visually-hidden.css";
 @import "./asset-prices.css";
 @import "./designer.css";
 @import "./diagnostics.css";

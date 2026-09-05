@@ -120,6 +120,8 @@ export interface EditorHarness {
 	readonly closedLeaf: () => number;
 	/** How many times the tree asked to focus this leaf (`PlanEditorContext.focusLeaf`). */
 	readonly focusedLeaf: () => number;
+	/** How many times the tree asked to open this leaf's plan note (`PlanEditorContext.openPlanNote`). */
+	readonly openedNote: () => number;
 	/**
 	 * `ResponsiveEditorShell`'s own root — the element that carries `data-layout`, the one the
 	 * shell's `ResizeObserver` watches, and therefore the one a case resizes to drive a layout
@@ -216,6 +218,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	const themeListeners = new Set<() => void>();
 	let closedLeaf = 0;
 	let focusedLeaf = 0;
+	let openedNote = 0;
 	const planListeners = new Set<() => void>();
 	const catalogueListeners = new Set<() => void>();
 	const priceListeners = new Set<() => void>();
@@ -273,6 +276,13 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		// it, and a no-op here would let a build that wired the button to nothing pass.
 		focusLeaf: () => {
 			focusedLeaf += 1;
+		},
+		// Counted rather than stubbed, for the same reason: the trust path's `unrecovered`
+		// warning row's only action calls this, and a no-op here would let a build that wired
+		// the button to nothing pass.
+		openPlanNote: () => {
+			openedNote += 1;
+			return Promise.resolve();
 		},
 	};
 
@@ -338,6 +348,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		themeListeners: () => themeListeners.size,
 		closedLeaf: () => closedLeaf,
 		focusedLeaf: () => focusedLeaf,
+		openedNote: () => openedNote,
 		rootEl,
 		unmount: () => {
 			wrapper.unmount();

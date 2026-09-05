@@ -64,15 +64,16 @@
  * hint disappears with the tool.
  */
 /*
- * `.rp-editor-pan-hint` is Task 20's own — the same faint-text treatment as the Shift hint
- * above and for the same reason, a standing note about an invisible modifier rather than a
- * message about the document — kept a SEPARATE class rather than sharing `.rp-editor-hint`,
- * because `shell.test.ts`'s existing case finds `.rp-editor-hint` by class alone to assert
- * it is absent under Select: sharing the class would have made that assertion pass on the
- * wrong element the moment this hint shipped.
+ * `.rp-editor-pan-hint` and `.rp-editor-paused-hint` are each their own class for the same
+ * reason: `shell.test.ts`'s existing case finds `.rp-editor-hint` by class alone to assert it
+ * is absent under Select. Sharing that class — the mistake this rule was split out of once
+ * already for the pan hint, and repeated for the paused one before this comment was fixed —
+ * would make that assertion pass on the wrong element the moment either hint is stale-true
+ * under a tool the case never arms.
  */
 .rp-editor-hint,
-.rp-editor-pan-hint {
+.rp-editor-pan-hint,
+.rp-editor-paused-hint {
 	flex: 0 0 auto;
 	color: var(--text-faint);
 	white-space: nowrap;
@@ -183,6 +184,15 @@
 .rp-save-state-unsaved-changes .rp-save-state-mark {
 	border: 0.15em solid currentColor;
 	background-color: transparent;
+}
+
+/*
+ * Saved · refresh needed: the write landed (a filled disc) and the picture may be behind the
+ * vault (a gap cut from it). Held still, it is the only mark that is both filled and open.
+ */
+.rp-save-state-saved-refresh-needed .rp-save-state-mark {
+	background-color: currentColor;
+	clip-path: polygon(0 0, 100% 0, 100% 45%, 55% 45%, 55% 55%, 100% 55%, 100% 100%, 0 100%);
 }
 
 /*

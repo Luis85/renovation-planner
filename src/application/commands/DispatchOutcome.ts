@@ -149,13 +149,21 @@ export async function plainDispatch(versioned: Promise<VersionedDispatchResult>)
  * every consumer that reads them reads exactly what it read before, and the one consumer that
  * asks about persistence gets an answer nothing had to infer.
  *
- * **Four producers in three files** — `grep -rn "markUncompensated(" src/`, run in the edit that
- * wrote this: `deleteResolution.ts`'s `compensate` and its `markStalePersisted` re-read,
- * `SetAssetBackground.ts`'s failed calibration restore, and
- * `ReversibleAssetDesignCommands.ts`'s failed sidecar restore on a background undo. Each is
- * at a moment the vault is KNOWN to be half-written. A compensation that succeeds leaves the
- * vault at its pre-state and is deliberately NOT marked with this: neutral is the true answer
- * for the indicator, and `CompensatedWrite` below is how the LEDGER still hears of it.
+ * **Five producers in four files, dated rather than trusted, because this count has already
+ * gone stale once.** `grep -rn "markUncompensated(" src/`, EXCLUDING this docblock's own line
+ * above (its quoted grep pattern contains the literal substring it searches for, so the
+ * instrument counts itself — this repository's own recurring shape), printed on 2026-09-05:
+ * `deleteResolution.ts`'s `compensate` and its `markStalePersisted` re-read,
+ * `SetAssetBackground.ts`'s failed calibration restore, `ReversibleAssetDesignCommands.ts`'s
+ * failed sidecar restore on a background undo, and `ObsidianZoneRepository`'s
+ * `compensateFailedSidecarWrite` (the failed-insert AND failed-update restore, one call site
+ * covering both — the trust-path increment's fourth file). This sentence said "four producers
+ * in three files" from the moment that fourth file's call site landed until this edit; a count
+ * kept as prose is a count nothing re-runs, so re-run the grep rather than trusting either
+ * number. Each producer is at a moment the vault is KNOWN to be half-written. A compensation
+ * that succeeds leaves the vault at its pre-state and is deliberately NOT marked with this:
+ * neutral is the true answer for the indicator, and `CompensatedWrite` below is how the LEDGER
+ * still hears of it.
  */
 export interface UncompensatedWrite {
 	readonly uncompensatedWrite: true;

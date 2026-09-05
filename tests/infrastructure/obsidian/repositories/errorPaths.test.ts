@@ -21,6 +21,7 @@ import { createZoneId } from '../../../../src/domain/zone/ZoneId';
 import { projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { ObsidianAssetPriceOverrideRepository } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetPriceOverrideRepository';
 import { makeOverride } from '../../../contracts/asset-price-override-repository.contract';
+import { leftWritesBehind } from '../../../../src/application/commands/DispatchOutcome';
 
 /**
  * The failure branches of every repository method — each one a diagnostic a user's
@@ -499,6 +500,110 @@ describe('zone repository failure branches', () => {
 
 		expect(expectErr(result).code).toBe('zone.sidecar-remove-failed');
 		expect(stack.logged.some((line) => line.event === 'zone.delete-compensation-failed')).toBe(true);
+	});
+
+	/**
+	 * `compensateFailedSidecarWrite`'s INSERT arm: the sidecar write fails, the just-created
+	 * note is trashed to compensate, and the trash itself refuses. Before this pair, both
+	 * `zone.sidecar-insert-failed` and `zone.sidecar-update-failed` said "the note was
+	 * compensated" whether or not that was true — this is the one case where it was not, and
+	 * the two cases below are the positive/negative control for the STAMP `leftWritesBehind`
+	 * reads, not merely for the code.
+	 *
+	 * The UPDATE twin follows this pair, driven with `FakeVault.failOnHit` rather than
+	 * `failures`/a one-shot: an update's own frontmatter write and its restore both write the
+	 * note through `modify`, so only a failure counted to the SECOND occurrence of that key
+	 * reaches the restore without also failing the write that has to succeed first.
+	 */
+	it('an INSERT whose sidecar write fails AND whose note trash refuses reports itself as uncompensated', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		const planId = createPlanId();
+		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId, name: 'Ground' }), 'absent'));
+		const zone = makeZoneEntity({ planId, projectId, name: 'Kitchen' });
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+		const notePath = `${folder}/Zones/Kitchen.md`;
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
+		stack.vault.failures.add(`delete:${notePath}`);
+
+		const saved = await stack.zones.save(zone, 'absent');
+		expect(saved.ok).toBe(false);
+		if (saved.ok) return;
+		expect(saved.error.code).toBe('zone.sidecar-insert-uncompensated');
+		expect(leftWritesBehind(saved.error)).toBe(true);
+		expect(saved.error.message).not.toContain('was compensated');
+		// The note is still on disk: the whole reason the code has to say so.
+		expect(stack.vault.getAbstractFileByPath(notePath)).not.toBeNull();
+	});
+
+	it('an INSERT whose sidecar write fails but whose note trash succeeds keeps the compensated code and no stamp', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		const planId = createPlanId();
+		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId, name: 'Ground' }), 'absent'));
+		const zone = makeZoneEntity({ planId, projectId, name: 'Kitchen' });
+		const folder = projectFolderOf(stack.index, projectId);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
+		const notePath = `${folder}/Zones/Kitchen.md`;
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
+
+		const saved = await stack.zones.save(zone, 'absent');
+		expect(saved.ok).toBe(false);
+		if (saved.ok) return;
+		expect(saved.error.code).toBe('zone.sidecar-insert-failed');
+		expect(leftWritesBehind(saved.error)).toBe(false);
+		expect(stack.vault.getAbstractFileByPath(notePath)).toBeNull();
+	});
+
+	/**
+	 * `compensateFailedSidecarWrite`'s UPDATE arm, the twin of the INSERT pair above. Reading
+	 * `saveQueued` confirms `modify:<notePath>` is hit exactly twice on an update, in order,
+	 * with nothing else calling `op()` for that key in between: step 3's own frontmatter write,
+	 * then (once the sidecar mutate fails) step 5's `restoreNoteText`. `failOnHit.set(key, 2)`
+	 * lets the first through and fails only the second — the restore.
+	 */
+	it('an UPDATE whose sidecar write fails AND whose note restore refuses reports itself as uncompensated', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = createZoneId();
+		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Kitchen' }), 'absent'));
+		const read = expectFound(await stack.zones.getById(zoneId));
+		const notePath = stack.index.getPath(zoneId) ?? '';
+
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
+		stack.vault.failOnHit.set(`modify:${notePath}`, 2);
+
+		const saved = await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Pantry' }), read.version);
+		expect(saved.ok).toBe(false);
+		if (saved.ok) return;
+		expect(saved.error.code).toBe('zone.sidecar-update-uncompensated');
+		expect(leftWritesBehind(saved.error)).toBe(true);
+		expect(saved.error.message).not.toContain('was compensated');
+		// The update's own write landed (hit 1 of `modify:<notePath>`) and only the restore
+		// (hit 2) refused, so the note on disk still carries the failed update's new name.
+		expect(stack.vault.entries.get(notePath) ?? '').toContain('Pantry');
+	});
+
+	it('an UPDATE whose sidecar write fails but whose note restore succeeds keeps the compensated code and no stamp', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = createZoneId();
+		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Kitchen' }), 'absent'));
+		const read = expectFound(await stack.zones.getById(zoneId));
+		const notePath = stack.index.getPath(zoneId) ?? '';
+
+		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
+
+		const saved = await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Pantry' }), read.version);
+		expect(saved.ok).toBe(false);
+		if (saved.ok) return;
+		expect(saved.error.code).toBe('zone.sidecar-update-failed');
+		expect(leftWritesBehind(saved.error)).toBe(false);
+		// The restore succeeded: the OLD name is back, nothing half-updated.
+		expect(stack.vault.entries.get(notePath) ?? '').toContain('Kitchen');
 	});
 });
 

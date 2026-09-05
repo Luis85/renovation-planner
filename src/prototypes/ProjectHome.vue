@@ -164,16 +164,13 @@ const plans = [
  */
 const dates: string | null = 'Started 4 March 2026 · target 30 November 2026';
 
-const staleCount = 3;
 /**
- * A SUBSET of `staleCount`, and bound explicitly below rather than left to the child's default.
- * `ProjectEstimate` needs it to subtract — "3 need recalculating" is a false instruction for a
- * row whose referent note cannot be read — and `withDefaults` would have supplied the child's own
- * specimen value regardless of what this page holds, so the badges would have described a
- * different summary from the total beside them.
+ * Bound explicitly rather than left to the child's default: `withDefaults` would have
+ * supplied the child's own specimen value regardless of what this page holds, so the
+ * badges would have described a different summary from the total beside them.
  */
 const unreadableReferentCount = 1;
-/** Supplied by the query, not `stale - unreadableReferents` — see `ProjectEstimate`'s prop. */
+/** Supplied by the query directly — never derived from a stale count this page does not hold. */
 const recalculableCount = 1;
 /** Deleted asset or zone — a recalculation cannot fix these either, and they say something else. */
 const missingTargetCount = 1;
@@ -264,7 +261,6 @@ const summedCount = 23;
 				:requirements="counts[2]?.value ?? 0"
 				:rooms="counts[1]?.value ?? null"
 				:summed="summedCount"
-				:stale="staleCount"
 				:recalculable="recalculableCount"
 				:unreadable-referents="unreadableReferentCount"
 				:missing-targets="missingTargetCount"

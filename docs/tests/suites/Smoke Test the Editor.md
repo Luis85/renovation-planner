@@ -75,19 +75,33 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the fifteen cases whose
+Every step below carries a **`Reachable by`** verdict — a column in the twenty cases whose
 steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
-procedure is a list. The verdict names the **cheapest instrument that could discharge that
+procedure is a list. (That number said *fifteen* through five case additions, because it is
+prose beside a grep nobody re-ran for it; it is `ls docs/tests/cases/*.md` minus the one list-form
+case, taken 2026-09-05.) The verdict names the **cheapest instrument that could discharge that
 step as written**. It is a claim about the step's own pass condition, not a report on what is
 tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 108 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 110 |
 | `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 54 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 137 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 153 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 14 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 13 |
+
+**344 steps across TWENTY-ONE cases, re-run in the edit that added [[Recover from a stale read]]
+and [[Reload a room]] — 327 table rows across twenty table-form cases plus the same 17 list steps
+in [[Canvas Navigation]].** The trust path contributes eighteen: eleven and seven, `suite` 2,
+`obsidian` 16, and nothing in the other three tiers. **It is additive against the previous
+figures per row and not merely in total** — 108 + 2, 54 + 0, 137 + 16, 14 + 0, 13 + 0 — which is
+what says this increment edited no verdict row outside its own two new cases; the sum was read off
+the greps rather than incremented, and the per-row agreement is what the greps then confirmed
+rather than what was assumed. The dated entries below are a log of earlier measurements, each true
+of the tree it was taken from, and none of them a live claim.
+
+**Earlier account follows.**
 
 **326 steps across NINETEEN cases, re-derived at the Add Room merge.** Both sides of that
 conflict carried their own five figures — this branch 300 across seventeen, `main` 316 across
@@ -637,3 +651,22 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   only instrument anywhere for the click-versus-drag epsilon — four screen pixels, asserted as a
   number by the tool's own tests and judged as a hand's steadiness by nobody else — and its step
   3 is the one place a settled announcement is heard rather than counted.
+- [[Recover from a stale read]] — the plan editor foundation's third increment, checkpoint C3:
+  the write lands, the read-back fails, and the floor stays on screen saying so. TEN of its eleven
+  steps are `obsidian`, and the case carries a *fault setup* section rather than one recipe,
+  because which READ fails decides what you get: the suite injects its failure at the query
+  bundle, and a vault produces it by a note ceasing to parse — where the obvious fault (break the
+  floor's own `Plan.md` first) refuses the WRITE instead, since `CreateZoneCommand` loads the plan
+  before it saves a room, and the obvious alternative (make it read-only) produces no failed read
+  at all. Its step 3 is the only instrument for the race the suite cannot stage — the post-command
+  keep-on-failure read against the plain `onPlanChanged` hydrate, one of which keeps the scene and
+  the other of which blanks it — and its steps 4a and 4b are two RECORDED holes looked at rather
+  than described: a plugin command that never enters the leaf's gated dispatcher and is therefore
+  not paused, and the status bar clipping its paused hint at a sidebar's width.
+- [[Reload a room]] — the other half of C3, and the only case in this suite that requires a full
+  **restart**. Both automated reopen paths model a reopen with fresh objects over a vault that
+  never left memory; step 5 is a new process, which is where this suite has already caught a
+  restored Plan Editor saying *This plan no longer exists* because leaves restore before the index
+  scan they hydrate against. Its step 4 is the one place "reading does not write" is read off the
+  note's own `revision` on disk, and its step 7 is where a duplicate note or a second sidecar
+  object under one id would be visible at all.

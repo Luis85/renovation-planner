@@ -149,6 +149,8 @@ function buildContext(history: CommandHistory): {
 		writeLedger,
 		renderState,
 		subject: { id: createPlanId(), calibration: null },
+		// The trust path (design spec §2.2): no case here is about it.
+		writesBlocked: () => false,
 	};
 	return { context: createEditorContext(deps), renderState, writeLedger };
 }

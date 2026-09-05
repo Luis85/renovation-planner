@@ -23,12 +23,27 @@
  * byte-identical across promotion for exactly one file pair (`ZoneSummary.vue`) and does
  * not cover this one, so nothing caught that gap automatically; CLAUDE.md's design-slice-14
  * entry records it as the reason promotion is not always a byte-for-byte move.
+ *
+ * **`actionDisabled`/`actionDescribedBy` (design spec §2.9, the plan editor's trust path)**
+ * are what let a CALLER pause this button without this component learning why: the
+ * no-rooms empty state's action is one of the surfaces that pause while a floor's writes
+ * are blocked, and the button stays `aria-disabled` rather than `:disabled` — focusable,
+ * announced, and its reason readable — per the add-room plan's own rule. The guard is at
+ * the CALLER too (`onEmptyStateAction` returns early), never here alone: a control that
+ * only LOOKS disabled is not a gate, and this component has no opinion about what runs.
  */
 import { computed } from 'vue';
 import type { EmptyStateProps } from '../emptyStates/resolve';
 
-const props = defineProps<EmptyStateProps & { overlay?: boolean; headingLevel?: 2 | 3 }>();
-defineEmits<{ action: [] }>();
+const props = defineProps<
+	EmptyStateProps & {
+		overlay?: boolean;
+		headingLevel?: 2 | 3;
+		actionDisabled?: boolean;
+		actionDescribedBy?: string;
+	}
+>();
+const emit = defineEmits<{ action: [] }>();
 
 /**
  * The headline was a hard-coded `<h2>`, which is right for the two callers that REPLACE a
@@ -70,7 +85,9 @@ const headingTag = computed<'h2' | 'h3'>(() => (props.headingLevel === 3 ? 'h3' 
 				v-if="actionLabel !== undefined"
 				type="button"
 				class="rp-empty-state__action"
-				@click="$emit('action')"
+				:aria-disabled="actionDisabled ? 'true' : undefined"
+				:aria-describedby="actionDescribedBy"
+				@click="actionDisabled ? undefined : emit('action')"
 			>
 				{{ actionLabel }}
 			</button>

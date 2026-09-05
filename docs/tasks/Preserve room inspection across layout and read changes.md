@@ -53,3 +53,24 @@ Criterion 3 holds for the Escape close and not for the resize-driven one, the sa
 content is labelled, by the additive warning strip, and nothing is disabled while stale —
 `stale` reaches exactly one computed in `PlanEditorRoot.vue` and feeds the strip alone, so Delete
 stays live over data the last read-back could not confirm.
+
+**2026-09-05** — the trust path increment closes criterion 4's second half. **Writes are paused,
+and every one of them says why.** `runtime.writesBlocked` is a computed over the same `stale`
+field, `withStaleGate` refuses `run` at the leaf's one dispatcher, and every surface in that
+increment's design spec §2.9 table carries `aria-disabled` plus an `aria-describedby` naming one
+visually-hidden reason sentence minted once per leaf — the Room Inspector's **Delete** and
+**Assign**, both override fields and their Reset buttons, the Add menu's entries, the no-rooms
+empty-state action, New room's **Create** and the task banner's **Finish**, and the Layers panel's
+**Set scale**. `tests/presentation/editor/pausedSurfaces.test.ts` is the ten-case instrument, and
+`tests/harness/accessibilityTrustPath.test.ts` scans the paused Room Inspector and the constrained
+drawer in the same state with axe.
+
+**`aria-disabled` and never `:disabled`**, which is what keeps this criterion's own subject intact:
+a paused control stays focusable, so the room being discussed can still be inspected and its reason
+still read. The Inspector is not replaced, disabled or emptied while stale — it is the ONE surface
+this increment deliberately leaves fully readable.
+
+Criterion 3's resize-driven half is unchanged and still open. **Narrowed where it matters:** the
+pause covers what dispatches through this leaf's chain and not the plugin's own palette commands,
+which never enter it — that increment's design spec §11 records it, and
+[[Recover from a stale read]] step 4a is where it is looked at in a vault.

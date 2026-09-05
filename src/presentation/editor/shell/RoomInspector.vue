@@ -124,10 +124,14 @@ const overview = computed<RoomOverviewDto | null>(() => {
 	return zone && plan ? buildRoomOverview(zone, plan) : null;
 });
 
+/**
+ * Both guards return early: an empty picker selection is inert rather than a command
+ * refused for an id that is the empty string, and `writesBlocked` (design spec §2.9) is a
+ * second reason this door must not open — the `aria-disabled` on the button beside it
+ * promises exactly this.
+ */
 function assignSelected(zoneId: string): void {
-	// The picker starts on no selection, so pressing Assign first is inert rather than a
-	// command refused for an id that is the empty string.
-	if (pickedAssetId.value === '') return;
+	if (pickedAssetId.value === '' || runtime.writesBlocked.value) return;
 	void runtime.commitEdit({
 		kind: 'assign',
 		zoneId: zoneId as never,
@@ -135,6 +139,40 @@ function assignSelected(zoneId: string): void {
 	});
 	pickedAssetId.value = '';
 }
+
+/**
+ * The Delete flow's own guard, kept at this control the same way every other write control
+ * in this task guards its handler: a paused floor must not open the reference-resolution
+ * dialog `runtime.deleteZone` can raise.
+ *
+ * The `kind === 'zone'` check is never false at the one place this is called — the template
+ * renders this whole body only `v-if="dto.kind === 'zone'"` — and it is repeated here rather
+ * than cast past, so the compiler rather than that outer `v-if` is what proves `dto.id` and
+ * `dto.name` exist.
+ */
+function onDeleteZone(): void {
+	if (runtime.writesBlocked.value || dto.value.kind !== 'zone') return;
+	void runtime.deleteZone(dto.value.id, dto.value.name);
+}
+
+/**
+ * Design spec §2.9's pause attributes, extracted rather than repeated per control: Assign
+ * and Delete both need the identical pair (`aria-disabled="true"` plus `aria-describedby`
+ * naming the shared reason) while paused, and NEITHER attribute while live — never
+ * `aria-disabled="false"`, which is why this answers `{}` rather than a false-valued map.
+ * `v-bind="pausedAttrs"` renders byte-identically to the two ternaries it replaces; the
+ * extraction is what took this template's cognitive complexity back under budget after this
+ * task's own paused-state bindings pushed it over (`npm run analyze`, fallow's template check).
+ */
+const pausedAttrs = computed(() =>
+	runtime.writesBlocked.value
+		? ({ 'aria-disabled': 'true', 'aria-describedby': runtime.pausedReasonId } as Record<string, string>)
+		: ({} as Record<string, string>),
+);
+
+/** `RequirementRow`'s own `paused` prop, over the same computed rather than the raw ref's
+ * `.value` repeated at the one call site — the same reasoning as `pausedAttrs` above. */
+const paused = computed(() => runtime.writesBlocked.value);
 </script>
 
 <template>
@@ -179,6 +217,8 @@ function assignSelected(zoneId: string): void {
 					:row="row"
 					:commit="runtime.commitField"
 					:logger="logger"
+					:paused="paused"
+					:paused-reason-id="runtime.pausedReasonId"
 				/>
 			</ul>
 
@@ -198,6 +238,7 @@ function assignSelected(zoneId: string): void {
 				</select>
 				<button
 					type="button"
+					v-bind="pausedAttrs"
 					@click="assignSelected(dto.id)"
 				>
 					{{ tr('editor.inspector.assign.button') }}
@@ -217,7 +258,8 @@ function assignSelected(zoneId: string): void {
 		<button
 			type="button"
 			class="rp-editor-inspector-delete"
-			@click="runtime.deleteZone(dto.id, dto.name)"
+			v-bind="pausedAttrs"
+			@click="onDeleteZone"
 		>
 			{{ tr('editor.inspector.delete-zone') }}
 		</button>

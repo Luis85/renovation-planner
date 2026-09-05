@@ -1,8 +1,8 @@
-import { Decimal } from 'decimal.js';
 import type { Result } from '../../../../src/core/result/Result';
 import { expectOk } from '../../../helpers/domain';
-import { makeAsset, makeZone } from '../../../helpers/entities';
-import { requirementFixture, TEN_SQUARE_METERS } from '../../../helpers/slice10';
+import { makeZone } from '../../../helpers/entities';
+import { assignedRequirementFixture, TEN_SQUARE_METERS } from '../../../helpers/slice10';
+import type { requirementFixture } from '../../../helpers/slice10';
 
 /**
  * The seams the requirement-command refusal suites inject through, shared by
@@ -48,33 +48,13 @@ export function withConflictingReads<TId, T extends Pokeable<TId>>(inner: T): T 
 	});
 }
 
-export async function wiredWithLink() {
-	const w = await requirementFixture();
-	const zoneEntity = expectOk(
-		await w.zones.save(
-			expectOk(
-				makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }).withGeometry({
-					points: TEN_SQUARE_METERS,
-				}),
-			),
-			'absent',
-		),
-	);
-	const assetEntity = expectOk(
-		await w.assets.save(
-			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
-			'absent',
-		),
-	);
-	const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
-	if (!assigned.ok) throw new Error(`assign failed: ${JSON.stringify(assigned.error)}`);
-	return {
-		...w,
-		zoneId: zoneEntity.entity.id,
-		assetId: assetEntity.entity.id,
-		requirementId: assigned.value.requirement.id,
-	};
-}
+/**
+ * The refusal suites' own name for `assignedRequirementFixture` — a 10 m² zone, an asset with
+ * a 10% waste factor, and the Requirement the assign produced. It WAS a byte-for-byte second
+ * copy of that helper until fallow reported the pair; what is left is the alias, because both
+ * suites read as `wiredWithLink()` and renaming their call sites buys nothing.
+ */
+export const wiredWithLink = assignedRequirementFixture;
 
 /** One saved 10 square-meter zone in the fixture's plan -- shared by the arms below. */
 export async function wiredZoneFor(w: Awaited<ReturnType<typeof requirementFixture>>) {

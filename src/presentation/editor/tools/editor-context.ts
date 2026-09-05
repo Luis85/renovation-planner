@@ -87,6 +87,16 @@ export interface EditorContext {
 	 * every freshly imported plan. An Asset's design carries one on the same terms.
 	 */
 	readonly subject: { readonly id: EntityId<string>; readonly calibration: Calibration | null };
+	/**
+	 * The trust path (design spec §2.2, §2.9): is a write refused right now because the last
+	 * read-back failed? Read by `SelectTool` alone today, before it starts a move preview — a
+	 * drag whose release the gate will refuse is a promise the ghost cannot keep, so the tool
+	 * asks here rather than finding out at `commandDispatcher.run`'s refusal. Every OTHER paused
+	 * control (the Add menu, the Inspector's fields, the layer panel) reads
+	 * `EditorRuntime.writesBlocked` directly, because they are Vue components with that
+	 * injection already; this member exists for the one consumer that is not.
+	 */
+	readonly writesBlocked: () => boolean;
 }
 
 /**
@@ -137,6 +147,7 @@ export interface EditorContextDeps {
 	writeLedger: WriteLedger;
 	renderState: RenderState;
 	subject: EditorContext['subject'];
+	writesBlocked: EditorContext['writesBlocked'];
 }
 
 /**
@@ -154,5 +165,6 @@ export function createEditorContext(deps: EditorContextDeps): EditorContext {
 		writeLedger: deps.writeLedger,
 		renderState: deps.renderState,
 		subject: deps.subject,
+		writesBlocked: deps.writesBlocked,
 	};
 }

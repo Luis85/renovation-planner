@@ -2,11 +2,8 @@ import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { AssetEventPayload } from '../../domain/asset/Asset.events';
 import type { AssetPriceOverrideEventPayload } from '../../domain/asset-price/AssetPriceOverride.events';
 import type { AssetId } from '../../domain/asset/AssetId';
-import type {
-	GeometrySidecarChangedPayload,
-	ProjectIndexEntryChangedPayload,
-	ProjectIndexExclusionChangedPayload,
-} from './projectIndex.events';
+import type { ProjectIndexExclusionChangedPayload } from './projectIndex.events';
+import { changedEntry, changedSidecar, disposeAll, subscribeAll } from './subscriptions';
 
 /**
  * "Keeping a loaded mark honest" (design spec §5.4), turned into one subscription the Asset
@@ -77,21 +74,6 @@ function assetIdOf(event: DomainEvent): AssetId | null {
 	return typeof payload?.assetId === 'string' ? payload.assetId : null;
 }
 
-/** The same guard for the index-entry event's own payload, which names a type as well as an id. */
-function changedEntry(event: DomainEvent): Partial<ProjectIndexEntryChangedPayload> {
-	return (event as { payload?: Partial<ProjectIndexEntryChangedPayload> }).payload ?? {};
-}
-
-/**
- * And for the sidecar event's, which names the same two fields about a different subject —
- * two guards rather than one over a shared shape, because a single reader would make the two
- * events interchangeable at exactly the seam that keeps them apart (`assetDesignChangeSource`
- * carries the same pair for the same reason).
- */
-function changedSidecar(event: DomainEvent): Partial<GeometrySidecarChangedPayload> {
-	return (event as { payload?: Partial<GeometrySidecarChangedPayload> }).payload ?? {};
-}
-
 /**
  * And for the price event's, which names a project as well as an asset — read for its asset
  * alone here, because a vault-wide catalogue does not care WHICH project's price moved, only
@@ -116,11 +98,9 @@ export function createAssetLibraryChangeSource(
 			 * `AssetCreated`/`AssetUpdated` — the catalogue changed and nothing else did: neither
 			 * touches geometry, so `marks`, `design` and `replaced` all stay empty.
 			 */
-			...(['AssetCreated', 'AssetUpdated'] as const).map((type) =>
-				events.subscribe(type, () => {
-					listener({ catalogue: true, marks: NONE, design: NONE, usage: NONE, replaced: NONE });
-				}),
-			),
+			...subscribeAll(events, ['AssetCreated', 'AssetUpdated'] as const, () => {
+				listener({ catalogue: true, marks: NONE, design: NONE, usage: NONE, replaced: NONE });
+			}),
 			/**
 			 * `AssetDeleted` invalidates the mark and restarts both selection reads immediately —
 			 * NOT made redundant by the listing-diff rule an applied `catalogue` refresh performs,
@@ -224,8 +204,6 @@ export function createAssetLibraryChangeSource(
 				listener({ catalogue: true, marks: NONE, design: NONE, usage: NONE, replaced: NONE });
 			}),
 		];
-		return () => {
-			for (const subscription of subscriptions) subscription.dispose();
-		};
+		return disposeAll(subscriptions);
 	};
 }

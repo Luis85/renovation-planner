@@ -39,6 +39,14 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	const hasWriteInBatch = ref(false);
 	/** What the indicator read before this batch opened, for a batch that writes nothing. */
 	const beforeBatch = ref<SaveState>('saved');
+	/**
+	 * A write landed half-way and its compensation refused (`leftWritesBehind`). Distinct from
+	 * `save-error`, which any refused write raises and which the NEXT successful write clears
+	 * for the ordinary reason — this one is about the vault's coherence, and the only evidence it
+	 * is coherent again is a write that landed WHOLE, so `resolveOk` is the one clearer. A
+	 * successful REFRESH does not clear it: reading a half-written vault back does not mend it.
+	 */
+	const unrecoveredWrite = ref(false);
 
 	/**
 	 * Settle the batch once its last dispatch has resolved, and reset for the next one.
@@ -62,6 +70,7 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 
 	return {
 		state: computed(() => state.value),
+		unrecoveredWrite: computed(() => unrecoveredWrite.value),
 
 		/**
 		 * A new dispatch always shows `saving`. The state it replaces is remembered when the
@@ -73,10 +82,16 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 			state.value = 'saving';
 		},
 
-		/** A write landed. */
+		/** The refusal that follows left writes standing in the vault (`leftWritesBehind`). */
+		markUnrecovered(): void {
+			unrecoveredWrite.value = true;
+		},
+
+		/** A write landed whole — the only evidence the vault is coherent again. */
 		resolveOk(): void {
 			pendingCount.value -= 1;
 			hasWriteInBatch.value = true;
+			unrecoveredWrite.value = false;
 			settle();
 		},
 

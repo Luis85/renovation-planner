@@ -1,11 +1,24 @@
-import { ok } from '../../src/core/result/Result';
+import { err, ok } from '../../src/core/result/Result';
+import type { PersistenceError } from '../../src/core/errors/AppError';
+import { Zone } from '../../src/domain/zone/Zone';
+import type { ZoneId } from '../../src/domain/zone/ZoneId';
+import type { ZoneType } from '../../src/domain/zone/ZoneType';
+import type { ZoneStatus } from '../../src/domain/zone/ZoneStatus';
+import type { PlanId } from '../../src/domain/plan/PlanId';
+import type { ProjectId } from '../../src/domain/project/ProjectId';
+import type { Loaded } from '../../src/application/ports/versioning';
+import type { ZoneRepository } from '../../src/application/ports/ZoneRepository';
 import { PlanEditorView, type PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
-import { unavailablePlanEditorCommands } from '../../src/presentation/editor/planEditorCommands';
+import {
+	unavailablePlanEditorCommands,
+	type PlanEditorCommandServices,
+} from '../../src/presentation/editor/planEditorCommands';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { formatMetres } from '../../src/presentation/editor/shell/formatLength';
 import { installObsidianDom } from '../helpers/dom';
 import { emptyRequirementReads, zoneInspectorAnswering } from '../helpers/planFixtures';
+import { observationToken } from '../helpers/domain';
 import { FakeLeaf } from '../helpers/workspace';
 // From `../helpers/settle`, deliberately not `../helpers/editor`: that file also imports
 // Konva, Pinia, `@vue/test-utils` and `tests/helpers/canvas.ts`'s native `@napi-rs/canvas`
@@ -148,11 +161,104 @@ export const HARNESS_ZONES: readonly ZoneDto[] = [
 ];
 
 /**
+ * The one zone the `?stale` knob is allowed to delete — never the one a capture SELECTS, so
+ * the picture's own subject survives the gesture that stales it. `findZonesByPlan` below is a
+ * fixed answer with no vault behind it to have actually lost this zone, so it stays on the
+ * canvas regardless of the deletion the trust path believes happened; picked for no reason
+ * narrower than "not the zone `plan-editor-stale`'s query selects".
+ */
+const STALE_TRIGGER_ZONE_ID = 'harness-garden';
+
+/** The one error `harnessDeps`'s stale knob answers with, once it is armed. */
+function staleKnobFailure(): PersistenceError {
+	return {
+		category: 'Persistence',
+		code: 'vault.unexpected-failure',
+		message: 'harness: stale knob',
+	};
+}
+
+/**
+ * A REAL domain `Zone`, loaded, for `STALE_TRIGGER_ZONE_ID` — what
+ * `ReversibleDeleteZoneCommand.execute()` reads through `ZoneRepository.getById` BEFORE it
+ * dispatches, and what this harness has no vault behind that port to answer honestly from.
+ * Built from `HARNESS_ZONES` rather than hand-spelled a second time, so the snapshot and the
+ * fixture cannot describe two different zones.
+ */
+function staleTriggerZoneSnapshot(): Loaded<Zone> {
+	const dto = HARNESS_ZONES.find((zone) => zone.id === STALE_TRIGGER_ZONE_ID);
+	if (dto === undefined) {
+		throw new Error(`the ?stale knob's own sacrifice zone "${STALE_TRIGGER_ZONE_ID}" is not in HARNESS_ZONES`);
+	}
+	const created = Zone.create({
+		id: dto.id as ZoneId,
+		planId: HARNESS_PLAN.id as PlanId,
+		projectId: HARNESS_PLAN.projectId as ProjectId,
+		name: dto.name,
+		zoneType: dto.zoneType as ZoneType,
+		status: dto.status as ZoneStatus,
+		geometry: { points: dto.points },
+	});
+	if (!created.ok) {
+		throw new Error(`the ?stale knob's sacrifice zone failed to construct: ${created.error.message}`);
+	}
+	return { entity: created.value, version: { revision: 1, observed: observationToken('harness-stale-knob') } };
+}
+
+/**
+ * The one repository PORT the stale knob's single write needs — `execute()`'s own snapshot
+ * read, and nothing past it: `undo()` is never called here, so every other method refuses
+ * exactly as `unavailablePlanEditorCommands`'s `refusingPort` already does for a session with
+ * no vault at all.
+ */
+function staleTriggerZonesPort(snapshot: Loaded<Zone>): ZoneRepository {
+	const refuse = () => Promise.resolve(err(staleKnobFailure()));
+	return {
+		getById: (id) => Promise.resolve(id === snapshot.entity.id ? ok(snapshot) : err(staleKnobFailure())),
+		save: refuse,
+		delete: refuse,
+		listByProject: refuse,
+		listByPlan: refuse,
+	};
+}
+
+/**
+ * The stale knob's own `deleteZone`, succeeding once for `STALE_TRIGGER_ZONE_ID` where
+ * `unavailablePlanEditorCommands` refuses every write. `HARNESS_ZONES` carries no
+ * Requirement referencing any zone (`emptyRequirementReads`), so the real delete flow's
+ * zero-referent branch dispatches straight through with no dialog — the one write this
+ * harness can complete honestly with no vault behind it.
+ */
+function staleTriggerDeleteZoneCommand(): PlanEditorCommandServices['deleteZone'] {
+	return {
+		execute: (input) =>
+			Promise.resolve(
+				ok({ deletedId: input.zoneId, affectedBefore: [], affectedAfter: [], zoneId: input.zoneId }),
+			),
+	};
+}
+
+/**
  * The dependencies a Plan Editor takes, answered from the fixtures above. Nothing here
  * reaches a vault: `getAbstractFileByPath` always answers `null`, which is the "no
  * background" path the header explains.
+ *
+ * `stale` arms the `?stale` knob (Task 14, trust-path design spec §2.3/§2.4): the SECOND
+ * `getPlan` — the read-back every post-write refresh takes — and every one after it answer
+ * `staleKnobFailure()` instead of the plan, so a real successful write's own
+ * `keepPreviousOnFailure` re-read fails exactly as a real vault fault would. `harnessDeps()`
+ * with no argument is unaffected — every existing caller (`fixture.ts`, its own tests) calls
+ * it that way, and `stale` defaults to off.
  */
-export function harnessDeps(): PlanEditorDeps {
+export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEditorDeps {
+	const stale = options.stale === true;
+	// Closure-scoped rather than truly module-level: each capture is a fresh page navigation
+	// in a real browser, so module state resets on its own, and a counter that lived here
+	// instead would carry a call from one mount into the next if this page ever mounted the
+	// editor twice in one session, which `harness-shot` does not do today but nothing here
+	// should rely on.
+	let reads = 0;
+
 	return {
 		queries: {
 			// **A fresh DTO per call, not the constant.** The real query builds its DTOs from
@@ -164,7 +270,11 @@ export function harnessDeps(): PlanEditorDeps {
 			// the store edited the fixture itself — the leak that function's clone closes,
 			// re-opened one seam over. Both clones are needed: this one covers hydration, that
 			// one covers the synchronous seed, and neither path goes through the other.
-			getPlan: () => Promise.resolve(ok(structuredClone(HARNESS_PLAN))),
+			getPlan: () => {
+				reads += 1;
+				if (stale && reads >= 2) return Promise.resolve(err(staleKnobFailure()));
+				return Promise.resolve(ok(structuredClone(HARNESS_PLAN)));
+			},
 			// Honours the requested id — the real query answers `ok(null)` for one it does not
 			// recognise, and answering `HARNESS_PROJECT` for any id would leave a `hydrate`
 			// call that asked for the wrong field indistinguishable from one that asked for the
@@ -210,11 +320,29 @@ export function harnessDeps(): PlanEditorDeps {
 		 * for a path the page cannot reach. When a harness entry does reach one, the honest fix
 		 * is a fixture repository, not a cast; until then the refusal is what "nothing can be
 		 * written, so nothing can be restored" actually means.
+		 *
+		 * **The `?stale` knob is the one exception, on `deleteZone` and `zones` alone.** It needs
+		 * ONE real write to land — a zero-referent zone deletion through the Inspector's own
+		 * Delete button — so its own `ReversibleDeleteZoneCommand.execute()` can read a genuine
+		 * snapshot before dispatching. `staleTriggerZoneSnapshot()`/`staleTriggerZonesPort()` are
+		 * exactly the "fixture repository" the paragraph above names as the honest fix for a path
+		 * that reaches one, scoped to the single zone the knob deletes
+		 * (`STALE_TRIGGER_ZONE_ID`) rather than to every zone this page seeds.
 		 */
 		commands: {
 			...unavailablePlanEditorCommands(),
 			zoneInspector: zoneInspectorAnswering(HARNESS_ZONES),
+			...(stale
+				? {
+						deleteZone: staleTriggerDeleteZoneCommand(),
+						zones: staleTriggerZonesPort(staleTriggerZoneSnapshot()),
+					}
+				: {}),
 		},
+		// There is no vault behind this page, so nothing here could really open a note;
+		// this stub answers 'opened' the way a real door would, and nothing on this page
+		// calls it.
+		openNote: () => Promise.resolve('opened' as const),
 		vault: {
 			getAbstractFileByPath: () => null,
 			getResourcePath: () => '',
@@ -254,12 +382,14 @@ export interface MountedPlanEditor {
 }
 
 /**
- * The three harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
- * `?add` and `?room=<w>x<d>` — for a headless capture that needs the Room Inspector, the Add
- * menu, or the room task already under way, with nothing to click. All three are optional and
- * independent; nothing here refuses combining them, and `?room` needs no combining: it opens
- * the Add menu itself on its way through, so pairing it with `?add` is redundant rather than
- * contradictory.
+ * The four harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
+ * `?add`, `?room=<w>x<d>` and `?stale` — for a headless capture that needs the Room Inspector,
+ * the Add menu, the room task already under way, or the trust path's own stale-projection
+ * warning, with nothing to click. All four are optional and independent; nothing here refuses
+ * combining them, and `?room` needs no combining with `?add`: it opens the Add menu itself on
+ * its way through, so pairing the two is redundant rather than contradictory. `?stale` is the
+ * one that is not independent of `?select` in EFFECT, even though both are legal on their own:
+ * see `mountPlanEditorHarness` for why it sequences the two rather than racing them.
  */
 export interface PlanEditorHarnessOptions {
 	/** A seeded zone's id (e.g. `harness-kitchen`) to select and frame once the editor is ready. */
@@ -272,6 +402,14 @@ export interface PlanEditorHarnessOptions {
 	 * `formatMetres` the form itself writes there after a drag.
 	 */
 	readonly room?: { readonly widthMm: number; readonly depthMm: number };
+	/**
+	 * Drives the trust path's own stale-projection warning (design spec §2.3/§2.4) through a
+	 * REAL write — see `harnessDeps`'s own `stale` parameter and `driveStaleKnobOnceReady` for
+	 * the gesture. `?select`, if present, is applied only once that gesture has landed, so a
+	 * capture's chosen zone is selected AFTER the write that stales the projection rather than
+	 * raced against it.
+	 */
+	readonly stale?: boolean;
 }
 
 /**
@@ -285,21 +423,70 @@ export interface PlanEditorHarnessOptions {
  * Pinia store directly, which is what makes this knob prove the same gesture a screenshot
  * exists to show actually works.
  *
+ * **The CONSTRAINED layout is why this is not two straight lines**, met here for the first
+ * time this knob has been driven at a narrow width: `ResponsiveEditorShell` hides the whole
+ * `inspector` slot — the room list lives inside it, through `EntityInspector`'s `FloorInspector`
+ * — behind a drawer the rail's Details button opens (`overlay === 'inspector'`), the identical
+ * shape `enterRoomTaskOnceReady` already opens for the New room form. So the wait is for the
+ * row OR the rail, and the rail is pressed only when the row is not already on screen — a
+ * SECOND selection (this file's own stale knob selects twice) finds the drawer already open
+ * and presses nothing.
+ *
  * Fire-and-forget, the same way `view.setState`/`view.onOpen` already are in the caller below:
  * the URL a headless capture opens cannot be awaited from here, so the click lands whenever
  * hydration and the shell's own layout measurement let the row exist.
  */
 async function selectZoneOnceReady(root: HTMLElement, zoneId: string): Promise<void> {
 	await settleUntil(
-		() => root.querySelector('.rp-room-list__row') !== null,
-		`the ?select knob's room list to render for "${zoneId}"`,
+		() => root.querySelector('.rp-room-list__row, [data-rp-rail="details"]') !== null,
+		`the ?select knob's room list, or the rail that holds it, to render for "${zoneId}"`,
 	);
+	if (root.querySelector('.rp-room-list__row') === null) {
+		root.querySelector<HTMLButtonElement>('[data-rp-rail="details"]')?.click();
+		await settleUntil(
+			() => root.querySelector('.rp-room-list__row') !== null,
+			`the ?select knob's Inspector drawer to open on the room list, for "${zoneId}"`,
+		);
+	}
 
 	const name = HARNESS_ZONES.find((zone) => zone.id === zoneId)?.name;
 	const row = [...root.querySelectorAll<HTMLButtonElement>('.rp-room-list__row')].find(
 		(candidate) => candidate.textContent?.trim() === name,
 	);
 	row?.click();
+}
+
+/**
+ * Drives the `?stale` knob: selects `STALE_TRIGGER_ZONE_ID`, clicks the Inspector's own Delete
+ * button on it — a REAL zero-referent zone deletion, the one write this harness can complete
+ * with no vault behind it — and waits for that write's own post-command read-back to land the
+ * stale-projection warning (`harnessDeps`'s `getPlan` is what fails it, per its own docblock).
+ * Only THEN does it select `finalSelect`, if one was asked for: selecting and deleting the
+ * SAME zone the knob targets, and selecting the capture's own subject, are two different
+ * gestures the selection store can only hold one of at a time, so racing them would leave
+ * whichever click landed last in charge of what is actually selected on screen.
+ *
+ * Every step goes through the real controls a user's own click reaches — the room list's row,
+ * the Inspector's Delete button — rather than dispatching a command directly, for the same
+ * reason `selectZoneOnceReady` does: a picture assembled beside the route is a picture of a
+ * state no user can reach.
+ */
+async function driveStaleKnobOnceReady(root: HTMLElement, finalSelect: string | undefined): Promise<void> {
+	await selectZoneOnceReady(root, STALE_TRIGGER_ZONE_ID);
+
+	const deleteButton = `.rp-room-inspector[data-rp-id="${STALE_TRIGGER_ZONE_ID}"] .rp-editor-inspector-delete`;
+	await settleUntil(
+		() => root.querySelector(deleteButton) !== null,
+		"the ?stale knob's own sacrifice zone to show its Delete button",
+	);
+	root.querySelector<HTMLButtonElement>(deleteButton)?.click();
+
+	await settleUntil(
+		() => root.querySelector('[data-rp-warning="stale"] button') !== null,
+		"the ?stale knob's own delete to land the stale-projection warning",
+	);
+
+	if (finalSelect !== undefined) await selectZoneOnceReady(root, finalSelect);
 }
 
 /**
@@ -424,7 +611,7 @@ export function mountPlanEditorHarness(
 	// view, and the leaf frame plus `tests/harness/theme.css` is what supplies the height
 	// Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
-	const view = new PlanEditorView(new FakeLeaf() as never, harnessDeps());
+	const view = new PlanEditorView(new FakeLeaf() as never, harnessDeps({ stale: options.stale }));
 	leafEl.appendChild(view.containerEl);
 
 	// State first, then open — the restored-leaf order. `void` rather than awaited: the
@@ -432,9 +619,18 @@ export function mountPlanEditorHarness(
 	void view.setState({ planId: HARNESS_PLAN.id }, {} as never);
 	void view.onOpen();
 
-	// Both knobs run against `leafEl`, never `document`, so a jsdom case mounting more than
+	// Every knob runs against `leafEl`, never `document`, so a jsdom case mounting more than
 	// one editor in a suite cannot have one's knob reach into another's DOM.
-	if (options.select !== undefined) void selectZoneOnceReady(leafEl, options.select);
+	//
+	// `?stale` and `?select` are SEQUENCED rather than raced: `driveStaleKnobOnceReady` selects
+	// and deletes its own sacrifice zone before selecting `options.select`, so a capture asking
+	// for both gets the projection staled first and its chosen zone selected second, rather than
+	// whichever of two independent `selectZoneOnceReady` calls happened to click last.
+	if (options.stale === true) {
+		void driveStaleKnobOnceReady(leafEl, options.select);
+	} else if (options.select !== undefined) {
+		void selectZoneOnceReady(leafEl, options.select);
+	}
 	if (options.add === true) void openAddMenuOnceReady(leafEl);
 	if (options.room !== undefined) void enterRoomTaskOnceReady(leafEl, options.room);
 

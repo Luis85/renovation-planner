@@ -2,7 +2,9 @@
 type: PBI
 parent: "[[Release hardening]]"
 order: 10
-status: New
+status: Done
+started: 2026-09-05
+finished: 2026-09-05
 horizon: "MVP"
 release: "[[MVP]]"
 dependsOn: "[[Draw and name a rectangular room]]"
@@ -57,3 +59,64 @@ VS-09, WP7, and Scenario C in the
 [editor vertical-slice plan](../user-experience/renovation-planner-editor-specs/Renovation%20Planner%20—%20First%20Vertical%20Slice%20Plan%20and%20Data-Model%20Specification.md);
 Phase 12 in the
 [editor implementation plan](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md).
+
+## Amendments
+
+**2026-09-05** — advanced to Done by the trust path increment
+(`docs/superpowers/specs/2026-09-04-plan-editor-trust-path-design.md`), with **criterion 5
+outstanding and named below**. No schema changed, no write path moved and no event was added: the
+round trip is the Add Room increment's, and what this increment added is the reopen half of the
+proof. Which test holds each criterion:
+
+1. **A confirmed room reloads with the same stable ID, name, type, points and derived area.**
+   `tests/infrastructure/persistence/editorRoundTrip.test.ts`'s 'reopening over the same vault
+   bytes reads the room back whole' — a SIBLING case rather than an extension of the existing one,
+   because the reopen needs its own stack: a fresh `stackFoundation` over the SAME `FakeVault`, so
+   a fresh `ReconcilingProjectIndex`, a fresh **`EchoWindow`** and a fresh `PlanGeometryStore`,
+   plus the `rebuildIndex()` the plugin runs at load. The fresh echo window is the part a
+   `rebuildIndex()` on the original stack would NOT have given: `frontmatterOf` falls back to what
+   this plugin last wrote while the cache lags, so a read through the WRITING stack can be answered
+   by our own memory of our own write. The presentation half is
+   `tests/presentation/views/planEditorReopen.test.ts`'s 'reopening the same plan shows the same
+   room', split out of `planEditorView.test.ts` when that file reached its cap. It mounts
+   `PlanEditorView` twice over real in-memory repositories — a static fixture literal cannot tell
+   a reopen that re-read from one that replayed a constant.
+2. **Reopening does not write merely to display.** The round-trip case reads the note's own bytes
+   back and no save runs on the read path; the view-level reopen dispatches nothing.
+3. **An unreadable room is distinguishable from a plan with no rooms.** Pre-existing and unchanged:
+   `findZonesByPlan` answers `ok({ zones, unreadable })` and the editor draws the count, which
+   [[A note that cannot be read]]'s own increment closed. This increment neither widened nor
+   narrowed it.
+4. **Accepted migration fixtures preserve identity and user-owned Markdown.** Held by the migration
+   runner's own suite, and NARROWED where it matters: **every migration table in this repository is
+   still empty**, so `migrateNote` has never executed a non-empty chain outside a synthetic
+   fixture. This increment changed no schema, so it neither pays that debt down nor adds to it —
+   CLAUDE.md's `MIGRATION_SET` account is the authority and carries the grep that re-measures it.
+5. **The create/select/reload journey passes in a live Obsidian vault. — OUTSTANDING.**
+   [[Reload a room]] is written, is in the smoke census and carries the restart as its step 5, and
+   it has **not been run**. A `Done` status on this PBI asserts that every automatable half is held
+   and that the instrument for the rest exists; it does not assert that anyone has walked it, and
+   this criterion is the one place that distinction bites. An unrun manual case is a plan to find
+   out, not a finding. [[Walk a room reload in a live vault]] is the task that runs it, and it
+   stays **Active** rather than closing with this increment, because its whole deliverable is the
+   walk and not the procedure.
+
+Extensions: **4a** is criterion 3's. **4b** is criterion 4's, with its narrowing.
+**4c** — a selection or draft naming no valid entity opens in safe Select with every valid room
+drawn — is `planEditorReopen.test.ts`'s 'a leaf reopened onto a floor whose room is gone opens in
+Select with every remaining room drawn', written from the REOPEN side because a restored view state
+carries a plan id and nothing else (see [[Undo and redo]]'s own amendment for the measurement), and
+`selectionRetirement`'s suite for the within-a-leaf half. The draft half is asserted by reopening
+and finding no draft: the room draft store is per leaf and dies with it.
+
+Two fixture facts the reopen cases turned up, worth knowing before the next one is written:
+
+- **`stack.metadataCache.catchUp()` before the reopen scan.** Without it the round-trip case fails
+  at the lookup: `FakeVault.pendingParse` models the parse LAG after a write, and a scan with a
+  fresh `EchoWindow` asking a cache that has not reached the note finds none of ours. That is a
+  true statement about the milliseconds after a save and NOT about reopening a vault, so the
+  fixture drains the queue and says why.
+- **`unavailablePlanEditorCommands()` refuses `zoneInspector` too, and that is a READ.** Selecting
+  a room in the view-level reopen drew an empty Inspector body until that one member was made real.
+  It is `planEditorRig`'s own recorded "a fake HARSHER than the real thing" trap met from a second
+  direction; the write side stays the refusal bundle.

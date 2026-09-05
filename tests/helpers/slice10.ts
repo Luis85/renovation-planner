@@ -22,6 +22,7 @@ import { recorder } from './logger';
 import { expectOk, RecordingEventBus } from './domain';
 import { makeAsset, makePlan, makeProject, makeZone } from './entities';
 import type { ZoneId } from '../../src/domain/zone/ZoneId';
+import type { AssetId } from '../../src/domain/asset/AssetId';
 import type { RequirementId } from '../../src/domain/requirement/RequirementId';
 
 /**
@@ -180,12 +181,14 @@ export async function requirementFixture(
 
 /**
  * `requirementFixture()` plus one Requirement already linking a zone to an asset —
- * `overrides.test.ts` and `reversibleOverrides.test.ts` both build this exact shape
- * (a 10 m² zone, an asset with a 10% waste factor, assigned), so it lives here rather
- * than as a byte-for-byte copy in each of them.
+ * `overrides.test.ts`, `reversibleOverrides.test.ts` and the requirement-refusal suites'
+ * `wiredWithLink` all build this exact shape (a 10 m² zone, an asset with a 10% waste factor,
+ * assigned), so it lives here rather than as a byte-for-byte copy in each of them. The third
+ * caller WAS such a copy until fallow reported the pair; `assetId` is on the return for it,
+ * having been computed here all along.
  */
 export async function assignedRequirementFixture(): Promise<
-	RequirementFixture & { readonly zoneId: ZoneId; readonly requirementId: RequirementId }
+	RequirementFixture & { readonly zoneId: ZoneId; readonly assetId: AssetId; readonly requirementId: RequirementId }
 > {
 	const w = await requirementFixture();
 	const zoneEntity = expectOk(
@@ -208,6 +211,11 @@ export async function assignedRequirementFixture(): Promise<
 		zoneId: zoneEntity.entity.id,
 		assetId: assetEntity.entity.id,
 	});
-	if (!assigned.ok) throw new Error(String(assigned.error));
-	return { ...w, zoneId: zoneEntity.entity.id, requirementId: assigned.value.requirement.id };
+	if (!assigned.ok) throw new Error(`assign failed: ${JSON.stringify(assigned.error)}`);
+	return {
+		...w,
+		zoneId: zoneEntity.entity.id,
+		assetId: assetEntity.entity.id,
+		requirementId: assigned.value.requirement.id,
+	};
 }

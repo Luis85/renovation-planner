@@ -140,6 +140,9 @@
 
 /* Qualified specificity, same reasoning as `.rp-context-bar .rp-context-bar__button`: a bare
    class loses to Obsidian's own `button:not(.clickable-icon)` at (0,1,1). */
+/* REVIEWED CLONE: the bordered variant, `.rp-layer-list__action` — the flat button is per-component by
+   necessity; the argument is on `.rp-designer-tool-button` in `styles/designer.css`. */
+/* fallow-ignore-next-line code-duplication */
 .rp-layer-list .rp-layer-list__action {
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);

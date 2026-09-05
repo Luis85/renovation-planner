@@ -91,6 +91,31 @@
  * `var(--input-shadow)`, so without it these buttons carry the raised chrome of a standalone
  * button while asking for a transparent background.
  */
+/*
+ * REVIEWED CLONE, and the canonical statement of why — every other instance points here.
+ * `fallow-ignore-next-line code-duplication` below, at this and at four sibling rules
+ * (`.rp-context-bar__button`, `.rp-primary-actions__button`, `.rp-layer-list__action`,
+ * `.rp-unsupported-width__action`, `.rp-designer-edit-dimensions`).
+ *
+ * This project's flat button is written once per COMPONENT and cannot be written once for all
+ * of them. A shared `.rp-flat-button` scores (0,1,0) and loses outright to Obsidian's own
+ * `button:not(.clickable-icon)` at (0,1,1) — the contest `tests/build/buttonSpecificity.test.ts`
+ * holds as a CATEGORY, after it bit three times — so each of these rules must be a two-class
+ * compound naming its own component's class.
+ *
+ * A selector list gathering them into one shared partial is the only spelling that keeps every
+ * compound, and it is refused for two reasons. It severs each rule from the paragraph arguing
+ * that rule's own contest, which is most of what these blocks are. And it makes each component's
+ * own overrides — `:hover`, `:focus-visible`, `:disabled`, `[aria-disabled]`, all at (0,2,1) —
+ * depend on the cascade ORDER `styles/index.css` gives one partial against another, a precedence
+ * this repository refuses to decide in the cascade elsewhere (`PlanCanvas`'s `cursorClass` is the
+ * worked example: source order was tried, the comment claiming it won was false in both claims).
+ *
+ * Within ONE partial the list IS taken, because there is no order question and no second
+ * paragraph to sever: `.rp-task-banner__cancel`/`__finish` in `editor-shell.css` and
+ * `.rp-overlay-panel__close`/`.rp-inspector-drawer__close` in `editor-layout.css`.
+ */
+/* fallow-ignore-next-line code-duplication */
 .rp-designer-tools .rp-designer-tool-button {
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
@@ -233,6 +258,9 @@
 .rp-designer-inspector .rp-designer-edit-dimensions {
 	width: 100%;
 	margin: 0 0 var(--size-4-4);
+/* REVIEWED CLONE: the bordered variant with a leading `width`/`margin` — the flat button is per-component by
+   necessity; the argument is on `.rp-designer-tool-button` in `styles/designer.css`. */
+/* fallow-ignore-next-line code-duplication */
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);

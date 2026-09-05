@@ -66,6 +66,8 @@
  * `var(--input-shadow)`, which this sheet never overrode, so the buttons carried the raised
  * chrome of a standalone button while asking for a transparent background.
  */
+/* REVIEWED CLONE (`.rp-context-bar__button`): the flat button is per-component by necessity; argument in `styles/designer.css`. */
+/* fallow-ignore-next-line code-duplication */
 .rp-context-bar .rp-context-bar__button {
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
@@ -127,6 +129,8 @@
 }
 
 /* Same specificity argument as the context bar's own buttons, immediately above. */
+/* REVIEWED CLONE (`.rp-primary-actions__button`): the flat button is per-component by necessity; argument in `styles/designer.css`. */
+/* fallow-ignore-next-line code-duplication */
 .rp-primary-actions .rp-primary-actions__button {
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);

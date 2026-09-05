@@ -255,12 +255,12 @@
  * (0,1,1), which outranks a bare class at (0,1,0) regardless of source order — the exact defect
  * `.rp-editor-inspector-delete` shipped once and this file's own toolbar rules already avoid.
  */
+/* REVIEWED CLONE: the bordered variant with a leading `width`/`margin` — the flat button is per-component by
+   necessity; the argument is on `.rp-designer-tool-button`, above in this file. */
+/* fallow-ignore-next-line code-duplication */
 .rp-designer-inspector .rp-designer-edit-dimensions {
 	width: 100%;
 	margin: 0 0 var(--size-4-4);
-/* REVIEWED CLONE: the bordered variant with a leading `width`/`margin` — the flat button is per-component by
-   necessity; the argument is on `.rp-designer-tool-button` in `styles/designer.css`. */
-/* fallow-ignore-next-line code-duplication */
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);

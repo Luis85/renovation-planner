@@ -18,6 +18,12 @@ import type { GeometrySidecarChangedPayload, ProjectIndexEntryChangedPayload } f
  * **What deliberately does NOT live here is POLICY.** The event LISTS and the filters differ in
  * every source and are the parts a reader has to get right; sharing either would make two
  * sources interchangeable at exactly the seam that keeps them apart.
+ *
+ * `subscribeAll` registers ONE handler reference for the whole list, so a list naming the same
+ * event type twice registers it once — `EventBus`'s subscriptions are Set-based per type, and a
+ * Set of one function holds one entry regardless of how many times `.map` called `subscribe`
+ * with it. The per-source copies this replaced each built its OWN handler per source, which had
+ * no such backstop; no source's list names a duplicate today, so nothing here relies on it.
  */
 export function subscribeAll<TType extends string>(
 	events: EventBus,

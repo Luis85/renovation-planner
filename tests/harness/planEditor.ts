@@ -339,8 +339,9 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 					}
 				: {}),
 		},
-		// Nothing on this page opens a note — there is no vault behind it — the door
-		// works and answers the way an ordinary click would; nothing here dispatches it.
+		// There is no vault behind this page, so nothing here could really open a note;
+		// this stub answers 'opened' the way a real door would, and nothing on this page
+		// calls it.
 		openNote: () => Promise.resolve('opened' as const),
 		vault: {
 			getAbstractFileByPath: () => null,

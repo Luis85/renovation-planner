@@ -647,9 +647,10 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 			writeLedger: ledger,
 			renderState,
 			subject: subject(),
-			// The trust path (design spec §2.2, §2.9): the same fact `writesBlocked` above reads,
-			// threaded to the one tool (`SelectTool`) that is not itself inside the Vue tree.
-			writesBlocked: () => projectStore.stale,
+			// The trust path (design spec §2.2, §2.9): threaded from the SAME computed
+			// `writesBlocked` above rather than re-read from the store, to the one tool
+			// (`SelectTool`) that is not itself inside the Vue tree.
+			writesBlocked: () => writesBlocked.value,
 		}),
 	);
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather

@@ -13,8 +13,10 @@ import { tr } from '../i18n/strings';
 
 /**
  * `New asset`, opened the one way — the guarded `createAsset`/`setAssetFootprintFromDimensions`
- * pair behind `NewAssetForm`, inside the `dialogs.current !== null` guard that makes two clicks
- * in one tick reach `openDialog` once rather than throwing `DialogStackingError`.
+ * pair behind `NewAssetForm`. Each CALLER guards its own `dialogs.current !== null` before
+ * reaching this function, which is what makes two clicks in one tick reach `openDialog` once
+ * rather than throwing `DialogStackingError` — `deps.dialogs` here is `Pick<…, 'openDialog'>`
+ * and cannot read `current` to guard it a second time.
  *
  * Two surfaces offer this gesture (the Renovation project view's `ViewRoot` and the Asset
  * library's own root) and `ViewRoot.onCreateAsset`'s docblock already described itself as

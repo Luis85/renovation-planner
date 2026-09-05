@@ -98,7 +98,7 @@ export function createAssetLibraryChangeSource(
 			 * `AssetCreated`/`AssetUpdated` — the catalogue changed and nothing else did: neither
 			 * touches geometry, so `marks`, `design` and `replaced` all stay empty.
 			 */
-			...subscribeAll(events, (['AssetCreated', 'AssetUpdated'] as const), () => {
+			...subscribeAll(events, ['AssetCreated', 'AssetUpdated'] as const, () => {
 				listener({ catalogue: true, marks: NONE, design: NONE, usage: NONE, replaced: NONE });
 			}),
 			/**

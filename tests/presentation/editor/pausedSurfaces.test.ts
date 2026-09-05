@@ -79,6 +79,12 @@ describe('write controls while the floor is stale', () => {
 	it('the Room Inspector’s Delete, assign and override fields are paused with the reason', async () => {
 		const harness = await stalePane(true);
 
+		// The override fields (`quantity`/`cost`) exist only with a requirement row, which
+		// this fixture has none of, so this loop actually reaches only the first two
+		// selectors — `.rp-editor-inspector-delete` and `.rp-editor-requirement-assign
+		// button`, both unconditional — and the rig-based case further down (seeding a real
+		// requirement) is what covers the override fields' own paused state.
+		let found = 0;
 		for (const sel of [
 			'.rp-editor-inspector-delete',
 			'.rp-editor-requirement-assign button',
@@ -86,13 +92,13 @@ describe('write controls while the floor is stale', () => {
 			'input[data-field="cost"]',
 		]) {
 			const el = harness.wrapper.find(sel);
-			// The override fields exist only with a requirement row, which this fixture has
-			// none of — seeded separately below, against the real rig.
 			if (!el.exists()) continue;
+			found++;
 			expect(el.attributes('aria-disabled')).toBe('true');
 			expect(el.attributes('disabled')).toBeUndefined();
 			expect(reasonOf(harness, el)).toBe(t('en', 'editor.paused.reason'));
 		}
+		expect(found).toBeGreaterThanOrEqual(1);
 	});
 
 	/**

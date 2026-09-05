@@ -19,7 +19,7 @@ untouched, and every new affordance emits too.
 jsdom + `@vue/test-utils`, Obsidian 1.13.0 API, CSS partials under `styles/` assembled by
 `scripts/styles-assemble.mjs`.
 
-**Spec:** [`docs/user-experience/renovation-planner-home-DESIGN-SPEC.md`](../../user-experience/renovation-planner-home-DESIGN-SPEC.md)
+**Spec:** [`docs/user-experience/renovation-planner-home-DESIGN-SPEC.md`](renovation-planner-home-DESIGN-SPEC.md)
 
 ## Decisions this plan locks that the spec left open (§14)
 

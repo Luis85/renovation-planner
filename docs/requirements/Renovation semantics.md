@@ -32,6 +32,6 @@ and an explainable readiness review without the plan editor becoming a second pr
 - [[M17-review-perspective]]
 - [[Renovation Planner — Editor Interaction & Mental Model Specification]]
 - [[Renovation Planner — Editor UX Research & Pattern Study]]
-- [[component-library]]
-- [[implementation-plan]]
+- [[docs/user-experience/asset-library-delivery/specification/component-library]]
+- [[docs/user-experience/asset-library-delivery/implementation-plan]]
 - [[Renovation Planner — First Vertical Slice Plan and Data-Model Specification]]

@@ -7,11 +7,18 @@ import { readFileSync } from 'node:fs';
  * and structural — the tracker built but never composed, or composed on the wrong side of
  * the refresh decorator.
  *
- * Nesting matters both ways. OUTSIDE `withEditorStateRefresh`, so `saved` never appears
+ * Nesting matters both ways. OUTSIDE the refresh decorator, so `saved` never appears
  * while the canvas still shows the pre-command state. INSIDE `wrapDispatcher`, which is the
  * one object every tool, the context bar's Undo/Redo and the Inspector dispatch through — a
  * tracker outside it would miss nothing today and miss everything the moment the wrapping
  * changes.
+ *
+ * The trust path's gate (design spec §2.2) added a THIRD link since this test was written:
+ * `wrapDispatcher` now receives `gated`, not `tracked`, directly — `gated` is
+ * `withStaleGate(tracked, …)`, so `tracked` is still what the gate itself is built from. The
+ * property this file is FOR — a refusal must open no saving batch — is exactly why the gate
+ * sits after the tracker rather than before it, so the two new assertions below hold both
+ * halves of that ordering rather than only the old tracked/wrapDispatcher pair.
  *
  * **The ARGUMENTS, never the textual order.** An earlier draft compared `indexOf` positions,
  * which is the "address code by position" defect this repository writes down: it passed for
@@ -41,12 +48,24 @@ describe('save-state wiring', () => {
 		expect(source).not.toMatch(/withSaveStateTracking\( *history *,/u);
 	});
 
-	it('hands wrapDispatcher the TRACKED dispatcher, not the untracked one', () => {
-		expect(source).toMatch(/wrapDispatcher\( *history *, *tracked *\)/u);
-		expect(source).not.toMatch(/wrapDispatcher\( *history *, *dispatcher *\)/u);
-	});
-
 	it('binds the tracker to a name, so the two assertions above address one value', () => {
 		expect(source).toMatch(/const tracked = withSaveStateTracking\(/u);
+	});
+
+	/**
+	 * Design spec §2.2: the stale gate sits AFTER the tracker (so a refusal opens no saving
+	 * batch) and BEFORE `wrapDispatcher` (so the undo/redo flags still refresh). Both halves
+	 * are asserted, because either one alone is satisfied by a build that dropped the gate
+	 * from the chain entirely and fed `wrapDispatcher` the bare `tracked` value again.
+	 */
+	it('the stale gate is built from the tracked dispatcher, not from the untracked one', () => {
+		expect(source).toMatch(/const gated = withStaleGate\( *tracked *,/u);
+		expect(source).not.toMatch(/withStaleGate\( *dispatcher *,/u);
+	});
+
+	it('hands wrapDispatcher the GATED dispatcher, not the tracked-but-ungated one', () => {
+		expect(source).toMatch(/wrapDispatcher\( *history *, *gated *\)/u);
+		expect(source).not.toMatch(/wrapDispatcher\( *history *, *tracked *\)/u);
+		expect(source).not.toMatch(/wrapDispatcher\( *history *, *dispatcher *\)/u);
 	});
 });

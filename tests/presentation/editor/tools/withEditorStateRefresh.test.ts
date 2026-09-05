@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { err, ok } from '../../../../src/core/result/Result';
 import type { PersistenceError } from '../../../../src/core/errors/AppError';
@@ -7,7 +7,11 @@ import type { ZoneDto } from '../../../../src/presentation/read-models/PlanDto';
 import type { DispatchOutcome, DispatchResult } from '../../../../src/application/commands/DispatchOutcome';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
-import { withEditorStateRefresh } from '../../../../src/presentation/editor/tools/with-editor-state-refresh';
+import {
+	createProjectionRefresh,
+	withEditorStateRefresh,
+	type EditorStateRefreshDeps,
+} from '../../../../src/presentation/editor/tools/with-editor-state-refresh';
 import { fakeQueries } from '../../../helpers/planFixtures';
 
 /**
@@ -340,5 +344,29 @@ describe('withEditorStateRefresh', () => {
 		await expect(refreshed.run(noopCommand)).rejects.toThrow('boom');
 
 		expect(await refreshed.run(noopCommand)).toMatchObject({ ok: true });
+	});
+
+	/**
+	 * Design spec §2.3: "retry is the refresh, by construction". `createProjectionRefresh` is
+	 * the named function BOTH callers use — the post-command queue above, and (Task 5)
+	 * `EditorRuntime.refreshProjection`, which the stale-projection strip's Try again calls
+	 * directly. Asserted here rather than only in `runtime.test.ts` because this is the one
+	 * function whose signature `type-safety.test-d.ts` pins as taking no command at all.
+	 */
+	it('exposes the refresh as one function the queued path calls, so a retry is the same read', async () => {
+		const hydrate = vi.fn<EditorStateRefreshDeps['projectStore']['hydrate']>().mockResolvedValue(undefined);
+		const refresh = vi.fn<EditorStateRefreshDeps['inspectorStore']['refresh']>().mockResolvedValue(undefined);
+		const deps = {
+			projectStore: { hydrate },
+			inspectorStore: { refresh },
+			queries: makeQueries(),
+			planId: PLAN_ID,
+		};
+
+		const refreshProjection = createProjectionRefresh(deps);
+		await refreshProjection();
+
+		expect(hydrate).toHaveBeenCalledWith(deps.queries, PLAN_ID, { keepPreviousOnFailure: true });
+		expect(refresh).toHaveBeenCalledTimes(1);
 	});
 });

@@ -1,4 +1,15 @@
-import { computed, inject, onBeforeUnmount, provide, reactive, ref, watch, type InjectionKey, type Ref } from 'vue';
+import {
+	computed,
+	inject,
+	onBeforeUnmount,
+	provide,
+	reactive,
+	ref,
+	useId,
+	watch,
+	type InjectionKey,
+	type Ref,
+} from 'vue';
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger, type WriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
@@ -20,7 +31,9 @@ import { createToolSwitch } from './tools/tool-switch';
 import { registerEditorTools } from './tools/registerEditorTools';
 import { useRoomDraftStore, type RoomDraftStore } from './add/room-draft-store';
 import { createRoomFromDraft, type RoomCreationOutcome } from './add/roomCreation';
-import { withEditorStateRefresh } from './tools/with-editor-state-refresh';
+import { createProjectionRefresh } from './tools/with-editor-state-refresh';
+import { withStateRefresh, type RefreshedHistory } from './tools/with-state-refresh';
+import { withStaleGate } from './tools/with-stale-gate';
 import { wrapDispatcher } from './tools/wrap-dispatcher';
 import { useSaveStateStore } from './save-state/save-state-store';
 import { singleFlight } from '../composables/single-flight';
@@ -56,7 +69,7 @@ const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
 	/** The decorated history every dispatch in this leaf funnels through. */
-	readonly dispatcher: ReturnType<typeof withEditorStateRefresh>;
+	readonly dispatcher: RefreshedHistory;
 	readonly toolManager: ToolManager;
 	/**
 	 * Same as `setTool('select')`, named for the two callers that mean it — the first-ready
@@ -125,6 +138,30 @@ export interface EditorRuntime {
 	 */
 	readonly roomDraftIncomplete: Readonly<Ref<boolean>>;
 	readonly roomDraft: RoomDraftStore;
+	/**
+	 * The trust path (design spec §2.3): "retry is the refresh, by construction". The SAME
+	 * function `dispatcher`'s post-command queue awaits — not a second read derived to look
+	 * like it — so a retry can only ever re-read; it cannot replay a write, which
+	 * `type-safety.test-d.ts` holds as a fact about this function's signature (no command
+	 * parameter). Two callers of one function is what stops the strip's Try again and the
+	 * queued refresh drifting into two descriptions of "read back what was written".
+	 */
+	readonly refreshProjection: () => Promise<void>;
+	/**
+	 * The trust path (design spec §2.2, §2.9): a computed over `ProjectStore.stale`. Every
+	 * paused control in the shell reads this directly (it is already inside the Vue tree);
+	 * `EditorContext.writesBlocked` is the one non-Vue consumer's own door onto the identical
+	 * fact, threaded through `createEditorContext` rather than duplicated.
+	 */
+	readonly writesBlocked: Readonly<Ref<boolean>>;
+	/**
+	 * One `useId()` per leaf (design spec §2.9), minted here rather than in the component that
+	 * renders it: `buildRuntime` already runs inside `PlanEditorRoot`'s `setup()` (SDD §12's Vue
+	 * app per leaf), which is the one place `useId()` may be called at all, and every paused
+	 * control's `aria-describedby` needs the SAME id the hidden reason sentence carries — a
+	 * value threaded once through the runtime rather than re-derived per consumer.
+	 */
+	readonly pausedReasonId: string;
 }
 
 
@@ -458,34 +495,70 @@ function createCancelActiveTask(
 	};
 }
 
+/**
+ * Every leaf's ONE dispatcher (design slice 8), widened by the trust path (design spec §2.2,
+ * §2.3, §2.9) — pulled out of `buildRuntime` for its `max-lines-per-function` budget rather
+ * than for a shared caller, the same budget that has already pushed `createRoomCreationAction`,
+ * `selectAndFrameOn` and `subscribeToChangedFigures` out of it.
+ *
+ * The chain: `CommandHistory` → `withStateRefresh` (the named `refreshProjection`, §2.3) →
+ * `withSaveStateTracking` → the stale gate (§2.2, AFTER the tracker so a refusal opens no
+ * saving batch) → `wrapDispatcher` (BEFORE which the gate sits, so the undo/redo flags still
+ * refresh). `writesBlocked` is the one computed both this leaf's shell and
+ * `EditorContext.writesBlocked` read; `pausedReasonId` is one `useId()` per leaf (§2.9) — legal
+ * here because this runs synchronously from `buildRuntime`, itself called from
+ * `PlanEditorRoot`'s `setup()`, with no `await` between either call and this one.
+ *
+ * `inspectorRef` travels back out because its `current` is not assigned until AFTER the
+ * Inspector store exists, which needs `wrappedDispatcher` to be built first — the same
+ * mutable-cell break `buildRuntime` used before this extraction.
+ */
+function buildDispatcherChain(
+	context: PlanEditorContext,
+): {
+	readonly wrappedDispatcher: RefreshedHistory;
+	readonly canUndo: Ref<boolean>;
+	readonly canRedo: Ref<boolean>;
+	readonly refreshProjection: () => Promise<void>;
+	readonly writesBlocked: Readonly<Ref<boolean>>;
+	readonly pausedReasonId: string;
+	readonly inspectorRef: { current: { refresh(): Promise<void> } | null };
+} {
+	const projectStore = useProjectStore();
+	const history = new CommandHistory();
+	const inspectorRef: { current: { refresh(): Promise<void> } | null } = { current: null };
+	const refreshProjection = createProjectionRefresh({
+		projectStore,
+		inspectorStore: { refresh: () => inspectorRef.current?.refresh() ?? Promise.resolve() },
+		queries: context.queries,
+		planId: context.planId,
+	});
+	const dispatcher = withStateRefresh(history, refreshProjection);
+	const tracked = withSaveStateTracking(dispatcher, useSaveStateStore());
+	const gated = withStaleGate(tracked, () => projectStore.stale);
+	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, gated);
+	const writesBlocked = computed(() => projectStore.stale);
+	const pausedReasonId = useId();
+	return { wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
+}
+
 function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const editor = useEditorStore();
 	const projectStore = useProjectStore();
 	const selection = useSelectionStore();
 	const dialogs = useDialogStore();
 
-	const history = new CommandHistory();
 	const ledger = new SessionWriteLedger();
 
-	// The cycle between the dispatcher (which must refresh the Inspector) and the
-	// Inspector store (which must dispatch through it) is broken with one mutable
-	// binding: until the store exists below, refresh has nothing to re-read, so a no-op
-	// is honest.
-	const inspectorRef: { current: { refresh(): Promise<void> } | null } = { current: null };
-	const dispatcher = withEditorStateRefresh(history, {
-		projectStore,
-		inspectorStore: {
-			refresh: () => inspectorRef.current?.refresh() ?? Promise.resolve(),
-		},
-		queries: context.queries,
-		planId: context.planId,
-	});
-
-	// Outside the refresh decorator, so `saved` never appears while the canvas still shows the
-	// pre-command state; inside `wrapDispatcher`, which is the one object a leaf hands out.
-	const tracked = withSaveStateTracking(dispatcher, useSaveStateStore());
-
-	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, tracked);
+	const {
+		wrappedDispatcher,
+		canUndo,
+		canRedo,
+		refreshProjection,
+		writesBlocked,
+		pausedReasonId,
+		inspectorRef,
+	} = buildDispatcherChain(context);
 
 	// The SAME object every tool dispatches through, with its `run` mapped so it cannot reject:
 	// a tool launches its dispatch detached, so a rejection here reached nobody at all. Required
@@ -558,6 +631,9 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 			writeLedger: ledger,
 			renderState,
 			subject: subject(),
+			// The trust path (design spec §2.2, §2.9): the same fact `writesBlocked` above reads,
+			// threaded to the one tool (`SelectTool`) that is not itself inside the Vue tree.
+			writesBlocked: () => projectStore.stale,
 		}),
 	);
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather
@@ -684,6 +760,9 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		canCreateRoom,
 		roomDraftIncomplete,
 		roomDraft,
+		refreshProjection,
+		writesBlocked,
+		pausedReasonId,
 	};
 }
 

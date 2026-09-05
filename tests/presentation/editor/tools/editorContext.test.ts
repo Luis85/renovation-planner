@@ -3,7 +3,7 @@
  * suite pins beyond plain wiring, because they are both project Definition-of-Done items
  * routed here (see `docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md`):
  *
- * - **DoD 11** — the facade's own type surface is exactly the seven spec members, and no
+ * - **DoD 11** — the facade's own type surface is exactly the eight spec members, and no
  *   member (at any depth) exposes a function shaped like a repository method
  *   (`getById`/`save`/`delete`/`listBy*`). That is a runtime check over a real
  *   `EditorContext` built from stub deps, plus a check that the walker doing the work can
@@ -124,6 +124,8 @@ function stubDeps(): EditorContextDeps {
 		writeLedger: new SessionWriteLedger(),
 		renderState: new RenderState(),
 		subject: { id: createPlanId(), calibration: null },
+		// The trust path (design spec §2.2): no case here is about it.
+		writesBlocked: () => false,
 	};
 }
 
@@ -135,6 +137,7 @@ const SPEC_MEMBERS = [
 	'writeLedger',
 	'renderState',
 	'subject',
+	'writesBlocked',
 ].toSorted();
 
 /** Property names shaped like a repository or Vault-API method — the surface DoD 11 bans. */
@@ -229,9 +232,10 @@ describe('EditorContext', () => {
 		expect(context.writeLedger).toBe(deps.writeLedger);
 		expect(context.renderState).toBe(deps.renderState);
 		expect(context.subject).toBe(deps.subject);
+		expect(context.writesBlocked).toBe(deps.writesBlocked);
 	});
 
-	it('DoD 11: has exactly the seven spec members, nothing more and nothing fewer', () => {
+	it('DoD 11: has exactly the eight spec members, nothing more and nothing fewer', () => {
 		const context = createEditorContext(stubDeps());
 
 		expect(Object.keys(context).toSorted()).toEqual(SPEC_MEMBERS);

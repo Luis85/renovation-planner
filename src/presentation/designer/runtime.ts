@@ -269,6 +269,10 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			writeLedger: geometryLedger,
 			renderState,
 			subject: { id: assetId, calibration: store.design?.calibration ?? null },
+			// The Plan Editor's trust path (design spec §2.2) has no counterpart here: this
+			// surface has no `ProjectStore` and no re-read that can go stale over an asset's own
+			// design, so nothing ever blocks a write on that account.
+			writesBlocked: () => false,
 		}),
 	);
 	/**

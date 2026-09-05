@@ -184,7 +184,7 @@ function onOpenAdd(): void {
  * Plan Editor leaf a document-global handler would also close.
  *
  * With the menu closed, descendants handle their own Escape first. The root's bubbling
- * handler supplies the multi-selection fallback for controls outside the canvas.
+ * handler supplies the selection fallback for controls outside the canvas.
  */
 function onRootKeydown(event: KeyboardEvent): void {
 	if (!addMenuOpen.value || event.key !== 'Escape') return;
@@ -195,7 +195,7 @@ function onRootKeydown(event: KeyboardEvent): void {
 
 /** Overlays and the canvas consume Escape first; list and rail controls bubble here. */
 function onSelectionKeydown(event: KeyboardEvent): void {
-	if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || selection.selectedIds.length < 2) return;
+	if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || selection.selectedIds.length === 0) return;
 	event.stopPropagation();
 	event.preventDefault();
 	const inspector = (event.target as HTMLElement).closest<HTMLElement>('[data-rp-region="inspector"]');
@@ -208,7 +208,7 @@ function onSelectionKeydown(event: KeyboardEvent): void {
 		hasSelection: true,
 		clearSelection: () => selection.clear(),
 	});
-	// M11 controls unmount on clear; persistent list/rail controls keep their own focus.
+	// Selected-entity controls unmount on clear; persistent list/rail controls keep their focus.
 	if (outcome === 'cleared-selection' && inspector !== null) void nextTick(() => inspector.focus());
 }
 

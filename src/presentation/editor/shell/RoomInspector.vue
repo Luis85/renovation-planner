@@ -154,6 +154,25 @@ function onDeleteZone(): void {
 	if (runtime.writesBlocked.value || dto.value.kind !== 'zone') return;
 	void runtime.deleteZone(dto.value.id, dto.value.name);
 }
+
+/**
+ * Design spec §2.9's pause attributes, extracted rather than repeated per control: Assign
+ * and Delete both need the identical pair (`aria-disabled="true"` plus `aria-describedby`
+ * naming the shared reason) while paused, and NEITHER attribute while live — never
+ * `aria-disabled="false"`, which is why this answers `{}` rather than a false-valued map.
+ * `v-bind="pausedAttrs"` renders byte-identically to the two ternaries it replaces; the
+ * extraction is what took this template's cognitive complexity back under budget after this
+ * task's own paused-state bindings pushed it over (`npm run analyze`, fallow's template check).
+ */
+const pausedAttrs = computed(() =>
+	runtime.writesBlocked.value
+		? ({ 'aria-disabled': 'true', 'aria-describedby': runtime.pausedReasonId } as Record<string, string>)
+		: ({} as Record<string, string>),
+);
+
+/** `RequirementRow`'s own `paused` prop, over the same computed rather than the raw ref's
+ * `.value` repeated at the one call site — the same reasoning as `pausedAttrs` above. */
+const paused = computed(() => runtime.writesBlocked.value);
 </script>
 
 <template>
@@ -198,7 +217,7 @@ function onDeleteZone(): void {
 					:row="row"
 					:commit="runtime.commitField"
 					:logger="logger"
-					:paused="runtime.writesBlocked.value"
+					:paused="paused"
 					:paused-reason-id="runtime.pausedReasonId"
 				/>
 			</ul>
@@ -219,8 +238,7 @@ function onDeleteZone(): void {
 				</select>
 				<button
 					type="button"
-					:aria-disabled="runtime.writesBlocked.value ? 'true' : undefined"
-					:aria-describedby="runtime.writesBlocked.value ? runtime.pausedReasonId : undefined"
+					v-bind="pausedAttrs"
 					@click="assignSelected(dto.id)"
 				>
 					{{ tr('editor.inspector.assign.button') }}
@@ -240,8 +258,7 @@ function onDeleteZone(): void {
 		<button
 			type="button"
 			class="rp-editor-inspector-delete"
-			:aria-disabled="runtime.writesBlocked.value ? 'true' : undefined"
-			:aria-describedby="runtime.writesBlocked.value ? runtime.pausedReasonId : undefined"
+			v-bind="pausedAttrs"
 			@click="onDeleteZone"
 		>
 			{{ tr('editor.inspector.delete-zone') }}

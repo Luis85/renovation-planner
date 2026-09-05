@@ -20,6 +20,7 @@
 @import "./editor-requirements.css";
 @import "./editor-cursors.css";
 @import "./editor-shell.css";
+@import "./editor-area.css";
 @import "./editor-layout.css";
 @import "./editor-inspector.css";
 @import "./editor-new-room.css";

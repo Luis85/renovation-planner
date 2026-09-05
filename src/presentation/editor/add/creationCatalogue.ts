@@ -55,11 +55,12 @@ function unsupported<K extends CreationEntryId>(id: K, group: CreationGroup): En
 }
 
 /**
- * M02's catalogue as DATA (design spec §7.1), keyed by id and declared ONCE. Room is the one
- * available entry and routes to the rectangular room tool (`'draw-room'`); the room itself does
+ * M02's catalogue as DATA (design spec §7.1), keyed by id and declared ONCE. Room routes to
+ * the rectangular room tool (`'draw-room'`); the room itself does
  * not exist until the temporary tool banner's Finish action turns the draft into a Zone typed
- * Room (Task 8), so `activate` here only arms the tool rather than creating anything. Everything
- * else is unsupported with a reason, so the menu can explain rather than offer a dead control.
+ * Room (Task 8), so `activate` here only arms the tool rather than creating anything. Area
+ * activates its own polygon-tool instance with a Custom Zone completion (ADR-0016). The other
+ * entries remain unsupported with a reason.
  * Declaration order IS the locked group order — see `CREATION_CATALOGUE` below. The `as StringKey`
  * casts above are the one place a key is built by interpolation; `creationCatalogue.test.ts`
  * resolves every key in both locales, which is what a template string would otherwise escape.
@@ -102,7 +103,15 @@ const ENTRIES_BY_ID: { readonly [K in CreationEntryId]: EntryFor<K> } = {
 	wall: unsupported('wall', 'structure'),
 	door: unsupported('door', 'structure'),
 	window: unsupported('window', 'structure'),
-	area: unsupported('area', 'property'),
+	area: {
+		id: 'area',
+		group: 'property',
+		labelKey: 'editor.add.area.label',
+		descriptionKey: 'editor.add.area.description',
+		synonymKeys: ['editor.add.area.synonyms'],
+		availability: { kind: 'available' },
+		activate: (runtime) => runtime.setTool('draw-area'),
+	},
 	path: unsupported('path', 'property'),
 	fence: unsupported('fence', 'property'),
 	item: unsupported('item', 'planning'),

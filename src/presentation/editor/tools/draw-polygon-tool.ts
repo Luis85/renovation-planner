@@ -51,6 +51,8 @@ export interface PolygonCompletion {
  * bound in `runtime.ts` beside the command it builds.
  */
 export interface DrawPolygonToolDeps {
+	/** A creation capability may require more than the legacy point-list contract. */
+	readonly validateOutline?: typeof createPolygon;
 	/**
 	 * Which tool this instance IS — REQUIRED, because one `DrawPolygonTool` class is now two
 	 * registered tools.
@@ -178,13 +180,7 @@ export class DrawPolygonTool implements EditorTool {
 		if (context === null || event.button !== 'primary' || this.closing) return;
 		const landing = this.landingPoint(context, event);
 		if (this.canClose(context, event.worldPoint)) {
-			this.closing = true;
-			// The shape is settled and on its way to being written: a rubber band still tracking
-			// the pointer describes a gesture that is over, so it comes down here rather than
-			// surviving the dispatch — and a REFUSED close then leaves a clean picture of the
-			// buffer it kept.
-			this.publishSketch(context, null, null);
-			void this.closePolygon(context);
+			this.finish();
 			return;
 		}
 		// A repeated point is never a vertex. `Polygon` states it — the last→first edge is
@@ -219,6 +215,15 @@ export class DrawPolygonTool implements EditorTool {
 	}
 
 	pointerUp(): void {}
+
+	/** One close path for the first-point target, Finish and Enter. Refusals keep the draft. */
+	finish(): void {
+		const context = this.context;
+		if (context === null || this.closing) return;
+		this.closing = true;
+		this.publishSketch(context, null, null);
+		void this.closePolygon(context);
+	}
 
 	cancel(): void {
 		const context = this.context;
@@ -315,7 +320,7 @@ export class DrawPolygonTool implements EditorTool {
 	private async closePolygon(context: EditorContext): Promise<void> {
 		const generation = this.generation;
 		try {
-			const polygonResult = createPolygon(this.buffer);
+			const polygonResult = (this.deps.validateOutline ?? createPolygon)(this.buffer);
 			if (!polygonResult.ok) {
 				// Pre-dispatch: "the polygon could not close" is this tool's own refusal, and no
 				// command was built for an indicator to have carried it.

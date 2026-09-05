@@ -192,6 +192,7 @@ if (wantsIndex) {
 		? mountPlanEditorHarness(document.body, {
 				select: selectZoneId ?? undefined,
 				add: wantsAddMenu,
+				area: params.has('area'),
 				room,
 				stale: wantsStale,
 			}).view

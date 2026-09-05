@@ -1689,7 +1689,8 @@ Tool ids are internal. What the user meets is an intent, and the mapping is expl
 |---|---|
 | `select` | the default and the safe home state |
 | `draw-room` | *Add → Room*: drag a rectangle or type two lengths |
-| `draw-polygon` | *Add → Room (free shape)* / *Add → Area* |
+| `draw-polygon` | Legacy free-shape Room completion (not exposed by Add) |
+| `draw-area` | *Add → Area*: shared polygon gesture, Custom Zone completion, explicit repetition |
 | `calibrate` | *Set scale*, one step inside reference plan setup (§98) — never a toolbar tool |
 | pan override | Space+drag / middle button — a gesture, not a mode |
 

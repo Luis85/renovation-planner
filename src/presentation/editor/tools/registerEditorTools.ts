@@ -6,6 +6,8 @@ import type { useDialogStore } from '../../dialogs/dialog-store';
 import type { ToolManager } from './tool-manager';
 import { CalibrateTool } from './calibrate-tool';
 import { DrawPolygonTool } from './draw-polygon-tool';
+import { createPolygon } from '../../../core/geometry/Polygon';
+import { areaOutline } from '../add/areaOutline';
 import { DrawRoomTool } from './draw-room-tool';
 import { SelectTool } from './select-tool';
 import { ReversibleMoveZoneCommand } from './reversible-move-zone-command';
@@ -26,6 +28,7 @@ import type { PlanEditorContext } from '../PlanEditorContext';
  * single site — see `subject` below, which is built from the same value.
  */
 export interface EditorToolDeps {
+	readonly onAreaCompleted: () => void;
 	readonly context: PlanEditorContext;
 	readonly planId: PlanId;
 	readonly projectStore: ReturnType<typeof useProjectStore>;
@@ -59,50 +62,58 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
-	toolManager.register(
-		new DrawPolygonTool({
-			id: 'draw-polygon',
-			// What a closed polygon MEANS in the Plan Editor: a new Zone on this plan. The tool
-			// itself names none of it — see `PolygonCompletion`, which the designer supplies a
-			// footprint version of. The zone's default name is counted from what the editor has
-			// hydrated, until a creation form asks instead.
-			completion: {
-				commandFor: (geometry) => {
-					const command = new ReversibleCreateZoneCommand(
-						context.commands.createZone,
-						context.commands.deleteZone,
-						ledger,
-						{
-							planId,
-							name: defaultRoomName(),
-							zoneType: 'Room',
-							geometry,
-						},
-						{
-							zones: context.commands.zones,
-							events: context.commands.events,
-							requirements: context.commands.requirementEdits.requirements,
-							logger: context.commands.logger,
-						},
-					);
-					// An adapter rather than the command itself: `createdZoneId` is the
-					// application layer's own word for this and is named by its tests and by
-					// design slice 8's document, so the translation into the tool's
-					// subject-agnostic `createdId` happens here, where the Zone is already known.
-					return {
-						execute: () => command.execute(),
-						undo: () => command.undo(),
-						get createdId() {
-							return command.createdZoneId;
-						},
-					};
+	// Preserve the legacy free-shape Room completion; Area has its own semantic identity.
+	const polygonEntries = [
+		{ id: 'draw-polygon', zoneType: 'Room', defaultName: defaultRoomName, onCompleted: returnToSelect, validateOutline: createPolygon },
+		{ id: 'draw-area', zoneType: 'Custom', defaultName: () => tr('editor.area.default-name', { n: String(projectStore.zones.size + 1) }), onCompleted: deps.onAreaCompleted, validateOutline: areaOutline },
+	] as const;
+	for (const entry of polygonEntries) {
+		toolManager.register(
+			new DrawPolygonTool({
+				id: entry.id,
+				validateOutline: entry.validateOutline,
+				// What a closed polygon MEANS in the Plan Editor: a new Zone on this plan. The tool
+				// itself names none of it — see `PolygonCompletion`, which the designer supplies a
+				// footprint version of. The zone's default name is counted from what the editor has
+				// hydrated, until a creation form asks instead.
+				completion: {
+					commandFor: (geometry) => {
+						const command = new ReversibleCreateZoneCommand(
+							context.commands.createZone,
+							context.commands.deleteZone,
+							ledger,
+							{
+								planId,
+								name: entry.defaultName(),
+								zoneType: entry.zoneType,
+								geometry,
+							},
+							{
+								zones: context.commands.zones,
+								events: context.commands.events,
+								requirements: context.commands.requirementEdits.requirements,
+								logger: context.commands.logger,
+							},
+						);
+						// An adapter rather than the command itself: `createdZoneId` is the
+						// application layer's own word for this and is named by its tests and by
+						// design slice 8's document, so the translation into the tool's
+						// subject-agnostic `createdId` happens here, where the Zone is already known.
+						return {
+							execute: () => command.execute(),
+							undo: () => command.undo(),
+							get createdId() {
+								return command.createdZoneId;
+							},
+						};
+					},
 				},
-			},
-			reportRejected: reportDispatchFailure,
-			reportInvalidInput: notifyOperationFailure,
-			onCompleted: returnToSelect,
-		}),
-	);
+				reportRejected: reportDispatchFailure,
+				reportInvalidInput: notifyOperationFailure,
+				onCompleted: entry.onCompleted,
+			}),
+		);
+	}
 	toolManager.register(new DrawRoomTool({ draft: roomDraft, defaultName: defaultRoomName }));
 	toolManager.register(
 		new CalibrateTool({

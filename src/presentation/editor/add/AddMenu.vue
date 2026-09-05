@@ -202,6 +202,10 @@ function activate(entry: CreationEntry): void {
 	if (entry.availability.kind !== 'available' || runtime.writesBlocked.value) return;
 	emit('close');
 	activateCreationEntry(entry.id, runtime);
+	if (entry.id === 'area') {
+		const canvas = (menuRoot.value as HTMLElement).closest<HTMLElement>('.rp-plan-canvas');
+		void nextTick(() => canvas?.focus());
+	}
 }
 
 function onItemClick(entry: CreationEntry): void {
@@ -320,9 +324,7 @@ function onFocusOut(event: FocusEvent): void {
 }
 
 onMounted(() => {
-	// The catalogue always has exactly one available entry — `creationCatalogue.test.ts` pins
-	// it — so this is a fact about the DATA the whole feature depends on rather than a branch
-	// two tests could disagree about.
+	// The catalogue always has an available entry; Room remains the first recommendation.
 	const first = CREATION_CATALOGUE.find((entry) => entry.availability.kind === 'available') as CreationEntry;
 	focusEntry(first.id);
 	document.addEventListener('pointerdown', onDocumentPointerDown, { capture: true });

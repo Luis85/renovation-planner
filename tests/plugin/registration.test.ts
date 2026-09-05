@@ -23,6 +23,7 @@ import { ASSET_LIBRARY_VIEW, AssetLibraryView } from '../../src/presentation/lib
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { t } from '../../src/presentation/i18n/strings';
 import { loadedPlugin, type LoadedPlugin } from '../helpers/plugin';
+import { createRepositoryStack } from '../helpers/vault';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
 import { levelChanges, levels, lines, recorder, resetRecorder } from '../helpers/logger';
 import { settle } from '../helpers/async';
@@ -398,5 +399,107 @@ describe('what onunload disposes', () => {
 		expect(lines.some((line) => line.event === 'plugin.unload.disposer-failed')).toBe(true);
 		// And nothing is disposed twice: a second call has an empty list to walk.
 		expect(() => loaded.onunload()).not.toThrow();
+	});
+
+	/**
+	 * G1: the debounce timer is the one publisher that could still land a write against a
+	 * retired root once `onunload` has run — `flush()` is what cancels it and settles whatever
+	 * it was waiting to fold in, synchronously, before the disposer list finishes draining.
+	 */
+	it('flushes the change adapter, so no timer fires into a retired root', async () => {
+		const { plugin: loaded } = await loadedPlugin(DEFAULT_SETTINGS);
+		const adapter = loaded.root.persistence?.changeAdapter as { flush: () => void };
+		const flush = vi.spyOn(adapter, 'flush');
+
+		loaded.onunload();
+
+		expect(flush).toHaveBeenCalledTimes(1);
+	});
+
+	/**
+	 * G7's other arm: a root that never composed persistence at all (settings this session
+	 * could never read) leaves `disposeCascade`'s two optional chains with nothing to reach —
+	 * and that must be a no-op, not a `TypeError` thrown from inside the disposer loop.
+	 */
+	it('does not throw when settings were never recovered, so there is no persistence to flush', async () => {
+		const { plugin: loaded } = await loadedPlugin(null, new Error('data.json is a directory'));
+
+		expect(() => loaded.onunload()).not.toThrow();
+	});
+
+	/**
+	 * G7: `onunload`'s own catch used to read `this.root.logger` unconditionally, and `root!` is
+	 * assigned only after two disposers are already on the list — so a disposer that faults
+	 * before `onload` ever reaches that assignment (or, as here, a root cleared out from under
+	 * a loaded plugin) took the catch itself down with a `TypeError` instead of logging one.
+	 * `disposeCascade` is what throws here: with no root, `this.root.persistence` is not merely
+	 * `undefined`, `this.root` itself is — which the cascade's own `?.` never guards against.
+	 */
+	it('logs a failing disposer through the plugin logger when there is no root to read one from', async () => {
+		const { plugin: loaded } = await loadedPlugin(DEFAULT_SETTINGS);
+		(loaded as unknown as { root: unknown }).root = undefined;
+
+		expect(() => loaded.onunload()).not.toThrow();
+		expect(lines.some((line) => line.event === 'plugin.unload.disposer-failed')).toBe(true);
+	});
+});
+
+/**
+ * G9: `onLayoutReady`'s callback carries no lifetime tie of its own, so disabling the plugin
+ * before layout-ready fires would otherwise let a full index scan run against a root
+ * `onunload` has already torn down. The plugin's own `unloaded` flag is what refuses that —
+ * `_loaded` is not a member the pinned `obsidian.d.ts` (1.13.0) declares on `Component`
+ * (`grep -n "_loaded" node_modules/obsidian/obsidian.d.ts` prints nothing), so this is the
+ * plugin's own boolean rather than a cast onto one the typings do not promise.
+ */
+describe('after onunload', () => {
+	it('leaves startPersistence a no-op, so a late layout-ready cannot restart a torn-down session', async () => {
+		const { plugin: loaded, vaultListenerCount } = await loadedPlugin(DEFAULT_SETTINGS);
+		const persistence = loaded.root.persistence as NonNullable<typeof loaded.root.persistence>;
+		const rebuild = vi.spyOn(persistence.index, 'rebuild');
+		const listenersBefore = vaultListenerCount();
+
+		loaded.onunload();
+		loaded.rebuildProjectIndex();
+
+		expect(rebuild).not.toHaveBeenCalled();
+		expect(vaultListenerCount()).toBe(listenersBefore);
+	});
+});
+
+/**
+ * G4: the rebuild reads the vault, and a read can throw — `libraryMigration.ts` already wraps
+ * this same call for that reason, and `startPersistence` did not. A throw at layout-ready
+ * left the vault listeners unregistered for the rest of the session and nothing said why.
+ */
+describe('a rebuild that throws', () => {
+	it('leaves the plugin loaded, logs the fault, and still registers the listeners once a later scan succeeds', async () => {
+		const stack = createRepositoryStack();
+		// One markdown note is enough for `collectNotes` to reach `getFileCache` at all — an
+		// empty vault would make the stub below unreachable and the case would pass for the
+		// wrong reason.
+		stack.vault.entries.set('Notes/Shopping.md', '---\ntitle: milk\n---\n');
+		const cacheFailure = new Error('metadata cache exploded');
+		const getFileCache = vi.spyOn(stack.metadataCache, 'getFileCache').mockImplementation(() => {
+			throw cacheFailure;
+		});
+
+		const { plugin: loaded, workspace: ws, vaultListenerCount } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, {
+			vault: stack.vault,
+			fileManager: stack.fileManager,
+			metadataCache: stack.metadataCache,
+		});
+
+		expect(() => ws.layoutReady()).not.toThrow();
+		expect(lines.some((line) => line.event === 'plugin.index.rebuild-failed')).toBe(true);
+		// No listener registered off a scan that never completed.
+		expect(vaultListenerCount()).toBe(0);
+
+		// A later, successful scan still registers them — exactly once.
+		getFileCache.mockRestore();
+		loaded.rebuildProjectIndex();
+		loaded.rebuildProjectIndex();
+
+		expect(vaultListenerCount()).toBe(4);
 	});
 });

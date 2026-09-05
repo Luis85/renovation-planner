@@ -240,12 +240,12 @@ export interface PersistenceServices
 	 * Typed as `Command` rather than the concrete class because what leaves this root is
 	 * GUARDED (SDD §66): a wrapper object with the same `execute`, not the class itself.
 	 *
-	 * `create-sample-project` is their only caller today (`sampleProject.ts`). This sentence
-	 * has already named the wrong next caller twice: "slice 15's creation dialogs" (slice 15
-	 * shipped only the dialog framework those forms mount in, no caller of its own), then
-	 * "slice 14's empty-state actions" (slice 14 shipped no create action — two empty states
-	 * render no button, the third activates a tool instead of dispatching a command). Slice
-	 * 16's creation forms are the only wiring left to name; read that as a name, not a caller.
+	 * Rewritten from a grep rather than recalled, because this sentence has already named the
+	 * wrong caller twice: "slice 15's creation dialogs" (slice 15 shipped only the dialog
+	 * framework those forms mount in, no caller of its own), then "slice 14's empty-state
+	 * actions" (slice 14 shipped no create action at all). `createProject` is dispatched by
+	 * `ViewRoot.vue` (the New project form) and by `sampleProject.ts`; `createPlan` by
+	 * `ProjectDetailState.vue` (the New plan form) and by `sampleProject.ts`.
 	 */
 	readonly createProject: Command<CreateProjectInput, Result<{ project: Loaded<Project> }, CreateProjectError>>;
 	readonly createPlan: Command<CreatePlanInput, Result<{ plan: Loaded<Plan> }, CreatePlanError>>;

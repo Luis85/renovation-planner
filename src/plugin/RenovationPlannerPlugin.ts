@@ -76,8 +76,8 @@ function swallow(): void {
  * work: startup cost is paid by every user on every launch, and "register, do not scan" is
  * one of the recurring plugin review rejections. The order the SDD states is settings →
  * composition root → workspace views → Bases views → commands → vault listeners → project
- * index, and `onunload` is its reverse: flush pending writes, stop listeners, dispose
- * services.
+ * index, and `onunload` is its reverse: flushes the change adapter; settings writes are
+ * awaited by their own callers, stop listeners, dispose services.
  *
  * `onunload` exists now, and it took the FIRST thing that genuinely needs disposing to earn
  * it — which was not one of this plugin's own registrations. `registerView`,
@@ -134,6 +134,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 	private readonly disposers: (() => void)[] = [];
 
 	/**
+	 * G9: whether `onunload` has already run this session. `onLayoutReady`'s callback carries
+	 * no lifetime tie of its own — Obsidian does not withdraw it on disable — so without this a
+	 * plugin disabled before layout-ready still ran a full index scan and registered vault
+	 * listeners against a root `onunload` had already torn down. The pinned `obsidian.d.ts`
+	 * (1.13.0) declares no `_loaded` on `Component` (checked by grep), so this is the plugin's
+	 * own flag rather than a cast onto a member the typings do not promise. Set at the top of
+	 * `onunload`, read only at the top of `startPersistence`, and reset at the top of `onload`
+	 * — a reload after a disable must find `startPersistence` live again.
+	 */
+	private unloaded = false;
+
+	/**
 	 * Has the initial index scan completed — zero entries included.
 	 *
 	 * Set in `startPersistence` beside the `projectIndexRebuilt()` publish, which is
@@ -148,6 +160,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 	private indexScanCompleted = false;
 
 	async onload(): Promise<void> {
+		// Reset before anything else claims it: a reload after a disable must find
+		// `startPersistence` live again, and every disposer pushed below assumes it is.
+		this.unloaded = false;
+
 		// FIRST, ahead of even the logger: importing this bundle has ALREADY put Konva on
 		// `window` — its module scope runs before Obsidian calls `onload` — so this is the
 		// moment at which that global is provably this load's own and safe to claim.
@@ -193,13 +209,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
 			{ ledger: this.ledger, markers: this.sequenceMarkerStore(logger) },
 		);
-		// The cascade handlers registered at composition time are the first thing unload
-		// must stop — a geometry edit arriving during teardown must not start a write.
-		this.disposers.push(() => {
-			for (const subscription of this.root.persistence?.subscriptions ?? []) {
-				subscription.dispose();
-			}
-		});
+		// The cascade handlers and the adapter's pending flush are retired together, last in
+		// push order — the drain loop is synchronous, so nothing can land between disposers.
+		this.disposers.push(() => this.disposeCascade());
 		// The tab is registered, not drawn: Obsidian calls `display()` when the pane is
 		// opened. Registering it right after the load keeps the SDD's order readable —
 		// nothing below this line can be configured before it exists.
@@ -513,11 +525,32 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
+	 * Retires the OUTGOING root's cascade — the adapter's pending flush and the subscriptions
+	 * composition wired at construction time — as one step, called from exactly two places: the
+	 * disposer `onload` pushes, and the top of `applySettings` (G10). Both boundaries retire the
+	 * same root the same way, because a root left mid-flush or mid-subscription past either one
+	 * is a root something can still publish INTO: `onunload`'s own reason is a timer landing
+	 * after teardown (G1), and a settings swap's is the identical timer landing against a bus
+	 * the new root's views no longer read from.
+	 */
+	private disposeCascade(): void {
+		this.root.persistence?.changeAdapter.flush();
+		for (const subscription of this.root.persistence?.subscriptions ?? []) {
+			subscription.dispose();
+		}
+	}
+
+	/**
 	 * Everything a settings change does to the RUNNING session, with no write in it. Both
 	 * write doors call this; what differs is which side of their own `saveData` they call it
 	 * on, which is the whole of `persistLibraryFolder`'s reason to exist.
 	 */
 	private applySettings(next: RenovationPlannerSettings): void {
+		// FIRST, before the swap: the outgoing root's pending flush and cascade subscriptions
+		// must not run against a bus nothing will consult (G10) — the timer is the one
+		// publisher that could.
+		this.disposeCascade();
+
 		// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the
 		// pane takes effect immediately, in both directions, without a plugin reload.
 		this.logger.setLevel(next.verboseLogging ? 'debug' : LOG_LEVEL);
@@ -744,66 +777,81 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * call time and therefore already follow the swap.
 	 */
 	private startPersistence(): void {
-		const persistence = this.root.persistence;
-		if (!persistence || !this.vaultStack) return;
+		// G9: a plugin disabled before layout-ready fires must not run a scan against a root
+		// `onunload` has already torn down — see the `unloaded` field's own docblock.
+		if (this.unloaded) return;
 
-		// Both halves of one scan, in one call: the entries and the notes of ours the scan could
-		// not index. A rebuild that replaced only the first would leave a repair surface naming
-		// collisions the vault no longer has.
-		const scan = buildProjectIndexEntries({
-			vault: this.vaultStack.vault,
-			metadataCache: this.vaultStack.metadataCache,
-			echo: persistence.vaultDeps.echo,
-			logger: this.root.logger,
-		});
-		persistence.index.rebuild(scan.entries, scan.exclusions);
+		try {
+			const persistence = this.root.persistence;
+			if (!persistence || !this.vaultStack) return;
 
-		// Set BEFORE the announce, so a subscriber re-hydrating on that event already sees a
-		// completed scan. Announcing first would leave the very re-read this flag exists for
-		// asking a question the flag still answers `false` to.
-		this.indexScanCompleted = true;
-
-		// Announced, because a surface that already read through the index has read a
-		// DIFFERENT index. Obsidian restores its leaves before `onLayoutReady`, so a Plan
-		// Editor reopened with the app hydrated against an empty one and said "this plan no
-		// longer exists" about a plan that does — reported from a real vault. The `void` is
-		// deliberate: publishing awaits its subscribers, and nothing here needs to.
-		void this.root.eventBus.publish(projectIndexRebuilt());
-
-		// Load-time recovery of an interrupted multi-entity sequence: conditional and
-		// idempotent (see the recovery module), so re-running it after a settings swap is
-		// safe, and with no outstanding marker it reads one small file and stops.
-		//
-		// `void` skips an await nobody here needs, and it is safe because the function
-		// RESOLVES rather than rejects for every fault: it holds its own try/catch and logs
-		// `sequence.recovery.failed`. This comment claimed that while it was false — there
-		// was no catch anywhere in that module, so a faulting vault read at load became an
-		// unhandled rejection. `tests/application/reference/recovery.test.ts` is what fails
-		// without the catch that makes the sentence true.
-		if (persistence.markers) {
-			void recoverInterruptedSequences({
-				markers: persistence.markers,
-				requirements: persistence.requirements,
-				events: this.root.eventBus,
+			// Both halves of one scan, in one call: the entries and the notes of ours the scan could
+			// not index. A rebuild that replaced only the first would leave a repair surface naming
+			// collisions the vault no longer has.
+			const scan = buildProjectIndexEntries({
+				vault: this.vaultStack.vault,
+				metadataCache: this.vaultStack.metadataCache,
+				echo: persistence.vaultDeps.echo,
 				logger: this.root.logger,
 			});
+			persistence.index.rebuild(scan.entries, scan.exclusions);
+
+			// Set BEFORE the announce, so a subscriber re-hydrating on that event already sees a
+			// completed scan. Announcing first would leave the very re-read this flag exists for
+			// asking a question the flag still answers `false` to.
+			this.indexScanCompleted = true;
+
+			// Announced, because a surface that already read through the index has read a
+			// DIFFERENT index. Obsidian restores its leaves before `onLayoutReady`, so a Plan
+			// Editor reopened with the app hydrated against an empty one and said "this plan no
+			// longer exists" about a plan that does — reported from a real vault. The `void` is
+			// deliberate: publishing awaits its subscribers, and nothing here needs to.
+			void this.root.eventBus.publish(projectIndexRebuilt());
+
+			// Load-time recovery of an interrupted multi-entity sequence: conditional and
+			// idempotent (see the recovery module), so re-running it after a settings swap is
+			// safe, and with no outstanding marker it reads one small file and stops.
+			//
+			// `void` skips an await nobody here needs, and it is safe because the function
+			// RESOLVES rather than rejects for every fault: it holds its own try/catch and logs
+			// `sequence.recovery.failed`. This comment claimed that while it was false — there
+			// was no catch anywhere in that module, so a faulting vault read at load became an
+			// unhandled rejection. `tests/application/reference/recovery.test.ts` is what fails
+			// without the catch that makes the sentence true.
+			if (persistence.markers) {
+				void recoverInterruptedSequences({
+					markers: persistence.markers,
+					requirements: persistence.requirements,
+					events: this.root.eventBus,
+					logger: this.root.logger,
+				});
+			}
+
+			if (this.listenersRegistered) return;
+			this.listenersRegistered = true;
+
+			// Obsidian hands `TAbstractFile` to every event; only notes interest the pipeline.
+			const adapterOf = (): VaultChangeAdapter | undefined => this.root.persistence?.changeAdapter;
+			this.registerEvent(this.app.vault.on('create', onNoteFile(adapterOf, 'onCreate')));
+			this.registerEvent(this.app.vault.on('modify', onNoteFile(adapterOf, 'onModify')));
+			this.registerEvent(this.app.vault.on('delete', onNoteFile(adapterOf, 'onDelete')));
+			this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
+				if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
+			}));
+		} catch (cause) {
+			// G4: the scan READS the vault and can throw — `libraryMigration.ts` already wraps
+			// this same call for that reason, and this site did not. A throw here used to leave
+			// the vault listeners unregistered for the rest of the session with no notice at
+			// all. A single `notifyFault` rather than a paired manual `logger.error` beside it:
+			// `notifyFault` already logs the event through `faultError` — every other call site
+			// in this file relies on exactly that, and a second manual call here would double
+			// the same line under the same event name.
+			notifyFault(cause, this.root.logger, 'plugin.index.rebuild-failed');
 		}
-
-		if (this.listenersRegistered) return;
-		this.listenersRegistered = true;
-
-		// Obsidian hands `TAbstractFile` to every event; only notes interest the pipeline.
-		const adapterOf = (): VaultChangeAdapter | undefined => this.root.persistence?.changeAdapter;
-		this.registerEvent(this.app.vault.on('create', onNoteFile(adapterOf, 'onCreate')));
-		this.registerEvent(this.app.vault.on('modify', onNoteFile(adapterOf, 'onModify')));
-		this.registerEvent(this.app.vault.on('delete', onNoteFile(adapterOf, 'onDelete')));
-		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
-			if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
-		}));
 	}
 
 	/**
-	 * §9's reverse order, of which there is exactly one step today.
+	 * §9's reverse order.
 	 *
 	 * Each disposer is independent and none may stop the next from running, so a throwing
 	 * one is caught rather than allowed to abandon the rest of the teardown: an unload that
@@ -812,11 +860,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * not promise to call it once — cannot release the same thing twice.
 	 */
 	onunload(): void {
+		// G9: read by `startPersistence`, so a layout-ready that fires after this point finds
+		// nothing to scan for.
+		this.unloaded = true;
+
 		for (const dispose of this.disposers.splice(0)) {
 			try {
 				dispose();
 			} catch (cause) {
-				this.root.logger.error('plugin.unload.disposer-failed', { cause });
+				// G7: `root!` is assigned only after two disposers are already pushed, so a
+				// disposer faulting ahead of that assignment — or a root cleared out from under
+				// an otherwise-loaded plugin — must not take this catch down with it.
+				(this.root?.logger ?? this.logger).error('plugin.unload.disposer-failed', { cause });
 			}
 		}
 	}

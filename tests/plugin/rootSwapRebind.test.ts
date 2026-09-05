@@ -73,6 +73,30 @@ async function openViewOnLeaf(
 	return { leaf, view };
 }
 
+/**
+ * G10: the outgoing root's cascade subscriptions were never disposed on a swap, and its
+ * debounce timer was never flushed either — harmless on its own, except the timer is exactly
+ * the kind of thing that could still publish into a bus the new root's views no longer read
+ * from (G1 names the same adapter for the identical reason at `onunload`). `disposeCascade`
+ * is the one method both boundaries call, so proving it runs here is proving the SAME
+ * mechanism the unload suite proves for the other boundary.
+ */
+describe('a root swap retires the outgoing root before composing the next one', () => {
+	it('flushes the outgoing adapter and disposes its cascade subscriptions before the swap', async () => {
+		resetRecorder();
+		const { plugin } = await loadedPlugin();
+		const outgoing = plugin.root.persistence as NonNullable<typeof plugin.root.persistence>;
+		const flush = vi.spyOn(outgoing.changeAdapter, 'flush');
+		const dispose = vi.fn<() => void>();
+		outgoing.subscriptions.push({ dispose });
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
+
+		expect(flush).toHaveBeenCalledTimes(1);
+		expect(dispose).toHaveBeenCalledTimes(1);
+	});
+});
+
 describe('a view already open when the root is replaced', () => {
 	it('rebinds the renovation project view to the new root', async () => {
 		resetRecorder();

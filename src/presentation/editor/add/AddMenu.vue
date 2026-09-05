@@ -39,6 +39,7 @@ import { tr, currentLanguage } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
 import { useEditorRuntime } from '../runtime';
 import {
+	activateCreationEntry,
 	CREATION_CATALOGUE,
 	matchesQuery,
 	type CreationEntry,
@@ -174,11 +175,16 @@ function moveFocus(delta: 1 | -1): void {
  * Available closes and then activates; unsupported does nothing — the only two outcomes a
  * press has. Close first, then activate — §7.2's order, so a faulting activation never
  * leaves the menu as the top surface.
+ *
+ * Routed through `activateCreationEntry` (Task 10's one door onto a catalogue entry's own
+ * activation) rather than calling that entry's field directly — the empty state's own action
+ * reaches the same tool through the same door, and `creationCatalogue.test.ts` reads this
+ * file's source text to hold that neither caller grows a second, undocumented route to it.
  */
 function activate(entry: CreationEntry): void {
 	if (entry.availability.kind !== 'available') return;
 	emit('close');
-	entry.activate(runtime);
+	activateCreationEntry(entry.id, runtime);
 }
 
 function onItemClick(entry: CreationEntry): void {

@@ -8,13 +8,22 @@ import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from '../views/app-id-prefix';
 
 /**
- * §2's fourth registered view and FOURTH workspace surface: the vault-wide asset catalogue, a
- * SINGLETON exactly as the Renovation Project view is one — there is at most one library, not
- * one per subject the way the Plan Editor and the Asset designer are. CLAUDE.md's own count of
- * "three workspace surfaces, each mounting its own isolated Vue app" is a count made before
- * this view existed; a fourth `createApp` call here is what moves it to four, and the fifth
- * `registerView` (`GEOMETRY_SIDECAR_VIEW`) still mounts no Vue root at all, so registrations and
- * Vue-mounting surfaces remain two different counts rather than the same one.
+ * §2's asset-library view: the vault-wide catalogue, a SINGLETON exactly as the Renovation
+ * Project view is one — there is at most one library, not one per subject the way the Plan
+ * Editor and the Asset designer are.
+ *
+ * **A registration and a Vue-mounting SURFACE are two different counts**, which is the fact
+ * worth keeping here: `GEOMETRY_SIDECAR_VIEW` is registered and mounts no Vue root at all, so
+ * the two numbers are never interchangeable and an ordinal borrowed from one counts the other.
+ *
+ * This docblock used to make that point by QUOTING CLAUDE.md's "three workspace surfaces, each
+ * mounting its own isolated Vue app" and calling it stale. The quotation is now of a sentence
+ * that no longer exists — CLAUDE.md states no count there at all, and pins the registered view
+ * types by exact array in `tests/plugin/settings/unrecovered.test.ts` instead. A citation
+ * nobody checks is the same defect as an unchecked comment, so the argument is stated on its
+ * own terms rather than against a moving quotation, and this view claims no ordinal.
+ * `app.config.idPrefix` is set below like every other mount, which
+ * `tests/build/appIdPrefix.test.ts` holds as a category.
  *
  * The view TYPE is persisted in Obsidian's workspace layout, so it is DATA and never renamed —
  * the same rule every registered view here already carries.

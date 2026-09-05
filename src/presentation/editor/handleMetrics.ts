@@ -1,18 +1,29 @@
 /**
- * The screen-pixel sizes of the editor's vertex marks — the ONE place a drawn dot and the
- * region that acts on it are stated, because they are numbers that must stay in a known
- * relationship and were declared independently before this module existed.
+ * **Every SCREEN-PIXEL number the editor's pointer gestures are measured in** — what a mark is
+ * drawn at, how close a click must land to act on it, and how far a pointer must travel before
+ * a press stops being a click. The ONE place each of those is stated, because they must stay in
+ * known relationships and were each declared independently before this module existed.
  *
- * Two families live here now: the selected zone's draggable handles, and the polygon-drawing
- * tool's placed vertices with the close target among them. They are kept apart because they
- * mean different things — one is a handle that moves geometry, the other a record of a click
- * — and a size chosen for one must not silently move the other.
+ * **A RULE rather than a list of families, because the list has already gone stale once**: the
+ * header said "two families live here now — the selected zone's draggable handles, and the
+ * polygon-drawing tool's placed vertices" while `CLICK_EPSILON_PX` sat at the bottom of the
+ * file, which is neither, and the opening sentence still called the whole module "the sizes of
+ * the editor's vertex marks" — a scope its own contents had outgrown. The rule is: a constant
+ * here says what it MEANS, and two constants that mean different things stay separate even
+ * when they hold the same value today, so a size chosen for one cannot silently move the other.
+ * Read the declarations below for what is here; each carries its own subject.
  *
- * They were both called `HANDLE_RADIUS_PX`, in `select-tool.ts` (8) and in
- * `InteractionLayer.vue` (4), and the comment on the 8 claimed the handle was "eight
- * screen pixels across" while the code used it as a RADIUS. So the dot a user saw was
- * 8 px across and the region that started a vertex drag was 16 px across, and no test
- * pinned either.
+ * `CLICK_EPSILON_PX` is the one that belongs to no pair — it is a DISTANCE TRAVELLED rather
+ * than a distance apart — and it is here rather than in a tool because three tools measure
+ * against it (`SelectTool`, `DrawRoomTool`, and the designer's `SetFacingTool` by the same
+ * number and the same reason), which is exactly the independently-declared shape this module
+ * exists to end.
+ *
+ * The drawn radius and the grab radius were both called `HANDLE_RADIUS_PX`, in
+ * `select-tool.ts` (8) and in `InteractionLayer.vue` (4), and the comment on the 8 claimed
+ * the handle was "eight screen pixels across" while the code used it as a RADIUS. So the
+ * dot a user saw was 8 px across and the region that started a vertex drag was 16 px
+ * across, and no test pinned either.
  *
  * The relationship is deliberate and is the reason two constants survive rather than one:
  * a pointing target is easier to hit than it is to see, so the grab radius is larger than
@@ -20,9 +31,9 @@
  * `tests/presentation/editor/handleMetrics.test.ts` is what holds `GRAB >= DRAWN`, so the
  * ordering is a check rather than this paragraph.
  *
- * Both are SCREEN pixels at every zoom: the handle is a constant-size affordance drawn on
- * the `InteractionLayer`, which is deliberately the one layer the camera transform is not
- * bound to (`viewport/Viewport.ts`). A tool converts these through
+ * EVERY number here is a SCREEN pixel at every zoom: the handle is a constant-size
+ * affordance drawn on the `InteractionLayer`, which is deliberately the one layer the
+ * camera transform is not bound to (`viewport/Viewport.ts`). A tool converts these through
  * `worldPerScreenPixel()` on every gesture rather than holding a world-space equivalent.
  */
 
@@ -68,3 +79,19 @@ export const POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX = 9;
  * reaction is armed by, so what the user sees change is exactly the region that will act.
  */
 export const POLYGON_CLOSE_GRAB_RADIUS_PX = 12;
+
+/**
+ * Below this SCREEN displacement, pointerUp is a click, not a drag — converted to world
+ * millimetres through the CURRENT camera on every release. A world-fixed epsilon was the
+ * first version's defect: 0.5 mm is half a pixel at the default zoom, so ordinary hand
+ * jitter during a click dispatched a move command — exactly the history pollution the
+ * spec's "a no-op move must not pollute the undo stack" exists to prevent.
+ *
+ * It is measured on EVERY gesture, body and vertex alike. The second version's defect was
+ * applying it only to body drags: a plain click on a vertex handle then teleported that
+ * vertex to the click point — up to `VERTEX_GRAB_RADIUS_PX` away, which is 80 mm at the
+ * default zoom — and pushed a real move onto the undo stack. Both gestures therefore
+ * record where they STARTED, which is the whole reason the vertex arm carries a
+ * `startWorld` it otherwise has no use for.
+ */
+export const CLICK_EPSILON_PX = 4;

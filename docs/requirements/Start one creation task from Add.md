@@ -131,15 +131,35 @@ provable only by dispatching Escape on the menu element itself, and Tab moving f
 menu (no focus trap, by design) left Escape reaching the canvas instead. The same case now closes
 on a focus MOVE with no Escape at all.
 
+**2026-09-04** — the Add Room increment closed two of the three residues below. They are struck
+through in place rather than deleted, because a residue that vanishes reads as one that was never
+there.
+
+- ~~**The repeat option.**~~ CLOSED. `Keep adding rooms` is a checkbox on the New room form,
+  off by default and reset by `beginTask`, and criterion 7's "unless repeated creation was
+  explicitly chosen" has a subject at last: `tests/presentation/editor/roomCreation.e2e.test.ts`'s
+  'Keep adding rooms restarts the task on the created room and re-counts the default name' —
+  which asserts the created room selected, the tool still `draw-room`, the rectangle cleared and
+  the next default name COUNTED (`Room 3`), so a build that restarted the task without re-reading
+  the plan fails on the name rather than passing on the tool. Recorded at
+  [[Keep adding Rooms only by explicit choice]].
+- ~~**Finish on the banner.**~~ CLOSED for the room task. `TemporaryToolBanner`'s `TASKS` table
+  gained a `finish?: true` flag, and a task that declares it renders a Finish button — labelled
+  "Create room" — `aria-disabled` with its reason until the draft is valid, calling the identical
+  `runtime.createRoom()` the form's own Create calls. Held by
+  `tests/presentation/editor/shell/temporaryToolBanner.test.ts`'s 'names the room task and offers
+  Finish, aria-disabled with its reason until the draft is valid', 'offers no Finish under the
+  calibrate tool, which finishes by gesture' and 'Finish creates the room through the same action
+  as the form, and focus lands on the canvas'. Calibrate and draw-polygon declare no `finish`,
+  which is what keeps criterion 2's "when their task contract permits them" a property of the
+  table rather than of the component.
+
 Remains:
 
-- **The repeat option.** Criterion 7's "unless repeated creation was explicitly chosen" has no
-  subject: repeat is not built, the banner carries no toggle for it, and spec §7.3 and §12 record
-  that as a decision. Recorded at [[Run one temporary creation task from Add]].
-- **Finish and Remove last on the banner.** The banner offers a name, one instruction and Cancel.
-  A polygon finishes by clicking its own first corner and nothing in the banner says so, and
-  `DrawPolygonTool` holds a vertex buffer with no way to drop the last one. Recorded at
-  [[Show an active creation-task banner with complete controls]].
+- **Remove last** stays open, and for the room task it is now open for a REASON rather than for
+  want of work: a rectangle has no removable step, and the tool that does hold a removable vertex
+  buffer — `DrawPolygonTool` — has no door in the Plan Editor at all after this increment (design
+  spec §2.1). Recorded at [[Show an active creation-task banner with complete controls]].
 - **Extension 1a — Add is not blocked in a stale or failed state.** `stale` feeds the warning strip
   and nothing else, so Add stays live over content the last read-back could not confirm; the same
   residue [[Inspect a selected room]] records for Delete.

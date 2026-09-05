@@ -54,8 +54,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.default-currency.name': 'Standardwährung',
 	'settings.default-currency.desc':
 		'Die Währung, in der ein neues Projekt kalkuliert wird. Ein Projekt ohne eigene Währung folgt dieser Einstellung.',
-	// „Zonen“, nicht „Bereiche“: die deutsche Oberfläche nennt eine Zone überall sonst so
-	// (`editor.zone.default-name`, `editor.inspector.delete-zone.reassign-title`).
+	// „Zone“ war einmal das Wort dieser Oberfläche, und der Beleg, den dieser Kommentar dafür
+	// nannte, sagt es nicht mehr: `editor.inspector.delete-zone.reassign-title` fragt seit
+	// Task 6 nach „Raum oder Fläche“ (ADR-0016). Wo eine Zeichenfläche gemeint ist, heißt es
+	// hier weiterhin „Zone“ — nur eben nicht dort, wo ein Bewohner mitliest.
 	// „Vault“ bleibt unübersetzt — Obsidians eigener Name dafür, was `strings.test.ts` prüft.
 	'command.show-diagnostics-report': 'Diagnosebericht anzeigen',
 	'settings.diagnostics.name': 'Diagnosebericht',
@@ -73,8 +75,11 @@ export const de: Partial<Record<StringKey, string>> = {
 	'diagnostics.none': 'Keine',
 	'diagnostics.copy': 'Bericht kopieren',
 	'diagnostics.copied': 'Diagnosebericht kopiert.',
+	// „Räume oder Flächen“ statt „Zonen“, aus demselben Grund wie bei
+	// `reference.no-reassignment-target`: Diese Absage ersetzt die Auswahlliste im Löschdialog
+	// des Grundriss-Editors.
 	'zone.listing-incomplete':
-		'Einige Zonen in diesem Projekt konnten nicht gelesen werden, daher ist die Liste möglicher Ziele unvollständig. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
+		'Einige Räume oder Flächen in diesem Projekt konnten nicht gelesen werden, daher ist die Liste möglicher Ziele unvollständig. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'asset.listing-incomplete':
 		'Einige Objekte im Katalog konnten nicht gelesen werden, daher ist die Liste möglicher Objekte unvollständig. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'settings.verbose-logging.name': 'Ausführliche Protokollierung',
@@ -138,7 +143,12 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.referents-exist': 'Andere Einträge referenzieren dies noch. Entfernen Sie die Referenzen oder weisen Sie sie zuerst neu zu.',
 	'reference.set-changed': 'Die Referenzen hierauf haben sich während Ihrer Entscheidung geändert. Bitte prüfen und erneut bestätigen.',
 	'reference.resolution-required': 'Dies wird noch referenziert. Entscheiden Sie vor dem Löschen, was mit diesen Referenzen geschehen soll.',
-	'reference.no-reassignment-target': 'In diesem Projekt gibt es keine andere Zone, der diese Anforderungen zugewiesen werden könnten.',
+	// „Raum oder Fläche“ statt „Zone“: Diese Absage erscheint im Löschdialog des
+	// Grundriss-Editors, dessen Beschriftungen daneben ebenfalls von Räumen und Flächen
+	// sprechen. Zwei Substantive verschiedenen Geschlechts (der Raum, die Fläche), daher
+	// „keinen anderen Raum und keine andere Fläche“ und ein Plural-Relativpronomen im Dativ.
+	'reference.no-reassignment-target':
+		'In diesem Projekt gibt es keinen anderen Raum und keine andere Fläche, denen diese Anforderungen zugewiesen werden könnten.',
 	'reference.no-reassignment-asset':
 		'In diesem Vault gibt es kein anderes flächenbasiertes Objekt, dem diese Anforderungen zugewiesen werden könnten.',
 	'reference.self-reassign': 'Referenzen können nicht dem zu löschenden Eintrag neu zugewiesen werden. Bitte einen anderen wählen.',
@@ -218,17 +228,22 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.project.no-projects.body': 'Ein Renovierungsprojekt enthält Ihre Grundrisse, Zonen, Objekte und Kosten. Erstellen Sie eines, um zu beginnen.',
 	'empty.plan.no-background.headline': 'Noch kein Plandokument',
 	'empty.plan.no-background.body': 'Legen Sie einen Grundriss, Lageplan, eine Skizze oder einen Gartenplan als Hintergrund dieses Plans fest und kalibrieren Sie ihn, damit Flächen in echten Einheiten herauskommen.',
-	'empty.plan.no-zones.headline': 'Noch keine Zonen',
-	'empty.plan.no-zones.body': 'Zeichnen Sie die erste Zone auf diesem Plan. Ihre Fläche wird aus dem Umriss gemessen und bestimmt Mengen und Kosten für alles, was Sie ihr zuweisen.',
-	'empty.plan.no-zones.action': 'Zone zeichnen',
+	'empty.plan.no-zones.headline': 'Noch keine Räume',
+	'empty.plan.no-zones.body': 'Fügen Sie den ersten Raum auf diesem Geschoss hinzu. Seine Fläche wird aus dem Umriss gemessen und bestimmt Mengen und Kosten für alles, was Sie ihm zuweisen.',
+	'empty.plan.no-zones.action': 'Raum hinzufügen',
 	// Design slice 17: die Fehlerzustände, die den Inhalt einer Ansicht ersetzen.
 	'view.failure.retry': 'Erneut versuchen',
 	'view.project.failed.headline': 'Projekte konnten nicht geladen werden',
 	'editor.plan-failed.headline': 'Dieser Grundriss konnte nicht geladen werden',
 	'editor.refresh-failed': 'Dieser Grundriss konnte nach der letzten Änderung nicht neu gelesen werden; die Anzeige ist möglicherweise nicht aktuell.',
-	// „Zonen“, wie überall sonst in dieser Oberfläche — siehe `zone.listing-incomplete`.
+	// Reviewer round 1 (Task 6): eine Notiz, die nicht gelesen werden konnte, kann ein Raum
+	// oder eine Fläche sein. Damals stand hier, `zone.listing-incomplete` sage weiterhin
+	// „Zonen“, weil es kein `editor.`/`empty.plan.`-Präfix trägt und die „nie Zone“-Regel es
+	// deshalb nicht erfasst. Das Präfix erfasst es immer noch nicht — die Endabnahme hat den
+	// Schlüssel dennoch umformuliert, weil er im Löschdialog genau dieses Editors erscheint;
+	// `strings.test.ts` prüft ihn jetzt namentlich.
 	'editor.some-zones-unreadable':
-		'{count} Zone(n) in diesem Grundriss konnten nicht gelesen werden und werden nicht gezeichnet. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
+		'{count} Raum/Räume oder Fläche(n) in diesem Grundriss konnten nicht gelesen werden und werden nicht gezeichnet. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'editor.plan-missing.headline': 'Diesen Grundriss gibt es nicht mehr',
 	'editor.plan-missing.body': 'Dieser Tab verweist auf einen Grundriss, der nicht mehr im Vault ist.',
 	'editor.plan-missing.action': 'Tab schließen',

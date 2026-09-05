@@ -406,8 +406,10 @@ already hydrates. Rules that came out of it:
   deliberate, tested change rather than an oversight closing quietly. (The same file
   asserted `renovationProject.noProjects`'s absence too, until design slice 16 flipped that
   assertion the other way — see that slice's section below.) `planEditor.noZones` is the
-  other entry that keeps a button, because its hand-off (`activeToolId = 'draw-polygon'`) already
-  exists and is reachable from the editor's own state.
+  other entry that keeps a button, because its hand-off already exists and is reachable from the
+  editor's own state — `activeToolId = 'draw-polygon'` when this was written, and
+  `activateCreationEntry('room', runtime)` since the Add Room increment routed that button
+  through the same one door the Add menu takes.
 - **Promoting a mock is not always a byte-for-byte move, and the honest account says which
   file pair that criterion is actually held for.** `EmptyState.vue`'s template crossed from
   `src/prototypes/` unchanged except for one added line, `@click="$emit('action')"` — the
@@ -2203,8 +2205,23 @@ a per-form `FieldErrorMap` and answers either the field(s) it names or a form-le
 when nothing does — `calibration.coincident-points` is the banner's own worked example,
 since neither `pointA` nor `pointB` alone is wrong. `<FieldError>` mints its own input id and
 hands `{ inputId, aria }` down a scoped slot rather than looking one up, with
-`app.config.idPrefix` set at BOTH `createApp` sites (`app-id-prefix.ts`) so two Vue apps'
-`useId()` calls cannot collide; `<FormBanner>` renders the fallback. Two composables share
+`app.config.idPrefix` set at EVERY `createApp` site (`app-id-prefix.ts`) so two Vue apps'
+`useId()` calls cannot collide; `<FormBanner>` renders the fallback. **That said "BOTH" for
+five slices and it is the count paragraph at the top of this file all over again, in the one
+shape that paragraph names as the hardest to see:** it was true when slice 16 wrote it, the
+asset designer made it three and the asset library made it four, each on its own branch, and
+the merge of them left FOUR docblocks — this line, `ProjectFilter.vue`, `AssetShelf.vue` and
+`ProjectHome.vue` — each reading correctly in isolation and all four wrong about the tree.
+`AssetLibraryView.ts`'s own header had even predicted the move ("a fourth `createApp` call here
+is what moves it to four"), which is a prediction with nothing to fire it. So all four say
+EVERY now and none of them counts, and `tests/build/appIdPrefix.test.ts` is what makes that a
+fact: the RULE (every discovered mount site sets the prefix, which holds for files nobody has
+written yet) plus the SET (exactly those four paths, so a walk that reaches nothing is
+distinguishable from a clean tree, and a FIFTH surface fails at that assertion beside the
+reasoning rather than passing while five sentences go quietly stale). Both mutations were run:
+dropping one assignment reddens the rule and names the file, and adding a fifth mount that
+REMEMBERS the prefix passes the rule and is caught only by the set — which is why it is two
+assertions rather than one. Two composables share
 that vocabulary at two different commit boundaries: `useFieldCommit` (blur/enter — Task 9
 moved the Inspector's two Requirement override fields onto it) and `useFormCommit` (one
 explicit submit — `NewProjectForm`, this slice's only creation dialog). A rejected commit
@@ -3725,6 +3742,469 @@ rules that came out of it:
   `docs/requirements/Open a floor plan in the Obsidian editor shell.md`, where the next author of
   that surface will meet it, rather than here alone.
 
+**The plan editor foundation's SECOND increment has landed: Add Room, and one homeowner
+gesture produces one domain record.** Add's Room entry activates a new `'draw-room'` tool; a
+primary drag on the floor writes one axis-aligned rectangle whose width, depth and area follow
+the hand; the Inspector is replaced by a New room form — a counted default name, six suggestion
+buttons, two length fields in METRES, an area row, `Keep adding rooms`, Create and Cancel — and
+ONE press writes ONE `ReversibleCreateZoneCommand`, selects the new Room and returns to Select.
+Nothing about the model moved: a Room is still a `Zone` note plus a sidecar entry under one id,
+which `editorRoundTrip.test.ts` now says through the REAL command rather than through a fixture.
+The rules that came out of it:
+
+- **A draft edited from two surfaces is ONE store, and that is a recorded deviation from
+  `RenderState` rather than an oversight.** SDD §19 puts a tool's transient visual in
+  `RenderState`; `RoomDraftStore` (Pinia, one per leaf) holds this one, and the Konva sketch
+  READS it. Two reasons, and the second decides it: the draft is not only a visual — it carries a
+  name, two field drafts, two field errors and a checkbox — and it must OUTLIVE the gesture,
+  because the numeric route creates a rectangle with no gesture at all. What that buys is that
+  "dragging and numeric dimensions converge on the same creation command" is a fact about the
+  SHAPE rather than a test's assertion: one store is written by both, one action
+  (`createRoomFromDraft`) reads its `geometry` getter, and there is no second path to converge.
+- **A tool that stays registered with no door is a stated absence, and stating it is the whole
+  of the work.** `DrawPolygonTool` is still in the Plan Editor's `ToolManager` — the asset
+  designer registers the same class, and test files drive it by id — and after this increment no
+  control in the Plan Editor reaches it: `grep -rn "'draw-polygon'" src/presentation/editor/add
+  src/presentation/editor/PlanEditorRoot.vue` prints nothing. That is the exact shape slice 7
+  paid for from the other side (a tool registered nowhere, invisible to all four gates), so the
+  trigger is written down in three places rather than one — the design spec's §2.1, the
+  `Start room creation from Add` PBI's amendments, and here: the free-form-room PBI, whose own
+  task adapts that tool behind Room language and gives it a door.
+- **"Room, never Zone" as a TEST turned out to falsify four labels that had nothing to do with
+  this increment, and the fix is a rule about TRUTH rather than about vocabulary.**
+  `strings.test.ts`'s 'says Room and never Zone anywhere a homeowner reads the editor' runs
+  `/\bzones?\b/i` over every `editor.*` and `empty.plan.*` value of BOTH locale tables. Nine
+  values failed, every one of them pre-existing, and for four of them the obvious repair — say
+  "room" — was FALSE:
+  `RoomInspector` renders for any zone type and `hasGeometryToRescale` counts every zone, so
+  "Delete room", "…this room…", "…which room?" and "Rescale the rooms…" all lie the moment the
+  selected zone is a Garden or a Terrace. ADR-0016's homeowner split is exactly Room OR Area, so
+  they ship as "room or area" — or, better, with no noun at all: `editor.inspector.delete-zone`
+  is just **Delete**, since the Inspector around it already names the type. **A regex that
+  refuses one word forces every value it touches to be true for every `ZoneType`**, which is
+  more than the PBI asked for and is why it found four labels the increment never intended to
+  edit.
+  **What that regex cannot see is worth knowing before the next locale grows one:** German's own
+  plural is "Zonen", and `/\bzones?\b/i.test('Zonen')` is `false` — measured, not reasoned —
+  because the `\b` fails against the trailing `n`. It costs nothing today only because no
+  surviving value under those two prefixes says it.
+- **"Out of bounds" was a claim about a Floor, and a Floor has no extent.** The task asks that
+  numeric input placing a room "outside editable bounds" be refused; ADR-0017's Plan has no
+  extent and a background is optional, so there is nothing to be outside of. The refusal reduces
+  to numeric sanity, stated once as `parseMetres`'s three arms — not a number, not positive, and
+  longer than `MAX_ROOM_SIDE_MM`, which is **1,000,000 mm: a kilometre**, and not a Floor's edge.
+  Narrowed in the task's own amendment rather than met by inventing a bound.
+- **A test that batches its input into one Vue flush is a test of a different program, and this
+  one PASSED against its own mutation.** The live region's contract is that `settle()` writes the
+  settled sentence on a drag END and never on a move, so the case fires twenty pointer moves and
+  asserts the `role="status"` text changed exactly once. As briefed, those twenty were
+  synchronous with a single `await` after them — Vue batches all twenty into ONE render, so a
+  `MutationObserver` records one mutation whatever the store did in between. Measured: with
+  `draft.settle()` inserted into `DrawRoomTool.pointerMove` — the exact defect the criterion
+  forbids — the case read `seen.length` 1 and passed. It awaits per move now, which is the
+  grammar a real device sends, and the same mutation goes red at that assertion. **The
+  repository's own "a simulated pointer stream has to obey the real device's grammar" rule,
+  arriving at the FLUSH rather than at the event shape.**
+- **Asserting the OUTCOME cannot discriminate a guard whose absence produces the same outcome.**
+  `NewRoomInspector.onCreate` refuses while `canCreateRoom` is false, and its case asserted that
+  an incomplete draft creates nothing — which is equally true with the guard deleted, because
+  `createRoomFromDraft` answers `'invalid'` for that draft on its own. The first report named
+  this as an acceptable residue; a review round called it the defect it is. The case spies
+  `runtime.createRoom` and asserts `not.toHaveBeenCalled()` BEFORE the two outcome assertions,
+  which stay — a spy alone would not say the vault was left alone — and deleting the guard
+  reddens it at the spy. Its sibling on the banner's Finish was written the same way from the
+  start.
+- **`onBeforeUnmount` never fires for a component whose OWN ROOT carries the `v-if`.**
+  `TemporaryToolBanner` is mounted for the life of the leaf and draws nothing while no task is
+  running, so the brief's focus recovery — copied from `NewRoomInspector`, which its PARENT
+  mounts and unmounts — was called zero times, and Finish left focus on `<body>`. Measured with a
+  scratch SFC rather than reasoned from the documentation, and measured again in the other
+  direction: at a real full-tree teardown the hook DID fire, with `root.value` already `null`,
+  which threw inside an unrelated test. It is `watch(task)` now, whose default `'pre'` flush runs
+  before the owning component's own DOM patch — the same "before" moment the other surface's hook
+  gets, reached through a mechanism that works for a self-`v-if`'d root.
+- **An `aria-describedby` naming an element that is not there is the dangling half of a
+  conditional pair, and it reads as correct in every screenshot.** The brief bound it
+  unconditionally beside a hint the template `v-if`s away once the draft is valid. One condition
+  drives both now (`runtime.canCreateRoom.value ? undefined : hintId`), so the reference and its
+  target cannot disagree, and the case asserts BOTH states rather than the blocked one — the
+  valid state being the half that looks fine. The ruling that ordered the fix named `axe`'s
+  `aria-valid-attr-value` as what would have caught it, and nothing here measured that claim,
+  because the scans landed six tasks after the form and found the binding already conditional.
+- **A docblock claiming "both callers go through this and nothing else" was a claim about one
+  caller.** `activateCreationEntry(id, runtime)` is the one door from the Add menu and from the
+  no-rooms empty state — and `AddMenu.vue` went on calling `entry.activate(runtime)` directly.
+  Behaviourally identical (the same closure, on the same object), so every case passed; the
+  claim was simply false. The fix is one line, and the instrument is the SOURCE-TEXT case this
+  repository already uses for a caller list: it reads both files and refuses `entry.activate(`
+  as well as requiring `activateCreationEntry(`. That test then caught its own author, because
+  the docblock added beside the fix contained the forbidden substring in prose.
+- **A refusal has ONE surface, and which one is a fact to be traced rather than guessed.** A
+  detonated `zones.save` during Create raises a `Persistence` refusal; `affectsSaveState` reads
+  that as write-affecting, so `withSaveStateTracking` flips the **save-state badge** — and
+  `report-failure.ts` routes the same error at an `autosave-write` origin, whose sink for a
+  toast is deliberately a no-op, because slice 17 forbids one failure reported through two
+  widgets that can drift apart. So the e2e case asserts the badge AND that `Notice.shown` did not
+  move, over a LIVE notice queue: over an inactive one the second half would be true of every
+  build ever written.
+- **A `clear` that leaves the sentence describing what it cleared is a stale announcement, and
+  the invariant was half-applied by its own author.** `RoomDraftStore.clearRect()` nulled the
+  origin, the sides, the texts and the errors and left `settledSize` holding "4.2 m by 3.8 m,
+  15.96 m²" — while `beginTask()` nulled it explicitly right after its own `clearRect()` call,
+  which is the proof the rule was known and only half-applied. The handling belongs to the FUNCTION, not to the callers that have to remember
+  it: `clearRect` nulls it and `beginTask`'s line went away.
+- **A plan's code snippet is a hypothesis about which arms are reachable, and three of them were
+  wrong in one increment.** `parseMetres`'s `normalised === 'Infinity' ? …` ternary sat INSIDE an
+  `if` whose regex alternation already admits `Infinity`, so its first arm was unreachable;
+  `DrawRoomTool.pointerUp`'s `this.context?.viewport.worldPerScreenPixel() ?? 1` could not take
+  the fallback, since an anchor exists only after `activate` set the context; and
+  `createRoomFromDraft`'s `if (createdId !== null)` false arm is reachable only through a
+  dispatcher that resolves `ok` without ever running the command. The first two were
+  restructured until the arm did not exist; the third was given the fake that drives it. This
+  file's floors are why: **an unreachable guard is not free**, and a plan that ships one has
+  moved the cost to whoever runs the gate.
+- **`ReversibleCreateZoneCommand` takes a `deps` bundle, and the plan's five positional ports
+  were a memory of an older signature.** The real constructor is
+  `(createCommand, deleteCommand, ledger, input, deps)`, and `ReversibleCreateZoneDeps` wants
+  `zones`, `events`, `requirements` and `logger` — so `RoomCreationDeps.commands` is a `Pick`
+  with a NESTED `Pick` on `requirementEdits`, naming exactly the one member the restore path
+  needs rather than admitting the whole bundle. The construction mirrors the draw-polygon
+  completion's, one file away, rather than being re-derived.
+- **The captures found the increment's only layout defect, and it was in the one surface every
+  route to a room passes through.** `.rp-task-banner` centred itself with `left: 50%` plus a
+  `transform: translateX(-50%)` — and for an absolutely positioned shrink-to-fit box with
+  `right: auto` the available width is the space from that 50% to the containing block's right
+  edge, which the transform then slides without buying back. **A transform is not layout.** So
+  "Adding a room" broke mid-phrase at 1280 px with 800 px of canvas to spare, and at 460 px the
+  instruction became ELEVEN lines of one and two words in a ~250 px slab over the canvas it
+  describes. Both insets named, `width: fit-content`, `margin-inline: auto` — the
+  over-constrained case, where the leftover is split equally — and `flex-wrap: wrap` for the
+  width that genuinely cannot hold one line. jsdom lays nothing out, so the two PNGs are the
+  whole instrument: a regression to `left: 50%` would be invisible to `npm run check` and visible
+  only to the next person who opens them. The state they photograph is reached through the REAL
+  doors rather than by writing the store — `?room=<width>x<depth>` reuses the existing `?add`
+  knob to open the menu, clicks the Room item and types each side into the form, blurring it the
+  way `@blur="commit(...)"` listens for — and at 460 px it also presses the rail's Details button
+  and closes the drawer again, because the drawer is `position: absolute` at `min(17rem, 80%)`
+  and leaving it open would cover the very banner the narrow shot exists to show.
+- **The pinned Chromium was there, and a report that it was not is worth as much as a report of
+  a defect.** `scripts/chromium.mjs`'s own resolver answered `chromium-1234/chrome-win64/chrome.exe`
+  in this worktree, so both captures are the PINNED browser with no `RP_CHROMIUM_EXECUTABLE` and
+  no approximate caveat — unlike the price-override increment's, whose captures carry one. That
+  contradicted a mid-task claim that the resolver returned `null`; it was settled by re-running
+  the resolver rather than by either party's recollection.
+- **Machine contention is not news and its FREQUENCY is.** Six of this increment's task reports —
+  tasks 1, 2, 3, 4, 6 and the batched 12+13 — record `tests/build/` files timing out in
+  `beforeAll` under default file-parallelism and passing on a serial re-run, which is exactly the
+  hazard this file already documents; one of those six also hit a different flake entirely, a
+  Windows temp symlink-probe `EPERM` in `fixtureVault.test.ts`. What that says is not that the remedy has
+  changed — it has not, and serial is the DIAGNOSTIC rather than the remedy — but that on a
+  contended machine the documented hazard is the ordinary case rather than the rare one, so a
+  report that does NOT mention it is the one worth reading twice.
+
+**The final review of that increment found two defects and six false sentences, and the two
+defects are the same shape from opposite ends: a rule kept at ONE of the two doors that owes
+it.**
+
+- **A rule the numeric route enforced and the drag route did not, in the one place both were
+  supposed to converge.** Design spec §2.7 states "a side must be positive" as `parseMetres`'s
+  three refusals, so a typed `0` is `not-positive` and never reaches the store's sides at all —
+  and a DRAG straight along one axis has no such door: `moved` clears `DrawRoomTool`'s
+  four-pixel click epsilon, `pointerUp` settles rather than taking it back, and the store
+  answered `{ width: 4200, depth: 0 }`. `createPolygon` validates the coordinate COUNT and
+  their finiteness, `Zone.create` defers to that same validator, so `valid` was true, Create
+  dispatched, and a Room of area zero was written and selected. **Two routes into one store is
+  exactly where a rule gets kept once**, and the store is where the increment's own headline
+  claim — "dragging and typing converge on the same creation command" — put it.
+
+  The refusal is at **`rect`, not at `valid`**, and the choice is the useful half.
+  `geometry`, `areaMm2`, `valid`, `settle()`, `RoomDraftSketch` and `DrawRoomTool.hasDraft()`
+  all read `rect`, so one answer settles all six; a guard on `valid` alone would have drawn a
+  flat outline, printed an area of 0 m², announced a 0 m² sentence to a screen reader and left
+  a Create button the user cannot press with nothing saying why — the live-control-that-does-
+  nothing shape slice 14's own amendment refuses, dressed as a fix. `> 0` rather than `!== 0`,
+  which refuses a negative side and a `NaN` one in the same test, and `Infinity` deliberately
+  passes it so `polygonForRect`'s refusal stays reachable — the store case that used to drive
+  `NaN` for that arm drives `Infinity` now, because the new guard would otherwise have made
+  the arm it was written for unreachable. **A guard added upstream can retire the test of the
+  guard below it**, which reads as coverage until somebody checks which line the case is
+  actually exercising.
+
+  The CLASS is the one this file already carries open: three COLLINEAR vertices are a
+  zero-area polygon that nothing refuses, and closing it is a change to `createPolygon` (SDD
+  §26 files degeneracy under "Future"). This closes the RECTANGULAR case at the one door that
+  can see it and claims nothing wider; the note beside `rectFrom` says so.
+- **A brand's guarantee holds where the PARAMETER is typed with it, and nowhere else.**
+  `ToolDispatcher`'s own docblock calls `mapDispatchFaults` "one the compiler will not let a
+  surface skip". `RoomCreationDeps.dispatcher` was typed `{ run(command: UndoableCommand):
+  Promise<DispatchResult> }` — the brand's own shape minus the brand — so `runtime.ts` composed
+  the room action around the raw `wrappedDispatcher` and the compiler said nothing, while every
+  tool on that same leaf went through the mapping. `withSaveStateTracking` re-throws a
+  technical fault and both callers launch `createRoom()` detached, so a vault fault under
+  Create was an unhandled rejection: no notice, no log line, the button silently dead. **A
+  phantom brand is a check that a call site DECLARED something, and a structurally identical
+  parameter one file away is the self-declared shape this file already warns about** — the same
+  defect as a guard on the door nobody dispatches through, arriving through the TYPE rather
+  than through the routing.
+
+  Measured rather than argued, in both directions. Typing the parameter turns the old wiring
+  into `TS2322: Property '[FAULT_MAPPED]' is missing in type 'RefreshedHistory'` — so the fix
+  is the compiler's now, not review's. And the remaining exposure is a grep rather than a
+  hope: `grep -rn "run(command: UndoableCommand): Promise<DispatchResult>" src/` prints **six**
+  lines, of which two are `report-failure.ts`'s own (the brand's definition and
+  `mapDispatchFaults`'s parameter, which must take an UNbranded dispatcher or nothing could be
+  wrapped), one is `CommandHistory.run`'s implementation, one is `EditorContext`'s tool-facing
+  member (deliberately unbranded — `EditorContextDeps` carries the brand, so the requirement
+  is at composition and the tools see the plain shape), and the last two are the INSPECTOR's,
+  whose throws are mapped by `makeCommitField`'s own `catch` into the same coded
+  `PersistenceError`. A different last stop, not a missing one — which is a sentence worth
+  checking the next time this grep grows a seventh line.
+- **A category check's SCOPE is a lens, and the two sentences outside it were on the surface
+  the increment had just relabelled.** `strings.test.ts`'s "Room, never Zone" runs over
+  `editor.*` and `empty.plan.*`, which is what the spec draws — and the reassign decision the
+  Plan Editor's Delete button opens surfaces `reference.no-reassignment-target` and
+  `zone.listing-incomplete`, neither of which carries either prefix. Both said "zone" to a
+  homeowner, in a dialog whose own title says "room or area". The scope stayed as drawn
+  (widening it sweeps in every `reference.*` and `zone.*` sentence, most of which no editing
+  surface shows) and the two keys are NAMED in a case of their own — a list, which this
+  repository normally refuses, and the reason it is right here is that the list is precisely
+  what the rule deliberately excludes. **When a rule wide enough to cover a case is a rule you
+  have declined, the honest instrument is a named case, not a silently wider regex.**
+  Its German half spells the stem itself (`R(aum|äume)`, `Fläche`), because `/\bzones?\b/i`
+  cannot see `Zonen` — the blind spot this file already recorded, met by the first check that
+  needed it.
+- **A comment can be true of one of the two properties it is about.** `.rp-task-banner
+  .rp-task-banner__finish` (0,2,0) sat under a note saying `[aria-disabled="true"]` dimming is
+  Obsidian's own selector, "so nothing is declared here for that state". True of `opacity`,
+  which this project never declares and Obsidian's `button[aria-disabled="true"]` (0,1,1)
+  still wins — and false of `cursor`, which the same host rule sets and the two-class compound
+  outranks with `pointer`: the blocked Finish button dimmed correctly and invited a click. Its
+  own sibling three files away, `.rp-new-room__create`, restates the disabled cursor
+  explicitly and says why. **A compound written to beat one host rule beats every host rule
+  that shares its subject**, including the ones the author never thought about, so the
+  question is not "did my declaration win" but "what else did it take with it".
+
+**Three more defects came back from the review bot AFTER that final review, and all three are
+one shape: a rule this repository states somewhere else, not carried to the door that owed
+it.** Worth reading as a set rather than as three items, because the set is the finding.
+
+- **The RELEASE names the rectangle, and `DrawRoomTool.pointerUp` settled whatever the last
+  `pointermove` had left.** It measured `moved` from `event.worldPoint` — so the gesture read
+  correctly as a drag — and then called `settle()` without ever writing that point, so the
+  committed rect ended at the last move rather than where the hand let go. W3C Pointer Events
+  guarantees NO move between a `pointerdown` and a `pointerup`, so a fast flick is a legal
+  stream with none: measured, that drag settled a null rect and produced no Room and no error,
+  and with an earlier rectangle present it silently kept the OLD one, which is worse because
+  the user sees a rectangle and it is the wrong one. `SelectTool` had the rule already
+  ("computes the commit from the release's world coordinate") — the sibling tool, in the same
+  directory, quoted in this file two sections up.
+- **A continuation that crosses an `await` re-checks whether its task is still its own**, which
+  `DrawPolygonTool` and `CalibrateTool` each do with a generation counter and
+  `createRoomFromDraft` did not. The window is open BY DESIGN: that module's own header argues
+  Cancel must stay live during a vault write, so a user can cancel, reactivate Room and draw
+  again before the first write resolves — and the stale continuation then read the REPLACEMENT
+  task's `keepAdding`, either calling `beginTask` (clearing the rectangle just drawn) or
+  `returnToSelect` (ending a task just started). `RoomDraftStore.taskToken` is that counter,
+  bumped by `beginTask` and `reset`; the outcome union gained `'superseded'`. **A COUNTER and
+  not a flag**, because two successive tasks must be distinguishable from each other rather
+  than from "no task", and `keepAdding` restarts a task on the success path itself. Two things
+  the fix had to keep: the guard returns AFTER selecting, since the write really did land and
+  the header promises the new Room is still selected — a guard placed one line earlier passes
+  the supersession case and silently drops that selection, which is why there is a case for
+  each half — and the `finally` clears `submitting` only for its OWN token, since `beginTask`
+  clears it too and an unconditional clear would release a replacement task's in-flight guard.
+- **The positivity rule is about the MILLIMETRE and `parseMetres` checked the metre.** Anything
+  under half a millimetre is positive as typed and `Math.round`s to `mm: 0`, so `0.0001`
+  answered `{ ok: true, mm: 0 }`: `commitDimension` cleared the field's error while `rect`'s
+  own `> 0` guard refused the rectangle, leaving every field apparently accepted and Create
+  blocked with nothing naming a side. **The same defect the final review had just closed on
+  the DRAG route, arriving at the numeric one** — that review put the guard at `rect` because
+  six readers share it, and this is the half `rect` cannot do, since `rect` decides whether a
+  rectangle exists and cannot say why not. So the refusal is at BOTH doors rather than moved:
+  `parseMetres` is the only place a `LengthRefusal` is minted and therefore the only path to a
+  per-field message.
+
+- **A FOURTH came back on the next round, and it is the sharpest of the set: `formatMetres`
+  and `parseMetres` are an ENCODE/DECODE across a control the user can focus, and nothing had
+  asked them to agree.** `RoomDraftStore.setRect` writes the formatter's output into the two
+  editable width/depth fields, and their blur handler hands that same text back to
+  `parseMetres` — so focusing an untouched field and leaving it re-parses a rectangle nobody
+  edited. Both options of a one-line `toLocaleString` call were wrong for that job:
+  `maximumFractionDigits: 2` cannot express a millimetre, so a valid 1–4 mm side printed `0`
+  and came back `not-positive` (a good draft made uncreatable by a blur that changed nothing),
+  and 5 mm printed `0.01` and came back as 10 mm; and `en-US` GROUPS thousands with a comma
+  while `parseMetres` reads a comma as a DECIMAL separator on purpose, for a German numeric
+  keypad — so 999,999 mm printed `1,000` and came back as 1000 mm, **a silent 1000× shrink**,
+  from 999,500 mm upward rather than only at the `MAX_ROOM_SIDE_MM` boundary. `useGrouping:
+  false, maximumFractionDigits: 3` is the fix, three decimals being exactly millimetre
+  precision in metres because `parseMetres` rounds to the millimetre anyway.
+  **The property is what to remember rather than the options**:
+  `parseMetres(formatMetres(mm)).mm === mm` for every whole millimetre the draft can hold,
+  verified over all 1,000,000 of them (zero mismatches) and asserted over the two dangerous
+  ranges plus a prime-strided sweep. A separate display formatter was REFUSED on this file's own
+  "one rule with two doors is two rules unless one function holds it" — the door that would
+  drift is the one feeding the control — so the whole cost is that a side above 999 m reads
+  `1000` rather than `1,000`, against a maximum of exactly 1000 m. And the consequence has cases
+  at the STORE beside the property one at the formatter, because the numbers are only wrong once
+  they have been through a control; both were watched red against the reverted options, failing
+  as `not-positive` and as `1000` against `999999`.
+
+**The meta-point, and it is this file's oldest lesson arriving at its own final review.** That
+review closed two defects and wrote up six false sentences, and reported the branch as done.
+Every one of these four was live underneath it, and none is exotic: each is a rule already
+written down in this file or in the module next door, missing at exactly one door. **A review
+that finds defects is not evidence that the class is closed** — the two the final review found
+were the zero-side rectangle and the phantom brand, and the zero-side one has a THIRD door
+(`parseMetres`) that the same review did not look at while fixing the first two.
+
+**And the fourth arrived one round AFTER the three above were fixed and written up, which is
+the same sentence one level higher.** The round that closed them added a per-field refusal to
+`parseMetres` and never asked what WROTE the text `parseMetres` reads — so the encode/decode
+defect was sitting under the very function that round had just edited. Every one of these four
+was reachable by an ordinary gesture, all four passed `npm run check`, and the count of review
+rounds that have found "one more" on this branch is now five. The useful reading is not that
+the reviews are good, it is that **"the class is closed" is a claim with the same standing as
+any other claim in this repository: it needs an instrument, and until one exists the honest
+statement is that nobody has looked at the next door yet.**
+
+**A SIXTH review round on that branch found fifteen more, and the shape of the round is worth
+more than the list.** It was a whole-diff review rather than another pass over the doors the
+previous five had been walking, and what it reached were the files the diff does NOT contain
+(`EditorSurface.vue`'s cursor list), the layers under the code (`vue-konva`'s reconciler, a
+regex engine's backtracking, `Intl`'s construction cost), and the instruments themselves (a
+locale check that could not see its own language's plural, a `Record` cast asserting a totality
+nothing held). The paragraph above says "nobody has looked at the next door yet"; this round is
+what looking at a different KIND of door produced. The rules that came out of it:
+
+- **A review's FINDING can be right and its proposed REMEDY wrong, and the remedy is the half
+  nobody re-measures.** Three of these fifteen shipped something other than what the report
+  proposed, each because the proposal was measured before it was taken. The z-order defect
+  offered two fixes and **neither works**: a `<VGroup>` root carrying the `v-if` still draws
+  last, because vue-konva reindexes on the LAYER's `onUpdated` and Vue runs a parent's update
+  job before its child's, so the group does not exist yet when the reindex runs; hoisting the
+  `v-if` to the call site fixes nothing at all, since the defect is the FRAGMENT root and three
+  fragment-rooted siblings are three invisible nodes rather than one. What ships is a `VGroup`
+  mounted UNCONDITIONALLY with the `v-if` inside it — resolvable, so it enters the ordering
+  array, and created in the layer's own first render pass, so its index is right whoever
+  re-renders next. The live-region fix was likewise not the one predicted: the brief argued
+  `:empty { display: none }` could simply be deleted because an empty block generates no line
+  box, and that is true and irrelevant — `.rp-new-room` is a column flex container with a
+  `gap`, and an in-flow flex item earns its gap whatever its size, so deleting the rule adds
+  dead space. `position: absolute` is what is left: out of flow, so no gap, and still IN the
+  accessibility tree, which `display: none` and `visibility: hidden` both forfeit.
+- **The `tests/build/` worker split is the sharpest instance, because the proposed remedy was
+  measured RED.** The finding was right — the `build` project ran **174s** serially on this
+  machine (2026-09-05, quiet tree) of which the twelve ESLint-booting files are **34s**, so four
+  fifths of it was 29 files that boot nothing and had run parallel-safely for their whole lives.
+  The proposed remedy was "a third project holding those twelve". Shipped exactly as written it
+  turns the gate RED, because that filter is scoped to `tests/build/` and keyed on IMPORT, and
+  ESLint gets booted two ways: `tests/helpers/eslint.test.ts` imports the shared instance as a
+  SIBLING (`./eslint`) from outside that directory, and `tests/build/lint-edited.test.ts`
+  imports nothing and SPAWNS a linter per invocation. Both then ran against the full parallel
+  suite and blew their 60s budgets. `vitest.config.ts` derives the set across all of `tests/`
+  from a pattern naming both mechanisms; whole suite **269s to 167s**, 461 of 461 green.
+  Three things about how it is written, each a rule this file already states:
+  - **DERIVED, never listed.** Which files boot ESLint is a fact about the import graph, and a
+    hand-written twelve is right the day it is written and silently wrong the day a thirteenth
+    file imports the helper — silently, because a missing entry makes the run slower or flakier
+    rather than red.
+  - **It THROWS when it finds nothing**, and that is what makes deriving safe: an instrument
+    that reaches nothing looks exactly like a clean tree, so a moved helper would drop every
+    file into the parallel projects and bring the timeouts back with nothing to say why.
+    Verified by planting a pattern that matches nothing and reading the error.
+  - **The pattern is drawn by the ASYMMETRY rather than by precision.** Over-matching costs a
+    cheap file a few serial seconds; under-matching costs an intermittent `beforeAll` timeout
+    that wastes a whole gate and reads as somebody else's CPU. It is still not the widest
+    available — a bare case-insensitive `eslint` matches 25 files, most of them ordinary fast
+    tests mentioning it in a comment.
+- **A JavaScript word boundary is defined over `[A-Za-z0-9_]`, so it cannot see a German plural
+  or an umlaut — and this repository had TWO checks resting on one.** The "Room, never Zone"
+  category check ran `/\bzones?\b/i` over `de` as well as `en`, and it answers **false** for
+  `Die Zonen auf diesem Plan`: after matching `Zone` the trailing `n` is a word character, so
+  the boundary fails. It was structurally unable to report the language the defect is likeliest
+  in — and the German value it could not see is one this very increment had fixed BY HAND. The
+  file already knew: its own `DELETE_FLOW_KEYS` case forty lines below spells `/Zone/i` and says
+  why. The two arms are separate patterns now (`/zone/i` for German, `/zon(e|ing)/i` for
+  English, since English derives a gerund that drops the `e`), and neither goes to a bare
+  `/zon/i`, which would sweep in `horizontal`/`Horizont`. **The same blind spot was live in a
+  second check and was found by asking for the class rather than the instance**: the
+  formal-address rule used a boundary-anchored verb list over German, and an umlaut is a
+  NON-word character, so there is no boundary between a space and `Ö` — the pattern answers
+  false for `Öffne den Bericht`, while `de.ts` already says `Öffnen Sie`, whose du-form is
+  exactly what that list could never express. It uses Unicode-property lookarounds now.
+- **An ambiguous regex alternation is a correctness property, not a tuning one.** In
+  `\d*\.?\d+` the two quantifiers can split N digits N ways, so REFUSING a long digit run is
+  quadratic: measured here, 5,000 digits took 14.3 ms, 20,000 took 220 ms and 50,000 took
+  **1,396 ms** — synchronously, from an `@blur` handler, on Obsidian's single renderer thread,
+  so pasting an id or a CSV cell into a length field and tabbing away froze the app. The
+  unambiguous spelling answers the same question in 0.072 ms. **Equivalence is a claim about a
+  SET, so it was measured rather than asserted** — both patterns driven over every string up to
+  length 4 across an alphabet spelling every construct either knows, twice by two parties
+  (54,241 and 111,150 strings), zero disagreements.
+- **`toLocaleString(locale, options)` builds a whole `Intl.NumberFormat` on every call** — it is
+  SPECIFIED as `new Intl.NumberFormat(locale, options).format(this)` — and five of those sat on
+  the per-`pointermove` path of a room drag (both field texts, both canvas edge labels, the area
+  row). Measured: **40 µs/call against 0.67 µs** through a module-scope constant, ~60x, so
+  ~0.2 ms of pure formatter CONSTRUCTION on every move of a gesture that is nothing but moves.
+  Hoisting it is safe HERE for a reason worth stating rather than assuming, because this
+  repository has already paid for the opposite: a module-scope `setTimeout` alias escaped
+  `vi.useFakeTimers()` by capturing at IMPORT time. The difference is WHAT is captured — both
+  inputs here are literals, and the locale is the hard-coded `'en-US'` those files argue for
+  rather than `getLanguage()`, so there is no later-installed value an early construction could
+  miss. The day the per-plan units PBI makes that locale a variable, the constant has to become
+  a cache keyed on the language.
+- **A predicate and the writer that answers it are ONE invariant, and satisfying it from the
+  wrong side contradicts the spec.** `DrawRoomTool.hasDraft()` read `rect !== null`, which is
+  one of the surfaces a room is built from: a chosen name and one typed side leave `rect` null
+  (`rectFrom` needs both), so Escape skipped its cancel-the-draft arm, left through
+  `setTool('select')` and took the name, both texts and `keepAdding` with the task — while the
+  same keypress over a DRAGGED rectangle only cleared the rectangle and stayed. The rule is that
+  **`hasDraft()` must count EXACTLY what `cancel()` clears**: count less and Escape destroys the
+  task, count more and Escape goes INERT, answering `cancelled-draft` for ever so a second press
+  can never leave. Both directions are mutation-checked (counting more reddens 7 cases, counting
+  less reddens 3). **The first repair satisfied that invariant by widening `cancel()` to clear
+  the name too, and that was the wrong end**: design spec §3 and §9 both keep the name across
+  Escape, and clearing it takes a choice the renovator made for a gesture aimed at the rectangle
+  — `escapeRouting.ts`'s own "step back through the NEAREST interaction". Narrowing the
+  PREDICATE satisfies the same invariant, preserves the spec and loses nothing, because a
+  renovator who chose a name and typed a side is already counted through that side's text.
+  **When one invariant has two ends, the end to move is the one the spec has not already written
+  down.**
+- **A press must take back only what the press wrote.** The click arm restored from a
+  `RoomRect | null`, which cannot express a half-typed draft, so a bare click on the canvas ran
+  `clearRect()` over a typed width — or `setRect(rectBefore)`, which rewrote both texts and
+  cleared both refusals, silently replacing a refused value in defiance of the store's own
+  stated rule four lines away. The store names the seven fields `setRect` writes as one snapshot
+  now, and `restoreRect` is what a click and an abandoned gesture take.
+- **`Record<K, V>` built by `Object.fromEntries` plus a cast asserts a totality nothing holds**,
+  and because `Record` index access is non-optional the compiler sees no `undefined` arm. Adding
+  a union member with no row left `vue-tsc` GREEN and threw `Cannot read properties of undefined
+  (reading 'activate')` from a click handler. A literal object annotated with a mapped type over
+  the union makes four distinct mistakes compile errors — a missing key (`TS2741`), an extra one
+  (`TS2353`), a duplicate (`TS1117`) and a key whose entry names a DIFFERENT id (`TS2322`, a
+  guarantee the array shape never had) — with the ordered list derived from it rather than
+  maintained beside it.
+- **A wait that attaches before its knob has done any work certifies the arming, not the
+  landing.** The narrow room capture waited on `.rp-task-banner__finish`, which renders the
+  moment the tool is armed — two steps before the knob opens the drawer, types either side and
+  closes it again. `[aria-disabled="false"]` is the qualification that discriminates, and it
+  also proves the drawer is shut, which no `attached` wait can spell because that is an ABSENCE.
+
+**And the meta-lesson of this round is about how it was RUN, not about what it found.** The
+fifteen were fixed by five agents working in parallel on disjoint file sets, and every one of
+them reported honestly — including two that corrected their own briefs. Their reports were still
+not evidence. One reported the smoke-suite census as stale drift, having re-run both greps
+against the merged tree and compared 309 + 17 against a recorded 286; acting on that produced a
+"correction" to a document that was already correct, because the 286 sits in a dated HISTORY
+section while the live figure at the top of the same file had been re-derived at the merge to
+exactly the 326 across nineteen the re-run measured. Both numbers were right about the tree each
+was taken from; the TENSE is what misled, and it is fixed where it misled rather than left. The
+rule this repository already states about a subagent — "don't always take them at face value" —
+is not about dishonesty, and that is the part worth carrying: **a careful report of a real
+measurement can still support a false conclusion, and the only defence is to re-derive the
+CONCLUSION rather than to re-check the measurement.** Every finding in this round that was
+verified independently held; the one that was not, did not.
+
 **The Renovation Planner Home increment has landed: the project list is a LAUNCHER.** The
 Renovation project view's list state draws a header, a filter that is also the pane's count
 line, a `Continue` group offering the project and plan the user was last in, `Projects` most
@@ -3968,8 +4448,9 @@ and the suite's own accounting says the cost is not the tests — `transform 13.
 74.3s, tests 143.9s, environment 82.1s` over 362 files, so per-file overhead (a jsdom
 environment and a module registry, both paid once per FILE) exceeds the test bodies. **Every
 number in this paragraph is a DATED SNAPSHOT of one machine and one tree, the file count
-included** — `find tests -name "*.test.ts" | wc -l` prints **450** on 2026-09-04, against 362 in
-the run the timings above come from, so the file count is three measurements behind and the
+included** — `find tests -name "*.test.ts" | wc -l` prints **461** on 2026-09-05, **450** the day
+before, and 362 in the run the timings above come from, so the file count is three measurements
+behind and the
 per-file conclusion is what survives it, since that conclusion is a RATIO rather than a total.
 The 2026-09-04 run of that suite at 429 files reports `transform 22.43s, import 125.34s,
 tests 365.21s, environment 149.02s` in 260s wall clock — import and environment together still
@@ -3977,7 +4458,8 @@ exceed the test bodies, which is the ratio holding across a 19% growth in files.
 **A merge is where a file count moves furthest and where nobody re-takes it**, and this
 paragraph is its own worked example twice over: one branch of this merge read 429 and the other
 418, on the same day, against trees that differed by a merge neither had taken — and the answer
-here is 450. Re-measure before reasoning from any of them. ONE
+here was 450, and one review round later it is 461. Re-measure before reasoning from any of
+them. ONE
 door exists beside `check` for that reason, and it does not replace it:
 
 - **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no
@@ -4572,6 +5054,47 @@ instance run in about 30s under default parallelism and about 60s under
 exactly double. The contention is real and the obvious fix for it is worse than the problem;
 a lever that helps would have to reduce the number of BOOTS, which cross-worker sharing
 cannot do because each test file gets its own module registry.
+
+**THAT LAST SENTENCE WAS RIGHT ABOUT THE REQUIREMENT AND WRONG ABOUT THERE BEING NO LEVER, AND
+THE LEVER IS NOW TAKEN.** Sharing across workers cannot reduce the boots; REMOVING the workers
+can. The `build` project runs at `maxWorkers: 1` since the Add Room merge, so its files go
+through one worker against one module registry and pay one `new ESLint(...)` between them —
+which is what `isolate: false` was already reaching for and could only ever achieve *within* a
+worker. **Measured as a boot COUNT rather than as a duration**, because the duration cannot see
+it: a probe appending `process.pid` beside that constructor printed **12 boots in 12 processes**
+unconfined against **1** confined, and 12 → 2 over the whole run. A quiet 22-core machine passes
+that directory either way, which is precisely why this had gone on reading as somebody else's
+CPU.
+
+**It cost ~49 seconds of every run and that was accepted deliberately as a trade — and the
+trade has since been RETIRED, because the confinement was applied to the wrong set.** Vitest 4
+refuses to overlap two projects whose `maxWorkers` differ, so each needs an explicit
+`sequence.groupOrder` and the two stop running concurrently: **88.0s → 137.1s end to end, 459 of
+459 files passing both ways** at the time. The first version of the config comment claimed it
+cost nothing, reasoning that the build worker's ~29s would hide inside the suite project's
+~120s — true of the scheduler that config does not get.
+
+**What the sixth review round then measured is that the confinement was buying its property for
+twelve files and charging twenty-nine.** On this machine (2026-09-05, quiet tree, no coverage)
+the whole `build` project ran **174s** serially and its twelve ESLint-booting files are **34s**
+of that, so four fifths of the serialised time was files that boot nothing and had run
+parallel-safely for their whole lives. There are THREE projects now — `build-lint` (the booting
+files, one worker, its own group) and `build` and `suite` sharing the parallel group — and the
+whole suite runs **269s → 167s, 461 of 461 green**. Two things about that set are the durable
+part rather than the numbers: it is **DERIVED** from a pattern over `tests/` rather than listed,
+because which files boot ESLint is a fact about the import graph that a hand-written list gets
+wrong silently; and the derivation **THROWS when it matches nothing**, because an instrument
+that reaches nothing looks exactly like a clean tree and would drop every file back into the
+parallel group with the timeouts returning unexplained. The review round's own section above
+carries why the proposed twelve-file version of this turned the gate red.
+
+**What the fix EXPOSED rather than caused**, since deterministic worker placement is a stronger
+instrument than a lucky one: `tests/build/localeModuleSentenceCase.test.ts` called
+`resolveConfig` under vitest's default 5s case budget with no `beforeAll(warmUpEslint)`, and had
+been passing only when the scheduler happened to drop it in a worker some sibling had already
+warmed. **A case whose pass depends on which sibling ran first is not a case anybody has
+checked** — it is the fake-too-thin rule pointed at a test runner — and it carries the warm-up
+its siblings carry now.
 
 **It does not prevent the edit and it does not roll one back**, and every description of it
 has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own
@@ -5245,8 +5768,10 @@ Not oversights; each has a trigger.
   today's** — `dist/main.js` measured 670.06 kB (gzip 211.08 kB) at design slice 16's close and
   **703.39 kB (gzip 221.71 kB) at design slice 19's**, and **825.68 kB (gzip 252.79 kB) at the
   close of the plan editor foundation's first increment** (2026-09-03, after the asset-designer
-  merge — the two arrivals are not separated here), each verified by running `npm run build`
-  rather than carried forward from an earlier entry here. Read every bundle figure in this file the
+  merge — the two arrivals are not separated here), and **867.05 kB (gzip 262.83 kB) at the close
+  of the Add Room increment** (2026-09-04 — no new dependency, so that 41 kB is this
+  repository's own code: a tool, a store, an action, a form, a sketch and their strings), each
+  verified by running `npm run build` rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 
   **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a

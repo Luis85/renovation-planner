@@ -1,0 +1,203 @@
+/*
+ * The New room form (`NewRoomInspector.vue`, Add Room design spec §5.1) — the Inspector's
+ * fourth state, which is about the TASK rather than about a selection.
+ *
+ * **ITS POSITION IN `index.css` IS NOT LOAD-BEARING**, for the reason `editor-inspector.css`
+ * states about itself: every selector here is `.rp-new-room*`, no other partial declares a
+ * rule for any of them, and there is no equal-specificity pair for source order to decide
+ * between. It is imported directly after `editor-inspector.css` because that is the region
+ * this form is drawn inside, and grouping keeps the Inspector's own partials adjacent.
+ */
+
+.rp-new-room {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+.rp-new-room__field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+}
+
+.rp-new-room__field label {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.rp-new-room__suggestions-prompt {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+/*
+ * A WRAPPING row: six labels of different widths in a pane an Obsidian sidebar leaf can
+ * narrow to 460px, so they reflow rather than overflowing. `list-style: none` with the
+ * padding removed, because `role="list"` is what carries the semantics here and the markers
+ * would read as a bulleted list of prose.
+ */
+.rp-new-room__suggestions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/*
+ * Two classes, scoring (0,2,0), for the reason `editor-shell.css` records at
+ * `.rp-task-banner .rp-task-banner__cancel`: a bare `.rp-new-room__suggestion` ties
+ * Obsidian's own `button:not(.clickable-icon)` at (0,1,1) — `:not()` contributes its
+ * argument's specificity — and a tie is not a win, so `background-color` and `box-shadow`
+ * would both lose to the host rule and these would render as ordinary filled buttons rather
+ * than the quiet chips this row asks for. `tests/build/buttonSpecificity.test.ts` checks it
+ * for every button rule in the project rather than trusting this comment.
+ */
+.rp-new-room .rp-new-room__suggestion {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-new-room .rp-new-room__suggestion:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-new-room .rp-new-room__suggestion:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-new-room__area {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--size-4-1) var(--size-4-2);
+	margin: 0;
+	font-size: var(--font-ui-small);
+}
+
+.rp-new-room__area dt {
+	color: var(--text-muted);
+}
+
+.rp-new-room__area dd {
+	margin: 0;
+}
+
+.rp-new-room__keep {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	font-size: var(--font-ui-small);
+}
+
+.rp-new-room__actions {
+	display: flex;
+	gap: var(--size-4-2);
+}
+
+/* Same specificity argument as the suggestion chips above. */
+.rp-new-room .rp-new-room__create {
+	color: var(--text-on-accent);
+	background-color: var(--interactive-accent);
+	box-shadow: none;
+	cursor: pointer;
+}
+
+/*
+ * `aria-disabled` rather than `disabled` (§5.2), so the control stays focusable and
+ * announced — which means the DISABLED LOOK has to be written here rather than inherited
+ * from the host's `:disabled` styling, or a button that cannot act would look identical to
+ * one that can. A word beside it says why, in `.rp-new-room__hint`; SDD §85's "never colour
+ * alone" is what makes that hint part of the control rather than a nicety.
+ */
+.rp-new-room .rp-new-room__create[aria-disabled='true'] {
+	color: var(--text-muted);
+	background-color: var(--background-modifier-border);
+	cursor: not-allowed;
+}
+
+/*
+ * FLATTENING A BUTTON TAKES ITS FOCUS RING WITH IT — the rule
+ * `tests/build/buttonFocusRing.test.ts` states, and it caught both of these actions here: a
+ * rule that beats (0,1,1) on `box-shadow` also beats Obsidian's own `button:focus-visible`,
+ * and its global `:focus { outline: none }` has already taken the outline, so a keyboard user
+ * would have nothing at all. Create is `aria-disabled` rather than `:disabled` precisely so it
+ * stays focusable, which makes its own ring load-bearing rather than incidental.
+ */
+.rp-new-room .rp-new-room__create:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* Same specificity argument as the suggestion chips above. */
+.rp-new-room .rp-new-room__cancel {
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	cursor: pointer;
+}
+
+.rp-new-room .rp-new-room__cancel:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-new-room .rp-new-room__cancel:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-new-room__hint {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+/*
+ * The `role="status"` element is in the DOM from the first render — a live region attributed
+ * on a container that APPEARS announces nothing, which is the defect `Toast.md` names and
+ * slice 13 paid for. So it is always rendered rather than mounted when there is something
+ * to say.
+ *
+ * **AND IT IS NEVER `display: none`, WHICH IS WHAT THIS RULE USED TO DO AND WHAT UNDID ALL
+ * OF THAT.** Vue compiles `{{ draft.settledSize ?? '' }}` to `setElementText(el, '')`, so
+ * before a size settles the `<p>` holds ZERO child nodes and `:empty` matches — measured in
+ * jsdom, not reasoned: `childNodes.length` 0 and `el.matches(':empty')` true at rest, both
+ * flipping in the SAME patch that writes the sentence. So the element was out of the
+ * accessibility tree until the instant it had something to say, which is the one arrangement
+ * a live region must not be in, and it went back out after every Escape (`clearRect` empties
+ * it again). `visibility: hidden` would be the same defect spelled differently — both remove
+ * the element from the tree — so neither is available here.
+ *
+ * `position: absolute` is what is left, and it is doing LAYOUT work rather than hiding
+ * anything: an empty block with `margin: 0` and no padding generates no line box and so has
+ * no height already, but `.rp-new-room` is a column flex container with a `gap`, and an
+ * in-flow flex item earns its gap whatever its size — so leaving the empty element in flow
+ * would add `--size-4-2` of dead space below the buttons. Out of flow it is not a flex item,
+ * contributes no gap, paints nothing, and stays exposed; the moment it holds a sentence
+ * `:empty` stops matching and it returns to the column exactly where it was drawn.
+ *
+ * **Nothing here can check either half.** jsdom lays nothing out, so the gap claim is a
+ * reading of the flexbox spec that no gate measures; and no instrument in this repository has
+ * an accessibility tree, let alone a screen reader. `tests/build/liveRegionVisibility.test.ts`
+ * holds the one thing that IS checkable — that no shipped rule hides this class — and
+ * `docs/tests/cases/Add a room.md` step 3 is where the announcement itself is looked at.
+ */
+.rp-new-room__settled {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.rp-new-room__settled:empty {
+	position: absolute;
+}

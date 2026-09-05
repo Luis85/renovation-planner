@@ -20,11 +20,16 @@ import type { EditorContext } from './editor-context';
  * must satisfy — a tool that cannot name itself here is a compile error, not a
  * documentation nuance. `WallTool`/`OpeningTool`/`PathTool`/`BooleanTool` are explicitly
  * future (SDD §57) and are deliberately not members yet.
+ *
+ * `'draw-room'` is the Plan Editor's rectangular room tool (design spec §4,
+ * "Add Room" increment): a primary drag writes one axis-aligned rectangle into the room
+ * draft store rather than the polygon `DrawPolygonTool` accumulates vertex by vertex.
  */
 export type ToolId =
 	| 'select'
 	| 'pan'
 	| 'draw-polygon'
+	| 'draw-room'
 	| 'place-asset'
 	| 'measure'
 	| 'annotation'

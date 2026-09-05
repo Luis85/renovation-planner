@@ -22,9 +22,9 @@
  */
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { REPO } from '../helpers/repo';
-import { resolveConfig, severityOf } from '../helpers/eslint';
+import { ESLINT_BOOT_MS, resolveConfig, severityOf, warmUpEslint } from '../helpers/eslint';
 
 const LOCALES_DIR = 'src/presentation/i18n/locales';
 
@@ -57,6 +57,21 @@ const englishLocaleModules = readdirSync(path.join(REPO, LOCALES_DIR), { withFil
 	);
 
 describe('every English locale module carries the sentence-case rule', () => {
+	/**
+	 * The type-aware boot, paid once here rather than inside the first `resolveConfig` under
+	 * vitest's default 5s case budget — the convention `lint-scope.test.ts` already follows for
+	 * exactly the same call.
+	 *
+	 * **This file relied on somebody else's boot and nothing said so.** Under file parallelism
+	 * it landed in whichever worker the scheduler chose, and passed whenever that worker had
+	 * already run a sibling that warms up; the `build` project's move to a single fork
+	 * (`vitest.config.ts`) makes worker placement deterministic and turned that luck into a
+	 * reproducible 5000ms timeout on the FIRST case to resolve a config. The defect was
+	 * pre-existing and latent — a case whose pass depended on which of its siblings ran first
+	 * is not a case anybody had checked.
+	 */
+	beforeAll(warmUpEslint, ESLINT_BOOT_MS);
+
 	// The instrument before the measurement: a naming convention that stopped matching
 	// anything (a directory move, a rename away from the `en` prefix) would make every case
 	// below vacuous and green.

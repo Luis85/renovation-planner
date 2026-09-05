@@ -5,7 +5,7 @@ import type { AppError } from '../../../core/errors/AppError';
 import type { Vector } from '../../../core/geometry/Vector';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
-import { VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
+import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
 import { resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
@@ -58,22 +58,6 @@ export interface SelectToolDeps {
 	 */
 	readonly reportInvalidInput: (error: AppError) => void;
 }
-
-/**
- * Below this SCREEN displacement, pointerUp is a click, not a drag — converted to world
- * millimetres through the CURRENT camera on every release. A world-fixed epsilon was the
- * first version's defect: 0.5 mm is half a pixel at the default zoom, so ordinary hand
- * jitter during a click dispatched a move command — exactly the history pollution the
- * spec's "a no-op move must not pollute the undo stack" exists to prevent.
- *
- * It is measured on EVERY gesture, body and vertex alike. The second version's defect was
- * applying it only to body drags: a plain click on a vertex handle then teleported that
- * vertex to the click point — up to `VERTEX_GRAB_RADIUS_PX` away, which is 80 mm at the
- * default zoom — and pushed a real move onto the undo stack. Both gestures therefore
- * record where they STARTED, which is the whole reason the vertex arm carries a
- * `startWorld` it otherwise has no use for.
- */
-const CLICK_EPSILON_PX = 4;
 
 type Gesture =
 	| { readonly kind: 'body'; zoneId: ZoneId; original: Polygon; startWorld: Point }

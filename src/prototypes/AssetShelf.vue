@@ -82,8 +82,10 @@ defineEmits<{ toggle: []; select: [id: string] }>();
  * under arrived, and the feature was already written down two sections away. Reported by a
  * review bot.
  *
- * `useId()` is what the rest of this plugin mints with (`FieldError.vue`), and both real Vue
- * apps set `app.config.idPrefix` so two of them cannot collide either.
+ * `useId()` is what the rest of this plugin mints with (`FieldError.vue`), and every real Vue
+ * app sets `app.config.idPrefix` so two of them cannot collide either — a category held by
+ * `tests/build/appIdPrefix.test.ts` rather than a count, which is what this sentence said
+ * ("both real Vue apps") until two more surfaces landed on separate branches.
  */
 const listId = useId();
 /**

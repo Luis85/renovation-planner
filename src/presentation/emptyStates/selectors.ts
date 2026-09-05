@@ -46,8 +46,8 @@ export function selectPlanEditorEmptyState(
 	// The third argument, and the LAST of the three selectors to get it — which is the thing
 	// worth remembering rather than the rule. Both siblings guard on `unreadable`, and this one
 	// was left out of the increment that added the guard to `selectProjectDetailEmptyState`,
-	// on the surface that increment is named for: a plan whose zones all refused drew "No zones
-	// yet / Draw a zone" over the canvas, beside a strip saying three of them could not be
+	// on the surface that increment is named for: a plan whose zones all refused drew "No rooms
+	// yet / Add a room" over the canvas, beside a strip saying three of them could not be
 	// read. Two answers to "why is this canvas empty", and the actionable one is the wrong one.
 	//
 	// It goes BELOW the background check rather than above it, and that ordering is the

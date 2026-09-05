@@ -13,12 +13,12 @@
  * construct a real Konva stage, which is why every case here installs the canvas backing and
  * the resize observer that jsdom lacks and a browser has natively.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
-import { mountPlanEditorHarness } from '../harness/planEditor';
+import { mountPlanEditorHarness, parseRoomKnob } from '../harness/planEditor';
 import { mountAssetDesignerHarness } from '../harness/assetDesigner';
 import { installCanvas } from '../helpers/canvas';
-import { installResizeObserver } from '../helpers/layout';
+import { installResizeObserver, resizeTo } from '../helpers/layout';
 import { settleUntil, sizedShellRoot } from '../helpers/editor';
 import { drawSchemeToggle } from '../harness/theme';
 
@@ -97,6 +97,102 @@ describe('the browser harness, plan editor', () => {
 		);
 
 		expect(leafEl.querySelector('.rp-room-inspector[data-rp-id="harness-kitchen"]')).not.toBeNull();
+	});
+
+	/**
+	 * The `?room=<w>x<d>` knob (Task 14) — the only way this harness reaches the room task with
+	 * a sized rectangle on the canvas, and like `?select` it gets there by pressing what a user
+	 * presses: the floating Add button, the catalogue's Room item, and then the two length
+	 * fields, each committed with the same `blur` the form itself listens for. Nothing here
+	 * writes `RoomDraftStore` directly, which is what makes the capture a picture of the route
+	 * rather than of a state assembled beside it.
+	 *
+	 * The assertion is the SETTLED SENTENCE rather than the form's mere presence: `.rp-new-room`
+	 * appears the moment the tool activates, so a knob that opened the menu and typed nothing
+	 * would satisfy it. `.rp-new-room__settled` holds text only once `commitDimension` has
+	 * placed a rect from both sides, which is the whole of what this knob claims to do.
+	 *
+	 * The shell root is sized for the reason the `?select` case above gives at length: jsdom
+	 * answers 0 for `clientWidth`, and `unsupported` renders no inspector column for the form
+	 * to be in.
+	 */
+	it('drives the ?room knob through Add, the Room item and both length fields', async () => {
+		installCanvas();
+		installResizeObserver();
+
+		const { leafEl } = mountPlanEditorHarness(document.body, { room: { widthMm: 4200, depthMm: 3800 } });
+		sizedShellRoot(leafEl);
+
+		await settleUntil(
+			() => leafEl.querySelector('.rp-new-room__settled:not(:empty)') !== null,
+			'the ?room knob to settle a 4.2 x 3.8 rectangle',
+		);
+
+		expect(leafEl.querySelector<HTMLInputElement>('input[name="width"]')?.value).toBe('4.2');
+		expect(leafEl.querySelector<HTMLInputElement>('input[name="depth"]')?.value).toBe('3.8');
+		expect(leafEl.querySelector('.rp-new-room__settled')?.textContent).toContain('4.2');
+	});
+
+	/**
+	 * The same knob at an Obsidian SIDEBAR's width, where the form is not a column of the shell
+	 * but the contents of a drawer the rail opens — so the knob has two more doors to press and
+	 * this case is what says it presses them. It asserts the END STATE rather than the route: a
+	 * placed rectangle (the draft's own `origin`, readable here through the settled sentence
+	 * being written at all) with the drawer CLOSED behind it, which is the picture
+	 * `plan-editor-add-room-narrow` exists to take. Leave the drawer open and the shot is 80% of
+	 * a pane of form over the canvas it is supposed to show.
+	 *
+	 * `resizeTo(…, 460, …)` is what makes it the constrained layout at all — `sizedShellRoot`
+	 * takes no width and sizes to 1280 — and without it this is the case above with two extra
+	 * doors that never appear.
+	 */
+	it('opens the drawer, types, and closes it again when the pane is a sidebar wide', async () => {
+		installCanvas();
+		installResizeObserver();
+
+		const { leafEl } = mountPlanEditorHarness(document.body, { room: { widthMm: 4200, depthMm: 3800 } });
+		resizeTo(sizedShellRoot(leafEl, { skipResize: true }), 460, 800);
+
+		// `aria-disabled="false"` is what says the two sides were actually typed: `canCreateRoom`
+		// reads `RoomDraftStore.valid`, which needs a PLACED rect, and the rect is placed only by
+		// `commitDimension` once both sides are known. Waiting on the banner alone would pass
+		// against a knob that opened the menu, pressed Room and stopped — and at this width the
+		// form it would have failed to type into is not on screen to contradict it.
+		await settleUntil(
+			() => leafEl.querySelector('.rp-task-banner__finish')?.getAttribute('aria-disabled') === 'false',
+			'the ?room knob to size the room through the drawer at 460px',
+		);
+
+		expect(leafEl.querySelector('.rp-editor-shell')?.getAttribute('data-layout')).toBe('constrained');
+		expect(leafEl.querySelector('.rp-panel-rail')).not.toBeNull();
+		// The knob's own last press: the drawer it opened to type in is shut behind it, so the
+		// capture shows the canvas and the banner rather than 80% of a pane of form.
+		expect(leafEl.querySelector('.rp-inspector-drawer')).toBeNull();
+		expect(leafEl.querySelector('.rp-new-room')).toBeNull();
+	});
+
+	/**
+	 * The one knob of the three with something to get wrong before the DOM is ever involved, and
+	 * both arms of it — the accepting one, and the refusal that names the value it could not
+	 * read rather than letting `?room=4200X3800` (a capital X, the typo that reads as working)
+	 * mount an editor with no room task in it and nothing said anywhere.
+	 *
+	 * The spy is asserted in BOTH directions: `not.toHaveBeenCalled()` after the two legitimate
+	 * inputs is what stops a version that logged unconditionally from passing on the count alone.
+	 */
+	it('parses the ?room knob and refuses a value that is not two whole millimetre sides', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+		expect(parseRoomKnob('4200x3800')).toEqual({ widthMm: 4200, depthMm: 3800 });
+		expect(parseRoomKnob(null)).toBeUndefined();
+		expect(spy).not.toHaveBeenCalled();
+
+		expect(parseRoomKnob('4200X3800')).toBeUndefined();
+		expect(parseRoomKnob('4.2x3.8')).toBeUndefined();
+		expect(parseRoomKnob('big')).toBeUndefined();
+		expect(spy).toHaveBeenCalledTimes(3);
+
+		spy.mockRestore();
 	});
 });
 

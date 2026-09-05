@@ -22,6 +22,7 @@ import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
+import { activateCreationEntry } from './add/creationCatalogue';
 import PlanCanvas from './PlanCanvas.vue';
 import EditorContextBar from './shell/EditorContextBar.vue';
 import FloatingPrimaryActions from './shell/FloatingPrimaryActions.vue';
@@ -70,22 +71,24 @@ const overlay = computed(() => {
 });
 
 /**
- * The one hand-off this slice wires, to the ONE entry point that already exists — never a
- * second, independently-decided path to the same effect (`CLAUDE.md`'s one-action-every-input
- * rule, applied to a new kind of input).
+ * The empty state's one hand-off, through `activateCreationEntry` — Task 10's ONE door onto a
+ * catalogue entry's `activate`, shared with the Add menu's own click/keyboard activation
+ * (`AddMenu.vue`). Never `runtime.setTool(...)` directly here: a second, independently-decided
+ * route to the room tool is exactly what `CLAUDE.md`'s one-action-every-input rule refuses, and
+ * `creationCatalogue.test.ts` reads this file's own source text to hold that (see its
+ * `PlanEditorRoot.vue's empty-state action goes through activateCreationEntry` case).
  *
- * Setting the tool rather than dispatching a command is deliberate: a Zone cannot be created
- * with zero user-supplied geometry, so there is no `CreateZoneCommand` call to make — the
- * correct action is putting the user in the same drawing mode `runtime.setTool('draw-polygon')`
- * always would (Task 13 retired the toolbar button that used to make this call; nothing in the
- * shell offers Draw zone directly today).
+ * Arming a tool rather than dispatching a command is deliberate: a Zone cannot be created with
+ * zero user-supplied geometry, so there is no command call to make here at all — the correct
+ * action is putting the user in the drawing mode the catalogue entry names (Task 13 retired the
+ * toolbar button that used to make this call directly; nothing else in the shell offers it).
  *
  * `noBackground` has no button (settled at the top of this task): slice 5's picker is a
  * PLUGIN COMMAND, not a member of the editor's bundle, so there is nothing here to call that
  * would not be either a new seam or a reach for the global `app`.
  */
 function onEmptyStateAction(): void {
-	runtime.setTool('draw-polygon');
+	activateCreationEntry('room', runtime);
 }
 
 /**

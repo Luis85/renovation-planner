@@ -46,15 +46,25 @@ describe('the scene structure', () => {
 
 	/**
 	 * The contract slice 6 builds against. "Present and mounted" is what makes it a place to
-	 * put a `Transformer`; "empty" is what says nothing here has claimed it yet.
+	 * put a `Transformer`; "draws nothing" is what says nothing here has claimed it yet.
+	 *
+	 * **It asserted a child count of ZERO until `RoomDraftSketch` had to reserve its
+	 * position.** vue-konva reindexes a layer's children on that LAYER's own update, and a
+	 * child component that creates its nodes later is appended after the reindex has already
+	 * run — so the room draft's group is mounted unconditionally and is empty until a
+	 * rectangle exists (that component's own docblock carries the whole account, and
+	 * `roomDraftSketch.test.ts` holds the ordering it buys). The contract is unchanged in the
+	 * only sense that matters and the assertion says so differently: one structural node,
+	 * named, with nothing inside it, so anything that starts DRAWING here still fails.
 	 */
-	it('mounts the interaction layer present and empty', async () => {
+	it('mounts the interaction layer present, drawing nothing but the empty room-draft group', async () => {
 		const harness = await mount();
 
 		const interaction = harness.stage.findOne<Konva.Layer>('.interaction');
 
 		expect(interaction).toBeDefined();
-		expect(interaction?.getChildren()).toHaveLength(0);
+		expect(interaction?.getChildren().map((node) => node.name())).toEqual(['room-draft-group']);
+		expect(interaction?.findOne<Konva.Group>('.room-draft-group')?.getChildren()).toHaveLength(0);
 	});
 
 	/**

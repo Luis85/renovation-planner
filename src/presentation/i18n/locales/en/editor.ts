@@ -21,7 +21,7 @@
  * **Three keys that sat inside this block did NOT move with it**, for the opposite reason:
  * `sequence.marker-clear-failed`, `cascade.stale-marker-failed` and `cascade.aborted` are
  * not `editor.*` at all — they happened to sit between `editor.inspector.linked.notes` and
- * `editor.zone.default-name` in the source file's reading order. They stayed in `en.ts`.
+ * `editor.room.default-name` in the source file's reading order. They stayed in `en.ts`.
  */
 export const editorEn = {
 	'editor.context-bar': 'Editor context',
@@ -64,9 +64,9 @@ export const editorEn = {
 	'editor.inspector.multiple': 'Multiple objects selected.',
 	'editor.inspector.name': 'Name',
 	'editor.inspector.area': 'Area',
-	'editor.inspector.delete-zone': 'Delete zone',
+	'editor.inspector.delete-zone': 'Delete',
 	'editor.inspector.requirements': 'Requirements',
-	'editor.inspector.requirements.empty': 'No requirements reference this zone yet.',
+	'editor.inspector.requirements.empty': 'No requirements reference this room or area yet.',
 	'editor.inspector.requirement.asset': 'Asset',
 	'editor.inspector.requirement.quantity': 'Quantity',
 	'editor.inspector.requirement.cost': 'Cost',
@@ -78,7 +78,7 @@ export const editorEn = {
 	'editor.inspector.quantity-override.label': 'Override quantity for',
 	'editor.inspector.cost-override.label': 'Override cost for',
 	'editor.inspector.override.reset': 'Reset to calculated',
-	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
+	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which room or area?',
 	'editor.inspector.floor.rooms': 'Rooms',
 	'editor.inspector.floor.areas': 'Areas',
 	'editor.inspector.floor.total-area': 'Total area',
@@ -131,7 +131,7 @@ export const editorEn = {
 	'editor.inspector.price-project': 'Project price',
 	'editor.inspector.price-in-force': 'In force',
 	'editor.inspector.price-derived-from': 'Derived from',
-	'editor.zone.default-name': 'Zone',
+	'editor.room.default-name': 'Room {n}',
 	'editor.canvas': 'Plan canvas',
 	'editor.status': 'Status',
 	'editor.measurements': 'Measurements',
@@ -167,8 +167,8 @@ export const editorEn = {
 	// noun true of both surfaces. The key keeps its `editor.` prefix because the FORM lives in
 	// `presentation/editor/shell/` and a key rename orphans nothing but reads as a move.
 	'editor.calibrate.distance.measured': 'Measured on the background:',
-	'editor.calibrate.recalibrate.title': 'Rescale the zones on this plan?',
-	'editor.calibrate.recalibrate.message': 'This plan already has zones drawn on it. Setting the scale rescales every one of them. You can undo it.',
+	'editor.calibrate.recalibrate.title': 'Rescale the rooms or areas on this plan?',
+	'editor.calibrate.recalibrate.message': 'This plan already has rooms or areas drawn on it. Setting the scale rescales every one of them. You can undo it.',
 	// Task 18's temporary task banner: names the active creation task over the canvas and
 	// offers a Cancel button. NOT `routeEscape` (R7, 2026-09-04): Cancel LEAVES the task —
 	// clears any draft, returns to Select, never touches the selection — where Escape (Task 9)
@@ -178,9 +178,40 @@ export const editorEn = {
 	'editor.task.banner': 'Current task',
 	'editor.task.draw-room.name': 'Adding a room',
 	'editor.task.draw-room.instruction': 'Click to place corners; click the first corner to finish.',
+	// Task 2's own key: `RoomDraftStore.settle()`'s announced sentence, built from the
+	// draft rect's own width, depth and area — never a translated fragment concatenated
+	// with a number, per this file's own "one key per label" rule.
+	'editor.room.settled': '{width} m by {depth} m, {area}',
 	'editor.task.calibrate.name': 'Setting the scale',
 	'editor.task.calibrate.instruction': 'Click two points a known distance apart.',
 	'editor.task.cancel': 'Cancel',
+	// Task 6 (design spec 2026-09-03, Add Room): the room creation task's own vocabulary — the
+	// add-room task banner, the New Room form (its name-suggestion buttons and its width/depth/
+	// area fields) and `parseMetres`'s three length refusals. `editor.room.cancel` is the form's
+	// OWN Cancel button, a second door to the same `runtime.cancelActiveTask()` the banner's
+	// `editor.task.cancel` above already calls (spec §9) — two doors, one action.
+	'editor.task.add-room.name': 'Adding a room',
+	'editor.task.add-room.instruction': 'Drag on the floor to size the room, or type its width and depth.',
+	'editor.task.finish': 'Create room',
+	'editor.task.finish.blocked': 'Size the room and give it a name first',
+	'editor.room.new.heading': 'New room',
+	'editor.room.name': 'Name',
+	'editor.room.suggestion.prompt': 'What room is this?',
+	'editor.room.suggestion.kitchen': 'Kitchen',
+	'editor.room.suggestion.living-room': 'Living room',
+	'editor.room.suggestion.bedroom': 'Bedroom',
+	'editor.room.suggestion.bathroom': 'Bathroom',
+	'editor.room.suggestion.hallway': 'Hallway',
+	'editor.room.suggestion.office': 'Office',
+	'editor.room.width': 'Width (m)',
+	'editor.room.depth': 'Depth (m)',
+	'editor.room.area': 'Area',
+	'editor.room.keep-adding': 'Keep adding rooms',
+	'editor.room.create': 'Create room',
+	'editor.room.cancel': 'Cancel',
+	'editor.room.error.not-a-number': 'Enter a length in metres, such as 4.2',
+	'editor.room.error.not-positive': 'A side must be longer than zero',
+	'editor.room.error.too-large': 'A side cannot be longer than 1000 m',
 	// Task 19's constrained and unsupported layouts (design spec §5.4/§5.5). The rail's two
 	// labels are TEXT rather than icons — this plugin calls `setIcon` nowhere — and `details`
 	// names the Inspector the way a homeowner would, which is why the rail id and the overlay

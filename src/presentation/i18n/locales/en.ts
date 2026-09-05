@@ -106,10 +106,13 @@ export const en = {
 	'reference.referents-exist': 'Other entries still reference this. Remove or reassign them first.',
 	'reference.set-changed': 'The references to this changed while you were deciding. Check them and confirm again.',
 	'reference.resolution-required': 'This is still referenced. Decide what happens to those references before deleting it.',
-	'reference.no-reassignment-target': 'There is no other zone in this project to reassign these requirements to.',
-	// Its own code beside the zone one above, because the two name different scopes: the
-	// catalogue has been project-free since design slice 19, so an asset's alternatives are
-	// bounded by the vault. Minted in `presentation/library/deleteAssetFlow.ts`.
+	// "room or area", not "zone": the reassign decision this sentence refuses is opened by the
+	// Plan Editor's own Delete button, so it is read beside labels that say Room. ADR-0016's
+	// homeowner split is exactly Room OR Area, and this refusal is true of both.
+	'reference.no-reassignment-target': 'There is no other room or area in this project to reassign these requirements to.',
+	// Its own code beside the room-or-area one above, because the two name different scopes:
+	// the catalogue has been project-free since design slice 19, so an asset's alternatives
+	// are bounded by the vault. Minted in `presentation/library/deleteAssetFlow.ts`.
 	'reference.no-reassignment-asset':
 		'There is no other area-based asset in this vault to reassign these requirements to.',
 	'reference.self-reassign': 'References cannot be reassigned to the entry being deleted. Pick a different one.',
@@ -245,9 +248,9 @@ export const en = {
 	'empty.project.no-projects.body': 'A renovation project holds your plans, zones, assets and costs. Create one to get started.',
 	'empty.plan.no-background.headline': 'No plan document yet',
 	'empty.plan.no-background.body': 'Set a floor plan, site plan, sketch or garden plan as this plan\u2019s background, then calibrate it so areas come out in real units.',
-	'empty.plan.no-zones.headline': 'No zones yet',
-	'empty.plan.no-zones.body': 'Draw the first zone on this plan. Its area is measured from the outline and drives the quantities and costs of anything you assign to it.',
-	'empty.plan.no-zones.action': 'Draw a zone',
+	'empty.plan.no-zones.headline': 'No rooms yet',
+	'empty.plan.no-zones.body': 'Add the first room on this floor. Its area is measured from the outline and drives the quantities and costs of anything you assign to it.',
+	'empty.plan.no-zones.action': 'Add a room',
 	// Design slice 17's in-place failure states. The BODY of each is `trError(error)` — the
 	// mapped sentence for that error's own code — so unrecovered settings and a vault fault say
 	// different things; only the headline and the action label are fixed copy here.
@@ -261,7 +264,7 @@ export const en = {
 	// point: one bad note now costs one zone, and a user who cannot see the count cannot tell
 	// that from a plan that lost everything.
 	'editor.some-zones-unreadable':
-		'{count} zone(s) in this plan could not be read and are not drawn. Open the diagnostics report to see which notes refused.',
+		'{count} room(s) or area(s) in this plan could not be read and are not drawn. Open the diagnostics report to see which notes refused.',
 	'editor.plan-missing.headline': 'This plan no longer exists',
 	'editor.plan-missing.body': 'This tab points at a plan that is not in the vault any more.',
 	'editor.plan-missing.action': 'Close this tab',
@@ -761,8 +764,11 @@ export const en = {
 	//
 	// The second sentence points at the diagnostics report, which is why the report is in the
 	// same increment: a sentence naming a surface that does not exist is a promise on screen.
+	//
+	// "rooms or areas", not "zones", for the reason `reference.no-reassignment-target` above
+	// gives: the picker this refusal replaces is opened from the Plan Editor's Delete button.
 	'zone.listing-incomplete':
-		'Some zones in this project could not be read, so the list of places to move this to is incomplete. Open the diagnostics report to see which notes refused.',
+		'Some rooms or areas in this project could not be read, so the list of places to move this to is incomplete. Open the diagnostics report to see which notes refused.',
 	// The asset-side sibling: the catalogue is vault-wide rather than per-project (design
 	// slice 19), so this names the catalogue rather than a project, but the reasoning is
 	// `zone.listing-incomplete`'s own — an incomplete reassignment picker is how a user

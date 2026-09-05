@@ -106,6 +106,7 @@ import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountAssetDesignerHarness } from './assetDesigner';
 import { runOptions } from './axeOptions';
+import { detailDeps, mountWithDrawRoom, price, refusingWith } from './accessibilityFixtures';
 import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../helpers/editor';
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
@@ -114,97 +115,12 @@ import { installResizeObserver, resizeTo } from '../helpers/layout';
 import { useSelectionStore } from '../../src/presentation/editor/selection/selection-store';
 import { defaultRenovationProjectDeps, makeView } from '../helpers/makeRenovationProjectView';
 import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
-import { err, ok } from '../../src/core/result/Result';
-import type { Result } from '../../src/core/result/Result';
-import type { RepositoryError } from '../../src/application/ports/repositoryErrors';
-import type { RenovationProjectQueryServices } from '../../src/presentation/read-models/renovationProjectQueries';
+import { ok } from '../../src/core/result/Result';
 import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
 import NewProjectForm from '../../src/presentation/views/NewProjectForm.vue';
 import type { ViewStateResult } from 'obsidian';
-import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
-import type { PlanSummaryDto } from '../../src/presentation/read-models/PlanDto';
 import type { AssetPriceRowDto } from '../../src/application/queries/ListProjectAssetPrices';
-import { createMoney, type Money } from '../../src/core/money/Money';
 
-/**
- * A read side where every door refuses with the same code — which is what production does for
- * a session that has one (`unavailableRenovationProjectQueries` builds all three members out
- * of one `refuseUnrecovered`). The two cases below grade the FAILURE state, so refusing is
- * the honest stand-in rather than the fake-harsher-than-the-real-thing CLAUDE.md's fifth
- * instance names: there is no production answer being hidden. Design slice 21's two detail
- * doors refuse beside `listProjects` rather than answering, because a bundle that half-refused
- * would model no session this plugin can be in.
- */
-const refusingWith = (code: string): RenovationProjectQueryServices => {
-	const refuse = (): Promise<Result<never, RepositoryError>> =>
-		Promise.resolve(err({ category: 'Persistence', code, message: 'refused' }));
-	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse, listAssetPrices: refuse };
-};
-
-/**
- * A view whose DETAIL state has something to draw, for the two scans at the end of this
- * describe block.
- *
- * Over `defaultRenovationProjectDeps()` rather than a hand-built literal, for that factory's
- * own stated reason: it is the one place an honest default per member is written down, so a
- * widened `RenovationProjectDeps` meets this file at the same moment it meets every other
- * consumer — which is exactly what stranded this file's own four-member literal when design
- * slice 21's Task 5 grew the interface by five members.
- *
- * **It sets no `projectId`, and that is a measurement rather than an omission.**
- * `RenovationProjectView.mount` provides `{ ...this.deps, projectId }` with the VIEW's own
- * field last, so `deps.projectId` is written over on every mount and a value set here would be
- * inert — measured directly: a view built with `projectId: 'project-1'` in its bundle and no
- * `setState` draws the LIST. `setState` is what puts the view in the detail state, so that is
- * what both cases below drive, and a member that looked load-bearing here would send the next
- * reader to the wrong line when one of them fails.
- */
-function detailDeps(over: {
-	projectId: string;
-	plans: readonly PlanSummaryDto[];
-	/**
-	 * The price section's rows. `undefined` leaves the factory's own answer — an empty catalogue,
-	 * which draws the section's empty state — and the last case in this block supplies real rows,
-	 * because a scan of an empty state grades none of the controls the section exists for.
-	 */
-	prices?: readonly AssetPriceRowDto[];
-}): RenovationProjectDeps {
-	const base = defaultRenovationProjectDeps();
-	return {
-		...base,
-		queries: {
-			...base.queries,
-			getProject: () =>
-				Promise.resolve(
-					ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null }),
-				),
-			listPlansByProject: () => Promise.resolve(ok({ plans: over.plans, unreadable: 0 })),
-			listAssetPrices:
-				over.prices === undefined ? base.queries.listAssetPrices : () => Promise.resolve(ok([...over.prices ?? []])),
-		},
-	};
-}
-
-/**
- * See LAYOUT in the header for the three separate, verified reasons these cannot work
- * here: one throws inside axe itself (jsdom has no canvas), two are simply shipped
- * disabled and would pass a real defect if forced on. Disabled here explicitly rather
- * than left to their defaults, so the rule set this file actually asserts against does
- * not silently change if a future axe-core release flips a default — and rather than
- * filtering an `incomplete`/false-pass result out afterward, so the rule set this file
- * asserts against matches the rule set the header claims. A filter written once and
- * forgotten is exactly the kind of drift `CLAUDE.md`'s "write the guarantee to the check"
- * warns about.
- */
-/** A fixture amount, through the constructor the price row itself mints with. */
-function price(amount: string): Money {
-	const minted = createMoney(amount, 'EUR');
-	if (!minted.ok) throw new Error('unmintable fixture');
-	return minted.value;
-}
-
-
-/** One state of the index, scanned and torn down — the mount must not outlive the scan. */
 /**
  * `document.body`, not the wrapper's own element.
  *
@@ -858,6 +774,95 @@ describe('axe against the mounted view', () => {
 	});
 
 	/**
+	 * Task 13, scan 1: the New Room form (design spec §2.3, §5.1) with a VALID draft — the
+	 * persistent column Task 8 gives the `full` layout, never yet scanned by this file. The
+	 * `aria-disabled="false"` half proves the button is really in the valid state this case
+	 * names, not merely present.
+	 */
+	it('reports no semantic violations on the New Room form with a valid draft', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountWithDrawRoom();
+			runtimeOf(mounted).roomDraft.setRect({ x: 0, y: 0, width: 4200, depth: 3800 });
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-new-room').exists()).toBe(true);
+			expect(mounted.wrapper.find('button.rp-new-room__create').attributes('aria-disabled')).toBe('false');
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Scan 2: the same form with a REFUSED width — `FieldError`'s `aria-invalid`/
+	 * `aria-describedby` pairing driven onto a genuinely invalid control, where every other
+	 * `FieldError` case in this file mounts clean.
+	 */
+	it('reports no semantic violations on the New Room form with a refused width', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountWithDrawRoom();
+			await mounted.wrapper.find('input[name="width"]').setValue('abc');
+			await mounted.wrapper.find('input[name="width"]').trigger('blur');
+			await settle();
+
+			expect(mounted.wrapper.find('input[name="width"][aria-invalid="true"]').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Scan 3: the temporary task banner (Task 18, widened by Task 8) under `draw-room`, with
+	 * its Finish button — a second door onto `runtime.createRoom()` this file has not scanned.
+	 */
+	it('reports no semantic violations on the temporary task banner with its Finish button', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountWithDrawRoom();
+
+			expect(mounted.wrapper.find('button.rp-task-banner__finish').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Scan 4: the `constrained` layout's Inspector drawer holding the New Room form — the
+	 * same resize-then-rail-click recipe the existing drawer case above uses.
+	 */
+	it('reports no semantic violations on the constrained Inspector drawer with the New Room form open', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountWithDrawRoom();
+			resizeTo(mounted.rootEl, 460, 800);
+			await settle();
+			await mounted.wrapper.find('[data-rp-rail="details"]').trigger('click');
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-inspector-drawer .rp-new-room').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
 	 * The asset designer (Task B10, ADR-0015) — its `noBackground` empty state, the one this
 	 * task exists to grade. Mounted through `mountAssetDesignerHarness`, the SAME function
 	 * `?view=asset-designer` mounts for a screenshot, so a semantics check and a photograph of
@@ -1014,7 +1019,32 @@ describe('axe against the mounted view', () => {
  * looking at a different file. A mock is exactly the artefact nobody writes a test for, so the
  * set has to come from the tree.
  */
-describe('axe against the harness index', () => {
+/**
+ * **Every case in this block is a cold Vite transform, then a bounded settle, then a full axe
+ * run — and only the middle one of those three was bounded.** `settleUntil` throws its own
+ * NAMED error at `SETTLE_BUDGET_MS` (4s), deliberately under vitest's 5000ms default so a real
+ * hang reports as "timed out waiting for ..." rather than as an anonymous case timeout. What
+ * that leaves is about a second of the default budget for the transform and the scan combined,
+ * which is not a budget anybody chose: `prototype:AssetLibrary` is 930ms of it on a quiet
+ * machine, the heaviest of the prototypes and roughly twice its siblings.
+ *
+ * `verify (windows-latest, 22)` duly spent the 5000ms on exactly that entry while all three
+ * Ubuntu legs passed, on a run whose own summary reads `environment 296.94s` — contention, not
+ * a regression, and the same signature `settleUntil`'s docblock already records from
+ * `verify (ubuntu-latest, 26)` one level down.
+ *
+ * **Raising it blinds nothing**, which is the whole reason it is safe: the settle keeps its own
+ * 4s deadline and its own sentence, so a condition that never holds still fails there first and
+ * still says what it was waiting for. This budget bounds only the SUM, and it is deliberately
+ * far above it so that a contended runner cannot reach it — the same trade `ESLINT_BOOT_MS`
+ * already makes for the files that boot a type-aware linter.
+ *
+ * On the BLOCK rather than on the three cases, so the next scan added here inherits it instead
+ * of being the one that rediscovers this.
+ */
+const HARNESS_SCAN_MS = 30_000;
+
+describe('axe against the harness index', { timeout: HARNESS_SCAN_MS }, () => {
 	it.each([
 		['the picker', 'index'],
 		['the failure card', 'entry=prototype:Nope'],

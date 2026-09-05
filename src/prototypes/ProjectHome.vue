@@ -76,8 +76,11 @@ const active = ref<Section>('Overview');
  * can be split, and each leaf mounts its own Vue app, so two panes would emit the same
  * `aria-controls` target and a screen reader would resolve one pane's tab to the other pane's
  * panel. That is the exact hazard `app-id-prefix.ts` exists for — `app.config.idPrefix` is set
- * at BOTH `createApp` sites so two apps' `useId()` calls cannot collide — and a hand-built id
+ * at EVERY `createApp` site so two apps' `useId()` calls cannot collide — and a hand-built id
  * walks straight past it, because a literal is not a `useId()` call.
+ *
+ * "Every" is held by `tests/build/appIdPrefix.test.ts`; this said "BOTH" until the Add Room
+ * merge made four sites out of two.
  *
  * `FieldError` is the house pattern and it mints its own ids the same way.
  */

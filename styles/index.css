@@ -22,6 +22,7 @@
 @import "./editor-shell.css";
 @import "./editor-layout.css";
 @import "./editor-inspector.css";
+@import "./editor-new-room.css";
 @import "./dialogs.css";
 @import "./chrome.css";
 @import "./work-packages.css";

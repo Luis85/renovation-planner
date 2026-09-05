@@ -565,17 +565,26 @@ describe('the headless harness capture script', () => {
 	});
 
 	/**
-	/**
 	 * **NO NUMBER IN THE NAME, BOTH DIRECTIONS, AND TWO INSTRUMENTS.** Every clause of that was
-	 * paid for separately, and the last two came from opposite sides of this merge.
+	 * paid for separately, and the last two came from opposite sides of one merge.
 	 *
 	 * This case was *the fifteen fixed shots* against seventeen entries on one branch and
 	 * *the eighteen* against twenty on the other; each was internally consistent, because a
 	 * hand-written list cannot notice a name that was never in it. Both branches independently
 	 * replaced it with a DERIVATION from the `SHOTS` source, and neither branch's derived list
 	 * described the merged array: each had appended to a different part of it, so
-	 * `harness-shot.mjs` merged cleanly at THIRTY-FIVE while the assertion about it conflicted.
-	 * The list below was re-derived from the array at the merge, not resolved from either side.
+	 * `harness-shot.mjs` merged cleanly while the assertion about it conflicted. The list below
+	 * was re-derived from the array at each merge, not resolved from either side.
+	 *
+	 * **It has happened a THIRD time, which is what makes it the shape rather than an
+	 * incident.** The Add Room branch appended `plan-editor-add-room` and its narrow sibling to
+	 * the plan-editor run of the array while `main` appended the asset-library and Home shots
+	 * elsewhere in it, so `harness-shot.mjs` merged cleanly again and this assertion conflicted
+	 * again — the same two-branches-two-regions collision the paragraph above describes, one
+	 * merge later. Re-derived rather than resolved, for the third time. No count is quoted here
+	 * for that reason: the case's own name carries none, the assertion below is a derivation,
+	 * and `grep -c "name: '" scripts/harness-shot.mjs` is what answers the question at the
+	 * moment somebody asks it.
 	 *
 	 * **Why a set comparison and not a loop.** `for (name of […]) expect(source).toContain(…)`
 	 * proves *at least these*, so a shot added to `SHOTS` and not listed here stays green —
@@ -631,6 +640,8 @@ describe('the headless harness capture script', () => {
 			'light',
 			'phone',
 			'plan-editor-add-menu',
+			'plan-editor-add-room',
+			'plan-editor-add-room-narrow',
 			'plan-editor-dark',
 			'plan-editor-light',
 			'plan-editor-narrow',
@@ -780,6 +791,46 @@ describe('the headless harness capture script', () => {
 		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' above
 		// for why a bare `PLAN_EDITOR_VIEW` wait is exactly the defect being refused here.
 		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
+	});
+
+	/**
+	 * Task 14's two ROOM shots, pinned the same way the three above them are: what makes each
+	 * one differ from `plan-editor-add-menu` is not that its name exists but that `?room=` is
+	 * on the query — the knob that walks Add → Room → the two length fields. Lose that
+	 * parameter and both shots photograph the resting editor under new names and exit 0.
+	 *
+	 * Their SELECTORS differ from each other and that is the pinned property rather than a
+	 * detail: at full width the form is a column of the shell, so the wait is the settled
+	 * sentence the numeric route writes — `:not(:empty)` because `.rp-new-room__settled` is in
+	 * the DOM from the first render (a live region attributed on a container that APPEARS
+	 * announces nothing) and holds text only once both sides are committed. At 460 px the same
+	 * form lives in a drawer the knob closes behind itself, so nothing of it is on screen and
+	 * the banner's Finish is what is left to wait on.
+	 *
+	 * **The narrow one is pinned WITH its attribute, and the bare class is what this refuses.**
+	 * `.rp-task-banner__finish` alone attaches the moment the knob arms `draw-room` — three
+	 * steps before it types a side or closes the drawer — so it certified the ARMING and not
+	 * the landing: the same "mounted vs. the knob actually landed" hazard the sibling case
+	 * above states, shipped inside the shot that states it. `[aria-disabled="false"]` is
+	 * `RoomDraftStore.valid` read through the one surface a closed drawer leaves on screen, and
+	 * dropping the attribute here is what puts the vacuous wait back.
+	 *
+	 * A SOURCE pin, so it holds only what `harness-shot.mjs` asks for. That the attribute really
+	 * reads `"false"` once the draft is valid is
+	 * `tests/presentation/editor/shell/temporaryToolBanner.test.ts`'s, against a real mount; that
+	 * the knob reaches that state is `tests/harness/planEditor.ts`'s; and that the PICTURE is
+	 * right is a capture read by eye, which nothing in this suite can do.
+	 */
+	it('takes the room task at both widths, through the ?room knob, waiting on what each width can show', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-add-room'[^}]*query: '\?view=plan-editor&room=4200x3800/);
+		expect(source).toMatch(/name: 'plan-editor-add-room'[^}]*selector: '\.rp-new-room__settled:not\(:empty\)'/);
+		expect(source).toMatch(/name: 'plan-editor-add-room-narrow'[^}]*query: '\?view=plan-editor&room=4200x3800/);
+		expect(source).toMatch(
+			/name: 'plan-editor-add-room-narrow'[^}]*selector: '\.rp-task-banner__finish\[aria-disabled="false"\]'/,
+		);
+		expect(source).toMatch(/name: 'plan-editor-add-room-narrow'[^}]*width: 460/);
 	});
 
 	/**

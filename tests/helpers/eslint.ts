@@ -3,8 +3,18 @@ import { REPO } from './repo';
 
 /**
  * Driving the real ESLint, for the checks that are ABOUT the lint gate rather than about a
- * rule — the sibling of `oxlint.ts`, and here for the same stated reason: two test files
- * need it and a third would duplicate the work, which `npm run analyze` is right to notice.
+ * rule — the sibling of `oxlint.ts`, and here for the same stated reason: more than one test
+ * file needs it and each extra copy would duplicate the work, which `npm run analyze` is right
+ * to notice.
+ *
+ * **This said "two test files" for many slices and the answer is TWELVE**, measured in the edit
+ * that wrote this — `grep -rln "helpers/eslint" tests/build/ | wc -l`, 2026-09-05. A count is a
+ * fact about the tree at the moment of the grep and nothing re-runs it, so the sentence states
+ * the RULE (one instance, shared) and the reader who wants the number runs the grep. The figure
+ * matters for one reason beyond accuracy: the boot below is paid once per MODULE REGISTRY, and
+ * vitest gives each test file its own — so twelve importers is twelve boots unless the project
+ * they sit in confines them to one worker, which is exactly what `vitest.config.ts`'s
+ * `maxWorkers: 1` on the `build` project is for. That number and this one move together.
  *
  * `calculateConfigForFile` is the API behind `--print-config`, and asking it in process
  * rather than spawning the bin is not a micro-optimisation. Booting ESLint costs several

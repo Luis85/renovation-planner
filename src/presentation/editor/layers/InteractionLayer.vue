@@ -34,6 +34,7 @@ import {
 } from '../handleMetrics';
 import { paintRulerMarks } from './rulerGeometry';
 import { measurementScreenMarks, sketchScreenGeometry } from './gestureGeometry';
+import RoomDraftSketch from './RoomDraftSketch.vue';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 
@@ -216,6 +217,10 @@ function vertexFill(index: number): string {
 				strokeScaleEnabled: false,
 				listening: false,
 			}"
+		/>
+		<RoomDraftSketch
+			:tokens="props.tokens"
+			:to-screen="toScreen"
 		/>
 		<template v-if="selectedFlat !== null">
 			<VLine

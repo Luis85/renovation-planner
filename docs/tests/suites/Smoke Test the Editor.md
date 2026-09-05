@@ -83,15 +83,44 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 106 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 52 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 132 |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 13 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 108 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 54 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 137 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 14 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 13 |
 
-**316 steps across EIGHTEEN cases. NO ORDINAL, because the ordinal itself collided at this
-merge** — and that is the new face, worth more than the figures. This branch's account below
-called itself the EIGHTH correction and `main`'s called itself the SEVENTH; both were counting
+**326 steps across NINETEEN cases, re-derived at the Add Room merge.** Both sides of that
+conflict carried their own five figures — this branch 300 across seventeen, `main` 316 across
+eighteen — and neither could be taken, because each had counted a tree without the other's case
+in it ([[Add a room]] and [[Browse the asset library]] / [[Find and resume a project]]
+respectively). The five figures above are a fresh run of BOTH greps below against the merged
+tree, taken in the edit that resolved it, and they sum to 326 rather than being asserted to;
+the nineteen is `ls docs/tests/cases/*.md`, checked per file to be sure every one of them
+actually carries verdicts rather than assumed from the `## Cases` list.
+
+**The arithmetic would have agreed this time, per row and not merely in total, and that is luck
+rather than a method.** [[Add a room]] carries `suite` 2, `browser` 2, `obsidian` 5, `desktop` 1
+and no `judgement`, and `main`'s five figures plus exactly those give the five above — 316 + 10
+= 326 as well. So an incremented set would have been right, which is exactly the reasoning that
+went wrong at the third, fourth and eighth corrections below, where the other side had also
+moved rows in shared cases. It agrees here only because this branch edited no verdict row
+outside its own new case; nothing about an incremented sentence would have said so, and the
+per-row agreement was established by running the greps rather than by trusting the sum.
+
+**The agreeing-row hazard did NOT bite this time, and saying so took measuring rather than
+recalling.** `main`'s account below records the two non-conflicting rows of ITS merge as
+`desktop` and `judgement`; the first draft of THIS paragraph asserted the same shape here —
+that `judgement` agreed and `desktop` moved — and it was false. All five rows differed
+(`suite` 101/106, `browser` 44/52, `obsidian` 118/132, `desktop` 14/13, `judgement` 9/13), so
+git offered every one of them and no row was resolved unexamined. Read that as luck for the
+second time rather than as the hazard being closed: it happened only because `main` had moved
+`judgement` from 9 to 13 for reasons of its own, and had it not, the row would have agreed at 9
+and been wrong by the same mechanism. The claim was checked with
+`git show :2:… ` against `git show :3:…` after being written from memory and getting it
+backwards, which is the instrument to use rather than the recollection.
+
+**The ordinal collided one merge earlier and stays retired.** This branch's account below called
+itself the EIGHTH correction and `main`'s called itself the SEVENTH; both were counting
 the same paragraph's history, both incremented honestly, and the two numbers now describe
 overlapping pasts that cannot be reconciled into a sequence. A counter maintained on two
 branches is a counter that is wrong on at least one of them the moment they merge, and nothing
@@ -99,19 +128,21 @@ about either sentence reads as unverified. So this paragraph stops counting itse
 records is WHAT happened and WHEN, and the accounts below keep their own ordinals as the
 branch-local facts they always were.
 
-**Neither side of the conflict could be taken, again.** This branch measured 300 across
+**The account from the merge before this one follows, and it stands as the branch-local fact it
+was.** *Neither side of the conflict could be taken, again.* This branch measured 300 across
 seventeen and `main` measured 292 across sixteen; each was correct on the day and neither is
 correct now, because each had counted a tree without the other's case in it ([[Browse the asset
-library]] and [[Find and resume a project]] respectively). The five figures above are a fresh
+library]] and [[Find and resume a project]] respectively). The five figures above were a fresh
 run of BOTH greps below against the merged tree, taken in the edit that resolved it, and they
-sum to 316 rather than being asserted to.
+summed to 316 rather than being asserted to.
 
-**And `main`'s account below names the defect this merge had to be checked against, so it was:
-a row that AGREES across a conflict is never offered to anyone.** Git shows you the lines that
-differ. Measured here rather than assumed — the two rows that did NOT conflict this time are
-`desktop` and `judgement`, both at 13 on each side, and the merged tree holds 13 for each, so
-both were right. That is luck, not a method, and it is the second merge running where the
-question had to be asked by hand because no tool asks it.
+*And `main`'s account below names the defect that merge had to be checked against, so it was:
+a row that AGREES across a conflict is never offered to anyone.* Git shows you the lines that
+differ. Measured there rather than assumed — the two rows that did NOT conflict that time were
+`desktop` and `judgement`, both at 13 on each side, and that merged tree held 13 for each, so
+both were right. That was luck, not a method, and it was the second merge running where the
+question had to be asked by hand because no tool asks it. **The third merge is where the luck
+ran out** — see the `desktop` row above.
 
 **This branch's own account follows, and it stands.**
 **300 steps across SEVENTEEN cases, and this paragraph has now proved itself an EIGHTH time — at
@@ -236,6 +267,23 @@ greps below, run in the edit that resolved it, print 259 table rows across fourt
 list steps in [[Canvas Navigation]], for 276 across fifteen cases — `suite` 99, `browser` 42,
 `obsidian` 113, `desktop` 13 and `judgement` 9. See
 [[The smoke-test census omits the newest case]], closed.
+
+**286 steps across SIXTEEN cases — the figure AS OF the edit that added [[Add a room]], and
+superseded by the merge entry at the top of this document.** Every paragraph in this section is
+a dated entry in a log rather than a live claim, and this one is where that stopped being
+obvious: a reviewer re-ran both greps against the merged tree, read 309 + 17 against the 286
+here, and reported a stale census — when the merge had already re-derived it correctly to 326
+across nineteen. Both numbers are right about the tree each was taken from. The tense is what
+misled, so it is fixed here rather than left for the next reader to re-measure; the live figure
+is the one beside the five keyword rows above, and the two greps below are what settles it.
+It was re-run in the edit that added [[Add a room]] rather than left for the next reader to find stale — which is the one thing every paragraph above it says
+and the reason this one is short. The two greps print **269 table rows across fifteen files**
+and the same **17 list steps** in [[Canvas Navigation]]: `suite` 101, `browser` 44,
+`obsidian` 118, `desktop` 14, `judgement` 9. The whole of the movement is the new case's own
+ten steps (five `obsidian`, two `suite`, two `browser`, one `desktop`), which is what makes
+this a re-run rather than a correction: `git diff --stat 23e2910b..HEAD -- docs/tests/` printed
+nothing before this edit, so the Add Room increment touched no existing case and the previous
+figures were still true of the tree it inherited.
 
 **This paragraph is its own worked example, twice over.** Design slices 19 and 21 each re-ran
 the two greps and each wrote down what it measured; both were correct on the day, and the merge
@@ -578,3 +626,14 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   nor any step here reaches is the 460 px `constrained` width, and whether a REAL Obsidian leaf
   scrolls at either width — the capture runs in a headless Chromium, not in Obsidian's own leaf
   chrome.
+- [[Add a room]] — the plan editor foundation's second increment, checkpoint C2: Add → Room, a
+  rectangular drag, the New room form, and ONE reversible Room written, selected and reloadable.
+  Its two layout steps (1 and 10) stand where [[Price a shared asset for one project]]'s do NOT:
+  both have already been read once in the PINNED Chromium — `plan-editor-add-room` at 1280 and
+  `plan-editor-add-room-narrow` at 460 — and that reading is what found the defect step 10 now
+  exists to catch, a task banner capped at half the pane by `left: 50%` plus a transform and
+  wrapping to eleven lines of one and two words at a sidebar's width. So what a vault adds there
+  is a themed palette and Obsidian's own leaf chrome rather than a first look. Its step 9 is the
+  only instrument anywhere for the click-versus-drag epsilon — four screen pixels, asserted as a
+  number by the tool's own tests and judged as a hand's steadiness by nobody else — and its step
+  3 is the one place a settled announcement is heard rather than counted.

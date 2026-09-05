@@ -60,9 +60,9 @@ describe('the canvas reports zones it could not read', () => {
 	/**
 	 * The contradiction the sibling surface was changed to prevent, on the surface this
 	 * increment is named for. A plan WITH a background and no readable zones used to draw
-	 * `planEditor.noZones` — headline, body and a "Draw a zone" button — over the canvas, beside
-	 * a strip saying three of its zones could not be read. Two answers to "why is this canvas
-	 * empty", and the actionable one is the wrong one.
+	 * `planEditor.noZones` — headline, body and an "Add a room" button (Task 6 reworded it from
+	 * "Draw a zone") — over the canvas, beside a strip saying three of its zones could not be
+	 * read. Two answers to "why is this canvas empty", and the actionable one is the wrong one.
 	 *
 	 * The fixture's plan must NAME a background: the selector short-circuits to `noBackground`
 	 * for a plan carrying none, so a case without one grades the wrong entry — which is how the

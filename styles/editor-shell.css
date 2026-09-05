@@ -281,13 +281,36 @@
 /*
  * Task 18's temporary task banner — the top edge's counterpart to `.rp-primary-actions` at the
  * bottom, resolved against the same `.rp-plan-canvas` ancestor for the reason given above it.
+ *
+ * **CENTRED BY `margin-inline: auto` BETWEEN TWO INSETS, NOT BY `left: 50%` AND A TRANSFORM**,
+ * and the difference is a whole layout rather than a spelling. An absolutely positioned box
+ * with `left: 50%`, `right: auto` and a shrink-to-fit width may only be as wide as the space
+ * from that 50% to the containing block's right edge — the transform slides the box afterwards
+ * and buys back none of that width, because it is not layout. So this banner was capped at
+ * HALF the canvas whatever the pane could afford: at 1280px "Adding a room" broke mid-phrase
+ * across two lines beside a three-line instruction, and at an Obsidian sidebar's 460px the same
+ * sentence became eleven lines of one and two words — a 250px slab of chrome over the plan it
+ * is describing. Found by capture (`plan-editor-add-room`/`-narrow`, Task 14); nothing in any
+ * gate lays this out, so nothing else could have found it.
+ *
+ * With both insets named the available width is the whole canvas less the two gutters,
+ * `width: fit-content` still shrinks the box to its content, and `margin-inline: auto` is what
+ * centres it — the over-constrained case, where the leftover is split equally.
+ *
+ * `flex-wrap: wrap` for the width that is genuinely too narrow for one line: the buttons drop
+ * BELOW the sentence rather than the sentence collapsing into a column beside them, which is
+ * the same choice `.rp-new-room__suggestions` makes and the one that keeps the instruction
+ * readable at any width this shell supports.
  */
 .rp-task-banner {
 	position: absolute;
 	top: var(--size-4-2);
-	left: 50%;
-	transform: translateX(-50%);
+	right: var(--size-4-2);
+	left: var(--size-4-2);
+	width: fit-content;
+	margin-inline: auto;
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--size-4-2);
 	padding: var(--size-4-1) var(--size-4-2);
@@ -329,6 +352,47 @@
 }
 
 .rp-task-banner .rp-task-banner__cancel:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/*
+ * Task 8's Finish button — same two-class compound as Cancel above, and the same reason:
+ * a bare `.rp-task-banner__finish` ties Obsidian's `button:not(.clickable-icon)` at (0,1,1)
+ * and loses on source order.
+ *
+ * Obsidian's `button[aria-disabled="true"]` (`tests/harness/obsidian.css`) sets `opacity` and
+ * `cursor` at (0,1,1), and the compound below is (0,2,0) — so the DIMMING is inherited (this
+ * rule declares no `opacity`, so nothing contests it) and the CURSOR is not: `cursor: pointer`
+ * here outranks Obsidian's `not-allowed` and the blocked button contradicted its own state.
+ * This comment said "nothing is declared here for that state", which was true of one of the
+ * two properties. The disabled cursor is therefore restated at (0,2,1) below, exactly as
+ * `.rp-new-room__create` restates it for the same `aria-disabled`-not-`:disabled` reason.
+ */
+.rp-task-banner .rp-task-banner__finish {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+/*
+ * (0,2,1), so it beats the rule above rather than depending on source order — and it declares
+ * the cursor ALONE, because the dimming beside it is Obsidian's and correct.
+ */
+.rp-task-banner .rp-task-banner__finish[aria-disabled='true'] {
+	cursor: not-allowed;
+}
+
+.rp-task-banner .rp-task-banner__finish:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-task-banner .rp-task-banner__finish:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }

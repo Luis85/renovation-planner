@@ -58,6 +58,16 @@ and they are the reason this file exists:
 
 ## Procedure
 
+**AMENDMENT, 2026-09-05: steps 5 and 11b say "the Draw zone tool" and nothing in the Plan
+Editor selects one.** The plan editor foundation deleted the toolbar they press, and the Add
+Room increment (2026-09-04) repointed Add ▸ Room from `'draw-polygon'` to `'draw-room'`, so
+that tool is registered and reachable from no control. Both steps are about a MULTI-CLICK
+vertex buffer surviving an interruption, which the rectangle tool has no equivalent of — its
+gesture is one drag — so they are left standing and unrewritten rather than aimed at a
+gesture that cannot demonstrate the claim. **A missing Draw zone control is not a regression
+here**; the trigger for rewriting them is the free-form-room PBI, which gives that tool a door
+again. Step 11a below is unaffected and its label HAS been corrected — see the note in it.
+
 Each step carries a `Reachable by` verdict — the cheapest instrument that could
 discharge it as written. [[Smoke Test the Editor]]'s *The triage column* section defines
 the five values and what they do not claim.
@@ -123,11 +133,22 @@ the five values and what they do not claim.
     nothing was interrupted. Then a third time, alt-tabbing away **while still holding the
     button that placed a vertex** — the vertices must survive that too, since a drawing tool
     places its point on the press and has nothing the release would have completed.
-11a. `browser` **On a plan with a background and NO zones**, the canvas shows an empty state with a
-    "Draw a zone" button. **Tab to that button and press Space.** Expected: the button
-    activates and the Draw zone tool becomes active — the canvas must NOT arm the camera or
+11a. `browser` **On a plan with a background and NO rooms**, the canvas shows an empty state
+    ("No rooms yet") with an **"Add a room"** button. **Tab to that button and press Space.**
+    Expected: the button activates and the room task starts — the banner appears and the
+    Inspector is replaced by the New room form — and the canvas must NOT arm the camera or
     swallow the key. The one keyboard-reachable control inside the canvas, and the canvas's
     own shortcuts must not take precedence over it.
+    **The LABEL and the tool both moved under this step and the collision did not.** The Add
+    Room increment (2026-09-04) retitled `empty.plan.no-zones.action` from "Draw a zone" to
+    "Add a room" and repointed the hand-off from `'draw-polygon'` to
+    `activateCreationEntry('room', …)`, which arms `'draw-room'`. What this step exists for is
+    unchanged and is still reachable by nothing else: `.rp-plan-canvas`'s `keydown` handler
+    calls `preventDefault()` to stop a space-held pan paging the leaf, and a bubbling Space
+    from this button is what that once swallowed. jsdom dispatches no native activation, so
+    this step is the only instrument for it — a runner who finds no such button should read
+    that as a REGRESSION only after checking the button's live label in
+    `src/presentation/i18n/locales/en.ts`.
 12. `judgement` **Right-click the canvas.** Expected: whatever Obsidian normally does. The right button is
     deliberately not claimed by the camera — see below.
     *Record what appeared.*

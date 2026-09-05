@@ -15,7 +15,7 @@
 import { createApp } from 'vue';
 import VueKonva from 'vue-konva';
 import { mountHarness } from './mount';
-import { mountPlanEditorHarness } from './planEditor';
+import { mountPlanEditorHarness, parseRoomKnob } from './planEditor';
 import { mountAssetDesignerHarness } from './assetDesigner';
 import { mountAssetLibraryHarness } from './assetLibrary';
 import { seedFixture, harnessEditorContext } from './fixture';
@@ -62,13 +62,21 @@ const wantsAssetDesigner = params.get('view') === 'asset-designer';
 const wantsAssetLibrary = params.get('view') === 'asset-library';
 
 /**
- * The Plan Editor's own two knobs (Task 21): `?select=<zoneId>` selects and frames a seeded
- * zone once the editor is ready, `?add` opens the Add menu once it is ready. Both are read
- * here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below rather than
- * read a second time there — one parse of the URL, like every other knob on this page.
+ * The Plan Editor's own three knobs: `?select=<zoneId>` selects and frames a seeded zone once
+ * the editor is ready and `?add` opens the Add menu once it is ready (both Task 21);
+ * `?room=<widthMm>x<depthMm>` (Task 14) walks Add → Room → the two length fields, so a capture
+ * can show the room task with a sized rectangle under it. All three are read here, beside
+ * `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below rather than read a second
+ * time there — one parse of the URL, like every other knob on this page.
+ *
+ * `parseRoomKnob` lives beside the knob it feeds rather than here, because it is the one of
+ * the three with something to get wrong: `?room=big` is a URL a person can type, and a knob
+ * that quietly did nothing with it would photograph the resting editor under the room shot's
+ * name and exit 0. It refuses loudly instead — see its own docblock.
  */
 const selectZoneId = params.get('select');
 const wantsAddMenu = params.has('add');
+const room = parseRoomKnob(params.get('room'));
 
 let view: unknown = null;
 
@@ -178,7 +186,7 @@ if (wantsIndex) {
 	 */
 	const asked = Math.max(0, Number.parseInt(params.get('projects') ?? '', 10));
 	view = wantsPlanEditor
-		? mountPlanEditorHarness(document.body, { select: selectZoneId ?? undefined, add: wantsAddMenu }).view
+		? mountPlanEditorHarness(document.body, { select: selectZoneId ?? undefined, add: wantsAddMenu, room }).view
 		: wantsAssetDesigner
 			? mountAssetDesignerHarness(document.body).view
 			: wantsAssetLibrary

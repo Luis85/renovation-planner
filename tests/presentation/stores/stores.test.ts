@@ -262,11 +262,17 @@ describe('ProjectStore hydration', () => {
 		);
 
 		store.reset();
+		// `reset()` is the only clearer left for a hydration it just invalidated: that read's
+		// own `done()` will find itself permanently superseded and never fire.
+		expect(store.refreshing).toBe(false);
+
 		release();
 		await pending;
 
 		expect(store.plan).toBeNull();
 		expect(store.status).toBe('idle');
+		// The now-superseded read settling afterwards must not turn the flag back on.
+		expect(store.refreshing).toBe(false);
 	});
 
 	it('is fully rebuildable — a reset returns it to its opening state', async () => {
@@ -275,11 +281,20 @@ describe('ProjectStore hydration', () => {
 
 		store.reset();
 
-		expect({ status: store.status, plan: store.plan, zones: store.zones.size, error: store.error }).toEqual({
+		expect({
+			status: store.status,
+			plan: store.plan,
+			zones: store.zones.size,
+			error: store.error,
+			refreshing: store.refreshing,
+			retriesFailed: store.retriesFailed,
+		}).toEqual({
 			status: 'idle',
 			plan: null,
 			zones: 0,
 			error: null,
+			refreshing: false,
+			retriesFailed: 0,
 		});
 	});
 
@@ -420,12 +435,15 @@ describe('refreshing and failed retries', () => {
 		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		expect(store.stale).toBe(true);
 		expect(store.retriesFailed).toBe(0);
+		expect(store.refreshing).toBe(false);
 
 		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		expect(store.retriesFailed).toBe(1);
+		expect(store.refreshing).toBe(false);
 
 		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		expect(store.retriesFailed).toBe(2);
+		expect(store.refreshing).toBe(false);
 	});
 
 	it('resets the failed-retry count on the read that succeeds', async () => {
@@ -440,13 +458,30 @@ describe('refreshing and failed retries', () => {
 		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		expect(store.stale).toBe(true);
 		expect(store.retriesFailed).toBe(0);
+		expect(store.refreshing).toBe(false);
 
 		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		expect(store.retriesFailed).toBe(1);
+		expect(store.refreshing).toBe(false);
 
 		await store.hydrate(reading, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		expect(store.retriesFailed).toBe(0);
 		expect(store.stale).toBe(false);
+		expect(store.refreshing).toBe(false);
+	});
+
+	/**
+	 * The failure-path assertions above only ever drive the PLAN read's `isErr` branch — this
+	 * covers its sibling `done()` call site, the plan resolving as MISSING (`ok(null)`), so a
+	 * regression dropping `done()` from that arm is caught too.
+	 */
+	it('clears refreshing after a hydrate whose plan resolves as missing', async () => {
+		const store = useProjectStore();
+
+		await store.hydrate(fakeQueries(null, []), FIXTURE_PLAN.id);
+
+		expect(store.status).toBe('missing');
+		expect(store.refreshing).toBe(false);
 	});
 });
 

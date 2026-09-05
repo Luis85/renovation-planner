@@ -90,6 +90,20 @@ const path = computed((): string => {
 
 	const { width, depth } = outline.extent;
 	const span = BOX_SIZE - INSET * 2;
+	/*
+	 * REVIEWED CLONE with `markPath` in `src/prototypes/assetLibraryFixture.ts`: the same fit —
+	 * scale into the box, centre, emit the path.
+	 *
+	 * Not shared, because the two are not the same rule and merging them would change what the
+	 * SHIPPED component draws. The mock guards the EXTENT (`!Number.isFinite(width)`) and this
+	 * guards the SCALE, and they are different guards over different inputs: the mock derives
+	 * its extent from the outline it was handed, while this reads `AssetOutline.extent`, a
+	 * queried figure. The mock's own header says it cannot draw the extent-overflow state at all
+	 * (a fixture sets `ShapeState` by hand) and points at §3.5 for the real row's answer, so a
+	 * shared function would import that guard into a component whose spec answers it elsewhere.
+	 * The half they genuinely share — the min/max scan — IS shared, as `core/geometry/extentOf`.
+	 */
+	// fallow-ignore-next-line code-duplication
 	const scales = [width > 0 ? span / width : Infinity, depth > 0 ? span / depth : Infinity];
 	const scale = Math.min(...scales);
 	if (!Number.isFinite(scale)) return '';

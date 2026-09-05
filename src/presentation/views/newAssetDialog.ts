@@ -7,7 +7,7 @@ import type { Logger } from '../../application/ports/Logger';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
 import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
-import { useDialogStore } from '../dialogs/dialog-store';
+import type { useDialogStore } from '../dialogs/dialog-store';
 import NewAssetForm from './NewAssetForm.vue';
 import { tr } from '../i18n/strings';
 

@@ -1,7 +1,8 @@
 import type { Result } from '../../../../src/core/result/Result';
 import { expectOk } from '../../../helpers/domain';
 import { makeZone } from '../../../helpers/entities';
-import { assignedRequirementFixture, requirementFixture, TEN_SQUARE_METERS } from '../../../helpers/slice10';
+import { assignedRequirementFixture, TEN_SQUARE_METERS } from '../../../helpers/slice10';
+import type { requirementFixture } from '../../../helpers/slice10';
 
 /**
  * The seams the requirement-command refusal suites inject through, shared by

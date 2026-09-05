@@ -135,12 +135,15 @@
 }
 
 /*
- * `.rp-visually-hidden` — off the screen and IN the accessible name, which is what keeps this
- * row's input labelled by its own asset name rather than by the generic `Set a price` — moved
- * to `styles/visually-hidden.css` at its SECOND caller (the Plan Editor's paused-reason
- * sentence, design spec §2.9). This was its first and only caller when the rule lived here;
- * a shared class with two callers is one two files could quietly disagree about if each kept
- * its own copy.
+ * The visually-hidden utility class — off the screen and IN the accessible name, which is
+ * what keeps this row's input labelled by its own asset name rather than by the generic
+ * `Set a price` — moved to `styles/visually-hidden.css` at its SECOND caller (the Plan
+ * Editor's paused-reason sentence, design spec §2.9). This was its first and only caller when
+ * the rule lived here; a shared class with two callers is one two files could quietly
+ * disagree about if each kept its own copy. Named without its leading dot here on purpose:
+ * `assetPriceList.test.ts`'s `declares a rule for every class it actually emits` case harvests
+ * class names out of this file's TEXT, and spelling the class name with its leading dot in
+ * prose would satisfy that regex without a real declaration behind it anywhere.
  */
 
 /*

@@ -21,6 +21,7 @@ import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver, resizeTo } from '../helpers/layout';
 import { settleUntil, sizedShellRoot } from '../helpers/editor';
 import { drawSchemeToggle } from '../harness/theme';
+import { t } from '../../src/presentation/i18n/strings';
 
 beforeEach(() => {
 	document.body.innerHTML = '';
@@ -172,10 +173,63 @@ describe('the browser harness, plan editor', () => {
 	});
 
 	/**
-	 * The one knob of the three with something to get wrong before the DOM is ever involved, and
+	 * The `?stale` knob (Task 14) — the one knob whose landing was checked by a manually read
+	 * PNG alone (`plan-editor-stale.png`/`plan-editor-stale-narrow.png`) and nothing else.
+	 * `driveStaleKnobOnceReady` selects and deletes a sacrificial zone
+	 * (`STALE_TRIGGER_ZONE_ID`) through the Inspector's own Delete button — a REAL zero-referent
+	 * deletion, dispatched through a fixture `Zone.create` snapshot and a real
+	 * `ReversibleDeleteZoneCommand` — and only once that write's own post-command read-back has
+	 * failed (`harnessDeps`'s own knob) does it select `?select`'s zone. This case drives the
+	 * same route the two PNGs were taken from and asserts three facts a PNG read had to
+	 * establish by eye: the warning row carries both its actions, Kitchen's own Inspector is
+	 * still the one showing (not swallowed by the sacrifice zone's), and the save-state label
+	 * reads the derived "Saved · refresh needed" copy — SDD companion §2.5's own qualifier on a
+	 * write that landed, not a save error.
+	 *
+	 * Watched red first: mounting with `stale: false` (`select` alone) never renders
+	 * `[data-rp-warning="stale"]` at all, so `settleUntil` times out at its own named error
+	 * rather than at a wrong assertion — the shape this file's sibling knob cases already use to
+	 * prove a case actually exercises its knob rather than passing on an accident.
+	 */
+	it('drives the ?stale knob through a real zero-referent delete to the stale-projection warning', async () => {
+		installCanvas();
+		installResizeObserver();
+
+		const { leafEl } = mountPlanEditorHarness(document.body, { stale: true, select: 'harness-kitchen' });
+		sizedShellRoot(leafEl);
+
+		// BOTH conditions, not the warning alone: `driveStaleKnobOnceReady` selects Kitchen only
+		// AFTER its own internal `settleUntil` on the same warning resolves, so polling for the
+		// warning by itself can observe it a tick before the knob's own continuation has selected
+		// anything — measured, not assumed: the narrower wait below failed at the Kitchen
+		// assertion on its first run, with the warning already present and nothing selected yet.
+		await settleUntil(
+			() =>
+				leafEl.querySelector('[data-rp-warning="stale"] button') !== null &&
+				leafEl.querySelector('.rp-room-inspector[data-rp-id="harness-kitchen"]') !== null,
+			'the ?stale knob to land the stale-projection warning and select the Kitchen',
+		);
+
+		// Both actions the row is meant to carry (design spec §2.4), not merely one of them.
+		expect(leafEl.querySelectorAll('[data-rp-warning="stale"] button')).toHaveLength(2);
+		// The sacrifice zone's own selection does not outlive the write it triggered: `?select`
+		// is applied AFTER the knob's internal delete-and-clear, so Kitchen — never the deleted
+		// `harness-garden` — is what the Inspector still shows.
+		expect(leafEl.querySelector('.rp-room-inspector[data-rp-id="harness-kitchen"]')).not.toBeNull();
+		// The write really did land (`state === 'saved'`); `stale` is read as a qualifier on top
+		// of it, never as a save error of its own.
+		expect(leafEl.querySelector('.rp-save-state-label')?.textContent).toBe(
+			t('en', 'save-state.saved-refresh-needed'),
+		);
+	});
+
+	/**
+	 * The one knob of the four with something to get wrong before the DOM is ever involved, and
 	 * both arms of it — the accepting one, and the refusal that names the value it could not
 	 * read rather than letting `?room=4200X3800` (a capital X, the typo that reads as working)
-	 * mount an editor with no room task in it and nothing said anywhere.
+	 * mount an editor with no room task in it and nothing said anywhere. `?select`, `?add` and
+	 * `?stale` all take either no value or an id copied verbatim, so `?room` stays the one with
+	 * a shape to parse.
 	 *
 	 * The spy is asserted in BOTH directions: `not.toHaveBeenCalled()` after the two legitimate
 	 * inputs is what stops a version that logged unconditionally from passing on the count alone.

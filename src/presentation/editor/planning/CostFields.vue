@@ -4,8 +4,15 @@ import type { PlanningBaseline } from '../../../application/commands/renovation/
 import { createEntityId } from '../../../core/identity/generateId';
 import { tr } from '../../i18n/strings';
 const draft = defineModel<PlanningDraft>('draft', { required: true });
-defineProps<{ baseline: PlanningBaseline; paused: boolean }>();
+const props = defineProps<{ baseline: PlanningBaseline; paused: boolean }>();
 function add(): void { draft.value.facts.push({ id: createEntityId('fact'), stage: 'committed', amount: '', description: '', commitmentId: '', cancelled: false }); }
+function changeStage(index: number, event: Event): void {
+	if (props.paused) return;
+	const stage = (event.target as HTMLSelectElement).value;
+	if (stage !== 'actual' && stage !== 'committed') return;
+	const fact = draft.value.facts[index];
+	draft.value.facts[index] = { ...fact, stage, commitmentId: stage === 'committed' ? '' : fact.commitmentId };
+}
 </script>
 <template>
 	<label>{{ tr('planning.category') }}<select
@@ -40,9 +47,10 @@ function add(): void { draft.value.facts.push({ id: createEntityId('fact'), stag
 	>
 		<legend>{{ tr('planning.fact') }} {{ index + 1 }}</legend>
 		<label>{{ tr('planning.stage') }}<select
-			v-model="fact.stage"
+			:value="fact.stage"
 			:disabled="paused"
 			name="stage"
+			@change="changeStage(index, $event)"
 		><option value="committed">{{ tr('planning.committed') }}</option><option value="actual">{{ tr('planning.actual') }}</option></select></label>
 		<label>{{ tr('planning.amount') }} ({{ baseline.currency }})<input
 			v-model="fact.amount"

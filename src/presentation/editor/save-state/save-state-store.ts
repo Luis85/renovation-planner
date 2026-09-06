@@ -42,9 +42,18 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	/**
 	 * A write landed half-way and its compensation refused (`leftWritesBehind`). Distinct from
 	 * `save-error`, which any refused write raises and which the NEXT successful write clears
-	 * for the ordinary reason — this one is about the vault's coherence, and the only evidence it
-	 * is coherent again is a write that landed WHOLE, so `resolveOk` is the one clearer. A
-	 * successful REFRESH does not clear it: reading a half-written vault back does not mend it.
+	 * for the ordinary reason — this one is about the vault's coherence.
+	 *
+	 * **Ruling R1 (2026-09-05): sticky for the leaf's life. Nothing in this store ever clears
+	 * it once set**, `resolveOk` included. The only in-session event that actually repairs a
+	 * half-written vault is a successful retry of the SAME delete resolution over the SAME
+	 * rows, and this wrapper cannot see either fact — `resolveOk` fires for ANY write that
+	 * lands whole, undo/redo and an edit to an unrelated zone included, so treating it as proof
+	 * of repair was exactly E3's defect. A stale warning is cheaper than a false all-clear.
+	 * Cost: a user who repairs the vault by hand still sees the warning until the leaf is
+	 * reopened. Deferred: clearing on a successful delete-resolution dispatch specifically,
+	 * once `withSaveStateTracking` can identify one. A successful REFRESH does not clear it
+	 * either: reading a half-written vault back does not mend it.
 	 */
 	const unrecoveredWrite = ref(false);
 
@@ -87,11 +96,14 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 			unrecoveredWrite.value = true;
 		},
 
-		/** A write landed whole — the only evidence the vault is coherent again. */
+		/**
+		 * A write landed whole. Does NOT clear `unrecoveredWrite` — see that field's docblock
+		 * (R1): this wrapper cannot tell a repairing write from any other, so the flag stays
+		 * sticky for the leaf's life once `markUnrecovered` has set it.
+		 */
 		resolveOk(): void {
 			pendingCount.value -= 1;
 			hasWriteInBatch.value = true;
-			unrecoveredWrite.value = false;
 			settle();
 		},
 

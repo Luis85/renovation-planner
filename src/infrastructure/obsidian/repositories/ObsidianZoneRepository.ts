@@ -194,6 +194,25 @@ export class ObsidianZoneRepository {
 		return ok(zoneVersion(frontmatter, sidecar.value.dto.objects.find((object) => object.id === id)));
 	}
 
+	/**
+	 * Step 2 for an UPDATE: the version a reader would mint now and the note text step 5
+	 * restores. Both files, because a reader minted its version from both: the note's version
+	 * alone let a sync that rewrote this zone's sidecar entry — and touched no note — be
+	 * overwritten by a save presenting a reading taken before it.
+	 */
+	private async updateBaseline(
+		id: ZoneId,
+		existing: TFile,
+	): Promise<Result<{ version: EntityVersion; snapshotText: string }, RepositoryError>> {
+		const onDisk = await this.versionOnDisk(id, existing);
+		if (!onDisk.ok) return onDisk;
+		try {
+			return ok({ version: onDisk.value, snapshotText: await this.deps.vault.read(existing) });
+		} catch (cause) {
+			return err(persistenceError('zone.save-failed', `Could not read zone note ${existing.path}.`, cause));
+		}
+	}
+
 	save(
 		zone: Zone,
 		expected: Expected,
@@ -218,17 +237,10 @@ export class ObsidianZoneRepository {
 		let currentVersion: EntityVersion | undefined;
 		let snapshotText: string | null = null;
 		if (existing) {
-			// Both files, because a reader minted its version from both: the note's version alone
-			// let a sync that rewrote this zone's sidecar entry — and touched no note — be
-			// overwritten by a save presenting a reading taken before it.
-			const onDisk = await this.versionOnDisk(zone.id, existing);
-			if (!onDisk.ok) return onDisk;
-			currentVersion = onDisk.value;
-			try {
-				snapshotText = await this.deps.vault.read(existing);
-			} catch (cause) {
-				return err(persistenceError('zone.save-failed', `Could not read zone note ${existing.path}.`, cause));
-			}
+			const baseline = await this.updateBaseline(zone.id, existing);
+			if (!baseline.ok) return baseline;
+			currentVersion = baseline.value.version;
+			snapshotText = baseline.value.snapshotText;
 		}
 
 		// Step 2b.

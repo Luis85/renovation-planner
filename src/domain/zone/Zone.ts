@@ -1,6 +1,6 @@
 import type { GeometryError, ValidationError } from '../../core/errors/AppError';
 import type { Polygon } from '../../core/geometry/Polygon';
-import { validatePolygonPoints } from '../../core/geometry/Polygon';
+import { createPolygon } from '../../core/geometry/Polygon';
 import { area as polygonArea, perimeter as polygonPerimeter } from '../../core/geometry/operations';
 import { err, ok, type Result } from '../../core/result/Result';
 import { isZoneStatus, type ZoneStatus } from './ZoneStatus';
@@ -70,8 +70,11 @@ export class Zone {
 		if (!isZoneStatus(props.status ?? 'Planned')) {
 			return err(zoneError('unknown-status', `"${String(props.status)}" is not a zone status.`));
 		}
-		const checked = validatePolygonPoints(props.geometry.points);
-		if (checked.ok) {
+		// `createPolygon`, not `validatePolygonPoints` alone: it also COPIES the vertex set,
+		// so a caller that keeps its (mutable) buffer mid-gesture cannot break the geometry
+		// just validated by writing through it afterward (C7).
+		const geometry = createPolygon(props.geometry.points);
+		if (geometry.ok) {
 			return ok(
 				new Zone({
 					id: props.id,
@@ -80,12 +83,12 @@ export class Zone {
 					name: name.value,
 					zoneType: props.zoneType,
 					status: props.status ?? 'Planned',
-					geometry: props.geometry,
+					geometry: geometry.value,
 					domainNoteLink: props.domainNoteLink ?? null,
 				}),
 			);
 		}
-		return checked;
+		return geometry;
 	}
 
 	withName(text: string): Result<Zone, ValidationError> {
@@ -94,9 +97,9 @@ export class Zone {
 	}
 
 	withGeometry(geometry: Polygon): Result<Zone, GeometryError> {
-		const checked = validatePolygonPoints(geometry.points);
+		const checked = createPolygon(geometry.points);
 		if (checked.ok) {
-			return ok(new Zone({ ...this.fields(), geometry }));
+			return ok(new Zone({ ...this.fields(), geometry: checked.value }));
 		}
 		return checked;
 	}

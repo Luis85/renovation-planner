@@ -19,8 +19,13 @@ export interface CascadeDeps {
 	 * the one branch that has to be noisy), and a failed MARKER write is loud too,
 	 * because the durable fact that would justify staying quiet about a background
 	 * failure is exactly the write that did not land.
+	 *
+	 * REQUIRED, and it is this member three other docblocks cite as the precedent for their
+	 * own — while it was itself optional, so the composition that forgot the toast surface
+	 * of a SILENT background writer compiled, passed and said nothing. The precedent is
+	 * honoured here now rather than only quoted.
 	 */
-	readonly notify?: {
+	readonly notify: {
 		cascadeAborted(targetId: string): void;
 		staleMarkerFailed(requirementId: string): void;
 	};
@@ -46,7 +51,7 @@ async function recalculateOne(deps: CascadeDeps, requirementId: string): Promise
 			requirementId,
 			cause: stale.error,
 		});
-		deps.notify?.staleMarkerFailed(requirementId);
+		deps.notify.staleMarkerFailed(requirementId);
 		return;
 	}
 	await deps.events.publish(requirementInvalidated(requirementId as never));
@@ -117,7 +122,7 @@ export async function requirementsOnAsset(
 	const listed = await deps.requirements.listByAsset(assetId);
 	if (isErr(listed)) {
 		deps.logger.error('requirement.list-by-asset.failed', { assetId, cause: listed.error });
-		deps.notify?.cascadeAborted(assetId);
+		deps.notify.cascadeAborted(assetId);
 		return null;
 	}
 	return listed.value;

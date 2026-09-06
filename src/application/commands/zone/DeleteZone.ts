@@ -47,9 +47,14 @@ export interface DeleteZoneDeps {
 	readonly events: EventBus;
 	readonly locks: ReferenceLocks;
 	readonly logger: Logger;
-	readonly markers?: SequenceMarkerStore;
+	/**
+	 * The durable recovery record, REQUIRED — a composition that forgets it would compile,
+	 * pass and delete without any way back, which is the one failure the marker exists to
+	 * prevent. `AssetPriceOverrideRepository.ts`'s `onDuplicate` records the same refusal.
+	 */
+	readonly markers: SequenceMarkerStore;
 	/** Slice 13's toast surface, handed straight to `runDeleteResolution`; see its `notify`. */
-	readonly notify?: { markerClearFailed(entityId: string): void };
+	readonly notify: { markerClearFailed(entityId: string): void };
 }
 
 export class DeleteZoneCommand

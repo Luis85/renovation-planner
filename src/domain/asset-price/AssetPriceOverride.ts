@@ -1,5 +1,5 @@
 import type { ValidationError } from '../../core/errors/AppError';
-import { isNegative, type Money } from '../../core/money/Money';
+import { negativeMoney, type Money } from '../../core/money/Money';
 import { err, ok, type Result } from '../../core/result/Result';
 import type { ProjectId } from '../project/ProjectId';
 import type { AssetId } from '../asset/AssetId';
@@ -61,14 +61,14 @@ export class AssetPriceOverride {
 	static create(props: CreateAssetPriceOverrideProps): Result<AssetPriceOverride, ValidationError> {
 		// Money itself is signed (ADR-010); a unit price is a FIELD that cannot go below zero,
 		// so the guard lives here where the field enters — the split `Asset.create` makes too.
-		if (isNegative(props.unitCost)) {
-			return err(
-				assetPriceError(
-					'negative-unit-cost',
-					`A unit cost cannot be negative; got ${props.unitCost.amount} ${props.unitCost.currency}.`,
-				),
-			);
-		}
+		// `negativeMoney` (finding C11) is the shared guard; this site's `errorOf` ignores the
+		// code it passes and substitutes this entity's own `'negative-unit-cost'`.
+		const negativeUnitCost = negativeMoney(
+			'unit cost',
+			props.unitCost,
+			(_code, message) => assetPriceError('negative-unit-cost', message),
+		);
+		if (negativeUnitCost !== null) return err(negativeUnitCost as ValidationError);
 		return ok(new AssetPriceOverride(props));
 	}
 

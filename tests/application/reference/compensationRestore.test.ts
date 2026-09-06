@@ -11,7 +11,7 @@ import { expectErr, expectOk } from '../../helpers/domain';
 import { makeAsset, makeRequirement, makeZone } from '../../helpers/entities';
 import type { Zone } from '../../../src/domain/zone/Zone';
 import { recorder as logger } from '../../helpers/logger';
-import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
+import { TEN_SQUARE_METERS, assetSequenceCollaborators, requirementFixture, zoneSequenceCollaborators } from '../../helpers/slice10';
 
 /**
  * The compensation half of the delete-resolution sequence: a forward write COMPLETES
@@ -80,6 +80,7 @@ describe('a completed forward write is restored when a later step fails', () => 
 
 		const error = expectErr(
 			await new DeleteZoneCommand({
+				...zoneSequenceCollaborators(),
 				zones,
 				requirements: w.requirements,
 				recalculate: w.recalculate,
@@ -115,6 +116,7 @@ describe('a completed forward write is restored when a later step fails', () => 
 
 		const error = expectErr(
 			await new DeleteAssetCommand({
+				...assetSequenceCollaborators(),
 				assets,
 				requirements: w.requirements,
 				recalculate: w.recalculate,

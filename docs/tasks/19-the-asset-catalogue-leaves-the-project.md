@@ -6,7 +6,7 @@ dependsOn:
   - "[[10-assets-requirements-and-the-end-to-end-loop]]"
   - "[[15-modals-and-confirmation-dialogs]]"
   - "[[18-a-project-owns-its-folder]]"
-status: ""
+status: Done
 started: ""
 finished: ""
 horizon: ""

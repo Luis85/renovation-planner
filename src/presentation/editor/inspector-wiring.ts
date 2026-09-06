@@ -148,6 +148,7 @@ export function createInspector(
 						context.commands.requirementEdits.setQuantityOverride,
 						context.commands.requirementEdits.requirements,
 						context.commands.events,
+						ledger,
 					);
 					return asDispatchCommand(
 						adapter,
@@ -160,6 +161,7 @@ export function createInspector(
 						context.commands.requirementEdits.setCostOverride,
 						context.commands.requirementEdits.requirements,
 						context.commands.events,
+						ledger,
 					);
 					return asDispatchCommand(
 						adapter,

@@ -33,9 +33,10 @@ const CATEGORY_KEY: Partial<Record<ErrorCategory, StringKey>> = {
 
 /**
  * The CATEGORY that the worked examples in `describe('toUserMessage')` are examples OF: every
- * `${kind}.` and `${spec.kind}.` string raised anywhere under `src/infrastructure/` says
- * something of its own to a user. (Declared out here rather than inside that block only because
- * a helper capturing nothing from its scope is an oxlint finding; the case using it is in there.)
+ * `${kind}.` and `${spec.kind}.` string raised anywhere under `src/infrastructure/` or
+ * `src/application/` says something of its own to a user. (Declared out here rather than inside
+ * that block only because a helper capturing nothing from its scope is an oxlint finding; the
+ * case using it is in there.)
  *
  * It replaces a sentence — restated in `en.ts`, in `toUserMessage.ts` and in the docblock over
  * those examples — which quoted a grep, read FOUR shared raise sites off it and concluded that "the
@@ -59,9 +60,9 @@ const NOT_A_CODE: Readonly<Record<string, string>> = {
 		'answered with the delete failure that provoked the compensation.',
 };
 
-/** `src/infrastructure/**` is a different tree from every file that states this claim, so the
- *  scan cannot match its own quotation — which is how the previous version of it was
- *  re-runnable and still never re-run. */
+/** `src/infrastructure/**` and `src/application/**` are different trees from every file that
+ *  states this claim, so the scan cannot match its own quotation — which is how the previous
+ *  version of it was re-runnable and still never re-run. */
 function perKindSuffixes(): ReadonlySet<string> {
 	const pattern = /\$\{(?:spec\.)?kind\}\.([a-z-]+)/gu;
 	const found = new Set<string>();
@@ -74,8 +75,96 @@ function perKindSuffixes(): ReadonlySet<string> {
 		}
 	};
 	walk(join('src', 'infrastructure'));
+	walk(join('src', 'application'));
 	return found;
 }
+
+/**
+ * Every literal `AppError.code` minted directly under `src/application/` — a fixed string,
+ * unlike `perKindSuffixes` above's `${kind}`-templated ones. Two spellings mint one: the
+ * object-literal `code: '...'` field, and the three application-owned factories
+ * (`referenceError`, `calculationError`, `persistenceError` in `application/errors.ts`) called
+ * with a string literal as their first argument. A domain-owned factory reached FROM
+ * `application/` (`planError`, `assetNotFound`, `calibrationError`) is deliberately NOT
+ * matched: its code belongs to the module that mints it ("a type belongs with the code that
+ * PRODUCES it", CLAUDE.md), and a scan that followed a factory by NAME rather than by import
+ * would keep walking into `domain/` next.
+ */
+const APPLICATION_CODE_PATTERN =
+	/(?:code:\s*|referenceError\(\s*|calculationError\(\s*|persistenceError\(\s*)'([a-z][a-z-]*(?:\.[a-z][a-z-]*)+)'/gu;
+
+function applicationMintedCodes(): ReadonlySet<string> {
+	const found = new Set<string>();
+	const walk = (dir: string): void => {
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			const full = join(dir, entry.name);
+			if (entry.isDirectory()) walk(full);
+			else if (entry.name.endsWith('.ts'))
+				for (const match of readFileSync(full, 'utf8').matchAll(APPLICATION_CODE_PATTERN))
+					found.add(match[1]);
+		}
+	};
+	walk(join('src', 'application'));
+	return found;
+}
+
+/**
+ * Codes `applicationMintedCodes` finds that are deliberately left on the category sentence —
+ * same discipline as `NOT_A_CODE` above, one reading per entry rather than a rule guessed from
+ * the name, and the scan itself proves each reading still matches something rather than going
+ * stale silently.
+ */
+const GENERIC_APPLICATION_CODES: Readonly<Record<string, string>> = {
+	'plan.project-not-found':
+		"CreatePlanCommand's referent-gone guard; NewPlanForm routes it through notify and "
+		+ 'navigation rather than a field or a banner sentence (the same code the MINTED table '
+		+ "documents beside plan.empty-name), so no copy of its own is owed.",
+	'plan.plan-not-found':
+		"loadPlan's load-or-fail preamble, shared by ReversibleCalibratePlan and "
+		+ 'SetPlanBackground: a Plan note deleted between the open editor and the command it '
+		+ 'dispatches. A race with nothing to say beyond the Reference category sentence.',
+	'zone.plan-not-found':
+		'The same load-or-fail race one level down, in CreateZoneCommand: a Plan deleted '
+		+ 'between "New room" being opened and dispatched. No wired form maps it to a field.',
+	'zone.zone-not-found':
+		"loadZone's load-or-fail preamble, shared by both reversible zone adapters. The "
+		+ 'increment history already treats it as a genuinely pre-write Reference refusal with '
+		+ 'no dedicated copy.',
+	'requirement.asset-not-found':
+		"loadAsset's load-or-fail preamble and the identical redo-time re-check in "
+		+ 'reversible-assign-asset-command.ts; both are the same UI-to-dispatch race the '
+		+ 'Reference category sentence already answers honestly.',
+	'requirement.zone-not-found':
+		"The zone half of reversible-assign-asset-command.ts's redo-time re-check — the same "
+		+ 'race as requirement.asset-not-found.',
+	'requirement.area-failed':
+		"AssignAssetCommand.createAndSave and RecalculateRequirement's guard for a zone "
+		+ "polygon that cannot be measured. The Calculation category sentence is what's needed "
+		+ "here too: the defect is in the zone's geometry, not in anything this code could name "
+		+ 'more specifically.',
+	'requirement.unsupported-origin':
+		"RequirementOrigin has exactly one member ('zone') today "
+		+ '(domain/requirement/RequirementOrigin.ts), so this guard is structurally '
+		+ "unreachable — the same shape as project.negative-amount's documented absence above.",
+	'requirement.update-invalid':
+		"Re-wraps Requirement.withRecalculation's own entity validation after "
+		+ 'deriveRequirementFigures has already validated the same inputs; an invariant guard '
+		+ 'with no known input that reaches it.',
+	'zone.restore.referents-faulted':
+		'Built only to carry a `.catch` rejection into the `Result` shape the `isErr` check '
+		+ 'below expects; that branch logs it (`zone.restore.referents-unreadable`) and '
+		+ 'publishes a rebuild event rather than reaching `toUserMessage` — the same shape as '
+		+ 'the `sequence.recovery.*` trio.',
+	'sequence.recovery.cost-baseline-faulted':
+		'A `.catch` rejection reshaped into a `Result` purely so the `isErr` check can branch '
+		+ 'into `logger.warn`; `recoverInterruptedSequences` runs fire-and-forget at plugin '
+		+ 'load and reaches no `toUserMessage` door.',
+	'sequence.recovery.restore-faulted':
+		'The same `Result`-shim as `sequence.recovery.cost-baseline-faulted`, over the restore '
+		+ 'write instead of the baseline read.',
+	'sequence.recovery.clear-faulted':
+		'The same `Result`-shim again, over the marker clear.',
+};
 
 describe('toUserMessage', () => {
 	it('resolves a code the table knows through t()', () => {
@@ -114,7 +203,7 @@ describe('toUserMessage', () => {
 		expect(toUserMessage('de', refusal)).not.toBe(t('de', categoryKey));
 	});
 
-	it('resolves every per-kind suffix raised in src/infrastructure/ to something other than its category sentence', () => {
+	it('resolves every per-kind suffix raised in src/infrastructure/ or src/application/ to something other than its category sentence', () => {
 		const suffixes = perKindSuffixes();
 		// An instrument that reaches nothing looks exactly like a clean tree.
 		expect(suffixes.size).toBeGreaterThan(3);
@@ -126,6 +215,32 @@ describe('toUserMessage', () => {
 			// a direct-code entry would pass this for one kind and leave its siblings behind,
 			// which is the exact defect these rows exist to close.
 			const refusal = error({ category: 'Persistence', code: `plan.${suffix}` });
+			expect(toUserMessage('en', refusal)).not.toBe(t('en', 'error.category.persistence'));
+			expect(toUserMessage('de', refusal)).not.toBe(t('de', 'error.category.persistence'));
+		}
+	});
+
+	/**
+	 * A6: nine application-minted codes had no locale entry and no suffix match, so they fell
+	 * to the generic Persistence sentence beside siblings that have specific ones — the same
+	 * defect the case above closes for `${kind}`-templated codes, met here for literal ones.
+	 *
+	 * The category passed to `error()` is arbitrary (`'Persistence'`, same as the per-kind case
+	 * above) rather than each code's real category: `hasLocaleKey(error.code)` is asked BEFORE
+	 * `error.category` is ever read, so a direct entry beats the category fallback whatever
+	 * category is handed in. Using each code's real category would test nothing extra and would
+	 * make this case depend on a second, easy-to-typo table pairing code to category.
+	 */
+	it('resolves every literal code minted in src/application/ to something other than its category sentence', () => {
+		const codes = applicationMintedCodes();
+		// An instrument that reaches nothing looks exactly like a clean tree.
+		expect(codes.size).toBeGreaterThan(Object.keys(GENERIC_APPLICATION_CODES).length);
+		expect(Object.keys(GENERIC_APPLICATION_CODES).length).toBeGreaterThan(0);
+		expect(Object.keys(GENERIC_APPLICATION_CODES).filter((code) => !codes.has(code))).toEqual([]);
+
+		for (const code of codes) {
+			if (code in GENERIC_APPLICATION_CODES) continue;
+			const refusal = error({ category: 'Persistence', code });
 			expect(toUserMessage('en', refusal)).not.toBe(t('en', 'error.category.persistence'));
 			expect(toUserMessage('de', refusal)).not.toBe(t('de', 'error.category.persistence'));
 		}

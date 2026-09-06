@@ -43,7 +43,7 @@
  * than `of`'s `LITERAL_PATTERN`, and the currency pattern is the same one), so a value that
  * passes here cannot throw there.
  */
-import { computed, ref, type Ref } from 'vue';
+import { computed, ref, useId, type Ref } from 'vue';
 import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
 import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
 import { useInvalidFieldFocus } from '../composables/use-invalid-field-focus';
@@ -233,6 +233,34 @@ const createdAssetId = ref<AssetId | null>(null);
  */
 const catalogueFrozen = computed(() => createdAssetId.value !== null);
 
+/**
+ * What `.rp-new-asset__created` below is minted for: the id a PAUSED `<select>` names in its
+ * own `aria-describedby`, naming the reason rather than leaving `aria-disabled` to announce
+ * "unavailable" with nothing about why (V7). This form already prints that sentence for a
+ * sighted user, so a screen-reader one gets the SAME text rather than a second copy invented
+ * for this attribute alone.
+ *
+ * Named only while `catalogueFrozen`, never merely while `submitting`: the paragraph it points
+ * at is itself `v-if="catalogueFrozen"`, and a describedby naming an id that renders nothing
+ * would be a dangling reference — worse than none at all.
+ */
+const catalogueFrozenReasonId = useId();
+
+/**
+ * Never a join, and that is not a simplification of a case this form can reach: while
+ * `catalogueFrozen`, `useFormCommit#submit` has already cleared `fieldErrors` to a fresh
+ * `Map` before the dispatch that could set it again ("Cleared BEFORE the dispatch, so a
+ * stale message from the previous submit cannot outlive the submit that fixed it"), and a
+ * frozen retry's own dispatch (`createAssetAndFootprint`) never calls `createAsset` again —
+ * the only call that could route an error to `category` or `unit` — so no code in
+ * `NEW_ASSET_ERRORS` ever lands a message on either field once frozen. `fieldDescribedBy` is
+ * therefore always `undefined` here, and a field-level error cannot coexist with the frozen
+ * state at all.
+ */
+function pausedDescribedBy(aria: { readonly 'aria-describedby'?: string }): string | undefined {
+	if (!catalogueFrozen.value) return aria['aria-describedby'];
+	return catalogueFrozenReasonId;
+}
 
 /**
  * The whole sequence, as `useFormCommit`'s single `dispatch`. Ordered so that everything
@@ -369,6 +397,7 @@ async function onSubmit(): Promise<void> {
 		<FormBanner :message="form.banner.value" />
 		<p
 			v-if="catalogueFrozen"
+			:id="catalogueFrozenReasonId"
 			class="rp-new-asset__created"
 		>
 			{{ tr('form.new-asset.already-created') }}
@@ -408,6 +437,7 @@ async function onSubmit(): Promise<void> {
 					data-field="category"
 					:value="form.values.value.category"
 					:aria-disabled="catalogueInoperative"
+					:aria-describedby="pausedDescribedBy(aria)"
 					@change="onFieldInput('category', $event)"
 				>
 					<option
@@ -435,6 +465,7 @@ async function onSubmit(): Promise<void> {
 					data-field="unit"
 					:value="form.values.value.unit"
 					:aria-disabled="catalogueInoperative"
+					:aria-describedby="pausedDescribedBy(aria)"
 					@change="onFieldInput('unit', $event)"
 				>
 					<option

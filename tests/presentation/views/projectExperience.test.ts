@@ -9,7 +9,7 @@ import ContinueRow from '../../../src/presentation/views/ContinueRow.vue';
 import ProjectList from '../../../src/presentation/views/ProjectList.vue';
 import AssetPriceList from '../../../src/presentation/views/AssetPriceList.vue';
 import NewProjectForm from '../../../src/presentation/views/NewProjectForm.vue';
-import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps, type ProjectSession } from '../../../src/presentation/views/RenovationProjectContext';
+import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps, type ProjectSession, type ProjectOpenOutcome } from '../../../src/presentation/views/RenovationProjectContext';
 import { installObsidianDom } from '../../helpers/dom';
 import { defaultRenovationProjectDeps, makeView } from '../../helpers/makeRenovationProjectView';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
@@ -287,6 +287,36 @@ describe('project experience', () => {
 		await second; await flushPromises();
 		expect(accepted.history).toBe(true);
 		expect(view.getState()).toEqual({ projectId: project.id });
+		await view.onClose(); view.containerEl.remove();
+	});
+
+	/**
+	 * P3: `onOpenNote` used to run `canLeave()` first, whose confirm arm wipes `edits` and
+	 * whose Stay arm leaves the button having done nothing at all — for an action that
+	 * navigates nowhere and unmounts nothing, so there was never anything for the drafts to be
+	 * discarded FROM. Red before the fix: the confirm dialog opened and `openProject` was
+	 * never reached until it was dismissed.
+	 */
+	it('opens the note over a dirty price draft, discarding nothing', async () => {
+		installObsidianDom();
+		const base = defaultRenovationProjectDeps();
+		const openProject = vi.fn<(projectId: string) => Promise<ProjectOpenOutcome>>(() => Promise.resolve('opened'));
+		const view = makeView({
+			...base,
+			openProject,
+			queries: { ...base.queries, getProject: () => Promise.resolve(ok(project)), listAssetPrices: () => Promise.resolve(ok([priceRow()])) },
+		});
+		document.body.appendChild(view.containerEl);
+		await view.setState({ projectId: project.id, section: 'prices' }, { history: false });
+		await view.onOpen(); await flushPromises();
+		const input = view.contentEl.querySelector('input') as HTMLInputElement;
+		input.value = '18,25'; input.dispatchEvent(new Event('input', { bubbles: true }));
+		await flushPromises();
+		(view.contentEl.querySelector('.rp-project-detail__open-note') as HTMLButtonElement).click();
+		await flushPromises();
+		expect(openProject).toHaveBeenCalledWith(project.id);
+		expect(view.contentEl.querySelector('.rp-dialog-actions')).toBeNull();
+		expect(input.value).toBe('18,25');
 		await view.onClose(); view.containerEl.remove();
 	});
 

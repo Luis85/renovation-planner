@@ -7,7 +7,7 @@ import { ClearAssetPriceOverrideCommand } from '../../../../src/application/comm
 import { of as moneyOf } from '../../../../src/core/money/Money';
 import { expectOk } from '../../../helpers/domain';
 import { makeAsset, makeProject } from '../../../helpers/entities';
-import { requirementFixture } from '../../../helpers/slice10';
+import { assetSequenceCollaborators, requirementFixture } from '../../../helpers/slice10';
 
 /**
  * `DeleteAssetCommand` gathered its referents from `requirements.listByAsset` alone, so an
@@ -47,6 +47,7 @@ async function wired() {
 		error: vi.fn<(event: string, context?: Record<string, unknown> & { cause?: unknown }) => void>(),
 	};
 	const deleteAsset = new DeleteAssetCommand({
+		...assetSequenceCollaborators(),
 		assets: w.assets,
 		requirements: w.requirements,
 		recalculate: w.recalculate,

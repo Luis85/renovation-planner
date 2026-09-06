@@ -151,6 +151,23 @@ describe('the five regions', () => {
 	});
 
 	/**
+	 * E10: `<header class="rp-context-bar">` and its inner `<nav class="rp-context-bar__crumbs">`
+	 * used to share one `aria-label` key, which axe flags as a `region`/`landmark-unique`
+	 * violation — two landmarks with the same accessible name. The crumbs are plain text (ADR-
+	 * 0017), not a navigable tree, so the inner element carries no landmark role and no label of
+	 * its own; the bar's own `aria-label` is the one and only element this name should resolve to.
+	 */
+	it('gives editor.context-bar\'s label to exactly one element', async () => {
+		const harness = await mountCanvas();
+		const label = t('en', 'editor.context-bar');
+		const labelled = harness.wrapper
+			.findAll('[aria-label]')
+			.filter((el) => el.attributes('aria-label') === label);
+
+		expect(labelled).toHaveLength(1);
+	});
+
+	/**
 	 * Slice 15's host, mounted per ItemView-scoped app. Asserted at the SHELL rather than
 	 * only in the dialogs' own tests: a host that exists but is mounted nowhere is exactly
 	 * the state `CalibrateTool` was in for a whole slice.

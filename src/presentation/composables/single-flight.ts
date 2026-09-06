@@ -25,8 +25,13 @@
  * because the project pane's price section is its second caller and one function with two
  * callers cannot drift the way two hand-spelled copies can. It uses no Vue reactivity and is a
  * composable only by neighbourhood.
+ *
+ * `Promise<unknown>` rather than `Promise<void>`: a read may answer its own caller — the price
+ * section's returns whether it landed or was superseded — and this loader deliberately reads
+ * nothing from it. It coalesces reads it did not issue, so there is no one here for an outcome
+ * to be about.
  */
-export function singleFlight(read: () => Promise<void>): () => void {
+export function singleFlight(read: () => Promise<unknown>): () => void {
 	let running = false;
 	let requestedAgain = false;
 	const run = async (): Promise<void> => {

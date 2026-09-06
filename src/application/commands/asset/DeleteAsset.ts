@@ -43,13 +43,14 @@ export interface DeleteAssetDeps {
 	readonly events: EventBus;
 	readonly locks: ReferenceLocks;
 	readonly logger: Logger;
-	readonly markers?: SequenceMarkerStore;
+	/** REQUIRED, for the reason `DeleteZoneDeps.markers` states. */
+	readonly markers: SequenceMarkerStore;
 	/** Task 7a: a price override names no Requirement, so it goes with the asset rather than
 	 *  refusing its deletion — see `deleteOverridesOf`'s header. */
 	readonly overrides: AssetPriceOverrideRepository;
 	/** Slice 13's toast surface, handed straight to `runDeleteResolution`; see its `notify`,
 	 *  and `deleteOverridesOf`'s for `priceCleanupFailed`. */
-	readonly notify?: {
+	readonly notify: {
 		markerClearFailed(entityId: string): void;
 		/** A stray price note was left behind; the asset itself is gone. */
 		priceCleanupFailed(assetId: string): void;

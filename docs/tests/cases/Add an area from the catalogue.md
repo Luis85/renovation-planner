@@ -73,7 +73,9 @@ creation and document history; it is not a vault and loses its changes on reload
 6. Enter in a field applies a pair; Enter on Create area completes it. Native Escape/Delete/
    Backspace/Space, chords, composition and held Enter must not perform canvas actions.
    Field Escape retains input. Button Escape clears the nearest applied draft; a subsequent
-   press exits the tool. Add and constrained drawers close before that route can discard work.
+   press exits the tool — from a row's Edit/Remove too, where the clear removes the focused
+   button and focus lands on Apply. Add and constrained drawers close before that route can
+   discard work.
 7. Create, undo and redo. One Area/ID/geometry is restored through the existing history.
    Enable repeat with Space, create again and check that only the outline/input resets.
    Leave and reopen: repeat is off and pending text is gone, even if no corner was applied.

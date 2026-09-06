@@ -58,7 +58,9 @@ Criterion 3 — **retry state cannot contain a command to replay** — is a fact
 at compile time rather than by a sentence.
 
 Three fields were added and one deliberately was not. `ProjectStore` gained `refreshing` and
-`retriesFailed`; `SaveStateStore` gained `unrecoveredWrite`; the status union did NOT grow, because
+`retriesFailed`; `SaveStateStore` gained `unrecoveredWrite`
+(**amendment, 2026-09-06**: sticky for the leaf's MOUNT, not the leaf itself — a settings save
+rebuilds the store and drops it, pinned by `tests/plugin/rootSwapRebind.test.ts`); the status union did NOT grow, because
 `keepPreviousOnFailure` holds `status === 'ready'` on purpose and a fifth status would reopen every
 `=== 'ready'` gate in the tree.
 

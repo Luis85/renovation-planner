@@ -15,6 +15,7 @@ import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { notifyFault } from '../../notices/notify';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
+import { normalizePath } from 'obsidian';
 
 const props = defineProps<{ baseline: ReferenceBaseline; vault: BackgroundVault; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>;
 	logger: Logger; fileChanges: (listener: (path: string) => void) => () => void; dispatch: (input: ConfigureReferenceInput) => Promise<DispatchResult> }>();
@@ -31,7 +32,11 @@ const coordinates = reactive({ ax: '', ay: '', bx: '', by: '' });
 const length = ref(previous.calibration ? String(previous.calibration.knownDistance / 1000) : '');
 const heading = ref<HTMLElement | null>(null);
 let alive = true, generation = 0, nextPoint = 0;
-const kind = computed(() => backgroundKindFor(path.value.trim()));
+// ONE canonical spelling, normalized once: a vault event carries `TFile.path`, and comparing
+// the raw text against it let a `/scan.png` draft miss its own file's change and persist a
+// spelling `BackgroundLayer` would never match either (a Codex P2 on pull request #85).
+const source = computed(() => normalizePath(path.value.trim()));
+const kind = computed(() => backgroundKindFor(source.value));
 const paused = computed(() => submitting.value || props.busy.value || props.blocked.value || conflict.value);
 const points = computed(() => Object.values(coordinates).every(s => String(s).trim() !== '' && Number.isFinite(Number(s)))
 	? [{ x: Number(coordinates.ax), y: Number(coordinates.ay) }, { x: Number(coordinates.bx), y: Number(coordinates.by) }] : []);
@@ -48,11 +53,11 @@ const submitLabel = computed(() => tr(step.value === 3 ? 'editor.reference.finis
 const stageLabel = computed(() => tr(step.value === 1 ? 'editor.reference.prepare' : step.value === 2 ? 'editor.reference.scale' : 'editor.reference.review'));
 function invalidate(): void { generation++; raster.value = null; loading.value = false; }
 watch([path, page], invalidate);
-onBeforeUnmount(props.fileChanges(changed => { if (changed === path.value.trim()) { invalidate(); error.value = tr('editor.reference.source-changed'); } }));
+onBeforeUnmount(props.fileChanges(changed => { if (changed === source.value) { invalidate(); error.value = tr('editor.reference.source-changed'); } }));
 onBeforeUnmount(() => { alive = false; invalidate(); });
 function anotherDistance(): void { Object.assign(coordinates, { ax: '', ay: '', bx: '', by: '' }); length.value = ''; nextPoint = 0; acknowledged.value = false; }
 function initialise(model: Extract<BackgroundRenderModel, { kind: 'raster' }>): void {
-	const same = previous.background?.path === path.value.trim() && (previous.background.page ?? 1) === Number(page.value);
+	const same = previous.background?.path === source.value && (previous.background.page ?? 1) === Number(page.value);
 	Object.assign(appearance, same && previous.background?.appearance ? structuredClone(previous.background.appearance)
 		: { crop: { x: 0, y: 0, width: model.width, height: model.height }, rotation: 0, opacity: 0.65, visible: true, locked: true });
 	if (same && previous.calibration) {
@@ -70,7 +75,7 @@ async function load(): Promise<void> {
 	const token = ++generation;
 	loading.value = true;
 	let model: BackgroundRenderModel;
-	try { model = await loadBackground({ path: path.value.trim(), kind: kind.value, page: Number(page.value) }, props.vault); }
+	try { model = await loadBackground({ path: source.value, kind: kind.value, page: Number(page.value) }, props.vault); }
 	catch { model = { kind: 'unavailable', reason: 'unreadable' }; }
 	if (!alive || token !== generation) return;
 	loading.value = false;
@@ -93,7 +98,7 @@ async function commit(): Promise<void> {
 	if (sourceKind === null) return;
 	submitting.value = true;
 	try {
-		const result = await props.dispatch({ background: { path: path.value.trim(), kind: sourceKind,
+		const result = await props.dispatch({ background: { path: source.value, kind: sourceKind,
 			...(sourceKind === 'pdf' ? { page: Number(page.value) } : {}), appearance: structuredClone(toRaw(appearance)) }, measurement: scale.value.measurement });
 		if (!alive) return;
 		if (result.ok) emit('submit');

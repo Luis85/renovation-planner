@@ -254,6 +254,15 @@ describe('M05 → M06 in the real editor with FakeVault repository commands', ()
 		expect(r.harness.wrapper.text()).not.toContain('1 mm per source pixel');
 		await submit(r); expect(expectFound(await r.stack.plans.getById(r.plan.id)).entity.background).toBeNull(); await cancel(r); r.harness.unmount();
 	});
+	it('normalizes a vault-relative spelling once, so the canonical path invalidates the draft and is what persists', async () => {
+		// Vault events carry `TFile.path`, the canonical spelling; the draft compared its raw text.
+		const r = await rig(); await open(r); await prepare(r, '/scan.png');
+		r.harness.changeFile('scan.png'); await settle(); expect(r.harness.wrapper.text()).toContain('source changed');
+		await r.harness.wrapper.get('[data-rp-action="load-reference"]').trigger('click'); await settle();
+		await measure(r); await submit(r);
+		expect(expectFound(await r.stack.plans.getById(r.plan.id)).entity.background?.path).toBe('scan.png');
+		r.harness.unmount();
+	});
 	it('does not move focus to a disposed canvas after a start choice', async () => {
 		const r = await rig(); const pending = r.harness.wrapper.get('.rp-floor-start button:last-child').trigger('click'); r.harness.unmount(); await pending;
 		expect(document.activeElement).not.toBe(r.harness.canvasEl);

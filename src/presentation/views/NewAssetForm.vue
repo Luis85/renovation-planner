@@ -247,16 +247,19 @@ const catalogueFrozen = computed(() => createdAssetId.value !== null);
 const catalogueFrozenReasonId = useId();
 
 /**
- * `aria`'s own `aria-describedby` (from a live field error) plus the frozen reason, joined
- * rather than one replacing the other — a category or unit CAN carry both at once, and
- * `aria-describedby` takes a space-separated list precisely for two descriptions of one
- * control. `undefined` when there is nothing to add, so a control with neither keeps no
- * attribute at all rather than an empty string.
+ * Never a join, and that is not a simplification of a case this form can reach: while
+ * `catalogueFrozen`, `useFormCommit#submit` has already cleared `fieldErrors` to a fresh
+ * `Map` before the dispatch that could set it again ("Cleared BEFORE the dispatch, so a
+ * stale message from the previous submit cannot outlive the submit that fixed it"), and a
+ * frozen retry's own dispatch (`createAssetAndFootprint`) never calls `createAsset` again —
+ * the only call that could route an error to `category` or `unit` — so no code in
+ * `NEW_ASSET_ERRORS` ever lands a message on either field once frozen. `fieldDescribedBy` is
+ * therefore always `undefined` here, and a field-level error cannot coexist with the frozen
+ * state at all.
  */
 function pausedDescribedBy(aria: { readonly 'aria-describedby'?: string }): string | undefined {
-	const fieldDescribedBy = aria['aria-describedby'];
-	if (!catalogueFrozen.value) return fieldDescribedBy;
-	return fieldDescribedBy === undefined ? catalogueFrozenReasonId : `${fieldDescribedBy} ${catalogueFrozenReasonId}`;
+	if (!catalogueFrozen.value) return aria['aria-describedby'];
+	return catalogueFrozenReasonId;
 }
 
 /**

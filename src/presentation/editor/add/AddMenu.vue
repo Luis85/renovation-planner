@@ -7,10 +7,16 @@
  * pattern), a search box that filters it live, and three doors that close it (since
  * 2026-09-04): Escape — owned by the ROOT's capture-phase listener rather than by this
  * component, see below — an outside press, and focus leaving the menu's own boundary
- * (`onFocusOut`). **Two of the three hand focus back to the button that opened it; the third
- * retires the menu where focus already went** — `onFocusOut` fires BECAUSE focus moved to
- * another control, and `onBeforeUnmount` reclaiming it there would steal the control the user
- * just reached, so it restores the anchor only when the menu still holds focus at unmount.
+ * (`onFocusOut`). **Only Escape reliably hands focus back to the button; an outside press and
+ * `onFocusOut` both retire the menu where focus already went.** `onBeforeUnmount` carries one
+ * undifferentiated guard — refocus the anchor only if the menu still holds focus at unmount —
+ * and an outside press satisfies that guard or fails it depending on WHAT it presses: a press
+ * on a non-focusable stretch (`document.body`, empty overlay) leaves focus inside the menu, so
+ * the guard fires and the button gets it back; a press on the focusable canvas
+ * (`.rp-plan-canvas`'s `tabindex="0"`, and `onPointerDown` never calls `preventDefault`) does
+ * not, because the browser's own mousedown default moves focus there before this component
+ * ever unmounts. Not reclaiming focus from whatever the user's press just reached is the same
+ * E1 rule `onFocusOut` already needed.
  *
  * **The search input sits OUTSIDE `role="menu"`, not above the groups inside it.** `menu`'s
  * ARIA role permits only `menuitem`/`menuitemradio`/`menuitemcheckbox`/`group` as children,

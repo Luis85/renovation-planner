@@ -31,7 +31,7 @@ class StructureCommand {
 	private busy = false;
 	private retired = false;
 	private current: PlanGeometrySnapshot;
-	private generation: number | null = null;
+	private observed = false;
 	constructor(private readonly deps: { geometry: PlanGeometrySidecar; events: EventBus }, private readonly input: CommandInput) {
 		this.current = input.baseline;
 	}
@@ -59,14 +59,20 @@ class StructureCommand {
 		const { ledger, planId } = this.input;
 		const live = await this.deps.geometry.read(planId);
 		if (!live.ok) return live;
-		if (this.generation === null) {
+		if (!this.observed) {
 			const conflict = checkExpectedVersion('plan-geometry', planId, live.value.version, this.current.version);
 			if (conflict) return err(conflict);
-			this.generation = ledger.observe(planId, live.value.version);
-		} else {
-			const generation = ledger.observe(planId, live.value.version);
-			if (generation !== this.generation || !sameGeometryDocument(live.value.document, this.current.document)) return err(undoSuperseded(planId));
+			this.observed = true;
+		} else if (!sameGeometryDocument(live.value.document, this.current.document)) {
+			// The WHOLE document decides, not the ledger's generation: a sibling Zone command
+			// (a Room move) and its undo write the sidecar twice under the ZONE's id, so the
+			// plan's revision moves while the document comes back byte-for-byte, and refusing on
+			// the generation broke every reverse-order history that mixed the two. A document
+			// that differs is superseded whatever the generation says (a Codex P2 on #86).
+			return err(undoSuperseded(planId));
 		}
+		// Observed either way, for the sibling histories whose generations DO decide.
+		ledger.observe(planId, live.value.version);
 		this.current = live.value;
 		return ok('no-write');
 	}

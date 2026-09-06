@@ -35,6 +35,19 @@ describe('connected structure repository transactions', () => {
 		expectOk(await history.undo());
 		expect(await command.undo()).toEqual(ok('no-write'));
 	});
+	it('undoes after a sibling geometry write and its reversal, when the live document is exactly what it wrote', async () => {
+		// A Room move and its undo are two sidecar writes recorded under the ZONE, never under
+		// the plan, so the plan's observed revision moves while the document comes back
+		// byte-for-byte. Refusing on the revision alone broke every mixed reverse-order history.
+		const { plan, geometry, services, ledger, baseline } = await structureStack();
+		const command = services.command({ planId: plan.id, baseline, structure: WALL_LOOP, ledger });
+		expectOk(await command.execute());
+		const written = expectOk(await geometry.read(plan.id));
+		const moved = expectOk(await geometry.write(plan.id, { ...written.document, objects: [{ id: 'zone-moved', points: WALL_LOOP.walls.map(wall => wall.start) }] }, written.version));
+		expectOk(await geometry.write(plan.id, written.document, moved));
+		expectOk(await command.undo());
+		expect(expectOk(await geometry.read(plan.id)).document).toEqual(baseline.document);
+	});
 	it('composes opening placement, edit, deletion and reverse order history with shared versions', async () => {
 		const { plan, geometry, services, ledger, baseline } = await structureStack();
 		const history = new CommandHistory();

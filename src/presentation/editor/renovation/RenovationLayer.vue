@@ -15,11 +15,16 @@ const markers = computed(() => {
 	const records = session.perspective === 'review' ? reviewRenovation(value.value).map(item => ({ id: item.recordId, roomId: item.roomId, label: tr(`renovation.finding.${item.kind}`) }))
 		: session.mode === 'work' ? orderedWork(value.value).filter(item => item.roomId === session.roomId).map(item => ({ ...item, label: item.title }))
 			: value.value.subjects.filter(item => item.roomId === session.roomId && item[session.mode === 'existing' ? 'existing' : 'planned']).map(item => ({ ...item, label: session.mode === 'existing' ? item.existing?.description : `${item.planned ? tr(`renovation.change.${item.planned.change}`) : ''} ${item.planned?.description || item.existing?.description}` }));
-	return records.flatMap((item, index) => {
+	// Each room stacks its own markers from its own top: the review list spans every room,
+	// and a floor-wide index put a later room's first marker rows below it (a Codex P2 on #87).
+	const rows = new Map<string, number>();
+	return records.flatMap(item => {
 		const room = project.zones.get(item.roomId);
 		if (!room?.points.length) return [];
+		const row = rows.get(item.roomId) ?? 0;
+		rows.set(item.roomId, row + 1);
 		const left = Math.min(...room.points.map(point => point.x)), top = Math.min(...room.points.map(point => point.y));
-		return [{ ...item, text: `${index + 1}. ${item.label}`, x: left + 20 / props.zoom, y: top + (30 + index * 26) / props.zoom }];
+		return [{ ...item, text: `${row + 1}. ${item.label}`, x: left + 20 / props.zoom, y: top + (30 + row * 26) / props.zoom }];
 	});
 });
 const comparisons = computed(() => value.value.subjects.flatMap(item => {

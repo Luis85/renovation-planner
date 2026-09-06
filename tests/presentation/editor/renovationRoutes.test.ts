@@ -112,6 +112,19 @@ it('persists keyboard-editable Work ordering, progress, responsibility and links
  expect(rig.project.plan?.renovation?.work.find(item => item.id === 'paint')).toMatchObject({ order: 0, description: 'Use a roller', progress: 'complete', responsibility: 'diy', outcomes: ['detail'], dependencies: [] });
  expect(panel(rig).findAll('li')[0].text()).toContain('Paint');
 });
+it('stacks markers from the top of their own room, not from the floor-wide record index', async () => {
+ // `index` was the position in the floor-wide list, so a later room's first marker sat as
+ // many rows down as every earlier room's markers, outside a small room altogether.
+ const rig = await setup();
+ const annex = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Annex', zoneType: 'Room', geometry: { points: [{ x: 6000, y: 6000 }, { x: 9000, y: 6000 }, { x: 9000, y: 9000 }, { x: 6000, y: 9000 }] } })).zone.entity;
+ const read = expectOk(await rig.renovation.read(rig.plan.id)), value = expectDefined(read.plan.entity.renovation, 'renovation');
+ const work = { id: 'annex-work', roomId: annex.id, targetId: annex.id, title: 'Annex work', description: '', order: 2, progress: 'pending' as const, responsibility: 'unassigned' as const, outcomes: [], dependencies: [] };
+ expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(read, { renovation: { ...value, work: [...value.work, work] }, intended: undefined }, rig.runtime.structureTask.ledger)));
+ await rig.runtime.refreshProjection(); await rig.runtime.renovation.perspective('review'); await settle();
+ const markers = rig.stage.find('.renovation-marker'), inAnnex = markers.filter(marker => marker.y() >= 6000), inStudio = markers.filter(marker => marker.y() < 6000);
+ expect(inAnnex).toHaveLength(1); expect(inStudio.length).toBeGreaterThan(1);
+ expect(expectDefined(inAnnex[0], 'annex marker').y() - 6000).toBeCloseTo(Math.min(...inStudio.map(marker => marker.y())));
+});
 it('creates a wall observation via the ordinary Room entry and form, then keeps its source through unchanged/remove proposals', async () => {
  const rig = await renovationEditor(); mounted.push(rig);
  await rig.wrapper.get('[data-rp-mode="existing"]').trigger('click'); await settle();

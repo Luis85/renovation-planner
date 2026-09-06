@@ -1047,6 +1047,20 @@ function zoomShortcut(event: KeyboardEvent): void {
  * Select, and Select (or camera mode) with a selection clears it. The Escape branch just below
  * spells out why each rule holds, in the order it holds it.
  */
+function finishShortcut(event: KeyboardEvent): boolean {
+	if (event.key === 'Backspace' && activeToolId.value === 'draw-wall') {
+		event.preventDefault();
+		if (!event.repeat) toolManager.editActiveCorner(-1, null);
+		return true;
+	}
+	if (event.key === 'Enter' && (activeToolId.value === 'draw-area' || activeToolId.value === 'draw-wall' || activeToolId.value?.startsWith('place-'))) {
+		event.preventDefault();
+		if (!event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) toolManager.finishActiveTool();
+		return true;
+	}
+	return false;
+}
+
 function onKeyDown(event: KeyboardEvent): void {
 	if (!isCanvasKey(event)) return;
 	if (event.key === 'Escape') {
@@ -1154,11 +1168,7 @@ function onKeyDown(event: KeyboardEvent): void {
 	// draft, switch tool, or clear a selection — must be answered whether or not a gesture is
 	// in flight, and none of its outcomes touches the camera.
 	if (gestureInFlight()) return;
-	if (event.key === 'Enter' && activeToolId.value === 'draw-area') {
-		event.preventDefault();
-		if (!event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) toolManager.finishActiveTool();
-		return;
-	}
+	if (finishShortcut(event)) return;
 	if (fitShortcut(event)) return;
 	zoomShortcut(event);
 }

@@ -35,7 +35,7 @@ export const PlanFrontmatterSchemaV1 = z.object({
 });
 
 /** V2 prevents older builds silently dropping prepared-reference transforms on write. */
-const PlanFrontmatterSchemaV2 = PlanFrontmatterSchemaV1.extend({
+export const PlanFrontmatterSchemaV2 = PlanFrontmatterSchemaV1.extend({
 	'schema-version': z.literal(2),
 	'reference-appearance': z.object({
 		crop: z.object({ x: z.number().nonnegative(), y: z.number().nonnegative(), width: z.number().positive(), height: z.number().positive() }),

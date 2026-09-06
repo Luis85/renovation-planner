@@ -18,6 +18,8 @@ import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
  * Array order IS z-order — last drawn on top — matching how the ZoneLayer stacks them.
  */
 export interface SpatialObjectCandidate {
+	readonly kind?: 'wall' | 'opening';
+	readonly width?: number;
 	readonly id: string;
 	readonly points: readonly Point[];
 }
@@ -28,6 +30,8 @@ export interface SpatialObjectCandidate {
  * pair.
  */
 export interface SelectToolDeps {
+	readonly previewWall?: (id: string | null, end?: Point) => void;
+	readonly editWall?: (id: string, end: Point) => void;
 	readonly spatialObjects: () => readonly SpatialObjectCandidate[];
 	readonly createMoveGesture: (
 		zoneId: ZoneId,
@@ -98,6 +102,7 @@ type Gesture =
  * "what you see" and "what you can grab" in a stated relationship.
  */
 export class SelectTool implements EditorTool {
+	private wallGesture: { id: string; start: Point } | null = null;
 	readonly id: ToolId = 'select';
 
 	private context: EditorContext | null = null;
@@ -114,6 +119,8 @@ export class SelectTool implements EditorTool {
 	}
 
 	deactivate(): void {
+		this.wallGesture = null;
+		this.deps.previewWall?.(null);
 		const context = this.context;
 		this.gesture = null;
 		if (context !== null) {
@@ -142,6 +149,7 @@ export class SelectTool implements EditorTool {
 		}
 		const hit = candidates.find((candidate) => candidate.id === target.id);
 		if (hit === undefined) return;
+		if (hit.kind) { this.selectStructure(context, event, hit, target); return; }
 		if (target.kind === 'handle') {
 			// While the canvas is stale the gate would refuse the commit anyway; a ghost the
 			// release cannot keep is a promise, so no gesture begins — the vertex handle stays
@@ -177,9 +185,15 @@ export class SelectTool implements EditorTool {
 		context.renderState.previewPolygon = null;
 	}
 
+	private selectStructure(context: EditorContext, event: EditorPointerEvent, hit: SpatialObjectCandidate, target: Exclude<SelectionTarget, null>): void {
+		selectSpatial(context.selection, hit.id, event.modifiers.shift);
+		if (hit.kind === 'wall' && target.kind === 'handle' && target.vertexIndex === 1 && !context.writesBlocked()) this.wallGesture = { id: hit.id, start: event.worldPoint };
+	}
+
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null) return;
+		if (this.wallGesture) { this.deps.previewWall?.(this.wallGesture.id, event.worldPoint); return; }
 		if (this.gesture === null) {
 			// No drag in flight: this move is a HOVER, so it predicts rather than acts —
 			// `resolveSelectionTarget` is the same question `pointerDown` asks, which is what
@@ -205,6 +219,12 @@ export class SelectTool implements EditorTool {
 	}
 
 	pointerUp(event: EditorPointerEvent): void {
+		if (this.wallGesture && event.button === 'primary') {
+			const gesture = this.wallGesture; this.wallGesture = null;
+			this.deps.previewWall?.(null);
+			if (Math.hypot(event.worldPoint.x - gesture.start.x, event.worldPoint.y - gesture.start.y) > 1) this.deps.editWall?.(gesture.id, event.worldPoint);
+			return;
+		}
 		const context = this.context;
 		const gesture = this.gesture;
 		if (context === null || gesture === null) return;
@@ -255,6 +275,8 @@ export class SelectTool implements EditorTool {
 	}
 
 	cancel(): void {
+		this.wallGesture = null;
+		this.deps.previewWall?.(null);
 		const context = this.context;
 		this.gesture = null;
 		if (context !== null) context.renderState.previewPolygon = null;
@@ -276,7 +298,7 @@ export class SelectTool implements EditorTool {
 
 	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
 	hasDraft(): boolean {
-		return this.gesture !== null;
+		return this.gesture !== null || this.wallGesture !== null;
 	}
 
 	/**

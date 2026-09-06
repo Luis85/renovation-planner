@@ -153,7 +153,7 @@ describe('the Add menu', () => {
 		expect(wall.attributes('aria-disabled')).toBe('true');
 		const reasonId = wall.attributes('aria-describedby');
 		expect(reasonId).toBeDefined();
-		expect(harness.wrapper.find(`#${reasonId}`).text()).toBe('Not available in this version yet.');
+		expect(harness.wrapper.find(`#${reasonId}`).text()).toBe('Wall editing is unavailable in this view.');
 
 		menu.element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
 		await settle();
@@ -477,6 +477,7 @@ describe('the Add menu', () => {
 function stubRuntime(setTool: (id: ToolId | null) => void): EditorRuntime {
 	return {
 		setTool,
+		structureTask: { available: false },
 		writesBlocked: computed(() => false),
 		pausedReasonId: 'stub-paused-reason',
 	} as unknown as EditorRuntime;

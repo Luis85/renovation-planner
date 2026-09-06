@@ -1,6 +1,8 @@
 import type { StringKey } from '../../i18n/locales/en';
 
 const LABELS: Readonly<Record<string, StringKey>> = {
+	Wall: 'editor.add.wall.label',
+	Opening: 'editor.add.opening.label',
 	Room: 'editor.zone-type.Room',
 	Garden: 'editor.zone-type.Garden',
 	Terrace: 'editor.zone-type.Terrace',

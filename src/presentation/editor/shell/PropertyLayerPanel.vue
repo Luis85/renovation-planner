@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StructureList from '../structure/StructureList.vue';
 /**
  * §60's layers region, replaced by the truthful two-entry catalogue (Task 14): what used to
  * be seven checkboxes for §17's whole Konva stage — four of them layers nothing ever draws
@@ -64,6 +65,7 @@ const heading = computed(() => (props.plan === null ? tr('editor.floor') : `${tr
 			:entries="entries"
 			@activate-tool="runtime.setTool"
 		/>
+		<StructureList />
 		<RoomSummaryList
 			v-if="records.length > 0"
 			:records="records"

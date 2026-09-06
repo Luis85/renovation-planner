@@ -1347,9 +1347,31 @@ Renovation/
 An asset's sidecar carries `assetId`, `revision`, `unit` and a shape: `footprint`, optional
 `clearance`, `anchor`, `facing`, and provenance flags saying which of those still await a scale.
 
-**Sidecar entries are polygon-only today** and carry no subtype, layer or state. Walls, openings
-and annotations are the trigger for ADR-SO (§89), which must evolve this schema compatibly
-rather than replace it.
+The example is the retained legacy v1 polygon document. **ADR-SO is resolved by
+[ADR-0020](../adrs/0020-connected-walls-and-hosted-openings.md)** for straight walls and hosted
+openings. A v2 sidecar adds optional `structure: { walls, openings, boundaries }` beside unchanged
+`objects`. Walls contain stable IDs, start/end centre-line points, height and thickness; openings
+contain stable IDs, kind, host ID, offset, width, height and sill. All measurements are mm.
+Boundary associations contain Room Zone IDs and wall IDs; the Zone polygon remains the Room's
+canonical outline. This spatial information has one owner, the sidecar; no duplicate wall notes
+or synthetic Zones are created. Annotation and renovation-record ownership remain deferred.
+
+Read migration 1→2 is pure/idempotent, validates host/boundary integrity and never writes.
+Legacy geometry without structure continues to serialize v1; a structure-bearing write uses v2.
+Future versions refuse. The store's whole-document revision/observation token covers both
+collections. Zone saves preserve structure; Zone deletes remove its boundary association, and
+the existing reference-aware delete history restores that association with compensation.
+Structure creation, wall/opening edits and confirmed deletion use the existing dispatcher and
+`PlanStructureChanged` refresh source. Optional Room creation composes the existing Zone command.
+Failures compensate against versions produced by the operation; failed compensation retires the
+command and marks unrecovered save state. Peer snapshots are never replaced by Undo/Redo.
+
+Calibration/reference configuration scale polygon points, wall endpoints, wall height/thickness,
+and opening offset/width/height/sill together around world origin. References and appearance
+remain Plan-note data. Consent for a scale change includes a floor containing only walls.
+Room area calculations still consume Zone polygons; wall/opening records have no invented
+area or renovation quantities. Exact junction, overlap, anchoring, and Room synchronization
+rules are normative in ADR-0020. The abrupt-process-loss limitation in ADR-0019 remains open.
 
 ---
 
@@ -2415,7 +2437,7 @@ Deferred, each with a trigger (the consolidation report holds the evidence):
 |---|---|---|
 | HI | Property → Building → Floor persistence | two buildings, or two plans aligned as floors |
 | EPW | Existing / Planned / Work representation | the first Existing or Planned record |
-| SO | polygon-only sidecar → walls and openings | the first non-polygon spatial object |
+| SO | resolved by ADR-0020: compatible straight walls and hosted openings | first non-polygon spatial object, 2026-09-06 |
 | RL | one relationship mechanism between spatial targets and vault records | the first Work item or evidence link |
 | SV | which additive changes stay at v1 | the first key that moves or changes meaning |
 | RK | a room KIND (kitchen, bathroom…) beside the Room/Area split | the first query BY kind |
@@ -2675,7 +2697,7 @@ projection, tested end to end, and never by a rename or a persisted discriminato
 | Reference plan | plan background + calibration state | `PlanBackgroundRef`, `Calibration` | plan note + sidecar `calibration` | — |
 | Material | `RequirementInspectorDTO` | `Asset` + `Requirement` | two notes | partial |
 | Project price | price rows | `AssetPriceOverride` | `renovation-asset-price` | — |
-| Wall, Door, Window, Opening | — | — | — | ADR-SO |
+| Wall, Door, Window, Opening | `SpatialRecordDto` kind `wall` / `opening` | `Wall`, `Opening`, `RoomBoundary` | plan sidecar v2 `structure` | ADR-0020 (ADR-SO) |
 | Existing / Planned / Work | — | — (NOT `ZoneStatus`) | — | ADR-EPW |
 | Documents / Photos / Notes | — | — | — | ADR-RL |
 | Property, Building | breadcrumb has two segments | — | — | ADR-HI |

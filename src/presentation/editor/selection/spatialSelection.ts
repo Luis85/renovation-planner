@@ -1,9 +1,9 @@
-import type { SpatialRecordDto } from '../../read-models/spatialRecords';
+import type { SpatialKind, SpatialRecordDto } from '../../read-models/spatialRecords';
 
 /** Derived from IDs and hydrated records; there is no second selection store. */
 export type SpatialSelection =
 	| { readonly kind: 'floor' }
-	| { readonly kind: 'room' | 'area'; readonly record: SpatialRecordDto }
+	| { readonly kind: SpatialKind; readonly record: SpatialRecordDto }
 	| {
 		readonly kind: 'multiple';
 		readonly ids: readonly string[];
@@ -29,7 +29,7 @@ export function spatialSelection(ids: readonly string[], records: readonly Spati
 		records: chosen,
 		unavailable: uniqueIds.length - chosen.length,
 		// Sum of individual areas, explicitly not a union of overlapping geometry.
-		areaMm2: chosen.length === 0 ? null : chosen.reduce((sum, record) => sum + record.areaMm2, 0),
+		areaMm2: chosen.some(record => record.kind === 'room' || record.kind === 'area') ? chosen.reduce((sum, record) => sum + record.areaMm2, 0) : null,
 		sharedType: chosen.length === uniqueIds.length && chosen.every((record) => record.zoneType === chosen[0].zoneType) ? chosen[0].zoneType : null,
 	};
 }

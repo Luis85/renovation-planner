@@ -1,4 +1,8 @@
+import { createHistoryActions } from './tools/historyActions';
 import { createReferenceAction } from './reference/referenceAction';
+import { createStructureTask } from './structure/structureTask';
+import { createStructureActions } from './structure/structureActions';
+import { structureCandidates } from './structure/structureCandidates';
 import { createRoomResizeAction } from './resize/roomResizeAction';
 import { createRoomNamingAction } from './naming/roomNamingAction';
 import {
@@ -49,7 +53,7 @@ import { editorViewportAdapter } from './viewport/editorViewportAdapter';
 import { boundsOfZones } from './viewport/zoneExtent';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
-import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispatchFault, type ToolDispatcher } from './report-failure';
+import { mapDispatchFaults, reportDispatchFailure, type ToolDispatcher } from './report-failure';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
@@ -73,6 +77,8 @@ import { makeCommitField } from './commitField';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly structureTask: ReturnType<typeof createStructureTask>;
+	readonly structureActions: ReturnType<typeof createStructureActions>;
 	readonly openReference: () => Promise<void>;
 	readonly referenceActive: Readonly<Ref<boolean>>;
 	readonly referenceBlocked: Readonly<Ref<boolean>>;
@@ -405,7 +411,7 @@ function selectAndFrameOn(
 	const { id, toggle } = target;
 	selectSpatial(selection, id, toggle);
 	if (toggle) return;
-	const zone = projectStore.zones.get(id);
+	const zone = projectStore.zones.get(id) ?? structureCandidates(projectStore.structure).find(candidate => candidate.id === id);
 	if (zone === undefined) return;
 	const bounds = boundsOfZones([zone]);
 	if (bounds === null) return; // nothing to frame: the selection stands, the camera stays
@@ -435,11 +441,12 @@ function registerSelectionRetirement(
 	renderState: RenderState,
 ): void {
 	watch(
-		() => projectStore.zones,
-		(zones) => {
-			const survivors = selection.selectedIds.filter((id) => zones.has(String(id)));
+		() => [projectStore.zones, projectStore.structure] as const,
+		([zones, structure]) => {
+			const exists = (id: string): boolean => zones.has(id) || [...structure.walls, ...structure.openings].some(item => item.id === id);
+			const survivors = selection.selectedIds.filter((id) => exists(String(id)));
 			if (survivors.length !== selection.selectedIds.length) selection.select(survivors);
-			if (renderState.hoveredObjectId !== null && !zones.has(renderState.hoveredObjectId)) {
+			if (renderState.hoveredObjectId !== null && !exists(renderState.hoveredObjectId)) {
 				renderState.hoveredObjectId = null;
 				renderState.hoveredTargetKind = null;
 			}
@@ -694,7 +701,9 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
 	});
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect });
-	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value });
+	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection });
+	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
+	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value, previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
 	// BECOMES `'ready'` — and a `previous !== 'ready'` guard would be dead code here, not a
@@ -723,15 +732,8 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 	// refuses with a revision conflict whenever anything else has touched the plan's
 	// sidecar since (every zone create, move and delete does), and this is what makes THAT
 	// refusal say something rather than nothing.
-	async function undo(): Promise<void> {
-		await notifyIfRefused(reportDispatchFault(context.commands.logger, DISPATCH_FAULT_EVENT, wrappedDispatcher.undo()));
-	}
-	async function redo(): Promise<void> {
-		await notifyIfRefused(reportDispatchFault(context.commands.logger, DISPATCH_FAULT_EVENT, wrappedDispatcher.redo()));
-	}
+	const { undo, redo } = createHistoryActions(context, wrappedDispatcher);
 
-	// `commitField.ts` carries the guard's own doc; this is just the one line that binds it
-	// to this leaf's logger and its `inspector.commit`.
 	const commitField = makeCommitField(context.commands.logger, (edit) => inspector.commit(edit));
 
 	/**
@@ -774,6 +776,8 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 
 	return {
 		dispatcher: wrappedDispatcher,
+		structureTask,
+		structureActions,
 		toolManager,
 		renderState,
 		activeToolId,

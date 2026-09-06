@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { EMPTY_STRUCTURE, type Structure } from '../../domain/spatial/Structure';
 import { computed, ref, type Ref } from 'vue';
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import { isErr } from '../../core/result/Result';
@@ -52,6 +53,7 @@ function handleFailedRead(
 
 /** The refs `markMissing` blanks, bundled the same way `HydrationFailureRefs` is. */
 interface HydrationMissingRefs {
+	readonly structure: Ref<Structure>;
 	readonly project: Ref<ProjectSummaryDto | null>;
 	readonly plan: Ref<PlanDto | null>;
 	readonly zones: Ref<ReadonlyMap<string, ZoneDto>>;
@@ -68,6 +70,7 @@ interface HydrationMissingRefs {
  * two of the lines pushing the setup arrow over its own budget.
  */
 interface HydrationRefs {
+	readonly structure: Ref<Structure>;
 	readonly project: Ref<ProjectSummaryDto | null>;
 	readonly plan: Ref<PlanDto | null>;
 	readonly zones: Ref<ReadonlyMap<string, ZoneDto>>;
@@ -100,6 +103,7 @@ interface HydrationTicket {
  * there is no content on screen.
  */
 function markMissing(refs: HydrationMissingRefs): void {
+	refs.structure.value = EMPTY_STRUCTURE;
 	refs.project.value = null;
 	refs.plan.value = null;
 	refs.zones.value = new Map();
@@ -161,6 +165,7 @@ async function runHydrationReads(
 	refs.project.value = foundProject.value;
 	refs.plan.value = foundPlan.value;
 	refs.zones.value = new Map(foundZones.value.zones.map((zone) => [zone.id, zone]));
+	refs.structure.value = foundZones.value.structure ?? EMPTY_STRUCTURE;
 	refs.unreadableZones.value = foundZones.value.unreadable;
 	refs.status.value = 'ready';
 	// The ONE event that retires a stale-data warning: what is on screen came back from the
@@ -181,6 +186,7 @@ async function runHydrationReads(
  * that survives a redraw.
  */
 export const useProjectStore = defineStore('project', () => {
+	const structure = ref<Structure>(EMPTY_STRUCTURE);
 	const project = ref<ProjectSummaryDto | null>(null);
 	const plan = ref<PlanDto | null>(null);
 	const zones = ref<ReadonlyMap<string, ZoneDto>>(new Map());
@@ -251,6 +257,7 @@ export const useProjectStore = defineStore('project', () => {
 	 * the two wrong answers.
 	 */
 	function fail(cause: RepositoryError): void {
+		structure.value = EMPTY_STRUCTURE;
 		project.value = null;
 		plan.value = null;
 		zones.value = new Map();
@@ -308,7 +315,7 @@ export const useProjectStore = defineStore('project', () => {
 			refreshing.value = false;
 		};
 		const ticket: HydrationTicket = { keepOnFailure: options?.keepPreviousOnFailure === true, superseded, done };
-		const refs: HydrationRefs = { project, plan, zones, unreadableZones, status, error, stale, retriesFailed };
+		const refs: HydrationRefs = { structure, project, plan, zones, unreadableZones, status, error, stale, retriesFailed };
 		// A RE-hydration does not blank the editor. The root mounts its canvas on `ready`, so
 		// dropping to `loading` here would unmount the Konva stage and build a fresh one on
 		// every committed command — the whole canvas flashing because one background
@@ -356,7 +363,7 @@ export const useProjectStore = defineStore('project', () => {
 	 * guarantee this store does not keep in the one case that actually needs stating.
 	 */
 	const emptyStateKey = computed(() =>
-		selectPlanEditorEmptyState(plan.value, [...zones.value.values()], unreadableZones.value),
+		structure.value.walls.length ? null : selectPlanEditorEmptyState(plan.value, [...zones.value.values()], unreadableZones.value),
 	);
 
 	/**
@@ -368,6 +375,7 @@ export const useProjectStore = defineStore('project', () => {
 	 * reason.
 	 */
 	function reset(): void {
+		structure.value = EMPTY_STRUCTURE;
 		// Invalidates any hydration still in flight: a leaf closing must not have the plan
 		// it was reading painted back in a tick later.
 		latestHydration += 1;
@@ -391,6 +399,7 @@ export const useProjectStore = defineStore('project', () => {
 	 * `UnsupportedWidthNotice` render from.
 	 */
 	return {
+		structure,
 		project,
 		plan,
 		zones,

@@ -11,7 +11,9 @@ import type {
  * table, narrowed to this subset. `de.ts` spreads this object into its own
  * (`...editorDe`).
  */
+import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
+	...structureDe,
 	"editor.reference.title": "Referenzplan einrichten",
 	"editor.reference.prepare": "Plan vorbereiten",
 	"editor.reference.scale": "Maßstab festlegen",
@@ -47,8 +49,8 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	"editor.reference.visible": "Sichtbar",
 	"editor.reference.locked": "Gesperrt",
 	"editor.reference.unlock-help": "Positionen werden über die Einrichtung geändert; die Referenz lässt sich nicht auf der Zeichenfläche ziehen.",
-	"editor.reference.rescale": "Alle vorhandenen Räume und Flächen um den Faktor {factor} relativ zum Ursprung skalieren. Berechnete Mengen ändern sich.",
-	"editor.reference.consent": "Bestätigen Sie vor dem Abschluss die Auswirkung auf vorhandene Räume und Flächen.",
+	"editor.reference.rescale": "Alle Wände, Öffnungen, Räume und Flächen um den Faktor {factor} relativ zum Ursprung skalieren. Maße und berechnete Mengen ändern sich.",
+	"editor.reference.consent": "Bestätigen Sie vor dem Abschluss die Auswirkung auf vorhandene Wände, Öffnungen, Räume und Flächen.",
 	"editor.reference.invalid-prepare": "Laden Sie eine Quelle und geben Sie einen positiven Zuschnitt innerhalb des Bildes sowie eine Drehung von -180° bis 180° ein.",
 	"editor.reference.invalid-scale": "Geben Sie zwei unterschiedliche Punkte im Zuschnitt und einen endlichen positiven Abstand ein.",
 	"editor.reference.paused": "Speichern ist pausiert. Warten Sie auf den Vorgang oder brechen Sie ab und öffnen Sie die Einrichtung nach dem Aktualisieren erneut.",
@@ -77,7 +79,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.selection.count': 'Ausgewählte Elemente',
 	'editor.selection.area-sum': 'Summe der Flächen',
 	'editor.selection.area-sum-hint': 'Überlappende Flächen werden einzeln gezählt.',
-	'editor.selection.members': 'Ausgewählte Räume und Flächen',
+	'editor.selection.members': 'Ausgewählte Einträge',
 	'editor.selection.records': 'Räume und Flächen',
 	'editor.selection.clear': 'Auswahl aufheben',
 	'editor.selection.hint': 'Umschalt-Klick erweitert oder verkleinert die Auswahl. Alt-Klick im Plan wechselt zwischen überlappenden Elementen.',
@@ -210,8 +212,8 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.calibrate.distance.title': 'Reale Entfernung festlegen',
 	'editor.calibrate.distance.label': 'Entfernung in Millimetern',
 	'editor.calibrate.distance.measured': 'Auf dem Hintergrund gemessen:',
-	'editor.calibrate.recalibrate.title': 'Die Räume oder Flächen auf diesem Plan neu skalieren?',
-	'editor.calibrate.recalibrate.message': 'Auf diesem Plan sind bereits Räume oder Flächen eingezeichnet. Beim Festlegen des Maßstabs werden alle skaliert. Sie können den Vorgang rückgängig machen.',
+	'editor.calibrate.recalibrate.title': 'Wände, Öffnungen, Räume oder Flächen auf diesem Plan neu skalieren?',
+	'editor.calibrate.recalibrate.message': 'Auf diesem Plan sind bereits Wände, Öffnungen, Räume oder Flächen eingezeichnet. Beim Festlegen des Maßstabs werden alle Maße skaliert. Sie können den Vorgang rückgängig machen.',
 	'editor.task.banner': 'Aktuelle Aufgabe',
 	'editor.task.draw-room.name': 'Raum hinzufügen',
 	'editor.task.draw-room.instruction': 'Klicken Sie, um Ecken zu setzen; klicken Sie auf die erste Ecke, um abzuschließen.',

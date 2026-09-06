@@ -23,6 +23,7 @@ import type {
 } from '../../ports/PlanGeometrySidecar';
 import type { PlanRepository } from '../../ports/PlanRepository';
 import { loadPlan } from './loadPlan';
+import { scaleStructure, validateStructure } from '../../../domain/spatial/structureGeometry';
 
 /**
  * What one calibration gesture supplies. Slice 3 declared this beside a plain
@@ -72,6 +73,7 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 		// uniformly, so alignment between them is preserved — only what the numbers MEAN
 		// in millimetres changes.
 		const document: PlanGeometryDocument = {
+			...(previous.structure ? { structure: scaleStructure(previous.structure, scaleCorrection) } : {}),
 			calibration: {
 				pointA: scaleShape(calibration.pointA, scaleCorrection, origin),
 				pointB: scaleShape(calibration.pointB, scaleCorrection, origin),
@@ -89,6 +91,10 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 		// refuses on every later read. Refusing here keeps the sidecar readable.
 		if (!allPointsFinite(document)) {
 			return err(nonFiniteRescaleError());
+		}
+		if (document.structure) {
+			const checked = validateStructure(document.structure, document.objects.map(object => object.id));
+			if (!checked.ok) return checked;
 		}
 		if (document.calibration !== null) {
 			const checked = validateCalibration(document.calibration);

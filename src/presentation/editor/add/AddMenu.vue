@@ -38,6 +38,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } fro
 import { tr, currentLanguage } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
 import { useEditorRuntime } from '../runtime';
+import { useProjectStore } from '../../stores/ProjectStore';
 import {
 	activateCreationEntry,
 	CREATION_CATALOGUE,
@@ -51,6 +52,13 @@ const props = defineProps<{ anchor: HTMLElement | null }>();
 const emit = defineEmits<{ close: [] }>();
 
 const runtime = useEditorRuntime();
+const project = useProjectStore();
+const spatialReason = computed(() => tr(runtime.structureTask.available ? 'editor.structure.error.host-missing' : 'editor.structure.error.unavailable'));
+function spatialUnavailable(entry: CreationEntry): boolean {
+	if (!['wall', 'door', 'window', 'opening'].includes(entry.id)) return false;
+	return !runtime.structureTask.available || (entry.id !== 'wall' && project.structure.walls.length === 0);
+}
+function unavailable(entry: CreationEntry): boolean { return entry.availability.kind === 'unsupported' || runtime.writesBlocked.value || spatialUnavailable(entry); }
 
 /** The locked group order (design spec §7.1) and the heading each one draws. */
 const GROUP_ORDER: readonly CreationGroup[] = ['structure', 'property', 'planning'];
@@ -130,6 +138,7 @@ function reasonIdFor(entry: CreationEntry): string | undefined {
 function describedBy(entry: CreationEntry): string | undefined {
 	const unsupported = reasonIdFor(entry);
 	if (unsupported !== undefined) return unsupported;
+	if (spatialUnavailable(entry)) return reasonIds[entry.id];
 	return runtime.writesBlocked.value ? runtime.pausedReasonId : undefined;
 }
 
@@ -199,10 +208,10 @@ function moveFocus(delta: 1 | -1): void {
  * attribute alone.
  */
 function activate(entry: CreationEntry): void {
-	if (entry.availability.kind !== 'available' || runtime.writesBlocked.value) return;
+	if (entry.availability.kind !== 'available' || runtime.writesBlocked.value || spatialUnavailable(entry)) return;
 	emit('close');
 	activateCreationEntry(entry.id, runtime);
-	if (entry.id === 'area') {
+	if (['area', 'wall', 'door', 'window', 'opening'].includes(entry.id)) {
 		const canvas = (menuRoot.value as HTMLElement).closest<HTMLElement>('.rp-plan-canvas');
 		void nextTick(() => canvas?.focus());
 	}
@@ -387,13 +396,18 @@ onBeforeUnmount(() => {
 					:class="{ 'rp-add-menu__item--unsupported': entry.availability.kind === 'unsupported' }"
 					:data-rp-entry="entry.id"
 					:tabindex="focusedId === entry.id ? 0 : -1"
-					:aria-disabled="entry.availability.kind === 'unsupported' || runtime.writesBlocked.value"
+					:aria-disabled="unavailable(entry)"
 					:aria-describedby="describedBy(entry)"
 					@click="onItemClick(entry)"
 					@focus="focusedId = entry.id"
 				>
 					<span class="rp-add-menu__item-label">{{ tr(entry.labelKey) }}</span>
 					<span class="rp-add-menu__item-description">{{ tr(entry.descriptionKey) }}</span>
+					<span
+						v-if="spatialUnavailable(entry)"
+						:id="reasonIds[entry.id]"
+						class="rp-add-menu__reason"
+					>{{ spatialReason }}</span>
 					<span
 						v-if="entry.availability.kind === 'unsupported'"
 						:id="reasonIds[entry.id]"

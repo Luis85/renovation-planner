@@ -7,6 +7,7 @@ export type CreationEntryId =
 	| 'wall'
 	| 'door'
 	| 'window'
+	| 'opening'
 	| 'area'
 	| 'path'
 	| 'fence'
@@ -100,9 +101,10 @@ const ENTRIES_BY_ID: { readonly [K in CreationEntryId]: EntryFor<K> } = {
 		availability: { kind: 'available' },
 		activate: (runtime) => runtime.setTool('draw-room'),
 	},
-	wall: unsupported('wall', 'structure'),
-	door: unsupported('door', 'structure'),
-	window: unsupported('window', 'structure'),
+	wall: { ...unsupported('wall', 'structure'), availability: { kind: 'available' }, activate: runtime => runtime.setTool('draw-wall') },
+	door: { ...unsupported('door', 'structure'), availability: { kind: 'available' }, activate: runtime => runtime.setTool('place-door') },
+	window: { ...unsupported('window', 'structure'), availability: { kind: 'available' }, activate: runtime => runtime.setTool('place-window') },
+	opening: { ...unsupported('opening', 'structure'), availability: { kind: 'available' }, activate: runtime => runtime.setTool('place-opening') },
 	area: {
 		id: 'area',
 		group: 'property',

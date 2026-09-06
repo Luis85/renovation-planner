@@ -47,11 +47,13 @@ import MultiSelectionInspector from './MultiSelectionInspector.vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { toSpatialRecordDto } from '../../read-models/spatialRecords';
 import { spatialSelection } from '../selection/spatialSelection';
+import StructureInspector from '../structure/StructureInspector.vue';
+import { structureRecords } from '../structure/structureRecords';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
 const project = useProjectStore();
-const records = computed(() => [...project.zones.values()].map((zone) => toSpatialRecordDto(zone)));
+const records = computed(() => [...[...project.zones.values()].map((zone) => toSpatialRecordDto(zone)), ...structureRecords(project.structure, project.plan?.id ?? '')]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
 </script>
 
@@ -71,6 +73,7 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 			v-else-if="selection.kind === 'multiple'"
 			:selection="selection"
 		/>
+		<StructureInspector v-else-if="project.structure.walls.some(wall => wall.id === selectedIds[0]) || project.structure.openings.some(opening => opening.id === selectedIds[0])" />
 		<RoomInspector v-else />
 	</aside>
 </template>

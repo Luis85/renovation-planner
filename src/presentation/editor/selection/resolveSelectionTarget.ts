@@ -7,6 +7,16 @@ export type SelectionTarget =
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
 
+const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'opening' ? 2 : candidate.kind === 'wall' ? 1 : 0;
+
+function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
+	const [a, b] = candidate.points;
+	if (!a || !b) return false;
+	const dx = b.x - a.x, dy = b.y - a.y;
+	const ratio = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy)));
+	return Math.hypot(point.x - a.x - ratio * dx, point.y - a.y - ratio * dy) <= Math.max(tolerance, (candidate.width ?? 0) / 2);
+}
+
 function handleAt(input: {
 	readonly candidates: readonly SpatialObjectCandidate[];
 	readonly selectedIds: readonly string[];
@@ -16,7 +26,7 @@ function handleAt(input: {
 	if (input.selectedIds.length !== 1) return null;
 	const id = input.selectedIds[0];
 	const selected = input.candidates.find((candidate) => candidate.id === id);
-	if (selected === undefined) return null;
+	if (selected === undefined || selected.kind === 'opening') return null;
 	const vertexIndex = selected.points.findIndex((point) => distance(point, input.worldPoint) <= input.handleToleranceWorld);
 	return vertexIndex < 0 ? null : { kind: 'handle', id, vertexIndex };
 }
@@ -59,9 +69,10 @@ export function resolveSelectionTarget(input: {
 		if (decoration !== null) return decoration;
 	}
 	const hits: string[] = [];
-	for (let index = input.candidates.length - 1; index >= 0; index -= 1) {
-		const candidate = input.candidates[index];
-		const inside = contains({ points: candidate.points }, input.worldPoint);
+	const candidates = input.candidates.toSorted((a, b) => priority(a) - priority(b));
+	for (let index = candidates.length - 1; index >= 0; index -= 1) {
+		const candidate = candidates[index];
+		const inside = candidate.kind ? { ok: true, value: nearLine(candidate, input.worldPoint, input.handleToleranceWorld) } : contains({ points: candidate.points }, input.worldPoint);
 		if (inside.ok && inside.value) {
 			if (!input.cycle) return { kind: 'body', id: candidate.id };
 			hits.push(candidate.id);

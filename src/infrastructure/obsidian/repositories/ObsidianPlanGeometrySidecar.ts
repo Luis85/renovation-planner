@@ -43,6 +43,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 		const dto = snapshot.value.dto;
 		return ok({
 			document: {
+				...(dto.structure ? { structure: dto.structure } : {}),
 				calibration: dto.calibration ? calibrationFromPersistence(dto.calibration) : null,
 				objects: dto.objects.map((object) => ({
 					id: object.id,
@@ -62,6 +63,11 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 			planId,
 			(dto) => ({
 				...dto,
+				structure: document.structure ? {
+					walls: document.structure.walls.map(wall => ({ ...wall, start: { ...wall.start }, end: { ...wall.end } })),
+					openings: document.structure.openings.map(opening => ({ ...opening })),
+					boundaries: document.structure.boundaries.map(boundary => ({ ...boundary, wallIds: [...boundary.wallIds] })),
+				} : undefined,
 				calibration: document.calibration ? calibrationToPersistence(document.calibration) : null,
 				// The port erases the entry type, and 'polygon' is the only one schema v1
 				// knows — the day the schema grows a second spatial-object type, this
@@ -80,4 +86,3 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 		return ok(mutated.value.version);
 	}
 }
-

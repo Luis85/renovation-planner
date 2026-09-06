@@ -7,7 +7,8 @@ import { checkExpectedVersion } from '../../../application/ports/versioning';
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchemaV1 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchemaV2 } from '../../persistence/dto/planGeometry';
+import { validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import { KeyedQueues } from './KeyedQueues';
@@ -107,8 +108,12 @@ export class PlanGeometryStore {
 			if (conflict) return err(conflict);
 
 			const nextDto = change(current.value.dto);
+			if (nextDto.structure) {
+				const valid = validateStructure(nextDto.structure, nextDto.objects.map(object => object.id));
+				if (!valid.ok) return valid;
+			}
 			const nextRevision = current.value.version.revision + 1;
-			const written = { ...nextDto, revision: nextRevision };
+			const written = { ...nextDto, schemaVersion: nextDto.structure ? 2 as const : 1 as const, revision: nextRevision };
 			const text = canonicalJson(written);
 
 			const writeResult = await this.writeText(current.value.file, current.value.path, text);
@@ -192,7 +197,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV1.safeParse(migrated);
+		const validated = PlanGeometrySchemaV2.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',
@@ -206,9 +211,13 @@ export class PlanGeometryStore {
 		if (validated.data.planId !== planId) {
 			return err(persistenceError('plan-geometry.plan-id-mismatch', `Sidecar ${path} declares plan ${validated.data.planId}, not ${planId}.`));
 		}
+		if (validated.data.structure) {
+			const valid = validateStructure(validated.data.structure, validated.data.objects.map(object => object.id));
+			if (!valid.ok) return valid;
+		}
 
 		return ok({
-			dto: validated.data,
+			dto: validated.data.structure ? validated.data : { ...validated.data, schemaVersion: 1 },
 			version: { revision: validated.data.revision, observed: observeSidecar(rawText) },
 			file: abstractFile,
 			path,

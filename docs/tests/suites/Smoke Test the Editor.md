@@ -9,6 +9,11 @@ status: Ready
 ---
 # Smoke Test the Editor
 
+The Phase 5 continuation adds [Draw connected walls and openings](../cases/Draw%20connected%20walls%20and%20openings.md).
+Its traceability separates automated/FakeVault and browser evidence from still-unperformed live
+host/screenreader acceptance. It is a supplemental journey, outside the historical 344-step
+census below; that dated census is not a claim that the new journey was accepted in Obsidian.
+
 The cases that can only be run **by a human, inside Obsidian**. Everything here exists
 because `npm run check` cannot see it.
 

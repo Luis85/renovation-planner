@@ -8,6 +8,14 @@ area: presentation
 
 # ADR-0018: Spatial selection and Inspector ownership
 
+Phase 5 extension (2026-09-06, ADR-0020): the same ordered ID store and typed projection now
+include Wall and Opening records. Body priority is Opening, Wall, then Room/Area, preserving
+paint order within a kind; Alt-click cycles the same candidates. The persistent structure list
+and Inspector share those IDs. Shared hover/multi-selection overlays include the new types;
+only a single wall's end supports direct junction movement. Root-owned measurement forms keep
+their draft and focus through reflow and dispatch the same reversible geometry command as the
+pointer edit. Multi-selection remains a read-only summary; no batch renovation action is implied.
+
 ## Context
 
 Editor implementation phases 0–2 require typed selection and one Inspector route. The existing

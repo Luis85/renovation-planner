@@ -116,6 +116,7 @@ export function createInspector(
 						// Slice 10's undo half: the resolution may have deleted or repointed
 						// Requirements, and restoring the Zone alone would not be an inverse of that.
 						{
+							boundary: context.commands.structure?.roomHistory(),
 							requirements: context.commands.requirementEdits.requirements,
 							locks: context.commands.requirementEdits.locks,
 							logger: context.commands.logger,

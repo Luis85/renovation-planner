@@ -36,12 +36,15 @@ import {
 import { paintRulerMarks } from './rulerGeometry';
 import { measurementScreenMarks, sketchScreenGeometry } from './gestureGeometry';
 import RoomDraftSketch from './RoomDraftSketch.vue';
+import { structureCandidates } from '../structure/structureCandidates';
+import type { SpatialObjectCandidate } from '../tools/select-tool';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 
 const editorStore = useEditorStore();
 const projectStore = useProjectStore();
 const { zones } = storeToRefs(projectStore);
+const candidates = computed(() => new Map<string, SpatialObjectCandidate>([...zones.value, ...structureCandidates(projectStore.structure).map(item => [item.id, item] as const)]));
 const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 const runtime = useEditorRuntime();
 
@@ -99,7 +102,7 @@ const measurementMarks = computed(() => measurementScreenMarks(runtime.renderSta
 const hoverOutlineFlat = computed(() => {
 	const id = runtime.renderState.hoveredObjectId;
 	if (id === null || selectedIds.value.some((selected) => String(selected) === id)) return null;
-	const zone = zones.value.get(id);
+	const zone = candidates.value.get(id);
 	if (zone === undefined) return null;
 	return zone.points.flatMap((point) => {
 		const at = toScreen(point);
@@ -127,7 +130,7 @@ const selectedFlat = computed(() =>
 
 /** Multiple selections show all outlines, without handles suggesting a group edit. */
 const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selectedIds.value.flatMap((id) => {
-	const zone = zones.value.get(id);
+	const zone = candidates.value.get(id);
 	return zone === undefined ? [] : [{
 		id,
 		number: selectedIds.value.indexOf(id) + 1,

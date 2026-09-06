@@ -1,4 +1,6 @@
 import { guardedReferencePlan } from './guardedReferencePlan';
+import { guardedStructure } from './guardedStructure';
+import { structureServices } from '../application/commands/spatial/StructureCommand';
 import { referencePlanServices } from '../application/commands/plan/ConfigurePlanReference';
 import type { Vault, Workspace } from 'obsidian';
 import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
@@ -59,6 +61,7 @@ export function planEditorDeps(
 		queries: persistence?.planEditorQueries ?? unavailablePlanEditorQueries(),
 		commands: persistence
 			? {
+					structure: guardedStructure(structureServices(persistence.geometry, root.eventBus), root.logger),
 					createZone: persistence.createZone,
 					referencePlan: guardedReferencePlan(referencePlanServices(persistence.plans, persistence.geometry, root.eventBus, persistence.files), root.logger),
 					moveObject: persistence.moveZone,

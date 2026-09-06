@@ -1,4 +1,5 @@
 import { referencePlanServices, type ReferencePlanServices } from '../../application/commands/plan/ConfigurePlanReference';
+import type { StructureServices } from '../../application/commands/spatial/StructureCommand';
 import { err, type Result } from '../../core/result/Result';
 import { createEventBus, type EventBus } from '../../core/events/EventBus';
 import type {
@@ -59,6 +60,7 @@ export interface CalibratePlanTransaction {
  * boundary is exactly what has no per-transaction state.
  */
 export interface PlanEditorCommandServices {
+	readonly structure?: StructureServices;
 	readonly referencePlan: ReferencePlanServices;
 	readonly createZone: Command<
 		CreateZoneInput,

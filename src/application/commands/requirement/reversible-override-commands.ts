@@ -8,6 +8,7 @@ import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { EntityVersion } from '../../ports/versioning';
+import { undoSuperseded, type WriteLedger } from '../../editor/WriteLedger';
 import {
 	publishIfEffectiveCostChanged,
 	type SetRequirementQuantityOverrideDoor,
@@ -45,10 +46,14 @@ type Snapshot = {
  * What each captures on its FIRST execute is the WHOLE pre-edit requirement, restored on
  * undo — not just the override field, because the quantity command also re-runs the Cost
  * Pipeline and a field-only restore would leave `estimatedCost.calculated` derived from a
- * quantity that no longer exists. The restore is CONDITIONAL: it presents the version its
- * own execute() produced inside the repository's compare-and-swap, so another tab's edit
- * between execute and undo refuses the undo instead of being clobbered by it — and the
- * command stays on the history's stack (slice 6), nothing lost.
+ * quantity that no longer exists. The restore is CONDITIONAL: it presents the version THE
+ * HISTORY last wrote (`WriteLedger`), never the one this adapter's own execute() produced,
+ * so another tab's edit between execute and undo refuses the undo instead of being
+ * clobbered by it — and the command stays on the history's stack (slice 6), nothing lost.
+ * A per-adapter expectation refused a case that must succeed: two adapters over one
+ * requirement (a quantity override, then a cost override) undone in order, where the
+ * second undo presents a version two of this history's OWN writes ago. A foreign write is
+ * still refused, now by the ledger's generation rather than by a stale version.
  *
  * Redo re-applies the recorded INPUT through the same command instance rather than
  * re-reading what undo just wrote — a snapshot-on-every-execute adapter drifts on the
@@ -77,6 +82,13 @@ type Snapshot = {
 // suppressions live on the subclasses, which is where the leak is REPORTED.
 abstract class ReversibleOverrideBase<TInput> {
 	protected snapshot: Snapshot | undefined;
+	/**
+	 * The ledger generation this gesture's last execute ran under, refreshed on every one
+	 * (a redo is a fresh premise) and compared again at `undo` — see
+	 * `ReversibleCreateZoneCommand.generation` for why the counter belongs to the shared
+	 * ledger rather than to each adapter.
+	 */
+	private generation: number | null = null;
 
 	constructor(
 		private readonly requirements: RequirementRepository,
@@ -87,6 +99,8 @@ abstract class ReversibleOverrideBase<TInput> {
 		 * the way `ReversibleAssignAssetCommand.events` exists for its own two silent halves.
 		 */
 		private readonly events: EventBus,
+		/** The history's own memory of what it last wrote, shared with every sibling adapter. */
+		private readonly ledger: WriteLedger,
 	) {}
 
 	protected abstract run(input: TInput): Promise<
@@ -94,8 +108,9 @@ abstract class ReversibleOverrideBase<TInput> {
 	>;
 
 	async execute(input: TInput): Promise<DispatchResult> {
+		const id = this.requirementIdOf(input);
 		if (!this.snapshot) {
-			const before = await this.requirements.getById(this.requirementIdOf(input));
+			const before = await this.requirements.getById(id);
 			if (isErr(before)) return err(before.error);
 			if (before.value === null) {
 				return err({
@@ -104,8 +119,12 @@ abstract class ReversibleOverrideBase<TInput> {
 					message: 'Nothing to override.',
 				});
 			}
+			// What this history last wrote against what this read just found: a difference is a
+			// foreign write, and the generation moves (`WriteLedger.observe`).
+			this.generation = this.ledger.observe(id, before.value.version);
 			const ran = await this.run(input);
 			if (!ran.ok) return ran;
+			this.ledger.record(id, ran.value.version);
 			// Captured ONCE, after the first successful write — redo reuses the pre-edit
 			// `entity`. `writtenEffectiveCost` is NOT captured once: see the field's own
 			// docblock on `Snapshot`.
@@ -118,6 +137,8 @@ abstract class ReversibleOverrideBase<TInput> {
 		}
 		const ran = await this.run(input);
 		if (!ran.ok) return ran;
+		this.ledger.record(id, ran.value.version);
+		this.generation = this.ledger.generation(id);
 		this.snapshot = {
 			...this.snapshot,
 			postVersion: ran.value.version,
@@ -131,10 +152,17 @@ abstract class ReversibleOverrideBase<TInput> {
 		if (!captured) {
 			return err({ category: 'Domain', code: 'undo.before-execute', message: 'Nothing to undo yet.' });
 		}
+		const id = captured.entity.id;
+		if (this.generation !== null && this.ledger.generation(id) !== this.generation) {
+			return err(undoSuperseded(id));
+		}
 		// Whole-entity conditional restore; `null` overrides are VALUES inside the
-		// snapshot, so "reset to calculated" undoes back to the typed figure.
-		const saved = await this.requirements.save(captured.entity, captured.postVersion);
+		// snapshot, so "reset to calculated" undoes back to the typed figure. The
+		// expectation is the HISTORY's, not this adapter's (`WriteLedger`'s first paragraph).
+		const expected = this.ledger.lastWritten(id) ?? captured.postVersion;
+		const saved = await this.requirements.save(captured.entity, expected);
 		if (isErr(saved)) return err(saved.error);
+		this.ledger.record(id, saved.value.version);
 		this.snapshot = { ...captured, postVersion: saved.value.version };
 		await publishIfEffectiveCostChanged(this.events, saved.value.entity, captured.writtenEffectiveCost);
 		return ok('wrote');
@@ -149,8 +177,9 @@ export class ReversibleSetRequirementQuantityOverrideCommand extends ReversibleO
 		private readonly setCommand: SetRequirementQuantityOverrideDoor,
 		requirements: RequirementRepository,
 		events: EventBus,
+		ledger: WriteLedger,
 	) {
-		super(requirements, events);
+		super(requirements, events, ledger);
 	}
 
 	protected run(
@@ -170,8 +199,9 @@ export class ReversibleSetRequirementCostOverrideCommand extends ReversibleOverr
 		private readonly setCommand: SetRequirementCostOverrideDoor,
 		requirements: RequirementRepository,
 		events: EventBus,
+		ledger: WriteLedger,
 	) {
-		super(requirements, events);
+		super(requirements, events, ledger);
 	}
 
 	protected run(

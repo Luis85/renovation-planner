@@ -105,6 +105,14 @@ const { toolManager, renderState, setTool } = useDesignerRuntime();
 const selection = useSelectionStore();
 
 /**
+ * E8's fix is scoped to the Plan Editor's Zones (Task 14) — this surface's own `selection`
+ * never holds anything (see above), so there is nothing an arrow key here could ever move.
+ * A named function rather than an inline template arrow: a bare `() => Promise.resolve()`
+ * in the template reads `Promise` off the render context instead of the module scope.
+ */
+const nudgeSelection = (): Promise<void> => Promise.resolve();
+
+/**
  * `routeEscape`'s `returned-to-select` arm always asks for the Plan Editor's neutral tool,
  * `'select'` — a tool this surface never registers (`registerDesignerTools` names
  * `trace-footprint`, `trace-clearance`, `set-anchor`, `set-facing` and `calibrate`, and no
@@ -175,6 +183,7 @@ function framedBounds(all: boolean): BoundingBox | null {
 		:set-tool="escapeSetTool"
 		:has-selection="() => selection.selectedIds.length > 0"
 		:clear-selection="() => selection.clear()"
+		:nudge-selection="nudgeSelection"
 	>
 		<template #default="{ size }">
 			<VStage :config="size">

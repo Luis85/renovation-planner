@@ -17,6 +17,7 @@ import { createInspector } from './inspector-wiring';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
+import type { Vector } from '../../core/geometry/Vector';
 import { useEditorStore } from '../stores/EditorStore';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
@@ -48,6 +49,7 @@ import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispat
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
+import { createNudgeSelectionAction } from './nudge';
 
 /**
  * One Plan Editor leaf's live machinery (design slice 8): the history and its refresh
@@ -169,6 +171,17 @@ export interface EditorRuntime {
 	 * regardless of which leaf it is drawn in.
 	 */
 	readonly openPlanNote: () => Promise<void>;
+	/**
+	 * §85's one operation slice 5 left unreachable by keyboard (E8): the arrow-key answer to
+	 * `SelectTool`'s drag, over the SAME `moveGesture` factory — so undo restores a keyboard
+	 * nudge exactly as it restores a drag, with nothing here to keep in step with that tool.
+	 *
+	 * A no-op unless the active tool is `select` and exactly one zone is selected: zero or
+	 * many selected has nothing a single translate could mean, and every OTHER tool already
+	 * owns the keyboard for its own gesture. `by` is a WORLD vector; `EditorSurface.vue`'s
+	 * `arrowVector` is what turns a key press into one.
+	 */
+	readonly nudgeSelection: (by: Vector) => Promise<void>;
 }
 
 
@@ -673,9 +686,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const defaultRoomName = (): string => tr('editor.room.default-name', { n: String(projectStore.zones.size + 1) });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName });
 
-	const { createRoom, canCreateRoom, roomDraftIncomplete } = createRoomCreationAction({
-		context, planId, ledger, dispatcher: toolDispatcher, selection, roomDraft, defaultRoomName, returnToSelect,
-	});
+	const { createRoom, canCreateRoom, roomDraftIncomplete } = createRoomCreationAction({ context, planId, ledger, dispatcher: toolDispatcher, selection, roomDraft, defaultRoomName, returnToSelect });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
 	// BECOMES `'ready'` — and a `previous !== 'ready'` guard would be dead code here, not a
@@ -744,6 +755,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	}
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
+	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore });
 
 	// The assign picker's options and the Inspector's rows, hydrated at mount and re-read on the
 	// three doors that carry what they draw — the catalogue's, the price's and the recalculation
@@ -781,6 +793,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		writesBlocked,
 		pausedReasonId,
 		openPlanNote: () => context.openPlanNote(),
+		nudgeSelection,
 	};
 }
 

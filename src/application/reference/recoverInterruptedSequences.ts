@@ -75,7 +75,18 @@ async function restoreEntry(
 		});
 	}
 
-	const saved = await deps.requirements.save(snapshot.entity, expected);
+	// `.catch` for the reason the read above carries, and it is the same defect one line
+	// further on: this port is raw at this boundary, so a vault fault arrives as a REJECTION
+	// rather than a refusal, and a bare `await` exits through the module's outer boundary —
+	// abandoning every marker after this one. The `isErr` arm below already says the right
+	// thing about a refusal; this makes a fault reach it. The residual: a SYNCHRONOUS throw
+	// out of `save` — one raised before a promise is ever returned — still exits through the
+	// module's outer boundary and abandons every later marker, since `.catch` only attaches
+	// to a promise that was actually returned.
+	const saved = await deps.requirements
+		.save(snapshot.entity, expected)
+		.catch((cause: unknown) =>
+			err(persistenceError('sequence.recovery.restore-faulted', 'The restore write faulted.', cause)));
 	if (isErr(saved)) {
 		deps.logger.error('sequence.recovery.restore-refused', {
 			requirementId: entry.id,
@@ -140,7 +151,13 @@ async function recoverOne(deps: RecoveryDeps, marker: SequenceMarker): Promise<v
 		});
 	}
 
-	const cleared = await deps.markers.clear(marker.entityId);
+	// Guarded like the two writes above, and for the same reason: a faulting clear used to
+	// take every later marker with it, so one unwritable marker file abandoned the recovery
+	// of every sequence behind it.
+	const cleared = await deps.markers
+		.clear(marker.entityId)
+		.catch((cause: unknown) =>
+			err(persistenceError('sequence.recovery.clear-faulted', 'The marker could not be cleared.', cause)));
 	if (isErr(cleared)) {
 		deps.logger.error('sequence.recovery.clear-failed', { entityId: marker.entityId, cause: cleared.error });
 	}

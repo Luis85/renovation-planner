@@ -104,10 +104,14 @@ const dimensionsLabel = computed(() =>
 </script>
 
 <template>
-	<aside
-		class="rp-designer-inspector-panel"
-		:aria-label="tr('designer.inspector')"
-	>
+	<!--
+		No class here: this `<aside>` is the whole content of `AssetDesignerRoot.vue`'s
+		`.rp-designer-inspector` div (padding, background, border-left already there, and no
+		sibling this element needs to stand out from), so an own class would style nothing and
+		the widened `libraryComponentStyles.test.ts` scan would keep flagging it undeclared. Kept
+		as a landmark for its `aria-label`, dropped as a class.
+	-->
+	<aside :aria-label="tr('designer.inspector')">
 		<h2 class="rp-designer-panel-title">
 			{{ tr('designer.inspector') }}
 		</h2>

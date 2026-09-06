@@ -15,13 +15,16 @@ import type { ToolId } from '../tools/editor-tool';
  */
 
 /**
- * What the snap service currently buys: **nothing yet.** `SnapService.snapPoint` ranks the
+ * What the snap service currently buys: **nothing yet, for `snapPoint`.** It ranks the
  * candidate vertices and edges it is handed and never consults the grid, and every tool in
  * both surfaces passes an EMPTY candidate set — so `snapPoint` is provably the identity
- * function today and these two numbers reach no arithmetic. The service is wired at the seam it
+ * function today and `SNAP_GRID_MM` reaches no arithmetic. The service is wired at the seam it
  * will be used from, which is worth having; the grid it is configured with is not reachable
- * until a caller supplies candidates (the neighbouring zones' vertices and edges, plus
- * `snapToGrid`, which has no caller in `src/` at all).
+ * until a caller supplies candidates (the neighbouring zones' vertices and edges). `snapToGrid`
+ * and `snapResize`, which never had a caller in `src/` at all, were deleted rather than left
+ * waiting (finding E7, ruling R5) — `snapRotation`, `snapPoint` and `snapDirection` are the
+ * members with a caller today, `snapDirection` reaching `snapRotation` via four drawing tools'
+ * Shift constraint.
  *
  * Said here because three comments in the tools used to describe grid snapping as something
  * that happens. The manual case had it right all along —

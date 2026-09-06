@@ -16,7 +16,12 @@ import { createEventBus } from '../../../src/core/events/EventBus';
 import { createProjectPricesChangeSource } from '../../../src/application/events/projectPricesChangeSource';
 import { assetPriceOverrideChanged } from '../../../src/domain/asset-price/AssetPriceOverride.events';
 import { assetUpdated } from '../../../src/domain/asset/Asset.events';
-import { requirementInvalidated } from '../../../src/domain/requirement/Requirement.events';
+import {
+	requirementCreated,
+	requirementDeleted,
+	requirementInvalidated,
+	requirementRestored,
+} from '../../../src/domain/requirement/Requirement.events';
 import { projectIndexEntryChanged } from '../../../src/application/events/projectIndex.events';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
@@ -169,9 +174,32 @@ describe('createProjectPricesChangeSource', () => {
 		expect(delivered).toEqual([null]);
 	});
 
-	/** Disposal, asserted for BOTH lists — a source that unsubscribed one would leave a retired
-	 *  Vue tree still re-reading on the other. */
-	it('stops delivering both events once disposed', async () => {
+	/**
+	 * **The zone-list events (A2).** A Requirement's own existence changing the SET of rows a
+	 * zone's Inspector draws — created, deleted, or restored — had no subscriber anywhere in
+	 * `src/`: the figures source only ever hears about a figure moving on a row that is already
+	 * there. Landing them here rather than in a fourth source of their own is what T6's ledger
+	 * ruling records: this source's Plan Editor caller already wires its listener straight to an
+	 * unconditional `reloadInspector` with no per-id filter (unlike the figures source's
+	 * `drawsRequirement` guard, which a brand-new row could never satisfy), so it is the one
+	 * door already shaped to answer "the list itself changed" rather than "one row's figure
+	 * did".
+	 */
+	it.each([
+		['RequirementCreated', () => requirementCreated({ requirementId: createRequirementId(), projectId: aProject })],
+		['RequirementDeleted', () => requirementDeleted({ requirementId: createRequirementId(), projectId: aProject })],
+		['RequirementRestored', () => requirementRestored({ requirementId: createRequirementId(), projectId: aProject })],
+	])('delivers %s, naming the project it belongs to', async (_name, make) => {
+		const { bus, delivered } = wired();
+
+		await bus.publish(make());
+
+		expect(delivered).toEqual([aProject]);
+	});
+
+	/** Disposal, asserted for ALL THREE lists — a source that unsubscribed one would leave a
+	 *  retired Vue tree still re-reading on the others. */
+	it('stops delivering all three events once disposed', async () => {
 		const { bus, dispose, count } = wired();
 
 		dispose();
@@ -179,6 +207,7 @@ describe('createProjectPricesChangeSource', () => {
 		await bus.publish(
 			projectIndexEntryChanged({ entityId: 'price-1' as EntityId<string>, entityType: 'renovation-asset-price' }),
 		);
+		await bus.publish(requirementRestored({ requirementId: createRequirementId(), projectId: aProject }));
 
 		expect(count()).toBe(0);
 	});

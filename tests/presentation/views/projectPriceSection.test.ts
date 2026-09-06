@@ -91,6 +91,8 @@ async function mountSection(options: {
 	rows?: readonly AssetPriceRowDto[];
 	hold?: Promise<void>;
 	listAssetPrices?: () => Promise<Result<readonly AssetPriceRowDto[], RepositoryError>>;
+	/** `'details'` for the one case about what this section does NOT do when it is not drawn. */
+	section?: 'details' | 'prices';
 } = {}): Promise<Harness> {
 	let rows: readonly AssetPriceRowDto[] = options.rows ?? [priceRow(null)];
 	const listAssetPrices = vi.fn<() => Promise<Result<readonly AssetPriceRowDto[], RepositoryError>>>(
@@ -118,7 +120,7 @@ async function mountSection(options: {
 	const base = defaultRenovationProjectDeps();
 	const context: RenovationProjectDeps = {
 		...base,
-		section: 'prices',
+		section: options.section ?? 'prices',
 		projectId: PROJECT_ID,
 		queries: {
 			...base.queries,
@@ -398,11 +400,147 @@ describe('the project detail state’s price section', () => {
 		await flushPromises();
 		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
 		expect(harness.wrapper.get('.rp-asset-price-failure').text()).toContain('Saved;');
-		expect(harness.wrapper.get('input').attributes('disabled')).toBeDefined();
+		expect(harness.wrapper.get('input').attributes('readonly')).toBeDefined();
+		expect(harness.wrapper.get('input').attributes('aria-disabled')).toBe('true');
 		failRead = false;
 		await harness.wrapper.get('.rp-price-refresh').trigger('click'); await flushPromises();
 		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
 		expect(harness.wrapper.find('.rp-asset-price-failure').exists()).toBe(false);
+	});
+
+	/**
+	 * **"Saved; could not refresh" is a statement about THIS write's own read**, and that read is
+	 * the one whose outcome may be superseded. The write's refresh is issued directly rather than
+	 * through the loader, precisely so the write awaits ITS read — but a plain reload can still be
+	 * queued behind an in-flight one and land after it, taking the section's shared error ref with
+	 * it. Deriving the write's copy from that ref afterwards reports the write as unrefreshed when
+	 * its own read came back clean, and points the user at a retry-refresh instruction for a
+	 * failure the save had nothing to do with.
+	 *
+	 * Four parked reads is what it takes to express the ordering, and each is one the section can
+	 * really issue: the mount's, a catalogue change's, this write's own, and the trailing read the
+	 * loader owes a second catalogue change.
+	 */
+	it('leaves a saved write out of a failure raised by a read that superseded its own', async () => {
+		const refusal: RepositoryError = { category: 'Persistence', code: 'asset-price.frontmatter-invalid', message: 'read failed' };
+		const parked: ((answer: Result<readonly AssetPriceRowDto[], RepositoryError>) => void)[] = [];
+		const rows = [priceRow(money('19.50'))];
+		const harness = await mountSection({
+			listAssetPrices: () => new Promise((resolve) => { parked.push(resolve); }),
+		});
+
+		// The mount's read, so the rows draw and the row's own apply control exists at all.
+		parked[0]?.(ok(rows));
+		await flushPromises();
+
+		// A catalogue change starts the loader's read; a second one while that is in flight buys
+		// the trailing read the loader is contractually owed.
+		harness.catalogueChanged();
+		await flushPromises();
+		harness.catalogueChanged();
+		await flushPromises();
+
+		await harness.wrapper.get('input').setValue('12,50');
+		await harness.wrapper.get('.rp-asset-price-apply').trigger('click');
+		await flushPromises();
+		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
+
+		// The loader's first read lands superseded by the write's; its trailing read then starts
+		// and REFUSES, which is the failure the section now legitimately shows.
+		parked[1]?.(ok(rows));
+		await flushPromises();
+		parked[3]?.(err(refusal));
+		await flushPromises();
+
+		// Only now does the write's own read come back — clean, and too late to be believed.
+		parked[2]?.(ok(rows));
+		await flushPromises();
+
+		expect(harness.wrapper.get('.rp-asset-price-failure').text()).toBe(trError(refusal));
+	});
+
+	/**
+	 * `listAssetPrices` reads the whole vault-wide catalogue, and the DETAILS section renders none
+	 * of it — so the read and both subscriptions belong to the section that draws, exactly as
+	 * `ViewRoot.vue:328-332` states for the list state's own two. Counted rather than asserted on
+	 * a spy for the subscription: a listener registered and then ignored looks identical from the
+	 * wiring side, and it is the READ this exists to refuse.
+	 */
+	it('reads no prices at all while the details section is what this mount draws', async () => {
+		const harness = await mountSection({ section: 'details' });
+
+		expect(harness.listAssetPrices).not.toHaveBeenCalled();
+
+		harness.catalogueChanged();
+		harness.pricesChanged(null);
+		harness.pricesChanged(PROJECT_ID);
+		await flushPromises();
+
+		expect(harness.listAssetPrices).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * A read still in flight when the pane goes has nothing left to tell, and this drives the
+	 * post-await `disposed` arm that the pre-await guard cannot reach — the pane went WHILE the
+	 * read was out.
+	 *
+	 * **Read that guard as belt-and-braces rather than as the thing keeping this green**, because
+	 * the mutation check says so: dropping `disposed ||` from the post-await return leaves this
+	 * case passing. `onBeforeUnmount` calls `detail.reset()`, which takes the price section's own
+	 * ticket, so a read out at unmount is already answered `'superseded'` and the writes are
+	 * already skipped. What the guard adds is independence from that coupling — it is the same
+	 * "nothing after an await writes once the pane went" rule `onOpenPlan` above already applies —
+	 * and what this case actually asserts is the property both of them serve.
+	 */
+	it('writes nothing when a price read lands after the pane went', async () => {
+		const parked: ((answer: Result<readonly AssetPriceRowDto[], RepositoryError>) => void)[] = [];
+		const harness = await mountSection({
+			listAssetPrices: () => new Promise((resolve) => { parked.push(resolve); }),
+		});
+		expect(parked).toHaveLength(1);
+
+		harness.wrapper.unmount();
+		parked[0]?.(ok([priceRow(money('19.50'))]));
+		await flushPromises();
+
+		expect(harness.listAssetPrices).toHaveBeenCalledTimes(1);
+		expect(document.querySelector('.rp-asset-price-list')).toBeNull();
+	});
+
+	/**
+	 * The PRE-await half of the same rule, from the other caller. The case above drives
+	 * `hydratePrices`'s POST-await `disposed` check by unmounting while the LOADER's own read is
+	 * out; this one drives the PRE-await check (`:86`) by unmounting while a WRITE's own command
+	 * dispatch is out. `refreshAfterWrite` calls `hydratePrices()` directly with no guard of its
+	 * own, so the pane going away between the dispatch and its answer leaves the pre-await check
+	 * as the only thing standing between a resolved write and a read for a pane that is gone.
+	 */
+	it('writes nothing when a price write lands after the pane went', async () => {
+		const harness = await mountSection({ rows: [priceRow(null)] });
+		let release!: (value: unknown) => void;
+		const hold = new Promise((resolve) => {
+			release = resolve;
+		});
+		harness.setAssetPriceOverride.mockImplementationOnce(() => hold);
+
+		const input = harness.wrapper.get('.rp-asset-price-input');
+		await input.setValue('19.50');
+		await input.trigger('keydown', { key: 'Enter' });
+		await flushPromises();
+		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
+		const readsBefore = harness.listAssetPrices.mock.calls.length;
+
+		harness.wrapper.unmount();
+		release(
+			ok({
+				override: { id: 'op-9' as AssetPriceOverrideId },
+				created: true,
+				version: { revision: 4, observed: 'observed-4' as ObservationToken },
+			}),
+		);
+		await flushPromises();
+
+		expect(harness.listAssetPrices).toHaveBeenCalledTimes(readsBefore);
 	});
 
 	it.each([true, false])('coalesces events received during a write (accepted: %s)', async (accepted) => {

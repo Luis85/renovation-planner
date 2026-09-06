@@ -6,7 +6,7 @@ import type { ProjectId } from '../../../src/domain/project/ProjectId';
 import { expectOk } from '../../helpers/domain';
 import { makeAsset, makeRequirement, makeZone } from '../../helpers/entities';
 import { recorder as logger } from '../../helpers/logger';
-import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
+import { TEN_SQUARE_METERS, requirementFixture, zoneSequenceCollaborators } from '../../helpers/slice10';
 import type { InMemoryRequirementRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
 
 /**
@@ -42,6 +42,7 @@ async function wiredWithRequirement() {
 	if (!assigned.ok) throw new Error(String(assigned.error));
 
 	const command = new DeleteZoneCommand({
+		...zoneSequenceCollaborators(),
 		zones: w.zones,
 		requirements: w.requirements,
 		recalculate: w.recalculate,

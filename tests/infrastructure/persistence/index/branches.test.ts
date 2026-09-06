@@ -127,10 +127,33 @@ describe('a note that stops being ours', () => {
 			);
 			adapter.onModify(stack.vault.getAbstractFileByPath(path) as never);
 
-			await new Promise<void>((resolve) => {
-				setTimeout(() => resolve(), 10);
-			});
+			// `flush()` rather than a sleep: an adapter with no `debounceMs` arms a real 500 ms
+			// timer now, so waiting 10 ms would assert against a queue nothing had drained yet.
+			adapter.flush();
 			expect(stack.index.getPath(projectId)).toBeUndefined();
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('debounces for 500 ms when no debounceMs is configured', async () => {
+		const armed: number[] = [];
+		// The callback is deliberately never armed: a real timer outliving this case fires
+		// `flush` after `unstubAllGlobals` has taken `window` away, which vitest reports as an
+		// unhandled `ReferenceError` and fails the file on. What is under test is the DELAY.
+		vi.stubGlobal('window', {
+			setTimeout: (_fn: () => void, ms?: number) => {
+				armed.push(ms ?? -1);
+				return 0;
+			},
+			clearTimeout,
+		});
+		try {
+			const stack = createRepositoryStack();
+			const { projectId } = await seed(stack);
+			const adapter = adapterOf(stack);
+			adapter.onModify(stack.vault.getAbstractFileByPath(stack.index.getPath(projectId) ?? '') as never);
+			expect(armed).toEqual([500]);
 		} finally {
 			vi.unstubAllGlobals();
 		}

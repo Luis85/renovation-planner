@@ -1,6 +1,6 @@
 import { Decimal } from 'decimal.js';
 import { err, ok, type Result } from '../result/Result';
-import type { CalculationError, ValidationError } from '../errors/AppError';
+import type { AppError, CalculationError, ValidationError } from '../errors/AppError';
 
 /**
  * A validated ISO 4217 alpha-3 code. `declare const` with a `unique symbol` is type-only —
@@ -333,13 +333,42 @@ export function sameMoney(a: Money, b: Money): boolean {
  * The sign, asked of the module that owns the representation: nothing outside
  * `core/money` may parse an `amount` itself (ADR-010), and a FIELD that must not go below
  * zero — a unit price, a shipping charge, a budget — is guarded by whoever validates that
- * field. This is what those guards ask.
+ * field. `negativeMoney` below is what those guards ask now (finding C11) — this stopped
+ * being exported the moment its last direct caller was folded into that one function, and
+ * `npm run analyze` is what caught the export going dead rather than a reader noticing.
  *
  * `lessThan(0)` rather than decimal.js's own `Decimal.isNegative()`, which answers `true`
  * for a negative ZERO. No `Money` can hold one — `fromDecimal` serializes it as a plain
  * `0` and `AMOUNT_PATTERN` refuses the spelling — so the two agree today; `lessThan(0)` is
  * the one that keeps agreeing if that ever changes.
  */
-export function isNegative(a: Money): boolean {
+function isNegative(a: Money): boolean {
 	return new MoneyDecimal(a.amount).lessThan(0);
+}
+
+/**
+ * The one guard behind four hand-spelled duplicates (finding C11): `costPipeline.ts`,
+ * `Project.ts`, `Asset.ts` and `AssetPriceOverride.ts` each refused a negative money FIELD
+ * with `!value || !isNegative(value)` and a message differing only in which field it named —
+ * two of the four even byte-identical under two different codes. `undefined` and `null` both
+ * mean "absent, and absence is not negative" — an omitted shipping charge or an unset
+ * override is a value nowhere on the number line, not a refusal.
+ *
+ * `errorOf` is what lets one function serve four callers whose ERROR shape differs: three
+ * already own a `(code, message) => ValidationError` factory (`projectError`, `assetError`,
+ * `assetPriceError`) that namespaces the code itself, and the fourth (`costPipeline.ts`)
+ * builds a `CalculationError` inline and appends a second sentence of its own. The code this
+ * function passes is `'negative-amount'` — `Project.ts`'s own short code, which is what lets
+ * that site pass `projectError` straight through with no wrapping; a site whose code differs
+ * (both unit-cost guards want `'negative-unit-cost'`, and the pipeline wants its own
+ * fully-qualified `'cost.negative-amount'`) supplies an `errorOf` that ignores the argument and
+ * substitutes its own.
+ */
+export function negativeMoney(
+	label: string,
+	value: Money | null | undefined,
+	errorOf: (code: string, message: string) => AppError,
+): AppError | null {
+	if (!value || !isNegative(value)) return null;
+	return errorOf('negative-amount', `A ${label} cannot be negative; got ${value.amount} ${value.currency}.`);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { persistenceError } from '../../src/application/errors';
+import { calculationError, persistenceError } from '../../src/application/errors';
 import { persistenceError as fromNoteIo } from '../../src/infrastructure/obsidian/repositories/noteIo';
 
 describe('persistenceError', () => {
@@ -14,5 +14,16 @@ describe('persistenceError', () => {
 	it('carries a cause when one is given', () => {
 		const boom = new Error('boom');
 		expect(persistenceError('zone.listing-incomplete', 'x', boom).cause).toBe(boom);
+	});
+});
+
+describe('calculationError', () => {
+	it('omits `cause` entirely when none is given', () => {
+		expect('cause' in calculationError('requirement.update-invalid', 'x')).toBe(false);
+	});
+
+	it('carries a cause when one is given', () => {
+		const boom = new Error('boom');
+		expect(calculationError('requirement.area-failed', 'x', boom).cause).toBe(boom);
 	});
 });

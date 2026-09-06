@@ -422,9 +422,10 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 
 **There are TWO repository stacks and ONE thing they are.** `createRepositoryStack`
 (in-memory, `tests/helpers/vault.ts`) and `openFixtureVault` (disk-backed,
-`tests/helpers/fixtureVault.ts`) differ in three host fakes and nothing else — which
-`FixtureStack`'s docblock had asserted for years while two copies made the claim rather than
-one definition, and `npm run analyze` reported the pair as the repository's largest clone
+`tests/helpers/fixtureVault.ts`) differ in three host fakes, each carrying Obsidian's event
+surface, and nothing else — which `FixtureStack`'s docblock had asserted for years while two
+copies made the claim rather than one definition, and `npm run analyze` reported the pair as
+the repository's largest clone
 family (four groups, 98 lines). `tests/helpers/repositoryStack.ts`'s `stackFoundation` is the
 definition: the logger recorder, the index, the echo window, the migration runner, the
 ledger, the `NoteVaultDeps` bundle, the geometry store and `rebuildIndex`. Three smaller
@@ -689,8 +690,8 @@ measured, six such files timed out in one run and every one of them passed on a
 `--no-file-parallelism` re-run of the same tree. A parallelism artifact, not a broken gate
 — so re-run serially before believing a `beforeAll` timeout in that directory, and count the
 cost of the next ESLint-booting test file against it. **Serial is the diagnostic, not the
-remedy, and the difference is measured rather than assumed**: the twelve files that boot an
-instance run in about 30s under default parallelism and about 60s under
+remedy, and the difference is measured rather than assumed**: the files `vitest.config.ts`'s
+`eslintBootingTests()` derives run in about 30s under default parallelism and about 60s under
 `--no-file-parallelism` on a two-core container, so making the serial run the default costs
 exactly double. The contention is real and the obvious fix for it is worse than the problem;
 a lever that helps would have to reduce the number of BOOTS, which cross-worker sharing
@@ -716,18 +717,19 @@ cost nothing, reasoning that the build worker's ~29s would hide inside the suite
 ~120s — true of the scheduler that config does not get.
 
 **What the sixth review round then measured is that the confinement was buying its property for
-twelve files and charging twenty-nine.** On this machine (2026-09-05, quiet tree, no coverage)
-the whole `build` project ran **174s** serially and its twelve ESLint-booting files are **34s**
-of that, so four fifths of the serialised time was files that boot nothing and had run
-parallel-safely for their whole lives. There are THREE projects now — `build-lint` (the booting
-files, one worker, its own group) and `build` and `suite` sharing the parallel group — and the
-whole suite runs **269s → 167s, 461 of 461 green**. Two things about that set are the durable
-part rather than the numbers: it is **DERIVED** from a pattern over `tests/` rather than listed,
-because which files boot ESLint is a fact about the import graph that a hand-written list gets
-wrong silently; and the derivation **THROWS when it matches nothing**, because an instrument
-that reaches nothing looks exactly like a clean tree and would drop every file back into the
-parallel group with the timeouts returning unexplained. The review round's own section above
-carries why the proposed twelve-file version of this turned the gate red.
+a handful of files and charging far more than that.** On this machine (2026-09-05, quiet tree,
+no coverage) the whole `build` project ran **174s** serially and the files `eslintBootingTests()`
+derives are **34s** of that, so four fifths of the serialised time was files that boot nothing
+and had run parallel-safely for their whole lives. There are THREE projects now — `build-lint`
+(the booting files, one worker, its own group) and `build` and `suite` sharing the parallel
+group — and the whole suite runs at the duration `vitest.config.ts`'s own comment measures,
+461 of 461 green. Two things about that set
+are the durable part rather than the numbers: it is **DERIVED** from a pattern over `tests/`
+rather than listed, because which files boot ESLint is a fact about the import graph that a
+hand-written list gets wrong silently; and the derivation **THROWS when it matches nothing**,
+because an instrument that reaches nothing looks exactly like a clean tree and would drop every
+file back into the parallel group with the timeouts returning unexplained. The review round's
+own section above carries why the proposed fixed-list version of this turned the gate red.
 
 **What the fix EXPOSED rather than caused**, since deterministic worker placement is a stronger
 instrument than a lucky one: `tests/build/localeModuleSentenceCase.test.ts` called
@@ -1071,11 +1073,9 @@ Not oversights; each has a trigger.
   moved to devDependencies — which would build here and fail in a vault. It is in
   `.fallowrc.json`'s `ignoreDependencies` with that reason. Adding the canvas stack took the
   bundle from about **60 kB to 488 kB** in one slice; that is what ADR-003 and §54 cost, and it
-  is worth knowing before the next dependency. **Last measured: 945.52 kB (gzip 284.52 kB) on
-  2026-09-05**, at the trust path's final gate — again no new dependency, so the growth since
-  the Add Room increment is this repository's own code rather than a dependency. **Read that as
-  the size on the date named, never as a standing total**; the full series is in the increment
-  history, and `npm run build` prints today's.
+  is worth knowing before the next dependency. **`npm run build` prints today's** — no figure is
+  kept here, because a figure written in prose is a figure nothing re-runs; the full series is
+  in the increment history.
 
   **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a
   production one for exactly one increment, and the bill was 1728 KB of a 2216 KB bundle —

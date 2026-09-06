@@ -36,7 +36,7 @@ import type { EditorPointerEvent, ToolId } from '../tools/editor-tool';
 import type { ToolManager } from '../tools/tool-manager';
 import type { RenderState } from '../tools/render-state';
 import { routeEscape } from '../escapeRouting';
-import { arrowVector } from './keyboard';
+import { arrowVector, plainPress } from './keyboard';
 import { cursorClassFor } from './cursor';
 
 /**
@@ -1153,7 +1153,7 @@ function onKeyDown(event: KeyboardEvent): void {
 	if (gestureInFlight()) return;
 	if (event.key === 'Enter' && activeToolId.value === 'draw-area') {
 		event.preventDefault();
-		if (!event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) toolManager.finishActiveTool();
+		if (plainPress(event)) toolManager.finishActiveTool();
 		return;
 	}
 	if (fitShortcut(event)) return;

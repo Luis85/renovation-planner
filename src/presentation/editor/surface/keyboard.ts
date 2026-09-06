@@ -35,3 +35,22 @@ export function arrowVector(event: ArrowKeyPress): Vector | null {
 			return null;
 	}
 }
+
+/** What `plainPress` reads — a real `KeyboardEvent` satisfies it structurally. */
+export interface KeyPress {
+	readonly repeat: boolean;
+	readonly ctrlKey: boolean;
+	readonly metaKey: boolean;
+	readonly altKey: boolean;
+	readonly isComposing: boolean;
+}
+
+/**
+ * A press that is ONE deliberate press of the bare key: not an OS autorepeat, not a chord
+ * (Ctrl/Cmd/Alt+key belongs to whoever bound the chord), and not a keystroke an IME is still
+ * composing. Enter finishes a draw-area draft on exactly this and nothing else; extracted so
+ * `onKeyDown` pays one branch for it rather than five.
+ */
+export function plainPress(event: KeyPress): boolean {
+	return !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing;
+}

@@ -241,19 +241,23 @@ describe('ViewRoot in the detail state', () => {
 	});
 
 	/**
-	 * **Task 11's half of Continue that nothing else writes.** `ProjectDetailState` is the ONLY
-	 * path in the app that opens a plan, and therefore the only thing that can ever store a
-	 * non-null `planId` — the list row's own `rememberContinue` always writes `planId: null`.
+	 * **Task 11's half of Continue: `onOpenPlan` remembers a plan only once `context.openPlan`
+	 * has both RESOLVED and answered `'opened'` — the outcome-gated ordering this case pins.**
+	 * (P6: the previous version of this comment named its own mutation as the exact rewrite the
+	 * PR shipped — `await context.openPlan(planId)` before calling `rememberContinue`, which is
+	 * what `onOpenPlan` already does, so nothing was ever "watched failing" against it.)
 	 *
-	 * `openPlan` is made to never resolve, and that is NOT what discriminates a bare swap of the
-	 * two statements in `onOpenPlan` — both are synchronous (`void context.openPlan(...)` is
-	 * never awaited), so a plain call-order assertion on the two spies would already catch that.
-	 * What the never-resolving promise pins is the mutation a call-order assertion cannot see:
-	 * `onOpenPlan` rewritten to `await context.openPlan(planId)` BEFORE calling
-	 * `rememberContinue` — the "resolve, then remember" ordering the comment above this one is
-	 * actually about. With `openPlan` stuck pending, that rewrite would leave `rememberContinue`
-	 * still uncalled when this case's assertion runs, which is exactly what it is watched failing
-	 * against.
+	 * `openPlan` is made to never resolve so this catches what a plain call-order assertion on
+	 * the two spies cannot: a rewrite that dispatches `rememberContinue` synchronously alongside
+	 * the call — `void context.openPlan(planId); context.rememberContinue(...)`, with no await
+	 * and no outcome check — would call it during the FIRST `flushPromises()` below, before
+	 * `release('opened')` ever runs. That is the assertion this case is watched failing against.
+	 *
+	 * `ProjectDetailState` is not the only place a non-null `planId` can reach `rememberContinue`
+	 * (the second claim this comment used to make, also false): `ViewRoot.vue:171`'s own row
+	 * click preserves the STORED `planId` when the clicked project is already the one Continue
+	 * names, rather than writing `null` unconditionally. This case is only about the half
+	 * `ProjectDetailState.onOpenPlan` owns.
 	 */
 	it('remembers the plan after its editor opened', async () => {
 		const rememberContinue = vi.fn<(context: { projectId: string; planId: string | null }) => void>();

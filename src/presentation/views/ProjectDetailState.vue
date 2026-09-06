@@ -116,8 +116,14 @@ watch(status, (value) => {
 	if (value === 'gone' && open !== null) dialogs.resolve(cancelResultFor(open.kind));
 });
 
+/**
+ * No `canLeave()` here, deliberately (P3): opening the note leaves the pane exactly where it
+ * is — no navigation, no unmount — so there is nothing for a draft to be discarded FROM. The
+ * confirm dialog's discard arm exists to protect a navigation that would otherwise lose the
+ * drafts in `edits`; this action does not cause one, and asking anyway made Stay the only
+ * option that did nothing.
+ */
 async function onOpenNote(): Promise<void> {
-	if (!(await canLeave())) return;
 	if ((await context.openProject(props.projectId)) === 'missing') await hydrate();
 }
 

@@ -1,4 +1,4 @@
-import { apiVersion, Plugin, TFile, type TAbstractFile, type WorkspaceLeaf } from 'obsidian';
+import { apiVersion, Platform, Plugin, TFile, type TAbstractFile, type WorkspaceLeaf } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../presentation/views/GeometrySidecarView';
 import { tr } from '../presentation/i18n/strings';
@@ -334,12 +334,23 @@ export default class RenovationPlannerPlugin extends Plugin {
 		 * every install, over whatever the user already had there.
 		 *
 		 * The id is DATA: a user's hotkey is bound to it, so it does not get renamed.
+		 *
+		 * **`checkCallback`, not a plain one (Ruling R4).** `newProject()` reveals the pane and
+		 * opens the creation form regardless of platform; on mobile that meant the command ran,
+		 * navigated the pane, and then `ViewRoot`'s own `readOnly` gate silently swallowed the
+		 * dialog it was supposed to open — a command that DID something with no visible result.
+		 * Answering `false` on `Platform.isMobile` keeps it out of the palette there instead,
+		 * the same shape `create-sample-project` already uses for "nothing to write through":
+		 * a command a mobile user cannot see is honest, where a command that opens the pane and
+		 * then does nothing is a second, quieter surface for the one fact mobile is read-only.
 		 */
 		this.addCommand({
 			id: 'new-project',
 			name: tr('command.new-project'),
-			callback: () => {
-				runDetached(this.newProject(), this.root.logger, 'view.project.create-failed');
+			checkCallback: (checking: boolean) => {
+				if (Platform.isMobile) return false;
+				if (!checking) runDetached(this.newProject(), this.root.logger, 'view.project.create-failed');
+				return true;
 			},
 		});
 

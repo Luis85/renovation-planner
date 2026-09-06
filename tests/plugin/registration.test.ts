@@ -7,8 +7,8 @@
  * is excluded), and "the ribbon opens the view, once" is exactly the wiring that breaks
  * silently — so it is driven here against the module mock rather than trusted.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Command, ViewStateResult } from 'obsidian';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Platform, type Command, type ViewStateResult } from 'obsidian';
 import { installObsidianDom } from '../helpers/dom';
 
 import {
@@ -279,6 +279,14 @@ describe('the composition root', () => {
  * and stops), and that the dialog — its entire purpose — actually opens.
  */
 describe('new-project', () => {
+	afterEach(() => {
+		// A module-level singleton shared by every case in THIS file (each test file gets its
+		// own module registry, but not each test within one) — left flipped, a mobile case
+		// would leak into the desktop default every other case here assumes. The same shape
+		// `platformModifier.test.ts` uses for `Platform.isMacOS`, CLAUDE.md's own reason for it.
+		Platform.isMobile = false;
+	});
+
 	/**
 	 * `plugin.commands` resolves through the MOCK's own minimal `Command` type
 	 * (`{ id, name, callback?, checkCallback? }`), which declares no `hotkeys` — so reading it
@@ -294,6 +302,43 @@ describe('new-project', () => {
 		// No default binding: `hotkeys: []` would claim `Mod+N` for this plugin on every
 		// install, over whatever the user already had there.
 		expect(command?.hotkeys).toBeUndefined();
+	});
+
+	/**
+	 * Ruling R4, and the two arms `Platform.isMobile` puts in `checkCallback` beyond the
+	 * metadata above: asked whether it applies (`checking: true`) it answers `false` on mobile
+	 * regardless of what `checking` would otherwise decide, and asked to actually RUN
+	 * (`checking: false`) it refuses just the same rather than revealing the pane and leaving
+	 * `ViewRoot`'s own `readOnly` gate to swallow the dialog silently — the shape V3 found. Both
+	 * calls are asserted on the SAME command so a build that only gated one of the two answers
+	 * would still be caught, and the dialog store staying empty is what proves the mobile arm
+	 * never reaches `newProject()` at all rather than merely returning the right boolean.
+	 */
+	it('hides from the palette on mobile and refuses to run', () => {
+		setActivePinia(createPinia());
+		Platform.isMobile = true;
+		const command = plugin.commands.find((c) => c.id === 'new-project');
+
+		expect(command?.checkCallback?.(true)).toBe(false);
+		expect(command?.checkCallback?.(false)).toBe(false);
+		expect(useDialogStore().current).toBeNull();
+	});
+
+	/**
+	 * The other half of the `checking` branch, off mobile: the palette's own question
+	 * (`checking: true`) answers `true` without dispatching anything, which is what keeps
+	 * `new-project` IN the palette everywhere `Platform.isMobile` is `false` — the case the
+	 * mobile one above is a refusal of. Asserted on the dialog store staying empty for the same
+	 * reason as above: a `true` answer that also ran the command would be indistinguishable
+	 * from a correct one by this repository's own coverage floor if nothing checked the
+	 * side effect.
+	 */
+	it('answers the palette’s own question without running anything', () => {
+		setActivePinia(createPinia());
+		const command = plugin.commands.find((c) => c.id === 'new-project');
+
+		expect(command?.checkCallback?.(true)).toBe(true);
+		expect(useDialogStore().current).toBeNull();
 	});
 
 	/**
@@ -318,7 +363,7 @@ describe('new-project', () => {
 		const leaf = workspace.withOpen(RENOVATION_PROJECT_VIEW);
 		leaf.view = view;
 
-		plugin.commands.find((c) => c.id === 'new-project')?.callback?.();
+		plugin.commands.find((c) => c.id === 'new-project')?.checkCallback?.(false);
 		await settle();
 
 		expect(useDialogStore().current?.kind).toBe('form');
@@ -348,7 +393,7 @@ describe('new-project', () => {
 		const leaf = workspace.withOpen(RENOVATION_PROJECT_VIEW);
 		leaf.view = view;
 
-		plugin.commands.find((c) => c.id === 'new-project')?.callback?.();
+		plugin.commands.find((c) => c.id === 'new-project')?.checkCallback?.(false);
 		await settle();
 
 		// `''` is the LIST — a state rather than an absence, which is `projectIdFrom`'s own

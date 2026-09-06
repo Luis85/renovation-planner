@@ -104,10 +104,21 @@ function onPriceInput(raw: string): void {
 }
 
 function onPriceCancel(): void {
-	if (price.pending.value) return;
+	if (price.pending.value || props.refreshBlocked) return;
 	dirty.value = false;
 	price.onCancel();
 	snapshot.value = null;
+}
+
+/**
+ * The guarded door onto `price.onCommit()` — Enter and Apply both route through this rather
+ * than calling it directly, so a paused row (mid-write, read-only, or a `refreshBlocked`
+ * concurrent change) refuses the commit instead of racing it. House pattern:
+ * `RequirementRow.vue`'s `resetQuantity`.
+ */
+function onPriceCommit(): void {
+	if (price.pending.value || props.readOnly || props.refreshBlocked) return;
+	void price.onCommit();
 }
 
 async function onClear(): Promise<void> {
@@ -181,7 +192,7 @@ const foreign = computed(() => candidate.value !== null && candidate.value.curre
 				:aria-busy="price.pending.value"
 				:value="price.draft.value"
 				@input="onPriceInput(($event.target as HTMLInputElement).value)"
-				@keydown.enter.prevent="price.onCommit()"
+				@keydown.enter.prevent="onPriceCommit()"
 				@keydown.esc.stop="onPriceCancel()"
 			>
 		</FieldError>
@@ -202,7 +213,7 @@ const foreign = computed(() => candidate.value !== null && candidate.value.curre
 			class="rp-asset-price-apply"
 			:disabled="priceUnavailable"
 			:aria-disabled="pausedAria"
-			@click="price.onCommit()"
+			@click="onPriceCommit()"
 		>
 			{{ tr('view.project.price-apply') }}
 		</button>

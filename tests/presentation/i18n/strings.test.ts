@@ -55,7 +55,7 @@ const assetLibraryKeys = (table: Record<string, string>): string[] =>
  * though `AMOUNT_PATTERN` itself still reads only the dot. Testing `createMoney` raw would refuse
  * the very separator `de.ts` is now written to show.
  */
-const parsesAsAmount = (raw: string): boolean => !isErr(createMoney(raw.replace(',', '.'), 'EUR'));
+const parsesAsAmount = (raw: string): boolean => !isErr(createMoney(raw.trim().replace(',', '.'), 'EUR'));
 
 /**
  * Pure lookups, asked of the function — no view, no mock, no language global. The

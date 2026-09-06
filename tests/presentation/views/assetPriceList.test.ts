@@ -357,6 +357,33 @@ describe('AssetPriceList', () => {
 	});
 
 	/**
+	 * `refreshBlocked` freezes the row PAST its keystrokes: before this guard, Apply's
+	 * `:disabled="priceDisabled"` had been replaced with `aria-disabled` alone (colour only —
+	 * `styles/editor-shell.css:267`), so nothing stopped Enter, Apply's click or Cancel's click
+	 * from reaching `price.onCommit()`/`price.onCancel()` while a concurrent price change had the
+	 * row visually paused. `refreshBlocked` flips true AFTER the draft exists — `onPriceInput`
+	 * itself refuses to record a draft while blocked, so a row mounted already-blocked could never
+	 * reach a dirty state to test Apply/Cancel/Enter against. All three gestures are asserted in
+	 * one continuous case — none of them succeeds, so the draft and the mock's call count both
+	 * carry forward unchanged from one to the next, which is itself part of what is being checked.
+	 */
+	it('ignores Enter, Apply and Cancel on a dirty draft while a refresh is blocked', async () => {
+		const { wrapper, commit } = mountSection();
+		await wrapper.get('input').setValue('12.50');
+		await wrapper.setProps({ refreshBlocked: true });
+
+		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
+		expect(commit).not.toHaveBeenCalled();
+
+		await wrapper.get('.rp-asset-price-apply').trigger('click');
+		expect(commit).not.toHaveBeenCalled();
+
+		await wrapper.get('.rp-asset-price-cancel').trigger('click');
+		expect(commit).not.toHaveBeenCalled();
+		expect((wrapper.get('input').element as HTMLInputElement).value).toBe('12.50');
+	});
+
+	/**
 	 * `@mousedown.prevent` on Clear exists to stop a stray commit from firing before the click
 	 * reaches `onClear` — real when the input committed on blur, which it no longer does: there
 	 * is no `draftToken` and no blur handler left on this input at all.

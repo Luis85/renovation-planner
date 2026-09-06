@@ -17,6 +17,9 @@ import { createInspector } from './inspector-wiring';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
+import { translate } from '../../core/geometry/operations';
+import type { Polygon } from '../../core/geometry/Polygon';
+import type { Vector } from '../../core/geometry/Vector';
 import { useEditorStore } from '../stores/EditorStore';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
@@ -28,7 +31,7 @@ import type { ToolId } from './tools/editor-tool';
 import { RenderState } from './tools/render-state';
 import { ToolManager } from './tools/tool-manager';
 import { createToolSwitch } from './tools/tool-switch';
-import { registerEditorTools } from './tools/registerEditorTools';
+import { registerEditorTools, moveGesture } from './tools/registerEditorTools';
 import { useRoomDraftStore, type RoomDraftStore } from './add/room-draft-store';
 import { createRoomFromDraft, type RoomCreationOutcome } from './add/roomCreation';
 import { createProjectionRefresh } from './tools/with-editor-state-refresh';
@@ -169,6 +172,17 @@ export interface EditorRuntime {
 	 * regardless of which leaf it is drawn in.
 	 */
 	readonly openPlanNote: () => Promise<void>;
+	/**
+	 * §85's one operation slice 5 left unreachable by keyboard (E8): the arrow-key answer to
+	 * `SelectTool`'s drag, over the SAME `moveGesture` factory — so undo restores a keyboard
+	 * nudge exactly as it restores a drag, with nothing here to keep in step with that tool.
+	 *
+	 * A no-op unless the active tool is `select` and exactly one zone is selected: zero or
+	 * many selected has nothing a single translate could mean, and every OTHER tool already
+	 * owns the keyboard for its own gesture. `by` is a WORLD vector; `EditorSurface.vue`'s
+	 * `arrowVector` is what turns a key press into one.
+	 */
+	readonly nudgeSelection: (by: Vector) => Promise<void>;
 }
 
 
@@ -369,6 +383,46 @@ function createDeleteZoneAction(
 		if (selection.selectedIds.length === 1 && String(selection.selectedIds[0]) === zoneId) {
 			selection.clear();
 		}
+	};
+}
+
+/**
+ * E8's fix (Task 14), pulled out of `buildRuntime` for its line budget exactly as
+ * `selectAndFrameOn` below it is: this leaf's answer to the one operation §85 left
+ * unreachable by keyboard, over the SAME `moveGesture` factory `SelectTool`'s drag builds
+ * from — so undo restores a keyboard nudge exactly as it restores a drag, with nothing here
+ * to keep in step with that tool.
+ *
+ * Guards are each a "there is nothing a single translate could mean" case rather than a
+ * validation this function owns: not Select, zero or several selected, or the selected id
+ * already gone from the store (a race with a delete elsewhere). The translated polygon is
+ * never re-validated through `createPolygon` — `translate` only adds a finite `by` to points
+ * a stored Zone already validated, so the only way it could produce a non-finite coordinate
+ * is a world coordinate already near the platform's double-precision ceiling, which no plan
+ * at millimetre scale reaches. An unreachable guard costs a branch it can never pay back
+ * (CLAUDE.md), so this restructures around the typed shape `translate` already gives back
+ * instead of adding one.
+ */
+function createNudgeSelectionAction(deps: {
+	readonly context: PlanEditorContext;
+	readonly ledger: WriteLedger;
+	readonly dispatcher: ToolDispatcher;
+	readonly activeToolId: Ref<ToolId | null>;
+	readonly selection: ReturnType<typeof useSelectionStore>;
+	readonly projectStore: ReturnType<typeof useProjectStore>;
+}): (by: Vector) => Promise<void> {
+	return async (by) => {
+		if (deps.activeToolId.value !== 'select') return;
+		const [zoneId, ...rest] = deps.selection.selectedIds;
+		if (zoneId === undefined || rest.length > 0) return;
+		const zone = deps.projectStore.zones.get(String(zoneId));
+		if (zone === undefined) return;
+		const inverse: Polygon = { points: zone.points };
+		const forward = translate(inverse, by);
+		const result = await deps.dispatcher.run(
+			moveGesture(deps.context, deps.ledger)(zoneId as ZoneId, forward, inverse),
+		);
+		if (!result.ok) reportDispatchFailure(result.error);
 	};
 }
 
@@ -673,9 +727,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const defaultRoomName = (): string => tr('editor.room.default-name', { n: String(projectStore.zones.size + 1) });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName });
 
-	const { createRoom, canCreateRoom, roomDraftIncomplete } = createRoomCreationAction({
-		context, planId, ledger, dispatcher: toolDispatcher, selection, roomDraft, defaultRoomName, returnToSelect,
-	});
+	const { createRoom, canCreateRoom, roomDraftIncomplete } = createRoomCreationAction({ context, planId, ledger, dispatcher: toolDispatcher, selection, roomDraft, defaultRoomName, returnToSelect });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
 	// BECOMES `'ready'` — and a `previous !== 'ready'` guard would be dead code here, not a
@@ -744,6 +796,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	}
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
+	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore });
 
 	// The assign picker's options and the Inspector's rows, hydrated at mount and re-read on the
 	// three doors that carry what they draw — the catalogue's, the price's and the recalculation
@@ -781,6 +834,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		writesBlocked,
 		pausedReasonId,
 		openPlanNote: () => context.openPlanNote(),
+		nudgeSelection,
 	};
 }
 

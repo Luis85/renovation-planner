@@ -31,10 +31,12 @@ import { PanOverride } from '../viewport/pan-override';
 import { MIDDLE_MOUSE_BUTTON, PRIMARY_BUTTON_BIT, isPrimary, panButtonOf } from '../pointerButtons';
 import { wheelPixels } from '../wheelDelta';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
+import type { Vector } from '../../../core/geometry/Vector';
 import type { EditorPointerEvent, ToolId } from '../tools/editor-tool';
 import type { ToolManager } from '../tools/tool-manager';
 import type { RenderState } from '../tools/render-state';
 import { routeEscape } from '../escapeRouting';
+import { arrowVector } from './keyboard';
 
 /**
  * What this surface needs of the leaf it is mounted in, and nothing about a Plan.
@@ -83,6 +85,14 @@ const props = defineProps<{
 	hasSelection: () => boolean;
 	/** Clears the selection — `routeEscape`'s `cleared-selection` arm. */
 	clearSelection: () => void;
+	/**
+	 * §85's one operation left unreachable by keyboard (E8, Task 14): an arrow-key press
+	 * translates whatever is selected by `arrowVector`'s vector. Threaded as a prop for the
+	 * same reason `setTool` is — this file holds no `runtime.ts` — and the asset designer's
+	 * own mounter passes a no-op: none of its tools ever populate `selection`, so there is
+	 * never anything for it to move.
+	 */
+	nudgeSelection: (by: Vector) => Promise<void>;
 }>();
 
 const editor = props.editor;
@@ -1168,6 +1178,15 @@ function onKeyDown(event: KeyboardEvent): void {
 	// draft, switch tool, or clear a selection — must be answered whether or not a gesture is
 	// in flight, and none of its outcomes touches the camera.
 	if (gestureInFlight()) return;
+	// §85's one operation slice 5 left unreachable by keyboard (E8, Task 14): an arrow key
+	// nudges whatever `nudgeSelection` finds selected. `arrowVector` answers `null` for every
+	// other key, so this is a lookup rather than four more `if`s beside the ones above.
+	const nudge = arrowVector(event);
+	if (nudge !== null) {
+		event.preventDefault();
+		void props.nudgeSelection(nudge);
+		return;
+	}
 	if (fitShortcut(event)) return;
 	zoomShortcut(event);
 }

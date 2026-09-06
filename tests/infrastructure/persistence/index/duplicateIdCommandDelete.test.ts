@@ -44,6 +44,7 @@ import { ReferenceLocks } from '../../../../src/application/reference/ReferenceL
 import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { assetSidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { shapeFromDimensions } from '../../../../src/domain/asset/AssetShape';
+import { assetSequenceCollaborators } from '../../../helpers/slice10';
 
 const settled = (): Promise<void> => Promise.resolve().then(() => undefined);
 
@@ -140,6 +141,7 @@ function commandOver(stack: RepositoryStack): DeleteAssetCommand {
 	const events = createEventBus(() => undefined);
 	const overrides = new InMemoryAssetPriceOverrideRepository();
 	return new DeleteAssetCommand({
+		...assetSequenceCollaborators(),
 		assets: stack.assets,
 		requirements: stack.requirements,
 		recalculate: new RecalculateRequirementCommand({

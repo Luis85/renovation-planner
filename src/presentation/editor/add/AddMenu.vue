@@ -4,10 +4,19 @@
  * there is no `DialogHost` framework caller here, no `inert` on the background and no focus
  * trap by Tab, because this menu does not block interaction with the rest of the editor the
  * way a dialog must. It is a `role="menu"` with roving `tabindex` instead (WAI-ARIA's own
- * pattern), a search box that filters it live, and three doors that close it and hand focus
- * back to the button that opened it (since 2026-09-04): Escape — owned by the ROOT's
- * capture-phase listener rather than by this component, see below — an outside press, and
- * focus leaving the menu's own boundary (`onFocusOut`).
+ * pattern), a search box that filters it live, and three doors that close it (since
+ * 2026-09-04): Escape — owned by the ROOT's capture-phase listener rather than by this
+ * component, see below — an outside press, and focus leaving the menu's own boundary
+ * (`onFocusOut`). **Only Escape reliably hands focus back to the button; an outside press and
+ * `onFocusOut` both retire the menu where focus already went.** `onBeforeUnmount` carries one
+ * undifferentiated guard — refocus the anchor only if the menu still holds focus at unmount —
+ * and an outside press satisfies that guard or fails it depending on WHAT it presses: a press
+ * on a non-focusable stretch (`document.body`, empty overlay) leaves focus inside the menu, so
+ * the guard fires and the button gets it back; a press on the focusable canvas
+ * (`.rp-plan-canvas`'s `tabindex="0"`, and `onPointerDown` never calls `preventDefault`) does
+ * not, because the browser's own mousedown default moves focus there before this component
+ * ever unmounts. Not reclaiming focus from whatever the user's press just reached is the same
+ * E1 rule `onFocusOut` already needed.
  *
  * **The search input sits OUTSIDE `role="menu"`, not above the groups inside it.** `menu`'s
  * ARIA role permits only `menuitem`/`menuitemradio`/`menuitemcheckbox`/`group` as children,
@@ -330,7 +339,13 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
 	document.removeEventListener('pointerdown', onDocumentPointerDown, { capture: true });
-	props.anchor?.focus();
+	// Hand focus back ONLY if this menu still holds it. The focus-out door closes the menu
+	// BECAUSE focus moved to another control, and reclaiming it there steals the control the
+	// user just reached. `menuRoot` is cast rather than optionally chained for the reason
+	// `onDocumentPointerDown` and `onFocusOut` already cast it: it names this component's own
+	// root, bound before `onMounted` runs, so it is never null while this handler can run — a
+	// guarded `?.` here would be a branch no test could take the other arm of.
+	if ((menuRoot.value as HTMLElement).contains(document.activeElement)) props.anchor?.focus();
 });
 </script>
 

@@ -16,7 +16,7 @@ import { createAssetPriceOverrideId, type AssetPriceOverrideId } from '../../../
 import { assetUpdated } from '../../../src/domain/asset/Asset.events';
 import { createMoney, currencyOf, of as moneyOf } from '../../../src/core/money/Money';
 import { expectOk } from '../../helpers/domain';
-import { dispatchingEventBus, TEN_SQUARE_METERS } from '../../helpers/slice10';
+import { TEN_SQUARE_METERS, dispatchingEventBus, noopCascadeNotify } from '../../helpers/slice10';
 import { makeAsset, makePlan, makeProject, makeZone } from '../../helpers/entities';
 
 /**
@@ -49,6 +49,7 @@ function makeWorld() {
 
 	const recalculate = vi.fn<() => Promise<{ ok: true }>>(() => Promise.resolve({ ok: true }));
 	registerOnAssetUpdated(events, {
+		notify: noopCascadeNotify,
 		requirements,
 		assets,
 		overrides,
@@ -316,6 +317,7 @@ describe('onAssetUpdated with price overrides', () => {
 				),
 		}) as typeof overrides;
 		registerOnAssetUpdated(events, {
+			notify: noopCascadeNotify,
 			requirements,
 			assets,
 			overrides: failingOverrides,

@@ -12,6 +12,25 @@
  *
  * Nothing here writes: not to `ProjectStore`, not to a repository, and not back onto the
  * Konva node it produced.
+ *
+ * **The single `<VGroup>` root, always mounted, is what makes `ZoneLayer`'s `v-for` order the
+ * PAINT order** — a correctness requirement rather than a wrapper, and the same one
+ * `RoomDraftSketch.vue` (its docblock carries the full measurement) arrived at. vue-konva
+ * orders a layer's children by walking the LAYER's subtree and resolving each vnode to a
+ * Konva node, then `setZIndex`ing them in that order; a component whose root is a FRAGMENT —
+ * four siblings, as this template was — resolves to `null`, so its nodes never enter the
+ * ordering array and keep the position they were first appended at. Paint order was
+ * therefore MOUNT order, while `ProjectStore.zones` is rebuilt as a fresh Map on every
+ * hydrate: reorder the zones in the vault and the picture kept the old stacking, silently,
+ * for overlapping zones. `tests/presentation/editor/zoneLayerOrder.test.ts` holds it.
+ *
+ * Two constraints on the group, both inherited from that measurement. It carries no `v-if`,
+ * because the reindex runs on the LAYER's update and a group created later is appended after
+ * that pass has already run. And it is an IDENTITY transform — no `x`, `y`, `scale` — so the
+ * world millimetres below reach Konva unchanged, which is what `scene.test.ts`'s `flatPoints`
+ * identity case reads. `listening: false` matches all four children and the layer above them
+ * (SDD §62); Konva resolves hit-testing by walking a node's ANCESTORS, so a listening group
+ * would be needed here the day any of them takes pointer events.
  */
 import { computed } from 'vue';
 import { tr } from '../../../i18n/strings';
@@ -64,58 +83,60 @@ const statusCaption = computed(() => tr(appearance.value.captionKey));
 </script>
 
 <template>
-	<!--
-		Two line nodes over one point array, rather than one node with both a fill and a
-		stroke. Konva's `opacity` is per NODE, so a translucent fill on a single node would
-		take the outline down with it — and the fill has to be translucent, because a zone
-		sits over an imported plan the user still needs to see through it.
-	-->
-	<VLine
-		:config="{
-			points: flatPoints,
-			closed: true,
-			fill,
-			opacity: 0.28,
-			listening: false,
-			perfectDrawEnabled: false,
-		}"
-	/>
-	<VLine
-		:config="{
-			points: flatPoints,
-			closed: true,
-			stroke: props.tokens.zoneStroke,
-			strokeWidth: 1.5,
-			dash: appearance.dash,
-			strokeScaleEnabled: false,
-			listening: false,
-			perfectDrawEnabled: false,
-		}"
-	/>
-	<VText
-		:config="{
-			x: anchor.x,
-			y: anchor.y,
-			offsetY: CAPTION_PX * 2.2,
-			text: props.model.label,
-			fontSize: CAPTION_PX,
-			fill: props.tokens.zoneLabel,
-			scaleX: captionScale,
-			scaleY: captionScale,
-			listening: false,
-		}"
-	/>
-	<VText
-		:config="{
-			x: anchor.x,
-			y: anchor.y,
-			offsetY: CAPTION_PX * 1.1,
-			text: statusCaption,
-			fontSize: CAPTION_PX * 0.85,
-			fill: props.tokens.zoneCaption,
-			scaleX: captionScale,
-			scaleY: captionScale,
-			listening: false,
-		}"
-	/>
+	<VGroup :config="{ name: props.model.id, listening: false }">
+		<!--
+			Two line nodes over one point array, rather than one node with both a fill and a
+			stroke. Konva's `opacity` is per NODE, so a translucent fill on a single node would
+			take the outline down with it — and the fill has to be translucent, because a zone
+			sits over an imported plan the user still needs to see through it.
+		-->
+		<VLine
+			:config="{
+				points: flatPoints,
+				closed: true,
+				fill,
+				opacity: 0.28,
+				listening: false,
+				perfectDrawEnabled: false,
+			}"
+		/>
+		<VLine
+			:config="{
+				points: flatPoints,
+				closed: true,
+				stroke: props.tokens.zoneStroke,
+				strokeWidth: 1.5,
+				dash: appearance.dash,
+				strokeScaleEnabled: false,
+				listening: false,
+				perfectDrawEnabled: false,
+			}"
+		/>
+		<VText
+			:config="{
+				x: anchor.x,
+				y: anchor.y,
+				offsetY: CAPTION_PX * 2.2,
+				text: props.model.label,
+				fontSize: CAPTION_PX,
+				fill: props.tokens.zoneLabel,
+				scaleX: captionScale,
+				scaleY: captionScale,
+				listening: false,
+			}"
+		/>
+		<VText
+			:config="{
+				x: anchor.x,
+				y: anchor.y,
+				offsetY: CAPTION_PX * 1.1,
+				text: statusCaption,
+				fontSize: CAPTION_PX * 0.85,
+				fill: props.tokens.zoneCaption,
+				scaleX: captionScale,
+				scaleY: captionScale,
+				listening: false,
+			}"
+		/>
+	</VGroup>
 </template>

@@ -31,10 +31,12 @@ import { PanOverride } from '../viewport/pan-override';
 import { MIDDLE_MOUSE_BUTTON, PRIMARY_BUTTON_BIT, isPrimary, panButtonOf } from '../pointerButtons';
 import { wheelPixels } from '../wheelDelta';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
+import type { Vector } from '../../../core/geometry/Vector';
 import type { EditorPointerEvent, ToolId } from '../tools/editor-tool';
 import type { ToolManager } from '../tools/tool-manager';
 import type { RenderState } from '../tools/render-state';
 import { routeEscape } from '../escapeRouting';
+import { arrowVector } from './keyboard';
 
 /**
  * What this surface needs of the leaf it is mounted in, and nothing about a Plan.
@@ -83,6 +85,14 @@ const props = defineProps<{
 	hasSelection: () => boolean;
 	/** Clears the selection — `routeEscape`'s `cleared-selection` arm. */
 	clearSelection: () => void;
+	/**
+	 * §85's one operation left unreachable by keyboard (E8, Task 14): an arrow-key press
+	 * translates whatever is selected by `arrowVector`'s vector. Threaded as a prop for the
+	 * same reason `setTool` is — this file holds no `runtime.ts` — and the asset designer's
+	 * own mounter passes a no-op: none of its tools ever populate `selection`, so there is
+	 * never anything for it to move.
+	 */
+	nudgeSelection: (by: Vector) => Promise<void>;
 }>();
 
 const editor = props.editor;
@@ -178,8 +188,25 @@ function syncPanPhase(): void {
  * tool is active' is what would notice it going again; that the class resolves to
  * `crosshair` is checked by nothing here at all (`styles/editor-cursors.css` says so where
  * the keyword is, and `docs/tests/cases/Canvas Navigation.md` is the instrument).
+ *
+ * **ONE list across both surfaces**, though the two surfaces' ids are disjoint — the same
+ * reasoning `CONSTRAINING_TOOLS` (`editorSnapping.ts`) already settled for the Shift-angle
+ * question. This surface mounts twice: the Plan Editor with `draw-polygon`, `draw-room`,
+ * `calibrate`, and `DesignerCanvas.vue` with `trace-footprint`, `trace-clearance`,
+ * `set-anchor`, `set-facing` — each an id the OTHER surface's `ToolManager` never registers,
+ * so a designer tool can never be the answer in the Plan Editor and vice versa. What one
+ * list buys is that "does this tool want a crosshair" has one answer, checked here rather
+ * than reasoned separately per mounter.
  */
-const PRECISE_TOOLS: readonly ToolId[] = ['draw-polygon', 'draw-room', 'calibrate'];
+const PRECISE_TOOLS: readonly ToolId[] = [
+	'draw-polygon',
+	'draw-room',
+	'calibrate',
+	'trace-footprint',
+	'trace-clearance',
+	'set-anchor',
+	'set-facing',
+];
 
 /**
  * The ONE cursor class on the canvas, and the place the precedence between the camera and
@@ -1153,6 +1180,28 @@ function onKeyDown(event: KeyboardEvent): void {
 	// Escape is handled ABOVE this, and deliberately: `routeEscape`'s question — cancel a
 	// draft, switch tool, or clear a selection — must be answered whether or not a gesture is
 	// in flight, and none of its outcomes touches the camera.
+	//
+	// **This arrow check is ABOVE the gesture lock now, and on purpose (Finding B, the
+	// whole-tree review).** `gestureInFlight()` used to return FIRST, so an arrow key pressed
+	// mid-drag or mid-draw fell through this whole function uncaught: `preventDefault()` never
+	// ran, and the leaf underneath the still-running gesture scrolled out from under it — the
+	// same shape Space's own branch above already avoids for the identical reason. Consuming
+	// the key is not the same decision as acting on it, so `preventDefault()` stays
+	// unconditional inside the `nudge !== null` branch while the DISPATCH keeps asking
+	// `gestureInFlight()` itself: a nudge mid-gesture would move the very selection the
+	// gesture is already moving, which is what the guard below still refuses.
+	// §85's one operation slice 5 left unreachable by keyboard (E8, Task 14): an arrow key
+	// nudges whatever `nudgeSelection` finds selected. `arrowVector` answers `null` for every
+	// other key, so this is a lookup rather than four more `if`s beside the ones above.
+	// `!event.repeat`: OS autorepeat re-reads the same pre-move zone every tick (the store
+	// only refreshes after the queued hydrate), so a held key would dispatch — and undo — the
+	// same move dozens of times instead of once.
+	const nudge = arrowVector(event);
+	if (nudge !== null) {
+		event.preventDefault();
+		if (!event.repeat && !gestureInFlight()) void props.nudgeSelection(nudge);
+		return;
+	}
 	if (gestureInFlight()) return;
 	if (fitShortcut(event)) return;
 	zoomShortcut(event);
@@ -1169,9 +1218,15 @@ function onKeyDown(event: KeyboardEvent): void {
  * unconstrains as promptly as it constrained. Space is the pan disarming — and a pan already
  * RUNNING is deliberately not ended by it, for the reason `PanOverride.disarmSpace` gives.
  *
- * `isCanvasKey` guards the space branch alone. Shift is a MODIFIER: it reaches this element
- * while the empty state's action button has focus too, and the tool's preview should still
- * unconstrain — where a space release there belongs to the button, not to the camera.
+ * **Not a symmetric pair with the press, and deliberately not one.** `onKeyDown`'s Shift
+ * branch is gated behind that handler's own `isCanvasKey` check, same as every other canvas
+ * key — a press only constrains while the canvas itself has focus. The RELEASE here is
+ * UNGATED: `isCanvasKey` guards the space branch alone, because Shift is a MODIFIER rather
+ * than a canvas shortcut, and it reaches this element while the empty state's action button
+ * has focus too. A Shift pressed on the canvas and released after Tab moved focus to that
+ * button must still unconstrain the preview — the drag it was steering does not know focus
+ * moved — so gating the release the same way the press is gated would strand the constraint
+ * on. A space release there, by contrast, belongs to the button it lands on, not the camera.
  */
 function onKeyUp(event: KeyboardEvent): void {
 	if (event.key === 'Shift') {

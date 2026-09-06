@@ -6,7 +6,7 @@ import type {
 } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import { effectiveValue } from '../../../core/derived/DerivedValue';
-import type { Money } from '../../../core/money/Money';
+import { sameMoney, type Money } from '../../../core/money/Money';
 import type { Quantity } from '../../../core/units/MeasurementUnit';
 import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 import type { EventBus } from '../../../core/events/EventBus';
@@ -132,14 +132,21 @@ async function applyQuantityOverride(
 	});
 }
 
-/** Publishes only when the effective figure actually moved — an unchanged edit fires nothing. */
+/**
+ * Publishes only when the effective figure actually moved — an unchanged edit fires nothing.
+ *
+ * "Moved" is `sameMoney`'s question, not a pair of string compares: `amount` is a decimal
+ * STRING (ADR-010), so `'19.5'` and `'19.50'` are the same figure under two renderings and
+ * the compare called that a move, announcing a cost change that never happened. Nothing
+ * outside `core/money` parses an `amount` itself, which is why the comparison belongs there.
+ */
 export async function publishIfEffectiveCostChanged(
 	events: EventBus,
 	requirement: Requirement,
 	previous: Money,
 ): Promise<void> {
 	const current = effectiveValue(requirement.estimatedCost);
-	if (previous.amount === current.amount && previous.currency === current.currency) return;
+	if (sameMoney(previous, current)) return;
 	await events.publish(
 		costEstimateChanged({
 			costType: 'estimated',

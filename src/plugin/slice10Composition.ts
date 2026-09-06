@@ -83,7 +83,7 @@ export interface Slice10Wiring {
 	readonly events: EventBus;
 	readonly locks: ReferenceLocks;
 	readonly logger: Logger;
-	readonly markers?: SequenceMarkerStore;
+	readonly markers: SequenceMarkerStore;
 	/** The precedence's input half: a project may price a shared asset in its own currency. */
 	readonly overrides: AssetPriceOverrideRepository;
 }
@@ -108,8 +108,8 @@ export function composeSlice10(
 	 * failure inside it reaches nobody unless it is announced. That matters most for exactly
 	 * the case this port is named after: the durable marker that lets a later reader see
 	 * "these figures are out of date" is itself the write that failed, so silence here means
-	 * a wrong figure presented as current. The port is optional on `CascadeDeps` for the
-	 * suite's benefit; production always passes it, and this is the caller that makes the
+	 * a wrong figure presented as current. The port is REQUIRED on `CascadeDeps`, so a
+	 * composition cannot reach here having forgotten it; this is the caller that makes the
 	 * whole port more than a tested no-op.
 	 *
 	 * **WARNING rather than the `info` default, and for the same reason the port exists.**

@@ -106,7 +106,9 @@ them under the existing Features rather than the package's groups. The package's
 gone; its README table links into `requirements/`, each note's **Sources** names the package id it
 came from, and the adoption ledger maps the other way. The two enablers stay in the package with no
 `type`, as sources rather than items. Nothing about the census changes: `user-experience/` is still
-excluded, and the eighteen are counted where they now live.
+excluded, and the eighteen are counted where they now live. The same holds for `renovation-planner-project-specs/` since pull request #73: its ten PBIs were
+sections of one reconciliation document rather than notes, five had become register notes as the
+ledger's gaps, and the other five now sit beside them under [[Project dashboard and navigation]].
 
 **`actors/` and `entities/` answer *who* and *what*, which is the one axis the backlog does
 not have.** `requirements/` is organised by the work to be done, so a [[Zone]] is described

@@ -40,10 +40,13 @@ named at the top of this note.
 
 - **On SDD §19's InteractionLayer**, transient, alongside [[Selection handle]] and the drawing
   previews.
-- **One shape per snap kind.** SDD §21's `SnapService` exposes six operations — `snapPoint()`,
-  `snapRotation()`, `snapResize()`, `snapToGrid()`, `snapToVertex()`, `snapToEdge()` — and they
-  do not all mean the same thing to a user. A grid snap and a vertex snap drawn identically is
+- **One shape per snap kind.** SDD §21's `SnapService` exposes five operations — `snapPoint()`,
+  `snapRotation()`, `snapDirection()`, `snapToVertex()`, `snapToEdge()` — and they
+  do not all mean the same thing to a user. A vertex snap and an edge snap drawn identically is
   feedback that says *something* snapped, which is the least useful thing it could say.
+  **Corrected (2026-09-06):** `snapToGrid()` and `snapResize()` were deleted (with
+  `normalizeTransformerResult()`) as unreachable — no `src/` caller and no `VTransformer`
+  anywhere in this tree.
 
 ## States
 

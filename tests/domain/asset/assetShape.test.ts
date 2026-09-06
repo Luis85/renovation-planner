@@ -125,6 +125,16 @@ describe('normaliseFacing', () => {
 		expect(normaliseFacing(Number.NaN)).toBe(0);
 		expect(normaliseFacing(Number.POSITIVE_INFINITY)).toBe(0);
 	});
+
+	/**
+	 * The fold used to land exactly on `2π` for a hair below the +x axis, and on `-0` for
+	 * `-TAU` — two spellings of "no rotation" this "one spelling per direction" function
+	 * exists to refuse (C4).
+	 */
+	it('folds a hair below the +x axis to 0, not to 2π', () => {
+		expect(normaliseFacing(-1e-17)).toBe(0);
+		expect(Object.is(normaliseFacing(-Math.PI * 2), 0)).toBe(true);
+	});
 });
 
 describe('shapeFromDimensions', () => {

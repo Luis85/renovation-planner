@@ -298,6 +298,14 @@ export function perimeter(polygon: Polygon): Result<number, GeometryError> {
 			polygon.points[(i + 1) % polygon.points.length],
 		);
 	}
+	// The same finiteness question `area` already asks: every vertex can be finite while
+	// the accumulated distance is not, for a polygon spanning the double range (C5).
+	if (!Number.isFinite(total)) {
+		return geometryErr(
+			'polygon-perimeter-overflow',
+			'These vertices are finite but the perimeter they trace is not representable.',
+		);
+	}
 	return ok(total);
 }
 
@@ -483,6 +491,12 @@ export function intersect(
 	}
 	const t = ((b.start.x - a.start.x) * sy - (b.start.y - a.start.y) * sx) / denominator;
 	const u = ((b.start.x - a.start.x) * ry - (b.start.y - a.start.y) * rx) / denominator;
+	// A finite, non-zero denominator does not bound the numerators: segments spanning the
+	// double range overflow the products above, and `NaN < 0` is false — so the range check
+	// below used to let a NaN `t`/`u` sail through as a confident, wrong `ok` point (C2).
+	if (!Number.isFinite(t) || !Number.isFinite(u)) {
+		return ok(null);
+	}
 	if (t < 0 || t > 1 || u < 0 || u > 1) {
 		return ok(null);
 	}
@@ -500,9 +514,15 @@ export function project(point: Point, onto: LineSegment): Result<Point, Geometry
 	}
 	const vx = onto.end.x - onto.start.x;
 	const vy = onto.end.y - onto.start.y;
-	const t = clamp01(
-		((point.x - onto.start.x) * vx + (point.y - onto.start.y) * vy) / (vx * vx + vy * vy),
-	);
+	const raw =
+		((point.x - onto.start.x) * vx + (point.y - onto.start.y) * vy) / (vx * vx + vy * vy);
+	// The dot product above can overflow the same way `intersect`'s numerators do (C3); the
+	// one `src/` caller used to drop the resulting NaN by comparison rather than the
+	// pipeline refusing it.
+	if (!Number.isFinite(raw)) {
+		return geometryErr('segment-overflow', 'The projection overflows.');
+	}
+	const t = clamp01(raw);
 	return ok({ x: onto.start.x + t * vx, y: onto.start.y + t * vy });
 }
 

@@ -49,6 +49,8 @@ import { installObsidianDom } from '../../helpers/dom';
 import { installResizeObserver, placeAt, resizeTo } from '../../helpers/layout';
 import { settle } from '../../helpers/editor';
 import { emptyBackgroundVault } from '../../helpers/background';
+import { click, designerRig, move } from '../../helpers/designerRig';
+import { t } from '../../../src/presentation/i18n/strings';
 
 /** A palette resolved the way the designer resolves its own — never a literal colour. */
 const TOKENS = resolveThemeTokens(document.documentElement);
@@ -325,6 +327,47 @@ describe('the designer canvas, mounted', () => {
 			'asset-anchor',
 			'asset-gesture',
 		]);
+		designer.unmount();
+	});
+
+	/**
+	 * Finding E9, ruling: the sketch and the measurement tape are one shared component now
+	 * (`GestureSketch.vue`), rooted in a `<VGroup :config="{ name: 'gesture-sketch', … }">` so
+	 * vue-konva's per-layer reindex never meets a fragment — the same hazard `ZoneShape.vue` and
+	 * `RoomDraftSketch.vue` already carry a docblock about. Before this task only the plan
+	 * editor's own `interactionLayer.test.ts` asserted that a gesture actually draws; these two
+	 * cases are that same content assertion, applied to the designer, through the real tools
+	 * (`designerRig`) rather than through the pure `gestureGeometry` functions the suite above
+	 * already covers.
+	 */
+	it('draws the shared gesture sketch line for a two-point footprint trace', async () => {
+		const designer = await designerRig();
+		designer.toolbarButton(t('en', 'designer.toolbar.trace-footprint')).click();
+		await settle();
+		click(designer, { x: 0, y: 0 });
+		move(designer, { x: 1000, y: 0 });
+		await settle();
+
+		const group = designer.stage.findOne<Konva.Group>('.gesture-sketch');
+		expect(group).toBeDefined();
+		const line = group?.findOne<Konva.Line>('Line');
+		const start = designer.at({ x: 0, y: 0 });
+		const end = designer.at({ x: 1000, y: 0 });
+		expect(line?.points()).toEqual([start.x, start.y, end.x, end.y]);
+		designer.unmount();
+	});
+
+	it('draws the shared gesture measurement tape for a two-point calibration', async () => {
+		const designer = await designerRig();
+		designer.toolbarButton(t('en', 'designer.toolbar.calibrate')).click();
+		await settle();
+		click(designer, { x: 0, y: 0 });
+		move(designer, { x: 1000, y: 0 });
+		await settle();
+
+		const group = designer.stage.findOne<Konva.Group>('.gesture-sketch');
+		expect(group).toBeDefined();
+		expect(group?.findOne('.measurement-marks')).toBeDefined();
 		designer.unmount();
 	});
 

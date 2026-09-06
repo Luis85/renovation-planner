@@ -4,7 +4,7 @@ parent: "[[Shared UI vocabulary]]"
 order: 20
 dependsOn:
   - "[[05-canvas-rendering-and-editor-shell]]"
-status: ""
+status: Done
 started: ""
 finished: ""
 horizon: ""

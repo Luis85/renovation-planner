@@ -1,6 +1,6 @@
 import { Decimal } from 'decimal.js';
 import type { ValidationError } from '../../core/errors/AppError';
-import { isNegative, type Money } from '../../core/money/Money';
+import { negativeMoney, type Money } from '../../core/money/Money';
 import { err, ok, type Result } from '../../core/result/Result';
 import { UNIT_KIND, type MeasurementUnit } from '../../core/units/MeasurementUnit';
 import { isAssetCategory, type AssetCategory } from './AssetCategory';
@@ -218,15 +218,15 @@ export class Asset {
 		}
 		// Money itself is signed (ADR-010); a unit price is a FIELD that cannot go below
 		// zero, so the guard lives here where the field enters — the same split
-		// costPipeline.ts makes for its own money inputs.
-		if (isNegative(props.unitCost)) {
-			return err(
-				assetError(
-					'negative-unit-cost',
-					`A unit cost cannot be negative; got ${props.unitCost.amount} ${props.unitCost.currency}.`,
-				),
-			);
-		}
+		// costPipeline.ts makes for its own money inputs. `negativeMoney` (finding C11) is
+		// the shared guard; this site's `errorOf` ignores the code it passes and substitutes
+		// this entity's own `'negative-unit-cost'`.
+		const negativeUnitCost = negativeMoney(
+			'unit cost',
+			props.unitCost,
+			(_code, message) => assetError('negative-unit-cost', message),
+		);
+		if (negativeUnitCost !== null) return err(negativeUnitCost as ValidationError);
 		const heightCheck = checkHeight(props.height ?? null);
 		if (!heightCheck.ok) return heightCheck;
 		const backgroundCheck = checkBackground(props.background ?? null);

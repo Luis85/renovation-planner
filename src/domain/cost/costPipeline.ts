@@ -10,7 +10,7 @@ import {
 import { negativeQuantity } from './quantityEngine';
 import {
 	add,
-	isNegative,
+	negativeMoney,
 	percentageOf,
 	round,
 	scale,
@@ -167,16 +167,19 @@ function discountError(discount: DiscountRule | undefined): CalculationError | n
  * enforces nothing and every field that must not is guarded where it enters. These three
  * are that guard for the pipeline. Absent is not negative — an omitted shipping charge is
  * `zero`, not a refusal.
+ *
+ * `core/money/Money.ts`'s `negativeMoney` is the shared guard (finding C11); this site's
+ * `errorOf` ignores the code that function passes and substitutes the pipeline's own
+ * fully-qualified `'cost.negative-amount'`, and appends the second sentence a `Calculation`
+ * refusal here has always carried and the other three callers do not.
  */
 function negativeAmount(label: string, value: Money | undefined): CalculationError | null {
-	if (!value || !isNegative(value)) return null;
-	return {
+	const error = negativeMoney(label, value ?? null, (_code, message) => ({
 		category: 'Calculation',
 		code: 'cost.negative-amount',
-		message:
-			`A ${label} cannot be negative; got ${value.amount} ${value.currency}. `
-			+ 'A credit is not a cost component.',
-	};
+		message: `${message} A credit is not a cost component.`,
+	}));
+	return error as CalculationError | null;
 }
 
 /**

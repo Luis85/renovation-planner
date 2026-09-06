@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import PlanningReview from '../planning/PlanningReview.vue';
 import { usePlanningContext } from '../planning/planningContext';
-import { planningFindings, type PlanningFinding } from '../planning/planningProjection';
+import { planningFindings } from '../planning/planningProjection';
 import { computed, onBeforeUnmount, ref } from 'vue';
-import { EMPTY_RENOVATION, reviewRenovation, type ReadinessFinding } from '../../../domain/renovation/Renovation';
+import { EMPTY_RENOVATION, reviewRenovation, type ReadinessFinding, type Renovation } from '../../../domain/renovation/Renovation';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
@@ -17,32 +17,35 @@ let alive = true;
 onBeforeUnmount(() => { alive = false; });
 const findings = computed(() => reviewRenovation(project.plan?.renovation ?? EMPTY_RENOVATION));
 const planning = usePlanningContext();
-const depth = computed<PlanningFinding[]>(() => planning.baseline.value ? planningFindings(planning.baseline.value, planning.files) : []);
+const depth = planning.findings;
 // The all-clear is one claim over BOTH lists, and none at all until the planning read has
 // settled: while it loads there is nothing to be clear about, and after it fails the refusal
 // beside it would be contradicted. A plan without planning services needs no guard of its own —
 // its context never reads, so `baseline` stays null and `loading`/`failed` stay false.
-const clear = computed(() => !findings.value.length && !depth.value.length && !planning.loading.value && !planning.failed.value);
+const clear = computed(() => !runtime.writesBlocked.value && !findings.value.length && !depth.value.length && !planning.loading.value && !planning.failed.value && (!context.commands.planning || !!planning.baseline.value));
 function open(item: ReadinessFinding): void {
 	runtime.renovation.focus(item.roomId, item.kind === 'blocked' || item.kind === 'missing-outcome' ? 'work' : 'planned', item.recordId);
 	if (item.kind === 'decision') void runtime.renovation.edit('decision', item.roomId, item.recordId);
 }
 const plain = (text: string): string => text.replace(/[\r\n]/g, ' ').replace(/[\\[\]<>*_`]/g, '\\$&');
 // A fresh read rather than the panel's baseline, so the note records what is on disk now.
-async function depthLines(): Promise<string[] | null> {
- if (!context.commands.planning) return [];
+function renovationLines(value: Renovation): string[] {
+ return reviewRenovation(value).map(item => `- ${plain(item.roomId)}: ${tr(`renovation.finding.${item.kind}`)} — ${item.causes.map(plain).join(', ')} (${item.recordId})`);
+}
+async function noteSnapshot(): Promise<{ name: string; lines: string[] } | null> {
+ if (!context.commands.planning) return { name: project.plan?.name ?? '', lines: renovationLines(project.plan?.renovation ?? EMPTY_RENOVATION) };
  const read = await context.commands.planning.read(context.planId as PlanId);
  if (!read.ok) { if (alive) error.value = tr('planning.read-failed'); return null; }
- return planningFindings(read.value, context.commands.evidenceFiles).map(item => `- ${tr(`planning.${item.kind}`)}: ${plain(item.description)} (${item.id})`);
+ const lines = planningFindings(read.value, context.commands.evidenceFiles).map(item => `- ${tr(`planning.${item.kind}`)}: ${plain(item.description)} (${item.id})`);
+ return { name: read.value.plan.entity.name, lines: [...renovationLines(read.value.plan.entity.renovation ?? EMPTY_RENOVATION), ...lines] };
 }
 async function generate(): Promise<void> {
-	if (busy.value || project.stale || !context.commands.reviewNote) return;
+	if (busy.value || runtime.writesBlocked.value || !context.commands.reviewNote) return;
 	busy.value = true;
 	try {
-		const planned = await depthLines();
-		if (planned === null || !alive) return;
-		const lines = [...findings.value.map(item => `- ${plain(project.zones.get(item.roomId)?.name ?? item.roomId)}: ${tr(`renovation.finding.${item.kind}`)} — ${item.causes.map(plain).join(', ')} (${item.recordId})`), ...planned];
-		const body = [`# ${tr('renovation.review')} — ${plain(project.plan?.name ?? '')}`, '', tr(context.commands.planning ? 'planning.review-scope' : 'renovation.scope'), '', ...(lines.length ? lines : [tr('renovation.no-findings')])].join('\n');
+		const snapshot = await noteSnapshot();
+		if (snapshot === null || !alive) return;
+		const body = [`# ${tr('renovation.review')} — ${plain(snapshot.name)}`, '', tr(context.commands.planning ? 'planning.review-scope' : 'renovation.scope'), '', ...(snapshot.lines.length ? snapshot.lines : [tr('renovation.no-findings')])].join('\n');
 		const result = await context.commands.reviewNote(context.planId as PlanId, body);
 		if (alive) error.value = result.ok ? '' : renovationMessage(result.error);
 	} catch (cause) { if (alive) error.value = renovationMessage(persistenceError('review.write-failed', 'Review generation failed.', cause)); } finally { if (alive) busy.value = false; }
@@ -84,7 +87,7 @@ async function generate(): Promise<void> {
 		<button
 			v-if="context.commands.reviewNote"
 			type="button"
-			:disabled="busy || project.stale"
+			:disabled="busy || runtime.writesBlocked.value"
 			data-rp-action="review-note"
 			@click="generate"
 		>

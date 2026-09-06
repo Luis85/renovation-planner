@@ -1,3 +1,4 @@
+import { planningRecoveryProbe } from './planningRecoveryProbe';
 import { referenceWorkspace } from './referenceWorkspace';
 import { err, ok } from '../../src/core/result/Result';
 import type { PersistenceError } from '../../src/core/errors/AppError';
@@ -642,9 +643,11 @@ export function mountPlanEditorHarness(
 	// Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
 	const base = harnessDeps({ stale: options.stale });
-	const deps = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN, new URLSearchParams(location.search).has('planning')).deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
+	const workspace = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN, new URLSearchParams(location.search).has('planning')) : null;
+	const deps = workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
 	const view = new PlanEditorView(new FakeLeaf() as never, deps);
 	leafEl.appendChild(view.containerEl);
+	if (workspace && new URLSearchParams(location.search).has('recovery')) Object.assign(window, { planningRecovery: planningRecoveryProbe(workspace, view) });
 
 	// State first, then open — the restored-leaf order. `void` rather than awaited: the
 	// page entry cannot await, and both do their work synchronously before resolving.

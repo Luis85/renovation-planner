@@ -31,12 +31,14 @@ import { tr } from '../../i18n/strings';
 import { SAVE_STATE_KEYS } from './save-state';
 import { useSaveStateStore } from './save-state-store';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { usePlanningReadState } from '../planning/planningReadState';
 
 const { state } = storeToRefs(useSaveStateStore());
 const { stale } = storeToRefs(useProjectStore());
+const planning = usePlanningReadState();
 
 /** Derived, not stored: the write landed, so `saved` is still the truth; `stale` is the qualifier. */
-const shown = computed(() => (state.value === 'saved' && stale.value ? 'saved-refresh-needed' : state.value));
+const shown = computed(() => (state.value === 'saved' && (stale.value || planning.failed) ? 'saved-refresh-needed' : state.value));
 const label = computed(() =>
 	tr(shown.value === 'saved-refresh-needed' ? 'save-state.saved-refresh-needed' : SAVE_STATE_KEYS[shown.value]),
 );

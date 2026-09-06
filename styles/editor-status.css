@@ -75,7 +75,7 @@
 .rp-editor-pan-hint,
 .rp-editor-paused-hint {
 	flex: 0 0 auto;
-	color: var(--text-faint);
+	color: var(--text-muted);
 	white-space: nowrap;
 }
 

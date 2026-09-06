@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatPlanningMoney } from '../../i18n/planningFormat';
 import type { Money } from '../../../core/money/Money';
 import { tr } from '../../i18n/strings';
 defineProps<{ totals: Record<'planned' | 'committed' | 'actual' | 'openCommitment' | 'remaining', Money> }>();
@@ -11,7 +12,7 @@ defineProps<{ totals: Record<'planned' | 'committed' | 'actual' | 'openCommitmen
 			class="rp-cost-total"
 			:data-rp-stage="key"
 		>
-			<dt>{{ tr(`planning.${key}`) }}</dt><dd>{{ value.amount }} {{ value.currency }}</dd>
+			<dt>{{ tr(`planning.${key}`) }}</dt><dd>{{ formatPlanningMoney(value) }}</dd>
 		</div>
 	</dl>
 </template>

@@ -14,12 +14,13 @@ import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { applyRenovationDraft, type RenovationDraft, type EditableRenovationDraft } from './renovationDraft';
 import { plannedGeometryDraft, applyPlannedGeometry } from './plannedGeometry';
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
+import DraftRecovery from '../forms/DraftRecovery.vue';
 import ExistingFields from './ExistingFields.vue';
 import WorkFields from './WorkFields.vue';
 import DecisionFields from './DecisionFields.vue';
 import PlannedFields from './PlannedFields.vue';
 
-const props = defineProps<{ draft: RenovationDraft; baseline: RenovationBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; dispatch: (input: RenovationInput) => Promise<DispatchResult> }>();
+const props = defineProps<{ draft: RenovationDraft; baseline: RenovationBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; retry?: () => Promise<void>; openSource?: () => Promise<void>; dispatch: (input: RenovationInput) => Promise<DispatchResult> }>();
 const emit = defineEmits<{ submit: [] }>();
 const draft = ref<EditableRenovationDraft>(structuredClone(toRaw(props.draft)) as EditableRenovationDraft);
 const geometry = ref(plannedGeometryDraft(props.baseline, props.draft.subject));
@@ -29,7 +30,7 @@ const structure = props.baseline.geometry.document.intended ?? current;
 const submitting = ref(false);
 useDialogFormBusy(submitting, props.busy);
 const error = ref<AppError | null>(null), conflict = ref(false), reviewed = ref(false);
-const frozen = computed(() => props.paused.value || props.busy.value || conflict.value);
+const frozen = computed(() => props.busy.value || conflict.value);
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
 const targets = computed(() => [{ id: draft.value.subject.roomId, label: tr('renovation.room-target') },
@@ -49,7 +50,7 @@ function accept(result: DispatchResult): void {
 	conflict.value = WRITE_BOUNDARY_CODES.some(code => result.error.code.endsWith(code)) || result.error.code === 'undo.superseded';
 }
 async function submit(): Promise<void> {
-	if (frozen.value) return;
+	if (frozen.value || props.paused.value) return;
 	const input = proposal();
 	if (!input.ok) { error.value = input.error; return; }
 	const valid = validateRenovationInput(input.value.renovation, { ...props.baseline.geometry.document, intended: input.value.intended });
@@ -74,6 +75,11 @@ function changed(): void { if (!props.busy.value) reviewed.value = false; }
 		@input="changed"
 		@change="changed"
 	>
+		<DraftRecovery
+			v-if="paused.value && retry && openSource"
+			:retry="retry"
+			:open-source="openSource"
+		/>
 		<p>{{ tr('renovation.manual') }}</p>
 		<p
 			v-if="error"

@@ -9,13 +9,13 @@ const planning = usePlanningContext(), session = useRenovationSession();
 </script>
 <template>
 	<p
-		v-if="planning.loading.value"
+		v-if="planning.slow.value"
 		role="status"
 	>
 		{{ tr('planning.loading') }}
 	</p>
 	<p
-		v-if="planning.failed.value"
+		v-if="planning.failed.value && !planning.baseline.value"
 		role="alert"
 	>
 		{{ tr('planning.read-failed') }} <button

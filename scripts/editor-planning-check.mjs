@@ -1,5 +1,6 @@
 import { recordText, recordApply, recordShot as shot, recordRoom } from './editor-record-browser.mjs';
 import assert from 'node:assert/strict';
+import { pathToFileURL } from 'node:url';
 import { runAreaBrowserMatrix, activate, tabTo } from './editor-area-browser.mjs';
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 const form = '[data-rp-form="planning"]';
@@ -33,9 +34,9 @@ async function evidence(page, scenario, out) {
  await activate(page, '[data-rp-mode="photos"]'); await activate(page, '[data-rp-new-evidence]'); await text(page, 'title', 'Floor before'); await text(page, 'path', 'scan.png'); await apply(page); await shot(page, scenario, out, 'photos');
  if (scenario.width === 460) await page.keyboard.press('Escape'); await activate(page, '[data-rp-perspective="review"]'); await panel(page, 'details'); assert.equal(await page.locator('[data-rp-action="add"]').count(), 0); await activate(page, '[data-rp-action="review-note"]'); await shot(page, scenario, out, 'review');
 }
-async function journey(page, scenario, out) {
+export async function journey(page, scenario, out) {
  const tokens = await recordRoom(page, scenario, out, { preserveTheme, drawWalls, panel });
  await work(page); await materials(page, scenario, out); await costs(page, scenario, out); await evidence(page, scenario, out);
  return { theme: tokens, storage: 'production application services and repositories over FakeVault', journey: 'Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review', input: 'Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts', reflow: 'material draft and native focus preserved', history: 'evidence undo/redo', scope: 'browser host file open is recorded, not a live Obsidian leaf' };
 }
-await runAreaBrowserMatrix('materials-costs-evidence', '&reference&planning', journey, '[data-rp-empty="floor-start"]');
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await runAreaBrowserMatrix('materials-costs-evidence', '&reference&planning', journey, '[data-rp-empty="floor-start"]');

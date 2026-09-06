@@ -30,9 +30,8 @@ import { TFile, type Vault } from 'obsidian';
  * compares callbacks and silently fails to detach a bound or wrapped one. Four references,
  * released together, because a partial release is a listener that outlives its view.
  *
- * `instanceof TFile` because Obsidian hands `TAbstractFile` to every one of these and a FOLDER
- * has no bytes to draw — the same narrowing `createVaultFileProbe` and `loadBackground` each
- * state their own reason for.
+ * Byte events narrow to `TFile`. Rename also forwards folders: subscribers can invalidate a
+ * linked descendant using the old or new path prefix without reading every vault entity.
  */
 export function createVaultFileChangeSource(vault: Vault): (listener: (path: string) => void) => () => void {
 	return (listener: (path: string) => void) => {
@@ -47,7 +46,7 @@ export function createVaultFileChangeSource(vault: Vault): (listener: (path: str
 				if (file instanceof TFile) listener(file.path);
 			}),
 			vault.on('rename', (file, oldPath) => {
-				if (!(file instanceof TFile)) return;
+				// A folder move also invalidates linked descendants at its old/new prefix.
 				listener(oldPath);
 				listener(file.path);
 			}),

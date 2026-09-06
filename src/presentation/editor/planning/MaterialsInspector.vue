@@ -20,7 +20,7 @@ async function remove(id: string): Promise<void> {
 	if (links.length) { error.value = `${tr('planning.resolve-links')} ${links.join(', ')}`; return; }
 	if (await dialogs.openDialog({ kind: 'confirm', title: tr('renovation.delete'), message: id }) !== 'confirm' || !alive) return;
 	const command = planning.context.commands.planning?.material(baseline, { deleteId: id }, planning.runtime.structureTask.ledger);
-	if (command) { const result = await planning.runtime.dispatcher.run(command); if (alive && !result.ok) error.value = tr('planning.write-failed'); await planning.refresh(); }
+	if (command) { const result = await planning.runtime.dispatcher.run(command); if (alive && !result.ok) error.value = tr('planning.write-failed'); }
 }
 async function shopping(): Promise<void> {
 	if (generating.value || planning.blocked.value) return;

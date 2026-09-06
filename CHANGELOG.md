@@ -20,6 +20,14 @@ entries are added by the pull request that earns them, never invented at release
 
 - Plan editor: Project breadcrumb and Materials library actions reuse the existing workspace navigation paths. Contextual planning drafts preserve the selected source target and related record.
 
+- Plan editor: planning read-back recovery retains the last valid projection, qualifies saved
+  status, pauses unsafe writes/history and offers read-only retry from warnings and open drafts.
+  EN/DE planning numbers preserve decimal precision and accept decimal comma or point.
+  Relevant event bursts coalesce; linked evidence refreshes without recalculating the floor.
+
+- Planning reliability: generated Review findings use one fresh planning baseline, and stale
+  fully procured materials block generated shopping content. Evidence follows Plan-note renames
+  after its index updates, and failed thumbnails recover when their linked resource changes.
 
 - Plan editor: start an empty floor with rooms, a reference plan or an empty canvas. Prepare a
   vault image/PDF with page, crop and rotation, set scale by pointer or keyboard, then review

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { persistenceError } from '../../application/errors';
 import { EMPTY_STRUCTURE, type Structure } from '../../domain/spatial/Structure';
 import { computed, ref, type Ref } from 'vue';
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
@@ -336,8 +337,14 @@ export const useProjectStore = defineStore('project', () => {
 		// rather than a third condition on this one.
 		error.value = null;
 
-		await runHydrationReads(queries, planId, ticket, refs, fail);
+		try { await runHydrationReads(queries, planId, ticket, refs, fail); }
+		catch (cause) {
+			if (superseded()) return;
+			handleFailedRead(persistenceError('editor.read-failed', 'The plan could not be read.', cause), ticket.keepOnFailure, refs, fail);
+			done();
+		}
 	}
+	function cancelHydration(): void { latestHydration++; refreshing.value = false; }
 
 	/**
 	 * Which empty state this Plan Editor is in, or `null` for a normal render (design slice
@@ -418,6 +425,7 @@ export const useProjectStore = defineStore('project', () => {
 		retriesFailed,
 		emptyStateKey,
 		hydrate,
+		cancelHydration,
 		reset,
 	};
 });

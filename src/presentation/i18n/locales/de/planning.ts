@@ -1,5 +1,8 @@
 export const planningDe = {
 	"planning.open-library": "Bauteilkatalog öffnen",
+	'planning.selected': 'Ausgewählt',
+	'planning.recovery.draft': 'Ihr Entwurf bleibt diesem Ziel zugeordnet. Übernehmen ist angehalten, bis der Grundriss wieder gelesen werden kann. Erneut versuchen liest nur gespeicherte Daten.',
+	'planning.decimal-input': 'Verwenden Sie ein Dezimalkomma oder einen Dezimalpunkt, ohne Tausendertrennzeichen.',
 	"planning.review-scope": "Die Prüfung zeigt veraltete Mengen, negative Restkosten und fehlende verknüpfte Dateien. Nachweise sind optional; Einkaufsmengen bestimmen nicht die Arbeitsbereitschaft.",
 	"planning.edit.material": "Baustoff hinzufügen oder bearbeiten",
 	"planning.edit.procurement": "Einkaufsmengen bearbeiten",

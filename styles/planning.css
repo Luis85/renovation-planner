@@ -4,3 +4,6 @@
 .rp-planning-actions { display: flex; flex-wrap: wrap; gap: var(--size-4-1); }
 .rp-planning-fact { border: var(--border-width) solid var(--background-modifier-border); padding: var(--size-4-2); }
 .rp-evidence-thumbnail { max-width: 100%; max-height: 160px; object-fit: contain; }
+.rp-draft-recovery { display: flex; flex-wrap: wrap; gap: var(--size-4-2); border: var(--border-width) solid var(--background-modifier-border); padding: var(--size-4-2); }
+.rp-draft-recovery p { flex-basis: 100%; margin: 0; }
+.rp-draft-recovery button { min-height: 24px; white-space: normal; }

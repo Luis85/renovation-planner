@@ -27,6 +27,9 @@ turn off Restricted Mode in Settings → Community plugins.
 
 ## Development
 
+For recovery, retained drafts, source-note inspection and backup/migration behavior, see
+[Working with saved data](docs/using-planning-recovery.md).
+
 ```bash
 npm run check        # the definition of done: build + lint + coverage-thresholded tests + dead code
 npm run dev          # watch build

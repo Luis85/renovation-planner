@@ -55,14 +55,17 @@ function unlink(id: string): void {
 			<button
 				type="button"
 				class="rp-record-title"
+				:aria-current="session.focusedId === item.id ? 'true' : undefined"
 				@click="planning.runtime.renovation.focus(item.roomId, session.mode, item.id)"
 			>
 				{{ index + 1 }}. {{ item.description }}
+				<span v-if="session.focusedId === item.id"> · {{ tr('planning.selected') }}</span>
 			</button>
 			<EvidencePreview
 				:item="item"
 				:files="planning.files"
 				:plan-id="planning.context.planId"
+				:revision="planning.evidenceRevision.value"
 			/>
 			<div class="rp-planning-actions">
 				<button

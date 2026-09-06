@@ -830,3 +830,12 @@ subset is complete. Global Increment D and full M12–M17 acceptance are not com
 The four remaining Add routes—generic Object, Path, Fence and Measurement—remain in the full-plan scope. Finalization owns shared sidecar/domain/selection support and linear routes; the existing UI task owns Object creation/presentation after its current verified checkpoint. This records implementation ownership, not completion or an accepted deferral.
 
 Finalization checkpoint verification (2026-09-07): `npx oxlint --deny-warnings`, `npx vue-tsc -noEmit`, full `npx eslint . --max-warnings 0`, and `git diff --check` passed after the Room/free-shape/Area/Note/navigation/history changes. The earlier full coverage run was aborted and is not a passing gate; final combined coverage/build/analyze remain required. The synthetic host vault was moved outside the worktree to `C:/Users/lum/.codex/tmp/renovation-planner-finalization-vault` so its generated plugin does not enter source checks. It must receive the final build before host acceptance.
+## Increment E recovery and connected hardening — 2026-09-07
+
+The continuation of #88 implements retained planning read-back, read-only retry, unsafe-history
+gating, recoverable modal drafts, locale-safe planning numbers, filtered/coalesced invalidation
+and resource lifecycle checks. It also closes the original #88 Review/source measurement/event
+findings and subsequent generated-note/evidence recovery defects. The exact automated and browser
+scope is recorded in [recovery evidence](planning-recovery-evidence.md) and its
+[coverage ledger](planning-recovery-coverage.md). This is a bounded Phase 12 slice; it does not
+close global M00–M17 acceptance, live assistive technology or release readiness.

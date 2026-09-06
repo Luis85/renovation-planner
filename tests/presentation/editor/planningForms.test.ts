@@ -39,8 +39,8 @@ describe('explicit planning form contracts', () => {
  });
  it('keeps a failed draft retryable, including thrown reads and dispatch failures', async () => {
  const rig = await setup(), w = rig.wrapper; await set(w, 'asset', rig.asset.id); rig.dispatch.mockRejectedValueOnce(new Error('disk'));
- await w.trigger('submit'); await settle(); expect(w.get('[role="alert"]').text()).toContain('Check'); expect(w.emitted('submit')).toBeUndefined();
- rig.dispatch.mockResolvedValueOnce(err(failure)); await w.trigger('submit'); await settle(); expect(w.text()).toMatch(/Could not|file action failed/); await w.trigger('submit'); await settle(); expect(w.emitted('submit')).toHaveLength(1);
+ await w.trigger('submit'); await settle(); expect(w.get('[role="alert"]').text()).toContain('Could not'); expect(w.emitted('submit')).toBeUndefined();
+ rig.dispatch.mockResolvedValueOnce(err(failure)); await w.trigger('submit'); await settle(); expect(w.text()).toContain('Your draft is retained'); await w.trigger('submit'); await settle(); expect(w.emitted('submit')).toHaveLength(1);
  });
  it('records manual labor budget and cancelled facts without treating cancellation as deletion', async () => {
  const rig = await setup('cost'), w = rig.wrapper; await set(w, 'title', 'Electrician'); await set(w, 'category', 'labor'); await set(w, 'planned', '1000'); await set(w, 'requirement', '');
@@ -82,9 +82,26 @@ describe('explicit planning form contracts', () => {
  const rig = await setup('evidence'), item = { ...rig.evidence, type: 'photo' as const };
  const w = mount(EvidencePreview, { props: { item, files: rig.files, planId: rig.plan.id } }); mounted.push(w);
  expect(w.get('img').attributes('alt')).toBe(item.description); await w.get('img').trigger('error'); expect(w.find('img').exists()).toBe(false); expect(w.text()).toContain('Thumbnail unavailable');
+ await w.setProps({ revision: 1 }); expect(w.get('img').attributes('loading')).toBe('lazy');
+ expect(w.get('img').attributes('decoding')).toBe('async');
+ await w.get('img').trigger('error'); await w.setProps({ item: { ...item, path: 'Evidence/replacement.png' } });
+ expect(w.find('img').exists()).toBe(true); expect(w.text()).toContain('Evidence/replacement.png');
  await w.setProps({ files: undefined }); expect(w.text()).toContain('missing');
  });
 
+ it('accepts decimal commas without grouping and distinguishes a stale draft from a failed write', async () => {
+ const rig = await setup(), w = rig.wrapper;
+ await set(w, 'asset', rig.asset.id); await set(w, 'waste', '17,5'); await set(w, 'override', '8,5');
+ await set(w, 'coverage', '2,5'); await set(w, 'lot', '2,5'); await set(w, 'minimum', '5,0');
+ rig.dispatch.mockResolvedValueOnce(err({ category: 'Validation', code: 'undo.superseded', message: 'peer changed target' }));
+ await w.trigger('submit'); await settle();
+ expect(rig.dispatch).toHaveBeenCalledWith(expect.objectContaining({ waste: '0.175', override: '8.5', source: expect.objectContaining({ coverage: '2.5', lot: '2.5', minimum: '5.0' }) }));
+ expect(w.text()).toContain('changed'); expect(w.get<HTMLInputElement>('[name="waste"]').element.value).toBe('17,5');
+ const cost = await setup('cost'); await set(cost.wrapper, 'title', 'Labor'); await set(cost.wrapper, 'planned', '1000,50');
+ await cost.wrapper.get('[data-rp-add-fact]').trigger('click'); await set(cost.wrapper, 'amount', '25,50');
+ await cost.wrapper.trigger('submit'); await settle();
+ expect(cost.dispatch).toHaveBeenCalledWith(expect.objectContaining({ renovation: expect.objectContaining({ depth: expect.objectContaining({ costs: [expect.objectContaining({ planned: expect.objectContaining({ amount: '1000.5', currency: 'EUR' }), facts: [expect.objectContaining({ amount: expect.objectContaining({ amount: '25.5', currency: 'EUR' }) })] })] }) }) }));
+ });
  it('ignores a rejected submit after disposal', async () => {
  const rig = await setup(), pending = defer<void>(); await set(rig.wrapper, 'asset', rig.asset.id); rig.dispatch.mockReturnValueOnce(pending.promise.then(() => { throw new Error('late write'); }));
  await rig.wrapper.trigger('submit'); rig.wrapper.unmount(); pending.resolve(undefined); await settle(); expect(rig.wrapper.emitted('submit')).toBeUndefined();

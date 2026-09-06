@@ -96,6 +96,15 @@ export class Zone {
 		return name.ok ? ok(new Zone({ ...this.fields(), name: name.value })) : name;
 	}
 
+	withDetails(text: string, zoneType: ZoneType): Result<Zone, ValidationError> {
+		const name = zoneName(text);
+		if (!name.ok) return name;
+		if (!isZoneType(zoneType)) return err(zoneError('unknown-type', 'Choose a supported area type.'));
+		// Room identity owns renovation records and boundaries; metadata editing cannot reclassify it.
+		if ((this.zoneType === 'Room') !== (zoneType === 'Room')) return err(zoneError('category-change', 'Room and Area identity cannot be exchanged by a metadata edit.'));
+		return ok(new Zone({ ...this.fields(), name: name.value, zoneType }));
+	}
+
 	withGeometry(geometry: Polygon): Result<Zone, GeometryError> {
 		const checked = createPolygon(geometry.points);
 		if (checked.ok) {

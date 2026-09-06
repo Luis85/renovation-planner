@@ -1,3 +1,4 @@
+import type { SnapCandidates } from '../snapping/snap-service';
 import type { Point } from '../../../core/geometry/Point';
 import { CLICK_EPSILON_PX } from '../handleMetrics';
 import type { RoomDraftPort, RoomRect, RoomRectSnapshot } from '../add/room-draft-store';
@@ -6,6 +7,7 @@ import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 
 export interface DrawRoomToolDeps {
 	readonly draft: RoomDraftPort;
+	readonly snapCandidates: () => SnapCandidates;
 	readonly defaultName: () => string;
 }
 
@@ -16,7 +18,7 @@ function normalised(a: Point, b: Point): RoomRect {
 /**
  * The rectangular room tool (design spec §4): a primary drag writes one axis-aligned rectangle
  * into the draft store; a click changes nothing; Escape discards the draft and stays; a tool
- * switch resets the draft. It touches no `RenderState`, dispatches nothing and names no Zone —
+ * switch resets the draft. It draws transient snap guides, dispatches nothing and names no Zone —
  * the draft store is the one home for what it draws (spec §2.2), and `createRoomFromDraft` is
  * what turns that into a command.
  */
@@ -24,6 +26,7 @@ export class DrawRoomTool implements EditorTool {
 	readonly id: ToolId = 'draw-room';
 	private context: EditorContext | null = null;
 	private anchor: Point | null = null;
+	private rawAnchor: Point | null = null;
 	/**
 	 * What this gesture has overwritten, or `null` while it has overwritten nothing.
 	 *
@@ -56,23 +59,30 @@ export class DrawRoomTool implements EditorTool {
 
 	activate(context: EditorContext): void {
 		this.context = context;
+		context.renderState.snapGuides = [];
 		this.deps.draft.beginTask(this.deps.defaultName());
 	}
 	deactivate(): void {
-		this.anchor = null;
+		if (this.context) this.context.renderState.snapGuides = [];
+		this.anchor = null; this.rawAnchor = null;
 		this.deps.draft.reset();
 		this.context = null;
 	}
 	pointerDown(event: EditorPointerEvent): void {
-		if (event.button !== 'primary') return;
-		this.anchor = event.worldPoint;
+		const context = this.context;
+		if (event.button !== 'primary' || context === null) return;
+		context.renderState.snapGuides = [];
+		this.rawAnchor = event.worldPoint;
+		this.anchor = this.snapped(event.worldPoint, context);
 		this.pressUndo = null;
 	}
 	pointerMove(event: EditorPointerEvent): void {
-		if (this.anchor === null) return;
+		const context = this.context;
+		if (this.anchor === null || context === null) return;
+		context.renderState.snapGuides = [];
 		// Captured on the FIRST move only, and before the write it is about — see `pressUndo`.
 		this.pressUndo ??= this.deps.draft.snapshotRect();
-		this.deps.draft.setRect(normalised(this.anchor, event.worldPoint));
+		this.deps.draft.setRect(normalised(this.anchor, this.snapped(event.worldPoint, context)));
 	}
 	/**
 	 * `context` is fetched into a local and checked ALONGSIDE `this.anchor` in one guard,
@@ -87,10 +97,11 @@ export class DrawRoomTool implements EditorTool {
 	pointerUp(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null || this.anchor === null || event.button !== 'primary') return;
-		const anchor = this.anchor;
-		this.anchor = null;
+		const anchor = this.anchor, rawAnchor = this.rawAnchor as Point;
+		this.anchor = null; this.rawAnchor = null;
+		context.renderState.snapGuides = [];
 		const worldPerPixel = context.viewport.worldPerScreenPixel();
-		const moved = Math.hypot(event.worldPoint.x - anchor.x, event.worldPoint.y - anchor.y);
+		const moved = Math.hypot(event.worldPoint.x - rawAnchor.x, event.worldPoint.y - rawAnchor.y);
 		if (moved <= CLICK_EPSILON_PX * worldPerPixel) {
 			// A click takes back exactly what this gesture overwrote and nothing else — never a
 			// typed side, its text, or a refusal the renovator has not corrected yet, and never
@@ -106,7 +117,7 @@ export class DrawRoomTool implements EditorTool {
 		// null rect or a stale one. `moved` above is already measured against this same point,
 		// so writing it here is what makes the gesture that was judged a drag the gesture that
 		// gets committed.
-		this.deps.draft.setRect(normalised(anchor, event.worldPoint));
+		this.deps.draft.setRect(normalised(anchor, this.snapped(event.worldPoint, context)));
 		this.deps.draft.settle();
 	}
 	/**
@@ -121,7 +132,8 @@ export class DrawRoomTool implements EditorTool {
 	 * ends.
 	 */
 	cancel(): void {
-		this.anchor = null;
+		if (this.context) this.context.renderState.snapGuides = [];
+		this.anchor = null; this.rawAnchor = null;
 		this.deps.draft.clearRect();
 	}
 	/**
@@ -130,8 +142,9 @@ export class DrawRoomTool implements EditorTool {
 	 * draft `cancel()` throws away.
 	 */
 	abandonGesture(): void {
+		if (this.context) this.context.renderState.snapGuides = [];
 		if (this.anchor === null) return;
-		this.anchor = null;
+		this.anchor = null; this.rawAnchor = null;
 		this.restore();
 	}
 
@@ -140,6 +153,11 @@ export class DrawRoomTool implements EditorTool {
 	 * doors that owe it, so the "only if a snapshot was taken" half cannot be kept at one and
 	 * forgotten at the other.
 	 */
+	private snapped(point: Point, context: EditorContext): Point {
+		const snapped = context.snapService.snapPoint(point, this.deps.snapCandidates(), 8 * context.viewport.worldPerScreenPixel());
+		if (snapped !== point) context.renderState.snapGuides.push({ start: point, end: snapped });
+		return snapped;
+	}
 	private restore(): void {
 		if (this.pressUndo === null) return;
 		this.deps.draft.restoreRect(this.pressUndo);

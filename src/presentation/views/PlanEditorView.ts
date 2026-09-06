@@ -3,7 +3,7 @@ import { createApp, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import PlanEditorRoot from '../editor/PlanEditorRoot.vue';
-import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../editor/PlanEditorContext';
+import { PLAN_EDITOR_CONTEXT, type PlanEditorContext, type EditorNavigation } from '../editor/PlanEditorContext';
 import type {
 	PlanEditorCommandServices,
 } from '../editor/planEditorCommands';
@@ -38,6 +38,7 @@ interface PlanEditorViewState {
  * in `plugin/`.
  */
 export interface PlanEditorDeps {
+	readonly navigation?: EditorNavigation;
 	readonly queries: PlanEditorQueryServices;
 	/** The write side the editor's tools dispatch through — see `planEditorCommands.ts`. */
 	readonly commands: PlanEditorCommandServices;
@@ -240,6 +241,7 @@ export class PlanEditorView extends ItemView {
 		const host = this.contentEl.createDiv('renovation-plan-editor-view');
 		const context: PlanEditorContext = {
 			planId,
+			navigation: this.deps.navigation,
 			queries: this.deps.queries,
 			commands: this.deps.commands,
 			vault: this.deps.vault,

@@ -27,7 +27,7 @@ describe('TemporaryToolBanner', () => {
 		const runtime = runtimeOf(harness);
 		runtime.setTool('draw-polygon');
 		await settle();
-		await harness.wrapper.find('.rp-task-banner button').trigger('click');
+		await harness.wrapper.find('.rp-task-banner__cancel').trigger('click');
 		expect(runtime.activeToolId.value).toBe('select');
 		expect(harness.wrapper.find('.rp-task-banner').exists()).toBe(false);
 
@@ -35,7 +35,7 @@ describe('TemporaryToolBanner', () => {
 		click(harness.canvasEl, 100, 100); // one vertex placed
 		await settle();
 		expect(runtime.renderState.polygonSketch).not.toBeNull();
-		await harness.wrapper.find('.rp-task-banner button').trigger('click');
+		await harness.wrapper.find('.rp-task-banner__cancel').trigger('click');
 		await settle();
 
 		// Cancel LEAVES the task (PBI criterion 7, main flow step 6); Escape is the key that steps

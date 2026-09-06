@@ -6,7 +6,7 @@ import { pointerAt, toolContext } from '../../../helpers/tool-context';
 
 function armed() {
 	const draft = useRoomDraftStore();
-	const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1' });
+	const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1', snapCandidates: () => ({}) });
 	const { context } = toolContext(); // worldPerScreenPixel 1 → epsilon is 4 world units
 	tool.activate(context);
 	return { tool, draft, context };

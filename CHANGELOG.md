@@ -12,6 +12,15 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Align dragged Room rectangles to saved geometry with visible snap feedback; exact numeric edits remain available.
+
+- Plan editor: Add → Note opens the selected Room’s Notes form. Notes remain ordinary vault files; Undo/Redo removes/restores the evidence link without deleting the note file.
+
+- Plan editor: explicit Area name/type editing and numeric corner editing for existing Room/Area outlines, with conditional writes, previews and Undo/Redo. Add → Room offers a free-shape outline with native name and corner controls; switching from a completed rectangle preserves its outline and name.
+
+- Plan editor: Project breadcrumb and Materials library actions reuse the existing workspace navigation paths. Contextual planning drafts preserve the selected source target and related record.
+
+
 - Plan editor: start an empty floor with rooms, a reference plan or an empty canvas. Prepare a
   vault image/PDF with page, crop and rotation, set scale by pointer or keyboard, then review
   opacity and locking. One compensated, version-checked command persists the reference and

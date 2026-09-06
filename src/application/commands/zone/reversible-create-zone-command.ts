@@ -13,7 +13,7 @@ import type { EventBus } from '../../../core/events/EventBus';
 import type { Logger } from '../../ports/Logger';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
-import type { Loaded } from '../../ports/versioning';
+import type { Loaded, RelatedWriteReceipt } from '../../ports/versioning';
 import type { Zone } from '../../../domain/zone/Zone';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { zoneCreated } from '../../../domain/zone/Zone.events';
@@ -29,7 +29,7 @@ export type CreateCommand = Command<
 >;
 export type UndoDeleteCommand = Command<
 	DeleteZoneInput,
-	Result<{ zoneId: ZoneId }, ReferenceError | RepositoryError>
+	Result<{ zoneId: ZoneId } & RelatedWriteReceipt, ReferenceError | RepositoryError>
 >;
 
 /**
@@ -157,6 +157,7 @@ export class ReversibleCreateZoneCommand {
 		const input: DeleteZoneInput = { zoneId: snapshot.entity.id, expected };
 		const result = await this.deleteCommand.execute(input);
 		if (isErr(result)) return result;
+		recordRelatedWrite(this.ledger, result.value);
 		// The note is gone, so the ledger must stop answering a revision for it — see
 		// `WriteLedger`'s own account of why a delete forgets rather than records.
 		this.ledger.forget(snapshot.entity.id);

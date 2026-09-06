@@ -1,3 +1,5 @@
+import { computed } from 'vue';
+import { roomSnapCandidates } from '../snapping/roomSnapCandidates';
 import type { SessionWriteLedger, WriteLedger } from '../../../application/editor/WriteLedger';
 import { createZoneHistory } from '../add/createZoneHistory';
 import type { Polygon } from '../../../core/geometry/Polygon';
@@ -8,7 +10,6 @@ import type { useDialogStore } from '../../dialogs/dialog-store';
 import type { ToolManager } from './tool-manager';
 import { CalibrateTool } from './calibrate-tool';
 import { DrawPolygonTool } from './draw-polygon-tool';
-import { createPolygon } from '../../../core/geometry/Polygon';
 import { areaOutline } from '../add/areaOutline';
 import { DrawRoomTool } from './draw-room-tool';
 import { SelectTool } from './select-tool';
@@ -87,14 +88,14 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 	);
 	// Preserve the legacy free-shape Room completion; Area has its own semantic identity.
 	const polygonEntries = [
-		{ id: 'draw-polygon', zoneType: 'Room', defaultName: defaultRoomName, onCompleted: returnToSelect, validateOutline: createPolygon },
+		{ id: 'draw-polygon', zoneType: 'Room', defaultName: () => roomDraft.name, onCompleted: returnToSelect, validateOutline: areaOutline },
 		{ id: 'draw-area', zoneType: 'Custom', defaultName: () => tr('editor.area.default-name', { n: String(projectStore.zones.size + 1) }), onCompleted: deps.onAreaCompleted, validateOutline: areaOutline },
 	] as const;
 	for (const entry of polygonEntries) {
 		toolManager.register(
 			new DrawPolygonTool({
 				id: entry.id,
-				...(entry.id === 'draw-area' ? { canFinish: deps.canFinishArea } : {}),
+				canFinish: deps.canFinishArea,
 				validateOutline: entry.validateOutline,
 				// What a closed polygon MEANS in the Plan Editor: a new Zone on this plan. The tool
 				// itself names none of it — see `PolygonCompletion`, which the designer supplies a
@@ -127,7 +128,8 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			}),
 		);
 	}
-	toolManager.register(new DrawRoomTool({ draft: roomDraft, defaultName: defaultRoomName }));
+	const roomCandidates = computed(() => roomSnapCandidates(projectStore.zones.values(), projectStore.structure));
+	toolManager.register(new DrawRoomTool({ draft: roomDraft, defaultName: defaultRoomName, snapCandidates: () => roomCandidates.value }));
 	toolManager.register(
 		new CalibrateTool({
 			// The two dialogs this gesture may open, in the order it opens them. Both go

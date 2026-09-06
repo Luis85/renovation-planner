@@ -18,6 +18,7 @@ import { staleWriteRefusal } from './tools/with-stale-gate';
 export type RoomEditRuntime = Pick<EditorRuntime, 'commitField' | 'activeToolId' | 'refreshProjection'>;
 export interface RoomEditDefinition {
 	readonly faultEvent: string;
+	readonly accepts?: (zone: Zone) => boolean;
 	latest(current: ZoneDto | undefined): string;
 	form(baseline: Loaded<Zone>, controls: {
 		readonly busy: Ref<boolean>;
@@ -48,7 +49,7 @@ export function createRoomEditAction(context: PlanEditorContext, runtime: RoomEd
 			if (!loaded.ok) { notifyOperationFailure(loaded.error); return; }
 			if (loaded.value === null) return;
 			const { entity } = loaded.value;
-			if (entity.zoneType !== 'Room' || entity.planId !== context.planId) return;
+			if (entity.planId !== context.planId || !(definition.accepts?.(entity) ?? entity.zoneType === 'Room')) return;
 			const busy = ref(false), latest = ref<string | null>(null);
 			const commit: EditorRuntime['commitField'] = async edit => {
 				if (!alive || started !== generation || blocked.value) return err(staleWriteRefusal());
@@ -65,5 +66,5 @@ export function createRoomEditAction(context: PlanEditorContext, runtime: RoomEd
 			if (alive) notifyFault(cause, context.commands.logger, definition.faultEvent);
 		} finally { loading.value = false; }
 	}
-	return { open, blocked: computed(() => loading.value || blocked.value) };
+	return { open, blocked: computed(() => loading.value || blocked.value || runtime.activeToolId.value !== 'select') };
 }

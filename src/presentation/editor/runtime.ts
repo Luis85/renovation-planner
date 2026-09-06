@@ -1,13 +1,11 @@
+import { createEditorFormActions, type EditorFormActions } from './editorFormActions';
 import { selectAndFrameOn } from './selection/selectAndFrame';
 import { createRenovationDeletionGuard } from './renovation/renovationDeleteGuard';
 import { createHistoryActions } from './tools/historyActions';
 import { createRenovationActions } from './renovation/renovationActions';
 import { useRenovationSession } from './renovation/renovationSession';
-import { createReferenceAction } from './reference/referenceAction';
 import { createStructureTask } from './structure/structureTask';
 import { createStructureActions } from './structure/structureActions';
-import { createRoomResizeAction } from './resize/roomResizeAction';
-import { createRoomNamingAction } from './naming/roomNamingAction';
 import {
 	computed,
 	inject,
@@ -80,6 +78,8 @@ import { createNudgeSelectionAction } from './nudge';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly areaDetails: EditorFormActions['areaDetails'];
+	readonly outlineEdit: EditorFormActions['outlineEdit'];
 	readonly renovation: ReturnType<typeof createRenovationActions>;
 	readonly structureTask: ReturnType<typeof createStructureTask>;
 	readonly structureActions: ReturnType<typeof createStructureActions>;
@@ -609,7 +609,7 @@ function buildDispatcherChain(
 	return { wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
 }
 
-function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovation' | 'resizeRoom' | 'resizeRoomBlocked' | 'renameRoom' | 'renameRoomBlocked' | 'openReference' | 'referenceActive' | 'referenceBlocked'> {
+function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovation' | keyof EditorFormActions> {
 	const editor = useEditorStore(), session = useRenovationSession();
 	const projectStore = useProjectStore();
 	const selection = useSelectionStore();
@@ -721,7 +721,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const { createRoom, canCreateRoom, roomDraftIncomplete, roomDraft, defaultRoomName } = createRoomCreationAction({
 		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
 	});
-	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect });
+	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect, roomDraft, defaultRoomName });
 	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value, previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
@@ -826,7 +826,7 @@ export const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-pl
 
 export function provideEditorRuntime(context: PlanEditorContext): EditorRuntime {
 	const base = buildRuntime(context);
-	const runtime = { ...base, renovation: createRenovationActions(context, base), ...createRoomResizeAction(context, base), ...createRoomNamingAction(context, base), ...createReferenceAction(context, base) };
+	const runtime = { ...base, ...createEditorFormActions(context, base), renovation: createRenovationActions(context, base) };
 	provide(EDITOR_RUNTIME, runtime);
 	return runtime;
 }

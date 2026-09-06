@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import OutlineEditAction from '../resize/OutlineEditAction.vue';
+import AreaDetailsAction from '../metadata/AreaDetailsAction.vue';
 import RoomSizeAction from '../resize/RoomSizeAction.vue';
 import RenovationEntry from '../renovation/RenovationEntry.vue';
 import RoomNameAction from '../naming/RoomNameAction.vue';
@@ -197,6 +199,12 @@ const unavailableNavigation = computed(() => overview.value && !runtime.renovati
 				:points="overview.record.points"
 			/>
 		</template>
+
+		<OutlineEditAction :zone-id="dto.id" />
+		<AreaDetailsAction
+			v-if="overview?.record.kind === 'area'"
+			:zone-id="dto.id"
+		/>
 
 		<section
 			class="rp-editor-inspector-requirements"

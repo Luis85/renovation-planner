@@ -2,7 +2,7 @@
 type: Issue
 parent: "[[Plan editor and canvas]]"
 order: 70
-status: New
+status: In Progress
 started: ""
 finished: ""
 horizon: Now
@@ -28,6 +28,12 @@ business-value-model: ""
 ---
 
 # Vertex editing has no keyboard path
+
+## Current finalization status — 2026-09-07
+
+An explicit Inspector corner-coordinate form now reaches the existing reversible geometry command for Room and Area outlines. Two production component cases and seven parser/proposal cases pass, including native comma input, preview, focus retention across reflow, cancellation and Undo/Redo. Direct arrow-key vertex-handle gestures have not been added; the accessible numeric form provides the non-pointer editing route. Full integrated gates and live-host keyboard acceptance remain outstanding, so this issue is not marked complete.
+
+## Original finding
 
 The 2026-09-05 polish pass shipped arrow-key MOVE of a whole selected room —
 `EditorSurface.vue`'s arrow branch calls `props.nudgeSelection`, wired in `runtime.ts` to

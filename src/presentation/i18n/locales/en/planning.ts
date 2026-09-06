@@ -1,4 +1,5 @@
 export const planningEn = {
+	"planning.open-library": "Open asset library",
 	"planning.review-scope": "Review checks stale quantities, negative cost remaining and missing linked files. Evidence is optional; purchase progress does not determine work readiness.",
 	"planning.edit.material": "Add or edit material",
 	"planning.edit.procurement": "Update purchase quantities",

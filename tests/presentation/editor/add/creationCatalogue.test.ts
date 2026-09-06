@@ -25,7 +25,7 @@ function entryById(id: CreationEntryId): CreationEntry {
 describe('the creation catalogue', () => {
 	it('offers Room and Area, each activating its own geometry path', () => {
 		const available = CREATION_CATALOGUE.filter((e) => e.availability.kind === 'available');
-		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'area']);
+		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'area', 'note']);
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		available[0].activate({ setTool });
 		expect(setTool).toHaveBeenCalledWith('draw-room');
@@ -37,6 +37,12 @@ describe('the creation catalogue', () => {
 		expect(matchesQuery(entryById('area'), 'garden', 'en')).toBe(true);
 	});
 
+	it('Note requires its planning capability and invokes it exactly once', () => {
+		const setTool = vi.fn<() => void>(), createNote = vi.fn<() => void>();
+		expect(() => activateCreationEntry('note', { setTool })).toThrow('planning form capability');
+		activateCreationEntry('note', { setTool, createNote });
+		expect(createNote).toHaveBeenCalledOnce(); expect(setTool).not.toHaveBeenCalled();
+	});
 	it('every unsupported entry carries a reason and throws if activated', () => {
 		for (const entry of CREATION_CATALOGUE.filter((e) => e.availability.kind === 'unsupported')) {
 			expect(entry.availability).toEqual({ kind: 'unsupported', reasonKey: 'editor.add.unsupported.not-yet' });

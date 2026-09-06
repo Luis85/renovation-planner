@@ -16,6 +16,8 @@ export type CreationEntryId =
 	| 'note';
 export type CreationGroup = 'structure' | 'property' | 'planning';
 
+export type CreationRuntime = Pick<EditorRuntime, 'setTool'> & { readonly createNote?: () => void };
+
 export interface CreationEntry {
 	readonly id: CreationEntryId;
 	readonly group: CreationGroup;
@@ -24,7 +26,7 @@ export interface CreationEntry {
 	readonly synonymKeys: readonly StringKey[];
 	readonly availability: { readonly kind: 'available' } | { readonly kind: 'unsupported'; readonly reasonKey: StringKey };
 	/** Only called for an available entry; an unsupported one THROWS so a menu that called it fails a test loudly. */
-	readonly activate: (runtime: Pick<EditorRuntime, 'setTool'>) => void;
+	readonly activate: (runtime: CreationRuntime) => void;
 }
 
 /**
@@ -118,7 +120,11 @@ const ENTRIES_BY_ID: { readonly [K in CreationEntryId]: EntryFor<K> } = {
 	fence: unsupported('fence', 'property'),
 	item: unsupported('item', 'planning'),
 	measurement: unsupported('measurement', 'planning'),
-	note: unsupported('note', 'planning'),
+	note: {
+		id: 'note', group: 'planning', labelKey: 'editor.add.note.label', descriptionKey: 'editor.add.note.description', synonymKeys: [],
+		availability: { kind: 'available' },
+		activate: runtime => { if (!runtime.createNote) throw new Error('Note creation requires the planning form capability'); runtime.createNote(); },
+	},
 };
 
 /**
@@ -148,7 +154,7 @@ export const CREATION_CATALOGUE: readonly CreationEntry[] = Object.values(ENTRIE
  * this door through an `as CreationEntryId` cast on a foreign string is outside what any type
  * here can hold. That cast is exactly how the `TypeError` quoted above was reproduced.
  */
-export function activateCreationEntry(id: CreationEntryId, runtime: Pick<EditorRuntime, 'setTool'>): void {
+export function activateCreationEntry(id: CreationEntryId, runtime: CreationRuntime): void {
 	ENTRIES_BY_ID[id].activate(runtime);
 }
 

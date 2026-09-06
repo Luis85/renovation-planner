@@ -1,4 +1,5 @@
 export const planningDe = {
+	"planning.open-library": "Bauteilkatalog öffnen",
 	"planning.review-scope": "Die Prüfung zeigt veraltete Mengen, negative Restkosten und fehlende verknüpfte Dateien. Nachweise sind optional; Einkaufsmengen bestimmen nicht die Arbeitsbereitschaft.",
 	"planning.edit.material": "Baustoff hinzufügen oder bearbeiten",
 	"planning.edit.procurement": "Einkaufsmengen bearbeiten",

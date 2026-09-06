@@ -166,5 +166,18 @@ original opener disappeared. Forced leaf/process disposal retains the existing l
 submitted write may finish and no draft recovery is promised.
 
 Evidence and open live acceptance: [Rename a room](../../../tests/cases/Rename%20a%20room.md).
-This delivers the bounded existing-room naming gap only; Phase 4, Increment A/B and the full plan
-remain open, as do room kinds, general Area metadata and the wider Inspector field-commit decision.
+That naming evidence covers its bounded increment. The continuations below and M02 now cover Area metadata and general numeric outline editing; the combined plan remains open pending integration and acceptance. Stored room kinds retain their explicit ADR-RK deferral.
+
+
+## Numeric outline continuation (2026-09-07)
+
+Select a Room or Area and activate **Edit corner coordinates** in its Inspector. The root-owned form lists each corner in world metres and previews valid edits. Untouched axes preserve exact stored coordinates; explicitly retyping a rounded value intentionally changes that coordinate. Signed decimal point/comma input shares the existing coordinate parser. Apply dispatches one existing reversible geometry command; connected walls keep their own geometry. Cancel retires the preview without writing. A stale baseline refuses the write and retains the typed draft.
+
+This provides a non-canvas editing route for irregular outlines without replacing them with rectangles. `outlineProposal.test.ts` and `outlineEdit.e2e.test.ts` cover parsing, preview, reflow, cancellation and history; final integrated visual and host acceptance remain open.
+
+
+## Room alignment continuation (2026-09-07)
+
+Rectangle dragging uses the existing SnapService against saved Zone corners/edges, wall segments and hosted-opening endpoints. Its eight-screen-pixel tolerance scales with the camera. The press, preview and release share this projection; a visible marker and localized status identify alignment. A stationary click near an anchor still creates no rectangle. Exact numeric edits clear former alignment guides. Cancel, tool exit and completed creation clear the transient guides without changing saved geometry.
+
+`roomSnapping.test.ts` and `drawRoomTool.test.ts` passed 24 tool cases; `roomSnapping.e2e.test.ts` passed two production-component cases covering visible feedback, persisted geometry, numeric override, cancellation and Undo/Redo. These results precede UI/recovery integration; combined visual, keyboard and live-host acceptance remain open.

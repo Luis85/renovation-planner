@@ -31,6 +31,7 @@ const PLAN_CHANGE_EVENTS = [
 	'ZoneCreated',
 	'ZoneGeometryChanged',
 	'ZoneRenamed',
+	'ZoneDetailsChanged',
 	'ZoneDeleted',
 ] as const;
 

@@ -20,6 +20,7 @@ import { useSelectionStore } from '../../../../src/presentation/editor/selection
 import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
 import AddMenu from '../../../../src/presentation/editor/add/AddMenu.vue';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../../src/presentation/editor/runtime';
+import { NOTE_CREATION } from '../../../../src/presentation/editor/add/noteCreation';
 import type { ToolId } from '../../../../src/presentation/editor/tools/editor-tool';
 import { click } from '../../../helpers/planEditorRig';
 
@@ -521,7 +522,7 @@ describe('the Add menu, mounted standalone', () => {
 		const wrapper = mount(AddMenu, {
 			props: { anchor: null },
 			attachTo: document.body,
-			global: { provide: { [EDITOR_RUNTIME as symbol]: runtime } },
+			global: { provide: { [EDITOR_RUNTIME as symbol]: runtime, [NOTE_CREATION as symbol]: { available: computed(() => false), activate: vi.fn<() => void>() } } },
 		});
 		await nextTick();
 
@@ -550,7 +551,7 @@ describe('the Add menu, mounted standalone', () => {
 			attrs: { onClose: () => order.push('close') },
 			attachTo: document.body,
 			global: {
-				provide: { [EDITOR_RUNTIME as symbol]: runtime },
+				provide: { [EDITOR_RUNTIME as symbol]: runtime, [NOTE_CREATION as symbol]: { available: computed(() => false), activate: vi.fn<() => void>() } },
 				config: { errorHandler: () => undefined }, // the throw is the fixture, not the finding
 			},
 		});

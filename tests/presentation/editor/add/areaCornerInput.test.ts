@@ -64,6 +64,9 @@ describe('numeric mutation of the existing polygon buffer', () => {
 		input.edit(0);
 		expect(input.apply()).toBe(true);
 		expect(input.points.value[0]).toEqual({ x: 1234.12345, y: -765.4321 });
+		input.edit(0); input.text.x = ''; input.text.x = '1.234';
+		expect(input.apply()).toBe(true);
+		expect(input.points.value[0]).toEqual({ x: 1234, y: -765.4321 });
 		input.edit(0); input.text.x = '2';
 		expect(input.apply()).toBe(true);
 		expect(input.points.value[0]).toEqual({ x: 2000, y: -765.4321 });

@@ -88,6 +88,16 @@ const NO_FIGURE = '–';
 const runtime = useEditorRuntime();
 const editor = useEditorStore();
 const draft = runtime.roomDraft;
+async function freeShape(event: Event): Promise<void> {
+	if (runtime.writesBlocked.value || draft.submitting) return;
+	const leaf = (event.currentTarget as HTMLElement).closest<HTMLElement>('.renovation-plan-editor');
+	const name = draft.name, points = draft.geometry?.points ?? [];
+	runtime.setTool('draw-polygon');
+	draft.setName(name);
+	points.forEach((point, index) => { runtime.toolManager.editActiveCorner(index, point); });
+	await nextTick(); await nextTick();
+	leaf?.querySelector<HTMLElement>('.rp-area-corners summary')?.focus();
+}
 
 const root = ref<HTMLElement | null>(null);
 const nameId = useId();
@@ -112,6 +122,7 @@ function stageCentreWorld(): Point {
 }
 
 function commit(axis: DimensionAxis, event: Event): void {
+	runtime.renderState.snapGuides = [];
 	draft.commitDimension(axis, (event.target as HTMLInputElement).value, stageCentreWorld);
 }
 
@@ -141,6 +152,7 @@ function commit(axis: DimensionAxis, event: Event): void {
  */
 function commitIfChanged(axis: DimensionAxis, text: string): void {
 	if (text === (axis === 'width' ? draft.widthText : draft.depthText)) return;
+	runtime.renderState.snapGuides = [];
 	draft.commitDimension(axis, text, stageCentreWorld);
 }
 
@@ -227,6 +239,15 @@ onBeforeUnmount(() => {
 		<h3 class="rp-editor-panel-title">
 			{{ tr('editor.room.new.heading') }}
 		</h3>
+
+		<button
+			type="button"
+			data-rp-action="free-shape-room"
+			:disabled="runtime.writesBlocked.value || draft.submitting"
+			@click="freeShape"
+		>
+			{{ tr('editor.room.free-shape') }}
+		</button>
 
 		<div class="rp-new-room__field">
 			<label :for="nameId">{{ tr('editor.room.name') }}</label>

@@ -40,6 +40,14 @@ async function shopping(): Promise<void> {
 	>
 		{{ tr('planning.edit.material') }}
 	</button>
+	<button
+		v-if="planning.context.navigation"
+		type="button"
+		data-rp-open-library
+		@click="planning.context.navigation.library()"
+	>
+		{{ tr('planning.open-library') }}
+	</button>
 	<p>{{ tr('planning.procurement-policy') }}</p>
 	<section
 		v-for="group in groups"

@@ -13,6 +13,19 @@ import type {
  */
 import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
+	'editor.room.snapped': "An nahegelegener Geometrie eingerastet.",
+	'editor.add.note.context-required': "Wähle einen Raum aus und warte, bis seine Notizen geladen sind.",
+	'zone.category-change': "Die Identität als Raum oder Fläche kann hier nicht geändert werden.",
+	"editor.room.free-shape": "Zu einem Raum mit freiem Umriss wechseln",
+	"editor.outline.action": "Umrisskoordinaten bearbeiten",
+	"editor.outline.title": "Umriss von {name} bearbeiten",
+	"editor.outline.hint": "Eckpunktkoordinaten in Metern eingeben. Anwenden ändert diesen Umriss in einem Schritt. Verbundene Wände behalten ihre eigene Geometrie.",
+	"editor.outline.latest": "Der Umriss von {name} wurde geändert. Abbrechen und neu öffnen, um den aktuellen Stand zu verwenden.",
+	"editor.area.details": "Flächendetails bearbeiten",
+	"editor.area.name": "Flächenname",
+	"editor.area.type": "Flächentyp",
+	"editor.area.latest": "Aktuelle Fläche: {name} · {type}. Abbrechen und neu öffnen, um den aktuellen Stand zu verwenden.",
+	"editor.area.unavailable": "Die Fläche ist nicht mehr verfügbar. Abbrechen und die Etage erneut öffnen.",
 	...structureDe,
 	"editor.reference.title": "Referenzplan einrichten",
 	"editor.reference.prepare": "Plan vorbereiten",

@@ -47,6 +47,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } fro
 import { tr, currentLanguage } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
 import { useEditorRuntime } from '../runtime';
+import { useNoteCreation } from './noteCreation';
 import { useProjectStore } from '../../stores/ProjectStore';
 import {
 	activateCreationEntry,
@@ -54,6 +55,7 @@ import {
 	matchesQuery,
 	type CreationEntry,
 	type CreationEntryId,
+	type CreationRuntime,
 	type CreationGroup,
 } from './creationCatalogue';
 
@@ -62,8 +64,11 @@ const emit = defineEmits<{ close: [] }>();
 
 const runtime = useEditorRuntime();
 const project = useProjectStore();
+const note = useNoteCreation();
+const creation: CreationRuntime = { setTool: id => runtime.setTool(id), createNote: note.activate };
 const spatialReason = computed(() => tr(runtime.structureTask.available ? 'editor.structure.error.host-missing' : 'editor.structure.error.unavailable'));
 function spatialUnavailable(entry: CreationEntry): boolean {
+	if (entry.id === 'note') return !note.available.value;
 	if (!['wall', 'door', 'window', 'opening'].includes(entry.id)) return false;
 	return !runtime.structureTask.available || (entry.id !== 'wall' && project.structure.walls.length === 0);
 }
@@ -219,7 +224,7 @@ function moveFocus(delta: 1 | -1): void {
 function activate(entry: CreationEntry): void {
 	if (entry.availability.kind !== 'available' || runtime.writesBlocked.value || spatialUnavailable(entry)) return;
 	emit('close');
-	activateCreationEntry(entry.id, runtime);
+	activateCreationEntry(entry.id, creation);
 	if (['area', 'wall', 'door', 'window', 'opening'].includes(entry.id)) {
 		const canvas = (menuRoot.value as HTMLElement).closest<HTMLElement>('.rp-plan-canvas');
 		void nextTick(() => canvas?.focus());
@@ -422,7 +427,7 @@ onBeforeUnmount(() => {
 						v-if="spatialUnavailable(entry)"
 						:id="reasonIds[entry.id]"
 						class="rp-add-menu__reason"
-					>{{ spatialReason }}</span>
+					>{{ entry.id === 'note' ? tr('editor.add.note.context-required') : spatialReason }}</span>
 					<span
 						v-if="entry.availability.kind === 'unsupported'"
 						:id="reasonIds[entry.id]"

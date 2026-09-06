@@ -15,9 +15,8 @@
  * **Task 8: `draw-room` gains a second door onto the SAME action `NewRoomInspector.vue`'s
  * own Create button already dispatches (design spec §5.2, "two doors, one action") —
  * `runtime.createRoom()`, never a second command.** `finish?: true` marks which tasks get
- * one: `calibrate` and `draw-polygon` finish by GESTURE (the second calibration click, the
- * closing vertex), so they declare no `finish` and the button is simply absent rather than a
- * live control that does nothing. Finish is `aria-disabled`, never `:disabled` (the same
+ * one: calibration finishes on its second click. Free-shape Room and Area expose Finish
+ * alongside their closing-vertex and Enter routes, all guarded by the same draft validator. Finish is `aria-disabled`, never `:disabled` (the same
  * "no control that does nothing" rule the form's own Create button keeps), bound as a
  * BOOLEAN per Task 7's settled pattern — `vue-tsc` types the attribute `Booleanish`, and the
  * rendered DOM attribute still reads `"true"`/`"false"`. `aria-describedby` names the
@@ -53,13 +52,18 @@ const runtime = useEditorRuntime();
 const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
 const cancelBlocked = computed(() => isStructure.value && runtime.structureTask.draft.busy);
 function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
+function freeRoomName(event: Event): void {
+	const input = event.target as HTMLInputElement;
+	if (runtime.areaCorners.editable.value) runtime.roomDraft.setName(input.value);
+	else input.value = runtime.roomDraft.name;
+}
 
 const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKey: StringKey; finish?: true }>>> = {
 	'draw-wall': { nameKey: 'editor.structure.draw-wall', instructionKey: 'editor.structure.instructions' },
 	'place-door': { nameKey: 'editor.add.door.label', instructionKey: 'editor.structure.host-instructions' },
 	'place-window': { nameKey: 'editor.add.window.label', instructionKey: 'editor.structure.host-instructions' },
 	'place-opening': { nameKey: 'editor.add.opening.label', instructionKey: 'editor.structure.host-instructions' },
-	'draw-polygon': { nameKey: 'editor.task.draw-room.name', instructionKey: 'editor.task.draw-room.instruction' },
+	'draw-polygon': { nameKey: 'editor.task.draw-room.name', instructionKey: 'editor.task.draw-room.instruction', finish: true },
 	'draw-room': { nameKey: 'editor.task.add-room.name', instructionKey: 'editor.task.add-room.instruction', finish: true },
 	'draw-area': { nameKey: 'editor.task.add-area.name', instructionKey: 'editor.task.add-area.instruction', finish: true },
 	calibrate: { nameKey: 'editor.task.calibrate.name', instructionKey: 'editor.task.calibrate.instruction' },
@@ -73,8 +77,9 @@ const task = computed(() => {
 const root = ref<HTMLElement | null>(null);
 const instructionId = useId();
 const isArea = computed(() => runtime.activeToolId.value === 'draw-area');
+const isOutline = computed(() => isArea.value || runtime.activeToolId.value === 'draw-polygon');
 const finishLabel = computed(() => tr(isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
-const canFinish = computed(() => isArea.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
+const canFinish = computed(() => isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
 
 /**
  * The `aria-disabled` promise kept at the control, not only at the action — the same shape
@@ -85,7 +90,7 @@ const canFinish = computed(() => isArea.value ? runtime.canFinishArea.value : ru
  */
 function onFinish(): void {
 	if (!canFinish.value || runtime.writesBlocked.value) return;
-	if (isArea.value) runtime.finishArea();
+	if (isOutline.value) runtime.finishArea();
 	else void runtime.createRoom();
 }
 
@@ -141,10 +146,23 @@ watch(task, (next) => {
 	>
 		<strong role="status">{{ tr(task.nameKey) }}</strong>
 		<span
+			v-if="runtime.activeToolId.value === 'draw-room' && runtime.renderState.snapGuides.length > 0"
+			role="status"
+		>{{ tr('editor.room.snapped') }}</span>
+		<span
 			v-if="!isStructure"
 			:id="instructionId"
 		>{{ tr(task.instructionKey) }}</span>
-		<AreaCornerEditor v-if="isArea" />
+		<label v-if="runtime.activeToolId.value === 'draw-polygon'">{{ tr('editor.room.name') }}
+			<input
+				name="free-room-name"
+				type="text"
+				:value="runtime.roomDraft.name"
+				:readonly="!runtime.areaCorners.editable.value"
+				@input="freeRoomName"
+			>
+		</label>
+		<AreaCornerEditor v-if="isOutline" />
 		<StructureTaskForm v-if="isStructure" />
 		<label
 			v-if="isArea"

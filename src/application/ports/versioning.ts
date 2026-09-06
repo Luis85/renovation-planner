@@ -36,10 +36,13 @@ export interface EntityVersion {
  * A read hands back the pair — the version is the store's bookkeeping ABOUT the entity,
  * not part of it, so it travels beside the entity rather than inside it.
  */
-export interface Loaded<T> {
-	readonly entity: T;
+export interface RelatedWriteReceipt {
 	/** Version receipt for another owned file written by this repository operation. */
 	readonly relatedWrite?: { readonly id: EntityId<string>; readonly before: EntityVersion; readonly after: EntityVersion };
+}
+
+export interface Loaded<T> extends RelatedWriteReceipt {
+	readonly entity: T;
 	readonly version: EntityVersion;
 }
 

@@ -25,6 +25,19 @@
  */
 import { structureEn } from './structure';
 export const editorEn = {
+	'editor.room.snapped': "Snapped to nearby geometry.",
+	'editor.add.note.context-required': "Select one room and wait for its notes to load before adding a note.",
+	'zone.category-change': "Room and area identity cannot be changed here.",
+	"editor.room.free-shape": "Switch to free-shape room",
+	"editor.outline.action": "Edit outline coordinates",
+	"editor.outline.title": "Edit {name} outline",
+	"editor.outline.hint": "Enter corner coordinates in metres. Apply updates this outline in one step. Connected walls keep their own geometry.",
+	"editor.outline.latest": "The outline of {name} changed. Cancel and reopen to use the latest version.",
+	"editor.area.details": "Edit area details",
+	"editor.area.name": "Area name",
+	"editor.area.type": "Area type",
+	"editor.area.latest": "Current area: {name} · {type}. Cancel and reopen to use the latest version.",
+	"editor.area.unavailable": "The area is no longer available. Cancel and reopen the floor.",
 	...structureEn,
 	"editor.reference.title": "Reference plan setup",
 	"editor.reference.prepare": "Prepare plan",

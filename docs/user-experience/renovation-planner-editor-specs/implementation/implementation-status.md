@@ -1,7 +1,14 @@
-# Editor implementation status — 2026-09-06
+# Editor implementation status — 2026-09-07
 
-The implementation plan is a multi-release roadmap. This ledger distinguishes shipped baseline
-behavior on `cf536f32` from the current contribution. It does not declare the whole roadmap done.
+The current integration baseline is PR #88 at `3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a`. Connected Existing/Planned, Work/Decisions, Materials, Costs, Evidence and Review are implemented; their later evidence below supersedes the early phase snapshot. The parallel visual and recovery checkpoints are not yet incorporated. No complete M00–M17 or live-host acceptance is claimed.
+
+Use the [completion matrix](completion-matrix.md) for current requirement ownership and open work, and the [integration map](integration-map.md) for exact ancestry. Finalization adds canonical Project/Asset Library navigation, contextual planning drafts and sidecar receipts for mixed Room history. Targeted evidence exists. The initial full gate passed build/lint, then was stopped after test failures under excessive worker contention; it did not pass coverage or analysis. Final verification will use the supported VITEST_MAX_WORKERS=2 setting without changing thresholds or timeouts.
+
+The current finalization changes also add Area name/type editing and explicit numeric corner editing for existing Room/Area outlines (17 focused tests passed), plus an Add → Room → free-shape route with a native name field and shared numeric corner controls. Add → Note reuses the existing Room Notes form and passes three production-path tests for context availability, ordinary-file creation/link history and cancellation. Combined visual, accessibility, coverage and host acceptance remain open.
+
+## Historical phase snapshot (before the connected planning continuation)
+
+The following table records the earlier `cf536f32` contribution; its “not delivered” entries are historical, not the current implementation status.
 
 | Phase | Baseline and current contribution | Remaining work |
 |---|---|---|
@@ -819,3 +826,7 @@ suppliers, shared inventory, full quote comparison and live acceptance remain op
 See [connected planning evidence and traceability](connected-planning-evidence.md),
 [changed-file coverage](connected-planning-coverage.md) and ADR-0022. Only that demonstrated
 subset is complete. Global Increment D and full M12–M17 acceptance are not complete.
+
+The four remaining Add routes—generic Object, Path, Fence and Measurement—remain in the full-plan scope. Finalization owns shared sidecar/domain/selection support and linear routes; the existing UI task owns Object creation/presentation after its current verified checkpoint. This records implementation ownership, not completion or an accepted deferral.
+
+Finalization checkpoint verification (2026-09-07): `npx oxlint --deny-warnings`, `npx vue-tsc -noEmit`, full `npx eslint . --max-warnings 0`, and `git diff --check` passed after the Room/free-shape/Area/Note/navigation/history changes. The earlier full coverage run was aborted and is not a passing gate; final combined coverage/build/analyze remain required. The synthetic host vault was moved outside the worktree to `C:/Users/lum/.codex/tmp/renovation-planner-finalization-vault` so its generated plugin does not enter source checks. It must receive the final build before host acceptance.

@@ -54,6 +54,16 @@ describe('existing Room dimensions through the real editor', () => {
 		await runtime.redo(); expect((await read(r)).entity.geometry).toEqual(after.entity.geometry);
 		r.harness.unmount();
 	});
+	it('announces resize and rename unavailable during a temporary Area tool', async () => {
+		const r = await rig(), runtime = runtimeOf(r.harness);
+		await r.harness.wrapper.get('.rp-room-list__row[data-rp-id="zone-a"]').trigger('click'); await settle();
+		runtime.setTool('draw-area'); await settle();
+		expect(r.harness.wrapper.get('[data-rp-action="resize-room"]').attributes('aria-disabled')).toBe('true');
+		expect(r.harness.wrapper.get('[data-rp-action="rename-room"]').attributes('aria-disabled')).toBe('true');
+		runtime.setTool('select'); await settle();
+		expect(r.harness.wrapper.get('[data-rp-action="resize-room"]').attributes('aria-disabled')).toBe('false');
+		r.harness.unmount();
+	});
 	it('keeps invalid text, focuses its error, and cancels without changing geometry or selection', async () => {
 		const r = await rig(); await open(r); await type(r, 'bad', '0'); await apply(r);
 		expect(r.harness.wrapper.findAll('[aria-invalid="true"]')).toHaveLength(2);

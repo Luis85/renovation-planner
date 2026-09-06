@@ -1,5 +1,7 @@
 # Renovation Planner — Editor Implementation Plan
 
+Current reconciliation: [completion matrix](completion-matrix.md), [integration ancestry](integration-map.md), and [status ledger](implementation-status.md). Later connected renovation/planning amendments supersede earlier implementation snapshots. Missing requirements remain open until implemented and verified; integration is active and no overall acceptance is declared.
+
 **Status:** In progress — see [implementation status and remaining scope](implementation-status.md).
 **Basis:** Locked mockups M00–M17 and shared component library  
 **Constraint:** Evolve the existing Vue 3/Pinia/Konva editor; do not replace the working layered architecture

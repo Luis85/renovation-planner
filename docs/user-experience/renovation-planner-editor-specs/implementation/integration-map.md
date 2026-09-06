@@ -1,0 +1,45 @@
+# Editor finalization integration map
+
+Status: active contribution on `codex/editor-plan-finalization`, isolated in `.worktrees/editor-plan-finalization`. Main remains on the integration branch. No PR has been merged by this task.
+
+## Pushed predecessor ancestry
+
+The refreshed #88 head below contains every listed predecessor tip. Initial baseline `3006915e8019dec66b24c945710495df48336582` did not contain all of those corrections. The pending local predecessor merge was retired, own changes were safely stashed, and the branch fast-forwarded to the newer #88 head before reapplying those changes. The stash is retained until the contribution is committed.
+
+| PR | Branch | Incorporated tip |
+|---|---|---|
+| #74 | codex/editor-implementation | 2f1fce9b32b91f2fc8e79975e9c72fd101073f2c |
+| #75 | codex/editor-area-creation | 4046d6aa4937b48cf262868f522264cfa515e79a |
+| #76 | codex/editor-area-numeric | 341ad97371d8e42f8d730b38b4ee85d5409e3a53 |
+| #82 | codex/editor-room-dimensions | 38ec673bd5659f036ef01b9c3744806214616425 |
+| #83 | codex/editor-room-naming | 5326e14a071129a5113231d85b72ce3637375ef8 |
+| #85 | codex/reference-plan-workflow | f58f1f143ebb6f6e47a8e183ed7c365535b34f0c |
+| #86 | codex/connected-walls | be55cba76d21205ae6e18949c7d1d068755d73f8 |
+| #87 | codex/renovation-workflow | 7877e47325c277792f462cc365cf37f2a260ee69 |
+| #88 | codex/materials-costs-evidence | 3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a |
+
+Corrections retained include first-corner Area completion, Room heading after peer rename, Zone geometry digest participation, reference baseline handling without calibration, metadata/geometry conditional-write handling, linked-evidence event filtering, stale material measurement and suppression of Review all-clear while planning is unavailable. Equivalent earlier #88 corrections are retained through ancestry rather than duplicated with cherry-picks.
+
+## Parallel checkpoints
+
+| Task | Branch | Agreed pushed checkpoint incorporated | Shared-file resolution |
+|---|---|---|---|
+| Implement locked editor UI | codex/editor-visual-fidelity | Pending; local commits are not integration checkpoints | Preserve UI composition, shared record identities, overview and target scope; finalization owns planning scope/navigation glue |
+| Improve M15 recovery workflow | codex/planning-recovery | Pending | Preserve retained drafts, coalesced read-back, conflict/history gates and locale parsing; finalization owns contextual draft defaults |
+
+## Verification and review state
+
+Finalization targeted checks pass for canonical Project/Library navigation, contextual material/cost/evidence draft inheritance, and mixed Room deletion history. These are not the final combined gate. Type-check/full lint/coverage/fallow and final visual/host journeys remain pending. The [completion matrix](completion-matrix.md) keeps those obligations explicit.
+
+Review #87 discussion r3945187814 is addressed locally by propagating sidecar before/after receipts through deletion and boundary restore. The normal mixed-history regression failed before the change and passes afterward; a real peer write still refuses an older inverse. It is not resolved remotely before the fix is pushed. Hardening owns #88 evidence rename ordering r3945203165 and thumbnail reset r3945203166; UI owns preservation of unrelated PlanningDepth when removing renovation records.
+
+## Intended merge relationship
+
+The integration PR will initially target `codex/materials-costs-evidence`. Review and merge predecessor PRs in dependency order #74 → #75 → #76 → #82 → #83 → #85 → #86 → #87 → #88, preserving their fixes and retargeting dependents as needed. Parallel UI/recovery pushed tips will be merged into this integration branch and identified here before final review. Do not independently duplicate their changes onto the integration branch or merge an obsolete sibling tip. The final PR may target main after its base is merged; no merge or release is authorized by this task.
+
+
+## Latest verification snapshot — 2026-09-07
+
+Remote refs were fetched again; all nine predecessor tips still match the table. PR #88 at `3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a` is open and its four Linux/Windows CI verification legs and audit succeeded. These results cover that predecessor only. Finalization changes remain uncommitted, and UI/recovery checkpoints remain pending.
+
+The first finalization `npm run check` passed build and lint but did not complete coverage: default-worker contention caused test timeouts and an inventory assertion exposed the new navigation owner. The inventory regression is fixed and passes; no coverage/fallow success is claimed for this run. Subsequent focused checks cover navigation, planning source inheritance, mixed deletion history, review corrections, Area details, numeric outline edits, free-shape Room creation and Add Note. The required final combined gate will use the supported `VITEST_MAX_WORKERS=2` setting without altering coverage thresholds or test timeouts.

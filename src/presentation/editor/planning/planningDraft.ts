@@ -8,6 +8,7 @@ import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementSource } from '../../../domain/requirement/RequirementSource';
 import type { MaterialInput, PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import type { RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
+import { planningSelectionContext } from './planningSelectionContext';
 
 export type PlanningKind = 'material' | 'procurement' | 'cost' | 'evidence';
 export interface PlanningDraft {
@@ -18,10 +19,9 @@ export interface PlanningDraft {
 	cancelled: boolean; path: string; subpath: string; type: Evidence['type']; phase: Evidence['phase']; pin: boolean; pinX: string; pinY: string;
 }
 function materialDraft(baseline: PlanningBaseline, roomId: string, id: string, focusedId: string) {
- const material = baseline.materials.find(item => item.entity.id === id)?.entity;
- const work = baseline.plan.entity.renovation?.work.find(item => item.id === focusedId);
- const subject = baseline.plan.entity.renovation?.subjects.find(item => item.id === focusedId);
- const source: RequirementSource = material?.source ?? { planId: baseline.plan.entity.id, targetId: work?.targetId ?? subject?.targetId ?? roomId, workId: work?.id ?? '', outcomeId: subject?.planned ? subject.id : '', state: 'current', rule: 'room-area', manual: '0', coverage: '1', lot: '', minimum: '' };
+ const material = baseline.materials.find(item => item.entity.id === id && item.entity.origin.zoneId === roomId)?.entity;
+ const context = planningSelectionContext(baseline, roomId, focusedId);
+ const source: RequirementSource = material?.source ?? { planId: baseline.plan.entity.id, targetId: context.targetId, workId: context.workId, outcomeId: context.outcomeId, state: 'current', rule: 'room-area', manual: '0', coverage: '1', lot: '', minimum: '' };
  return { source, ...materialValues(material) };
 }
 function materialValues(material: Requirement | undefined) {
@@ -37,11 +37,12 @@ function procurementDraft(procurement: Procurement | undefined) { return { purch
 export function planningDraft(kind: PlanningKind, baseline: PlanningBaseline, roomId: string, id = '', focusedId = ''): PlanningDraft {
  const depth = baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH;
  const material = materialDraft(baseline, roomId, id, focusedId);
- const cost = depth.costs.find(item => item.id === id), evidence = depth.evidence.find(item => item.id === id);
+ const context = planningSelectionContext(baseline, roomId, focusedId);
+ const cost = depth.costs.find(item => item.id === id && item.roomId === roomId), evidence = depth.evidence.find(item => item.id === id && item.roomId === roomId);
  const procurement = depth.procurement.find(item => item.requirementId === id);
  const existing = kind === 'material' ? material.requirementId : kind === 'procurement' ? procurement?.id : '';
  return { kind, id: existing || (kind === 'material' ? createRequirementId() : createEntityId('record')), roomId, targetId: material.source.targetId, workId: material.source.workId,
- recordId: focusedId, title: '', ...material, ...procurementDraft(procurement), ...costDraft(cost), ...evidenceDraft(evidence),
+ recordId: context.recordId, title: '', ...material, requirementId: material.requirementId || (kind === 'cost' ? context.requirementId : ''), ...procurementDraft(procurement), ...costDraft(cost), ...evidenceDraft(evidence),
  ...recordDraft(cost, evidence) };
 }
 function recordDraft(cost: CostRecord | undefined, evidence: Evidence | undefined): Partial<PlanningDraft> {

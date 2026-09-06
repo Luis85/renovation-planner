@@ -47,6 +47,7 @@ export { settle, settleUntil } from './settle';
  */
 
 export interface EditorHarnessOptions {
+	readonly navigation?: PlanEditorContext['navigation'];
 	readonly plan?: PlanDto | null;
 	readonly zones?: readonly ZoneDto[];
 	/**
@@ -232,6 +233,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	const plan = options.plan === undefined ? FIXTURE_PLAN : options.plan;
 	const context: PlanEditorContext = {
 		planId: plan?.id ?? FIXTURE_PLAN.id,
+		navigation: options.navigation,
 		queries:
 			options.queries ?? fakeQueries(plan, options.zones ?? FIXTURE_ZONES, options.unreadableZones),
 		commands: options.commands ?? defaultPlanEditorCommands(options.zones ?? FIXTURE_ZONES),

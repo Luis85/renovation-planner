@@ -40,6 +40,7 @@ import RoomDraftSketch from './RoomDraftSketch.vue';
 import { structureCandidates } from '../structure/structureCandidates';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import GestureSketch from './GestureSketch.vue';
+import SnapGuides from './SnapGuides.vue';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 
@@ -140,6 +141,11 @@ const editableVertices = computed(() => renovationSession.perspective === 'plan'
 				strokeScaleEnabled: false,
 				listening: false,
 			}"
+		/>
+		<SnapGuides
+			:guides="runtime.renderState.snapGuides"
+			:to-screen="toScreen"
+			:tokens="props.tokens"
 		/>
 		<GestureSketch
 			:tokens="props.tokens"

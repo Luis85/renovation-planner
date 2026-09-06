@@ -24,12 +24,13 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
  *
  * Widened to `src/presentation/{library,components,designer}/` rather than left at the library
  * surface alone or taken all the way to the whole tree: three directories, not one, because the
- * same gap this file was built to catch (X7, X8) turned out to live in the shared `components/`
- * form chrome and in the asset designer too, and not widening it left both undetected — the
- * measured cost of the narrower scope. Not the whole of `src/presentation/`, still: this task
- * owns three `styles/` partials touched by this widening plus the library's own, not an audit of
- * every directory this repository has, and a walk over the rest would make this file the
- * unplanned owner of whatever pre-existing gaps live there — a different task's finding, not
+ * widened walk found three undeclared classes on its first run — the two the review had found by
+ * hand (X7 `rp-form-banner__glyph`, X8 `rp-designer-inspector-panel`) and one it had not
+ * (`rp-field-error__glyph` from `src/presentation/components/FieldError.vue`), which is the
+ * argument for the instrument over hand inspection. Not the whole of `src/presentation/`, still:
+ * this task owns three `styles/` partials touched by this widening plus the library's own, not
+ * an audit of every directory this repository has, and a walk over the rest would make this file
+ * the unplanned owner of whatever pre-existing gaps live there — a different task's finding, not
  * this one's to fix or to silently paper over with a wider exemption list.
  *
  * The extraction is the same two-reading rule `prototype-styles.test.ts` already proved out

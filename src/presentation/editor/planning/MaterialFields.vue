@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatPlanningNumber } from '../../i18n/planningFormat';
 import type { PlanningDraft } from './planningDraft';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import { QUANTITY_RULES } from '../../../domain/requirement/RequirementSource';
@@ -18,7 +19,7 @@ defineProps<{ baseline: PlanningBaseline; paused: boolean }>();
 				v-for="item in baseline.catalogue"
 				:key="item.asset.id"
 				:value="item.asset.id"
-			>{{ item.asset.name }} · {{ item.asset.unit }} · {{ item.price.amount }} {{ item.price.currency }}</option>
+			>{{ item.asset.name }} · {{ item.asset.unit }} · {{ formatPlanningNumber(item.price.amount) }} {{ item.price.currency }}</option>
 		</select>
 	</label>
 	<label>{{ tr('planning.rule') }}

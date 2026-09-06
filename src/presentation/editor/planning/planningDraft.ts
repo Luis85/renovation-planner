@@ -49,9 +49,11 @@ function recordDraft(cost: CostRecord | undefined, evidence: Evidence | undefine
  if (evidence) return { id: evidence.id, targetId: evidence.targetId, workId: evidence.workId, title: evidence.description, recordId: evidence.recordId };
  return {};
 }
+/** Inputs accept a decimal comma or point, with no thousands separators. */
+function decimalInput(value: string): string { return value.trim().replace(',', '.'); }
 export function materialInput(draft: PlanningDraft): MaterialInput {
-	return { id: draft.id, roomId: draft.roomId, assetId: draft.assetId, waste: new Decimal(draft.waste).div(100).toString(), override: draft.override,
-		source: { ...draft.source, targetId: draft.targetId, workId: draft.workId } };
+	return { id: draft.id, roomId: draft.roomId, assetId: draft.assetId, waste: new Decimal(decimalInput(draft.waste)).div(100).toString(), override: decimalInput(draft.override),
+		source: { ...draft.source, manual: decimalInput(draft.source.manual), coverage: decimalInput(draft.source.coverage), lot: decimalInput(draft.source.lot), minimum: decimalInput(draft.source.minimum), targetId: draft.targetId, workId: draft.workId } };
 }
 function replace<T extends { id: string }>(values: readonly T[], record: T): T[] { return [...values.filter(item => item.id !== record.id), record]; }
 export function planningInput(draft: PlanningDraft, baseline: PlanningBaseline): RenovationInput {
@@ -59,16 +61,16 @@ export function planningInput(draft: PlanningDraft, baseline: PlanningBaseline):
 	const link = { id: draft.id, roomId: draft.roomId, targetId: draft.targetId, workId: draft.workId };
 	if (draft.kind === 'procurement') {
 		const material = baseline.materials.find(item => item.entity.id === draft.requirementId)?.entity;
-		const record: Procurement = { ...link, requirementId: draft.requirementId, purchased: draft.purchased, reserved: draft.reserved, unit: material?.unit ?? 'piece' };
+		const record: Procurement = { ...link, requirementId: draft.requirementId, purchased: decimalInput(draft.purchased), reserved: decimalInput(draft.reserved), unit: material?.unit ?? 'piece' };
 		return { renovation: { ...renovation, depth: { ...depth, procurement: replace(depth.procurement, record) } }, intended: baseline.geometry.document.intended };
 	}
 	if (draft.kind === 'cost') {
 		const record: CostRecord = { ...link, title: draft.title, category: draft.category, requirementId: draft.requirementId,
-			planned: draft.planned ? of(draft.planned, baseline.currency) : null, cancelled: draft.cancelled,
-			facts: draft.facts.map(fact => ({ ...fact, amount: of(fact.amount, baseline.currency) })) };
+			planned: draft.planned ? of(decimalInput(draft.planned), baseline.currency) : null, cancelled: draft.cancelled,
+			facts: draft.facts.map(fact => ({ ...fact, amount: of(decimalInput(fact.amount), baseline.currency) })) };
 		return { renovation: { ...renovation, depth: { ...depth, costs: replace(depth.costs, record) } }, intended: baseline.geometry.document.intended };
 	}
 	const record: Evidence = { ...link, description: draft.title, type: draft.type, phase: draft.phase, path: draft.path, subpath: draft.subpath,
-		recordId: draft.recordId, pin: draft.pin ? { x: Number(draft.pinX), y: Number(draft.pinY) } : null };
+		recordId: draft.recordId, pin: draft.pin ? { x: Number(decimalInput(draft.pinX)), y: Number(decimalInput(draft.pinY)) } : null };
 	return { renovation: { ...renovation, depth: { ...depth, evidence: replace(depth.evidence, record) } }, intended: baseline.geometry.document.intended };
 }

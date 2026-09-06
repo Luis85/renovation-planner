@@ -9,6 +9,7 @@ import SaveStateIndicator from '../../../../src/presentation/editor/save-state/S
 import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
 import { SAVE_STATE_KEYS, type SaveState } from '../../../../src/presentation/editor/save-state/save-state';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
+import { usePlanningReadState } from '../../../../src/presentation/editor/planning/planningReadState';
 
 describe('the save-state indicator', () => {
 	beforeEach(() => {
@@ -45,6 +46,14 @@ describe('the save-state indicator', () => {
 describe('the derived Saved · refresh needed label', () => {
 	beforeEach(() => {
 		setActivePinia(createPinia());
+	});
+
+	it('qualifies a confirmed save even when planning has not published its first baseline', async () => {
+		const wrapper = mount(SaveStateIndicator), save = useSaveStateStore(), planning = usePlanningReadState();
+		save.beginSaving(); save.resolveOk(); planning.failed = true;
+		await wrapper.vm.$nextTick();
+		expect(planning.baseline).toBeNull(); expect(wrapper.text()).toBe('Saved · refresh needed');
+		planning.failed = false; await wrapper.vm.$nextTick(); expect(wrapper.text()).toBe('Saved');
 	});
 
 	it('reads Saved · refresh needed when saved AND the project store is stale, with its own mark class', async () => {

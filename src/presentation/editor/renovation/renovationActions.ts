@@ -20,11 +20,11 @@ import { useRenovationSession, type Perspective, type RenovationMode } from './r
 import { renovationDraft, type RenovationEditKind } from './renovationDraft';
 import RenovationForm from './RenovationForm.vue';
 
-export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask'>) {
+export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask' | 'writesBlocked' | 'openPlanNote'>) {
 	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore();
 	const session = useRenovationSession(), dialogs = useDialogStore(), save = useSaveStateStore();
 	const loading = ref(false);
-	const blocked = computed(() => loading.value || project.stale || save.state === 'saving' || session.perspective === 'review');
+	const blocked = computed(() => loading.value || runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
 	let alive = true;
 	let previous: { ids: typeof selection.selectedIds; viewport: typeof editor.viewport; roomId: string; focusedId: string; mode: RenovationMode } | null = null;
 	onBeforeUnmount(() => { alive = false; });
@@ -76,7 +76,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			const draft = renovationDraft(kind, roomId, id, read.plan.entity.renovation);
 			const busy = ref(false);
 			await dialogs.openDialog({ kind: 'form', title: tr(`renovation.edit.${kind}`), component: markRaw(RenovationForm), busy,
-				props: { draft, baseline: read, busy, paused: computed(() => project.stale),
+				props: { draft, baseline: read, busy, paused: runtime.writesBlocked, retry: runtime.refreshProjection, openSource: runtime.openPlanNote,
 					dispatch: (input: RenovationInput) => alive && context.commands.renovation
 						? runtime.dispatcher.run(context.commands.renovation.command(read, input, runtime.structureTask.ledger))
 						: Promise.resolve(err(undoSuperseded(context.planId as PlanId))),

@@ -819,3 +819,13 @@ suppliers, shared inventory, full quote comparison and live acceptance remain op
 See [connected planning evidence and traceability](connected-planning-evidence.md),
 [changed-file coverage](connected-planning-coverage.md) and ADR-0022. Only that demonstrated
 subset is complete. Global Increment D and full M12–M17 acceptance are not complete.
+
+## Increment E recovery and connected hardening — 2026-09-07
+
+The continuation of #88 implements retained planning read-back, read-only retry, unsafe-history
+gating, recoverable modal drafts, locale-safe planning numbers, filtered/coalesced invalidation
+and resource lifecycle checks. It also closes the original #88 Review/source measurement/event
+findings and subsequent generated-note/evidence recovery defects. The exact automated and browser
+scope is recorded in [recovery evidence](planning-recovery-evidence.md) and its
+[coverage ledger](planning-recovery-coverage.md). This is a bounded Phase 12 slice; it does not
+close global M00–M17 acceptance, live assistive technology or release readiness.

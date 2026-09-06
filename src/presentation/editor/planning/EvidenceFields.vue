@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { recordChoices } from './recordChoices';
-import { onBeforeUnmount, ref } from 'vue';
+import { onBeforeUnmount, ref, useId } from 'vue';
 import type { PlanningDraft } from './planningDraft';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import type { EvidenceFiles } from '../../../application/ports/EvidenceFiles';
 import { EVIDENCE_PHASES, EVIDENCE_TYPES } from '../../../domain/renovation/PlanningDepth';
 import { tr } from '../../i18n/strings';
 const draft = defineModel<PlanningDraft>('draft', { required: true });
-const props = defineProps<{ baseline: PlanningBaseline; paused: boolean; files?: EvidenceFiles }>();
+const props = defineProps<{ baseline: PlanningBaseline; paused: boolean; writeBlocked?: boolean; files?: EvidenceFiles }>();
+const filesId = useId();
 const error = ref(false), working = ref(false);
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
 async function create(file?: File): Promise<void> {
-	if (!props.files || props.paused || working.value) return;
+	if (!props.files || props.paused || props.writeBlocked || working.value) return;
 	working.value = true; error.value = false;
 	try {
 		const result = file ? await props.files.importFile(props.baseline.plan.entity.id, file.name, await file.arrayBuffer())
@@ -27,11 +28,11 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 <template>
 	<label>{{ tr('planning.path') }}<input
 		v-model="draft.path"
-		:readonly="paused || working"
+		:readonly="paused || writeBlocked || working"
 		name="path"
-		list="rp-evidence-files"
+		:list="filesId"
 	></label>
-	<datalist id="rp-evidence-files">
+	<datalist :id="filesId">
 		<option
 			v-for="path in files?.list()"
 			:key="path"
@@ -84,7 +85,7 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 	<template v-if="files">
 		<button
 			type="button"
-			:disabled="paused || working || !!draft.path"
+			:disabled="paused || writeBlocked || working || !!draft.path"
 			@click="create()"
 		>
 			{{ tr('planning.create-note') }}
@@ -92,7 +93,7 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 		<label>{{ tr('planning.import') }}<input
 			type="file"
 			accept=".md,.pdf,.png,.jpg,.jpeg,.gif,.webp"
-			:disabled="paused || working"
+			:disabled="paused || writeBlocked || working"
 			@change="importFile"
 		></label>
 	</template>

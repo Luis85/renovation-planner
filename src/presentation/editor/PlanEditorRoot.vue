@@ -54,6 +54,7 @@ const selection = useSelectionStore();
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
 const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
+const pausedReason = computed(() => tr(unrecoveredWrite.value ? 'editor.unrecovered' : 'editor.paused.reason'));
 
 /**
  * The overlay's props, or `null` for no overlay.
@@ -147,9 +148,9 @@ const backgroundStatus = ref<BackgroundStatus>('none');
 const warnings = computed(() =>
 	editorWarnings({
 		unrecoveredWrite: unrecoveredWrite.value,
-		stale: staleAfterRefresh.value,
-		refreshing: refreshing.value,
-		retriesFailed: retriesFailed.value,
+		stale: staleAfterRefresh.value || runtime.planning.failed.value,
+		refreshing: refreshing.value || runtime.planning.loading.value,
+		retriesFailed: Math.max(retriesFailed.value, runtime.planning.retriesFailed.value),
 		unreadableZones: unreadableZones.value,
 		backgroundStatus: backgroundStatus.value,
 		retry: () => void runtime.refreshProjection(),
@@ -247,7 +248,7 @@ function retireAddMenu(): void {
 }
 
 function hydrate(): void {
-	void projectStore.hydrate(context.queries, context.planId);
+	void runtime.refreshProjection();
 }
 
 /**
@@ -439,7 +440,7 @@ const showAddMenu = computed(() => renovationSession.perspective === 'plan' && a
 					:id="runtime.pausedReasonId"
 					class="rp-visually-hidden"
 				>
-					{{ tr('editor.paused.reason') }}
+					{{ pausedReason }}
 				</p>
 				<SelectionGuidance />
 				<PersistentWarningStrip :warnings="warnings" />

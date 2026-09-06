@@ -1,5 +1,5 @@
 import type { RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
-import { computed, inject, markRaw, onBeforeUnmount, provide, ref, shallowRef, type InjectionKey } from 'vue';
+import { computed, inject, markRaw, onBeforeUnmount, provide, ref, type InjectionKey } from 'vue';
 import { sameRenovation } from '../../../domain/renovation/sameRenovation';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
@@ -19,43 +19,12 @@ import { planningDraft, type PlanningKind } from './planningDraft';
 
 const KEY: InjectionKey<ReturnType<typeof providePlanningContext>> = Symbol('planning-depth');
 export function providePlanningContext(context: PlanEditorContext, runtime: EditorRuntime) {
-	const baseline = shallowRef<PlanningBaseline | null>(null), loading = ref(false), failed = ref(false);
+	const { baseline, loading, failed, findings, evidenceRevision, slow } = runtime.planning;
+	const refresh = runtime.refreshProjection;
 	const project = useProjectStore(), dialogs = useDialogStore(), session = useRenovationSession();
-	let alive = true, ticket = 0;
-	async function refresh(): Promise<void> {
-		if (!context.commands.planning) return;
-		const current = ++ticket; loading.value = true;
-		const result = await context.commands.planning.read(context.planId as PlanId);
-		if (!alive || current !== ticket) return;
-		loading.value = false; failed.value = !result.ok;
-		if (result.ok) baseline.value = result.value;
-	}
-	/**
-	 * The paths this plan's evidence links — each as written AND as it resolves today, since a
-	 * link (`receipt.pdf`) and the vault path it lands on (`Projects/Studio/receipt.pdf`) are two
-	 * spellings of one file and Obsidian's event carries the second.
-	 */
-	function evidencePaths(): string[] {
-		return (baseline.value?.plan.entity.renovation?.depth?.evidence ?? []).flatMap(item => {
-			const file = context.commands.evidenceFiles?.resolve(item.path + item.subpath, context.planId as PlanId);
-			return file?.ok ? [item.path, file.value.path] : [item.path];
-		});
-	}
-	if (context.commands.planning) {
-	const callbacks = [context.onPlanChanged.bind(context), context.onCatalogueChanged.bind(context), context.onProjectPricesChanged.bind(context), context.onRequirementFiguresChanged.bind(context)];
-	for (const subscribe of callbacks) onBeforeUnmount(subscribe(() => { void refresh(); }));
-	// The four doors above carry every entity event planning data depends on (plan, zones,
-	// assets, prices, requirement figures). The vault door is filtered to the evidence files
-	// this plan links, the way `BackgroundLayer` filters it to the sheet it draws: unfiltered,
-	// every note edit anywhere in the vault re-read every room's requirements and the whole
-	// priced catalogue in every open Plan Editor leaf. A folder's own path counts too: a
-	// folder rename or delete arrives as ONE event naming the folder, not one per file in it.
-	onBeforeUnmount(context.onVaultFileChanged(path => {
-		if (evidencePaths().some(linked => linked === path || linked.startsWith(path + '/'))) void refresh();
-	}));
-	}
-	onBeforeUnmount(() => { alive = false; ticket++; });
-	const blocked = computed(() => loading.value || failed.value || project.stale || runtime.renovation.blocked.value);
+	let alive = true;
+	onBeforeUnmount(() => { alive = false; });
+	const blocked = computed(() => loading.value || runtime.writesBlocked.value || runtime.renovation.blocked.value);
 	function matches(read: PlanningBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation) && sameGeometryDocument(
 			{ calibration: project.plan?.calibration ?? null, structure: project.structure, intended: project.intended, objects: [...project.zones.values()].map(item => ({ id: item.id, points: item.points })) },
@@ -65,22 +34,21 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 		const services = context.commands.planning;
 		if (blocked.value || dialogs.current || !baseline.value || !services) return;
 		const shown = baseline.value;
-		if (!matches(shown)) { notifyOperationFailure(undoSuperseded(context.planId as PlanId)); await runtime.refreshProjection(); await refresh(); return; }
+		if (!matches(shown)) { notifyOperationFailure(undoSuperseded(context.planId as PlanId)); await refresh(); return; }
 		const draft = planningDraft(kind, shown, session.roomId, id, session.focusedId);
         if (kind === 'evidence' && !id) draft.type = session.mode === 'photos' ? 'photo' : session.mode === 'notes' ? 'note' : 'document';
 		const busy = ref(false);
 		await dialogs.openDialog({ kind: 'form', title: tr(`planning.edit.${kind}`), component: markRaw(PlanningForm), busy,
-			props: { draft, baseline: shown, busy, paused: computed(() => project.stale), files: context.commands.evidenceFiles,
+			props: { draft, baseline: shown, busy, paused: runtime.writesBlocked, retry: refresh, openSource: runtime.openPlanNote, files: context.commands.evidenceFiles,
 				dispatch: (input: Parameters<NonNullable<typeof context.commands.planning>['material']>[1] | RenovationInput) => {
 					if (!alive) return Promise.resolve(err(undoSuperseded(context.planId as PlanId)));
 					const command = 'renovation' in input ? context.commands.renovation?.command(shown, input, runtime.structureTask.ledger) : services.material(shown, input, runtime.structureTask.ledger);
 					return command ? runtime.dispatcher.run(command) : Promise.resolve(err(undoSuperseded(context.planId as PlanId)));
 				} } });
-		if (alive) await refresh();
+
 	}
-	const value = { baseline, loading, failed, blocked, refresh, edit, files: context.commands.evidenceFiles, context, runtime };
+	const value = { baseline, loading, failed, findings, evidenceRevision, slow, blocked, refresh, edit, files: context.commands.evidenceFiles, context, runtime };
 	provide(KEY, value);
-	void refresh();
 	return value;
 }
 

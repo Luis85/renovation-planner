@@ -14,12 +14,8 @@ export function materialRows(baseline: PlanningBaseline) {
 		const source = sourceOf(entity, baseline), selected = baseline.catalogue.find(item => item.asset.id === entity.assetId);
 		const current = prepareMaterial(baseline, { id: entity.id, roomId: entity.origin.zoneId, assetId: entity.assetId, source,
 			waste: entity.wasteFactor.toString(), override: entity.quantity.override?.value.toString() ?? '' });
-		// The recorded source measurement is compared as well as the figures derived from it, the way
-		// `buildRequirementRow`'s `inputsStillMatch` does: packaging rounds to a whole lot, so a room
-		// or wall that moved a little can leave quantity and cost unchanged while `zoneArea` still
-		// records the old measurement — provenance the shopping list must not read as current.
 		const stale = entity.recalculationStatus === 'stale' || !current.ok || !entity.quantity.calculated.value.eq(current.value.quantity.calculated.value)
-			|| !entity.calculatedFrom.zoneArea.value.eq(current.value.calculatedFrom.zoneArea.value)
+			|| !entity.calculatedFrom.zoneArea.value.eq(current.value.calculatedFrom.zoneArea.value) || entity.calculatedFrom.zoneArea.unit !== current.value.calculatedFrom.zoneArea.unit
 			|| !sameMoney(entity.estimatedCost.calculated, current.value.estimatedCost.calculated) || !sameMoney(entity.calculatedFrom.unitCost, current.value.calculatedFrom.unitCost);
 		const procurement = baseline.plan.entity.renovation?.depth?.procurement.find(item => item.requirementId === entity.id);
 		return { entity, source, name: selected?.asset.name ?? entity.assetId, stale, refused: !current.ok, procurement,
@@ -28,7 +24,10 @@ export function materialRows(baseline: PlanningBaseline) {
 	});
 }
 export function costRows(baseline: PlanningBaseline, roomId: string) {
-	const materials = materialRows(baseline).filter(item => item.entity.origin.zoneId === roomId);
+	return roomCosts(baseline, roomId, materialRows(baseline));
+}
+function roomCosts(baseline: PlanningBaseline, roomId: string, allMaterials: ReturnType<typeof materialRows>) {
+	const materials = allMaterials.filter(item => item.entity.origin.zoneId === roomId);
 	const saved = (baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH).costs.filter(item => item.roomId === roomId);
 	const derived: CostRecord[] = materials.filter(item => !saved.some(cost => cost.requirementId === item.entity.id && !cost.cancelled)).map(item => ({
 		id: `estimate:${item.entity.id}`, roomId, targetId: item.source.targetId, workId: item.source.workId, title: item.name, category: 'material', requirementId: item.entity.id,
@@ -47,21 +46,25 @@ export function aggregateCosts(rows: ReturnType<typeof costRows>, currency: stri
 	return totals;
 }
 export type PlanningFinding = { kind: 'stale' | 'reconciliation' | 'missing-file'; roomId: string; id: string; description: string; mode: 'materials' | 'costs' | 'documents' | 'photos' | 'notes' };
-function financialFindings(baseline: PlanningBaseline): PlanningFinding[] {
- return baseline.geometry.document.objects.flatMap(room => costRows(baseline, room.id)
+function financialFindings(baseline: PlanningBaseline, materials: ReturnType<typeof materialRows>): PlanningFinding[] {
+ return baseline.geometry.document.objects.flatMap(room => roomCosts(baseline, room.id, materials)
   .filter(row => !row.totals.ok || row.totals.value.remaining.amount.startsWith('-'))
   .map(row => ({ kind: 'reconciliation' as const, roomId: room.id, id: row.record.id, description: row.record.title, mode: 'costs' as const })));
 }
-export function planningFindings(baseline: PlanningBaseline, files?: EvidenceFiles): PlanningFinding[] {
- const stale: PlanningFinding[] = materialRows(baseline).filter(item => item.stale).map(item => ({ kind: 'stale', roomId: item.entity.origin.zoneId, id: item.entity.id, description: item.name, mode: 'materials' }));
- const missing: PlanningFinding[] = (baseline.plan.entity.renovation?.depth?.evidence ?? [])
+export function evidenceFindings(baseline: PlanningBaseline, files?: EvidenceFiles): PlanningFinding[] {
+ return (baseline.plan.entity.renovation?.depth?.evidence ?? [])
   .filter(item => files && !files.resolve(item.path + item.subpath, baseline.plan.entity.id).ok)
   .map(item => ({ kind: 'missing-file', roomId: item.roomId, id: item.id, description: item.description, mode: item.type === 'photo' ? 'photos' : item.type === 'note' ? 'notes' : 'documents' }));
- return [...stale, ...financialFindings(baseline), ...missing].toSorted((a, b) => a.kind.localeCompare(b.kind, 'en') || a.id.localeCompare(b.id, 'en'));
+}
+export function planningFindings(baseline: PlanningBaseline, files?: EvidenceFiles): PlanningFinding[] {
+ const materials = materialRows(baseline);
+ const stale: PlanningFinding[] = materials.filter(item => item.stale).map(item => ({ kind: 'stale', roomId: item.entity.origin.zoneId, id: item.entity.id, description: item.name, mode: 'materials' }));
+ return [...stale, ...financialFindings(baseline, materials), ...evidenceFindings(baseline, files)].toSorted((a, b) => a.kind.localeCompare(b.kind, 'en') || a.id.localeCompare(b.id, 'en'));
 }
 export function shoppingBody(baseline: PlanningBaseline): string | null {
-	const rows = materialRows(baseline).filter(item => item.outstanding.gt(0));
-	if (rows.some(item => item.stale)) return null;
+	const materials = materialRows(baseline);
+	if (materials.some(item => item.stale)) return null;
+	const rows = materials.filter(item => item.outstanding.gt(0));
 	// One row per requirement deliberately preserves pricing/source context; no unsafe name-based merge.
 	return rows.map(item => `- [ ] ${item.name.replace(/[\r\n[\]<>]/g, ' ')}: ${item.outstanding.toString()} ${item.entity.unit} · ${item.price.amount} ${item.price.currency}/${item.entity.unit}\n  [[rp-id:${item.entity.id}]] · [[rp-id:${item.entity.origin.zoneId}]] · ${item.source.state}/${item.source.rule} · waste ${item.entity.wasteFactor.mul(100).toString()}% · lot ${item.source.lot || '—'} · minimum ${item.source.minimum || '—'}`).join('\n');
 }

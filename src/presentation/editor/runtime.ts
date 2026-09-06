@@ -1,3 +1,5 @@
+import { createLatestRead } from '../composables/latest-read';
+import { createPlanningRefresh } from './planning/planningRefresh';
 import { selectAndFrameOn } from './selection/selectAndFrame';
 import { createRenovationDeletionGuard } from './renovation/renovationDeleteGuard';
 import { createHistoryActions } from './tools/historyActions';
@@ -80,6 +82,7 @@ import { createNudgeSelectionAction } from './nudge';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly planning: ReturnType<typeof createPlanningRefresh>;
 	readonly renovation: ReturnType<typeof createRenovationActions>;
 	readonly structureTask: ReturnType<typeof createStructureTask>;
 	readonly structureActions: ReturnType<typeof createStructureActions>;
@@ -444,23 +447,11 @@ function createDeleteZoneAction(
  * move happened to overwrite the stale id. Clearing the id here is what makes the cursor's
  * withdrawal a fact rather than a race, and the KIND goes with it because the two are one fact
  * in two fields (see `RenderState.hoveredTargetKind`).
- *
- * **The Inspector's cached DTO is re-read here too, for the same reason and off the same
- * watch.** `InspectorStore.dto` is what the query answered when the selection last changed, and
- * the post-command funnel (`createProjectionRefresh`) was the only thing that invalidated it — so
- * a rename or resize landing through `onPlanChanged` (a second Plan Editor leaf on the same
- * plan, a synced note) re-hydrated the canvas and the room list and left the heading showing the
- * old name indefinitely. A hydrate landing is the one moment both facts move, and hanging the
- * refresh off it rather than off a second `onPlanChanged` subscription keeps the order the
- * funnel's own docblock requires (map first, DTO second) and keeps the plan door at ONE
- * listener, which `planEditorView.test.ts` counts. The dispatching leaf pays one redundant
- * Inspector read per command for it — the same cost `PLAN_CHANGE_EVENTS` already accepts for the
- * canvas — and `refresh` is a no-op for anything but a single selection, so the mount's own
- * first hydrate costs nothing.
  */
 function registerSelectionRetirement(
-	projectStore: ReturnType<typeof useProjectStore>, selection: ReturnType<typeof useSelectionStore>,
-	renderState: RenderState, inspector: { refresh(): Promise<void> },
+	projectStore: ReturnType<typeof useProjectStore>,
+	selection: ReturnType<typeof useSelectionStore>,
+	renderState: RenderState,
 ): void {
 	watch(
 		() => [projectStore.zones, projectStore.structure] as const,
@@ -472,7 +463,6 @@ function registerSelectionRetirement(
 				renderState.hoveredObjectId = null;
 				renderState.hoveredTargetKind = null;
 			}
-			void inspector.refresh();
 		},
 	);
 }
@@ -574,6 +564,7 @@ function createCancelActiveTask(
 function buildDispatcherChain(
 	context: PlanEditorContext,
 ): {
+	readonly planning: ReturnType<typeof createPlanningRefresh>;
 	readonly wrappedDispatcher: RefreshedHistory;
 	readonly canUndo: Ref<boolean>;
 	readonly canRedo: Ref<boolean>;
@@ -585,28 +576,30 @@ function buildDispatcherChain(
 	const projectStore = useProjectStore(), session = useRenovationSession();
 	const history = new CommandHistory();
 	const inspectorRef: { current: { refresh(): Promise<void> } | null } = { current: null };
-	const refreshProjection = createProjectionRefresh({
+	const planning = createPlanningRefresh(context);
+	const refreshSpatial = createProjectionRefresh({
 		projectStore,
-		// `inspectorRef.current` is always set by the time anything calls this: the mutable
-		// cell exists only to break the construction-order cycle below (the dispatcher chain
-		// is built before the Inspector store that needs it, and nothing dispatches before
-		// `buildRuntime` finishes assigning `inspectorRef.current`). `?? Promise.resolve()`
-		// read as "inspector not yet created" and was never taken in production — v8's own
-		// branch count on that operator's right-hand side was 0 across the whole suite,
-		// which is the unreachable-guard shape this repository restructures rather than
-		// leaves uncovered. `async`/`await` still tolerates the type-level nullability
-		// `EditorContextDeps` and this cell both carry, with no second branch left to cover.
+		// The cell breaks construction order and is retired on disposal. A late hydration
+		// must not start another Inspector query after the editor has closed.
 		inspectorStore: { refresh: async () => { await inspectorRef.current?.refresh(); } },
 		queries: context.queries,
 		planId: context.planId,
 	});
+	const spatialReads = createLatestRead(refreshSpatial, () => {});
+	const refreshProjection = async (): Promise<void> => { await Promise.all([spatialReads.refresh(), planning.refresh()]); };
+	onBeforeUnmount(() => { inspectorRef.current = null; spatialReads.dispose(); projectStore.cancelHydration(); });
 	const dispatcher = withStateRefresh(history, refreshProjection);
-	const tracked = withSaveStateTracking(dispatcher, useSaveStateStore());
-	const gated = withStaleGate(tracked, () => projectStore.stale || session.perspective === 'review');
-	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, gated);
-	const writesBlocked = computed(() => projectStore.stale);
+	const save = useSaveStateStore();
+	const tracked = withSaveStateTracking(dispatcher, save);
+	const unsafeHistory = (): boolean => planning.failed.value || save.unrecoveredWrite;
+	const writesBlocked = computed(() => projectStore.stale || unsafeHistory());
+	const gated = withStaleGate(tracked, () => writesBlocked.value || session.perspective === 'review', unsafeHistory);
+	const historyState = wrapDispatcher(history, gated);
+	const wrappedDispatcher = historyState.dispatcher;
+	const canUndo = computed(() => !unsafeHistory() && historyState.canUndo.value);
+	const canRedo = computed(() => !unsafeHistory() && historyState.canRedo.value);
 	const pausedReasonId = useId();
-	return { wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
+	return { planning, wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
 }
 
 function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovation' | 'resizeRoom' | 'resizeRoomBlocked' | 'renameRoom' | 'renameRoomBlocked' | 'openReference' | 'referenceActive' | 'referenceBlocked'> {
@@ -618,6 +611,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const ledger = new SessionWriteLedger();
 
 	const {
+		planning,
 		wrappedDispatcher,
 		canUndo,
 		canRedo,
@@ -745,7 +739,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	);
 
 	const selectAndFrame = (id: string, toggle = false): void => selectAndFrameOn(projectStore, selection, editor, { id, toggle });
-	registerSelectionRetirement(projectStore, selection, renderState, inspector);
+	registerSelectionRetirement(projectStore, selection, renderState);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
 	// refusal — bound straight to the context bar's Undo/Redo clicks.
@@ -809,7 +803,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 		multiSelectionMode: ref(false),
 		createRoom, canCreateRoom, roomDraftIncomplete, roomDraft,
 		...areaTask,
-		refreshProjection, writesBlocked, pausedReasonId,
+		planning, refreshProjection, writesBlocked, pausedReasonId,
 		openPlanNote: () => context.openPlanNote(),
 		nudgeSelection,
 	};

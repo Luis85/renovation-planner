@@ -86,7 +86,13 @@ export async function runAreaBrowserMatrix(directory, query, journey, ready = '.
 				await page.addStyleTag({ content: 'body { --interactive-accent: #7c246b; --text-accent: #7c246b; --background-primary: #fff8ed; --background-secondary: #efe3d3; }' });
 				await page.evaluate(() => window.dispatchEvent(new Event('rp-harness-theme')));
 			}
-			const evidence = await journey(page, scenario, out);
+			let evidence;
+			try { evidence = await journey(page, scenario, out); }
+			catch (cause) {
+				await page.screenshot({ path: `${out}/${scenario.name}-failed.png` });
+				await writeFile(`${out}/${scenario.name}-failed.txt`, await page.locator('body').innerText());
+				throw cause;
+			}
 			assert.deepEqual(errors, []);
 			results.push({ scenario: scenario.name, browser: browser.version(), ...evidence, keyboard: 'passed', pageErrors: errors });
 			await page.close();

@@ -1,0 +1,1042 @@
+{
+  "whole": {
+    "statements": {
+      "covered": 14673,
+      "total": 14801
+    },
+    "branches": {
+      "covered": 9498,
+      "total": 9687
+    },
+    "functions": {
+      "covered": 4072,
+      "total": 4109
+    },
+    "lines": {
+      "covered": 11934,
+      "total": 12001
+    }
+  },
+  "edited": {
+    "statements": {
+      "covered": 1308,
+      "total": 1323
+    },
+    "branches": {
+      "covered": 977,
+      "total": 1002
+    },
+    "functions": {
+      "covered": 401,
+      "total": 410
+    },
+    "lines": {
+      "covered": 959,
+      "total": 968
+    }
+  },
+  "files": [
+    {
+      "path": "src/infrastructure/obsidian/vault/vaultFileChanges.ts",
+      "counts": {
+        "statements": {
+          "covered": 13,
+          "total": 13
+        },
+        "branches": {
+          "covered": 6,
+          "total": 6
+        },
+        "functions": {
+          "covered": 7,
+          "total": 7
+        },
+        "lines": {
+          "covered": 9,
+          "total": 9
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/plugin/RenovationPlannerPlugin.ts",
+      "counts": {
+        "statements": {
+          "covered": 191,
+          "total": 193
+        },
+        "branches": {
+          "covered": 45,
+          "total": 46
+        },
+        "functions": {
+          "covered": 51,
+          "total": 52
+        },
+        "lines": {
+          "covered": 168,
+          "total": 169
+        }
+      },
+      "uncovered": {
+        "statements": [
+          1048,
+          1123
+        ],
+        "functions": [
+          1047
+        ],
+        "branches": [
+          {
+            "line": 1123,
+            "arms": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/composables/latest-read.ts",
+      "counts": {
+        "statements": {
+          "covered": 38,
+          "total": 38
+        },
+        "branches": {
+          "covered": 12,
+          "total": 12
+        },
+        "functions": {
+          "covered": 9,
+          "total": 9
+        },
+        "lines": {
+          "covered": 21,
+          "total": 21
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/forms/DraftRecovery.vue",
+      "counts": {
+        "statements": {
+          "covered": 14,
+          "total": 14
+        },
+        "branches": {
+          "covered": 8,
+          "total": 8
+        },
+        "functions": {
+          "covered": 3,
+          "total": 3
+        },
+        "lines": {
+          "covered": 10,
+          "total": 10
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/PlanEditorRoot.vue",
+      "counts": {
+        "statements": {
+          "covered": 95,
+          "total": 95
+        },
+        "branches": {
+          "covered": 86,
+          "total": 86
+        },
+        "functions": {
+          "covered": 35,
+          "total": 35
+        },
+        "lines": {
+          "covered": 79,
+          "total": 79
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/CostRow.vue",
+      "counts": {
+        "statements": {
+          "covered": 13,
+          "total": 13
+        },
+        "branches": {
+          "covered": 27,
+          "total": 28
+        },
+        "functions": {
+          "covered": 7,
+          "total": 7
+        },
+        "lines": {
+          "covered": 11,
+          "total": 11
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": [
+          {
+            "line": 59,
+            "arms": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/CostTotals.vue",
+      "counts": {
+        "statements": {
+          "covered": 3,
+          "total": 3
+        },
+        "branches": {
+          "covered": 0,
+          "total": 0
+        },
+        "functions": {
+          "covered": 1,
+          "total": 1
+        },
+        "lines": {
+          "covered": 2,
+          "total": 2
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/EvidenceFields.vue",
+      "counts": {
+        "statements": {
+          "covered": 39,
+          "total": 40
+        },
+        "branches": {
+          "covered": 49,
+          "total": 50
+        },
+        "functions": {
+          "covered": 15,
+          "total": 15
+        },
+        "lines": {
+          "covered": 27,
+          "total": 27
+        }
+      },
+      "uncovered": {
+        "statements": [
+          16
+        ],
+        "functions": [],
+        "branches": [
+          {
+            "line": 16,
+            "arms": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/EvidenceInspector.vue",
+      "counts": {
+        "statements": {
+          "covered": 42,
+          "total": 42
+        },
+        "branches": {
+          "covered": 42,
+          "total": 45
+        },
+        "functions": {
+          "covered": 23,
+          "total": 23
+        },
+        "lines": {
+          "covered": 24,
+          "total": 24
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": [
+          {
+            "line": 20,
+            "arms": [
+              1
+            ]
+          },
+          {
+            "line": 25,
+            "arms": [
+              1
+            ]
+          },
+          {
+            "line": 25,
+            "arms": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/EvidencePreview.vue",
+      "counts": {
+        "statements": {
+          "covered": 10,
+          "total": 10
+        },
+        "branches": {
+          "covered": 14,
+          "total": 15
+        },
+        "functions": {
+          "covered": 4,
+          "total": 4
+        },
+        "lines": {
+          "covered": 6,
+          "total": 6
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": [
+          {
+            "line": 19,
+            "arms": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/MaterialFields.vue",
+      "counts": {
+        "statements": {
+          "covered": 19,
+          "total": 19
+        },
+        "branches": {
+          "covered": 25,
+          "total": 26
+        },
+        "functions": {
+          "covered": 14,
+          "total": 14
+        },
+        "lines": {
+          "covered": 17,
+          "total": 17
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": [
+          {
+            "line": 87,
+            "arms": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/MaterialNumbers.vue",
+      "counts": {
+        "statements": {
+          "covered": 1,
+          "total": 1
+        },
+        "branches": {
+          "covered": 10,
+          "total": 12
+        },
+        "functions": {
+          "covered": 0,
+          "total": 0
+        },
+        "lines": {
+          "covered": 1,
+          "total": 1
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": [
+          {
+            "line": 11,
+            "arms": [
+              0
+            ]
+          },
+          {
+            "line": 11,
+            "arms": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/MaterialRow.vue",
+      "counts": {
+        "statements": {
+          "covered": 12,
+          "total": 12
+        },
+        "branches": {
+          "covered": 24,
+          "total": 24
+        },
+        "functions": {
+          "covered": 7,
+          "total": 7
+        },
+        "lines": {
+          "covered": 11,
+          "total": 11
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/MaterialsInspector.vue",
+      "counts": {
+        "statements": {
+          "covered": 47,
+          "total": 48
+        },
+        "branches": {
+          "covered": 37,
+          "total": 39
+        },
+        "functions": {
+          "covered": 13,
+          "total": 13
+        },
+        "lines": {
+          "covered": 22,
+          "total": 22
+        }
+      },
+      "uncovered": {
+        "statements": [
+          26
+        ],
+        "functions": [],
+        "branches": [
+          {
+            "line": 26,
+            "arms": [
+              0
+            ]
+          },
+          {
+            "line": 63,
+            "arms": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/planningContext.ts",
+      "counts": {
+        "statements": {
+          "covered": 35,
+          "total": 37
+        },
+        "branches": {
+          "covered": 30,
+          "total": 34
+        },
+        "functions": {
+          "covered": 8,
+          "total": 8
+        },
+        "lines": {
+          "covered": 24,
+          "total": 24
+        }
+      },
+      "uncovered": {
+        "statements": [
+          35,
+          55
+        ],
+        "functions": [],
+        "branches": [
+          {
+            "line": 31,
+            "arms": [
+              1
+            ]
+          },
+          {
+            "line": 35,
+            "arms": [
+              0
+            ]
+          },
+          {
+            "line": 46,
+            "arms": [
+              1
+            ]
+          },
+          {
+            "line": 55,
+            "arms": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/planningDraft.ts",
+      "counts": {
+        "statements": {
+          "covered": 46,
+          "total": 46
+        },
+        "branches": {
+          "covered": 71,
+          "total": 71
+        },
+        "functions": {
+          "covered": 21,
+          "total": 21
+        },
+        "lines": {
+          "covered": 33,
+          "total": 33
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/PlanningForm.vue",
+      "counts": {
+        "statements": {
+          "covered": 71,
+          "total": 74
+        },
+        "branches": {
+          "covered": 77,
+          "total": 77
+        },
+        "functions": {
+          "covered": 20,
+          "total": 23
+        },
+        "lines": {
+          "covered": 44,
+          "total": 47
+        }
+      },
+      "uncovered": {
+        "statements": [
+          105,
+          126,
+          132
+        ],
+        "functions": [
+          105,
+          126,
+          132
+        ],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/PlanningInspector.vue",
+      "counts": {
+        "statements": {
+          "covered": 3,
+          "total": 3
+        },
+        "branches": {
+          "covered": 15,
+          "total": 15
+        },
+        "functions": {
+          "covered": 1,
+          "total": 1
+        },
+        "lines": {
+          "covered": 2,
+          "total": 2
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/planningProjection.ts",
+      "counts": {
+        "statements": {
+          "covered": 54,
+          "total": 54
+        },
+        "branches": {
+          "covered": 47,
+          "total": 47
+        },
+        "functions": {
+          "covered": 30,
+          "total": 30
+        },
+        "lines": {
+          "covered": 32,
+          "total": 32
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/planningReadState.ts",
+      "counts": {
+        "statements": {
+          "covered": 7,
+          "total": 7
+        },
+        "branches": {
+          "covered": 0,
+          "total": 0
+        },
+        "functions": {
+          "covered": 1,
+          "total": 1
+        },
+        "lines": {
+          "covered": 4,
+          "total": 4
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/planning/planningRefresh.ts",
+      "counts": {
+        "statements": {
+          "covered": 50,
+          "total": 50
+        },
+        "branches": {
+          "covered": 26,
+          "total": 26
+        },
+        "functions": {
+          "covered": 14,
+          "total": 14
+        },
+        "lines": {
+          "covered": 29,
+          "total": 29
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/renovation/renovationActions.ts",
+      "counts": {
+        "statements": {
+          "covered": 87,
+          "total": 87
+        },
+        "branches": {
+          "covered": 86,
+          "total": 90
+        },
+        "functions": {
+          "covered": 13,
+          "total": 13
+        },
+        "lines": {
+          "covered": 56,
+          "total": 56
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": [
+          {
+            "line": 65,
+            "arms": [
+              1
+            ]
+          },
+          {
+            "line": 80,
+            "arms": [
+              1
+            ]
+          },
+          {
+            "line": 85,
+            "arms": [
+              1
+            ]
+          },
+          {
+            "line": 98,
+            "arms": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/renovation/RenovationForm.vue",
+      "counts": {
+        "statements": {
+          "covered": 63,
+          "total": 69
+        },
+        "branches": {
+          "covered": 66,
+          "total": 69
+        },
+        "functions": {
+          "covered": 13,
+          "total": 18
+        },
+        "lines": {
+          "covered": 43,
+          "total": 48
+        }
+      },
+      "uncovered": {
+        "statements": [
+          62,
+          105,
+          112,
+          113,
+          120,
+          126
+        ],
+        "functions": [
+          105,
+          112,
+          113,
+          120,
+          126
+        ],
+        "branches": [
+          {
+            "line": 43,
+            "arms": [
+              1
+            ]
+          },
+          {
+            "line": 62,
+            "arms": [
+              0
+            ]
+          },
+          {
+            "line": 67,
+            "arms": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/renovation/ReviewInspector.vue",
+      "counts": {
+        "statements": {
+          "covered": 52,
+          "total": 52
+        },
+        "branches": {
+          "covered": 60,
+          "total": 61
+        },
+        "functions": {
+          "covered": 13,
+          "total": 13
+        },
+        "lines": {
+          "covered": 31,
+          "total": 31
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": [
+          {
+            "line": 36,
+            "arms": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/runtime.ts",
+      "counts": {
+        "statements": {
+          "covered": 163,
+          "total": 163
+        },
+        "branches": {
+          "covered": 52,
+          "total": 53
+        },
+        "functions": {
+          "covered": 56,
+          "total": 56
+        },
+        "lines": {
+          "covered": 127,
+          "total": 127
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": [
+          {
+            "line": 294,
+            "arms": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/presentation/editor/save-state/SaveStateIndicator.vue",
+      "counts": {
+        "statements": {
+          "covered": 8,
+          "total": 8
+        },
+        "branches": {
+          "covered": 9,
+          "total": 9
+        },
+        "functions": {
+          "covered": 2,
+          "total": 2
+        },
+        "lines": {
+          "covered": 7,
+          "total": 7
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/editor/tools/with-stale-gate.ts",
+      "counts": {
+        "statements": {
+          "covered": 7,
+          "total": 7
+        },
+        "branches": {
+          "covered": 7,
+          "total": 7
+        },
+        "functions": {
+          "covered": 6,
+          "total": 6
+        },
+        "lines": {
+          "covered": 7,
+          "total": 7
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/i18n/locales/de/planning.ts",
+      "counts": {
+        "statements": {
+          "covered": 1,
+          "total": 1
+        },
+        "branches": {
+          "covered": 0,
+          "total": 0
+        },
+        "functions": {
+          "covered": 0,
+          "total": 0
+        },
+        "lines": {
+          "covered": 1,
+          "total": 1
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/i18n/locales/en/planning.ts",
+      "counts": {
+        "statements": {
+          "covered": 1,
+          "total": 1
+        },
+        "branches": {
+          "covered": 0,
+          "total": 0
+        },
+        "functions": {
+          "covered": 0,
+          "total": 0
+        },
+        "lines": {
+          "covered": 1,
+          "total": 1
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/i18n/planningFormat.ts",
+      "counts": {
+        "statements": {
+          "covered": 12,
+          "total": 12
+        },
+        "branches": {
+          "covered": 16,
+          "total": 16
+        },
+        "functions": {
+          "covered": 2,
+          "total": 2
+        },
+        "lines": {
+          "covered": 9,
+          "total": 9
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    },
+    {
+      "path": "src/presentation/stores/ProjectStore.ts",
+      "counts": {
+        "statements": {
+          "covered": 111,
+          "total": 111
+        },
+        "branches": {
+          "covered": 30,
+          "total": 30
+        },
+        "functions": {
+          "covered": 12,
+          "total": 12
+        },
+        "lines": {
+          "covered": 101,
+          "total": 101
+        }
+      },
+      "uncovered": {
+        "statements": [],
+        "functions": [],
+        "branches": []
+      }
+    }
+  ]
+}

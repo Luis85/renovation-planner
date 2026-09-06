@@ -226,7 +226,7 @@
 	margin: 0;
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-smaller);
-	color: var(--text-warning);
+	color: var(--text-normal);
 	background-color: var(--background-secondary);
 	border-top: 1px solid var(--background-modifier-border);
 }
@@ -234,10 +234,9 @@
 /*
  * R5's per-item severity: a mark (the border) AND a word (`.rp-warning-strip__severity`),
  * never one alone — `docs/components/Toast.md`'s "both, always, never one". `.rp-warning-strip__item`
- * colours its text `--text-warning` by default; `--item--error` overrides BOTH the text colour
- * and the left-border mark to `--text-error`, so an error item's text and its border agree;
- * `--item--warning` adds only the left-border mark, in `--text-warning`, since the base text
- * colour is already that colour.
+ * keeps message text in `--text-normal` for readable contrast. Severity remains explicit in
+ * the bold word and semantic border colour; the host's orange warning token is too faint for
+ * small message text on the default light background.
  */
 .rp-warning-strip__severity {
 	font-weight: var(--bold-weight);
@@ -245,7 +244,6 @@
 }
 
 .rp-warning-strip__item--error {
-	color: var(--text-error);
 	border-left: 2px solid var(--text-error);
 }
 

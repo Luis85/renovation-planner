@@ -63,7 +63,7 @@ describe('connected planning editor', () => {
  });
  it('surfaces read/write failures, retries, and refuses a late peer edit while retaining the draft', async () => {
  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');
- vi.spyOn(services, 'read').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); rig.changePlan(); await settle(); expect(rig.wrapper.text()).toContain('could not'); await action(rig, 'Retry');
+ vi.spyOn(services, 'read').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); rig.changePlan(); await settle(); expect(rig.wrapper.text()).toContain('could not'); await rig.wrapper.get('[data-rp-warning="stale"] [data-rp-action="retry"] ').trigger('click'); await settle();
  await rig.wrapper.get('[data-rp-new-material]').trigger('click'); await settle(); const asset = expectOk(await rig.stack.assets.listAll()).loaded[0].entity; await rig.wrapper.get('select[name="asset"]').setValue(asset.id);
  vi.spyOn(rig.stack.requirements, 'save').mockRejectedValueOnce(new Error('disk')); await apply(rig); expect(rig.wrapper.find('[data-rp-form="planning"]').exists()).toBe(true); await apply(rig); expect(rig.wrapper.find('[data-rp-form="planning"]').exists()).toBe(false);
  });
@@ -82,6 +82,7 @@ describe('connected planning editor', () => {
  await action(rig, '1. Receipt'); await action(rig, 'Edit'); await rig.wrapper.get('input[name="title"]').setValue('Paid receipt'); await apply(rig); expect(rig.wrapper.text()).toContain('Paid receipt');
  const linked = rig.wrapper.findAll('.rp-renovation-inspector button').find(button => button.text().startsWith('Related record')); await expectDefined(linked, 'source link').trigger('click'); await settle(); expect(rig.session.mode).toBe('materials'); expect(rig.session.focusedId).toBe(requirement.id); expect(rig.selection.selectedIds).toEqual(selection);
  await action(rig, 'Costs', '.rp-planning-actions'); await rig.wrapper.get('[data-rp-new-cost]').trigger('click'); await settle(); await rig.wrapper.get('input[name="title"]').setValue('Labor'); await rig.wrapper.get('select[name="category"]').setValue('labor'); await rig.wrapper.get('input[name="planned"]').setValue('100'); await apply(rig);
+ rig.session.focusedId = ''; await settle(); expect(rig.wrapper.find('.rp-renovation-list > [aria-current="true"]').exists()).toBe(false);
  await action(rig, 'Documents', '.rp-planning-actions'); const phase = rig.wrapper.get('.rp-renovation-inspector select'); await phase.setValue('after'); expect(rig.wrapper.text()).not.toContain('Paid receipt'); expect(rig.selection.selectedIds).toEqual(selection); await phase.setValue('');
  const files = expectDefined(rig.deps.commands.evidenceFiles, 'files'); vi.spyOn(files, 'open').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.open', message: 'offline' })); await action(rig, 'Open in vault'); expect(rig.wrapper.text()).toContain('file action failed');
  });
@@ -188,16 +189,18 @@ describe('connected planning editor', () => {
  expect(write.mock.calls[0][1]).toContain('Lost receipt'); expect(write.mock.calls[0][1]).not.toContain('No gaps');
  });
 
- it('re-reads planning for a linked evidence file, by path or by resolved link, and never for an unrelated vault note', async () => {
+ it('refreshes linked evidence by stored or resolved path without re-reading planning and coalesces entity events', async () => {
  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning'), baseline = expectOk(await rig.renovation.read(rig.plan.id)), roomId = rig.room.id;
  const folder = expectDefined(rig.stack.index.getPath(rig.plan.id), 'plan note').replace(/[^/]*$/, ''); rig.stack.vault.entries.set(`${folder}receipt.pdf`, 'PDF fixture');
  const link = (id: string, path: string) => ({ id, roomId, targetId: roomId, workId: '', recordId: 'removed-record', path, subpath: '', description: id, type: 'document' as const, phase: 'before' as const, pin: null });
  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(baseline.plan.entity, { subjects: [], work: [], decisions: [], depth: { costs: [], procurement: [], evidence: [link('scan', 'scan.pdf'), link('receipt', 'receipt.pdf')] } })), baseline.plan.version)); rig.changePlan(); await settle();
  const read = vi.spyOn(services, 'read');
  rig.changeFile('Notes/Unrelated.md'); rig.changeFile(`${folder}scan.pdf`); await settle(); expect(read).not.toHaveBeenCalled();
- rig.changeFile('scan.pdf'); await settle(); expect(read).toHaveBeenCalledTimes(1);
- rig.changeFile(`${folder}receipt.pdf`); await settle(); expect(read).toHaveBeenCalledTimes(2);
- rig.changeRequirementFigures('any'); rig.changeCatalogue(); rig.changeProjectPrices(); await settle(); expect(read).toHaveBeenCalledTimes(5);
+ const revision = rig.runtime.planning.evidenceRevision.value;
+ rig.changeFile('scan.pdf'); await settle(); expect(read).not.toHaveBeenCalled();
+ rig.changeFile(`${folder}receipt.pdf`); await settle(); expect(read).not.toHaveBeenCalled();
+ expect(rig.runtime.planning.evidenceRevision.value).toBe(revision + 2);
+ rig.changeRequirementFigures('any'); rig.changeCatalogue(); rig.changeProjectPrices(); await settle(); expect(read).toHaveBeenCalledTimes(1);
  });
 
  it('shows unavailable estimates and readable fallback links after externally removed records', async () => {

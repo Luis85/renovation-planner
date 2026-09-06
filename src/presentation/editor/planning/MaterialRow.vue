@@ -17,9 +17,11 @@ const planning = usePlanningContext(), session = useRenovationSession();
 	>
 		<button
 			type="button"
+			:aria-current="session.focusedId === row.entity.id ? 'true' : undefined"
 			@click="planning.runtime.renovation.focus(session.roomId, 'materials', row.entity.id)"
 		>
 			{{ row.name }}
+			<span v-if="session.focusedId === row.entity.id"> · {{ tr('planning.selected') }}</span>
 		</button>
 		<p
 			v-if="row.stale"

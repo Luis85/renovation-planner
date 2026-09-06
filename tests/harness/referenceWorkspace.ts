@@ -53,5 +53,10 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 			readBinary: async file => (await fetch(sources[file.path as keyof typeof sources])).arrayBuffer(),
 		},
 	};
+	const planningServices = deps.commands.planning;
+	if (planningServices) {
+		const read = planningServices.read;
+		planningServices.read = async id => { await ready; return read(id); };
+	}
 	return { deps, stack, services, geometry, ready, plan };
 }

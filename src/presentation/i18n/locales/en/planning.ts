@@ -1,4 +1,7 @@
 export const planningEn = {
+	'planning.selected': 'Selected',
+	'planning.recovery.draft': 'Your draft is kept for this target. Apply is paused until the plan can be read again. Retrying only reads saved data.',
+	'planning.decimal-input': 'Use a decimal point or comma. Do not enter thousands separators.',
 	"planning.review-scope": "Review checks stale quantities, negative cost remaining and missing linked files. Evidence is optional; purchase progress does not determine work readiness.",
 	"planning.edit.material": "Add or edit material",
 	"planning.edit.procurement": "Update purchase quantities",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { observeFrontmatter, observeSidecar } from '../../../../src/infrastructure/obsidian/repositories/digest';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/projectFrontmatter';
-import { PLAN_TYPE, PlanFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/planFrontmatter';
+import { PLAN_TYPE, PlanFrontmatterSchemaV2 } from '../../../../src/infrastructure/persistence/dto/planFrontmatter';
 import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/zoneFrontmatter';
 import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/assetFrontmatter';
 import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/requirementFrontmatter';
@@ -91,7 +91,9 @@ describe('observation tokens', () => {
 describe("a note is digested against its own kind's schema", () => {
 	const SCHEMA_BY_TYPE: Readonly<Record<EntityType, { readonly shape: Readonly<Record<string, unknown>> }>> = {
 		[PROJECT_TYPE]: ProjectFrontmatterSchemaV1,
-		[PLAN_TYPE]: PlanFrontmatterSchemaV1,
+		// The NEWEST plan schema, not V1: `reference-appearance` is V2's key, and a digest
+		// derived from V1 let an external edit of it pass unseen (a Codex P1 on pull request #85).
+		[PLAN_TYPE]: PlanFrontmatterSchemaV2,
 		[ZONE_TYPE]: ZoneFrontmatterSchemaV1,
 		[ASSET_TYPE]: AssetFrontmatterSchemaV1,
 		[REQUIREMENT_TYPE]: RequirementFrontmatterSchemaV1,

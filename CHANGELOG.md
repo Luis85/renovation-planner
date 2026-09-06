@@ -12,6 +12,11 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: selected rectangular Rooms aligned with the floor axes can be resized entirely
+  by keyboard. An explicit dimension form previews changes, keeps the top-left corner fixed,
+  and applies one conditional reversible update through existing geometry persistence.
+  Other outlines are explained rather than converted; room/area creation remains unchanged.
+
 - Plan editor: Area corners can be entered, corrected and removed entirely by keyboard in
   metres, including decimal comma and signed positions. Numeric input and mouse gestures
   share one temporary outline and reversible creation. Pending coordinates and saving block

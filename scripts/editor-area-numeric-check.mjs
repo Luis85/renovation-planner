@@ -1,24 +1,9 @@
 import assert from 'node:assert/strict';
-import { escapeAreaTool, runAreaBrowserMatrix } from './editor-area-browser.mjs';
+import { escapeAreaTool, runAreaBrowserMatrix, tabTo, activate, enterPair, undoRedo } from './editor-area-browser.mjs';
 
 // All navigation and editing after load uses real keyboard input, including focus movement.
-async function tabTo(page, selector) {
-	for (let count = 0; count < 150; count++) {
-		if (await page.locator(selector).evaluateAll((els) => els.includes(document.activeElement))) return;
-		await page.keyboard.press('Tab');
-	}
-	throw new Error(`Tab did not reach ${selector}`);
-}
-async function activate(page, selector) {
-	await tabTo(page, selector);
-	await page.keyboard.press('Enter');
-}
 async function pair(page, x, y) {
-	await tabTo(page, '.rp-area-corners input[name="x"]');
-	await page.keyboard.press('Control+A'); await page.keyboard.type(x);
-	await page.keyboard.press('Tab');
-	assert.equal(await page.locator('input[name="y"]').evaluate((el) => el === document.activeElement), true, 'x then y in tab order');
-	await page.keyboard.press('Control+A'); await page.keyboard.type(y);
+	await enterPair(page, '.rp-area-corners input[name="x"]', 'input[name="y"]', x, y);
 	await page.keyboard.press('Enter');
 }
 async function begin(page) {
@@ -75,10 +60,7 @@ async function journey(page, scenario, out) {
 	await activate(page, '.rp-task-banner__finish');
 	await page.locator('.rp-task-banner').waitFor({ state: 'hidden' });
 	assert.equal(await page.locator('.rp-plan-canvas').evaluate((el) => el === document.activeElement), true);
-	await activate(page, '[data-rp-action="undo"]');
-	await page.waitForFunction(() => !document.querySelector('[data-rp-action="redo"]').disabled);
-	await activate(page, '[data-rp-action="redo"]');
-	await page.waitForFunction(() => document.querySelector('[data-rp-action="redo"]').disabled);
+	await undoRedo(page);
 	await begin(page);
 	await tabTo(page, '.rp-task-banner__repeat input'); await page.keyboard.press('Space');
 	await pair(page, '0', '0'); await pair(page, '2', '0'); await pair(page, '2', '2');

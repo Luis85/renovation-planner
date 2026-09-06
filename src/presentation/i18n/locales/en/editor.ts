@@ -24,6 +24,18 @@
  * `editor.room.default-name` in the source file's reading order. They stayed in `en.ts`.
  */
 export const editorEn = {
+	'editor.resize.current': 'Starting size: {width} m × {depth} m',
+	'editor.resize.latest': 'Latest saved size: {width} m × {depth} m. Your draft is unchanged. Cancel and reopen to use the current room.',
+	'editor.resize.latest-unavailable': 'The current room size cannot be read. Your draft is unchanged. Cancel, refresh the floor and reopen.',
+	'editor.resize.action': 'Change room size',
+	'editor.resize.title': 'Change size: {name}',
+	'editor.resize.anchor': 'The top-left corner stays fixed. Width extends to the right; depth extends downwards. Values are in metres. The dashed outline is a preview; the room changes only when you apply it.',
+	'editor.resize.preview': 'Preview: {width} m × {depth} m — {area}',
+	'editor.resize.invalid': 'Enter valid dimensions that can describe this room.',
+	'editor.resize.paused': 'Saving or refreshing this floor. Changes cannot be applied now.',
+	'editor.resize.apply': 'Apply dimensions',
+	'editor.resize.unsupported': 'Width and depth editing supports only rectangles aligned with the floor axes. Rotated and other outlines can be edited using their existing corner handles.',
+
 	'editor.selection.toggle-mode': 'Select multiple elements',
 	'editor.selection.shared-type': 'Shared type',
 	'editor.selection.mixed': 'Different types',

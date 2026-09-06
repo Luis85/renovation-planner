@@ -4,14 +4,40 @@ import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
 import { resolveChromiumExecutable } from './chromium.mjs';
 
+/** Real keyboard navigation; no locator focus/fill shortcuts. */
+export async function tabTo(page, selector) {
+	for (let count = 0; count < 150; count++) {
+		if (await page.locator(selector).evaluateAll(els => els.includes(document.activeElement))) return;
+		await page.keyboard.press('Tab');
+	}
+	throw new Error(`Tab did not reach ${selector}`);
+}
+export async function activate(page, selector) {
+	await tabTo(page, selector);
+	await page.keyboard.press('Enter');
+}
+export async function enterPair(page, firstSelector, secondSelector, first, second) {
+	await tabTo(page, firstSelector);
+	await page.keyboard.press('Control+A'); await page.keyboard.type(first);
+	await page.keyboard.press('Tab');
+	assert.equal(await page.locator(secondSelector).evaluate(el => el === document.activeElement), true, `Tab reaches ${secondSelector}`);
+	await page.keyboard.press('Control+A'); await page.keyboard.type(second);
+}
+export async function undoRedo(page) {
+	await activate(page, '[data-rp-action="undo"]');
+	await page.waitForFunction(() => !document.querySelector('[data-rp-action="redo"]').disabled);
+	await activate(page, '[data-rp-action="redo"]');
+	await page.waitForFunction(() => document.querySelector('[data-rp-action="redo"]').disabled);
+}
+
 export async function escapeAreaTool(page) {
 	await page.keyboard.press('Escape');
 	await page.locator('.rp-task-banner').waitFor({ state: 'hidden' });
 	assert.equal(await page.locator('.rp-plan-canvas').evaluate((el) => el === document.activeElement), true);
 }
 
-/** Both Area journeys use the same browser, theme, viewport and error checks. */
-export async function runAreaBrowserMatrix(directory, query, journey) {
+/** The editor journeys share browser, theme, viewport and error checks. */
+export async function runAreaBrowserMatrix(directory, query, journey, ready = '.rp-task-banner') {
 	const out = `harness-shots/${directory}`;
 	await mkdir(out, { recursive: true });
 	const server = await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0 } });
@@ -30,7 +56,7 @@ export async function runAreaBrowserMatrix(directory, query, journey) {
 			const errors = [];
 			page.on('pageerror', (error) => errors.push(error.message));
 			await page.goto(`${server.resolvedUrls.local[0]}?view=plan-editor${query}${scenario.query}`);
-			await page.locator('.rp-task-banner').waitFor();
+			await page.locator(ready).waitFor();
 			if (scenario.accent) {
 				await page.addStyleTag({ content: 'body { --interactive-accent: #7c246b; --text-accent: #7c246b; --background-primary: #fff8ed; --background-secondary: #efe3d3; }' });
 				await page.evaluate(() => window.dispatchEvent(new Event('rp-harness-theme')));
@@ -41,7 +67,7 @@ export async function runAreaBrowserMatrix(directory, query, journey) {
 			await page.close();
 		}
 		await writeFile(`${out}/report.json`, JSON.stringify(results, null, 2));
-		console.log(`Area browser checks passed (${results.length} scenarios). Artifacts: ${out}`);
+		console.log(`Editor browser checks passed (${results.length} scenarios). Artifacts: ${out}`);
 	} finally {
 		await browser?.close();
 		await server.close();

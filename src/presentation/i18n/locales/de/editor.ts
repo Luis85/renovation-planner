@@ -11,6 +11,18 @@ import type { editorEn } from '../en/editor';
  * (`...editorDe`).
  */
 export const editorDe: Record<keyof typeof editorEn, string> = {
+	'editor.resize.current': 'Ausgangsgröße: {width} m × {depth} m',
+	'editor.resize.latest': 'Zuletzt gespeicherte Größe: {width} m × {depth} m. Ihr Entwurf bleibt unverändert. Brechen Sie ab und öffnen Sie die Größenänderung erneut, um den aktuellen Raum zu verwenden.',
+	'editor.resize.latest-unavailable': 'Die aktuelle Raumgröße kann nicht gelesen werden. Ihr Entwurf bleibt unverändert. Brechen Sie ab, aktualisieren Sie den Grundriss und öffnen Sie die Größenänderung erneut.',
+	'editor.resize.action': 'Raumgröße ändern',
+	'editor.resize.title': 'Größe ändern: {name}',
+	'editor.resize.anchor': 'Die linke obere Ecke bleibt fest. Die Breite wächst nach rechts, die Tiefe nach unten. Werte in Metern. Der gestrichelte Umriss ist eine Vorschau; erst Anwenden ändert den Raum.',
+	'editor.resize.preview': 'Vorschau: {width} m × {depth} m — {area}',
+	'editor.resize.invalid': 'Geben Sie gültige Maße ein, die diesen Raum beschreiben können.',
+	'editor.resize.paused': 'Der Grundriss wird gespeichert oder aktualisiert. Änderungen können derzeit nicht angewendet werden.',
+	'editor.resize.apply': 'Maße anwenden',
+	'editor.resize.unsupported': 'Breite und Tiefe lassen sich nur bei Rechtecken entlang der Grundrissachsen ändern. Gedrehte und andere Umrisse können über ihre vorhandenen Eckgriffe bearbeitet werden.',
+
 	'editor.selection.toggle-mode': 'Mehrere Elemente auswählen',
 	'editor.selection.shared-type': 'Gemeinsamer Typ',
 	'editor.selection.mixed': 'Verschiedene Typen',

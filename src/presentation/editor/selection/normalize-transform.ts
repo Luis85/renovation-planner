@@ -1,3 +1,4 @@
+import type { Point } from '../../../core/geometry/Point';
 /**
  * Konva Transformer result normalization (SDD §60).
  *
@@ -38,19 +39,24 @@ export interface TransformerTransform {
 	readonly scaleY: number;
 }
 
+/** Shared bounds assembly for transformer scales and already-parsed exact dimensions.
+ * Numeric lengths skip the divide/multiply roundtrip (e.g. 2900 × (1 / 2900) is not 1).
+ * Negative transformer extents still absorb flips; room form lengths are positive.
+ */
+export function boundsFromDimensions(anchor: Point, width: number, height: number): BoundingBox {
+	const farX = anchor.x + width;
+	const farY = anchor.y + height;
+	return {
+		min: { x: Math.min(anchor.x, farX), y: Math.min(anchor.y, farY) },
+		max: { x: Math.max(anchor.x, farX), y: Math.max(anchor.y, farY) },
+	};
+}
+
 export function normalizeTransformerResult(
 	transform: TransformerTransform,
 	baseGeometry: BoundingBox,
 ): BoundingBox {
 	const width = (baseGeometry.max.x - baseGeometry.min.x) * transform.scaleX;
 	const height = (baseGeometry.max.y - baseGeometry.min.y) * transform.scaleY;
-	// `Math.min`/`Math.max` rather than a sign test, so the ordering is one expression with
-	// no arm that a negative scale reaches and a positive one does not — the flipped and
-	// un-flipped cases run exactly the same code.
-	const farX = transform.x + width;
-	const farY = transform.y + height;
-	return {
-		min: { x: Math.min(transform.x, farX), y: Math.min(transform.y, farY) },
-		max: { x: Math.max(transform.x, farX), y: Math.max(transform.y, farY) },
-	};
+	return boundsFromDimensions({ x: transform.x, y: transform.y }, width, height);
 }

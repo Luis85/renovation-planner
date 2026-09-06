@@ -89,3 +89,7 @@ the five values and what they do not claim.
 ## Outcome
 
 Written after the first walk: which steps passed, and anything only a live vault showed.
+
+
+Existing-room dimension changes have a separate bounded case: [[Resize a room]]. Its live-vault
+and screenreader rows remain open; creation/reload acceptance above is not implicitly completed.

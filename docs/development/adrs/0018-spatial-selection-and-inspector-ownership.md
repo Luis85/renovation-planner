@@ -75,3 +75,22 @@ corner delegates through `ToolManager.editActiveCorner` to `DrawPolygonTool`'s e
 checks outline validity, pending form input, stale state and saving before any completion door
 can dispatch. ADR-0016's Room/Area mapping and the Zone command/sidecar contracts are unchanged.
 Native fields retain Escape; the existing root route still owns Escape from task buttons.
+
+
+## Existing-room dimension form extension — 2026-09-06
+
+The single Room Inspector owns the entry, and `roomResizeAction` in the per-leaf runtime owns
+versioned baseline acquisition. `RoomDimensionsForm` owns only local text/validation and uses
+`FormDialog` for inert siblings, focus trapping, busy cancellation and opener restoration.
+Responsive panel remounts cannot replace the form because `DialogHost` belongs to the root.
+The existing InteractionLayer draws its temporary preview; the project projection is unchanged
+until the ordinary dispatcher refreshes after Apply. Inspector `geometry` edits use the same
+`ReversibleMoveZoneCommand` / `MoveSpatialObjectCommand` as canvas edits, adding the captured
+baseline expectation to the first dispatch. No component reads a repository or persists geometry.
+
+Only four-corner axis-aligned Room rectangles are supported. The world-min corner, vertex order
+and winding remain fixed; widths/depths mean x/y extents. Other outlines are explicitly unavailable
+for this form, never reduced to bounds. See M03's bounded precision contract and its test case.
+The form is an explicit modal task: Cancel/Escape discard, while saving refuses cancellation;
+selection/creation controls behind it are inert. This does not resolve SDD §101's wider Inspector
+field-commit policy, nor promise recovery after forced leaf/process termination.

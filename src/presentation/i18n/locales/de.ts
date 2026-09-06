@@ -501,6 +501,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'undo.superseded':
 		'Diese Änderung wurde nach diesem Schritt an anderer Stelle bearbeitet; ein Rückgängigmachen würde diese Bearbeitung verwerfen. Laden Sie neu und machen Sie es erneut rückgängig, wenn Sie es weiterhin möchten.',
 	'zone.nothing-to-undo': 'Noch nichts rückgängig zu machen.',
+	'plan.nothing-to-undo': 'Noch nichts rückgängig zu machen.',
 	'undo.before-execute': 'Noch nichts rückgängig zu machen.',
 	'save-state.saved': 'Gespeichert',
 	'save-state.saving': 'Wird gespeichert',

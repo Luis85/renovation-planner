@@ -42,4 +42,11 @@ describe('definitionChanges', () => {
 		const draft = { ...definitionDraft(baseline), waste: ' 5 ' };
 		expect(definitionChanges(draft, baseline)).toEqual({});
 	});
+
+	/** The same whitespace-only no-op, for `height` — trimmed now the same way its siblings are. */
+	it('answers the same no-op diff for a height value that only differs from the baseline by whitespace', () => {
+		const baseline = anEntry({ height: 5 });
+		const draft = { ...definitionDraft(baseline), height: ' 5 ' };
+		expect(definitionChanges(draft, baseline)).toEqual({});
+	});
 });

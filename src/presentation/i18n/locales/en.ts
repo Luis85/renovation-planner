@@ -789,6 +789,7 @@ export const en = {
 	// name the same fact from the user's side, so one English sentence serves them; kept as two
 	// keys because they are two distinct `AppError.code`s minted in different modules.
 	'zone.nothing-to-undo': 'Nothing to undo yet.',
+	'plan.nothing-to-undo': 'Nothing to undo yet.',
 	'undo.before-execute': 'Nothing to undo yet.',
 	// The diagnostics report's own keys. `session-only` is the first of this increment's two
 	// recorded limitations, put on the surface where the user meets it rather than only in a

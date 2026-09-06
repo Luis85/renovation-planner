@@ -48,10 +48,10 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * WHOLE list for the selected zone on every delivery, which is exactly what a row appearing or
  * disappearing needs and what the requirement-figures source's `drawsRequirement` guard cannot
  * give it — that guard can only match a row already in the list it is asked to refresh, so a
- * brand-new row would never pass it. The project pane also hears these now and re-reads its
- * price rows for a Requirement lifecycle change in its own project; harmless under the same
- * "each caller decides" rule the price events already live by, and cheaper than a fifth source
- * for three deliveries a session rarely produces.
+ * brand-new row would never pass it. The project pane's PRICES section also hears these now and
+ * re-reads its price rows for a Requirement lifecycle change in its own project; harmless under
+ * the same "each caller decides" rule the price events already live by, and cheaper than a fifth
+ * source for three deliveries a session rarely produces.
  */
 const PRICE_CHANGE_EVENTS = ['AssetPriceOverrideChanged'] as const;
 

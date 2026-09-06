@@ -77,7 +77,7 @@ than asserting the marker updates live.
 
 ## References
 
-- [[Shared UI vocabulary]]
+- [[The project surface]]
 - `docs/development/agent-guide-increment-history.md` — the PRE-EXISTING record this note
   points at rather than duplicates.
 - `docs/tests/cases/Move the Library.md` — steps 12 and 12b, the reload this issue's fix

@@ -507,6 +507,42 @@ describe('the project detail state’s price section', () => {
 		expect(document.querySelector('.rp-asset-price-list')).toBeNull();
 	});
 
+	/**
+	 * The PRE-await half of the same rule, from the other caller. The case above drives
+	 * `hydratePrices`'s POST-await `disposed` check by unmounting while the LOADER's own read is
+	 * out; this one drives the PRE-await check (`:86`) by unmounting while a WRITE's own command
+	 * dispatch is out. `refreshAfterWrite` calls `hydratePrices()` directly with no guard of its
+	 * own, so the pane going away between the dispatch and its answer leaves the pre-await check
+	 * as the only thing standing between a resolved write and a read for a pane that is gone.
+	 */
+	it('writes nothing when a price write lands after the pane went', async () => {
+		const harness = await mountSection({ rows: [priceRow(null)] });
+		let release!: (value: unknown) => void;
+		const hold = new Promise((resolve) => {
+			release = resolve;
+		});
+		harness.setAssetPriceOverride.mockImplementationOnce(() => hold);
+
+		const input = harness.wrapper.get('.rp-asset-price-input');
+		await input.setValue('19.50');
+		await input.trigger('keydown', { key: 'Enter' });
+		await flushPromises();
+		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
+		const readsBefore = harness.listAssetPrices.mock.calls.length;
+
+		harness.wrapper.unmount();
+		release(
+			ok({
+				override: { id: 'op-9' as AssetPriceOverrideId },
+				created: true,
+				version: { revision: 4, observed: 'observed-4' as ObservationToken },
+			}),
+		);
+		await flushPromises();
+
+		expect(harness.listAssetPrices).toHaveBeenCalledTimes(readsBefore);
+	});
+
 	it.each([true, false])('coalesces events received during a write (accepted: %s)', async (accepted) => {
 		const harness = await mountSection();
 		let release!: () => void;

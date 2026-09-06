@@ -114,7 +114,7 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 		/**
 		 * A write landed whole. Does NOT clear `unrecoveredWrite` — see that field's docblock
 		 * (R1): this wrapper cannot tell a repairing write from any other, so the flag stays
-		 * sticky for the leaf's life once `markUnrecovered` has set it.
+		 * sticky for the MOUNT's life (see that field's docblock for the rebind window).
 		 */
 		resolveOk(): void {
 			pendingCount.value -= 1;

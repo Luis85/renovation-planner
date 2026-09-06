@@ -1181,10 +1181,13 @@ function onKeyDown(event: KeyboardEvent): void {
 	// §85's one operation slice 5 left unreachable by keyboard (E8, Task 14): an arrow key
 	// nudges whatever `nudgeSelection` finds selected. `arrowVector` answers `null` for every
 	// other key, so this is a lookup rather than four more `if`s beside the ones above.
+	// `!event.repeat`: OS autorepeat re-reads the same pre-move zone every tick (the store
+	// only refreshes after the queued hydrate), so a held key would dispatch — and undo — the
+	// same move dozens of times instead of once.
 	const nudge = arrowVector(event);
 	if (nudge !== null) {
 		event.preventDefault();
-		void props.nudgeSelection(nudge);
+		if (!event.repeat) void props.nudgeSelection(nudge);
 		return;
 	}
 	if (fitShortcut(event)) return;

@@ -116,6 +116,25 @@ describe('arrow keys move the selected room (Task 14, E8)', () => {
 		harness.unmount();
 	});
 
+	it('a held ArrowRight (OS autorepeat) dispatches only the first press', async () => {
+		// The store only refreshes from the queued hydrate after the write lands, so a
+		// second synchronous keydown with `repeat: true` would read the same pre-move points
+		// and re-dispatch the identical forward translation — one press must mean one move.
+		const { calls, commands } = await nudgeRig();
+		const harness = await mountPlanEditorCanvas({ commands });
+		useSelectionStore().select([KITCHEN.id as never]);
+		await settle();
+
+		harness.canvasEl.focus();
+		key(harness.canvasEl, { key: 'ArrowRight' });
+		key(harness.canvasEl, { key: 'ArrowRight', repeat: true });
+		key(harness.canvasEl, { key: 'ArrowRight', repeat: true });
+		await settle();
+
+		expect(calls).toHaveLength(1);
+		harness.unmount();
+	});
+
 	it('Shift+ArrowDown moves by 100mm instead of 10', async () => {
 		const { calls, commands } = await nudgeRig();
 		const harness = await mountPlanEditorCanvas({ commands });
@@ -159,21 +178,11 @@ describe('arrow keys move the selected room (Task 14, E8)', () => {
 	});
 
 	it('does nothing with more than one zone selected', async () => {
-		const { zonesRepo, calls, commands } = await nudgeRig();
-		// A second zone, so the selection can hold two ids at once.
+		const { calls, commands } = await nudgeRig();
+		// The case rests on the SELECTION holding two ids, not on both resolving to a real
+		// zone — the `rest.length > 0` guard reads the selection before any lookup, so a
+		// second id the store never hydrated proves the same arm without a second save.
 		const terrace = FIXTURE_ZONES[1];
-		const geometry = expectOk(createPolygon(terrace.points));
-		await zonesRepo.save(
-			makeZone({
-				projectId: FIXTURE_PLAN.projectId as ProjectId,
-				planId: FIXTURE_PLAN.id as PlanId,
-				id: terrace.id as ZoneId,
-				name: terrace.name,
-				zoneType: 'Terrace',
-				geometry,
-			}),
-			'absent',
-		);
 		const harness = await mountPlanEditorCanvas({ commands });
 		useSelectionStore().select([KITCHEN.id as never, terrace.id as never]);
 		await settle();
@@ -216,8 +225,8 @@ describe('arrow keys move the selected room (Task 14, E8)', () => {
 		await settle();
 
 		// Nothing throws and nothing is left pending — the promise `onKeyDown` discards with
-		// `void` settles on its own — and the refusal left no history entry, which is the
-		// observable proof `reportDispatchFailure` ran rather than the write landing.
+		// `void` settles on its own — and the refusal left no history entry, which is what is
+		// actually asserted below: Undo stayed disabled, so no move was recorded.
 		key(harness.canvasEl, { key: 'ArrowRight' });
 		await settle();
 

@@ -1115,7 +1115,13 @@ function onKeyDown(event: KeyboardEvent): void {
 	// ABOVE the camera lock, and deliberately, for the same reason Escape is: it moves no
 	// camera, and a user holds Shift precisely while a gesture is in flight — gating it there
 	// would make the constraint dead exactly when it is wanted.
-	if (event.key === 'Shift') {
+	//
+	// Alt is the overlap-cycling modifier and takes the identical re-issue, for the identical
+	// reason: `SelectTool.targetAt` reads `modifiers.alt` for the hover AND the click, so a
+	// press over a stationary pointer left the hover predicting the topmost room while the
+	// click that followed cycled to the next one. Reported by a review bot on the
+	// multi-selection pull request.
+	if (event.key === 'Shift' || event.key === 'Alt') {
 		reissuePointerMove(event);
 		return;
 	}
@@ -1157,7 +1163,8 @@ function onKeyDown(event: KeyboardEvent): void {
  * nothing to this element at all.
  *
  * Shift is the angle constraint letting go, and it re-issues the move so the preview
- * unconstrains as promptly as it constrained. Space is the pan disarming — and a pan already
+ * unconstrains as promptly as it constrained; Alt is overlap cycling letting go, re-issued so
+ * the hover stops cycling the moment the click would. Space is the pan disarming — and a pan already
  * RUNNING is deliberately not ended by it, for the reason `PanOverride.disarmSpace` gives.
  *
  * **Not a symmetric pair with the press, and deliberately not one.** `onKeyDown`'s Shift
@@ -1171,7 +1178,7 @@ function onKeyDown(event: KeyboardEvent): void {
  * on. A space release there, by contrast, belongs to the button it lands on, not the camera.
  */
 function onKeyUp(event: KeyboardEvent): void {
-	if (event.key === 'Shift') {
+	if (event.key === 'Shift' || event.key === 'Alt') {
 		reissuePointerMove(event);
 		return;
 	}

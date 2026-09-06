@@ -471,10 +471,8 @@ function selectAndFrameOn(
  * first hydrate costs nothing.
  */
 function registerSelectionRetirement(
-	projectStore: ReturnType<typeof useProjectStore>,
-	selection: ReturnType<typeof useSelectionStore>,
-	renderState: RenderState,
-	inspector: { refresh(): Promise<void> },
+	projectStore: ReturnType<typeof useProjectStore>, selection: ReturnType<typeof useSelectionStore>,
+	renderState: RenderState, inspector: { refresh(): Promise<void> },
 ): void {
 	watch(
 		() => [projectStore.zones, projectStore.structure] as const,

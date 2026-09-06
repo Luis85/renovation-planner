@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { createPolygon } from '../../../src/core/geometry/Polygon';
-import { err } from '../../../src/core/result/Result';
+import { err, isErr, ok } from '../../../src/core/result/Result';
 import {
 	MoveSpatialObjectCommand,
 	type MoveSpatialObjectInput,
@@ -23,12 +23,14 @@ import {
 	unavailablePlanEditorCommands,
 	type PlanEditorCommandServices,
 } from '../../../src/presentation/editor/planEditorCommands';
+import { toZoneDto } from '../../../src/presentation/read-models/PlanDto';
+import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
 import { dispatchingEventBus } from '../../helpers/slice10';
 import { makeZone } from '../../helpers/entities';
 import { expectOk } from '../../helpers/domain';
 import { actionButton, activateTool } from '../../helpers/planEditorRig';
 import { mountPlanEditorCanvas, settle } from '../../helpers/editor';
-import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
+import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import type { ProjectId } from '../../../src/domain/project/ProjectId';
 import type { PlanId } from '../../../src/domain/plan/PlanId';
 import type { ZoneId } from '../../../src/domain/zone/ZoneId';
@@ -111,6 +113,89 @@ describe('arrow keys move the selected room (Task 14, E8)', () => {
 
 		const restored = expectOk(await zonesRepo.getById(KITCHEN.id as never));
 		if (restored === null) throw new Error('expected zone-kitchen to survive the undo');
+		expect(restored.entity.geometry.points).toEqual(KITCHEN.points);
+
+		harness.unmount();
+	});
+
+	it('two fast taps (Right then Down) accumulate, rather than the second overwriting the first', async () => {
+		// Codex P2: `createNudgeSelectionAction` used to read `projectStore.zones` and build
+		// its command SYNCHRONOUSLY, before `dispatcher.run()` ever serialized anything — so
+		// two non-repeat presses fired back to back (no `await` between the two `key()` calls
+		// below, exactly as the held-ArrowRight case above) both read the pre-move points and
+		// the second command overwrote the first translation instead of accumulating it.
+		//
+		// `fakeQueries`'s own `findZonesByPlan` answers a captured static array, which would
+		// never show that: the store's re-hydrate has to read back what the FIRST nudge
+		// actually wrote for the accumulation (or its absence) to be observable at all, so
+		// this rig's `findZonesByPlan` reads live from `zonesRepo` instead.
+		const zonesRepo = new InMemoryZoneRepository();
+		const events = dispatchingEventBus();
+		const geometry = expectOk(createPolygon(KITCHEN.points));
+		const zoneKitchen = makeZone({
+			projectId: FIXTURE_PLAN.projectId as ProjectId,
+			planId: FIXTURE_PLAN.id as PlanId,
+			id: KITCHEN.id as ZoneId,
+			name: KITCHEN.name,
+			zoneType: 'Room',
+			geometry,
+		});
+		await zonesRepo.save(zoneKitchen, 'absent');
+		const calls: MoveSpatialObjectInput[] = [];
+		const realMove = new MoveSpatialObjectCommand(zonesRepo, events);
+		const commands: PlanEditorCommandServices = {
+			...unavailablePlanEditorCommands(),
+			zones: zonesRepo,
+			events,
+			moveObject: {
+				execute: (input) => {
+					calls.push(input);
+					return realMove.execute(input);
+				},
+			},
+		};
+		const queries: PlanEditorQueryServices = {
+			...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+			findZonesByPlan: async () => {
+				const listing = await zonesRepo.listByPlan(FIXTURE_PLAN.id as PlanId);
+				if (isErr(listing)) return listing;
+				return ok({
+					zones: listing.value.loaded.map((loaded) => toZoneDto(loaded.entity)),
+					unreadable: listing.value.refused,
+				});
+			},
+		};
+		const harness = await mountPlanEditorCanvas({ commands, queries });
+		useSelectionStore().select([KITCHEN.id as never]);
+		await settle();
+
+		harness.canvasEl.focus();
+		key(harness.canvasEl, { key: 'ArrowRight' });
+		key(harness.canvasEl, { key: 'ArrowDown' });
+		await settle();
+
+		expect(calls).toHaveLength(2);
+		const afterRight = KITCHEN.points.map((p) => ({ x: p.x + 10, y: p.y }));
+		expect(calls[0].geometry.points).toEqual(afterRight);
+		// ACCUMULATED: the second command's forward polygon is translated from what the first
+		// wrote ({dx:10, dy:10} off the ORIGINAL points), not from the original alone
+		// ({dx:0, dy:10}), which is what the race produces.
+		const afterBoth = KITCHEN.points.map((p) => ({ x: p.x + 10, y: p.y + 10 }));
+		expect(calls[1].geometry.points).toEqual(afterBoth);
+
+		const moved = expectOk(await zonesRepo.getById(KITCHEN.id as never));
+		if (moved === null) throw new Error('expected zone-kitchen to exist');
+		expect(moved.entity.geometry.points).toEqual(afterBoth);
+
+		// Two accumulated moves are two undo entries, not one collapsed entry: undoing twice
+		// restores the original points.
+		actionButton(harness, 'Undo').click();
+		await settle();
+		actionButton(harness, 'Undo').click();
+		await settle();
+
+		const restored = expectOk(await zonesRepo.getById(KITCHEN.id as never));
+		if (restored === null) throw new Error('expected zone-kitchen to survive both undos');
 		expect(restored.entity.geometry.points).toEqual(KITCHEN.points);
 
 		harness.unmount();

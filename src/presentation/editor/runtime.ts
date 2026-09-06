@@ -411,7 +411,7 @@ function createNudgeSelectionAction(deps: {
 	readonly selection: ReturnType<typeof useSelectionStore>;
 	readonly projectStore: ReturnType<typeof useProjectStore>;
 }): (by: Vector) => Promise<void> {
-	return async (by) => {
+	async function runNudge(by: Vector): Promise<void> {
 		if (deps.activeToolId.value !== 'select') return;
 		const [zoneId, ...rest] = deps.selection.selectedIds;
 		if (zoneId === undefined || rest.length > 0) return;
@@ -423,6 +423,22 @@ function createNudgeSelectionAction(deps: {
 			moveGesture(deps.context, deps.ledger)(zoneId as ZoneId, forward, inverse),
 		);
 		if (!result.ok) reportDispatchFailure(result.error);
+	}
+	// Serialized on a chain private to this leaf's nudge action, not `deps.dispatcher.run`'s
+	// own queue — that queue only serializes the WRITE, one step later than the read this
+	// closure takes. `projectStore.zones` is refreshed only by the dispatch's own queued
+	// projection refresh, so two arrow taps arriving before the first refresh lands both read
+	// the same stale `zone.points`, build their commands from it, and the second dispatch
+	// overwrites the first translation instead of accumulating it (Codex P2 finding). Chaining
+	// the whole call — the read included — defers the second tap until the first has fully
+	// resolved, so every tap reads what the previous one actually wrote. No `.catch` here: the
+	// branded `ToolDispatcher` this closure calls is guaranteed never to reject
+	// (`mapDispatchFaults`), so a catch arm would be the unreachable-guard shape this
+	// repository restructures around rather than leaves uncovered.
+	let chain: Promise<void> = Promise.resolve();
+	return (by) => {
+		chain = chain.then(() => runNudge(by));
+		return chain;
 	};
 }
 

@@ -47,6 +47,16 @@ describe('renovation draft semantics and spatial proposals', () => {
 		const saved = { ...read, plan: { ...read.plan, entity: expectOk(withPlanRenovation(read.plan.entity, result.renovation)) }, geometry: { ...read.geometry, document: { ...read.geometry.document, intended: result.intended } } };
 		const discarded = removeRenovationRecord(saved, subject.id, true); expect(discarded.intended?.openings).toEqual([opening]);
 	});
+	it("allocates an addition's id without touching the draft, so the geometry kind stays editable until the change is committed", async () => {
+		// Preview and Apply both run `applyPlannedGeometry`; assigning the id INTO the draft on
+		// the preview hid `PlannedGeometryFields`' kind selector before anything was persisted.
+		const rig = await renovationStack(), baseline = expectOk(await rig.read());
+		const subject = { ...rig.value.subjects[0], targetId: rig.roomId, existing: null, planned: { change: 'add' as const, description: 'New wall' } };
+		const draft = plannedGeometryDraft(baseline, subject); draft.kind = 'wall';
+		const preview = expectOk(applyPlannedGeometry(baseline, { renovation: { subjects: [subject], work: [], decisions: [] }, intended: undefined }, subject, draft));
+		expect(draft.id).toBe('');
+		expect(preview.intended?.walls.at(-1)?.id).toBe(preview.renovation.subjects[0].targetId);
+	});
 	it('rejects invalid measurements and treats nonspatial and Existing-only drafts as metadata', async () => {
 		const rig = await renovationStack(), baseline = expectOk(await rig.read()), subject = rig.value.subjects[0], input = { renovation: rig.value, intended: undefined };
 		const draft = plannedGeometryDraft(baseline, subject); expect(geometryFields(draft)).toEqual([]); expect(expectOk(applyPlannedGeometry(baseline, input, subject, draft))).toEqual(input);

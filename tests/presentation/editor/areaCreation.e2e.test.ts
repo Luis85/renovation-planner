@@ -238,11 +238,13 @@ describe('M02 Area through the real catalogue, tools, commands and repositories'
 		harness.unmount();
 	});
 
-	it('Enter on the canvas keeps the busy guard the Finish button keeps', async () => {
+	it.each(['Enter', 'target'])('%s on the canvas keeps the busy guard the Finish button keeps', async (door) => {
 		// `canFinishArea` is false while ANOTHER command is still saving, and the Finish button
 		// says so with `aria-disabled`; the canvas Enter used to call `finishActiveTool()`
-		// straight and queue the Area behind that write. One action, every input: the canvas
-		// goes through `runtime.finishArea` now, the same door the button takes.
+		// straight and queue the Area behind that write, and the first-corner click reached the
+		// tool's own `finish()` the same way. One action, every input: the canvas Enter goes
+		// through `runtime.finishArea`, the door the button takes, and `finish()` itself asks
+		// the same `canFinish` on this branch, so the first-corner click is refused there.
 		const { harness, zonesRepo } = await rig();
 		const runtime = runtimeOf(harness);
 		const save = zonesRepo.save.bind(zonesRepo);
@@ -255,7 +257,8 @@ describe('M02 Area through the real catalogue, tools, commands and repositories'
 		await start(harness);
 		outline(harness);
 		expect(runtime.canFinishArea.value).toBe(false);
-		key(harness.canvasEl as HTMLElement, 'Enter');
+		if (door === 'Enter') key(harness.canvasEl as HTMLElement, 'Enter');
+		else click(harness.canvasEl as HTMLElement, 100, 200);
 		await settle();
 		release();
 		await settleUntil(() => useSaveStateStore().state !== 'saving', 'the move landing');

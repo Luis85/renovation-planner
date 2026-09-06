@@ -18,6 +18,20 @@ import { joinFolder, libraryGeometryFolderFor, normalizeFolder, parentOf } from 
  * exception to a rule with no exceptions.
  */
 
+/**
+ * Which side of the settings write a library persist got to (N4).
+ *
+ * Declared HERE rather than beside `persistLibraryFolder`, which produces it, because this
+ * module is what the distinction MEANS something to: the three values map one-to-one onto
+ * what this migration then reports, and two of them say opposite things about whether the
+ * setting reached `data.json`. A `boolean` at the call site below would read as nothing.
+ *
+ * `'unrecovered'` is the settings-never-read guard both write doors carry. It is reported as
+ * a persist failure here — nothing was written, which is the half of that sentence a user
+ * acts on — rather than earning a fourth code for a state the pane cannot reach anyway.
+ */
+export type LibraryPersistOutcome = 'persisted' | 'apply-failed' | 'unrecovered';
+
 export interface LibraryMigrationDeps {
 	/** Every project's own folder, as ADR-0013 derives it: where its `Project.md` sits. */
 	projectFolders(): readonly string[];
@@ -49,12 +63,56 @@ export interface LibraryMigrationDeps {
 	renameFile(file: TFile, to: string): Promise<void>;
 	rebuildIndex(): void;
 	/**
-	 * Writes `data.json` and swaps the composition root, IN THAT ORDER. Never
-	 * `saveSettings` directly: that swaps first and writes second, so a rejecting write
-	 * strands the session on a folder the file does not name.
+	 * Writes `data.json` and swaps the composition root, IN THAT ORDER, and says which of the
+	 * two it got through. Never `saveSettings` directly — that door pins `libraryFolder` to
+	 * the value the session already holds, because a control bound to it would persist a
+	 * folder with no notes moved.
+	 *
+	 * It REJECTS for a failed write and RESOLVES an outcome for everything past it, which is
+	 * the split step 6 reports on: "the setting could not be saved" and "the setting was
+	 * saved, the session could not switch to it" are opposite claims about the same step, and
+	 * a single `catch` cannot tell them apart.
 	 */
-	persist(libraryFolder: string): Promise<void>;
+	persist(libraryFolder: string): Promise<LibraryPersistOutcome>;
 	logger: Logger;
+}
+
+/**
+ * The two persist outcomes that are not a success, as the failures they report (N4).
+ *
+ * A function rather than two more arms inline, because `migrateLibraryFolder` is at
+ * `max-lines-per-function` and this is the part of it that is about ONE step — the same seam
+ * argument the rest of this repository's extractions make, not a budget bought by
+ * reformatting.
+ *
+ * They cannot share a code: `'apply-failed'` says the setting reached `data.json` and the
+ * session did not follow, so sending the user to re-apply a value the file already holds is
+ * the wrong remedy — only a reload catches the session up. `'unrecovered'` is the write
+ * door's settings-never-read guard, where nothing was written at all, which is what the
+ * persist sentence already says.
+ *
+ * No `cause` on either: the write door logged its own throw under its own event at the site
+ * that caught it, and a second copy here is one exception filed under two names.
+ */
+function persistFailure(
+	outcome: Exclude<LibraryPersistOutcome, 'persisted'>,
+	destination: string,
+	logger: Logger,
+): AppError {
+	if (outcome === 'apply-failed') {
+		logger.error('settings.library-apply-failed', { destination });
+		return {
+			category: 'Persistence',
+			code: 'settings.library-apply-failed',
+			message: `The catalogue moved to ${destination} and the setting was saved, but the session could not switch to it.`,
+		};
+	}
+	logger.error('settings.library-persist-failed', { destination });
+	return {
+		category: 'Persistence',
+		code: 'settings.library-persist-failed',
+		message: `The catalogue moved to ${destination} but the setting could not be saved.`,
+	};
 }
 
 /**
@@ -288,8 +346,9 @@ export async function migrateLibraryFolder(
 		});
 	}
 
+	let outcome: LibraryPersistOutcome;
 	try {
-		await deps.persist(destination);
+		outcome = await deps.persist(destination);
 	} catch (cause) {
 		// The one failure this function cannot make safe: every note has MOVED and the
 		// durable setting still names the old folder, so a restart writes new catalogue
@@ -308,8 +367,14 @@ export async function migrateLibraryFolder(
 			cause,
 		});
 	}
+
+	// N4: everything the catch above cannot see. `persistLibraryFolder` RESOLVES for these,
+	// precisely because the half its own caller asked for succeeded or was never attempted.
+	if (outcome !== 'persisted') return err(persistFailure(outcome, destination, deps.logger));
+
 	return ok(undefined);
 }
+
 
 /**
  * Every project's folder, derived from where its own note sits (ADR-0013) and resolved

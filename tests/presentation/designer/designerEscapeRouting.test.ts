@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { designerRig } from '../../helpers/designerRig';
+import { settle } from '../../helpers/settle';
 
 function key(canvas: HTMLElement, init: KeyboardEventInit): void {
 	canvas.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ...init }));
@@ -38,6 +39,25 @@ describe('Escape on the asset designer surface', () => {
 		key(rig.canvasEl, { key: 'Escape' });
 
 		expect(useSelectionStore(rig.pinia).selectedIds).toEqual([]);
+		rig.unmount();
+	});
+});
+
+/**
+ * `DesignerCanvas.vue:113`'s `nudgeSelection` is the inert half of E8/Task 14: this surface's
+ * own `selection` never holds anything (see that file's header), so `EditorSurface`'s arrow-key
+ * routing still calls the prop — there is nothing here for it to move, and the case is that
+ * calling it does nothing rather than throwing or writing.
+ */
+describe('an arrow key on the asset designer surface', () => {
+	it('reaches the inert nudgeSelection without throwing or writing to the sidecar', async () => {
+		const rig = await designerRig();
+		const before = await rig.document();
+
+		expect(() => key(rig.canvasEl, { key: 'ArrowRight' })).not.toThrow();
+		await settle();
+
+		expect(await rig.document()).toEqual(before);
 		rig.unmount();
 	});
 });

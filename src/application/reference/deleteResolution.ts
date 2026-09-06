@@ -110,8 +110,12 @@ export interface ResolutionOps<TEntity> {
 	 * — the vault really did get every write — while leaving a durable marker that outlived
 	 * the sequence it describes. The save indicator settles on `Saved`, correctly, and
 	 * without this the whole of the user's notice is a log line they never see.
+	 *
+	 * REQUIRED, like `CascadeDeps.notify` and for the same reason both of them were cited as
+	 * a precedent while both were optional: a composition that forgets a SILENT writer's one
+	 * surface compiles, passes and says nothing.
 	 */
-	readonly notify?: {
+	readonly notify: {
 		markerClearFailed(entityId: string): void;
 	};
 	/**
@@ -299,26 +303,6 @@ async function prepare<TEntity>(
 	return ok({ affectedBefore, entitySnapshot: entitySnapshot.value });
 }
 
-async function recordMarker(
-	markers: SequenceMarkerStore | undefined,
-	marker: SequenceMarker,
-): Promise<Result<void, RepositoryError>> {
-	if (!markers) return ok(undefined);
-	const written = await markers.write(marker);
-	if (isErr(written)) return written;
-	return ok(undefined);
-}
-
-async function clearMarker(
-	markers: SequenceMarkerStore | undefined,
-	entityId: string,
-): Promise<Result<void, RepositoryError>> {
-	if (!markers) return ok(undefined);
-	const cleared = await markers.clear(entityId);
-	if (isErr(cleared)) return cleared;
-	return ok(undefined);
-}
-
 /**
  * One per-referent write plus the event it earns — collected rather than published
  * inline, because this whole sequence is compensated on a later failure and an event is a
@@ -327,6 +311,17 @@ async function clearMarker(
  * `RequirementRecalculated` — and `CostEstimateChanged`, if the figure moved — from inside
  * its own save, and announcing `RequirementInvalidated` here as well would claim a
  * recalculation is still owed for a row that is current and freshly derived).
+ *
+ * **"Collected rather than published inline" is true of what THIS type carries, and of one
+ * arm it is not true at all** — the sentence read as a property of the whole sequence for
+ * two slices while the exception sat three functions below it. The reassign arm's
+ * `recalculateInline` publishes `RequirementRecalculated` (and `CostEstimateChanged`) from
+ * inside its own save, BEFORE `deleteEntity`, so a peer leaf can read the intermediate
+ * state of a sequence that then compensates. That is not closed here: it is corrected by
+ * `RequirementRestored` on compensation, subscribed by the zone-list source since the
+ * events task that follows this one. What is refused is the wider claim: the correction is
+ * a second event, not the absence of the first, and a reader deciding whether a new arm may
+ * publish inline needs to know which of the two rules is the one in force.
  */
 interface AppliedStep {
 	readonly progress: SequenceProgress;
@@ -405,7 +400,7 @@ async function applyAll<TEntity>(
 	ops: ResolutionOps<TEntity>,
 	input: ResolutionInput,
 	marker: SequenceMarker,
-	markers: SequenceMarkerStore | undefined,
+	markers: SequenceMarkerStore,
 ): Promise<Result<readonly DomainEvent[], DeleteResolutionErrors>> {
 	const announcements: DomainEvent[] = [];
 	for (const requirement of marker.affectedBefore) {
@@ -413,7 +408,7 @@ async function applyAll<TEntity>(
 		if (isErr(applied)) return err(applied.error);
 		marker.progress.push(applied.value.progress);
 		if (applied.value.announcement !== null) announcements.push(applied.value.announcement);
-		const recorded = await recordMarker(markers, marker);
+		const recorded = await markers.write(marker);
 		if (isErr(recorded)) return err(recorded.error);
 	}
 	return ok(announcements);
@@ -449,6 +444,7 @@ async function compensate<TEntity>(
 	ops: ResolutionOps<TEntity>,
 	marker: SequenceMarker,
 	cause: DeleteResolutionErrors,
+	markers: SequenceMarkerStore,
 ): Promise<Result<never, DeleteResolutionErrors>> {
 	let uncompensated = false;
 	for (const entry of [...marker.progress].toReversed()) {
@@ -484,6 +480,22 @@ async function compensate<TEntity>(
 			);
 		}
 	}
+	// A compensation that restored everything has returned the vault to its pre-state, so its
+	// marker describes nothing left to do — and leaving it makes the NEXT load replay
+	// `restoreEntry` against the versions these restores just moved past, logging a
+	// `sequence.recovery.restore-refused` at ERROR per entry over a correct vault before
+	// clearing it anyway. An UNcompensated sequence keeps its marker on purpose: that is
+	// exactly what the next load recovers.
+	if (!uncompensated) {
+		const cleared = await markers.clear(ops.entityId);
+		if (isErr(cleared)) {
+			ops.logger.error('sequence.marker-clear.failed', {
+				entityId: ops.entityId,
+				entityKind: ops.entityKind,
+				cause: cleared.error,
+			});
+		}
+	}
 	return err(uncompensated ? markUncompensated(cause) : cause);
 }
 
@@ -491,7 +503,7 @@ export async function runDeleteResolution<TEntity>(
 	ops: ResolutionOps<TEntity>,
 	input: ResolutionInput,
 	locks: ReferenceLocks,
-	markers?: SequenceMarkerStore,
+	markers: SequenceMarkerStore,
 ): Promise<Result<ResolvedSequence, DeleteResolutionErrors>> {
 	const inputError = resolutionInputError(input);
 	if (inputError) return err(inputError);
@@ -516,14 +528,14 @@ export async function runDeleteResolution<TEntity>(
 		// Written before the FIRST mutation; a failed marker write aborts before anything
 		// else happens — the recovery guarantee must never rest on a write already known
 		// not to work.
-		const opened = await recordMarker(markers, marker);
+		const opened = await markers.write(marker);
 		if (isErr(opened)) return err(opened.error);
 
 		const applied = await applyAll(ops, input, marker, markers);
-		if (isErr(applied)) return compensate(ops, marker, applied.error);
+		if (isErr(applied)) return compensate(ops, marker, applied.error, markers);
 
 		const deleted = await ops.deleteEntity(entitySnapshot.version);
-		if (isErr(deleted)) return compensate(ops, marker, deleted.error);
+		if (isErr(deleted)) return compensate(ops, marker, deleted.error, markers);
 
 		// Published after `deleteEntity` has returned ok — the sequence's last mutation,
 		// and the point past which nothing will be compensated. A resolution that raised
@@ -533,7 +545,7 @@ export async function runDeleteResolution<TEntity>(
 			await ops.events.publish(announcement);
 		}
 
-		const recorded = await recordMarker(markers, { ...marker, entityDeleted: true });
+		const recorded = await markers.write({ ...marker, entityDeleted: true });
 		if (isErr(recorded)) {
 			ops.logger.error('sequence.marker-update.failed', {
 				entityId: ops.entityId,
@@ -553,14 +565,14 @@ export async function runDeleteResolution<TEntity>(
 		// user is told, because a log line is not a surface. Reported by a review bot on the
 		// slice 13 pull request, whose scenario was the harsher one this pairing removed:
 		// recovery used to ROLL the whole deletion BACK.
-		const cleared = await clearMarker(markers, ops.entityId);
+		const cleared = await markers.clear(ops.entityId);
 		if (isErr(cleared)) {
 			ops.logger.error('sequence.marker-clear.failed', {
 				entityId: ops.entityId,
 				entityKind: ops.entityKind,
 				cause: cleared.error,
 			});
-			ops.notify?.markerClearFailed(ops.entityId);
+			ops.notify.markerClearFailed(ops.entityId);
 		}
 		return ok({
 			deletedId: ops.entityId,

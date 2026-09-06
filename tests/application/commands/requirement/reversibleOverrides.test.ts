@@ -9,6 +9,7 @@ import {
 	ReversibleSetRequirementCostOverrideCommand,
 	ReversibleSetRequirementQuantityOverrideCommand,
 } from '../../../../src/application/commands/requirement/reversible-override-commands';
+import { SessionWriteLedger } from '../../../../src/application/editor/WriteLedger';
 import { expectOk } from '../../../helpers/domain';
 import { assignedRequirementFixture as withRequirement } from '../../../helpers/slice10';
 
@@ -62,7 +63,7 @@ async function overrideAdapterRig(
 
 	if (kind === 'quantity') {
 		const plain = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
-		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(plain, w.requirements, w.events);
+		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(plain, w.requirements, w.events, new SessionWriteLedger());
 		const input = { requirementId: w.requirementId, quantity: QUANTITY_OVERRIDE };
 		return {
 			adapter: { execute: () => adapter.execute(input), undo: () => adapter.undo() },
@@ -73,7 +74,7 @@ async function overrideAdapterRig(
 	}
 
 	const plain = new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks);
-	const adapter = new ReversibleSetRequirementCostOverrideCommand(plain, w.requirements, w.events);
+	const adapter = new ReversibleSetRequirementCostOverrideCommand(plain, w.requirements, w.events, new SessionWriteLedger());
 	// Distinct from the calculated figure by construction (a different amount) so the
 	// ordinary case genuinely moves the effective figure; equal to it, amount AND
 	// currency, only when the fixture is asked to make undo a no-op.
@@ -129,6 +130,39 @@ describe('reversible override adapters announce the cost undo moves', () => {
 		rig.events.subscribe('CostEstimateChanged', (event) => { seen.push(event); });
 
 		await rig.adapter.undo();
+
+		expect(seen).toEqual([]);
+	});
+
+	// A8. `amount` is a decimal STRING (ADR-010), so one figure has more than one
+	// rendering: the calculated cost is finalized at the currency's minor unit
+	// (`'19.50'`) while the same figure typed as an override mints `'19.5'`. The two
+	// string compares `publishIfEffectiveCostChanged` used to make read that as a move
+	// and announced a cost change that never happened — on the forward write AND on the
+	// undo. `sameMoney` asks the question of the module that owns the representation.
+	it('announces nothing when an override only re-renders the calculated figure', async () => {
+		const w = await withRequirement();
+		const before = expectOk(await w.requirements.getById(w.requirementId));
+		if (!before) throw new Error('unexpected: requirement missing right after assignment');
+		const calculated = effectiveValue(before.entity.estimatedCost);
+		// The number overload re-renders at the value's own precision, dropping the minor
+		// unit's trailing zero. Pinned, because a fixture whose calculated cost carried no
+		// trailing zero would make this case vacuous rather than red.
+		const rerendered = moneyOf(Number(calculated.amount), calculated.currency);
+		expect(rerendered.amount).not.toBe(calculated.amount);
+
+		const plain = new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks);
+		const adapter = new ReversibleSetRequirementCostOverrideCommand(
+			plain,
+			w.requirements,
+			w.events,
+			new SessionWriteLedger(),
+		);
+		const seen: unknown[] = [];
+		w.events.subscribe('CostEstimateChanged', (event) => { seen.push(event); });
+
+		expectOk(await adapter.execute({ requirementId: w.requirementId, cost: rerendered }));
+		expectOk(await adapter.undo());
 
 		expect(seen).toEqual([]);
 	});

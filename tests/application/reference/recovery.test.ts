@@ -6,10 +6,11 @@ import { DeleteZoneCommand } from '../../../src/application/commands/zone/Delete
 import { recoverInterruptedSequences } from '../../../src/application/reference/recoverInterruptedSequences';
 import type { Requirement } from '../../../src/domain/requirement/Requirement';
 import type { Loaded } from '../../../src/application/ports/versioning';
+import type { SequenceMarker } from '../../../src/application/reference/deleteResolution';
 import { expectErr, expectFound, expectOk } from '../../helpers/domain';
 import { makeAsset, makeRequirement, makeZone } from '../../helpers/entities';
 import { lines, recorder as logger } from '../../helpers/logger';
-import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
+import { TEN_SQUARE_METERS, requirementFixture, zoneSequenceCollaborators } from '../../helpers/slice10';
 
 /**
  * The cold half of the compensated sequence: a crash between the first mutation and the
@@ -66,6 +67,7 @@ async function wiredAfterFailedSequence() {
 
 	expectErr(
 		await new DeleteZoneCommand({
+			...zoneSequenceCollaborators(),
 			zones: w.zones,
 			requirements,
 			recalculate: w.recalculate,
@@ -81,6 +83,26 @@ async function wiredAfterFailedSequence() {
 	);
 
 	return { ...w, markers, zoneId: zone.entity.id };
+}
+
+/**
+ * One `entityDeleted: false` marker, optionally over one referent whose forward outcome was
+ * a REMOVAL — so recovery re-creates it against `'absent'`, which is the outcome a test can
+ * see by asking whether the row is back.
+ */
+function markerOver(entityId: string, referent?: Requirement): SequenceMarker {
+	return {
+		schemaVersion: 1,
+		kind: 'delete-resolution',
+		entityKind: 'zone',
+		entityId,
+		entitySnapshot: { entity: {}, version: { revision: 1, observed: 'o' } } as never,
+		entityDeleted: false,
+		affectedBefore: referent
+			? [{ entity: referent, version: { revision: 1, observed: 'o' } } as never]
+			: [],
+		progress: referent ? [{ id: referent.id, outcome: 'deleted' }] : [],
+	};
 }
 
 describe('recoverInterruptedSequences', () => {
@@ -294,6 +316,81 @@ describe('recoverInterruptedSequences', () => {
 	 * Both halves of the walk are driven, because they fault in different places: the
 	 * `list()` that opens it, and a per-marker write deep inside the loop.
 	 */
+	/**
+	 * The rejection cases the `.catch` guards exist for, and they are about the MARKERS AFTER
+	 * the faulting one. A throw out of the save or the clear used to leave the loop through
+	 * the module's outer boundary: one unreadable note abandoned every later marker in the
+	 * list, which is the exact defect the pre-read's own comment ("the throw would take every
+	 * later marker with it") was written to fix — reintroduced two lines below the fix.
+	 */
+	it('a REJECTING restore write surfaces that marker and still recovers the ones after it', async () => {
+		lines.length = 0;
+		const w = await requirementFixture();
+		const asset = expectOk(await w.assets.save(makeAsset(), 'absent'));
+		const zone = expectOk(
+			await w.zones.save(makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }), 'absent'),
+		);
+		const doomed = makeRequirement({
+			projectId: w.project.entity.id,
+			assetId: asset.entity.id,
+			origin: { kind: 'zone', zoneId: zone.entity.id },
+		});
+		const later = makeRequirement({
+			projectId: w.project.entity.id,
+			assetId: asset.entity.id,
+			origin: { kind: 'zone', zoneId: zone.entity.id },
+		});
+		expectOk(await w.requirements.save(doomed, 'absent'));
+
+		const markers = new InMemorySequenceMarkerStore();
+		// Two markers, in list order. The second's referent was REMOVED by its sequence, so
+		// recovering it is a re-creation against `'absent'` — visible as the row coming back.
+		await markers.write(markerOver('zone-doomed', doomed));
+		await markers.write(markerOver('zone-later', later));
+
+		const requirements = overridePort(w.requirements, {
+			// REJECTS rather than throwing synchronously, which is what a real vault write does
+			// when the adapter faults — and the difference is the whole point: a synchronous
+			// throw is caught by the module's outer boundary either way, a rejection was not.
+			save: (entity: { id: unknown }, expected: unknown) =>
+				entity.id === doomed.id
+					? Promise.reject(new Error('the vault exploded mid-restore'))
+					: w.requirements.save(entity as never, expected as never),
+		});
+
+		await recoverInterruptedSequences({ markers, requirements, events: w.events, logger });
+
+		expect(lines.some((line) => line.event === 'sequence.recovery.restore-refused')).toBe(true);
+		// The later marker was reached: its referent is back, and BOTH markers cleared.
+		expect(expectOk(await w.requirements.getById(later.id))).not.toBeNull();
+		expect(expectOk(await markers.list())).toEqual([]);
+		expect(lines.filter((line) => line.event === 'sequence.recovery.failed')).toHaveLength(0);
+	});
+
+	it('a REJECTING marker clear is logged and the markers after it are still walked', async () => {
+		lines.length = 0;
+		const w = await requirementFixture();
+		class ThrowingClear extends InMemorySequenceMarkerStore {
+			override clear(entityId: string): Promise<never> {
+				return (
+					entityId === 'zone-doomed'
+						? Promise.reject(new Error('the marker file exploded'))
+						: super.clear(entityId)
+				) as Promise<never>;
+			}
+		}
+		const markers = new ThrowingClear();
+		await markers.write(markerOver('zone-doomed'));
+		await markers.write(markerOver('zone-later'));
+
+		await recoverInterruptedSequences({ markers, requirements: w.requirements, events: w.events, logger });
+
+		expect(lines.some((line) => line.event === 'sequence.recovery.clear-failed')).toBe(true);
+		expect(lines.filter((line) => line.event === 'sequence.recovery.failed')).toHaveLength(0);
+		// The one that could clear did; the one that threw is left for the next load.
+		expect(expectOk(await markers.list()).map((marker) => marker.entityId)).toEqual(['zone-doomed']);
+	});
+
 	it('resolves and logs rather than rejecting when the marker LIST throws', async () => {
 		// `lines` accumulates across this file's tests; the counts below are about THIS case.
 		lines.length = 0;

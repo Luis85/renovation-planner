@@ -4,7 +4,7 @@ parent: "[[Quantity, cost and the end-to-end loop]]"
 order: 50
 dependsOn:
   - "[[19-the-asset-catalogue-leaves-the-project]]"
-status: ""
+status: Active
 started: ""
 finished: ""
 horizon: ""

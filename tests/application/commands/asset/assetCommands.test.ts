@@ -12,10 +12,7 @@ import { of as moneyOf } from '../../../../src/core/money/Money';
 import type { MeasurementUnit } from '../../../../src/core/units/MeasurementUnit';
 import { expectErr, expectOk, observationToken } from '../../../helpers/domain';
 import { makeAsset, makePlan, makeProject, makeZone } from '../../../helpers/entities';
-import {
-	requirementFixture,
-	TEN_SQUARE_METERS,
-} from '../../../helpers/slice10';
+import { TEN_SQUARE_METERS, assetSequenceCollaborators, requirementFixture } from '../../../helpers/slice10';
 import { recorder } from '../../../helpers/logger';
 
 /**
@@ -48,6 +45,7 @@ async function wiredWithLink() {
 	const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
 	if (!assigned.ok) throw new Error(assigned.error.message);
 	const deleteAsset = new DeleteAssetCommand({
+		...assetSequenceCollaborators(),
 		assets: w.assets,
 		requirements: w.requirements,
 		recalculate: w.recalculate,

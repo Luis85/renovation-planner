@@ -12,30 +12,35 @@ import { runOptions } from '../../../harness/axeOptions';
 let harness: CanvasHarness | null = null;
 afterEach(() => { harness?.unmount(); harness = null; });
 
-describe('M11 selection across the list, canvas and Inspector', () => {
-	it.each(['[data-rp-id="zone-terrace"]', '[data-rp-action="multiple-selection"]'])('clears from the persistent property control %s and keeps focus there', async (selector) => {
+describe('Editor selection across the list, canvas and Inspector', () => {
+	it.each([
+		{ selector: '[data-rp-id="zone-terrace"]', multiple: false },
+		{ selector: '[data-rp-id="zone-terrace"]', multiple: true },
+		{ selector: '[data-rp-action="multiple-selection"]', multiple: false },
+		{ selector: '[data-rp-action="multiple-selection"]', multiple: true },
+	])('clears from $selector with multiple=$multiple and keeps focus there', async ({ selector, multiple }) => {
 		harness = await mountPlanEditorCanvas();
 		const panel = harness.wrapper.find('.rp-editor-layers');
-		await panel.find('[data-rp-action="multiple-selection"]').setValue(true);
+		await panel.find('[data-rp-action="multiple-selection"]').setValue(multiple);
 		await panel.find('[data-rp-id="zone-kitchen"]').trigger('click');
 		await panel.find('[data-rp-id="zone-terrace"]').trigger('click');
 		await settle();
-		expect(useSelectionStore().selectedIds).toHaveLength(2);
+		expect(useSelectionStore().selectedIds).toHaveLength(multiple ? 2 : 1);
 		const control = panel.get(selector).element as HTMLElement;
 		control.focus();
 		const consumed = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
 		consumed.preventDefault();
 		control.dispatchEvent(consumed);
-		expect(useSelectionStore().selectedIds).toHaveLength(2);
+		expect(useSelectionStore().selectedIds).toHaveLength(multiple ? 2 : 1);
 		control.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
 		await settle();
 		expect(useSelectionStore().selectedIds).toEqual([]);
 		expect(harness.wrapper.find('.rp-floor-inspector').exists()).toBe(true);
 		expect(document.activeElement).toBe(control);
 	});
-	it.each(['details', 'layers'])('closes the %s overlay first, then clears from its restored rail focus on a fresh Escape', async (rail) => {
+	it.each([['details', 1], ['details', 2], ['layers', 1], ['layers', 2]] as const)('closes the %s overlay first, then clears %i selected elements from restored rail focus', async (rail, count) => {
 		harness = await mountPlanEditorCanvas();
-		useSelectionStore().select(['zone-kitchen', 'zone-terrace'] as never[]);
+		useSelectionStore().select(['zone-kitchen', 'zone-terrace'].slice(0, count) as never[]);
 		resizeTo(harness.rootEl, 700, 700);
 		await settle();
 		const button = harness.wrapper.find(`[data-rp-rail="${rail}"]`);
@@ -45,13 +50,25 @@ describe('M11 selection across the list, canvas and Inspector', () => {
 		await settle();
 		expect(document.activeElement).toBe(button.element);
 		expect(harness.wrapper.find('.rp-inspector-drawer, .rp-overlay-panel').exists()).toBe(false);
-		expect(useSelectionStore().selectedIds).toHaveLength(2);
+		expect(useSelectionStore().selectedIds).toHaveLength(count);
 		await button.trigger('keydown', { key: 'Escape', repeat: true });
-		expect(useSelectionStore().selectedIds).toHaveLength(2);
+		expect(useSelectionStore().selectedIds).toHaveLength(count);
 		await button.trigger('keydown', { key: 'Escape' });
 		await settle();
 		expect(useSelectionStore().selectedIds).toEqual([]);
 		expect(document.activeElement).toBe(button.element);
+	});
+	it('clears a single selection from the Inspector and retains region focus', async () => {
+		harness = await mountPlanEditorCanvas();
+		await harness.wrapper.find('.rp-editor-layers [data-rp-id="zone-kitchen"]').trigger('click');
+		await settle();
+		const inspector = harness.wrapper.find('[data-rp-region="inspector"]');
+		(inspector.element as HTMLElement).focus();
+		await inspector.trigger('keydown', { key: 'Escape' });
+		await settle();
+		expect(useSelectionStore().selectedIds).toEqual([]);
+		expect(harness.wrapper.find('.rp-floor-inspector').exists()).toBe(true);
+		expect(document.activeElement).toBe(inspector.element);
 	});
 	it('does not process a canvas Escape twice when it returns an empty tool to Select', async () => {
 		harness = await mountPlanEditorCanvas();
@@ -85,6 +102,31 @@ describe('M11 selection across the list, canvas and Inspector', () => {
 		expect(useSelectionStore().selectedIds).toHaveLength(2);
 		await row.trigger('keydown', { key: 'Escape' });
 		expect(useSelectionStore().selectedIds).toEqual([]);
+	});
+	it('keeps multiple-selection mode across the constrained Layers overlay closing and reopening', async () => {
+		// The overlay UNMOUNTS `PropertyLayerPanel` when it closes, so a component-local mode
+		// was recreated `false` on every reopen: a touch or keyboard user who enabled it,
+		// went to the canvas and came back to add a room had the next row click replace the
+		// whole set. The mode is per-leaf state on the runtime now, like the tool.
+		harness = await mountPlanEditorCanvas();
+		resizeTo(harness.rootEl, 700, 700);
+		await settle();
+		const rail = harness.wrapper.find('[data-rp-rail="layers"]');
+		await rail.trigger('click');
+		await settle();
+		await harness.wrapper.find('.rp-overlay-panel [data-rp-action="multiple-selection"]').setValue(true);
+		await harness.wrapper.find('.rp-overlay-panel [data-rp-id="zone-kitchen"]').trigger('click');
+		await settle();
+		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+		await settle();
+		expect(harness.wrapper.find('.rp-overlay-panel').exists()).toBe(false);
+		await rail.trigger('click');
+		await settle();
+		const mode = harness.wrapper.find('.rp-overlay-panel [data-rp-action="multiple-selection"]');
+		expect((mode.element as HTMLInputElement).checked).toBe(true);
+		await harness.wrapper.find('.rp-overlay-panel [data-rp-id="zone-terrace"]').trigger('click');
+		await settle();
+		expect(useSelectionStore().selectedIds).toEqual(['zone-kitchen', 'zone-terrace']);
 	});
 	it('closes Add before clearing a multi-selection', async () => {
 		harness = await mountPlanEditorCanvas();

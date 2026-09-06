@@ -60,6 +60,26 @@ describe('routeError', () => {
 		});
 	});
 
+	/**
+	 * Finding V10: `map[error.code]` on a `Record<string, …>` resolves an OWN lookup and an
+	 * INHERITED one identically, so a code that happens to spell an `Object.prototype` member
+	 * name — `constructor` is the one no minted code has collided with yet — would answer that
+	 * inherited function rather than `undefined`, and route to a field with a garbage key
+	 * instead of the banner absence is supposed to mean.
+	 */
+	it('routes a code that collides with an inherited Object.prototype member to the banner', () => {
+		const error: AppError = {
+			category: 'Validation',
+			code: 'constructor',
+			message: 'developer english, never shown',
+		};
+
+		expect(routeError(error, MAP, say)).toEqual({
+			kind: 'banner',
+			message: 'copy for constructor',
+		});
+	});
+
 	it('routes on code alone, never on category', () => {
 		// A Calculation error whose code IS mapped still reaches the field. Which categories
 		// may reach a field at all is slice 17's decision, not this function's.

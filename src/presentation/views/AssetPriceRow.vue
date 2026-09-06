@@ -54,7 +54,7 @@ const overridden = computed(() => props.row.overrideId !== null);
 function validatePrice(raw: string): string | null {
 	parsed = null;
 	if (raw.trim() === '') return overridden.value ? null : tr('view.project.price-invalid');
-	if (!/^-?\d+(?:[.,]\d{1,2})?$/.test(raw.trim())) return tr('view.project.price-invalid');
+	if (!/^-?\d+(?:[.,]\d+)?$/.test(raw.trim())) return tr('view.project.price-invalid');
 	const minted: Result<Money, ValidationError> = createMoney(raw.trim().replace(',', '.'), props.currency);
 	if (isErr(minted)) return tr('view.project.price-invalid');
 	if (minted.value.amount.startsWith('-')) return tr('view.project.price-negative');
@@ -104,10 +104,21 @@ function onPriceInput(raw: string): void {
 }
 
 function onPriceCancel(): void {
-	if (price.pending.value) return;
+	if (price.pending.value || props.refreshBlocked) return;
 	dirty.value = false;
 	price.onCancel();
 	snapshot.value = null;
+}
+
+/**
+ * The guarded door onto `price.onCommit()` — Enter and Apply both route through this rather
+ * than calling it directly, so a paused row (mid-write, read-only, or a `refreshBlocked`
+ * concurrent change) refuses the commit instead of racing it. House pattern:
+ * `RequirementRow.vue`'s `resetQuantity`.
+ */
+function onPriceCommit(): void {
+	if (price.pending.value || props.readOnly || props.refreshBlocked) return;
+	void price.onCommit();
 }
 
 async function onClear(): Promise<void> {
@@ -117,7 +128,14 @@ async function onClear(): Promise<void> {
 }
 
 watch(() => props.draftReset, onPriceCancel);
-const priceDisabled = computed(() => props.row.assetStatus !== 'known' || price.pending.value || props.refreshBlocked);
+const priceUnavailable = computed(() => props.row.assetStatus !== 'known');
+const pricePaused = computed(() => price.pending.value || props.refreshBlocked);
+/**
+ * The ARIA value rather than the boolean itself: `aria-disabled` is only ever present as the
+ * literal string `'true'` (or absent), never `'false'`, so one place decides that mapping
+ * instead of the template repeating the same ternary on the input and on Apply/Clear/Cancel.
+ */
+const pausedAria = computed(() => (pricePaused.value ? 'true' : undefined));
 watch(() => [dirty.value, price.pending.value] as const, ([draft, pending]) => emit('editState', draft, pending), { flush: 'sync' });
 onBeforeUnmount(() => emit('editState', false, false));
 const candidate = computed(() => props.row.override ?? props.row.catalogue);
@@ -168,18 +186,20 @@ const foreign = computed(() => candidate.value !== null && candidate.value.curre
 				v-bind="aria"
 				type="text"
 				class="rp-asset-price-input"
-				:disabled="priceDisabled"
+				:disabled="priceUnavailable"
+				:readonly="pricePaused"
+				:aria-disabled="pausedAria"
 				:aria-busy="price.pending.value"
 				:value="price.draft.value"
 				@input="onPriceInput(($event.target as HTMLInputElement).value)"
-				@keydown.enter.prevent="price.onCommit()"
+				@keydown.enter.prevent="onPriceCommit()"
 				@keydown.esc.stop="onPriceCancel()"
 			>
 		</FieldError>
 
 		<button
 			v-if="showClear"
-			:disabled="price.pending.value || refreshBlocked"
+			:aria-disabled="pausedAria"
 			type="button"
 			class="rp-asset-price-clear"
 			@mousedown.prevent
@@ -191,8 +211,9 @@ const foreign = computed(() => candidate.value !== null && candidate.value.curre
 			v-if="showDraftActions"
 			type="button"
 			class="rp-asset-price-apply"
-			:disabled="priceDisabled"
-			@click="price.onCommit()"
+			:disabled="priceUnavailable"
+			:aria-disabled="pausedAria"
+			@click="onPriceCommit()"
 		>
 			{{ tr('view.project.price-apply') }}
 		</button>
@@ -200,7 +221,7 @@ const foreign = computed(() => candidate.value !== null && candidate.value.curre
 			v-if="showDraftActions"
 			type="button"
 			class="rp-asset-price-cancel"
-			:disabled="price.pending.value"
+			:aria-disabled="pausedAria"
 			@click="onPriceCancel"
 		>
 			{{ tr('view.project.price-cancel') }}

@@ -2,6 +2,8 @@
 
 Version 1.1 · 2026-09-05 · Documentation language: **English** · Design status: designed; backlog status: scoped, pending technical refinement and estimation.
 
+**Adopted 2026-09-05.** After pull request #73 implemented this package, all ten of its PBIs are register notes under `docs/requirements/`, parented to *Project dashboard and navigation* (the mobile half of PBI-10 under *Release hardening*). Each note's Sources footer names the PBI id it came from; the [reconciliation document](implementation/repository-reconciliation-and-backlog.md) remains the received text.
+
 ## Starting point
 The selected third design direction combines a lean overview with project details offering optional, understandable entry paths. This package contains eight screen/variant specifications, interaction rules, components, implementation/verification plans, and the repository reconciliation with ten use-case PBIs. It contains no plugin implementation and has not been written to GitHub.
 

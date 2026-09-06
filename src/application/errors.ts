@@ -26,7 +26,12 @@ export function referenceError(code: string, message: string): ReferenceError {
  * The failed-RECALCULATION error: the figures could not be produced (an input no longer
  * resolves, an engine stage refused), which is a calculation outcome rather than a command
  * refusal — raised on the path where the stale marker has already been persisted.
+ *
+ * `cause` is spread for the reason `persistenceError` states above, and it is the same
+ * defect rather than a second one: `RecalculateRequirement`'s `requirement.update-invalid`
+ * raise passes no cause, so this factory was minting `cause: undefined` — "there was a
+ * cause and it was nothing" — on a real production path.
  */
 export function calculationError(code: string, message: string, cause?: unknown): CalculationError {
-	return { category: 'Calculation', code, message, cause };
+	return { category: 'Calculation', code, message, ...(cause === undefined ? {} : { cause }) };
 }

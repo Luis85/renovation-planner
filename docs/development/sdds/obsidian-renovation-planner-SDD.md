@@ -885,11 +885,13 @@ SnapService
 
 snapPoint()
 snapRotation()
-snapResize()
-snapToGrid()
+snapDirection()
 snapToVertex()
 snapToEdge()
 ```
+
+`snapResize()`, `snapToGrid()` and `normalizeTransformerResult()` are deleted (2026-09-05
+whole-tree review, R5): no `src/` caller and no `VTransformer` anywhere in this tree.
 
 Snapping is automatic and VISIBLE: the guide says why the pointer snapped (endpoint, alignment,
 angle). Grid and snap toggles sit in the status bar; finer configuration is a tier-4 setting and

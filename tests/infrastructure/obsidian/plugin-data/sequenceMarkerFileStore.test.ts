@@ -94,6 +94,17 @@ describe('SequenceMarkerFileStore', () => {
 		expect(error.code).toBe('sequence.marker-unreadable');
 	});
 
+	/**
+	 * `null` is valid JSON and is the one value a property read cannot be attempted on, so the
+	 * envelope's `markers` lookup ran ahead of the `raw === null` test and threw a TypeError out
+	 * of a door whose whole contract is a coded refusal. Four bytes in a file the user can edit.
+	 */
+	it('refuses a file whose whole body is null instead of throwing', async () => {
+		const files = new Map<string, string>([[PATH, 'null']]);
+		const store = new SequenceMarkerFileStore(fakeAdapter(files), PATH, logger);
+		expect(expectErr(await store.list()).code).toBe('sequence.marker-unreadable');
+	});
+
 	it('a failed envelope read fails write and clear too — no mutation on an unreadable base', async () => {
 		const files = new Map<string, string>([[PATH, '{not json']]);
 		const store = new SequenceMarkerFileStore(fakeAdapter(files), PATH, logger);

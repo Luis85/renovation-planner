@@ -51,7 +51,11 @@ export interface PackagingRule {
 
 const MM_PER_M = new Decimal('1000');
 
-/** mm/mm²/mm³ → m/m²/m³ for the units that measure geometry; the rest pass through. */
+/**
+ * mm/mm²/mm³ → m/m²/m³ for the units that measure geometry. `fixed` answers 1 whatever the
+ * raw value is — it is a lump sum, not a converted measurement — and the rest pass through
+ * unconverted (C10).
+ */
 function toDisplayValue(rawValue: Decimal, unit: MeasurementUnit): Decimal {
 	switch (unit) {
 		case 'm':
@@ -73,10 +77,32 @@ function toDisplayValue(rawValue: Decimal, unit: MeasurementUnit): Decimal {
  * refuses the quantity it is handed with this same function — one rule with two error
  * codes would be two rules, and a caller could not tell which one it had broken.
  *
+ * A non-finite quantity IS refused by two different codes (`cost.non-finite-input` here,
+ * `quantity.non-finite` below) and that is not the same rule twice: the pipeline's own
+ * `nonFiniteInputError` runs before it ever calls into this engine (`inputError`'s first
+ * `??` arm in `costPipeline.ts`), so a caller going through the pipeline only ever sees
+ * `cost.non-finite-input` — it never reaches the finite check below. `quantity.non-finite`
+ * is what a caller sees who calls `toMeasuredQuantity`/`applyRequirementRule`/`applyWaste`/
+ * `applyPackaging` directly, outside the pipeline, which is a different door with no
+ * `nonFiniteInputError` in front of it. One code per door, same as the negative-number rule
+ * this docblock already describes.
+ *
  * `lessThan(0)` rather than `isNegative()`: decimal.js reports negative ZERO as negative
  * (`new Decimal(0).mul(-1)`), and a zero quantity is a legitimate one.
  */
 export function negativeQuantity(quantity: Quantity): CalculationError | null {
+	// NaN and Infinity pass the sign check below (every comparison against either is
+	// false), so this ran first and unrefused into later arithmetic (C1). Checked here,
+	// at the one function every exported stage already calls, rather than once per stage.
+	if (!quantity.value.isFinite()) {
+		return {
+			category: 'Calculation',
+			code: 'quantity.non-finite',
+			message:
+				`A ${UNIT_KIND[quantity.unit]} quantity must be a finite number; `
+				+ `got ${quantity.value.toString()} ${quantity.unit}.`,
+		};
+	}
 	if (!quantity.value.lessThan(0)) return null;
 	return {
 		category: 'Calculation',

@@ -3,8 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { assembleStyles } from '../../scripts/styles-assemble.mjs';
 
 /**
- * A real component under `src/presentation/library/` may not name a class the assembled sheet
- * does not declare, unless the gap is a documented decision rather than an oversight.
+ * A real component under `src/presentation/{library,components,designer}/` may not name a class
+ * the assembled sheet does not declare, unless the gap is a documented decision rather than an
+ * oversight.
  *
  * This exists because of the defect it was written to catch, measured at `e3d2e8bc`:
  * `AssetInspector.vue` emitted `rp-al-action--delete`, `rp-al-action--designer` and
@@ -21,11 +22,16 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
  * states a rule does not" — the concrete three that motivated it are not spelled out below, only
  * the exemption two of them left behind.
  *
- * Deliberately scoped to `src/presentation/library/` rather than widened to every presentation
- * component: the defect this file exists for is the library surface's own, this task owns four
- * `styles/` partials and not the whole tree, and widening the walk would make this file the
- * unplanned owner of every pre-existing gap elsewhere in `src/presentation/` — a different task's
- * finding, not this one's to fix or to silently paper over with a wider exemption list.
+ * Widened to `src/presentation/{library,components,designer}/` rather than left at the library
+ * surface alone or taken all the way to the whole tree: three directories, not one, because the
+ * widened walk found three undeclared classes on its first run — the two the review had found by
+ * hand (X7 `rp-form-banner__glyph`, X8 `rp-designer-inspector-panel`) and one it had not
+ * (`rp-field-error__glyph` from `src/presentation/components/FieldError.vue`), which is the
+ * argument for the instrument over hand inspection. Not the whole of `src/presentation/`, still:
+ * this task owns three `styles/` partials touched by this widening plus the library's own, not
+ * an audit of every directory this repository has, and a walk over the rest would make this file
+ * the unplanned owner of whatever pre-existing gaps live there — a different task's finding, not
+ * this one's to fix or to silently paper over with a wider exemption list.
  *
  * The extraction is the same two-reading rule `prototype-styles.test.ts` already proved out
  * (a static `class="..."` attribute, and a `:class="{ ... }"` binding's object KEYS, quoted or
@@ -56,8 +62,8 @@ const classesUsedBy = (source: string): string[] => [
 
 /** RECURSIVELY, for the reason `prototype-styles.test.ts`'s own walk is: a flat `readdirSync`
  *  would leave a class in a nested component unchecked, one directory below where the sweep
- *  stopped looking. `src/presentation/library/` holds no subdirectory today; the walk does not
- *  assume it stays that way. */
+ *  stopped looking. `src/presentation/designer/` in particular nests (`inspector/`); the walk
+ *  does not assume any of the three stays flat. */
 const walk = (dir: string): string[] =>
 	readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 		const child = `${dir}/${entry.name}`;
@@ -65,9 +71,11 @@ const walk = (dir: string): string[] =>
 		return entry.isDirectory() ? walk(child) : entry.name.endsWith('.vue') ? [child] : [];
 	});
 
-const libraryFiles = walk('src/presentation/library');
+const SCANNED_DIRS = ['src/presentation/library', 'src/presentation/components', 'src/presentation/designer'];
 
-const emitted = new Set(libraryFiles.flatMap((file) => classesUsedBy(readFileSync(file, 'utf8'))));
+const componentFiles = SCANNED_DIRS.flatMap((dir) => walk(dir));
+
+const emitted = new Set(componentFiles.flatMap((file) => classesUsedBy(readFileSync(file, 'utf8'))));
 
 const declared = new Set(
 	[...assembleStyles().replace(CSS_COMMENT, '').matchAll(CLASS_SELECTOR)].map(([, name]) => name),
@@ -88,14 +96,14 @@ const declared = new Set(
  */
 const UNSTYLED_LIBRARY_MODIFIERS = new Set(['rp-al-action--designer', 'rp-al-action--note']);
 
-describe('the classes the library surface emits', () => {
+describe('the classes the library, shared-component and designer surfaces emit', () => {
 	/**
 	 * The instrument before the measurement. A `class`/`:class` regex that stopped matching would
 	 * make the case below compare an empty set and pass; a selector regex that stopped matching
 	 * would fail it instead, which is the loud direction and still worth ruling out.
 	 */
 	it('is measured by regexes that still match', () => {
-		expect(libraryFiles.length).toBeGreaterThan(0);
+		expect(componentFiles.length).toBeGreaterThan(0);
 		expect(emitted.size).toBeGreaterThan(0);
 		expect(declared.has('rp-al-row__name')).toBe(true);
 	});

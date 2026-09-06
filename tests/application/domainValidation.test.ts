@@ -11,7 +11,7 @@ import { expectErr, expectFound, expectOk } from '../helpers/domain';
 import type { Result } from '../../src/core/result/Result';
 import type { ValidationError } from '../../src/core/errors/AppError';
 import { makeAsset, makeZone } from '../helpers/entities';
-import { requirementFixture, TEN_SQUARE_METERS } from '../helpers/slice10';
+import { TEN_SQUARE_METERS, requirementFixture, zoneSequenceCollaborators } from '../helpers/slice10';
 import { recorder } from '../helpers/logger';
 
 /**
@@ -177,6 +177,7 @@ describe('RecalculateRequirementCommand edges', () => {
 		// is the delete-anyway shape).
 		expectOk(
 			await new (await import('../../src/application/commands/zone/DeleteZone')).DeleteZoneCommand({
+				...zoneSequenceCollaborators(),
 				zones: w.zones,
 				requirements: w.requirements,
 				recalculate: w.recalculate,

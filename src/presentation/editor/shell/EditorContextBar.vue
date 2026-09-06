@@ -23,16 +23,13 @@ const crumbs = computed(() => [project.value?.name ?? '', plan.value?.name ?? ''
 		class="rp-context-bar"
 		:aria-label="tr('editor.context-bar')"
 	>
-		<nav
-			class="rp-context-bar__crumbs"
-			:aria-label="tr('editor.context-bar')"
-		>
+		<div class="rp-context-bar__crumbs">
 			<span
 				v-for="(crumb, index) in crumbs"
 				:key="index"
 				class="rp-context-bar__crumb"
 			>{{ crumb }}</span>
-		</nav>
+		</div>
 		<slot name="perspective" />
 		<span class="rp-context-bar__spacer" />
 		<button

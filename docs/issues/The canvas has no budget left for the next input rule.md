@@ -28,9 +28,16 @@ business-value-model: ""
 
 # The canvas has no budget left for the next input rule
 
-`PlanCanvas.vue` measures **398 lines against the 400 the linter allows**. It has been
-extracted from twice already for this reason, and the next rule anyone adds to it — a
-pointer door, a shortcut, a guard — does not fit.
+`EditorSurface.vue` measures **399 lines against the 400 the linter allows**. Task 11 already
+extracted `PlanCanvas.vue`'s pointer vocabulary out to `pointerButtons.ts` once (twice,
+counting the rename that carried `PlanCanvas`'s own pointer/keyboard routing into this file),
+and the next rule anyone adds to it — a pointer door, a shortcut, a guard — does not fit.
+
+**This note originally named `PlanCanvas.vue` as the subject.** That file is now a 102-line
+wrapper (`src/presentation/editor/PlanCanvas.vue`) that hands its layers and its slot to
+`src/presentation/editor/surface/EditorSurface.vue`, which is where the pointer routing, the
+keyboard handling and the gesture state actually live today — the same file the analysis below
+was written about, under its later name.
 
 ## What is true today
 
@@ -38,23 +45,31 @@ Measured with the counter the gate itself runs, rather than by reading a line nu
 editor:
 
 ```bash
-npx eslint src --ext .ts,.vue \
+npx eslint src/presentation/editor/surface/EditorSurface.vue src/plugin/composition-root.ts \
+  src/application/reference/deleteResolution.ts src/presentation/editor/runtime.ts \
   --rule '{"max-lines":["error",{"max":1,"skipBlankLines":true,"skipComments":true}]}'
 ```
 
 | Module | Linted lines | Headroom |
 | --- | --- | --- |
-| `src/presentation/editor/PlanCanvas.vue` | 398 | **2** |
-| `src/plugin/composition-root.ts` | 398 | **2** |
-| `src/application/reference/deleteResolution.ts` | 340 | 60 |
-| `src/presentation/editor/runtime.ts` | 316 | 84 |
+| `src/presentation/editor/surface/EditorSurface.vue` | 399 | **1** |
+| `src/presentation/editor/runtime.ts` | 394 | **6** |
+| `src/plugin/composition-root.ts` | 361 | 39 |
+| `src/application/reference/deleteResolution.ts` | 373 | 27 |
 
-`wc -l` answers 1221 for this file and that figure is worthless here: the rule skips blank
-and comment lines, and the file is mostly comment because each of its routing rules cost a
-review round and the argument is written beside the code. Two lines is the real number.
+Re-measured 2026-09-06: `composition-root.ts` is no longer at the cap the way it was when this
+note was written (it had 2 lines of headroom then; task 4 and task 5's wiring changes moved it
+since), so `EditorSurface.vue` is the only module actually at the edge today, with `runtime.ts`
+close behind it — both canvas-adjacent, both counted here because the same command prints them.
 
-The `composition-root.ts` row is not this note's subject and is recorded because the same
-command printed it: two modules, not one, are at the cap.
+`wc -l` answers 1367 for `EditorSurface.vue` and that figure is misleading in a way worth
+naming precisely, because it is not simply "the rule skips comments": **36 of those raw lines
+are one HTML comment inside `<template>`** (the pointer-swallowing overlay's rationale), and
+`max-lines` does NOT skip a template comment the way it skips a `//` or `/* */` one in a
+`<script>` block — it counts every one of those 36 lines against the budget. So the gap between
+1367 raw and 399 counted is mostly ordinary `<script>`-block comment (each routing rule's
+argument, written beside the code, exactly as this note originally said), but the template's
+own commentary pays the budget in full. One line is the real number left.
 
 ## Why this is not a formatting problem
 
@@ -123,8 +138,8 @@ review of the diff.
 - The person who trips the cap will be mid-fix. Every change this file has taken since slice
   8 arrived as a review finding about a pointer that a door was not asking about, which is
   the worst possible moment to be designing an extraction under a red gate.
-- Two lines is inside the noise of an ordinary edit. A guard added at a fifth door, the kind
-  the 44 rules above keep asking for, is three lines with its comment.
+- One line is smaller than the noise of an ordinary edit. A guard added at a fifth door, the
+  kind the 44 rules above keep asking for, is three lines with its comment.
 - The alternative to deciding this deliberately is deciding it under a lint error, and the
   file's own history says what gets reached for then: a collapsed literal, and the same
   question spelled twice.

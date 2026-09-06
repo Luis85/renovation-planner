@@ -16,7 +16,7 @@ import { assetUpdated } from '../../../src/domain/asset/Asset.events';
 import { zoneGeometryChanged } from '../../../src/domain/zone/Zone.events';
 import { of as moneyOf } from '../../../src/core/money/Money';
 import { expectOk } from '../../helpers/domain';
-import { dispatchingEventBus, failMarkStaleOnce } from '../../helpers/slice10';
+import { dispatchingEventBus, failMarkStaleOnce, noopCascadeNotify } from '../../helpers/slice10';
 import { makeAsset, makePlan, makeProject, makeZone } from '../../helpers/entities';
 
 /**
@@ -88,6 +88,7 @@ async function wired() {
 		requirements,
 		events,
 		logger,
+		notify: noopCascadeNotify,
 		recalculate: (input: { requirementId: string }) =>
 			recalculate.execute({ requirementId: input.requirementId as never }),
 	};

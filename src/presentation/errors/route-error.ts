@@ -34,13 +34,20 @@ export type RoutedError<TInput> =
  * Keyed on `error.code` and never on `error.category`: a `ValidationError` and a
  * `CalculationError` route identically here. Whether a category may reach a field at all is
  * slice 17's decision table, applied before anything gets here.
+ *
+ * **`hasOwnProperty`, not a bare index (finding V10).** `map` is a `Record<string, …>`, and a
+ * plain `map[error.code]` resolves an INHERITED member exactly as it would an own one — a code
+ * of `constructor` answers `Object.prototype.constructor`, a function, which is not
+ * `undefined` and would route to `kind: 'field'` with that function standing in for a key. No
+ * minted code collides with an `Object.prototype` member today, which is what keeps this
+ * latent rather than observed.
  */
 export function routeError<TInput>(
 	error: AppError,
 	map: FieldErrorMap<TInput>,
 	toUserMessage: (error: AppError) => string,
 ): RoutedError<TInput> {
-	const fields = map[error.code];
+	const fields = Object.prototype.hasOwnProperty.call(map, error.code) ? map[error.code] : undefined;
 	const message = toUserMessage(error);
 	if (fields === undefined) {
 		return { kind: 'banner', message };

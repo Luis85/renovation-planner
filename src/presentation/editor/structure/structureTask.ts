@@ -3,7 +3,7 @@ import type { AppError } from '../../../core/errors/AppError';
 import type { EntityId } from '../../../core/identity/EntityId';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
 import type { PlanGeometrySnapshot } from '../../../application/ports/PlanGeometrySidecar';
-import { SessionWriteLedger, undoSuperseded } from '../../../application/editor/WriteLedger';
+import { undoSuperseded, type WriteLedger } from '../../../application/editor/WriteLedger';
 import { sameGeometryDocument } from '../../../application/commands/spatial/sameGeometryDocument';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { createZoneHistory } from '../add/createZoneHistory';
@@ -19,9 +19,16 @@ import { notifyFault } from '../../notices/notify';
 import { StructureTool } from './StructureTool';
 import { addWallPoint, createStructureDraft, validateDraftStructure, mintStructure, numericWallPoint, type StructureToolId } from './structureDraft';
 
-export function createStructureTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'>) {
+/**
+ * `ledger` is the EDITOR's ledger, the one `buildRuntime` hands every other adapter — never a
+ * private one: the optional Room's create command records the Room's versions in it, and a
+ * rename, resize or nudge of that Room records in the editor's, so a private ledger answered
+ * the loop's undo with the Room's ORIGINAL version and the delete was refused (a Codex P2 on
+ * pull request #86).
+ */
+export function createStructureTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { readonly ledger: WriteLedger }) {
 	const project = useProjectStore(), selection = useSelectionStore(), save = useSaveStateStore();
-	const draft = createStructureDraft(), ledger = new SessionWriteLedger(), baseline = shallowRef<PlanGeometrySnapshot | null>(null);
+	const draft = createStructureDraft(), ledger = runtime.ledger, baseline = shallowRef<PlanGeometrySnapshot | null>(null);
 	let alive = true, generation = 0;
 	const blocked = computed(() => draft.busy || draft.loading || draft.conflict || runtime.writesBlocked.value || save.state === 'saving');
 	function stop(): void { generation++; Object.assign(draft, createStructureDraft()); baseline.value = null; }

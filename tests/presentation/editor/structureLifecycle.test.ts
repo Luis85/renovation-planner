@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { structureEditor } from '../../helpers/structureEditor';
 import { settle, settleUntil } from '../../helpers/editor';
 import { err, ok } from '../../../src/core/result/Result';
-import { expectOk } from '../../helpers/domain';
+import { expectDefined, expectOk } from '../../helpers/domain';
+import { makeZone } from '../../helpers/entities';
 import { WALL_LOOP } from '../../helpers/structure';
 import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
@@ -125,6 +126,23 @@ describe('spatial task failure, busy and leaf lifetime', () => {
 		await field.setValue('0.9'); task.draft.text.offset = '0.5'; await value.wrapper.find('.rp-structure-task').trigger('submit');
 		await settleUntil(() => value.runtime.activeToolId.value === 'select', 'saved window'); expect(value.project.structure.openings[0].kind).toBe('window');
 		await value.runtime.structureActions.edit('missing'); expect(value.dialogs.current).toBeNull();
+	});
+	it('records the optional Room in the editor-wide ledger, so a sibling edit and its undo do not strand the loop undo', async () => {
+		// The Room's create command recorded its versions in a ledger private to this task,
+		// while a nudge, a rename or a resize records in the editor's; after one of those and
+		// its undo, undoing the loop asked the private ledger for the Room's ORIGINAL version
+		// and the delete was refused, leaving the composite step stuck in history.
+		const value = await rig(), task = await start(value);
+		for (const [x, y] of [[0, 0], [4000, 0], [4000, 3000], [0, 3000]]) value.runtime.toolManager.pointerDown(pointerAt(x, y));
+		task.closeLoop(); task.draft.room = true; task.draft.roomName = 'Study';
+		await task.finish(); await settleUntil(() => value.runtime.activeToolId.value === 'select', 'saved loop');
+		const roomId = expectDefined([...value.project.zones.keys()][0], 'the loop room');
+		value.selection.select([roomId as never]);
+		await value.runtime.nudgeSelection({ dx: 100, dy: 0 });
+		await value.runtime.dispatcher.undo();
+		await value.runtime.dispatcher.undo();
+		await settleUntil(() => value.project.zones.size === 0, 'the room removed with its loop');
+		expect(value.project.structure.walls).toHaveLength(0);
 	});
 	it('previews a dragged connected end without writing and clears it on cancellation', async () => {
 		const value = await rig(); await seeded(value);

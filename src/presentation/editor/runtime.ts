@@ -720,7 +720,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
 	});
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect });
-	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection });
+	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value, previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 

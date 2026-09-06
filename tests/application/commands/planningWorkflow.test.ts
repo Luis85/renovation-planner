@@ -78,6 +78,12 @@ describe('Materials → Costs → Evidence through real repository history', () 
  expect(materialRows(baseline)[0].outstanding.toString()).toBe('9.2'); expect(shoppingBody(baseline)).toContain('9.2 m2'); expect(shoppingBody(baseline)).toContain(`[[rp-id:${rig.input.id}]]`);
  const stale = { ...baseline, materials: [{ ...baseline.materials[0], entity: expectOk(baseline.materials[0].entity.markedStale()) }] }; expect(shoppingBody(stale)).toBeNull(); expect(aggregateCosts(costRows(stale, rig.roomId), 'EUR')).toBeNull(); expect(planningFindings(stale)).toHaveLength(1);
  });
+ it('reports a material stale when its recorded measurement drifted even though packaging kept the lot unchanged', async () => {
+ const rig = await planningStack(); expectOk(await rig.planning.material(expectOk(await rig.read()), { ...rig.input, source: { ...rig.input.source, lot: '100' } }, rig.ledger).execute());
+ const baseline = expectOk(await rig.read()), entity = baseline.materials[0].entity; expect(entity.quantity.calculated.value.toString()).toBe('100'); expect(materialRows(baseline)[0].stale).toBe(false);
+ const drifted = { ...baseline, materials: [{ ...baseline.materials[0], entity: expectOk(Requirement.create({ ...entity, calculatedFrom: { ...entity.calculatedFrom, zoneArea: { ...entity.calculatedFrom.zoneArea, value: new Decimal('11') } } })) }] };
+ expect(materialRows(drifted)[0].entity.quantity.calculated.value.toString()).toBe('100'); expect(materialRows(drifted)[0].stale).toBe(true); expect(shoppingBody(drifted)).toBeNull();
+ });
  it('surfaces legacy, missing-source, negative Remaining and missing-photo/note projections without rewriting facts', async () => {
  const rig = await planningStack(); expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute()); const baseline = expectOk(await rig.read());
  const legacy = { ...baseline, materials: [{ ...baseline.materials[0], entity: expectOk(Requirement.create({ ...baseline.materials[0].entity, source: undefined })) }] }; expect(materialRows(legacy)[0].source.rule).toBe('room-area'); expect(materialRows({ ...legacy, catalogue: [] })[0].name).toBe(rig.asset.id);

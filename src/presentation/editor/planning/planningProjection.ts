@@ -14,7 +14,12 @@ export function materialRows(baseline: PlanningBaseline) {
 		const source = sourceOf(entity, baseline), selected = baseline.catalogue.find(item => item.asset.id === entity.assetId);
 		const current = prepareMaterial(baseline, { id: entity.id, roomId: entity.origin.zoneId, assetId: entity.assetId, source,
 			waste: entity.wasteFactor.toString(), override: entity.quantity.override?.value.toString() ?? '' });
+		// The recorded source measurement is compared as well as the figures derived from it, the way
+		// `buildRequirementRow`'s `inputsStillMatch` does: packaging rounds to a whole lot, so a room
+		// or wall that moved a little can leave quantity and cost unchanged while `zoneArea` still
+		// records the old measurement — provenance the shopping list must not read as current.
 		const stale = entity.recalculationStatus === 'stale' || !current.ok || !entity.quantity.calculated.value.eq(current.value.quantity.calculated.value)
+			|| !entity.calculatedFrom.zoneArea.value.eq(current.value.calculatedFrom.zoneArea.value)
 			|| !sameMoney(entity.estimatedCost.calculated, current.value.estimatedCost.calculated) || !sameMoney(entity.calculatedFrom.unitCost, current.value.calculatedFrom.unitCost);
 		const procurement = baseline.plan.entity.renovation?.depth?.procurement.find(item => item.requirementId === entity.id);
 		return { entity, source, name: selected?.asset.name ?? entity.assetId, stale, refused: !current.ok, procurement,

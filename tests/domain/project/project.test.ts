@@ -41,8 +41,11 @@ describe('Project.create', () => {
 		);
 		expect(project.description).toBe('Full refit');
 		expect(project.status).toBe('DESIGN');
-		expect(project.start).toBe(start);
-		expect(project.targetCompletion).toBe(target);
+		// `.toEqual`, not `.toBe`: `create` copies each Date rather than aliasing the
+		// caller's instance (C9) — see the aliasing describe below for the mutation case
+		// that motivates it.
+		expect(project.start).toEqual(start);
+		expect(project.targetCompletion).toEqual(target);
 		expect(project.budget?.amount).toBe('50000');
 		expect(project.contingency).not.toBeNull();
 		expect(project.locationDescription).toBe('Ground floor');
@@ -137,7 +140,7 @@ describe('Project.create', () => {
 				targetCompletion: day,
 			}),
 		);
-		expect(project.targetCompletion).toBe(day);
+		expect(project.targetCompletion).toEqual(day);
 	});
 
 	it('refuses a status outside the lifecycle vocabulary', () => {
@@ -202,5 +205,20 @@ describe('a project has one currency', () => {
 			}),
 		);
 		expect(project.withCurrency(currencyOf('EUR')).ok).toBe(false);
+	});
+});
+
+describe('Project dates are copied on the way in, not aliased', () => {
+	/**
+	 * A `Date` is mutable and was stored by reference on an "Immutable" entity (C9) — a
+	 * mutation of the caller's own instance after `create` reached the stored field.
+	 */
+	it('a Date mutated after create does not reach the project', () => {
+		const start = new Date('2026-09-01');
+		const project = expectOk(
+			Project.create({ id: createProjectId(), name: 'Kitchen', currency: currencyOf('EUR'), start }),
+		);
+		start.setFullYear(1970);
+		expect(project.start).toEqual(new Date('2026-09-01'));
 	});
 });

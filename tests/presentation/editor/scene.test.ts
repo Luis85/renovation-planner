@@ -49,21 +49,24 @@ describe('the scene structure', () => {
 	 * put a `Transformer`; "draws nothing" is what says nothing here has claimed it yet.
 	 *
 	 * **It asserted a child count of ZERO until `RoomDraftSketch` had to reserve its
-	 * position.** vue-konva reindexes a layer's children on that LAYER's own update, and a
+	 * position, and now TWO structural groups reserve one each** — `GestureSketch` joined it
+	 * at finding E9. vue-konva reindexes a layer's children on that LAYER's own update, and a
 	 * child component that creates its nodes later is appended after the reindex has already
-	 * run — so the room draft's group is mounted unconditionally and is empty until a
-	 * rectangle exists (that component's own docblock carries the whole account, and
-	 * `roomDraftSketch.test.ts` holds the ordering it buys). The contract is unchanged in the
-	 * only sense that matters and the assertion says so differently: one structural node,
-	 * named, with nothing inside it, so anything that starts DRAWING here still fails.
+	 * run — so both groups are mounted unconditionally and are empty until there is a sketch
+	 * or a rectangle to draw (each component's own docblock carries the whole account, and
+	 * `roomDraftSketch.test.ts`/`layers.test.ts` hold the ordering they buy). The contract is
+	 * unchanged in the only sense that matters and the assertion says so differently: two
+	 * structural nodes, named, with nothing inside either, so anything that starts DRAWING
+	 * here still fails.
 	 */
-	it('mounts the interaction layer present, drawing nothing but the empty room-draft group', async () => {
+	it('mounts the interaction layer present, drawing nothing but the two empty gesture groups', async () => {
 		const harness = await mount();
 
 		const interaction = harness.stage.findOne<Konva.Layer>('.interaction');
 
 		expect(interaction).toBeDefined();
-		expect(interaction?.getChildren().map((node) => node.name())).toEqual(['room-draft-group']);
+		expect(interaction?.getChildren().map((node) => node.name())).toEqual(['gesture-sketch', 'room-draft-group']);
+		expect(interaction?.findOne<Konva.Group>('.gesture-sketch')?.getChildren()).toHaveLength(0);
 		expect(interaction?.findOne<Konva.Group>('.room-draft-group')?.getChildren()).toHaveLength(0);
 	});
 

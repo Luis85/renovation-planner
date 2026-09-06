@@ -85,6 +85,43 @@ describe('plan geometry store diagnostics', () => {
 		expectOk(await stack.store.mutate(planId, (dto) => ({ ...dto })));
 	});
 
+	/**
+	 * The mirror of `AssetGeometryStore.delete`'s guard, which this store had no half of: it
+	 * derived a path, found a file and trashed it, asking nothing. A copied `.rpgeo`, a
+	 * hand-renamed one, or two plan ids that differ only in case on a case-insensitive
+	 * filesystem all name a file declaring somebody else, and deleting one plan destroyed the
+	 * other plan's zones silently.
+	 */
+	it('refuses to delete a sidecar that declares a different plan', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const path = sidecarPathOf(stack, projectId, planId);
+		const other = createPlanId();
+		stack.vault.entries.set(
+			path,
+			JSON.stringify({ schemaVersion: 1, planId: other, revision: 1, unit: 'mm', calibration: null, objects: [] }),
+		);
+
+		expect(expectErr(await stack.store.delete(planId)).code).toBe('plan-geometry.plan-id-mismatch');
+		expect(stack.vault.entries.has(path)).toBe(true);
+	});
+
+	/**
+	 * The other half of that guard: a sidecar nothing can parse declares nobody, and refusing
+	 * to delete it would leave a plan whose geometry file can never be cleaned up. The
+	 * schema-invalid arm of the same answer is 'delete honours the path hint' below, whose
+	 * `{}` parses and validates to nothing.
+	 */
+	it('still deletes a sidecar too corrupt to declare anything', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const path = sidecarPathOf(stack, projectId, planId);
+		stack.vault.entries.set(path, 'not json at all');
+
+		expectOk(await stack.store.delete(planId));
+		expect(stack.vault.entries.has(path)).toBe(false);
+	});
+
 	it('delete honours the path hint when the index mapping does not exist yet', async () => {
 		const stack = createRepositoryStack();
 		const planId = createPlanId();

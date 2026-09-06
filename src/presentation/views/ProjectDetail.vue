@@ -31,7 +31,12 @@ const props = defineProps<{
 	logger: Logger;
 }>();
 defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []; prices: []; toggleGuidance: []; refresh: []; retryPlans: []; editState: [assetId: string, dirty: boolean, pending: boolean] }>();
-const planEmpty = computed(() => props.plansFailure || props.readOnly ? null : props.emptyState);
+const planEmpty = computed(() => (props.plansFailure ? null : props.emptyState));
+// `ViewRoot.vue:314`'s own `emptyActionLabel` is the model: keep the empty state on a
+// read-only surface (mobile), drop only the action it cannot dispatch. A dedicated computed
+// rather than the ternary inline in the template, which pushed the template's own cognitive
+// complexity over `fallow`'s threshold for one more branch.
+const planEmptyActionLabel = computed(() => (props.readOnly ? undefined : planEmpty.value?.actionLabel));
 </script>
 
 <template>
@@ -109,6 +114,7 @@ const planEmpty = computed(() => props.plansFailure || props.readOnly ? null : p
 					v-if="planEmpty !== null"
 					v-bind="planEmpty"
 					:heading-level="3"
+					:action-label="planEmptyActionLabel"
 					@action="$emit('createPlan')"
 				/>
 				<PlanList

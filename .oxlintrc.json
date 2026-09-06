@@ -138,9 +138,15 @@
 		// verdict on existing code. `!` asserts what the compiler was told to doubt; a
 		// reassigned parameter makes an argument mean two things in one body; and a name
 		// used above its definition reads as a hoisting question.
+		//
+		// `functions: false` is a MEASUREMENT, not a taste: oxlint 1.81.0 began reporting a
+		// function DECLARATION called above its definition, and the five hits were all
+		// `scripts/*.mjs` helpers defined below the entry code that calls them — the
+		// top-down shape a script is read in, and a declaration is hoisted whole, so there
+		// is no hoisting question to ask. Variables and classes stay under the rule.
 		"typescript/no-non-null-assertion": "error",
 		"no-param-reassign": "error",
-		"no-use-before-define": "error"
+		"no-use-before-define": ["error", { "functions": false }]
 	},
 
 	// The size and complexity budgets, on the files that had NONE. `eslint.config.mjs`

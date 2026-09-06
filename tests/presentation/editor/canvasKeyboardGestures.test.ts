@@ -22,10 +22,11 @@
  *    `spaceHeld` says the key is down; refusing to write it while another gesture ran made
  *    the machine disagree with the hand for as long as the user kept holding it.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
-import { settle } from '../../helpers/editor';
+import { runtimeOf, settle } from '../../helpers/editor';
+import type { EditorPointerEvent } from '../../../src/presentation/editor/tools/editor-tool';
 import { actionButton, activateTool, click, drawnLines, pointer, rig } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
@@ -686,6 +687,36 @@ describe('a tool gesture the window took the focus away from', () => {
 
 		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+});
+
+describe('alt, the overlap-cycling modifier', () => {
+	it('re-issues the hover on the press and on the release, so the prediction agrees with the click', async () => {
+		// `SelectTool.targetAt` reads `modifiers.alt` for BOTH the hover and the click, so a
+		// stationary pointer over overlapping rooms kept predicting the topmost one while the
+		// press that followed cycled to the next — the same shape Shift's re-issue already
+		// answers, with only Shift's name on the branch. Asserted at the re-issue rather than
+		// through the hover field, because the rig's rooms do not overlap and a stack is
+		// `spatialSelection.test.ts`'s case.
+		const { harness, canvas } = await editor();
+		activateTool(harness, 'select');
+		await settle();
+		const runtime = runtimeOf(harness);
+		const moves: EditorPointerEvent[] = [];
+		const pointerMove = runtime.toolManager.pointerMove.bind(runtime.toolManager);
+		vi.spyOn(runtime.toolManager, 'pointerMove').mockImplementation((event) => {
+			moves.push(event);
+			pointerMove(event);
+		});
+		pointer(canvas, 'pointermove', 200, 200, 0, 1, 0);
+		moves.length = 0;
+
+		key(canvas, 'keydown', { key: 'Alt', altKey: true });
+		key(canvas, 'keyup', { key: 'Alt', altKey: false });
+
+		expect(moves.map((move) => move.modifiers.alt)).toEqual([true, false]);
+		expect(moves.map((move) => move.screenPoint)).toEqual([{ x: 200, y: 200 }, { x: 200, y: 200 }]);
 		harness.unmount();
 	});
 });

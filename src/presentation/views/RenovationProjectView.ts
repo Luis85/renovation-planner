@@ -169,7 +169,6 @@ export class RenovationProjectView extends ItemView {
 		const parsed = projectIdFrom(state);
 		const section = parsed?.projectId && (state as Record<string, unknown>)['section'] === 'prices' ? 'prices' : 'details';
 		const changed = parsed !== null && (parsed.projectId !== this.projectId || section !== this.section);
-		if (changed && this.session.canLeave && !(await this.session.canLeave())) return;
 		// Only an ACCEPTED, CHANGED state is a navigation. `ViewStateResult.history` is
 		// documented as "there is a state change which should be recorded in the navigation
 		// history", and an unconditional assignment claims one where there is none: a refused
@@ -177,7 +176,25 @@ export class RenovationProjectView extends ItemView {
 		// already open would each add a back entry that restores the state the pane is
 		// already in, so the arrow appears to do nothing. Reported by a review bot against an
 		// earlier draft of this step.
-		if (changed) result.history = true;
+		//
+		// **Assigned HERE, before the `await` below, rather than after it (P2).** An `async`
+		// function's body runs SYNCHRONOUSLY up to its first `await` — `setState` does not
+		// return a pending promise to Obsidian until `this.session.canLeave()` suspends it. So
+		// this line runs before the caller ever gets its promise back, where the old placement
+		// (after the await, guarded by `if (changed)`) only ran once `canLeave()`'s own promise
+		// had settled — invisible to anything that reads `result.history` off the same call
+		// before awaiting what `setState` returned. `result` is the one object Obsidian holds
+		// for this call, so a synchronous read sees this value regardless of when the awaited
+		// work finishes; refused below, it is corrected back to `false` before that promise
+		// settles, so the final value is always the true one either way. Setting it only AFTER
+		// `canLeave()` resolves accepted — asked for once, and refused — would be right for no
+		// synchronous reader rather than wrong for one: under a synchronous reader, a navigation
+		// the user then CANCELS in the leave dialog below leaves a back entry that restores the
+		// state the pane is already in, which is the cost this ordering already accepts on the
+		// ACCEPTED path and `docs/tests/cases/Back arrow over a dirty price draft.md` is written
+		// to observe on Stay.
+		result.history = changed;
+		if (changed && this.session.canLeave && !(await this.session.canLeave())) { result.history = false; return; }
 		if (parsed !== null) { this.projectId = parsed.projectId; this.section = section; }
 		// Only once the view is OPEN. A `setState` arriving BEFORE `onOpen` — one of the two
 		// orderings this class's docblock refuses to assume between — used to mount a Vue tree

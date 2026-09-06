@@ -18,7 +18,7 @@
  * surviving TARGET, not a new Tab stop, and the panel's own controls are what a user tabs to.
  */
 import ReferenceAction from '../reference/ReferenceAction.vue';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
@@ -27,7 +27,7 @@ import type { PlanDto } from '../../read-models/PlanDto';
 import { layerCatalogue } from '../layers/layerCatalogue';
 import LayerList from './LayerList.vue';
 import RoomSummaryList from './RoomSummaryList.vue';
-import { toSpatialRecordDto } from '../../read-models/spatialRecords';
+import { useSpatialRecords } from './useSpatialRecords';
 
 const props = defineProps<{ plan: PlanDto | null }>();
 const runtime = useEditorRuntime();
@@ -39,9 +39,9 @@ const runtime = useEditorRuntime();
  * throws with no `PlanEditorRoot` above it to provide one.
  */
 const { stale } = storeToRefs(useProjectStore());
-const project = useProjectStore();
-const records = computed(() => [...project.zones.values()].map((zone) => toSpatialRecordDto(zone)));
-const toggleSelection = ref(false);
+const records = useSpatialRecords();
+// Per-leaf on the runtime, not local: this panel is unmounted by every overlay close.
+const toggleSelection = runtime.multiSelectionMode;
 const entries = computed(() => layerCatalogue(props.plan, stale.value));
 // Computed rather than interpolated inline: a plan-less heading (still loading, missing,
 // failed) is just the region name, and building that branch in the template needs a nested

@@ -138,6 +138,10 @@ class VaultEntries extends Map<string, string> {
  * extend it too — a delegating wrapper per method on EACH fake was tried first and was
  * itself a fresh clone family the moment both existed (`npm run analyze` found it), where
  * inheriting the four members outright leaves nothing on either side to keep in step.
+ *
+ * `trigger` below fires synchronously, inside the mutator, before the promise that mutator
+ * returns settles — Obsidian's own timing was never measured against that, so a test relying
+ * on ordering between the returned promise and the fired event owes that measurement first.
  */
 export class VaultEventBus {
 	private readonly listeners = new Map<object, { name: string; callback: (...args: never[]) => void }>();

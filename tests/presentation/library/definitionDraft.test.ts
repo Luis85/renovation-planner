@@ -32,13 +32,14 @@ describe('definitionChanges', () => {
 	});
 
 	/**
-	 * `validateDefinition` is the gate `save()` always runs first; this is the belt. A
-	 * caller that skips the gate and hands in an unparseable amount must not throw a raw
-	 * parse error out of a pure diffing function — it gets no changes instead.
+	 * `validateDefinition:38` trims before parsing; this line did not, so a waste of `" 5 "`
+	 * against a baseline of `"5"` threw instead of diffing to no change. Fixed at the root
+	 * (trim before both the comparison and the parse) rather than swallowing the throw —
+	 * see the docblock above this function for why the try/catch belt is gone.
 	 */
-	it('answers no changes rather than throwing, when a numeric field cannot parse', () => {
-		const baseline = anEntry();
-		const draft = { ...definitionDraft(baseline), unitCost: 'not a number' };
+	it('answers the same no-op diff for a waste value that only differs from the baseline by whitespace', () => {
+		const baseline = anEntry({ wasteFactorDefault: '0.05' });
+		const draft = { ...definitionDraft(baseline), waste: ' 5 ' };
 		expect(definitionChanges(draft, baseline)).toEqual({});
 	});
 });

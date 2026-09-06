@@ -46,25 +46,26 @@ export function validateDefinition(draft: DefinitionDraft, currency: string): Pa
 	}
 	return errors;
 }
-// `validateDefinition` is the gate: `save()` always runs it first and refuses anything
-// `moneyOf`/`Decimal` cannot parse before this function is ever called. This try/catch is
-// the belt — a caller that skipped the gate gets no changes rather than a thrown parse
-// error out of what is otherwise a pure diff (the two new items).
+// `validateDefinition` is the gate: `save()` always runs it first, against the identical
+// trimmed values and the identical `baseline.currency` this function goes on to use, and
+// refuses anything `moneyOf`/`Decimal` cannot parse before this function is ever called.
+// No try/catch belt here: once `waste` is trimmed the same way the gate trims it (below),
+// every parse this function performs is the identical call `validateDefinition` already
+// made against the identical trimmed string and the identical currency — nothing that
+// passed the gate can fail here a second time. A caller that skips the gate and hands in
+// unparseable data gets an uncaught throw, which is a caller error a pure diff is not
+// responsible for hiding.
 export function definitionChanges(draft: DefinitionDraft, baseline: CatalogueEntryDto): UpdateAssetInput['changes'] {
-	try {
-		const before = definitionDraft(baseline);
-		const changes: UpdateAssetInput['changes'] = {};
-		if (draft.name !== before.name) changes.name = draft.name.trim();
-		for (const key of ['supplier', 'sku', 'notes'] as const) {
-			if (draft[key] !== before[key]) changes[key] = draft[key].trim() || null;
-		}
-		if (draft.category !== before.category) changes.category = draft.category as AssetCategory;
-		if (draft.unit !== before.unit) changes.unit = draft.unit as MeasurementUnit;
-		if (draft.unitCost !== before.unitCost) changes.unitCost = moneyOf(draft.unitCost.trim(), baseline.currency);
-		if (draft.waste !== before.waste) changes.wasteFactorDefault = new Decimal(draft.waste).div(100);
-		if (draft.height !== before.height) changes.height = draft.height.trim() === '' ? null : Number(draft.height);
-		return changes;
-	} catch {
-		return {};
+	const before = definitionDraft(baseline);
+	const changes: UpdateAssetInput['changes'] = {};
+	if (draft.name !== before.name) changes.name = draft.name.trim();
+	for (const key of ['supplier', 'sku', 'notes'] as const) {
+		if (draft[key] !== before[key]) changes[key] = draft[key].trim() || null;
 	}
+	if (draft.category !== before.category) changes.category = draft.category as AssetCategory;
+	if (draft.unit !== before.unit) changes.unit = draft.unit as MeasurementUnit;
+	if (draft.unitCost !== before.unitCost) changes.unitCost = moneyOf(draft.unitCost.trim(), baseline.currency);
+	if (draft.waste.trim() !== before.waste) changes.wasteFactorDefault = new Decimal(draft.waste.trim()).div(100);
+	if (draft.height !== before.height) changes.height = draft.height.trim() === '' ? null : Number(draft.height);
+	return changes;
 }

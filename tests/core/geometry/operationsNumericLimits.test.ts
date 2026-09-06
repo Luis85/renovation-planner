@@ -372,14 +372,22 @@ describe('intersect over segments whose products overflow', () => {
 
 	/**
 	 * The `||`'s other branch: `t` alone is representable, so the guard must still evaluate
-	 * `u` rather than short-circuiting past it. `a`'s own direction has no x component, so
-	 * `t`'s numerator (built from `sx`/`sy`) stays a normal-sized ratio while `u`'s (built
-	 * from `a`'s huge `ry`) squares past the double range.
+	 * `u` rather than short-circuiting past it. `a` runs from `(-1e300,-1e300)` to the origin,
+	 * so `dx`/`dy` (`b.start` minus `a.start`) are both `1e300` — large enough that `u`'s
+	 * numerator (`dx*ry - dy*rx`, both products `1e300*1e300`) overflows each product to
+	 * `Infinity` BEFORE the subtraction, and `Infinity - Infinity` is `NaN`, not `Infinity`.
+	 * `t`'s numerator (`dx*sy - dy*sx`) divides the same `1e300` denominator by an equal
+	 * `1e300`, landing on exactly `1` — finite AND inside `[0, 1]`. That combination is what
+	 * makes this a real regression case rather than a relabelled range-check miss: verified
+	 * with the guard removed (`node -e`, printing `t`, `u`, `denominator`) that `t=1`,
+	 * `u=NaN`, `denominator=1e300`, and the OLD range check (`t<0||t>1||u<0||u>1`, every
+	 * comparison against `NaN` false) answers `ok({ x: 0, y: 0 })` — a confident, wrong
+	 * intersection point — where this guard answers `ok(null)`.
 	 */
 	it('answers null when only u overflows, so t alone does not short-circuit the guard', () => {
 		const result = intersect(
-			{ start: { x: 0, y: 0 }, end: { x: 0, y: 1e300 } },
-			{ start: { x: 1e300, y: 0 }, end: { x: 1e300 + 1, y: 1 } },
+			{ start: { x: -1e300, y: -1e300 }, end: { x: 0, y: 0 } },
+			{ start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
 		);
 		expect(result).toEqual({ ok: true, value: null });
 	});

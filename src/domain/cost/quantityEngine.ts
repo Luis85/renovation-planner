@@ -77,6 +77,16 @@ function toDisplayValue(rawValue: Decimal, unit: MeasurementUnit): Decimal {
  * refuses the quantity it is handed with this same function — one rule with two error
  * codes would be two rules, and a caller could not tell which one it had broken.
  *
+ * A non-finite quantity IS refused by two different codes (`cost.non-finite-input` here,
+ * `quantity.non-finite` below) and that is not the same rule twice: the pipeline's own
+ * `nonFiniteInputError` runs before it ever calls into this engine (`inputError`'s first
+ * `??` arm in `costPipeline.ts`), so a caller going through the pipeline only ever sees
+ * `cost.non-finite-input` — it never reaches the finite check below. `quantity.non-finite`
+ * is what a caller sees who calls `toMeasuredQuantity`/`applyRequirementRule`/`applyWaste`/
+ * `applyPackaging` directly, outside the pipeline, which is a different door with no
+ * `nonFiniteInputError` in front of it. One code per door, same as the negative-number rule
+ * this docblock already describes.
+ *
  * `lessThan(0)` rather than `isNegative()`: decimal.js reports negative ZERO as negative
  * (`new Decimal(0).mul(-1)`), and a zero quantity is a legitimate one.
  */

@@ -55,13 +55,18 @@ export function applyPlannedGeometry(baseline: RenovationBaseline, input: Renova
 	const before = input.intended ?? current;
 	const change = subject.planned?.change;
 	if (!change) return ok(input);
-	const resolved = { ...draft, id: draft.id || createEntityId(draft.kind === 'wall' ? 'wall' : 'opening') };
+	// An addition's id is allocated per call and never written INTO the draft: Preview and
+	// Apply both come through here, and `PlannedGeometryFields` keeps its kind selector only
+	// while `draft.id` is empty — so a preview of the wrong kind used to lock the choice
+	// before anything was persisted (a Codex P2 on pull request #87). Only the committed
+	// proposal's id reaches the sidecar, so a fresh one per preview costs nothing.
+	const id = draft.id || createEntityId(draft.kind === 'wall' ? 'wall' : 'opening');
 	const values: Record<string, number> = {};
 	for (const field of geometryFields(draft)) {
 		const parsed = parseCoordinateMetres(draft.text[field]);
 		if (!parsed.ok) return err(spatialError('numeric'));
 		values[field] = parsed.mm;
 	}
-	const intended = changeGeometry(current, before, resolved, change, values);
-	return ok({ renovation: { ...input.renovation, subjects: input.renovation.subjects.map(item => item.id === subject.id ? { ...item, targetId: resolved.id } : item) }, intended });
+	const intended = changeGeometry(current, before, { ...draft, id }, change, values);
+	return ok({ renovation: { ...input.renovation, subjects: input.renovation.subjects.map(item => item.id === subject.id ? { ...item, targetId: id } : item) }, intended });
 }

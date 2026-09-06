@@ -9,8 +9,8 @@ const planning = usePlanningContext(), session = useRenovationSession();
 </script>
 <template>
 	<li
-			
-			
+
+
 		:data-rp-record="row.record.id"
 		:class="{ 'is-selected': [row.record.id, row.record.requirementId].includes(session.focusedId) }"
 	>

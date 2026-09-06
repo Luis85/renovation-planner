@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withPlanRenovation } from '../../../src/domain/plan/Plan';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle } from '../../helpers/editor';
@@ -6,6 +7,9 @@ import { expectDefined, expectOk } from '../../helpers/domain';
 import { resizeTo } from '../../helpers/layout';
 import { defer } from '../../helpers/async';
 import { of } from '../../../src/core/money/Money';
+import PlanningForm from '../../../src/presentation/editor/planning/PlanningForm.vue';
+import { materialInput } from '../../../src/presentation/editor/planning/planningDraft';
+import MaterialRow from '../../../src/presentation/editor/planning/MaterialRow.vue';
 import { err, ok } from '../../../src/core/result/Result';
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -130,6 +134,55 @@ describe('connected planning editor', () => {
  for (const [index, mode] of ['work', 'planned', 'costs'].entries()) { rig.runtime.renovation.focus(roomId, 'documents'); await settle(); await rig.wrapper.get(`[data-rp-record="file-${index}"] > p > button`).trigger('click'); await settle(); expect(rig.session.mode).toBe(mode); }
  expect(rig.wrapper.text()).toContain('Cancelled'); expect(rig.wrapper.text()).toContain('Finish');
  rig.runtime.renovation.focus(roomId, 'work', work.id); await settle(); const remove = rig.wrapper.findAll('[data-rp-record="source-work"] button').find(button => button.text() === 'Delete record'); await expectDefined(remove, 'remove Work').trigger('click'); await settle(); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Manual labor'); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Evidence 0'); rig.dialogs.resolve('cancel');
+ });
+
+ it('reports failed deletion, ignores duplicate deletion while confirmation is open, and ignores late shopping completion', async () => {
+ const rig = await setup(), requirement = await material(rig), row = rig.wrapper.getComponent(MaterialRow);
+ await action(rig, 'Delete record'); row.vm.$emit('remove', requirement.id); await settle();
+ vi.spyOn(rig.stack.requirements, 'delete').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.delete', message: 'offline' })); rig.dialogs.resolve('confirm'); await settle(); expect(rig.wrapper.text()).toContain('Could not save');
+ const pending = defer<Awaited<ReturnType<NonNullable<typeof rig.deps.commands.shoppingNote>>>>(); const generate = vi.spyOn(rig.deps.commands, 'shoppingNote').mockReturnValueOnce(pending.promise);
+ await action(rig, 'Create or open shopping list'); await action(rig, 'Create or open shopping list'); expect(generate).toHaveBeenCalledOnce(); rig.unmount(); pending.resolve(err({ category: 'Persistence', code: 'test.write', message: 'offline' })); await settle();
+ });
+ it('keeps planned-outcome context, exposes its materials route, and guards proposal removal with linked evidence', async () => {
+ const rig = await setup(), baseline = expectOk(await rig.renovation.read(rig.plan.id));
+ const subject = { id: 'finish-proposal', roomId: rig.room.id, targetId: rig.room.id, kind: 'floor' as const, existing: null, planned: { change: 'add' as const, description: 'New finish' } };
+ const evidence = { id: 'proposal-note', roomId: rig.room.id, targetId: rig.room.id, workId: '', recordId: subject.id, path: 'scan.pdf', subpath: '', description: 'Finish specification', type: 'document' as const, phase: 'before' as const, pin: null };
+ expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: { subjects: [subject], work: [], decisions: [], depth: { costs: [], procurement: [], evidence: [evidence] } }, intended: undefined }, rig.runtime.structureTask.ledger))); rig.changePlan(); await settle(); rig.runtime.renovation.focus(rig.room.id, 'planned', subject.id); await settle();
+ await action(rig, 'Edit', '.rp-renovation-row-actions'); expect(rig.wrapper.get('[name="description"]').element).toHaveProperty('value', 'New finish'); rig.dialogs.resolve('cancel'); await settle();
+ await action(rig, 'Materials', `[data-rp-record="${subject.id}"]`); const requirement = await material(rig); expect(requirement.source?.outcomeId).toBe(subject.id);
+ rig.runtime.renovation.focus(rig.room.id, 'planned', subject.id); await settle(); await action(rig, 'Discard proposal', '.rp-renovation-row-actions'); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Finish specification'); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Oak floor'); rig.dialogs.resolve('cancel');
+ });
+ it('shows missing material prices and cancelled cost facts, and edits a persisted obligation', async () => {
+ const rig = await setup(), requirement = await material(rig), services = expectDefined(rig.deps.commands.planning, 'planning'), baseline = expectOk(await services.read(rig.plan.id));
+ vi.spyOn(services, 'read').mockResolvedValueOnce(ok({ ...baseline, catalogue: [] })); rig.changePlan(); await settle(); expect(rig.wrapper.text()).toContain('refused');
+ rig.changePlan(); await settle(); rig.runtime.renovation.focus(rig.room.id, 'costs', requirement.id); await settle(); await action(rig, 'Edit'); await rig.wrapper.get('input[name="title"]').setValue('Supply'); await rig.wrapper.get('[data-rp-add-fact]').trigger('click'); await rig.wrapper.get('input[name="amount"]').setValue('50'); await rig.wrapper.get('input[name="fact-description"]').setValue('Withdrawn quote'); await rig.wrapper.get('fieldset input[type="checkbox"]').setValue(true); await apply(rig); expect(rig.wrapper.text()).toContain('Cancelled');
+ await action(rig, 'Edit'); expect(rig.wrapper.get('input[name="title"]').element).toHaveProperty('value', 'Supply'); rig.dialogs.resolve('cancel');
+ });
+ it('shows a failed Review refresh and refuses a Room deletion when material links cannot be read', async () => {
+ const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning'); await rig.runtime.renovation.perspective('review'); await settle();
+ vi.spyOn(services, 'read').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); rig.changePlan(); await settle(); expect(rig.wrapper.text()).toContain('could not');
+ rig.changePlan(); await settle(); await rig.runtime.renovation.perspective('plan'); await settle(); rig.selection.select([rig.room.id]); vi.spyOn(services, 'read').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); await rig.runtime.deleteZone(rig.room.id, rig.room.name); expect(rig.dialogs.current).toBeNull(); expect(rig.project.zones.has(rig.room.id)).toBe(true);
+ });
+
+ it('refuses a captured form submission after leaf disposal', async () => {
+ const rig = await setup(); await rig.wrapper.get('[data-rp-new-material]').trigger('click'); await settle();
+ const form = rig.wrapper.getComponent(PlanningForm), dispatch = form.props('dispatch'), input = materialInput(form.props('draft'));
+ rig.unmount(); expect((await dispatch(input)).ok).toBe(false); expect(expectOk(await rig.stack.requirements.listByZone(rig.room.id))).toHaveLength(0);
+ });
+ it.each(['room', 'wall'] as const)('ignores delayed %s referential previews after disposal', async kind => {
+ const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning'), baseline = await services.read(rig.plan.id), pending = defer<typeof baseline>();
+ vi.spyOn(services, 'read').mockReturnValueOnce(pending.promise);
+ const deletion = kind === 'room' ? rig.runtime.deleteZone(rig.room.id, rig.room.name) : rig.runtime.structureActions.remove('wall-a'); await settle(); rig.unmount(); pending.resolve(baseline); await deletion; expect(rig.dialogs.current).toBeNull();
+ });
+
+ it('shows unavailable estimates and readable fallback links after externally removed records', async () => {
+ const rig = await setup(), baseline = expectOk(await rig.renovation.read(rig.plan.id)), roomId = rig.room.id;
+ const cost = { id: 'orphan-cost', roomId, targetId: roomId, workId: '', title: 'Orphan supply', category: 'material' as const, requirementId: 'removed-material', planned: null, facts: [], cancelled: false };
+ const evidence = { id: 'orphan-evidence', roomId, targetId: roomId, workId: '', recordId: 'removed-record', path: 'scan.pdf', subpath: '', description: 'Old invoice', type: 'document' as const, phase: 'before' as const, pin: null };
+ const edited = expectOk(withPlanRenovation(baseline.plan.entity, { subjects: [], work: [], decisions: [], depth: { costs: [cost], procurement: [], evidence: [evidence] } })); expectOk(await rig.stack.plans.save(edited, baseline.plan.version)); rig.changePlan(); await settle();
+ rig.runtime.renovation.focus(roomId, 'costs'); await settle(); expect(rig.wrapper.get('[data-rp-record="orphan-cost"]').text()).toContain('Totals unavailable until stale or incompatible records are resolved.');
+ await rig.runtime.renovation.perspective('review'); await settle(); expect(rig.wrapper.text()).toContain('Orphan supply');
+ rig.runtime.renovation.focus(roomId, 'documents'); await settle(); expect(rig.wrapper.get('[data-rp-record="orphan-evidence"] > p > button').text()).toContain('removed-record');
  });
 
 });

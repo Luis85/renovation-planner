@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { finishShortcut } from './finishShortcut';
 /**
  * The Plan Editor's GESTURE SURFACE: the element every pointer, wheel and key event of the
  * canvas arrives at, the camera those events drive, and the routing that decides between the
@@ -37,7 +36,7 @@ import type { EditorPointerEvent, ToolId } from '../tools/editor-tool';
 import type { ToolManager } from '../tools/tool-manager';
 import type { RenderState } from '../tools/render-state';
 import { routeEscape } from '../escapeRouting';
-import { arrowVector } from './keyboard';
+import { arrowVector, finishShortcut } from './keyboard';
 import { cursorClassFor } from './cursor';
 
 /**
@@ -966,13 +965,15 @@ function onPointerLeave(event: PointerEvent): void {
  * answer that way rather than defaulting: a jump to nowhere costs the user the view they
  * had and tells them nothing about why.
  */
-/**
- * Enter finishes a draw-area draft — and only a PLAIN Enter: not a repeat, not a chord, not
- * a keystroke an IME is still composing (`plainPress`). `preventDefault` runs for every Enter
- * while that tool is active, chorded or not, so nothing beneath the canvas activates on it.
- * Its own function beside `fitShortcut` for the same reason that one is: `onKeyDown` was at
- * its cognitive-complexity budget the day the merge added this branch to it.
- */
+/** `finishShortcut`'s doors — the key semantics live in `surface/keyboard.ts`. */
+function finishKeys(event: KeyboardEvent): boolean {
+	return finishShortcut(event, {
+		tool: activeToolId.value,
+		finishArea: props.finishArea,
+		finishActiveTool: () => toolManager.finishActiveTool(),
+		undoWallPoint: () => toolManager.editActiveCorner(-1, null),
+	});
+}
 
 function fitShortcut(event: KeyboardEvent): boolean {
 	if (!event.shiftKey) return false;
@@ -1168,7 +1169,7 @@ function onKeyDown(event: KeyboardEvent): void {
 		return;
 	}
 	// One short-circuit chain, in this order: a running gesture swallows every key below it.
-	if (gestureInFlight() || finishShortcut(event, activeToolId.value, { toolManager, finishArea: props.finishArea }) || fitShortcut(event)) return;
+	if (gestureInFlight() || finishKeys(event) || fitShortcut(event)) return;
 	zoomShortcut(event);
 }
 
@@ -1194,7 +1195,6 @@ function onKeyDown(event: KeyboardEvent): void {
  * moved — so gating the release the same way the press is gated would strand the constraint
  * on. A space release there, by contrast, belongs to the button it lands on, not the camera.
  */
-// PR #74 (48febd87): Alt changes overlap prediction even without pointer movement.
 function onKeyUp(event: KeyboardEvent): void {
 	if (event.key === 'Shift' || event.key === 'Alt') {
 		reissuePointerMove(event);

@@ -20,7 +20,7 @@ describe('renovation transactions through Markdown and sidecar repositories', ()
 		expectOk(await command.execute()); expect(await command.execute()).toEqual(ok('no-write'));
 		expect(publish).toHaveBeenLastCalledWith({ type: 'PlanRenovationChanged', payload: { planId: rig.plan.id, projectId: rig.plan.projectId } });
 		const saved = expectOk(await rig.read()); expect(saved.plan.entity.renovation).toEqual(rig.value);
-		expect(saved.geometry).toEqual(baseline.geometry);
+		expect(saved.geometry.document).toEqual(baseline.geometry.document); expect(saved.geometry.version).not.toEqual(baseline.geometry.version);
 		const fresh = createRepositoryStack(); for (const [path, bytes] of rig.stack.vault.entries) fresh.vault.entries.set(path, bytes); fresh.rebuildIndex();
 		const loaded = expectOk(await renovationServices(fresh.plans, new ObsidianPlanGeometrySidecar(fresh.store), fresh.events).read(rig.plan.id));
 		expect(loaded.plan.entity.renovation).toEqual(rig.value);
@@ -87,4 +87,16 @@ describe('renovation transactions through Markdown and sidecar repositories', ()
 		const rig = await renovationStack(); vi.spyOn(rig.stack.plans, 'getById').mockResolvedValueOnce(ok(null)); expect((await rig.read()).ok).toBe(false);
 		vi.spyOn(rig.geometry, 'read').mockResolvedValueOnce(err(fault)); expect(await rig.read()).toEqual(err(fault));
 	});
+ it('compensates metadata when a spatial target disappears between validation and the Plan write', async () => {
+ const rig = await renovationStack(), baseline = expectOk(await rig.read());
+ const save = rig.stack.plans.save.bind(rig.stack.plans);
+ vi.spyOn(rig.stack.plans, 'save').mockImplementationOnce(async (plan, version) => {
+ expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.geometry.document, objects: [], structure: EMPTY_STRUCTURE }, baseline.geometry.version));
+ return save(plan, version);
+ });
+ const command = rig.renovation.command(baseline, { renovation: rig.value, intended: undefined }, rig.ledger);
+ expect(expectErr(await command.execute()).code).toContain('revision-conflict');
+ const fresh = expectOk(await rig.read()); expect(fresh.plan.entity.renovation).toBeUndefined(); expect(fresh.geometry.document.objects).toHaveLength(0);
+ });
+
 });

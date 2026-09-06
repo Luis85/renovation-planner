@@ -98,4 +98,11 @@ export const renovationEn = {
 	"renovation.measurement.offset": "Distance along host",
 	"renovation.measurement.width": "Width",
 	"renovation.measurement.sill": "Sill height",
+	// The three RenovationCommand refusals a notice can carry: the form maps every code through
+	// `renovationMessage`, but `renovationActions` raises `notifyOperationFailure` for a change
+	// dispatched outside it. `renovation.restore-failed` only ever travels as
+	// `renovation.compensation-failed`'s cause (`toUserMessage.test.ts` records why).
+	"renovation.write-failed": "The renovation record could not be saved. Your entry is retained; try again.",
+	"renovation.recovery-required": "This step can no longer be applied. Reopen the floor before editing.",
+	"renovation.compensation-failed": "The renovation record could not be saved and the floor could not be restored. Reopen the floor before editing.",
 };

@@ -1,3 +1,4 @@
+import { renovationReferents, validateRenovationTargets } from '../../src/domain/renovation/renovationTargets';
 import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { sourceMeasurement, validDecimal, validRequirementSource, type RequirementSource, type QuantityGeometry } from '../../src/domain/requirement/RequirementSource';
@@ -34,7 +35,7 @@ describe('bounded contextual quantity sources', () => {
  expect(result.toString()).toBe(unit === 'm' ? '2500' : unit === 'm2' ? '2500000' : '2.5');
  });
  it('refuses unavailable, incompatible and invalid measurements', () => {
- for (const patch of [{ targetId: 'missing' }, { rule: 'wall-gross', targetId: 'missing' }, { rule: 'wall-length', targetId: 'missing' }, { rule: 'opening-area', targetId: 'missing' }, { rule: 'count', targetId: 'missing' }, { rule: 'room-perimeter', targetId: 'wall-a' }]) expect(sourceMeasurement({ ...source, ...patch } as RequirementSource, 'room', geometry, 'm2').ok).toBe(false);
+ for (const patch of [{ targetId: 'missing' }, { rule: 'wall-gross', targetId: 'missing' }, { rule: 'wall-length', targetId: 'missing' }, { rule: 'opening-area', targetId: 'missing' }, { rule: 'count', targetId: 'missing' }, { rule: 'room-perimeter', targetId: 'wall-a' }, { rule: 'opening-area', targetId: 'room' }]) expect(sourceMeasurement({ ...source, ...patch } as RequirementSource, 'room', geometry, 'm2').ok).toBe(false);
  expect(sourceMeasurement(source, 'missing', geometry, 'm2').ok).toBe(false);
  expect(sourceMeasurement(source, 'room', geometry, 'm').ok).toBe(false);
  expect(sourceMeasurement({ ...source, rule: 'wall-gross', targetId: 'wall-a' }, 'room', { objects: [] }, 'm2').ok).toBe(false);
@@ -88,5 +89,23 @@ describe('depth identity and link validation', () => {
  expect(validatePlanningDepth({ ...depth, costs: [cost, cost] }, EMPTY_RENOVATION).ok).toBe(false);
  expect(validatePlanningDepth({ ...depth, costs: [{ ...cost, requirementId: 'r' }, { ...cost, id: 'c2', requirementId: 'r' }] }, EMPTY_RENOVATION).ok).toBe(false);
  expect(validatePlanningDepth({ ...depth, evidence: [{ ...evidence, recordId: cost.id, roomId: 'other' }] }, EMPTY_RENOVATION).ok).toBe(false);
+ });
+});
+
+describe('planning references across spatial states', () => {
+ it('names each dependent record and refuses missing Rooms or targets while allowing intended-only targets', () => {
+ const procurement = { ...link, id: 'stock', requirementId: 'requirement', unit: 'm2' as const, purchased: '1', reserved: '0' };
+ const depth = { costs: [cost], evidence: [evidence], procurement: [procurement] }, value = { ...EMPTY_RENOVATION, depth };
+ expect(renovationReferents(value, 'room')).toEqual(['Finish', 'Before', 'requirement']); expect(renovationReferents(value, 'absent')).toEqual([]);
+ const context = { roomIds: ['room'], structure: geometry.structure };
+ expect(validateRenovationTargets(value, context).ok).toBe(true);
+ expect(validateRenovationTargets(value, { ...context, roomIds: [] }).ok).toBe(false);
+ const target = { ...value, depth: { ...depth, evidence: [{ ...evidence, targetId: 'proposed-wall' }] } };
+ expect(validateRenovationTargets(target, context).ok).toBe(false);
+ expect(validateRenovationTargets(target, { ...context, intended: { ...WALL_LOOP, walls: [{ ...WALL_LOOP.walls[0], id: 'proposed-wall' }] } }).ok).toBe(true);
+ expect(validatePlanningDepth({ ...depth, procurement: [{ ...procurement, reserved: '-1' }] }, EMPTY_RENOVATION).ok).toBe(false);
+ expect(validatePlanningDepth({ ...EMPTY_DEPTH, costs: [{ ...cost, planned: null, requirementId: 'requirement' }] }, EMPTY_RENOVATION).ok).toBe(true);
+ const unnamed = { ...EMPTY_RENOVATION, subjects: [{ id: 'subject', roomId: 'room', targetId: 'room', kind: 'floor' as const, existing: null, planned: null }] };
+ expect(renovationReferents(unnamed, 'room')).toEqual(['subject']);
  });
 });

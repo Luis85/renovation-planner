@@ -64,6 +64,12 @@ class StructureCommand {
 			if (conflict) return err(conflict);
 			this.generation = ledger.observe(planId, live.value.version);
 		} else {
+			// The generation DOES decide here, and a sibling Zone command is not what moves it:
+			// every adapter that writes this sidecar under a zone's id also records the receipt
+			// under the plan's (`recordRelatedWrite`), so a Room move and its undo leave the
+			// plan's generation where this step recorded it, while a PEER write — one no adapter
+			// here made, identical bytes or not — bumps it and refuses the undo. Deciding by the
+			// document alone (tried on #86) could not tell those two apart.
 			const generation = ledger.observe(planId, live.value.version);
 			if (generation !== this.generation || !sameGeometryDocument(live.value.document, this.current.document)) return err(undoSuperseded(planId));
 		}

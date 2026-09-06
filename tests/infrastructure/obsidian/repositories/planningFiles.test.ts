@@ -98,3 +98,17 @@ it('checks source notes from bytes when metadata is stale or malformed', async (
  rig.stack.vault.entries.delete(path); expectOk(await guardMaterialGeometry({ vault: rig.stack.deps.vault, index: rig.stack.index }, rig.plan.id, dto, dto));
  const planPath = expectDefined(rig.stack.index.getPath(rig.plan.id), 'plan'); rig.stack.vault.entries.set(planPath, '---\nrenovation: invalid\n---\n'); expect((await guardMaterialRemoval({ vault: rig.stack.deps.vault, index: rig.stack.index }, rig.input.id)).ok).toBe(false);
 });
+
+it('leaves nonmatching evidence untouched and refuses a rename that would empty its canonical path', async () => {
+ const rig = await filesRig(); expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute());
+ const baseline = expectOk(await rig.read()); expectOk(await rig.renovation.command(baseline, { renovation: { ...rig.value, depth: rig.depth }, intended: undefined }, rig.ledger).execute());
+ const before = [...rig.stack.vault.entries]; expectOk(await relocateEvidence({ ...rig.deps, index: rig.stack.index }, 'Elsewhere', 'Archive')); expect([...rig.stack.vault.entries]).toEqual(before);
+ expect((await relocateEvidence({ ...rig.deps, index: rig.stack.index }, rig.evidence.path, '')).ok).toBe(false); expect([...rig.stack.vault.entries]).toEqual(before);
+});
+
+it('refuses deletion of a material Room while ignoring sources belonging to another Plan', async () => {
+ const rig = await filesRig(); expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute());
+ const dto = expectOk(await rig.stack.store.read(rig.plan.id)).dto;
+ expect((await guardMaterialGeometry({ vault: rig.stack.deps.vault, index: rig.stack.index }, rig.plan.id, dto, { ...dto, objects: [] })).ok).toBe(false);
+ expectOk(await guardMaterialGeometry({ vault: rig.stack.deps.vault, index: rig.stack.index }, 'other-plan' as typeof rig.plan.id, dto, { ...dto, objects: [] }));
+});

@@ -10,8 +10,8 @@ const planning = usePlanningContext(), session = useRenovationSession();
 </script>
 <template>
 	<li
-				
-				
+
+
 		:data-rp-record="row.entity.id"
 		:class="{ 'is-selected': session.focusedId === row.entity.id }"
 	>

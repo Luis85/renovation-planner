@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { normalizePath } from 'obsidian';
 import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, toRaw, watch, type Ref } from 'vue';
@@ -16,7 +17,6 @@ import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { notifyFault } from '../../notices/notify';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
-import { normalizePath } from 'obsidian';
 
 const props = defineProps<{ baseline: ReferenceBaseline; vault: BackgroundVault; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>;
 	logger: Logger; fileChanges: (listener: (path: string) => void) => () => void; dispatch: (input: ConfigureReferenceInput) => Promise<DispatchResult> }>();
@@ -25,6 +25,9 @@ const candidates = props.vault.getFiles?.().filter(file => backgroundKindFor(fil
 const previous = props.baseline.plan.entity;
 const calibration = props.baseline.geometry.document.calibration;
 const path = ref(previous.background?.path ?? ''), page = ref(previous.background?.page ?? 1), step = ref(1);
+// ONE canonical spelling, normalized once: a vault event carries `TFile.path`, and comparing
+// the raw text against it let a `/scan.png` draft miss its own file's change and persist a
+// spelling `BackgroundLayer` would never match either (a Codex P2 on pull request #85).
 const sourcePath = computed(() => normalizePath(path.value.trim()));
 const raster = ref<Extract<BackgroundRenderModel, { kind: 'raster' }> | null>(null);
 const submitting = ref(false);

@@ -132,10 +132,8 @@ class RenovationCommand {
 	private async write(plan: Plan, document: PlanGeometryDocument): Promise<DispatchResult> {
 		const saved = await this.deps.plans.save(plan, this.current.plan.version);
 		if (!saved.ok) return saved;
-		if (sameGeometryDocument(document, this.current.geometry.document)) {
-			this.remember(saved.value, this.current.geometry);
-			return ok('wrote');
-		}
+		// Even metadata-only changes must CAS the spatial baseline: a target can disappear
+		// after validation and before the Plan save. The receipt also protects compensation.
 		const written = await this.writeGeometry(plan.id, document);
 		if (!written.ok) {
 			let restored;

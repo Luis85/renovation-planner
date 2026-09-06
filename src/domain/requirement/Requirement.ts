@@ -216,6 +216,7 @@ export class Requirement {
 	 * same marker the other two pay before any recalculation runs.
 	 */
 	repointedTo(origin: RequirementOrigin, assetId: AssetId): Result<Requirement, ValidationError> {
+		if (this.source && origin.zoneId !== this.origin.zoneId) return err(requirementError('source-invalid', 'This action cannot reassign a contextual material to another Room.'));
 		return this.with({ origin, assetId, recalculationStatus: 'stale' });
 	}
 }

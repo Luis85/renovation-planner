@@ -98,4 +98,7 @@ export const renovationDe = {
 	"renovation.measurement.offset": "Abstand entlang der Wand",
 	"renovation.measurement.width": "Breite",
 	"renovation.measurement.sill": "Brüstungshöhe",
+	"renovation.write-failed": "Der Renovierungseintrag konnte nicht gespeichert werden. Ihre Eingabe bleibt erhalten; versuchen Sie es erneut.",
+	"renovation.recovery-required": "Dieser Schritt kann nicht mehr angewendet werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.",
+	"renovation.compensation-failed": "Der Renovierungseintrag konnte nicht gespeichert und das Geschoss nicht wiederhergestellt werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.",
 };

@@ -85,4 +85,15 @@ describe('explicit planning form contracts', () => {
  await w.setProps({ files: undefined }); expect(w.text()).toContain('missing');
  });
 
+ it('ignores a rejected submit after disposal', async () => {
+ const rig = await setup(), pending = defer<void>(); await set(rig.wrapper, 'asset', rig.asset.id); rig.dispatch.mockReturnValueOnce(pending.promise.then(() => { throw new Error('late write'); }));
+ await rig.wrapper.trigger('submit'); rig.wrapper.unmount(); pending.resolve(undefined); await settle(); expect(rig.wrapper.emitted('submit')).toBeUndefined();
+ });
+ it('rejects a queued file selection while note creation is busy and ignores its late failure', async () => {
+ const rig = await setup('evidence'), pending = defer<void>(), imported = vi.spyOn(rig.files, 'importFile');
+ vi.spyOn(rig.files, 'createNote').mockReturnValueOnce(pending.promise.then(() => { throw new Error('late file write'); })); await rig.wrapper.get('button[type="button"]').trigger('click');
+ const input = rig.wrapper.get('input[type="file"]'); Object.defineProperty(input.element, 'files', { value: [new File(['image'], 'photo.jpg')] }); await input.trigger('change'); expect(imported).not.toHaveBeenCalled();
+ rig.wrapper.unmount(); pending.resolve(undefined); await settle(); expect(rig.dispatch).not.toHaveBeenCalled();
+ });
+
 });

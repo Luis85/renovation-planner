@@ -4,6 +4,7 @@ import type { Workspace } from 'obsidian';
 import { createCompositionRoot } from '../../src/plugin/composition-root';
 import { planningEditorServices } from '../../src/plugin/planningEditorServices';
 import { evidenceRenamed } from '../../src/plugin/evidenceRename';
+import { err } from '../../src/core/result/Result';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { planningStack } from '../helpers/planning';
 import { expectDefined, expectOk } from '../helpers/domain';
@@ -49,4 +50,17 @@ describe('production planning composition and fresh-stack hydration', () => {
  expect(planningEditorServices(root, rig.stack.deps.vault, {} as never)).toEqual({}); await evidenceRenamed(root, 'a', 'b');
  for (const subscription of rig.persistence.subscriptions) subscription.dispose();
  });
+ it('propagates late planning reads and link refusals through renovation, and returned rename failures', async () => {
+ const rig = await setup(), planning = expectDefined(rig.services.planning, 'planning'), renovation = expectDefined(rig.services.renovation, 'renovation'), fault = { category: 'Persistence' as const, code: 'test.read', message: 'offline' };
+ expectOk(await planning.material(expectOk(await planning.read(rig.plan.id)), rig.input, rig.ledger).execute());
+ const baseline = expectOk(await planning.read(rig.plan.id));
+ const command = renovation.command(baseline, { renovation: { ...rig.value, depth: { ...rig.depth, costs: [{ ...rig.cost, requirementId: 'missing' }] } }, intended: undefined }, rig.ledger);
+ expect((await command.execute()).ok).toBe(false);
+ const read = rig.persistence.plans.getById.bind(rig.persistence.plans); vi.spyOn(rig.persistence.plans, 'getById').mockImplementationOnce(read).mockResolvedValueOnce(err(fault));
+ expect(await renovation.command(baseline, { renovation: rig.value, intended: undefined }, rig.ledger).execute()).toEqual(err(fault));
+ vi.spyOn(rig.persistence.plans, 'getById').mockResolvedValueOnce(err(fault)); await evidenceRenamed(rig.root, 'a', 'b');
+ expect(expectOk(await planning.read(rig.plan.id)).plan.entity.renovation).toEqual(rig.value);
+ for (const subscription of rig.persistence.subscriptions) subscription.dispose();
+ });
+
 });

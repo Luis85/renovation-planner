@@ -36,10 +36,10 @@ import { useEditorRuntime } from '../runtime';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
 import { SELECTION_BADGE_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
-import GestureSketch from './GestureSketch.vue';
 import RoomDraftSketch from './RoomDraftSketch.vue';
 import { structureCandidates } from '../structure/structureCandidates';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
+import GestureSketch from './GestureSketch.vue';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 
@@ -123,18 +123,8 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 	}];
 }));
 
-/**
- * The first vertex is the close target, so it is drawn larger than the rest even at rest and
- * larger again while a click there would close the shape. All three sizes and the tolerance
- * that arms them live in `../handleMetrics.ts`, which is what keeps what the user SEES tied
- * to the region that ACTS — the pair of numbers this project has already had disagree once.
- */
+/** Selected vertices are editable in the plan perspective alone; review and renovate draw none. */
 const editableVertices = computed(() => renovationSession.perspective === 'plan' ? selectedScreenPoints.value : []);
-
-
-
-/** Filled while armed: colour is the second channel, size is the first (§85). */
-
 </script>
 
 <template>

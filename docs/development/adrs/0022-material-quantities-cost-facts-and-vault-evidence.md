@@ -116,3 +116,24 @@ engineering checks and live Obsidian/screenreader acceptance remain open. Review
 figures, reconciliation failures/negative Remaining, and missing linked files. Evidence is never
 made mandatory by inference. See the implementation evidence and coverage ledger for measured
 criteria and remaining gaps; neither global Increment D nor release readiness is asserted.
+
+### Metadata and geometry interleaving
+
+Every renovation metadata operation performs the sidecar CAS, including unchanged geometry.
+It advances the sidecar revision while preserving geometry content. This closes #87's P1 window
+in which a target was deleted after validation but before metadata persistence. A failed CAS
+conditionally restores the Plan using the operation's own save receipt; failure to restore
+retains the existing unrecovered-write state. This is conditional compensation, not a durable
+cross-file transaction or crash journal.
+
+Material creation, edits and deletion use the same geometry confirmation boundary. If it
+refuses, the command restores/deletes its Requirement using the operation's own receipt, updates
+the shared ledger and publishes no lifecycle success. Failed restoration marks the command as
+unrecovered and prevents retry on that instance. Regression tests cover create/edit/delete,
+returned and thrown failures, peer wall deletion and successful conditional retry.
+
+The legacy delete-and-reassign flow refuses moving a contextual Requirement to another Room:
+that operation cannot revise its spatial, Work and outcome source together. Within-Room source changes use the Materials editor. Cross-Room transfer requires resolving
+dependants and recreating the Requirement in the destination; in-place transfer is deferred.
+Same-Room catalogue replacement retains the
+source and enters the existing stale recalculation path.

@@ -43,6 +43,7 @@ const session = useRenovationSession();
  */
 const { stale } = storeToRefs(useProjectStore());
 const records = useSpatialRecords();
+// Per-leaf on the runtime, not local: this panel is unmounted by every overlay close.
 const toggleSelection = runtime.multiSelectionMode;
 const entries = computed(() => layerCatalogue(props.plan, stale.value));
 // Computed rather than interpolated inline: a plan-less heading (still loading, missing,

@@ -21,7 +21,7 @@ const UNIT_SYMBOL = z.string().refine(
  * not be written — and `calculated-from-asset-unit` is the one whose loss would be
  * invisible, so it gets its own round-trip assertion in the contract suite.
  */
-export const RequirementFrontmatterSchemaV1 = z.object({
+const RequirementFrontmatterSchemaV1 = z.object({
 	type: z.literal(REQUIREMENT_TYPE),
 	'schema-version': z.literal(1),
 	id: z.string().min(1),

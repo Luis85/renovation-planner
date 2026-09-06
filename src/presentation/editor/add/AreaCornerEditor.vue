@@ -21,7 +21,6 @@ function focusInput(): void {
 	void nextTick(() => root.value?.querySelector<HTMLInputElement>('input')?.focus());
 }
 
-
 function apply(): void {
 	if (input.apply()) focusInput();
 	else void nextTick(() => root.value?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus());

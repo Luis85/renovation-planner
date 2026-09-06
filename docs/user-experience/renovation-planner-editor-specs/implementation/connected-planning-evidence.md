@@ -1,7 +1,7 @@
 # Connected planning: evidence and acceptance boundary
 
 Continuation of open [PR #87](https://github.com/Luis85/renovation-planner/pull/87), head
-`8ba7e2902a6d5d2054488e51cd8b9fc682b8c12c`, base `codex/renovation-workflow`.
+`d433eb6ee3f09851f01e415a95598b5a2b74c608`, base `codex/renovation-workflow`.
 Worktree: `D:\Projects\renovation-planner\.worktrees\materials-costs-evidence`;
 branch `codex/materials-costs-evidence`. The continuation incorporates the advanced lower stack
 through `origin/codex/reference-plan-workflow` at `abea1b18`, including main `44234f77`.
@@ -76,7 +76,9 @@ pins reuse the existing annotation layer. No extra canvas/runtime is introduced.
 
 ## Verification results
 
-Final check counts and changed-file coverage are recorded in
+The final `npm run check` passed: **533 files; 7,221 passing tests and 70 existing skips**.
+Coverage is **99.11% statements, 98.01% branches, 99.08% functions and 99.43% lines**;
+Fallow passed with zero issues/duplicates/threshold violations. Exact counts and changed-file coverage are recorded in
 [the coverage ledger](connected-planning-coverage.md). Production dependency audit reports zero
 vulnerabilities. The complete check is run with `VITEST_MAX_WORKERS=2`; thresholds, complexity
 budgets and existing exclusions are unchanged. Initial diagnostics exposed old schema-version
@@ -86,9 +88,14 @@ remain opted out of planning unless their test requests it. No blanket skips wer
 
 ## Inherited findings and remaining acceptance
 
-#87's two P2 review findings are corrected in this continuation: preview no longer assigns an ID
-to the unsaved draft, and marker rank is local to each Room. Their original review threads remain
-on #87; this feature does not push to that earlier branch. The advanced lower stack contributes
+The latest #87 head already fixes its two P2 findings: preview keeps the unsaved draft identity
+empty and marker rank/numbering is local to each Room. Those upstream fixes and regressions are
+preserved here. Its later P1 metadata/geometry race is fixed in this continuation: even an
+unchanged geometry document receives a conditional write after the Plan save, and a conflict
+compensates using the operation's Plan receipt. A repository integration regression deletes the
+spatial target between validation and metadata save and asserts that no dangling renovation
+survives. Material commands share that confirmation boundary; creation/edit/deletion restoration
+and unrecovered failures are covered in `planningFaults.test.ts`. Original review threads remain on #87; this feature does not push to that earlier branch. The advanced lower stack contributes
 current main fixes; the Area corner Escape contract now restores Apply focus and a second Escape
 returns to Select, covered by the updated integration assertion.
 
@@ -96,7 +103,8 @@ This is not complete Increment D/M12–M17 acceptance or release readiness. Live
 mobile, actual workspace navigation/rename timing, physical pointer/touch, screenreader and
 assistive-technology acceptance remain unperformed. There is no camera/capture, full PDF preview,
 quote comparison, supplier/PO workflow, shared inventory, payments/OCR, scheduling, collaboration
-or engineering validation. Evidence presence is optional and never changes Work readiness.
+or engineering validation. In-place cross-Room material transfer is deferred; the legacy
+reassign action refuses it to preserve contextual references. Evidence presence is optional and never changes Work readiness.
 
 Pins are Room-bounding-box fractions, not surveyed wall coordinates. A refused rename repair may
 leave a visibly missing link requiring explicit repair. Generated notes whose owner header was

@@ -53,4 +53,6 @@ const StructureSchema = z.object({
 });
 const PlanGeometrySchemaV2 = PlanGeometrySchemaV1.extend({ schemaVersion: z.literal(2), structure: StructureSchema.optional() });
 export const PlanGeometrySchemaV3 = PlanGeometrySchemaV2.extend({ schemaVersion: z.literal(3), intended: StructureSchema.optional() });
+/** Any persisted version, for a reader that asks only what the file DECLARES (no migration). */
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3]);
 export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV3>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 };

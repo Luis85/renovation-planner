@@ -7,7 +7,7 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchemaV3 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV3 } from '../../persistence/dto/planGeometry';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
@@ -83,7 +83,8 @@ export class PlanGeometryStore {
 	private async declaredPlanOf(file: TFile): Promise<string | null> {
 		try {
 			const parsed: unknown = JSON.parse(await this.vault.read(file));
-			const validated = PlanGeometrySchemaV3.safeParse(typeof parsed === 'object' && parsed !== null ? { ...parsed, schemaVersion: 3 } : parsed);
+			// Either version as it sits on disk — this asks what the file DECLARES, before any migration.
+			const validated = PlanGeometrySchema.safeParse(parsed);
 			return validated.success ? validated.data.planId : null;
 		} catch {
 			return null;

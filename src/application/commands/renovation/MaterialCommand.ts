@@ -8,7 +8,7 @@ import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import type { Loaded } from '../../ports/versioning';
 import { sameVersion } from '../../ports/versioning';
 import { undoSuperseded, type WriteLedger } from '../../editor/WriteLedger';
-import type { DispatchResult } from '../DispatchOutcome';
+import { markUncompensated, type DispatchResult } from '../DispatchOutcome';
 import { persistenceError } from '../../errors';
 import { validateMaterialLinks, validateDepthLinks, materialReferents } from './planningLinks';
 import { prepareMaterial, readPlanning, type MaterialInput, type PlanningBaseline, type PlanningDeps } from './materialPlanning';
@@ -17,6 +17,7 @@ import { prepareMaterial, readPlanning, type MaterialInput, type PlanningBaselin
 export class MaterialCommand {
 	private current: Loaded<Requirement> | null;
 	private applied = false;
+	private retired = false;
 	private busy = false;
 	private generation: number | null = null;
 	private readonly id: RequirementId;
@@ -26,9 +27,8 @@ export class MaterialCommand {
 		this.before = baseline.materials.find(item => item.entity.id === this.id) ?? null;
 		this.current = this.before;
 	}
-	execute(): Promise<DispatchResult> { return this.run(true); }
-	undo(): Promise<DispatchResult> { return this.run(false); }
-	private async run(forward: boolean): Promise<DispatchResult> {
+	async run(forward: boolean): Promise<DispatchResult> {
+		if (this.retired) return err(markUncompensated(undoSuperseded(this.id)));
 		if (this.busy || this.applied === forward) return ok('no-write');
 		this.busy = true;
 		let release: (() => void) | undefined;
@@ -50,13 +50,37 @@ export class MaterialCommand {
 		if (!candidate.value && !live) return ok('no-write');
 		const written = await this.write(candidate.value, live, fresh.value);
 		if (!written.ok) return written;
+		const confirmed = await this.confirmGeometry(fresh.value, live);
+		if (!confirmed.ok) return confirmed;
 		this.applied = forward;
-		const payload = { requirementId: this.id, projectId: fresh.value.plan.entity.projectId };
-		await this.deps.events.publish(candidate.value ? (live ? requirementRestored(payload) : requirementCreated(payload)) : requirementDeleted(payload));
-		if (candidate.value && live) await publishIfEffectiveCostChanged(this.deps.events, candidate.value, effectiveValue(live.entity.estimatedCost));
-		await this.deps.events.publish({ type: 'PlanRenovationChanged', payload: { planId: fresh.value.plan.entity.id, projectId: fresh.value.plan.entity.projectId } });
-		return ok('wrote');
+		return this.publish(candidate.value, live, fresh.value);
 	}
+
+ private async publish(candidate: Requirement | null, live: Loaded<Requirement> | null, fresh: PlanningBaseline): Promise<DispatchResult> {
+		const payload = { requirementId: this.id, projectId: fresh.plan.entity.projectId };
+		await this.deps.events.publish(candidate ? (live ? requirementRestored(payload) : requirementCreated(payload)) : requirementDeleted(payload));
+		if (candidate && live) await publishIfEffectiveCostChanged(this.deps.events, candidate, effectiveValue(live.entity.estimatedCost));
+		await this.deps.events.publish({ type: 'PlanRenovationChanged', payload: { planId: fresh.plan.entity.id, projectId: fresh.plan.entity.projectId } });
+		return ok('wrote');
+ }
+
+ private async confirmGeometry(fresh: PlanningBaseline, before: Loaded<Requirement> | null): Promise<DispatchResult> {
+ let result;
+ try { result = await this.deps.geometry.write(fresh.plan.entity.id, fresh.geometry.document, fresh.geometry.version); }
+ catch (cause) { result = err(persistenceError('material.write-failed', 'The material source could not be confirmed.', cause)); }
+ if (result.ok) { this.ledger.observe(fresh.plan.entity.id, fresh.geometry.version); this.ledger.record(fresh.plan.entity.id, result.value); return ok('wrote'); }
+ try {
+ if (before) {
+ const restored = await this.deps.requirements.save(before.entity, this.current?.version ?? 'absent');
+ if (!restored.ok) throw Object.assign(new Error(restored.error.message), { cause: restored.error }); this.current = restored.value;
+ } else if (this.current) {
+ const removed = await this.deps.requirements.delete(this.id, this.current.version);
+ if (!removed.ok) throw Object.assign(new Error(removed.error.message), { cause: removed.error }); this.current = null;
+ }
+ if (this.current) this.ledger.record(this.id, this.current.version); else this.ledger.forget(this.id);
+ } catch (cause) { this.retired = true; return err(markUncompensated(persistenceError('renovation.compensation-failed', 'Material recovery failed.', cause))); }
+ return result;
+ }
 
  private isCurrent(fresh: PlanningBaseline, live: Loaded<Requirement> | null): boolean {
 		if (this.generation === null && live && this.before && !sameVersion(live.version, this.before.version)) return false;

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { usePlanningContext } from './planningContext';
-import { planningFindings, type PlanningFinding } from './planningProjection';
+import type { PlanningFinding } from './planningProjection';
 import { tr } from '../../i18n/strings';
+// The findings arrive from `ReviewInspector`, which derives them once and gates its all-clear on
+// the same list: computed here as well, the two could disagree about whether a gap exists.
+defineProps<{ findings: PlanningFinding[] }>();
 const planning = usePlanningContext();
-const findings = computed<PlanningFinding[]>(() => planning.baseline.value ? planningFindings(planning.baseline.value, planning.files) : []);
 </script>
 <template>
 	<p>{{ tr('planning.review-scope') }}</p>

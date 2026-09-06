@@ -175,6 +175,19 @@ describe('connected planning editor', () => {
  const deletion = kind === 'room' ? rig.runtime.deleteZone(rig.room.id, rig.room.name) : rig.runtime.structureActions.remove('wall-a'); await settle(); rig.unmount(); pending.resolve(baseline); await deletion; expect(rig.dialogs.current).toBeNull();
  });
 
+ it('withholds the Review all-clear while planning is loading, failed or carries a finding, in the panel and in the note', async () => {
+ const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning'), baseline = expectOk(await rig.renovation.read(rig.plan.id)), roomId = rig.room.id;
+ await rig.runtime.renovation.perspective('review'); await settle(); const panel = () => rig.wrapper.get('.rp-renovation-inspector').text(); expect(panel()).toContain('No gaps');
+ const loaded = await services.read(rig.plan.id), pending = defer<typeof loaded>(), read = vi.spyOn(services, 'read').mockReturnValueOnce(pending.promise);
+ rig.changePlan(); await settle(); expect(panel()).not.toContain('No gaps'); pending.resolve(loaded); await settle(); expect(panel()).toContain('No gaps');
+ read.mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); rig.changePlan(); await settle(); expect(panel()).toContain('could not'); expect(panel()).not.toContain('No gaps');
+ const evidence = { id: 'lost', roomId, targetId: roomId, workId: '', recordId: 'removed-record', path: 'nowhere.pdf', subpath: '', description: 'Lost receipt', type: 'document' as const, phase: 'before' as const, pin: null };
+ expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(baseline.plan.entity, { subjects: [], work: [], decisions: [], depth: { costs: [], procurement: [], evidence: [evidence] } })), baseline.plan.version)); rig.changePlan(); await settle();
+ expect(panel()).toContain('Lost receipt'); expect(panel()).not.toContain('No gaps');
+ const write = vi.spyOn(rig.deps.commands, 'reviewNote'); await rig.wrapper.get('[data-rp-action="review-note"]').trigger('click'); await settle();
+ expect(write.mock.calls[0][1]).toContain('Lost receipt'); expect(write.mock.calls[0][1]).not.toContain('No gaps');
+ });
+
  it('re-reads planning for a linked evidence file, by path or by resolved link, and never for an unrelated vault note', async () => {
  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning'), baseline = expectOk(await rig.renovation.read(rig.plan.id)), roomId = rig.room.id;
  const folder = expectDefined(rig.stack.index.getPath(rig.plan.id), 'plan note').replace(/[^/]*$/, ''); rig.stack.vault.entries.set(`${folder}receipt.pdf`, 'PDF fixture');

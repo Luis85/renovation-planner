@@ -144,6 +144,27 @@ describe('spatial task failure, busy and leaf lifetime', () => {
 		await settleUntil(() => value.project.zones.size === 0, 'the room removed with its loop');
 		expect(value.project.structure.walls).toHaveLength(0);
 	});
+	it('validates a draft against the sidecar objects, so one unreadable Room note does not block unrelated walls', async () => {
+		// `project.zones` holds only the notes this build could read; the sidecar still holds
+		// that Room's polygon and a boundary naming it, and the command validates against the
+		// sidecar. Validating the draft against the readable notes alone reported
+		// `spatial.room-missing` for a boundary the repository accepts.
+		const value = await rig();
+		const zone = makeZone({ projectId: value.plan.projectId, planId: value.plan.id });
+		expectOk(await value.stack.zones.save(zone, 'absent'));
+		const before = expectOk(await value.geometry.read(value.plan.id));
+		const boundary = { roomId: zone.id, wallIds: WALL_LOOP.walls.map(wall => wall.id) };
+		expectOk(await value.geometry.write(value.plan.id, { ...before.document, structure: { ...WALL_LOOP, boundaries: [boundary] } }, before.version));
+		value.stack.vault.entries.set(expectDefined(value.stack.index.getPath(zone.id), 'the room note'), 'not a note');
+		await value.runtime.refreshProjection();
+		expect(value.project.zones.size).toBe(0);
+		const task = await start(value); expect(task.draft.conflict).toBe(false);
+		task.draft.text.x = '10'; task.draft.text.y = '10'; expect(task.addNumeric()).toBe(true);
+		task.draft.text.length = '4'; expect(task.addNumeric()).toBe(true);
+		await task.finish();
+		expect(task.draft.error).toBeNull();
+		await settleUntil(() => value.project.structure.walls.length === 5, 'the fifth wall');
+	});
 	it('previews a dragged connected end without writing and clears it on cancellation', async () => {
 		const value = await rig(); await seeded(value);
 		value.selection.select(['wall-a' as never]);

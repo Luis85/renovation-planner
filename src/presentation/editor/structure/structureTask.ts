@@ -78,7 +78,12 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 	}
 	async function finish(): Promise<void> {
 		if (blocked.value || !baseline.value || !context.commands.structure) return;
-		const valid = validateDraftStructure(draft, project.structure, [...project.zones.keys()]);
+		// The SIDECAR's object ids, which is what `StructureCommand.write` validates against —
+		// not `project.zones`, which holds only the notes this build could read: a Room whose
+		// note refused still has its polygon and its boundary in the sidecar, and validating
+		// against the readable notes reported `spatial.room-missing` for a boundary the
+		// repository accepts, blocking every unrelated wall (a Codex P2 on pull request #86).
+		const valid = validateDraftStructure(draft, project.structure, baseline.value.document.objects.map(object => object.id));
 		if (!valid.ok) { draft.error = valid.error; return; }
 		const structure = mintStructure(valid.value), ticket = generation;
 		const command = context.commands.structure.command({ planId: context.planId as PlanId, baseline: baseline.value, structure, ledger, ...(draft.room ? { room: roomCommand() } : {}) });

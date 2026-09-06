@@ -73,6 +73,22 @@ describe('every tool the toolbar offers', () => {
 		rig.unmount();
 	});
 
+	/**
+	 * E5: `PRECISE_TOOLS` (`EditorSurface.vue`) named only the three Plan Editor ids, so this
+	 * canvas — the SAME surface, mounted a second time by `DesignerCanvas.vue` — drew the
+	 * ordinary arrow while a click-to-place tool was active here. `trace-footprint` anchors its
+	 * first vertex at the exact point pressed, the same promise `draw-polygon` makes in the
+	 * Plan Editor, so it wants the same crosshair.
+	 */
+	it('gives trace-footprint the precise cursor, the crosshair the Plan Editor gives its own drawing tools', async () => {
+		const rig = await designerRig();
+
+		await press(rig, 'designer.toolbar.trace-footprint');
+
+		expect(rig.canvasEl.classList.contains('rp-plan-canvas-precise')).toBe(true);
+		rig.unmount();
+	});
+
 	/** ...and nothing else is. One active tool, one marked button. */
 	it('marks exactly one mode at a time', async () => {
 		const rig = await designerRig();

@@ -25,6 +25,9 @@ const candidates = props.vault.getFiles?.().filter(file => backgroundKindFor(fil
 const previous = props.baseline.plan.entity;
 const calibration = props.baseline.geometry.document.calibration;
 const path = ref(previous.background?.path ?? ''), page = ref(previous.background?.page ?? 1), step = ref(1);
+// ONE canonical spelling, normalized once: a vault event carries `TFile.path`, and comparing
+// the raw text against it let a `/scan.png` draft miss its own file's change and persist a
+// spelling `BackgroundLayer` would never match either (a Codex P2 on pull request #85).
 const sourcePath = computed(() => normalizePath(path.value.trim()));
 const raster = ref<Extract<BackgroundRenderModel, { kind: 'raster' }> | null>(null);
 const submitting = ref(false);

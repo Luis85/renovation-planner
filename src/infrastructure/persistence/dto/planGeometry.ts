@@ -52,4 +52,6 @@ const StructureSchema = z.object({
 	boundaries: z.array(z.object({ roomId: z.string(), wallIds: z.array(z.string()) })),
 });
 export const PlanGeometrySchemaV2 = PlanGeometrySchemaV1.extend({ schemaVersion: z.literal(2), structure: StructureSchema.optional() });
+/** Either persisted version, for a reader that asks only what the file DECLARES (no migration). */
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2]);
 export type PlanGeometryDTO = z.infer<typeof PlanGeometrySchemaV1> & { structure?: z.infer<typeof StructureSchema> } | z.infer<typeof PlanGeometrySchemaV2>;

@@ -5,7 +5,7 @@ order: 40
 dependsOn:
   - "[[06-editor-tool-framework-undo-redo-and-inspector]]"
   - "[[11-error-handling-diagnostics-and-data-safety]]"
-status: ""
+status: Active
 started: ""
 finished: ""
 horizon: ""

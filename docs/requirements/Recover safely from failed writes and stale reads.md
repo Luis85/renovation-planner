@@ -118,6 +118,14 @@ checkpoint C3. Which test holds each criterion:
    `shell.test.ts`'s 'draws the unrecovered row from the save-state store, and a successful refresh
    does not clear it').
 
+   **Amendment (2026-09-06): "cleared only by `resolveOk`" is narrower than this reads.** The
+   2026-09-05 whole-tree review found the flag is sticky for the MOUNT's life, not the leaf's:
+   a settings save calls `rebindOpenViews`, which rebuilds every open Plan Editor's Pinia store
+   from scratch and drops `unrecoveredWrite` with it — the same reset a leaf close-and-reopen
+   gets, silently. `tests/plugin/rootSwapRebind.test.ts`'s "drops a leaf's unrecovered-write flag
+   on rebind" pins the window rather than closing it; closing it means carrying the flag as
+   view-owned state the way `planId` already is, which is its own task.
+
    **What the stamp cannot see, stated here because it is where a reader of this PBI stands.** The
    row fires for a refusal that was STAMPED at the site that wrote. CLAUDE.md's own
    `affectsSaveState` account records the residue this inherits: **a post-write refusal raised in a

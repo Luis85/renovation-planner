@@ -100,6 +100,9 @@ const priceLabel = computed((): string =>
 		currency: props.entry.currency,
 		minimumFractionDigits: 2,
 		maximumFractionDigits: 2,
+		// The one place a monetary amount passes through `Number`, display-only, bounded to two
+		// fraction digits, exact below 2^53/100; a decimal-string formatter arrives with the
+		// first surface that needs more.
 	}).format(Number(props.entry.unitCostAmount)));
 
 /**

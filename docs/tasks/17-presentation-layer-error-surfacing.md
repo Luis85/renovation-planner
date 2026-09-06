@@ -8,7 +8,7 @@ dependsOn:
   - "[[14-empty-states]]"
   - "[[15-modals-and-confirmation-dialogs]]"
   - "[[16-form-and-inline-validation-feedback]]"
-status: ""
+status: Done
 started: ""
 finished: ""
 horizon: ""

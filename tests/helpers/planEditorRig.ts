@@ -18,7 +18,7 @@ import type { ToolId } from '../../src/presentation/editor/tools/editor-tool';
 import { expectOk } from './domain';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
-import { dispatchingEventBus, makeDeleteZoneCommand } from './slice10';
+import { dispatchingEventBus, makeDeleteZoneCommand, noopCascadeNotify } from './slice10';
 import { RecalculateRequirementCommand } from '../../src/application/commands/requirement/RecalculateRequirement';
 import { registerOnZoneGeometryChanged } from '../../src/application/event-handlers/requirement/onZoneGeometryChanged';
 import { registerOnAssetUpdated } from '../../src/application/event-handlers/requirement/onAssetUpdated';
@@ -189,12 +189,14 @@ export async function rig(
 		overrides: overridesRepo,
 	});
 	registerOnZoneGeometryChanged(events, {
+		notify: noopCascadeNotify,
 		requirements: requirementsRepo,
 		events,
 		logger: recorder,
 		recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
 	});
 	registerOnAssetUpdated(events, {
+		notify: noopCascadeNotify,
 		requirements: requirementsRepo,
 		assets: assetsRepo,
 		overrides: overridesRepo,

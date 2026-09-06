@@ -73,6 +73,10 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Der Katalog wurde verschoben, aber die App konnte die Änderung nicht nachvollziehen. Bitte Obsidian neu laden und dann den Bibliotheksordner auf den neuen Ort setzen.',
 	'settings.library-persist-failed':
 		'Der Katalog wurde verschoben, aber die Einstellung konnte nicht gespeichert werden. Bitte den Bibliotheksordner auf den neuen Ort setzen.',
+	'settings.library-apply-failed':
+		'Die Einstellung wurde gespeichert, die Sitzung konnte aber nicht darauf umschalten. Bitte laden Sie Obsidian neu.',
+	'settings.apply-failed':
+		'Die Einstellung wurde gespeichert, die Sitzung konnte aber nicht darauf umschalten. Bitte laden Sie Obsidian neu.',
 	'project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',
 	'settings.default-currency.name': 'Standardwährung',
 	'settings.default-currency.desc':
@@ -176,6 +180,11 @@ export const de: Partial<Record<StringKey, string>> = {
 		'In diesem Vault gibt es kein anderes flächenbasiertes Objekt, dem diese Anforderungen zugewiesen werden könnten.',
 	'reference.self-reassign': 'Referenzen können nicht dem zu löschenden Eintrag neu zugewiesen werden. Bitte einen anderen wählen.',
 	'reference.cross-project-reassign': 'Referenzen können nur innerhalb desselben Projekts neu zugewiesen werden.',
+	'reference.reassign-target-gone':
+		'Der Eintrag, dem Sie neu zuweisen wollten, ist nicht mehr vorhanden. Wählen Sie einen anderen.',
+	'reference.entity-gone': 'Dieser Eintrag wurde während Ihrer Entscheidung entfernt.',
+	'reference.resolution-without-set': 'Nichts referenziert dies mehr; löschen Sie es direkt.',
+	'reference.reassign-without-target': 'Wählen Sie, wohin diese Referenzen gehen sollen.',
 	// Zeilen im Löschdialog (Slice 15, Punkt 6): zwei Schlüssel statt eines mit fest
 	// verdrahtetem Trennzeichen — Wortstellung und Interpunktion um einen eingesetzten
 	// Namen gehören der Übersetzung.
@@ -183,6 +192,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'Dieses Objekt wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
 	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',
+	'requirement.not-found': 'Dieser Bedarf ist nicht mehr vorhanden.',
+	'requirement.zone-gone': 'Der Raum, zu dem dieser Bedarf gehört, ist nicht mehr vorhanden.',
+	'requirement.asset-gone': 'Das Objekt, das dieser Bedarf verwendet, ist nicht mehr in der Bibliothek.',
 	'cost.currency-mismatch':
 		'Der Preis dieses Objekts ist nicht in der Währung dieses Projekts, daher kann keine Schätzung erstellt werden. Öffnen Sie die Notiz des Objekts und erfassen Sie den Preis in der Währung dieses Projekts.',
 	'requirement.project-not-found': 'Diese Zone gehört zu einem Projekt, das nicht mehr vorhanden ist.',
@@ -336,18 +348,17 @@ export const de: Partial<Record<StringKey, string>> = {
 	// demselben Grund: „ein gültiger Geldbetrag“ sagt niemandem, dass `.5` und `1e3` zu den
 	// zurückgewiesenen Schreibweisen gehören.
 	//
-	// **Der Dezimalpunkt wird NICHT lokalisiert, und das ist der ganze Zweck dieses
-	// Schlüssels statt eine Nachlässigkeit.** `AMOUNT_PATTERN` in `core/money/Money.ts`
-	// akzeptiert allein den Punkt — gemessen, nicht vermutet: `"19.50"` wird angenommen,
-	// `"19,50"` mit `money.invalid-amount` zurückgewiesen. Ein lokalisiertes `19,50` würde
-	// also genau die Schreibweise vorschlagen, die `validatePrice` ablehnt, und die
-	// Benutzerin in eine Schleife schicken: eintippen, abgelehnt, dasselbe Beispiel wieder
-	// lesen. Diese Zeile hat einmal `19,50` gesagt und wurde erst bei der abschließenden
-	// Durchsicht des Increments gefunden — kein Gate rendert `de.ts`, und die beiden Prüfungen
-	// in `strings.test.ts` fragten damals nach Begriffen und Platzhaltern, nicht nach
-	// Beispielen. Sie ändert sich, wenn das Eingabefeld eines Tages ein Komma annimmt — und
-	// `tests/presentation/i18n/strings.test.ts` fragt jetzt genau danach.
-	'view.project.price-invalid': 'Geben Sie einen Preis wie 19.50 ein',
+	// **Das Komma wird jetzt lokalisiert, und das ist der Grund, warum diese Zeile es
+	// verwendet.** Das Feld akzeptiert ein Komma seit PR #73: `AssetPriceRow.validatePrice`
+	// normalisiert es (`raw.trim().replace(',', '.')`) und mintet erst danach über
+	// `createMoney`, dessen `AMOUNT_PATTERN` weiterhin nur den Punkt liest. Diese Zeile sagte
+	// einmal `19.50` — den Punkt, unlokalisiert — nachdem genau diese Normalisierung schon
+	// eingebaut war, und schickte eine Benutzerin, die dem Beispiel folgte, in eine unnötige
+	// Verwirrung: `19,50` funktioniert, das Beispiel behauptet aber das Gegenteil. Gefunden bei
+	// der abschließenden Durchsicht des Increments — kein Gate rendert `de.ts`, und
+	// `tests/presentation/i18n/strings.test.ts` prüft ein gezeigtes Beispiel jetzt gegen das
+	// FELD, nicht mehr gegen `createMoney` allein.
+	'view.project.price-invalid': 'Geben Sie einen Preis wie 19,50 ein',
 	'view.project.price-negative': 'Ein Preis kann nicht negativ sein.',
 	'view.project.price-scope':
 		'Ein hier festgelegter Preis gilt für jede Anforderung in diesem Projekt, die das Objekt verwendet',
@@ -411,6 +422,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'asset.not-found': 'Dieses Objekt existiert nicht mehr.',
 	'asset.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Datenblatt.',
 	'plan.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Plandokument.',
+	'plan-geometry.write-failed': 'Der Referenzmaßstab konnte nicht gespeichert werden. Ihr Entwurf bleibt erhalten; versuchen Sie es erneut.',
+	'reference.compensation-failed':
+		'Die Referenz konnte nicht gespeichert und das Geschoss nicht wiederhergestellt werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.',
 	'asset.dimensions-incomplete': 'Ein Rechteck braucht Breite und Tiefe.',
 	'money.invalid-amount': 'Geben Sie einen Betrag als einfache Dezimalzahl ein, zum Beispiel 45.00.',
 	'money.invalid-currency': 'Geben Sie einen dreibuchstabigen Währungscode in Großbuchstaben ein.',
@@ -491,6 +505,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.dimensions.depth': 'Tiefe in Millimetern',
 	'undo.superseded':
 		'Diese Änderung wurde nach diesem Schritt an anderer Stelle bearbeitet; ein Rückgängigmachen würde diese Bearbeitung verwerfen. Laden Sie neu und machen Sie es erneut rückgängig, wenn Sie es weiterhin möchten.',
+	'zone.nothing-to-undo': 'Noch nichts rückgängig zu machen.',
+	'plan.nothing-to-undo': 'Noch nichts rückgängig zu machen.',
+	'undo.before-execute': 'Noch nichts rückgängig zu machen.',
 	'save-state.saved': 'Gespeichert',
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',

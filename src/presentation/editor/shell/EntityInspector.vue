@@ -44,8 +44,8 @@ import FloorInspector from './FloorInspector.vue';
 import NewRoomInspector from './NewRoomInspector.vue';
 import RoomInspector from './RoomInspector.vue';
 import MultiSelectionInspector from './MultiSelectionInspector.vue';
+import { useSpatialRecords } from './useSpatialRecords';
 import { useProjectStore } from '../../stores/ProjectStore';
-import { toSpatialRecordDto } from '../../read-models/spatialRecords';
 import { spatialSelection } from '../selection/spatialSelection';
 import StructureInspector from '../structure/StructureInspector.vue';
 import { structureRecords } from '../structure/structureRecords';
@@ -53,7 +53,8 @@ import { structureRecords } from '../structure/structureRecords';
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
 const project = useProjectStore();
-const records = computed(() => [...[...project.zones.values()].map((zone) => toSpatialRecordDto(zone)), ...structureRecords(project.structure, project.plan?.id ?? '')]);
+const zoneRecords = useSpatialRecords();
+const records = computed(() => [...zoneRecords.value, ...structureRecords(project.structure, project.plan?.id ?? '')]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
 </script>
 

@@ -5,6 +5,7 @@ import {
 	ReversibleSetRequirementQuantityOverrideCommand,
 	ReversibleSetRequirementCostOverrideCommand,
 } from '../../../../src/application/commands/requirement/reversible-override-commands';
+import { SessionWriteLedger } from '../../../../src/application/editor/WriteLedger';
 import { of as moneyOf } from '../../../../src/core/money/Money';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { assignedRequirementFixture as withRequirement } from '../../../helpers/slice10';
@@ -75,7 +76,7 @@ describe('reversible override adapters', () => {
 			}
 			// ONE adapter per user intent, exactly as CommandHistory.run() holds them: each
 			// entry on the undo stack is its own instance capturing ITS pre-edit state.
-			const adapter = new ReversibleSetRequirementQuantityOverrideCommand(plain, w.requirements, w.events);
+			const adapter = new ReversibleSetRequirementQuantityOverrideCommand(plain, w.requirements, w.events, new SessionWriteLedger());
 			const before = expectOk(await w.requirements.getById(w.requirementId));
 
 			expectOk(await adapter.execute({ requirementId: w.requirementId, ...input }));
@@ -97,11 +98,14 @@ describe('reversible override adapters', () => {
 	it('the cost adapter undoing a reset restores the number the user had typed', async () => {
 		const w = await withRequirement();
 		const plain = new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks);
-		const setter = new ReversibleSetRequirementCostOverrideCommand(plain, w.requirements, w.events);
+		// Two adapters over one requirement, so ONE ledger — the history that dispatched
+		// both is what remembers the version each restore must present.
+		const ledger = new SessionWriteLedger();
+		const setter = new ReversibleSetRequirementCostOverrideCommand(plain, w.requirements, w.events, ledger);
 		expectOk(await setter.execute({ requirementId: w.requirementId, cost: moneyOf('550.00', 'EUR') }));
 
 		// Reset-to-calculated is its own intent, its own adapter instance.
-	 const resetter = new ReversibleSetRequirementCostOverrideCommand(plain, w.requirements, w.events);
+	 const resetter = new ReversibleSetRequirementCostOverrideCommand(plain, w.requirements, w.events, ledger);
 		expectOk(await resetter.execute({ requirementId: w.requirementId, cost: null }));
 		const cleared = expectOk(await w.requirements.getById(w.requirementId));
 		expect(cleared?.entity.estimatedCost.override ?? null).toBeNull();
@@ -114,7 +118,7 @@ describe('reversible override adapters', () => {
 	it('undo/redo rounds do not drift — redo re-applies the recorded value', async () => {
 		const w = await withRequirement();
 		const plain = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
-		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(plain, w.requirements, w.events);
+		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(plain, w.requirements, w.events, new SessionWriteLedger());
 
 		expectOk(await adapter.execute({ requirementId: w.requirementId, quantity: 12 }));
 		for (let round = 0; round < 2; round += 1) {
@@ -131,10 +135,60 @@ describe('reversible override adapters', () => {
 		expect(undone?.entity.quantity.override ?? null).toBeNull();
 	});
 
+	it('two adapters on one requirement undo in order through the shared ledger', async () => {
+		const w = await withRequirement();
+		const ledger = new SessionWriteLedger();
+		const quantityPlain = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
+		const costPlain = new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks);
+		const a = new ReversibleSetRequirementQuantityOverrideCommand(quantityPlain, w.requirements, w.events, ledger);
+		const b = new ReversibleSetRequirementCostOverrideCommand(costPlain, w.requirements, w.events, ledger);
+
+		expectOk(await a.execute({ requirementId: w.requirementId, quantity: 12 }));
+		expectOk(await b.execute({ requirementId: w.requirementId, cost: moneyOf('550.00', 'EUR') }));
+
+		expectOk(await b.undo());
+		// The second undo used to refuse with `requirement.revision-conflict`: adapter A presented
+		// the version ITS write produced, two writes ago.
+		expectOk(await a.undo());
+		const restored = expectOk(await w.requirements.getById(w.requirementId));
+		expect(restored?.entity.quantity.override ?? null).toBeNull();
+		expect(restored?.entity.estimatedCost.override ?? null).toBeNull();
+	});
+
+	/**
+	 * The other half of the ledger's rule, and the one the case above would over-correct
+	 * into if the guard were only "the version the history last wrote": a foreign write
+	 * SANDWICHED between two of this history's own gestures. The second adapter's pre-read
+	 * observes it and the generation moves, so the FIRST adapter's undo — whose snapshot
+	 * predates the peer — refuses rather than silently discarding it.
+	 */
+	it('refuses an undo whose snapshot predates a sandwiched foreign write', async () => {
+		const w = await withRequirement();
+		const ledger = new SessionWriteLedger();
+		const quantityPlain = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
+		const costPlain = new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks);
+		const a = new ReversibleSetRequirementQuantityOverrideCommand(quantityPlain, w.requirements, w.events, ledger);
+		expectOk(await a.execute({ requirementId: w.requirementId, quantity: 12 }));
+
+		// A peer — a second tab, or a synced change — foreign to this history.
+		const rival = new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks);
+		expectOk(await rival.execute({ requirementId: w.requirementId, cost: moneyOf('777.00', 'EUR') }));
+
+		const b = new ReversibleSetRequirementCostOverrideCommand(costPlain, w.requirements, w.events, ledger);
+		expectOk(await b.execute({ requirementId: w.requirementId, cost: moneyOf('550.00', 'EUR') }));
+		expectOk(await b.undo());
+
+		const error = expectErr(await a.undo());
+		expect(error.code).toBe('undo.superseded');
+		// …and the peer's figure is what B's undo restored to, untouched by the refusal.
+		const current = expectOk(await w.requirements.getById(w.requirementId));
+		expect(current?.entity.estimatedCost.override?.amount).toBe(moneyOf('777.00', 'EUR').amount);
+	});
+
 	it('an edit landed by another writer between execute and undo refuses instead of clobbering', async () => {
 		const w = await withRequirement();
 		const quantity = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
-		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(quantity, w.requirements, w.events);
+		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(quantity, w.requirements, w.events, new SessionWriteLedger());
 		expectOk(await adapter.execute({ requirementId: w.requirementId, quantity: 12 }));
 
 		// Another writer (a concurrent recalculation or a second tab's override) moves it.

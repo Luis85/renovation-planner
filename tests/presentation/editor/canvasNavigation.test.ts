@@ -732,3 +732,18 @@ describe('a button the camera does not claim', () => {
 		harness.unmount();
 	});
 });
+
+// SDD §85's one operation left unreachable by keyboard until Task 14 (E8), joining this
+// file's other canvas shortcuts. `keyboardNudge.test.ts` carries the full behaviour (guards,
+// undo, Shift's larger step); this is the wiring proof at THIS mounted canvas.
+describe('arrow keys move the selected room (Task 14, E8)', () => {
+	it('ArrowRight moves the selected room 10mm on the world x axis', async () => {
+		const { harness, canvas, zonesRepo } = await editor();
+		actionButton(harness, 'Select').click(); await settle();
+		click(canvas, 300, 300); await settle(); // inside zone-a's footprint
+		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
+		key(canvas, 'keydown', { key: 'ArrowRight' }); await settle();
+		const after = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
+		expect(after).toBeCloseTo(before + 10, 6); harness.unmount();
+	});
+});

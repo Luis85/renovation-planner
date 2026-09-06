@@ -5,11 +5,7 @@ import { AssignAssetCommand } from '../../../src/application/commands/requiremen
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makeAsset, makeZone } from '../../helpers/entities';
 import { recorder as logger } from '../../helpers/logger';
-import {
-	failMarkStaleOnce,
-	requirementFixture,
-	TEN_SQUARE_METERS,
-} from '../../helpers/slice10';
+import { TEN_SQUARE_METERS, failMarkStaleOnce, requirementFixture, zoneSequenceCollaborators } from '../../helpers/slice10';
 
 /**
  * The deletion & reference-integrity rules, at the command — the enforcement a script or
@@ -40,6 +36,7 @@ async function wiredWithRequirement() {
 	if (!assigned.ok) throw new Error(String(assigned.error));
 
 	const command = new DeleteZoneCommand({
+		...zoneSequenceCollaborators(),
 		zones: w.zones,
 		requirements: w.requirements,
 		recalculate: w.recalculate,
@@ -172,6 +169,7 @@ describe('DeleteZoneCommand reference integrity', () => {
 
 		const error = expectErr(
 			await new DeleteZoneCommand({
+				...zoneSequenceCollaborators(),
 				zones: w.zones,
 				requirements: w.requirements,
 				recalculate: w.recalculate,

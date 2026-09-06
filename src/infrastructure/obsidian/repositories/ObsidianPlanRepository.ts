@@ -282,14 +282,20 @@ export class ObsidianPlanRepository {
 			);
 			if (conflict) return err(conflict);
 
-			// Snapshots BEFORE deleting anything: once both files are gone there is nothing
-			// left to compensate with.
+			// Snapshots the NOTE before deleting anything: once both files are gone there is
+			// nothing left to compensate with, and this is what `restoreNoteText` restores
+			// below on a failed sidecar removal.
 			let noteText: string;
 			try {
 				noteText = await this.deps.vault.read(file);
 			} catch (cause) {
 				return err(persistenceError('plan.delete-failed', `Could not read plan note ${file.path}.`, cause));
 			}
+			// PROBES the sidecar rather than snapshotting it: the read result is discarded,
+			// not kept for restoration. This only confirms the file is readable before the
+			// trash below runs, so an unreadable sidecar fails here instead of mid-delete; a
+			// failed sidecar removal is NOT compensated by restoring its bytes, only the
+			// note's.
 			const sidecarFile = fileAt(this.deps.vault, this.deps.index.getGeometrySidecarPath(id));
 			if (sidecarFile) {
 				try {

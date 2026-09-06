@@ -595,6 +595,9 @@ navigation with none of that cost.
   implemented as the placeholder: a placeholder vanishes on input, and this count's whole value
   is that it changes *while* you type.
 - The query is **not persisted**. It resets on remount, which is every navigation.
+  **Stale as of design slice 21**: [[Return to the project list with my search context]]
+  authorises persisting it through the leaf's own session state; this archived spec is
+  what did not get updated.
 
 ### Continue
 
@@ -736,7 +739,9 @@ and may not add a third fact to this slot without amending this document.
 `Intl.Collator`. Stable, so a re-hydrate never reshuffles equal rows.
 
 `Completed` (`COMPLETE`, `AS_BUILT`) is a separate collapsed group at the foot with its count
-in the heading, collapsed by default, its expanded state **not persisted**.
+in the heading, collapsed by default, its expanded state **not persisted**. **Stale as of
+design slice 21**: [[Return to the project list with my search context]] authorises
+persisting this alongside the query; this archived spec is what did not get updated.
 
 ---
 

@@ -107,6 +107,19 @@ describe('reference configuration through real Markdown and sidecar repositories
 		expect(await r.services.command(r.baseline, { ...input, ...patch } as ConfigureReferenceInput).execute()).toMatchObject({ ok: false });
 		expect(new Map(r.stack.vault.entries)).toEqual(before);
 	});
+	it('reads one calibration for both halves of the baseline, so the form converts with what the command derives from', async () => {
+		// `loadPlan` merges the sidecar's calibration into the entity and `read` then observes the
+		// sidecar again; a calibration written between the two awaits left the plan half stale.
+		const r = await setup(), read = r.geometry.read.bind(r.geometry);
+		const newer = { pointA: { x: 0, y: 0 }, pointB: { x: 0, y: 50 }, knownDistance: 100, pixelsPerWorldUnit: 0.5 };
+		vi.spyOn(r.geometry, 'read').mockImplementationOnce(async id => {
+			const live = expectOk(await read(id)); expectOk(await r.geometry.write(id, { ...live.document, calibration: newer }, live.version));
+			return read(id);
+		});
+		const baseline = expectOk(await r.services.read(r.plan.id));
+		expect(baseline.geometry.document.calibration).toEqual(newer);
+		expect(baseline.plan.entity.calibration).toEqual(newer);
+	});
 	it('reports missing source, missing plan and baseline/commit read failures', async () => {
 		const r = await setup(); r.files.fileExists.mockReturnValue(false);
 		expect(await r.command.execute()).toMatchObject({ ok: false, error: { code: 'plan.background-not-found' } });

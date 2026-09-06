@@ -335,9 +335,6 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 		'CommandHistory, which CALLS undo rather than being one — it declares undo()/redo() over ' +
 			'a stack of adapters, and run() rather than execute()',
 	),
-	'src/presentation/editor/snapping/snap-service.ts::SnapService': notAnAdapter(
-		'a service the drawing tools consult; "undo" appears only in prose',
-	),
 };
 
 describe('the discovery walk finds something at all', () => {

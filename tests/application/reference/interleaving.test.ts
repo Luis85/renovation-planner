@@ -13,7 +13,8 @@ import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/
 import { expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { makeAsset, makeZone } from '../../helpers/entities';
 import { recorder as logger } from '../../helpers/logger';
-import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
+import { settle } from '../../helpers/async';
+import { TEN_SQUARE_METERS, requirementFixture, zoneSequenceCollaborators } from '../../helpers/slice10';
 
 /**
  * The races the reference locks exist for, driven by dispatching one command WITHOUT
@@ -100,6 +101,26 @@ describe('two commands racing for the same reference lock', () => {
 		expect(nonAreaLinks).toEqual([]);
 	});
 
+	it('a plain unitCost edit waits for the asset level-1 lock, not only a kind-changing one', async () => {
+		const w = await linkedFixture();
+		const update = new UpdateAssetCommand(w.assets, w.requirements, w.events, w.locks);
+		const before = expectOk(await w.assets.getById(w.asset.entity.id))?.entity.unitCost;
+
+		// The level-1 region a delete resolution over this asset holds. The edit changes no
+		// unit, so it used to take no lock at all and land right inside that region.
+		const release = await w.locks.acquire([w.asset.entity.id], []);
+		const updating = update.execute({
+			assetId: w.asset.entity.id,
+			changes: { unitCost: moneyOf('9.99', 'EUR') },
+		});
+		await settle();
+		expect(expectOk(await w.assets.getById(w.asset.entity.id))?.entity.unitCost).toEqual(before);
+
+		release();
+		expectOk(await updating);
+		expect(expectOk(await w.assets.getById(w.asset.entity.id))?.entity.unitCost.amount).toBe('9.99');
+	});
+
 	it("a resolution's compensation is not blocked by a concurrent override edit", async () => {
 		const zones = new FailZoneDelete();
 		const w = await linkedFixture(zones);
@@ -113,6 +134,7 @@ describe('two commands racing for the same reference lock', () => {
 		if (before === null) throw new Error('expected the requirement');
 
 		const command = new DeleteZoneCommand({
+			...zoneSequenceCollaborators(),
 			zones,
 			requirements: w.requirements,
 			recalculate: w.recalculate,

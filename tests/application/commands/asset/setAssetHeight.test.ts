@@ -23,7 +23,7 @@ import { registerOnAssetUpdated } from '../../../../src/application/event-handle
 import { createRepositoryStack, parseFrontmatter, serializeFrontmatter } from '../../../helpers/vault';
 import { makeAsset, makeZone } from '../../../helpers/entities';
 import { expectErr, expectOk } from '../../../helpers/domain';
-import { requirementFixture, TEN_SQUARE_METERS } from '../../../helpers/slice10';
+import { TEN_SQUARE_METERS, noopCascadeNotify, requirementFixture } from '../../../helpers/slice10';
 
 /**
  * The events a SUBSCRIBER heard, on the real bus. `RecordingEventBus.subscribe` discards
@@ -243,6 +243,7 @@ describe('a height is read by nothing that calculates', () => {
 		);
 		const asset = expectOk(await fixture.assets.save(makeAsset(), 'absent'));
 		registerOnAssetUpdated(events, {
+			notify: noopCascadeNotify,
 			requirements: fixture.requirements,
 			assets: fixture.assets,
 			// The fixture's OWN override repository, not a fresh one: the price-override

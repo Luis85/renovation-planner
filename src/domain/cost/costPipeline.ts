@@ -10,7 +10,7 @@ import {
 import { negativeQuantity } from './quantityEngine';
 import {
 	add,
-	isNegative,
+	negativeMoney,
 	percentageOf,
 	round,
 	scale,
@@ -167,16 +167,43 @@ function discountError(discount: DiscountRule | undefined): CalculationError | n
  * enforces nothing and every field that must not is guarded where it enters. These three
  * are that guard for the pipeline. Absent is not negative — an omitted shipping charge is
  * `zero`, not a refusal.
+ *
+ * `core/money/Money.ts`'s `negativeMoney` is the shared guard (finding C11); this site's
+ * `errorOf` ignores the code that function passes and substitutes the pipeline's own
+ * fully-qualified `'cost.negative-amount'`, and appends the second sentence a `Calculation`
+ * refusal here has always carried and the other three callers do not.
  */
 function negativeAmount(label: string, value: Money | undefined): CalculationError | null {
-	if (!value || !isNegative(value)) return null;
-	return {
+	const error = negativeMoney(label, value ?? null, (_code, message) => ({
 		category: 'Calculation',
 		code: 'cost.negative-amount',
-		message:
-			`A ${label} cannot be negative; got ${value.amount} ${value.currency}. `
-			+ 'A credit is not a cost component.',
-	};
+		message: `${message} A credit is not a cost component.`,
+	}));
+	return error as CalculationError | null;
+}
+
+/**
+ * NaN and Infinity pass every sign guard below — `NaN < 0` and `Infinity < 0` are both
+ * false — and used to reach `scale`/`percentageOf` unrefused, where `toFixed(NaN)` throws
+ * a raw `DecimalError` out of a pipeline whose header promises no throw (C1). Checked
+ * FIRST, before any sign guard runs, and over a LIST rather than one `||` per field: each
+ * of the three optional-or-required decimals is one line here instead of one branch each,
+ * which is what keeps this a single arm to cover rather than one per field.
+ */
+function nonFiniteInputError(input: CostPipelineInput): CalculationError | null {
+	const inputs: ReadonlyArray<Decimal | undefined> = [
+		input.quantity.value,
+		input.taxRate,
+		input.discount?.percent,
+	];
+	if (inputs.some((value) => value !== undefined && !value.isFinite())) {
+		return {
+			category: 'Calculation',
+			code: 'cost.non-finite-input',
+			message: 'A cost input is not a finite number.',
+		};
+	}
+	return null;
 }
 
 /**
@@ -188,7 +215,8 @@ function negativeAmount(label: string, value: Money | undefined): CalculationErr
  */
 function inputError(input: CostPipelineInput): CalculationError | null {
 	return (
-		currencyMismatchError(input)
+		nonFiniteInputError(input)
+		?? currencyMismatchError(input)
 		?? pricingBasisError(input)
 		?? negativeQuantity(input.quantity)
 		?? discountError(input.discount)

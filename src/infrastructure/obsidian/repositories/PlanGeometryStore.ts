@@ -7,7 +7,7 @@ import { checkExpectedVersion } from '../../../application/ports/versioning';
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchemaV2 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV2 } from '../../persistence/dto/planGeometry';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
@@ -69,9 +69,34 @@ export class PlanGeometryStore {
 	}
 
 	/**
+	 * The plan half of `AssetGeometryStore.declaredAssetOf`, and it answers three ways for the
+	 * same reason: somebody else's, mine, or unreadable. Only the first is a refusal — a
+	 * corrupt or schema-invalid `.rpgeo` is garbage, and refusing to delete it would leave a
+	 * plan whose geometry file can never be cleaned up. `null` also covers the plan-INSERT
+	 * rollback, whose file has been created and not yet written.
+	 */
+	private async declaredPlanOf(file: TFile): Promise<string | null> {
+		try {
+			const parsed: unknown = JSON.parse(await this.vault.read(file));
+			// Either version as it sits on disk — this asks what the file DECLARES, before any migration.
+			const validated = PlanGeometrySchema.safeParse(parsed);
+			return validated.success ? validated.data.planId : null;
+		} catch {
+			return null;
+		}
+	}
+
+	/**
 	 * Plan-delete path only: removes the file; absence of the file is still success.
 	 * `pathHint` covers the plan-INSERT rollback, where the sidecar was just created but
 	 * the index mapping does not exist yet (it is upserted only on success).
+	 *
+	 * **The declared plan is checked first**, which this door had no half of while `read` had
+	 * compared the declared `planId` since it was written: it derived a path, found a file and
+	 * trashed it. A copied or hand-renamed `.rpgeo`, or two plan ids differing only in case on
+	 * a case-insensitive filesystem, then destroyed the other plan's zones silently, with
+	 * nothing to restore from. `AssetGeometryStore.delete` carries the same guard and the same
+	 * asymmetry.
 	 */
 	delete(planId: PlanId, pathHint?: string): Promise<Result<void, PersistenceError>> {
 		return this.queues.run(`plan:${planId}`, async () => {
@@ -79,6 +104,15 @@ export class PlanGeometryStore {
 			if (!path) return ok(undefined);
 			const file = this.vault.getAbstractFileByPath(path);
 			if (!(file instanceof TFile)) return ok(undefined);
+			const claimed = await this.declaredPlanOf(file);
+			if (claimed !== null && claimed !== planId) {
+				return err(
+					persistenceError(
+						'plan-geometry.plan-id-mismatch',
+						`Sidecar ${path} declares plan ${claimed}, not ${planId}. It was not deleted.`,
+					),
+				);
+			}
 			try {
 				await this.fileManager.trashFile(file);
 			} catch (cause) {

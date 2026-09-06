@@ -49,6 +49,10 @@ import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFr
  */
 const SCHEMAS: readonly (readonly [string, { readonly shape: Readonly<Record<string, unknown>> }])[] = [
 	[PROJECT_TYPE, ProjectFrontmatterSchemaV1],
+	// The NEWEST schema of each kind, because a superseded one is a SHORTER list of what the
+	// plugin owns: `reference-appearance` is V2's key, and derived from V1 an external edit of
+	// it never moved the token, so `plans.save` overwrote a hand-edited crop with its stale
+	// baseline (a Codex P1 on pull request #85). V2 extends V1, so its shape is the union.
 	[PLAN_TYPE, PlanFrontmatterSchemaV2],
 	[ZONE_TYPE, ZoneFrontmatterSchemaV1],
 	[ASSET_TYPE, AssetFrontmatterSchemaV1],

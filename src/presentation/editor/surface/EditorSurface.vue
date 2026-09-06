@@ -965,6 +965,20 @@ function onPointerLeave(event: PointerEvent): void {
  * answer that way rather than defaulting: a jump to nowhere costs the user the view they
  * had and tells them nothing about why.
  */
+/**
+ * Enter finishes a draw-area draft — and only a PLAIN Enter: not a repeat, not a chord, not
+ * a keystroke an IME is still composing (`plainPress`). `preventDefault` runs for every Enter
+ * while that tool is active, chorded or not, so nothing beneath the canvas activates on it.
+ * Its own function beside `fitShortcut` for the same reason that one is: `onKeyDown` was at
+ * its cognitive-complexity budget the day the merge added this branch to it.
+ */
+function finishShortcut(event: KeyboardEvent): boolean {
+	if (event.key !== 'Enter' || activeToolId.value !== 'draw-area') return false;
+	event.preventDefault();
+	if (plainPress(event)) props.finishArea();
+	return true;
+}
+
 function fitShortcut(event: KeyboardEvent): boolean {
 	if (!event.shiftKey) return false;
 	const all = event.code === 'Digit1';
@@ -1158,13 +1172,8 @@ function onKeyDown(event: KeyboardEvent): void {
 		if (!event.repeat && !gestureInFlight()) void props.nudgeSelection(nudge);
 		return;
 	}
-	if (gestureInFlight()) return;
-	if (event.key === 'Enter' && activeToolId.value === 'draw-area') {
-		event.preventDefault();
-		if (plainPress(event)) props.finishArea();
-		return;
-	}
-	if (fitShortcut(event)) return;
+	// One short-circuit chain, in this order: a running gesture swallows every key below it.
+	if (gestureInFlight() || finishShortcut(event) || fitShortcut(event)) return;
 	zoomShortcut(event);
 }
 

@@ -1761,6 +1761,16 @@ information: selection-driven, context-sensitive, progressively disclosed.
 supported*; a section whose query answered nothing is *empty*; and the two never look alike
 (`RoomOverviewDto.unavailableSections`). No fabricated zeros, counts, costs or statuses.
 
+Existing-room naming uses the same contextual Inspector, root `FormDialog` and command route.
+`roomNamingAction` acquires a versioned `GetZone` baseline; explicit Apply dispatches one reversible
+`RenameZoneCommand` through the Inspector mapping. The shared `zoneName` function retains creation's
+trim/non-empty rule; duplicate names are valid, with identity/references still keyed by Zone ID.
+No rectangular-size restriction applies to naming. The existing repository updates the indexed
+note path and preserves the v1 Markdown/sidecar format; no file rename or link rewrite occurs.
+`ZoneRenamed` refreshes matching plan leaves through `createPlanChangeSource`, without a geometry
+recalculation event. M03 and ADR-0018 specify cancel/conflict/busy and responsive focus behavior;
+this explicit modal task leaves the general Inspector field-commit decision in section 101 open.
+
 ---
 
 # 60. UI Layout

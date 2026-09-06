@@ -16,6 +16,31 @@ export async function activate(page, selector) {
 	await tabTo(page, selector);
 	await page.keyboard.press('Enter');
 }
+export async function selectRoomForEditing(page) {
+	const narrow = await page.locator('[data-rp-rail="layers"]').isVisible();
+	if (narrow) await activate(page, '[data-rp-rail="layers"]');
+	await activate(page, '.rp-room-list__row[data-rp-id="harness-kitchen"]');
+	if (narrow) { await page.keyboard.press('Escape'); await activate(page, '[data-rp-rail="details"]'); }
+	return narrow;
+}
+export async function assertDialogFocusWrap(page, firstField) {
+	await page.keyboard.press('Tab');
+	assert.equal(await page.locator('.rp-dialog [data-rp-action="cancel"]').evaluate(el => el === document.activeElement), true, 'Apply then Cancel');
+	await page.keyboard.press('Tab');
+	assert.equal(await page.locator(firstField).evaluate(el => el === document.activeElement), true, 'dialog focus trap');
+}
+export async function checkDialogLayout(page, scenario, out, controls) {
+	const metrics = await page.locator('.rp-dialog').evaluate(el => ({ width: el.clientWidth, scroll: el.scrollWidth }));
+	assert.ok(metrics.scroll <= metrics.width + 1, 'dialog has no horizontal overflow');
+	for (const selector of controls) {
+		const box = await page.locator(selector).boundingBox();
+		assert.ok(box, `${selector} is visible`);
+		assert.ok(box.x >= 0); assert.ok(box.x + box.width <= scenario.width + 1);
+		assert.ok(box.y >= 0); assert.ok(box.y + box.height <= 900);
+	}
+	await page.screenshot({ path: `${out}/${scenario.name}.png` });
+	return metrics;
+}
 export async function enterPair(page, firstSelector, secondSelector, first, second) {
 	await tabTo(page, firstSelector);
 	await page.keyboard.press('Control+A'); await page.keyboard.type(first);

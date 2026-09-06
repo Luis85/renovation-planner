@@ -1,4 +1,5 @@
 import { createRoomResizeAction } from './resize/roomResizeAction';
+import { createRoomNamingAction } from './naming/roomNamingAction';
 import {
 	computed,
 	inject,
@@ -73,6 +74,8 @@ const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 export interface EditorRuntime {
 	readonly resizeRoom: (id: ZoneId) => Promise<void>;
 	readonly resizeRoomBlocked: Readonly<Ref<boolean>>;
+	readonly renameRoom: (id: ZoneId) => Promise<void>;
+	readonly renameRoomBlocked: Readonly<Ref<boolean>>;
 	readonly areaCorners: ReturnType<typeof createAreaTask>['areaCorners'];
 	readonly keepAddingAreas: Ref<boolean>;
 	readonly canFinishArea: Readonly<Ref<boolean>>;
@@ -572,7 +575,7 @@ function buildDispatcherChain(
 	return { wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
 }
 
-function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRoom' | 'resizeRoomBlocked'> {
+function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRoom' | 'resizeRoomBlocked' | 'renameRoom' | 'renameRoomBlocked'> {
 	const editor = useEditorStore();
 	const projectStore = useProjectStore();
 	const selection = useSelectionStore();
@@ -808,7 +811,7 @@ export const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-pl
 
 export function provideEditorRuntime(context: PlanEditorContext): EditorRuntime {
 	const base = buildRuntime(context);
-	const runtime = { ...base, ...createRoomResizeAction(context, base) };
+	const runtime = { ...base, ...createRoomResizeAction(context, base), ...createRoomNamingAction(context, base) };
 	provide(EDITOR_RUNTIME, runtime);
 	return runtime;
 }

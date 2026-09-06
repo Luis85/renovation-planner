@@ -117,3 +117,54 @@ Forced leaf closure has the existing FormDialog limit: it cannot undo an already
 Automated, browser and live acceptance are separated in [Resize a room](../../../tests/cases/Resize%20a%20room.md).
 Room creation/type decisions, general shape repair, metadata editing, Walls/Openings and the
 rest of Phase 4 / Increment B remain open.
+
+## Existing-room naming continuation — Phase 4 / Increment B (2026-09-06)
+
+Select one existing Room through the canvas or persistent list, then choose **Rename room /
+Raum umbenennen** in its contextual Inspector. All Room outlines qualify, including triangles,
+rotated and irregular polygons. The size form's four-corner/axis-alignment test does not apply.
+Areas and multiple selections do not offer this action.
+
+The root-owned `FormDialog` follows the existing dimensions/creation modal contract. It shows the
+saved baseline name and focuses **Room name / Raumname**. Tab reaches **Apply name / Namen
+übernehmen**, then **Cancel / Abbrechen**, then wraps to the field. Typing and blur change only the
+local draft. Plain Enter submits; held, composed or modified Enter does not. Space, Delete,
+Backspace and arrows retain native text editing. Escape discards the modal task and preserves
+selection; no input key reaches a canvas action. Busy submission refuses Escape/Cancel and duplicate
+Apply while leaving controls focusable and the input readonly.
+
+The name contract is the existing `Zone.create` rule, now shared through `zoneName`: JavaScript
+`trim()` removes outer whitespace, then the result must be non-empty. No case folding, internal
+whitespace collapsing, Unicode normalization, uniqueness constraint, length limit or filename
+character restriction is added. Empty submissions retain raw text, describe the field error and
+focus the input. Names equal after this normalization never dispatch from the form and add no
+history. Different rooms may have identical names; stable Zone IDs key selection, list rows,
+canvas nodes and references, independently of their labels.
+
+Opening acquires one entity/version through `GetZone`. Apply maps one Inspector `name` edit to
+`RenameZoneCommand` and its reversible adapter. The first write supplies that exact baseline;
+Undo/Redo use the existing shared write ledger, including peer-generation protection. A failure
+retains the draft. A version conflict refreshes the current saved name (or explains its
+unavailability), retains the original baseline/text and pauses Apply. Cancel and reopen to use the
+new baseline; no silent rebase or overwrite occurs. Confirmed writes close the form even when
+readback fails: existing stale-state recovery retries the read only. Retired baseline responses
+cannot open a dialog; retired form completions cannot resolve a replacement dialog.
+
+Name is independent of note filename/path. Existing `ObsidianZoneRepository.save` resolves an
+update by ID and writes its indexed existing path. It retains the owned-frontmatter/body merge,
+expected revision/observation check and compensating note/sidecar transaction. No rename or link
+rewrite is requested, so no new file/link transaction is needed. ID, classification, status,
+geometry and references stay intact. The v1 Markdown keys and sidecar format do not change;
+`domainNoteLink` remains domain-only under the existing mapper contract, not a newly persisted
+field. The repository can advance sidecar bookkeeping while retaining identical geometry entries.
+
+Canvas, list and Inspector refresh through the ordinary dispatcher. `ZoneRenamed` enters the
+existing plan-change subscription so other leaves refresh too, without emitting a false geometry
+change or triggering a quantity/cost recalculation. Responsive panel remounts preserve the root
+modal and its input focus; cancellation restores the replacement action or Details rail when the
+original opener disappeared. Forced leaf/process disposal retains the existing limitation: a
+submitted write may finish and no draft recovery is promised.
+
+Evidence and open live acceptance: [Rename a room](../../../tests/cases/Rename%20a%20room.md).
+This delivers the bounded existing-room naming gap only; Phase 4, Increment A/B and the full plan
+remain open, as do room kinds, general Area metadata and the wider Inspector field-commit decision.

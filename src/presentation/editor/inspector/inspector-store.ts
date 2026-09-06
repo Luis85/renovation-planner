@@ -50,6 +50,7 @@ export type InspectorDto =
  * the code that produces it").
  */
 export type InspectorEdit =
+	| { readonly kind: 'name'; readonly zoneId: ZoneId; readonly name: string; readonly inverse: string; readonly expected: EntityVersion }
 	| { readonly kind: 'geometry'; readonly zoneId: ZoneId; readonly forward: Polygon; readonly inverse: Polygon; readonly expected: EntityVersion }
 	/**
 	 * Slice 10's three reference-resolution fields ride along, all optional: a Zone with no

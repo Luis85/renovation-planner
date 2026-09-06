@@ -1,4 +1,6 @@
 import { ReversibleMoveZoneCommand } from './tools/reversible-move-zone-command';
+import { RenameZoneCommand } from '../../application/commands/zone/RenameZone';
+import { ReversibleRenameZoneCommand } from '../../application/commands/zone/reversible-rename-zone-command';
 import { ok, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { DispatchOutcome, DispatchResult } from '../../application/commands/DispatchOutcome';
@@ -92,6 +94,8 @@ export function createInspector(
 		// the property this `switch` actually rests on and cannot.
 		toCommand: (edit: InspectorEdit) => {
 			switch (edit.kind) {
+				case 'name':
+					return new ReversibleRenameZoneCommand(new RenameZoneCommand(context.commands.zones, context.commands.events), ledger, edit);
 				case 'geometry':
 					// The explicit form conditions its FIRST write on its baseline too. Undo/redo
 					// keep the adapter's shared-ledger expectation, just like canvas gestures.

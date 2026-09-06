@@ -1,3 +1,4 @@
+import { referenceWorkspace } from './referenceWorkspace';
 import { err, ok } from '../../src/core/result/Result';
 import type { PersistenceError } from '../../src/core/errors/AppError';
 import { Zone } from '../../src/domain/zone/Zone';
@@ -398,6 +399,7 @@ export interface PlanEditorHarnessOptions {
 	readonly numericArea?: boolean;
 	readonly roomResize?: boolean;
 	readonly roomNaming?: boolean;
+	readonly reference?: boolean;
 	/** A seeded zone's id (e.g. `harness-kitchen`) to select and frame once the editor is ready. */
 	readonly select?: string;
 	/** Opens the Add menu once the editor is ready. */
@@ -641,7 +643,7 @@ export function mountPlanEditorHarness(
 	// Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
 	const base = harnessDeps({ stale: options.stale });
-	const deps = (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
+	const deps = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN).deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
 	const view = new PlanEditorView(new FakeLeaf() as never, deps);
 	leafEl.appendChild(view.containerEl);
 

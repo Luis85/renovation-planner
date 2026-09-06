@@ -1,4 +1,5 @@
-import type { editorEn } from '../en/editor';
+import type {
+ editorEn } from '../en/editor';
 
 /**
  * German for the Plan Editor's own vocabulary — the counterpart of `en/editor.ts`, split
@@ -11,6 +12,51 @@ import type { editorEn } from '../en/editor';
  * (`...editorDe`).
  */
 export const editorDe: Record<keyof typeof editorEn, string> = {
+	"editor.reference.title": "Referenzplan einrichten",
+	"editor.reference.prepare": "Plan vorbereiten",
+	"editor.reference.scale": "Maßstab festlegen",
+	"editor.reference.review": "Referenz prüfen",
+	"editor.reference.action": "Referenzplan konfigurieren",
+	"editor.reference.upload": "Grundriss hochladen",
+	"editor.reference.start": "Wie möchten Sie beginnen?",
+	"editor.reference.empty": "Leer beginnen",
+	"editor.reference.rooms": "Räume hinzufügen",
+	"editor.reference.source": "Quelldatei in Ihrem Vault",
+	"editor.reference.source-help": "Geben Sie den relativen Vault-Pfad einer PNG-, JPEG- oder PDF-Datei ein. Die Originaldatei bleibt unverändert.",
+	"editor.reference.page": "PDF-Seite",
+	"editor.reference.load": "Quelle laden / erneut versuchen",
+	"editor.reference.loading": "Quelle wird gelesen…",
+	"editor.reference.missing": "Die Quelldatei fehlt. Korrigieren Sie den Pfad oder wählen Sie einen Ersatz und laden Sie erneut.",
+	"editor.reference.unreadable": "Bild oder PDF-Seite nicht lesbar. Prüfen Sie die Seitennummer, versuchen Sie es erneut oder wählen Sie eine andere Datei.",
+	"editor.reference.source-changed": "Die Quelle wurde geändert. Kehren Sie zur Vorbereitung zurück und laden Sie erneut.",
+	"editor.reference.crop-x": "Zuschnitt links (px)",
+	"editor.reference.crop-y": "Zuschnitt oben (px)",
+	"editor.reference.crop-width": "Zuschnittbreite (px)",
+	"editor.reference.crop-height": "Zuschnitthöhe (px)",
+	"editor.reference.rotation": "Drehung (Grad)",
+	"editor.reference.preview": "Vorbereitete Referenz mit Messpunkten; Koordinaten in den Feldern bearbeiten",
+	"editor.reference.measure-help": "Klicken Sie auf zwei Punkte in der Vorschau oder geben Sie deren Koordinaten in Quellpixeln ein. Geben Sie den tatsächlichen Abstand an.",
+	"editor.reference.ax": "Punkt A · X (px)",
+	"editor.reference.ay": "Punkt A · Y (px)",
+	"editor.reference.bx": "Punkt B · X (px)",
+	"editor.reference.by": "Punkt B · Y (px)",
+	"editor.reference.length": "Bekannter Abstand (m)",
+	"editor.reference.another": "Anderen Abstand wählen",
+	"editor.reference.scale-summary": "Maßstab: {scale} mm pro Quellpixel. Bekannter Abstand: {length} m.",
+	"editor.reference.opacity": "Deckkraft der Referenz",
+	"editor.reference.visible": "Sichtbar",
+	"editor.reference.locked": "Gesperrt",
+	"editor.reference.unlock-help": "Positionen werden über die Einrichtung geändert; die Referenz lässt sich nicht auf der Zeichenfläche ziehen.",
+	"editor.reference.rescale": "Alle vorhandenen Räume und Flächen um den Faktor {factor} relativ zum Ursprung skalieren. Berechnete Mengen ändern sich.",
+	"editor.reference.consent": "Bestätigen Sie vor dem Abschluss die Auswirkung auf vorhandene Räume und Flächen.",
+	"editor.reference.invalid-prepare": "Laden Sie eine Quelle und geben Sie einen positiven Zuschnitt innerhalb des Bildes sowie eine Drehung von -180° bis 180° ein.",
+	"editor.reference.invalid-scale": "Geben Sie zwei unterschiedliche Punkte im Zuschnitt und einen endlichen positiven Abstand ein.",
+	"editor.reference.paused": "Speichern ist pausiert. Warten Sie auf den Vorgang oder brechen Sie ab und öffnen Sie die Einrichtung nach dem Aktualisieren erneut.",
+	"editor.reference.failed": "Die Einrichtung ist fehlgeschlagen. Ihr Entwurf bleibt erhalten; aktualisieren Sie das Geschoss vor einem erneuten Versuch.",
+	"editor.reference.back": "Zurück",
+	"editor.reference.continue": "Weiter",
+	"editor.reference.apply-scale": "Maßstab anwenden",
+	"editor.reference.finish": "Einrichtung abschließen",
 	'editor.resize.current': 'Ausgangsgröße: {width} m × {depth} m',
 	'editor.resize.latest': 'Zuletzt gespeicherte Größe: {width} m × {depth} m. Ihr Entwurf bleibt unverändert. Brechen Sie ab und öffnen Sie die Größenänderung erneut, um den aktuellen Raum zu verwenden.',
 	'editor.resize.latest-unavailable': 'Die aktuelle Raumgröße kann nicht gelesen werden. Ihr Entwurf bleibt unverändert. Brechen Sie ab, aktualisieren Sie den Grundriss und öffnen Sie die Größenänderung erneut.',

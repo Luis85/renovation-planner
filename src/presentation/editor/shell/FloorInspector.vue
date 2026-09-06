@@ -13,6 +13,7 @@
  * `var(--text-muted)` with an italic style and the words "Not available yet", never a colour
  * shift on its own.
  */
+import ReferenceAction from '../reference/ReferenceAction.vue';
 import { tr } from '../../i18n/strings';
 import { type Aggregate } from '../../read-models/spatialRecords';
 import { formatArea } from './formatArea';
@@ -62,6 +63,7 @@ const count = (value: number): string => String(value);
 		v-if="summary !== null"
 		class="rp-floor-inspector"
 	>
+		<ReferenceAction />
 		<dl class="rp-editor-inspector-fields">
 			<dt>{{ tr('editor.inspector.floor.rooms') }}</dt>
 			<dd

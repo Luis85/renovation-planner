@@ -19,6 +19,7 @@ import { useProjectStore } from '../stores/ProjectStore';
 import { useSaveStateStore } from './save-state/save-state-store';
 import DialogHost from '../dialogs/DialogHost.vue';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
+import FloorStart from './reference/FloorStart.vue';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
@@ -68,12 +69,14 @@ const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
  * is the resting state Task 10 gave this editor in place of camera mode, so it yields the
  * overlay no more than camera mode itself ever did.
  */
+const startDismissed = ref(false);
 const overlay = computed(() => {
 	const key = emptyStateKey.value;
 	const tool = runtime.activeToolId.value;
-	if (key === null || (tool !== null && tool !== 'select')) return null;
+	if (startDismissed.value || runtime.referenceActive.value || key === null || (tool !== null && tool !== 'select')) return null;
+	if (key === 'noZones' && plan.value?.background?.appearance) return null;
 	// Reference onboarding must not obscure selected geometry or its focus badges.
-	if (key === 'noBackground' && selection.selectedIds.length > 0) return null;
+	if (key === 'noBackground' && (projectStore.zones.size > 0 || unreadableZones.value > 0 || selection.selectedIds.length > 0)) return null;
 	return resolveEmptyState(EMPTY_STATE_CONTENT.planEditor[key]);
 });
 
@@ -90,9 +93,8 @@ const overlay = computed(() => {
  * action is putting the user in the drawing mode the catalogue entry names (Task 13 retired the
  * toolbar button that used to make this call directly; nothing else in the shell offers it).
  *
- * `noBackground` has no button (settled at the top of this task): slice 5's picker is a
- * PLUGIN COMMAND, not a member of the editor's bundle, so there is nothing here to call that
- * would not be either a new seam or a reach for the global `app`.
+ * M05's no-reference floor start has its own three choices; this action remains the
+ * existing no-rooms route for a floor whose reference has already been configured.
  *
  * **Returns early while `runtime.writesBlocked`** (design spec §2.9): the button stays
  * `aria-disabled` rather than `:disabled` so it is still focusable and its reason still
@@ -343,8 +345,12 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					@background-status="(next) => (backgroundStatus = next)"
 					@vue:unmounted="retireAddMenu"
 				>
+					<FloorStart
+						v-if="overlay !== null && emptyStateKey === 'noBackground'"
+						@dismiss="startDismissed = true"
+					/>
 					<EmptyState
-						v-if="overlay !== null"
+						v-else-if="overlay !== null"
 						v-bind="overlay"
 						overlay
 						:action-disabled="runtime.writesBlocked.value"

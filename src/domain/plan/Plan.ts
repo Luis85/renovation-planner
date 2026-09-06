@@ -1,3 +1,4 @@
+import { validReferenceAppearance } from './ReferenceAppearance';
 import { err, ok, type Result } from '../../core/result/Result';
 import type { CalculationError, ValidationError } from '../../core/errors/AppError';
 import type { ProjectId } from '../project/ProjectId';
@@ -21,6 +22,9 @@ import type { PlanId } from './PlanId';
 function validateBackground(background: PlanBackgroundRef | null): Result<void, ValidationError> {
 	if (background === null) {
 		return ok(undefined);
+	}
+	if (background.appearance !== undefined && !validReferenceAppearance(background.appearance)) {
+		return err(planError('invalid-reference-appearance', 'Reference crop, rotation or appearance is invalid.'));
 	}
 	if (!background.path.trim()) {
 		return err(planError('empty-background-path', 'A background reference needs a path.'));

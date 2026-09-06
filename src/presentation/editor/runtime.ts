@@ -1,3 +1,4 @@
+import { createReferenceAction } from './reference/referenceAction';
 import { createRoomResizeAction } from './resize/roomResizeAction';
 import { createRoomNamingAction } from './naming/roomNamingAction';
 import {
@@ -72,6 +73,9 @@ import { makeCommitField } from './commitField';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly openReference: () => Promise<void>;
+	readonly referenceActive: Readonly<Ref<boolean>>;
+	readonly referenceBlocked: Readonly<Ref<boolean>>;
 	readonly resizeRoom: (id: ZoneId) => Promise<void>;
 	readonly resizeRoomBlocked: Readonly<Ref<boolean>>;
 	readonly renameRoom: (id: ZoneId) => Promise<void>;
@@ -575,7 +579,7 @@ function buildDispatcherChain(
 	return { wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
 }
 
-function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRoom' | 'resizeRoomBlocked' | 'renameRoom' | 'renameRoomBlocked'> {
+function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRoom' | 'resizeRoomBlocked' | 'renameRoom' | 'renameRoomBlocked' | 'openReference' | 'referenceActive' | 'referenceBlocked'> {
 	const editor = useEditorStore();
 	const projectStore = useProjectStore();
 	const selection = useSelectionStore();
@@ -811,7 +815,7 @@ export const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-pl
 
 export function provideEditorRuntime(context: PlanEditorContext): EditorRuntime {
 	const base = buildRuntime(context);
-	const runtime = { ...base, ...createRoomResizeAction(context, base), ...createRoomNamingAction(context, base) };
+	const runtime = { ...base, ...createRoomResizeAction(context, base), ...createRoomNamingAction(context, base), ...createReferenceAction(context, base) };
 	provide(EDITOR_RUNTIME, runtime);
 	return runtime;
 }

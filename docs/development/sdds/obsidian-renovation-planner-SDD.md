@@ -2810,6 +2810,31 @@ Review    → confirm scale, opacity and alignment; Locked is on by default
 
 ---
 
+**Implemented M05/M06 contract (2026-09-06, ADR-0019).** Optional plan frontmatter
+`reference-appearance` contains source-pixel crop, clockwise rotation around the cropped origin,
+opacity, visible and locked. Its discriminator is plan schema v2; pure v1→v2 migration is read-only,
+legacy absent appearance preserves existing rendering, and geometry/calibration stays in the v1
+sidecar. Transform order is page → crop-origin translation → rotation → raster world scale →
+existing calibration correction → viewport. Numeric endpoints use source pixels and known length
+uses the shared metre parser before conversion to millimetres. There is no second scale or origin.
+
+Finish dispatches one guarded history command with captured metadata and complete geometry
+versions. The operation compensates metadata if the sidecar write fails, marks failed compensation
+as an unrecovered write, and publishes existing events only after both writes succeed. Undo/Redo
+restore exact snapshots and retain the whole-document calibration version barrier (§25, §29–31,
+§42). A process killed between the writes is outside this compensation guarantee: no durable
+cross-file edit journal is added. Review requires acknowledgement of a scale change affecting
+existing rooms/areas. Draft cancellation writes nothing and leaves the source file untouched.
+
+Configuration lives in the root dialog, independent of spatial selection (ADR-0018). New references
+are visible/locked by default; committed visibility seeds the session layer toggle. Unlocked does
+not introduce a draggable background. Existing contextual Set scale remains supported. See
+[ADR-0019](../adrs/0019-floor-reference-configuration.md) and
+[Configure a reference plan](../../tests/cases/Configure%20a%20reference%20plan.md) for the migration,
+compensation, browser and fresh-stack tests and explicitly open host/recovery acceptance.
+
+---
+
 # 99. Asset Library and Asset Designer
 
 **The library** is one vault-wide catalogue in its own singleton view (AL00–AL11), reached by

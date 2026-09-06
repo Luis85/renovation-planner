@@ -598,6 +598,8 @@ describe('every service leaving the composition root is guarded', () => {
 			'editorDeps',
 			'editorDeps.commands.events',
 			'editorDeps.commands.logger',
+			// Argument-taking factory: all three doors are exercised by guardedReferencePlan.test.ts.
+			'editorDeps.commands.referencePlan',
 			'editorDeps.queries',
 			'libraryDeps',
 			'libraryDeps.logger',

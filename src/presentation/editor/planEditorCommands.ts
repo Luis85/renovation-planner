@@ -1,3 +1,4 @@
+import { referencePlanServices, type ReferencePlanServices } from '../../application/commands/plan/ConfigurePlanReference';
 import { err, type Result } from '../../core/result/Result';
 import { createEventBus, type EventBus } from '../../core/events/EventBus';
 import type {
@@ -58,6 +59,7 @@ export interface CalibratePlanTransaction {
  * boundary is exactly what has no per-transaction state.
  */
 export interface PlanEditorCommandServices {
+	readonly referencePlan: ReferencePlanServices;
 	readonly createZone: Command<
 		CreateZoneInput,
 		Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>
@@ -225,6 +227,7 @@ export function unavailablePlanEditorCommands(): PlanEditorCommandServices {
 				return Promise.resolve(err(persistenceFailure()) as ZoneInspectorResult);
 			},
 		},
+		referencePlan: referencePlanServices(refusingPort(), refusingPort(), events, refusingPort()),
 		calibratePlan: () => ({
 			execute(): Promise<CalibratePlanExecuteResult> {
 				return Promise.resolve(err(persistenceFailure()) as CalibratePlanExecuteResult);

@@ -17,6 +17,7 @@
  * keyboard user on `<body>`. `-1` rather than `0` because that is the whole of it: this is a
  * surviving TARGET, not a new Tab stop, and the panel's own controls are what a user tabs to.
  */
+import ReferenceAction from '../reference/ReferenceAction.vue';
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
@@ -58,6 +59,7 @@ const heading = computed(() => (props.plan === null ? tr('editor.floor') : `${tr
 		<h2 class="rp-editor-panel-title">
 			{{ heading }}
 		</h2>
+		<ReferenceAction />
 		<LayerList
 			:entries="entries"
 			@activate-tool="runtime.setTool"

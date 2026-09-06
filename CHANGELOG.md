@@ -12,6 +12,12 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: start an empty floor with rooms, a reference plan or an empty canvas. Prepare a
+  vault image/PDF with page, crop and rotation, set scale by pointer or keyboard, then review
+  opacity and locking. One compensated, version-checked command persists the reference and
+  calibration with coherent Undo/Redo. Floor/layer settings reopen the configuration; plan
+  schema v2 preserves legacy references without read-time note rewrites.
+
 - Plan editor: selected rectangular Rooms aligned with the floor axes can be resized entirely
   by keyboard. An explicit dimension form previews changes, keeps the top-left corner fixed,
   and applies one conditional reversible update through existing geometry persistence.

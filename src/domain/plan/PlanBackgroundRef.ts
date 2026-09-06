@@ -1,3 +1,4 @@
+import type { ReferenceAppearance } from './ReferenceAppearance';
 /**
  * A reference to a Plan's background document — the Vault-relative path plus enough to
  * open it (kind, and a page for PDFs). Never the raw bytes: file access is slice 5,
@@ -9,6 +10,7 @@ export const PLAN_BACKGROUND_KINDS: readonly PlanBackgroundKind[] = ['image', 'p
 
 export interface PlanBackgroundRef {
 	readonly path: string;
+	readonly appearance?: ReferenceAppearance;
 	readonly kind: PlanBackgroundKind;
 	/** Meaningful only when `kind` is `'pdf'`; absent otherwise. */
 	readonly page?: number;

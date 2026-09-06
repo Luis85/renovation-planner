@@ -1,0 +1,28 @@
+.renovation-plan-editor .rp-floor-start {
+	position: absolute;
+	z-index: 2;
+	top: 25%;
+	left: 50%;
+	transform: translateX(-50%);
+	width: min(90%, 400px);
+	padding: var(--size-4-4);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	display: grid;
+	gap: var(--size-4-2);
+	pointer-events: auto;
+}
+.rp-reference-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--size-4-2);
+}
+.rp-reference-setup input { max-width: 100%; min-width: 0; }
+.rp-reference-preview { display: block; width: 100%; height: auto; background: var(--background-secondary); }
+.rp-reference-setup section { display: grid; gap: var(--size-4-2); }
+.rp-reference-setup p { overflow-wrap: anywhere; }
+
+.rp-reference-setup input[type="range"],
+.rp-reference-setup input[type="checkbox"] { accent-color: var(--interactive-accent); }
+.rp-reference-setup label:has(input[type="checkbox"]) { display: flex; align-items: baseline; gap: var(--size-4-2); }

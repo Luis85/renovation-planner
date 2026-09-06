@@ -1,3 +1,5 @@
+import { guardedReferencePlan } from './guardedReferencePlan';
+import { referencePlanServices } from '../application/commands/plan/ConfigurePlanReference';
 import type { Vault, Workspace } from 'obsidian';
 import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
@@ -58,6 +60,7 @@ export function planEditorDeps(
 		commands: persistence
 			? {
 					createZone: persistence.createZone,
+					referencePlan: guardedReferencePlan(referencePlanServices(persistence.plans, persistence.geometry, root.eventBus, persistence.files), root.logger),
 					moveObject: persistence.moveZone,
 					deleteZone: persistence.deleteZone,
 					zones: persistence.zones,

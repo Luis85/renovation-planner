@@ -1,7 +1,7 @@
 import type { CalculationError, ValidationError } from '../../../core/errors/AppError';
 import type { Result } from '../../../core/result/Result';
 import { Plan } from '../../../domain/plan/Plan';
-import { PlanFrontmatterSchemaV1, PLAN_TYPE, type PlanFrontmatterDTO } from '../dto/planFrontmatter';
+import { PlanFrontmatterSchema, PLAN_TYPE, type PlanFrontmatterDTO } from '../dto/planFrontmatter';
 import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
 
@@ -18,7 +18,7 @@ export function planToPersistence(plan: Plan, revision: number): Record<string, 
 	const background = plan.background;
 	return {
 		type: PLAN_TYPE,
-		'schema-version': 1,
+		'schema-version': background?.appearance ? 2 : 1,
 		id: plan.id,
 		revision,
 		project: plan.projectId,
@@ -27,11 +27,12 @@ export function planToPersistence(plan: Plan, revision: number): Record<string, 
 		'background-kind': background?.kind ?? 'image',
 		'background-page': background?.kind === 'pdf' ? (background.page ?? 1) : null,
 		layers: [...plan.layers],
+		...(background?.appearance ? { 'reference-appearance': background.appearance } : {}),
 	};
 }
 
 function fromDto(
-	dto: PlanFrontmatterDTO,
+	dto: Omit<PlanFrontmatterDTO, 'schema-version'>,
 	calibration: Plan['calibration'],
 ): Result<Plan, ValidationError | CalculationError> {
 	const path = dto['background-path'];
@@ -42,6 +43,7 @@ function fromDto(
 		background: path
 			? {
 					path,
+					...(dto['reference-appearance'] ? { appearance: dto['reference-appearance'] } : {}),
 					kind: dto['background-kind'],
 					page: dto['background-kind'] === 'pdf' ? (dto['background-page'] ?? 1) : undefined,
 				}
@@ -65,7 +67,7 @@ export function planFromPersistence(
 	raw: unknown,
 	calibration: Plan['calibration'],
 ): Result<Plan, ValidationError | CalculationError> {
-	const parsed = parsePersisted(PlanFrontmatterSchemaV1, raw, 'plan.frontmatter-invalid', 'Plan note');
+	const parsed = parsePersisted(PlanFrontmatterSchema, raw, 'plan.frontmatter-invalid', 'Plan note');
 	if (!parsed.ok) return parsed;
 	return fromDto(parsed.value, calibration);
 }

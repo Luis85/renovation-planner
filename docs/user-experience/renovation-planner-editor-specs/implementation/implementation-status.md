@@ -11,7 +11,7 @@ behavior on `cf536f32` from the current contribution. It does not declare the wh
 | 3 | Select/Add and temporary Room tools exist; the Area continuation adds its catalogue path, validated outline, one-shot/repeated completion and keyboard routing; the numeric continuation adds corner placement/correction | Unavailable creation domains, complete cross-tool/non-canvas routes and release acceptance |
 | 4 | Rectangular room creation exists; the dimensions continuation adds keyboard resizing of existing axis-aligned four-corner Rooms; the naming continuation adds explicit keyboard renaming for all Room outlines | Broader resizing, room-kind decision and complete M03/live acceptance |
 | 5 | Not delivered | Walls, hosted openings, connected creation, exact-length impact and composite undo |
-| 6 | Background display and calibration exist | Transactional prepare/scale/review setup, persistent appearance and transforms |
+| 6 | Query-derived floor start and compensated prepare/scale/review setup, persistent appearance, exact-version history and contextual revisiting (ADR-0019) | Live Obsidian/screenreader, forced-process recovery and complete M05/M06 acceptance |
 | 7 | Not delivered | Separate Existing/Planned state and change relationships |
 | 8 | Not delivered | Work dependencies, readiness, Review and vault-backed review notes |
 | 9 | Asset requirements and calculations exist | Geometry/work-linked material planning, provenance and shopping list journey |
@@ -397,3 +397,146 @@ Ordinary busy/stale/conflict failures, disposed success, invalid input and respo
 covered. Two existing alternatives remain uncovered: `runtime.ts:257`'s failed asset-list query
 and `RoomInspector.vue:112`'s non-Zone DTO alternative. These figures do not claim full branch
 coverage or substitute for the open host/screenreader acceptance above.
+
+
+## Floor/reference continuation on PR #83 — 2026-09-06
+
+Base: `origin/codex/editor-room-naming` at `d3746681980e6f472d1d2e2218ea524b692dd43c`.
+Worktree: `D:/Projects/renovation-planner/.worktrees/reference-plan`.
+Branch: `codex/reference-plan-workflow`. The main checkout remains clean and unchanged.
+
+Rechecked remote heads, reviews and CI: #83 and #82 are open with all six checks successful and
+no review threads; #76 and #75 remain open and their current heads are ancestors. All checks
+on #76, #75 and #74 also pass. #74 remains
+open; its later `bb62e2f3` head is not an ancestor. The equivalent single-selection Escape change
+already exists in the continuation, which additionally preserves native input/select Escape.
+No existing PR branch was merged or modified.
+
+Inherited unresolved review threads remain separately recorded:
+
+- [#76 corner-row Escape focus](https://github.com/Luis85/renovation-planner/pull/76#discussion_r3942047113)
+  remains outside this reference change.
+- [#75 keyboard Area completion busy guard](https://github.com/Luis85/renovation-planner/pull/75#discussion_r3941885495)
+  remains an unresolved upstream thread; the continuation's Area tool already has its own busy
+  guard. This PR does not change or resolve that thread.
+- [#74 native asset-picker Escape](https://github.com/Luis85/renovation-planner/pull/74#discussion_r3941930056)
+  remains unresolved upstream; the inherited continuation already exempts native text/select
+  controls in `PlanEditorRoot`.
+
+### Delivered behavior and contract
+
+Empty floors offer Add rooms, Upload a floor plan and Start empty, based on actual room/area
+query results. Existing geometry without a reference is not obscured by onboarding. Floor and
+Layer contexts expose the same root-owned setup. Add rooms uses the existing creation catalogue;
+existing floor metadata and contextual Set scale remain available.
+
+Prepare source/page/crop/rotation, set a known distance using pointer or numeric endpoints, then
+review scale/opacity/visible/locked before Finish. Setup retains one disposable draft across
+layout changes; cancel and rejected writes retain the previous committed reference. Existing
+geometry requires explicit scale acknowledgement. All source conversion and calibration use the
+existing units and geometry model. ADR-0019 records the new optional v2 appearance metadata,
+legacy compatibility, exact-version history, compensation and the forced-process recovery limit.
+
+Traceability and reproduction: [Configure a reference plan](../../../tests/cases/Configure%20a%20reference%20plan.md).
+Browser route: `?view=plan-editor&reference`. The harness uses actual repositories over FakeVault
+and committed PNG/PDF fixtures. `scripts/editor-reference-check.mjs` passed all four real-keyboard
+scenarios in Edge 152.0.4191.62, with zero page errors. All twelve Prepare/Set scale/Review PNGs
+were visually inspected for crop/rotation, marker visibility, readable scale, focus, translated
+wrapping and theme/accent. Dialog widths matched scroll widths: 446 px in wider layouts and
+426 px in the German 460 px case. Both resize directions preserve the raw draft and focused
+control; replacement cancellation is checked by reopening the original PNG and rotation.
+Each browser scenario then commits a PDF, reopens its persisted page 1, and undoes back to PNG.
+The mounted workflow also completes both PNG and PDF with their respective raster densities.
+The browser also exercises Add rooms and Start empty and verifies canvas focus after each.
+If the source changes during Review, the scale is withdrawn and Finish refuses the invalid preview.
+Four additional committed-canvas captures verify that rotated references are fully framed and
+readable after Finish/Undo/Redo. The existing fit shortcut includes visible prepared references;
+empty floors fit them after decode/measurement while active creation retains its camera.
+
+These are browser and FakeVault results. Live Obsidian, actual restart/MetadataCache timing,
+assistive technology, large-document performance and forced-process recovery remain open.
+Phase 6, Increment B, Increment A's outstanding criteria and the overall roadmap are not closed.
+No Walls/Openings, Existing/Planned, Work, Materials, Costs or Evidence domains were added.
+
+
+### Final verification (2026-09-06)
+
+`VITEST_MAX_WORKERS=2 npm run check` passed on Windows, Node 24.20.0: production build/typecheck,
+Oxlint/ESLint, **494 test files / 6,771 passed tests**, 70 existing skips, and Fallow with no issues
+or functions above threshold. The final browser-runner theme fix also passed a separate
+`npm run lint`; the complete check's final Fallow analysis includes that fix.
+
+Global V8/Istanbul coverage: **99.22% statements, 99.24% functions, 98.04% branches, 99.59% lines**.
+Thresholds remain unchanged (99% statements/functions/lines, 98% branches); no skips were added.
+The new configuration command, appearance transforms, migration/mapper, guarded factory,
+root actions and prepared-reference framing have every instrumented counter covered.
+
+Targeted checks passed: command/math/workflow suites (48 tests); framing, background, contextual
+calibration and empty-state suites (64 tests); final mounted PNG/PDF workflow suite (26 tests).
+All of these are included again in the complete check. The real keyboard browser matrix passed
+four scenarios, including PDF commit/reopen/Undo, with zero page errors. All 16 final step/canvas
+captures were inspected, including the corrected custom accent after preserving tokens across reload.
+Actual-repository/FakeVault persistence and fresh-stack reload are separately traced in the test case.
+
+Generated evidence is in `harness-shots/reference-plan/`: `report.json`, the PNGs,
+`coverage-review.md` and `logs/`. Reproduction commands and the unperformed live-host acceptance
+remain in the linked test case. Coverage below is covered/total for each changed executable source file.
+
+| File under `src/` | Statements | Functions | Branches | Lines |
+|---|---:|---:|---:|---:|
+| `application/commands/plan/ConfigurePlanReference.ts` | 64/64 | 8/8 | 32/32 | 49/49 |
+| `application/commands/plan/ReversibleCalibratePlan.ts` | 58/59 | 10/10 | 31/33 | 56/56 |
+| `domain/plan/Plan.ts` | 37/37 | 6/6 | 29/29 | 37/37 |
+| `domain/plan/PlanBackgroundRef.ts` | 8/8 | 1/1 | 4/4 | 7/7 |
+| `domain/plan/ReferenceAppearance.ts` | 8/8 | 4/4 | 13/13 | 7/7 |
+| `infrastructure/obsidian/repositories/ObsidianPlanRepository.ts` | 100/100 | 12/12 | 48/48 | 89/89 |
+| `infrastructure/obsidian/repositories/noteIo.ts` | 107/107 | 19/19 | 75/77 | 93/93 |
+| `infrastructure/persistence/dto/planFrontmatter.ts` | 11/11 | 2/2 | 2/2 | 10/10 |
+| `infrastructure/persistence/mappers/planMapper.ts` | 16/16 | 5/5 | 28/28 | 15/15 |
+| `infrastructure/persistence/migration/entities/plan/plan.migrations.ts` | 2/2 | 1/1 | 4/4 | 2/2 |
+| `plugin/guardedReferencePlan.ts` | 12/12 | 8/8 | 0/0 | 7/7 |
+| `plugin/planEditorDeps.ts` | 5/5 | 3/3 | 6/6 | 5/5 |
+| `presentation/editor/PlanCanvas.vue` | 37/37 | 16/16 | 18/18 | 30/30 |
+| `presentation/editor/PlanEditorRoot.vue` | 85/85 | 31/31 | 75/75 | 73/73 |
+| `presentation/editor/planEditorCommands.ts` | 14/15 | 12/13 | 0/0 | 13/13 |
+| `presentation/editor/runtime.ts` | 144/144 | 49/49 | 38/39 | 121/121 |
+| `presentation/editor/layers/background/BackgroundLayer.vue` | 32/32 | 8/8 | 25/25 | 26/26 |
+| `presentation/editor/layers/background/BackgroundRenderModel.ts` | 22/22 | 5/5 | 10/10 | 22/22 |
+| `presentation/editor/layers/background/pdfRaster.ts` | 19/19 | 2/2 | 2/2 | 19/19 |
+| `presentation/editor/reference/FloorStart.vue` | 14/14 | 3/3 | 12/12 | 10/10 |
+| `presentation/editor/reference/ReferenceAction.vue` | 9/9 | 1/1 | 6/6 | 5/5 |
+| `presentation/editor/reference/ReferencePrepare.vue` | 16/16 | 7/7 | 15/15 | 16/16 |
+| `presentation/editor/reference/ReferencePreview.vue` | 43/44 | 4/4 | 13/14 | 31/31 |
+| `presentation/editor/reference/ReferenceReview.vue` | 15/15 | 6/6 | 19/19 | 13/13 |
+| `presentation/editor/reference/ReferenceSetupForm.vue` | 161/165 | 40/41 | 158/162 | 91/92 |
+| `presentation/editor/reference/referenceAction.ts` | 38/38 | 10/10 | 27/27 | 22/22 |
+| `presentation/editor/reference/referenceSetup.ts` | 19/19 | 7/7 | 9/9 | 12/12 |
+| `presentation/editor/shell/FloorInspector.vue` | 16/16 | 3/3 | 12/12 | 12/12 |
+| `presentation/editor/shell/PropertyLayerPanel.vue` | 15/15 | 5/5 | 9/9 | 11/11 |
+| `presentation/i18n/locales/de/editor.ts` | 1/1 | 0/0 | 0/0 | 1/1 |
+| `presentation/i18n/locales/en/editor.ts` | 1/1 | 0/0 | 0/0 | 1/1 |
+
+### Coverage review limits
+
+Counts below describe complete changed source files, not just added lines. Type-only declarations
+and CSS have no instrumented executable counters. No threshold, assertion or skip was relaxed.
+
+The remaining uncovered paths were inspected:
+
+- `ReversibleCalibratePlan.ts`: the post-rescale calibration-null branch and final defensive
+  calibration validation refusal; the helper always constructs a calibration after the earlier
+  finite/degenerate checks. Invalid input and non-finite geometry refusal are exercised.
+- `ReferencePreview.vue`: unavailable canvas context early return. Browser captures use a real
+  canvas; they do not demonstrate a host unable to create a 2D context.
+- `ReferenceSetupForm.vue`: the paused pointer callback (the preview disables picking first),
+  redundant null guards inside commit (submit validates first), a thrown dispatch after the
+  component is already disposed, and the generated whole-crop v-model replacement callback
+  (the child edits crop fields). Successful authorized commit after disposal, active rejection,
+  busy control handling and invalid source/scale refusal are exercised separately.
+- Existing fallback branches in changed files remain uncovered: `noteIo.ts` missing post-write
+  file and metadata-cache entry without frontmatter; `runtime.ts` rejected asset-options refresh;
+  `planEditorCommands.ts` unavailable-command EventBus error sink. The changed nested serializer,
+  reference wiring, refusing reference ports and guarded production factory are exercised.
+
+Live host timing, screenreader behavior, large PDFs and forced-process termination remain
+manual acceptance gaps, independently of these counters.

@@ -137,3 +137,13 @@ that narrowness is acceptable. Write the answer into the Runs table either way.
 
 Anything on this list which does not work is a slice 15 defect, except steps 1 and 2, which
 are slice 7's tool becoming reachable, and step 13, which is slice 7's reversible command.
+
+
+## Connected reference setup continuation — 2026-09-06
+
+The layer's existing Set scale gesture remains supported and covered by this case. The complete
+prepare/scale/review route now has its own [Configure a reference plan](Configure%20a%20reference%20plan.md)
+case, including native keyboard endpoints, actual source decoding, exact Undo/Redo, compensation,
+legacy migration and fresh repository stack reload. Both routes reuse `deriveCalibration` and
+`calibrateDocument`, preserve the complete-plan scale contract and keep calibration in the sidecar.
+Live Obsidian and screenreader acceptance in both cases remain open.

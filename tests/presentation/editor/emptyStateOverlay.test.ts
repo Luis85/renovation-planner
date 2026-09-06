@@ -53,7 +53,7 @@ function press(element: HTMLElement, type: string, x: number, y: number): void {
 }
 
 describe('the plan editor empty states', () => {
-	it('keeps selected geometry visible without a reference, and restores onboarding after clear', async () => {
+	it('keeps populated geometry visible without a reference, including after selection clears', async () => {
 		harness = await mountPlanEditor({ plan: FIXTURE_PLAN, zones: FIXTURE_ZONES });
 		const selection = useSelectionStore(harness.pinia);
 		selection.select(['zone-kitchen', 'zone-terrace'] as never[]);
@@ -61,7 +61,7 @@ describe('the plan editor empty states', () => {
 		expect(overlay(harness).exists()).toBe(false);
 		selection.clear();
 		await settle();
-		expect(overlay(harness).exists()).toBe(true);
+		expect(overlay(harness).exists()).toBe(false);
 	});
 	it('keeps the canvas mounted while an empty state is showing', async () => {
 		harness = await mountPlanEditor({ plan: FIXTURE_PLAN, zones: [] });
@@ -77,10 +77,10 @@ describe('the plan editor empty states', () => {
 		expect(overlay(harness).classes()).toContain('rp-empty-state--overlay');
 	});
 
-	it('asks for a background when the plan has none, even with zones drawn', async () => {
+	it('does not mistake rooms without a reference for an empty floor', async () => {
 		harness = await mountPlanEditor({ plan: FIXTURE_PLAN, zones: FIXTURE_ZONES });
 
-		expect(overlay(harness).find('h2').text()).toBe(t('en', 'empty.plan.no-background.headline'));
+		expect(overlay(harness).exists()).toBe(false);
 	});
 
 	it('asks for a zone once the background is set', async () => {

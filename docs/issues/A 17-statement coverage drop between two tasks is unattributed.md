@@ -49,8 +49,8 @@ and no report names which ones.
 A script that diffs two `coverage-final.json` files per file — which lines/branches were
 covered in one run and not the other — turns "chase it for another 6 minutes of gate per
 attempt" into a single diff. That script is the improvement; running it against the two
-commits this ruling names (`a757dc37`/`bf1077a3` before, `248d7a91`/`bf1077a3` after) is what
-would finally attribute the 17 statements, once it exists.
+commits this ruling's measurement spans (`bf1077a3`, Task 15's end, before; `248d7a91`, Task
+16's initial landing, after) is what would finally attribute the 17 statements, once it exists.
 
 ## References
 

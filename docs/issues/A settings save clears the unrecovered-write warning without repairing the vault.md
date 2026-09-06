@@ -42,7 +42,8 @@ the vault unrepaired. Reopening the leaf has the same effect for the same reason
 ## What is true today
 
 Pinned rather than closed: `tests/plugin/rootSwapRebind.test.ts` "drops a leaf's
-unrecovered-write flag on rebind" asserts the window exists, it does not refuse it. Ruling R1
+unrecovered-write flag on rebind — the recorded gap, not the desired behaviour" asserts the
+window exists, it does not refuse it. Ruling R1
 already accepts a stale warning over a false all-clear as the lesser defect — the only
 in-session event that actually repairs a half-written vault is a successful retry of the same
 delete resolution over the same rows, which the dispatch wrapper cannot identify — and this

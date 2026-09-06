@@ -29,8 +29,9 @@ business-value-model: ""
 
 # A library move pays three vault scans and the post-migration rebuild cannot be skipped
 
-`createCompositionRoot` builds a fresh `ProjectIndex` per root
-(`src/plugin/composition-root.ts:464`), so a library-folder move runs the migration's own
+`createCompositionRoot` builds a fresh `ProjectIndex` per root — the
+`new ReconcilingProjectIndex(...)` construction in `src/plugin/composition-root.ts` — so a
+library-folder move runs the migration's own
 step-0 scan, then `applySettings`'s post-migration rebuild, for three full vault scans and
 three rebuild publishes in total (finding G8 of the 2026-09-05 whole-tree review). The obvious
 fix — have `applySettings` skip its rebuild when the migration just ran one — was tried and

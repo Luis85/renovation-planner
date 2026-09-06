@@ -41,9 +41,11 @@ worth its own note. Each is a one-line fix with no test needed beyond the gate a
   full**, and the inline comment inside the method's own body restates the same argument
   ("a session running on a value the file does not hold creates notes under a root the next
   start will not know about, and `projectFolder` is a/such a setting") almost verbatim.
-- **`ZoneShape.vue`'s docblock cites the layer's `listening: false` as the reason selection
-  never touches Konva hit-testing**, rather than the stronger and more general reason (this
-  canvas hit-tests nothing via Konva at all — SDD §62, the same rule
+- **`ZoneShape.vue`'s docblock — the paragraph reading "`listening: false` matches all four
+  children and the layer above them (SDD §62); Konva resolves hit-testing by walking a node's
+  ANCESTORS…" — cites the layer's `listening: false` as the reason selection never touches
+  Konva hit-testing**, rather than the stronger and more general reason (this canvas hit-tests
+  nothing via Konva at all — SDD §62, the same rule
   `tests/presentation/designer/layers.test.ts`'s designer measurement case below cites).
 - **`GestureSketch.vue`'s header cites `ZoneShape.vue` with no line range**, unlike its sibling
   citation of `RoomDraftSketch.vue:158`, which does carry one.
@@ -56,8 +58,9 @@ worth its own note. Each is a one-line fix with no test needed beyond the gate a
   in its leading indentation (`\t const resetter = ...`), unlike every surrounding line's
   tabs-only indent.
 - **A `registration.test.ts` test name uses a curly apostrophe** ("answers the palette’s own
-  question...", line 336) while a comment two lines above it ("the palette's own question")
-  uses a straight one.
+  question...", line 336) while the docblock immediately preceding that `it(...)` — the one
+  opening "The other half of the `checking` branch, off mobile: the palette's own question" —
+  uses a straight one for the identical phrase.
 - **`definitionDraft.test.ts`'s file header still frames its second review finding as
   "`definitionChanges` parsing unguarded when called without the `validateDefinition` gate in
   front of it"** — a caller-error scenario — when the case it actually added

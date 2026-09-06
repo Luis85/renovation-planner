@@ -32,11 +32,14 @@ business-value-model: ""
 `openNewAssetDialog` (`src/presentation/views/newAssetDialog.ts:56-71`) passes `deps.busy` to
 `openDialog` twice: once inside `props: { busy: deps.busy, ... }` for the form component, and
 again as the call's own top-level `busy: deps.busy`. `ViewRoot.vue` does the same for
-`newProjectBusy` (lines ~226 and ~233) and for `newAssetBusy`, and `ProjectDetailState.vue`
-does it for `newPlanBusy` (lines ~153 and ~180). `ViewRoot.vue`'s own docblock explains why
-both passes exist: one ref read and written by two places at once, handed to the form as its
-own `busy` prop (which writes `submitting` into it) and read by `DialogHost` (via the
-top-level `busy` key) to refuse Escape and disable Cancel while a submit is in flight.
+`newProjectBusy` (lines ~226 and ~233); its `newAssetBusy` ref is handed to
+`openNewAssetDialog` as a single argument (line ~269), so that ref's own double-pass happens
+entirely inside `newAssetDialog.ts` — the same site as the first example, not a second
+independent occurrence. `ProjectDetailState.vue` does the two-key shape for `newPlanBusy`
+(lines ~153 and ~180). `ViewRoot.vue`'s own docblock explains why both passes exist: one ref
+read and written by two places at once, handed to the form as its own `busy` prop (which
+writes `submitting` into it) and read by `DialogHost` (via the top-level `busy` key) to
+refuse Escape and disable Cancel while a submit is in flight.
 
 ## What is true today
 

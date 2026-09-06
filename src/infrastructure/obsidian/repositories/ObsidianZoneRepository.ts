@@ -32,8 +32,9 @@ import {
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
 } from './noteIo';
-import { observeFrontmatter } from './digest';
+import { observeZone } from './digest';
 import { versionOfFrontmatter } from './versionCheck';
+import type { SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
 import { checkExpectedVersion, revisionConflict } from '../../../application/ports/versioning';
 import { freshNotePath, projectFolderOf, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
@@ -109,6 +110,21 @@ function validationFailure(message: string): ValidationError {
 	return { category: 'Validation', code: 'zone.pre-write-invalid', message };
 }
 
+/** A live note whose plan's sidecar cannot be read is a broken state, not a missing zone. */
+function sidecarUnreadable(planId: unknown, cause: unknown): PersistenceError {
+	return persistenceError('zone.sidecar-unreadable', `The geometry sidecar for plan ${String(planId)} could not be read.`, cause);
+}
+
+/**
+ * A zone's version spans its two files: the note's stored revision, and a token over the
+ * note's owned keys AND the sidecar entry (`observeZone`). Minted at every read and at the
+ * write's own return through this one function, so the two cannot disagree about what a
+ * "reading" is — a save's returned version has to satisfy the next conditional write.
+ */
+function zoneVersion(frontmatter: Record<string, unknown>, entry: SpatialObjectGeometryDTO | undefined): EntityVersion {
+	return { revision: versionOfFrontmatter(frontmatter).revision, observed: observeZone(frontmatter, entry) };
+}
+
 export class ObsidianZoneRepository {
 	private readonly queues = new KeyedQueues();
 
@@ -147,11 +163,7 @@ export class ObsidianZoneRepository {
 		// state, not a missing zone.
 		const planId = parsed.value.plan as PlanId;
 		const sidecar = await readSidecar(planId);
-		if (!sidecar.ok) {
-			return Promise.resolve(
-				err(persistenceError('zone.sidecar-unreadable', `The geometry sidecar for plan ${planId} could not be read.`, sidecar.error)),
-			);
-		}
+		if (!sidecar.ok) return Promise.resolve(err(sidecarUnreadable(planId, sidecar.error)));
 		const entry = sidecar.value.dto.objects.find((object) => object.id === id);
 		if (!entry) {
 			return Promise.resolve(
@@ -163,7 +175,42 @@ export class ObsidianZoneRepository {
 		if (!entity.ok) {
 			return Promise.resolve(err(persistenceError('zone.entity-invalid', entity.error.message)));
 		}
-		return Promise.resolve(ok({ entity: entity.value, version: versionOfFrontmatter(opened.raw) }));
+		return Promise.resolve(ok({ entity: entity.value, version: zoneVersion(opened.raw, entry) }));
+	}
+
+	/**
+	 * What `loadOne` would mint for this note RIGHT NOW — both files — for step 2b below. Read
+	 * here and compared through `checkExpectedVersion` rather than handed to `mutate` as its
+	 * `expected`: the sidecar's own version is plan-grained, so presenting it would refuse this
+	 * zone's save for a sync that moved a NEIGHBOUR's entry. The cost is one sidecar read per
+	 * update beside the one `mutate` takes under the plan lock; the version check has to come
+	 * before the note write, and `mutate` runs after it.
+	 */
+	private async versionOnDisk(id: ZoneId, file: TFile): Promise<Result<EntityVersion, RepositoryError>> {
+		const frontmatter = frontmatterOf(this.deps, file);
+		const planId = frontmatter['plan'];
+		const sidecar = await this.geometry.read(planId as PlanId);
+		if (!sidecar.ok) return err(sidecarUnreadable(planId, sidecar.error));
+		return ok(zoneVersion(frontmatter, sidecar.value.dto.objects.find((object) => object.id === id)));
+	}
+
+	/**
+	 * Step 2 for an UPDATE: the version a reader would mint now and the note text step 5
+	 * restores. Both files, because a reader minted its version from both: the note's version
+	 * alone let a sync that rewrote this zone's sidecar entry — and touched no note — be
+	 * overwritten by a save presenting a reading taken before it.
+	 */
+	private async updateBaseline(
+		id: ZoneId,
+		existing: TFile,
+	): Promise<Result<{ version: EntityVersion; snapshotText: string }, RepositoryError>> {
+		const onDisk = await this.versionOnDisk(id, existing);
+		if (!onDisk.ok) return onDisk;
+		try {
+			return ok({ version: onDisk.value, snapshotText: await this.deps.vault.read(existing) });
+		} catch (cause) {
+			return err(persistenceError('zone.save-failed', `Could not read zone note ${existing.path}.`, cause));
+		}
 	}
 
 	save(
@@ -187,16 +234,13 @@ export class ObsidianZoneRepository {
 		// is resolved further down, on the INSERT path alone, because that is the only path
 		// that has to choose where a note goes.
 		const existing = this.locate(zone.id);
-		const currentVersion =
-			existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
-
+		let currentVersion: EntityVersion | undefined;
 		let snapshotText: string | null = null;
 		if (existing) {
-			try {
-				snapshotText = await this.deps.vault.read(existing);
-			} catch (cause) {
-				return err(persistenceError('zone.save-failed', `Could not read zone note ${existing.path}.`, cause));
-			}
+			const baseline = await this.updateBaseline(zone.id, existing);
+			if (!baseline.ok) return baseline;
+			currentVersion = baseline.value.version;
+			snapshotText = baseline.value.snapshotText;
 		}
 
 		// Step 2b.
@@ -270,7 +314,7 @@ export class ObsidianZoneRepository {
 		});
 		this.deps.echo.markFrontmatter(notePath, dto, { reading: supersedes, stat: writtenStat });
 
-		return ok({ entity: zone, version: { revision: nextRevision, observed: observeFrontmatter(dto) }, relatedWrite: { id: zone.planId, before: mutated.value.beforeVersion, after: mutated.value.version } });
+		return ok({ entity: zone, version: zoneVersion(dto, geometryEntry), relatedWrite: { id: zone.planId, before: mutated.value.beforeVersion, after: mutated.value.version } });
 	}
 
 	/**
@@ -342,12 +386,19 @@ export class ObsidianZoneRepository {
 			const file = this.locate(id);
 			// A vanished or unindexed note refuses exactly like a stale expectation.
 			if (!file) return err(revisionConflict('zone', id));
-			const conflict = checkExpectedVersion(
-				'zone',
-				id,
-				versionOfFrontmatter(frontmatterOf(this.deps, file)),
-				expected,
-			);
+			const cachedPlan = frontmatterOf(this.deps, file)['plan'] as PlanId | undefined;
+			if (!cachedPlan) {
+				// A note of ours always declares its plan (the schema demands it); a hand
+				// edit that removed it leaves us unable to locate the geometry entry. Asked
+				// BEFORE the version below, which needs that entry's sidecar to mint at all.
+				return err(persistenceError('zone.delete-failed', `Zone note ${file.path} does not declare its plan.`));
+			}
+			// Both files here too — the caller's expectation was minted from both, so a note-only
+			// reading could never match it, and a sidecar entry moved out of band refuses a delete
+			// the same way it refuses a save.
+			const onDisk = await this.versionOnDisk(id, file);
+			if (!onDisk.ok) return onDisk;
+			const conflict = checkExpectedVersion('zone', id, onDisk.value, expected);
 			if (conflict) return err(conflict);
 
 			// Delete's mirror of step 2: the full restore snapshot before ANY deletion.
@@ -357,13 +408,6 @@ export class ObsidianZoneRepository {
 			} catch (cause) {
 				return err(persistenceError('zone.delete-failed', `Could not read zone note ${file.path}.`, cause));
 			}
-			const cachedPlan = frontmatterOf(this.deps, file)['plan'] as PlanId | undefined;
-			if (!cachedPlan) {
-				// A note of ours always declares its plan (the schema demands it); a hand
-				// edit that removed it leaves us unable to locate the geometry entry.
-				return err(persistenceError('zone.delete-failed', `Zone note ${file.path} does not declare its plan.`));
-			}
-
 			// Note FIRST: removing the sidecar entry first could leave a LIVE zone note
 			// with no geometry, the worse and more confusing failure mode. Trash, not
 			// deletion — a user's system setting decides whether a delete is recoverable.

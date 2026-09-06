@@ -107,10 +107,14 @@ export function referencePlanServices(plans: PlanRepository, geometry: PlanGeome
 			// `loadPlan` already merged the sidecar's calibration into the entity, and a calibration
 			// written between the two awaits left that half stale: the form converted source points
 			// with it while the command derived from the snapshot. The snapshot is the ONE
-			// observation both halves answer from; `null` keeps the entity's, since no command
-			// removes a calibration (a Codex P2 on pull request #85).
-			const calibration = snapshot.value.document.calibration;
-			const entity = calibration === null ? ok(plan.value.entity) : plan.value.entity.withCalibration(calibration);
+			// observation both halves answer from, `null` INCLUDED: an undo of the plan's first
+			// calibration (`ReversibleCalibratePlanCommand.undo` restores the exact document it
+			// read) landing between the two awaits leaves the entity carrying a calibration the
+			// sidecar no longer has, and keeping it would have the form convert source points
+			// with a scale `calibrateDocument` then derives without (two Codex P2s on pull
+			// request #85; the first fix kept the entity's on `null`, believing no command
+			// removes one).
+			const entity = plan.value.entity.withCalibration(snapshot.value.document.calibration);
 			if (!entity.ok) return entity;
 			return ok({ plan: { entity: entity.value, version: plan.value.version }, geometry: snapshot.value });
 		},

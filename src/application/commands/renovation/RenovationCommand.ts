@@ -132,8 +132,15 @@ class RenovationCommand {
 	private async write(plan: Plan, document: PlanGeometryDocument): Promise<DispatchResult> {
 		const saved = await this.deps.plans.save(plan, this.current.plan.version);
 		if (!saved.ok) return saved;
-		// Even metadata-only changes must CAS the spatial baseline: a target can disappear
-		// after validation and before the Plan save. The receipt also protects compensation.
+		// The sidecar is written even when `document` is byte-identical to what check() read.
+		// That write is a compare-and-swap against the version check() observed, under the
+		// store's plan lock, and it is the only thing that orders this save against a peer's
+		// Room deletion: the store's deletion guard reads the Plan note, so a deletion that
+		// slipped in after check() read a Plan with no renovation and went through — and a
+		// metadata-only save that skipped the sidecar left the record pointing at deleted
+		// geometry (PR #87). Now that deletion moves the version, the CAS refuses, and the
+		// restore below takes the metadata back; a deletion queued after it reads the saved
+		// renovation and is refused by the guard instead.
 		const written = await this.writeGeometry(plan.id, document);
 		if (!written.ok) {
 			let restored;

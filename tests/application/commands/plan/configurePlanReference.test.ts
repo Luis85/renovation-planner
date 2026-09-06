@@ -120,6 +120,20 @@ describe('reference configuration through real Markdown and sidecar repositories
 		expect(baseline.geometry.document.calibration).toEqual(newer);
 		expect(baseline.plan.entity.calibration).toEqual(newer);
 	});
+	it('clears the entity calibration when the snapshot read after the plan is uncalibrated', async () => {
+		// `ReversibleCalibratePlan.undo` restores its exact previous document, and past a FIRST
+		// calibration that document carries `calibration: null` — landing between the two reads.
+		const r = await setup(), read = r.geometry.read.bind(r.geometry);
+		const first = expectOk(await read(r.plan.id));
+		expectOk(await r.geometry.write(r.plan.id, { ...first.document, calibration: { pointA: { x: 0, y: 0 }, pointB: { x: 0, y: 50 }, knownDistance: 100, pixelsPerWorldUnit: 0.5 } }, first.version));
+		vi.spyOn(r.geometry, 'read').mockImplementationOnce(async id => {
+			const live = expectOk(await read(id)); expectOk(await r.geometry.write(id, { ...live.document, calibration: null }, live.version));
+			return read(id);
+		});
+		const baseline = expectOk(await r.services.read(r.plan.id));
+		expect(baseline.geometry.document.calibration).toBeNull();
+		expect(baseline.plan.entity.calibration).toBeNull();
+	});
 	it('reports missing source, missing plan and baseline/commit read failures', async () => {
 		const r = await setup(); r.files.fileExists.mockReturnValue(false);
 		expect(await r.command.execute()).toMatchObject({ ok: false, error: { code: 'plan.background-not-found' } });

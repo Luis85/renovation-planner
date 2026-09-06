@@ -20,7 +20,8 @@ describe('renovation transactions through Markdown and sidecar repositories', ()
 		expectOk(await command.execute()); expect(await command.execute()).toEqual(ok('no-write'));
 		expect(publish).toHaveBeenLastCalledWith({ type: 'PlanRenovationChanged', payload: { planId: rig.plan.id, projectId: rig.plan.projectId } });
 		const saved = expectOk(await rig.read()); expect(saved.plan.entity.renovation).toEqual(rig.value);
-		expect(saved.geometry.document).toEqual(baseline.geometry.document); expect(saved.geometry.version).not.toEqual(baseline.geometry.version);
+		// The document is untouched, and the sidecar still moved one revision: a metadata-only renovation writes it as a CAS no-op so a peer deletion cannot slip in between.
+		expect(saved.geometry.document).toEqual(baseline.geometry.document); expect(saved.geometry.version.revision).toBe(baseline.geometry.version.revision + 1);
 		const fresh = createRepositoryStack(); for (const [path, bytes] of rig.stack.vault.entries) fresh.vault.entries.set(path, bytes); fresh.rebuildIndex();
 		const loaded = expectOk(await renovationServices(fresh.plans, new ObsidianPlanGeometrySidecar(fresh.store), fresh.events).read(rig.plan.id));
 		expect(loaded.plan.entity.renovation).toEqual(rig.value);
@@ -82,6 +83,19 @@ describe('renovation transactions through Markdown and sidecar repositories', ()
 		const second = rig.renovation.command(expectOk(await rig.read()), { renovation: rig.value, intended: undefined }, rig.ledger);
 		vi.mocked(rig.stack.plans.save).mockRestore(); const save = rig.stack.plans.save.bind(rig.stack.plans); vi.spyOn(rig.stack.plans, 'save').mockImplementationOnce(save).mockResolvedValueOnce(err(fault));
 		vi.spyOn(rig.geometry, 'write').mockResolvedValueOnce(err(fault)); expect(leftWritesBehind(expectErr(await second.execute()))).toBe(true);
+	});
+	it('refuses a metadata-only renovation whose Room a peer deleted between its check and its save, leaving no metadata behind', async () => {
+		const rig = await renovationStack(), baseline = expectOk(await rig.read());
+		const command = rig.renovation.command(baseline, { renovation: rig.value, intended: undefined }, rig.ledger);
+		const save = rig.stack.plans.save.bind(rig.stack.plans);
+		vi.spyOn(rig.stack.plans, 'save').mockImplementationOnce(async (plan, expected) => {
+			// After check() read the Room and before the metadata lands: the store's deletion guard reads a Plan with no renovation yet, so the deletion goes through.
+			expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.geometry.document, objects: [], structure: EMPTY_STRUCTURE }, baseline.geometry.version));
+			return save(plan, expected);
+		});
+		const failure = expectErr(await command.execute());
+		expect(failure.code).toContain('revision-conflict'); expect(leftWritesBehind(failure)).toBe(false);
+		const live = expectOk(await rig.read()); expect(live.plan.entity.renovation).toBeUndefined(); expect(live.geometry.document.objects).toEqual([]);
 	});
 	it('reads absent plans and sidecar refusals without partial baselines', async () => {
 		const rig = await renovationStack(); vi.spyOn(rig.stack.plans, 'getById').mockResolvedValueOnce(ok(null)); expect((await rig.read()).ok).toBe(false);

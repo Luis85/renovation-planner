@@ -44,6 +44,8 @@ export function createRoomResizeAction(context: PlanEditorContext, runtime: Pick
 			const latest = ref<string | null>(null);
 			const dispatch = async (polygon: Polygon) => {
 				if (!alive || blocked.value) return Promise.resolve(err(staleWriteRefusal()));
+				// `version` spans BOTH of the zone's files (`observeZone`): a sidecar entry edited
+				// out of band after this dialog opened reaches the conflict arm below, not disk.
 				const result = await runtime.commitField({ kind: 'geometry', zoneId: id, forward: polygon, inverse: entity.geometry, expected: version });
 				if (!result.ok && WRITE_BOUNDARY_CODES.some(code => result.error.code.endsWith(`.${code}`))) {
 					// Show the current projection after a conflict without rebasing the draft.

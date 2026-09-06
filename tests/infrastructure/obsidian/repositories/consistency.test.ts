@@ -216,6 +216,54 @@ describe('conditional writes against real files', () => {
 		expect((await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'B renames' }), bVersion)).ok).toBe(true);
 	});
 
+	it("refuses a save whose expectation predates an out-of-band edit of the zone's SIDECAR entry, and only that entry", async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = createZoneId();
+		const neighbourId = createZoneId();
+		expectOk(await stack.zones.save(makeZoneEntity({ id: neighbourId, projectId, planId }), 'absent'));
+		const read = expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
+		const sidecarPath = sidecarPathOf(stack, projectId, planId);
+		// A sync rewriting ONE entry of the sidecar, with every zone note left as it was.
+		const shiftEntry = (id: ZoneId, dx: number): void => {
+			const dto = JSON.parse(stack.vault.entries.get(sidecarPath) ?? '') as { objects: { id: string; points: [number, number][] }[] };
+			for (const object of dto.objects) if (object.id === id) object.points = object.points.map(([x, y]) => [x + dx, y]);
+			stack.vault.entries.set(sidecarPath, JSON.stringify(dto));
+		};
+
+		// A NEIGHBOUR's entry moved: this zone's reading still stands — entry-grained, not file-grained,
+		// or every peer edit on the plan would refuse a save it has nothing to do with.
+		shiftEntry(neighbourId, 100);
+		const survived = expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Still current' }), read.version));
+
+		// THIS zone's entry moved and its note did not: a version minted from the note alone cannot see it.
+		shiftEntry(zoneId, 100);
+		const stale = await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Overwrites the sync' }), survived.version);
+		expect(expectErr(stale).code).toBe('zone.external-modification');
+		const current = expectFound(await stack.zones.getById(zoneId));
+		expect(current.entity.geometry.points[0]).toEqual({ x: 100, y: 0 });
+		expect(current.entity.name).toBe('Still current');
+
+		// The reader who saw the moved entry may speak.
+		expect((await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Rebased' }), current.version)).ok).toBe(true);
+	});
+
+	it('refuses an update or a delete whose sidecar cannot be read BEFORE the note is touched', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = createZoneId();
+		const written = expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
+		const notePath = stack.index.getPath(zoneId) ?? '';
+		const before = stack.vault.entries.get(notePath);
+		stack.vault.failures.add(`read:${sidecarPathOf(stack, projectId, planId)}`);
+
+		const refused = await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId, name: 'Renamed' }), written.version);
+		expect(expectErr(refused).code).toBe('zone.sidecar-unreadable');
+		expect(expectErr(await stack.zones.delete(zoneId, written.version)).code).toBe('zone.sidecar-unreadable');
+		expect(stack.vault.entries.get(notePath)).toBe(before);
+		expect(stack.vault.operations.filter((op) => op === `modify:${notePath}` || op === `delete:${notePath}`)).toHaveLength(0);
+	});
+
 	/**
 	 * DoD 5b's other half — body prose and undeclared frontmatter keys neither refusing the
 	 * next save nor being erased by it — used to be driven HERE, for the Zone repository

@@ -1,7 +1,7 @@
 ---
 type: Issue
-parent: "[[Shared UI vocabulary]]"
-order: 10
+parent: "[[The project surface]]"
+order: 40
 status: New
 started: ""
 finished: ""
@@ -36,8 +36,9 @@ and the Project Index keeps every descendant note's OLD path until the next full
 
 This is recorded here rather than fixed because it is the largest live gap the 2026-09-05
 whole-tree review found (I7) and the polish pass that closed most of that review's findings
-ruled it explicitly out of scope (ruling R6): "the largest live index gap waits one more
-increment."
+ruled it explicitly out of scope (ruling R6): "recorded pre-existing, has a manual case that
+names the reload, and the remedy (`Vault.recurseChildren` on the `TFolder` arm) needs its own
+test fixture for a folder event."
 
 ## What is true today
 
@@ -48,7 +49,7 @@ its cause. Closing it is a change to the vault-change pipeline every index consu
 inherits, not to whichever surface next notices it.
 
 The manual test case
-[`docs/tests/cases/Move the Library.md`](../tests/cases/Move the Library.md) already carries
+[`docs/tests/cases/Move the Library.md`](../tests/cases/Move%20the%20Library.md) already carries
 the consequence rather than the fix: steps 12 and 12b require a reload (RESTARTING Obsidian,
 or a settings save, both of which trigger `onLayoutReady`'s full rebuild) before the project
 list's overlap marker reflects a folder the user just dragged. Without that reload the row is
@@ -61,12 +62,14 @@ than asserting the marker updates live.
   walking every descendant `TFile` and feeding each one through the same path the existing
   per-file handler already takes — so the fix is in the FILTER, not in a second code path
   the adapter has to learn.
-- A fake that actually fires a folder event: `tests/helpers/vault.ts`'s `FakeVault` and
-  `tests/helpers/fixtureVault.ts`'s `FixtureVaultAdapter` both extend the shared
-  `VaultEventBus` now (Task 17 of the 2026-09-05 polish pass), but neither one raises a
-  `TFolder` rename or delete today — every test needing one stubs `fileManager.renameFile`
-  instead of the vault's own event. Closing this issue needs that event fired for real, or
-  the fix is provably correct only by reading it.
+- A fake that actually fires a `TFolder` rename: `tests/helpers/vault.ts`'s `FakeVault`
+  already fires `delete` for a folder (`FakeVault.delete`'s folder arm, added by Task 17 of
+  the 2026-09-05 polish pass) — `grep -rn "trigger('delete'" tests/helpers/` finds it — but
+  `grep -rn "trigger('rename'" tests/helpers/` finds nothing: neither `FakeVault` nor
+  `tests/helpers/fixtureVault.ts`'s `FixtureVaultAdapter` raises a `TFolder` rename today,
+  and every test needing one stubs `fileManager.renameFile` instead of the vault's own event.
+  Closing this issue needs the rename half of that fixture, or the fix is provably correct
+  only by reading it.
 - The manual case's own reload step loses its reason once the index updates as the folder
   moves: `Move the Library.md` steps 12 and 12b are what should be deleted or rewritten to
   assert immediacy, once the fix lands, as the check that the promise moved from "eventually

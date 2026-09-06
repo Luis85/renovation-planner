@@ -722,8 +722,8 @@ no coverage) the whole `build` project ran **174s** serially and the files `esli
 derives are **34s** of that, so four fifths of the serialised time was files that boot nothing
 and had run parallel-safely for their whole lives. There are THREE projects now — `build-lint`
 (the booting files, one worker, its own group) and `build` and `suite` sharing the parallel
-group — and the whole suite runs at the count `vitest.config.ts`'s own comment measures (156s
-there, on the date it names, against 269s before), 461 of 461 green. Two things about that set
+group — and the whole suite runs at the duration `vitest.config.ts`'s own comment measures,
+461 of 461 green. Two things about that set
 are the durable part rather than the numbers: it is **DERIVED** from a pattern over `tests/`
 rather than listed, because which files boot ESLint is a fact about the import graph that a
 hand-written list gets wrong silently; and the derivation **THROWS when it matches nothing**,

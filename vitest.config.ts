@@ -80,8 +80,8 @@ export default defineConfig({
 		environment: 'node',
 		// TWO PROJECTS, and the split is a COST decision rather than a taxonomy.
 		//
-		// `tests/build/` is the count `ls tests/build/*.test.ts | wc -l` prints today — that
-		// boot a type-aware ESLint eleven times over, and
+		// `tests/build/` is the count `ls tests/build/*.test.ts | wc -l` prints today; the files
+		// `eslintBootingTests()` derives each boot a type-aware ESLint, and
 		// `tests/helpers/eslint.ts` says what one boot costs (~3s idle, 17.8s seen under full
 		// parallel load). Every boot is paid AGAIN per file, because vitest gives each test
 		// file its own module registry — so the module-level `new ESLint(...)` that file

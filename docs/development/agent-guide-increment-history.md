@@ -5143,8 +5143,11 @@ already made about itself. `fallow` counted the same 1193 files either way.
   every paused surface), and **945.52 kB (gzip 284.52 kB) at that increment's final gate**
   (2026-09-05), and **970.72 kB (gzip 291.76 kB) at the close of the 2026-09-05 whole-tree
   review's polish pass** (2026-09-06 — again no new dependency: the growth is nineteen
-  application/infrastructure/plugin fixes, a delete-resolution `markers` requirement, five
-  helper-widened tests and the settings-pane library pair's plugin wiring), each
+  application/infrastructure/plugin fixes, a delete-resolution `markers` requirement and the
+  settings-pane library pair's plugin wiring — no test file is in `dist/main.js`, so none of
+  it is test code; `git diff --numstat bf1077a3..26f8bb38 -- src/` names the largest single
+  additions as `NewAssetForm.vue` (+32 lines net), `quantityEngine.ts` (+27) and
+  `costPipeline.ts` (+26)), each
   verified by running `npm run build` rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 
@@ -5270,9 +5273,13 @@ record of what the code was when those documents were written.
 
 **Coverage at the pass's close, measured on a quiet tree (2026-09-06), not carried forward
 from any task report:** 99.10 / 98.08 / 99.08 / 99.39 (statements / branches / functions /
-lines) against floors 99 / 98 / 99 / 98, 479 files, 6640 tests passed, 70 skipped. This
-equals the figure the fifteen-to-sixteen-task drop settled at (ruling T16: real, reproduced on
-a quiet re-run, and unattributed to any specific statement) — the closing tasks of this pass
-were documents only and moved no branch, which this measurement is the check for rather than
-an assumption.
+lines) against floors 99 / 98 / 99 / 98, 479 files, 6640 tests passed, 70 skipped. This is
+NOT the figure the fifteen-to-sixteen-task drop settled at: ruling T16 (real, reproduced on a
+quiet re-run, and unattributed to any specific statement) measured 99.10 / 98.05 / 99.08 /
+99.39, so branches moved from 98.05% to 98.08% — about two branch units apart (this
+measurement is 5887/6002; one unit is ~0.017pp at that denominator, so 0.03pp is about two).
+Tasks 17-19 are where those units moved: Task 17 fired the fakes'
+events for real (`FakeVault`/`FixtureVaultAdapter` extending `VaultEventBus`) and deleted
+`NewAssetForm.vue`'s unreachable joined arm, both branch-shaped changes; Tasks 18 and 19 were
+documents only.
 

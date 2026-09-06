@@ -62,10 +62,13 @@ function requestKey(type: string, state?: Record<string, unknown>): string {
 // PRECONDITION this key assumes rather than checks: `JSON.stringify`'s array-replacer form
 // is a recursive property ALLOWLIST, applied at every nesting level it descends into — a
 // value that is itself an object collapses to `{}` rather than being serialized, so two
-// different nested payloads would key identically. Both callers pass a flat, single-key
-// `state` today (`{ projectId }`, `{ planId }`), so the collapse never fires; a caller adding
-// a nested value would need this key widened (e.g. a recursive sort) rather than the
-// top-level `toSorted()` above.
+// different nested payloads would key identically. The two callers that pass a `state` at
+// all are `revealAssetDesigner` (`{ assetId }`) and `revealPlanEditor` (`{ planId }`) —
+// `revealView` passes none — and both are flat, single-key objects, so the collapse never
+// fires. A multi-key state exists (the project pane's `{ projectId, section }`) but does not
+// come through this door: `navigateToProject.ts` calls `leaf.setViewState` directly and never
+// reaches `requestKey`. A caller adding a nested value here would need this key widened (e.g.
+// a recursive sort) rather than the top-level `toSorted()` above.
 
 /**
  * The mechanism both activations share: find candidates, take the first or create one,

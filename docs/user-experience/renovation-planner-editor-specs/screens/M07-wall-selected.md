@@ -1,5 +1,7 @@
 # M07 — Wall Selected
 
+**Current implementation checkpoint:** Wall/Opening Inspector retains measurements and adjacent-room context while connecting its own Existing/Planned/Work records, overview and linked planning routes. Standalone elements have an explicit Room context selector. New drafts target the selected element; an existing subject is reused when marking a change. This supersedes the spatial-only capability boundary below. Final integrated visual and host acceptance remain open in [implementation evidence](../implementation/editor-visual-fidelity.md).
+
 **Spatial subset, 2026-09-06:** Wall/Opening selection, persistent list access, measurements,
 associated Room names, exact numeric edits with impact preview, end-junction dragging and
 confirmed deletion are implemented under ADR-0020. `Edit measurements` opens the root-owned

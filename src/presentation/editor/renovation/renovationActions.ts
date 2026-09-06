@@ -17,8 +17,10 @@ import { useSaveStateStore } from '../save-state/save-state-store';
 import { notifyFault, notifyOperationFailure } from '../../notices/notify';
 import { tr } from '../../i18n/strings';
 import { useRenovationSession, type Perspective, type RenovationMode } from './renovationSession';
-import { renovationDraft, type RenovationEditKind } from './renovationDraft';
+import { renovationTargetDraft, type RenovationEditKind } from './renovationDraft';
 import RenovationForm from './RenovationForm.vue';
+import RenovationBatchForm from './RenovationBatchForm.vue';
+import type { BatchKind, BatchTarget } from './renovationBatch';
 
 export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask'>) {
 	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore();
@@ -26,7 +28,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 	const loading = ref(false);
 	const blocked = computed(() => loading.value || project.stale || save.state === 'saving' || session.perspective === 'review');
 	let alive = true;
-	let previous: { ids: typeof selection.selectedIds; viewport: typeof editor.viewport; roomId: string; focusedId: string; mode: RenovationMode } | null = null;
+	let previous: { ids: typeof selection.selectedIds; viewport: typeof editor.viewport; roomId: string; targetId: string; focusedId: string; mode: RenovationMode } | null = null;
 	onBeforeUnmount(() => { alive = false; });
 	async function perspective(next: Perspective): Promise<void> {
 		if (dialogs.current || save.state === 'saving' || loading.value || next === session.perspective) return;
@@ -34,10 +36,10 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			const result = await dialogs.openDialog({ kind: 'confirm', title: tr('renovation.navigation.title'), message: tr('renovation.navigation.message') });
 			if (!alive || result !== 'confirm') return;
 		}
-		if (next === 'review') previous = { ids: [...selection.selectedIds], viewport: { ...editor.viewport }, roomId: session.roomId, focusedId: session.focusedId, mode: session.mode };
+		if (next === 'review') previous = { ids: [...selection.selectedIds], viewport: { ...editor.viewport }, roomId: session.roomId, targetId: session.targetId, focusedId: session.focusedId, mode: session.mode };
 		if (session.perspective === 'review' && next === 'renovate' && previous) {
 			selection.select(previous.ids); editor.viewport = previous.viewport;
-			Object.assign(session, { roomId: previous.roomId, focusedId: previous.focusedId, mode: previous.mode });
+			Object.assign(session, { roomId: previous.roomId, targetId: previous.targetId, focusedId: previous.focusedId, mode: previous.mode });
 		}
 		runtime.returnToSelect(); session.perspective = next;
 	}
@@ -50,7 +52,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		runtime.returnToSelect();
 		const sameRoom = session.roomId === roomId && selection.selectedIds.length > 0;
 		Object.assign(session, { roomId, mode, focusedId: id, perspective: 'renovate' });
-		if (!sameRoom) selection.select([roomId as EntityId<string>]);
+		if (!sameRoom) { session.targetId = roomId; selection.select([roomId as EntityId<string>]); }
 	}
 	function matches(read: RenovationBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation)
@@ -73,7 +75,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		try {
 			const read = await baseline();
 			if (!read || !alive || selected !== selection.selectedIds.join('|')) return;
-			const draft = renovationDraft(kind, roomId, id, read.plan.entity.renovation);
+			const draft = renovationTargetDraft(kind, roomId, id, read, session.targetId);
 			const busy = ref(false);
 			await dialogs.openDialog({ kind: 'form', title: tr(`renovation.edit.${kind}`), component: markRaw(RenovationForm), busy,
 				props: { draft, baseline: read, busy, paused: computed(() => project.stale),
@@ -98,5 +100,21 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.change.failed'); }
 		finally { loading.value = false; }
 	}
-	return { perspective, focus, edit, change, blocked, available: context.commands.renovation !== undefined };
+	async function batch(kind: BatchKind, targets: readonly BatchTarget[]): Promise<void> {
+		if (blocked.value || dialogs.current || targets.length < 2) return;
+		loading.value = true;
+		const selected = selection.selectedIds.join('|');
+		try {
+			const read = await baseline();
+			if (!read || selected !== selection.selectedIds.join('|')) return;
+			const busy = ref(false);
+			await dialogs.openDialog({ kind: 'form', title: tr(`renovation.batch.${kind}`), component: markRaw(RenovationBatchForm), busy,
+				props: { kind, targets, baseline: read, busy, paused: computed(() => project.stale), files: context.commands.evidenceFiles,
+					dispatch: (input: RenovationInput) => alive && context.commands.renovation
+						? runtime.dispatcher.run(context.commands.renovation.command(read, input, runtime.structureTask.ledger))
+						: Promise.resolve(err(undoSuperseded(context.planId as PlanId))) } });
+		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.batch.failed'); }
+		finally { loading.value = false; }
+	}
+	return { perspective, focus, edit, batch, change, blocked, available: context.commands.renovation !== undefined };
 }

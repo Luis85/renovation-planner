@@ -1,0 +1,103 @@
+.renovation-plan-editor .rp-transformation-summary {
+	display: grid;
+	gap: 12px;
+	padding: 14px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.renovation-plan-editor .rp-transformation-summary__stages {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+	font-size: var(--font-ui-smaller);
+}
+
+.renovation-plan-editor .rp-transformation-summary h4,
+.renovation-plan-editor .rp-renovation-linked-summary h4 {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.renovation-plan-editor .rp-transformation-summary p {
+	margin: 4px 0 0;
+}
+
+.renovation-plan-editor .rp-transformation-summary__stages > div + div {
+	border-left: 1px solid var(--background-modifier-border);
+	padding-left: 8px;
+}
+
+.renovation-plan-editor .rp-transformation-summary__stages p {
+	display: -webkit-box;
+	-webkit-line-clamp: 5;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.renovation-plan-editor .rp-renovation-linked-summary {
+	display: grid;
+	gap: 12px;
+	margin: 16px 0;
+}
+
+.renovation-plan-editor .rp-linked-counts {
+	display: grid;
+	gap: 4px;
+}
+
+.renovation-plan-editor .rp-linked-counts__button {
+	display: flex;
+	justify-content: space-between;
+	width: 100%;
+	min-height: 34px;
+	padding: 8px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: none;
+}
+
+.renovation-plan-editor .rp-linked-counts__button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.renovation-plan-editor .rp-renovation-estimate {
+	font-size: 24px;
+	font-weight: var(--font-semibold);
+	font-variant-numeric: tabular-nums;
+}
+
+.renovation-plan-editor .rp-batch-actions,
+.renovation-plan-editor .rp-structure-renovation-entry {
+	display: grid;
+	gap: 10px;
+	margin-block: 16px;
+}
+
+.renovation-plan-editor .rp-batch-actions label,
+.renovation-plan-editor .rp-structure-renovation-entry label {
+	display: grid;
+	gap: 6px;
+}
+
+.renovation-plan-editor .rp-room-navigation [data-rp-mode="overview"] {
+	grid-column: 1 / -1;
+}
+
+.renovation-plan-editor .rp-transformation-summary + .rp-room-navigation {
+	grid-template-columns: 1fr;
+	gap: 8px;
+	padding-bottom: 0;
+	border-bottom: 0;
+}
+
+.renovation-plan-editor .rp-transformation-summary + .rp-room-navigation .rp-room-navigation__button {
+	min-height: 48px;
+	padding: 12px;
+	border: 1px solid var(--background-modifier-border);
+	text-align: left;
+	justify-content: flex-start;
+}

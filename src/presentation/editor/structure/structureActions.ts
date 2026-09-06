@@ -21,6 +21,14 @@ import { err } from '../../../core/result/Result';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import { editWall } from '../../../domain/spatial/structureGeometry';
+function removalIds(id: string | readonly string[]): readonly string[] { return typeof id === 'string' ? [id] : [...new Set(id)]; }
+function removalSummary(structure: Structure, selected: readonly string[], openings: number, rooms: number): string {
+	const names = selected.map(target => {
+		const wallIndex = structure.walls.findIndex(wall => wall.id === target);
+		return wallIndex >= 0 ? tr('editor.structure.wall-number', { n: String(wallIndex + 1) }) : tr('renovation.geometry.opening');
+	});
+	return (selected.length > 1 ? tr('renovation.batch.scope', { count: String(selected.length) }) + ' ' + names.join(', ') + '. ' : '') + tr('editor.structure.delete-impact', { openings: String(openings), rooms: String(rooms) });
+}
 
 export function createStructureActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'refreshProjection'>, ledger: WriteLedger) {
 	const dialogs = useDialogStore(), project = useProjectStore(), selection = useSelectionStore();
@@ -62,8 +70,10 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
         if (!materials.ok) { notifyOperationFailure(materials.error); return null; }
         return [...materials.value, ...ids.flatMap(target => renovationReferents(project.plan?.renovation ?? EMPTY_RENOVATION, target))];
     }
-	async function remove(id: string): Promise<void> {
+	async function remove(id: string | readonly string[]): Promise<void> {
 		if (unavailable() || !context.commands.structure) return;
+		const selected = removalIds(id);
+		if (!selected.length) return;
 		active.value = true;
 		try {
 			const baseline = await context.commands.structure.read(context.planId as PlanId);
@@ -71,17 +81,18 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 			if (!baseline.ok) { notifyOperationFailure(baseline.error); return; }
 			const structure = baseline.value.document.structure;
 			if (!structure) return;
-			const removedOpenings = structure.openings.filter(item => item.id === id || item.hostId === id);
-			const removedBoundaries = structure.boundaries.filter(boundary => boundary.wallIds.includes(id));
-			const ids = [id, ...removedOpenings.map(item => item.id)];
+			if (!matchesProjection(baseline.value.document)) { notifyOperationFailure(staleWriteRefusal()); await runtime.refreshProjection(); return; }
+			const removedOpenings = structure.openings.filter(item => selected.includes(item.id) || selected.includes(item.hostId));
+			const removedBoundaries = structure.boundaries.filter(boundary => boundary.wallIds.some(wallId => selected.includes(wallId)));
+			const ids = [...selected, ...removedOpenings.map(item => item.id)];
             const references = await referencesFor(ids);
             if (!references) return;
 			if (references.length) { await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), message: tr('renovation.links', { names: references.join(', ') }) }); return; }
 			const answer = await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), danger: true,
-				message: tr('editor.structure.delete-impact', { openings: String(removedOpenings.length), rooms: String(removedBoundaries.length) }) });
+				message: removalSummary(structure, selected, removedOpenings.length, removedBoundaries.length) });
 			if (!alive || answer !== 'confirm') return;
 			const result = await runtime.dispatcher.run(context.commands.structure.command({ planId: context.planId as PlanId, baseline: baseline.value, ledger,
-				structure: { walls: structure.walls.filter(item => item.id !== id), openings: structure.openings.filter(item => !removedOpenings.includes(item)), boundaries: structure.boundaries.filter(item => !removedBoundaries.includes(item)) } }));
+				structure: { walls: structure.walls.filter(item => !selected.includes(item.id)), openings: structure.openings.filter(item => !removedOpenings.includes(item)), boundaries: structure.boundaries.filter(item => !removedBoundaries.includes(item)) } }));
 			if (alive && !result.ok) notifyOperationFailure(result.error);
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.structure.delete-failed'); }
 		finally { active.value = false; }

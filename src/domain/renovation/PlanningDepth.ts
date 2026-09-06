@@ -1,4 +1,5 @@
 import { Decimal } from 'decimal.js';
+import type { SpatialLink } from './SharedLinks';
 import type { Money } from '../../core/money/Money';
 import { validDecimal } from '../requirement/RequirementSource';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
@@ -37,6 +38,7 @@ export interface CostRecord extends ContextLink {
 export const EVIDENCE_TYPES = ['document', 'photo', 'note'] as const;
 export const EVIDENCE_PHASES = ['before', 'during', 'after', 'hidden-services'] as const;
 export interface Evidence extends ContextLink {
+	readonly links?: readonly SpatialLink[];
 	readonly description: string;
 	readonly type: typeof EVIDENCE_TYPES[number];
 	readonly phase: typeof EVIDENCE_PHASES[number];

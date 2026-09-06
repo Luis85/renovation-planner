@@ -4,6 +4,10 @@ import { Plan } from '../../../domain/plan/Plan';
 import { PlanFrontmatterSchema, PLAN_TYPE, type PlanFrontmatterDTO } from '../dto/planFrontmatter';
 import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
+function planSchemaVersion(plan: Plan): number {
+	const shared = [...plan.renovation?.work ?? [], ...plan.renovation?.depth?.evidence ?? []].some(item => (item.links?.length ?? 0) > 0);
+	return shared ? 5 : plan.renovation?.depth ? 4 : plan.renovation ? 3 : plan.background?.appearance ? 2 : 1;
+}
 
 /**
  * The Plan mapper: frontmatter DTO ↔ domain entity, never partial (SDD §37). The
@@ -18,7 +22,7 @@ export function planToPersistence(plan: Plan, revision: number): Record<string, 
 	const background = plan.background;
 	return {
 		type: PLAN_TYPE,
-		'schema-version': plan.renovation?.depth ? 4 : plan.renovation ? 3 : background?.appearance ? 2 : 1,
+		'schema-version': planSchemaVersion(plan),
 		...(plan.renovation ? { renovation: plan.renovation } : {}),
 		id: plan.id,
 		revision,

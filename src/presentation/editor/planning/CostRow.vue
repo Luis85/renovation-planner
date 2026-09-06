@@ -9,8 +9,7 @@ const planning = usePlanningContext(), session = useRenovationSession();
 </script>
 <template>
 	<li
-
-
+		class="rp-cost-row"
 		:data-rp-record="row.record.id"
 		:class="{ 'is-selected': [row.record.id, row.record.requirementId].includes(session.focusedId) }"
 	>
@@ -31,6 +30,7 @@ const planning = usePlanningContext(), session = useRenovationSession();
 		<p
 			v-for="fact in row.record.facts"
 			:key="fact.id"
+			class="rp-record-metadata"
 		>
 			{{ tr(`planning.${fact.stage}`) }}: {{ fact.amount.amount }} {{ fact.amount.currency }} · {{ fact.description }} · {{ row.record.facts.find(item => item.id === fact.commitmentId)?.description }} {{ fact.cancelled ? tr('planning.cancelled') : '' }}
 		</p>

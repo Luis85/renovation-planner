@@ -1,6 +1,8 @@
 import { createEntityId } from '../../../core/identity/generateId';
 import { EMPTY_RENOVATION, type Renovation, type RenovationSubject, type WorkPackage, type RenovationDecision } from '../../../domain/renovation/Renovation';
 import type { RenovationInput, RenovationBaseline } from '../../../application/commands/renovation/RenovationCommand';
+import { tr } from '../../i18n/strings';
+import type { Opening } from '../../../domain/spatial/Structure';
 
 export type RenovationEditKind = 'existing' | 'planned' | 'work' | 'decision';
 export interface RenovationDraft {
@@ -30,6 +32,19 @@ export function renovationDraft(kind: RenovationEditKind, roomId: string, record
 			id: createEntityId('decision'), roomId, subjectId: subject?.id ?? '', question: '', resolution: '', resolved: false,
 		},
 	};
+}
+export function renovationTargetDraft(kind: RenovationEditKind, roomId: string, id: string, baseline: RenovationBaseline, targetId: string): RenovationDraft {
+	const linked = targetId && targetId !== roomId ? baseline.plan.entity.renovation?.subjects.find(item => item.targetId === targetId) : undefined;
+	const draft = renovationDraft(kind, !id && linked ? linked.roomId : roomId, id || linked?.id || '', baseline.plan.entity.renovation);
+	if (id || linked || !targetId || targetId === roomId) return draft;
+	const opening = baseline.geometry.document.structure?.openings.find(item => item.id === targetId);
+	draft.subject = { ...draft.subject, targetId, kind: detailKind(opening) };
+	draft.work = { ...draft.work, targetId };
+	if (kind === 'planned') draft.subject = { ...draft.subject, existing: { description: tr(opening ? `editor.add.${opening.kind}.label` : 'editor.add.wall.label'), condition: 'unknown' }, planned: { change: 'modify', description: '' } };
+	return draft;
+}
+function detailKind(opening: Opening | undefined): RenovationSubject['kind'] {
+	return opening?.kind === 'door' ? 'door' : opening?.kind === 'window' ? 'window' : opening ? 'other' : 'wall';
 }
 function upsert<T extends { id: string }>(items: readonly T[], item: T): readonly T[] {
 	return items.some(other => other.id === item.id) ? items.map(other => other.id === item.id ? item : other) : [...items, item];

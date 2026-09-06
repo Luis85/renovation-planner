@@ -107,3 +107,36 @@ subsequent local edit/undo. Exact document comparison ignores object-array order
 by Room upsert but preserves polygon point order. Legacy reference/calibration transactions
 retain their stricter exact-version history contract; interleaving whole-reference changes can
 therefore require reopening rather than allowing an unsafe historical replacement.
+
+## Editor completion: shared spatial contexts — 2026-09-07
+
+M11's shared Work and Evidence actions extend a record with optional additional
+`links: readonly { roomId, targetId }[]`. The original fields remain its primary ownership;
+secondary contexts do not duplicate its identity, facts, file or coordinate pin. Every pair
+must be unique and refer to a present Room context and current/intended spatial target.
+Subjects retain the existing single-owner rule. Selecting a wall/opening shows its records
+across room contexts; a Room summary includes records owned by or explicitly linked to it.
+
+A shared Work item may link outcomes, material requirements, cost obligations and evidence
+from its primary or explicitly linked Room contexts. An unrelated Room remains invalid.
+The Work/outcome and planning-form pickers use the same rule as domain/application validation.
+Removing the last context for a Room is refused while these dependants still require it;
+unlinking cannot silently orphan a material source or leave an invalid financial relationship.
+
+Batch creation or attachment submits one complete register proposal through the existing
+RenovationCommand, sidecar CAS, compensation and conditional history. Marking selected walls
+for removal also identifies their hosted openings and removes affected intended boundaries;
+the current structure remains unchanged. Unsupported mixed selections are explained before
+the action can open. No new transaction engine or cross-floor dependency is introduced.
+
+Unlinking removes only the named secondary pair after confirmation. Deleting a shared record
+removes it from every context and must name that impact. Target/Room deletion checks primary
+and secondary links. Editing from a secondary context preserves primary ownership. Evidence
+still uses ADR-0022's ordinary vault file and primary coordinate pin; extra contexts do not
+create additional pins or delete the file. Floor costs count each obligation only once.
+
+Plans containing nonempty shared links write metadata v5. The pure v4→v5 reader migration
+changes only the discriminator; it does not invent links or rewrite a note. Older readers
+refuse v5 instead of stripping unknown links and later overwriting the record. Plans without
+shared links retain the existing feature-dependent v1–v4 writer behavior, and geometry does
+not need a new schema. Repository round-trip and undo tests cover both Work and Evidence.

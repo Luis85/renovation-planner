@@ -18,6 +18,7 @@ const project = useProjectStore(), runtime = useEditorRuntime(), selection = use
 			>
 				<button
 					type="button"
+					class="rp-structure-list__row"
 					:aria-pressed="selection.selectedIds.some(id => id === wall.id)"
 					@click="runtime.selectAndFrame(wall.id, $event.shiftKey)"
 				>
@@ -30,6 +31,7 @@ const project = useProjectStore(), runtime = useEditorRuntime(), selection = use
 					>
 						<button
 							type="button"
+							class="rp-structure-list__row"
 							:aria-pressed="selection.selectedIds.some(id => id === opening.id)"
 							@click="runtime.selectAndFrame(opening.id, $event.shiftKey)"
 						>

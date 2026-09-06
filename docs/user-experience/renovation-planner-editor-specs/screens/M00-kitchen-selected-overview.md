@@ -1,5 +1,7 @@
 # M00 — Kitchen Selected Overview
 
+**Current implementation checkpoint:** The connected Renovate overview now derives the Existing → Work → Planned summary, work progress, open findings, linked-content counts and reconciled planned cost from saved records. Continuation opens the relevant record/section without replacing spatial selection. This supersedes the earlier Increment C capability boundary below; final integrated visual and host acceptance remain tracked in [editor implementation evidence](../implementation/editor-visual-fidelity.md).
+
 ![M00 — Kitchen Selected Overview](../images/M00-kitchen-selected-overview.png)
 
 ## Screen description

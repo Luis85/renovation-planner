@@ -46,6 +46,7 @@ const { project, plan } = storeToRefs(useProjectStore());
 			<button
 				v-for="perspective in ['plan', 'renovate', 'review'] as const"
 				:key="perspective"
+				class="rp-perspective-button"
 				:data-rp-perspective="perspective"
 				type="button"
 				:aria-pressed="session.perspective === perspective"

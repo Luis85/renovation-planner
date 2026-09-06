@@ -80,3 +80,9 @@
 @import "./renovation.css";
 
 @import "./planning.css";
+
+/* Presentation refinement follows the functional component partials. */
+@import "./editor-visual-shell.css";
+@import "./editor-visual-records.css";
+@import "./editor-visual-tasks.css";
+@import "./editor-visual-overview.css";

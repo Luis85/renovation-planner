@@ -1,4 +1,4 @@
-import { PlanningDepthSchema } from './planningDepth';
+import { PlanningDepthSchema, SharedLinksSchema } from './planningDepth';
 import { z } from 'zod';
 import { CHANGES, CONDITIONS, DETAIL_KINDS, WORK_PROGRESS } from '../../../domain/renovation/Renovation';
 
@@ -11,7 +11,7 @@ export const RenovationSchema = z.object({
 		planned: z.object({ change: z.enum(CHANGES), description: z.string() }).nullable(),
 	})),
 	work: z.array(z.object({
-		id, roomId: id, targetId: id, title: z.string(), description: z.string(),
+		id, roomId: id, targetId: id, links: SharedLinksSchema, title: z.string(), description: z.string(),
 		order: z.number().int().nonnegative(), progress: z.enum(WORK_PROGRESS),
 		responsibility: z.enum(['unassigned', 'diy']), outcomes: z.array(id), dependencies: z.array(id),
 	})),

@@ -2,7 +2,7 @@
 type: Issue
 parent: "[[Shared UI vocabulary]]"
 order: 10
-status: New
+status: Done
 started: ""
 finished: ""
 horizon: Now
@@ -97,12 +97,20 @@ There is also a smaller, live cost: `runtime.ts` already prints every refusal th
 what this slice makes accessible, so until it runs, the plugin's only user-facing error
 channel fails SDD §85's "status not colour-only" and has no keyboard-operable dismissal.
 
-## What closes it
+## What closed it (2026-09-06)
 
-Executing the plan, in its own task order — it front-loads the risk deliberately, and task 1
-is the one to budget for: widening the `Notice` fake, which has been drawing nothing at all.
-This repository's ledger records the two previous fake-widenings of that kind turning 65 and
-86 tests red, and those reds were the finding rather than the obstacle.
+The plan ran, in its own task order, and slice 13 is built: `src/presentation/notices/`
+(`notify.ts`, `queue.ts`, `severity.ts`) is the notification door every refusal now goes
+through, and `src/presentation/editor/save-state/` (`save-state.ts`, `save-state-store.ts`,
+`with-save-state-tracking.ts`, `affects-save-state.ts`) is the save-state surface
+`runtime.ts` nests between `withEditorStateRefresh` and `wrapDispatcher`, exactly where this
+note said it would. Task 1's `Notice` fake widening was the front-loaded risk this note
+budgeted for, and it found what the ledger predicted rather than nothing.
+
+The three claims this note recorded as measured false on 2026-08-28 are all corrected in the
+shipped code: `onunload`'s `disposers` list, not a first-thing-to-dispose sentence, tears the
+notification queue down; `notifyFault` (not `reportFault`) maps, logs and prints; and
+`presentation/notices/notify.ts` is the door, never a plugin-global Vue app.
 
 Two departures from the spec are already settled in the plan and should not be re-litigated:
 severity carries a translated label and a colour but **no icon** (this plugin has never called

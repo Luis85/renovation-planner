@@ -4,7 +4,7 @@ parent: "[[Foundation and composition root]]"
 order: 50
 dependsOn:
   - "[[04-persistence-and-repository-layer]]"
-status: ""
+status: Done
 started: ""
 finished: ""
 horizon: ""

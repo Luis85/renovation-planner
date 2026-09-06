@@ -5141,7 +5141,138 @@ already made about itself. `fallow` counted the same 1193 files either way.
   dependency; a dispatcher decorator, a named refresh, three store fields, eleven locale keys per
   language and
   every paused surface), and **945.52 kB (gzip 284.52 kB) at that increment's final gate**
-  (2026-09-05), each
+  (2026-09-05), and **970.72 kB (gzip 291.76 kB) at the close of the 2026-09-05 whole-tree
+  review's polish pass** (2026-09-06 — again no new dependency: the growth is nineteen
+  application/infrastructure/plugin fixes, a delete-resolution `markers` requirement, five
+  helper-widened tests and the settings-pane library pair's plugin wiring), each
   verified by running `npm run build` rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
+
+## The 2026-09-05 whole-tree review and the polish pass it drove
+
+A review pass rather than a design slice: eight independent finders — one per architectural
+layer (application, infrastructure, plugin, the Renovation project view and price section,
+the Plan editor and Asset designer, core and domain), one reading PR #73's diff specifically,
+and one reading CLAUDE.md's own claims against the code — each produced findings that a
+separate verifier then had to CONSTRUCT rather than take on the finder's word: quote the
+code, reproduce a number with `node -e`, or cite the guard that refutes it.
+[`docs/superpowers/specs/2026-09-05-whole-tree-review-findings.md`](../../superpowers/specs/2026-09-05-whole-tree-review-findings.md)
+is the record, kept in full including what did not survive verification — "Refuted items are
+kept, because the next reviewer will find them again."
+
+**REFUTED, so the next reviewer does not re-find them:**
+
+- **P4** — `AssetPriceRow.vue`'s Clear button is `v-if="showClear"`; no reachable call ever
+  reaches it with `overridden === false`.
+- **P8** — mobile read-only is authorised by
+  [[Bound the mobile surface to what it can actually do]], amended in the same PR the finder
+  read; its own criterion 4a (disabled-with-reason, never hidden) is open and belongs to that
+  PBI, not to this review.
+- **P9** — `ProjectList.vue`'s query and disclosure persistence is authorised by
+  [[Return to the project list with my search context]]; the archived Home spec was what was
+  stale (closed by this pass — see below).
+- **C8** — bowtie-zone handling is a recorded deferral (SDD §26,
+  `Zone Editing Walkthrough.md:292`), not an undiscovered gap.
+- **A11** — `markCompensated` has exactly one call site (`SetAssetBackground.ts`); the other
+  adapters reading `compensatedVersionOf` would be dead code if it had more.
+- **I10** — `EchoWindow` is keyed by path, `forget`/`move` bind it, and its no-cap decision is
+  already argued and its collision residue already recorded.
+- **I12** — `ObsidianPlanRepository.ts`'s no-observation call shape is supported and is the
+  safe direction (`wroteFile`'s own docblock).
+
+**Three lessons the review paid for, plus a fourth from the fix rounds that followed:**
+
+1. **A guard placed over the INPUTS is not a guard over the failure when the failure lives in
+   the ARITHMETIC.** C1–C5 (core geometry and cost) each guarded finite inputs and still
+   produced NaN or Infinity, because the overflow happens inside the calculation — two finite
+   1e200-scale segments multiply to something IEEE 754 cannot represent. Task 16's own fix
+   round found this again inside its own fix: the `intersect` "only u overflows" case
+   returned at the `denominator === 0` gate and never reached the new guard at all, green
+   before anyone noticed the case was inert. The guard has to check what the arithmetic
+   PRODUCED, not just what went in.
+2. **A rule stated in one file is not a rule the codebase holds, if a caller in another file
+   can still break it.** V1's `use-field-commit.ts` documented a blur-commit gesture
+   `AssetPriceRow.vue` no longer had; V4's `ProjectDetail.vue` docblock claimed a value was
+   "cleared at all three places" while one arm did not clear it; I5's `PlanGeometryStore`
+   had no declared-plan check on `delete` while its own `readUnlocked` next to it already
+   refused a foreign `planId`. All three are the same shape: an invariant is true where it
+   was written down and silently false one call site over.
+3. **A fix applied to one copy of a duplicated structure fixes one copy.** I5's
+   `declaredPlanOf` mirrors `AssetGeometryStore`'s pre-existing `declaredAssetOf` — the two
+   sidecar stores are ~90 duplicated lines (I9) that diverge enough in migrations and
+   absence semantics that neither this review nor the plan asks to merge them, so I8's sidecar
+   hint being read outside `queues.run` on the ASSET side needed its own separate fix
+   (moving the read inside the closure) rather than inheriting Plan's.
+4. **The R2 lesson, from the fix round rather than the review itself: swapping `:disabled`
+   for `aria-disabled` removes the browser's free click suppression, and every such swap
+   needs the JS guard the attribute was standing in for.** Task 9's own review round found
+   this against its own work in the same slice: removing `:disabled` from Apply/Cancel/Enter
+   under ruling R2 dropped `refreshBlocked`'s suppression with it, and nothing had replaced
+   it — a paused row could still commit or discard until the fix round added the guard back
+   as code (`onPriceCommit`, `refreshBlocked` on `onPriceCancel`) rather than as an attribute.
+
+**What was withdrawn, not fixed:**
+
+- **G8** (three vault scans per library move) is OPEN, not closed. Task 4's ruling found
+  that skipping the post-migration rebuild empties the incoming root's index —
+  `createCompositionRoot` builds a fresh `ProjectIndex` per root — so closing G8 needs the
+  index carried across a root swap, which is its own increment. Do not read "withdrawn from
+  this pass" as "resolved."
+- **I7 / ruling R6** (a `TFolder` rename or delete never reaches the Project Index) is the
+  largest live gap this review found and was ruled out of this pass deliberately: no test
+  fixture exists yet for a folder event on either fake vault, and the remedy
+  (`Vault.recurseChildren` on the folder arm) needs one built rather than borrowed.
+  [`docs/issues/A folder rename never reaches the project index.md`](../issues/A%20folder%20rename%20never%20reaches%20the%20project%20index.md)
+  is the record.
+
+**What was narrowed, not disproven:**
+
+- **E3 / ruling R1**: the unrecovered-write flag is sticky, but for the LEAF'S MOUNT rather
+  than the leaf's life — a settings save rebuilds every open Plan Editor's Pinia store
+  (`rebindOpenViews`) and drops the flag with it, exactly as a leaf close-and-reopen does.
+  `tests/plugin/rootSwapRebind.test.ts`'s "drops a leaf's unrecovered-write flag on rebind"
+  pins the window; it does not close it. Five documents described the wider, wrong claim and
+  now carry a dated correction or a pointer to this one:
+  [[Recover safely from failed writes and stale reads]],
+  `docs/tasks/Exercise write compensation and interrupted recovery.md`,
+  `docs/tasks/Model successful writes with failed read-back.md`, and, as historical records
+  carrying a pointer rather than a rewrite,
+  `docs/superpowers/specs/2026-09-04-plan-editor-trust-path-design.md` and
+  `docs/superpowers/plans/2026-09-04-plan-editor-trust-path.md`.
+- **E8**: only the "moves a zone" half shipped (an arrow-key nudge dispatching the same move
+  gesture `select-tool` builds); the "or edits a vertex" half stays open, by the task's own
+  scoping rather than by a defect found against it.
+
+**Two smaller open items, named so they are not rediscovered:** `plan.nothing-to-undo` (a
+domain-owned `planError`) has no locale row and sits outside A6's nine codes and that scan's
+scope — a follow-up review's triage item, not a defect this pass missed. And
+`normalizeTransformerResult`, `snapToGrid` and `snapResize` (ruling R5) are deleted with their
+tests — `docs/components/Snap guide.md` and this document's own SnapService listing (above)
+are corrected; `docs/tasks/06-*.md` and `08-zone-editing.md:246` are left as the historical
+record of what the code was when those documents were written.
+
+**The rulings, one line each** (full reasoning and cost-if-wrong in
+`.superpowers/sdd/2026-09-05-improvement-and-polish-pass/progress.md`, which is not committed):
+
+- **R1** — the unrecovered-write flag is sticky for the leaf's life; `resolveOk` stops
+  clearing it. Narrowed above to the mount's life.
+- **R2** — a price input in flight is `readonly` + `aria-disabled`, never `:disabled`;
+  `:disabled` stays for "not an option at all."
+- **R3** — the reassign arm's inline recalculation keeps publishing from inside its own save;
+  only the `AppliedStep` docblock is narrowed to say so.
+- **R4** — the `new-project` palette command uses `checkCallback`, answering `false` on
+  `Platform.isMobile`.
+- **R5** — `normalizeTransformerResult`, `snapToGrid` and `snapResize` are deleted with their
+  tests; `snapRotation`, `snapPoint` and `snapDirection` stay.
+- **R6** — folder rename (I7) is out of this pass; it gets an issue note instead of a fix.
+- **R7** — `ReferenceLocks` becomes a session collaborator; repository `KeyedQueues` stay per
+  root, and their docblocks say so.
+
+**Coverage at the pass's close, measured on a quiet tree (2026-09-06), not carried forward
+from any task report:** 99.10 / 98.08 / 99.08 / 99.39 (statements / branches / functions /
+lines) against floors 99 / 98 / 99 / 98, 479 files, 6640 tests passed, 70 skipped. This
+equals the figure the fifteen-to-sixteen-task drop settled at (ruling T16: real, reproduced on
+a quiet re-run, and unattributed to any specific statement) — the closing tasks of this pass
+were documents only and moved no branch, which this measurement is the check for rather than
+an assumption.
 

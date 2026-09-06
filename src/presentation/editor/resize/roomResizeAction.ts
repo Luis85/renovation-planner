@@ -19,6 +19,8 @@ export function createRoomResizeAction(context: PlanEditorContext, runtime: Room
 			if (box === null) return null;
 			return { kind: 'form', title: tr('editor.resize.title', { name: entity.name }), component: markRaw(RoomDimensionsForm), busy,
 				props: { points: entity.geometry.points, box, busy, blocked, latest, logger: context.commands.logger,
+					// `version` spans BOTH of the zone's files (`observeZone`): a sidecar entry edited
+					// out of band after this dialog opened reaches the conflict arm, not disk.
 					dispatch: (polygon: Polygon) => commit({ kind: 'geometry', zoneId: entity.id, forward: polygon, inverse: entity.geometry, expected: version }),
 					preview: (polygon: Polygon | null) => { runtime.renderState.previewPolygon = polygon?.points ?? null; },
 				},

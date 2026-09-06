@@ -17,8 +17,6 @@ import { createInspector } from './inspector-wiring';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
-import { translate } from '../../core/geometry/operations';
-import type { Polygon } from '../../core/geometry/Polygon';
 import type { Vector } from '../../core/geometry/Vector';
 import { useEditorStore } from '../stores/EditorStore';
 import { useProjectStore } from '../stores/ProjectStore';
@@ -31,7 +29,7 @@ import type { ToolId } from './tools/editor-tool';
 import { RenderState } from './tools/render-state';
 import { ToolManager } from './tools/tool-manager';
 import { createToolSwitch } from './tools/tool-switch';
-import { registerEditorTools, moveGesture } from './tools/registerEditorTools';
+import { registerEditorTools } from './tools/registerEditorTools';
 import { useRoomDraftStore, type RoomDraftStore } from './add/room-draft-store';
 import { createRoomFromDraft, type RoomCreationOutcome } from './add/roomCreation';
 import { createProjectionRefresh } from './tools/with-editor-state-refresh';
@@ -51,6 +49,7 @@ import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispat
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
+import { createNudgeSelectionAction } from './nudge';
 
 /**
  * One Plan Editor leaf's live machinery (design slice 8): the history and its refresh
@@ -383,62 +382,6 @@ function createDeleteZoneAction(
 		if (selection.selectedIds.length === 1 && String(selection.selectedIds[0]) === zoneId) {
 			selection.clear();
 		}
-	};
-}
-
-/**
- * E8's fix (Task 14), pulled out of `buildRuntime` for its line budget exactly as
- * `selectAndFrameOn` below it is: this leaf's answer to the one operation §85 left
- * unreachable by keyboard, over the SAME `moveGesture` factory `SelectTool`'s drag builds
- * from — so undo restores a keyboard nudge exactly as it restores a drag, with nothing here
- * to keep in step with that tool.
- *
- * Guards are each a "there is nothing a single translate could mean" case rather than a
- * validation this function owns: not Select, zero or several selected, or the selected id
- * already gone from the store (a race with a delete elsewhere). The translated polygon is
- * never re-validated through `createPolygon` — `translate` only adds a finite `by` to points
- * a stored Zone already validated, so the only way it could produce a non-finite coordinate
- * is a world coordinate already near the platform's double-precision ceiling, which no plan
- * at millimetre scale reaches. An unreachable guard costs a branch it can never pay back
- * (CLAUDE.md), so this restructures around the typed shape `translate` already gives back
- * instead of adding one.
- */
-function createNudgeSelectionAction(deps: {
-	readonly context: PlanEditorContext;
-	readonly ledger: WriteLedger;
-	readonly dispatcher: ToolDispatcher;
-	readonly activeToolId: Ref<ToolId | null>;
-	readonly selection: ReturnType<typeof useSelectionStore>;
-	readonly projectStore: ReturnType<typeof useProjectStore>;
-}): (by: Vector) => Promise<void> {
-	async function runNudge(by: Vector): Promise<void> {
-		if (deps.activeToolId.value !== 'select') return;
-		const [zoneId, ...rest] = deps.selection.selectedIds;
-		if (zoneId === undefined || rest.length > 0) return;
-		const zone = deps.projectStore.zones.get(String(zoneId));
-		if (zone === undefined) return;
-		const inverse: Polygon = { points: zone.points };
-		const forward = translate(inverse, by);
-		const result = await deps.dispatcher.run(
-			moveGesture(deps.context, deps.ledger)(zoneId as ZoneId, forward, inverse),
-		);
-		if (!result.ok) reportDispatchFailure(result.error);
-	}
-	// Serialized on a chain private to this leaf's nudge action, not `deps.dispatcher.run`'s
-	// own queue — that queue only serializes the WRITE, one step later than the read this
-	// closure takes. `projectStore.zones` is refreshed only by the dispatch's own queued
-	// projection refresh, so two arrow taps arriving before the first refresh lands both read
-	// the same stale `zone.points`, build their commands from it, and the second dispatch
-	// overwrites the first translation instead of accumulating it (Codex P2 finding). Chaining
-	// the whole call — the read included — defers the second tap until the first has fully
-	// resolved, so every tap reads what the previous one actually wrote. No `.catch` here: the
-	// branded `ToolDispatcher` this closure calls is guaranteed never to reject
-	// (`mapDispatchFaults`), so a catch arm would be the unreachable-guard shape this
-	// repository restructures around rather than leaves uncovered.
-	let chain: Promise<void> = Promise.resolve();
-	return (by) => {
-		chain = chain.then(() => runNudge(by));
-		return chain;
 	};
 }
 

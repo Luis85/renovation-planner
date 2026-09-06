@@ -29,7 +29,7 @@ import { dispatchingEventBus } from '../../helpers/slice10';
 import { makeZone } from '../../helpers/entities';
 import { expectOk } from '../../helpers/domain';
 import { actionButton, activateTool } from '../../helpers/planEditorRig';
-import { mountPlanEditorCanvas, settle } from '../../helpers/editor';
+import { mountPlanEditorCanvas, settle, settleUntil } from '../../helpers/editor';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import type { ProjectId } from '../../../src/domain/project/ProjectId';
 import type { PlanId } from '../../../src/domain/plan/PlanId';
@@ -197,6 +197,101 @@ describe('arrow keys move the selected room (Task 14, E8)', () => {
 		const restored = expectOk(await zonesRepo.getById(KITCHEN.id as never));
 		if (restored === null) throw new Error('expected zone-kitchen to survive both undos');
 		expect(restored.entity.geometry.points).toEqual(KITCHEN.points);
+
+		harness.unmount();
+	});
+
+	it('a queued press moves the room selected when it was PRESSED, not the selection at release', async () => {
+		// Codex P2 (second finding): the serialization chain above fixed the STALE-GEOMETRY
+		// race by deferring the whole nudge — read included — behind the chain. That deferred
+		// the SELECTION read too, so a press queued behind a slow write picked up whatever was
+		// selected once the chain finally reached it, not what was selected at key-down. Here
+		// the first write is held open with `firstGate`; the second ArrowRight is pressed while
+		// zone-kitchen is still selected (so it must capture zone-kitchen), and ONLY THEN does
+		// the selection change to the terrace zone before the first write is released.
+		const zonesRepo = new InMemoryZoneRepository();
+		const events = dispatchingEventBus();
+		const geometry = expectOk(createPolygon(KITCHEN.points));
+		const zoneKitchen = makeZone({
+			projectId: FIXTURE_PLAN.projectId as ProjectId,
+			planId: FIXTURE_PLAN.id as PlanId,
+			id: KITCHEN.id as ZoneId,
+			name: KITCHEN.name,
+			zoneType: 'Room',
+			geometry,
+		});
+		await zonesRepo.save(zoneKitchen, 'absent');
+		const terrace = FIXTURE_ZONES[1];
+		// Saved too, so a wrong capture of the terrace zone actually finds geometry to move and
+		// dispatches — rather than silently no-opping on a missing zone and masking the bug as a
+		// call count that never reaches 2 at all.
+		const zoneTerrace = makeZone({
+			projectId: FIXTURE_PLAN.projectId as ProjectId,
+			planId: FIXTURE_PLAN.id as PlanId,
+			id: terrace.id as ZoneId,
+			name: terrace.name,
+			zoneType: 'Room',
+			geometry: expectOk(createPolygon(terrace.points)),
+		});
+		await zonesRepo.save(zoneTerrace, 'absent');
+		const calls: MoveSpatialObjectInput[] = [];
+		const realMove = new MoveSpatialObjectCommand(zonesRepo, events);
+		let releaseFirstWrite!: () => void;
+		const firstWriteGate = new Promise<void>((resolve) => {
+			releaseFirstWrite = resolve;
+		});
+		let executions = 0;
+		const commands: PlanEditorCommandServices = {
+			...unavailablePlanEditorCommands(),
+			zones: zonesRepo,
+			events,
+			moveObject: {
+				execute: async (input) => {
+					calls.push(input);
+					const isFirst = executions === 0;
+					executions += 1;
+					if (isFirst) await firstWriteGate;
+					return realMove.execute(input);
+				},
+			},
+		};
+		const queries: PlanEditorQueryServices = {
+			...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+			findZonesByPlan: async () => {
+				const listing = await zonesRepo.listByPlan(FIXTURE_PLAN.id as PlanId);
+				if (isErr(listing)) return listing;
+				return ok({
+					zones: listing.value.loaded.map((loaded) => toZoneDto(loaded.entity)),
+					unreadable: listing.value.refused,
+				});
+			},
+		};
+		const harness = await mountPlanEditorCanvas({ commands, queries });
+		useSelectionStore().select([KITCHEN.id as never]);
+		await settle();
+
+		harness.canvasEl.focus();
+		key(harness.canvasEl, { key: 'ArrowRight' }); // press 1: dispatches for zone-kitchen, blocks on firstWriteGate
+		await settle();
+		expect(calls).toHaveLength(1);
+
+		key(harness.canvasEl, { key: 'ArrowRight' }); // press 2: zone-kitchen is STILL selected here
+		// Nothing selected in between must never occupy the chain — no dispatch, and it must
+		// not push a following valid press's turn any further out (checked below by call count).
+		useSelectionStore().clear();
+		key(harness.canvasEl, { key: 'ArrowRight' }); // press 3: nothing selected — a no-op
+		await settle();
+		expect(calls).toHaveLength(1); // press 2 still queued behind the open gate; press 3 never dispatches
+
+		// Only NOW does the selection move to the terrace zone — after both later presses were
+		// already made, before the first write's queued continuation ever runs.
+		useSelectionStore().select([terrace.id as never]);
+
+		releaseFirstWrite();
+		await settleUntil(() => calls.length >= 2, 'the queued second press to dispatch');
+
+		expect(calls).toHaveLength(2); // press 3's no-op never added a dispatch
+		expect(calls[1].zoneId).toBe(KITCHEN.id); // the room selected when press 2 was PRESSED — never the terrace zone selected at release, and never a no-op from press 3 occupying its slot
 
 		harness.unmount();
 	});

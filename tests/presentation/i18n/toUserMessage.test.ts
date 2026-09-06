@@ -164,6 +164,15 @@ const GENERIC_APPLICATION_CODES: Readonly<Record<string, string>> = {
 		+ 'write instead of the baseline read.',
 	'sequence.recovery.clear-faulted':
 		'The same `Result`-shim again, over the marker clear.',
+	'plan.unsupported-background':
+		"ConfigurePlanReference's guard against a hand-built input whose kind disagrees with "
+		+ 'its path. Unreachable through ReferenceSetupForm, which derives `kind` from the same '
+		+ '`backgroundKindFor` and refuses to commit on null — the same shape as '
+		+ "`asset.unsupported-background`'s documented absence in en.ts.",
+	'reference.restore-failed':
+		"Minted only when ConfigurePlanReference's plan restore THROWS after a failed sidecar "
+		+ 'write, and wrapped on the spot as the cause of `reference.compensation-failed`, which '
+		+ 'is the code that reaches `toUserMessage`; this one never does.',
 };
 
 describe('toUserMessage', () => {

@@ -133,11 +133,17 @@ export class Plan {
 	 * `ReversibleCalibratePlanCommand`'s whole job and nothing an immutable entity can do
 	 * to files it cannot see. Re-validated here anyway: a hand-edited sidecar reaches this
 	 * door, and the sidecar's Zod schema checks shapes, not the relationships between them.
+	 *
+	 * `null` clears it, exactly as `withBackground(null)` does: a sidecar CAN go back to
+	 * uncalibrated — `ReversibleCalibratePlanCommand.undo` restores the exact document it
+	 * read, and past a FIRST calibration that document carries `calibration: null` — so a
+	 * reader merging a fresh snapshot over an entity loaded earlier has to be able to drop
+	 * the stale one (a Codex P2 on pull request #85).
 	 */
 	withCalibration(
-		calibration: Calibration,
+		calibration: Calibration | null,
 	): Result<Plan, ValidationError | CalculationError> {
-		const checked = validateCalibration(calibration);
+		const checked = calibration === null ? ok(null) : validateCalibration(calibration);
 		if (!checked.ok) {
 			return checked;
 		}

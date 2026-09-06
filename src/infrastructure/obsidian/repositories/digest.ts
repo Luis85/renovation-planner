@@ -2,6 +2,7 @@ import type { ObservationToken } from '../../../application/ports/versioning';
 import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../persistence/dto/assetFrontmatter';
 import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../../persistence/dto/assetPriceFrontmatter';
 import { PLAN_TYPE, PlanFrontmatterSchemaV2 } from '../../persistence/dto/planFrontmatter';
+import { SpatialObjectGeometrySchemaV1, type SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../persistence/dto/projectFrontmatter';
 import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV1 } from '../../persistence/dto/requirementFrontmatter';
 import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFrontmatter';
@@ -116,4 +117,24 @@ export function observeFrontmatter(frontmatter: Record<string, unknown>): Observ
 /** The token for a sidecar, over the whole file as it sits on disk. */
 export function observeSidecar(rawText: string): ObservationToken {
 	return digest(`v1|sidecar|${rawText}`);
+}
+
+/**
+ * The keys a sidecar entry declares, in schema order — handed to `JSON.stringify` as its
+ * allowlist so the order a writer or a parser happens to produce is not part of the token.
+ * ponytail: an allowlist filters NESTED object keys too, so an entry field that is itself an
+ * object would need its keys added here; today the one nested value is an array of numbers.
+ */
+const ENTRY_KEYS = Object.keys(SpatialObjectGeometrySchemaV1.shape);
+
+/**
+ * The token for a ZONE, which spans two files (SDD §42): its note's owned keys AND its own
+ * entry in the plan's sidecar. A token over the note alone let a sync that rewrote the entry
+ * — and left the note untouched, as any geometry-only edit does — pass the conditional
+ * write and be overwritten. The ENTRY rather than the sidecar's text, because the sidecar is
+ * plan-grained and a neighbour's move is not a change to THIS zone. `undefined` (no entry)
+ * is digested too, so a reading taken while the entry existed is stale once it is gone.
+ */
+export function observeZone(frontmatter: Record<string, unknown>, entry: SpatialObjectGeometryDTO | undefined): ObservationToken {
+	return digest(`v1|zone|${observeFrontmatter(frontmatter)}|${JSON.stringify(entry, ENTRY_KEYS)}`);
 }

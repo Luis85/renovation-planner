@@ -59,6 +59,17 @@ describe('existing Room naming in the real editor', () => {
 		await runtime.undo(); expect((await read(r)).entity).toEqual(before.entity); expect(runtime.canUndo.value).toBe(false);
 		await runtime.redo(); expect((await read(r)).entity.name).toBe('Dining room'); r.harness.unmount();
 	});
+	it('refreshes the Inspector heading when a peer leaf renames the selected room', async () => {
+		// The write is a PEER's: straight into the repository, never through this leaf's dispatcher,
+		// so the post-command funnel never runs and `onPlanChanged` is the only door it arrives by.
+		const r = await rig(); const runtime = runtimeOf(r.harness); runtime.selectAndFrame('zone-a'); await settle();
+		const before = await read(r); expect(runtime.inspectorDto.value).toMatchObject({ name: before.entity.name });
+		expectOk(await r.zonesRepo.save(expectOk(before.entity.withName('Peer')), before.version));
+		r.harness.changePlan();
+		await settleUntil(() => useProjectStore(r.harness.pinia).zones.get('zone-a')?.name === 'Peer', 'projection renamed by peer');
+		await settle();
+		expect(runtime.inspectorDto.value).toMatchObject({ name: 'Peer' }); r.harness.unmount();
+	});
 	it('keeps blank input with a focused field error; unchanged/trim-equivalent names and Cancel write no history', async () => {
 		const r = await rig(); const before = await read(r); await open(r);
 		await apply(r); await type(r, `  ${before.entity.name}  `); await apply(r);

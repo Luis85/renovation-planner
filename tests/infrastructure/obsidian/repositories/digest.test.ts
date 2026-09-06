@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { observeFrontmatter, observeSidecar } from '../../../../src/infrastructure/obsidian/repositories/digest';
+import { observeFrontmatter, observeSidecar, observeZone } from '../../../../src/infrastructure/obsidian/repositories/digest';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/projectFrontmatter';
 import { PLAN_TYPE, PlanFrontmatterSchemaV2 } from '../../../../src/infrastructure/persistence/dto/planFrontmatter';
 import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/zoneFrontmatter';
@@ -44,6 +44,15 @@ describe('observation tokens', () => {
 		const text = '{"schemaVersion":1,"planId":"plan-x","revision":1}';
 		expect(observeSidecar(text)).toBe(observeSidecar(text));
 		expect(observeSidecar(`${text}\n`)).not.toBe(observeSidecar(text));
+	});
+
+	it('digests a zone over BOTH its files: the entry moves it, the entry key order and the note body do not', () => {
+		const entry = { id: 'zone-x', type: 'polygon' as const, points: [[0, 0], [10, 0], [10, 10]] as [number, number][] };
+		const token = observeZone(base, entry);
+		expect(observeZone({ ...base, description: 'the user\'s own' }, { points: entry.points, type: entry.type, id: entry.id })).toBe(token);
+		expect(observeZone(base, { ...entry, points: [[0, 0], [10, 0], [10, 11]] })).not.toBe(token);
+		expect(observeZone({ ...base, name: 'Kitchen' }, entry)).not.toBe(token);
+		expect(observeZone(base, undefined)).not.toBe(token);
 	});
 });
 

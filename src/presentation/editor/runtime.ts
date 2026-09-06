@@ -456,11 +456,25 @@ function selectAndFrameOn(
  * move happened to overwrite the stale id. Clearing the id here is what makes the cursor's
  * withdrawal a fact rather than a race, and the KIND goes with it because the two are one fact
  * in two fields (see `RenderState.hoveredTargetKind`).
+ *
+ * **The Inspector's cached DTO is re-read here too, for the same reason and off the same
+ * watch.** `InspectorStore.dto` is what the query answered when the selection last changed, and
+ * the post-command funnel (`createProjectionRefresh`) was the only thing that invalidated it — so
+ * a rename or resize landing through `onPlanChanged` (a second Plan Editor leaf on the same
+ * plan, a synced note) re-hydrated the canvas and the room list and left the heading showing the
+ * old name indefinitely. A hydrate landing is the one moment both facts move, and hanging the
+ * refresh off it rather than off a second `onPlanChanged` subscription keeps the order the
+ * funnel's own docblock requires (map first, DTO second) and keeps the plan door at ONE
+ * listener, which `planEditorView.test.ts` counts. The dispatching leaf pays one redundant
+ * Inspector read per command for it — the same cost `PLAN_CHANGE_EVENTS` already accepts for the
+ * canvas — and `refresh` is a no-op for anything but a single selection, so the mount's own
+ * first hydrate costs nothing.
  */
 function registerSelectionRetirement(
 	projectStore: ReturnType<typeof useProjectStore>,
 	selection: ReturnType<typeof useSelectionStore>,
 	renderState: RenderState,
+	inspector: { refresh(): Promise<void> },
 ): void {
 	watch(
 		() => [projectStore.zones, projectStore.structure] as const,
@@ -472,6 +486,7 @@ function registerSelectionRetirement(
 				renderState.hoveredObjectId = null;
 				renderState.hoveredTargetKind = null;
 			}
+			void inspector.refresh();
 		},
 	);
 }
@@ -743,7 +758,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 	);
 
 	const selectAndFrame = (id: string, toggle = false): void => selectAndFrameOn(projectStore, selection, editor, { id, toggle });
-	registerSelectionRetirement(projectStore, selection, renderState);
+	registerSelectionRetirement(projectStore, selection, renderState, inspector);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
 	// refusal — bound straight to the context bar's Undo/Redo clicks.

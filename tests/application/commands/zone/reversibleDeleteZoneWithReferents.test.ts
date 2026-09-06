@@ -12,7 +12,7 @@ import { isErr } from '../../../../src/core/result/Result';
 import { expectErr, expectOk, injectedPersistenceError } from '../../../helpers/domain';
 import { makeAsset, makeZone } from '../../../helpers/entities';
 import { recorder as logger } from '../../../helpers/logger';
-import { requirementFixture, TEN_SQUARE_METERS } from '../../../helpers/slice10';
+import { TEN_SQUARE_METERS, requirementFixture, zoneSequenceCollaborators } from '../../../helpers/slice10';
 import { InMemoryRequirementRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
 import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 
@@ -132,6 +132,7 @@ async function wired(assetCount: number, requirements = new FailNthSave()) {
 
 	const ledger = new SessionWriteLedger();
 	const plain = new DeleteZoneCommand({
+		...zoneSequenceCollaborators(),
 		zones: w.zones,
 		requirements: w.requirements,
 		recalculate: w.recalculate,

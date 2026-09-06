@@ -53,6 +53,25 @@ describe('pipeline plan-note upserts', () => {
 		expect(entry?.geometrySidecarPath).toContain('.rpgeo');
 	});
 
+	it('an id swap in the frontmatter carries no sidecar mapping to the successor', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const adapter = adapterOf(stack);
+		const path = stack.index.getPath(planId) ?? '';
+		expect(stack.index.getGeometrySidecarPath(planId)).toContain('.rpgeo');
+
+		// The note keeps its PATH and takes a different id — a hand edit or a sync. The entry
+		// this path carried is a different entity now, and its geometry is not the new one's.
+		const successor = `plan-${createPlanId()}`;
+		const text = stack.vault.entries.get(path) ?? '';
+		stack.vault.entries.set(path, text.replace(/^id: "[^"]*"/m, `id: "${successor}"`));
+		adapter.onModify(stack.vault.getAbstractFileByPath(path) as never);
+		adapter.flush();
+
+		expect(stack.index.getGeometrySidecarPath(successor as never)).toBeUndefined();
+		expect(stack.index.getGeometrySidecarPath(planId)).toBeUndefined();
+	});
+
 	it('a brand-new plan note arriving through events gets an entry without a sidecar claim', async () => {
 		const stack = createRepositoryStack();
 		await seed(stack);

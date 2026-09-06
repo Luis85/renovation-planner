@@ -53,7 +53,11 @@ function createPriceSection(): {
 	readonly assetPricesError: Ref<RepositoryError | null>;
 	// `this: void` on both, so `hydratePrices: prices.hydrate` below is a plain function
 	// reference rather than a method torn off an object — the shape `unbound-method` refuses.
-	hydrate(this: void, queries: RenovationProjectQueryServices, projectId: string): Promise<void>;
+	hydrate(
+		this: void,
+		queries: RenovationProjectQueryServices,
+		projectId: string,
+	): Promise<'landed' | 'superseded'>;
 	clear(this: void): void;
 } {
 	const assetPrices = ref<readonly AssetPriceRowDto[]>([]);
@@ -68,20 +72,32 @@ function createPriceSection(): {
 		 * and after a successful price edit.
 		 *
 		 * It touches neither `status` nor `error`: a project whose prices could not be read is
-		 * still a project the user can look at and work in. It DOES clear the rows on a failure,
-		 * because a section showing prices beside a message saying they could not be read is a
-		 * section disagreeing with itself — `fail`'s rule, applied to the region that owns it.
+		 * still a project the user can look at and work in. **The rows SURVIVE a failed refresh**
+		 * — deliberately, and this is the one place that says so: a failure here means the
+		 * catalogue could not be re-read, not that the prices it already drew became untrue, and
+		 * blanking a correct list because a refresh hiccuped is the worse of the two wrong
+		 * answers. What stops the stale rows being EDITED is `refreshBlocked`
+		 * (`ProjectPrices.vue:42`), which the section derives from the same failure and which
+		 * pauses every field until a refresh lands.
+		 *
+		 * **The outcome is returned rather than inferred**, because a caller that has to know
+		 * whether ITS read is the one the refs describe cannot ask them: the refs are shared with
+		 * every other caller, so a read superseded on the ticket leaves a caller reading a later
+		 * read's answer as if it were its own. `ProjectDetailState.writeAssetPrice` is the caller
+		 * that needs it — "saved, but could not refresh" is a statement about the write's own
+		 * read — and `'superseded'` is what tells it to decide nothing at all.
 		 */
 		async hydrate(queries, projectId) {
 			const request = ++latest;
 			const listed = await queries.listAssetPrices(projectId);
-			if (request !== latest) return;
+			if (request !== latest) return 'superseded';
 			if (isErr(listed)) {
 				assetPricesError.value = listed.error;
-				return;
+				return 'landed';
 			}
 			assetPrices.value = listed.value;
 			assetPricesError.value = null;
+			return 'landed';
 		},
 		/** Takes a ticket as well as emptying, so a read already in flight cannot land after it. */
 		clear() {
@@ -105,7 +121,8 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	 * on the other surface, for the same reason: the region draws every plan it has AND says
 	 * how many it does not, so one bad note costs one plan rather than the project's list.
 	 *
-	 * Cleared at all three places `plans` is, so it can never outlive the read it describes.
+	 * Cleared at every place `plans` is written, the failed listing included, so it can never
+	 * outlive the read it describes.
 	 */
 	const unreadablePlans = ref(0);
 	const status = ref<ProjectDetailStatus>('idle');
@@ -194,6 +211,12 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 		if (superseded()) return;
 		if (isErr(listed)) {
 			project.value = found.value;
+			// Both, for `fail`'s reason applied to this region: `plans` and `unreadablePlans`
+			// describe the read that produced them, and the read that refused produced neither.
+			// Leaving them drew the previous listing's "N plans could not be read" beside a
+			// notice saying the plans could not be listed at all.
+			plans.value = [];
+			unreadablePlans.value = 0;
 			plansError.value = listed.error;
 			status.value = 'ready';
 			return;

@@ -136,6 +136,37 @@ describe('ProjectDetailStore', () => {
 	});
 
 	/**
+	 * The case above starts from an empty store, so it cannot tell "cleared" from "never set".
+	 * This one lands rows and a count first: `plans` and `unreadablePlans` describe the read
+	 * that produced them, so the read that REFUSES has to take both with it — `fail`'s rule,
+	 * applied to the region that owns them.
+	 */
+	it('clears the plans and their unreadable count when a later listing refuses', async () => {
+		const store = useProjectDetailStore();
+
+		await store.hydrate(
+			queriesAnswering({
+				listPlansByProject: () =>
+					Promise.resolve(ok({ plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadable: 2 })),
+			}),
+			PROJECT.id,
+			true,
+		);
+		expect(store.plans).toHaveLength(1);
+		expect(store.unreadablePlans).toBe(2);
+
+		await store.hydrate(
+			queriesAnswering({ listPlansByProject: () => Promise.resolve(err(READ_FAILED)) }),
+			PROJECT.id,
+			true,
+		);
+
+		expect(store.plansError).toEqual(READ_FAILED);
+		expect(store.plans).toEqual([]);
+		expect(store.unreadablePlans).toBe(0);
+	});
+
+	/**
 	 * **There is exactly ONE case here for the completed scan, and an earlier draft of this
 	 * plan had two.** The second was written to discriminate `indexScanCompleted` — "has the
 	 * scan RUN" — from the "seen populated" rule it replaced, on the vault whose only project

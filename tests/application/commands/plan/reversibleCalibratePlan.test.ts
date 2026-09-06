@@ -16,6 +16,7 @@ import {
 import { makePlan } from '../../../helpers/entities';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import type { PlanId } from '../../../../src/domain/plan/PlanId';
+import { createEventBus, type EventBus } from '../../../../src/core/events/EventBus';
 
 const PICKED_A = { x: 812, y: 240 };
 const PICKED_B = { x: 812, y: 1040 }; // 800 world units apart
@@ -33,6 +34,7 @@ interface Wired {
 const wired = async (
 	seedObjects: readonly SpatialObjectGeometry[] = [],
 	seedCalibration: PlanGeometryDocument['calibration'] = null,
+	bus?: EventBus,
 ): Promise<Wired> => {
 	const projectId = createProjectId();
 	const plan = makePlan({ projectId });
@@ -45,7 +47,7 @@ const wired = async (
 		plans,
 		events,
 		sidecar,
-		command: new ReversibleCalibratePlanCommand(plans, sidecar, events),
+		command: new ReversibleCalibratePlanCommand(plans, sidecar, bus ?? events),
 		planId: plan.id,
 		projectId,
 	};
@@ -96,6 +98,30 @@ describe('ReversibleCalibratePlanCommand', () => {
 		expect(w.events.published[1]).toMatchObject({
 			payload: { zoneId: 'zone-1', planId: w.planId, projectId: w.projectId },
 		});
+	});
+
+	it('announces the objects ONE at a time — each starts a cascade already bounded at 4', async () => {
+		// `Promise.all` over the fan-out multiplied that bound by the number of zones: every
+		// announcement's cascade ran concurrently with every other's. Measured as the peak
+		// number of handlers in flight, which is the only thing the ordering itself cannot say.
+		const bus = createEventBus();
+		let inFlight = 0;
+		let peak = 0;
+		bus.subscribe('ZoneGeometryChanged', async () => {
+			inFlight += 1;
+			peak = Math.max(peak, inFlight);
+			await Promise.resolve();
+			inFlight -= 1;
+		});
+		const w = await wired(
+			[zoneEntry('zone-1' as never, 10), zoneEntry('zone-2' as never, -40), zoneEntry('zone-3' as never, 70)],
+			null,
+			bus,
+		);
+
+		expectOk(await w.command.execute({ planId: w.planId, pointA: PICKED_A, pointB: PICKED_B, knownDistance: KNOWN_MM }));
+
+		expect(peak).toBe(1);
 	});
 
 	it('recalibrates against the previous scale', async () => {

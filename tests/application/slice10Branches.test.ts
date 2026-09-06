@@ -21,7 +21,7 @@ import { expectErr, expectFound, expectOk } from '../helpers/domain';
 import { recorder as logger } from '../helpers/logger';
 import { makeAsset, makeProject, makeRequirement, makeZone } from '../helpers/entities';
 import { of as moneyOf } from '../../src/core/money/Money';
-import { requirementFixture, TEN_SQUARE_METERS } from '../helpers/slice10';
+import { TEN_SQUARE_METERS, noopCascadeNotify, requirementFixture, zoneSequenceCollaborators } from '../helpers/slice10';
 
 /**
  * The defensive and refusal arms of slice 10's wiring — every branch the happy paths
@@ -158,6 +158,7 @@ describe('reassignment target refusals', () => {
 		);
 		const zoneA = expectOk(await w.zones.save(geometry, 'absent'));
 		const command = new DeleteZoneCommand({
+			...zoneSequenceCollaborators(),
 			zones: w.zones,
 			requirements: w.requirements,
 			recalculate: w.recalculate,
@@ -377,6 +378,7 @@ describe('asset-cascade isolation arms', () => {
 	it('an AssetUpdated for an asset nothing references finishes without a cascade', async () => {
 		const w = await requirementFixture();
 		registerOnAssetUpdated(w.events, {
+			notify: noopCascadeNotify,
 			requirements: w.requirements,
 			assets: w.assets,
 			overrides: w.overrides,
@@ -437,6 +439,7 @@ describe('asset-cascade isolation arms', () => {
 	it('the cascade logs a per-requirement recalculation failure without firing success events', async () => {
 		const w = await requirementFixture();
 		registerOnZoneGeometryChanged(w.events, {
+			notify: noopCascadeNotify,
 			requirements: w.requirements,
 			events: w.events,
 			logger,
@@ -463,6 +466,7 @@ describe('asset-cascade isolation arms', () => {
 	it('the asset vanishing between its update and its own cascade cascades every link', async () => {
 		const w = await requirementFixture();
 		registerOnAssetUpdated(w.events, {
+			notify: noopCascadeNotify,
 			requirements: w.requirements,
 			assets: w.assets,
 			overrides: w.overrides,

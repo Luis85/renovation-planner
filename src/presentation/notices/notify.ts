@@ -555,9 +555,16 @@ export function faultError(cause: unknown, logger: Logger, event: string): AppEr
  * an error toast. It is NOT `background-cascade`, which would route a `Persistence` fault to a
  * warning and every other category to silence — and a fault reaching nobody is precisely the
  * defect this function exists to prevent.
+ *
+ * **Narrowed at the call rather than guarded** (finding V5): `surfaceFor` with
+ * `explicit-operation` never answers anything but `toast` — every category either stays a
+ * toast or (only under `background-cascade`, which this door never passes) turns silent — so
+ * an `if (surface.kind === 'toast')` here was the file's own zero-count branch
+ * (`coverage-final.json`), guarding a case that cannot occur rather than one that can. The cast
+ * is to `ToastSurface`, not through it: the value never leaves `surfaceFor`, so the `Routed`
+ * brand that door alone applies travels with it unbroken.
  */
 export function notifyFault(cause: unknown, logger: Logger, event: string): void {
 	const error = faultError(cause, logger, event);
-	const surface = surfaceFor(error, { kind: 'explicit-operation' });
-	if (surface.kind === 'toast') notifyError(error, surface);
+	notifyError(error, surfaceFor(error, { kind: 'explicit-operation' }) as ToastSurface);
 }

@@ -40,6 +40,19 @@
 }
 
 /*
+ * `FieldError.vue` and `FormBanner.vue` each open their message with the same aria-hidden glyph,
+ * inside the flex row `.rp-field-error__message`/`.rp-form-banner` already declares above. The
+ * row's own `gap` already separates flex items, so this is belt-and-braces rather than the only
+ * thing standing between the glyph and the text — but it is what the widened style scan (X7, and
+ * the identical shape found beside it in `rp-field-error__glyph`) asks be declared by name, using
+ * the same spacing variable the row's `gap` already uses.
+ */
+.rp-field-error__glyph,
+.rp-form-banner__glyph {
+	margin-inline-end: var(--size-2-2);
+}
+
+/*
  * NOT a banner, and drawn so that it cannot be mistaken for one. `.rp-form-banner` above is a
  * FAILURE — error colour, error border — and this line appears in the same region, at the same
  * moment, saying the opposite thing: the write that mattered succeeded. A user who has just

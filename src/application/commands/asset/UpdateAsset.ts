@@ -55,6 +55,14 @@ export type UpdateAssetErrors = DomainError | ReferenceError | RepositoryError;
  * Otherwise this is a check-and-write with a gap in it: an update observing zero referents
  * can be overtaken by an assignment creating one, landing a non-area unit under a live
  * requirement. A guard that only usually holds is not an invariant.
+ *
+ * It is taken on EVERY edit, not only a kind-changing one, and the narrower version was the
+ * same defect that sentence describes with a smaller blast radius. A delete resolution holds
+ * this asset's level-1 lock across its whole compensated sequence; a plain `unitCost` edit
+ * taking no lock landed inside that region, so the resolution's own reads and its
+ * compensation disagreed about the asset. The outcome is a refusal and a compensation rather
+ * than a lost write, which is why this reads as low — but a level-1 region another command
+ * can write through is not a region.
  */
 export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asset, UpdateAssetErrors>> {
 	constructor(
@@ -76,7 +84,7 @@ export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asse
 		const nextUnit = input.changes.unit ?? current.unit;
 		const kindChanges = UNIT_KIND[nextUnit] !== UNIT_KIND[current.unit];
 
-		const release = await this.locks.acquire(kindChanges ? [current.id] : [], []);
+		const release = await this.locks.acquire([current.id], []);
 		try {
 			let expected: Expected = loaded.value.version;
 			const firstCandidate = current.withChanges(input.changes);

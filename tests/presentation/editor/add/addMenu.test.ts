@@ -396,6 +396,32 @@ describe('the Add menu', () => {
 		expect(harness.wrapper.find('button[data-rp-action="add"]').attributes('aria-expanded')).toBe('false');
 		expect(runtimeOf(harness).activeToolId.value).toBe('select');
 		expect(useSelectionStore(harness.pinia).selectedIds).toEqual(['zone-kitchen']);
+		// E2: the focus-out door must not steal focus back to the anchor — it already went where
+		// the user sent it, and `onBeforeUnmount`'s unconditional `anchor?.focus()` used to win.
+		expect(document.activeElement?.getAttribute('data-rp-action')).toBe('select');
+	});
+
+	/**
+	 * The header's overclaim the review round caught: an outside press does NOT reliably hand
+	 * focus back. `.rp-plan-canvas` (`harness.canvasEl`) carries `tabindex="0"` and
+	 * `onPointerDown` never calls `preventDefault`, so a real mousedown there moves browser
+	 * focus to the canvas before `AddMenu` ever unmounts — jsdom does not replay that default
+	 * for a synthetic `pointerdown`, so `.focus()` is called explicitly first to stand in for
+	 * it, and the `pointerdown` follows to drive the actual close path. By the time
+	 * `onBeforeUnmount`'s guard runs, focus is already outside `.rp-add-menu`, so it must NOT
+	 * steal it back to the anchor.
+	 */
+	it('an outside press landing on the focusable canvas leaves focus on the canvas, not the anchor', async () => {
+		const harness = await mountPlanEditorCanvas();
+		await openAdd(harness);
+		await settle();
+
+		harness.canvasEl.focus();
+		harness.canvasEl.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+		await settle();
+
+		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(false);
+		expect(document.activeElement).toBe(harness.canvasEl);
 	});
 
 	it('a focusout with no destination (the window lost focus) keeps the menu open', async () => {

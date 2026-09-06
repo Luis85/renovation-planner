@@ -385,6 +385,18 @@ describe('NewAssetForm', () => {
 			expect(control.attributes('aria-disabled')).toBeUndefined();
 		}
 		expect(wrapper.find('.rp-new-asset__created').exists()).toBe(true);
+
+		// "and says why" (V7) — a `<select aria-disabled>` that is PAUSED (never `:disabled`, for
+		// the focus-blur reason above) needs `aria-describedby` naming the reason. The created
+		// notice already carries that sentence for a sighted user; a screen-reader user gets the
+		// same one, rather than an unexplained unavailable control.
+		const createdNotice = wrapper.get('.rp-new-asset__created');
+		const noticeId = createdNotice.attributes('id');
+		expect(noticeId).toBeTruthy();
+		for (const field of ['category', 'unit']) {
+			const control = wrapper.get(`[data-field="${field}"]`);
+			expect(control.attributes('aria-describedby')).toBe(noticeId);
+		}
 	});
 
 	/**

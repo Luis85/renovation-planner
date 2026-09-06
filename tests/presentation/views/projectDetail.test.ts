@@ -104,6 +104,23 @@ describe('ProjectDetail', () => {
 	});
 
 	/**
+	 * P12: on `readOnly` (mobile) a zero-plan project used to suppress the empty state
+	 * ENTIRELY — `planEmpty` folded `readOnly` into the same null as a failed read — so a
+	 * mobile project with no plans drew a bare `Plans` heading and an empty list instead of the
+	 * onboarding copy. `ViewRoot.vue:314`'s own `emptyActionLabel` is the model this mirrors:
+	 * keep the state, drop only the action a read-only surface cannot dispatch. Red before the
+	 * fix: `.rp-empty-state` did not exist at all under `readOnly: true`.
+	 */
+	it('keeps the no-plans empty state on a read-only surface, without its action', () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [], unreadablePlans: 0, readOnly: true, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' }, ...PRICE_PROPS },
+		});
+
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
+		expect(wrapper.find('.rp-empty-state__action').exists()).toBe(false);
+	});
+
+	/**
 	 * The empty state's action is the SAME intent the plan list's header button carries, so a
 	 * project with no plans is not a project with no way to make one. Asserted on the emit
 	 * rather than on the button's presence: a rendered action wired to nothing is exactly the

@@ -110,13 +110,14 @@ export class VaultChangeAdapter {
 	private enqueue(path: string): void {
 		// A zero debounce means "process synchronously" — what tests use, and what keeps
 		// this module free of timer APIs when it runs outside a browser window.
-		if ((this.deps.debounceMs ?? 500) <= 0) {
+		const delay = this.deps.debounceMs ?? 500;
+		if (delay <= 0) {
 			this.processPath(path);
 			return;
 		}
 		this.pending.add(path);
 		if (this.timer === null) {
-			this.timer = window.setTimeout(() => this.flush(), this.deps.debounceMs);
+			this.timer = window.setTimeout(() => this.flush(), delay);
 		}
 	}
 
@@ -232,7 +233,16 @@ export class VaultChangeAdapter {
 			// plans since asset paths became index-backed: this door used to answer `undefined`
 			// for everything but a plan, so one synced or hand-edited asset note dropped the
 			// mapping and the asset went shapeless.
-			geometrySidecarPath: existing?.geometrySidecarPath ?? this.deps.index.getGeometrySidecarPath(ref.id as ProjectIndexEntry['id']),
+			//
+			// **The preservation is for the SAME id, and `existing` is the entry at this PATH.**
+			// An id swap in the frontmatter — a hand edit, a sync, a copied note — makes those two
+			// different entities, and the displaced one's geometry is not its successor's. Handing
+			// it over pointed every Zone read and write on the new id at the old plan's sidecar,
+			// so the entity that was just removed above kept receiving the writes. Unqualified,
+			// the `??` never even reached the index lookup on this path.
+			geometrySidecarPath:
+				(existing?.id === ref.id ? existing.geometrySidecarPath : undefined)
+				?? this.deps.index.getGeometrySidecarPath(ref.id as ProjectIndexEntry['id']),
 		});
 	}
 

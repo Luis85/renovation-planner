@@ -76,6 +76,12 @@ recording tracker, since independent call counts are blind to order), and `unrec
 cleared only by `resolveOk` — never by a successful refresh, which is the whole reason it is a
 separate field from `stale`.
 
+**Amendment (2026-09-06): "cleared only by `resolveOk`" holds for the mount's life, not the
+leaf's.** The 2026-09-05 whole-tree review found a settings save rebuilds every open Plan
+Editor's Pinia store (`rebindOpenViews`), dropping `unrecoveredWrite` along with it — the same
+reset a close-and-reopen gets. `tests/plugin/rootSwapRebind.test.ts`'s "drops a leaf's
+unrecovered-write flag on rebind" pins this window; it is recorded rather than closed.
+
 **What was NOT injected here, so it is not read as covered.** This task exercised the note/sidecar
 COMPENSATION boundary. The marker and recovery boundaries — `runDeleteResolution`'s durable
 markers and `recoverInterruptedSequences` — were not driven, and the two application-layer

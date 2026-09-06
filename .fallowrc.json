@@ -16,8 +16,13 @@
 	// one file rather than a copy in each.
 	// The eight `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
 	// nothing imports them and no npm script runs them either — `vue-tsc -noEmit`
-	// type-checks them because `tsconfig.json`'s `include` names each one directly, and
-	// compiling is the whole point. `type-safety.test-d.ts` holds the screen/world brand
+	// type-checks them because `tsconfig.json`'s `include` is `src/**` plus `tests/**`, four
+	// globs that sweep these files in rather than eight entries naming each one, and
+	// compiling is the whole point. Naming all eight here rather than trusting that sweep is
+	// deliberate for the OPPOSITE reason a narrower `include` would invert: a glob absorbs the
+	// next file and tells nobody, so a ninth `*.test-d.ts` dropped under `tests/**` would be
+	// compiled by `vue-tsc` (the glob reaches it) and silently unaccounted for HERE, where
+	// fallow's entry list is what stops it reading as dead. `type-safety.test-d.ts` holds the screen/world brand
 	// separation and a `SelectionStore` assignability check; `diagnostics.test-d.ts` holds
 	// slice 11's no-project-content guarantee, which is a claim about `DiagnosticsLedger.record`'s
 	// PARAMETERS and so has no runtime form at all; `fixtureVault.test-d.ts` holds slice 12's
@@ -41,9 +46,11 @@
 	// unsatisfied `@ts-expect-error` or assignment failure is itself a compile error, which is the
 	// mechanism. Named one at a time rather than
 	// globbed `tests/**/*.test-d.ts`, for the reason `dynamicallyLoaded`'s own comment gives:
-	// a glob absorbs the next file and tells nobody — and here it would absorb one whose
-	// tsconfig `include` entry had been forgotten, leaving a file that is neither compiled
-	// nor reported.
+	// a glob absorbs the next file and tells nobody — and here it would absorb a ninth
+	// `*.test-d.ts` that `vue-tsc` was already compiling regardless (tsconfig's own `include`
+	// is a glob, not a per-file list, so nothing about being compiled ever depends on this
+	// file), leaving it silently unaccounted for in the one place that names why each of the
+	// eight needs a compiler rather than a runtime test.
 	// `src/prototypes/**/*.vue` is a fifth kind: the harness index reaches every one of them
 	// through `import.meta.glob`, which is a VITE feature resolved at build time and invisible
 	// to a static import graph — so fallow sees a tree nothing imports and reports every file
@@ -214,9 +221,25 @@
 	// A mock that shed states to satisfy a complexity metric would be a worse mock, and the
 	// metric would have measured it doing its job. `max-lines` (400, ESLint, this tree included)
 	// is still the size gate, and it has already forced one decomposition here.
+	//
+	// `scripts/**` joins them at fallow 3.22.0 for the SAME reason and nothing else: the
+	// coverage file above is collected over `src/**` only, so every script function is scored
+	// against 0% and `findHardcodedColor` (`scripts/styles-assemble.mjs`, cyclomatic 11) read
+	// CRAP 37.1 the day the bump landed, having read nothing before. The size and complexity
+	// budgets that DO measure `scripts/` are oxlint's (`.oxlintrc.json`), and they stay.
+	//
+	// `maxCrap` 32 is a MEASUREMENT, set the way every floor here is set — at what the tree
+	// reads on the day the instrument arrives — and it is the one number in this block that
+	// may only FALL. fallow 3.22.0 weights CRAP by the Istanbul data above (3.19.0 did not),
+	// and exactly one function crossed the default 30: `ReversibleAssetDesignCommands.undo`
+	// at 31.6, cyclomatic 10, every statement covered, with two `?? preVersion` fallback arms
+	// no test can take — the shape the 2026-09-05 polish pass ruled on for
+	// `ReversibleOverrideBase.undo` (its `lastWritten(id) ?? captured.postVersion`). The next
+	// function to cross 30 is a refactor, not a raise.
 	"health": {
 		"coverage": "coverage/coverage-final.json",
-		"ignore": ["tests/**", "src/prototypes/**"]
+		"ignore": ["tests/**", "src/prototypes/**", "scripts/**"],
+		"maxCrap": 32
 	},
 	"rules": {
 		"unused-dev-dependencies": "error",

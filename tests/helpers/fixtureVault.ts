@@ -24,7 +24,7 @@ import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { TFile, TFolder, type FileStats } from 'obsidian';
 import { currencyOf } from '../../src/core/money/Money';
-import { applyFrontmatterEdit, describeFile, fileCacheAnswer } from './vault';
+import { applyFrontmatterEdit, describeFile, fileCacheAnswer, VaultEventBus } from './vault';
 import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
@@ -90,7 +90,7 @@ const folderAt = (path: string): TFolder => {
 	return folder;
 };
 
-class FixtureVaultAdapter {
+class FixtureVaultAdapter extends VaultEventBus {
 	/**
 	 * `root` is the NATIVE absolute path of the clone. Every path this class hands out or
 	 * accepts is VAULT-RELATIVE and forward-slashed, and `absolute()` is the only place the
@@ -131,7 +131,9 @@ class FixtureVaultAdapter {
 		if (!this.pendingParse.has(path)) this.pendingParse.set(path, previous);
 	}
 
-	constructor(readonly root: string) {}
+	constructor(readonly root: string) {
+		super();
+	}
 
 	/**
 	 * Hardening rule 1: Obsidian REFUSES a create whose parent folder does not exist, and so
@@ -294,9 +296,12 @@ class FixtureVaultAdapter {
 		return '';
 	}
 
-	on(): { off(): void } {
-		return { off: () => undefined };
-	}
+	// `on`/`offref`/`trigger`/`eventListenerCount` come from the `VaultEventBus` base class —
+	// see its own docblock. This was `on(): { off(): void }`, a shape the real `Vault` has not
+	// had for years: no `EventRef`, no `offref` to retire one, so `createVaultFileChangeSource`
+	// calling `vault.offref(reference)` unconditionally on release threw the moment anything
+	// actually unsubscribed — a fake thinner than the real thing, in the one member a
+	// subscriber has to use (I3).
 
 	/**
 	 * The current bytes, or `undefined` for a path that does not exist — the door

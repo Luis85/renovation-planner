@@ -51,6 +51,8 @@ const StructureSchema = z.object({
 	openings: z.array(z.object({ id: z.string().startsWith('opening-'), kind: z.enum(['door', 'window', 'opening']), hostId: z.string(), offset: z.number(), width: z.number(), height: z.number(), sill: z.number() })),
 	boundaries: z.array(z.object({ roomId: z.string(), wallIds: z.array(z.string()) })),
 });
-const PlanGeometrySchemaV2 = PlanGeometrySchemaV1.extend({ schemaVersion: z.literal(2), structure: StructureSchema.optional() });
+export const PlanGeometrySchemaV2 = PlanGeometrySchemaV1.extend({ schemaVersion: z.literal(2), structure: StructureSchema.optional() });
 export const PlanGeometrySchemaV3 = PlanGeometrySchemaV2.extend({ schemaVersion: z.literal(3), intended: StructureSchema.optional() });
+/** Any persisted version, for a reader that asks only what the file DECLARES (no migration). */
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3]);
 export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV3>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 };

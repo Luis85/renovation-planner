@@ -87,8 +87,15 @@ export class SequenceMarkerFileStore implements SequenceMarkerStore {
 		} catch (cause) {
 			return err(persistenceError('sequence.marker-unreadable', 'The sequence marker file is not valid JSON.', cause));
 		}
+		// Two tests, in this order, because the property read is what the first one protects:
+		// `null` is valid JSON, so a file whose whole body is the four bytes `null` reached the
+		// cast and threw a TypeError out of a door that answers coded refusals. The `&&` chain
+		// read correctly and evaluated the lookup a line above itself.
+		if (typeof raw !== 'object' || raw === null) {
+			return err(persistenceError('sequence.marker-unreadable', 'The sequence marker file has an unreadable shape.'));
+		}
 		const markers = (raw as { markers?: Record<string, unknown> }).markers;
-		if (typeof raw !== 'object' || raw === null || typeof markers !== 'object' || markers === null) {
+		if (typeof markers !== 'object' || markers === null) {
 			return err(persistenceError('sequence.marker-unreadable', 'The sequence marker file has an unreadable shape.'));
 		}
 		const validated: Record<string, SequenceMarker> = {};

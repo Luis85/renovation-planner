@@ -2,7 +2,6 @@ import { boundingBoxOf, area } from '../../../core/geometry/operations';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
-import { boundsFromDimensions } from '../selection/normalize-transform';
 import { formatMetres, parseMetres, type LengthRefusal } from '../shell/formatLength';
 
 /** Exact axis alignment, four distinct boundary corners, implicit closure. No polygon repair. */
@@ -18,6 +17,21 @@ export function roomDimensions(points: readonly Point[]): BoundingBox | null {
 }
 
 export type DimensionsText = { width: string; depth: string };
+
+/**
+ * The resized box from an anchor and two lengths. Numeric lengths skip the divide/multiply
+ * round trip a scale factor would pay (2900 × (1 / 2900) is not 1). Lived in the transformer
+ * scaffold's `normalize-transform.ts` until the polish pass deleted that file (E7); this is
+ * its one surviving caller, so it lives here and is exported to nothing.
+ */
+function boundsFromDimensions(anchor: Point, width: number, height: number): BoundingBox {
+	const farX = anchor.x + width;
+	const farY = anchor.y + height;
+	return {
+		min: { x: Math.min(anchor.x, farX), y: Math.min(anchor.y, farY) },
+		max: { x: Math.max(anchor.x, farX), y: Math.max(anchor.y, farY) },
+	};
+}
 
 export function dimensionTexts(box: BoundingBox): DimensionsText {
 	return { width: formatMetres(box.max.x - box.min.x), depth: formatMetres(box.max.y - box.min.y) };

@@ -251,10 +251,13 @@ export class ReversibleCalibratePlanCommand {
 	 * directions". Putting it here is what makes that sentence a property of the code
 	 * rather than of the caller that remembered.
 	 *
-	 * The per-object events are published CONCURRENTLY: nothing here depends on the order
-	 * zones are announced in, and the sequential loop this replaced meant slice 10's
-	 * per-zone recalculation would have to finish for one zone before the next was even
-	 * dispatched — a fan-out serialized for no reason, twice over, since undo repeats it.
+	 * The per-object events are published ONE AT A TIME, and the concurrent `Promise.all`
+	 * this replaced is why. Each `ZoneGeometryChanged` starts a recalculation cascade that
+	 * bounds ITSELF at four concurrent writes (`CASCADE_CONCURRENCY` in `cascade.ts`) — a
+	 * bound chosen against the disk and Obsidian's adapter. Announcing every zone at once
+	 * multiplied it: a forty-zone plan ran a hundred and sixty concurrent writes, and undo
+	 * repeated the whole thing. Nothing here depends on the order zones are announced in;
+	 * what the loop buys is that the bound one seam down still means what it says.
 	 */
 	private async announce(
 		planId: PlanId,
@@ -268,10 +271,8 @@ export class ReversibleCalibratePlanCommand {
 		// entry IS a Zone. The day the sidecar grows a second type this stops being true
 		// silently — the entry's type has to reach the port before then, and this fan-out
 		// has to filter on it.
-		await Promise.all(
-			objectIds.map((id) =>
-				this.events.publish(zoneGeometryChanged({ zoneId: id as ZoneId, planId, projectId })),
-			),
-		);
+		for (const id of objectIds) {
+			await this.events.publish(zoneGeometryChanged({ zoneId: id as ZoneId, planId, projectId }));
+		}
 	}
 }

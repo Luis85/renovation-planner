@@ -28,6 +28,7 @@ import { createInspector } from './inspector-wiring';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
+import type { Vector } from '../../core/geometry/Vector';
 import { useEditorStore } from '../stores/EditorStore';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
@@ -60,6 +61,7 @@ import { mapDispatchFaults, reportDispatchFailure, type ToolDispatcher } from '.
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
+import { createNudgeSelectionAction } from './nudge';
 
 /**
  * One Plan Editor leaf's live machinery (design slice 8): the history and its refresh
@@ -145,7 +147,14 @@ export interface EditorRuntime {
 	 * move to it.
 	 */
 	readonly selectAndFrame: (id: string, toggle?: boolean) => void;
-	/** Per-leaf: the constrained Layers panel unmounts whenever it closes (PR #74, 381bcdc4). */
+	/**
+	 * The list's "select multiple" checkbox, held HERE rather than in `PropertyLayerPanel`
+	 * because that panel is unmounted whenever the constrained overlay standing in for it
+	 * closes — a component-local flag came back `false` on every reopen, so a touch or
+	 * keyboard user who enabled it, went to the canvas and returned to add a room had the
+	 * next row click replace the whole set. Per-leaf like everything else in this object,
+	 * and for the same reason the active tool is.
+	 */
 	readonly multiSelectionMode: Ref<boolean>;
 	/**
 	 * Design spec §5.2's one action: dispatch the room draft as a `ReversibleCreateZoneCommand`
@@ -197,6 +206,17 @@ export interface EditorRuntime {
 	 * regardless of which leaf it is drawn in.
 	 */
 	readonly openPlanNote: () => Promise<void>;
+	/**
+	 * §85's one operation slice 5 left unreachable by keyboard (E8): the arrow-key answer to
+	 * `SelectTool`'s drag, over the SAME `moveGesture` factory — so undo restores a keyboard
+	 * nudge exactly as it restores a drag, with nothing here to keep in step with that tool.
+	 *
+	 * A no-op unless the active tool is `select` and exactly one zone is selected: zero or
+	 * many selected has nothing a single translate could mean, and every OTHER tool already
+	 * owns the keyboard for its own gesture. `by` is a WORLD vector; `EditorSurface.vue`'s
+	 * `arrowVector` is what turns a key press into one.
+	 */
+	readonly nudgeSelection: (by: Vector) => Promise<void>;
 }
 
 
@@ -706,7 +726,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
 	});
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect });
-	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, ledger);
+	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value, previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 
@@ -770,6 +790,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	}
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
+	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore });
 
 	// The assign picker's options and the Inspector's rows, hydrated at mount and re-read on the
 	// three doors that carry what they draw — the catalogue's, the price's and the recalculation
@@ -782,33 +803,19 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	return {
 		dispatcher: wrappedDispatcher,
 		structureTask, structureActions,
-		toolManager,
-		renderState,
-		activeToolId,
-		setTool,
-		returnToSelect,
-		cancelActiveTask,
-		undo, redo,
-		canUndo,
-		canRedo,
+		toolManager, renderState, activeToolId, setTool, returnToSelect, cancelActiveTask,
+		undo, redo, canUndo, canRedo,
 		inspectorDto: storeToRefs(inspector).dto,
 		inspectorRequirements: storeToRefs(inspector).requirements,
 		assetOptions: assetOptionsRef,
 		hydrateInspector: (ids) => inspector.hydrateFrom(ids),
-		deleteZone,
-		commitEdit,
-		commitField,
-		selectAndFrame,
+		deleteZone, commitEdit, commitField, selectAndFrame,
 		multiSelectionMode: ref(false),
-		createRoom,
-		canCreateRoom,
-		roomDraftIncomplete,
-		roomDraft,
+		createRoom, canCreateRoom, roomDraftIncomplete, roomDraft,
 		...areaTask,
-		refreshProjection,
-		writesBlocked,
-		pausedReasonId,
+		refreshProjection, writesBlocked, pausedReasonId,
 		openPlanNote: () => context.openPlanNote(),
+		nudgeSelection,
 	};
 }
 

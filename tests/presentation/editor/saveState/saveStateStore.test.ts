@@ -136,7 +136,7 @@ describe('the save-state store', () => {
 		expect(store.state).toBe('save-error');
 	});
 
-	it('records an unrecovered write, and only a write that later SUCCEEDS clears it', () => {
+	it('records an unrecovered write, and keeps reporting it even after a later write succeeds (R1: sticky for the leaf\'s life)', () => {
 		const store = useSaveStateStore();
 		store.beginSaving();
 		store.markUnrecovered();
@@ -147,11 +147,11 @@ describe('the save-state store', () => {
 		store.resolveNeutral(); // a refusal that wrote nothing
 		expect(store.unrecoveredWrite).toBe(true);
 		store.beginSaving();
-		store.resolveOk(); // a write that landed whole
-		expect(store.unrecoveredWrite).toBe(false);
+		store.resolveOk(); // a write that landed whole -- R1: resolveOk no longer clears the flag
+		expect(store.unrecoveredWrite).toBe(true);
 	});
 
-	it('never reaches unsaved-changes through any sequence of its own actions, and settles unrecoveredWrite exactly at resolveOk', () => {
+	it('never reaches unsaved-changes through any sequence of its own actions, and unrecoveredWrite is sticky once marked (R1)', () => {
 		const actions: ((store: Store) => void)[] = [
 			beginSavingAction,
 			resolveOkAction,
@@ -168,10 +168,13 @@ describe('the save-state store', () => {
 		 * (e.g. `resolveOk` doing so exactly when `state === 'saved'`) is caught at depth 1,
 		 * because every sequence here genuinely starts from `'saved'`.
 		 *
-		 * `unrecoveredWrite` is asserted at every depth too, from the prefix alone: it is `true`
-		 * exactly when the LAST `markUnrecoveredAction` in the sequence comes after the last
-		 * `resolveOkAction` (an absent action reads as index -1, so a sequence with neither, or
-		 * with only a trailing `resolveOk`, both resolve to `false` — the initial value).
+		 * `unrecoveredWrite` is asserted at every depth too, from the prefix alone: R1 makes it
+		 * sticky for the leaf's life, so no action in this store's surface ever clears it once
+		 * set — it is `true` exactly when `markUnrecoveredAction` appears ANYWHERE in the
+		 * sequence, with no dependence on where a `resolveOkAction` falls relative to it. (An
+		 * earlier version of this walk compared the last `markUnrecoveredAction` index against
+		 * the last `resolveOkAction` index, back when `resolveOk` still cleared the flag; R1
+		 * retired that comparison along with the clearing statement it was proving.)
 		 */
 		const walk = (prefix: readonly ((store: Store) => void)[], depth: number): void => {
 			setActivePinia(createPinia());
@@ -180,9 +183,7 @@ describe('the save-state store', () => {
 				act(store);
 				expect(store.state).not.toBe('unsaved-changes');
 			}
-			const lastResolveOk = prefix.lastIndexOf(resolveOkAction);
-			const lastMarkUnrecovered = prefix.lastIndexOf(markUnrecoveredAction);
-			expect(store.unrecoveredWrite).toBe(lastMarkUnrecovered > lastResolveOk);
+			expect(store.unrecoveredWrite).toBe(prefix.includes(markUnrecoveredAction));
 			if (depth === 0) return;
 			for (const act of actions) {
 				walk([...prefix, act], depth - 1);

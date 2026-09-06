@@ -8,6 +8,7 @@ import {
 } from '../../../../src/application/commands/requirement/reversible-override-commands';
 import { SetRequirementQuantityOverrideCommand } from '../../../../src/application/commands/requirement/SetRequirementQuantityOverride';
 import { SetRequirementCostOverrideCommand } from '../../../../src/application/commands/requirement/SetRequirementCostOverride';
+import { SessionWriteLedger } from '../../../../src/application/editor/WriteLedger';
 import type { PersistenceError } from '../../../../src/core/errors/AppError';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makeAsset, makeZone, makeRequirement } from '../../../helpers/entities';
@@ -152,6 +153,7 @@ describe('Reversible override adapters', () => {
 			new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks),
 			w.requirements,
 			w.events,
+			new SessionWriteLedger(),
 		);
 		const error = expectErr(await adapter.undo());
 		expect(error.code).toBe('undo.before-execute');
@@ -163,6 +165,7 @@ describe('Reversible override adapters', () => {
 			new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks),
 			w.requirements,
 			w.events,
+			new SessionWriteLedger(),
 		);
 		const error = expectErr(
 			await adapter.execute({ requirementId: 'requirement-none' as never, cost: null }),
@@ -179,6 +182,7 @@ describe('Reversible override adapters', () => {
 			new SetRequirementQuantityOverrideCommand(requirements, w.events, w.locks),
 			requirements,
 			w.events,
+			new SessionWriteLedger(),
 		);
 		const error = expectErr(
 			await adapter.execute({ requirementId: 'requirement-none' as never, quantity: 2 }),
@@ -192,6 +196,7 @@ describe('Reversible override adapters', () => {
 			new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks),
 			w.requirements,
 			w.events,
+			new SessionWriteLedger(),
 		);
 		const error = expectErr(await adapter.execute({ requirementId: w.requirementId, quantity: -3 }));
 		expect((error as { code: string }).code).toBe('requirement.negative-quantity');
@@ -202,7 +207,7 @@ describe('Reversible override adapters', () => {
 	it('a run that fails on a REDO propagates while keeping the snapshot', async () => {
 		const w = await wiredWithLink();
 		const setCommand = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
-		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(setCommand, w.requirements, w.events);
+		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(setCommand, w.requirements, w.events, new SessionWriteLedger());
 
 		expectOk(await adapter.execute({ requirementId: w.requirementId, quantity: 5 }));
 		expectOk(await adapter.undo());

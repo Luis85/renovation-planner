@@ -249,6 +249,26 @@ describe('computeEstimatedCost', () => {
 		);
 		expect(sameAmount(none.calculated, '25.00')).toBe(true);
 	});
+	it('refuses a non-finite quantity before any arithmetic runs', () => {
+		const error = expectErr(
+			computeEstimatedCost({ ...baseInput(), quantity: { value: d('Infinity'), unit: 'piece' } }),
+		);
+		expect(error.category).toBe('Calculation');
+		expect(error.code).toBe('cost.non-finite-input');
+	});
+
+	it('refuses a non-finite tax rate the same way', () => {
+		const error = expectErr(computeEstimatedCost({ ...baseInput(), taxRate: d('NaN') }));
+		expect(error.code).toBe('cost.non-finite-input');
+	});
+
+	it('refuses a non-finite discount percent the same way', () => {
+		const error = expectErr(
+			computeEstimatedCost({ ...baseInput(), discount: { percent: d('Infinity') } }),
+		);
+		expect(error.code).toBe('cost.non-finite-input');
+	});
+
 	it('accepts a NEGATIVE ZERO tax rate and a negative-zero discount — both are zero', () => {
 		// decimal.js reports negative zero as negative, so `isNegative()` refused a rate of
 		// zero arrived at by multiplication — exactly the construction `quantityEngine`

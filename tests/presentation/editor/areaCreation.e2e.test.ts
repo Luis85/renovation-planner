@@ -6,6 +6,7 @@ import { expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installObsidianDom } from '../../helpers/dom';
 installObsidianDom();
@@ -234,6 +235,35 @@ describe('M02 Area through the real catalogue, tools, commands and repositories'
 		await settle();
 		expect(await list(zonesRepo)).toHaveLength(1);
 		expect(runtime.toolManager.activeToolHasDraft()).toBe(true);
+		harness.unmount();
+	});
+
+	it('Enter on the canvas keeps the busy guard the Finish button keeps', async () => {
+		// `canFinishArea` is false while ANOTHER command is still saving, and the Finish button
+		// says so with `aria-disabled`; the canvas Enter used to call `finishActiveTool()`
+		// straight and queue the Area behind that write. One action, every input: the canvas
+		// goes through `runtime.finishArea` now, the same door the button takes.
+		const { harness, zonesRepo } = await rig();
+		const runtime = runtimeOf(harness);
+		const save = zonesRepo.save.bind(zonesRepo);
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => { release = resolve; });
+		const saved = vi.spyOn(zonesRepo, 'save').mockImplementationOnce(async (...args) => { await gate; return save(...args); });
+		useSelectionStore().select(['zone-a' as never]);
+		void runtime.nudgeSelection({ dx: 10, dy: 0 });
+		await settleUntil(() => saved.mock.calls.length === 1, 'pending move');
+		await start(harness);
+		outline(harness);
+		expect(runtime.canFinishArea.value).toBe(false);
+		key(harness.canvasEl as HTMLElement, 'Enter');
+		await settle();
+		release();
+		await settleUntil(() => useSaveStateStore().state !== 'saving', 'the move landing');
+		await settle();
+		expect(saved).toHaveBeenCalledTimes(1);
+		expect(await list(zonesRepo)).toHaveLength(1);
+		// The outline is still there to finish once the write is out of the way.
+		expect(runtime.canFinishArea.value).toBe(true);
 		harness.unmount();
 	});
 });

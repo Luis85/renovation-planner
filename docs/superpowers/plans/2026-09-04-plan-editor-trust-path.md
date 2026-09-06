@@ -1,5 +1,11 @@
 # Plan Editor Foundation, Increment 3 — The Trust Path — Implementation Plan
 
+> **Historical record.** The unrecovered-write flag this plan builds as sticky "for the leaf's
+> life" is sticky for the leaf's MOUNT instead, per the 2026-09-05 whole-tree review — a
+> settings save rebuilds the store and drops it (pinned by
+> `tests/plugin/rootSwapRebind.test.ts`). See
+> [[Recover safely from failed writes and stale reads]] for the current rule.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Checkpoint C3 of the vertical slice: a write that lands and a read-back that fails leaves the last valid floor drawn and marked stale, refuses NEW writes at the one dispatcher (undo and redo pass), retries through the same refresh the post-command path uses, reads *Saved · refresh needed*, offers the plan's source note, and gives a failed compensation a code of its own so an unrecovered write stops calling itself compensated — closing the three Release-hardening PBIs (Recover safely, Undo and redo, Reload).

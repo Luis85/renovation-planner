@@ -320,13 +320,22 @@ export function useFieldCommit<T, TInput>(options: {
 
 	async function onCommit(): Promise<void> {
 		// A second commit gesture while the first is still in flight is COALESCED, not
-		// dropped and not dispatched beside it. Task 9 leaves the control enabled on
-		// purpose, so a user can blur, click back in, retype and blur again before a slow
-		// vault write settles — and every one of those calls would otherwise start its own
-		// `history.run`. `CommandHistory` serializes them, so they cannot interleave, but it
-		// still EXECUTES and RECORDS each: N blurs become N undo entries for one edit, and
-		// a round's cleanup clearing `pending` while a later one is still queued would
-		// leave the flag describing the wrong thing.
+		// dropped and not dispatched beside it — for the callers whose own `onInput` stays live
+		// while `pending` is true and let a user get here at all. Three of the four call sites
+		// (`grep -rn "useFieldCommit(" src/`) are those: `RequirementRow`'s quantity and cost
+		// fields and `DesignerInspector`'s height field, all three committing on blur/enter with
+		// no guard of their own on `onInput`. Design slice 9 (`RequirementRow`) leaves the
+		// control enabled on purpose, so a user can blur, click back in, retype and blur again
+		// before a slow vault write settles — and every one of those calls would otherwise start
+		// its own `history.run`. `CommandHistory` serializes them, so they cannot interleave, but
+		// it still EXECUTES and RECORDS each: N blurs become N undo entries for one edit, and a
+		// round's cleanup clearing `pending` while a later one is still queued would leave the
+		// flag describing the wrong thing.
+		//
+		// The fourth caller, `AssetPriceRow`'s price field, never reaches this branch:
+		// `onPriceInput` returns early on `price.pending.value` before calling `onInput` at all,
+		// so no second draft is ever recorded to queue. Its row PAUSES instead — `readonly`, not
+		// editable — a different answer to the same risk, not this one left unhandled.
 		//
 		// Dropping the extra call instead — what `useFormCommit.submit` correctly does — is
 		// wrong HERE, and the asymmetry is the same one as the disable question: a repeated

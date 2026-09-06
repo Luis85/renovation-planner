@@ -1,4 +1,7 @@
+import { createRenovationDeletionGuard } from './renovation/renovationDeleteGuard';
 import { createHistoryActions } from './tools/historyActions';
+import { createRenovationActions } from './renovation/renovationActions';
+import { useRenovationSession } from './renovation/renovationSession';
 import { createReferenceAction } from './reference/referenceAction';
 import { createStructureTask } from './structure/structureTask';
 import { createStructureActions } from './structure/structureActions';
@@ -77,6 +80,7 @@ import { makeCommitField } from './commitField';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly renovation: ReturnType<typeof createRenovationActions>;
 	readonly structureTask: ReturnType<typeof createStructureTask>;
 	readonly structureActions: ReturnType<typeof createStructureActions>;
 	readonly openReference: () => Promise<void>;
@@ -141,6 +145,8 @@ export interface EditorRuntime {
 	 * move to it.
 	 */
 	readonly selectAndFrame: (id: string, toggle?: boolean) => void;
+	/** Per-leaf: the constrained Layers panel unmounts whenever it closes (PR #74, 381bcdc4). */
+	readonly multiSelectionMode: Ref<boolean>;
 	/**
 	 * Design spec §5.2's one action: dispatch the room draft as a `ReversibleCreateZoneCommand`
 	 * through this leaf's one dispatcher. See `roomCreation.ts` for the two doors, one action
@@ -347,7 +353,7 @@ function createDeleteZoneAction(
 	inspector: { commit(edit: InspectorEdit): Promise<DispatchResult> },
 	selection: ReturnType<typeof useSelectionStore>,
 ): (zoneId: ZoneId, zoneName: string) => Promise<void> {
-	const deps: DeleteZoneFlowDeps = {
+	const allowDeletion = createRenovationDeletionGuard(context, dialogs), deps: DeleteZoneFlowDeps = {
 		listReferents: (zoneId) => context.queries.listRequirementsReferencing(zoneId),
 		listReassignmentTargets: (zoneId) => context.queries.listReassignmentTargets(zoneId),
 		// The rows arrive built. `deleteWithReferences` maps the query's per-project groups onto
@@ -368,6 +374,7 @@ function createDeleteZoneAction(
 	return async (zoneId, zoneName) => {
 		let outcome;
 		try {
+			if (!await allowDeletion(zoneId, zoneName)) return;
 			outcome = await deleteZoneWithReferences(deps, zoneId, zoneName);
 		} catch (cause) {
 			// The last stop for a THROWN fault, exactly as `reportFault` is for a plain
@@ -559,7 +566,7 @@ function buildDispatcherChain(
 	readonly pausedReasonId: string;
 	readonly inspectorRef: { current: { refresh(): Promise<void> } | null };
 } {
-	const projectStore = useProjectStore();
+	const projectStore = useProjectStore(), session = useRenovationSession();
 	const history = new CommandHistory();
 	const inspectorRef: { current: { refresh(): Promise<void> } | null } = { current: null };
 	const refreshProjection = createProjectionRefresh({
@@ -579,15 +586,15 @@ function buildDispatcherChain(
 	});
 	const dispatcher = withStateRefresh(history, refreshProjection);
 	const tracked = withSaveStateTracking(dispatcher, useSaveStateStore());
-	const gated = withStaleGate(tracked, () => projectStore.stale);
+	const gated = withStaleGate(tracked, () => projectStore.stale || session.perspective === 'review');
 	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, gated);
 	const writesBlocked = computed(() => projectStore.stale);
 	const pausedReasonId = useId();
 	return { wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
 }
 
-function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRoom' | 'resizeRoomBlocked' | 'renameRoom' | 'renameRoomBlocked' | 'openReference' | 'referenceActive' | 'referenceBlocked'> {
-	const editor = useEditorStore();
+function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovation' | 'resizeRoom' | 'resizeRoomBlocked' | 'renameRoom' | 'renameRoomBlocked' | 'openReference' | 'referenceActive' | 'referenceBlocked'> {
+	const editor = useEditorStore(), session = useRenovationSession();
 	const projectStore = useProjectStore();
 	const selection = useSelectionStore();
 	const dialogs = useDialogStore();
@@ -656,10 +663,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 	 * extraction. So the literal is back in its natural shape, which is the point of taking
 	 * the extraction rather than shaving another line.
 	 */
-	const subject = (): EditorContext['subject'] => ({
-		id: planId,
-		calibration: projectStore.plan?.calibration ?? null,
-	});
+	const subject = (): EditorContext['subject'] => ({ id: planId, calibration: projectStore.plan?.calibration ?? null });
 
 	// A FRESH context per activation, assembled through the same one assembler — which is
 	// the guarantee `ToolManager`'s header states its factory exists for, and which a
@@ -678,7 +682,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 			// The trust path (design spec §2.2, §2.9): threaded from the SAME computed
 			// `writesBlocked` above rather than re-read from the store, to the one tool
 			// (`SelectTool`) that is not itself inside the Vue tree.
-			writesBlocked: () => writesBlocked.value,
+			writesBlocked: () => writesBlocked.value || session.perspective !== 'plan',
 		}),
 	);
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather
@@ -693,7 +697,8 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 	// `onCompleted` below — `toolManager` is already built at this point, which is all
 	// `createToolSwitch` needs.
 	const { activeToolId } = storeToRefs(editor);
-	const setTool = createToolSwitch(toolManager, activeToolId);
+	const switchTool = createToolSwitch(toolManager, activeToolId);
+	const setTool = (id: ToolId | null): void => { if (session.perspective !== 'review' || id === 'select') switchTool(id); };
 	const returnToSelect = (): void => setTool('select');
 	const cancelActiveTask = createCancelActiveTask(toolManager, activeToolId, setTool);
 
@@ -701,7 +706,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
 	});
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect });
-	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection });
+	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, ledger);
 	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value, previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 
@@ -776,16 +781,14 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 
 	return {
 		dispatcher: wrappedDispatcher,
-		structureTask,
-		structureActions,
+		structureTask, structureActions,
 		toolManager,
 		renderState,
 		activeToolId,
 		setTool,
 		returnToSelect,
 		cancelActiveTask,
-		undo,
-		redo,
+		undo, redo,
 		canUndo,
 		canRedo,
 		inspectorDto: storeToRefs(inspector).dto,
@@ -796,6 +799,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 		commitEdit,
 		commitField,
 		selectAndFrame,
+		multiSelectionMode: ref(false),
 		createRoom,
 		canCreateRoom,
 		roomDraftIncomplete,
@@ -819,7 +823,7 @@ export const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-pl
 
 export function provideEditorRuntime(context: PlanEditorContext): EditorRuntime {
 	const base = buildRuntime(context);
-	const runtime = { ...base, ...createRoomResizeAction(context, base), ...createRoomNamingAction(context, base), ...createReferenceAction(context, base) };
+	const runtime = { ...base, renovation: createRenovationActions(context, base), ...createRoomResizeAction(context, base), ...createRoomNamingAction(context, base), ...createReferenceAction(context, base) };
 	provide(EDITOR_RUNTIME, runtime);
 	return runtime;
 }

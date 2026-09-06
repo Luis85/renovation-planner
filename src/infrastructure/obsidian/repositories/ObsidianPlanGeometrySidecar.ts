@@ -11,6 +11,7 @@ import type {
 	PlanGeometrySnapshot,
 } from '../../../application/ports/PlanGeometrySidecar';
 import type { PlanGeometryStore } from './PlanGeometryStore';
+import type { Structure } from '../../../domain/spatial/Structure';
 import {
 	calibrationFromPersistence,
 	calibrationToPersistence,
@@ -18,6 +19,13 @@ import {
 
 function toTuples(points: readonly { x: number; y: number }[]): [number, number][] {
 	return points.map((point) => [point.x, point.y]);
+}
+function toStructure(structure: Structure | undefined): PlanGeometryDTO['structure'] {
+	return structure ? {
+		walls: structure.walls.map(wall => ({ ...wall, start: { ...wall.start }, end: { ...wall.end } })),
+		openings: structure.openings.map(opening => ({ ...opening })),
+		boundaries: structure.boundaries.map(boundary => ({ ...boundary, wallIds: [...boundary.wallIds] })),
+	} : undefined;
 }
 
 /**
@@ -43,6 +51,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 		const dto = snapshot.value.dto;
 		return ok({
 			document: {
+				...(dto.intended ? { intended: dto.intended } : {}),
 				...(dto.structure ? { structure: dto.structure } : {}),
 				calibration: dto.calibration ? calibrationFromPersistence(dto.calibration) : null,
 				objects: dto.objects.map((object) => ({
@@ -63,11 +72,8 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 			planId,
 			(dto) => ({
 				...dto,
-				structure: document.structure ? {
-					walls: document.structure.walls.map(wall => ({ ...wall, start: { ...wall.start }, end: { ...wall.end } })),
-					openings: document.structure.openings.map(opening => ({ ...opening })),
-					boundaries: document.structure.boundaries.map(boundary => ({ ...boundary, wallIds: [...boundary.wallIds] })),
-				} : undefined,
+				intended: toStructure(document.intended),
+				structure: toStructure(document.structure),
 				calibration: document.calibration ? calibrationToPersistence(document.calibration) : null,
 				// The port erases the entry type, and 'polygon' is the only one schema v1
 				// knows — the day the schema grows a second spatial-object type, this

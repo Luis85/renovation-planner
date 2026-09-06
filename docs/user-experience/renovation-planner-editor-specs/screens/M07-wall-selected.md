@@ -78,3 +78,14 @@ This screen applies the same selection-first model to a wall. The wall remains s
 - Numeric edits use the same reversible command path as direct manipulation.
 - Deletion cannot silently orphan hosted openings or linked records.
 - Inspector content is wall-specific and retains adjacent-room context.
+
+
+## Implemented Increment C boundary — 2026-09-06
+
+The connected implementation uses ADR-0021: independent Existing/Planned facts in the owning
+Plan register, project-owned Work/outcome links, minimal Decisions, separate intended
+straight-wall/opening geometry and scoped Review. All records have Inspector list routes;
+Room selection remains spatial. See [evidence and traceability](../implementation/connected-renovation-evidence.md).
+Evidence, financial reconciliation, materials purchasing, Trade catalogue and scheduling remain
+later work. These screens are not declared fully accepted; live Obsidian and screenreader
+acceptance remain unperformed.

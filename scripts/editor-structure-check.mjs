@@ -1,7 +1,8 @@
+import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { runAreaBrowserMatrix, activate, tabTo } from './editor-area-browser.mjs';
 
-async function type(page, name, value, scope = '.rp-structure-task') {
+export async function type(page, name, value, scope = '.rp-structure-task') {
 	await tabTo(page, `${scope} input[name="${name}"]`);
 	await page.keyboard.press('Control+A'); await page.keyboard.type(value);
 }
@@ -25,7 +26,7 @@ async function reference(page) {
 	await activate(page, `${scope} button[type="submit"]`); await activate(page, `${scope} button[type="submit"]`);
 	await page.locator(scope).waitFor({ state: 'hidden' });
 }
-async function panel(page, name) {
+export async function panel(page, name) {
 	if (await page.locator(`[data-rp-rail="${name}"]`).isVisible()) await activate(page, `[data-rp-rail="${name}"]`);
 }
 async function capture(page, scenario, out, name) {
@@ -47,7 +48,7 @@ async function recalibrate(page, scenario, out) {
 	await activate(page, '[data-rp-action="undo"]');
 	await page.waitForFunction(() => document.querySelector('.rp-structure-inspector')?.textContent.includes('5 m'));
 }
-async function drawWalls(page, scenario, out) {
+export async function drawWalls(page, scenario, out) {
 	await reference(page); await add(page, 'wall');
 	await type(page, 'x', 'invalid'); await activate(page, '.rp-structure-task button[type="submit"]');
 	await page.locator('.rp-structure-task [role="alert"]').waitFor();
@@ -68,7 +69,7 @@ async function drawWalls(page, scenario, out) {
 	await capture(page, scenario, out, 'wall-inspector');
 	if (scenario.width === 460) await page.keyboard.press('Escape');
 }
-async function journey(page, scenario, out) {
+export async function preserveTheme(page, scenario) {
 	const tokens = await page.evaluate(() => Object.fromEntries(['--interactive-accent', '--text-accent', '--background-primary', '--background-secondary'].map(key => [key, getComputedStyle(document.body).getPropertyValue(key).trim()])));
 	await page.addInitScript(theme => document.addEventListener('DOMContentLoaded', () => {
 		for (const [key, value] of Object.entries(theme)) document.body.style.setProperty(key, value);
@@ -77,6 +78,10 @@ async function journey(page, scenario, out) {
 	await page.reload(); await page.locator('[data-rp-empty="floor-start"]').waitFor();
 	assert.deepEqual(await page.evaluate(theme => Object.fromEntries(Object.keys(theme).map(key => [key, getComputedStyle(document.body).getPropertyValue(key).trim()])), tokens), tokens, 'theme survives fixture reload');
 	if (scenario.accent) assert.equal(tokens['--interactive-accent'], '#7c246b');
+	return tokens;
+}
+async function journey(page, scenario, out) {
+	const tokens = await preserveTheme(page, scenario);
 	await drawWalls(page, scenario, out);
 	for (const [kind, offset, width] of [['door','0.2','0.8'], ['window','1.3','0.8'], ['opening','2.5','0.8']]) {
 		await add(page, kind); await type(page, 'offset', offset); await type(page, 'width', width);
@@ -106,4 +111,4 @@ async function journey(page, scenario, out) {
 	await recalibrate(page, scenario, out);
 	return { theme: tokens, reference: 'calibrated PNG; populated-floor recalibration requires consent and Undo restores measurements', creation: 'closed wall loop plus Room; door/window/opening', edits: 'numeric opening and connected wall with preview; cancel; undo/redo', deletion: 'confirmed opening removal and undo', reflow: 'native input focus retained', storage: 'real repositories over FakeVault' };
 }
-await runAreaBrowserMatrix('connected-walls', '&reference', journey, '[data-rp-empty="floor-start"]');
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await runAreaBrowserMatrix('connected-walls', '&reference', journey, '[data-rp-empty="floor-start"]');

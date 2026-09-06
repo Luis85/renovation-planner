@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RenovationSchema } from './renovation';
 import { PLAN_BACKGROUND_KINDS } from '../../../domain/plan/PlanBackgroundRef';
 
 export const PLAN_TYPE = 'renovation-plan';
@@ -43,5 +44,8 @@ export const PlanFrontmatterSchemaV2 = PlanFrontmatterSchemaV1.extend({
 		visible: z.boolean(), locked: z.boolean(),
 	}).optional(),
 });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV2>;
+export const PlanFrontmatterSchemaV3 = PlanFrontmatterSchemaV2.extend({
+	'schema-version': z.literal(3), renovation: RenovationSchema.optional(),
+});
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV3>;

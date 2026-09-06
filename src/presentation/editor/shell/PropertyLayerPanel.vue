@@ -19,7 +19,8 @@ import StructureList from '../structure/StructureList.vue';
  * surviving TARGET, not a new Tab stop, and the panel's own controls are what a user tabs to.
  */
 import ReferenceAction from '../reference/ReferenceAction.vue';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
+import { useRenovationSession } from '../renovation/renovationSession';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
@@ -32,6 +33,7 @@ import { toSpatialRecordDto } from '../../read-models/spatialRecords';
 
 const props = defineProps<{ plan: PlanDto | null }>();
 const runtime = useEditorRuntime();
+const session = useRenovationSession();
 /**
  * Design spec §2.9's `writesBlocked`, read directly from `ProjectStore` rather than from
  * `runtime.writesBlocked` — the same call `StatusBar.vue`'s own header makes for the
@@ -42,7 +44,7 @@ const runtime = useEditorRuntime();
 const { stale } = storeToRefs(useProjectStore());
 const project = useProjectStore();
 const records = computed(() => [...project.zones.values()].map((zone) => toSpatialRecordDto(zone)));
-const toggleSelection = ref(false);
+const toggleSelection = runtime.multiSelectionMode;
 const entries = computed(() => layerCatalogue(props.plan, stale.value));
 // Computed rather than interpolated inline: a plan-less heading (still loading, missing,
 // failed) is just the region name, and building that branch in the template needs a nested
@@ -60,12 +62,20 @@ const heading = computed(() => (props.plan === null ? tr('editor.floor') : `${tr
 		<h2 class="rp-editor-panel-title">
 			{{ heading }}
 		</h2>
-		<ReferenceAction />
+		<ReferenceAction v-if="session.perspective !== 'review'" />
 		<LayerList
+			v-if="session.perspective !== 'review'"
 			:entries="entries"
 			@activate-tool="runtime.setTool"
 		/>
 		<StructureList />
+		<label v-if="runtime.renovation.available">
+			<input
+				v-model="session.visible"
+				type="checkbox"
+			>
+			{{ tr('renovation.visible') }}
+		</label>
 		<RoomSummaryList
 			v-if="records.length > 0"
 			:records="records"

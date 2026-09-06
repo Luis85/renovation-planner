@@ -270,7 +270,7 @@ export class ObsidianZoneRepository {
 		});
 		this.deps.echo.markFrontmatter(notePath, dto, { reading: supersedes, stat: writtenStat });
 
-		return ok({ entity: zone, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
+		return ok({ entity: zone, version: { revision: nextRevision, observed: observeFrontmatter(dto) }, relatedWrite: { id: zone.planId, before: mutated.value.beforeVersion, after: mutated.value.version } });
 	}
 
 	/**

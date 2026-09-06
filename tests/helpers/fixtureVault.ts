@@ -199,6 +199,12 @@ class FixtureVaultAdapter {
 	 * On the VAULT, not through the cache: the record lives here, so `modify` needs no cache
 	 * reference and the two objects cannot disagree about it.
 	 */
+	async process(file: TFile, update: (data: string) => string): Promise<string> {
+		const next = update(await this.read(file));
+		await this.modify(file, next);
+		return next;
+	}
+
 	modify(file: TFile, data: string): Promise<void> {
 		try {
 			const absolute = this.absolute(file.path);

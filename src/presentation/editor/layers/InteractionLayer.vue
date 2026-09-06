@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useRenovationSession } from '../renovation/renovationSession';
+const renovationSession = useRenovationSession();
 /**
  * §19's transient layer, filled by design slice 8: the in-progress polygon a drawing tool
  * broadcasts through `RenderState`, the calibration segment's ruler marks, and the selected
@@ -150,6 +152,8 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
  * that arms them live in `../handleMetrics.ts`, which is what keeps what the user SEES tied
  * to the region that ACTS — the pair of numbers this project has already had disagree once.
  */
+const editableVertices = computed(() => renovationSession.perspective === 'plan' ? selectedScreenPoints.value : []);
+
 function vertexRadius(index: number): number {
 	if (index !== 0) return POLYGON_VERTEX_RADIUS_PX;
 	return sketch.value?.closeArmed === true ? POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX : POLYGON_CLOSE_TARGET_RADIUS_PX;
@@ -254,7 +258,7 @@ function vertexFill(index: number): string {
 				}"
 			/>
 			<VCircle
-				v-for="(vertex, index) in selectedScreenPoints"
+				v-for="(vertex, index) in editableVertices"
 				:key="index"
 				:config="{
 					x: vertex.x,

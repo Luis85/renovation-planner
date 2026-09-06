@@ -596,10 +596,14 @@ describe('every service leaving the composition root is guarded', () => {
 		expect(skipped.filter((skip) => skip.kind !== 'function-with-arguments')).toEqual([]);
 		expect(owners).toEqual([
 			'editorDeps',
+			// reviewNoteAction is exercised through actual repositories in guardedRenovation.test.ts.
+			'editorDeps.commands',
 			'editorDeps.commands.events',
 			'editorDeps.commands.logger',
 			// Argument-taking factory: all three doors are exercised by guardedReferencePlan.test.ts.
 			'editorDeps.commands.referencePlan',
+			// All read/execute/undo factory doors are exercised in guardedRenovation.test.ts.
+			'editorDeps.commands.renovation',
 			// Argument-taking spatial factory: read/execute/undo checked in guardedStructure.test.ts.
 			'editorDeps.commands.structure',
 			'editorDeps.queries',

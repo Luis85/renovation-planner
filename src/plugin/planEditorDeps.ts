@@ -1,5 +1,8 @@
 import { guardedReferencePlan } from './guardedReferencePlan';
 import { guardedStructure } from './guardedStructure';
+import { guardedRenovation } from './guardedRenovation';
+import { renovationServices } from '../application/commands/renovation/RenovationCommand';
+import { reviewNoteAction } from './reviewNoteAction';
 import { structureServices } from '../application/commands/spatial/StructureCommand';
 import { referencePlanServices } from '../application/commands/plan/ConfigurePlanReference';
 import type { Vault, Workspace } from 'obsidian';
@@ -61,6 +64,8 @@ export function planEditorDeps(
 		queries: persistence?.planEditorQueries ?? unavailablePlanEditorQueries(),
 		commands: persistence
 			? {
+					reviewNote: reviewNoteAction(vault, workspace, persistence.index, root.logger),
+					renovation: guardedRenovation(renovationServices(persistence.plans, persistence.geometry, root.eventBus), root.logger),
 					structure: guardedStructure(structureServices(persistence.geometry, root.eventBus), root.logger),
 					createZone: persistence.createZone,
 					referencePlan: guardedReferencePlan(referencePlanServices(persistence.plans, persistence.geometry, root.eventBus, persistence.files), root.logger),

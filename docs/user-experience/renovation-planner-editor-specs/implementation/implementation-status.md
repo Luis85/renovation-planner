@@ -12,8 +12,8 @@ behavior on `cf536f32` from the current contribution. It does not declare the wh
 | 4 | Rectangular room creation exists; the dimensions continuation adds keyboard resizing of existing axis-aligned four-corner Rooms; the naming continuation adds explicit keyboard renaming for all Room outlines | Broader resizing, room-kind decision and complete M03/live acceptance |
 | 5 | Connected walls, hosted openings, optional Room transaction, measurements, exact-length impact, confirmed deletion and conditional history (ADR-0020) | Live Obsidian/screenreader and complete M04/product acceptance; M07 renovation semantics await later phases |
 | 6 | Query-derived floor start and compensated prepare/scale/review setup, persistent appearance, exact-version history and contextual revisiting (ADR-0019) | Live Obsidian/screenreader, forced-process recovery and complete M05/M06 acceptance |
-| 7 | Not delivered | Separate Existing/Planned state and change relationships |
-| 8 | Not delivered | Work dependencies, readiness, Review and vault-backed review notes |
+| 7 | Connected Existing/Planned facts, classification, straight-wall/opening proposals and Decisions (ADR-0021) | Evidence/material integration and complete live acceptance |
+| 8 | Work/outcome links, ordering/progress/responsibility, dependencies and scoped Review with generated note (ADR-0021) | Cross-floor dependencies, Trade catalogue, later-domain readiness and live acceptance |
 | 9 | Asset requirements and calculations exist | Geometry/work-linked material planning, provenance and shopping list journey |
 | 10 | Requirement cost figures and project price overrides exist | Planned/committed/actual cost items and spatial reconciliation |
 | 11 | Not delivered | Common evidence links, files, pins and contextual creation |
@@ -764,3 +764,32 @@ The remaining counters were inspected; they do not imply acceptance of the unper
 
 The new coverage review is recorded separately from the previous Phase 6 counters above. It makes
 no claim that branch coverage or harness screenshots constitute complete M04/M07 host acceptance.
+
+## Connected renovation workflow continuation — 2026-09-06
+
+Built on PR #86 at `866ccc38`, still open against `codex/reference-plan-workflow`; the new
+continuation targets `codex/connected-walls`. Its ancestry includes #85, #83, #82, #76, #75 and
+#74. The latest check of #86 found its head unchanged and all CI jobs green.
+
+M08–M10 now provide a connected Room workflow. Existing observations remain independently
+readable after Planned edits. Work links stable spatial targets and subject outcomes. Decisions
+can be created/resolved and inspected in the owning Plan note. Review explains only the four
+implemented checks, routes to source records and generates a conditional vault note. Geometry
+proposals use separate current/intended facts, one spatial ID per subject, host validation,
+labels/patterns and explicit Apply/Cancel. Materials, costs, evidence and scheduling remain open.
+
+See [connected workflow evidence and traceability](connected-renovation-evidence.md) for the
+reproducible commands, test mapping, coverage review and acceptance boundaries. This is not
+full M08–M17 acceptance.
+
+Inherited corrections: the optional Room uses the shared history ledger; Room writes report
+sidecar receipts so reversed sibling edits do not falsely supersede structure undo; wall draft
+validation uses baseline sidecar object IDs, including an unreadable Room note’s polygon.
+The Area Escape-row focus regression is fixed. Canvas Backspace/Enter and the direct wall-drag
+runtime handoff now have repository-backed integration coverage. Review comments on #86 are
+not resolved in that earlier branch; this continuation carries the corrections.
+
+During final verification, #74 advanced to `2f1fce9b` while #86 stayed unchanged. This continuation
+also carries #74’s `48febd87` Alt-hover refresh and `381bcdc4` per-leaf multi-selection mode
+fixes, with their upstream regression tests. The base remains #86; `origin/main`’s concurrent
+#84 polish merge is recorded separately in the evidence and is not folded into this feature.

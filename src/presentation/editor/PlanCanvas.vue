@@ -31,6 +31,7 @@ import EmptyLayer from './layers/EmptyLayer.vue';
 import InteractionLayer from './layers/InteractionLayer.vue';
 import ZoneLayer from './layers/zone/ZoneLayer.vue';
 import StructureLayer from './structure/StructureLayer.vue';
+import RenovationLayer from './renovation/RenovationLayer.vue';
 import { structureCandidates } from './structure/structureCandidates';
 
 /** This surface's own subject, which `EditorSurface` requires rather than assuming. */
@@ -133,9 +134,10 @@ function framedBounds(all: boolean) {
 					:transform="transform"
 					:visible="layerVisibility.asset"
 				/>
-				<EmptyLayer
-					layer-id="annotation"
+				<RenovationLayer
+					:tokens="props.tokens"
 					:transform="transform"
+					:zoom="viewport.zoom"
 					:visible="layerVisibility.annotation"
 				/>
 				<InteractionLayer

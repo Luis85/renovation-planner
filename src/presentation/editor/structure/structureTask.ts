@@ -3,7 +3,7 @@ import type { AppError } from '../../../core/errors/AppError';
 import type { EntityId } from '../../../core/identity/EntityId';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
 import type { PlanGeometrySnapshot } from '../../../application/ports/PlanGeometrySidecar';
-import { SessionWriteLedger, undoSuperseded } from '../../../application/editor/WriteLedger';
+import { SessionWriteLedger, undoSuperseded, type WriteLedger } from '../../../application/editor/WriteLedger';
 import { sameGeometryDocument } from '../../../application/commands/spatial/sameGeometryDocument';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { createZoneHistory } from '../add/createZoneHistory';
@@ -19,9 +19,9 @@ import { notifyFault } from '../../notices/notify';
 import { StructureTool } from './StructureTool';
 import { addWallPoint, createStructureDraft, validateDraftStructure, mintStructure, numericWallPoint, type StructureToolId } from './structureDraft';
 
-export function createStructureTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'>) {
+export function createStructureTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'>, ledger: WriteLedger = new SessionWriteLedger()) {
 	const project = useProjectStore(), selection = useSelectionStore(), save = useSaveStateStore();
-	const draft = createStructureDraft(), ledger = new SessionWriteLedger(), baseline = shallowRef<PlanGeometrySnapshot | null>(null);
+	const draft = createStructureDraft(), baseline = shallowRef<PlanGeometrySnapshot | null>(null);
 	let alive = true, generation = 0;
 	const blocked = computed(() => draft.busy || draft.loading || draft.conflict || runtime.writesBlocked.value || save.state === 'saving');
 	function stop(): void { generation++; Object.assign(draft, createStructureDraft()); baseline.value = null; }
@@ -71,7 +71,7 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 	}
 	async function finish(): Promise<void> {
 		if (blocked.value || !baseline.value || !context.commands.structure) return;
-		const valid = validateDraftStructure(draft, project.structure, [...project.zones.keys()]);
+		const valid = validateDraftStructure(draft, project.structure, baseline.value.document.objects.map(object => object.id));
 		if (!valid.ok) { draft.error = valid.error; return; }
 		const structure = mintStructure(valid.value), ticket = generation;
 		const command = context.commands.structure.command({ planId: context.planId as PlanId, baseline: baseline.value, structure, ledger, ...(draft.room ? { room: roomCommand() } : {}) });

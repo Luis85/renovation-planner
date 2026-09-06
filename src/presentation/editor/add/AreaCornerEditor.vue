@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, useId } from 'vue';
+import { nextTick, ref, useId, watch } from 'vue';
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import { formatMetres, type LengthRefusal } from '../shell/formatLength';
@@ -20,6 +20,12 @@ function message(error: LengthRefusal | null): string | null {
 function focusInput(): void {
 	void nextTick(() => root.value?.querySelector<HTMLInputElement>('input')?.focus());
 }
+
+watch(() => input.points.value.length, length => {
+	const focused = root.value?.ownerDocument.activeElement;
+	if (length === 0 && focused instanceof HTMLElement && root.value?.contains(focused)
+		&& focused.matches('[data-rp-corner="edit"], [data-rp-corner="remove"]')) focusInput();
+}, { flush: 'pre' });
 
 function apply(): void {
 	if (input.apply()) focusInput();

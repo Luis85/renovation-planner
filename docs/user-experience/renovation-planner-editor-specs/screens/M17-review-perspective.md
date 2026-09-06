@@ -62,3 +62,14 @@ Review is a read-oriented perspective for checking renovation readiness across t
 - Every issue routes to one actionable source screen.
 - Review does not expose geometry editing or Add creation controls.
 - Returning to Renovate preserves context.
+
+
+## Implemented Increment C boundary — 2026-09-06
+
+The connected implementation uses ADR-0021: independent Existing/Planned facts in the owning
+Plan register, project-owned Work/outcome links, minimal Decisions, separate intended
+straight-wall/opening geometry and scoped Review. All records have Inspector list routes;
+Room selection remains spatial. See [evidence and traceability](../implementation/connected-renovation-evidence.md).
+Evidence, financial reconciliation, materials purchasing, Trade catalogue and scheduling remain
+later work. These screens are not declared fully accepted; live Obsidian and screenreader
+acceptance remain unperformed.

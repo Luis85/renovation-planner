@@ -1,0 +1,50 @@
+.rp-renovation-switch,
+.rp-renovation-row-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+}
+.rp-renovation-switch button[aria-pressed="true"] {
+	border-color: var(--interactive-accent);
+	font-weight: var(--font-semibold);
+	text-decoration: underline;
+	text-underline-offset: 4px;
+}
+.rp-renovation-inspector,
+.rp-renovation-fields {
+	display: grid;
+	gap: var(--size-4-3);
+	min-width: 0;
+}
+.rp-renovation-fields label {
+	display: grid;
+	gap: var(--size-4-1);
+}
+.rp-renovation-fields input,
+.rp-renovation-fields textarea,
+.rp-renovation-fields select {
+	max-width: 100%;
+	min-width: 0;
+}
+.rp-renovation-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	gap: var(--size-4-3);
+}
+.rp-renovation-list li {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: var(--size-4-2);
+	overflow-wrap: anywhere;
+}
+.rp-renovation-list li.is-selected {
+	border: 2px solid var(--interactive-accent);
+}
+.rp-renovation-list button {
+	white-space: normal;
+	height: auto;
+	min-height: 28px;
+	text-align: start;
+}

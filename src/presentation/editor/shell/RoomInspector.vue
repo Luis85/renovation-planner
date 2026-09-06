@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import RoomSizeAction from '../resize/RoomSizeAction.vue';
+import RenovationEntry from '../renovation/RenovationEntry.vue';
 import RoomNameAction from '../naming/RoomNameAction.vue';
 /**
  * The Inspector's ROOM state (component library §8's `RoomInspector`) — the BODY the frame
@@ -163,6 +164,7 @@ const pausedAttrs = computed(() =>
 /** `RequirementRow`'s own `paused` prop, over the same computed rather than the raw ref's
  * `.value` repeated at the one call site — the same reasoning as `pausedAttrs` above. */
 const paused = computed(() => runtime.writesBlocked.value);
+const unavailableNavigation = computed(() => overview.value && !runtime.renovation.available ? overview.value : null);
 </script>
 
 <template>
@@ -188,6 +190,7 @@ const paused = computed(() => runtime.writesBlocked.value);
 		</dl>
 
 		<template v-if="overview?.record.kind === 'room'">
+			<RenovationEntry :room-id="dto.id" />
 			<RoomNameAction :zone-id="dto.id" />
 			<RoomSizeAction
 				:zone-id="dto.id"
@@ -245,8 +248,8 @@ const paused = computed(() => runtime.writesBlocked.value);
 		</section>
 
 		<HomeownerQuestionNav
-			v-if="overview !== null"
-			:unavailable="overview.unavailableSections"
+			v-if="unavailableNavigation !== null"
+			:unavailable="unavailableNavigation.unavailableSections"
 		/>
 		<LinkedContentList
 			v-if="overview !== null"

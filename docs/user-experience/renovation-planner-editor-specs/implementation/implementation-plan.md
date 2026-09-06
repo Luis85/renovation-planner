@@ -506,3 +506,12 @@ A screen is done only when:
 8. Tests: responsive shell, selection routing, and theme semantics.
 
 This backlog deliberately creates the interaction foundation before expanding the renovation domain.
+
+
+## Connected Increment C implementation boundary (2026-09-06)
+
+ADR-0021 resolves Existing/Planned/Work and spatial record links for the implemented Room
+workflow. Phase 7 and the supported part of Phase 8 are delivered together; their current
+verification is in `implementation-status.md` and `connected-renovation-evidence.md`. This
+advances roadmap steps 4 and 7 without claiming steps 5–6 (materials, costs and evidence).
+Cross-floor work dependencies, Trade assignment and live acceptance remain backlog items.

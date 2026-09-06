@@ -103,6 +103,31 @@ describe('Editor selection across the list, canvas and Inspector', () => {
 		await row.trigger('keydown', { key: 'Escape' });
 		expect(useSelectionStore().selectedIds).toEqual([]);
 	});
+	it('keeps multiple-selection mode across the constrained Layers overlay closing and reopening', async () => {
+		// The overlay UNMOUNTS `PropertyLayerPanel` when it closes, so a component-local mode
+		// was recreated `false` on every reopen: a touch or keyboard user who enabled it,
+		// went to the canvas and came back to add a room had the next row click replace the
+		// whole set. The mode is per-leaf state on the runtime now, like the tool.
+		harness = await mountPlanEditorCanvas();
+		resizeTo(harness.rootEl, 700, 700);
+		await settle();
+		const rail = harness.wrapper.find('[data-rp-rail="layers"]');
+		await rail.trigger('click');
+		await settle();
+		await harness.wrapper.find('.rp-overlay-panel [data-rp-action="multiple-selection"]').setValue(true);
+		await harness.wrapper.find('.rp-overlay-panel [data-rp-id="zone-kitchen"]').trigger('click');
+		await settle();
+		document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+		await settle();
+		expect(harness.wrapper.find('.rp-overlay-panel').exists()).toBe(false);
+		await rail.trigger('click');
+		await settle();
+		const mode = harness.wrapper.find('.rp-overlay-panel [data-rp-action="multiple-selection"]');
+		expect((mode.element as HTMLInputElement).checked).toBe(true);
+		await harness.wrapper.find('.rp-overlay-panel [data-rp-id="zone-terrace"]').trigger('click');
+		await settle();
+		expect(useSelectionStore().selectedIds).toEqual(['zone-kitchen', 'zone-terrace']);
+	});
 	it('closes Add before clearing a multi-selection', async () => {
 		harness = await mountPlanEditorCanvas();
 		useSelectionStore().select(['zone-kitchen', 'zone-terrace'] as never[]);

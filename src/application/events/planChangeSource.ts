@@ -24,6 +24,7 @@ import { changedSidecar, disposeAll, subscribeAll } from './subscriptions';
  * The dispatching leaf pays one redundant re-read for it, which is a cost, not a defect.
  */
 const PLAN_CHANGE_EVENTS = [
+	'PlanRenovationChanged',
 	'PlanStructureChanged',
 	'PlanBackgroundChanged',
 	'PlanCalibrated',

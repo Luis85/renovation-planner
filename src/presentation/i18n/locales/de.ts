@@ -20,8 +20,10 @@
 import type { StringKey } from './en';
 import { deAssetLibrary } from './de-assetLibrary';
 import { editorDe } from './de/editor';
+import { renovationDe } from './de/renovation';
 
 export const de: Partial<Record<StringKey, string>> = {
+	...renovationDe,
 	...editorDe,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',

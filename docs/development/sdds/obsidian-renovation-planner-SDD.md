@@ -2430,16 +2430,20 @@ Accepted, in `docs/development/adrs/`:
 | 015 | The asset designer is its own workspace view, per asset |
 | 016 | A Room-classified Zone presents as Room; every other type as Area |
 | 017 | Plan presents as Floor; no Floor, Building or Property entity |
+| 018 | Typed selection, Inspector and refresh ownership |
+| 019 | Prepared reference workflow and independent appearance |
+| 020 | Straight walls, hosted openings and explicit Room-boundary provenance |
+| 021 | Independent Existing/Planned facts, Work/Decision records and stable spatial links |
 
 Deferred, each with a trigger (the consolidation report holds the evidence):
 
 | ADR | Question | Trigger |
 |---|---|---|
 | HI | Property → Building → Floor persistence | two buildings, or two plans aligned as floors |
-| EPW | Existing / Planned / Work representation | the first Existing or Planned record |
+| EPW | resolved by ADR-0021 for the floor renovation register | first Existing/Planned records, 2026-09-06 |
 | SO | resolved by ADR-0020: compatible straight walls and hosted openings | first non-polygon spatial object, 2026-09-06 |
-| RL | one relationship mechanism between spatial targets and vault records | the first Work item or evidence link |
-| SV | which additive changes stay at v1 | the first key that moves or changes meaning |
+| RL | resolved by ADR-0021 for subjects, Work and Decisions; general evidence remains deferred | first Work item, 2026-09-06 |
+| SV | ADR-0019/0020/0021 require discriminator bumps for new owned reference/spatial/renovation content | v2/v3 implemented; future semantic changes must be assessed |
 | RK | a room KIND (kitchen, bathroom…) beside the Room/Area split | the first query BY kind |
 
 ---
@@ -2698,7 +2702,7 @@ projection, tested end to end, and never by a rename or a persisted discriminato
 | Material | `RequirementInspectorDTO` | `Asset` + `Requirement` | two notes | partial |
 | Project price | price rows | `AssetPriceOverride` | `renovation-asset-price` | — |
 | Wall, Door, Window, Opening | `SpatialRecordDto` kind `wall` / `opening` | `Wall`, `Opening`, `RoomBoundary` | plan sidecar v2 `structure` | ADR-0020 (ADR-SO) |
-| Existing / Planned / Work | — | — (NOT `ZoneStatus`) | — | ADR-EPW |
+| Existing / Planned / Work / Decision | renovation Inspector | RenovationSubject / WorkPackage / RenovationDecision (NOT `ZoneStatus`) | Plan frontmatter v3 `renovation`; intended geometry sidecar v3 | ADR-0021 (ADR-EPW, ADR-RL) |
 | Documents / Photos / Notes | — | — | — | ADR-RL |
 | Property, Building | breadcrumb has two segments | — | — | ADR-HI |
 
@@ -2786,28 +2790,43 @@ remain underneath; what the user meets is:
 
 # 97. Renovation State Model
 
-The homeowner's model distinguishes **Existing** (what is here), **Planned** (the intended
-result) and **Work** (the transformation between them), with change states *unchanged / remove
-/ modify / add*. None of it is implemented, and this section reserves the seams so that nothing
-built now conflates them.
+ADR-0021 resolves ADR-EPW and ADR-RL for the connected Increment C workflow. Plan Markdown
+owns an optional `renovation` register: `subjects`, `work`, and `decisions`. The containing Plan
+provides Project ownership. Room remains a Zone of type Room with the same ID. A subject uses
+`{id, roomId, targetId, kind, existing, planned}`; Work outcomes and Decisions refer to its ID.
+Wall/opening targets have one subject each; Room-targeted surface/element facts are incremental.
 
-Constraints already binding:
+Existing facts contain a description and homeowner condition: unknown, good, worn, damaged,
+or investigate. These are observations, not an engineering assessment. Planned facts contain
+change classification and independent description. Add requires no Existing predecessor;
+modify/remove/unchanged require one. Remove has an empty intended description; unchanged
+matches the existing description. Discard restores the current spatial facts where applicable
+and keeps Existing facts. Remaining outcome, Decision or dependency references prevent deletion.
 
-- **State is not a layer.** Existing and Planned are semantic states of the same entity — a wall
-  that is *existing: brick, planned: removed* is one wall — not two visibility layers (spec §7).
-- **`ZoneStatus` is a progress axis** (planned / in progress / complete) and is never read as
-  Existing or Planned. The consolidation report rates misuse here as its one high-severity gap.
-- **A change is a state on an object, not a second object** (business rule), so Existing and
-  Planned will be represented on the entity or as a comparison, decided by ADR-EPW — the spec's
-  own open question 7.
-- **Work belongs to one project** and is linked to one or more stable spatial target ids by the
-  single relationship mechanism ADR-RL will decide; the same mechanism carries evidence
-  (documents, photos, notes) at every granularity from project to point (spec §71).
-- The canvas will communicate change states without the Inspector — line weight and dash for
-  existing, removed, new and modified — with colour never the only channel (§84).
-- Until these arrive, the Inspector shows their sections as **not yet supported** (§59). The
-  next increment after the room slice is *Existing → Planned → Work for one selected room*, one
-  truthful relationship before Materials and Costs widen the chain.
+The optional sidecar `intended` structure is a separate fact snapshot with the same stable IDs
+for surviving walls/openings. An addition receives a new ID. Current and intended hosts are
+validated independently. Only existing straight-wall/hosted-opening transformations are supported.
+Room outlines remain independent; boundary provenance never reconstructs an outline. Calibration
+scales both structures and existing Room/Area geometry. Markdown has no coordinate authority.
+
+WorkPackage contains Room/target, title/description, stable ordering, pending/in-progress/complete
+progress, unassigned/DIY responsibility, outcome IDs and dependency IDs within the floor register.
+No Trade repository exists in this build. Cycles and dangling references refuse. Blocked state is
+derived from incomplete predecessors and explains their titles; it is not persisted progress.
+Decision contains Room/subject, question, resolution and resolved state. Resolved needs text.
+
+Plan/Renovate/Review and Existing/Planned/Work are leaf navigation state. ZoneStatus stays the
+existing progress axis. Visibility changes projection only. Review is read-oriented and checks
+unresolved Decisions, changed outcomes without Work, Work without outcomes, and incomplete
+predecessors. Findings sort by kind then stable record ID and navigate to actionable sources.
+No findings asserts nothing about costs, evidence, procurement, engineering or other absent domains.
+
+Plan metadata and geometry accept v3 with pure read-time v1→v2→v3 migrations. Writers emit v3
+only when the new owned content exists; legacy references and geometry keep their earlier
+compatible shape. Unsupported versions refuse. Composite commands use conditional writes and
+operation-owned compensation versions; failed compensation marks unrecovered save state.
+No durable cross-file crash recovery is implemented. The source Plan is an ordinary vault note;
+the generated review note is an owned, conditional, human-edit-preserving projection (ADR-0021).
 
 ---
 

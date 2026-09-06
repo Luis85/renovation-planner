@@ -18,7 +18,8 @@ export function planToPersistence(plan: Plan, revision: number): Record<string, 
 	const background = plan.background;
 	return {
 		type: PLAN_TYPE,
-		'schema-version': background?.appearance ? 2 : 1,
+		'schema-version': plan.renovation ? 3 : background?.appearance ? 2 : 1,
+		...(plan.renovation ? { renovation: plan.renovation } : {}),
 		id: plan.id,
 		revision,
 		project: plan.projectId,
@@ -37,6 +38,7 @@ function fromDto(
 ): Result<Plan, ValidationError | CalculationError> {
 	const path = dto['background-path'];
 	const constructed = Plan.create({
+		renovation: dto.renovation,
 		id: dto.id as Plan['id'],
 		projectId: dto.project as Plan['projectId'],
 		name: dto.name,

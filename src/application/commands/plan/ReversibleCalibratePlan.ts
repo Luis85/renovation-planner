@@ -73,6 +73,7 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 		// uniformly, so alignment between them is preserved — only what the numbers MEAN
 		// in millimetres changes.
 		const document: PlanGeometryDocument = {
+			...(previous.intended ? { intended: scaleStructure(previous.intended, scaleCorrection) } : {}),
 			...(previous.structure ? { structure: scaleStructure(previous.structure, scaleCorrection) } : {}),
 			calibration: {
 				pointA: scaleShape(calibration.pointA, scaleCorrection, origin),
@@ -92,8 +93,9 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 		if (!allPointsFinite(document)) {
 			return err(nonFiniteRescaleError());
 		}
-		if (document.structure) {
-			const checked = validateStructure(document.structure, document.objects.map(object => object.id));
+		for (const structure of [document.structure, document.intended]) {
+			if (!structure) continue;
+			const checked = validateStructure(structure, document.objects.map(object => object.id));
 			if (!checked.ok) return checked;
 		}
 		if (document.calibration !== null) {

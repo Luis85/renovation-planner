@@ -3,21 +3,26 @@ import type { MigrationError, PersistenceError, ValidationError } from '../../..
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { EntityVersion } from '../../../application/ports/versioning';
-import { checkExpectedVersion } from '../../../application/ports/versioning';
+import { checkExpectedVersion, externalModification } from '../../../application/ports/versioning';
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchemaV2 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchemaV3 } from '../../persistence/dto/planGeometry';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import { KeyedQueues } from './KeyedQueues';
 import type { EchoWindow } from '../../persistence/index/EchoWindow';
 import { observeSidecar } from './digest';
+import { guardRenovationGeometry } from './renovationGeometryGuard';
 
 /** Key order follows construction order, which the schema fixes — deterministic writes. */
 function canonicalJson(dto: PlanGeometryDTO): string {
 	return JSON.stringify(dto, null, '\t');
+}
+
+function writtenSchema(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): 1 | 2 | 3 {
+	return dto.intended ? 3 : dto.structure ? 2 : 1;
 }
 
 function schemaVersionOf(parsed: unknown): number {
@@ -97,7 +102,7 @@ export class PlanGeometryStore {
 		planId: PlanId,
 		change: (dto: PlanGeometryDTO) => PlanGeometryDTO,
 		expected?: EntityVersion,
-	): Promise<Result<{ version: EntityVersion }, SidecarReadError>> {
+	): Promise<Result<{ version: EntityVersion; beforeVersion: EntityVersion }, SidecarReadError>> {
 		return this.queues.run(`plan:${planId}`, async () => {
 			const current = await this.readUnlocked(planId);
 			if (!current.ok) return current;
@@ -112,14 +117,20 @@ export class PlanGeometryStore {
 				const valid = validateStructure(nextDto.structure, nextDto.objects.map(object => object.id));
 				if (!valid.ok) return valid;
 			}
+			const links = await guardRenovationGeometry({ vault: this.vault, index: this.index }, planId, current.value.dto, nextDto);
+			if (!links.ok) return links;
 			const nextRevision = current.value.version.revision + 1;
-			const written = { ...nextDto, schemaVersion: nextDto.structure ? 2 as const : 1 as const, revision: nextRevision };
+			if (nextDto.intended) {
+				const valid = validateStructure(nextDto.intended, nextDto.objects.map(object => object.id));
+				if (!valid.ok) return valid;
+			}
+			const written = { ...nextDto, schemaVersion: writtenSchema(nextDto), revision: nextRevision };
 			const text = canonicalJson(written);
 
-			const writeResult = await this.writeText(current.value.file, current.value.path, text);
+			const writeResult = await this.writeText(current.value.file, current.value.path, text, current.value.version);
 			if (!writeResult.ok) return writeResult;
 
-			return ok({ version: { revision: nextRevision, observed: observeSidecar(text) } });
+			return ok({ beforeVersion: current.value.version, version: { revision: nextRevision, observed: observeSidecar(text) } });
 		});
 	}
 
@@ -197,7 +208,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV2.safeParse(migrated);
+		const validated = PlanGeometrySchemaV3.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',
@@ -211,22 +222,28 @@ export class PlanGeometryStore {
 		if (validated.data.planId !== planId) {
 			return err(persistenceError('plan-geometry.plan-id-mismatch', `Sidecar ${path} declares plan ${validated.data.planId}, not ${planId}.`));
 		}
-		if (validated.data.structure) {
-			const valid = validateStructure(validated.data.structure, validated.data.objects.map(object => object.id));
+		for (const structure of [validated.data.structure, validated.data.intended]) {
+			if (!structure) continue;
+			const valid = validateStructure(structure, validated.data.objects.map(object => object.id));
 			if (!valid.ok) return valid;
 		}
 
 		return ok({
-			dto: validated.data.structure ? validated.data : { ...validated.data, schemaVersion: 1 },
+			dto: { ...validated.data, schemaVersion: writtenSchema(validated.data) },
 			version: { revision: validated.data.revision, observed: observeSidecar(rawText) },
 			file: abstractFile,
 			path,
 		});
 	}
 
-	private async writeText(file: TFile, path: string, text: string): Promise<Result<void, PersistenceError>> {
+	private async writeText(file: TFile, path: string, text: string, expected: EntityVersion): Promise<Result<void, SidecarReadError>> {
 		try {
-			await this.vault.modify(file, text);
+			let conflict = false;
+			await this.vault.process(file, live => {
+				if (observeSidecar(live) !== expected.observed) { conflict = true; return live; }
+				return text;
+			});
+			if (conflict) return err(externalModification('plan-geometry', path));
 		} catch (cause) {
 			return err(persistenceError('plan-geometry.write-failed', `Could not write sidecar ${path}.`, cause));
 		}

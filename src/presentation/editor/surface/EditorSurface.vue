@@ -1160,7 +1160,7 @@ function onKeyDown(event: KeyboardEvent): void {
 	// ABOVE the camera lock, and deliberately, for the same reason Escape is: it moves no
 	// camera, and a user holds Shift precisely while a gesture is in flight — gating it there
 	// would make the constraint dead exactly when it is wanted.
-	if (event.key === 'Shift') {
+	if (event.key === 'Shift' || event.key === 'Alt') {
 		reissuePointerMove(event);
 		return;
 	}
@@ -1188,8 +1188,9 @@ function onKeyDown(event: KeyboardEvent): void {
  * while the empty state's action button has focus too, and the tool's preview should still
  * unconstrain — where a space release there belongs to the button, not to the camera.
  */
+// PR #74 (48febd87): Alt changes overlap prediction even without pointer movement.
 function onKeyUp(event: KeyboardEvent): void {
-	if (event.key === 'Shift') {
+	if (event.key === 'Shift' || event.key === 'Alt') {
 		reissuePointerMove(event);
 		return;
 	}

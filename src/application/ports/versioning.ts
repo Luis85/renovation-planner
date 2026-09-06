@@ -1,3 +1,4 @@
+import type { EntityId } from '../../core/identity/EntityId';
 import type { ValidationError } from '../../core/errors/AppError';
 
 /**
@@ -37,6 +38,8 @@ export interface EntityVersion {
  */
 export interface Loaded<T> {
 	readonly entity: T;
+	/** Version receipt for another owned file written by this repository operation. */
+	readonly relatedWrite?: { readonly id: EntityId<string>; readonly before: EntityVersion; readonly after: EntityVersion };
 	readonly version: EntityVersion;
 }
 

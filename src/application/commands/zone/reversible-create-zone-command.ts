@@ -1,3 +1,4 @@
+import { recordRelatedWrite } from '../../editor/recordRelatedWrite';
 import type { DispatchResult } from '../DispatchOutcome';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type {
@@ -130,7 +131,8 @@ export class ReversibleCreateZoneCommand {
 			const result = await this.createCommand.execute(this.input);
 			if (isErr(result)) return result;
 			this.snapshot = result.value.zone;
-			this.ledger.record(result.value.zone.entity.id, result.value.zone.version);
+			recordRelatedWrite(this.ledger, result.value.zone);
+		this.ledger.record(result.value.zone.entity.id, result.value.zone.version);
 			this.generation = this.ledger.generation(result.value.zone.entity.id);
 			return ok('wrote');
 		}

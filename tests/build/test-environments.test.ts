@@ -136,7 +136,7 @@ const resolveSpecifier = (from: string, specifier: string): string | null => {
  * a one-hop test happens to hold, which is exactly the kind of accident that stops holding
  * without telling anyone.
  */
-const reachesContracts = (entry: string): boolean => {
+const reachesContracts = (entry: string, edges: Map<string, readonly string[]>): boolean => {
 	const seen = new Set<string>();
 	const queue = [entry];
 	while (queue.length > 0) {
@@ -144,10 +144,12 @@ const reachesContracts = (entry: string): boolean => {
 		if (file === undefined || seen.has(file)) continue;
 		seen.add(file);
 		if (repoRelative(file).startsWith('tests/contracts/')) return true;
-		for (const specifier of importsOf(file)) {
-			const target = resolveSpecifier(file, specifier);
-			if (target !== null && !seen.has(target)) queue.push(target);
+		let targets = edges.get(file);
+		if (targets === undefined) {
+			targets = importsOf(file).map(specifier => resolveSpecifier(file, specifier)).filter((target): target is string => target !== null);
+			edges.set(file, targets);
 		}
+		for (const target of targets) if (!seen.has(target)) queue.push(target);
 	}
 	return false;
 };
@@ -192,6 +194,10 @@ describe('the inner layers execute in node', () => {
 		// throughout, applied to its own gate.
 		const examinedByDirectory: string[] = [];
 		const examinedByContract: string[] = [];
+		// Cache file edges only within this collection. The expanded editor graph made
+		// repeated readFileSync/statSync walks exceed the existing 120s budget on Windows.
+		// Every entry still gets its own traversal and both protection assertions below.
+		const edges = new Map<string, readonly string[]>();
 		for (const spec of specs) {
 			const path = repoRelative(spec.moduleId);
 			const protectedByDirectory = PROTECTED_DIRECTORIES.some((dir) => path.startsWith(dir));
@@ -203,7 +209,7 @@ describe('the inner layers execute in node', () => {
 			// the DOM.
 			if (protectedByDirectory) {
 				examinedByDirectory.push(path);
-			} else if (reachesContracts(spec.moduleId)) {
+			} else if (reachesContracts(spec.moduleId, edges)) {
 				examinedByContract.push(path);
 			} else {
 				continue;

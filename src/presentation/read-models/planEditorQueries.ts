@@ -44,6 +44,7 @@ export interface AssetOptionDto {
  * declined to load, and the view speaks of zones the user cannot see.
  */
 export interface ZoneScene {
+	readonly intended?: Structure;
 	readonly structure?: Structure;
 	readonly zones: readonly ZoneDto[];
 	readonly unreadable: number;
@@ -211,6 +212,7 @@ export function createPlanEditorQueries(queries: {
 			return ok({
 				zones: found.value.loaded.map((loaded) => toZoneDto(loaded.entity)),
 				...(geometry?.ok && geometry.value.document.structure ? { structure: geometry.value.document.structure } : {}),
+				...(geometry?.ok && geometry.value.document.intended ? { intended: geometry.value.document.intended } : {}),
 				unreadable: found.value.refused,
 			});
 		},

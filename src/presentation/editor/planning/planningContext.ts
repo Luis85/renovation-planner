@@ -33,7 +33,11 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 	if (context.commands.planning) {
 	const callbacks = [context.onPlanChanged.bind(context), context.onCatalogueChanged.bind(context), context.onProjectPricesChanged.bind(context), context.onRequirementFiguresChanged.bind(context)];
 	for (const subscribe of callbacks) onBeforeUnmount(subscribe(() => { void refresh(); }));
-	onBeforeUnmount(context.onVaultFileChanged(() => { void refresh(); }));
+	// Entity changes arrive through the typed sources above. Raw file events only
+	// invalidate linked evidence, including its containing folder's old/new path.
+	onBeforeUnmount(context.onVaultFileChanged(path => {
+		if (baseline.value?.plan.entity.renovation?.depth?.evidence.some(item => item.path === path || item.path.startsWith(path + '/'))) void refresh();
+	}));
 	}
 	onBeforeUnmount(() => { alive = false; ticket++; });
 	const blocked = computed(() => loading.value || failed.value || project.stale || runtime.renovation.blocked.value);

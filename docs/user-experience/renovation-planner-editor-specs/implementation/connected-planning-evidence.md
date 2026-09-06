@@ -1,5 +1,30 @@
 # Connected planning: evidence and acceptance boundary
 
+## PR #88 review corrections
+
+The three review findings at `273f3617` were reproduced by
+`tests/presentation/editor/planningReviewRegressions.test.ts` before correction. Review now
+withholds its all-clear while planning is pending/failed or has findings, including generated
+review notes. Material staleness compares recorded source measurement, even when packaging
+keeps purchase quantity and cost unchanged. Raw vault events are filtered to linked evidence
+paths (including containing paths); typed entity/catalogue/price/figure events retain their
+existing refresh route. The regression fixture's 31 unrelated events caused 31 reads before
+the fix and zero afterwards. Relevant linked-file, containing-path, Plan and catalogue
+notifications each still cause a read. Burst coalescing and broader M15 hardening remain the
+next Increment E concern.
+
+Focused verification: 40 tests passed across planning review regressions, connected planning
+workflow and renovation routes. `editor-planning-check.mjs` also passed its four real keyboard
+journeys in Edge 152.0.4191.62 (explicit browser substitute), with zero page errors. The German
+constrained costs capture was inspected: content remains scrollable, but decimal presentation
+and broader recovery/reflow acceptance remain Increment E work. This correction does not
+claim live Obsidian acceptance. The complete `npm run check` passed on 2026-09-06:
+build, both linters, all 534 test files (7,224 passed, 70 skipped), coverage and fallow.
+Coverage: statements 14,527/14,656 (99.11%), branches 9,400/9,590 (98.01%),
+functions 4,028/4,065 (99.08%), lines 11,840/11,907 (99.43%). Thresholds are unchanged.
+One earlier complete attempt hit an unchanged five-second harness timeout; its targeted
+rerun and this clean full run both passed without changing the timeout.
+
 Continuation of open [PR #87](https://github.com/Luis85/renovation-planner/pull/87), head
 `d433eb6ee3f09851f01e415a95598b5a2b74c608`, base `codex/renovation-workflow`.
 Worktree: `D:\Projects\renovation-planner\.worktrees\materials-costs-evidence`;

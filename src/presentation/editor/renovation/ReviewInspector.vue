@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import PlanningReview from '../planning/PlanningReview.vue';
+import { usePlanningContext } from '../planning/planningContext';
 import { planningFindings } from '../planning/planningProjection';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { EMPTY_RENOVATION, reviewRenovation, type ReadinessFinding } from '../../../domain/renovation/Renovation';
@@ -12,9 +13,12 @@ import { persistenceError } from '../../../application/errors';
 import { renovationMessage } from './renovationMessage';
 const project = useProjectStore(), runtime = useEditorRuntime();
 const context = usePlanEditorContext(), busy = ref(false), error = ref('');
+const planning = usePlanningContext();
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
 const findings = computed(() => reviewRenovation(project.plan?.renovation ?? EMPTY_RENOVATION));
+const clear = computed(() => !project.stale && !findings.value.length && (!context.commands.planning ||
+ (!planning.loading.value && !planning.failed.value && !!planning.baseline.value && !planningFindings(planning.baseline.value, planning.files).length)));
 function open(item: ReadinessFinding): void {
 	runtime.renovation.focus(item.roomId, item.kind === 'blocked' || item.kind === 'missing-outcome' ? 'work' : 'planned', item.recordId);
 	if (item.kind === 'decision') void runtime.renovation.edit('decision', item.roomId, item.recordId);
@@ -24,14 +28,16 @@ async function depthBody(): Promise<string | null> {
  if (!context.commands.planning) return '';
  const depth = await context.commands.planning.read(context.planId as PlanId);
  if (!depth.ok) { if (alive) error.value = tr('planning.read-failed'); return null; }
- return '\n\n' + tr('planning.review-scope') + '\n' + planningFindings(depth.value, context.commands.evidenceFiles).map(item => `- ${tr(`planning.${item.kind}`)}: ${plain(item.description)} (${item.id})`).join('\n');
+ const items = planningFindings(depth.value, context.commands.evidenceFiles);
+ return '\n\n' + tr('planning.review-scope') + '\n' + items.map(item => `- ${tr(`planning.${item.kind}`)}: ${plain(item.description)} (${item.id})`).join('\n')
+  + (!items.length && !findings.value.length ? '\n' + tr('renovation.no-findings') : '');
 }
 async function generate(): Promise<void> {
 	if (busy.value || project.stale || !context.commands.reviewNote) return;
 	busy.value = true;
 	let body = [`# ${tr('renovation.review')} — ${plain(project.plan?.name ?? '')}`, '', tr(context.commands.planning ? 'planning.review-scope' : 'renovation.scope'), '',
 		...findings.value.map(item => `- ${plain(project.zones.get(item.roomId)?.name ?? item.roomId)}: ${tr(`renovation.finding.${item.kind}`)} — ${item.causes.map(plain).join(', ')} (${item.recordId})`),
-		...(findings.value.length ? [] : [tr('renovation.no-findings')]),
+		...(findings.value.length || context.commands.planning ? [] : [tr('renovation.no-findings')]),
 	].join('\n');
 	try {
         const depth = await depthBody();
@@ -50,7 +56,7 @@ async function generate(): Promise<void> {
 			{{ tr('renovation.scope') }}
 		</p>
 		<PlanningReview v-if="context.commands.planning" />
-		<p v-if="!findings.length">
+		<p v-if="clear">
 			{{ tr('renovation.no-findings') }}
 		</p>
 		<ol class="rp-renovation-list">

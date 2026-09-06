@@ -271,6 +271,12 @@ B11.1 at 52:146; B12.0 at 54:44.
 
 ## Acceptance boundary
 
+PR #88 review correction gate, 2026-09-06: 534 files passed; 7,224 tests passed and
+70 skipped. Statements 14,527/14,656 (99.11%), branches 9,400/9,590 (98.01%),
+functions 4,028/4,065 (99.08%), lines 11,840/11,907 (99.43%). Build, lint and
+fallow passed in the same `npm run check`. The historical counter locations above
+describe the preceding snapshot; the review regressions exercise the corrected paths.
+
 The linked [evidence report](connected-planning-evidence.md) separates pure calculations, actual
 repositories over FakeVault, production-root hydration, browser keyboard journeys and inspected
 screenshots from unperformed live Obsidian/mobile/screenreader acceptance. Coverage is evidence

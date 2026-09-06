@@ -94,6 +94,14 @@ const props = defineProps<{
 	 * never anything for it to move.
 	 */
 	nudgeSelection: (by: Vector) => Promise<void>;
+	/**
+	 * Enter's door out of a draw-area draft — `runtime.finishArea`, the SAME guarded action
+	 * the banner's Finish button dispatches, never `toolManager.finishActiveTool()` straight:
+	 * that call skipped `canFinishArea`'s busy half and queued an Area behind a write the
+	 * button was already announcing as unavailable. A review bot read the two doors against
+	 * each other. The asset designer's mounter passes a no-op, since it has no area task.
+	 */
+	finishArea: () => void;
 }>();
 
 const editor = props.editor;
@@ -1153,7 +1161,7 @@ function onKeyDown(event: KeyboardEvent): void {
 	if (gestureInFlight()) return;
 	if (event.key === 'Enter' && activeToolId.value === 'draw-area') {
 		event.preventDefault();
-		if (plainPress(event)) toolManager.finishActiveTool();
+		if (plainPress(event)) props.finishArea();
 		return;
 	}
 	if (fitShortcut(event)) return;

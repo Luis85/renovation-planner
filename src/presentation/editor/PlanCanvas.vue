@@ -89,6 +89,7 @@ function framedBounds(all: boolean) {
 		:has-selection="() => selection.selectedIds.length > 0"
 		:clear-selection="() => selection.clear()"
 		:nudge-selection="runtime.nudgeSelection"
+		:finish-area="runtime.finishArea"
 	>
 		<template #default="{ size }">
 			<VStage :config="size">

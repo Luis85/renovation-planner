@@ -1,0 +1,94 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "prepare": {
+      "width": 446,
+      "scroll": 446
+    },
+    "measurement": {
+      "width": 446,
+      "scroll": 446
+    },
+    "review": {
+      "width": 446,
+      "scroll": 446
+    },
+    "accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+    "replacement": "PNG retained after PDF replacement cancellation",
+    "reflow": "draft and focus preserved",
+    "pdf": "committed page 1 and reopened; Undo restored PNG",
+    "storage": "real repositories over FakeVault",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "prepare": {
+      "width": 446,
+      "scroll": 446
+    },
+    "measurement": {
+      "width": 446,
+      "scroll": 446
+    },
+    "review": {
+      "width": 446,
+      "scroll": 446
+    },
+    "accent": "hsl(258, 88%, 66%)",
+    "replacement": "PNG retained after PDF replacement cancellation",
+    "reflow": "draft and focus preserved",
+    "pdf": "committed page 1 and reopened; Undo restored PNG",
+    "storage": "real repositories over FakeVault",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "prepare": {
+      "width": 446,
+      "scroll": 446
+    },
+    "measurement": {
+      "width": 446,
+      "scroll": 446
+    },
+    "review": {
+      "width": 446,
+      "scroll": 446
+    },
+    "accent": "#7c246b",
+    "replacement": "PNG retained after PDF replacement cancellation",
+    "reflow": "draft and focus preserved",
+    "pdf": "committed page 1 and reopened; Undo restored PNG",
+    "storage": "real repositories over FakeVault",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "prepare": {
+      "width": 426,
+      "scroll": 426
+    },
+    "measurement": {
+      "width": 426,
+      "scroll": 426
+    },
+    "review": {
+      "width": 426,
+      "scroll": 426
+    },
+    "accent": "hsl(258, 88%, 66%)",
+    "replacement": "PNG retained after PDF replacement cancellation",
+    "reflow": "draft and focus preserved",
+    "pdf": "committed page 1 and reopened; Undo restored PNG",
+    "storage": "real repositories over FakeVault",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

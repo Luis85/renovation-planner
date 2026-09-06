@@ -54,7 +54,7 @@ describe('buildFloorSummary', () => {
 
 	it('never fabricates a planned-change count or a cost', () => {
 		const summary = buildFloorSummary(input);
-		expect(summary.plannedChanges).toEqual({ state: 'unavailable' });
+		expect(summary.plannedChanges).toEqual({ state: 'available', value: 0 });
 		expect(summary.estimatedCost).toEqual({ state: 'unavailable' });
 	});
 

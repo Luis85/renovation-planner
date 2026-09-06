@@ -48,5 +48,7 @@ const PlanFrontmatterSchemaV3 = PlanFrontmatterSchemaV2.extend({
 	'schema-version': z.literal(3), renovation: RenovationSchema.optional(),
 });
 export const PlanFrontmatterSchemaV4 = PlanFrontmatterSchemaV3.extend({ 'schema-version': z.literal(4) });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV4>;
+/** Shared contexts must be refused by v4 writers, which otherwise strip those links. */
+export const PlanFrontmatterSchemaV5 = PlanFrontmatterSchemaV4.extend({ 'schema-version': z.literal(5) });
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV5>;

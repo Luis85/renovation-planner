@@ -27,7 +27,7 @@ describe('the floor state', () => {
 		const floor = harness.wrapper.find('.rp-floor-inspector');
 
 		expect(floor.find('[data-rp-stat="rooms"]').text()).toContain('1');
-		expect(floor.find('[data-rp-stat="planned-changes"]').text()).toBe(t('en', 'editor.inspector.unavailable'));
+		expect(floor.find('[data-rp-stat="planned-changes"]').text()).toBe('0');
 		expect(floor.find('[data-rp-stat="estimated-cost"]').text()).not.toMatch(/\d/);
 	});
 
@@ -42,7 +42,7 @@ describe('the floor state', () => {
 		harness = await mountPlanEditorCanvas();
 		const rows = harness.wrapper.find('.rp-floor-inspector').findAll('.rp-room-list__row');
 
-		expect(rows.map((row) => row.text())).toEqual(['Kitchen', 'Terrace']);
+		expect(rows.map((row) => row.find('span').text())).toEqual(['Kitchen', 'Terrace']);
 
 		await rows[0].trigger('click');
 

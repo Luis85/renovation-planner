@@ -1,4 +1,5 @@
 import { validatePlanningDepth } from './validatePlanningDepth';
+import { hasRoomContext, validSharedLinks, type SpatialLink } from './SharedLinks';
 import type { PlanningDepth } from './PlanningDepth';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, ok, type Result } from '../../core/result/Result';
@@ -25,6 +26,7 @@ export interface RenovationSubject {
 	readonly planned: PlannedFacts | null;
 }
 export interface WorkPackage {
+	readonly links?: readonly SpatialLink[];
 	readonly id: string;
 	readonly roomId: string;
 	readonly targetId: string;
@@ -98,9 +100,10 @@ function validateRecords(value: Renovation): Result<void, ValidationError> {
 	const subjects = new Map(value.subjects.map(item => [item.id, item]));
 	const workIds = new Set(value.work.map(item => item.id));
 	for (const item of value.work) {
+		if (!validSharedLinks(item)) return err(renovationError('target-missing'));
 		if (!validWork(item)) return err(renovationError('work'));
 		if (new Set(item.dependencies).size !== item.dependencies.length || item.dependencies.some(id => !workIds.has(id))) return err(renovationError('dependency'));
-		if (new Set(item.outcomes).size !== item.outcomes.length || item.outcomes.some(id => !subjects.get(id)?.planned || subjects.get(id)?.roomId !== item.roomId)) return err(renovationError('outcome'));
+		if (new Set(item.outcomes).size !== item.outcomes.length || item.outcomes.some(id => !subjects.get(id)?.planned || !hasRoomContext(item, subjects.get(id)?.roomId))) return err(renovationError('outcome'));
 	}
 	if (hasCycle(value.work)) return err(renovationError('cycle'));
 	if (value.decisions.some(item => !item.question.trim() || (item.resolved && !item.resolution.trim()) || subjects.get(item.subjectId)?.roomId !== item.roomId)) return err(renovationError('decision'));

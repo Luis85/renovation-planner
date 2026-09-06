@@ -1,0 +1,160 @@
+/* Real renovation records keep their existing commands and keyboard order. */
+.renovation-plan-editor .rp-room-navigation {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 4px;
+	padding-block: 8px 16px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.renovation-plan-editor .rp-room-navigation .rp-room-navigation__button {
+	height: auto;
+	min-height: 36px;
+	padding: 7px 8px;
+	white-space: normal;
+	background: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+	text-decoration: none;
+	line-height: 1.35;
+}
+
+.renovation-plan-editor .rp-room-navigation .rp-room-navigation__button[aria-pressed='true'] {
+	border-color: var(--interactive-accent);
+	background: var(--background-modifier-active-hover);
+}
+
+.renovation-plan-editor .rp-room-inspector .rp-room-navigation { grid-template-columns: 1fr 1fr; }
+.renovation-plan-editor .rp-room-inspector .rp-room-navigation .rp-room-navigation__button:nth-child(-n+3) {
+	grid-column: 1 / -1;
+	justify-content: flex-start;
+	min-height: 44px;
+	border-color: var(--background-modifier-border);
+	font-weight: var(--font-semibold);
+}
+
+.renovation-plan-editor .rp-renovation-inspector { gap: 12px; }
+.renovation-plan-editor .rp-renovation-inspector p { margin: 0; }
+.renovation-plan-editor .rp-room-metadata,
+.renovation-plan-editor .rp-record-metadata {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.renovation-plan-editor .rp-renovation-list { gap: 12px; }
+.renovation-plan-editor .rp-renovation-list li {
+	padding: 14px;
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	display: grid;
+	gap: 10px;
+}
+
+.renovation-plan-editor .rp-renovation-list li.is-selected {
+	border-width: 1px;
+	box-shadow: inset 3px 0 0 var(--interactive-accent);
+}
+
+.renovation-plan-editor .rp-renovation-list .rp-record-title {
+	justify-content: flex-start;
+	padding: 0;
+	font-weight: var(--font-semibold);
+	font-size: var(--font-ui-medium);
+	background: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+}
+
+.renovation-plan-editor .rp-renovation-list h4,
+.renovation-plan-editor .rp-planning-group h4 {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	line-height: 1.4;
+	font-weight: var(--font-semibold);
+}
+
+.renovation-plan-editor .rp-planning-group { margin: 0; display: grid; gap: 10px; }
+.renovation-plan-editor .rp-planning-totals {
+	margin: 0;
+	gap: 8px 16px;
+	font-variant-numeric: tabular-nums;
+	align-items: baseline;
+}
+
+.renovation-plan-editor .rp-planning-totals dt { color: var(--text-muted); }
+.renovation-plan-editor .rp-material-numbers dd { text-align: end; font-weight: var(--font-semibold); }
+.renovation-plan-editor .rp-material-provenance {
+	display: block;
+	margin-top: 3px;
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-normal);
+	color: var(--text-muted);
+}
+
+.renovation-plan-editor .rp-cost-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.renovation-plan-editor .rp-cost-total {
+	padding: 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+}
+
+.renovation-plan-editor .rp-cost-total dd { margin-top: 4px; font-size: 18px; font-weight: var(--font-semibold); }
+.renovation-plan-editor .rp-cost-total[data-rp-stage='remaining'] { grid-column: 2 / -1; }
+.renovation-plan-editor .rp-cost-row .rp-cost-totals { display: block; }
+.renovation-plan-editor .rp-cost-row .rp-cost-total {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 12px;
+	padding: 5px 0;
+	border: 0;
+	background: transparent;
+}
+
+.renovation-plan-editor .rp-cost-row .rp-cost-total dd {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	text-align: end;
+}
+
+.renovation-plan-editor .rp-renovation-inspector details {
+	padding: 10px 0;
+	border-block: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.renovation-plan-editor .rp-renovation-inspector summary { cursor: pointer; color: var(--text-normal); }
+.renovation-plan-editor .rp-renovation-inspector details[open] p { margin-top: 10px; }
+.renovation-plan-editor .rp-planning-actions,
+.renovation-plan-editor .rp-renovation-row-actions { gap: 6px; padding-top: 4px; }
+.renovation-plan-editor .rp-evidence-thumbnail {
+	width: 100%;
+	max-height: 210px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+}
+
+.renovation-plan-editor .rp-record-state {
+	justify-self: start;
+	padding: 3px 8px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-smaller);
+}
+
+.renovation-plan-editor .rp-work-number {
+	align-self: flex-start;
+	margin-inline-end: 8px;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.renovation-plan-editor .rp-renovation-inspector > label {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: center;
+	gap: 12px;
+}
+
+.renovation-plan-editor .rp-renovation-inspector > label select { min-width: 0; width: 100%; }

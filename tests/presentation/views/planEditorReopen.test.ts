@@ -158,7 +158,7 @@ async function openOn(planId: string, viewDeps: PlanEditorDeps): Promise<PlanEdi
 function roomRows(view: PlanEditorView): [string, string][] {
 	return [...view.contentEl.querySelectorAll<HTMLElement>('.rp-floor-inspector .rp-room-list__row')].map((row) => [
 		row.dataset['rpId'] ?? '',
-		row.textContent?.trim() ?? '',
+		row.querySelector('span')?.textContent?.trim() ?? '',
 	]);
 }
 

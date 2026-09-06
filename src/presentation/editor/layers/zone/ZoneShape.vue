@@ -76,7 +76,7 @@ const anchor = computed(() => labelAnchor(props.model.points));
  * every zone's name landed off the top of the pane. Invisible to jsdom, which draws
  * nothing; found in `npm run harness-shot`.
  */
-const CAPTION_PX = 12;
+const CAPTION_PX = 14;
 const captionScale = computed(() => 1 / props.zoom);
 
 const statusCaption = computed(() => tr(appearance.value.captionKey));
@@ -95,7 +95,7 @@ const statusCaption = computed(() => tr(appearance.value.captionKey));
 				points: flatPoints,
 				closed: true,
 				fill,
-				opacity: 0.28,
+				opacity: 0.12,
 				listening: false,
 				perfectDrawEnabled: false,
 			}"

@@ -6,6 +6,8 @@ import { useSelectionStore } from '../selection/selection-store';
 import type { EntityId } from '../../../core/identity/EntityId';
 import { formatArea } from './formatArea';
 import { zoneTypeLabel } from './zoneTypeLabel';
+import BatchActionList from '../renovation/BatchActionList.vue';
+import { formatMetres } from './formatLength';
 
 defineProps<{ selection: Extract<SpatialSelection, { kind: 'multiple' }> }>();
 const store = useSelectionStore();
@@ -31,6 +33,8 @@ async function clearSelection(): Promise<void> {
 			<dd>{{ selection.ids.length }}</dd>
 			<dt>{{ tr('editor.selection.area-sum') }}</dt>
 			<dd>{{ selection.areaMm2 === null ? tr('editor.selection.unknown') : formatArea(selection.areaMm2) }}</dd>
+			<dt>{{ tr('renovation.batch.length') }}</dt>
+			<dd>{{ selection.lengthMm === null ? tr('editor.selection.unknown') : `${formatMetres(selection.lengthMm)} m` }}</dd>
 			<dt>{{ tr('editor.selection.shared-type') }}</dt>
 			<dd v-if="selection.unavailable > 0">
 				{{ tr('editor.selection.unknown') }}
@@ -43,6 +47,10 @@ async function clearSelection(): Promise<void> {
 			{{ tr('editor.selection.unavailable', { count: String(selection.unavailable) }) }}
 		</p>
 		<p>{{ tr('editor.selection.area-sum-hint') }}</p>
+		<p v-if="selection.lengthMm !== null">
+			{{ tr('renovation.batch.length-hint') }}
+		</p>
+		<BatchActionList :selection="selection" />
 		<h3 class="rp-editor-panel-subtitle">
 			{{ tr('editor.selection.members') }}
 		</h3>

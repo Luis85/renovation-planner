@@ -27,8 +27,8 @@ export function materialRows(baseline: PlanningBaseline) {
 			price: entity.calculatedFrom.unitCost, priceChanged: !!selected && !sameMoney(selected.price, entity.calculatedFrom.unitCost) };
 	});
 }
-export function costRows(baseline: PlanningBaseline, roomId: string) {
-	const materials = materialRows(baseline).filter(item => item.entity.origin.zoneId === roomId);
+export function costRows(baseline: PlanningBaseline, roomId: string, prepared = materialRows(baseline)) {
+	const materials = prepared.filter(item => item.entity.origin.zoneId === roomId);
 	const saved = (baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH).costs.filter(item => item.roomId === roomId);
 	const derived: CostRecord[] = materials.filter(item => !saved.some(cost => cost.requirementId === item.entity.id && !cost.cancelled)).map(item => ({
 		id: `estimate:${item.entity.id}`, roomId, targetId: item.source.targetId, workId: item.source.workId, title: item.name, category: 'material', requirementId: item.entity.id,

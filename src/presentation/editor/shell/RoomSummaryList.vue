@@ -11,6 +11,7 @@
  */
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
+import { formatArea } from './formatArea';
 import type { SpatialRecordDto } from '../../read-models/spatialRecords';
 import type { EntityId } from '../../../core/identity/EntityId';
 
@@ -50,7 +51,8 @@ function isSelected(id: string): boolean {
 				:aria-pressed="isSelected(record.id)"
 				@click="runtime.selectAndFrame(record.id, toggleSelection === true || $event.shiftKey)"
 			>
-				{{ record.name }}
+				<span>{{ record.name }}</span>
+				<span class="rp-room-list__area">{{ formatArea(record.areaMm2) }}</span>
 			</button>
 		</li>
 	</ul>

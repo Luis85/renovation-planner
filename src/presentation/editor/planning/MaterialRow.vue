@@ -10,13 +10,13 @@ const planning = usePlanningContext(), session = useRenovationSession();
 </script>
 <template>
 	<li
-
-
+		class="rp-material-row"
 		:data-rp-record="row.entity.id"
 		:class="{ 'is-selected': session.focusedId === row.entity.id }"
 	>
 		<button
 			type="button"
+			class="rp-record-title"
 			@click="planning.runtime.renovation.focus(session.roomId, 'materials', row.entity.id)"
 		>
 			{{ row.name }}

@@ -31,7 +31,10 @@ const totals = computed(() => aggregateCosts(rows.value, props.baseline.currency
 	>
 		{{ tr('planning.totals-refused') }}
 	</p>
-	<p>{{ tr('planning.reconciliation-policy') }}</p>
+	<details>
+		<summary>{{ tr('planning.explain') }}</summary>
+		<p>{{ tr('planning.reconciliation-policy') }}</p>
+	</details>
 	<ol class="rp-renovation-list">
 		<CostRow
 			v-for="row in rows"

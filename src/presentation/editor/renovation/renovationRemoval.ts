@@ -20,6 +20,7 @@ export function removeRenovationRecord(read: RenovationBaseline, id: string, pro
 		intended = { ...intended, boundaries: [...intended.boundaries.filter(item => !restored.some(other => other.roomId === item.roomId)), ...restored] };
 	}
 	return { intended, renovation: {
+		...value,
 		subjects: value.subjects.flatMap(item => item.id !== id ? [item] : proposalOnly && item.existing ? [{ ...item, planned: null }] : []),
 		work: value.work.filter(item => item.id !== id), decisions: value.decisions.filter(item => item.id !== id),
 	} };

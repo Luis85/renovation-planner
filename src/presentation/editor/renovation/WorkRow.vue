@@ -5,6 +5,7 @@ import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
 import { blockingWork, type Renovation, type WorkPackage } from '../../../domain/renovation/Renovation';
 import { tr } from '../../i18n/strings';
+import SharedRecordContexts from './SharedRecordContexts.vue';
 const props = defineProps<{ item: WorkPackage; value: Renovation; index: number }>();
 const emit = defineEmits<{ remove: [id: string, name: string] }>();
 const actions = useEditorRuntime().renovation, session = useRenovationSession();
@@ -20,12 +21,16 @@ function outcomeLabel(id: string) {
 	>
 		<button
 			type="button"
+			class="rp-record-title"
 			@click="actions.focus(item.roomId, 'work', item.id)"
 		>
-			{{ index + 1 }}. {{ item.title }}
+			<span class="rp-work-number">{{ index + 1 }}.</span> {{ item.title }}
 		</button>
 		<p>{{ item.description }}</p>
-		<p>{{ tr(`renovation.progress.${item.progress}`) }} · {{ tr(item.responsibility === 'diy' ? 'renovation.diy' : 'renovation.unassigned') }}</p>
+		<SharedRecordContexts :item="item" />
+		<p class="rp-record-state">
+			{{ tr(`renovation.progress.${item.progress}`) }} · {{ tr(item.responsibility === 'diy' ? 'renovation.diy' : 'renovation.unassigned') }}
+		</p>
 		<p v-if="blockingWork(value, item).length">
 			{{ tr('renovation.blocked', { names: blockingWork(value, item).map(other => other.title).join(', ') }) }}
 		</p>

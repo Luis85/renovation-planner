@@ -1,5 +1,7 @@
 # M01 — Standard Plan View
 
+**Current implementation checkpoint:** Clearing selection in Plan or Renovate returns to the same Floor summary. Planned changes come from the owning Plan register; connected floor costs reuse the same material/cost reconciliation as room Costs. Incomplete, stale or failed inputs do not become a zero total. Real room areas appear in the selection list. See [implementation evidence and pending acceptance](../implementation/editor-visual-fidelity.md).
+
 ![M01 — Standard Plan View](../images/M01-standard-plan-view.png)
 
 ## Screen description

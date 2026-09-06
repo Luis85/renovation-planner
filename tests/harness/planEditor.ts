@@ -424,9 +424,9 @@ export interface PlanEditorHarnessOptions {
 
 /**
  * Drives the `?select=<zoneId>` knob: waits for the floor summary's room list to exist at all
- * — it renders only once the plan has hydrated — then clicks the row whose TEXT matches the
- * zone's name. `RoomSummaryList` renders `record.name`, never `record.id`, so the id has to be
- * turned back into a name first; there is nothing in the DOM to match the id itself against.
+ * — it renders only once the plan has hydrated — then clicks its stable `data-rp-id` row.
+ * Matching identity lets the visible row include area metadata or a renamed label without
+ * changing which record the knob selects.
  *
  * The click goes through `RoomSummaryList`'s own `@click="runtime.selectAndFrame(record.id)"`
  * — the real door a user's own click takes — rather than reaching into the runtime or the
@@ -463,9 +463,8 @@ async function selectZoneOnceReady(root: HTMLElement, zoneId: string): Promise<v
 		);
 	}
 
-	const name = HARNESS_ZONES.find((zone) => zone.id === zoneId)?.name;
 	const row = [...root.querySelectorAll<HTMLButtonElement>('.rp-room-list__row')].find(
-		(candidate) => candidate.textContent?.trim() === name,
+		(candidate) => candidate.dataset.rpId === zoneId,
 	);
 	row?.click();
 }

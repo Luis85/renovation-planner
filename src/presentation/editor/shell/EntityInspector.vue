@@ -71,13 +71,14 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 		<h2 class="rp-editor-panel-title">
 			{{ tr('editor.inspector') }}
 		</h2>
-		<RenovationInspector v-if="renovationSession.perspective !== 'plan'" />
+		<RenovationInspector v-if="renovationSession.perspective === 'review'" />
 		<NewRoomInspector v-else-if="activeToolId === 'draw-room'" />
-		<FloorInspector v-else-if="selectedIds.length === 0" />
 		<MultiSelectionInspector
 			v-else-if="selection.kind === 'multiple'"
 			:selection="selection"
 		/>
+		<RenovationInspector v-else-if="renovationSession.perspective === 'renovate'" />
+		<FloorInspector v-else-if="selectedIds.length === 0" />
 		<StructureInspector v-else-if="project.structure.walls.some(wall => wall.id === selectedIds[0]) || project.structure.openings.some(opening => opening.id === selectedIds[0])" />
 		<RoomInspector v-else />
 	</aside>

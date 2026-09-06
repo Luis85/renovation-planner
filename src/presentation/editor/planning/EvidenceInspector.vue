@@ -53,6 +53,7 @@ function unlink(id: string): void {
 		>
 			<button
 				type="button"
+				class="rp-record-title"
 				@click="planning.runtime.renovation.focus(item.roomId, session.mode, item.id)"
 			>
 				{{ index + 1 }}. {{ item.description }}

@@ -19,6 +19,9 @@ import { type Aggregate } from '../../read-models/spatialRecords';
 import { formatArea } from './formatArea';
 import { useFloorSummary } from './useFloorSummary';
 import RoomSummaryList from './RoomSummaryList.vue';
+import { usePlanEditorContext } from '../PlanEditorContext';
+import RenovationLinkedSummary from '../renovation/RenovationLinkedSummary.vue';
+const context = usePlanEditorContext();
 
 /**
  * `null` before the first successful hydrate — and this component may well be mounted
@@ -63,6 +66,7 @@ const count = (value: number): string => String(value);
 		v-if="summary !== null"
 		class="rp-floor-inspector"
 	>
+		<h3>{{ summary.floor.name }}</h3>
 		<ReferenceAction />
 		<dl class="rp-editor-inspector-fields">
 			<dt>{{ tr('editor.inspector.floor.rooms') }}</dt>
@@ -101,8 +105,11 @@ const count = (value: number): string => String(value);
 				{{ textFor(summary.plannedChanges, count) }}
 			</dd>
 
-			<dt>{{ tr('editor.inspector.floor.estimated-cost') }}</dt>
+			<dt v-if="!context.commands.planning">
+				{{ tr('editor.inspector.floor.estimated-cost') }}
+			</dt>
 			<dd
+				v-if="!context.commands.planning"
 				data-rp-stat="estimated-cost"
 				class="rp-floor-inspector__stat"
 				:class="classFor(summary.estimatedCost)"
@@ -110,6 +117,7 @@ const count = (value: number): string => String(value);
 				{{ textFor(summary.estimatedCost, count) }}
 			</dd>
 		</dl>
+		<RenovationLinkedSummary v-if="context.commands.planning" />
 
 		<RoomSummaryList
 			v-if="summary.rooms.length > 0"

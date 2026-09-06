@@ -12,6 +12,7 @@ import { planningInput, materialInput, type PlanningDraft } from './planningDraf
 import MaterialFields from './MaterialFields.vue';
 import CostFields from './CostFields.vue';
 import EvidenceFields from './EvidenceFields.vue';
+import { hasRoomContext } from '../../../domain/renovation/SharedLinks';
 const props = defineProps<{ draft: PlanningDraft; baseline: PlanningBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; files?: EvidenceFiles; dispatch: (input: MaterialInput | RenovationInput) => Promise<DispatchResult> }>();
 const emit = defineEmits<{ submit: [] }>();
 const draft = ref(structuredClone(toRaw(props.draft))), submitting = ref(false), error = ref(''), preview = ref('');
@@ -83,7 +84,7 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 			:disabled="frozen"
 			name="work"
 		><option value="">{{ tr('planning.unassigned') }}</option><option
-			v-for="work in baseline.plan.entity.renovation?.work.filter(item => item.roomId === draft.roomId)"
+			v-for="work in baseline.plan.entity.renovation?.work.filter(item => hasRoomContext(item, draft.roomId))"
 			:key="work.id"
 			:value="work.id"
 		>{{ work.title }}</option></select></label>

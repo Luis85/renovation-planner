@@ -40,7 +40,10 @@ async function shopping(): Promise<void> {
 	>
 		{{ tr('planning.edit.material') }}
 	</button>
-	<p>{{ tr('planning.procurement-policy') }}</p>
+	<details>
+		<summary>{{ tr('planning.procurement') }}</summary>
+		<p>{{ tr('planning.procurement-policy') }}</p>
+	</details>
 	<section
 		v-for="group in groups"
 		:key="group.id"

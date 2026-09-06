@@ -16,14 +16,21 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 	>
 		<button
 			type="button"
+			class="rp-record-title"
 			@click="actions.focus(item.roomId, session.mode, item.id)"
 		>
 			{{ session.mode === 'existing' ? item.existing?.description : item.planned?.description || item.existing?.description }}
 		</button>
-		<p v-if="session.mode === 'existing' && item.existing">
+		<p
+			v-if="session.mode === 'existing' && item.existing"
+			class="rp-record-metadata"
+		>
 			{{ tr(`renovation.condition.${item.existing.condition}`) }} · {{ tr('renovation.manual') }}
 		</p>
-		<p v-if="session.mode === 'planned' && item.planned">
+		<p
+			v-if="session.mode === 'planned' && item.planned"
+			class="rp-record-state"
+		>
 			{{ tr(`renovation.change.${item.planned.change}`) }}
 		</p>
 		<div class="rp-renovation-row-actions">

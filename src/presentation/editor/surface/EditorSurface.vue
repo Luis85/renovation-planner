@@ -178,8 +178,25 @@ function syncPanPhase(): void {
  * tool is active' is what would notice it going again; that the class resolves to
  * `crosshair` is checked by nothing here at all (`styles/editor-cursors.css` says so where
  * the keyword is, and `docs/tests/cases/Canvas Navigation.md` is the instrument).
+ *
+ * **ONE list across both surfaces**, though the two surfaces' ids are disjoint — the same
+ * reasoning `CONSTRAINING_TOOLS` (`editorSnapping.ts`) already settled for the Shift-angle
+ * question. This surface mounts twice: the Plan Editor with `draw-polygon`, `draw-room`,
+ * `calibrate`, and `DesignerCanvas.vue` with `trace-footprint`, `trace-clearance`,
+ * `set-anchor`, `set-facing` — each an id the OTHER surface's `ToolManager` never registers,
+ * so a designer tool can never be the answer in the Plan Editor and vice versa. What one
+ * list buys is that "does this tool want a crosshair" has one answer, checked here rather
+ * than reasoned separately per mounter.
  */
-const PRECISE_TOOLS: readonly ToolId[] = ['draw-polygon', 'draw-room', 'calibrate'];
+const PRECISE_TOOLS: readonly ToolId[] = [
+	'draw-polygon',
+	'draw-room',
+	'calibrate',
+	'trace-footprint',
+	'trace-clearance',
+	'set-anchor',
+	'set-facing',
+];
 
 /**
  * The ONE cursor class on the canvas, and the place the precedence between the camera and
@@ -1166,9 +1183,15 @@ function onKeyDown(event: KeyboardEvent): void {
  * unconstrains as promptly as it constrained. Space is the pan disarming — and a pan already
  * RUNNING is deliberately not ended by it, for the reason `PanOverride.disarmSpace` gives.
  *
- * `isCanvasKey` guards the space branch alone. Shift is a MODIFIER: it reaches this element
- * while the empty state's action button has focus too, and the tool's preview should still
- * unconstrain — where a space release there belongs to the button, not to the camera.
+ * **Not a symmetric pair with the press, and deliberately not one.** `onKeyDown`'s Shift
+ * branch is gated behind that handler's own `isCanvasKey` check, same as every other canvas
+ * key — a press only constrains while the canvas itself has focus. The RELEASE here is
+ * UNGATED: `isCanvasKey` guards the space branch alone, because Shift is a MODIFIER rather
+ * than a canvas shortcut, and it reaches this element while the empty state's action button
+ * has focus too. A Shift pressed on the canvas and released after Tab moved focus to that
+ * button must still unconstrain the preview — the drag it was steering does not know focus
+ * moved — so gating the release the same way the press is gated would strand the constraint
+ * on. A space release there, by contrast, belongs to the button it lands on, not the camera.
  */
 function onKeyUp(event: KeyboardEvent): void {
 	if (event.key === 'Shift') {

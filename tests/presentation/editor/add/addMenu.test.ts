@@ -396,6 +396,9 @@ describe('the Add menu', () => {
 		expect(harness.wrapper.find('button[data-rp-action="add"]').attributes('aria-expanded')).toBe('false');
 		expect(runtimeOf(harness).activeToolId.value).toBe('select');
 		expect(useSelectionStore(harness.pinia).selectedIds).toEqual(['zone-kitchen']);
+		// E2: the focus-out door must not steal focus back to the anchor — it already went where
+		// the user sent it, and `onBeforeUnmount`'s unconditional `anchor?.focus()` used to win.
+		expect(document.activeElement?.getAttribute('data-rp-action')).toBe('select');
 	});
 
 	it('a focusout with no destination (the window lost focus) keeps the menu open', async () => {

@@ -1177,7 +1177,16 @@ function onKeyDown(event: KeyboardEvent): void {
 	// Escape is handled ABOVE this, and deliberately: `routeEscape`'s question — cancel a
 	// draft, switch tool, or clear a selection — must be answered whether or not a gesture is
 	// in flight, and none of its outcomes touches the camera.
-	if (gestureInFlight()) return;
+	//
+	// **This arrow check is ABOVE the gesture lock now, and on purpose (Finding B, the
+	// whole-tree review).** `gestureInFlight()` used to return FIRST, so an arrow key pressed
+	// mid-drag or mid-draw fell through this whole function uncaught: `preventDefault()` never
+	// ran, and the leaf underneath the still-running gesture scrolled out from under it — the
+	// same shape Space's own branch above already avoids for the identical reason. Consuming
+	// the key is not the same decision as acting on it, so `preventDefault()` stays
+	// unconditional inside the `nudge !== null` branch while the DISPATCH keeps asking
+	// `gestureInFlight()` itself: a nudge mid-gesture would move the very selection the
+	// gesture is already moving, which is what the guard below still refuses.
 	// §85's one operation slice 5 left unreachable by keyboard (E8, Task 14): an arrow key
 	// nudges whatever `nudgeSelection` finds selected. `arrowVector` answers `null` for every
 	// other key, so this is a lookup rather than four more `if`s beside the ones above.
@@ -1187,9 +1196,10 @@ function onKeyDown(event: KeyboardEvent): void {
 	const nudge = arrowVector(event);
 	if (nudge !== null) {
 		event.preventDefault();
-		if (!event.repeat) void props.nudgeSelection(nudge);
+		if (!event.repeat && !gestureInFlight()) void props.nudgeSelection(nudge);
 		return;
 	}
+	if (gestureInFlight()) return;
 	if (fitShortcut(event)) return;
 	zoomShortcut(event);
 }

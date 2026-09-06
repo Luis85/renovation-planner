@@ -186,7 +186,13 @@ export class RenovationProjectView extends ItemView {
 		// before awaiting what `setState` returned. `result` is the one object Obsidian holds
 		// for this call, so a synchronous read sees this value regardless of when the awaited
 		// work finishes; refused below, it is corrected back to `false` before that promise
-		// settles, so the final value is always the true one either way.
+		// settles, so the final value is always the true one either way. Setting it only AFTER
+		// `canLeave()` resolves accepted — asked for once, and refused — would be right for no
+		// synchronous reader rather than wrong for one: under a synchronous reader, a navigation
+		// the user then CANCELS in the leave dialog below leaves a back entry that restores the
+		// state the pane is already in, which is the cost this ordering already accepts on the
+		// ACCEPTED path and `docs/tests/cases/Back arrow over a dirty price draft.md` is written
+		// to observe on Stay.
 		result.history = changed;
 		if (changed && this.session.canLeave && !(await this.session.canLeave())) { result.history = false; return; }
 		if (parsed !== null) { this.projectId = parsed.projectId; this.section = section; }

@@ -200,6 +200,37 @@ describe('a settings write that cannot reach data.json', () => {
 });
 
 /**
+ * Finding A (the whole-tree review): the OTHER window in the same write door. The write
+ * above is `saveData` itself throwing before anything changed; this is `saveData`
+ * resolving and `applySettings` — the swap right after it — throwing instead, which used
+ * to reject this promise with no report at all: `persistLibraryFolder`'s identical N4 arm
+ * (`'apply-failed'`, below) already resolves and reports, and `saveSettings` had the same
+ * window with neither.
+ */
+describe('a settings write whose swap fails after landing', () => {
+	beforeEach(() => {
+		resetRecorder();
+		Notice.shown.length = 0;
+	});
+
+	it('reports the apply-failed sentence and resolves, rather than rejecting', async () => {
+		const { plugin } = await loadedPlugin(null);
+		const persistence = plugin.root.persistence as NonNullable<typeof plugin.root.persistence>;
+		// The same plant the N4 case below uses: `disposeCascade` is `applySettings`'s own
+		// first line and the one step in it with no catch of its own.
+		vi.spyOn(persistence.changeAdapter, 'flush').mockImplementation(() => {
+			throw new Error('the outgoing adapter is wedged');
+		});
+
+		await expect(plugin.saveSettings({ units: 'imperial' })).resolves.toBeUndefined();
+
+		expect(plugin.saved).toEqual([{ ...DEFAULT_SETTINGS, units: 'imperial' }]);
+		expect(lines.filter((line) => line.event === 'settings.apply-failed')).toHaveLength(1);
+		expect(Notice.shown).toEqual([t('en', 'settings.apply-failed')]);
+	});
+});
+
+/**
  * The library move, which is the only writer of `libraryFolder` there is.
  *
  * Every case here drives the ACTION the definition declares rather than a method invented

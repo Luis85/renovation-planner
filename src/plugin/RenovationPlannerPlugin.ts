@@ -23,7 +23,8 @@ import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerAssetDesignerCommands } from './assetDesignerCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
-import { activateNotices, disposeNotices, notifyFault } from '../presentation/notices/notify';
+import { activateNotices, disposeNotices, noticeOnlySinks, notifyFault } from '../presentation/notices/notify';
+import { surfaceError } from '../presentation/errors/surfaceError';
 import { assetDesignerDeps } from './assetDesignerDeps';
 import { planEditorDeps } from './planEditorDeps';
 import { assetLibraryDeps } from './assetLibraryDeps';
@@ -482,10 +483,23 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * **It WRITES first and swaps second** (G3/N3), which is the order `persistLibraryFolder`
 	 * argued for itself while this door had the opposite one. The argument generalises: a
 	 * session running on a value the file does not hold creates notes under a root the next
-	 * start will not know about, and `projectFolder` is a setting that names a folder. And the
-	 * failure is CAUGHT rather than rethrown, because there is nobody to rethrow to —
-	 * `setControlValue` discards the promise Obsidian hands it, and `queueSettingsWrite`'s tail
-	 * swallows on both arms so the chain survives. This is the one place that can report it.
+	 * start will not know about, and `projectFolder` is a setting that names a folder.
+	 *
+	 * **BOTH halves are caught and BOTH report, rather than rethrowing.** There is nobody to
+	 * rethrow to either way — `setControlValue` discards the promise Obsidian hands it, and
+	 * `queueSettingsWrite`'s tail swallows on both arms so the chain survives — so this is the
+	 * one place that can report either failure. The write's own rejection was already caught;
+	 * the swap's was not, and `applySettings` can throw exactly the way `persistLibraryFolder`
+	 * already plans for (the outgoing adapter's `flush()`, an open view's `rebind()`): the
+	 * write had already landed in `data.json` by the time that happens, so the outcome is N4's
+	 * `'apply-failed'` in every way but its shape — this door has no outcome value to hand a
+	 * caller, so it reports the identical sentence itself rather than leaving the promise to
+	 * reject with no report at all, which is what it did until the whole-tree review's Finding
+	 * A. `'settings.apply-failed'` carries the exact same two locale sentences as
+	 * `'settings.library-apply-failed'` for the reason its own comment gives: it is the same
+	 * fault, and the generic `vault.unexpected-failure` sentence `notifyFault` would otherwise
+	 * show is honest about a WRITE failing and wrong about this one, where the write succeeded
+	 * and only the running session is behind.
 	 */
 	saveSettings(patch: SettingsPatch): Promise<void> {
 		return this.queueSettingsWrite(async () => {
@@ -509,7 +523,26 @@ export default class RenovationPlannerPlugin extends Plugin {
 				notifyFault(cause, this.root.logger, 'settings.save-failed');
 				return;
 			}
-			this.applySettings(composed);
+			// The write landed; the swap is the OTHER half that can still throw, and until this
+			// try/catch existed a fault here rejected the promise with no report of any kind —
+			// `data.json` already held the new settings, and the session silently kept running
+			// on the old root. See this method's own docblock for why the sentence is built by
+			// hand rather than routed through `notifyFault`.
+			try {
+				this.applySettings(composed);
+			} catch (cause) {
+				this.root.logger.error('settings.apply-failed', { cause });
+				surfaceError(
+					{
+						category: 'Persistence',
+						code: 'settings.apply-failed',
+						message: 'The setting was saved, but the session could not switch to it.',
+						cause,
+					},
+					{ kind: 'explicit-operation' },
+					noticeOnlySinks,
+				);
+			}
 		});
 	}
 

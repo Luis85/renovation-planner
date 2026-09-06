@@ -28,7 +28,7 @@ import type { PlanEditorQueryServices } from '../../../src/presentation/read-mod
 import { dispatchingEventBus } from '../../helpers/slice10';
 import { makeZone } from '../../helpers/entities';
 import { expectOk } from '../../helpers/domain';
-import { actionButton, activateTool } from '../../helpers/planEditorRig';
+import { actionButton, activateTool, pointer } from '../../helpers/planEditorRig';
 import { mountPlanEditorCanvas, settle, settleUntil } from '../../helpers/editor';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import type { ProjectId } from '../../../src/domain/project/ProjectId';
@@ -411,6 +411,34 @@ describe('arrow keys move the selected room (Task 14, E8)', () => {
 		await settle();
 
 		expect(actionButton(harness, 'Undo').disabled).toBe(true);
+		harness.unmount();
+	});
+
+	/**
+	 * Finding B (the whole-tree review): `gestureInFlight()`'s early return used to sit ABOVE
+	 * the arrow branch, so an arrow key pressed mid-gesture reached neither `preventDefault()`
+	 * nor `nudgeSelection` — the keydown fell through uncaptured and the Obsidian leaf
+	 * underneath the in-progress drag scrolled. `key()` above cannot show this: it discards
+	 * the event it dispatches, and `defaultPrevented` is exactly what a discarded event hides.
+	 */
+	it('an arrow key mid-gesture is consumed rather than left to scroll the leaf', async () => {
+		const { calls, commands } = await nudgeRig();
+		const harness = await mountPlanEditorCanvas({ commands });
+		useSelectionStore().select([KITCHEN.id as never]);
+		await settle();
+
+		harness.canvasEl.focus();
+		// Select is the tool already active here, so a bare press is enough to claim a
+		// gesture with no matching release — the drag this arrow key would otherwise
+		// interrupt.
+		pointer(harness.canvasEl, 'pointerdown', 10, 10);
+
+		const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+		harness.canvasEl.dispatchEvent(event);
+		await settle();
+
+		expect(event.defaultPrevented).toBe(true);
+		expect(calls).toHaveLength(0);
 		harness.unmount();
 	});
 });

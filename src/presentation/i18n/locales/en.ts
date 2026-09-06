@@ -665,6 +665,13 @@ export const en = {
 	// catches it up.
 	'settings.library-apply-failed':
 		'The setting was saved; the session could not switch to it. Reload Obsidian.',
+	// The same sentence as the library-folder row above, reused rather than paraphrased: both
+	// name the identical fault — `saveData` landed and the swap after it (`applySettings`)
+	// threw — and a settings write that names a folder is not the only setting this can happen
+	// to. Its own `code` has to be this exact string, or `toUserMessage` falls through to the
+	// generic `error.category.persistence` sentence instead of this one.
+	'settings.apply-failed':
+		'The setting was saved; the session could not switch to it. Reload Obsidian.',
 	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',
 	// Design slice B3 (ADR-0015): the asset designer's own surface. The two empty states are
 	// OVERLAYS inside the canvas region, never a replacement for it — slice 14's rule, and here

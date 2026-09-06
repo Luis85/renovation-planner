@@ -62,6 +62,16 @@ the five values and what they do not claim.
 | 6 | `obsidian` | Press **back** again, and this time choose **Discard** | The dialog closes, the draft is gone, and the pane returns to wherever back was supposed to go (the project detail's own section, or the list) | The accepted arm: `session.canLeave()` answered `true`, `result.history` stayed `true`, and the arrow's navigation actually happened |
 | 7 | `obsidian` | Press **forward** | The pane returns to the price section it just left | The other end of the entry step 6 actually recorded — proof that a genuine navigation still gets a working forward arrow, which is the case step 5 is a refusal of |
 
+## What to record on Stay
+
+- If step 5's **forward** arrow unexpectedly moves the pane instead of doing nothing, that is
+  the accepted cost of assigning `result.history` before the `await` rather than a new defect:
+  under a synchronous reader, the back press already recorded a history entry before
+  `canLeave()`'s correction to `false` could land, so Stay can leave one spurious entry a
+  forward press then walks to a state the pane never actually left. Record it as this finding's
+  known window (`RenovationProjectView.setState`'s P2 comment names it), not as something to
+  file.
+
 ## Deliberately NOT checked
 
 - **Whether Obsidian reads `result.history` synchronously or only after the promise settles.**

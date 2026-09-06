@@ -173,6 +173,9 @@ const GENERIC_APPLICATION_CODES: Readonly<Record<string, string>> = {
 		"Minted only when ConfigurePlanReference's plan restore THROWS after a failed sidecar "
 		+ 'write, and wrapped on the spot as the cause of `reference.compensation-failed`, which '
 		+ 'is the code that reaches `toUserMessage`; this one never does.',
+	'renovation.restore-failed':
+		"The same shape one command over: RenovationCommand's plan restore THROWS after a failed "
+		+ 'sidecar write and is wrapped on the spot as the cause of `renovation.compensation-failed`.',
 };
 
 describe('toUserMessage', () => {

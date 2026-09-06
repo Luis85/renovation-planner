@@ -65,6 +65,7 @@ it('continues at the first missing planning step and excludes unchanged outcomes
 	expect(renovationSummary({ ...rig.value, decisions: [], work: [{ ...rig.value.work[0], outcomes: [] }] }, rig.roomId)).toMatchObject({ nextMode: 'work', next: { kind: 'missing-outcome' } });
 	expect(renovationTargetDraft('work', rig.roomId, 'work-sand', baseline, 'wall-a').work.targetId).toBe(rig.roomId);
 	expect(renovationTargetDraft('existing', rig.roomId, '', baseline, '').subject.targetId).toBe(rig.roomId);
+	expect(renovationTargetDraft('planned', rig.roomId, '', baseline, 'wall-a').subject).toMatchObject({ targetId: 'wall-a', kind: 'wall', existing: { description: 'Wall' }, planned: { change: 'modify' } });
 });
 it('excludes cancelled obligations and refuses a misleading mixed-currency floor estimate', async () => {
 	const rig = await planningStack(), baseline = expectOk(await rig.read());

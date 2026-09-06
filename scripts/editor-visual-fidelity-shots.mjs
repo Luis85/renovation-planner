@@ -12,7 +12,7 @@ const out = `docs/user-experience/renovation-planner-editor-specs/implementation
 await mkdir(out, { recursive: true });
 for (const journey of ['materials-costs-evidence', 'renovation-workflow', 'reference-plan', 'editor-visual-resilience', 'editor-visual-overview']) {
 	try { await cp(`harness-shots/${journey}`, `${out}/${journey}`, { recursive: true }); }
-	catch (error) { if (error.code !== 'ENOENT') throw error; }
+	catch (error) { if (phase === 'after' || error.code !== 'ENOENT') throw error; }
 }
 const server = await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0, open: false } });
 await server.listen();

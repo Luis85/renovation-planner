@@ -7,6 +7,16 @@ import { settle } from '../../helpers/editor';
 import { EMPTY_DEPTH, type Evidence } from '../../../src/domain/renovation/PlanningDepth';
 import { EDITOR_RUNTIME } from '../../../src/presentation/editor/runtime';
 import SharedRecordContexts from '../../../src/presentation/editor/renovation/SharedRecordContexts.vue';
+import { createPinia, setActivePinia } from 'pinia';
+import { useRenovationContextLabel } from '../../../src/presentation/editor/renovation/renovationContextLabel';
+import { tr } from '../../../src/presentation/i18n/strings';
+
+it('labels externally missing context identities as unknown instead of inventing Room or element names', () => {
+	setActivePinia(createPinia());
+	const label = useRenovationContextLabel(), unknown = tr('editor.selection.unknown');
+	expect(label({ roomId: 'missing-room', targetId: 'missing-room' })).toBe(unknown);
+	expect(label({ roomId: 'missing-room', targetId: 'missing-wall' })).toBe(`${unknown} · ${unknown}`);
+});
 
 it('unlinks only the named secondary evidence context, preserving its file, owner, other links and undo history', async () => {
 	const rig = await renovationEditor(true), roomId = rig.room.id;

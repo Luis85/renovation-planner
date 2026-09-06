@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildFloorSummary, toFloorDto, toSpatialRecordDto } from '../../../src/presentation/read-models/spatialRecords';
 import { FIXTURE_PLAN, FIXTURE_PROJECT, FIXTURE_ZONES } from '../../helpers/planFixtures';
+import type { RenovationSubject } from '../../../src/domain/renovation/Renovation';
 
 const [kitchen, terrace] = FIXTURE_ZONES;
 
@@ -56,6 +57,14 @@ describe('buildFloorSummary', () => {
 		const summary = buildFloorSummary(input);
 		expect(summary.plannedChanges).toEqual({ state: 'available', value: 0 });
 		expect(summary.estimatedCost).toEqual({ state: 'unavailable' });
+	});
+	it('counts recorded changes while excluding observations and explicitly unchanged outcomes', () => {
+		const existing = { description: 'Timber', condition: 'worn' as const };
+		const subjects: RenovationSubject[] = [null, { change: 'unchanged' as const, description: 'Timber' }, { change: 'modify' as const, description: 'Oil timber' }, { change: 'remove' as const, description: '' }]
+			.map((planned, index) => ({ id: `detail-${index}`, roomId: kitchen.id, targetId: kitchen.id, kind: 'floor', existing, planned }));
+		const plan = { ...FIXTURE_PLAN, renovation: { subjects, work: [], decisions: [] } };
+		expect(buildFloorSummary({ ...input, plan }).plannedChanges).toEqual({ state: 'available', value: 2 });
+		expect(buildFloorSummary({ ...input, plan, unreadable: 1 }).plannedChanges).toEqual({ state: 'partial', value: 2, unreadable: 1 });
 	});
 
 	it('distinguishes a floor with no rooms from one whose rooms could not be read', () => {

@@ -2,11 +2,12 @@
 import { afterEach, expect, it } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle } from '../../helpers/editor';
-import { expectOk } from '../../helpers/domain';
+import { expectDefined, expectOk } from '../../helpers/domain';
 import { resizeTo } from '../../helpers/layout';
 import { EMPTY_DEPTH } from '../../../src/domain/renovation/PlanningDepth';
 import type { Renovation } from '../../../src/domain/renovation/Renovation';
 import { of } from '../../../src/core/money/Money';
+import { tr } from '../../../src/presentation/i18n/strings';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -64,6 +65,12 @@ it('previews one shared work item, retains its draft through reflow and undoes a
 	expect(rig.wrapper.get('.rp-dialog').text()).toContain('Studio · Wall 2'); rig.dialogs.resolve('confirm'); await settle();
 	expect(rig.project.plan?.renovation?.work).toHaveLength(1); expect(rig.project.plan?.renovation?.work[0].links).toEqual([]);
 	expectOk(await rig.runtime.dispatcher.undo()); await settle(); expect(rig.project.plan?.renovation?.work[0].links).toHaveLength(1);
+	const remove = expectDefined(rig.wrapper.get(`[data-rp-record="${saved[0].id}"]`).findAll('button').find(button => button.text() === tr('renovation.delete')), 'shared Work delete');
+	await remove.trigger('click'); await settle(); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Studio · Wall 2');
+	rig.dialogs.resolve('cancel'); await settle(); expect(rig.project.plan?.renovation?.work).toHaveLength(1);
+	await remove.trigger('click'); await settle(); rig.dialogs.resolve('confirm'); await settle();
+	expect(rig.project.plan?.renovation?.work).toHaveLength(0);
+	expectOk(await rig.runtime.dispatcher.undo()); await settle(); expect(rig.project.plan?.renovation?.work[0]).toEqual(saved[0]);
 });
 it('deletes compatible current walls atomically only after confirmation and restores them with undo', async () => {
 	const rig = await setup(); rig.selection.select(['wall-a', 'wall-b'] as never[]); await settle();

@@ -51,15 +51,15 @@ describe('shared editor records through repository history', () => {
 		const records = kind === 'work' ? repeated.renovation.work : repeated.renovation.depth?.evidence ?? [];
 		expect(records.filter(record => record.id === item.id)).toHaveLength(1); expect(records.find(record => record.id === item.id)?.links).toHaveLength(1);
 	});
-	it('marks all selected walls and hosted openings in one intended-state command, preserving current geometry', async () => {
+	it.each(['door', 'window', 'opening'] as const)('marks walls and a hosted %s in one intended-state command, preserving current geometry', async kind => {
 		const rig = await planningStack(), initial = expectOk(await rig.read());
 		const structure = expectDefined(initial.geometry.document.structure, 'current structure');
-		expectOk(await rig.geometry.write(rig.plan.id, { ...initial.geometry.document, structure: { ...structure, openings: [{ id: 'opening-shared', hostId: 'wall-a', kind: 'door', offset: 500, width: 900, height: 2100, sill: 0 }] } }, initial.geometry.version));
+		expectOk(await rig.geometry.write(rig.plan.id, { ...initial.geometry.document, structure: { ...structure, openings: [{ id: 'opening-shared', hostId: 'wall-a', kind, offset: 500, width: 900, height: 2100, sill: 0 }] } }, initial.geometry.version));
 		const baseline = expectOk(await rig.read());
 		const proposed = expectOk(batchRenovationInput(baseline, targets(rig.roomId), { ...draft, kind: 'remove' }));
 		expect(proposed.intended?.walls.map(item => item.id)).not.toContain('wall-a');
 		expect(proposed.renovation.subjects.filter(item => item.planned?.change === 'remove').length).toBeGreaterThanOrEqual(2);
-		expect(proposed.renovation.subjects.find(item => item.targetId === 'opening-shared')?.existing?.description).toBe('Door · Wall 1');
+		expect(proposed.renovation.subjects.find(item => item.targetId === 'opening-shared')).toMatchObject({ kind: kind === 'opening' ? 'other' : kind, existing: { description: `${kind.charAt(0).toUpperCase() + kind.slice(1)} · Wall 1` } });
 		expect(proposed.intended?.openings).toEqual([]);
 		const command = rig.renovation.command(baseline, proposed, rig.ledger); expectOk(await command.execute());
 		expect(expectOk(await rig.read()).geometry.document.structure).toEqual(baseline.geometry.document.structure);
@@ -76,12 +76,22 @@ describe('shared editor records through repository history', () => {
 		expect(batchRenovationInput(baseline, targets('missing-room'), draft).ok).toBe(false);
 		expect(batchRenovationInput(baseline, [], draft).ok).toBe(true);
 	});
+	it('changes a Room finish without manufacturing wall geometry in a Room-first plan', async () => {
+		const rig = await planningStack(), initial = expectOk(await rig.read());
+		expectOk(await rig.geometry.write(rig.plan.id, { ...initial.geometry.document, structure: undefined }, initial.geometry.version));
+		const baseline = expectOk(await rig.read());
+		const input = expectOk(batchRenovationInput(baseline, [{ roomId: rig.roomId, targetId: rig.roomId, name: 'Floor', kind: 'floor' }], { ...draft, kind: 'modify', title: 'Retain and oil boards' }));
+		expect(input.intended).toBeUndefined(); expect(input.renovation.subjects).toHaveLength(1);
+		expectOk(await rig.renovation.command(baseline, input, rig.ledger).execute());
+		expect(expectOk(await rig.read()).plan.entity.renovation?.subjects[0].planned?.description).toBe('Retain and oil boards');
+	});
 	it('rejects duplicate, empty and dangling additional contexts and counts only scoped findings', async () => {
 		const rig = await planningStack(), baseline = expectOk(await rig.read());
 		const item = rig.value.work[0];
 		expect(validSharedLinks({ ...item, links: [{ roomId: item.roomId, targetId: item.targetId }] })).toBe(false);
 		expect(validSharedLinks({ ...item, links: [{ roomId: '', targetId: 'wall-b' }] })).toBe(false);
 		expect(validateRenovation({ ...rig.value, work: [{ ...item, links: [{ roomId: '', targetId: 'wall-b' }] }] }).ok).toBe(false);
+		expect(validateRenovation({ ...rig.value, depth: { ...EMPTY_DEPTH, evidence: [{ ...rig.evidence, recordId: '', links: [{ roomId: rig.evidence.roomId, targetId: rig.evidence.targetId }] }] } }).ok).toBe(false);
 		expect(validateRenovationTargets({ ...rig.value, work: [{ ...item, links: [{ roomId: rig.roomId, targetId: 'gone' }] }] }, { ...baseline.geometry.document, roomIds: [rig.roomId] }).ok).toBe(false);
 		expect(renovationSummary(rig.value, rig.roomId).next?.kind).toBe('decision');
 		expect(renovationSummary(rig.value, rig.roomId, 'wall-b').nextMode).toBe('existing');

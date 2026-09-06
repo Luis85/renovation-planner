@@ -181,8 +181,11 @@ export class Project {
 				name,
 				description: props.description ?? null,
 				status: props.status ?? 'IDEA',
-				start: props.start ?? null,
-				targetCompletion: props.targetCompletion ?? null,
+				// Copied, not aliased: a `Date` is mutable, and this entity is documented
+				// Immutable — a caller that kept its own reference and mutated it afterward
+				// must not reach the stored field (C9).
+				start: props.start ? new Date(props.start.getTime()) : null,
+				targetCompletion: props.targetCompletion ? new Date(props.targetCompletion.getTime()) : null,
 				budget: props.budget ?? null,
 				contingency: props.contingency ?? null,
 				locationDescription: props.locationDescription ?? null,

@@ -183,6 +183,30 @@ function negativeAmount(label: string, value: Money | undefined): CalculationErr
 }
 
 /**
+ * NaN and Infinity pass every sign guard below — `NaN < 0` and `Infinity < 0` are both
+ * false — and used to reach `scale`/`percentageOf` unrefused, where `toFixed(NaN)` throws
+ * a raw `DecimalError` out of a pipeline whose header promises no throw (C1). Checked
+ * FIRST, before any sign guard runs, and over a LIST rather than one `||` per field: each
+ * of the three optional-or-required decimals is one line here instead of one branch each,
+ * which is what keeps this a single arm to cover rather than one per field.
+ */
+function nonFiniteInputError(input: CostPipelineInput): CalculationError | null {
+	const inputs: ReadonlyArray<Decimal | undefined> = [
+		input.quantity.value,
+		input.taxRate,
+		input.discount?.percent,
+	];
+	if (inputs.some((value) => value !== undefined && !value.isFinite())) {
+		return {
+			category: 'Calculation',
+			code: 'cost.non-finite-input',
+			message: 'A cost input is not a finite number.',
+		};
+	}
+	return null;
+}
+
+/**
  * Everything refused BEFORE any arithmetic runs, so no stage can be handed a value that
  * would drive the total negative. Together these are what make the estimate this pipeline
  * produces non-negative — a guarantee of the PIPELINE, over its own inputs, rather than of
@@ -191,7 +215,8 @@ function negativeAmount(label: string, value: Money | undefined): CalculationErr
  */
 function inputError(input: CostPipelineInput): CalculationError | null {
 	return (
-		currencyMismatchError(input)
+		nonFiniteInputError(input)
+		?? currencyMismatchError(input)
 		?? pricingBasisError(input)
 		?? negativeQuantity(input.quantity)
 		?? discountError(input.discount)

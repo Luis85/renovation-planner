@@ -18,7 +18,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createPolygon } from '../../../src/core/geometry/Polygon';
-import { area, centroid, enclosesArea } from '../../../src/core/geometry/operations';
+import { area, centroid, enclosesArea, intersect, perimeter, project } from '../../../src/core/geometry/operations';
 
 /**
  * TRANSLATION CANCELLATION, asked of the shared accumulator through the two exported callers
@@ -337,6 +337,68 @@ describe('the degeneracy predicate and the area it stands for', () => {
  * represent. Collapsing them would put "these vertices are collinear" over a triangle with
  * three corners.
  */
+/**
+ * `perimeter` shares `area`'s finiteness question and used to ignore it: every vertex is
+ * finite while the accumulated distance is not, for the same spanning-triangle shape `area`
+ * already refuses (C5).
+ */
+describe('a polygon whose perimeter is not representable', () => {
+	it('refuses rather than reporting Infinity', () => {
+		const polygon = createPolygon([
+			{ x: -1e308, y: 0 },
+			{ x: 1e308, y: 0 },
+			{ x: 1e308, y: 10 },
+		]);
+		expect(polygon.ok && perimeter(polygon.value)).toMatchObject({
+			ok: false,
+			error: { code: 'polygon-perimeter-overflow' },
+		});
+	});
+});
+
+/**
+ * `intersect` divides by a finite, non-zero denominator, and the numerators can still
+ * overflow when the segments span the double range — `t`/`u` come back `NaN` or `Infinity`,
+ * and the old range check let a NaN through because every comparison against it is false (C2).
+ */
+describe('intersect over segments whose products overflow', () => {
+	it('answers null rather than a NaN point when BOTH t and u overflow', () => {
+		const result = intersect(
+			{ start: { x: 0, y: 0 }, end: { x: 1e200, y: 1e200 } },
+			{ start: { x: 1e200, y: 0 }, end: { x: 0, y: 1e200 } },
+		);
+		expect(result).toEqual({ ok: true, value: null });
+	});
+
+	/**
+	 * The `||`'s other branch: `t` alone is representable, so the guard must still evaluate
+	 * `u` rather than short-circuiting past it. `a`'s own direction has no x component, so
+	 * `t`'s numerator (built from `sx`/`sy`) stays a normal-sized ratio while `u`'s (built
+	 * from `a`'s huge `ry`) squares past the double range.
+	 */
+	it('answers null when only u overflows, so t alone does not short-circuit the guard', () => {
+		const result = intersect(
+			{ start: { x: 0, y: 0 }, end: { x: 0, y: 1e300 } },
+			{ start: { x: 1e300, y: 0 }, end: { x: 1e300 + 1, y: 1 } },
+		);
+		expect(result).toEqual({ ok: true, value: null });
+	});
+});
+
+/**
+ * `project`'s dot product can overflow the same way (C3) — the one caller used to drop the
+ * resulting NaN by comparison rather than the pipeline refusing it.
+ */
+describe('project over a point and segment whose products overflow', () => {
+	it('refuses rather than answering a NaN point', () => {
+		const result = project(
+			{ x: 1e200, y: 0 },
+			{ start: { x: 0, y: 0 }, end: { x: 1e200, y: 1e200 } },
+		);
+		expect(result).toMatchObject({ ok: false, error: { code: 'segment-overflow' } });
+	});
+});
+
 describe('a collinear polygon', () => {
 	const COLLINEAR = createPolygon([
 		{ x: 0, y: 0 },

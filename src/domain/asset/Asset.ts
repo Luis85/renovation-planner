@@ -104,7 +104,11 @@ export function checkWasteFraction(
 	field: string,
 	errorOf: (code: string, message: string) => ValidationError,
 ): Result<Decimal, ValidationError> {
-	if (value.isNegative()) {
+	// `lessThan(0)` rather than `isNegative()`: decimal.js reports negative ZERO as negative
+	// (`new Decimal(0).mul(-1)`), and a waste fraction of zero is legitimate whichever way it
+	// was arrived at — the same reasoning `quantityEngine`'s `negativeQuantity` states beside
+	// its own `lessThan(0)` (C6).
+	if (value.lessThan(0)) {
 		return err(errorOf(`negative-${field}`, `A ${field} cannot be negative; got ${value.toString()}.`));
 	}
 	if (value.greaterThan(1)) {

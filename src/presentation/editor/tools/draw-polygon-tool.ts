@@ -95,6 +95,16 @@ export interface DrawPolygonToolDeps {
 	 * active would leave the next click placing a vertex the user did not mean.
 	 */
 	readonly onCompleted: () => void;
+	/**
+	 * Where the first-corner click goes. Unbound, it is `finish()` straight — the generic
+	 * gesture the Room and the designer's two traces want. The Area binds `runtime.finishArea`,
+	 * the SAME guarded action the banner's Finish button and the canvas Enter dispatch: unbound
+	 * there, the click skipped `canFinishArea`'s busy half and queued an Area behind a write
+	 * the button was already announcing as unavailable. A review bot read the three doors
+	 * against each other. Optional because the default is the right answer for every other
+	 * construction; `validateOutline` above is the precedent.
+	 */
+	readonly finishAtTarget?: () => void;
 }
 
 /**
@@ -180,7 +190,8 @@ export class DrawPolygonTool implements EditorTool {
 		if (context === null || event.button !== 'primary' || this.closing) return;
 		const landing = this.landingPoint(context, event);
 		if (this.canClose(context, event.worldPoint)) {
-			this.finish();
+			if (this.deps.finishAtTarget === undefined) this.finish();
+			else this.deps.finishAtTarget();
 			return;
 		}
 		// A repeated point is never a vertex. `Polygon` states it — the last→first edge is
@@ -216,7 +227,11 @@ export class DrawPolygonTool implements EditorTool {
 
 	pointerUp(): void {}
 
-	/** One close path for the first-point target, Finish and Enter. Refusals keep the draft. */
+	/**
+	 * One close path for the first-point target, Finish and Enter — the last two through
+	 * `ToolManager.finishActiveTool`, the first through `finishAtTarget` when bound. Refusals
+	 * keep the draft.
+	 */
 	finish(): void {
 		const context = this.context;
 		if (context === null || this.closing) return;

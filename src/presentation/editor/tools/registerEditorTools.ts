@@ -46,6 +46,8 @@ export function moveGesture(
  */
 export interface EditorToolDeps {
 	readonly onAreaCompleted: () => void;
+	/** The Area's guarded completion, so the first-corner click takes the button's door. */
+	readonly finishArea: () => void;
 	readonly context: PlanEditorContext;
 	readonly planId: PlanId;
 	readonly projectStore: ReturnType<typeof useProjectStore>;
@@ -80,14 +82,15 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 	);
 	// Preserve the legacy free-shape Room completion; Area has its own semantic identity.
 	const polygonEntries = [
-		{ id: 'draw-polygon', zoneType: 'Room', defaultName: defaultRoomName, onCompleted: returnToSelect, validateOutline: createPolygon },
-		{ id: 'draw-area', zoneType: 'Custom', defaultName: () => tr('editor.area.default-name', { n: String(projectStore.zones.size + 1) }), onCompleted: deps.onAreaCompleted, validateOutline: areaOutline },
+		{ id: 'draw-polygon', zoneType: 'Room', defaultName: defaultRoomName, onCompleted: returnToSelect, validateOutline: createPolygon, finishAtTarget: undefined },
+		{ id: 'draw-area', zoneType: 'Custom', defaultName: () => tr('editor.area.default-name', { n: String(projectStore.zones.size + 1) }), onCompleted: deps.onAreaCompleted, validateOutline: areaOutline, finishAtTarget: deps.finishArea },
 	] as const;
 	for (const entry of polygonEntries) {
 		toolManager.register(
 			new DrawPolygonTool({
 				id: entry.id,
 				validateOutline: entry.validateOutline,
+				finishAtTarget: entry.finishAtTarget,
 				// What a closed polygon MEANS in the Plan Editor: a new Zone on this plan. The tool
 				// itself names none of it — see `PolygonCompletion`, which the designer supplies a
 				// footprint version of. The zone's default name is counted from what the editor has

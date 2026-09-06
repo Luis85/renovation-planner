@@ -41,7 +41,7 @@ the vault unrepaired. Reopening the leaf has the same effect for the same reason
 
 ## What is true today
 
-Pinned rather than closed: `tests/plugin/rootSwapRebind.test.ts` "drops a leaf's
+Pinned rather than closed: `tests/plugin/rootSwapRebind.test.ts` "drops a leaf’s
 unrecovered-write flag on rebind — the recorded gap, not the desired behaviour" asserts the
 window exists, it does not refuse it. Ruling R1
 already accepts a stale warning over a false all-clear as the lesser defect — the only

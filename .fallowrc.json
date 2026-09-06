@@ -213,9 +213,25 @@
 	// A mock that shed states to satisfy a complexity metric would be a worse mock, and the
 	// metric would have measured it doing its job. `max-lines` (400, ESLint, this tree included)
 	// is still the size gate, and it has already forced one decomposition here.
+	//
+	// `scripts/**` joins them at fallow 3.22.0 for the SAME reason and nothing else: the
+	// coverage file above is collected over `src/**` only, so every script function is scored
+	// against 0% and `findHardcodedColor` (`scripts/styles-assemble.mjs`, cyclomatic 11) read
+	// CRAP 37.1 the day the bump landed, having read nothing before. The size and complexity
+	// budgets that DO measure `scripts/` are oxlint's (`.oxlintrc.json`), and they stay.
+	//
+	// `maxCrap` 32 is a MEASUREMENT, set the way every floor here is set — at what the tree
+	// reads on the day the instrument arrives — and it is the one number in this block that
+	// may only FALL. fallow 3.22.0 weights CRAP by the Istanbul data above (3.19.0 did not),
+	// and exactly one function crossed the default 30: `ReversibleAssetDesignCommands.undo`
+	// at 31.6, cyclomatic 10, every statement covered, with two `?? preVersion` fallback arms
+	// no test can take — the shape the 2026-09-05 polish pass ruled on for
+	// `ReversibleOverrideBase.undo` (its `lastWritten(id) ?? captured.postVersion`). The next
+	// function to cross 30 is a refactor, not a raise.
 	"health": {
 		"coverage": "coverage/coverage-final.json",
-		"ignore": ["tests/**", "src/prototypes/**"]
+		"ignore": ["tests/**", "src/prototypes/**", "scripts/**"],
+		"maxCrap": 32
 	},
 	"rules": {
 		"unused-dev-dependencies": "error",

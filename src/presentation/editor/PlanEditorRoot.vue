@@ -193,7 +193,19 @@ function onRootKeydown(event: KeyboardEvent): void {
 	addMenuOpen.value = false;
 }
 
-/** Overlays and the canvas consume Escape first; list and rail controls bubble here. */
+/**
+ * Overlays and the canvas consume Escape first; list and rail controls bubble here.
+ *
+ * The Inspector's native asset `<select>` is deliberately NOT excluded, against a review
+ * bot's finding that Escape on its OPEN popup would reach this handler before the popup
+ * closed and clear the selection under it. Measured in Chromium, which is what Obsidian
+ * runs: with the popup open, Escape closes it and dispatches NO keydown to the page — only
+ * a keyup, once it is shut — because the popup is its own widget and consumes the press;
+ * with the popup closed, the same press dispatches a keydown here, which is the keyboard
+ * user's "leave this room" and must keep working. Excluding the control would trade a
+ * defect Chromium does not have for one it would. Firefox does dispatch that keydown, and
+ * is not a runtime this plugin has.
+ */
 function onSelectionKeydown(event: KeyboardEvent): void {
 	if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || selection.selectedIds.length === 0) return;
 	event.stopPropagation();

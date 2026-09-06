@@ -7,6 +7,7 @@ import { TFile, TFolder } from 'obsidian';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
 import { expectOk } from './domain';
 import { openFixtureVault, type FixtureStack } from './fixtureVault';
+import { createVaultFileChangeSource } from '../../src/infrastructure/obsidian/vault/vaultFileChanges';
 
 let open: FixtureStack | null = null;
 afterEach(() => {
@@ -466,5 +467,22 @@ describe('the fixture vault adapter', () => {
 			rmSync(caseDir, { recursive: true, force: true });
 			rmSync(staging, { recursive: true, force: true });
 		}
+	});
+
+	/**
+	 * I3: `on()` used to take no arguments and answer `{ off }` — not an `EventRef`, no
+	 * `offref` to retire one. `createVaultFileChangeSource` calls `vault.offref(reference)`
+	 * unconditionally on release, so composing it with this adapter threw
+	 * `vault.offref is not a function` the moment anything actually unsubscribed. No test
+	 * composed the two before this one, which is why the throw went unnoticed.
+	 */
+	it('registers and releases createVaultFileChangeSource without throwing, leaving no listeners', async () => {
+		open = await openFixtureVault('valid-project');
+
+		const unsubscribe = createVaultFileChangeSource(open.vault as never)(() => undefined);
+		expect(open.vault.eventListenerCount).toBe(4);
+
+		expect(() => unsubscribe()).not.toThrow();
+		expect(open.vault.eventListenerCount).toBe(0);
 	});
 });

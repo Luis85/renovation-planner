@@ -43,7 +43,7 @@
  * than `of`'s `LITERAL_PATTERN`, and the currency pattern is the same one), so a value that
  * passes here cannot throw there.
  */
-import { computed, ref, type Ref } from 'vue';
+import { computed, ref, useId, type Ref } from 'vue';
 import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
 import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
 import { useInvalidFieldFocus } from '../composables/use-invalid-field-focus';
@@ -233,6 +233,31 @@ const createdAssetId = ref<AssetId | null>(null);
  */
 const catalogueFrozen = computed(() => createdAssetId.value !== null);
 
+/**
+ * What `.rp-new-asset__created` below is minted for: the id a PAUSED `<select>` names in its
+ * own `aria-describedby`, naming the reason rather than leaving `aria-disabled` to announce
+ * "unavailable" with nothing about why (V7). This form already prints that sentence for a
+ * sighted user, so a screen-reader one gets the SAME text rather than a second copy invented
+ * for this attribute alone.
+ *
+ * Named only while `catalogueFrozen`, never merely while `submitting`: the paragraph it points
+ * at is itself `v-if="catalogueFrozen"`, and a describedby naming an id that renders nothing
+ * would be a dangling reference — worse than none at all.
+ */
+const catalogueFrozenReasonId = useId();
+
+/**
+ * `aria`'s own `aria-describedby` (from a live field error) plus the frozen reason, joined
+ * rather than one replacing the other — a category or unit CAN carry both at once, and
+ * `aria-describedby` takes a space-separated list precisely for two descriptions of one
+ * control. `undefined` when there is nothing to add, so a control with neither keeps no
+ * attribute at all rather than an empty string.
+ */
+function pausedDescribedBy(aria: { readonly 'aria-describedby'?: string }): string | undefined {
+	const fieldDescribedBy = aria['aria-describedby'];
+	if (!catalogueFrozen.value) return fieldDescribedBy;
+	return fieldDescribedBy === undefined ? catalogueFrozenReasonId : `${fieldDescribedBy} ${catalogueFrozenReasonId}`;
+}
 
 /**
  * The whole sequence, as `useFormCommit`'s single `dispatch`. Ordered so that everything
@@ -369,6 +394,7 @@ async function onSubmit(): Promise<void> {
 		<FormBanner :message="form.banner.value" />
 		<p
 			v-if="catalogueFrozen"
+			:id="catalogueFrozenReasonId"
 			class="rp-new-asset__created"
 		>
 			{{ tr('form.new-asset.already-created') }}
@@ -408,6 +434,7 @@ async function onSubmit(): Promise<void> {
 					data-field="category"
 					:value="form.values.value.category"
 					:aria-disabled="catalogueInoperative"
+					:aria-describedby="pausedDescribedBy(aria)"
 					@change="onFieldInput('category', $event)"
 				>
 					<option
@@ -435,6 +462,7 @@ async function onSubmit(): Promise<void> {
 					data-field="unit"
 					:value="form.values.value.unit"
 					:aria-disabled="catalogueInoperative"
+					:aria-describedby="pausedDescribedBy(aria)"
 					@change="onFieldInput('unit', $event)"
 				>
 					<option

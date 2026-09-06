@@ -128,12 +128,54 @@ class VaultEntries extends Map<string, string> {
 }
 
 /**
+ * Obsidian's event surface — `on`, `offref`, `trigger` and `eventListenerCount` — as ONE
+ * class both vault fakes EXTEND, rather than as two copies of the same twelve lines.
+ * `FakeVault`'s own history is why this exists as a class rather than as a habit: `on()` here
+ * used to take no arguments and answer `{ off }`, a shape the real `Vault` has not had for
+ * years, and a component that registered four listeners and released them on unmount met
+ * `vault.offref is not a function` (`assetDesignerWiring.test.ts`, which mounts the real
+ * composed plugin) before it was fixed on this side. Exported so `FixtureVaultAdapter` can
+ * extend it too — a delegating wrapper per method on EACH fake was tried first and was
+ * itself a fresh clone family the moment both existed (`npm run analyze` found it), where
+ * inheriting the four members outright leaves nothing on either side to keep in step.
+ */
+export class VaultEventBus {
+	private readonly listeners = new Map<object, { name: string; callback: (...args: never[]) => void }>();
+
+	on(name: string, callback: (...args: never[]) => void): object {
+		const reference = {};
+		this.listeners.set(reference, { name, callback });
+		return reference;
+	}
+
+	offref(reference: object): void {
+		this.listeners.delete(reference);
+	}
+
+	/** Fire one vault event at every listener registered for it, as Obsidian would. */
+	trigger(name: string, ...args: readonly unknown[]): void {
+		// The map itself, not a copy: a Map skips entries deleted before it reaches them and
+		// visits ones added, so a listener that unsubscribes from inside its own callback — a
+		// layer unmounting mid-reload — is handled without a snapshot. `unicorn/no-useless-spread`
+		// refuses the copy, and it is right that it buys nothing.
+		for (const entry of this.listeners.values()) {
+			if (entry.name === name) entry.callback(...(args as never[]));
+		}
+	}
+
+	/** How many listeners are still registered — the release check a leak would fail. */
+	get eventListenerCount(): number {
+		return this.listeners.size;
+	}
+}
+
+/**
  * A vault that BEHAVES like files rather than like a call log: create refuses on an
  * existing path, read refuses on a missing one, delete refuses on a missing one, and
  * every operation is observable through `files`. Not kinder than the real thing — that
  * is the point.
  */
-class FakeVault {
+class FakeVault extends VaultEventBus {
 	readonly entries = new VaultEntries((path) => this.pendingParse.delete(path));
 	private readonly folders = new Set<string>();
 
@@ -292,7 +334,11 @@ class FakeVault {
 			// never seen this path. See `VaultEntries`.
 			this.pending(path, null);
 			this.entries.setOwn(path, data);
-			return Promise.resolve(this.getAbstractFileByPath(path) as TFile);
+			// AFTER the write, as Obsidian fires it: a listener reading the vault back for this
+			// path during the callback must see the bytes this call just committed.
+			const created = this.getAbstractFileByPath(path) as TFile;
+			this.trigger('create', created);
+			return Promise.resolve(created);
 		} catch (cause) {
 			return Promise.reject(cause);
 		}
@@ -306,6 +352,7 @@ class FakeVault {
 			// leaves it with no entry at all, not with a text it never parsed.
 			this.pending(file.path, this.entries.get(file.path) as string);
 			this.entries.setOwn(file.path, data);
+			this.trigger('modify', file);
 			return Promise.resolve();
 		} catch (cause) {
 			return Promise.reject(cause);
@@ -325,6 +372,7 @@ class FakeVault {
 			if (this.entries.has(file.path)) {
 				this.entries.delete(file.path);
 				this.pendingParse.delete(file.path);
+				this.trigger('delete', file);
 				return Promise.resolve();
 			}
 			if (!this.folderExists(file.path)) throw new Error(`No file to delete: ${file.path}`);
@@ -333,6 +381,10 @@ class FakeVault {
 			// removed before it is reached, and nothing here removes an entry it has not visited.
 			for (const path of this.entries.keys()) if (path.startsWith(prefix)) { this.entries.delete(path); this.pendingParse.delete(path); }
 			for (const path of this.folders) if (path === file.path || path.startsWith(prefix)) this.folders.delete(path);
+			// ONE event for the folder itself, as Obsidian's own `TAbstractFile` contract takes
+			// one target per call — not one per file it happened to contain, which is a second
+			// claim (about what a recursive vault delete reports) this fake does not make.
+			this.trigger('delete', file);
 			return Promise.resolve();
 		} catch (cause) {
 			return Promise.reject(cause);
@@ -386,46 +438,11 @@ class FakeVault {
 		return '';
 	}
 
-	/**
-	 * Obsidian's event surface, RECORDED and releasable — and it was neither until
-	 * `createVaultFileChangeSource` arrived. `on()` took no arguments and answered `{ off }`, a
-	 * shape the real `Vault` has not had for years: it hands back an `EventRef` and `offref` is
-	 * what retires one. So a component that registered four listeners and released them on unmount
-	 * met `vault.offref is not a function` — measured, on `assetDesignerWiring.test.ts`, which
-	 * mounts the real composed plugin. A fake thinner than the real thing, in the one member a new
-	 * subscription had to use.
-	 *
-	 * `trigger` is the driver that comes with modelling it properly: a case can now fire what
-	 * Obsidian would rather than reaching for the listener set through a fixture, which is what
-	 * makes the designer's own file-event thread assertable end to end.
-	 */
-	private readonly listeners = new Map<object, { name: string; callback: (...args: never[]) => void }>();
-
-	on(name: string, callback: (...args: never[]) => void): object {
-		const reference = {};
-		this.listeners.set(reference, { name, callback });
-		return reference;
-	}
-
-	offref(reference: object): void {
-		this.listeners.delete(reference);
-	}
-
-	/** Fire one vault event at every listener registered for it, as Obsidian would. */
-	trigger(name: string, ...args: readonly unknown[]): void {
-		// The map itself, not a copy: a Map skips entries deleted before it reaches them and
-		// visits ones added, so a listener that unsubscribes from inside its own callback — a
-		// layer unmounting mid-reload — is handled without a snapshot. `unicorn/no-useless-spread`
-		// refuses the copy, and it is right that it buys nothing.
-		for (const entry of this.listeners.values()) {
-			if (entry.name === name) entry.callback(...(args as never[]));
-		}
-	}
-
-	/** How many listeners are still registered — the release check a leak would fail. */
-	get eventListenerCount(): number {
-		return this.listeners.size;
-	}
+	// `on`/`offref`/`trigger`/`eventListenerCount` come from `VaultEventBus`, above — see that
+	// class's own docblock for why this is an `extends` rather than a field this class
+	// delegates to: a delegating wrapper per method here and again on `FixtureVaultAdapter`
+	// was itself a fresh clone family (`npm run analyze` found it the moment both existed),
+	// where inheriting the four members outright leaves nothing here to keep in step.
 
 	private op(name: string, path: string): void {
 		const key = `${name}:${path}`;

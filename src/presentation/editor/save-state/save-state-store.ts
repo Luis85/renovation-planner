@@ -44,16 +44,31 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 * `save-error`, which any refused write raises and which the NEXT successful write clears
 	 * for the ordinary reason — this one is about the vault's coherence.
 	 *
-	 * **Ruling R1 (2026-09-05): sticky for the leaf's life. Nothing in this store ever clears
-	 * it once set**, `resolveOk` included. The only in-session event that actually repairs a
-	 * half-written vault is a successful retry of the SAME delete resolution over the SAME
-	 * rows, and this wrapper cannot see either fact — `resolveOk` fires for ANY write that
-	 * lands whole, undo/redo and an edit to an unrelated zone included, so treating it as proof
-	 * of repair was exactly E3's defect. A stale warning is cheaper than a false all-clear.
-	 * Cost: a user who repairs the vault by hand still sees the warning until the leaf is
-	 * reopened. Deferred: clearing on a successful delete-resolution dispatch specifically,
-	 * once `withSaveStateTracking` can identify one. A successful REFRESH does not clear it
-	 * either: reading a half-written vault back does not mend it.
+	 * **Ruling R1 (2026-09-05): sticky for the MOUNT's life, not the leaf's. Nothing in this
+	 * store ever clears it once set**, `resolveOk` included — that half of R1 stands. But a
+	 * mount is not the leaf: `PlanEditorView.rebind` (`src/presentation/views/PlanEditorView.ts`)
+	 * calls `unmount()` then `sync()`, and `sync()`'s `mount()` runs `app.use(createPinia())` —
+	 * a FRESH Pinia, and therefore a fresh `unrecoveredWrite` starting at `false`, discarding
+	 * whatever the retired mount held. `rebind` runs on every `saveSettings`
+	 * (`RenovationPlannerPlugin.rebindOpenViews`), for every open Plan Editor leaf, regardless of
+	 * which setting changed — units, currency, verbose logging, the library rows, all of them.
+	 * So the recorded window is: a user sees the warning, saves ANY setting with that leaf still
+	 * open, and the warning is gone with the vault unrepaired. Reopening the leaf has the same
+	 * effect for the same reason, which is the case this docblock used to name alone.
+	 *
+	 * The reasoning for sticky-over-clearing still holds inside one mount's life: the only
+	 * in-session event that actually repairs a half-written vault is a successful retry of the
+	 * SAME delete resolution over the SAME rows, and this wrapper cannot see either fact —
+	 * `resolveOk` fires for ANY write that lands whole, undo/redo and an edit to an unrelated
+	 * zone included, so treating it as proof of repair was exactly E3's defect. A stale warning
+	 * is cheaper than a false all-clear. A successful REFRESH does not clear it either: reading a
+	 * half-written vault back does not mend it.
+	 *
+	 * Deferred rather than closed here: carrying this flag through a rebind the way `planId`
+	 * already is (view-owned state surviving the remount, not store state) is its own change
+	 * with its own test — recorded in the polish-pass ledger rather than done in this task.
+	 * `tests/plugin/rootSwapRebind.test.ts` pins today's gap (a rebind discards the flag) so the
+	 * day someone closes it, that case is what tells them to flip its expectation.
 	 */
 	const unrecoveredWrite = ref(false);
 

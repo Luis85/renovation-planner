@@ -123,6 +123,15 @@ export interface EditorRuntime {
 	 */
 	readonly selectAndFrame: (id: string, toggle?: boolean) => void;
 	/**
+	 * The list's "select multiple" checkbox, held HERE rather than in `PropertyLayerPanel`
+	 * because that panel is unmounted whenever the constrained overlay standing in for it
+	 * closes — a component-local flag came back `false` on every reopen, so a touch or
+	 * keyboard user who enabled it, went to the canvas and returned to add a room had the
+	 * next row click replace the whole set. Per-leaf like everything else in this object,
+	 * and for the same reason the active tool is.
+	 */
+	readonly multiSelectionMode: Ref<boolean>;
+	/**
 	 * Design spec §5.2's one action: dispatch the room draft as a `ReversibleCreateZoneCommand`
 	 * through this leaf's one dispatcher. See `roomCreation.ts` for the two doors, one action
 	 * this and `roomDraft` together make: this WRITES, `roomDraft` is where the two surfaces
@@ -644,10 +653,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	 * extraction. So the literal is back in its natural shape, which is the point of taking
 	 * the extraction rather than shaving another line.
 	 */
-	const subject = (): EditorContext['subject'] => ({
-		id: planId,
-		calibration: projectStore.plan?.calibration ?? null,
-	});
+	const subject = (): EditorContext['subject'] => ({ id: planId, calibration: projectStore.plan?.calibration ?? null });
 
 	// A FRESH context per activation, assembled through the same one assembler — which is
 	// the guarantee `ToolManager`'s header states its factory exists for, and which a
@@ -788,6 +794,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		commitEdit,
 		commitField,
 		selectAndFrame,
+		multiSelectionMode: ref(false),
 		createRoom,
 		canCreateRoom,
 		roomDraftIncomplete,

@@ -6,7 +6,7 @@ import type { PersistenceError } from '../../../src/core/errors/AppError';
 import { createZoneId } from '../../../src/domain/zone/ZoneId';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makeAsset, makeZone } from '../../helpers/entities';
-import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
+import { TEN_SQUARE_METERS, requirementFixture, zoneSequenceCollaborators } from '../../helpers/slice10';
 
 /**
  * The per-kind closures the two delete commands hand `runDeleteResolution`: the
@@ -49,6 +49,7 @@ async function wiredZoneWithLink() {
 	const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
 	if (!assigned.ok) throw new Error('unexpected assign failure');
 	const command = new DeleteZoneCommand({
+		...zoneSequenceCollaborators(),
 		zones: w.zones,
 		requirements: w.requirements,
 		recalculate: w.recalculate,
@@ -100,6 +101,7 @@ describe('DeleteZoneCommand closure refusals', () => {
 		});
 		const error = expectErr(
 			await new DeleteZoneCommand({
+				...zoneSequenceCollaborators(),
 				zones,
 				requirements: w.requirements,
 				recalculate: w.recalculate,
@@ -133,6 +135,7 @@ describe('DeleteZoneCommand closure refusals', () => {
 		});
 		const error = expectErr(
 			await new DeleteZoneCommand({
+				...zoneSequenceCollaborators(),
 				zones: w.zones,
 				requirements,
 				recalculate: w.recalculate,
@@ -171,6 +174,7 @@ describe('DeleteZoneCommand closure refusals', () => {
 		});
 		const error = expectErr(
 			await new DeleteZoneCommand({
+				...zoneSequenceCollaborators(),
 				zones: w.zones,
 				requirements,
 				recalculate: w.recalculate,
@@ -198,6 +202,7 @@ describe('DeleteZoneCommand closure refusals', () => {
 		});
 		const error = expectErr(
 			await new DeleteZoneCommand({
+				...zoneSequenceCollaborators(),
 				zones: w.zones,
 				requirements,
 				recalculate: w.recalculate,
@@ -237,6 +242,7 @@ describe('DeleteZoneCommand closure refusals', () => {
 		});
 		const error = expectErr(
 			await new DeleteZoneCommand({
+				...zoneSequenceCollaborators(),
 				zones: w.zones,
 				requirements,
 				recalculate: w.recalculate,
@@ -281,6 +287,7 @@ describe('DeleteZoneCommand closure refusals', () => {
 		});
 		const error = expectErr(
 			await new DeleteZoneCommand({
+				...zoneSequenceCollaborators(),
 				zones: w.zones,
 				requirements,
 				recalculate: w.recalculate,

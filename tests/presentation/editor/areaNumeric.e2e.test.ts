@@ -182,4 +182,27 @@ describe('Area coordinate entry through the mounted editor and real command hist
 		expect(runtime.keepAddingAreas.value).toBe(false);
 		h.unmount();
 	});
+
+	it('a row-button Escape that clears the outline lands focus on Apply, so the next Escape still leaves the tool', async () => {
+		// Escape on a row's Edit/Remove routes to `cancelGesture()`, which removes every row —
+		// the focused button included — and focus fell to <body>, where the next Escape reached
+		// nothing: the documented "clear, then exit" sequence broke on exactly the controls a
+		// keyboard user reaches last. Apply rather than the X input, because a native field
+		// keeps Escape for itself and the second press would be swallowed there too.
+		const r = await rig();
+		const h = r.harness;
+		const runtime = runtimeOf(h);
+		await start(h);
+		await add(h, '0', '0'); await add(h, '4', '0');
+		const remove = h.wrapper.findAll('[data-rp-corner="remove"]')[1];
+		if (remove === undefined) throw new Error('expected two corner rows');
+		(remove.element as HTMLElement).focus();
+		await remove.trigger('keydown', { key: 'Escape' });
+		await settle();
+		expect(points(r)).toHaveLength(0);
+		expect(document.activeElement).toBe(h.wrapper.get('[data-rp-corner="apply"]').element);
+		await h.wrapper.get('[data-rp-corner="apply"]').trigger('keydown', { key: 'Escape' });
+		expect(runtime.activeToolId.value).toBe('select');
+		h.unmount();
+	});
 });

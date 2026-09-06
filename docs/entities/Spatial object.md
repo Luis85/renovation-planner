@@ -34,8 +34,11 @@ tiled. Flattening these into "shape with a type string" would put the burden of 
 distinction on every consumer.
 
 §7's geometry types and SDD §22's geometry core are the primitives underneath; SDD §26 is the
-validation — a self-intersecting polygon has no defensible area, so it is refused rather than
-measured.
+validation — vertex count, finite coordinates, no NaN, no Infinity. Self-intersection detection
+is explicitly deferred there ("Future"), so a self-intersecting polygon is ACCEPTED and measured
+as-is rather than refused; [[Zone Editing Walkthrough]]'s "Deliberately NOT checked" section
+records drawing one and seeing it stored, rendered and measured as correct behaviour, not a
+defect to file.
 
 ## Identity and persistence
 

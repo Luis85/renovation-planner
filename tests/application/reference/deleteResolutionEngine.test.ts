@@ -25,6 +25,13 @@ import type { RequirementId } from '../../../src/domain/requirement/RequirementI
 import { makeRequirement } from '../../helpers/entities';
 import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
 import { leftWritesBehind, markUncompensated } from '../../../src/application/commands/DispatchOutcome';
+import { InMemorySequenceMarkerStore } from '../../../src/infrastructure/persistence/in-memory/InMemorySequenceMarkerStore';
+
+/** The marker list out of a `list()` that answered ok — asserted on three times below. */
+function listed(result: Result<readonly SequenceMarker[], PersistenceError>): readonly SequenceMarker[] {
+	if (!result.ok) throw new Error('the marker store refused a list');
+	return result.value;
+}
 
 /**
  * The compensated sequence's own arms, driven at the engine with hand-built `ops` — the
@@ -221,7 +228,7 @@ describe('runDeleteResolution refusals before any write', () => {
 				release: () => undefined,
 			}),
 		} as never;
-		const error = (await runDeleteResolution(ops, {}, locks)) as { ok: false; error: AppError };
+		const error = (await runDeleteResolution(ops, {}, locks, new ScriptedMarkers())) as { ok: false; error: AppError };
 		expect(error.error.code).toBe('reference.entity-gone');
 		expect(ops.deletedAtVersions).toHaveLength(0);
 	});
@@ -229,7 +236,7 @@ describe('runDeleteResolution refusals before any write', () => {
 	it('propagates a failed referent listing without touching the entity', async () => {
 		const ops = makeOps();
 		ops.listReferents = () => Promise.resolve(err(injectedPersistenceError()));
-		const result = await runDeleteResolution(ops, {}, new ReferenceLocks());
+		const result = await runDeleteResolution(ops, {}, new ReferenceLocks(), new ScriptedMarkers());
 		expect(result).toMatchObject({ ok: false, error: { code: 'test.injected-failure' } });
 	});
 
@@ -244,7 +251,7 @@ describe('runDeleteResolution refusals before any write', () => {
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'reassign', reassignTo: 'entity-9', resolvedReferents: [] },
-			new ReferenceLocks(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 		expect(result).toMatchObject({ ok: false, error: { code: 'reference.reassign-target-gone' } });
 	});
@@ -263,10 +270,27 @@ describe('runDeleteResolution refusals before any write', () => {
 			referents: [],
 			loadEntity: () => Promise.resolve(err(injectedPersistenceError())),
 		});
-		const result = await runDeleteResolution(ops, {}, new ReferenceLocks());
+		const result = await runDeleteResolution(ops, {}, new ReferenceLocks(), new ScriptedMarkers());
 		expect(result).toMatchObject({ ok: false, error: { code: 'test.injected-failure' } });
 	});
 });
+
+/**
+ * The two-referent delete-anyway whose SECOND forward write refuses — the fixture the three
+ * marker-after-compensation cases share, differing only in the store they are handed.
+ */
+function compensatingDeleteAnyway(
+	ops: RecordedOps,
+	markers: SequenceMarkerStore,
+): Promise<Result<unknown, AppError>> {
+	ops.markStaleResults = [ok({ ...V2 }), err(injectedPersistenceError())];
+	return runDeleteResolution(
+		ops,
+		{ resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
+		new ReferenceLocks(),
+		markers,
+	);
+}
 
 describe('compensation', () => {
 	it('a forward write failing mid-sequence restores the completed writes with their recorded versions', async () => {
@@ -294,13 +318,50 @@ describe('compensation', () => {
 		]);
 	});
 
+	it('a compensation that restores everything CLEARS the marker', async () => {
+		const ops = makeOps();
+		// The real in-memory store rather than `ScriptedMarkers`: this case asks what `list()`
+		// holds afterwards, and the scripted one always answers the empty list.
+		const markers = new InMemorySequenceMarkerStore();
+
+		const result = await compensatingDeleteAnyway(ops, markers);
+
+		expect(result).toMatchObject({ ok: false, error: { code: 'test.injected-failure' } });
+		// Nothing is left for the next load: a surviving marker would have recovery replay
+		// `restoreEntry` against versions this compensation already moved past.
+		expect(listed(await markers.list())).toEqual([]);
+	});
+
+	it('an UNcompensated sequence KEEPS its marker — that is what the next load recovers', async () => {
+		const ops = makeOps();
+		ops.restoreResult = err(injectedPersistenceError());
+		const markers = new InMemorySequenceMarkerStore();
+
+		const result = await compensatingDeleteAnyway(ops, markers);
+
+		if (result.ok) throw new Error('expected the sequence to refuse');
+		expect(leftWritesBehind(result.error)).toBe(true);
+		expect(listed(await markers.list())).toHaveLength(1);
+	});
+
+	it('a marker clear that refuses after a clean compensation is logged, not swallowed', async () => {
+		const ops = makeOps();
+
+		await compensatingDeleteAnyway(ops, new ScriptedMarkers([], [1]));
+
+		expect(ops.errors).toContain('sequence.marker-clear.failed');
+		// Not the success path's door: the user is already being told about the refusal that
+		// failed the gesture, and a toast about its bookkeeping names nothing they can act on.
+		expect(ops.notified).toEqual([]);
+	});
+
 	it('a removed requirement is restored against `absent`, not a revision', async () => {
 		const ops = makeOps({ referents: [referent(FIRST_REQUIREMENT)] });
 		ops.removeResults = [err(injectedPersistenceError())];
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'remove-references', resolvedReferents: [FIRST_REQUIREMENT] },
-			new ReferenceLocks(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 		expect(result).toMatchObject({ ok: false, error: { code: 'test.injected-failure' } });
 	});
@@ -310,7 +371,7 @@ describe('compensation', () => {
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'remove-references', resolvedReferents: REQUIREMENT_IDS },
-			new ReferenceLocks(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 		expect(result).toMatchObject({ ok: false, error: { code: 'test.injected-failure' } });
 		expect(ops.restored).toEqual([
@@ -325,7 +386,7 @@ describe('compensation', () => {
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'reassign', reassignTo: 'entity-9', resolvedReferents: [FIRST_REQUIREMENT] },
-			new ReferenceLocks(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 		expect(result).toMatchObject({ ok: false, error: { code: 'test.injected-failure' } });
 		expect(ops.deletedAtVersions).toHaveLength(0);
@@ -339,7 +400,7 @@ describe('compensation', () => {
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
-			new ReferenceLocks(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 
 		expect(result).toMatchObject({ ok: false, error: { code: 'test.injected-failure' } });
@@ -367,7 +428,7 @@ describe('compensation', () => {
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
-			new ReferenceLocks(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 
 		if (result.ok) throw new Error('expected the sequence to refuse');
@@ -396,7 +457,7 @@ describe('compensation', () => {
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
-			new ReferenceLocks(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 
 		if (result.ok) throw new Error('expected the sequence to refuse');
@@ -417,7 +478,7 @@ describe('compensation', () => {
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
-			new ReferenceLocks(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 
 		if (result.ok) throw new Error('expected the sequence to refuse');
@@ -438,7 +499,7 @@ describe('compensation', () => {
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
-			new ReferenceLocks(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 
 		if (result.ok) throw new Error('expected the sequence to refuse');
@@ -454,7 +515,7 @@ describe('compensation', () => {
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'reassign', reassignTo: 'entity-9', resolvedReferents: [FIRST_REQUIREMENT] },
-			new ReferenceLocks(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 		expect(result.ok).toBe(true);
 		expect(ops.warnings).toContain('requirement.reassignment-recalculation.failed');
@@ -520,8 +581,7 @@ describe('marker bookkeeping on the success path', () => {
 		const result = await runDeleteResolution(
 			ops,
 			{ resolution: 'remove-references', resolvedReferents: REQUIREMENT_IDS },
-			new ReferenceLocks(),
-			new ScriptedMarkers(),
+			new ReferenceLocks(), new ScriptedMarkers(),
 		);
 		// The counterpart, without which the fix above is satisfied just as well by a
 		// `notify` called unconditionally — a warning after every successful delete.

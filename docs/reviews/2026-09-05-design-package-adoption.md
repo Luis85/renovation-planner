@@ -86,6 +86,14 @@ branch and are left as written.
 | PBI-09 Continue after price errors | Folded | Tickets and the save-state distinction ship; the dirty-navigation guard is PBI-07's |
 | PBI-10 Narrow views and mobile | Split | Narrow is met by the container queries both surfaces carry. **Mobile is a gap** → [[Bound the mobile surface to what it can actually do]] |
 
+**Amended 2026-09-05, later the same day.** Pull request #73 (`codex/project-experience`) implemented
+this package, and the five items above that were *Met*, *Change* or *Folded* are now register notes
+beside the five gaps, all under [[Project dashboard and navigation]]: [[Choose the next step from a
+project's details]] (03), [[Understand a project's price sources]] (06), [[Apply or discard a project's
+own price deliberately]] (07), [[Remove a saved project price]] (08) and [[Continue safely after a
+price error or a parallel change]] (09). The verdicts above are the state before that branch and are
+left as written.
+
 **The proposed epic *Start and continue renovation projects* is not adopted.** The register already
 routes this surface through [[Project dashboard and navigation]] → [[The project surface]], and a
 second epic over the same ground would be a third authority for one fact.

@@ -80,8 +80,8 @@ export default defineConfig({
 		environment: 'node',
 		// TWO PROJECTS, and the split is a COST decision rather than a taxonomy.
 		//
-		// `tests/build/` is **40 files** — 2026-09-05, `ls tests/build/*.test.ts | wc -l` — that
-		// boot a type-aware ESLint eleven times over, and
+		// `tests/build/` is the count `ls tests/build/*.test.ts | wc -l` prints today; the files
+		// `eslintBootingTests()` derives each boot a type-aware ESLint, and
 		// `tests/helpers/eslint.ts` says what one boot costs (~3s idle, 17.8s seen under full
 		// parallel load). Every boot is paid AGAIN per file, because vitest gives each test
 		// file its own module registry — so the module-level `new ESLint(...)` that file
@@ -180,7 +180,7 @@ export default defineConfig({
 			// files that BOOT ESLint need one worker, and confining the rest with them was
 			// paying the serialisation for 29 files that boot nothing. Measured on this machine
 			// (2026-09-05, quiet tree, no coverage): the `build` project as one serial group ran
-			// **174s**, of which these twelve files are **34s** — so ~140s, four fifths of it,
+			// **174s**, of which the files `eslintBootingTests()` derives are **34s** — so ~140s, four fifths of it,
 			// was files that had run parallel-safely for their whole lives. Whole suite
 			// **269s → 156s** across the change, 461 of 461 files passing both ways.
 			{
@@ -189,8 +189,8 @@ export default defineConfig({
 					name: 'build-lint',
 					include: [...ESLINT_TESTS],
 					isolate: false,
-					// One worker, one module registry, ONE `new ESLint(...)` between twelve
-					// files. Not a tuning knob: measured as a boot COUNT rather than a
+					// One worker, one module registry, ONE `new ESLint(...)` between the files
+					// `eslintBootingTests()` derives. Not a tuning knob: measured as a boot COUNT rather than a
 					// duration, because the duration cannot see it — a probe beside that
 					// constructor reports one boot per worker, and a quiet machine passes this
 					// directory either way, which is exactly why the flake read as somebody
@@ -1288,7 +1288,7 @@ export default defineConfig({
 			// serial coverage runs failed on a `warmUpEslint` hook timing out — a DIFFERENT
 			// `tests/build/` file each time (`notice-text-boundary`, then
 			// `language-resolution-boundary`), each passing in isolation. Serial is not the remedy for
-			// that contention and is arguably its cause: this file's own paragraph on the twelve
+			// that contention and is arguably its cause: this file's own paragraph on the derived
 			// ESLint-booting files records ~30s per boot under default parallelism against ~60s
 			// serial, against a 60s budget. Measured here on the whole suite: **103s parallel against
 			// 825s serial**, and the parallel run passed all 342 files. A failing `beforeAll` in that

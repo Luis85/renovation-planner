@@ -446,9 +446,7 @@ function rememberRow(event: Event): void {
 	</section>
 	<!--
 		A native `<details>`/`<summary>`, so the disclosure state is announced by the HOST
-		rather than reimplemented with ARIA — and its expanded state is deliberately NOT
-		persisted: it resets on remount, which is every navigation, exactly like the filter's
-		own query.
+		rather than reimplemented with ARIA.
 	-->
 	<details
 		v-if="completed.length > 0"

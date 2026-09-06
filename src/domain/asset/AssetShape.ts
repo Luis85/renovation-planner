@@ -119,11 +119,20 @@ export function dimensionsOf(footprint: Polygon): Result<Dimensions, GeometryErr
 	return ok({ width, depth });
 }
 
-/** One spelling per direction: `[0, 2π)`, so a stored 2π and a stored 0 cannot differ. */
+/**
+ * One spelling per direction: `[0, 2π)`, so a stored 2π and a stored 0 cannot differ.
+ *
+ * The final fold is `>= TAU`, not `=== TAU`: a hair below the +x axis (`-1e-17`) rounds,
+ * once folded positive, to exactly `TAU` — below `TAU`'s own floating-point resolution —
+ * and used to survive as a second spelling of zero. `-TAU` itself folds to `-0`, which
+ * `folded < 0` reads as false (`-0 < 0` is false in JS), so it also needs the `=== 0` arm
+ * rather than falling through as a non-zero positive angle.
+ */
 export function normaliseFacing(radians: number): number {
 	if (!Number.isFinite(radians)) return 0;
 	const folded = radians % TAU;
-	return folded < 0 ? folded + TAU : folded;
+	const positive = folded < 0 ? folded + TAU : folded;
+	return positive >= TAU || positive === 0 ? 0 : positive;
 }
 
 /**

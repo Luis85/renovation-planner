@@ -41,6 +41,7 @@ import { GetRequirementsForZone } from '../../../src/application/queries/GetRequ
 import { ListAssets } from '../../../src/application/queries/ListAssets';
 import { ListRequirementsReferencing } from '../../../src/application/queries/ListRequirementsReferencing';
 import { ListReassignmentTargets } from '../../../src/application/queries/ListReassignmentTargets';
+import { assetSequenceCollaborators, zoneSequenceCollaborators } from '../../helpers/slice10';
 
 /**
  * The Result-not-throw contract (SDD 65-66), asserted over the command and query classes
@@ -209,6 +210,7 @@ function editorServices(): Fixture[] {
 			// this case names.
 			'DeleteZoneCommand',
 			new DeleteZoneCommand({
+				...zoneSequenceCollaborators(),
 				zones,
 				requirements,
 				recalculate: rejecting<Pick<RecalculateRequirementCommand, 'execute'>>('recalculate'),
@@ -287,6 +289,7 @@ function slice10Services(): Fixture[] {
 		commandCase(
 			'DeleteAssetCommand',
 			new DeleteAssetCommand({
+				...assetSequenceCollaborators(),
 				assets,
 				requirements,
 				recalculate: rejecting<Pick<RecalculateRequirementCommand, 'execute'>>('recalculate'),

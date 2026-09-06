@@ -1,6 +1,8 @@
-import type { SessionWriteLedger } from '../../../application/editor/WriteLedger';
+import type { SessionWriteLedger, WriteLedger } from '../../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../../application/commands/zone/reversible-create-zone-command';
+import type { Polygon } from '../../../core/geometry/Polygon';
 import type { PlanId } from '../../../domain/plan/PlanId';
+import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { useProjectStore } from '../../stores/ProjectStore';
 import type { useDialogStore } from '../../dialogs/dialog-store';
 import type { ToolManager } from './tool-manager';
@@ -11,12 +13,27 @@ import { areaOutline } from '../add/areaOutline';
 import { DrawRoomTool } from './draw-room-tool';
 import { SelectTool } from './select-tool';
 import { ReversibleMoveZoneCommand } from './reversible-move-zone-command';
+import type { UndoableCommand } from './undoable-command';
 import type { RoomDraftStore } from '../add/room-draft-store';
 import { knownDistanceSupplier } from '../shell/knownDistance';
 import { tr } from '../../i18n/strings';
 import { notifyOperationFailure } from '../../notices/notify';
 import { reportDispatchFailure } from '../report-failure';
 import type { PlanEditorContext } from '../PlanEditorContext';
+
+/**
+ * One reversible command per drag OR per keyboard nudge — `SelectTool`'s pointer gesture and
+ * `EditorRuntime.nudgeSelection` (Task 14, E8) both move a Zone through this exact factory,
+ * which is what makes "undo restores what the keyboard just moved" true for free rather than
+ * a second adapter to keep in step with the first.
+ */
+export function moveGesture(
+	context: PlanEditorContext,
+	ledger: WriteLedger,
+): (zoneId: ZoneId, forward: Polygon, inverse: Polygon) => UndoableCommand {
+	return (zoneId, forward, inverse) =>
+		new ReversibleMoveZoneCommand(context.commands.moveObject, ledger, zoneId, forward, inverse);
+}
 
 /**
  * What the concrete tools of this leaf are built from.
@@ -57,8 +74,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			// Body drags AND vertex drags produce the same command: a vertex drag is a
 			// whole-geometry replacement in which one point differs, so there is one adapter
 			// and only forward/inverse change.
-			createMoveGesture: (zoneId, forward, inverse) =>
-				new ReversibleMoveZoneCommand(context.commands.moveObject, ledger, zoneId, forward, inverse),
+			createMoveGesture: moveGesture(context, ledger),
 			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
 		}),

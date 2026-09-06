@@ -1,6 +1,6 @@
 import { err, ok, type Result } from '../../core/result/Result';
 import type { ValidationError } from '../../core/errors/AppError';
-import { isNegative, type Currency, type Money } from '../../core/money/Money';
+import { negativeMoney, type Currency, type Money } from '../../core/money/Money';
 import { isProjectStatus, type ProjectStatus } from './ProjectStatus';
 import type { ProjectId } from './ProjectId';
 import { projectError } from './Project.errors';
@@ -34,13 +34,13 @@ export interface CreateProjectProps {
  *
  * One code with the field NAMED in the message, not a code per field: two codes would
  * read as two rules (the shape `quantityEngine`'s `negativeQuantity` argues for).
+ *
+ * `core/money/Money.ts`'s `negativeMoney` is the shared guard (finding C11), and this is the
+ * one site that needs no wrapping: its default code IS `projectError`'s own `'negative-amount'`,
+ * so the factory passes straight through as `errorOf`.
  */
 function negativeAmount(field: string, value: Money | null | undefined): ValidationError | null {
-	if (!value || !isNegative(value)) return null;
-	return projectError(
-		'negative-amount',
-		`A project ${field} cannot be negative; got ${value.amount} ${value.currency}.`,
-	);
+	return negativeMoney(`project ${field}`, value, projectError) as ValidationError | null;
 }
 
 /**
@@ -181,8 +181,11 @@ export class Project {
 				name,
 				description: props.description ?? null,
 				status: props.status ?? 'IDEA',
-				start: props.start ?? null,
-				targetCompletion: props.targetCompletion ?? null,
+				// Copied, not aliased: a `Date` is mutable, and this entity is documented
+				// Immutable — a caller that kept its own reference and mutated it afterward
+				// must not reach the stored field (C9).
+				start: props.start ? new Date(props.start.getTime()) : null,
+				targetCompletion: props.targetCompletion ? new Date(props.targetCompletion.getTime()) : null,
 				budget: props.budget ?? null,
 				contingency: props.contingency ?? null,
 				locationDescription: props.locationDescription ?? null,

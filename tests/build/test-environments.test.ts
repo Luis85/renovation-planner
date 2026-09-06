@@ -224,5 +224,8 @@ describe('the inner layers execute in node', () => {
 		// sibling's stale-figure mistake waiting to happen here too.
 		expect(examinedByDirectory.length).toBeGreaterThan(0);
 		expect(examinedByContract.length).toBeGreaterThan(0);
-	}, 120_000);
+		// This case globs the whole suite through a nested `createVitest`: measured 128 s under
+		// the full gate on a contended machine (56 s alone) on 2026-09-05, so 120 s was a red
+		// about the machine rather than about the tree.
+	}, 300_000);
 });

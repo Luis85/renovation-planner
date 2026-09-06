@@ -4,7 +4,7 @@ parent: "[[Errors, diagnostics and the test harness]]"
 order: 20
 dependsOn:
   - "[[01-plugin-bootstrap-and-composition-root]]"
-status: ""
+status: Active
 started: ""
 finished: ""
 horizon: ""

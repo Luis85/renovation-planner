@@ -4,6 +4,7 @@ import {
 	applyPackaging,
 	applyRequirementRule,
 	applyWaste,
+	negativeQuantity,
 	runQuantityEngine,
 	toMeasuredQuantity,
 	type PackagingRule,
@@ -49,6 +50,14 @@ describe('toMeasuredQuantity', () => {
 		const error = expectErr(toMeasuredQuantity(d('-12345678'), 'm2'));
 		expect(error.category).toBe('Calculation');
 		expect(error.code).toBe('quantity.negative');
+	});
+});
+
+describe('negativeQuantity', () => {
+	it('refuses a non-finite quantity before the sign is even asked', () => {
+		const error = negativeQuantity({ value: d('Infinity'), unit: 'piece' });
+		expect(error?.category).toBe('Calculation');
+		expect(error?.code).toBe('quantity.non-finite');
 	});
 });
 

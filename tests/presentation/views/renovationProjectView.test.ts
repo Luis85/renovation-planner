@@ -333,7 +333,11 @@ describe('the list and detail states', () => {
 		await view.setState(state, result);
 
 		expect(view.getState()).toEqual({ projectId: 'project-01JAAA' });
-		expect(result.history).toBeUndefined();
+		// `false` rather than left unset (P2): `result.history` is assigned unconditionally,
+		// before the one `await` in `setState`, so a caller reading it synchronously right after
+		// the call — never mind after the returned promise settles — sees the true answer either
+		// way, rather than whatever it carried in.
+		expect(result.history).toBe(false);
 	});
 
 	/**
@@ -365,7 +369,7 @@ describe('the list and detail states', () => {
 
 		await view.setState({ projectId: 42 }, result);
 
-		expect(result.history).toBeUndefined();
+		expect(result.history).toBe(false);
 	});
 
 	/** Nor is re-stating the project already open — `sync()` no-ops and so must the history. */
@@ -376,7 +380,7 @@ describe('the list and detail states', () => {
 
 		await view.setState({ projectId: 'project-01JAAA' }, result);
 
-		expect(result.history).toBeUndefined();
+		expect(result.history).toBe(false);
 	});
 
 	/**

@@ -48,8 +48,11 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 	// assets, prices, requirement figures). The vault door is filtered to the evidence files
 	// this plan links, the way `BackgroundLayer` filters it to the sheet it draws: unfiltered,
 	// every note edit anywhere in the vault re-read every room's requirements and the whole
-	// priced catalogue in every open Plan Editor leaf.
-	onBeforeUnmount(context.onVaultFileChanged(path => { if (evidencePaths().includes(path)) void refresh(); }));
+	// priced catalogue in every open Plan Editor leaf. A folder's own path counts too: a
+	// folder rename or delete arrives as ONE event naming the folder, not one per file in it.
+	onBeforeUnmount(context.onVaultFileChanged(path => {
+		if (evidencePaths().some(linked => linked === path || linked.startsWith(path + '/'))) void refresh();
+	}));
 	}
 	onBeforeUnmount(() => { alive = false; ticket++; });
 	const blocked = computed(() => loading.value || failed.value || project.stale || runtime.renovation.blocked.value);

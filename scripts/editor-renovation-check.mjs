@@ -1,18 +1,11 @@
+import { recordText, recordApply, recordShot as shot, recordRoom } from './editor-record-browser.mjs';
 import assert from 'node:assert/strict';
 import { runAreaBrowserMatrix, activate, tabTo } from './editor-area-browser.mjs';
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 const translated = (scenario, english, german) => scenario.name === 'german-constrained' ? german : english;
 const form = '[data-rp-form="renovation"]';
-async function text(page, name, value) {
-	await tabTo(page, `${form} [name="${name}"]`); await page.keyboard.press('Control+A'); await page.keyboard.type(value);
-}
-async function apply(page) {
-	await activate(page, `${form} button[type="submit"]`); await activate(page, `${form} button[type="submit"]`); await page.locator(form).waitFor({ state: 'hidden' });
-}
-async function shot(page, scenario, out, name) {
-	assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-	await page.screenshot({ path: `${out}/${scenario.name}-${name}.png` });
-}
+const text = (page, name, value) => recordText(page, form, name, value);
+const apply = page => recordApply(page, form, true);
 async function proposalAndReview(page, scenario, out) {
 	await activate(page, '[data-rp-action="plan-record"]'); await page.locator(form).waitFor();
 	await text(page, 'description', translated(scenario, 'Repair and oil the boards', 'Dielen reparieren und ölen')); await apply(page);
@@ -40,11 +33,7 @@ async function checkReflow(page, scenario) {
 	await page.locator(`.rp-editor-shell[data-layout="${scenario.width < 900 ? 'constrained' : 'full'}"]`).waitFor();
 }
 async function journey(page, scenario, out) {
-	const tokens = await preserveTheme(page, scenario);
-	await drawWalls(page, scenario, out);
-	await panel(page, 'layers'); await activate(page, '.rp-room-list__row');
-	if (scenario.width === 460) await page.keyboard.press('Escape');
-	await panel(page, 'details'); await activate(page, '[data-rp-mode="existing"]');
+	const tokens = await recordRoom(page, scenario, out, { preserveTheme, drawWalls, panel }); await activate(page, '[data-rp-mode="existing"]');
 	await activate(page, '[data-rp-action="new-record"]'); await page.locator(form).waitFor();
 	await text(page, 'description', translated(scenario, 'Worn timber boards', 'Abgenutzte Dielen'));
 	await checkReflow(page, scenario);

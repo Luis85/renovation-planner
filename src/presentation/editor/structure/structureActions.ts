@@ -1,3 +1,4 @@
+import { removalSources } from '../planning/removalSources';
 import type { PlanGeometryDocument } from '../../../application/ports/PlanGeometrySidecar';
 import { sameGeometryDocument } from '../../../application/commands/spatial/sameGeometryDocument';
 import { renovationReferents } from '../../../domain/renovation/renovationTargets';
@@ -31,8 +32,9 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		return sameGeometryDocument({ objects: [], structure: project.structure, calibration: project.plan?.calibration ?? null },
 			{ objects: [], structure: document.structure, calibration: document.calibration });
 	}
+	function unavailable(): boolean { return !alive || active.value || blocked.value || !!dialogs.current; }
 	async function edit(id: string, end?: Point): Promise<void> {
-		if (!alive || active.value || blocked.value || dialogs.current || !context.commands.structure) return;
+		if (unavailable() || !context.commands.structure) return;
 		active.value = true;
 		const selected = selection.selectedIds.join();
 		try {
@@ -54,8 +56,14 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.structure.edit-failed'); }
 		finally { active.value = false; preview.value = null; }
 	}
+    async function referencesFor(ids: readonly string[]): Promise<readonly string[] | null> {
+        const materials = await removalSources(context, ids);
+        if (!alive) return null;
+        if (!materials.ok) { notifyOperationFailure(materials.error); return null; }
+        return [...materials.value, ...ids.flatMap(target => renovationReferents(project.plan?.renovation ?? EMPTY_RENOVATION, target))];
+    }
 	async function remove(id: string): Promise<void> {
-		if (!alive || active.value || blocked.value || dialogs.current || !context.commands.structure) return;
+		if (unavailable() || !context.commands.structure) return;
 		active.value = true;
 		try {
 			const baseline = await context.commands.structure.read(context.planId as PlanId);
@@ -65,7 +73,9 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 			if (!structure) return;
 			const removedOpenings = structure.openings.filter(item => item.id === id || item.hostId === id);
 			const removedBoundaries = structure.boundaries.filter(boundary => boundary.wallIds.includes(id));
-			const references = [id, ...removedOpenings.map(item => item.id)].flatMap(target => renovationReferents(project.plan?.renovation ?? EMPTY_RENOVATION, target));
+			const ids = [id, ...removedOpenings.map(item => item.id)];
+            const references = await referencesFor(ids);
+            if (!references) return;
 			if (references.length) { await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), message: tr('renovation.links', { names: references.join(', ') }) }); return; }
 			const answer = await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), danger: true,
 				message: tr('editor.structure.delete-impact', { openings: String(removedOpenings.length), rooms: String(removedBoundaries.length) }) });

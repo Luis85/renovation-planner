@@ -206,6 +206,7 @@ function notAnAdapter(reason: string): Disposition {
  * entry for a class that no longer exists fails too.
  */
 const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
+ 'src/application/commands/renovation/MaterialCommand.ts::MaterialCommand': rows(['execute', 'undo'], 'MaterialCommand'),
 	'src/application/commands/renovation/RenovationCommand.ts::RenovationCommand': rows(['execute', 'undo'], 'RenovationCommand'),
 	'src/application/commands/spatial/StructureCommand.ts::StructureCommand': rows(['execute', 'undo'], 'StructureCommand'),
 	'src/application/commands/plan/ConfigurePlanReference.ts::ConfigurePlanReference': rows(['execute', 'undo'], 'ConfigurePlanReference'),
@@ -335,9 +336,6 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 	'src/presentation/editor/tools/command-history.ts::CommandHistory': notAnAdapter(
 		'CommandHistory, which CALLS undo rather than being one — it declares undo()/redo() over ' +
 			'a stack of adapters, and run() rather than execute()',
-	),
-	'src/presentation/editor/snapping/snap-service.ts::SnapService': notAnAdapter(
-		'a service the drawing tools consult; "undo" appears only in prose',
 	),
 };
 

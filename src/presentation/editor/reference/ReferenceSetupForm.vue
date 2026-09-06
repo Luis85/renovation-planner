@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
-import { normalizePath } from 'obsidian';
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, toRaw, watch, type Ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
@@ -17,6 +16,7 @@ import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { notifyFault } from '../../notices/notify';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
+import { normalizePath } from 'obsidian';
 
 const props = defineProps<{ baseline: ReferenceBaseline; vault: BackgroundVault; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>;
 	logger: Logger; fileChanges: (listener: (path: string) => void) => () => void; dispatch: (input: ConfigureReferenceInput) => Promise<DispatchResult> }>();

@@ -1,3 +1,5 @@
+import type { PlanningServices } from '../../application/commands/renovation/PlanningServices';
+import type { EvidenceFiles } from '../../application/ports/EvidenceFiles';
 import { referencePlanServices, type ReferencePlanServices } from '../../application/commands/plan/ConfigurePlanReference';
 import type { StructureServices } from '../../application/commands/spatial/StructureCommand';
 import { err, type Result } from '../../core/result/Result';
@@ -60,6 +62,9 @@ export interface CalibratePlanTransaction {
  * boundary is exactly what has no per-transaction state.
  */
 export interface PlanEditorCommandServices {
+	readonly planning?: PlanningServices;
+	readonly evidenceFiles?: EvidenceFiles;
+	readonly shoppingNote?: (planId: PlanId, body: string) => Promise<Result<void, AppError>>;
 	readonly reviewNote?: (planId: PlanId, body: string) => Promise<Result<void, AppError>>;
 	readonly renovation?: RenovationServices;
 	readonly structure?: StructureServices;

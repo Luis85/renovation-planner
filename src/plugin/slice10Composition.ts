@@ -1,3 +1,6 @@
+import { registerOnPlanningChanged } from '../application/event-handlers/requirement/onPlanningChanged';
+import type { PlanRepository } from '../application/ports/PlanRepository';
+import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
 /**
  * Design slice 10's composition, lifted out of `composition-root.ts` when that file reached
  * its 400-line cap — an EXTRACTION rather than a second collapsed literal, which is the
@@ -68,6 +71,8 @@ export const sequenceNotices = {
 };
 
 export interface Slice10Wiring {
+	readonly plans?: PlanRepository;
+	readonly geometry?: PlanGeometrySidecar;
 	readonly zones: ZoneRepository;
 	readonly assets: AssetRepositoryPort;
 	readonly requirements: RequirementRepositoryPort;
@@ -83,7 +88,7 @@ export interface Slice10Wiring {
 	readonly events: EventBus;
 	readonly locks: ReferenceLocks;
 	readonly logger: Logger;
-	readonly markers?: SequenceMarkerStore;
+	readonly markers: SequenceMarkerStore;
 	/** The precedence's input half: a project may price a shared asset in its own currency. */
 	readonly overrides: AssetPriceOverrideRepository;
 }
@@ -108,8 +113,8 @@ export function composeSlice10(
 	 * failure inside it reaches nobody unless it is announced. That matters most for exactly
 	 * the case this port is named after: the durable marker that lets a later reader see
 	 * "these figures are out of date" is itself the write that failed, so silence here means
-	 * a wrong figure presented as current. The port is optional on `CascadeDeps` for the
-	 * suite's benefit; production always passes it, and this is the caller that makes the
+	 * a wrong figure presented as current. The port is REQUIRED on `CascadeDeps`, so a
+	 * composition cannot reach here having forgotten it; this is the caller that makes the
 	 * whole port more than a tested no-op.
 	 *
 	 * **WARNING rather than the `info` default, and for the same reason the port exists.**
@@ -129,6 +134,7 @@ export function composeSlice10(
 	};
 
 	const subscriptions: { dispose(): void }[] = [
+		...(wiring.plans && wiring.geometry ? [registerOnPlanningChanged(events, { plans: wiring.plans, geometry: wiring.geometry, index, requirements, events, logger, notify: cascadeNotices, recalculate: input => recalculate.execute({ requirementId: input.requirementId as never }) })] : []),
 		registerOnZoneGeometryChanged(events, {
 			requirements,
 			events,
@@ -173,7 +179,7 @@ export function composeSlice10(
 		setRequirementCostOverride: new SetRequirementCostOverrideCommand(requirements, events, locks),
 		deleteRequirement: new DeleteRequirementCommand(requirements, events),
 		queries: {
-			getRequirementsForZone: new GetRequirementsForZone({ requirements, zones, assets, projects, overrides, logger }),
+			getRequirementsForZone: new GetRequirementsForZone({ geometry: wiring.geometry, requirements, zones, assets, projects, overrides, logger }),
 			listAssets: new ListAssets(assets),
 			listRequirementsReferencing: new ListRequirementsReferencing(
 				requirements,

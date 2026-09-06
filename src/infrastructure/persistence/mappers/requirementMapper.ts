@@ -18,7 +18,7 @@ import type { ProjectId } from '../../../domain/project/ProjectId';
 import { parsePersisted } from './parse';
 import {
 	REQUIREMENT_TYPE,
-	RequirementFrontmatterSchemaV1,
+	RequirementFrontmatterSchema,
 } from '../dto/requirementFrontmatter';
 
 function derivedQuantity(dto: {
@@ -67,7 +67,8 @@ export function requirementToPersistence(
 	const currency = requirement.calculatedFrom.unitCost.currency;
 	return {
 		type: REQUIREMENT_TYPE,
-		'schema-version': 1,
+		'schema-version': requirement.source ? 2 : 1,
+		...(requirement.source ? { source: requirement.source } : {}),
 		id: requirement.id,
 		revision,
 		project: requirement.projectId,
@@ -102,7 +103,7 @@ export function requirementToPersistence(
 
 export function requirementFromPersistence(rawFrontmatter: unknown): Result<Requirement, ValidationError> {
 	const frontmatter = parsePersisted(
-		RequirementFrontmatterSchemaV1,
+		RequirementFrontmatterSchema,
 		rawFrontmatter,
 		'requirement.frontmatter-invalid',
 		'Requirement note',
@@ -119,6 +120,7 @@ export function requirementFromPersistence(rawFrontmatter: unknown): Result<Requ
 	}
 
 	const created = Requirement.create({
+		source: 'source' in dto ? dto.source : undefined,
 		id: dto.id as Requirement['id'],
 		projectId: dto.project as ProjectId,
 		assetId: dto.asset as AssetId,

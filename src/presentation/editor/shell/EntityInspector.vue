@@ -45,7 +45,7 @@ import NewRoomInspector from './NewRoomInspector.vue';
 import RoomInspector from './RoomInspector.vue';
 import MultiSelectionInspector from './MultiSelectionInspector.vue';
 import { useProjectStore } from '../../stores/ProjectStore';
-import { toSpatialRecordDto } from '../../read-models/spatialRecords';
+import { useSpatialRecords } from './useSpatialRecords';
 import { spatialSelection } from '../selection/spatialSelection';
 import StructureInspector from '../structure/StructureInspector.vue';
 import RenovationInspector from '../renovation/RenovationInspector.vue';
@@ -55,8 +55,9 @@ import { structureRecords } from '../structure/structureRecords';
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
 const project = useProjectStore();
+const rooms = useSpatialRecords();
 const renovationSession = useRenovationSession();
-const records = computed(() => [...[...project.zones.values()].map((zone) => toSpatialRecordDto(zone)), ...structureRecords(project.structure, project.plan?.id ?? '')]);
+const records = computed(() => [...rooms.value, ...structureRecords(project.structure, project.plan?.id ?? '')]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
 </script>
 

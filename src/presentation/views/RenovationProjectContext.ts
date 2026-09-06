@@ -168,18 +168,26 @@ export interface RenovationProjectDeps {
 	 */
 	readonly onCatalogueChanged: (listener: () => void) => () => void;
 	/**
-	 * "SOME project's own price for some asset may have moved — here is which project."
+	 * "SOME project's own price for some asset may have moved, or some project's requirement
+	 * list gained or lost a row — here is which project."
 	 *
 	 * The listener takes the project because this pane draws exactly ONE, and the source cannot
 	 * narrow on its behalf: its other caller is the Plan Editor, which holds a PLAN id and would
 	 * need an async read to resolve one. So the source reports and each caller decides — the
-	 * editor's listener takes no parameter at all and is unaffected.
+	 * editor's listener takes no parameter at all and is unaffected, and its own door
+	 * (`PlanEditorContext.onProjectPricesChanged`, wired at `runtime.ts:296`) takes no id and no
+	 * filter either, so it reloads for a lifecycle event in ANY project — pre-existing policy for
+	 * the price half, now carrying the requirement-list traffic too.
 	 *
-	 * **`null` means "cannot say — refresh anyway", never "no project".** The index arm of that
-	 * source announces a price NOTE by id and type, and `ProjectIndexEntryChangedPayload` carries
-	 * no project id at all, so a narrowing listener must treat `null` as a MATCH. Skipping it
-	 * would make a price note added by hand, copied in, or arriving through sync invisible to
-	 * this pane for the life of the leaf, which is the half no COMMAND can raise.
+	 * **`null` means "cannot say — refresh anyway", never "no project", and it now has TWO
+	 * producers.** The index arm of that source announces a price NOTE by id and type, and
+	 * `ProjectIndexEntryChangedPayload` carries no project id at all — the half no COMMAND can
+	 * raise; skipping it would make a price note added by hand, copied in, or arriving through
+	 * sync invisible to this pane for the life of the leaf. `RequirementCreated`/
+	 * `RequirementDeleted`/`RequirementRestored` are the second producer: `changedProjectOf`
+	 * reads their payload's `projectId` with the identical guard, so a payload that somehow
+	 * carries none reports `null` rather than `undefined` compared against a project id and
+	 * matching nothing.
 	 */
 	readonly onProjectPricesChanged: (listener: (projectId: string | null) => void) => () => void;
 	/**

@@ -169,24 +169,8 @@ describe('Requirement.withRecalculation preserves the cost override, not the qua
 		expect(recalculated.estimatedCost.override?.amount).toBe('500');
 	});
 
-	/**
-	 * **RECORDED RESIDUAL, not desired behaviour.** A quantity override does NOT survive a
-	 * full recalculation — deliberately reverted to `main`'s pre-existing behaviour after a
-	 * review bot found that preserving it (as `withRecalculation` briefly did) decouples the
-	 * override from the cost: `deriveRequirementFigures` prices from the CALCULATED quantity
-	 * always, never the effective one, so a kept `quantity.override` of 9 m² would sit beside
-	 * an `estimatedCost.calculated` priced at the recalculated 12 m², with nothing saying the
-	 * two no longer agree. Dropping the override on recalculation is lossy, and it is at least
-	 * internally consistent — both figures speak of 12.
-	 *
-	 * The real fix is not this method preserving the override — it is re-pricing from the
-	 * EFFECTIVE quantity, the way `SetRequirementQuantityOverride`'s own docblock already
-	 * states the rule ("then re-runs the Cost Pipeline against the new EFFECTIVE quantity").
-	 * That is a change to what a full recalculation MEANS and needs its own cases; it does not
-	 * belong inside a price-override increment. **A future fix along those lines should REDDEN
-	 * this case** — read this docblock rather than treating a red result here as a regression.
-	 */
-	it('drops a quantity override across a full recalculation — a recorded residual, not a design', () => {
+	/** ADR-0022 preserves the override; the recalculation command prices the effective quantity. */
+	it('preserves a quantity override across a full recalculation', () => {
 		const requirement = expectOk(
 			expectOk(Requirement.create(requirementProps())).withQuantityOverride({
 				value: new Decimal(9),
@@ -203,7 +187,7 @@ describe('Requirement.withRecalculation preserves the cost override, not the qua
 		);
 
 		expect(recalculated.quantity.calculated.value.toNumber()).toBe(12);
-		expect(recalculated.quantity.override).toBeUndefined();
+		expect(recalculated.quantity.override?.value.toNumber()).toBe(9);
 	});
 
 	/** With no override set on either side, a recalculation still leaves neither one present. */

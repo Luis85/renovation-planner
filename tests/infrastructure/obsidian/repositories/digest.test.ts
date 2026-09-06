@@ -91,6 +91,8 @@ describe('observation tokens', () => {
 describe("a note is digested against its own kind's schema", () => {
 	const SCHEMA_BY_TYPE: Readonly<Record<EntityType, { readonly shape: Readonly<Record<string, unknown>> }>> = {
 		[PROJECT_TYPE]: ProjectFrontmatterSchemaV1,
+		// The NEWEST plan schema, not V1: `reference-appearance` is V2's key, and a digest
+		// derived from V1 let an external edit of it pass unseen (a Codex P1 on pull request #85).
 		[PLAN_TYPE]: PlanFrontmatterSchemaV2,
 		[ZONE_TYPE]: ZoneFrontmatterSchemaV1,
 		[ASSET_TYPE]: AssetFrontmatterSchemaV1,

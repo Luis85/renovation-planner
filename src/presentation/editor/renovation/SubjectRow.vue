@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { usePlanEditorContext } from '../PlanEditorContext';
+const context = usePlanEditorContext();
 import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
 import type { RenovationSubject } from '../../../domain/renovation/Renovation';
@@ -29,7 +31,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 				type="button"
 				:disabled="actions.blocked.value"
 				data-rp-action="edit-record"
-				@click="actions.edit(session.mode, item.roomId, item.id)"
+				@click="actions.edit(session.mode === 'existing' ? 'existing' : 'planned', item.roomId, item.id)"
 			>
 				{{ tr('renovation.edit') }}
 			</button>
@@ -78,5 +80,12 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 				{{ tr(session.mode === 'planned' ? 'renovation.discard' : 'renovation.delete') }}
 			</button>
 		</div>
+		<button
+			v-if="context.commands.planning"
+			type="button"
+			@click="actions.focus(item.roomId, 'materials', item.id)"
+		>
+			{{ tr('renovation.materials') }}
+		</button>
 	</li>
 </template>

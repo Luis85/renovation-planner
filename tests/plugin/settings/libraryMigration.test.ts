@@ -73,7 +73,7 @@ function harness(overrides: Partial<LibraryMigrationDeps> = {}): Harness {
 		persist: (folder) => {
 			order.push('persist');
 			persisted = folder;
-			return Promise.resolve();
+			return Promise.resolve('persisted');
 		},
 		logger: { debug: record, info: record, warn: record, error: record },
 		...overrides,
@@ -272,6 +272,44 @@ describe('migrateLibraryFolder', () => {
 		// It RESOLVES a failed Result rather than rejecting — the declared contract.
 		expect(isErr(result) && result.error.code).toBe('settings.library-persist-failed');
 		expect(rig.order).toEqual(['rebuild', 'move', 'move', 'rebuild']);
+		expect(rig.logged.map((line) => line.event)).toEqual(['settings.library-persist-failed']);
+	});
+
+	/**
+	 * N4: the other side of that same step. `persistLibraryFolder` writes `data.json` and
+	 * THEN swaps the composition root, so a throw from the swap leaves a write that landed —
+	 * and reporting it as `settings.library-persist-failed` tells the user "the setting could
+	 * not be saved" about a setting that was, and sends them to re-apply a value the file
+	 * already holds.
+	 *
+	 * A resolution rather than a rejection is what carries it, because the two arms are not
+	 * the same KIND of event: one is a failed write and the other a successful one the session
+	 * did not follow. The `catch` above cannot separate them, which is the whole finding.
+	 */
+	it('reports the apply failure separately when the write itself landed', async () => {
+		const rig = harness({ persist: () => Promise.resolve('apply-failed') });
+
+		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+		expect(isErr(result) && result.error.code).toBe('settings.library-apply-failed');
+		expect(rig.logged.map((line) => line.event)).toEqual(['settings.library-apply-failed']);
+		// No `cause`: the plugin already logged the throw under its own name at the site that
+		// caught it, and a second copy here would be the same exception under two events.
+		expect(rig.logged[0].context?.cause).toBeUndefined();
+	});
+
+	/**
+	 * The write door's settings-never-read guard, seen from this end: nothing was written, so
+	 * the persist sentence is the true one — and the migration must not report `ok` for a move
+	 * whose setting never reached the file. Unreachable from the pane (a tab with unrecovered
+	 * settings declares no move action), which is exactly why it is driven at the seam.
+	 */
+	it('reports a persist failure when the settings were never recovered', async () => {
+		const rig = harness({ persist: () => Promise.resolve('unrecovered') });
+
+		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+		expect(isErr(result) && result.error.code).toBe('settings.library-persist-failed');
 		expect(rig.logged.map((line) => line.event)).toEqual(['settings.library-persist-failed']);
 	});
 

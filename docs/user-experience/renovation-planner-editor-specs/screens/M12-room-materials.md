@@ -62,3 +62,12 @@ Materials connects geometry and work to required quantities and procurement prog
 - Calculated and manual values are distinguishable.
 - Unit-incompatible quantities cannot be combined silently.
 - Shopping list includes only outstanding quantities unless configured otherwise.
+
+
+### Implemented continuation — 2026-09-06
+
+The connected planning slice implements Asset-backed contextual Requirements, source rules, overrides, provenance, exclusive local allocations and an outstanding-only shopping projection. Contracts and exclusions are in
+[ADR-0022](../../../development/adrs/0022-material-quantities-cost-facts-and-vault-evidence.md).
+See [evidence and traceability](../implementation/connected-planning-evidence.md) for reproducible
+verification and unperformed acceptance. This records bounded criteria, not complete screen
+acceptance, Increment D completion or release readiness.

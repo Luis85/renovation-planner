@@ -18,7 +18,7 @@ export function planToPersistence(plan: Plan, revision: number): Record<string, 
 	const background = plan.background;
 	return {
 		type: PLAN_TYPE,
-		'schema-version': plan.renovation ? 3 : background?.appearance ? 2 : 1,
+		'schema-version': plan.renovation?.depth ? 4 : plan.renovation ? 3 : background?.appearance ? 2 : 1,
 		...(plan.renovation ? { renovation: plan.renovation } : {}),
 		id: plan.id,
 		revision,

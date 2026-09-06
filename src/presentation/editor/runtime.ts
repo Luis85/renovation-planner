@@ -1,3 +1,4 @@
+import { selectAndFrameOn } from './selection/selectAndFrame';
 import { createRenovationDeletionGuard } from './renovation/renovationDeleteGuard';
 import { createHistoryActions } from './tools/historyActions';
 import { createRenovationActions } from './renovation/renovationActions';
@@ -5,7 +6,6 @@ import { useRenovationSession } from './renovation/renovationSession';
 import { createReferenceAction } from './reference/referenceAction';
 import { createStructureTask } from './structure/structureTask';
 import { createStructureActions } from './structure/structureActions';
-import { structureCandidates } from './structure/structureCandidates';
 import { createRoomResizeAction } from './resize/roomResizeAction';
 import { createRoomNamingAction } from './naming/roomNamingAction';
 import {
@@ -28,10 +28,10 @@ import { createInspector } from './inspector-wiring';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
+import type { Vector } from '../../core/geometry/Vector';
 import { useEditorStore } from '../stores/EditorStore';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
-import { selectSpatial } from './selection/selectSpatial';
 import type { InspectorDto, InspectorEdit } from './inspector/inspector-store';
 import type { RequirementInspectorDTO } from '../../application/queries/GetRequirementsForZone';
 import { CommandHistory } from './tools/command-history';
@@ -53,13 +53,13 @@ import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { EDITOR_SNAP_SERVICE } from './snapping/editorSnapping';
 import { editorViewportAdapter } from './viewport/editorViewportAdapter';
-import { boundsOfZones } from './viewport/zoneExtent';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
 import { mapDispatchFaults, reportDispatchFailure, type ToolDispatcher } from './report-failure';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
+import { createNudgeSelectionAction } from './nudge';
 
 /**
  * One Plan Editor leaf's live machinery (design slice 8): the history and its refresh
@@ -145,7 +145,14 @@ export interface EditorRuntime {
 	 * move to it.
 	 */
 	readonly selectAndFrame: (id: string, toggle?: boolean) => void;
-	/** Per-leaf: the constrained Layers panel unmounts whenever it closes (PR #74, 381bcdc4). */
+	/**
+	 * The list's "select multiple" checkbox, held HERE rather than in `PropertyLayerPanel`
+	 * because that panel is unmounted whenever the constrained overlay standing in for it
+	 * closes — a component-local flag came back `false` on every reopen, so a touch or
+	 * keyboard user who enabled it, went to the canvas and returned to add a room had the
+	 * next row click replace the whole set. Per-leaf like everything else in this object,
+	 * and for the same reason the active tool is.
+	 */
 	readonly multiSelectionMode: Ref<boolean>;
 	/**
 	 * Design spec §5.2's one action: dispatch the room draft as a `ReversibleCreateZoneCommand`
@@ -197,6 +204,17 @@ export interface EditorRuntime {
 	 * regardless of which leaf it is drawn in.
 	 */
 	readonly openPlanNote: () => Promise<void>;
+	/**
+	 * §85's one operation slice 5 left unreachable by keyboard (E8): the arrow-key answer to
+	 * `SelectTool`'s drag, over the SAME `moveGesture` factory — so undo restores a keyboard
+	 * nudge exactly as it restores a drag, with nothing here to keep in step with that tool.
+	 *
+	 * A no-op unless the active tool is `select` and exactly one zone is selected: zero or
+	 * many selected has nothing a single translate could mean, and every OTHER tool already
+	 * owns the keyboard for its own gesture. `by` is a WORLD vector; `EditorSurface.vue`'s
+	 * `arrowVector` is what turns a key press into one.
+	 */
+	readonly nudgeSelection: (by: Vector) => Promise<void>;
 }
 
 
@@ -409,21 +427,6 @@ function createDeleteZoneAction(
  * come from two different reads) is still worth marking as the user's intent, and the camera
  * simply has nothing to move to.
  */
-function selectAndFrameOn(
-	projectStore: ReturnType<typeof useProjectStore>,
-	selection: ReturnType<typeof useSelectionStore>,
-	editor: ReturnType<typeof useEditorStore>,
-	target: { readonly id: string; readonly toggle: boolean },
-): void {
-	const { id, toggle } = target;
-	selectSpatial(selection, id, toggle);
-	if (toggle) return;
-	const zone = projectStore.zones.get(id) ?? structureCandidates(projectStore.structure).find(candidate => candidate.id === id);
-	if (zone === undefined) return;
-	const bounds = boundsOfZones([zone]);
-	if (bounds === null) return; // nothing to frame: the selection stands, the camera stays
-	editor.fitTo(bounds, editor.stageSize);
-}
 
 /**
  * A selected id the vault no longer holds is RETIRED, never rebound by name or position (spec
@@ -770,6 +773,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	}
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
+	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore });
 
 	// The assign picker's options and the Inspector's rows, hydrated at mount and re-read on the
 	// three doors that carry what they draw — the catalogue's, the price's and the recalculation
@@ -809,6 +813,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 		writesBlocked,
 		pausedReasonId,
 		openPlanNote: () => context.openPlanNote(),
+		nudgeSelection,
 	};
 }
 

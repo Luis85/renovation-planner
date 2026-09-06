@@ -71,6 +71,7 @@ import { ReconcilingProjectIndex } from '../infrastructure/persistence/index/Rec
 import { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { guardCommand } from '../application/errors/guardAgainstThrowing';
 import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnosticsLedger';
+import { InMemorySequenceMarkerStore } from '../infrastructure/persistence/in-memory/InMemorySequenceMarkerStore';
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
 import {
 	VAULT_EXCEPTION_MAPPER,
@@ -203,7 +204,19 @@ export interface PersistenceServices
 	 * that the seven-name detonation list had not yet named.
 	 */
 	readonly overrides: AssetPriceOverrideRepositoryPort;
-	/** The one reference-lock set per plugin; every command that links or unlinks shares it. */
+	/**
+	 * The reference-lock set every command that links or unlinks shares.
+	 *
+	 * **One per SESSION, and this sentence said "per plugin" while the code built a new one
+	 * per ROOT** (G2). `applySettings` replaces the root mid-session, so a link already inside
+	 * a lane held a key the next root's set had never heard of, and that entity's next write
+	 * found an empty lane. It comes from `SessionCollaborators` now, alongside the ledger and
+	 * the marker store, which are memoised on the plugin for the identical reason.
+	 *
+	 * The repositories' own `KeyedQueues` are still per ROOT and deliberately so — see
+	 * `repositoryComposition.ts` for what that leaves open and why closing it is a different
+	 * job from this one.
+	 */
 	readonly locks: ReferenceLocks;
 	readonly queries: QueryServices;
 	/** Does a raw Vault file exist — what `SetPlanBackgroundCommand` validates through. */
@@ -240,12 +253,12 @@ export interface PersistenceServices
 	 * Typed as `Command` rather than the concrete class because what leaves this root is
 	 * GUARDED (SDD §66): a wrapper object with the same `execute`, not the class itself.
 	 *
-	 * `create-sample-project` is their only caller today (`sampleProject.ts`). This sentence
-	 * has already named the wrong next caller twice: "slice 15's creation dialogs" (slice 15
-	 * shipped only the dialog framework those forms mount in, no caller of its own), then
-	 * "slice 14's empty-state actions" (slice 14 shipped no create action — two empty states
-	 * render no button, the third activates a tool instead of dispatching a command). Slice
-	 * 16's creation forms are the only wiring left to name; read that as a name, not a caller.
+	 * Rewritten from a grep rather than recalled, because this sentence has already named the
+	 * wrong caller twice: "slice 15's creation dialogs" (slice 15 shipped only the dialog
+	 * framework those forms mount in, no caller of its own), then "slice 14's empty-state
+	 * actions" (slice 14 shipped no create action at all). `createProject` is dispatched by
+	 * `ViewRoot.vue` (the New project form) and by `sampleProject.ts`; `createPlan` by
+	 * `ProjectDetailState.vue` (the New plan form) and by `sampleProject.ts`.
 	 */
 	readonly createProject: Command<CreateProjectInput, Result<{ project: Loaded<Project> }, CreateProjectError>>;
 	readonly createPlan: Command<CreatePlanInput, Result<{ plan: Loaded<Plan> }, CreatePlanError>>;
@@ -262,11 +275,11 @@ export interface PersistenceServices
 	/** Subscriptions the plugin must dispose on unload; filled at composition time. */
 	readonly subscriptions: { dispose(): void }[];
 	/**
-	 * The durable marker store behind multi-entity sequences, when composed over real
-	 * plugin-local storage — what load-time recovery walks. Absent only in tests that
-	 * compose without one.
+	 * The durable marker store behind multi-entity sequences — what load-time recovery
+	 * walks. Always present: a root composed without a session gets an in-memory one, so
+	 * every caller downstream has a store rather than a branch on whether it has one.
 	 */
-	readonly markers?: SequenceMarkerStore;
+	readonly markers: SequenceMarkerStore;
 	/** Debounced create/modify/rename/delete → incremental index maintenance. */
 	readonly changeAdapter: VaultChangeAdapter;
 }
@@ -285,6 +298,16 @@ export interface PersistenceServices
 export interface SessionCollaborators {
 	readonly ledger?: DiagnosticsLedger;
 	readonly markers?: SequenceMarkerStore;
+	/**
+	 * The reference-lock set (G2/R7), and the third member here for the same reason as the
+	 * two above: what a lane serializes is a SESSION's linking work, not one root's. Composed
+	 * fresh per root, a settings save left a link already inside a lane holding a key nothing
+	 * in the new root knew about, and the next write for that entity found an empty lane.
+	 *
+	 * Optional like its siblings, so a test composing a root directly gets one of its own —
+	 * which is correct for a caller with no session to share.
+	 */
+	readonly locks?: ReferenceLocks;
 }
 
 /**
@@ -304,13 +327,15 @@ function composeSlice10Wiring(
 	index: ProjectIndex,
 	events: EventBus,
 	logger: Logger,
-	markers: SequenceMarkerStore | undefined,
-): { locks: ReferenceLocks; wiring: Slice10Wiring; slice10: ReturnType<typeof composeSlice10> } {
+	// The two SESSION collaborators this wiring needs, as one parameter: `max-params` is five,
+	// and these are the same KIND of thing — which is what makes the grouping a statement
+	// rather than a workaround, exactly as `SessionCollaborators` argues above.
+	session: { markers: SequenceMarkerStore; locks: ReferenceLocks },
+): { wiring: Slice10Wiring; slice10: ReturnType<typeof composeSlice10> } {
+	const { markers, locks } = session;
 	const { projects, zones, assets, requirements, overrides } = repositories;
-	// One lock set per plugin: assignment, unit changes and delete resolutions across
-	// every view serialize against the same keys.
-	const locks = new ReferenceLocks();
 	const recalculate = new RecalculateRequirementCommand({
+		geometry: new ObsidianPlanGeometrySidecar(repositories.geometryStore),
 		requirements,
 		zones,
 		assets,
@@ -319,6 +344,7 @@ function composeSlice10Wiring(
 		overrides,
 	});
 	const wiring: Slice10Wiring = {
+		plans: repositories.plans, geometry: new ObsidianPlanGeometrySidecar(repositories.geometryStore),
 		zones,
 		assets,
 		requirements,
@@ -331,7 +357,7 @@ function composeSlice10Wiring(
 		markers,
 		overrides,
 	};
-	return { locks, wiring, slice10: composeSlice10(wiring) };
+	return { wiring, slice10: composeSlice10(wiring) };
 }
 
 /**
@@ -423,7 +449,15 @@ export function createCompositionRoot(
 	}
 
 	const ledger = session.ledger ?? new InMemoryDiagnosticsLedger();
-	const markers = session.markers;
+	// The plugin's own store when there is a session to share one, and an in-memory one for a
+	// caller composing a root directly — the `locks` shape below, for the same reason and with
+	// the same consequence: such a caller has no session whose markers could outlive it, and
+	// every collaborator downstream takes a store rather than an optional one.
+	const markers = session.markers ?? new InMemorySequenceMarkerStore();
+	// G2/R7: the plugin's own set when there is a session to share one, and a fresh one for a
+	// caller composing a root directly — which is correct, since such a caller has no session
+	// whose lanes could be split.
+	const locks = session.locks ?? new ReferenceLocks();
 	const echo = new EchoWindow();
 	// The index every writer holds is the RECONCILING one, and that is the whole of how §5.1a's
 	// two-collection invariant reaches the six repositories: they mutate the index themselves on
@@ -461,7 +495,7 @@ export function createCompositionRoot(
 		settings.defaultCurrency,
 	);
 	const { geometryStore, projects, plans, zones, assets, requirements, overrides } = repositories;
-	const { locks, wiring, slice10 } = composeSlice10Wiring(repositories, index, eventBus, logger, markers);
+	const { wiring, slice10 } = composeSlice10Wiring(repositories, index, eventBus, logger, { markers, locks });
 
 	const files = createVaultFileProbe(vault.vault);
 	const guarded = composeGuarded(repositories, slice10, wiring, files, {

@@ -1,5 +1,11 @@
 # Plan editor foundation, increment 3 — the trust path
 
+> **Historical record.** This design was superseded by the 2026-09-05 whole-tree review: the
+> unrecovered-write flag it specifies as sticky "for the leaf's life" is sticky for the leaf's
+> MOUNT instead — a settings save rebuilds the store and drops it (pinned by
+> `tests/plugin/rootSwapRebind.test.ts`). See
+> [[Recover safely from failed writes and stale reads]] for the current rule.
+
 **Date:** 2026-09-04
 **Epic:** `docs/requirements/Plan editor.md` → Feature `Release hardening` (its first three PBIs) and
 `Editor foundation` (the two Active task halves the read path left open about stale content).

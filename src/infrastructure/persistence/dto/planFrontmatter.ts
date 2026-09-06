@@ -44,8 +44,9 @@ export const PlanFrontmatterSchemaV2 = PlanFrontmatterSchemaV1.extend({
 		visible: z.boolean(), locked: z.boolean(),
 	}).optional(),
 });
-export const PlanFrontmatterSchemaV3 = PlanFrontmatterSchemaV2.extend({
+const PlanFrontmatterSchemaV3 = PlanFrontmatterSchemaV2.extend({
 	'schema-version': z.literal(3), renovation: RenovationSchema.optional(),
 });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV3>;
+export const PlanFrontmatterSchemaV4 = PlanFrontmatterSchemaV3.extend({ 'schema-version': z.literal(4) });
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV4>;

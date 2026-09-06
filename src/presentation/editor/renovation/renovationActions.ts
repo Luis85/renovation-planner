@@ -48,8 +48,9 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			return;
 		}
 		runtime.returnToSelect();
+		const sameRoom = session.roomId === roomId && selection.selectedIds.length > 0;
 		Object.assign(session, { roomId, mode, focusedId: id, perspective: 'renovate' });
-		selection.select([roomId as EntityId<string>]);
+		if (!sameRoom) selection.select([roomId as EntityId<string>]);
 	}
 	function matches(read: RenovationBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation)

@@ -8,4 +8,4 @@ export const PLAN_MIGRATIONS: Migration[] = [{
 }, {
 	fromVersion: 2, toVersion: 3,
 	migrate: input => typeof input === 'object' && input !== null ? { ...input, 'schema-version': 3 } : input,
-}];
+}, { fromVersion: 3, toVersion: 4, migrate: input => typeof input === 'object' && input !== null ? { ...input, 'schema-version': 4 } : input }];

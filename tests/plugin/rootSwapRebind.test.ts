@@ -18,6 +18,7 @@
  * it that was reported.
  */
 import { describe, expect, it, vi } from 'vitest';
+import type { Pinia } from 'pinia';
 import { installObsidianDom } from '../helpers/dom';
 import { installResizeObserver } from '../helpers/layout';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
@@ -25,11 +26,24 @@ import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../src/presen
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
 import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
 import { ASSET_LIBRARY_VIEW, AssetLibraryView } from '../../src/presentation/library/AssetLibraryView';
+import { useSaveStateStore } from '../../src/presentation/editor/save-state/save-state-store';
 import { loadedPlugin } from '../helpers/plugin';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
 import { resetRecorder } from '../helpers/logger';
 import { settle } from '../helpers/async';
 import type RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
+
+/**
+ * A mounted `PlanEditorView`'s Pinia, reached the way `runtime.ts`'s own stores are: Pinia's
+ * `install(app)` sets `app.config.globalProperties.$pinia`, which is the one door into the
+ * instance a test outside the component tree has. `useSaveStateStore(pinia)` — the setup-store
+ * composable accepts an explicit `Pinia` for exactly this case — then reads or seeds the SAME
+ * store `withSaveStateTracking` wraps inside that app, no fixture in between.
+ */
+function saveStatePiniaOf(view: unknown): Pinia {
+	return (view as { vueApp: { config: { globalProperties: { $pinia: Pinia } } } }).vueApp.config.globalProperties
+		.$pinia;
+}
 
 vi.mock('../../src/infrastructure/logging/consoleLogger', async () => (await import('../helpers/logger')).consoleLoggerMock());
 
@@ -72,6 +86,55 @@ async function openViewOnLeaf(
 	await view.onOpen();
 	return { leaf, view };
 }
+
+/**
+ * G10: the outgoing root's cascade subscriptions were never disposed on a swap, and its
+ * debounce timer was never flushed either — harmless on its own, except the timer is exactly
+ * the kind of thing that could still publish into a bus the new root's views no longer read
+ * from (G1 names the same adapter for the identical reason at `onunload`). `disposeCascade`
+ * is the one method both boundaries call, so proving it runs here is proving the SAME
+ * mechanism the unload suite proves for the other boundary.
+ */
+describe('a root swap retires the outgoing root before composing the next one', () => {
+	it('flushes the outgoing adapter and disposes its cascade subscriptions before the swap', async () => {
+		resetRecorder();
+		const { plugin } = await loadedPlugin();
+		const outgoing = plugin.root.persistence as NonNullable<typeof plugin.root.persistence>;
+		const flush = vi.spyOn(outgoing.changeAdapter, 'flush');
+		const dispose = vi.fn<() => void>();
+		outgoing.subscriptions.push({ dispose });
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
+
+		expect(flush).toHaveBeenCalledTimes(1);
+		expect(dispose).toHaveBeenCalledTimes(1);
+	});
+
+	/**
+	 * G2/R7: the reference-lock set survives the swap, because what it serializes is a
+	 * SESSION's work rather than a root's.
+	 *
+	 * It was `new ReferenceLocks()` inside `composeSlice10Wiring`, so a settings save built a
+	 * second one — and a link or unlink already inside a lane held a key nothing in the new
+	 * root knew about, leaving that entity's lane empty for the very next write. `markerStore`
+	 * and `continueStore` are memoised on the plugin for exactly this reason; this is the third
+	 * collaborator with the same lifetime and it was the one still being rebuilt.
+	 *
+	 * Asserted by IDENTITY rather than by driving two overlapping writes: the property is that
+	 * there is one object, and a behavioural case would pass against two lock sets that simply
+	 * did not collide in the window the test happened to open.
+	 */
+	it('keeps ONE reference-lock set across the swap, since a lane belongs to the session', async () => {
+		resetRecorder();
+		const { plugin } = await loadedPlugin();
+		const before = plugin.root.persistence?.locks;
+		expect(before).toBeDefined();
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
+
+		expect(plugin.root.persistence?.locks).toBe(before);
+	});
+});
 
 describe('a view already open when the root is replaced', () => {
 	it('rebinds the renovation project view to the new root', async () => {
@@ -231,6 +294,36 @@ describe('a view already open when the root is replaced', () => {
 		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
 
 		expect(view.getState()).toEqual({ planId: 'plan-1' });
+	});
+
+	/**
+	 * The recorded gap named in `save-state-store.ts`'s `unrecoveredWrite` docblock (R1),
+	 * pinned rather than left as prose: a rebind builds a fresh Pinia
+	 * (`PlanEditorView.mount`'s `app.use(createPinia())`), so a leaf's unrecovered-write
+	 * warning does not survive ANY settings save while that leaf is open — not because
+	 * something clears the flag, but because the whole store it lived in is discarded.
+	 *
+	 * This is NOT the desired behaviour. It is here so the day someone carries the flag
+	 * through a rebind (the way `planId` already survives one, as view-owned state rather
+	 * than store state — recorded as deferred, not done, in this task) this case is what
+	 * tells them to flip its final expectation to `true`, rather than the fix landing with
+	 * nothing here to notice it.
+	 */
+	it('drops a leaf’s unrecovered-write flag on rebind — the recorded gap, not the desired behaviour', async () => {
+		resetRecorder();
+		const { plugin, workspace } = await loadedPlugin();
+		const { view } = await openViewOnLeaf(plugin, workspace, PLAN_EDITOR_VIEW, { planId: 'plan-1' });
+		const pinia = saveStatePiniaOf(view);
+		useSaveStateStore(pinia).markUnrecovered();
+		expect(useSaveStateStore(pinia).unrecoveredWrite).toBe(true);
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
+
+		const rebound = saveStatePiniaOf(view);
+		// A DIFFERENT Pinia instance, not merely a store that happened to reset: this is what
+		// the docblock's claim actually is — the whole app, and everything in it, is fresh.
+		expect(rebound).not.toBe(pinia);
+		expect(useSaveStateStore(rebound).unrecoveredWrite).toBe(false);
 	});
 
 	it('delivers the new root rebuild to the rebound project view, and not the old root', async () => {

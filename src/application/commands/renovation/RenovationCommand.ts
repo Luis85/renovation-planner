@@ -30,7 +30,8 @@ export interface RenovationServices {
 	read(id: PlanId): Promise<Result<RenovationBaseline, AppError>>;
 	command(baseline: RenovationBaseline, input: RenovationInput, ledger: WriteLedger): { execute(): Promise<DispatchResult>; undo(): Promise<DispatchResult> };
 }
-interface Dependencies { plans: PlanRepository; geometry: PlanGeometrySidecar; events: EventBus }
+type CheckLinks = (plan: Plan, document: PlanGeometryDocument) => Promise<Result<void, AppError>>;
+interface Dependencies { plans: PlanRepository; geometry: PlanGeometrySidecar; events: EventBus; checkLinks?: CheckLinks }
 
 export function validateRenovationInput(renovation: Renovation, document: PlanGeometryDocument): Result<void, AppError> {
 	const valid = validateRenovation(renovation);
@@ -93,6 +94,8 @@ class RenovationCommand {
 			const document = { ...this.current.geometry.document, intended: forward ? this.input.intended : this.baseline.geometry.document.intended };
 			const valid = validateRenovationInput(renovation ?? EMPTY_RENOVATION, document);
 			if (!valid.ok) return valid;
+			const links = await this.deps.checkLinks?.(plan.value, document);
+			if (links && !links.ok) return links;
 			const result = await this.write(plan.value, document);
 			if (!result.ok) return result;
 			this.applied = forward;
@@ -153,9 +156,9 @@ class RenovationCommand {
 }
 
 
-export function renovationServices(plans: PlanRepository, geometry: PlanGeometrySidecar, events: EventBus): RenovationServices {
+export function renovationServices(plans: PlanRepository, geometry: PlanGeometrySidecar, events: EventBus, checkLinks?: (plan: Plan, document: PlanGeometryDocument) => Promise<Result<void, AppError>>): RenovationServices {
  return {
   read: id => readBaseline({ plans, geometry }, id),
-  command: (baseline, input, ledger) => new RenovationCommand({ plans, geometry, events }, baseline, input, ledger),
+  command: (baseline, input, ledger) => new RenovationCommand({ plans, geometry, events, checkLinks }, baseline, input, ledger),
  };
 }

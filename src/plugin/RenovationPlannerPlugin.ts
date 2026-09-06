@@ -1,4 +1,5 @@
-import { apiVersion, Plugin, TFile, type TAbstractFile, type WorkspaceLeaf } from 'obsidian';
+import { evidenceRenamed } from './evidenceRename';
+import { apiVersion, Platform, Plugin, TFile, type TAbstractFile, type WorkspaceLeaf } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../presentation/views/GeometrySidecarView';
 import { tr } from '../presentation/i18n/strings';
@@ -23,7 +24,8 @@ import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerAssetDesignerCommands } from './assetDesignerCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
-import { activateNotices, disposeNotices, notifyFault } from '../presentation/notices/notify';
+import { activateNotices, disposeNotices, noticeOnlySinks, notifyFault } from '../presentation/notices/notify';
+import { surfaceError } from '../presentation/errors/surfaceError';
 import { assetDesignerDeps } from './assetDesignerDeps';
 import { planEditorDeps } from './planEditorDeps';
 import { assetLibraryDeps } from './assetLibraryDeps';
@@ -35,10 +37,12 @@ import {
 } from './composition-root';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import { isDataAbsent, settingsFrom, type RenovationPlannerSettings, type SettingsPatch } from './settings/settings';
+import type { LibraryPersistOutcome } from './settings/libraryMigration';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { ContinueContextStore } from '../infrastructure/obsidian/plugin-data/continueContextStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
+import { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { runDetached } from './runDetached';
 import { showDiagnosticsReport } from './diagnostics/showDiagnosticsReport';
 
@@ -76,8 +80,8 @@ function swallow(): void {
  * work: startup cost is paid by every user on every launch, and "register, do not scan" is
  * one of the recurring plugin review rejections. The order the SDD states is settings →
  * composition root → workspace views → Bases views → commands → vault listeners → project
- * index, and `onunload` is its reverse: flush pending writes, stop listeners, dispose
- * services.
+ * index, and `onunload` is its reverse: flushes the change adapter; settings writes are
+ * awaited by their own callers, stop listeners, dispose services.
  *
  * `onunload` exists now, and it took the FIRST thing that genuinely needs disposing to earn
  * it — which was not one of this plugin's own registrations. `registerView`,
@@ -134,6 +138,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 	private readonly disposers: (() => void)[] = [];
 
 	/**
+	 * G9: whether `onunload` has already run this session. `onLayoutReady`'s callback carries
+	 * no lifetime tie of its own — Obsidian does not withdraw it on disable — so without this a
+	 * plugin disabled before layout-ready still ran a full index scan and registered vault
+	 * listeners against a root `onunload` had already torn down. The pinned `obsidian.d.ts`
+	 * (1.13.0) declares no `_loaded` on `Component` (checked by grep), so this is the plugin's
+	 * own flag rather than a cast onto a member the typings do not promise. Set at the top of
+	 * `onunload`, read only at the top of `startPersistence`, and reset at the top of `onload`
+	 * — a reload after a disable must find `startPersistence` live again.
+	 */
+	private unloaded = false;
+
+	/**
 	 * Has the initial index scan completed — zero entries included.
 	 *
 	 * Set in `startPersistence` beside the `projectIndexRebuilt()` publish, which is
@@ -148,6 +164,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 	private indexScanCompleted = false;
 
 	async onload(): Promise<void> {
+		// Reset before anything else claims it: a reload after a disable must find
+		// `startPersistence` live again, and every disposer pushed below assumes it is.
+		this.unloaded = false;
+
 		// FIRST, ahead of even the logger: importing this bundle has ALREADY put Konva on
 		// `window` — its module scope runs before Obsidian calls `onload` — so this is the
 		// moment at which that global is provably this load's own and safe to claim.
@@ -191,15 +211,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 			logger,
 			this.vaultStack,
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			{ ledger: this.ledger, markers: this.sequenceMarkerStore(logger) },
+			{ ledger: this.ledger, markers: this.sequenceMarkerStore(logger), locks: this.sessionLocks() },
 		);
-		// The cascade handlers registered at composition time are the first thing unload
-		// must stop — a geometry edit arriving during teardown must not start a write.
-		this.disposers.push(() => {
-			for (const subscription of this.root.persistence?.subscriptions ?? []) {
-				subscription.dispose();
-			}
-		});
+		// The cascade handlers and the adapter's pending flush are retired together, last in
+		// push order — the drain loop is synchronous, so nothing can land between disposers.
+		this.disposers.push(() => this.disposeCascade());
 		// The tab is registered, not drawn: Obsidian calls `display()` when the pane is
 		// opened. Registering it right after the load keeps the SDD's order readable —
 		// nothing below this line can be configured before it exists.
@@ -320,12 +336,23 @@ export default class RenovationPlannerPlugin extends Plugin {
 		 * every install, over whatever the user already had there.
 		 *
 		 * The id is DATA: a user's hotkey is bound to it, so it does not get renamed.
+		 *
+		 * **`checkCallback`, not a plain one (Ruling R4).** `newProject()` reveals the pane and
+		 * opens the creation form regardless of platform; on mobile that meant the command ran,
+		 * navigated the pane, and then `ViewRoot`'s own `readOnly` gate silently swallowed the
+		 * dialog it was supposed to open — a command that DID something with no visible result.
+		 * Answering `false` on `Platform.isMobile` keeps it out of the palette there instead,
+		 * the same shape `create-sample-project` already uses for "nothing to write through":
+		 * a command a mobile user cannot see is honest, where a command that opens the pane and
+		 * then does nothing is a second, quieter surface for the one fact mobile is read-only.
 		 */
 		this.addCommand({
 			id: 'new-project',
 			name: tr('command.new-project'),
-			callback: () => {
-				runDetached(this.newProject(), this.root.logger, 'view.project.create-failed');
+			checkCallback: (checking: boolean) => {
+				if (Platform.isMobile) return false;
+				if (!checking) runDetached(this.newProject(), this.root.logger, 'view.project.create-failed');
+				return true;
 			},
 		});
 
@@ -406,8 +433,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * The tail of the settings write chain, so that no two settings writes are ever in
 	 * flight together.
 	 *
-	 * There are two write doors and they take opposite orderings around their own
-	 * `saveData` — see `persistLibraryFolder` — which is exactly why they must not overlap:
+	 * There are two write doors and they take the SAME ordering around their own `saveData`
+	 * since G3/N3 — write, then swap — which does not make overlapping safe, because the
+	 * window this exists for is the write itself rather than the difference between the two:
 	 * `persistLibraryFolder` leaves `this.root.settings` naming the SOURCE folder for the
 	 * whole length of its write, and every other control in the settings pane is live
 	 * throughout it. A write composed in that window carries the stale `libraryFolder`, and
@@ -430,7 +458,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * however carefully it is ordered afterwards. So a caller hands over a function rather
 	 * than an object, and it runs against the state current at the moment it writes.
 	 */
-	private queueSettingsWrite(write: () => Promise<void>): Promise<void> {
+	private queueSettingsWrite<T>(write: () => Promise<T>): Promise<T> {
 		const result = this.settingsWrites.then(write);
 		this.settingsWrites = result.then(swallow, swallow);
 		return result;
@@ -452,6 +480,27 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * `settingsFrom` is still the gate: it drops a key this version does not declare and
 	 * falls back on a value outside the vocabulary, so a patch is validated exactly as a
 	 * whole object was.
+	 *
+	 * **It WRITES first and swaps second** (G3/N3), which is the order `persistLibraryFolder`
+	 * argued for itself while this door had the opposite one. The argument generalises: a
+	 * session running on a value the file does not hold creates notes under a root the next
+	 * start will not know about, and `projectFolder` is a setting that names a folder.
+	 *
+	 * **BOTH halves are caught and BOTH report, rather than rethrowing.** There is nobody to
+	 * rethrow to either way — `setControlValue` discards the promise Obsidian hands it, and
+	 * `queueSettingsWrite`'s tail swallows on both arms so the chain survives — so this is the
+	 * one place that can report either failure. The write's own rejection was already caught;
+	 * the swap's was not, and `applySettings` can throw exactly the way `persistLibraryFolder`
+	 * already plans for (the outgoing adapter's `flush()`, an open view's `rebind()`): the
+	 * write had already landed in `data.json` by the time that happens, so the outcome is N4's
+	 * `'apply-failed'` in every way but its shape — this door has no outcome value to hand a
+	 * caller, so it reports the identical sentence itself rather than leaving the promise to
+	 * reject with no report at all, which is what it did until the whole-tree review's Finding
+	 * A. `'settings.apply-failed'` carries the exact same two locale sentences as
+	 * `'settings.library-apply-failed'` for the reason its own comment gives: it is the same
+	 * fault, and the generic `vault.unexpected-failure` sentence `notifyFault` would otherwise
+	 * show is honest about a WRITE failing and wrong about this one, where the write succeeded
+	 * and only the running session is behind.
 	 */
 	saveSettings(patch: SettingsPatch): Promise<void> {
 		return this.queueSettingsWrite(async () => {
@@ -462,42 +511,93 @@ export default class RenovationPlannerPlugin extends Plugin {
 			if (current === null) return;
 
 			const composed = settingsFrom({ ...current, ...patch, libraryFolder: current.libraryFolder });
-			this.applySettings(composed);
-			await this.saveData(composed);
+			// WRITE, then swap — `persistLibraryFolder`'s own argument, which holds for every
+			// setting that names a folder: a session running on a value the file does not hold
+			// creates notes under a root the next start will not know about, and `projectFolder`
+			// is such a setting. This door had the opposite order for eighteen slices, and the
+			// failure reached NOBODY: `setControlValue` discards the promise Obsidian hands it
+			// and the queue's own tail swallows, so the rejection had no awaiter at all. Hence
+			// the catch rather than a rethrow — the one place that could report this is here.
+			try {
+				await this.saveData(composed);
+			} catch (cause) {
+				notifyFault(cause, this.root.logger, 'settings.save-failed');
+				return;
+			}
+			// The write landed; the swap is the OTHER half that can still throw, and until this
+			// try/catch existed a fault here rejected the promise with no report of any kind —
+			// `data.json` already held the new settings, and the session silently kept running
+			// on the old root. See this method's own docblock for why the sentence is built by
+			// hand rather than routed through `notifyFault`.
+			try {
+				this.applySettings(composed);
+			} catch (cause) {
+				this.root.logger.error('settings.apply-failed', { cause });
+				surfaceError(
+					{
+						category: 'Persistence',
+						code: 'settings.apply-failed',
+						message: 'The setting was saved, but the session could not switch to it.',
+						cause,
+					},
+					{ kind: 'explicit-operation' },
+					noticeOnlySinks,
+				);
+			}
 		});
 	}
 
 	/**
 	 * The library folder's write door, and it is a SEPARATE method rather than a call to
-	 * `saveSettings` for one reason: the order.
+	 * `saveSettings` for two reasons that are no longer the same one.
 	 *
-	 * `saveSettings` swaps the composition root and rebinds the views BEFORE its own
-	 * `saveData` settles, which is right for a preference — the pane's control has already
-	 * shown the new value — and destructive here. A rejecting write would leave the running
-	 * session composed against the DESTINATION while `data.json` still named the SOURCE, and
-	 * the remedy `settings.library-persist-failed` names ("set the library folder to the new
-	 * location") cannot be applied, because the library row binds no control. A restart would
-	 * then compose against the source and write new catalogue entries there, splitting the
-	 * catalogue in two — the outcome that failure arm exists to prevent rather than cause.
+	 * **The ORDER is no longer one of them.** This method argued write-then-swap for itself
+	 * while `saveSettings` swapped first — a rejecting write there left the running session
+	 * composed against a setting `data.json` does not hold, which is destructive for every
+	 * folder-naming setting and not only this one (G3/N3). Both doors write first and swap
+	 * second now, and the argument this docblock carried is the general rule rather than this
+	 * method's own exception: if the write rejects, nothing has been swapped and the session is
+	 * still coherent with the file — for a library move, the notes are at the destination and
+	 * the setting is not, which is exactly the state `settings.library-persist-failed`
+	 * describes and the remedy it names can be applied to.
 	 *
-	 * So: write the file, and only then swap. If the write rejects, nothing has been swapped
-	 * and the session is still coherent with the file — the notes are at the destination and
-	 * the setting is not, which is exactly the state the error's copy describes.
+	 * What is still its own are the two things `saveSettings` cannot express: it writes
+	 * `libraryFolder`, which `saveSettings` deliberately pins to the current value (a control
+	 * bound to it would persist a folder with no notes moved), and it REPORTS which side of
+	 * its own `saveData` failed, because the migration's two error codes say opposite things
+	 * about whether the setting reached the file (N4).
+	 *
+	 * `'apply-failed'` is a resolution rather than a rejection: the write SUCCEEDED, so the
+	 * caller's contract was met and only the session is behind. A rejection is reserved for
+	 * the write itself, which is what every caller already treats as the failure.
 	 */
-	persistLibraryFolder(libraryFolder: string): Promise<void> {
+	persistLibraryFolder(libraryFolder: string): Promise<LibraryPersistOutcome> {
 		// On the same chain as `saveSettings`, and composed inside it for the same reason:
 		// this door's whole hazard is the window between its `saveData` and its root swap,
 		// and a write queued behind it must read the settings that swap leaves behind.
-		return this.queueSettingsWrite(async () => {
+		return this.queueSettingsWrite(async (): Promise<LibraryPersistOutcome> => {
 			// The same guard `saveSettings` carries, for the same whole-session reason: a
 			// transient read failure must not stamp defaults over a `data.json` sitting there
-			// intact.
+			// intact. `'unrecovered'` rather than `'persisted'`, so a caller cannot read
+			// "nothing was written" as "the setting is now what you asked for".
 			const current = this.root.settings;
-			if (current === null) return;
+			if (current === null) return 'unrecovered';
 
 			const next = settingsFrom({ ...current, libraryFolder });
+			// Deliberately NOT inside the try below: a rejecting write is this method's
+			// rejection, and every caller already treats it as the failure.
 			await this.saveData(next);
-			this.applySettings(next);
+			try {
+				this.applySettings(next);
+			} catch (cause) {
+				// N4: the write LANDED and the swap did not, so the migration's persist code —
+				// "the setting could not be saved" — would be false about the half that worked.
+				// Logged here rather than notified: the caller owns the message, because only it
+				// knows what the setting was being changed FOR.
+				this.root.logger.error('settings.library-apply-failed', { libraryFolder, cause });
+				return 'apply-failed';
+			}
+			return 'persisted';
 		});
 	}
 
@@ -513,11 +613,43 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
+	 * Retires the OUTGOING root's cascade — the adapter's pending flush and the subscriptions
+	 * composition wired at construction time — as one step, called from exactly two places: the
+	 * disposer `onload` pushes, and the top of `applySettings` (G10). Both boundaries retire the
+	 * same root the same way, because a root left mid-flush or mid-subscription past either one
+	 * is a root something can still publish INTO: `onunload`'s own reason is a timer landing
+	 * after teardown (G1), and a settings swap's is the identical timer landing against a bus
+	 * the new root's views no longer read from.
+	 */
+	private disposeCascade(): void {
+		this.root.persistence?.changeAdapter.flush();
+		for (const subscription of this.root.persistence?.subscriptions ?? []) {
+			subscription.dispose();
+		}
+	}
+
+	/**
 	 * Everything a settings change does to the RUNNING session, with no write in it. Both
-	 * write doors call this; what differs is which side of their own `saveData` they call it
-	 * on, which is the whole of `persistLibraryFolder`'s reason to exist.
+	 * write doors call this, on the SAME side of their own `saveData` — after it — since
+	 * G3/N3 gave `saveSettings` the ordering `persistLibraryFolder` had argued for itself.
+	 * What is left of that method's own reason to exist is which key it writes and what it
+	 * reports, not when it applies.
+	 *
+	 * **Its rebuild is NOT skippable by a caller that just rebuilt, and G8's remedy was to
+	 * make it so.** `createCompositionRoot` builds a NEW `ProjectIndex` per root, so the scan
+	 * a library migration runs at its step 5 fills the OUTGOING root's index and the incoming
+	 * one starts empty — a skip here leaves the session reading a catalogue of nothing until
+	 * the next reload. Measured rather than reasoned: `settingsTab.test.ts`'s
+	 * 'moves the catalogue…' case asserts the index is populated after a move, and it goes red
+	 * against exactly that skip. Three scans per move is the honest cost of a per-root index;
+	 * cutting it is a change to what a root OWNS, not a parameter here.
 	 */
 	private applySettings(next: RenovationPlannerSettings): void {
+		// FIRST, before the swap: the outgoing root's pending flush and cascade subscriptions
+		// must not run against a bus nothing will consult (G10) — the timer is the one
+		// publisher that could.
+		this.disposeCascade();
+
 		// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the
 		// pane takes effect immediately, in both directions, without a plugin reload.
 		this.logger.setLevel(next.verboseLogging ? 'debug' : LOG_LEVEL);
@@ -527,7 +659,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			this.root.logger,
 			this.vaultStack,
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			{ ledger: this.ledger, markers: this.sequenceMarkerStore(this.root.logger) },
+			{ ledger: this.ledger, markers: this.sequenceMarkerStore(this.root.logger), locks: this.sessionLocks() },
 		);
 		// The new root carries an EMPTY index. Re-running the build is what makes the swap
 		// complete; without it the session reads an index of nothing until the next reload,
@@ -707,6 +839,22 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
+	 * G2/R7's third session collaborator, memoised for the reason `markerStore` above is: what
+	 * a reference lane serializes is a SESSION's linking work, and a set rebuilt with the root
+	 * leaves a write already inside a lane holding a key the new set never heard of — so the
+	 * very next write for that entity finds an empty lane and runs beside it.
+	 *
+	 * A plain field rather than a `?? new` at the call site, so `applySettings` cannot compose
+	 * a root with a different one by forgetting a line.
+	 */
+	private referenceLocks: ReferenceLocks | null = null;
+
+	private sessionLocks(): ReferenceLocks {
+		this.referenceLocks ??= new ReferenceLocks();
+		return this.referenceLocks;
+	}
+
+	/**
 	 * Task 10's Continue context — one instance per session, the same reason `markerStore` is:
 	 * the storage key it points at survives root swaps, and a store rebuilt per swap would buy
 	 * nothing. Unlike `markerStore`, this one is not keyed to `this.manifest.dir` at all — it
@@ -744,66 +892,80 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * call time and therefore already follow the swap.
 	 */
 	private startPersistence(): void {
-		const persistence = this.root.persistence;
-		if (!persistence || !this.vaultStack) return;
+		// G9: a plugin disabled before layout-ready fires must not run a scan against a root
+		// `onunload` has already torn down — see the `unloaded` field's own docblock.
+		if (this.unloaded) return;
 
-		// Both halves of one scan, in one call: the entries and the notes of ours the scan could
-		// not index. A rebuild that replaced only the first would leave a repair surface naming
-		// collisions the vault no longer has.
-		const scan = buildProjectIndexEntries({
-			vault: this.vaultStack.vault,
-			metadataCache: this.vaultStack.metadataCache,
-			echo: persistence.vaultDeps.echo,
-			logger: this.root.logger,
-		});
-		persistence.index.rebuild(scan.entries, scan.exclusions);
+		try {
+			const persistence = this.root.persistence;
+			if (!persistence || !this.vaultStack) return;
 
-		// Set BEFORE the announce, so a subscriber re-hydrating on that event already sees a
-		// completed scan. Announcing first would leave the very re-read this flag exists for
-		// asking a question the flag still answers `false` to.
-		this.indexScanCompleted = true;
+			// Both halves of one scan, in one call: the entries and the notes of ours the scan could
+			// not index. A rebuild that replaced only the first would leave a repair surface naming
+			// collisions the vault no longer has.
+			const scan = buildProjectIndexEntries({
+				vault: this.vaultStack.vault,
+				metadataCache: this.vaultStack.metadataCache,
+				echo: persistence.vaultDeps.echo,
+				logger: this.root.logger,
+			});
+			persistence.index.rebuild(scan.entries, scan.exclusions);
 
-		// Announced, because a surface that already read through the index has read a
-		// DIFFERENT index. Obsidian restores its leaves before `onLayoutReady`, so a Plan
-		// Editor reopened with the app hydrated against an empty one and said "this plan no
-		// longer exists" about a plan that does — reported from a real vault. The `void` is
-		// deliberate: publishing awaits its subscribers, and nothing here needs to.
-		void this.root.eventBus.publish(projectIndexRebuilt());
+			// Set BEFORE the announce, so a subscriber re-hydrating on that event already sees a
+			// completed scan. Announcing first would leave the very re-read this flag exists for
+			// asking a question the flag still answers `false` to.
+			this.indexScanCompleted = true;
 
-		// Load-time recovery of an interrupted multi-entity sequence: conditional and
-		// idempotent (see the recovery module), so re-running it after a settings swap is
-		// safe, and with no outstanding marker it reads one small file and stops.
-		//
-		// `void` skips an await nobody here needs, and it is safe because the function
-		// RESOLVES rather than rejects for every fault: it holds its own try/catch and logs
-		// `sequence.recovery.failed`. This comment claimed that while it was false — there
-		// was no catch anywhere in that module, so a faulting vault read at load became an
-		// unhandled rejection. `tests/application/reference/recovery.test.ts` is what fails
-		// without the catch that makes the sentence true.
-		if (persistence.markers) {
+			// Announced, because a surface that already read through the index has read a
+			// DIFFERENT index. Obsidian restores its leaves before `onLayoutReady`, so a Plan
+			// Editor reopened with the app hydrated against an empty one and said "this plan no
+			// longer exists" about a plan that does — reported from a real vault. The `void` is
+			// deliberate: publishing awaits its subscribers, and nothing here needs to.
+			void this.root.eventBus.publish(projectIndexRebuilt());
+
+			// Load-time recovery of an interrupted multi-entity sequence: conditional and
+			// idempotent (see the recovery module), so re-running it after a settings swap is
+			// safe, and with no outstanding marker it reads one small file and stops.
+			//
+			// `void` skips an await nobody here needs, and it is safe because the function
+			// RESOLVES rather than rejects for every fault: it holds its own try/catch and logs
+			// `sequence.recovery.failed`. This comment claimed that while it was false — there
+			// was no catch anywhere in that module, so a faulting vault read at load became an
+			// unhandled rejection. `tests/application/reference/recovery.test.ts` is what fails
+			// without the catch that makes the sentence true.
 			void recoverInterruptedSequences({
 				markers: persistence.markers,
 				requirements: persistence.requirements,
 				events: this.root.eventBus,
 				logger: this.root.logger,
 			});
+
+			if (this.listenersRegistered) return;
+			this.listenersRegistered = true;
+
+			// Obsidian hands `TAbstractFile` to every event; only notes interest the pipeline.
+			const adapterOf = (): VaultChangeAdapter | undefined => this.root.persistence?.changeAdapter;
+			this.registerEvent(this.app.vault.on('create', onNoteFile(adapterOf, 'onCreate')));
+			this.registerEvent(this.app.vault.on('modify', onNoteFile(adapterOf, 'onModify')));
+			this.registerEvent(this.app.vault.on('delete', onNoteFile(adapterOf, 'onDelete')));
+			this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
+                void evidenceRenamed(this.root, oldPath, file.path);
+				if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
+			}));
+		} catch (cause) {
+			// G4: the scan READS the vault and can throw — `libraryMigration.ts` already wraps
+			// this same call for that reason, and this site did not. A throw here used to leave
+			// the vault listeners unregistered for the rest of the session with no notice at
+			// all. A single `notifyFault` rather than a paired manual `logger.error` beside it:
+			// `notifyFault` already logs the event through `faultError` — every other call site
+			// in this file relies on exactly that, and a second manual call here would double
+			// the same line under the same event name.
+			notifyFault(cause, this.root.logger, 'plugin.index.rebuild-failed');
 		}
-
-		if (this.listenersRegistered) return;
-		this.listenersRegistered = true;
-
-		// Obsidian hands `TAbstractFile` to every event; only notes interest the pipeline.
-		const adapterOf = (): VaultChangeAdapter | undefined => this.root.persistence?.changeAdapter;
-		this.registerEvent(this.app.vault.on('create', onNoteFile(adapterOf, 'onCreate')));
-		this.registerEvent(this.app.vault.on('modify', onNoteFile(adapterOf, 'onModify')));
-		this.registerEvent(this.app.vault.on('delete', onNoteFile(adapterOf, 'onDelete')));
-		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
-			if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
-		}));
 	}
 
 	/**
-	 * §9's reverse order, of which there is exactly one step today.
+	 * §9's reverse order.
 	 *
 	 * Each disposer is independent and none may stop the next from running, so a throwing
 	 * one is caught rather than allowed to abandon the rest of the teardown: an unload that
@@ -812,11 +974,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * not promise to call it once — cannot release the same thing twice.
 	 */
 	onunload(): void {
+		// G9: read by `startPersistence`, so a layout-ready that fires after this point finds
+		// nothing to scan for.
+		this.unloaded = true;
+
 		for (const dispose of this.disposers.splice(0)) {
 			try {
 				dispose();
 			} catch (cause) {
-				this.root.logger.error('plugin.unload.disposer-failed', { cause });
+				// G7: `root!` is assigned only after two disposers are already pushed, so a
+				// disposer faulting ahead of that assignment — or a root cleared out from under
+				// an otherwise-loaded plugin — must not take this catch down with it.
+				(this.root?.logger ?? this.logger).error('plugin.unload.disposer-failed', { cause });
 			}
 		}
 	}

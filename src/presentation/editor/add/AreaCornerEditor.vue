@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, useId, watch } from 'vue';
+import { nextTick, onBeforeUpdate, onUpdated, ref, useId } from 'vue';
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import { formatMetres, type LengthRefusal } from '../shell/formatLength';
@@ -21,11 +21,6 @@ function focusInput(): void {
 	void nextTick(() => root.value?.querySelector<HTMLInputElement>('input')?.focus());
 }
 
-watch(() => input.points.value.length, length => {
-	const focused = root.value?.ownerDocument.activeElement;
-	if (length === 0 && focused instanceof HTMLElement && root.value?.contains(focused)
-		&& focused.matches('[data-rp-corner="edit"], [data-rp-corner="remove"]')) focusInput();
-}, { flush: 'pre' });
 
 function apply(): void {
 	if (input.apply()) focusInput();
@@ -40,6 +35,21 @@ function edit(index: number): void {
 function remove(index: number): void {
 	if (input.remove(index)) focusInput();
 }
+
+/**
+ * A row's Edit/Remove button can be the control that REMOVES itself: Escape on it routes to
+ * `cancelGesture()` through `PlanEditorRoot`, the outline clears, and every row goes with it.
+ * Focus then fell to `<body>`, where the next Escape reached nothing — the documented "clear,
+ * then exit the tool" sequence broke on exactly the controls a keyboard user reaches last.
+ * Measured across THIS component's own patch rather than guessed from the outcome: focus was
+ * inside before the update and is nowhere after it. Apply, not the X input, because a native
+ * field keeps Escape for itself and the second press would be swallowed there too.
+ */
+let focusWasInside = false;
+onBeforeUpdate(() => { focusWasInside = root.value?.contains(document.activeElement) === true; });
+onUpdated(() => {
+	if (focusWasInside && document.activeElement === document.body) root.value?.querySelector<HTMLElement>('[data-rp-corner="apply"]')?.focus();
+});
 
 /** Enter applies a coordinate pair, never the Area. Other editing keys remain native. */
 function onKey(event: KeyboardEvent): void {

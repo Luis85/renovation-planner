@@ -13,7 +13,7 @@ import { ReferenceLocks } from '../../../src/application/reference/ReferenceLock
 import { assetPriceOverrideChanged } from '../../../src/domain/asset-price/AssetPriceOverride.events';
 import { persistenceError } from '../../../src/application/errors';
 import { expectOk } from '../../helpers/domain';
-import { dispatchingEventBus, TEN_SQUARE_METERS } from '../../helpers/slice10';
+import { TEN_SQUARE_METERS, dispatchingEventBus, noopCascadeNotify } from '../../helpers/slice10';
 import { makeAsset, makePlan, makeProject, makeZone } from '../../helpers/entities';
 
 /**
@@ -45,6 +45,7 @@ function makeWorld() {
 
 	const recalculate = vi.fn<() => Promise<{ ok: true }>>(() => Promise.resolve({ ok: true }));
 	registerOnAssetPriceOverrideChanged(events, {
+		notify: noopCascadeNotify,
 		requirements,
 		events,
 		logger,

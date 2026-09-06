@@ -233,3 +233,14 @@ it('offers current-state capture on a legacy Room plan without a structure or re
  expect(panel(rig).find('[data-rp-action="review-note"]').exists()).toBe(false);
  expect(panel(rig).text()).toContain('No gaps');
 });
+
+
+it('starts the first Review marker at the same relative offset in every Room', async () => {
+ const rig = await setup(), second = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Second', zoneType: 'Room', geometry: { points: [{ x: 6000, y: 0 }, { x: 8000, y: 0 }, { x: 8000, y: 2000 }, { x: 6000, y: 2000 }] } })).zone.entity;
+ const read = expectOk(await rig.renovation.read(rig.plan.id)), value = expectDefined(read.plan.entity.renovation, 'renovation');
+ const subject = { ...value.subjects[0], id: 'second-detail', roomId: second.id, targetId: second.id };
+ expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(read, { renovation: { ...value, subjects: [...value.subjects, subject] }, intended: undefined }, rig.runtime.structureTask.ledger)));
+ await rig.runtime.refreshProjection(); await rig.runtime.renovation.perspective('review'); await settle();
+ const markers = rig.stage.find('.renovation-marker'), starts = markers.filter(marker => marker.x() > 6000);
+ expect(starts).toHaveLength(1); expect(starts[0].y()).toBe(markers[0].y());
+});

@@ -1,3 +1,4 @@
+import { guardMaterialRemoval } from './planningReferentialGuard';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { AssetId } from '../../../domain/asset/AssetId';
@@ -38,7 +39,19 @@ function requirementFileName(requirement: Requirement): string {
  * requirement references its Zone by ID and stores no geometry (§3.6). `markStale` is the
  * one method no other repository has: it sets ONE field in ONE direction, inside the same
  * per-entity queue section as every other write, so its read-modify-write cannot
- * interleave with a concurrent override or recalculation. The shared save/delete
+ * interleave with a concurrent override or recalculation.
+ *
+ * **PER ROOT, and the queue's reach is exactly this instance's lifetime** (G2/R7).
+ * `KeyedQueues` is a field of this repository, and `applySettings` composes a whole new
+ * repository stack — so a settings save landing while a write is in flight opens an EMPTY
+ * lane for that entity in the new root, and the next write for it runs beside the one still
+ * finishing. `ReferenceLocks` was moved to the session for this reason and these queues were
+ * not: a lock set is one object the plugin can hold, while a queue is per repository and per
+ * root by construction, and hoisting six of them is a change to what a root owns rather than
+ * a line. The window is recorded rather than closed — it needs an overlapping settings save
+ * and an in-flight write on the same entity — and `repositoryComposition.ts` names it too.
+ *
+ * The shared save/delete
  * SEQUENCE lives once in `noteEntityWrite`. `saveQueued` resolves the owning project's
  * folder for itself, per save (ADR-0013, `projectFolderOf`) — never a constructor field,
  * since a project's folder can move between one save and the next — and hands it to the
@@ -93,9 +106,10 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 	}
 
 	delete(id: RequirementId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
-		return this.queues.run(`requirement:${id}`, () =>
-			trashNoteBackedEntity(this.deps, 'requirement', id, expected, { deleteFailedCode: 'requirement.delete-failed' }),
-		);
+		return this.queues.run(`requirement:${id}`, async () => {
+			const links = await guardMaterialRemoval(this.deps, id);
+			return links.ok ? trashNoteBackedEntity(this.deps, 'requirement', id, expected, { deleteFailedCode: 'requirement.delete-failed' }) : links;
+		});
 	}
 
 	listByZone(zoneId: ZoneId): Promise<Result<Loaded<Requirement>[], RepositoryError>> {

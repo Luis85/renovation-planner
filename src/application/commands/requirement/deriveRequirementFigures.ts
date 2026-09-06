@@ -1,3 +1,4 @@
+import type { PackagingRule } from '../../../domain/cost/quantityEngine';
 import { Decimal } from 'decimal.js';
 import type { CalculationError } from '../../../core/errors/AppError';
 import { sameMoney, type Currency, type Money } from '../../../core/money/Money';
@@ -13,8 +14,7 @@ import {
 /**
  * The one place slice 10's pipeline is WIRED to real data (design slice 10, "The
  * derivation pipeline"): a Zone's polygon area through §50's five Quantity Engine stages
- * and on into §51's Cost Pipeline. The `area` requirement rule only, for an area-kind
- * Asset:
+ * and on into §51's Cost Pipeline. Legacy area assignments and ADR-0022 contextual source rules share these stages:
  *
  *   zone.geometry → area(polygon)            mm², ADR-009
  *     → toMeasuredQuantity                   mm² → m²
@@ -24,8 +24,7 @@ import {
  *                                            percentage points — passing `0.10` straight
  *                                            through would compute ×1.001, silently
  *                                            understating every figure by ~two orders.
- *     → applyPackaging(wasted, undefined)    present but empty, so "Purchase Quantity"
- *                                            means the same thing here as in slice 9
+ *     → applyPackaging(wasted, rule)         optional lot size and minimum order
  *   effective quantity × unitCost → Estimated Cost (discount/shipping/tax stay no-ops)
  *
  * Both `AssignAssetCommand` (first creation) and `RecalculateRequirementCommand` (every
@@ -35,6 +34,10 @@ import {
 export interface DerivedFiguresInput {
 	/** `zone.area()`'s output — square world millimeters (ADR-009). */
 	readonly zoneAreaMm2: number;
+	readonly rawMeasurement?: Decimal;
+	readonly quantityOverride?: Quantity;
+	readonly coverage?: Decimal;
+	readonly packaging?: PackagingRule;
 	readonly assetUnit: MeasurementUnit;
 	readonly unitCost: Money;
 	/** Fraction in [0, 1] — the REQUIREMENT's field, not the Asset's default. */
@@ -60,24 +63,23 @@ const IDENTITY_COVERAGE = new Decimal(1);
 export function deriveRequirementFigures(
 	input: DerivedFiguresInput,
 ): Result<DerivedFigures, CalculationError> {
-	const rawAreaMm2 = new Decimal(input.zoneAreaMm2);
+	const rawAreaMm2 = input.rawMeasurement ?? new Decimal(input.zoneAreaMm2);
 	const measuredZoneArea = toMeasuredQuantity(rawAreaMm2, input.assetUnit);
 	if (!measuredZoneArea.ok) return measuredZoneArea;
 
 	const purchase = runQuantityEngine(
 		rawAreaMm2,
 		input.assetUnit,
-		{ coverageRate: IDENTITY_COVERAGE },
+		{ coverageRate: input.coverage ?? IDENTITY_COVERAGE },
 		// Fraction → whole percentage points: see the header. The one conversion site.
 		input.wasteFactor.mul(100),
-		// No lot size exists yet (Epic 11's material catalog); explicit so the fifth
-		// stage is visibly RUN rather than silently dropped.
-		undefined,
+		// Contextual source packaging uses the same fifth stage; legacy input omits it.
+		input.packaging,
 	);
 	if (!purchase.ok) return purchase;
 
 	const cost = computeEstimatedCost({
-		quantity: purchase.value.calculated,
+		quantity: input.quantityOverride ?? purchase.value.calculated,
 		unitPrice: input.unitCost,
 		pricedPer: input.assetUnit,
 		expectedCurrency: input.expectedCurrency,

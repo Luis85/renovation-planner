@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { providePlanningContext } from './planning/planningContext';
 import { useRenovationSession } from './renovation/renovationSession';
 const renovationSession = useRenovationSession();
 /**
@@ -47,6 +48,7 @@ const context = usePlanEditorContext();
 // state and `setTool` is what the noZones action calls, and this is the same runtime object
 // every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
+providePlanningContext(context, runtime);
 const projectStore = useProjectStore();
 const selection = useSelectionStore();
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
@@ -202,7 +204,17 @@ function isEditingField(target: EventTarget | null): boolean {
 	return target instanceof HTMLElement && target.closest('input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]:not([contenteditable="false"])') !== null;
 }
 
-/** Overlays and the canvas consume Escape first; list and rail controls bubble here. */
+/**
+ * Overlays and the canvas consume Escape first; list and rail controls bubble here.
+ *
+ * `isEditingField` keeps a native field's Escape as that field's own editing key (ADR-0018),
+ * and for the Inspector's asset `<select>` that exclusion acts only on a CLOSED one. Measured
+ * in Chromium, which is what Obsidian runs: with the popup open, Escape closes it and
+ * dispatches no keydown to the page at all — only a keyup, once it is shut — because the
+ * popup is its own widget and consumes the press. So a review bot's finding that this handler
+ * would clear the selection under an open popup describes Firefox, which does dispatch that
+ * keydown and is not a runtime this plugin has.
+ */
 function onSelectionKeydown(event: KeyboardEvent): void {
 	if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || isEditingField(event.target)) return;
 	const inspector = (event.target as HTMLElement).closest<HTMLElement>('[data-rp-region="inspector"]');

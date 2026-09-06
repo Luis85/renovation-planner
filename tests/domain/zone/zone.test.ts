@@ -86,6 +86,33 @@ describe('Zone.withGeometry', () => {
 		const error = expectErr(zone.withGeometry({ points: [] }));
 		expect(error.code).toBe('polygon-too-few-points');
 	});
+
+	/**
+	 * The same aliasing hazard `createPolygon`'s own docblock states, one caller over: a
+	 * mutation of the caller's buffer after `withGeometry` must not reach the stored geometry
+	 * (C7).
+	 */
+	it('a polygon mutated after withGeometry does not reach the zone', () => {
+		const zone = expectOk(Zone.create(base()));
+		const geometry = squareAt(500, 500);
+		const moved = expectOk(zone.withGeometry(geometry));
+		(geometry.points[0] as { x: number }).x = Number.NaN;
+		expect(expectOk(moved.area())).toBe(100);
+	});
+});
+
+describe('Zone geometry is copied on the way in, not aliased', () => {
+	/**
+	 * `createPolygon` copies for the stated reason; `Zone.create` used to store the caller's
+	 * polygon by reference AFTER validating it, so a mutation of the caller's own buffer broke
+	 * the invariant just validated (C7).
+	 */
+	it('a polygon mutated after create does not reach the zone', () => {
+		const geometry = squareAt();
+		const zone = expectOk(Zone.create({ ...base(), geometry }));
+		(geometry.points[0] as { x: number }).x = Number.NaN;
+		expect(expectOk(zone.area())).toBe(100);
+	});
 });
 
 describe('derived measures', () => {

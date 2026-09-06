@@ -88,34 +88,63 @@ describe('createRequirementFiguresChangeSource', () => {
 	});
 
 	/**
-	 * The events this source must NOT carry, and each is a different reason rather than three
+	 * The events this source must NOT carry, and each is a different reason rather than two
 	 * spellings of one. `AssetPriceOverrideChanged` and `AssetUpdated` are the two the price and
 	 * catalogue doors already answer — delivering them here would make this source a duplicate
 	 * of those and would put the race back, since both fire before the figure they move.
-	 * `RequirementCreated` names a requirement whose figures have not MOVED. And
-	 * `CostEstimateChanged` is the one that would slip past a guard written on "does it mention
-	 * a requirement": it carries the id inside `scope`, not as `payload.requirementId`, so the
-	 * narrowing guard declines it rather than delivering an `undefined`.
+	 * `RequirementCreated` names a requirement whose figures have not MOVED.
 	 */
 	it.each([
 		['AssetPriceOverrideChanged', () => assetPriceOverrideChanged({ projectId: aProject, assetId: anAsset })],
 		['AssetUpdated', () => assetUpdated({ assetId: anAsset })],
 		['RequirementCreated', () => requirementCreated({ requirementId: aRequirement, projectId: aProject })],
-		[
-			'CostEstimateChanged',
-			() =>
-				costEstimateChanged({
-					costType: 'estimated',
-					scope: { kind: 'requirement', id: aRequirement },
-					currency: 'EUR',
-					previous: moneyOf('1.00', 'EUR'),
-					current: moneyOf('2.00', 'EUR'),
-				}),
-		],
 	])('stays silent for %s', async (_name, make) => {
 		const { bus, heard } = wired();
 
 		await bus.publish(make());
+
+		expect(heard).toEqual([]);
+	});
+
+	/**
+	 * The THIRD event, and the one the override path actually publishes (A2): a direct
+	 * `SetRequirementCostOverrideCommand` write calls `publishIfEffectiveCostChanged`, which
+	 * announces `CostEstimateChanged` alone — never the pair above — so a source deaf to it
+	 * left a peer Plan Editor leaf on the same plan never refreshing after an override. Its
+	 * id travels inside `scope`, not as `payload.requirementId` the other two events carry,
+	 * because `CostChangePayload` is shared with a later epic's non-requirement scopes (SDD
+	 * §34) and a bare top-level id would not survive that widening.
+	 */
+	it('delivers CostEstimateChanged with the id its scope names', async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish(
+			costEstimateChanged({
+				costType: 'estimated',
+				scope: { kind: 'requirement', id: aRequirement },
+				currency: 'EUR',
+				previous: moneyOf('1.00', 'EUR'),
+				current: moneyOf('2.00', 'EUR'),
+			}),
+		);
+
+		expect(heard).toEqual([aRequirement]);
+	});
+
+	/**
+	 * A scope that is NOT a requirement — a zone or plan rollup, once the later epic widens
+	 * `CostChangePayload`'s `scope.kind` union — must not be read as if `id` were a
+	 * requirement id. Driven directly (no factory in `Requirement.events.ts` can yet produce
+	 * a non-requirement scope), the same way the narrowing-guard tests below drive a payload
+	 * no factory can produce.
+	 */
+	it('declines a CostEstimateChanged whose scope is not a requirement', async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish({
+			type: 'CostEstimateChanged',
+			payload: { costType: 'estimated', scope: { kind: 'zone', id: 'z1' }, currency: 'EUR' },
+		} as never);
 
 		expect(heard).toEqual([]);
 	});

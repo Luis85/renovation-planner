@@ -1,3 +1,5 @@
+import { validatePlanningDepth } from './validatePlanningDepth';
+import type { PlanningDepth } from './PlanningDepth';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, ok, type Result } from '../../core/result/Result';
 
@@ -44,6 +46,7 @@ export interface RenovationDecision {
 }
 /** Owned by the containing Plan's Project. No filenames or presentation state in links. */
 export interface Renovation {
+	readonly depth?: PlanningDepth;
 	readonly subjects: readonly RenovationSubject[];
 	readonly work: readonly WorkPackage[];
 	readonly decisions: readonly RenovationDecision[];
@@ -85,6 +88,10 @@ function validWork(item: WorkPackage): boolean {
 		&& WORK_PROGRESS.includes(item.progress) && ['unassigned', 'diy'].includes(item.responsibility);
 }
 export function validateRenovation(value: Renovation): Result<void, ValidationError> {
+	const depth = validatePlanningDepth(value.depth ?? { costs: [], procurement: [], evidence: [] }, value);
+	return depth.ok ? validateRecords(value) : depth;
+}
+function validateRecords(value: Renovation): Result<void, ValidationError> {
 	const all = [...value.subjects, ...value.work, ...value.decisions];
 	if (all.some(item => !item.id.trim() || !item.roomId.trim()) || new Set(all.map(item => item.id)).size !== all.length) return err(renovationError('identity'));
 	if (value.subjects.some(item => !item.targetId.trim() || !validSubject(item))) return err(renovationError('state'));

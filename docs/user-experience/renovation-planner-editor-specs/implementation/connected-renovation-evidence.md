@@ -119,3 +119,8 @@ cost reconciliation, procurement, evidence/photos, scheduling and engineering re
 Strict legacy reference/calibration history can refuse after interleaved writes. Reopening and
 reviewing the current state is required in that case; no history path overwrites a peer change.
 Full M08–M17 or complete renovation readiness is not claimed.
+
+
+The later [connected planning continuation](connected-planning-evidence.md) supplies bounded
+Materials/Costs/Evidence behavior and fixes #87's unsaved geometry-choice mutation and per-Room
+marker offsets. The historical measurements above describe #87, not the later branch head.

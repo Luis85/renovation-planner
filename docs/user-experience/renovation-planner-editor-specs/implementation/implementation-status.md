@@ -27,7 +27,7 @@ behavior on `cf536f32` from the current contribution. It does not declare the wh
 - M11 numbers follow the ordered unique selected IDs. A badge, selected body or M11 member row
   focuses a member without changing membership. Removing that member focuses the first survivor.
 - All selected outlines remain visible. Only a single selection has editable corner handles.
-- Escape also works from the property list and restored panel-rail focus. Add and overlays
+- Escape works for single and multiple selections from the property list, Inspector and restored panel-rail focus. Add and overlays
   close first; draft/tool cancellation precedes clearing, and held-key repeats do not cascade.
 - The Inspector labels mixed types and the sum of individual areas. Overlap is explicitly counted
   separately. No batch deletion, removal marking or shared Work/Evidence action is advertised.
@@ -70,6 +70,18 @@ selection-clear sequence at 460 px.
 The review follow-up also passes `VITEST_MAX_WORKERS=2 npm run check`: 473 test files,
 6,584 passing tests (70 skipped), build, lint and Fallow. Coverage is 99.25% statements,
 98.04% branches, 99.22% functions and 99.58% lines.
+
+The subsequent single-selection review extends the same Escape route to every nonempty
+selection. Five added single-selection cases fail before the correction and pass after it;
+all six targeted suites pass 99 tests. Edge keyboard verification also confirms clearing a
+single selection from its property row while retaining row focus.
+The first full follow-up run passed 6,588 tests but timed out in the unchanged
+`tests/build/test-environments.test.ts` (120-second limit). That test passed in isolation
+in about 65 seconds; no timeout, exclusion or quality threshold was changed.
+The complete retry with `VITEST_MAX_WORKERS=1 npm run test:coverage` passes all 473 files,
+6,589 tests (70 skipped) and the unchanged coverage thresholds (99.25% statements, 98.04%
+branches, 99.22% functions, 99.58% lines). Build and lint passed in the initial run;
+`npm run analyze` also passes after the successful coverage retry.
 
 ## Delivery sequence
 
@@ -793,3 +805,17 @@ During final verification, #74 advanced to `2f1fce9b` while #86 stayed unchanged
 also carries #74’s `48febd87` Alt-hover refresh and `381bcdc4` per-leaf multi-selection mode
 fixes, with their upstream regression tests. The base remains #86; `origin/main`’s concurrent
 #84 polish merge is recorded separately in the evidence and is not folded into this feature.
+
+
+## Materials → Costs → Evidence continuation — 2026-09-06
+
+Bounded M12–M14 and M17 criteria are implemented in the continuation of open PR #87:
+contextual Asset-backed Requirement quantities and overrides, exclusive purchased/reserved
+allocations, outstanding shopping, obligations with separate commitment/actual facts, partial
+settlement and Remaining, ordinary vault evidence with phases/pins and source-linked Review.
+This supersedes earlier statements that all materials/costs/evidence remain unbuilt; scheduling,
+suppliers, shared inventory, full quote comparison and live acceptance remain open.
+
+See [connected planning evidence and traceability](connected-planning-evidence.md),
+[changed-file coverage](connected-planning-coverage.md) and ADR-0022. Only that demonstrated
+subset is complete. Global Increment D and full M12–M17 acceptance are not complete.

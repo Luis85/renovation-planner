@@ -66,3 +66,12 @@ Evidence is a shared contextual shell for Documents, Photos, and Notes. The lock
 - Selecting a pin and evidence item is bidirectional.
 - Files remain ordinary vault files/links.
 - Documents and Notes can reuse the shell without requiring separate editor navigation systems.
+
+
+### Implemented continuation — 2026-09-06
+
+The connected planning slice implements one Documents/Photos/Notes shell, host file links/imports/notes, phases, optional Room-relative pins and missing-file routes. Contracts and exclusions are in
+[ADR-0022](../../../development/adrs/0022-material-quantities-cost-facts-and-vault-evidence.md).
+See [evidence and traceability](../implementation/connected-planning-evidence.md) for reproducible
+verification and unperformed acceptance. This records bounded criteria, not complete screen
+acceptance, Increment D completion or release readiness.

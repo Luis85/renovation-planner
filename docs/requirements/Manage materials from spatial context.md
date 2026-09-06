@@ -98,3 +98,11 @@ second material calculation.
 - [[Geometry-linked quantities]]
 - [[Asset library]]
 - [[Suppliers, quotes and procurement]]
+
+
+## Bounded implementation evidence — 2026-09-06
+
+Implemented: Room-scoped Asset-backed Requirements, explicit Room/wall/opening source rules, current/intended calculations, overrides/provenance, Work grouping and source navigation. Full spatial-only filtering and live assistive-technology acceptance remain open; the Room list intentionally retains related context.
+This does not mark all acceptance criteria complete. [ADR-0022](../development/adrs/0022-material-quantities-cost-facts-and-vault-evidence.md)
+defines ownership and arithmetic; [connected planning traceability](../user-experience/renovation-planner-editor-specs/implementation/connected-planning-evidence.md)
+links actual tests and browser evidence to each demonstrated contract.

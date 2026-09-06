@@ -25,11 +25,14 @@ installObsidianDom();
  * A delete resolution that WROTE everything it owed the vault and then failed to clear its
  * own recovery marker answers `ok`, so slice 13's save indicator settles on `Saved` — which
  * is true, and is the whole of what every other surface says. The marker outliving its
- * sequence is therefore invisible unless the composition root passes `notify`, which is
- * optional on both delete commands for the suite's benefit.
+ * sequence is therefore invisible unless the composition root passes a REAL `notify`.
+ * `notify` is required on both delete commands now, so the compiler refuses a composition that
+ * leaves it unbound — but that only holds that something answers the call, not that it is the
+ * notice door rather than a no-op that swallows it and logs into the void.
  *
- * Nothing else can tell a composition that wires it from one that leaves it undefined and
- * logs into the void — the same gap `slice10CascadeWiring.test.ts` closes for `CascadeDeps`.
+ * Nothing else can tell a composition that wires the real notice door from one that binds a
+ * no-op and logs into the void — the same gap `slice10CascadeWiring.test.ts` closes for
+ * `CascadeDeps`.
  */
 async function seededStack() {
 	const stack = createRepositoryStack();

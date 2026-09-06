@@ -1,13 +1,14 @@
 /**
- * `SnapService` (SDD §21, design slice 6): grid, vertex, edge and combined point
- * snapping, plus rotation and per-handle resize snapping — all as pure functions over
- * injected config and caller-supplied candidate geometry, no live canvas involved.
+ * `SnapService` (SDD §21, design slice 6): vertex, edge and combined point snapping, plus
+ * rotation and direction snapping — all as pure functions over injected config and
+ * caller-supplied candidate geometry, no live canvas involved. `snapToGrid` and
+ * `snapResize` were deleted (finding E7, ruling R5): neither had a caller in `src/`, and
+ * `snapRotation`/`snapPoint`/`snapDirection` do, via four tools.
  */
 import { describe, it, expect } from 'vitest';
 import { SnapService } from '../../../../src/presentation/editor/snapping/snap-service';
 import type { Point } from '../../../../src/core/geometry/Point';
 import type { LineSegment } from '../../../../src/core/geometry/LineSegment';
-import type { BoundingBox } from '../../../../src/core/geometry/BoundingBox';
 
 const GRID = 100;
 const TOLERANCE = 15;
@@ -40,38 +41,6 @@ describe('SnapService construction', () => {
 	it('does not restrict toleranceMm the same way — zero and negative both construct', () => {
 		expect(() => makeService({ toleranceMm: 0 })).not.toThrow();
 		expect(() => makeService({ toleranceMm: -5 })).not.toThrow();
-	});
-});
-
-describe('SnapService.snapToGrid', () => {
-	it('leaves a point already on the grid unchanged', () => {
-		const service = makeService();
-		expect(service.snapToGrid({ x: 200, y: 300 })).toEqual({ x: 200, y: 300 });
-	});
-
-	it('rounds down when below the midpoint of the grid cell', () => {
-		const service = makeService();
-		expect(service.snapToGrid({ x: 240, y: 0 })).toEqual({ x: 200, y: 0 });
-	});
-
-	it('rounds up when above the midpoint of the grid cell', () => {
-		const service = makeService();
-		expect(service.snapToGrid({ x: 260, y: 0 })).toEqual({ x: 300, y: 0 });
-	});
-
-	it('rounds each axis independently', () => {
-		const service = makeService();
-		expect(service.snapToGrid({ x: 240, y: 260 })).toEqual({ x: 200, y: 300 });
-	});
-
-	it('rounds negative coordinates toward the nearer grid line', () => {
-		const service = makeService();
-		expect(service.snapToGrid({ x: -240, y: -260 })).toEqual({ x: -200, y: -300 });
-	});
-
-	it('rounds an exact half-cell up (Math.round convention)', () => {
-		const service = makeService();
-		expect(service.snapToGrid({ x: 250, y: 0 })).toEqual({ x: 300, y: 0 });
 	});
 });
 
@@ -353,74 +322,5 @@ describe('SnapService.snapDirection', () => {
 		// Every bearing rounds to 0 under a full-turn step, so a leftward pointer projects
 		// backwards.
 		expect(service.snapDirection(anchor, { x: 200, y: 1000 })).toEqual(anchor);
-	});
-});
-
-describe('SnapService.snapResize', () => {
-	// Chosen so every coordinate actually moves under grid 100 — min rounds down to
-	// (0, 0), max rounds down to (200, 200) — so a test that changes the wrong edge, or
-	// none, produces a visibly different box rather than one that coincidentally matches.
-	const box: BoundingBox = { min: { x: 12, y: 37 }, max: { x: 230, y: 172 } };
-
-	it('nw moves both min edges, leaves max untouched', () => {
-		const service = makeService();
-		expect(service.snapResize(box, 'nw')).toEqual({ min: { x: 0, y: 0 }, max: { x: 230, y: 172 } });
-	});
-
-	it('n moves only min.y', () => {
-		const service = makeService();
-		expect(service.snapResize(box, 'n')).toEqual({ min: { x: 12, y: 0 }, max: { x: 230, y: 172 } });
-	});
-
-	it('ne moves max.x and min.y', () => {
-		const service = makeService();
-		expect(service.snapResize(box, 'ne')).toEqual({ min: { x: 12, y: 0 }, max: { x: 200, y: 172 } });
-	});
-
-	it('e moves only max.x', () => {
-		const service = makeService();
-		expect(service.snapResize(box, 'e')).toEqual({ min: { x: 12, y: 37 }, max: { x: 200, y: 172 } });
-	});
-
-	it('se moves both max edges, leaves min untouched', () => {
-		const service = makeService();
-		expect(service.snapResize(box, 'se')).toEqual({ min: { x: 12, y: 37 }, max: { x: 200, y: 200 } });
-	});
-
-	it('s moves only max.y', () => {
-		const service = makeService();
-		expect(service.snapResize(box, 's')).toEqual({ min: { x: 12, y: 37 }, max: { x: 230, y: 200 } });
-	});
-
-	it('sw moves min.x and max.y', () => {
-		const service = makeService();
-		expect(service.snapResize(box, 'sw')).toEqual({ min: { x: 0, y: 37 }, max: { x: 230, y: 200 } });
-	});
-
-	it('w moves only min.x', () => {
-		const service = makeService();
-		expect(service.snapResize(box, 'w')).toEqual({ min: { x: 0, y: 37 }, max: { x: 230, y: 172 } });
-	});
-
-	it('orders a box the rounding would otherwise turn inside out', () => {
-		// A box narrower than one grid step: dragging its `e` handle rounds `max.x` (30)
-		// down to 0, past `min.x` (20). Returned as rounded that is `max < min` — an
-		// inverted box `BoundingBox` carries no invariant against and `createPolygon`
-		// accepts as an inverted-winding polygon, so it would reach a persisted zone.
-		// It mirrors instead: the rounded edge (0) and the untouched edge (20) are just
-		// sorted into min/max, so the box ends up on the OTHER side of the untouched
-		// edge rather than collapsing onto it — the same ordering
-		// `selection/normalize-transform.ts` gives a flipped Transformer scale. Whether a
-		// resize handle should instead CLAMP the moved edge against the fixed one (a
-		// genuine collapse) is still open: `snapResize` has no caller until a later
-		// slice puts a real Konva Transformer in front of it, and that is where it gets
-		// settled.
-		const service = makeService();
-		const narrow: BoundingBox = { min: { x: 20, y: 37 }, max: { x: 30, y: 172 } };
-
-		const result = service.snapResize(narrow, 'e');
-
-		expect(result).toEqual({ min: { x: 0, y: 37 }, max: { x: 20, y: 172 } });
-		expect(result.min.x).toBeLessThanOrEqual(result.max.x);
 	});
 });

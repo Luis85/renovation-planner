@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { finishShortcut } from './finishShortcut';
 /**
  * The Plan Editor's GESTURE SURFACE: the element every pointer, wheel and key event of the
  * canvas arrives at, the camera those events drive, and the routing that decides between the
@@ -31,10 +32,13 @@ import { PanOverride } from '../viewport/pan-override';
 import { MIDDLE_MOUSE_BUTTON, PRIMARY_BUTTON_BIT, isPrimary, panButtonOf } from '../pointerButtons';
 import { wheelPixels } from '../wheelDelta';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
+import type { Vector } from '../../../core/geometry/Vector';
 import type { EditorPointerEvent, ToolId } from '../tools/editor-tool';
 import type { ToolManager } from '../tools/tool-manager';
 import type { RenderState } from '../tools/render-state';
 import { routeEscape } from '../escapeRouting';
+import { arrowVector } from './keyboard';
+import { cursorClassFor } from './cursor';
 
 /**
  * What this surface needs of the leaf it is mounted in, and nothing about a Plan.
@@ -83,6 +87,22 @@ const props = defineProps<{
 	hasSelection: () => boolean;
 	/** Clears the selection — `routeEscape`'s `cleared-selection` arm. */
 	clearSelection: () => void;
+	/**
+	 * §85's one operation left unreachable by keyboard (E8, Task 14): an arrow-key press
+	 * translates whatever is selected by `arrowVector`'s vector. Threaded as a prop for the
+	 * same reason `setTool` is — this file holds no `runtime.ts` — and the asset designer's
+	 * own mounter passes a no-op: none of its tools ever populate `selection`, so there is
+	 * never anything for it to move.
+	 */
+	nudgeSelection: (by: Vector) => Promise<void>;
+	/**
+	 * Enter's door out of a draw-area draft — `runtime.finishArea`, the SAME guarded action
+	 * the banner's Finish button dispatches, never `toolManager.finishActiveTool()` straight:
+	 * that call skipped `canFinishArea`'s busy half and queued an Area behind a write the
+	 * button was already announcing as unavailable. A review bot read the two doors against
+	 * each other. The asset designer's mounter passes a no-op, since it has no area task.
+	 */
+	finishArea: () => void;
 }>();
 
 const editor = props.editor;
@@ -157,64 +177,22 @@ function syncPanPhase(): void {
 }
 
 /**
- * Tools whose click places a point at an exact spot, and which therefore want a crosshair
- * rather than an arrow. A LIST rather than a `tool.cursor` member on `EditorTool`, because
- * the alternative widens the tool interface every implementation must satisfy for the sake
- * of a presentational detail three of them care about — and `ToolManager`'s own contract is
- * that the framework knows no tool by name, which this file is not part of.
+ * The canvas's one cursor class, decided by `./cursor.ts` — which tools want a crosshair,
+ * and why the camera outranks the active tool, are that module's docblocks. A `computed` so
+ * the three reactive reads are tracked; the decision itself is a pure function beside it.
  *
- * **`draw-room` is on it and is deliberately NOT on `CONSTRAINING_TOOLS`, which is a
- * different question with a different answer** — said here because two lists over the same
- * ids, one naming a tool and the other not, otherwise reads as one of them having forgotten
- * it. This list asks whether the click lands on a POINT: `DrawRoomTool.pointerDown` anchors
- * the rectangle at the exact world point of the press, so it does. That list asks whether
- * Shift's angle constraint applies, and for an axis-aligned rectangle there is no free
- * direction to constrain, so it does not.
- *
- * This file is not in the Add Room increment's diff, which is why nothing pointed at it: the
- * empty state's own action moved from `setTool('draw-polygon')` to
- * `activateCreationEntry('room', …)`, so the SAME button quietly stopped changing the cursor
- * — a regression rather than a gap. `canvasNavigation.test.ts`'s 'is precise while the room
- * tool is active' is what would notice it going again; that the class resolves to
- * `crosshair` is checked by nothing here at all (`styles/editor-cursors.css` says so where
- * the keyword is, and `docs/tests/cases/Canvas Navigation.md` is the instrument).
+ * `renderState` is the reactive object every tool writes through (`reactive(new
+ * RenderState())` in `runtime.ts`), so reading a property off it here tracks it the same way
+ * `activeToolId.value` does.
  */
-const PRECISE_TOOLS: readonly ToolId[] = ['draw-polygon', 'draw-room', 'draw-area', 'calibrate'];
-
-/**
- * The ONE cursor class on the canvas, and the place the precedence between the camera and
- * the active tool is decided.
- *
- * Decided here rather than left to the cascade in `styles/editor.css` on purpose: as source
- * order it would be a correct rule that no gate reads, and a paste in the wrong place would
- * silently invert it. As a computed it is an ordinary assertion in the suite.
- *
- * The camera outranks the tool because the ROUTING does — space held during a draw pans,
- * so a crosshair there would be the only thing telling the user otherwise. `idle` maps to
- * no class at all rather than to an `-idle` one: the resting state is what the base rule
- * already describes, and a class that styles nothing is a selector waiting to be given a
- * meaning it was never designed for.
- */
-const cursorClass = computed(() => {
-	if (panPhase.value !== 'idle') return `rp-plan-canvas-${panPhase.value}`;
-	// Select predicting a body or a vertex handle under the pointer: what a click here would
-	// take, so the cursor says the same thing `resolveSelectionTarget` would answer a click.
-	// `renderState` is the reactive object every tool writes through (`reactive(new
-	// RenderState())` in `runtime.ts`), so reading a property off it here tracks it the same
-	// way `activeToolId.value` does.
-	//
-	// The two hits are DIFFERENT promises and get different cursors (spec §6.2): a body would
-	// be selected, so `pointer`; a vertex handle of an already-selected room would be dragged,
-	// so `grab` — the same keyword the camera's own armed pan uses, because it is the one the
-	// user has already learnt for "this is about to move under your hand".
-	if (activeToolId.value === 'select' && renderState.hoveredObjectId !== null) {
-		return renderState.hoveredTargetKind === 'handle'
-			? 'rp-plan-canvas-grab'
-			: 'rp-plan-canvas-target';
-	}
-	const tool = activeToolId.value;
-	return tool !== null && PRECISE_TOOLS.includes(tool) ? 'rp-plan-canvas-precise' : null;
-});
+const cursorClass = computed(() =>
+	cursorClassFor({
+		panPhase: panPhase.value,
+		activeToolId: activeToolId.value,
+		hoveredObjectId: renderState.hoveredObjectId,
+		hoveredTargetKind: renderState.hoveredTargetKind,
+	}),
+);
 
 /** How fast a wheel notch zooms. Exponential, so the feel is the same at every scale. */
 const WHEEL_SENSITIVITY = 0.002;
@@ -988,6 +966,14 @@ function onPointerLeave(event: PointerEvent): void {
  * answer that way rather than defaulting: a jump to nowhere costs the user the view they
  * had and tells them nothing about why.
  */
+/**
+ * Enter finishes a draw-area draft — and only a PLAIN Enter: not a repeat, not a chord, not
+ * a keystroke an IME is still composing (`plainPress`). `preventDefault` runs for every Enter
+ * while that tool is active, chorded or not, so nothing beneath the canvas activates on it.
+ * Its own function beside `fitShortcut` for the same reason that one is: `onKeyDown` was at
+ * its cognitive-complexity budget the day the merge added this branch to it.
+ */
+
 function fitShortcut(event: KeyboardEvent): boolean {
 	if (!event.shiftKey) return false;
 	const all = event.code === 'Digit1';
@@ -1047,20 +1033,6 @@ function zoomShortcut(event: KeyboardEvent): void {
  * Select, and Select (or camera mode) with a selection clears it. The Escape branch just below
  * spells out why each rule holds, in the order it holds it.
  */
-function finishShortcut(event: KeyboardEvent): boolean {
-	if (event.key === 'Backspace' && activeToolId.value === 'draw-wall') {
-		event.preventDefault();
-		if (!event.repeat) toolManager.editActiveCorner(-1, null);
-		return true;
-	}
-	if (event.key === 'Enter' && (activeToolId.value === 'draw-area' || activeToolId.value === 'draw-wall' || activeToolId.value?.startsWith('place-'))) {
-		event.preventDefault();
-		if (!event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) toolManager.finishActiveTool();
-		return true;
-	}
-	return false;
-}
-
 function onKeyDown(event: KeyboardEvent): void {
 	if (!isCanvasKey(event)) return;
 	if (event.key === 'Escape') {
@@ -1160,6 +1132,12 @@ function onKeyDown(event: KeyboardEvent): void {
 	// ABOVE the camera lock, and deliberately, for the same reason Escape is: it moves no
 	// camera, and a user holds Shift precisely while a gesture is in flight — gating it there
 	// would make the constraint dead exactly when it is wanted.
+	//
+	// Alt is the overlap-cycling modifier and takes the identical re-issue, for the identical
+	// reason: `SelectTool.targetAt` reads `modifiers.alt` for the hover AND the click, so a
+	// press over a stationary pointer left the hover predicting the topmost room while the
+	// click that followed cycled to the next one. Reported by a review bot on the
+	// multi-selection pull request.
 	if (event.key === 'Shift' || event.key === 'Alt') {
 		reissuePointerMove(event);
 		return;
@@ -1167,9 +1145,30 @@ function onKeyDown(event: KeyboardEvent): void {
 	// Escape is handled ABOVE this, and deliberately: `routeEscape`'s question — cancel a
 	// draft, switch tool, or clear a selection — must be answered whether or not a gesture is
 	// in flight, and none of its outcomes touches the camera.
-	if (gestureInFlight()) return;
-	if (finishShortcut(event)) return;
-	if (fitShortcut(event)) return;
+	//
+	// **This arrow check is ABOVE the gesture lock now, and on purpose (Finding B, the
+	// whole-tree review).** `gestureInFlight()` used to return FIRST, so an arrow key pressed
+	// mid-drag or mid-draw fell through this whole function uncaught: `preventDefault()` never
+	// ran, and the leaf underneath the still-running gesture scrolled out from under it — the
+	// same shape Space's own branch above already avoids for the identical reason. Consuming
+	// the key is not the same decision as acting on it, so `preventDefault()` stays
+	// unconditional inside the `nudge !== null` branch while the DISPATCH keeps asking
+	// `gestureInFlight()` itself: a nudge mid-gesture would move the very selection the
+	// gesture is already moving, which is what the guard below still refuses.
+	// §85's one operation slice 5 left unreachable by keyboard (E8, Task 14): an arrow key
+	// nudges whatever `nudgeSelection` finds selected. `arrowVector` answers `null` for every
+	// other key, so this is a lookup rather than four more `if`s beside the ones above.
+	// `!event.repeat`: OS autorepeat re-reads the same pre-move zone every tick (the store
+	// only refreshes after the queued hydrate), so a held key would dispatch — and undo — the
+	// same move dozens of times instead of once.
+	const nudge = arrowVector(event);
+	if (nudge !== null) {
+		event.preventDefault();
+		if (!event.repeat && !gestureInFlight()) void props.nudgeSelection(nudge);
+		return;
+	}
+	// One short-circuit chain, in this order: a running gesture swallows every key below it.
+	if (gestureInFlight() || finishShortcut(event, activeToolId.value, { toolManager, finishArea: props.finishArea }) || fitShortcut(event)) return;
 	zoomShortcut(event);
 }
 
@@ -1181,12 +1180,19 @@ function onKeyDown(event: KeyboardEvent): void {
  * nothing to this element at all.
  *
  * Shift is the angle constraint letting go, and it re-issues the move so the preview
- * unconstrains as promptly as it constrained. Space is the pan disarming — and a pan already
+ * unconstrains as promptly as it constrained; Alt is overlap cycling letting go, re-issued so
+ * the hover stops cycling the moment the click would. Space is the pan disarming — and a pan already
  * RUNNING is deliberately not ended by it, for the reason `PanOverride.disarmSpace` gives.
  *
- * `isCanvasKey` guards the space branch alone. Shift is a MODIFIER: it reaches this element
- * while the empty state's action button has focus too, and the tool's preview should still
- * unconstrain — where a space release there belongs to the button, not to the camera.
+ * **Not a symmetric pair with the press, and deliberately not one.** `onKeyDown`'s Shift
+ * branch is gated behind that handler's own `isCanvasKey` check, same as every other canvas
+ * key — a press only constrains while the canvas itself has focus. The RELEASE here is
+ * UNGATED: `isCanvasKey` guards the space branch alone, because Shift is a MODIFIER rather
+ * than a canvas shortcut, and it reaches this element while the empty state's action button
+ * has focus too. A Shift pressed on the canvas and released after Tab moved focus to that
+ * button must still unconstrain the preview — the drag it was steering does not know focus
+ * moved — so gating the release the same way the press is gated would strand the constraint
+ * on. A space release there, by contrast, belongs to the button it lands on, not the camera.
  */
 // PR #74 (48febd87): Alt changes overlap prediction even without pointer movement.
 function onKeyUp(event: KeyboardEvent): void {

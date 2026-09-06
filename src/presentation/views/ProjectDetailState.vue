@@ -75,12 +75,21 @@ function hydrate(): Promise<void> {
 	return detail.hydrate(context.queries, props.projectId, context.indexScanCompleted());
 }
 
-async function hydratePrices(): Promise<void> {
-	if (disposed) return;
+/**
+ * `'superseded'` means "the refs do not describe THIS read", and every caller that decides
+ * something from them has to be told: a read the store cancelled on its ticket leaves the shared
+ * `assetPricesError` holding a later read's answer, and `disposed` says the same thing about a
+ * pane that has gone. Nothing after that point may write, which is why the two checks sit
+ * together and why the outcome travels back out rather than being inferred at the call site.
+ */
+async function hydratePrices(): Promise<'landed' | 'superseded'> {
+	if (disposed) return 'superseded';
 	refreshRequested = false;
-	await detail.hydratePrices(context.queries, props.projectId);
+	const outcome = await detail.hydratePrices(context.queries, props.projectId);
+	if (disposed || outcome === 'superseded') return 'superseded';
 	pricesLoading.value = false;
 	if (assetPricesError.value === null) savedRefreshFailed.value = false;
+	return 'landed';
 }
 
 let writes = 0;
@@ -107,8 +116,14 @@ watch(status, (value) => {
 	if (value === 'gone' && open !== null) dialogs.resolve(cancelResultFor(open.kind));
 });
 
+/**
+ * No `canLeave()` here, deliberately (P3): opening the note leaves the pane exactly where it
+ * is — no navigation, no unmount — so there is nothing for a draft to be discarded FROM. The
+ * confirm dialog's discard arm exists to protect a navigation that would otherwise lose the
+ * drafts in `edits`; this action does not cause one, and asking anyway made Stay the only
+ * option that did nothing.
+ */
 async function onOpenNote(): Promise<void> {
-	if (!(await canLeave())) return;
 	if ((await context.openProject(props.projectId)) === 'missing') await hydrate();
 }
 
@@ -168,6 +183,24 @@ async function onCreatePlan(): Promise<void> {
 	await hydrate();
 }
 
+/**
+ * The refresh a write owes, and the one place either arm of `writeAssetPrice` decides whether
+ * "saved, but could not refresh" is true.
+ *
+ * DIRECT rather than through `queuePrices`, and that stays deliberate: a write must await ITS OWN
+ * read, where the loader's contract is to collapse reads it did not issue — a write handed to it
+ * would be answered by somebody else's scan or by none. Sitting outside the loader is what makes
+ * the outcome load-bearing: a queued reload can land between this read and its answer, and
+ * `'superseded'` is the case where this write's read decides nothing and the shared failure ref
+ * speaks for the read that won.
+ *
+ * One function rather than the same line in both arms, so the superseded case is ONE arm with
+ * one test rather than two arms with one test and a copy nothing reaches.
+ */
+async function refreshAfterWrite(): Promise<void> {
+	if ((await hydratePrices()) === 'landed') savedRefreshFailed.value = assetPricesError.value !== null;
+}
+
 async function writeAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitResult> {
 	const projectId = props.projectId as ProjectId;
 	const assetId = edit.assetId as AssetId;
@@ -178,8 +211,7 @@ async function writeAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitRe
 			expected: edit.expected,
 		});
 		if (isErr(result)) return { dispatch: result, settled: null };
-		await hydratePrices();
-		savedRefreshFailed.value = assetPricesError.value !== null;
+		await refreshAfterWrite();
 		// `'absent'` whether or not a note was actually removed: either way the pair now HAS no
 		// override, which is what an expectation states. `cleared` is what says whether anything
 		// moved, and it is the honest `DispatchOutcome` — a clear on a pair with no override
@@ -196,8 +228,7 @@ async function writeAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitRe
 		expected: edit.expected,
 	});
 	if (isErr(result)) return { dispatch: result, settled: null };
-	await hydratePrices();
-	savedRefreshFailed.value = assetPricesError.value !== null;
+	await refreshAfterWrite();
 	// `'wrote'` for every accepted set, including the command's own no-op arm (a price re-typed
 	// to the value it already holds), which its result does not distinguish from an update:
 	// `created` is false for both. Nothing on this surface reads the outcome — there is no save
@@ -221,13 +252,6 @@ async function commitAssetPrice(edit: AssetPriceEdit): Promise<AssetPriceCommitR
 
 onMounted(() => {
 	void hydrate();
-	// Through the LOADER rather than calling `hydratePrices` directly, so there is ONE mechanism
-	// rather than two: a burst arriving while the mount's own read is still in flight then
-	// collapses into that read plus one trailing one. Called directly, the mount's read sits
-	// OUTSIDE the loader's window and a sync landing on it buys a third scan — measured, the
-	// burst case reports 3 where 2 is asserted. `reloadAssetOptions()` in `runtime.ts` is called
-	// at setup for the same reason.
-	reloadPrices();
 });
 
 onBeforeUnmount(
@@ -242,13 +266,34 @@ onBeforeUnmount(
 	}),
 );
 
-onBeforeUnmount(context.onCatalogueChanged(reloadPrices));
+/**
+ * The price section's mount read and both of its subscriptions, registered only when the price
+ * section is what this mount DRAWS — `ViewRoot.vue:328-332`'s own rule, applied one level down:
+ * re-reading a store nothing renders is a vault-wide read answering a question nobody asked, and
+ * `listAssetPrices` reads the whole catalogue. The details section took one per open and one per
+ * catalogue event for nothing. `onProjectPricesChanged` now carries the three requirement
+ * lifecycle events as well (`RenovationProjectContext.ts:170-192`), so this gate is also what
+ * stops a requirement created or deleted anywhere in this project from re-listing prices under a
+ * details view that draws none.
+ *
+ * The mount's read goes through the LOADER rather than calling `hydratePrices` directly, so there
+ * is ONE mechanism rather than two: a burst arriving while the mount's own read is still in
+ * flight then collapses into that read plus one trailing one. Called directly, the mount's read
+ * sits OUTSIDE the loader's window and a sync landing on it buys a third scan — measured, the
+ * burst case reports 3 where 2 is asserted. `reloadAssetOptions()` in `runtime.ts` is called at
+ * setup for the same reason.
+ */
+if (section === 'prices') {
+	onMounted(reloadPrices);
 
-onBeforeUnmount(
-	context.onProjectPricesChanged((projectId) => {
-		if (projectId === null || projectId === props.projectId) reloadPrices();
-	}),
-);
+	onBeforeUnmount(context.onCatalogueChanged(reloadPrices));
+
+	onBeforeUnmount(
+		context.onProjectPricesChanged((projectId) => {
+			if (projectId === null || projectId === props.projectId) reloadPrices();
+		}),
+	);
+}
 </script>
 
 <template>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import PlanningReview from '../planning/PlanningReview.vue';
+import { planningFindings } from '../planning/planningProjection';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { EMPTY_RENOVATION, reviewRenovation, type ReadinessFinding } from '../../../domain/renovation/Renovation';
 import { useProjectStore } from '../../stores/ProjectStore';
@@ -18,14 +20,24 @@ function open(item: ReadinessFinding): void {
 	if (item.kind === 'decision') void runtime.renovation.edit('decision', item.roomId, item.recordId);
 }
 const plain = (text: string): string => text.replace(/[\r\n]/g, ' ').replace(/[\\[\]<>*_`]/g, '\\$&');
+async function depthBody(): Promise<string | null> {
+ if (!context.commands.planning) return '';
+ const depth = await context.commands.planning.read(context.planId as PlanId);
+ if (!depth.ok) { if (alive) error.value = tr('planning.read-failed'); return null; }
+ return '\n\n' + tr('planning.review-scope') + '\n' + planningFindings(depth.value, context.commands.evidenceFiles).map(item => `- ${tr(`planning.${item.kind}`)}: ${plain(item.description)} (${item.id})`).join('\n');
+}
 async function generate(): Promise<void> {
 	if (busy.value || project.stale || !context.commands.reviewNote) return;
 	busy.value = true;
-	const body = [`# ${tr('renovation.review')} — ${plain(project.plan?.name ?? '')}`, '', tr('renovation.scope'), '',
+	let body = [`# ${tr('renovation.review')} — ${plain(project.plan?.name ?? '')}`, '', tr(context.commands.planning ? 'planning.review-scope' : 'renovation.scope'), '',
 		...findings.value.map(item => `- ${plain(project.zones.get(item.roomId)?.name ?? item.roomId)}: ${tr(`renovation.finding.${item.kind}`)} — ${item.causes.map(plain).join(', ')} (${item.recordId})`),
 		...(findings.value.length ? [] : [tr('renovation.no-findings')]),
 	].join('\n');
 	try {
+        const depth = await depthBody();
+        if (depth === null) return;
+        body += depth;
+		if (!alive) return;
 		const result = await context.commands.reviewNote(context.planId as PlanId, body);
 		if (alive) error.value = result.ok ? '' : renovationMessage(result.error);
 	} catch (cause) { if (alive) error.value = renovationMessage(persistenceError('review.write-failed', 'Review generation failed.', cause)); } finally { if (alive) busy.value = false; }
@@ -34,7 +46,10 @@ async function generate(): Promise<void> {
 <template>
 	<section class="rp-renovation-inspector">
 		<h3>{{ tr('renovation.review') }}</h3>
-		<p>{{ tr('renovation.scope') }}</p>
+		<p v-if="!context.commands.planning">
+			{{ tr('renovation.scope') }}
+		</p>
+		<PlanningReview v-if="context.commands.planning" />
 		<p v-if="!findings.length">
 			{{ tr('renovation.no-findings') }}
 		</p>

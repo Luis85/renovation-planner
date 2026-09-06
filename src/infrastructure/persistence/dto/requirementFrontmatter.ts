@@ -1,3 +1,4 @@
+import { RequirementSourceSchema } from './planningDepth';
 import { z } from 'zod';
 import { UNIT_KIND, type MeasurementUnit } from '../../../core/units/MeasurementUnit';
 
@@ -47,3 +48,6 @@ export const RequirementFrontmatterSchemaV1 = z.object({
 	'recalculation-status': z.enum(['current', 'stale']),
 	'required-date': z.string().nullable().catch(null),
 });
+
+export const RequirementFrontmatterSchemaV2 = RequirementFrontmatterSchemaV1.extend({ 'schema-version': z.literal(2), source: RequirementSourceSchema.optional() });
+export const RequirementFrontmatterSchema = z.union([RequirementFrontmatterSchemaV1, RequirementFrontmatterSchemaV2]);

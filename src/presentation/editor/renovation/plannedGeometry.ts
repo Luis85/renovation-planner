@@ -55,13 +55,13 @@ export function applyPlannedGeometry(baseline: RenovationBaseline, input: Renova
 	const before = input.intended ?? current;
 	const change = subject.planned?.change;
 	if (!change) return ok(input);
-	if (!draft.id) draft.id = createEntityId(draft.kind === 'wall' ? 'wall' : 'opening');
+	const resolved = { ...draft, id: draft.id || createEntityId(draft.kind === 'wall' ? 'wall' : 'opening') };
 	const values: Record<string, number> = {};
 	for (const field of geometryFields(draft)) {
 		const parsed = parseCoordinateMetres(draft.text[field]);
 		if (!parsed.ok) return err(spatialError('numeric'));
 		values[field] = parsed.mm;
 	}
-	const intended = changeGeometry(current, before, draft, change, values);
-	return ok({ renovation: { ...input.renovation, subjects: input.renovation.subjects.map(item => item.id === subject.id ? { ...item, targetId: draft.id } : item) }, intended });
+	const intended = changeGeometry(current, before, resolved, change, values);
+	return ok({ renovation: { ...input.renovation, subjects: input.renovation.subjects.map(item => item.id === subject.id ? { ...item, targetId: resolved.id } : item) }, intended });
 }

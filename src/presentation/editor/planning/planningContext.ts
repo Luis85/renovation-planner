@@ -30,10 +30,26 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 		loading.value = false; failed.value = !result.ok;
 		if (result.ok) baseline.value = result.value;
 	}
+	/**
+	 * The paths this plan's evidence links — each as written AND as it resolves today, since a
+	 * link (`receipt.pdf`) and the vault path it lands on (`Projects/Studio/receipt.pdf`) are two
+	 * spellings of one file and Obsidian's event carries the second.
+	 */
+	function evidencePaths(): string[] {
+		return (baseline.value?.plan.entity.renovation?.depth?.evidence ?? []).flatMap(item => {
+			const file = context.commands.evidenceFiles?.resolve(item.path + item.subpath, context.planId as PlanId);
+			return file?.ok ? [item.path, file.value.path] : [item.path];
+		});
+	}
 	if (context.commands.planning) {
 	const callbacks = [context.onPlanChanged.bind(context), context.onCatalogueChanged.bind(context), context.onProjectPricesChanged.bind(context), context.onRequirementFiguresChanged.bind(context)];
 	for (const subscribe of callbacks) onBeforeUnmount(subscribe(() => { void refresh(); }));
-	onBeforeUnmount(context.onVaultFileChanged(() => { void refresh(); }));
+	// The four doors above carry every entity event planning data depends on (plan, zones,
+	// assets, prices, requirement figures). The vault door is filtered to the evidence files
+	// this plan links, the way `BackgroundLayer` filters it to the sheet it draws: unfiltered,
+	// every note edit anywhere in the vault re-read every room's requirements and the whole
+	// priced catalogue in every open Plan Editor leaf.
+	onBeforeUnmount(context.onVaultFileChanged(path => { if (evidencePaths().includes(path)) void refresh(); }));
 	}
 	onBeforeUnmount(() => { alive = false; ticket++; });
 	const blocked = computed(() => loading.value || failed.value || project.stale || runtime.renovation.blocked.value);

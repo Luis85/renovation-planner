@@ -175,6 +175,18 @@ describe('connected planning editor', () => {
  const deletion = kind === 'room' ? rig.runtime.deleteZone(rig.room.id, rig.room.name) : rig.runtime.structureActions.remove('wall-a'); await settle(); rig.unmount(); pending.resolve(baseline); await deletion; expect(rig.dialogs.current).toBeNull();
  });
 
+ it('re-reads planning for a linked evidence file, by path or by resolved link, and never for an unrelated vault note', async () => {
+ const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning'), baseline = expectOk(await rig.renovation.read(rig.plan.id)), roomId = rig.room.id;
+ const folder = expectDefined(rig.stack.index.getPath(rig.plan.id), 'plan note').replace(/[^/]*$/, ''); rig.stack.vault.entries.set(`${folder}receipt.pdf`, 'PDF fixture');
+ const link = (id: string, path: string) => ({ id, roomId, targetId: roomId, workId: '', recordId: 'removed-record', path, subpath: '', description: id, type: 'document' as const, phase: 'before' as const, pin: null });
+ expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(baseline.plan.entity, { subjects: [], work: [], decisions: [], depth: { costs: [], procurement: [], evidence: [link('scan', 'scan.pdf'), link('receipt', 'receipt.pdf')] } })), baseline.plan.version)); rig.changePlan(); await settle();
+ const read = vi.spyOn(services, 'read');
+ rig.changeFile('Notes/Unrelated.md'); rig.changeFile(`${folder}scan.pdf`); await settle(); expect(read).not.toHaveBeenCalled();
+ rig.changeFile('scan.pdf'); await settle(); expect(read).toHaveBeenCalledTimes(1);
+ rig.changeFile(`${folder}receipt.pdf`); await settle(); expect(read).toHaveBeenCalledTimes(2);
+ rig.changeRequirementFigures('any'); rig.changeCatalogue(); rig.changeProjectPrices(); await settle(); expect(read).toHaveBeenCalledTimes(5);
+ });
+
  it('shows unavailable estimates and readable fallback links after externally removed records', async () => {
  const rig = await setup(), baseline = expectOk(await rig.renovation.read(rig.plan.id)), roomId = rig.room.id;
  const cost = { id: 'orphan-cost', roomId, targetId: roomId, workId: '', title: 'Orphan supply', category: 'material' as const, requirementId: 'removed-material', planned: null, facts: [], cancelled: false };

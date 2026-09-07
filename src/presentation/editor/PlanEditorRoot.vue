@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { providePlanningContext } from './planning/planningContext';
+import { notifyFault } from '../notices/notify';
 import { useRenovationSession } from './renovation/renovationSession';
 const renovationSession = useRenovationSession();
 /**
@@ -148,12 +149,12 @@ const backgroundStatus = ref<BackgroundStatus>('none');
 const warnings = computed(() =>
 	editorWarnings({
 		unrecoveredWrite: unrecoveredWrite.value,
-		stale: staleAfterRefresh.value || runtime.planning.failed.value,
+		stale: staleAfterRefresh.value || (status.value === 'ready' && runtime.planning.failed.value),
 		refreshing: refreshing.value || runtime.planning.loading.value,
 		retriesFailed: Math.max(retriesFailed.value, runtime.planning.retriesFailed.value),
 		unreadableZones: unreadableZones.value,
 		backgroundStatus: backgroundStatus.value,
-		retry: () => void runtime.refreshProjection(),
+		retry: hydrate,
 		openSourceNote: () => void runtime.openPlanNote(),
 	}),
 );
@@ -248,7 +249,7 @@ function retireAddMenu(): void {
 }
 
 function hydrate(): void {
-	void runtime.refreshProjection();
+	void runtime.refreshProjection().catch(cause => { if (root.value) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); });
 }
 
 /**

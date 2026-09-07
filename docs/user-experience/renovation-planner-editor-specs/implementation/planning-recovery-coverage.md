@@ -3,8 +3,10 @@
 The `npm run check` at `66bcd0d033753796e4c290c88f9bbb05322a30db` **passed** on 2026-09-07 with `VITEST_MAX_WORKERS=2`, Windows and
 Node 24.20.0. Build/vue-tsc, oxlint, ESLint, the coverage suite and Fallow all passed.
 
-The later evidence-path/Review-name, Evidence-selection and unrecovered-draft follow-ups use targeted verification, recorded in the
+The later evidence-path/Review-name, Evidence-selection, unrecovered-draft and obsolete-spatial-read follow-ups use targeted verification, recorded in the
 [evidence ledger](planning-recovery-evidence.md#review-follow-up--evidence-path-and-room-names).
+The obsolete-read follow-up passed 80 tests in seven files; its isolated coalescer coverage is
+100% statements, branches, functions and lines. This does not replace the full-gate counters below.
 The counters below belong to `66bcd0d0`; they are not a claim of a fresh full gate after that
 follow-up. Finalization owns the subsequent combined coverage/Fallow run at unchanged floors.
 **541 test files passed; 7,259 tests passed, 70 existing skips, 7,329 total.**

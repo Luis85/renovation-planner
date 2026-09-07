@@ -220,6 +220,7 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 			// the held rows are the best available answer rather than the wrong zone's.
 			requirements.value = [];
 			const result = await queryZone(selectedIds[0] as ZoneId);
+			if (request !== latestRequest) return;
 			// The rows ride the same ticket: one query each, both answered together.
 			const rows = await deps.requirementsQuery.execute({ zoneId: selectedIds[0] as ZoneId });
 			if (request !== latestRequest) return; // a newer selection has superseded this read
@@ -270,6 +271,7 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 			const request = ++latestRequest;
 			const zoneId = lastSelection.value[0] as ZoneId;
 			const result = await queryZone(zoneId);
+			if (request !== latestRequest) return;
 			const rows = await deps.requirementsQuery.execute({ zoneId });
 			if (request !== latestRequest) return; // a newer selection has superseded this read
 			if (isErr(result)) return;
@@ -283,6 +285,8 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 			if (!isErr(rows)) requirements.value = rows.value;
 		}
 
-		return { dto, requirements, hydrateFrom, commit, refresh };
+		/** Retire pending DTO reads when the displayed plan is invalidated or the leaf closes. */
+		function invalidate(): void { latestRequest++; }
+		return { dto, requirements, hydrateFrom, commit, refresh, invalidate };
 	});
 }

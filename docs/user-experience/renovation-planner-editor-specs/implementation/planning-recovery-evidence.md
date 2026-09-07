@@ -229,3 +229,35 @@ Final `npx vue-tsc -noEmit`, whole-project `npx oxlint --deny-warnings`, changed
 (`--max-warnings 0`) and `git diff --check` passed. English wording also follows the required
 sentence-case rule. This intermediate review checkpoint uses the authorized targeted gate;
 finalization still owns the combined coverage/Fallow run at unchanged thresholds.
+
+## Obsolete spatial reads and detached refresh failures — 2026-09-07
+
+Review comments 3946066535, 3946066536 and 3946066538 exposed three additional boundaries.
+Coalescing a refresh that already mutates stores did not retire its active hydration ticket.
+A queued replacement now invalidates both the ProjectStore and Inspector tickets immediately,
+keeps the existing scene and stale state while waiting, and skips the obsolete hydration's
+Inspector query. Superseded Inspector reads stop before requesting requirement rows; their
+late results cannot publish. The coalescer continues to the queued latest read after an
+obsolete rejection, and disposed callers neither query nor reactivate the retired store.
+
+A missing Plan now shows its Close action without a contradictory planning retry warning.
+Initial, event-triggered and warning-triggered detached refreshes share the existing fault
+reporter; unexpected Inspector or requirement-query rejection is handled without changing a
+successful write into a failed write or discarding the displayed DTO.
+
+The new regressions reproduced obsolete geometry and Inspector publication, loss of the
+queued follow-up after rejection, and unhandled Inspector/requirement failures against the
+previous production source. The missing-Plan fixture initially used a helper requiring a
+canvas; after switching to the ordinary editor mount, it reproduced the extra retry warning.
+Peer geometry and name changes use real repositories. Final targeted verification passed
+**80/80 tests in seven files** (18.18 s, two workers), with no unhandled errors. A separate
+coalescer coverage run passed 7/7 tests and measured 40/40 statements, 14/14 branches,
+9/9 functions and 22/22 lines. Coverage thresholds and exclusions are unchanged.
+
+Type checking, whole-project Oxlint, changed-file ESLint and diff checks passed. Fallow reports
+no dead code, duplication or complexity violations; its CRAP inputs remain the prior full
+coverage artifact. The new rejection branch first raised the drain's cognitive complexity to
+16; expressing the existing loop condition as `while (alive)` cleared that finding without
+changing the tested lifecycle behavior. A shared notice spy initially retained calls between
+parameterized cases and now restores itself after each case. This is the authorized targeted
+review gate, not a fresh whole-project coverage run or final integrated browser acceptance.

@@ -41,3 +41,9 @@ the change count remains visible in the selected Room row. Other overview caller
 original footer. Link padding/gaps are tighter horizontally and buttons can grow with real text.
 No counts, labels, controls, rules or limits are discarded. Current runtime verification remains
 pending; whole Oxlint and diff checks passed on this correction.
+
+Current result at `bb77de0f95cc353e8b77407d6edab278505f239e`: the full four-scenario planning
+journey passed, including the corrected contrast rule and full-layout Review visibility.
+The 18 related overview/Review native tests, current types and scoped lint passed. Actual
+Light/Dark/custom/German Review images were inspected. This establishes the supported all-clear
+state, not the still-required issue-rich M17 state or final eighteen-screen acceptance.

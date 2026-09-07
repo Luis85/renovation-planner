@@ -157,6 +157,17 @@ extension applies the already-used semantic CTA color rule, pending recapture. N
 assertion was weakened. UI released heavy to Root for its short five-case/fresh-health check;
 UI currently has no heavy process. Continue with four-theme capture after Root release.
 
+Latest completed milestone: `bb77de0f95cc353e8b77407d6edab278505f239e` passed the complete
+strengthened planning design journey in all four scenarios (handle 57446, terminal 0), plus
+current types/scoped lint and 18 overview/Review native tests. Eight current captures and their
+reports/hashes are secured under `editor-gallery-selection/verified-journey`. All were visually
+inspected. Custom M14 still has a low-zoom caption/dimension overlap; a bounded source audit
+is in progress, with no renderer edit yet. M17 issue-rich native creation/capture is next.
+Root currently owns the short heavy slot for two legacy-removal cases/types; UI has no active
+process. After Root releases: correct/verify the observed caption issue and perform the real
+Decision capture, overview and full nine-journey/eighteen-reference verification. Keep pushing
+coherent checkpoints and distinguish this journey pass from final visual/host/full-gate acceptance.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

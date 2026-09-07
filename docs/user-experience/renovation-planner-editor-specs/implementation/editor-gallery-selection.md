@@ -57,3 +57,24 @@ file and thumbnail-error notices remain visible; when a thumbnail is unavailable
 metadata remains visible too. Preview images return to a natural 4:3 composition capped at
 140 pixels. This product presentation follows the reference's image emphasis; it is not a
 screenshot-only override. Current runtime/pixel verification of this revision remains pending.
+
+## Current verified journey — bb77de0f
+
+The complete strengthened planning design run passed in all four scenarios on
+`bb77de0f95cc353e8b77407d6edab278505f239e`. During remains active after selection and resize,
+six dated photo identities retain their order, and the selected date/Work and Room context
+remain correct. Full-layout M14 and all-clear M17 content passed measured Inspector bounds;
+all four scenarios passed their automated accessibility scans. German's narrower drawer uses
+ordinary scrolling. Current types, whole Oxlint, scoped ESLint and 18 related overview/Review
+native tests also passed. Earlier 34 Evidence/phase/Review native cases passed.
+
+All eight current gallery/Review captures were visually inspected against M14/M17. The gallery
+image hierarchy, active selection and complete selected metadata are now coherent. **One visual
+gap remains:** at the custom theme's 5% canvas zoom, the Kitchen caption overlaps its 4 m
+dimension label; the Light/Dark 9% scenes do not. This needs a bounded renderer correction and
+fresh capture. The four-theme journey pass is not final M14/M17 or all-eighteen-screen acceptance.
+
+The current images, full runner report, accessibility reports, verification logs and hashes are
+in [verified-journey](evidence/editor-gallery-selection/verified-journey/). M17's additional
+issue-rich state, matching overview captures and the uninterrupted nine-journey final run remain
+outstanding. No failed/interrupted outputs are combined into a passing final matrix.

@@ -10,6 +10,23 @@ Root owns shared status files and the final combined source/acceptance.
 
 ## Latest checkpoint
 
+Root integrated the verified package as `4f070aa4` and froze `43041936a7f86d31058f6d21a16c3a596e1bacc6`.
+Its full Linux24 CI `34156093009` passed all 8115 tests in 661 files (69 skipped), with
+S18060/18222, F5174/5211, L14102/14166 and B12537/12813. Only the 98% branch floor fails;
+20 branch arms remain on this exact source. Original JSON/LCOV are in Root scratch
+`ci-43041936-linux24/`, tested merge `e33dec1ca2e245c5153c000fc0a59eb9fefba3af`.
+
+UI's original nine browser journeys finished with terminal0. Root/UI then diagnosed
+and corrected a real pan-performance issue; the subsequent four-case browser run is
+reported green. Root owns that new integration/source and final acceptance.
+
+The next exact five-case package is source-ready, unverified, and approved by Root:
+[repository lifecycle boundaries](repository-lifecycle-boundaries.md). All five
+target arms were read as zero in original 430 coverage and their production files are
+unchanged from9cb. No tests/analysis/counter execution has occurred for this package.
+Wait for Root's explicit heavy-slot handoff before verification; no additional cases
+or production edits belong in it.
+
 **Current bounded package is verified:** 56/56 tests in eight files (14.85 seconds),
 types, whole Oxlint, scoped ESLint and Fallow static zero issues/clones PASS. This
 validates Review Tap at 460 px, the real Plan calibration rounding refusal with

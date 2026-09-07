@@ -21,7 +21,7 @@ const commands = [
 	['editor-visual-resilience.mjs'], ['editor-visual-overview.mjs', '--design'], ['editor-object-check.mjs'],
 	['editor-recovery-check.mjs'],
 	['editor-modal-busy-check.mjs'],
-	['editor-downstream-check.mjs'],
+	['editor-downstream-check.mjs', '--design'],
 	['editor-visual-fidelity-shots.mjs', 'after'], ['editor-visual-comparisons.mjs'],
 ];
 for (const [script, ...args] of commands) {

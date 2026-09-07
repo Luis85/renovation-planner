@@ -12,6 +12,7 @@ import { openingPoints, type Opening, type Wall } from '../../../domain/spatial/
 import { draftStructure, isStructureTool } from './structureDraft';
 import ElementShapes from '../elements/ElementShapes.vue';
 import { isElementTool } from '../elements/elementDraft';
+import WallDraftOverlay from './WallDraftOverlay.vue';
 const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visible: boolean; zoom: number }>();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const task = runtime.structureTask;
@@ -19,6 +20,8 @@ const structure = computed(() => runtime.structureActions.preview.value ?? (isSt
 const points = (value: readonly Point[]): number[] => value.flatMap(p => [p.x, p.y]);
 const selected = (id: string): boolean => selection.selectedIds.some(candidate => candidate === id);
 const previewPoints = computed(() => task.draft.points.length && task.draft.cursor ? points([task.draft.points[task.draft.points.length - 1], task.draft.cursor]) : []);
+const noDraftPoints: readonly Point[] = [];
+const wallDraftPoints = computed(() => runtime.activeToolId.value === 'draw-wall' ? task.draft.points : noDraftPoints);
 function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 function openingLines(opening: Opening) {
 	const { tokens, zoom } = props, linePoints = points(openingPoints(opening, structure.value.walls));
@@ -78,6 +81,11 @@ const elementDraft = computed(() => {
 		<VLine
 			v-if="previewPoints.length"
 			:config="{ points: previewPoints, stroke: tokens.accent, strokeWidth: 2 / zoom, dash: [7 / zoom, 4 / zoom] }"
+		/>
+		<WallDraftOverlay
+			:points="wallDraftPoints"
+			:tokens="tokens"
+			:zoom="zoom"
 		/>
 	</VLayer>
 </template>

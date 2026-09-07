@@ -7,6 +7,14 @@ is claimed. Main remains untouched; work is on `codex/editor-object-ui` in
 
 ## Source anchors and saved work
 
+Latest prepared UI follow-up: M01 grouped original metrics/guidance and Room change cues;
+M04 read-only dashed wall draft/corners; explicit 1000px/top and 880px/460px closed-canvas
+supplements. Native120 unchanged checks plus corrected2 new cases, types/Oxlint/scoped lint
+and script syntax passed. See `editor-final-overview-followup.md`. The next step is actual
+overview/downstream design capture, then the complete final matrix on the shared source.
+UI owns the current heavy slot and will report the exact capture handle. Pan is verified
+at dba43e5f/eefc7c15; preserve those measured configs. No all-screen final acceptance yet.
+
 Pan follow-up: Root's quiet/profile diagnosis confirmed avoidable vue-konva config work.
 ZoneShape now uses a primitive caption displacement, cached configs and a memoized existing
 Group. Genuine old-source RED and 24-test/47-test native GREEN batches are recorded in

@@ -55,7 +55,7 @@ async function quotes(page, scenario, out) {
 	await recordShot(page, scenario, out, 'room-costs');
 	await editorAccessibility(page, scenario, out, 'room-costs');
 	const before = await editorContextSnapshot(page);
-	const costs = await page.locator('.rp-cost-totals').innerText();
+	const costs = await page.locator('.rp-cost-totals').first().innerText();
 	await activateReady(page, '[data-rp-downstream="quotes"]'); await page.locator('.rp-project-quotes').waitFor();
 	assert.equal(await page.locator('.rp-plan-canvas').isVisible(), false, 'comparison opens outside the Inspector');
 	await createNamedCatalogueEntry(page, '.rp-project-quotes .rp-project-work__controls > button:first-of-type', 'Local craft');
@@ -77,7 +77,7 @@ async function quotes(page, scenario, out) {
 	await assertEditorContext(page, before);
 	await panel(page, 'details');
 	await activate(page, await page.locator('[data-rp-linked="costs"]').isVisible() ? '[data-rp-linked="costs"]' : '[data-rp-mode="costs"]');
-	assert.equal(await page.locator('.rp-cost-totals').innerText(), costs, 'quote offers do not silently become spending facts');
+	assert.equal(await page.locator('.rp-cost-totals').first().innerText(), costs, 'quote offers do not silently become spending facts');
 	return accessibility;
 }
 

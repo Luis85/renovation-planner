@@ -37,3 +37,13 @@ journey; both preparations must be integrated with the verified UI source before
 Per the integration task's intermediate-checkpoint instruction, only `node --check
 scripts/editor-recovery-check.mjs` and `git diff --check` were run for this preparation; both
 passed. No dependency install, test, browser capture or performance measurement ran here.
+
+## M15 overview capture preparation
+
+The recovery driver additionally navigates from the real saved-but-stale Materials state to
+Room overview, keeps the warning and saved-refresh-needed label visible, and records
+`<scenario>-saved-overview.png`. It returns through the existing Materials linked count before
+the unchanged retry assertions. Both navigation steps must leave Plan and material write
+counts unchanged. This supplies the M15 comparison's requested Room-overview context using
+the same real fault-injected workflow. Syntax and diff checks passed; this added capture has
+not yet run and records no browser acceptance.

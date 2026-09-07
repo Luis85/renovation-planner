@@ -19,6 +19,16 @@ async function recovery(page, scenario, out) {
  assert.equal(await page.locator('[data-rp-action="undo"]').isDisabled(), true);
  assert.match(await page.locator('.rp-save-state-label').innerText(), /refresh needed|Aktualisierung/);
  await recordShot(page, scenario, out, 'saved-refresh-needed');
+ const navigationBefore = await snapshot(page);
+ await activate(page, '[data-rp-mode="overview"]');
+ assert.equal(await page.locator(retry).isVisible(), true);
+ assert.match(await page.locator('.rp-save-state-label').innerText(), /refresh needed|Aktualisierung/);
+ await recordShot(page, scenario, out, 'saved-overview');
+ await activate(page, '.rp-linked-counts [data-rp-linked="materials"]');
+ assert.equal(await page.locator(retry).isVisible(), true);
+ const navigationAfter = await snapshot(page);
+ assert.equal(navigationAfter.materialWrites, navigationBefore.materialWrites, 'inspection navigation does not replay material writes');
+ assert.equal(navigationAfter.planWrites, navigationBefore.planWrites, 'inspection navigation does not write the Plan');
  for (let index = 0; index < 2; index++) { await activate(page, retry); await page.waitForFunction(() => document.querySelector('[data-rp-warning="stale"] [data-rp-action="retry"]')?.getAttribute('aria-disabled') !== 'true'); }
  const failed = await snapshot(page); assert.equal(failed.materialWrites - before.materialWrites, 1);
  const warningAccessibility = await accessibility(page, scenario, out, '-warning');

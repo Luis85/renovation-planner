@@ -85,6 +85,18 @@ Diff/source review only; types, lint, Fallow complexity, tests, focus/recovery, 
 screenshots remain pending. Root owns EvidenceInspector complexity, E owns downstream Work/Quote
 view cleanup and currently has the heavy verification slot. This UI package starts no heavy task.
 
+Final static-capture preparation adds an isolated upright M06 measurement state using the
+1640 × 1240 representative floor fixture and valid source-pixel endpoints. The original
+3000 × 2000 reference journey, 90° rotation/crop, invalid inputs, PDF, Undo and reflow assertions
+remain unchanged. M03 now waits for its existing 4.2 × 3.8 draft values; M05 confirms the three
+start buttons without an active task/form. Browser execution remains pending; syntax/diff only.
+
+Root requested production scope freeze at `43cd1ac8` until bounded validation. E finishes Fallow,
+then Root has a short Inspector/CI check, then UI receives the exclusive heavy slot. Next UI
+batch: types and full lint; focused native Add/Room/renovation/Review/planning/selection/warning/
+reference checks; Fallow; then actual planning/gallery and overview captures. Report concrete
+initial failures before expanding source. No original assertions or quality floors are weakened.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

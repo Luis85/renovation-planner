@@ -13,7 +13,7 @@ It does not mark all M00–M17 criteria or a release complete.
 | Recoverable draft | Planning and renovation forms keep their captured target, baseline, text and editable fields while Apply pauses. Shared DraftRecovery offers read-only retry and source inspection; disappearing recovery restores focus within the form. Existing conflict/version checks still refuse a peer-changed baseline. |
 | Different failure classes | Validation/write/conflict messages remain distinct; unexpected hydration rejection becomes a read failure. Uncompensated operations keep a sticky mount-local warning even after successful read. Existing conditional compensation tests remain authoritative; there is no general durable journal. |
 | Latest read and disposal | `latest-read.ts` coalesces requests, skips obsolete planning results and resolves outstanding waiters on disposal. ProjectStore cancels hydration tickets. Unit tests drive queued/active disposal, reentrancy, rejected reads/publication and retained spatial data. |
-| Evidence freshness | Stored and resolved relative paths, including folder prefixes, invalidate evidence resolution only. Thumbnail errors reset when resolution changes; lazy images use async decoding. Registered host rename updates the index before repairing self-links. |
+| Evidence freshness | Stored and resolved relative paths, including folder prefixes, invalidate evidence resolution only. Mutable thumbnail resources carry the evidence revision in their query so successful images reload too; immutable data/blob URLs retain their identity. Errors reset when resolution changes; lazy images use async decoding. Registered host rename updates the index before repairing self-links. |
 | Review and shopping | All-clear waits for successful planning data and both finding lists. Source measurement changes mark stale even with unchanged packaging. Shopping checks every material before filtering outstanding quantities. Generated Review uses one fresh planning baseline for both finding families and title. |
 | Keyboard, themes and locale | Native controls drive the complete planning journey, including modal focus/Escape, retained drafts and history. Selected records have explicit text/ARIA state. Warning body text uses normal contrast with severity label/border; passive status uses muted text. Decimal-string formatting keeps currency identity and EN/DE grouping without binary money conversion. |
 
@@ -288,3 +288,38 @@ existing actions preserves their source positions for that artifact. Its initial
 shifted the unchanged `change` function and produced an unmatched-coverage CRAP finding;
 the final run reports zero dead-code, duplication or complexity findings. This is not fresh
 whole-project coverage. The full combined gate and final browser evidence remain separate.
+
+## Room pauses, changed image bytes and repeated rail activation — 2026-09-07
+
+PR #90 reviews 3946488461 and 3946488464 exposed two adjacent gaps. Room rename/resize now
+consume the runtime's complete write gate, including planning failure and unrecovered writes,
+for their opener, retained form and commit guard. The existing saving pause remains. Native
+fields stay focused with their text intact and announce read-only while Apply is unavailable.
+Read-only hydration restores an ordinary planning pause, but does not clear an unrecovered write.
+
+EvidencePreview now adds a revision query token to mutable resource URLs. It preserves existing
+query parameters and fragments and leaves immutable data/blob sources intact. A previously
+successful image therefore receives a different source when its file changes in place; failed
+thumbnail recovery, labels, lazy loading and async decoding remain. This uses the existing
+evidence event revision and adds no planning read or separate preview store.
+
+The UI task's preliminary German journey also found repeated rail activation leaving focus
+on the rail because the overlay value did not change. PanelRail now explicitly focuses the
+visible panel after its opening render, unless the panel already owns focus. The target may
+disappear during reflow; that case leaves focus with the persistent region. Escape from the
+focused panel closes it and returns to its rail without clearing the Room selection. The
+target classes are shared with the persistent outlets in finalization; execution on that
+combined source remains separate from the verified older overlays on this PR.
+
+The preceding source reproduced **seven failures**: four Room gate cases, two repeated-rail
+cases and the successful same-URL image case. The corrected source passed **119 tests in nine
+files** (34.78 s, two workers), including the established Room naming/resizing, responsive shell,
+planning form/workflow and recovery cases. These tests use actual mounted editor controls and
+repository-backed Room fixtures; native Escape is dispatched on the focused node. No additional
+browser/performance matrix ran for this follow-up; the final shared run remains authoritative.
+
+Type checking, whole-project Oxlint, changed/new-file ESLint and Fallow passed after adding the required mock
+type parameter. Fallow uses the previous full coverage artifact and reports zero dead-code,
+duplication or complexity findings. A separate 10-test V8 run over the thumbnail URL helper and
+PanelRail measured 100% across 17 statements, 14 branches, five functions and 13 lines. That
+targeted measurement does not replace full combined coverage; no floor or exclusion changed.

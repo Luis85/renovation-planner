@@ -15,7 +15,7 @@ import { useDialogStore } from '../dialogs/dialog-store';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
 import { staleWriteRefusal } from './tools/with-stale-gate';
 
-export type RoomEditRuntime = Pick<EditorRuntime, 'commitField' | 'activeToolId' | 'refreshProjection'>;
+export type RoomEditRuntime = Pick<EditorRuntime, 'commitField' | 'activeToolId' | 'refreshProjection' | 'writesBlocked'>;
 export interface RoomEditDefinition {
 	readonly faultEvent: string;
 	latest(current: ZoneDto | undefined): string;
@@ -31,7 +31,7 @@ export interface RoomEditDefinition {
 export function createRoomEditAction(context: PlanEditorContext, runtime: RoomEditRuntime, definition: RoomEditDefinition) {
 	const project = useProjectStore(), selection = useSelectionStore(), saves = useSaveStateStore(), dialogs = useDialogStore();
 	const loading = ref(false);
-	const blocked = computed(() => project.stale || saves.state === 'saving');
+	const blocked = computed(() => runtime.writesBlocked.value || saves.state === 'saving');
 	let alive = true, generation = 0;
 	watch([() => selection.selectedIds, runtime.activeToolId], () => { generation++; }, { flush: 'sync' });
 	onBeforeUnmount(() => { alive = false; generation++; });

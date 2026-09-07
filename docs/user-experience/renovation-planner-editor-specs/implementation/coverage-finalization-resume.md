@@ -10,6 +10,18 @@ Root owns shared status files and the final combined source/acceptance.
 
 ## Latest checkpoint
 
+Outline verification is complete: corrected 2/2 native cases pass in 34.48 seconds,
+types/whole Oxlint/scoped ESLint/static Fallow pass, and the 2/2 scoped coverage run
+(15.99 seconds) confirms +2 branches/+1 statement/+1 function on comparable maps.
+[Verified Outline receipt](evidence/outline-peer-counter-gains.json). Handles 67656/68690
+are terminal and the slot has been explicitly returned to Root.
+
+Root has now supplied the common UI join `57144c81bffaf618681a62ea73a88bcaa1804684`,
+including UI `f576d13c` and the private date cleanup. Merge this into the coverage branch
+after the above terminal receipt, then test the Review file only in the next granted
+slot. New source means new full coverage and Health evidence; prior 26-arm deficit is
+historical and must not be carried forward as a current measurement.
+
 Root selectively integrated the verified command package as `9d3a5de4` and the
 private Requirement cleanup as `1b554540` (Root's integration test rerun: 16/16).
 UI Review production is available as unverified `876f0dd3`; Root/UI own its current

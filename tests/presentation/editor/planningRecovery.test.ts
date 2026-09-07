@@ -42,10 +42,18 @@ describe('connected planning read-back recovery', () => {
   const editing = rig.runtime.renovation.edit('existing', rig.room.id); await settle();
   const field = rig.wrapper.get<HTMLTextAreaElement>('[name="description"]');
   await field.setValue('Original oak boards'); field.element.focus();
+  await rig.wrapper.get('[data-rp-form="renovation"]').trigger('submit'); await settle();
+  expect(rig.wrapper.get('[data-rp-form="renovation"] button[type="submit"]').text()).toBe('Apply');
   const read = vi.spyOn(services, 'read').mockResolvedValue(failure); rig.changePlan(); await settle();
   expect(field.element.readOnly).toBe(false); expect(document.activeElement).toBe(field.element);
+  const apply = rig.wrapper.get('[data-rp-form="renovation"] button[type="submit"]');
+  expect(apply.attributes('aria-disabled')).toBe('true');
+  await field.setValue('Restored oak boards');
+  const unchanged = [...rig.stack.vault.entries];
+  await rig.wrapper.get('[data-rp-form="renovation"]').trigger('submit'); await settle();
+  expect([...rig.stack.vault.entries]).toEqual(unchanged);
   read.mockRestore(); await rig.wrapper.get('.rp-draft-recovery button').trigger('click'); await settle();
-  expect(field.element.value).toBe('Original oak boards');
+  expect(field.element.value).toBe('Restored oak boards'); expect(apply.attributes('aria-disabled')).toBe('false');
   const savePlan = rig.stack.plans.save.bind(rig.stack.plans);
   const save = vi.spyOn(rig.stack.plans, 'save').mockImplementation(async (...args) => {
    const result = await savePlan(...args); vi.spyOn(services, 'read').mockResolvedValue(failure); return result;
@@ -55,7 +63,7 @@ describe('connected planning read-back recovery', () => {
   expect(save).toHaveBeenCalledOnce(); expect(rig.wrapper.text()).toContain('Saved · refresh needed');
   vi.mocked(services.read).mockRestore(); await rig.runtime.refreshProjection(); await rig.runtime.refreshProjection();
   expect(save).toHaveBeenCalledOnce(); expect(rig.runtime.writesBlocked.value).toBe(false);
-  expect(rig.runtime.planning.baseline.value?.plan.entity.renovation?.subjects[0].existing?.description).toBe('Original oak boards');
+  expect(rig.runtime.planning.baseline.value?.plan.entity.renovation?.subjects[0].existing?.description).toBe('Restored oak boards');
  });
  it('retains the projection after one successful save, blocks unsafe history and retries only reads', async () => {
   const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');

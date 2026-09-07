@@ -22,6 +22,7 @@ entries are added by the pull request that earns them, never invented at release
 
 - Plan editor: planning read-back recovery retains the last valid projection, qualifies saved
   status, pauses unsafe writes/history and offers read-only retry from warnings and open drafts.
+  Renovation Apply exposes its paused state to assistive technology while draft fields stay editable.
   EN/DE planning numbers preserve decimal precision and accept decimal comma or point.
   Relevant event bursts coalesce; linked evidence refreshes without recalculating the floor.
 

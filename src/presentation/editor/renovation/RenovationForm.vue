@@ -31,6 +31,7 @@ const submitting = ref(false);
 useDialogFormBusy(submitting, props.busy);
 const error = ref<AppError | null>(null), conflict = ref(false), reviewed = ref(false);
 const frozen = computed(() => props.busy.value || conflict.value);
+const submitBlocked = computed(() => frozen.value || props.paused.value);
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
 const targets = computed(() => [{ id: draft.value.subject.roomId, label: tr('renovation.room-target') },
@@ -50,7 +51,7 @@ function accept(result: DispatchResult): void {
 	conflict.value = WRITE_BOUNDARY_CODES.some(code => result.error.code.endsWith(code)) || result.error.code === 'undo.superseded';
 }
 async function submit(): Promise<void> {
-	if (frozen.value || props.paused.value) return;
+	if (submitBlocked.value) return;
 	const input = proposal();
 	if (!input.ok) { error.value = input.error; return; }
 	const valid = validateRenovationInput(input.value.renovation, { ...props.baseline.geometry.document, intended: input.value.intended });
@@ -135,7 +136,7 @@ function changed(): void { if (!props.busy.value) reviewed.value = false; }
 		</p>
 		<button
 			type="submit"
-			:aria-disabled="frozen"
+			:aria-disabled="submitBlocked"
 		>
 			{{ tr(reviewed ? 'renovation.apply' : 'renovation.preview') }}
 		</button>

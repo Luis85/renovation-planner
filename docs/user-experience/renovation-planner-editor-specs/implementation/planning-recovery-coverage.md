@@ -3,7 +3,7 @@
 The final `npm run check` **passed** on 2026-09-07 with `VITEST_MAX_WORKERS=2`, Windows and
 Node 24.20.0. Build/vue-tsc, oxlint, ESLint, the coverage suite and Fallow all passed.
 **541 test files passed; 7,259 tests passed, 70 existing skips, 7,329 total.**
-The test phase began at 01:26:38 Europe/Berlin and took **670.32 seconds**.
+The test phase began at 01:57:32 Europe/Berlin and took **647.91 seconds**.
 Production dependency audit reports zero vulnerabilities.
 
 Existing thresholds remain 99% statements/functions/lines and 98% branches.
@@ -26,6 +26,14 @@ also list uncovered locations. Whole-suite uncovered totals are 128 statements, 
 See [implementation and browser evidence](planning-recovery-evidence.md) for scope and limits.
 
 ## Diagnostic runs before the final gate
+
+PR #90 review 3945673161 was reproduced by entering renovation Apply before a failed read:
+the button reported `aria-disabled="false"` while submission was blocked. After sharing one
+blocked-state computation between the button and submit handler, all seven recovery tests
+pass, including editable retained text, zero writes while paused, read-only retry and one
+successful save after recovery. The final full gate and counters in this ledger include this
+follow-up. The previous checkpoint `26b693bd` also passed the complete gate in 670.32 seconds;
+its four-scenario browser captures remain separately attributed in the evidence report.
 
 The first complete locally installed run passed **541 test files, 7,257 tests and 70 existing
 skips** in 676.26 seconds. Build and both linters passed. Coverage was 14,669/14,799 statements
@@ -61,8 +69,8 @@ zero vulnerabilities.
 
 | Scope | Statements | Branches | Functions | Lines |
 | --- | --- | --- | --- | --- |
-| Whole suite | 14673/14801 (99.13%) | 9498/9687 (98.04%) | 4072/4109 (99.09%) | 11934/12001 (99.44%) |
-| Changed instrumented files | 1308/1323 (98.86%) | 977/1002 (97.5%) | 401/410 (97.8%) | 959/968 (99.07%) |
+| Whole suite | 14675/14803 (99.13%) | 9498/9687 (98.04%) | 4073/4110 (99.09%) | 11935/12002 (99.44%) |
+| Changed instrumented files | 1310/1325 (98.86%) | 977/1002 (97.5%) | 402/411 (97.81%) | 960/969 (99.07%) |
 
 | File | Statements | Branches | Functions | Lines |
 | --- | --- | --- | --- | --- |
@@ -88,7 +96,7 @@ zero vulnerabilities.
 | `src/presentation/editor/planning/planningReadState.ts` | 7/7 (100%) | 0/0 (100%) | 1/1 (100%) | 4/4 (100%) |
 | `src/presentation/editor/planning/planningRefresh.ts` | 50/50 (100%) | 26/26 (100%) | 14/14 (100%) | 29/29 (100%) |
 | `src/presentation/editor/renovation/renovationActions.ts` | 87/87 (100%) | 86/90 (95.55%) | 13/13 (100%) | 56/56 (100%) |
-| `src/presentation/editor/renovation/RenovationForm.vue` | 63/69 (91.3%) | 66/69 (95.65%) | 13/18 (72.22%) | 43/48 (89.58%) |
+| `src/presentation/editor/renovation/RenovationForm.vue` | 65/71 (91.54%) | 66/69 (95.65%) | 14/19 (73.68%) | 44/49 (89.79%) |
 | `src/presentation/editor/renovation/ReviewInspector.vue` | 52/52 (100%) | 60/61 (98.36%) | 13/13 (100%) | 31/31 (100%) |
 | `src/presentation/editor/runtime.ts` | 163/163 (100%) | 52/53 (98.11%) | 56/56 (100%) | 127/127 (100%) |
 | `src/presentation/editor/save-state/SaveStateIndicator.vue` | 8/8 (100%) | 9/9 (100%) | 2/2 (100%) | 7/7 (100%) |

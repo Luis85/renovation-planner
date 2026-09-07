@@ -25,7 +25,7 @@ function entryById(id: CreationEntryId): CreationEntry {
 describe('the creation catalogue', () => {
 	it('offers Room and Area, each activating its own geometry path', () => {
 		const available = CREATION_CATALOGUE.filter((e) => e.availability.kind === 'available');
-		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'area', 'path', 'fence', 'measurement', 'note']);
+		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'area', 'path', 'fence', 'item', 'measurement', 'note']);
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		available[0].activate({ setTool });
 		expect(setTool).toHaveBeenCalledWith('draw-room');
@@ -43,11 +43,11 @@ describe('the creation catalogue', () => {
 		activateCreationEntry('note', { setTool, createNote });
 		expect(createNote).toHaveBeenCalledOnce(); expect(setTool).not.toHaveBeenCalled();
 	});
-	it('every unsupported entry carries a reason and throws if activated', () => {
-		for (const entry of CREATION_CATALOGUE.filter((e) => e.availability.kind === 'unsupported')) {
-			expect(entry.availability).toEqual({ kind: 'unsupported', reasonKey: 'editor.add.unsupported.not-yet' });
-			expect(() => entry.activate({ setTool: vi.fn<(id: ToolId | null) => void>() })).toThrow(/unsupported/);
-		}
+
+	it.each([['path', 'draw-path'], ['fence', 'draw-fence'], ['item', 'place-object'], ['measurement', 'measure']] as const)('starts the implemented %s task exactly once', (id, tool) => {
+		const setTool = vi.fn<(id: ToolId | null) => void>();
+		expect(entryById(id).availability.kind).toBe('available');
+		activateCreationEntry(id, { setTool }); expect(setTool).toHaveBeenCalledExactlyOnceWith(tool);
 	});
 
 	it('contains no internal vocabulary in either locale', () => {

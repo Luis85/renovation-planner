@@ -9,8 +9,8 @@
 .renovation-plan-editor .rp-add-menu__item { padding: 12px; gap: 5px; }
 .renovation-plan-editor .rp-add-menu__item-label { font-weight: var(--font-semibold); }
 .renovation-plan-editor .rp-add-menu__search { min-height: 36px; margin-bottom: 8px; }
-.renovation-plan-editor .rp-add-menu__item--unsupported .rp-add-menu__item-label,
-.renovation-plan-editor .rp-add-menu__item--unsupported .rp-add-menu__item-description,
+.renovation-plan-editor .rp-add-menu__item[aria-disabled="true"] .rp-add-menu__item-label,
+.renovation-plan-editor .rp-add-menu__item[aria-disabled="true"] .rp-add-menu__item-description,
 .renovation-plan-editor .rp-add-menu__reason { color: var(--text-muted); }
 .renovation-plan-editor .rp-task-banner { padding: 10px 14px; background: var(--background-primary); }
 .renovation-plan-editor .rp-new-room { display: grid; gap: 14px; }
@@ -86,6 +86,12 @@
 .renovation-plan-editor .rp-warning-strip__item--error { border-inline-start-color: var(--text-error); }
 .renovation-plan-editor .rp-warning-strip__severity { font-weight: var(--font-semibold); }
 .renovation-plan-editor .rp-warning-strip__actions { gap: 8px; }
+
+/* Host error red on a light surface can miss small-text contrast; the glyph and invalid border retain the error cue. */
+.renovation-plan-editor .rp-field-error__message { color: var(--text-normal); }
+.renovation-plan-editor .rp-field-error__glyph { color: var(--text-error); }
+.renovation-plan-editor .rp-structure-renovation-entry select { width: 100%; min-width: 0; max-width: 100%; min-height: 32px; }
+.renovation-plan-editor .rp-layer-list__row label { flex-basis: 8rem; }
 
 @container (min-width: 900px) {
 	.renovation-plan-editor .rp-dialog:has(.rp-reference-setup) { width: min(56rem, 100%); }

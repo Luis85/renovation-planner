@@ -1,3 +1,4 @@
+import { emptyObjectRectangle, type ObjectRectangleText } from './objectRectangleInput';
 import { reactive } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
@@ -14,11 +15,12 @@ export function isElementTool(id: ToolId | null): id is ElementToolId { return i
 export interface ElementDraft {
 	kind: SpatialElementKind; name: string; points: Point[]; cursor: Point | null;
 	text: { x: string; y: string };
+	rectangle: ObjectRectangleText;
 	pendingInput: boolean;
 	loading: boolean; busy: boolean; conflict: boolean; error: AppError | null;
 }
 export function createElementDraft(): ElementDraft {
-	return reactive({ kind: 'object', name: '', points: [], cursor: null, text: { x: '', y: '' }, pendingInput: false, loading: false, busy: false, conflict: false, error: null });
+	return reactive({ kind: 'object', name: '', points: [], cursor: null, text: { x: '', y: '' }, rectangle: emptyObjectRectangle(), pendingInput: false, loading: false, busy: false, conflict: false, error: null });
 }
 export function discardElementGeometry(draft: ElementDraft): void {
 	const { kind, name, loading, busy, conflict } = draft, error = conflict ? draft.error : null;

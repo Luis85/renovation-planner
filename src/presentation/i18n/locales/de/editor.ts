@@ -1,3 +1,4 @@
+import { objectDe } from './object';
 import type {
  editorEn } from '../en/editor';
 
@@ -13,6 +14,7 @@ import type {
  */
 import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
+	...objectDe,
 	"editor.element.name-required": "Geben Sie einen Namen ein.",
 	"editor.element.edit": "{name} bearbeiten",
 	"editor.element.edit-action": "Name und Koordinaten bearbeiten",

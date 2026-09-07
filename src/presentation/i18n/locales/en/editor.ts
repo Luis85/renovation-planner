@@ -1,3 +1,4 @@
+import { objectEn } from './object';
 /**
  * The Plan Editor's own vocabulary — the shell (context bar, rail, status bar),
  * the add-menu catalogue, the Inspector (its floor and room panels, its requirements
@@ -25,6 +26,7 @@
  */
 import { structureEn } from './structure';
 export const editorEn = {
+	...objectEn,
 	"editor.element.name-required": "Enter a name.",
 	"editor.element.edit": "Edit {name}",
 	"editor.element.edit-action": "Edit name and coordinates",

@@ -70,7 +70,7 @@ async function submit(): Promise<void> {
 			<label
 				:for="inputId"
 				class="rp-dialog-field"
-			>{{ tr('editor.area.name') }}
+			>{{ tr('editor.room.name') }}
 				<input
 					:id="inputId"
 					v-bind="aria"

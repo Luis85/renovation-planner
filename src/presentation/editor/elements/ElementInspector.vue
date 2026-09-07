@@ -35,21 +35,23 @@ async function edit(event: Event): Promise<void> {
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
 		<StructureRenovationEntry />
-		<button
-			type="button"
-			data-rp-action="edit-element"
-			:aria-disabled="runtime.elementActions.blocked.value"
-			@click="edit"
-		>
-			{{ tr('editor.element.edit-action') }}
-		</button>
-		<button
-			type="button"
-			data-rp-action="delete-element"
-			:aria-disabled="runtime.elementActions.blocked.value"
-			@click="runtime.elementActions.remove(element.id)"
-		>
-			{{ tr('editor.structure.delete') }}
-		</button>
+		<div class="rp-dialog-actions">
+			<button
+				type="button"
+				data-rp-action="edit-element"
+				:aria-disabled="runtime.elementActions.blocked.value"
+				@click="edit"
+			>
+				{{ tr('editor.element.edit-action') }}
+			</button>
+			<button
+				type="button"
+				data-rp-action="delete-element"
+				:aria-disabled="runtime.elementActions.blocked.value"
+				@click="runtime.elementActions.remove(element.id)"
+			>
+				{{ tr('editor.element.delete-action') }}
+			</button>
+		</div>
 	</section>
 </template>

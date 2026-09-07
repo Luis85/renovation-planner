@@ -19,8 +19,7 @@ import { elementInput } from './elementInput';
 import type { AppError } from '../../../core/errors/AppError';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 
-type Runtime = Pick<EditorRuntime, 'toolManager' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { ledger: WriteLedger };
-export function createElementTask(context: PlanEditorContext, runtime: Runtime) {
+export function createElementTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { ledger: WriteLedger }) {
 	const project = useProjectStore(), selection = useSelectionStore(), save = useSaveStateStore();
 	const draft = createElementDraft(), reads = createElementBaseline(context, runtime, draft);
 	const { baseline, needsRead, retry } = reads;

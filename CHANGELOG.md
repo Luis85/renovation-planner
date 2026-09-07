@@ -202,6 +202,8 @@ entries are added by the pull request that earns them, never invented at release
 
 - Preserve native Inspector/Layer controls, pending text, caret selection and focus while resizing the editor. A focused region opens automatically at constrained widths; close and Escape still return focus to the rail.
 
+- Report unexpected query failures from planning and renovation draft retries while retaining the draft and keeping retry read-only; suppress late reports after the editor closes.
+
 - Plan editor recovery retires obsolete spatial and Inspector reads when a newer refresh is queued, continues after obsolete read failures, reports detached refresh faults, and offers only Close when the Plan is missing.
 
 - Open drafts distinguish an incomplete write from a failed refresh: source inspection and Cancel remain available, without offering a read retry that cannot repair partial writes.

@@ -266,3 +266,25 @@ cases and now restores itself after each case.
 
 Fallow's CRAP inputs remain the prior full coverage artifact. This is the authorized targeted
 review gate, not a fresh whole-project coverage run or final integrated browser acceptance.
+
+## Draft retry query failures — 2026-09-07
+
+PR #90 review 3946364283 identified a remaining detached refresh boundary: the draft recovery
+button called the raw runtime refresh. Inspector or requirements query rejections escaped
+through Vue's native event handler. Both form entry points now supply a guarded retry
+callback using the existing fault reporter and the editor's existing lifetime flag. The
+callback reports once while the editor is open, while the shared recovery component continues
+to reset its reading flag. Runtime refresh and successful-write tracking retain their existing
+failure semantics.
+
+Four repository-backed cases reproduced the missing report and four unhandled rejections
+against `00adf082`; two disposal cases passed there already. The six new cases cover planning
+and renovation drafts, Inspector and requirements failures, retained values, unchanged vault
+contents, another successful read-only retry and disposal during a pending query. All **56
+tests in six related files passed** on the corrected source (31.00 s, two workers), with no
+unhandled errors. Type checking, whole-project Oxlint, changed-file ESLint, Fallow and diff
+checks passed. Fallow still uses prior full coverage: placing the new helper after the
+existing actions preserves their source positions for that artifact. Its initial placement
+shifted the unchanged `change` function and produced an unmatched-coverage CRAP finding;
+the final run reports zero dead-code, duplication or complexity findings. This is not fresh
+whole-project coverage. The full combined gate and final browser evidence remain separate.

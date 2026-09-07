@@ -12,7 +12,7 @@ import type { EditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import { useRenovationSession } from '../renovation/renovationSession';
-import { notifyOperationFailure } from '../../notices/notify';
+import { notifyFault, notifyOperationFailure } from '../../notices/notify';
 import { tr } from '../../i18n/strings';
 import PlanningForm from './PlanningForm.vue';
 import { planningDraft, type PlanningKind } from './planningDraft';
@@ -20,10 +20,13 @@ import { planningDraft, type PlanningKind } from './planningDraft';
 const KEY: InjectionKey<ReturnType<typeof providePlanningContext>> = Symbol('planning-depth');
 export function providePlanningContext(context: PlanEditorContext, runtime: EditorRuntime) {
 	const { baseline, loading, failed, findings, evidenceRevision, slow } = runtime.planning;
-	const refresh = runtime.refreshProjection;
 	const project = useProjectStore(), dialogs = useDialogStore(), session = useRenovationSession();
 	let alive = true;
 	onBeforeUnmount(() => { alive = false; });
+	async function refresh(): Promise<void> {
+		try { await runtime.refreshProjection(); }
+		catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); }
+	}
 	const blocked = computed(() => loading.value || runtime.writesBlocked.value || runtime.renovation.blocked.value);
 	function matches(read: PlanningBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation) && sameGeometryDocument(

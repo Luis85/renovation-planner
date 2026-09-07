@@ -104,7 +104,7 @@ Evidence: `areaCreation.e2e.test.ts`, `add/areaOutline.test.ts`, `areaPersistenc
 in light, dark, custom accent and German constrained layouts. Its browser fixture refuses
 writes; successful persistence and Undo/Redo are exercised by the repository-backed tests.
 
-Current reconciliation: Area name/type forms are implemented in finalization. Self-intersection detection is explicitly deferred by SDD §26 and the Spatial object entity contract. The unavailable creation domains and final acceptance remain open.
+Current reconciliation: Area name/type forms are implemented in finalization. Self-intersection detection is explicitly deferred by SDD §26 and the Spatial object entity contract. All eleven Add routes are now implemented; final integrated acceptance remains open.
 
 
 ## Numeric Area corner input — continuation of Phase 3 / Increment A

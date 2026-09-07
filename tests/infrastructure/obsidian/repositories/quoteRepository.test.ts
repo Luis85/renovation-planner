@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// Exercises the browser-hosted plugin composition, including its native view imports.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { downstreamStack } from '../../../helpers/downstream';
 import { expectDefined, expectOk } from '../../../helpers/domain';

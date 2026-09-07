@@ -101,12 +101,14 @@ Pan remains available through Space+drag, middle-button drag, and trackpad gestu
 - The screen is legible in Obsidian default light and dark themes and under a custom accent color.
 
 
-## Implemented Increment C boundary — 2026-09-06
+## Historical Increment C checkpoint — 2026-09-06
 
 The connected implementation uses ADR-0021: independent Existing/Planned facts in the owning
 Plan register, project-owned Work/outcome links, minimal Decisions, separate intended
 straight-wall/opening geometry and scoped Review. All records have Inspector list routes;
 Room selection remains spatial. See [evidence and traceability](../implementation/connected-renovation-evidence.md).
-Evidence, financial reconciliation, materials purchasing, Trade catalogue and scheduling remain
-later work. These screens are not declared fully accepted; live Obsidian and screenreader
-acceptance remain unperformed.
+At that checkpoint, Evidence, financial reconciliation, materials purchasing, Trade catalogue
+and scheduling were still outstanding. They are implemented in the current integration through
+the existing planning repositories and the [downstream Work/Quote routes](../implementation/downstream-planning-evidence.md).
+This supersedes the earlier implementation boundary; final integrated gates, visual, live Obsidian
+and screen-reader acceptance remain open.

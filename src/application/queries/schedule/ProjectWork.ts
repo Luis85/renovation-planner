@@ -1,6 +1,7 @@
 import type { AppError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { ProjectId } from '../../../domain/project/ProjectId';
+import type { Plan } from '../../../domain/plan/Plan';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { EMPTY_RENOVATION, blockingWork, orderedWork, type WorkPackage } from '../../../domain/renovation/Renovation';
 import type { Project } from '../../../domain/project/Project';
@@ -44,17 +45,19 @@ export async function readProjectWork(deps: ProjectWorkDeps, projectId: ProjectI
  const [plans, zones] = await Promise.all([deps.plans.listByProject(projectId), deps.zones.listByProject(projectId)]);
  if (!plans.ok) return plans;
  const names = new Map(zones.ok ? zones.value.loaded.map(item => [item.entity.id as string, item.entity.name]) : []);
- const rows: ProjectWorkRow[] = [];
- for (const loaded of plans.value.loaded) {
-  const plan = loaded.entity;
-  const value = plan.renovation ?? EMPTY_RENOVATION;
-  const subjects = new Map(value.subjects.map(item => [item.id, item]));
-  for (const work of orderedWork(value)) {
-   const roomIds = new Set([work.roomId, ...work.links?.map(link => link.roomId) ?? []]);
-   for (const id of work.outcomes) { const subject = subjects.get(id); if (subject) roomIds.add(subject.roomId); }
-   rows.push({ planId: plan.id, floor: plan.name, work, blocking: blockingWork(value, work),
-    rooms: Array.from(roomIds, id => ({ id, name: names.get(id) ?? null })) });
-  }
- }
+ const rows = plans.value.loaded.flatMap(loaded => planWorkRows(loaded.entity, names));
  return ok({ project: project.value.entity, rows, rooms: zones.ok ? zones.value.loaded.filter(item => item.entity.zoneType === 'Room').map(item => ({ id: item.entity.id, name: item.entity.name })) : [], unreadablePlans: plans.value.refused, roomsIncomplete: !zones.ok || zones.value.refused > 0 });
+}
+
+function planWorkRows(plan: Plan, names: ReadonlyMap<string, string>): readonly ProjectWorkRow[] {
+ const rows: ProjectWorkRow[] = [];
+ const value = plan.renovation ?? EMPTY_RENOVATION;
+ const subjects = new Map(value.subjects.map(item => [item.id, item]));
+ for (const work of orderedWork(value)) {
+  const roomIds = new Set([work.roomId, ...work.links?.map(link => link.roomId) ?? []]);
+  for (const id of work.outcomes) { const subject = subjects.get(id); if (subject) roomIds.add(subject.roomId); }
+  rows.push({ planId: plan.id, floor: plan.name, work, blocking: blockingWork(value, work),
+   rooms: Array.from(roomIds, id => ({ id, name: names.get(id) ?? null })) });
+ }
+ return rows;
 }

@@ -6,7 +6,7 @@ interface Lane { latest: number; tail: Promise<void>; pending: Map<string, Arriv
 const lanes = new WeakMap<WorkspaceLeaf, Lane>();
 let issued = 0;
 /** Issue order is captured before reveal; identical pending arrivals share one host action. */
-export function prepareEditorArrival(origin: ProjectOrigin): (leaf: WorkspaceLeaf, reportFault: (cause: unknown) => void) => Promise<Outcome> {
+export function prepareEditorArrival(origin: ProjectOrigin): (leaf: WorkspaceLeaf, reportFault: (cause: unknown) => void) => Promise<'opened' | 'failed'> {
  const issue = ++issued, key = JSON.stringify(origin);
  return (leaf, reportFault) => {
   const lane = lanes.get(leaf) ?? { latest: 0, tail: Promise.resolve(), pending: new Map<string, Arrival>() };

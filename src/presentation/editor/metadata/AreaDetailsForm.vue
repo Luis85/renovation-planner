@@ -8,7 +8,8 @@ import { useFormCommit } from '../../composables/use-form-commit';
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { useInvalidFieldFocus } from '../../composables/use-invalid-field-focus';
 import FieldError from '../../components/FieldError.vue';
-import FormBanner from '../../components/FormBanner.vue';
+import FormFeedback from '../forms/FormFeedback.vue';
+import NameInputField from '../forms/NameInputField.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { zoneTypeLabel } from '../shell/zoneTypeLabel';
@@ -44,32 +45,17 @@ async function submit(): Promise<void> {
 		@submit.prevent="submit"
 		@keydown="nativeSubmitKey"
 	>
-		<FormBanner :message="form.banner.value" />
-		<p
-			v-if="latest.value !== null"
-			role="status"
-		>
-			{{ latest.value }}
-		</p>
-		<FieldError
-			v-slot="{ inputId, aria }"
+		<FormFeedback
+			:message="form.banner.value"
+			:latest="latest.value"
+		/>
+		<NameInputField
+			:value="form.values.value.name"
+			:label="tr('editor.area.name')"
 			:message="form.fieldErrors.value.get('name') ?? null"
-		>
-			<label
-				:for="inputId"
-				class="rp-dialog-field"
-			>{{ tr('editor.area.name') }}
-				<input
-					:id="inputId"
-					v-bind="aria"
-					name="name"
-					type="text"
-					:value="form.values.value.name"
-					:readonly="paused"
-					@input="input('name', $event)"
-				>
-			</label>
-		</FieldError>
+			:paused="paused"
+			@input="input('name', $event)"
+		/>
 		<FieldError
 			v-slot="{ inputId, aria }"
 			:message="form.fieldErrors.value.get('zoneType') ?? null"
@@ -83,7 +69,7 @@ async function submit(): Promise<void> {
 					v-bind="aria"
 					name="zoneType"
 					:value="form.values.value.zoneType"
-					:disabled="paused"
+					:aria-disabled="paused"
 					@change="input('zoneType', $event)"
 				>
 					<option

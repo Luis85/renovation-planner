@@ -39,7 +39,7 @@ type PlanningFocus = string | { focusedId?: string; targetId?: string };
 function focusContext(focus: PlanningFocus, roomId: string) {
  return typeof focus === 'string' ? { focusedId: focus, targetId: roomId } : { focusedId: focus.focusedId ?? '', targetId: focus.targetId ?? roomId };
 }
-export function planningDraft(kind: PlanningKind, baseline: PlanningBaseline, roomId: string, id = '', focus: PlanningFocus = ''): PlanningDraft {
+export function planningDraft(kind: PlanningKind, baseline: PlanningBaseline, roomId: string, id = '', focus: string | { focusedId?: string; targetId?: string } = ''): PlanningDraft {
  const { focusedId, targetId } = focusContext(focus, roomId);
  const depth = baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH;
  const material = materialDraft(baseline, roomId, id, focusedId, targetId);

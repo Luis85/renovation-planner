@@ -1,4 +1,4 @@
-import { recordNavigationContext } from './recordNavigationContext';
+import { recordNavigationContext, type NavigationRecords } from './recordNavigationContext';
 import { usePlanningReadState } from '../planning/planningReadState';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
@@ -12,6 +12,7 @@ import { sameGeometryDocument } from '../../../application/commands/spatial/same
 import type { RenovationBaseline, RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
 import type { EditorRuntime } from '../runtime';
 import type { PlanEditorContext } from '../PlanEditorContext';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useSelectionStore } from '../selection/selection-store';
@@ -25,14 +26,17 @@ import RenovationForm from './RenovationForm.vue';
 import RenovationBatchForm from './RenovationBatchForm.vue';
 import type { BatchKind, BatchTarget } from './renovationBatch';
 
-function navigationTarget(records: Parameters<typeof recordNavigationContext>[0], roomId: string, id: string, session: Parameters<typeof recordNavigationContext>[3], hasSelection: boolean) {
- const current = hasSelection ? session : null;
- const destination = id ? recordNavigationContext(records, id, roomId, current) : null;
+function navigationTarget(records: NavigationRecords, roomId: string, id: string, current: Parameters<typeof recordNavigationContext>[3], mode: RenovationMode) {
+ const destination = id ? recordNavigationContext(records, id, roomId, current, mode) : null;
  return destination ?? (current?.roomId === roomId ? current : { roomId, targetId: roomId });
 }
 
+function revealRecord(id: string, workspace: ReturnType<typeof useWorkspaceStore>): void {
+ if (id && workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
+}
+
 export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask' | 'writesBlocked' | 'openPlanNote'>) {
-	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore(), planning = usePlanningReadState();
+	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore(), planning = usePlanningReadState(), workspace = useWorkspaceStore();
 	const session = useRenovationSession(), dialogs = useDialogStore(), save = useSaveStateStore();
 	const loading = ref(false);
 	const blocked = computed(() => loading.value || runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
@@ -59,9 +63,10 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			return;
 		}
 		runtime.returnToSelect();
-		const target = navigationTarget({ renovation: project.plan?.renovation ?? EMPTY_RENOVATION, materials: planning.baseline?.materials ?? [] }, roomId, id, session, selection.selectedIds.length > 0);
+		const target = navigationTarget({ renovation: project.plan?.renovation ?? EMPTY_RENOVATION, materials: planning.baseline?.materials ?? [] }, roomId, id, selection.selectedIds.length > 0 ? session : null, mode);
   Object.assign(session, target, { mode, focusedId: id, perspective: 'renovate' });
   if (id) session.evidencePhase = '';
+  revealRecord(id, workspace);
   if (selection.selectedIds.length !== 1 || selection.selectedIds[0] !== target.targetId) selection.select([target.targetId as EntityId<string>]);
 	}
 	function matches(read: RenovationBaseline): boolean {
@@ -78,6 +83,10 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		if (!matches(read.value)) { notifyOperationFailure(undoSuperseded(context.planId as PlanId)); await runtime.refreshProjection(); return null; }
 		return read.value;
 	}
+	function dispatch(read: RenovationBaseline, input: RenovationInput) {
+		return alive && context.commands.renovation ? runtime.dispatcher.run(context.commands.renovation.command(read, input, runtime.structureTask.ledger))
+			: Promise.resolve(err(undoSuperseded(context.planId as PlanId)));
+	}
 	async function edit(kind: RenovationEditKind, roomId: string, id = ''): Promise<void> {
 		if (blocked.value || dialogs.current || project.zones.get(roomId)?.zoneType !== 'Room') return;
 		loading.value = true;
@@ -89,9 +98,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			const busy = ref(false);
 			await dialogs.openDialog({ kind: 'form', title: tr(`renovation.edit.${kind}`), component: markRaw(RenovationForm), busy,
 				props: { draft, baseline: read, busy, paused: runtime.writesBlocked, retry: runtime.refreshProjection, openSource: runtime.openPlanNote,
-					dispatch: (input: RenovationInput) => alive && context.commands.renovation
-						? runtime.dispatcher.run(context.commands.renovation.command(read, input, runtime.structureTask.ledger))
-						: Promise.resolve(err(undoSuperseded(context.planId as PlanId))),
+					dispatch: (input: RenovationInput) => dispatch(read, input),
 				},
 			});
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.edit.failed'); }
@@ -120,9 +127,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			const busy = ref(false);
 			await dialogs.openDialog({ kind: 'form', title: tr(`renovation.batch.${kind}`), component: markRaw(RenovationBatchForm), busy,
 				props: { kind, targets, baseline: read, busy, paused: computed(() => project.stale), files: context.commands.evidenceFiles,
-					dispatch: (input: RenovationInput) => alive && context.commands.renovation
-						? runtime.dispatcher.run(context.commands.renovation.command(read, input, runtime.structureTask.ledger))
-						: Promise.resolve(err(undoSuperseded(context.planId as PlanId))) } });
+					dispatch: (input: RenovationInput) => dispatch(read, input) } });
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.batch.failed'); }
 		finally { loading.value = false; }
 	}

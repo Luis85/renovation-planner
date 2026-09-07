@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from './renovationSession';
@@ -28,9 +28,11 @@ const room = computed(() => project.zones.get(session.roomId));
 const element = computed(() => project.structure.walls.some(item => item.id === session.targetId) || project.structure.openings.some(item => item.id === session.targetId));
 const generic = computed(() => project.structure.elements?.some(item => item.id === session.targetId));
 const root = ref<HTMLElement | null>(null);
-watch(() => [session.focusedId, session.mode], () => {
+watch(() => [session.focusedId, session.mode], async () => {
 	if (!session.focusedId) return;
-	const row = [...root.value?.querySelectorAll<HTMLElement>('[data-rp-record]') ?? []].find(item => item.dataset.rpRecord === session.focusedId);
+	await nextTick();
+	const row = [...root.value?.querySelectorAll<HTMLElement>('[data-rp-record]') ?? []].find(item => item.dataset.rpRecord === session.focusedId)
+		?? root.value?.querySelector<HTMLElement>('[data-rp-record].is-selected');
 	row?.querySelector('button')?.focus();
 }, { flush: 'post' });
 

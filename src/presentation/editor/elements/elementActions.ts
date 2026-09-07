@@ -28,8 +28,7 @@ function elementFrom(baseline: RenovationBaseline, id: string): NamedSpatialElem
  const label = baseline.plan.entity.spatialElements?.find(item => item.id === id);
  return geometry && label ? { ...geometry, name: label.name } : null;
 }
-type Runtime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'structureTask' | 'openPlanNote'>;
-export function createElementActions(context: PlanEditorContext, runtime: Runtime) {
+export function createElementActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'structureTask' | 'openPlanNote'>) {
 	const project = useProjectStore(), dialogs = useDialogStore(), save = useSaveStateStore(), session = useRenovationSession(), selection = useSelectionStore();
 	const removal = createSpatialRemoval(context, runtime);
 	const active = ref(false), preview = ref<NamedSpatialElement | null>(null);

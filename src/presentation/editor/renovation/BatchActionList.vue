@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RoomContextSelect from './RoomContextSelect.vue';
 import { computed, ref } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
@@ -38,13 +39,11 @@ function deleteSelection(): Promise<void> { return generic.value ? runtime.eleme
 		class="rp-batch-actions"
 	>
 		<h3>{{ tr('renovation.batch.heading') }}</h3>
-		<label v-if="!compatible">{{ tr('renovation.target.room') }}
-			<select v-model="roomId"><option value="">{{ tr('renovation.select-room') }}</option><option
-				v-for="room in rooms"
-				:key="room.id"
-				:value="room.id"
-			>{{ room.name }}</option></select>
-		</label>
+		<RoomContextSelect
+			v-if="!compatible"
+			v-model="roomId"
+			:rooms="rooms"
+		/>
 		<p v-if="!compatible">
 			{{ tr('renovation.batch.unsupported') }}
 		</p>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RoomContextSelect from '../renovation/RoomContextSelect.vue';
 import { computed, watch } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
@@ -21,19 +22,11 @@ watch(() => selection.selectedIds[0], id => {
 		v-if="runtime.renovation.available"
 		class="rp-structure-renovation-entry"
 	>
-		<label>{{ tr('renovation.target.room') }}
-			<select
-				v-model="session.roomId"
-				:disabled="runtime.renovation.blocked.value"
-			>
-				<option value="">{{ tr('renovation.select-room') }}</option>
-				<option
-					v-for="room in rooms"
-					:key="room.id"
-					:value="room.id"
-				>{{ room.name }}</option>
-			</select>
-		</label>
+		<RoomContextSelect
+			v-model="session.roomId"
+			:rooms="rooms"
+			:disabled="runtime.renovation.blocked.value"
+		/>
 		<p v-if="!session.roomId">
 			{{ tr('renovation.target.choose') }}
 		</p>

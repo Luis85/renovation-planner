@@ -20,8 +20,7 @@ import { tr } from '../../i18n/strings';
 import { spatialRemovalInput } from './spatialRemovalInput';
 import type { RenovationBaseline } from '../../../application/commands/renovation/RenovationCommand';
 
-type Runtime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'structureTask'>;
-export function createSpatialRemoval(context: PlanEditorContext, runtime: Runtime) {
+export function createSpatialRemoval(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'structureTask'>) {
  const project = useProjectStore(), dialogs = useDialogStore(), selection = useSelectionStore(), save = useSaveStateStore(), session = useRenovationSession();
  const active = ref(false), blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review' || runtime.activeToolId.value !== 'select');
  let alive = true; onBeforeUnmount(() => { alive = false; });

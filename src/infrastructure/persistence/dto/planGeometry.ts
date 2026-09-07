@@ -52,7 +52,7 @@ const StructureSchema = z.object({
 	boundaries: z.array(z.object({ roomId: z.string(), wallIds: z.array(z.string()) })),
 });
 const PlanGeometrySchemaV2 = PlanGeometrySchemaV1.extend({ schemaVersion: z.literal(2), structure: StructureSchema.optional() });
-export const PlanGeometrySchemaV3 = PlanGeometrySchemaV2.extend({ schemaVersion: z.literal(3), intended: StructureSchema.optional() });
+const PlanGeometrySchemaV3 = PlanGeometrySchemaV2.extend({ schemaVersion: z.literal(3), intended: StructureSchema.optional() });
 const StructureSchemaV4 = StructureSchema.extend({ elements: z.array(z.object({
 	id: z.string().startsWith('element-'), kind: z.enum(['object', 'path', 'fence', 'measurement']), points: z.array(SpatialPointSchema),
 })).optional() });

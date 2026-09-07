@@ -12,6 +12,10 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: Add → Item creates a named Object from a numeric rectangle or outline, with native input validation, persistent draft text, precise editing and guarded history. All eleven Add entries now reach supported production tasks or contextual forms.
+
+- Linked material documents reveal their spatial context; several targets within one Room use its aggregate view. Explicit marker navigation reopens Details in constrained layouts. Paused Area type controls retain keyboard focus and refuse changes.
+
 - Plan editor: numbered material markers highlight source geometry and navigate to the same Inspector record. Explicit Work, cost, material, Decision and evidence links reveal their target while preserving a valid shared Room context.
 
 - Plan editor: deleting a mixed wall/opening/Object/Path/Fence/Measurement selection uses one guarded transaction with impact confirmation and Undo/Redo; hosted openings and boundary references are handled together while independent Room outlines remain intact.

@@ -4,6 +4,7 @@ import { renovationEditor } from '../../helpers/renovationEditor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle } from '../../helpers/editor';
 import { EMPTY_DEPTH } from '../../../src/domain/renovation/PlanningDepth';
+import { planningDraft, materialInput } from '../../../src/presentation/editor/planning/planningDraft';
 import { planningStack } from '../../helpers/planning';
 import { recordNavigationContext } from '../../../src/presentation/editor/renovation/recordNavigationContext';
 
@@ -53,4 +54,28 @@ it('resolves canonical material and Decision contexts and leaves an unknown reco
  expect(recordNavigationContext(records, 'estimate:' + rig.input.id, rig.roomId, null)).toEqual({ roomId: rig.roomId, targetId: rig.input.source.targetId });
  expect(recordNavigationContext(records, 'decision-finish', 'different-room', null)).toMatchObject({ roomId: rig.roomId });
  expect(recordNavigationContext(records, 'missing', rig.roomId, null)).toBeNull();
+});
+
+it('opens linked documents on another spatial target and reveals multiple targets through their Room', async () => {
+ const rig = await renovationEditor(true); mounted.push(rig);
+ const planning = expectDefined(rig.deps.commands.planning, 'planning');
+ const baseline = expectOk(await planning.read(rig.plan.id)), draft = planningDraft('material', baseline, rig.room.id);
+ draft.assetId = expectDefined(baseline.catalogue.find(item => item.asset.unit === 'm2'), 'area asset').asset.id;
+ draft.targetId = 'wall-b'; draft.source = { ...draft.source, rule: 'manual', manual: '1' };
+ expectOk(await rig.runtime.dispatcher.run(planning.material(baseline, materialInput(draft), rig.runtime.structureTask.ledger)));
+ const evidence = { id: 'document-a', roomId: rig.room.id, targetId: 'wall-a', workId: '', recordId: draft.id, path: 'Documents/spec.md', subpath: '', description: 'Material specification', type: 'document' as const, phase: 'before' as const, pin: null };
+ const read = expectOk(await rig.renovation.read(rig.plan.id));
+ const input = { renovation: { subjects: [], work: [], decisions: [], depth: { ...EMPTY_DEPTH, evidence: [evidence] } }, intended: read.geometry.document.intended };
+ expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(read, input, rig.runtime.structureTask.ledger)));
+ rig.selection.select(['wall-b' as never]); await settle(); rig.session.roomId = rig.room.id;
+ rig.runtime.renovation.focus(rig.room.id, 'materials', draft.id); await settle();
+ const documents = expectDefined(rig.wrapper.findAll('[data-rp-record="' + draft.id + '"] button').find(item => item.text() === 'Documents'), 'Documents');
+ await documents.trigger('click'); await settle();
+ expect(rig.session.targetId).toBe('wall-a'); expect(rig.wrapper.get('[data-rp-record="document-a"]').text()).toContain(evidence.description);
+ expect(rig.wrapper.get('[data-rp-record="document-a"]').element.contains(document.activeElement)).toBe(true);
+ const latest = expectOk(await rig.renovation.read(rig.plan.id));
+ const second = { ...evidence, id: 'document-c', targetId: 'wall-c', path: 'Documents/invoice.md', description: 'Material invoice' };
+ expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(latest, { ...input, renovation: { ...input.renovation, depth: { ...EMPTY_DEPTH, evidence: [evidence, second] } } }, rig.runtime.structureTask.ledger)));
+ rig.runtime.renovation.focus(rig.room.id, 'documents', draft.id); await settle();
+ expect(rig.session.targetId).toBe(rig.room.id); expect(rig.wrapper.findAll('[data-rp-record="document-a"], [data-rp-record="document-c"]')).toHaveLength(2);
 });

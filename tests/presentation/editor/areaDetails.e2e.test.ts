@@ -4,6 +4,7 @@ import { makeZone } from '../../helpers/entities';
 import { rig } from '../../helpers/planEditorRig';
 import { runtimeOf, settle, settleUntil } from '../../helpers/editor';
 import { expectFound, expectOk } from '../../helpers/domain';
+import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { resizeTo } from '../../helpers/layout';
 const mounted: Awaited<ReturnType<typeof rig>>[] = [];
@@ -53,6 +54,16 @@ describe('Area details in the production Inspector', () => {
 		expect(document.activeElement).toBe(r.harness.wrapper.get('input[name="name"]').element);
 		await r.harness.wrapper.get('[data-rp-action="cancel"]').trigger('click'); await settle();
 		expect(expectFound(await r.zonesRepo.getById(r.area.entity.id))).toEqual(r.area);
+	});
+	it('keeps the Area type control focusable and refuses changes while writes pause', async () => {
+		const r = await setup(), project = useProjectStore(r.harness.pinia);
+		const field = r.harness.wrapper.get('select[name="zoneType"]'); (field.element as HTMLSelectElement).focus();
+		project.stale = true; await settle();
+		expect(field.attributes('aria-disabled')).toBe('true'); expect((field.element as HTMLSelectElement).disabled).toBe(false);
+		await field.setValue('Garden'); expect((field.element as HTMLSelectElement).value).toBe('Custom');
+		expect(document.activeElement).toBe(field.element); expect(expectFound(await r.zonesRepo.getById(r.area.entity.id))).toEqual(r.area);
+		project.stale = false; await settle(); await field.setValue('Garden');
+		expect((field.element as HTMLSelectElement).value).toBe('Garden');
 	});
 	it('refuses a peer edit and shows the latest metadata while retaining the draft', async () => {
 		const r = await setup();

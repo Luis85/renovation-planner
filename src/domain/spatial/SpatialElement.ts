@@ -20,7 +20,7 @@ function metadataContent(items: readonly SpatialElementMetadata[]) {
 export function sameElementMetadata(a: readonly SpatialElementMetadata[] = [], b: readonly SpatialElementMetadata[] = []): boolean {
 	return JSON.stringify(metadataContent(a)) === JSON.stringify(metadataContent(b));
 }
-export const SPATIAL_ELEMENT_KINDS: readonly SpatialElementKind[] = ['object', 'path', 'fence', 'measurement'];
+const SPATIAL_ELEMENT_KINDS: readonly SpatialElementKind[] = ['object', 'path', 'fence', 'measurement'];
 
 /** Derived world-millimetre length, never a second stored measurement authority. */
 export function elementLength(element: SpatialElement): number {

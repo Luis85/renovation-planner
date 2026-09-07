@@ -43,6 +43,8 @@ An open draft in this state offers source-note inspection and Cancel. It does no
 read retry or promise that reading will resume Apply. You can copy its retained text before
 cancelling and reviewing the affected files against your backup.
 
+For the connected editing journey, see [Plan a renovation from the floor](using-plan-editor.md).
+
 ## Quantities, costs and files
 
 English and German displays use their decimal and grouping conventions. Editable quantities,

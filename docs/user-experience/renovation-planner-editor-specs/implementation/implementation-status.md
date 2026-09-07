@@ -1,11 +1,10 @@
 # Editor implementation status — 2026-09-07
 
-Shell checkpoint: Layers and Inspector now retain one mounted outlet across responsive layouts,
-preserving native input identity, pending text, caret and focus. Targeted tests, build/types,
-lint and four real-browser scenarios passed; see [shell evidence](persistent-shell-evidence.md).
-This intermediate checkpoint leaves the combined coverage/Fallow and live-host gate open.
+The finalization tree incorporates UI `443d721d` (Object implementation `aa9896db`), recovery `2c353329`, persistent shell/focus `cad06deb` and final recovery probe preparation `d9a1334e`, over PR #88 `3c1c737a`. Generic spatial creation, numeric Room/Area editing, connected Work/Materials/Costs/Evidence navigation, mixed spatial deletion and persistent native controls are implemented. The Object presentation checkpoint is incorporated, including all eleven Add routes.
 
-Current integration update (2026-09-07): UI `0b23eaba`, recovery `7ba5937d` and persistent shell `65118f47` are incorporated in the finalization branch over PR #88 `3c1c737a`. The follow-up adds canonical cross-record navigation, shared-context preservation, numbered material markers/source highlights and one-command mixed spatial deletion. Combined types and scoped lint pass; 117 focused tests across 13 files pass (63.51s), including all six corrected CI contracts and persistent native regions. Object creation presentation remains an active UI continuation. The foundation remote CI failed on six outdated test contracts and coverage (98.16% statements / 96.35% branches / 97.89% functions / 99.00% lines); the identified regressions now pass locally without lowering floors. Final full coverage/Fallow, visual comparisons and H1–H6 remain open. No complete M00–M17 or live-host acceptance is claimed.
+The last pushed integration checkpoint `88b9ee3d` passed types/scoped lint and 117 focused tests, but all four remote verification legs failed. Four naming/resize harness failures are addressed by the incorporated shell checkpoint (21 focused tests and eight Edge browser scenarios pass); combined coverage remained below the unchanged floors at 98.34% statements / 96.40% branches / 98.24% functions / 99.20% lines. The full gate must be repeated on the joined source, including the root navigation/form followups and latest recovery review fix. No full combined, M00–M17 visual, or live-host acceptance pass is claimed.
+
+The isolated Obsidian test vault is open with a preliminary build and awaits the user’s plugin-trust action. H1–H6 remain explicitly open where browser/FakeVault evidence cannot establish actual host, device or screen-reader behavior.
 
 Use the [completion matrix](completion-matrix.md) for current requirement ownership and open work, and the [integration map](integration-map.md) for exact ancestry. Finalization adds canonical Project/Asset Library navigation, contextual planning drafts and sidecar receipts for mixed Room history. Targeted evidence exists. The initial full gate passed build/lint, then was stopped after test failures under excessive worker contention; it did not pass coverage or analysis. Final verification will use the supported VITEST_MAX_WORKERS=2 setting without changing thresholds or timeouts.
 
@@ -31,7 +30,7 @@ The following table records the earlier `cf536f32` contribution; its “not deli
 | 11 | Not delivered | Common evidence links, files, pins and contextual creation |
 | 12 | Existing stale-write protection and accessibility/theme harness | Complete end-to-end release, performance, migration/recovery and live Obsidian verification |
 
-## Current selection contribution
+## Historical selection contribution (before connected batch actions)
 
 - Shift-click adds/removes a room or area; Alt-click cycles overlapping bodies.
 - The property panel keeps every readable room/area reachable after selection. Its multiple
@@ -59,7 +58,7 @@ Harness: `?view=plan-editor&select=harness-terrace,harness-kitchen`, with `&them
 `&lang=de` as needed. `npm run harness-shot` includes light, dark and German 460 px M11 captures.
 These are visual inspection fixtures, not a claim of WCAG or live-vault acceptance.
 
-## Verification of this contribution
+## Verification of the historical selection contribution
 
 `npm run check` passed with `VITEST_MAX_WORKERS=2`: build, lint, 473 test files,
 6,577 passing tests (70 skipped), coverage and Fallow. Coverage: statements 99.25%,

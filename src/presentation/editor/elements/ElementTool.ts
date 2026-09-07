@@ -14,14 +14,16 @@ export class ElementTool implements EditorTool {
 	}) {}
 	activate(context: EditorContext): void { this.context = context; this.deps.start(this.id); }
 	deactivate(): void { this.context = null; this.deps.stop(); }
+	private inputContext(): EditorContext | null { return this.context && !this.deps.blocked() ? this.context : null; }
 	pointerDown(event: EditorPointerEvent): void {
-		if (event.button !== 'primary' || !this.context || this.deps.blocked()) return;
+		if (event.button !== 'primary' || !this.inputContext()) return;
 		this.pointerMove(event);
 		if (this.deps.draft.cursor) this.deps.addPoint(this.deps.draft.cursor);
 	}
 	pointerMove(event: EditorPointerEvent): void {
-		if (!this.context || this.deps.blocked()) return;
-		this.deps.draft.cursor = this.context.snapService.snapPoint(event.worldPoint, this.deps.candidates(), 8 * this.context.viewport.worldPerScreenPixel());
+		const context = this.inputContext();
+		if (!context) return;
+		this.deps.draft.cursor = context.snapService.snapPoint(event.worldPoint, this.deps.candidates(), 8 * context.viewport.worldPerScreenPixel());
 	}
 	pointerUp(): void { /* Completed points belong to pointer down. */ }
 	finish(): void { this.deps.finish(); }

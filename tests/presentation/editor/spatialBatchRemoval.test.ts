@@ -6,6 +6,8 @@ import { settle } from '../../helpers/editor';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { err, ok } from '../../../src/core/result/Result';
 import { defer } from '../../helpers/async';
+import { planningDraft, materialInput } from '../../../src/presentation/editor/planning/planningDraft';
+import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 import { spatialRemovalInput } from '../../../src/presentation/editor/elements/spatialRemovalInput';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
@@ -68,4 +70,35 @@ it('includes intended-only hosted openings in the same referential removal scope
  const intended = { ...structure, openings: [{ id: 'opening-future', hostId: 'wall-a', kind: 'window' as const, offset: 100, width: 800, height: 1200, sill: 800 }] };
  const proposal = spatialRemovalInput({ ...baseline, geometry: { ...baseline.geometry, document: { ...baseline.geometry.document, intended } } }, ['wall-a', 'element-path']);
  expect(proposal.ids).toContain('opening-future'); expect(proposal.input.intended?.openings).toEqual([]);
+});
+
+it.each(['Work', 'material'] as const)('refuses the whole selected deletion when a current %s refers to one member', async kind => {
+ const rig = await setup(); let referenceName = 'Lay garden path';
+ if (kind === 'Work') {
+  const read = expectOk(await rig.renovation.read(rig.plan.id));
+  const work = { id: 'work-path', roomId: rig.room.id, targetId: 'element-path', title: 'Lay garden path', description: '', order: 0, progress: 'pending' as const, responsibility: 'unassigned' as const, outcomes: [], dependencies: [] };
+  expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(read, { renovation: { ...(read.plan.entity.renovation ?? EMPTY_RENOVATION), work: [work] }, intended: read.geometry.document.intended }, rig.runtime.structureTask.ledger)));
+ } else {
+  const planning = expectDefined(rig.deps.commands.planning, 'planning'), read = expectOk(await planning.read(rig.plan.id));
+  const draft = planningDraft('material', read, rig.room.id);
+  const asset = expectDefined(read.catalogue.find(item => item.asset.unit === 'm2'), 'area asset').asset;
+  draft.assetId = asset.id; referenceName = asset.name;
+  draft.targetId = 'element-path'; draft.source = { ...draft.source, rule: 'manual', manual: '1' };
+  expectOk(await rig.runtime.dispatcher.run(planning.material(read, materialInput(draft), rig.runtime.structureTask.ledger)));
+ }
+ rig.selection.select(['element-path', 'element-fence'] as never[]); await settle();
+ const before = [...rig.stack.vault.entries], command = vi.spyOn(rig.renovation, 'command');
+ const removing = rig.runtime.elementActions.removeMany([...rig.selection.selectedIds]); await settle();
+ expect(rig.dialogs.current?.kind).toBe('confirm'); expect(rig.wrapper.get('.rp-dialog').text()).toContain(referenceName);
+ rig.dialogs.resolve('confirm'); await removing;
+ expect(command).not.toHaveBeenCalled(); expect([...rig.stack.vault.entries]).toEqual(before); expect(rig.project.structure.elements).toHaveLength(2);
+});
+it('refreshes a peer shape before asking for deletion and does not overwrite that shape', async () => {
+ const rig = await setup(), read = expectOk(await rig.geometry.read(rig.plan.id)), structure = expectDefined(read.document.structure, 'structure');
+ const elements = expectDefined(structure.elements, 'elements').map(item => ({ ...item, points: item.points.map(point => ({ ...point, y: point.y + 100 })) }));
+ expectOk(await rig.geometry.write(rig.plan.id, { ...read.document, structure: { ...structure, elements } }, read.version));
+ const before = [...rig.stack.vault.entries], command = vi.spyOn(rig.renovation, 'command');
+ await rig.runtime.elementActions.removeMany([...rig.selection.selectedIds]); await settle();
+ expect(rig.dialogs.current).toBeNull(); expect(command).not.toHaveBeenCalled(); expect([...rig.stack.vault.entries]).toEqual(before);
+ expect(rig.project.structure.elements).toEqual(elements);
 });

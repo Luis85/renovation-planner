@@ -4,6 +4,8 @@ import type Konva from 'konva';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle } from '../../helpers/editor';
+import { resizeTo } from '../../helpers/layout';
+import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { planningDraft, materialInput } from '../../../src/presentation/editor/planning/planningDraft';
 import { EMPTY_DEPTH } from '../../../src/domain/renovation/PlanningDepth';
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
@@ -22,9 +24,11 @@ it('connects numbered material rows and markers bidirectionally and highlights t
  await row.get('.rp-record-title').trigger('click'); await settle();
  expect(rig.session.focusedId).toBe(draft.id);
  expect(rig.stage?.findOne('.material-source')?.getAttr('points')).toEqual(rig.room.geometry.points.flatMap(point => [point.x, point.y]));
- rig.session.focusedId = ''; await settle(); marker.fire('click'); await settle();
+ resizeTo(rig.rootEl, 460, 700); await settle();
+ const workspace = useWorkspaceStore(rig.pinia); workspace.closeOverlay(); rig.session.focusedId = ''; await settle(); marker.fire('click'); await settle();
+ expect(workspace.overlay).toBe('inspector');
  expect(rig.session.focusedId).toBe(draft.id); expect(row.element.contains(document.activeElement)).toBe(true);
- rig.session.focusedId = ''; marker.fire('tap'); await settle(); expect(rig.session.focusedId).toBe(draft.id);
+ workspace.closeOverlay(); await settle(); marker.fire('tap'); await settle(); expect(workspace.overlay).toBe('inspector'); expect(rig.session.focusedId).toBe(draft.id); expect(row.element.contains(document.activeElement)).toBe(true);
  await rig.runtime.renovation.perspective('review'); await settle(); expect(rig.stage?.find('.material-marker')).toHaveLength(0);
 });
 it('filters evidence pins and rows by the same explicit shared target and phase', async () => {

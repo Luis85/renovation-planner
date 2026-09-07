@@ -19,6 +19,11 @@ const filter = ref('all');
 const floors = computed(() => Array.from(new Map(read.data.value?.rows.map(row => [row.planId, row.floor])).entries()));
 const rows = computed(() => read.data.value?.rows.filter(row => filter.value === 'all' || row.planId === filter.value) ?? []);
 const saveLabel = computed(() => tr(actions.save.state === 'saved' && read.error.value ? 'save-state.saved-refresh-needed' : SAVE_STATE_KEYS[actions.save.state]));
+const recoverySource = computed(() => {
+ const id = actions.sourceId.value;
+ const needed = (actions.save.state === 'saved' && read.error.value) || actions.save.unrecoveredWrite;
+ return id && needed ? { id, blocked: read.loading.value || actions.save.state === 'saving' } : null;
+});
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
 async function retry(): Promise<void> {
@@ -88,9 +93,9 @@ async function createTrade(): Promise<void> {
 				{{ tr('view.project.resume-retry') }}
 			</button>
 			<RecoverySourceAction
-				v-if="actions.sourceId.value && ((actions.save.state === 'saved' && read.error.value) || actions.save.unrecoveredWrite)"
-				:id="actions.sourceId.value"
-				:blocked="read.loading.value || actions.save.state === 'saving'"
+				v-if="recoverySource"
+				:id="recoverySource.id"
+				:blocked="recoverySource.blocked"
 			/>
 			<template v-if="read.data.value">
 				<p

@@ -9,6 +9,7 @@ import { elementLength } from '../../../domain/spatial/SpatialElement';
 import { area } from '../../../core/geometry/operations';
 import { formatArea } from '../shell/formatArea';
 import { formatMetres } from '../shell/formatLength';
+import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 const session = useRenovationSession();
@@ -41,7 +42,7 @@ async function edit(event: Event): Promise<void> {
 			v-if="session.perspective === 'renovate'"
 			type="button"
 			data-rp-action="element-plan-geometry"
-			@click="runtime.renovation.perspective('plan')"
+			@click="runInspectorAction($event, 'edit-element', () => runtime.renovation.perspective('plan'))"
 		>
 			{{ tr('editor.element.plan-geometry') }}
 		</button>

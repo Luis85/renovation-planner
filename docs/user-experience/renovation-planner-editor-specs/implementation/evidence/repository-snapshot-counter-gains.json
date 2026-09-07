@@ -1,0 +1,339 @@
+{
+  "scope": "Five public repository snapshot and material geometry boundaries",
+  "ownerSource": "bc3a5445aab745463a167fef97be2a739eadf8b0",
+  "baselineSource": "07bc094aabcf68e68e94f368c11f35fecdc56ef7",
+  "baselineTestedMerge": "a7f5ff7ea652773d1f14fb4ee0f2869a19156f6c",
+  "testFiles": [
+    "tests/plugin/catalogueSnapshotBoundaries.test.ts",
+    "tests/application/commands/geometryMaterialGuardBoundaries.test.ts"
+  ],
+  "native": {
+    "source": "ab4b8e0c",
+    "tests": 5,
+    "files": 2,
+    "seconds": 45.01,
+    "result": "PASS"
+  },
+  "scopedCoverage": {
+    "source": "bc3a5445",
+    "seconds": 14.37,
+    "result": "5 tests PASS; unchanged global floors fail for this scoped execution"
+  },
+  "types": "PASS",
+  "wholeOxlint": "PASS",
+  "scopedEslint": "PASS",
+  "staticFallow": "PASS; zero issues and clone groups",
+  "adjustment": "Moved three conditional assertions outside forwarding spies; preserved complete snapshot and missing-path assertions. No production or threshold changes.",
+  "baselineTotals": {
+    "statements": {
+      "hit": 18076,
+      "total": 18237
+    },
+    "functions": {
+      "hit": 5182,
+      "total": 5219
+    },
+    "lines": {
+      "hit": 14110,
+      "total": 14174
+    },
+    "branches": {
+      "hit": 12543,
+      "total": 12813
+    }
+  },
+  "gains": [
+    {
+      "path": "src/infrastructure/obsidian/repositories/ObsidianAssetRepository.ts",
+      "kind": "branch",
+      "id": "1",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 163,
+            "column": 62
+          },
+          "end": {
+            "line": 163,
+            "column": 96
+          }
+        },
+        "type": "binary-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 163,
+              "column": 62
+            },
+            "end": {
+              "line": 163,
+              "column": 93
+            }
+          },
+          {
+            "start": {
+              "line": 163,
+              "column": 93
+            },
+            "end": {
+              "line": 163,
+              "column": 96
+            }
+          }
+        ],
+        "line": 163
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/obsidian/repositories/ObsidianNamedCatalogueRepository.ts",
+      "kind": "branch",
+      "id": "1",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 32,
+            "column": 129
+          },
+          "end": {
+            "line": 32,
+            "column": 163
+          }
+        },
+        "type": "binary-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 32,
+              "column": 129
+            },
+            "end": {
+              "line": 32,
+              "column": 160
+            }
+          },
+          {
+            "start": {
+              "line": 32,
+              "column": 160
+            },
+            "end": {
+              "line": 32,
+              "column": 163
+            }
+          }
+        ],
+        "line": 32
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/obsidian/repositories/ObsidianQuoteRepository.ts",
+      "kind": "branch",
+      "id": "0",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 14,
+            "column": 1
+          },
+          "end": {
+            "line": 14,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 14,
+              "column": 1
+            },
+            "end": {
+              "line": 14,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 14
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/obsidian/repositories/ObsidianQuoteRepository.ts",
+      "kind": "statement",
+      "id": "2",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 14,
+          "column": 18
+        },
+        "end": {
+          "line": 14,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/obsidian/repositories/planningReferentialGuard.ts",
+      "kind": "branch",
+      "id": "0",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 15,
+            "column": 14
+          },
+          "end": {
+            "line": 15,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 15,
+              "column": 21
+            },
+            "end": {
+              "line": 15,
+              "column": 57
+            }
+          },
+          {
+            "start": {
+              "line": 15,
+              "column": 57
+            },
+            "end": {
+              "line": 15,
+              "column": null
+            }
+          }
+        ],
+        "line": 15
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/obsidian/repositories/planningReferentialGuard.ts",
+      "kind": "branch",
+      "id": "6",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 27,
+            "column": 2
+          },
+          "end": {
+            "line": 27,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 27,
+              "column": 2
+            },
+            "end": {
+              "line": 27,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 27
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/obsidian/repositories/planningReferentialGuard.ts",
+      "kind": "statement",
+      "id": "16",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 27,
+          "column": 18
+        },
+        "end": {
+          "line": 27,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/persistence/mappers/quoteMapper.ts",
+      "kind": "branch",
+      "id": "3",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 21,
+            "column": 8
+          },
+          "end": {
+            "line": 21,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 21,
+              "column": 19
+            },
+            "end": {
+              "line": 21,
+              "column": 31
+            }
+          },
+          {
+            "start": {
+              "line": 21,
+              "column": 31
+            },
+            "end": {
+              "line": 21,
+              "column": null
+            }
+          }
+        ],
+        "line": 21
+      },
+      "before": 0,
+      "after": 2
+    }
+  ],
+  "originalBaseline": "C:\\Users\\lum\\AppData\\Local\\Temp\\rp-finalization-20260907-88b9ee3d\\ci-07bc094a-linux24\\coverage-final.json",
+  "originalScoped": "C:\\Users\\lum\\AppData\\Local\\Temp\\rp-coverage-bc3a5445-scoped\\coverage-final.json",
+  "comparisonMethod": "Only zero-to-positive hits in identical counter maps and identical git source blobs are reported. Scoped absent hits are not regressions. Changed source/maps are excluded; no full aggregate or synthetic union is claimed.",
+  "allProcessHandlesTerminal": true
+}

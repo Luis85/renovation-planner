@@ -10,6 +10,19 @@ Root owns shared status files and the final combined source/acceptance.
 
 ## Latest checkpoint
 
+**Five snapshot/material guard cases are now verified on bc3a5445.** Native: 5/5
+PASS in two files, 45.01 seconds on ab4b8e0c. Oxlint then found three conditional
+assertions; these were moved outside the forwarding spies while retaining complete
+snapshot/missing-path assertions. Types, whole Oxlint, scoped ESLint and static Fallow
+then passed (zero issues/clone groups). The exact five-case scoped coverage repeat
+on bc3a5445 passed in 14.37 seconds, proving **six new branch hits and two statement
+hits** against original07 on identical source blobs and countermaps. Unchanged global
+floors fail for the scoped run as expected; no full aggregate pass is claimed.
+[Validated JSON receipt](evidence/repository-snapshot-counter-gains.json).
+All handles (91653, 42286, 77614, 69697) are terminal. Slot returned to Root with this
+receipt/checkpoint; no other package or production change was added. Next: Root
+integrates the verified tests and measures the combined source in full CI.
+
 **Next five cases are source-prepared only, with no production edits.** Root approved
 the exact package in `tests/plugin/catalogueSnapshotBoundaries.test.ts` (three cases)
 and `tests/application/commands/geometryMaterialGuardBoundaries.test.ts` (two cases).

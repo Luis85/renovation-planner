@@ -6,16 +6,19 @@ export function createLatestRead<T>(read: () => Promise<T>, publish: (value: T) 
   running = false;
   for (const waiter of waiters.splice(0)) settle(waiter);
  }
+ async function attemptRead() {
+  try { return { ok: true as const, value: await read() }; }
+  catch (cause) { return { ok: false as const, cause }; }
+ }
  async function drain(): Promise<void> {
   try {
-   while (alive) {
-    const ticket = generation;
-    let value: T;
-    try { value = await read(); }
-    catch (cause) { if (alive && ticket !== generation) continue; throw cause; }
+   for (;;) {
+    if (!alive) break;
+    const ticket = generation, result = await attemptRead();
     if (!alive) break;
     if (ticket !== generation) continue;
-    publish(value);
+    if (!result.ok) throw result.cause;
+    publish(result.value);
     if (ticket === generation) break;
    }
    finish(waiter => waiter.resolve());

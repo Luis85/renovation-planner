@@ -12,7 +12,7 @@
  * also what lets it keep working once individual nodes start listening.
  */
 import type { Point } from '../../core/geometry/Point';
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useEditorStore } from '../stores/EditorStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
@@ -32,7 +32,8 @@ import InteractionLayer from './layers/InteractionLayer.vue';
 import ZoneLayer from './layers/zone/ZoneLayer.vue';
 import StructureLayer from './structure/StructureLayer.vue';
 import RenovationLayer from './renovation/RenovationLayer.vue';
-import { structureCandidates } from './structure/structureCandidates';
+import { usePlanFrame } from './viewport/usePlanFrame';
+import CanvasGrid from './layers/CanvasGrid.vue';
 import RoomDimensionLabels from './resize/RoomDimensionLabels.vue';
 import DirectActionPopover from './selection/DirectActionPopover.vue';
 
@@ -73,20 +74,13 @@ const transform = computed(() => viewportTransform(viewport.value));
  * than defaulting: a jump to nowhere costs the user the view they had and tells them nothing
  * about why.
  */
-const referencePoints = ref<readonly Point[]>([]);
+const { referencePoints } = storeToRefs(editor);
 function onReferencePoints(points: readonly Point[]): void { referencePoints.value = points; }
 watch([referencePoints, () => editor.stageSize, () => layerVisibility.value.background], ([points]) => {
  const bounds = boundsOfZones([{ points }]);
  if (bounds !== null && project.zones.size === 0 && project.structure.walls.length === 0 && !project.structure.elements?.length && layerVisibility.value.background && runtime.activeToolId.value === 'select') editor.fitTo(bounds, editor.stageSize);
 }, { flush: 'post' });
-function framedBounds(all: boolean) {
-	const zones = [...project.zones.values(), ...structureCandidates(project.structure)];
-	const framed = all
-		? zones
-		: zones.filter((zone) => selection.selectedIds.some((id) => String(id) === zone.id));
-
-	return boundsOfZones(all && layerVisibility.value.background ? [...framed, { points: referencePoints.value }] : framed);
-}
+const framedBounds = usePlanFrame();
 </script>
 
 <template>
@@ -104,6 +98,7 @@ function framedBounds(all: boolean) {
 		:finish-area="runtime.finishArea"
 	>
 		<template #default="{ size }">
+			<CanvasGrid />
 			<VStage :config="size">
 				<BackgroundLayer
 					name="background"

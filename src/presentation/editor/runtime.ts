@@ -53,7 +53,7 @@ import { useSaveStateStore } from './save-state/save-state-store';
 import { singleFlight } from '../composables/single-flight';
 import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
-import { EDITOR_SNAP_SERVICE } from './snapping/editorSnapping';
+import { createEditorSnapService } from './snapping/editorSnapping';
 import { editorViewportAdapter } from './viewport/editorViewportAdapter';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
@@ -696,7 +696,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 		createEditorContext({
 			bindViewport: () => viewportAdapter,
 			selection,
-			snapService: EDITOR_SNAP_SERVICE,
+			snapService: createEditorSnapService(() => editor.snappingEnabled),
 			commandDispatcher: toolDispatcher,
 			writeLedger: ledger,
 			renderState,

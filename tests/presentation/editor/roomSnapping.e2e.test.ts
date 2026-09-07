@@ -7,6 +7,22 @@ async function start(h: Awaited<ReturnType<typeof rig>>['harness']): Promise<voi
  await h.wrapper.get('[data-rp-action="add"]').trigger('click'); await h.wrapper.get('[data-rp-entry="room"]').trigger('click');
 }
 describe('M03 snapping in the production editor', () => {
+ it('uses the native View preference for the same Room preview and commit coordinates', async () => {
+  const r = await rig(), h = r.harness, runtime = runtimeOf(h);
+  try {
+   await h.wrapper.get('[data-rp-view="snap"]').setValue(false);
+   await start(h);
+   pointer(h.canvasEl as HTMLElement, 'pointerdown', 201, 201);
+   pointer(h.canvasEl as HTMLElement, 'pointerup', 485, 385); await settle();
+   expect(runtime.roomDraft.rect).toEqual({ x: 1530, y: 1530, width: 2840, depth: 1840 });
+   expect(h.stage?.find('.snap-target')).toHaveLength(0);
+   await h.wrapper.get('.rp-new-room__create').trigger('click');
+   await settleUntil(() => runtime.activeToolId.value === 'select', 'unsnapped Room creation');
+   const created = expectDefined(expectOk(await r.zonesRepo.listByPlan(PLAN_DTO.id as never)).loaded[1], 'new Room').entity;
+   expect(created.geometry.points[0]).toEqual({ x: 1530, y: 1530 });
+   await runtime.undo(); expect(expectOk(await r.zonesRepo.getById(created.id))).toBeNull();
+  } finally { h.unmount(); }
+ });
  it('draws a guide and announces a snap, then creates and restores the snapped outline through history', async () => {
   const r = await rig(), h = r.harness, runtime = runtimeOf(h);
   try {

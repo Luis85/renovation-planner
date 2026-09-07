@@ -48,8 +48,8 @@ import SaveStateIndicator from '../save-state/SaveStateIndicator.vue';
 const props = defineProps<{ activeToolId?: ToolId | null }>();
 
 const { plan, status, stale } = storeToRefs(useProjectStore());
-const { viewport, pointerWorld } = storeToRefs(useEditorStore());
-const { layoutMode } = storeToRefs(useWorkspaceStore());
+const { viewport, pointerWorld, snappingEnabled } = storeToRefs(useEditorStore());
+const { layoutMode, gridVisible } = storeToRefs(useWorkspaceStore());
 
 /**
  * Whether the active tool takes the Shift angle constraint, asked of the ONE list that holds
@@ -137,6 +137,8 @@ const pointerText = computed(() => {
 				class="rp-editor-scale"
 			>{{ scaleText }}</span>
 			<span>{{ tr('editor.zoom') }} {{ zoomPercent }}</span>
+			<span v-if="layoutMode !== 'constrained'">{{ tr(gridVisible ? 'editor.status.grid-on' : 'editor.status.grid-off') }}</span>
+			<span>{{ tr(snappingEnabled ? 'editor.status.snap-on' : 'editor.status.snap-off') }}</span>
 			<span
 				v-if="layoutMode !== 'constrained'"
 				class="rp-editor-pointer"

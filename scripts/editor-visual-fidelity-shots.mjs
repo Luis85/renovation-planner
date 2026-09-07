@@ -33,7 +33,7 @@ try {
 			const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 			const errors = [];
 			page.on('pageerror', error => errors.push(error.message));
-			await page.goto(`${server.resolvedUrls.local[0]}?view=plan-editor&theme=${theme}${state.query}`);
+			await page.goto(`${server.resolvedUrls.local[0]}?view=plan-editor&bare&theme=${theme}${state.query}`);
 			try { await page.locator(state.ready).waitFor(); }
 			catch (error) { await page.screenshot({ path: `${out}/failed.png` }); console.log(await page.locator('body').innerText(), errors); throw error; }
 			await page.evaluate(() => document.fonts.ready);

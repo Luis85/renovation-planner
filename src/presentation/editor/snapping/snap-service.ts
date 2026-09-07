@@ -124,12 +124,16 @@ function nearestWithinTolerance<T>(
  * argument on every call.
  */
 export class SnapService {
-	constructor(private readonly config: SnapServiceConfig) {
+	constructor(private readonly config: SnapServiceConfig, private readonly isEnabled: () => boolean = () => true) {
 		requirePositiveFinite(config.gridSpacingMm, 'gridSpacingMm');
 		requirePositiveFinite(config.angleStepRadians, 'angleStepRadians');
 	}
 
+	/** Per-surface automatic object alignment; explicit Shift constraints remain available. */
+	get enabled(): boolean { return this.isEnabled(); }
+
 	snapToVertex(point: Point, candidates: readonly Point[], toleranceMm = this.config.toleranceMm): Point | null {
+		if (!this.enabled) return null;
 		return nearestWithinTolerance(point, candidates, (candidate) => candidate, toleranceMm);
 	}
 
@@ -144,6 +148,7 @@ export class SnapService {
 	 * second zero-length check here.
 	 */
 	snapToEdge(point: Point, candidates: readonly LineSegment[], toleranceMm = this.config.toleranceMm): Point | null {
+		if (!this.enabled) return null;
 		return nearestWithinTolerance(
 			point,
 			candidates,

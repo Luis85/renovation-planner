@@ -84,7 +84,7 @@ export async function runAreaBrowserMatrix(directory, query, journey, ready = '.
 			const page = await browser.newPage({ viewport: { width: scenario.width, height: 900 } });
 			const errors = [];
 			page.on('pageerror', (error) => errors.push(error.message));
-			await page.goto(`${server.resolvedUrls.local[0]}?view=plan-editor${query}${scenario.query}`);
+			await page.goto(`${server.resolvedUrls.local[0]}?view=plan-editor&bare${query}${scenario.query}`);
 			await page.locator(ready).waitFor();
 			if (scenario.accent) {
 				await page.addStyleTag({ content: 'body { --interactive-accent: #7c246b; --text-accent: #7c246b; --background-primary: #fff8ed; --background-secondary: #efe3d3; }' });

@@ -13,16 +13,14 @@ import type { LayoutMode } from '../editor/shell/layoutMode';
  * reaches a repository, and reopening a Plan Editor starts from the defaults.
  *
  * **Which FULL-mode panels are open is deliberately not here** (2026-09-04, spec §5.6, R11).
- * `layersPanelOpen`/`inspectorPanelOpen` and their two toggles lived here for several tasks
- * with no production caller at all — §5.6 builds no View menu, because nothing would be in it
- * — so the shell renders both full-mode panels unconditionally and the two states that were
- * only ever reachable from a test are gone. The increment that builds a panel toggle re-adds
- * two refs and two actions, with a control that reaches them.
+ * Full-mode panels remain visible. The View menu owns grid visibility and automatic object
+ * snapping; neither changes the floor or a saved record. Each leaf has its own Pinia scope.
  */
 export const useWorkspaceStore = defineStore('workspace', () => {
 	const layerVisibility = ref<Record<KonvaLayerId, boolean>>(defaultLayerVisibility());
 	const layoutMode = ref<LayoutMode>('full');
 	const overlay = ref<'none' | 'layers' | 'inspector'>('none');
+	const gridVisible = ref(false);
 
 	/**
 	 * Internal: `toggleLayer` is the whole public surface, because a Layers panel offers a
@@ -71,12 +69,14 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	 * draw the next); it is an example of what needs this, not the reason it exists.
 	 */
 	function reset(): void {
+		gridVisible.value = false;
 		layerVisibility.value = defaultLayerVisibility();
 		layoutMode.value = 'full';
 		overlay.value = 'none';
 	}
 
 	return {
+		gridVisible,
 		layerVisibility,
 		toggleLayer,
 		layoutMode,

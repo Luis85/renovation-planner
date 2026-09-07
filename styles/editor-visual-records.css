@@ -1,5 +1,6 @@
 /* Real renovation records keep their existing commands and keyboard order. */
-.renovation-plan-editor .rp-renovation-inspector > .mod-cta {
+.renovation-plan-editor .rp-renovation-inspector > .mod-cta,
+.renovation-plan-editor .rp-review-summary .mod-cta {
 	background: color-mix(in srgb, var(--interactive-accent) 70%, var(--text-normal));
 	color: var(--background-primary);
 }

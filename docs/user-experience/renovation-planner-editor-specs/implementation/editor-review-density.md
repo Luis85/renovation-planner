@@ -25,3 +25,10 @@ The following Review check then measured its heading at y=−14.4 against an Ins
 at y=55. Two empty findings lists still occupied grid spacing. The next correction omits only
 those empty lists and tightens Review spacing/Room-row padding, retaining auto-growing rows
 with at least 48-pixel targets. No existing finding, prose, quantity or action is hidden.
+
+At `98434761`, current types/Oxlint/scoped ESLint passed, and the actual Light M14 and M17
+captures both passed all full-Inspector visibility checks. The added Review accessibility scan
+then correctly failed Open room's contrast (3.42:1, required 4.5:1). The existing semantic CTA
+color rule covered only direct Inspector children; it now also covers the nested Review CTA.
+No color tokens, contrast criteria or accessibility assertions were changed. The next actual
+four-theme capture remains pending.

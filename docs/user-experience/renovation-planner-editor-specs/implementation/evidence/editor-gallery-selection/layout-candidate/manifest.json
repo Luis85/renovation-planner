@@ -1,0 +1,18 @@
+{
+  "source": "98434761",
+  "state": "Light M14/M17 phase and bounds passed; Review CTA contrast failed",
+  "files": [
+    {
+      "file": "light-photos-gallery.png",
+      "sha256": "0a0ffd678660aad0ae238d30a387f752c9fa2239b7daf6197a25b08764bbef95"
+    },
+    {
+      "file": "light-review-design-axe.json",
+      "sha256": "6a2696555c652c487e01c21853ad043c1732c8c02f2601277a0cf669c8a603ef"
+    },
+    {
+      "file": "light-review-design.png",
+      "sha256": "95239cdc3bd761260c53338920094da82333ea0c5a27e6f179f9e859a25ebcbd"
+    }
+  ]
+}

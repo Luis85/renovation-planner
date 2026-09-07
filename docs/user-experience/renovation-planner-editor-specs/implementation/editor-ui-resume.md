@@ -148,6 +148,15 @@ summary/cost alignment correction and an additional matching 1000-pixel capture 
 assertions. Original 900-pixel capture/actions remain. See `editor-review-density.md` and its
 initial image. Four script syntax checks and diff checks passed; no new runtime pass yet.
 
+Latest correction source: `98434761` has reference-like larger gallery images, accessible-only
+duplicate thumbnail labels/metadata, fully visible selected metadata and visible file/preview
+errors. Its 34 native Evidence/phase/Review cases passed, and Review spacing's separate 10 cases
+passed. Current types/Oxlint/scoped ESLint passed. Actual Light M14 and M17 both passed all new
+visibility checks; the run stopped at a real 3.42:1 nested Review CTA contrast defect. A selector
+extension applies the already-used semantic CTA color rule, pending recapture. No threshold or
+assertion was weakened. UI released heavy to Root for its short five-case/fresh-health check;
+UI currently has no heavy process. Continue with four-theme capture after Root release.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

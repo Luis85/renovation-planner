@@ -19,6 +19,27 @@ async function setup() {
 }
 const failure = err({ category: 'Persistence' as const, code: 'test.offline', message: 'Read unavailable' });
 describe('connected planning read-back recovery', () => {
+ it('keeps the evidence path editable while recovery blocks file creation, import and Apply', async () => {
+  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');
+  rig.runtime.renovation.focus(rig.room.id, 'documents'); await settle();
+  await rig.wrapper.get('[data-rp-new-evidence]').trigger('click'); await settle();
+  const path = rig.wrapper.get<HTMLInputElement>('input[name="path"]'); path.element.focus();
+  const files = expectDefined(rig.deps.commands.evidenceFiles, 'evidence files');
+  const create = vi.spyOn(files, 'createNote'), imported = vi.spyOn(files, 'importFile');
+  const read = vi.spyOn(services, 'read').mockResolvedValue(failure); rig.changeCatalogue(); await settle();
+  expect(path.element.readOnly).toBe(false); expect(document.activeElement).toBe(path.element);
+  const note = expectDefined(rig.wrapper.findAll('button').find(button => button.text() === 'Create contextual note'), 'Create contextual note');
+  expect(note.attributes('disabled')).toBeDefined();
+  expect(rig.wrapper.get<HTMLInputElement>('input[type="file"]').element.disabled).toBe(true);
+  expect(rig.wrapper.get('[data-rp-planning-apply]').attributes('disabled')).toBeDefined();
+  await path.setValue('Evidence/corrected invoice.pdf');
+  const bytes = [...rig.stack.vault.entries];
+  await note.trigger('click'); await rig.wrapper.get('[data-rp-form="planning"]').trigger('submit'); await settle();
+  expect(create).not.toHaveBeenCalled(); expect(imported).not.toHaveBeenCalled(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+  read.mockRestore(); await rig.wrapper.get('.rp-draft-recovery button').trigger('click'); await settle();
+  expect(path.element.value).toBe('Evidence/corrected invoice.pdf'); expect(path.element.readOnly).toBe(false);
+  expect([...rig.stack.vault.entries]).toEqual(bytes); rig.dialogs.resolve('cancel');
+ });
  it('recovers an unavailable first planning baseline from the Inspector without writing or reacting to unrelated files', async () => {
   const workspace = referenceWorkspace(harnessDeps(), HARNESS_PLAN, true); await workspace.ready;
   const room = expectOk(await workspace.deps.commands.createZone.execute({ planId: workspace.plan.id, name: 'Unloaded room', zoneType: 'Room', geometry: { points: WALL_LOOP.walls.map(wall => wall.start) } })).zone.entity;

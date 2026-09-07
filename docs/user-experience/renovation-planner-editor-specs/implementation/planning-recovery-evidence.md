@@ -141,7 +141,7 @@ Representative inspected captures:
 | Acceptance | Status |
 | --- | --- |
 | Connected recovery and locale implementation | Implemented; focused automatic tests and browser journey evidence |
-| Full required gate | Passed: 541 files, 7,259 tests, 70 existing skips; all unchanged coverage floors, build, both linters and Fallow. Exact counters in [coverage ledger](planning-recovery-coverage.md) |
+| Full required gate | Passed at `66bcd0d0`: 541 files, 7,259 tests, 70 existing skips; all unchanged coverage floors, build, both linters and Fallow. Later review follow-up uses targeted checks below; exact historical counters in [coverage ledger](planning-recovery-coverage.md) |
 | Expanded warning/dialog axe and latest-source browser matrix | Four journeys and 12 scans passed with zero violations; two explicitly incomplete contrast checks |
 | Live Obsidian desktop/mobile | Not performed by this slice; integration acceptance tracked separately |
 | Manual screen reader, native zoom, physical touch/pointer | Not performed |
@@ -163,3 +163,25 @@ node scripts/editor-recovery-check.mjs
 Ignored `harness-shots/recovery/` holds logs; diagnostic coverage HTML is outside the repository
 because generated JavaScript there would enter lint's scan. The matrix writes screenshots/JSON
 to `harness-shots/planning-recovery/`. Selected final evidence is copied beside this document.
+
+## Review follow-up — evidence path and Room names
+
+PR #90 comments `3945749013` and `3945749016` found two remaining regressions. The evidence
+path is now editable during planning-read recovery, while busy/working state still freezes it
+and the separate write gate still blocks file creation, import and Apply. A repository-backed
+test revises the focused path through failure and read-only retry, verifies the retained value
+and unchanged vault bytes, and asserts that both file actions and Apply remain blocked.
+
+Generated Review notes still derive their finding set and title from the fresh planning
+baseline. Renovation lines resolve each Room's readable name from the display map and fall
+back to its ID if missing, with the same Markdown escaping. The peer-change regression now
+checks both named and missing-Room cases before a refresh notification arrives.
+
+Both regressions failed against `66bcd0d0` (2 failed, 12 passed). This is an intermediate review
+checkpoint under the integration task's targeted-verification instruction. A new full coverage
+or browser run is not claimed here; finalization owns the combined gate, at unchanged floors.
+
+After the fixes, both focused files passed **14/14 tests** (17.18 s, two workers).
+`npx vue-tsc -noEmit`, whole-project `npx oxlint --deny-warnings`, ESLint over the two changed
+Vue components and their two regression files (`--max-warnings 0`), and `git diff --check`
+all passed. No repository schema, exclusion or threshold changed.

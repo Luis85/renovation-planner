@@ -31,11 +31,15 @@ describe('planning review regressions', () => {
   await rig.runtime.renovation.perspective('review'); await settle();
   const read = expectOk(await services.read(rig.plan.id));
   const subject = { id: 'peer-proposal', roomId: rig.room.id, targetId: rig.room.id, kind: 'floor' as const, existing: null, planned: { change: 'add' as const, description: 'Peer floor proposal' } };
-  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(read.plan.entity, { subjects: [subject], work: [], decisions: [] })), read.plan.version));
+  const missingRoom = { ...subject, id: 'missing-room-proposal', roomId: 'missing-room', targetId: 'missing-room' };
+  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(read.plan.entity, { subjects: [subject, missingRoom], work: [], decisions: [] })), read.plan.version));
   expect(rig.wrapper.text()).toContain('No gaps found');
   const write = vi.spyOn(rig.deps.commands, 'reviewNote');
   await rig.wrapper.get('[data-rp-action="review-note"]').trigger('click'); await settle();
   expect(write.mock.calls[0][1]).toContain('Peer floor proposal'); expect(write.mock.calls[0][1]).not.toContain('No gaps found');
+  expect(write.mock.calls[0][1]).toContain(`- ${rig.room.name}:`);
+  expect(write.mock.calls[0][1]).not.toContain(`- ${rig.room.id}:`);
+  expect(write.mock.calls[0][1]).toContain('- missing-room:');
  });
  it('refuses a shopping list when a fully procured source becomes stale', async () => {
   const rig = await planningStack();

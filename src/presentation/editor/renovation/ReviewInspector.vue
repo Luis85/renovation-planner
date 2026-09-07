@@ -30,7 +30,7 @@ function open(item: ReadinessFinding): void {
 const plain = (text: string): string => text.replace(/[\r\n]/g, ' ').replace(/[\\[\]<>*_`]/g, '\\$&');
 // A fresh read rather than the panel's baseline, so the note records what is on disk now.
 function renovationLines(value: Renovation): string[] {
- return reviewRenovation(value).map(item => `- ${plain(item.roomId)}: ${tr(`renovation.finding.${item.kind}`)} — ${item.causes.map(plain).join(', ')} (${item.recordId})`);
+ return reviewRenovation(value).map(item => `- ${plain(project.zones.get(item.roomId)?.name ?? item.roomId)}: ${tr(`renovation.finding.${item.kind}`)} — ${item.causes.map(plain).join(', ')} (${item.recordId})`);
 }
 async function noteSnapshot(): Promise<{ name: string; lines: string[] } | null> {
  if (!context.commands.planning) return { name: project.plan?.name ?? '', lines: renovationLines(project.plan?.renovation ?? EMPTY_RENOVATION) };

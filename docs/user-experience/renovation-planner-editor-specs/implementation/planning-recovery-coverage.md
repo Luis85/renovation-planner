@@ -1,7 +1,12 @@
 # Increment E verification and coverage ledger
 
-The final `npm run check` **passed** on 2026-09-07 with `VITEST_MAX_WORKERS=2`, Windows and
+The `npm run check` at `66bcd0d033753796e4c290c88f9bbb05322a30db` **passed** on 2026-09-07 with `VITEST_MAX_WORKERS=2`, Windows and
 Node 24.20.0. Build/vue-tsc, oxlint, ESLint, the coverage suite and Fallow all passed.
+
+The later evidence-path/Review-name follow-up uses targeted verification, recorded in the
+[evidence ledger](planning-recovery-evidence.md#review-follow-up--evidence-path-and-room-names).
+The counters below belong to `66bcd0d0`; they are not a claim of a fresh full gate after that
+follow-up. Finalization owns the subsequent combined coverage/Fallow run at unchanged floors.
 **541 test files passed; 7,259 tests passed, 70 existing skips, 7,329 total.**
 The test phase began at 01:57:32 Europe/Berlin and took **647.91 seconds**.
 Production dependency audit reports zero vulnerabilities.

@@ -5,6 +5,7 @@ import { rig } from '../../helpers/planEditorRig';
 import { runtimeOf, settle, settleUntil } from '../../helpers/editor';
 import { expectFound, expectOk } from '../../helpers/domain';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
+import { resizeTo } from '../../helpers/layout';
 const mounted: Awaited<ReturnType<typeof rig>>[] = [];
 afterEach(() => { for (const r of mounted.splice(0)) r.harness.unmount(); });
 async function setup() {
@@ -13,11 +14,23 @@ async function setup() {
 	const area = expectOk(await r.zonesRepo.save(makeZone({ ...before.entity, id: 'zone-area' as never, name: 'Area 1', zoneType: 'Custom' }), 'absent'));
 	const runtime = runtimeOf(r.harness); await runtime.refreshProjection();
 	useSelectionStore(r.harness.pinia).select([area.entity.id]); await settle();
-	await r.harness.wrapper.get('[data-rp-action="area-details"]').trigger('click');
+	const opener = r.harness.wrapper.get('[data-rp-action="area-details"]').element as HTMLButtonElement;
+	opener.focus(); opener.click();
 	await settleUntil(() => r.harness.wrapper.find('[data-rp-form="area-details"]').exists(), 'Area details form');
-	return { ...r, runtime, area };
+	return { ...r, runtime, area, opener };
 }
 describe('Area details in the production Inspector', () => {
+	it('keeps its native draft and opener through reflow and returns to the visible Details rail on cancel', async () => {
+		const r = await setup(), field = r.harness.wrapper.get('input[name="name"]');
+		await field.setValue('Draft patio'); (field.element as HTMLInputElement).focus();
+		resizeTo(r.harness.rootEl, 460, 800); await settle();
+		expect(r.harness.wrapper.get('input[name="name"]').element).toBe(field.element);
+		expect(document.activeElement).toBe(field.element);
+		expect(r.harness.wrapper.get('[data-rp-action="area-details"]').element).toBe(r.opener);
+		await r.harness.wrapper.get('[data-rp-action="cancel"]').trigger('click'); await settle();
+		expect(document.activeElement).toBe(r.harness.wrapper.get('[data-rp-rail="details"]').element);
+		expect(expectFound(await r.zonesRepo.getById(r.area.entity.id))).toEqual(r.area);
+	});
 	it('commits name and type together and reverses both without moving the outline', async () => {
 		const r = await setup();
 		expect(r.harness.wrapper.find('option[value="Room"]').exists()).toBe(false);

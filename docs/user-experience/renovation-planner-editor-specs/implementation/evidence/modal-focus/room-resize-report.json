@@ -1,0 +1,82 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 446,
+      "scroll": 446
+    },
+    "before": [
+      "4.2",
+      "3"
+    ],
+    "after": [
+      "4.2",
+      "3.5"
+    ],
+    "reflow": "Room dimensions, outline and Area details retain native draft/opener and restore visible focus",
+    "storage": "ephemeral in-memory repositories",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 446,
+      "scroll": 446
+    },
+    "before": [
+      "4.2",
+      "3"
+    ],
+    "after": [
+      "4.2",
+      "3.5"
+    ],
+    "reflow": "Room dimensions, outline and Area details retain native draft/opener and restore visible focus",
+    "storage": "ephemeral in-memory repositories",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 446,
+      "scroll": 446
+    },
+    "before": [
+      "4.2",
+      "3"
+    ],
+    "after": [
+      "4.2",
+      "3.5"
+    ],
+    "reflow": "Room dimensions, outline and Area details retain native draft/opener and restore visible focus",
+    "storage": "ephemeral in-memory repositories",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 426,
+      "scroll": 426
+    },
+    "before": [
+      "4.2",
+      "3"
+    ],
+    "after": [
+      "4.2",
+      "3.5"
+    ],
+    "reflow": "Room dimensions, outline and Area details retain native draft/opener and restore visible focus",
+    "storage": "ephemeral in-memory repositories",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

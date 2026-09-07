@@ -13,9 +13,10 @@ async function setup() {
 	const entity = expectOk(before.entity.withGeometry({ points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 3500, y: 2300 }, { x: 1000, y: 4000 }, { x: 0, y: 2000 }] }));
 	const original = expectOk(await r.zonesRepo.save(entity, before.version)), runtime = runtimeOf(r.harness);
 	await runtime.refreshProjection(); useSelectionStore(r.harness.pinia).select([entity.id]); await settle();
-	await r.harness.wrapper.get('[data-rp-action="edit-outline"]').trigger('click');
+	const opener = r.harness.wrapper.get('[data-rp-action="edit-outline"]').element as HTMLButtonElement;
+	opener.focus(); opener.click();
 	await settleUntil(() => r.harness.wrapper.find('[data-rp-form="outline-points"]').exists(), 'Outline coordinates');
-	return { ...r, original, runtime };
+	return { ...r, original, runtime, opener };
 }
 describe('numeric editing of irregular outlines in the real editor', () => {
 	it('preserves draft and focus through reflow, previews without writes and uses one history step', async () => {
@@ -27,6 +28,8 @@ describe('numeric editing of irregular outlines in the real editor', () => {
 		expect(r.runtime.renderState.previewPolygon?.[1]).toEqual({ x: 5500, y: 0 });
 		await r.harness.wrapper.get('[data-rp-form="outline-points"]').trigger('submit');
 		await settleUntil(() => !r.harness.wrapper.find('[data-rp-form="outline-points"]').exists(), 'Saved outline');
+		await settleUntil(() => document.activeElement === r.harness.wrapper.get('[data-rp-rail="details"]').element, 'visible focus after saving through reflow');
+		expect(r.harness.wrapper.get('[data-rp-action="edit-outline"]').element).toBe(r.opener);
 		const changed = expectFound(await r.zonesRepo.getById(r.original.entity.id)).entity;
 		expect(changed.geometry.points[1]).toEqual({ x: 5500, y: 0 }); expect(changed.geometry.points).toHaveLength(5);
 		expect(r.runtime.renderState.previewPolygon).toBeNull();
@@ -39,7 +42,9 @@ describe('numeric editing of irregular outlines in the real editor', () => {
 		await r.harness.wrapper.get('[data-rp-form="outline-points"]').trigger('submit'); await settle();
 		expect(document.activeElement).toBe(r.harness.wrapper.get('input[name="0.x"]').element);
 		expect(r.runtime.renderState.previewPolygon).toBeNull();
+		resizeTo(r.harness.rootEl, 460, 800); await settle();
 		await r.harness.wrapper.get('[data-rp-action="cancel"]').trigger('click'); await settle();
+		expect(document.activeElement).toBe(r.harness.wrapper.get('[data-rp-rail="details"]').element);
 		expect(expectFound(await r.zonesRepo.getById(r.original.entity.id))).toEqual(r.original);
 	});
 });

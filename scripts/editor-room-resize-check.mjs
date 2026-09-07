@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { runAreaBrowserMatrix, activate, selectRoomForEditing, assertDialogFocusWrap, checkDialogLayout, enterPair, undoRedo } from './editor-area-browser.mjs';
+import { runAreaBrowserMatrix, activate, selectRoomForEditing, assertDialogFocusWrap, checkDialogLayout, enterPair, undoRedo, tabTo } from './editor-area-browser.mjs';
+import { checkModalReflow } from './editor-modal-reflow.mjs';
 
 async function dimensions(page, width, depth) {
 	await enterPair(page, 'input[name="width"]', 'input[name="depth"]', width, depth);
@@ -30,22 +31,31 @@ async function journey(page, scenario, out) {
 	assert.match(await page.locator('.rp-room-inspector').innerText(), /14[.,]7/);
 	if (narrow) await page.keyboard.press('Escape');
 	await undoRedo(page);
-	if (narrow) await activate(page, '[data-rp-rail="details"]');
+	await selectRoomForEditing(page);
 	await activate(page, '[data-rp-action="resize-room"]');
 	await page.locator('.rp-room-dimensions').waitFor();
 	assert.equal(await page.locator('input[name="width"]').inputValue(), '4.2');
 	assert.equal(await page.locator('input[name="depth"]').inputValue(), '3.5');
 	await reflow(page, narrow, scenario.width);
-	return { metrics, before, after: ['4.2', '3.5'], reflow: 'draft and focus preserved', storage: 'ephemeral in-memory repositories' };
+	await extraReflow(page, narrow, scenario.width);
+	await page.screenshot({ path: `${out}/${scenario.name}-modal-focus-return.png` });
+	return { metrics, before, after: ['4.2', '3.5'], reflow: 'Room dimensions, outline and Area details retain native draft/opener and restore visible focus', storage: 'ephemeral in-memory repositories' };
 }
 async function reflow(page, narrow, originalWidth) {
 	await dimensions(page, '5,1', '3.5');
-	await page.setViewportSize({ width: narrow ? 1280 : 460, height: 900 });
-	await page.waitForFunction(expected => !!document.querySelector('[data-rp-rail="details"]') === expected, !narrow);
-	assert.equal(await page.locator('input[name="width"]').inputValue(), '5,1', 'draft survives layout change');
-	await page.keyboard.press('Escape');
-	await page.locator('.rp-room-dimensions').waitFor({ state: 'hidden' });
-	assert.equal(await page.locator('.renovation-plan-editor').evaluate(root => root.contains(document.activeElement)), true, 'reflow cancellation restores editor focus');
+	await checkModalReflow(page, { action: '[data-rp-action="resize-room"]', form: '.rp-room-dimensions', field: 'input[name="width"]', narrow });
 	await page.setViewportSize({ width: originalWidth, height: 900 });
+}
+async function extraReflow(page, narrow, originalWidth) {
+	await activate(page, '[data-rp-action="edit-outline"]'); await page.locator('[data-rp-form="outline-points"]').waitFor();
+	await tabTo(page, 'input[name="0.x"]'); await page.keyboard.press('Control+A'); await page.keyboard.type('0,5');
+	await checkModalReflow(page, { action: '[data-rp-action="edit-outline"]', form: '[data-rp-form="outline-points"]', field: 'input[name="0.x"]', narrow });
+	await page.setViewportSize({ width: originalWidth, height: 900 });
+	if (narrow) await activate(page, '[data-rp-rail="layers"]');
+	await activate(page, '.rp-room-list__row[data-rp-id="harness-terrace"]');
+	if (narrow) { await page.keyboard.press('Escape'); await activate(page, '[data-rp-rail="details"]'); }
+	await activate(page, '[data-rp-action="area-details"]'); await page.locator('[data-rp-form="area-details"]').waitFor();
+	await tabTo(page, 'input[name="name"]'); await page.keyboard.press('Control+A'); await page.keyboard.type('Unsaved terrace');
+	await checkModalReflow(page, { action: '[data-rp-action="area-details"]', form: '[data-rp-form="area-details"]', field: 'input[name="name"]', narrow });
 }
 await runAreaBrowserMatrix('room-resize', '&resize=room', journey, '.rp-plan-canvas');

@@ -192,6 +192,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Fixed
 
+- Room naming, dimensions, outline and Area details dialogs return keyboard focus to a visible control after responsive reflow, including when the persistent Inspector opener becomes hidden.
+
 - Preserve native Inspector/Layer controls, pending text, caret selection and focus while resizing the editor. A focused region opens automatically at constrained widths; close and Escape still return focus to the rail.
 
 - Evidence opened from a material or cost announces the same selected state it highlights; unlinked evidence stays unselected until explicitly focused.

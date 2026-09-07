@@ -47,3 +47,44 @@ requirements. This document does not claim complete M00–M17 acceptance.
 Browser evidence uses the existing production editor harness and ephemeral repositories.
 It covers CSS viewport reflow, not live Obsidian panes, physical devices, native browser zoom
 or screen-reader acceptance. The harness theme badge remains in the screenshots.
+
+## Modal focus follow-up
+
+The combined branch at `88b9ee3d` exposed a real gap in the old opener-disconnection guard:
+Room naming, dimensions, outline editing and Area details retain their opener on reflow,
+but the persistent Inspector can be hidden when a root-owned modal closes. All four actions
+now use a shared recovery helper. A visible connected opener keeps normal dialog restoration;
+a hidden opener returns to the visible Details rail, or the unsupported-width action below
+the supported size. A removed opener uses a replacement action or the current Inspector.
+Disposed leaves do not take focus.
+
+A duplicates-only scan still identified the common opener-capture/invocation prefix in two
+actions after sharing only focus restoration. All four now call the same complete asynchronous
+runner, which captures `event.currentTarget` before awaiting and restores focus after Vue's
+visibility patch. A real-click regression verifies that capture and delayed restoration.
+After this consolidation, the five focused files passed **21/21 tests** (47.57 s, two workers),
+and vue-tsc, whole-project oxlint and ESLint over the six subsequently changed files passed.
+The duplicates-only scan no longer reports either action: this parent revision still has six
+other clone groups, separately owned by finalization. No suppression was added.
+
+The four integration files reproduced **5 failures and 9 passes** before this fix, including
+both cancellation and outline saving. Updated tests require the same native draft/opener,
+retained text and field focus through reflow, and the exact visible return destination.
+Six focused helper cases additionally cover unsupported width, removed actions and disposal.
+After the fix all five focused files passed **20/20 tests** (21.17 s, two workers).
+`npx vue-tsc -noEmit`, whole-project oxlint and ESLint over all ten changed source/test
+files passed. The three browser scripts passed `node --check`.
+The existing Room naming and resizing browser journeys now verify actual visible focus,
+and the resizing journey includes outline and Area details dialogs in the same theme matrix.
+Both final browser matrices passed **four scenarios each** on Edge **152.0.4191.62**, with
+no page errors: light, dark, custom accent and German constrained. The existing journey's
+post-Undo/Redo setup now explicitly reselects its Room through Layers instead of assuming
+the Floor Inspector is still a Room. All reflow checks retain the same native opener/input,
+draft value and field focus, then require exact focus on a visible return control.
+The four final focus-return captures and representative German naming dialog were visually
+inspected. Reports and selected images are saved under [modal focus evidence](evidence/modal-focus/room-resize-report.json).
+The three non-German final captures are narrowed to 460 px with focus on Details; the German
+capture has widened to 1280 px with focus on Area details. The harness badge still overlaps
+part of the footer. This is CSS viewport/browser evidence, not native zoom or live Obsidian.
+Verification for this checkpoint remains targeted by instruction; combined coverage/Fallow
+and live-host acceptance remain with finalization.

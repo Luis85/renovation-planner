@@ -47,3 +47,14 @@ journey passed, including the corrected contrast rule and full-layout Review vis
 The 18 related overview/Review native tests, current types and scoped lint passed. Actual
 Light/Dark/custom/German Review images were inspected. This establishes the supported all-clear
 state, not the still-required issue-rich M17 state or final eighteen-screen acceptance.
+
+## Additional issue-state capture preparation
+
+The next source-only helper preserves the earlier native review-note action and both all-clear
+captures, then creates two separate unresolved Decisions through the existing selected outcome's
+native form. It checks unique saved identities, both question texts, four Room rows, the selected
+Room's two findings, and absence of all-clear/Add/dialog. A 1000-pixel issue capture retains the
+same accessibility and visibility gates, including both issue rows. Each issue must open its
+exact unresolved Decision; native Cancel must retain its identity/question and Room/camera.
+The original Back to Renovate route is checked too. No store/fixture injection, new readiness
+rule or forced scroll is used. Syntax/diff checks only so far; runtime verification is pending.

@@ -6,6 +6,7 @@ import { runAreaBrowserMatrix, activate, tabTo } from './editor-area-browser.mjs
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 import { captureEvidenceGallery } from './editor-evidence-gallery.mjs';
 import { inspectorVisibility } from './editor-inspector-visibility.mjs';
+import { captureReviewIssues } from './editor-review-issues.mjs';
 const form = '[data-rp-form="planning"]';
 async function shot(page, scenario, out, state) {
  if (state === 'photos' || state === 'photos-gallery') await page.waitForFunction(async () => {
@@ -59,7 +60,10 @@ async function evidence(page, scenario, out) {
  await activate(page, '[data-rp-evidence-photo]'); await page.waitForFunction(() => [...document.querySelectorAll('.rp-evidence-gallery img')].some(image => image.complete && image.naturalWidth > 0)); await shot(page, scenario, out, 'photos');
  if (process.argv.includes('--design')) gallery = await captureEvidenceGallery(page, scenario, out, shot);
  if (scenario.width === 460) await page.keyboard.press('Escape'); await activate(page, '[data-rp-perspective="review"]'); await panel(page, 'details'); assert.equal(await page.locator('[data-rp-action="add"]').count(), 0); await activate(page, '[data-rp-action="review-note"]'); await shot(page, scenario, out, 'review');
- if (process.argv.includes('--design')) await reviewDesign(page, scenario, out);
+ if (process.argv.includes('--design')) {
+  await reviewDesign(page, scenario, out);
+  gallery.reviewIssues = await captureReviewIssues(page, scenario, out, shot);
+ }
  return gallery;
 }
 async function reviewDesign(page, scenario, out) {

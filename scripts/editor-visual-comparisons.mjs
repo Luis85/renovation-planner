@@ -18,7 +18,7 @@ const pairs = [
 	['M10', `${renovation}/dark-work.png`, 'editor-downstream/dark-room-work.png'], ['M11', 'light-M11-multiple.png', 'editor-visual-overview/light-M11-connected-selection.png'],
 	['M12', `${planning}/light-materials.png`], ['M13', `${planning}/dark-costs.png`, 'editor-downstream/dark-room-costs.png'],
 	['M14', `${planning}/light-photos.png`, `${planning}/light-photos-gallery.png`], ['M15', 'light-M15-stale.png', 'planning-recovery/light-saved-overview.png'],
-	['M16', `${planning}/german-constrained-materials.png`], ['M17', `${planning}/light-review.png`, `${planning}/light-review-design.png`],
+	['M16', `${planning}/german-constrained-materials.png`], ['M17', `${planning}/light-review.png`, `${planning}/light-review-issues-design.png`],
 ];
 const manifest = [];
 function label(ctx, text, x) {

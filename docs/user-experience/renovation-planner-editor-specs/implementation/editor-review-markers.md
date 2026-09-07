@@ -51,3 +51,16 @@ explicit nonzero counts so an empty old-selector loop cannot pass vacuously. Iss
 assertions remain. A new browser step clears selection with native Escape, clicks the actual
 marker pixels, checks Review/number/summary with no dialog, and verifies Back restores Room/
 camera without writing files. This browser step and the current native batch remain pending.
+
+## Native checkpoint — f576d13c
+
+Current types, whole Oxlint and scoped ESLint passed. The native batch passed all 45 tests in
+five files in 66.38 seconds: renovation Workflow/Overview/Routes and Planning Review/Markers.
+This includes both finding families in shared Rooms, matching marker/list numbers, distinct
+Work source labels, issue source routes and the updated Room-marker contract. Existing normal
+planning/overview behavior remains covered. Original logs and hashes are in
+[the native evidence](evidence/editor-review-markers-native/).
+
+The actual extended four-theme browser run, issue-rich layout/marker mouse input, other screen
+comparisons and uninterrupted final nine-journey run remain pending. Native green does not
+declare full visual or live-host acceptance.

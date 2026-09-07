@@ -194,6 +194,14 @@ The source-only correction is described in `editor-review-markers.md`; no native
 is claimed yet. The coverage task owns its separate reviewMarkerNavigation test file.
 Coverage currently has the heavy slot; UI source preparation continues with no running process.
 
+Review checkpoint `f576d13c`: current types, whole Oxlint, scoped lint and 45 native tests in
+five files passed (66.38s). Both finding families/shared Room numbers/source labels and normal
+overview/route regressions are covered. Logs are archived under `evidence/editor-review-markers-native`.
+The new actual mouse-marker/issue-rich browser step remains unrun against this corrected source.
+UI released heavy at session 87001's terminal result; Coverage has the brief Outline batch.
+Next after explicit release: extended planning browser, inspect/fix actual failures, then overview
+and final nine-journey/eighteen-screen matrix. No overall completion or full visual pass yet.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

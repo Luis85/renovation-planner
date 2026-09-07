@@ -47,6 +47,13 @@ the complete final nine-journey run and eighteen comparisons still have not pass
 
 ## Concrete visual work still open
 
+The M02 source-only continuation adds supplementary Obsidian catalogue icons, a visible title
+and the existing localized search label as a placeholder. Compact three-column rows retain the
+native menu buttons, full descriptions, unavailable reasons and roving focus. Nine original SVG
+files from the already-pinned Lucide revision extend only the test renderer; production continues
+to call host `setIcon`. Source/diff review passed; no runtime, lint, type or visual acceptance is
+claimed. Verify the installed host icon names and all eleven routes in light/dark/custom/German.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

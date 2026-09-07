@@ -63,3 +63,8 @@ The remaining lint warning required animation frames to use the controls' own wi
 and cancellation now retain the same `ownerDocument.defaultView`, including popout contexts.
 Updated types and scoped lint passed; 28 tests across dimension measurement/caption and existing
 inline/lifecycle files passed in 64.99 seconds. Actual extended browser capture remains next.
+
+The first extended browser attempt correctly rejected its own pan: its lower-canvas start
+point landed on the floating Add toolbar, which consumes pointer input. The driver now begins
+farther right and checks that the hit target is canvas content rather than a control. The actual
+camera-change assertion remains. This is a driver correction; no production input routing changed.

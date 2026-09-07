@@ -14,3 +14,18 @@ unchanged asset-shelf reports if they remain.
 
 Source/diff review only at this checkpoint. The three native warning suites and unchanged focus
 gate, then the connected browser/recovery paths, must be run before claiming these fixes verified.
+
+## Verified follow-up at ecbf7e27
+
+The final severity expression contains exactly one trailing space. All 32 tests in the three
+unchanged warning suites passed in 15.79 seconds. The unchanged focus test now reports only
+two pre-existing asset-shelf selectors; no editor selector remains, and Root owns that separate
+audit. The earlier seven-file run's three Review-neighbor files passed with the extracted Room
+detail component. Current types, whole Oxlint and scoped lint passed.
+
+The selected Room block moved to ReviewRoomDetails with identical DOM, selectors and focus
+handling. Fallow reports zero functions above the unchanged limits (cognitive 15, cyclomatic
+20, CRAP 32). It used the original 571 coverage JSON and official coverage-root mapping; moved
+and new functions do not have current full coverage proved by that older file. This is not a
+claim of a current full gate. Logs, the raw health report and hashes are in
+`evidence/editor-joined-ci-fixes`. The extended browser/final matrix remains next.

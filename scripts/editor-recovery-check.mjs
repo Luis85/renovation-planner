@@ -11,11 +11,11 @@ const idle = page => page.waitForFunction(() => !document.querySelector('[data-r
 async function recovery(page, scenario, out) {
  await activate(page, '.rp-renovation-inspector > button:first-of-type');
  await panel(page, 'details'); await activate(page, '[data-rp-mode="materials"]'); await idle(page);
- const before = await snapshot(page), previousRows = await page.locator('.rp-planning-group li').count();
+ const before = await snapshot(page), previousRows = await page.locator('.rp-material-row').count();
  await activate(page, '[data-rp-new-material]'); await tabTo(page, `${form} select[name="asset"]`); await page.keyboard.press('Home'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Tab');
  await recordText(page, form, 'lot', '100'); await page.evaluate(() => window.planningRecovery.armFailure());
  await recordApply(page, form, false); await page.locator(retry).waitFor();
- assert.equal(await page.locator('.rp-planning-group li').count(), previousRows, 'retained material projection');
+ assert.equal(await page.locator('.rp-material-row').count(), previousRows, 'retained material projection');
  assert.equal(await page.locator('[data-rp-action="undo"]').isDisabled(), true);
  assert.match(await page.locator('.rp-save-state-label').innerText(), /refresh needed|Aktualisierung/);
  await recordShot(page, scenario, out, 'saved-refresh-needed');
@@ -23,7 +23,7 @@ async function recovery(page, scenario, out) {
  const failed = await snapshot(page); assert.equal(failed.materialWrites - before.materialWrites, 1);
  const warningAccessibility = await accessibility(page, scenario, out, '-warning');
  await page.evaluate(() => window.planningRecovery.setFailure(false)); await activate(page, retry); await idle(page);
- assert.equal(await page.locator('.rp-planning-group li').count(), previousRows + 1);
+ assert.equal(await page.locator('.rp-material-row').count(), previousRows + 1);
  assert.equal((await snapshot(page)).materialWrites, failed.materialWrites, 'retry never replays a write');
  await activate(page, '[data-rp-new-material]'); await recordText(page, form, 'waste', '17,5');
  await page.evaluate(async () => { window.planningRecovery.setFailure(true); await window.planningRecovery.events(1); });
@@ -44,10 +44,12 @@ async function recovery(page, scenario, out) {
  assert.equal((await snapshot(page)).reads, eventsBefore.reads, 'linked image invalidates evidence without a planning read');
  await page.evaluate(() => window.planningRecovery.events(100)); await idle(page);
  const burst = (await snapshot(page)).reads - eventsBefore.reads; assert.ok(burst >= 1 && burst <= 2, `100 events caused ${burst} reads`);
- const packaged = await page.locator('.rp-planning-group').last().locator('dl').innerText();
+ const lastMaterial = page.locator('.rp-material-row').last(), materialId = await lastMaterial.getAttribute('data-rp-record'); assert.ok(materialId);
+ await activate(page, `.rp-material-row[data-rp-record="${materialId}"] [data-rp-material-details]`);
+ const packaged = await lastMaterial.locator('dl').innerText();
  await page.evaluate(() => window.planningRecovery.geometryChange()); await idle(page);
- assert.match((await page.locator('.rp-planning-group').allTextContents()).join(' '), /Stale|Veraltet/);
- assert.equal(await page.locator('.rp-planning-group').last().locator('dl').innerText(), packaged, 'source changes despite unchanged packaged quantity and cost');
+ const stale = lastMaterial.locator('[role="status"]'); assert.equal(await stale.isVisible(), true); assert.match(await stale.innerText(), /Stale|Veraltet/);
+ assert.equal(await lastMaterial.locator('dl').innerText(), packaged, 'source changes despite unchanged packaged quantity and cost');
  await recordShot(page, scenario, out, 'changed-source');
  return { successfulMaterialWrites: 1, failedRetries: 2, replayedWrites: 0, unrelatedEvents: 100, unrelatedReads: 0, linkedImageReads: 0, burstEvents: 100, burstReads: burst, warningAccessibility, draftAccessibility };
 }
@@ -75,12 +77,13 @@ async function largeFloor(page, scenario, out) {
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const pan = await panFrames(page);
  await activate(page, '[data-rp-perspective="renovate"]'); await panel(page, 'details');
- await activate(page, '[data-rp-mode="materials"]'); await idle(page);
+ await activate(page, '[data-rp-linked="materials"]'); await idle(page);
  await page.waitForFunction(() => window.planningRecovery.scene()[0]?.materialMarkers === 3);
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const materialPan = await panFrames(page);
  assert.equal(materialPan.sceneAfter.materialMarkers, 3, 'first Room retains its three material markers through pan/zoom');
  await panel(page, 'details');
+ if (!await page.locator('[data-rp-mode="photos"]').isVisible()) await activate(page, '[data-rp-room-navigation]');
  await tabTo(page, '[data-rp-mode="photos"]');
  const inspectorStart = await page.evaluate(() => performance.now()); await page.keyboard.press('Enter');
  await page.waitForFunction(() => document.querySelectorAll('.rp-evidence-thumbnail').length === 40);

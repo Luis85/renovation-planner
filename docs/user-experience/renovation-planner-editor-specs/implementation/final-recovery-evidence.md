@@ -20,3 +20,20 @@ production code, schema, coverage floor or exclusion changes in this checkpoint.
 
 Final results must name the exact integrated source revision and distinguish headless browser
 measurements from live Obsidian, physical devices and assistive-technology acceptance.
+
+## Compact Materials harness preparation — 2026-09-07
+
+On parent `24ee3177fa3d088cd52b05430ae33a972428494d`, the recovery journey is adapted to
+the UI task's pending M12 compact table/navigation contract. This preparation is **not yet
+executed against M12** and records no new acceptance or timing result.
+
+Material retention counts use stable `.rp-material-row` records. The existing native
+`data-rp-material-details` disclosure exposes the packaged-value comparison, and the source
+change must produce a visible stale status. The large-floor journey uses the overview's
+Materials link and opens compact room navigation before timing the Photos activation.
+The UI task owns corresponding changes to the shared keyboard helper and normal planning
+journey; both preparations must be integrated with the verified UI source before execution.
+
+Per the integration task's intermediate-checkpoint instruction, only `node --check
+scripts/editor-recovery-check.mjs` and `git diff --check` were run for this preparation; both
+passed. No dependency install, test, browser capture or performance measurement ran here.

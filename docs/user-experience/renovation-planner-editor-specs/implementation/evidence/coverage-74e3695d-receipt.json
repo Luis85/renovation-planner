@@ -1,0 +1,199 @@
+{
+  "scope": "Complete Linux24 CI, with known test failures and before the UI Review join",
+  "run": 34148832819,
+  "head": "74e3695d",
+  "testedMerge": "d82fc6ff44fca38ca768387c14c31c6f5c40b423",
+  "artifact": 10028825357,
+  "headMergeDifferences": "Only RESUME.md, completion-matrix.md and coverage-coordination.md; source and tests identical",
+  "passedFiles": 654,
+  "failedFiles": 2,
+  "passedTests": 8091,
+  "failedTests": 6,
+  "skippedTests": 69,
+  "failureScope": "Five missing future UI-seam failures; one Outline test incorrectly compared a Loaded read with an extended write receipt. Peer deletion case passed.",
+  "before": {
+    "statements": {
+      "hit": 17882,
+      "total": 18049
+    },
+    "functions": {
+      "hit": 5122,
+      "total": 5160
+    },
+    "lines": {
+      "hit": 13987,
+      "total": 14053
+    },
+    "branches": {
+      "hit": 12408,
+      "total": 12692
+    }
+  },
+  "after": {
+    "statements": {
+      "hit": 17883,
+      "total": 18049
+    },
+    "functions": {
+      "hit": 5123,
+      "total": 5160
+    },
+    "lines": {
+      "hit": 13988,
+      "total": 14053
+    },
+    "branches": {
+      "hit": 12409,
+      "total": 12688
+    }
+  },
+  "gains": [
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "branch",
+      "id": "0",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 11,
+            "column": 21
+          },
+          "end": {
+            "line": 11,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 11,
+              "column": 31
+            },
+            "end": {
+              "line": 11,
+              "column": 85
+            }
+          },
+          {
+            "start": {
+              "line": 11,
+              "column": 85
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          }
+        ],
+        "line": 11
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "branch",
+      "id": "0",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 11,
+            "column": 21
+          },
+          "end": {
+            "line": 11,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 11,
+              "column": 31
+            },
+            "end": {
+              "line": 11,
+              "column": 85
+            }
+          },
+          {
+            "start": {
+              "line": 11,
+              "column": 85
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          }
+        ],
+        "line": 11
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "statement",
+      "id": "2",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 11,
+          "column": 21
+        },
+        "end": {
+          "line": 11,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 2
+    },
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "function",
+      "id": "2",
+      "arm": 0,
+      "location": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 11,
+            "column": 2
+          },
+          "end": {
+            "line": 11,
+            "column": 10
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 11,
+            "column": 21
+          },
+          "end": {
+            "line": 11,
+            "column": null
+          }
+        },
+        "line": 11
+      },
+      "before": 0,
+      "after": 2
+    }
+  ],
+  "incomparable": [
+    {
+      "path": "src/domain/requirement/Requirement.ts",
+      "reason": "source changed"
+    }
+  ],
+  "losses": [],
+  "remainingBranchesOnThisSource": 26,
+  "note": "Requirement.ts is deliberately excluded from map-wise gains because source changed; its four-arm removal is documented separately. This is not final gate evidence."
+}

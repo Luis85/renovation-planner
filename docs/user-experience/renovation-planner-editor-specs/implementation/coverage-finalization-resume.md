@@ -8,6 +8,27 @@ Root confirmed global coverage ownership. The first granted heavy slot is comple
 and was explicitly returned to Root. All local process handles are terminal.
 Root owns shared status files and the final combined source/acceptance.
 
+## Latest checkpoint
+
+Root selectively integrated the verified command package as `9d3a5de4` and the
+private Requirement cleanup as `1b554540` (Root's integration test rerun: 16/16).
+UI Review production is available as unverified `876f0dd3`; Root/UI own its current
+heavy verification. Do not merge it as a verified join until Root supplies the checkpoint.
+
+Own complete CI `34148832819`, head `74e3695d`, reports 12409/12688 branches (26 arms
+short), statements 17883/18049, functions 5123/5160 and lines 13988/14053. It has six
+known test failures: five missing future UI selectors and an Outline test comparing
+a read result with the peer save's extended receipt. The corrected Outline assertion
+checks exact entity/version plus the sidecar version against `relatedWrite.after`.
+Peer deletion already passed. [Complete receipt](evidence/coverage-74e3695d-receipt.json).
+
+Exact comparable Outline gains: two branches, one statement, one function. Requirement
+is intentionally excluded from map-wise gains and covered by its separate removal proof.
+The corrected Outline test and source-aligned Review test still await the next granted
+local slot. Review selection assertions use the actual selection/focus store and show
+the Room summary from a previously cleared selection; causes are checked at the separate
+explicit issue button, where UI renders them, not inside the transformation summary.
+
 ## Approved private Requirement cleanup — verified
 
 Root approved the only production edit: preserve the date directly in `Requirement.with`

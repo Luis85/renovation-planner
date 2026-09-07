@@ -48,7 +48,9 @@ it('shows the peer Room name after an outline conflict while retaining draft coo
 	expect(rig.form.get('button[type="submit"]').attributes('aria-disabled')).toBe('true');
 	expect(save).toHaveBeenCalledOnce();
 	await apply(rig); expect(save).toHaveBeenCalledOnce();
-	expect(expectFound(await rig.stack.zones.getById(rig.room.id))).toEqual(peer);
+	expect(expectFound(await rig.stack.zones.getById(rig.room.id))).toEqual({ entity: peer.entity, version: peer.version });
+	expect(peer.relatedWrite).toBeDefined();
+	expect(expectOk(await rig.geometry.read(rig.plan.id)).version).toEqual(peer.relatedWrite?.after);
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 	await cancelAfterReflow(rig);
 	expect([...rig.stack.vault.entries]).toEqual(bytes);

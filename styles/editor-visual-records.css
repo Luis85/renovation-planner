@@ -168,7 +168,8 @@
 }
 
 .renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions { display: contents; }
-.renovation-plan-editor :is(.rp-subject-row, .rp-work-row) > button:not(.rp-record-title),
+.renovation-plan-editor .rp-subject-row > button:not(.rp-record-title),
+.renovation-plan-editor .rp-work-row > button:not(.rp-record-title),
 .renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions > button {
 	min-height: 28px;
 	max-width: 100%;
@@ -185,7 +186,8 @@
 	background: var(--background-modifier-hover);
 }
 
-.renovation-plan-editor :is(.rp-subject-row, .rp-work-row) > button:focus-visible,
+.renovation-plan-editor .rp-subject-row > button:not(.rp-record-title):focus-visible,
+.renovation-plan-editor .rp-work-row > button:not(.rp-record-title):focus-visible,
 .renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions > button:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;

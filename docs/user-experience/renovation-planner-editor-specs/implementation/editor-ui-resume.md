@@ -211,6 +211,12 @@ The M02 Floor Add capture also moves its already-existing Renovate activation be
 to match the locked perspective; the original M01 Plan capture and all route assertions remain.
 Coverage has the current short Review validation slot; UI has no running process.
 
+Joined full CI additionally found nine warning text-separator regressions and new editor focus
+selector mismatches. Source corrections preserve the existing severity/message whitespace contract
+and add exact matching focus-visible selectors; unchanged tests and all asset-shelf styles remain
+intact. See `editor-joined-ci-fixes.md`. These corrections await the next UI heavy slot for the
+three warning suites, buttonFocusRing and current small Review follow-ups before browser recapture.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

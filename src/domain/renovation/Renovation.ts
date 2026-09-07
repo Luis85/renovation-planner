@@ -98,15 +98,21 @@ function validateRecords(value: Renovation): Result<void, ValidationError> {
 	if (all.some(item => !item.id.trim() || !item.roomId.trim()) || new Set(all.map(item => item.id)).size !== all.length) return err(renovationError('identity'));
 	if (value.subjects.some(item => !item.targetId.trim() || !validSubject(item))) return err(renovationError('state'));
 	const subjects = new Map(value.subjects.map(item => [item.id, item]));
-	const workIds = new Set(value.work.map(item => item.id));
-	for (const item of value.work) {
+	const work = validateWorkRecords(value.work, subjects);
+	if (!work.ok) return work;
+	if (hasCycle(value.work)) return err(renovationError('cycle'));
+	if (value.decisions.some(item => !item.question.trim() || (item.resolved && !item.resolution.trim()) || subjects.get(item.subjectId)?.roomId !== item.roomId)) return err(renovationError('decision'));
+	return ok(undefined);
+}
+
+function validateWorkRecords(work: readonly WorkPackage[], subjects: ReadonlyMap<string, RenovationSubject>): Result<void, ValidationError> {
+	const workIds = new Set(work.map(item => item.id));
+	for (const item of work) {
 		if (!validSharedLinks(item)) return err(renovationError('target-missing'));
 		if (!validWork(item)) return err(renovationError('work'));
 		if (new Set(item.dependencies).size !== item.dependencies.length || item.dependencies.some(id => !workIds.has(id))) return err(renovationError('dependency'));
 		if (new Set(item.outcomes).size !== item.outcomes.length || item.outcomes.some(id => !subjects.get(id)?.planned || !hasRoomContext(item, subjects.get(id)?.roomId))) return err(renovationError('outcome'));
 	}
-	if (hasCycle(value.work)) return err(renovationError('cycle'));
-	if (value.decisions.some(item => !item.question.trim() || (item.resolved && !item.resolution.trim()) || subjects.get(item.subjectId)?.roomId !== item.roomId)) return err(renovationError('decision'));
 	return ok(undefined);
 }
 

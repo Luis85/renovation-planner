@@ -22,6 +22,12 @@ const value = props.baseline.plan.entity.renovation ?? EMPTY_RENOVATION;
 const records = computed(() => draft.value.kind === 'work' ? value.work.map(item => ({ id: item.id, label: item.title })) : (value.depth?.evidence ?? []).map(item => ({ id: item.id, label: item.description })));
 const referents = [...new Set(props.targets.flatMap(item => renovationReferents(value, item.targetId)))];
 const hosted = props.baseline.geometry.document.structure?.openings.filter(item => props.targets.some(target => target.targetId === item.hostId)) ?? [];
+const sharedKind = computed(() => props.kind === 'work' || props.kind === 'evidence');
+const newTitle = computed(() => props.kind !== 'remove' && !draft.value.id);
+const newEvidence = computed(() => props.kind === 'evidence' && !draft.value.id);
+function filePaths(): readonly string[] { return props.files?.list() ?? []; }
+const hostedImpact = computed(() => props.kind === 'remove' && hosted.length > 0);
+const submitLabel = computed(() => tr(reviewed.value ? 'renovation.apply' : 'renovation.preview'));
 async function submit(): Promise<void> {
 	if (frozen.value) return;
 	if (draft.value.kind === 'evidence' && !draft.value.id) {
@@ -66,7 +72,7 @@ async function submit(): Promise<void> {
 		>
 			{{ error }}
 		</p>
-		<template v-if="kind === 'work' || kind === 'evidence'">
+		<template v-if="sharedKind">
 			<label>{{ tr('renovation.batch.record') }}<select
 				v-model="draft.id"
 				:disabled="frozen"
@@ -76,20 +82,20 @@ async function submit(): Promise<void> {
 				:value="record.id"
 			>{{ record.label }}</option></select></label>
 		</template>
-		<label v-if="kind !== 'remove' && !draft.id">{{ tr('renovation.batch.description') }}<input
+		<label v-if="newTitle">{{ tr('renovation.batch.description') }}<input
 			v-model="draft.title"
 			name="batch-title"
 			required
 			:disabled="frozen"
 		></label>
-		<template v-if="kind === 'evidence' && !draft.id">
+		<template v-if="newEvidence">
 			<label>{{ tr('renovation.batch.file') }}<select
 				v-model="draft.path"
 				required
 				:disabled="frozen"
 				@change="draft.subpath = ''"
 			><option value="">{{ tr('renovation.batch.file-required') }}</option><option
-				v-for="path in files?.list() ?? []"
+				v-for="path in filePaths()"
 				:key="path"
 				:value="path"
 			>{{ path }}</option></select></label>
@@ -100,7 +106,7 @@ async function submit(): Promise<void> {
 		</template>
 		<template v-if="reviewed">
 			<p>{{ tr('renovation.batch.preview') }}</p>
-			<p v-if="kind === 'remove' && hosted.length">
+			<p v-if="hostedImpact">
 				{{ tr('renovation.batch.hosted', { count: String(hosted.length) }) }}
 			</p>
 			<p v-if="referents.length">
@@ -112,7 +118,7 @@ async function submit(): Promise<void> {
 				type="submit"
 				:disabled="frozen"
 			>
-				{{ tr(reviewed ? 'renovation.apply' : 'renovation.preview') }}
+				{{ submitLabel }}
 			</button>
 		</div>
 	</form>

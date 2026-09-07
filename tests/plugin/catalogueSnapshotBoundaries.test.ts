@@ -62,12 +62,12 @@ it('reports an Asset read refusal without a stale path when reconciliation overt
 		if (id === rig.asset.id) {
 			failureCode = expectErr(result).code;
 			reconcile(rig);
-			expect(rig.persistence.index.getPath(id)).toBeUndefined();
 		}
 		return result;
 	});
 	const bytes = [...rig.stack.vault.entries], modify = vi.spyOn(rig.stack.deps.vault, 'modify');
 	const listing = expectOk(await rig.persistence.assets.listAll());
+	expect(rig.persistence.index.getPath(rig.asset.id)).toBeUndefined();
 	expect(failureCode).not.toBe('');
 	expect(listing.loaded.map(item => item.entity.id)).toEqual([survivor.id]);
 	expect(listing.skipped).toEqual([{ assetId: rig.asset.id, code: failureCode, path: '' }]);
@@ -93,12 +93,12 @@ it('keeps surviving Trades and the real refusal when a failed read is unindexed 
 		if (id === converted.id) {
 			failureCode = expectErr(result).code;
 			reconcile(rig);
-			expect(rig.persistence.index.getPath(id)).toBeUndefined();
 		}
 		return result;
 	});
 	const bytes = [...rig.stack.vault.entries], modify = vi.spyOn(rig.stack.deps.vault, 'modify');
 	const listing = expectOk(await rig.persistence.trades.listAll());
+	expect(rig.persistence.index.getPath(converted.id)).toBeUndefined();
 	expect(failureCode).not.toBe('');
 	expect(listing.loaded.map(item => item.entity)).toEqual([survivor]);
 	expect(listing.refused).toEqual([{ id: converted.id, code: failureCode, path: '' }]);

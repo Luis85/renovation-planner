@@ -66,11 +66,12 @@ it('removes an unbound wall when its material disappears after the guard enumera
 	const geometryPath = expectDefined(rig.stack.index.getGeometrySidecarPath(rig.plan.id), 'geometry path');
 	const untouched = [...rig.stack.vault.entries].filter(([path]) => path !== pathB && path !== geometryPath);
 	const sequence: string[] = [];
+	const snapshots: (readonly string[])[] = [];
 	const getIds = rig.stack.index.getIdsByType.bind(rig.stack.index);
 	const enumerate = vi.spyOn(rig.stack.index, 'getIdsByType').mockImplementation(type => {
 		const ids = getIds(type);
 		if (type === 'renovation-requirement') {
-			expect(ids).toEqual([rig.material.entity.id, materialB.entity.id]);
+			snapshots.push(ids);
 			sequence.push('enumerated A and B');
 		}
 		return ids;
@@ -95,6 +96,7 @@ it('removes an unbound wall when its material disappears after the guard enumera
 	const result = await rig.services.command({ planId: rig.plan.id, baseline, structure, ledger: rig.ledger }).execute();
 	read.mockRestore(); enumerate.mockRestore(); lookup.mockRestore();
 	expect(expectOk(result)).toBe('wrote');
+	expect(snapshots).toEqual([[rig.material.entity.id, materialB.entity.id]]);
 	expect(sequence).toEqual(['enumerated A and B', 'read A bytes', 'deleted B', 'return A bytes', 'B path missing']);
 	expect(remove).toHaveBeenCalledOnce();
 	expect(remove).toHaveBeenCalledWith(materialB.entity.id, materialB.version);

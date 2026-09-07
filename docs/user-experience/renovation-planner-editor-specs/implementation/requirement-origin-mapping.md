@@ -21,4 +21,8 @@ tests and public persisted roundtrips are the verification scope; exact counter 
 is measured from original counter files and recorded separately. No threshold, discovery
 setting, timeout or suppression is changed.
 
-Status at preparation: unverified source checkpoint; no pass is claimed here yet.
+Verified: 56/56 tests in eight files (14.85 seconds), types, whole Oxlint, scoped
+ESLint and Fallow static analysis (zero issues/clones) passed. This includes the
+existing mapper/Requirement neighbors and real persisted command roundtrips.
+Exact counter removal remains pending the next matching full measurement. No scoped
+counter run was started in this slot, which was returned for final UI verification.

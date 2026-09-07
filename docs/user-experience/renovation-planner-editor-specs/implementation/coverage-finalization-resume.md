@@ -10,6 +10,28 @@ Root owns shared status files and the final combined source/acceptance.
 
 ## Latest checkpoint
 
+**Current bounded package is verified:** 56/56 tests in eight files (14.85 seconds),
+types, whole Oxlint, scoped ESLint and Fallow static zero issues/clones PASS. This
+validates Review Tap at 460 px, the real Plan calibration rounding refusal with
+retained Undo, and the approved Requirement origin mapper cleanup with existing
+mapper/Requirement/public roundtrip neighbors. The first run only exposed a test
+assumption: the existing Workspace overlay's closed value is `'none'`, not null.
+Both expectations were corrected to the actual public store contract; production
+was not changed for this test assumption.
+
+Handles 9285/56240 are terminal. No counter run was started for this package. Root
+explicitly requested immediate slot return so UI can run final9/18; the slot is free.
+Counter evidence is deferred to the next matching full CI. No removed-arm total or
+new-hit number is claimed for this package yet. Code source at verification is the
+Root571 join plus the approved mapper edit; Root now has newer UI source9cb and will
+integrate only the verified owner diff before its shared freeze.
+
+Root9cb complete Linux24 baseline is available in the Root scratch `ci-9cb87b1b-linux24/`:
+S18059/18224, F5174/5211, L14103/14168, B12537/12817 (24-arm deficit on that exact tree).
+All 8114 tests pass, 69 skip. This does not yet include the mapper/current test updates.
+After this handoff only source/map-valid remaining-gap analysis is authorized during
+UI's heavy slot. NewProjectForm cleanup remains deferred and unchanged.
+
 Root465 full CI `34152586317` confirms the owner gains without extrapolation:
 18055/18220 statements, 5175/5212 functions, 14099/14164 lines, 12540/12821 branches.
 Exactly +6 branches/+5 statements/+2 functions versus full Root571, identical source

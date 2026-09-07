@@ -62,13 +62,13 @@ it('opens the unresolved Decision from its issue button and cancels without writ
 });
 
 // M17 separates spatial readiness selection from the explicit issue source action.
-it.each([{ event: 'click', width: 1100, overlay: null }, { event: 'tap', width: 460, overlay: 'inspector' }])('keeps Review and expands the Room summary on marker $event at $width px', async ({ event, width, overlay }) => {
+it.each([{ event: 'click', width: 1100, overlay: 'none' }, { event: 'tap', width: 460, overlay: 'inspector' }])('keeps Review and expands the Room summary on marker $event at $width px', async ({ event, width, overlay }) => {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
 	const workspace = useWorkspaceStore(rig.pinia);
 	resizeTo(rig.rootEl, width, 800); await settle();
 	await rig.runtime.renovation.perspective('review'); await settle();
 	workspace.closeOverlay(); rig.selection.clear(); await settle();
-	expect(workspace.overlay).toBeNull();
+	expect(workspace.overlay).toBe('none');
 	expect(rig.wrapper.find('[data-rp-review-summary-room]').exists()).toBe(false);
 	const markers = rig.stage.find<Konva.Group>('.review-room-marker');
 	const marker = expectDefined(markers.find(item => item.getAttr('roomId') === rig.room.id), 'Room readiness marker');

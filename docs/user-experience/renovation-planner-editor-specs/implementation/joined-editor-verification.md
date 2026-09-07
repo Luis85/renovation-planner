@@ -1,5 +1,11 @@
 # Joined editor verification — 2026-09-07
 
+Exact source `63173897d97567542761926c4fc56540b4b54ec2`, Node 24.20.0, VITEST_MAX_WORKERS=2: production build/types and complete Oxlint/ESLint pass. All 594 test files pass: 7,562 passed, 70 skipped, 975.45 s. Coverage is 99.05% statements (16413/16569), 97.54% branches (11176/11457), 99.15% functions (4677/4717), and 99.50% lines (13024/13089). Only the unchanged 98% branch floor fails, so npm run check exits 1 before analysis. A separate fresh complete Fallow run against that full coverage exits 0: zero dead-code issues, zero clone groups, zero health findings (including cognitive complexity and CRAP). The full JSON/lcov artifacts are preserved before scoped runs. No gates, exclusions or thresholds changed.
+
+M10 Trade assignment/schedule and M13 quote comparison remain required and unimplemented. Reconciliation of the canonical Trade/Supplier/Quote entity notes, responsibility/comparison tasks and Project navigation contracts resolves the earlier scope question for a minimal implementation: shared vault catalogue identities, existing Work command authority, contextual Project schedule, and an explicit quote-item comparison separate from financial facts. Earlier bounded ADR delivery notes do not remove these requirements. Finalization owns this continuation; automatic calendars, inferred scope/tax/unit normalization and quote selection are not introduced by that route requirement.
+
+## Historical checkpoint evidence
+
 This checkpoint joins UI `443d721d` (Object `aa9896db`), recovery `2c353329`, persistent focus `cad06deb` and recovery probe preparation `d9a1334e` on the finalization branch. The root followup adds linked-document context/reveal, native paused Area controls and shared form/migration/navigation helpers.
 
 ## Focused verification
@@ -73,3 +79,12 @@ E `471cfc57` integration preserves metadataOnly/gallery behavior and imports the
 Run `34083752549` failed all four verification jobs. Inspected Node 24 job `101623789186`: build and full lint pass; 590/591 files pass, 7548 tests pass, one German vocabulary test fails, and 69 tests are skipped. Duration 378.09 s. The new `planning.add-material` label used “Material hinzufügen” while the established planning vocabulary uses “Baustoff” (`planning.material`, `planning.edit.material`, `planning.catalogue`). Root aligns that action with “Baustoff hinzufügen”; the glossary test is unchanged.
 
 Coverage on d25805f7: statements 99.05% (16401/16557), branches 97.54% (11164/11445), functions 99.15% (4674/4714), lines 99.50% (13014/13079). Statements/functions/lines pass; the unchanged 98% branch floor still fails. The joined local run including E471cfc57 and the label correction will produce the fresh complete coverage artifact for the remaining branch investigation. No threshold or test weakening was made.
+
+
+### Full checkpoint 63173897 — 2026-09-07
+
+Exact source `63173897d97567542761926c4fc56540b4b54ec2`, Node 24.20.0, VITEST_MAX_WORKERS=2: production build/types and complete Oxlint/ESLint pass. All 594 test files pass: 7,562 passed, 70 skipped, 975.45 s. Coverage is 99.05% statements (16413/16569), 97.54% branches (11176/11457), 99.15% functions (4677/4717), and 99.50% lines (13024/13089). Only the unchanged 98% branch floor fails, so npm run check exits 1 before analysis. A separate fresh complete Fallow run against that full coverage exits 0: zero dead-code issues, zero clone groups, zero health findings (including cognitive complexity and CRAP). The full JSON/lcov artifacts are preserved before scoped runs. No gates, exclusions or thresholds changed.
+
+The 281 uncovered branch arms leave a 52-arm shortfall if the denominator stays unchanged. Finalization is investigating real guard/lifecycle behavior; UI is verifying the new M00/M07 controls in the serialized heavy slot. The source audit also found a late batch-deletion failure notification after leaf disposal and an incomplete native read-only gate for generic-element forms; regressions/fixes remain pending, not silently counted as passed.
+
+A fresh read-only accessibility inspection of the designated Obsidian 1.13.7 test vault still shows the first-open plugin-trust prompt. No security control was activated and no live-host criterion changes.

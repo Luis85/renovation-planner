@@ -95,3 +95,8 @@ Root `a630bf76` restores reviewed wall endpoint proposals in Renovate and extrac
 ### Native Room guard, mutable thumbnails and repeated rail activation
 
 Agreed E checkpoint `471cfc57eb5b2ac12f337d7bd0ff30f2c822d4e2` is cherry-picked after `d25805f7`. Conflict resolution preserves the joined EvidencePreview `metadataOnly`/gallery markup while adding revision-aware mutable image URLs, and keeps both the expanded root changelog and the new recovery entry. Room forms now consume canonical runtime.writesBlocked; PanelRail focuses an already-open drawer on repeated activation. Owner evidence: seven reproduced failures, then 119/119 cases in nine files; types, scoped ESLint, whole Oxlint and Fallow passed, with the old-coverage limitation retained. The joined full gate is the next verification boundary.
+
+
+### Complete joined checkpoint 63173897
+
+E471 is incorporated as `23a490887b46be077c0065ae1b42da5854b90a9f`; the German planning action correction is `63173897d97567542761926c4fc56540b4b54ec2`. Exact source `63173897d97567542761926c4fc56540b4b54ec2`, Node 24.20.0, VITEST_MAX_WORKERS=2: production build/types and complete Oxlint/ESLint pass. All 594 test files pass: 7,562 passed, 70 skipped, 975.45 s. Coverage is 99.05% statements (16413/16569), 97.54% branches (11176/11457), 99.15% functions (4677/4717), and 99.50% lines (13024/13089). Only the unchanged 98% branch floor fails, so npm run check exits 1 before analysis. A separate fresh complete Fallow run against that full coverage exits 0: zero dead-code issues, zero clone groups, zero health findings (including cognitive complexity and CRAP). The full JSON/lcov artifacts are preserved before scoped runs. No gates, exclusions or thresholds changed.

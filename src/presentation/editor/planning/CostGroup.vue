@@ -5,17 +5,29 @@ import { aggregateCosts, type costRows } from './planningProjection';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { formatPlanningMoney } from '../../i18n/planningFormat';
 import { tr } from '../../i18n/strings';
-const props = defineProps<{ name: string; rows: ReturnType<typeof costRows>; currency: string; first: boolean }>();
+import { usePlanningContext } from './planningContext';
+const props = defineProps<{ workId: string; name: string; rows: ReturnType<typeof costRows>; currency: string; first: boolean }>();
 const session = useRenovationSession();
+const planning = usePlanningContext();
 const totals = computed(() => aggregateCosts(props.rows, props.currency));
 const selected = computed(() => !!session.focusedId && props.rows.some(row => [row.record.id, row.record.requirementId].includes(session.focusedId)));
+const workSelected = computed(() => !!props.workId && session.focusedId === props.workId);
+function focusWork(event: MouseEvent): void {
+	const summary = event.currentTarget as HTMLElement;
+	if (props.workId && !(summary.parentElement as HTMLDetailsElement).open) planning.runtime.renovation.focus(session.roomId, 'costs', props.workId);
+}
 </script>
 <template>
 	<details
 		class="rp-cost-group"
+		:class="{ 'is-selected': workSelected }"
 		:open="first || selected"
 	>
-		<summary>
+		<summary
+			:data-rp-cost-work="workId"
+			:aria-current="workSelected ? 'true' : undefined"
+			@click="focusWork"
+		>
 			<span>{{ name }}</span>
 			<span
 				v-if="totals"

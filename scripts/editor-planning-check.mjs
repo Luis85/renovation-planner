@@ -28,7 +28,15 @@ async function materials(page, scenario, out) {
 async function costs(page, scenario, out) {
  await activate(page, '[data-rp-mode="costs"]'); await activate(page, '.rp-planning-actions button:first-child'); await text(page, 'title', 'Floor supply'); await activate(page, '[data-rp-add-fact]'); await text(page, 'amount', '500'); await text(page, 'fact-description', 'Order'); await activate(page, '[data-rp-add-fact]');
  await tabTo(page, `${form} fieldset:last-of-type select[name="stage"]`); await page.keyboard.press('End'); await page.keyboard.press('Tab');
- await text(page, 'amount', '200', `${form} fieldset:last-of-type`); await text(page, 'fact-description', 'Deposit', `${form} fieldset:last-of-type`); await choose(page, 'settles', 1); await shot(page, scenario, out, 'partial-payment'); await apply(page); await shot(page, scenario, out, 'costs');
+ await text(page, 'amount', '200', `${form} fieldset:last-of-type`); await text(page, 'fact-description', 'Deposit', `${form} fieldset:last-of-type`); await choose(page, 'settles', 1); await shot(page, scenario, out, 'partial-payment'); await apply(page);
+ const group = '.rp-cost-group', summary = '[data-rp-cost-work]';
+ const totals = await page.locator('.rp-cost-totals').first().innerText();
+ await activate(page, summary); assert.equal(await page.locator(group).evaluate(el => el.open), false);
+ await activate(page, summary); assert.equal(await page.locator(group).evaluate(el => el.open), true);
+ assert.equal(await page.locator(summary).getAttribute('aria-current'), 'true');
+ assert.equal(await page.locator(summary).evaluate(el => el === document.activeElement), true);
+ assert.equal(await page.locator('.rp-cost-totals').first().innerText(), totals);
+ await shot(page, scenario, out, 'costs');
 }
 async function evidence(page, scenario, out) {
  await activate(page, '.rp-planning-actions button:last-child'); await activate(page, '[data-rp-new-evidence]'); await text(page, 'title', 'Invoice'); await text(page, 'path', 'scan.pdf'); await choose(page, 'phase', 1); await apply(page); await shot(page, scenario, out, 'documents');

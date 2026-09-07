@@ -176,6 +176,16 @@ New tests cover native overlap, pan/inline editing, the clamped form and observe
 tests have not yet run. The issue-rich M17 helper is saved as `242bfa33` (syntax/Oxlint passed,
 browser pending). Root has no heavy process; UI owns the next bounded RED/GREEN validation.
 
+Caption milestone: `5154504f` passed 25 native tests after the independent predecessor test
+produced three genuine overlap/clip failures. The clean worktree was restored in `finally`.
+Current types passed; the sole Oxlint finding (pure nested `sameBox`) was corrected by moving
+it to module scope. Original logs/hashes are secured under `evidence/editor-dimension-caption-clearance`.
+`f8b5be13384713bfc9605d8496de0a5b05e21699` adds source-only real-browser caption/control
+measurements with native pan and normal/clamped inline cancellation. Syntax passed; current
+whole Oxlint/scoped ESLint, dimension lifecycle tests and actual extended planning/M17 capture
+are next. Root presently owns an eight-case short heavy slot; UI has no process running.
+Global coverage belongs to the user's new dedicated coverage task, not this UI workstream.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

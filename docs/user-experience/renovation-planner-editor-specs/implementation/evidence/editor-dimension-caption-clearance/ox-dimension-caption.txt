@@ -1,0 +1,1 @@
+src/presentation/editor/resize/useDimensionObstacles.ts:11:17: error unicorn(consistent-function-scoping): Function `sameBox` does not capture any variables from its parent scope help: Move `sameBox` to the outer scope to avoid recreating it on every call.

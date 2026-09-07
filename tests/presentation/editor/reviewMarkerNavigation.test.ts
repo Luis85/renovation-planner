@@ -32,7 +32,7 @@ async function setup() {
 async function openFinding(kind: 'blocked' | 'missing-outcome' | 'decision') {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
 	await rig.runtime.renovation.perspective('review'); await settle();
-	const issue = expectDefined(rig.wrapper.findAll('.rp-renovation-list > li > button').find(item => item.text().includes(tr(`renovation.finding.${kind}`))), kind);
+	const issue = expectDefined(rig.wrapper.findAll<HTMLButtonElement>('.rp-renovation-list > li > button').find(item => item.text().includes(tr(`renovation.finding.${kind}`))), kind);
 	issue.element.click();
 	await settleUntil(() => rig.session.perspective === 'renovate', 'explicit Review issue navigation');
 	expect(rig.session.roomId).toBe(rig.room.id);

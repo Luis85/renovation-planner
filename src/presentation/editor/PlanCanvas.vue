@@ -13,7 +13,8 @@
  */
 import { useEvidencePins } from './planning/evidencePins';
 import type { Point } from '../../core/geometry/Point';
-import { computed, watch } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
+import type { DimensionObstacleLayout } from './resize/useDimensionObstacles';
 import { storeToRefs } from 'pinia';
 import { useEditorStore } from '../stores/EditorStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
@@ -51,6 +52,7 @@ const selection = useSelectionStore();
 const runtime = useEditorRuntime();
 // Pins and caption obstacles use the same retained evidence facts as the Inspector.
 const evidencePins = useEvidencePins(() => runtime.planning.baseline.value?.plan.entity.renovation?.depth?.evidence ?? []);
+const dimensionLayout = shallowRef<DimensionObstacleLayout>({ bounds: [], viewport: null });
 const context = usePlanEditorContext();
 const { viewport } = storeToRefs(editor);
 const { layerVisibility } = storeToRefs(workspace);
@@ -122,6 +124,8 @@ const framedBounds = usePlanFrame();
 				/>
 				<ZoneLayer
 					:pins="evidencePins"
+					:dimension-obstacles="dimensionLayout.bounds"
+					:caption-viewport="dimensionLayout.viewport"
 					:transform="transform"
 					:tokens="props.tokens"
 					:visible="layerVisibility.zone"
@@ -150,7 +154,7 @@ const framedBounds = usePlanFrame();
 			</VStage>
 		</template>
 		<template #overlay>
-			<RoomDimensionLabels />
+			<RoomDimensionLabels @obstacles="layout => dimensionLayout = layout" />
 			<DirectActionPopover />
 			<slot />
 		</template>

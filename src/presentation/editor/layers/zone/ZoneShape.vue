@@ -38,6 +38,7 @@ import type { ThemeTokens } from '../../theme/themeTokens';
 import { labelAnchor, statusAppearance, zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
 import { formatArea } from '../../shell/formatArea';
 import { captionOffsetY, type NumberedPin } from './captionPlacement';
+import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
 
 const props = defineProps<{
 	model: ZoneRenderModel;
@@ -46,6 +47,8 @@ const props = defineProps<{
 	zoom: number;
 	selected: boolean;
 	pins: readonly NumberedPin[];
+	dimensionObstacles: readonly BoundingBox[];
+	captionViewport: BoundingBox | null;
 }>();
 
 /**
@@ -82,7 +85,7 @@ const anchor = computed(() => labelAnchor(props.model.points));
  */
 const CAPTION_PX = 14;
 const captionScale = computed(() => 1 / props.zoom);
-const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y + captionOffsetY(anchor.value, props.pins, props.zoom), width: 180, offsetX: 90, align: 'center',
+const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y + captionOffsetY(anchor.value, props.pins, props.zoom, props.dimensionObstacles, props.captionViewport), width: 180, offsetX: 90, align: 'center',
 	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true,
 	stroke: props.tokens.canvasBackground, strokeWidth: 2, fillAfterStrokeEnabled: true }));
 

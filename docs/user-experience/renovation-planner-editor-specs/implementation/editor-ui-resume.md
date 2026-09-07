@@ -168,6 +168,14 @@ process. After Root releases: correct/verify the observed caption issue and perf
 Decision capture, overview and full nine-journey/eighteen-reference verification. Keep pushing
 coherent checkpoints and distinguish this journey pass from final visual/host/full-gate acceptance.
 
+The approved caption bridge/fallback draft is now being finished locally after the source agent
+hit its usage limit; the user explicitly instructed continuation. It measures native dimension
+anchors with one observer, passes display-only world rectangles to captions, and uses a visible
+downward alternative if the upward result clips. Fonts, all status text, pins and geometry stay.
+New tests cover native overlap, pan/inline editing, the clamped form and observer cleanup. These
+tests have not yet run. The issue-rich M17 helper is saved as `242bfa33` (syntax/Oxlint passed,
+browser pending). Root has no heavy process; UI owns the next bounded RED/GREEN validation.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

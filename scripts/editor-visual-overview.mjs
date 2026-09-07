@@ -19,7 +19,9 @@ async function journey(page, scenario, out) {
 	if (scenario.width === 460) await page.keyboard.press('Escape');
 	await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Escape');
 	await panel(page, 'details'); await page.locator('.rp-floor-inspector').waitFor();
+	await activate(page, '[data-rp-perspective="plan"]');
 	await recordShot(page, scenario, out, 'M01-connected-floor');
+	await activate(page, '[data-rp-perspective="renovate"]');
 	await panel(page, 'layers'); await activate(page, '.rp-structure-list__row');
 	if (scenario.width === 460) await page.keyboard.press('Escape');
 	await panel(page, 'details');

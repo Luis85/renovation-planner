@@ -1,5 +1,10 @@
 # Editor implementation status — 2026-09-07
 
+Shell checkpoint: Layers and Inspector now retain one mounted outlet across responsive layouts,
+preserving native input identity, pending text, caret and focus. Targeted tests, build/types,
+lint and four real-browser scenarios passed; see [shell evidence](persistent-shell-evidence.md).
+This intermediate checkpoint leaves the combined coverage/Fallow and live-host gate open.
+
 Current integration update (2026-09-07): UI `0b23eabab0af13df24e932522de1c20c4f143e60` and recovery `66bcd0d033753796e4c290c88f9bbb05322a30db` are incorporated in the finalization branch over PR #88 `3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a`. The generic element foundation, Path/Fence/Measurement routes and contextual inspector connections pass combined types, full lint and 101 targeted tests across 17 files. Conditional persistence versions are Plan 6 (labels), Requirement 3 (element quantity rules) and geometry 4 (current/intended shapes); prior payloads retain earlier persisted versions. This is an intermediate integration checkpoint for the Object UI continuation. Full combined coverage/Fallow, final visual comparisons and H1–H6 remain open; no complete M00–M17 or live-host acceptance is claimed.
 
 Use the [completion matrix](completion-matrix.md) for current requirement ownership and open work, and the [integration map](integration-map.md) for exact ancestry. Finalization adds canonical Project/Asset Library navigation, contextual planning drafts and sidecar receipts for mixed Room history. Targeted evidence exists. The initial full gate passed build/lint, then was stopped after test failures under excessive worker contention; it did not pass coverage or analysis. Final verification will use the supported VITEST_MAX_WORKERS=2 setting without changing thresholds or timeouts.

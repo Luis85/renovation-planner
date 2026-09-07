@@ -597,7 +597,7 @@ async function enterRoomTaskOnceReady(
 		() => root.querySelector('.rp-new-room, [data-rp-rail="details"]') !== null,
 		"the ?room knob's New room form, or the rail that holds it",
 	);
-	const inDrawer = root.querySelector('.rp-new-room') === null;
+	const inDrawer = root.querySelector('.rp-editor-shell')?.getAttribute('data-layout') === 'constrained';
 	if (inDrawer) {
 		root.querySelector<HTMLButtonElement>('[data-rp-rail="details"]')?.click();
 		await settleUntil(

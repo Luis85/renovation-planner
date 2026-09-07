@@ -18,7 +18,7 @@ async function journey(page, scenario, out) {
 	assert.ok((await page.locator('.rp-room-inspector').innerText()).includes(name));
 	await page.screenshot({ path: `${out}/${scenario.name}-reflow-saved.png` });
 	await page.setViewportSize({ width: scenario.width, height: 900 });
-	if (scenario.width !== 460) await page.locator('.rp-editor-body > .rp-editor-inspector').waitFor();
+	if (scenario.width !== 460) await page.locator('[data-rp-region="inspector"]').waitFor();
 	await page.screenshot({ path: `${out}/${scenario.name}-long-name.png` });
 	const metrics = await page.locator('.rp-editor-inspector').evaluate(el => ({ width: el.clientWidth, scrollWidth: el.scrollWidth, documentWidth: document.documentElement.scrollWidth, viewport: innerWidth }));
 	assert.ok(metrics.scrollWidth <= metrics.width + 1, 'long title remains within the inspector');

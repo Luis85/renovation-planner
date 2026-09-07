@@ -188,6 +188,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Fixed
 
+- Preserve native Inspector/Layer controls, pending text, caret selection and focus while resizing the editor. A focused region opens automatically at constrained widths; close and Escape still return focus to the rail.
+
 - The stylesheet assembler now accepts hyphenated partial names and CRLF-saved entry
   files (both failed the build with a false "does not import" message), counts the
   400-line cap without the trailing-newline off-by-one that made it 399, and fails

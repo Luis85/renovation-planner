@@ -1,4 +1,4 @@
-import { editorIconNodes } from '../fixtures/editor-icons/nodes';
+import { editorIconNodes } from './editorIconNodes';
 
 /** Only the harness supplies SVG nodes; production delegates to Obsidian setIcon. */
 export function setIcon(parent: HTMLElement, name: string): void {

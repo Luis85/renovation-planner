@@ -74,7 +74,7 @@ const projectStore = useProjectStore();
  * budget that pushed `commitField` out into its own module — and passed down as a PROP rather
  * than injected in the row, so the row stays mountable with a spy in a jsdom case.
  */
-const { logger } = usePlanEditorContext().commands;
+const { logger, planning } = usePlanEditorContext().commands;
 const { selectedIds } = storeToRefs(useSelectionStore());
 
 // Selection changed → re-run the query for whatever is selected now. The same call the
@@ -246,7 +246,7 @@ const unavailableNavigation = computed(() => overview.value && !runtime.renovati
 			:unavailable="unavailableNavigation.unavailableSections"
 		/>
 		<LinkedContentList
-			v-if="overview !== null"
+			v-if="overview !== null && (!runtime.renovation.available || !planning)"
 			:unavailable="overview.unavailableSections"
 		/>
 

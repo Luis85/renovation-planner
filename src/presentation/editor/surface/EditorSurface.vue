@@ -976,9 +976,9 @@ function finishKeys(event: KeyboardEvent): boolean {
 }
 
 function fitShortcut(event: KeyboardEvent): boolean {
-	if (!event.shiftKey) return false;
-	const all = event.code === 'Digit1';
-	const selected = event.code === 'Digit2';
+	if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.repeat) return false;
+	const all = (!event.shiftKey && event.key.toLowerCase() === 'f') || (event.shiftKey && event.code === 'Digit1');
+	const selected = event.shiftKey && event.code === 'Digit2';
 	if (!all && !selected) return false;
 	event.preventDefault();
 	const bounds = props.framedBounds(all);

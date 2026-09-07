@@ -4,6 +4,7 @@ import { recordRoom, recordShot, recordText, recordApply } from './editor-record
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 import { verifyRoomDimension } from './editor-dimension-browser.mjs';
 import { editorAccessibility } from './editor-accessibility.mjs';
+import { verifyEditorView } from './editor-view-browser.mjs';
 const fidelity = process.argv.includes('--design');
 
 // Supplement the legacy unavailable-services shell fixture with a connected Floor/Room.
@@ -25,6 +26,7 @@ async function journey(page, scenario, out) {
 		assert.equal(await page.locator('.rp-room-list__row[aria-pressed="true"]').count(), 1, 'Escape closes Details while retaining Room selection');
 	}
 	const dimension = await verifyRoomDimension(page, scenario, out);
+	await verifyEditorView(page, scenario, out);
 	await activate(page, '[data-rp-action="add"]'); await page.locator('.rp-add-menu').waitFor(); await recordShot(page, scenario, out, 'M02-connected-add'); await page.keyboard.press('Escape');
 	await activate(page, '[data-rp-canvas-detail]'); await activate(page, '[data-rp-canvas-detail-mode="existing"]');
 	await recordText(page, form, 'description', german ? 'Abgenutzte Dielen' : 'Worn timber boards'); await recordApply(page, form, true);

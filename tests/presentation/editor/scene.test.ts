@@ -21,6 +21,7 @@ import {
 } from '../../helpers/editor';
 import { FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { connectedObservers } from '../../helpers/layout';
+import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 
 /** What `afterEach` unmounts; every case reads its harness from the local const `mount` hands back. */
 let open: EditorHarness | null = null;
@@ -222,6 +223,16 @@ describe('theme and accessibility of a zone', () => {
 		expect(texts).toContain(t('en', 'zone.status.planned'));
 		expect(texts).toContain(t('en', 'zone.status.complete'));
 		expect(texts).toContain('Kitchen');
+	});
+	it('emphasizes only selected room fill without rebuilding stored geometry', async () => {
+		const harness = await mount(), fills = zoneLines(harness.stage).filter(line => line.fill());
+		const points = fills.map(line => line.points());
+		expect(fills.map(line => line.opacity())).toEqual([0.025, 0.025]);
+		useSelectionStore(harness.pinia).select(['zone-kitchen' as never]); await settle();
+		expect(fills.map(line => line.opacity())).toEqual([0.12, 0.025]);
+		for (const [index, line] of fills.entries()) expect(line.points()).toBe(points[index]);
+		useSelectionStore(harness.pinia).clear(); await settle();
+		expect(fills.map(line => line.opacity())).toEqual([0.025, 0.025]);
 	});
 });
 

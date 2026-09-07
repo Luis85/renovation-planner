@@ -13,6 +13,17 @@ const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
 async function setup(planning = true) { const rig = await renovationEditor(planning); mounted.push(rig); rig.changePlan(); await settle(); return rig; }
 
+it.each([false, true])('shows unavailable linked sections only without connected planning (%s)', async planning => {
+	const rig = await setup(planning); await rig.runtime.renovation.perspective('plan'); await settle();
+	expect(rig.wrapper.find('.rp-linked-content').exists()).toBe(!planning);
+	expect(rig.wrapper.find('[data-rp-mode="costs"]').exists()).toBe(planning);
+});
+it('opens connected Costs from Plan while retaining the Room', async () => {
+	const rig = await setup(); await rig.runtime.renovation.perspective('plan'); await settle();
+	await rig.wrapper.get('[data-rp-mode="costs"]').trigger('click'); await settle();
+	expect(rig.session.mode).toBe('costs'); expect(rig.selection.selectedIds).toEqual([rig.room.id]);
+});
+
 it('opens Room name and outline editing from Overview while retaining the selected Room', async () => {
 	const rig = await setup(); await rig.runtime.renovation.perspective('renovate'); await settle();
 	await rig.wrapper.get('[data-rp-action="rename-room"]').trigger('click'); await settle();

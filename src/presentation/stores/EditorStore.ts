@@ -82,6 +82,7 @@ const FIT_PADDING_PX = 48;
 export const useEditorStore = defineStore('editor', () => {
 	const viewport = ref<Viewport>(DEFAULT_VIEWPORT);
 	const activeToolId = ref<ToolId | null>(null);
+	const snappingEnabled = ref(true);
 	const hoveredObjectId = ref<string | null>(null);
 	const dragState = ref<DragState | null>(null);
 	const temporaryPolygon = ref<readonly Point[] | null>(null);
@@ -100,6 +101,8 @@ export const useEditorStore = defineStore('editor', () => {
 	 * bargain `viewport` itself already makes.
 	 */
 	const stageSize = ref<StageSize>({ width: 0, height: 0 });
+	/** Prepared reference extent shared by the canvas and native View controls. */
+	const referencePoints = ref<readonly Point[]>([]);
 
 	/**
 	 * The last pointer position, in the STAGE's own screen pixels. The SCREEN half is what is
@@ -257,6 +260,8 @@ export const useEditorStore = defineStore('editor', () => {
 	 * a later in-plugin surface would be another.
 	 */
 	function reset(): void {
+		snappingEnabled.value = true;
+		referencePoints.value = [];
 		viewport.value = DEFAULT_VIEWPORT;
 		activeToolId.value = null;
 		hoveredObjectId.value = null;
@@ -283,6 +288,8 @@ export const useEditorStore = defineStore('editor', () => {
 	 * that measure, though still no PRODUCTION reader, and neither slot has gained a tool.
 	 */
 	return {
+		snappingEnabled,
+		referencePoints,
 		viewport,
 		activeToolId,
 		hoveredObjectId,

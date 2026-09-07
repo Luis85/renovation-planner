@@ -11,7 +11,8 @@ import type { ToolId } from '../tools/editor-tool';
  * to what "constrained" means: two 15 degree steps that could drift into 15 and 22.5 with
  * nothing failing, because each surface's own tests would go on passing about its own number.
  *
- * Stateless (config-only), so one instance serves every leaf of every surface.
+ * The designer retains the shared config-only instance. Each Plan Editor uses the same
+ * configuration with its own live automatic-snapping preference.
  */
 
 /** Room creation supplies existing zone boundaries, wall centre lines and opening endpoints,
@@ -34,11 +35,18 @@ const SNAP_TOLERANCE_MM = 8;
  */
 export const ANGLE_STEP_RADIANS = Math.PI / 12;
 
-export const EDITOR_SNAP_SERVICE = new SnapService({
+const EDITOR_SNAP_CONFIG = {
 	gridSpacingMm: SNAP_GRID_MM,
 	toleranceMm: SNAP_TOLERANCE_MM,
 	angleStepRadians: ANGLE_STEP_RADIANS,
-});
+};
+
+export const EDITOR_SNAP_SERVICE = new SnapService(EDITOR_SNAP_CONFIG);
+
+/** The Plan Editor owns its preference per leaf; the designer retains its existing defaults. */
+export function createEditorSnapService(enabled: () => boolean): SnapService {
+	return new SnapService(EDITOR_SNAP_CONFIG, enabled);
+}
 
 /**
  * Which tools take the Shift angle constraint, and therefore the ones whose hint is worth

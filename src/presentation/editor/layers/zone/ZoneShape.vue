@@ -43,6 +43,7 @@ const props = defineProps<{
 	tokens: ThemeTokens;
 	/** Stage pixels per world millimetre — what a screen-sized caption divides by. */
 	zoom: number;
+	selected: boolean;
 }>();
 
 /**
@@ -80,7 +81,8 @@ const anchor = computed(() => labelAnchor(props.model.points));
 const CAPTION_PX = 14;
 const captionScale = computed(() => 1 / props.zoom);
 const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y, width: 180, offsetX: 90, align: 'center',
-	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true }));
+	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true,
+	stroke: props.tokens.canvasBackground, strokeWidth: 2, fillAfterStrokeEnabled: true }));
 
 const statusCaption = computed(() => tr(appearance.value.captionKey));
 </script>
@@ -98,7 +100,7 @@ const statusCaption = computed(() => tr(appearance.value.captionKey));
 				points: flatPoints,
 				closed: true,
 				fill,
-				opacity: 0.12,
+				opacity: props.selected ? 0.12 : 0.025,
 				listening: false,
 				perfectDrawEnabled: false,
 			}"

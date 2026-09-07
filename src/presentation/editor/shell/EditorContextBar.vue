@@ -8,6 +8,7 @@ import { useRenovationSession } from '../renovation/renovationSession';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import HostIcon from '../../components/HostIcon.vue';
 import { EDITOR_PERSPECTIVE_ICONS } from '../editorIcons';
+import EditorViewMenu from './EditorViewMenu.vue';
 
 const runtime = useEditorRuntime();
 const session = useRenovationSession();
@@ -78,5 +79,6 @@ const { project, plan } = storeToRefs(useProjectStore());
 		>
 			<HostIcon name="redo-2" />{{ tr('editor.context.redo') }}
 		</button>
+		<EditorViewMenu />
 	</header>
 </template>

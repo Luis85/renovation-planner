@@ -15,6 +15,7 @@ import type { ThemeTokens } from '../../theme/themeTokens';
 import type { NodeTransform } from '../../viewport/Viewport';
 import { toZoneRenderModel } from './ZoneRenderModel';
 import ZoneShape from './ZoneShape.vue';
+import { useSelectionStore } from '../../selection/selection-store';
 
 const props = defineProps<{
 	transform: NodeTransform;
@@ -24,6 +25,8 @@ const props = defineProps<{
 }>();
 
 const { zones } = storeToRefs(useProjectStore());
+const selection = useSelectionStore();
+const selected = computed(() => new Set<string>(selection.selectedIds));
 
 const models = computed(() => [...zones.value.values()].map((zone) => toZoneRenderModel(zone)));
 </script>
@@ -43,6 +46,7 @@ const models = computed(() => [...zones.value.values()].map((zone) => toZoneRend
 			:model="model"
 			:tokens="props.tokens"
 			:zoom="props.zoom"
+			:selected="selected.has(model.id)"
 		/>
 	</VLayer>
 </template>

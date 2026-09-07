@@ -17,7 +17,9 @@ export class StructureTool implements EditorTool {
 		if (!this.context || this.deps.blocked()) return;
 		const tolerance = Math.min(100, 8 * this.context.viewport.worldPerScreenPixel());
 		if (this.id !== 'draw-wall') { pickHost(this.deps.draft, event.worldPoint, this.deps.structure().walls, tolerance); return; }
-		const snapped = snapWallPoint(event.worldPoint, this.deps.draft.points, this.deps.structure().walls, tolerance);
+		const snapped = this.context.snapService.enabled
+			? snapWallPoint(event.worldPoint, this.deps.draft.points, this.deps.structure().walls, tolerance)
+			: { point: event.worldPoint, snapped: false };
 		this.deps.draft.cursor = snapped.point; this.deps.draft.snapped = snapped.snapped;
 	}
 	pointerUp(): void { /* Points are placed on pointer down. */ }

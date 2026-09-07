@@ -1,3 +1,4 @@
+import type { ProjectRoute, ProjectOrigin } from '../../application/navigation/ProjectDestination';
 import { inject, type InjectionKey } from 'vue';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import type { PlanEditorCommandServices } from './planEditorCommands';
@@ -6,6 +7,7 @@ import type { BackgroundVault } from './layers/background/BackgroundRenderModel'
 /** Open related host surfaces while retaining this editor leaf and its local context. */
 export interface EditorNavigation {
 	project(projectId: string): Promise<void>;
+	downstream?(projectId: string, route: ProjectRoute): Promise<void>;
 	library(): void;
 }
 
@@ -30,6 +32,7 @@ export interface EditorNavigation {
 export interface PlanEditorContext {
 	/** The Plan this leaf shows. Carried in Obsidian's per-leaf view state, not in the type. */
 	readonly planId: string;
+	readonly initialNavigation?: ProjectOrigin;
 	readonly navigation?: EditorNavigation;
 	readonly queries: PlanEditorQueryServices;
 	/**

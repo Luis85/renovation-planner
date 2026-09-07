@@ -28,6 +28,9 @@ import { PROJECT_MIGRATIONS } from './project/project.migrations';
  * diagnostics vocabulary knows and the runner does not.
  */
 export const MIGRATION_SET: Readonly<Record<DiagnosticEntityKind, readonly Migration[]>> = {
+	trade: [],
+	supplier: [],
+	quote: [],
 	project: PROJECT_MIGRATIONS,
 	plan: PLAN_MIGRATIONS,
 	zone: ZONE_MIGRATIONS,

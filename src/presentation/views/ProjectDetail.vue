@@ -30,7 +30,7 @@ const props = defineProps<{
 	commitAssetPrice: (edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>;
 	logger: Logger;
 }>();
-defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []; prices: []; toggleGuidance: []; refresh: []; retryPlans: []; editState: [assetId: string, dirty: boolean, pending: boolean] }>();
+defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []; prices: []; schedule: []; quotes: []; toggleGuidance: []; refresh: []; retryPlans: []; editState: [assetId: string, dirty: boolean, pending: boolean] }>();
 const planEmpty = computed(() => (props.plansFailure ? null : props.emptyState));
 // `ViewRoot.vue:314`'s own `emptyActionLabel` is the model: keep the empty state on a
 // read-only surface (mobile), drop only the action it cannot dispatch. A dedicated computed
@@ -86,6 +86,18 @@ const planEmptyActionLabel = computed(() => (props.readOnly ? undefined : planEm
 						@click="$emit('prices')"
 					>
 						{{ tr('view.project.prices-open') }}
+					</button>
+					<button
+						type="button"
+						@click="$emit('schedule')"
+					>
+						{{ tr('schedule.open') }}
+					</button>
+					<button
+						type="button"
+						@click="$emit('quotes')"
+					>
+						{{ tr('quote.comparison') }}
 					</button>
 				</div>
 				<div

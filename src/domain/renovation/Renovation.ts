@@ -1,3 +1,4 @@
+import { validWorkSchedule, type WorkSchedule } from '../schedule/WorkSchedule';
 import { validatePlanningDepth } from './validatePlanningDepth';
 import { hasRoomContext, validSharedLinks, type SpatialLink } from './SharedLinks';
 import type { PlanningDepth } from './PlanningDepth';
@@ -34,7 +35,9 @@ export interface WorkPackage {
 	readonly description: string;
 	readonly order: number;
 	readonly progress: typeof WORK_PROGRESS[number];
-	readonly responsibility: 'unassigned' | 'diy';
+	readonly responsibility: 'unassigned' | 'diy' | 'trade';
+	readonly tradeId?: string;
+	readonly schedule?: WorkSchedule;
 	readonly outcomes: readonly string[];
 	readonly dependencies: readonly string[];
 }
@@ -87,7 +90,9 @@ function hasCycle(work: readonly WorkPackage[]): boolean {
 
 function validWork(item: WorkPackage): boolean {
 	return !!item.title.trim() && !!item.targetId.trim() && Number.isSafeInteger(item.order) && item.order >= 0
-		&& WORK_PROGRESS.includes(item.progress) && ['unassigned', 'diy'].includes(item.responsibility);
+		&& WORK_PROGRESS.includes(item.progress) && ['unassigned', 'diy', 'trade'].includes(item.responsibility)
+		&& (item.responsibility === 'trade' ? !!item.tradeId?.trim() : item.tradeId === undefined)
+		&& validWorkSchedule(item.schedule);
 }
 export function validateRenovation(value: Renovation): Result<void, ValidationError> {
 	const depth = validatePlanningDepth(value.depth ?? { costs: [], procurement: [], evidence: [] }, value);

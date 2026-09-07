@@ -10,6 +10,8 @@ import { area } from '../../../core/geometry/operations';
 import { formatArea } from '../shell/formatArea';
 import { formatMetres } from '../shell/formatLength';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
+import { useRenovationSession } from '../renovation/renovationSession';
+const session = useRenovationSession();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const element = computed(() => project.structure.elements?.find(item => item.id === selection.selectedIds[0]));
 const name = computed(() => project.plan?.spatialElements?.find(item => item.id === element.value?.id)?.name ?? element.value?.id ?? '');
@@ -35,6 +37,14 @@ async function edit(event: Event): Promise<void> {
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
 		<StructureRenovationEntry />
+		<button
+			v-if="session.perspective === 'renovate'"
+			type="button"
+			data-rp-action="element-plan-geometry"
+			@click="runtime.renovation.perspective('plan')"
+		>
+			{{ tr('editor.element.plan-geometry') }}
+		</button>
 		<div class="rp-dialog-actions">
 			<button
 				type="button"

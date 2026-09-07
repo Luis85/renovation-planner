@@ -20,6 +20,9 @@ export const ENTITY_TYPES = [
 	'renovation-asset',
 	'renovation-requirement',
 	'renovation-asset-price',
+	'renovation-trade',
+	'renovation-supplier',
+	'renovation-quote',
 ] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 

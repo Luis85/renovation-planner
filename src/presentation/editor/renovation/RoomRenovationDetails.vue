@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import RoomNameAction from '../naming/RoomNameAction.vue';
+import DownstreamAction from './DownstreamAction.vue';
 import OutlineEditAction from '../resize/OutlineEditAction.vue';
 import { usePlanningContext } from '../planning/planningContext';
 import PlanningInspector from '../planning/PlanningInspector.vue';
@@ -54,13 +55,16 @@ function remove(id: string, name: string, proposalOnly = false): void {
 		:room-id="room.id"
 	/>
 	<template v-if="session.mode === 'overview'">
-		<div
+		<details
 			v-if="!session.targetId || session.targetId === room.id"
-			class="rp-planning-actions"
+			class="rp-room-more-actions"
 		>
-			<RoomNameAction :zone-id="room.id as ZoneId" />
-			<OutlineEditAction :zone-id="room.id as ZoneId" />
-		</div>
+			<summary>{{ tr('editor.structure.more') }}</summary>
+			<div class="rp-planning-actions">
+				<RoomNameAction :zone-id="room.id as ZoneId" />
+				<OutlineEditAction :zone-id="room.id as ZoneId" />
+			</div>
+		</details>
 		<RenovationLinkedSummary
 			v-if="planning.context.commands.planning"
 			:room-id="room.id"
@@ -74,6 +78,10 @@ function remove(id: string, name: string, proposalOnly = false): void {
 	</template>
 	<PlanningInspector v-else-if="!['existing', 'planned', 'work'].includes(session.mode)" />
 	<template v-else>
+		<DownstreamAction
+			v-if="session.mode === 'work'"
+			section="schedule"
+		/>
 		<button
 			type="button"
 			:disabled="actions.blocked.value"

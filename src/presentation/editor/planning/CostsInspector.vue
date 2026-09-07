@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import CostGroup from './CostGroup.vue';
+import DownstreamAction from '../renovation/DownstreamAction.vue';
 import CostTotals from './CostTotals.vue';
 import { computed } from 'vue';
 import { usePlanningContext } from './planningContext';
@@ -19,6 +20,7 @@ const groups = computed(() => [...new Set(rows.value.map(row => row.record.workI
 })));
 </script>
 <template>
+	<DownstreamAction section="quotes" />
 	<CostTotals
 		v-if="totals"
 		:totals="totals"

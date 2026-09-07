@@ -58,6 +58,16 @@ it('refreshes a changed or missing element before opening an edit dialog', async
  expectOk(await rig.stack.plans.save(expectOk(withPlanSpatialElements(latest.plan.entity, [])), latest.plan.version));
  await rig.runtime.elementActions.edit(element.id); expect(rig.dialogs.current).toBeNull();
 });
+it.each(['edit', 'remove'] as const)('refreshes a peer-deleted element before %s without writing', async action => {
+ const rig = await setup(), latest = expectOk(await rig.renovation.read(rig.plan.id));
+ expectOk(await rig.geometry.write(rig.plan.id, { ...latest.geometry.document, structure: { ...expectDefined(latest.geometry.document.structure, 'structure'), elements: [] } }, latest.geometry.version));
+ expectOk(await rig.stack.plans.save(expectOk(withPlanSpatialElements(latest.plan.entity, [])), latest.plan.version));
+ const writes = vi.spyOn(rig.stack.plans, 'save'), geometryWrites = vi.spyOn(rig.geometry, 'write');
+ await rig.runtime.elementActions[action](element.id); await settle();
+ expect(rig.project.structure.elements ?? []).toEqual([]); expect(rig.project.plan?.spatialElements ?? []).toEqual([]);
+ expect(rig.selection.selectedIds).not.toContain(element.id); expect(rig.wrapper.find('[data-rp-action="edit-element"]').exists()).toBe(false);
+ expect(rig.dialogs.current).toBeNull(); expect(writes).not.toHaveBeenCalled(); expect(geometryWrites).not.toHaveBeenCalled();
+});
 it('keeps draft text when a peer edit wins during the open element dialog', async () => {
  const rig = await setup(); await rig.wrapper.get('[data-rp-action="edit-element"]').trigger('click'); await settle();
  const form = rig.wrapper.get('[data-rp-form="outline-points"]');

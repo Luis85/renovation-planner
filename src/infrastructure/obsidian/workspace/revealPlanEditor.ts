@@ -1,5 +1,7 @@
+import type { ProjectOrigin } from '../../../application/navigation/ProjectDestination';
 import type { WorkspaceLeaf } from 'obsidian';
 import { revealCandidate, type RevealDeps } from './reveal';
+import { prepareEditorArrival } from './editorArrivalQueue';
 
 /**
  * Read through the LEAF's own view state rather than through `leaf.view`: the leaf is what
@@ -42,15 +44,18 @@ export async function revealPlanEditor(
 	deps: RevealDeps,
 	viewType: string,
 	planId: string,
+	origin?: ProjectOrigin,
 ): Promise<'opened' | 'failed'> {
 	// A thunk, so the lookup and every `planIdOf` read happen INSIDE `revealCandidate`'s fault
 	// boundary. Enumerated here, a throw from either escaped this function as a rejection that
 	// the `void` at both call sites dropped on the floor.
+	const arrival = origin ? prepareEditorArrival(origin) : undefined;
 	const revealed = await revealCandidate(
 		deps,
 		viewType,
 		() => deps.workspace.getLeavesOfType(viewType).filter((leaf) => planIdOf(leaf) === planId),
 		{ planId },
 	);
-	return revealed === undefined ? 'failed' : 'opened';
+	if (revealed === undefined) return 'failed';
+	return arrival ? arrival(revealed, deps.reportFault) : 'opened';
 }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import WorkResponsibilityFields from '../../catalogue/WorkResponsibilityFields.vue';
+import WorkScheduleFields from './WorkScheduleFields.vue';
 import { restoreInoperativeChoice } from '../forms/inoperativeControl';
 import { tr } from '../../i18n/strings';
 import type { EditableRenovationDraft } from './renovationDraft';
@@ -35,14 +37,14 @@ defineProps<{ value: Renovation; frozen: boolean }>();
 			:value="progress"
 		>{{ tr(`renovation.progress.${progress}`) }}</option></select>
 	</label>
-	<label>{{ tr('renovation.responsibility') }}
-		<select
-			v-model="draft.work.responsibility"
-			:aria-disabled="frozen"
-			@change.capture="restoreInoperativeChoice($event, draft.work.responsibility)"
-		><option value="unassigned">{{ tr('renovation.unassigned') }}</option><option value="diy">{{ tr('renovation.diy') }}</option></select>
-	</label>
-	<p>{{ tr('renovation.trade-scope') }}</p>
+	<WorkResponsibilityFields
+		v-model="draft.work"
+		:frozen="frozen"
+	/>
+	<WorkScheduleFields
+		v-model="draft.work"
+		:frozen="frozen"
+	/>
 	<fieldset>
 		<legend>{{ tr('renovation.outcomes') }}</legend>
 		<label

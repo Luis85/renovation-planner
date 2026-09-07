@@ -1,3 +1,6 @@
+import { validateTradeAssignments } from '../application/commands/renovation/tradeAssignments';
+import { createTrade } from '../domain/trade/Trade';
+import { guardedNamedCatalogue } from './namedCatalogueServices';
 import type { PlanId } from '../domain/plan/PlanId';
 import type { Vault, Workspace } from 'obsidian';
 import { err } from '../core/result/Result';
@@ -13,13 +16,14 @@ import { guardedRenovation } from './guardedRenovation';
 import { reviewNoteAction } from './reviewNoteAction';
 import type { CompositionRoot } from './composition-root';
 
-export function planningEditorServices(root: CompositionRoot, vault: Vault, workspace: Workspace): Pick<PlanEditorCommandServices, 'planning' | 'renovation' | 'evidenceFiles' | 'shoppingNote'> {
+export function planningEditorServices(root: CompositionRoot, vault: Vault, workspace: Workspace): Pick<PlanEditorCommandServices, 'planning' | 'renovation' | 'evidenceFiles' | 'shoppingNote' | 'tradeCatalogue'> {
 	const persistence = root.persistence;
 	if (!persistence) return {};
 	const deps: PlanningDeps = { ...persistence, events: root.eventBus };
 	const services = planningServices(deps);
 	const read = guardCommand({ execute: (id: PlanId) => services.read(id) }, 'planning.read.failed', root.logger, VAULT_EXCEPTION_MAPPER);
 	return {
+		tradeCatalogue: guardedNamedCatalogue({ kind: 'trade', repository: persistence.trades, create: createTrade }, root.eventBus, root.logger),
 		planning: { read: id => read.execute(id), material(baseline, input, ledger) {
 			const command = services.material(baseline, input, ledger);
 			const execute = guardCommand({ execute: () => command.execute() }, 'material.execute.failed', root.logger, VAULT_EXCEPTION_MAPPER);
@@ -29,6 +33,8 @@ export function planningEditorServices(root: CompositionRoot, vault: Vault, work
 		renovation: guardedRenovation(renovationServices(persistence.plans, persistence.geometry, root.eventBus, async (plan, document) => {
 			const fresh = await readPlanning(deps, plan.id);
 			if (!fresh.ok) return fresh;
+			const trades = await validateTradeAssignments(plan.renovation ?? EMPTY_RENOVATION, fresh.value.plan.entity.renovation ?? EMPTY_RENOVATION, persistence.trades);
+			if (!trades.ok) return trades;
 			const links = validateDepthLinks(plan.renovation ?? EMPTY_RENOVATION, { ...fresh.value, geometry: { ...fresh.value.geometry, document } });
 			return links.ok ? links : err(links.error);
 		}), root.logger),

@@ -32,7 +32,8 @@ export function createSpatialRemoval(context: PlanEditorContext, runtime: Pick<E
  }
  async function approve(baseline: RenovationBaseline, selected: readonly string[], proposal: ReturnType<typeof spatialRemovalInput>): Promise<boolean> {
   const materials = await removalSources(context, proposal.ids);
-  if (!alive || !materials.ok) { if (!materials.ok) notifyOperationFailure(materials.error); return false; }
+  if (!alive) return false;
+  if (!materials.ok) { notifyOperationFailure(materials.error); return false; }
   const references = [...materials.value, ...proposal.ids.flatMap(id => renovationReferents(baseline.plan.entity.renovation ?? EMPTY_RENOVATION, id))];
   if (references.length) {
    await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), message: tr('renovation.links', { names: references.join(', ') }) }); return false;

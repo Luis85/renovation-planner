@@ -12,6 +12,7 @@ export function editorWorkspaceNavigation(workspace: Workspace, logger: Logger):
 		project: projectId => navigateToProject({ workspace, reportFault: cause => {
 			notifyFault(cause, logger, 'plan-editor.open-project-failed');
 		} }, RENOVATION_PROJECT_VIEW, projectId),
+		downstream: (projectId, route) => navigateToProject({ workspace, reportFault: cause => { notifyFault(cause, logger, 'plan-editor.open-project-failed'); } }, RENOVATION_PROJECT_VIEW, projectId, undefined, route),
 		library: renovationProjectOpenAssetLibrary(workspace, logger),
 	};
 }

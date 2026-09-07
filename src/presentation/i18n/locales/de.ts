@@ -1,3 +1,5 @@
+import { deProjectNavigation } from './de/projectNavigation';
+import { projectWorkDe } from './de/projectWork';
 import { deSaveState } from './de/saveState';
 import { planningDe } from './de/planning';
 /**
@@ -25,17 +27,13 @@ import { editorDe } from './de/editor';
 import { renovationDe } from './de/renovation';
 
 export const de: Partial<Record<StringKey, string>> = {
+	...projectWorkDe,
+	...deProjectNavigation,
 	...renovationDe,
 	...planningDe,
 	...editorDe,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
-	'view.project.guidance-title': 'Was möchten Sie als Nächstes tun?',
-	'view.project.guidance-body': 'Beginnen Sie mit einem Plan, sammeln Sie Ideen in Ihrer Projektnotiz oder legen Sie Projektpreise fest. Die Reihenfolge bestimmen Sie.',
-	'view.project.guidance-hide': 'Hilfestellung ausblenden',
-	'view.project.guidance-show': 'Hilfestellung einblenden',
-	'view.project.prices-open': 'Projektpreise',
-	'view.project.prices-back': 'Zurück zum Projekt',
 	'view.project.price-apply': 'Übernehmen',
 	'view.project.price-cancel': 'Entwurf verwerfen',
 	'view.project.price-saved-refresh-failed': 'Gespeichert; die Anzeige konnte nicht aktualisiert werden. Aktualisieren Sie die Anzeige vor der nächsten Bearbeitung.',

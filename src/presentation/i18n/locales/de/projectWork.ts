@@ -1,4 +1,5 @@
 export const projectWorkDe = {
+ 'project.source-note-missing': 'Die Quelldatei wurde nicht gefunden.',
   "project.not-found": "Dieses Projekt ist nicht mehr verfügbar. Kehren Sie zur Projektliste zurück und wählen Sie ein vorhandenes Projekt.",
   "trade.create-conflict": "Dieses Gewerk wurde bereits mit einem anderen Namen gespeichert. Schließen Sie den Entwurf und laden Sie den Katalog erneut.",
   "supplier.create-conflict": "Dieser Lieferant wurde bereits mit einem anderen Namen gespeichert. Schließen Sie den Entwurf und laden Sie den Katalog erneut.",

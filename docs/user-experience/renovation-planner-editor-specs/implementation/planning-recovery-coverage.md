@@ -151,3 +151,11 @@ Six native editor regressions reproduced four failures before the shared regiona
 focus-return correction. The first integrated focused run then passed 46 tests in three
 files. [The Reference focus evidence](reference-focus-recovery-evidence.md) records the
 root cause, exact verification scope and the still-required final shared browser rerun.
+
+## Downstream dialog focus — 2026-09-07
+
+Four native Work/Quote regressions reproduced focus falling to the body after the source
+control disappeared. The shared focus-return correction passed all four alongside the
+existing flow/recovery cases: 20 tests in four files, 12.66 seconds. See
+[the downstream focus evidence](downstream-dialog-focus-evidence.md) for exact triggers,
+write boundaries and the separate browser/full-gate acceptance limits.

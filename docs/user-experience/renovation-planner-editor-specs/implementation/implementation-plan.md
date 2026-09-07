@@ -518,7 +518,7 @@ ADR-0021 resolves Existing/Planned/Work and spatial record links for the impleme
 workflow. Phase 7 and the supported part of Phase 8 are delivered together; their current
 verification is in `implementation-status.md` and `connected-renovation-evidence.md`. This
 advances roadmap steps 4 and 7 without claiming steps 5–6 (materials, costs and evidence).
-Cross-floor work dependencies, Trade assignment and live acceptance remain backlog items.
+At that historical checkpoint, cross-floor Work dependencies, Trade assignment and live acceptance remained backlog items. ADR-0024 subsequently delivers shared Trade assignment and explicit Work dates; cross-floor dependency scheduling and live acceptance retain their separately recorded status.
 
 
 ## Materials → Costs → Evidence continuation — 2026-09-06
@@ -527,9 +527,12 @@ Bounded M12–M14 and M17 criteria are implemented in the continuation of open P
 contextual Asset-backed Requirement quantities and overrides, exclusive purchased/reserved
 allocations, outstanding shopping, obligations with separate commitment/actual facts, partial
 settlement and Remaining, ordinary vault evidence with phases/pins and source-linked Review.
-This supersedes earlier statements that all materials/costs/evidence remain unbuilt; scheduling,
-suppliers, shared inventory, full quote comparison and live acceptance remain open.
+This superseded earlier statements that all materials/costs/evidence remained unbuilt. At that historical checkpoint scheduling, suppliers, shared inventory, full quote comparison and live acceptance were open; ADR-0024 subsequently delivers shared Suppliers, explicit Work dates and factual Quote comparison. Shared inventory and final live acceptance retain their separately recorded status.
 
 See [connected planning evidence and traceability](connected-planning-evidence.md),
 [changed-file coverage](connected-planning-coverage.md) and ADR-0022. Only that demonstrated
 subset is complete. Global Increment D and full M12–M17 acceptance are not complete.
+
+## Integrated downstream recovery — 2026-09-07
+
+Project Work and Quote comparison preserve saved-source identity when read-back fails, including newly created Quotes and Work Undo across floors. Open source note uses the canonical index/host seam without replaying a write. Retry and refreshed dialogs restore focus when their former control disappears. Native joined recovery and navigation evidence is recorded in [downstream evidence](downstream-planning-evidence.md); final full coverage, nine browser journeys, eighteen locked references and live-host acceptance remain open.

@@ -1,0 +1,99 @@
+{
+  "scope": "Same two public command tests before and after approved private date cleanup",
+  "path": "D:\\Projects\\renovation-planner\\.worktrees\\editor-coverage-finalization\\src\\domain\\requirement\\Requirement.ts",
+  "beforeBranches": 54,
+  "afterBranches": 50,
+  "beforeHits": 39,
+  "afterHits": 38,
+  "beforeStatements": 39,
+  "afterStatements": 39,
+  "removed": [
+    {
+      "id": "18",
+      "map": {
+        "loc": {
+          "start": {
+            "line": 152,
+            "column": 17
+          },
+          "end": {
+            "line": 152,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 152,
+              "column": 45
+            },
+            "end": {
+              "line": 152,
+              "column": 76
+            }
+          },
+          {
+            "start": {
+              "line": 152,
+              "column": 76
+            },
+            "end": {
+              "line": 152,
+              "column": null
+            }
+          }
+        ],
+        "line": 152
+      },
+      "hits": [
+        0,
+        4
+      ]
+    },
+    {
+      "id": "19",
+      "map": {
+        "loc": {
+          "start": {
+            "line": 152,
+            "column": 45
+          },
+          "end": {
+            "line": 152,
+            "column": 76
+          }
+        },
+        "type": "binary-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 152,
+              "column": 45
+            },
+            "end": {
+              "line": 152,
+              "column": 68
+            }
+          },
+          {
+            "start": {
+              "line": 152,
+              "column": 68
+            },
+            "end": {
+              "line": 152,
+              "column": 76
+            }
+          }
+        ],
+        "line": 152
+      },
+      "hits": [
+        0,
+        0
+      ]
+    }
+  ],
+  "description": "Removed four total branch arms: three previously uncovered and one previously covered. Statements unchanged. No full aggregate result is claimed."
+}

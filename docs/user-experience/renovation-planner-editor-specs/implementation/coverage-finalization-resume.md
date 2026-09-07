@@ -8,6 +8,23 @@ Root confirmed global coverage ownership. The first granted heavy slot is comple
 and was explicitly returned to Root. All local process handles are terminal.
 Root owns shared status files and the final combined source/acceptance.
 
+## Approved private Requirement cleanup — verified
+
+Root approved the only production edit: preserve the date directly in `Requirement.with`
+and exclude `requiredDate` from that private parameter type. Public creation/validation
+and all seven public update methods are unchanged. [Caller proof and validation](requirement-date-preservation.md).
+16/16 tests in three files, types, whole Oxlint, scoped ESLint and static Fallow pass.
+Identical two-case scoped coverage confirms four total arms removed: three uncovered
+plus the previously covered preservation arm, with statements unchanged. No full aggregate
+pass is claimed. Handles 33127/44128 are terminal and the heavy slot was returned to Root.
+
+UI has confirmed the replacement Review selectors (source SHA still pending):
+`.review-room-marker` with `roomId`/`number`, `[data-rp-review-room]` with the marked
+ordinal, `[data-rp-review-summary-room]`, and `[data-rp-review-issue]`. Their test-file
+adaptation is prepared separately and remains unverified. The future Outline peer
+boundary file is approved for source-only preparation; no production fix in that area
+is authorized without first reporting a concrete defect.
+
 ## Current verification and contract correction
 
 Installed 567 dependencies using `npm ci --no-audit` (50 seconds), Node 24.20.0.

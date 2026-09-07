@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { restoreInoperativeChoice } from '../forms/inoperativeControl';
 import { tr } from '../../i18n/strings';
 import { geometryFields, type PlannedGeometryDraft } from './plannedGeometry';
 import type { Structure } from '../../../domain/spatial/Structure';
@@ -10,14 +11,15 @@ defineProps<{ addition: boolean; structure: Structure; paused: boolean }>();
 	<section class="rp-renovation-fields">
 		<PlannedElementFields
 			v-if="draft.kind === 'element'"
-			v-model:draft="draft"
+			:draft="draft"
 			:paused="paused"
 		/>
 		<label v-if="addition && !draft.id">
 			{{ tr('renovation.geometry') }}
 			<select
 				v-model="draft.kind"
-				:disabled="paused"
+				:aria-disabled="paused"
+				@change.capture="restoreInoperativeChoice($event, draft.kind)"
 			>
 				<option value="none">{{ tr('renovation.geometry.none') }}</option>
 				<option value="wall">{{ tr('renovation.geometry.wall') }}</option>
@@ -28,7 +30,8 @@ defineProps<{ addition: boolean; structure: Structure; paused: boolean }>();
 			<label>{{ tr('renovation.host') }}
 				<select
 					v-model="draft.hostId"
-					:disabled="paused"
+					:aria-disabled="paused"
+					@change.capture="restoreInoperativeChoice($event, draft.hostId)"
 				>
 					<option
 						v-for="(wall, index) in structure.walls"
@@ -40,7 +43,8 @@ defineProps<{ addition: boolean; structure: Structure; paused: boolean }>();
 			<label>{{ tr('renovation.kind') }}
 				<select
 					v-model="draft.openingKind"
-					:disabled="paused"
+					:aria-disabled="paused"
+					@change.capture="restoreInoperativeChoice($event, draft.openingKind)"
 				>
 					<option
 						v-for="kind in ['door', 'window', 'opening'] as const"

@@ -72,9 +72,9 @@ describe('connected planning read-back recovery', () => {
   const read = vi.spyOn(services, 'read').mockResolvedValue(failure); rig.changeCatalogue(); await settle();
   expect(path.element.readOnly).toBe(false); expect(document.activeElement).toBe(path.element);
   const note = expectDefined(rig.wrapper.findAll('button').find(button => button.text() === 'Create contextual note'), 'Create contextual note');
-  expect(note.attributes('disabled')).toBeDefined();
-  expect(rig.wrapper.get<HTMLInputElement>('input[type="file"]').element.disabled).toBe(true);
-  expect(rig.wrapper.get('[data-rp-planning-apply]').attributes('disabled')).toBeDefined();
+  expect(note.attributes('aria-disabled')).toBe('true');
+  expect(rig.wrapper.get<HTMLInputElement>('input[type="file"]').attributes('aria-disabled')).toBe('true');
+  expect(rig.wrapper.get('[data-rp-planning-apply]').attributes('aria-disabled')).toBe('true');
   await path.setValue('Evidence/corrected invoice.pdf');
   const bytes = [...rig.stack.vault.entries];
   await note.trigger('click'); await rig.wrapper.get('[data-rp-form="planning"]').trigger('submit'); await settle();
@@ -160,7 +160,7 @@ describe('connected planning read-back recovery', () => {
   const read = vi.spyOn(services, 'read').mockResolvedValue(failure);
   rig.changeCatalogue(); await settle();
   expect(document.activeElement).toBe(field.element); expect(field.element.value).toBe('17,5');
-  expect(rig.wrapper.get('[data-rp-planning-apply]').attributes('disabled')).toBeDefined();
+  expect(rig.wrapper.get('[data-rp-planning-apply]').attributes('aria-disabled')).toBe('true');
   const bytes = [...rig.stack.vault.entries];
   const pending = defer<Awaited<ReturnType<typeof services.read>>>(); read.mockReturnValueOnce(pending.promise);
   const calls = read.mock.calls.length;

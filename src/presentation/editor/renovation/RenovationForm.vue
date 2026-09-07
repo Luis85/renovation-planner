@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { restoreInoperativeChoice } from '../forms/inoperativeControl';
 import { computed, onBeforeUnmount, ref, toRaw, type Ref } from 'vue';
 import type { RenovationBaseline, RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
 import { validateRenovationInput } from '../../../application/commands/renovation/RenovationCommand';
@@ -66,7 +67,7 @@ async function submit(): Promise<void> {
 	} catch (cause) { if (alive) error.value = persistenceError('renovation.write-failed', 'The record could not be saved.', cause); }
 	finally { submitting.value = false; }
 }
-function changed(): void { if (!props.busy.value) reviewed.value = false; }
+function changed(): void { if (!frozen.value) reviewed.value = false; }
 </script>
 <template>
 	<form
@@ -93,7 +94,8 @@ function changed(): void { if (!props.busy.value) reviewed.value = false; }
 			<label>{{ tr('renovation.kind') }}
 				<select
 					v-model="draft.subject.kind"
-					:disabled="frozen"
+					:aria-disabled="frozen"
+					@change.capture="restoreInoperativeChoice($event, draft.subject.kind)"
 				>
 					<option
 						v-for="kind in DETAIL_KINDS"
@@ -104,28 +106,28 @@ function changed(): void { if (!props.busy.value) reviewed.value = false; }
 			</label>
 			<ExistingFields
 				v-if="draft.kind === 'existing'"
-				v-model:draft="draft"
+				:draft="draft"
 				:value="value"
 				:targets="targets"
 				:frozen="frozen"
 			/>
 			<PlannedFields
 				v-if="draft.kind === 'planned'"
-				v-model:draft="draft"
-				v-model:geometry="geometry"
+				:draft="draft"
+				:geometry="geometry"
 				:structure="structure"
 				:frozen="frozen"
 			/>
 		</template>
 		<WorkFields
 			v-if="draft.kind === 'work'"
-			v-model:draft="draft"
+			:draft="draft"
 			:value="value"
 			:frozen="frozen"
 		/>
 		<DecisionFields
 			v-if="draft.kind === 'decision'"
-			v-model:draft="draft"
+			:draft="draft"
 			:value="value"
 			:frozen="frozen"
 		/>

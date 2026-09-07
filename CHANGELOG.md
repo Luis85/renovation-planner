@@ -196,6 +196,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Fixed
 
+- Planning and renovation dialogs keep busy native choices and actions focusable, refuse changes while saving, and retain the original draft values. Late save completion after closing a leaf does not reopen its form or move focus.
+
 - Room naming, dimensions, outline and Area details dialogs return keyboard focus to a visible control after responsive reflow, including when the persistent Inspector opener becomes hidden.
 
 - Preserve native Inspector/Layer controls, pending text, caret selection and focus while resizing the editor. A focused region opens automatically at constrained widths; close and Escape still return focus to the rail.

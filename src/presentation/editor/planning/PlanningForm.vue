@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { refuseInoperativeEvent, restoreInoperativeChoice } from '../forms/inoperativeControl';
 import { computed, onBeforeUnmount, ref, toRaw, type Ref } from 'vue';
 import type { EvidenceFiles } from '../../../application/ports/EvidenceFiles';
 import { prepareMaterial, type PlanningBaseline, type MaterialInput } from '../../../application/commands/renovation/PlanningServices';
@@ -85,8 +86,9 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 		></label>
 		<label>{{ tr('planning.target') }}<select
 			v-model="draft.targetId"
-			:disabled="frozen"
+			:aria-disabled="frozen"
 			name="target"
+			@change.capture="restoreInoperativeChoice($event, draft.targetId)"
 		><option
 			v-for="target in targets"
 			:key="target"
@@ -94,8 +96,9 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 		>{{ target === draft.roomId ? tr('renovation.room-target') : target }}</option></select></label>
 		<label>{{ tr('renovation.work') }}<select
 			v-model="draft.workId"
-			:disabled="frozen"
+			:aria-disabled="frozen"
 			name="work"
+			@change.capture="restoreInoperativeChoice($event, draft.workId)"
 		><option value="">{{ tr('planning.unassigned') }}</option><option
 			v-for="work in baseline.plan.entity.renovation?.work.filter(item => hasRoomContext(item, draft.roomId))"
 			:key="work.id"
@@ -103,7 +106,7 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 		>{{ work.title }}</option></select></label>
 		<MaterialFields
 			v-if="draft.kind === 'material'"
-			v-model:draft="draft"
+			:draft="draft"
 			:baseline="baseline"
 			:paused="frozen"
 		/>
@@ -124,13 +127,13 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 		</template>
 		<CostFields
 			v-else-if="draft.kind === 'cost'"
-			v-model:draft="draft"
+			:draft="draft"
 			:baseline="baseline"
 			:paused="frozen"
 		/>
 		<EvidenceFields
 			v-else
-			v-model:draft="draft"
+			:draft="draft"
 			:baseline="baseline"
 			:paused="frozen"
 			:files="files"
@@ -139,7 +142,8 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 		<template v-if="draft.kind === 'material'">
 			<button
 				type="button"
-				:disabled="frozen"
+				:aria-disabled="frozen"
+				@click.capture="refuseInoperativeEvent"
 				@click="explain"
 			>
 				{{ tr('planning.explain') }}
@@ -149,8 +153,9 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 		</template>
 		<button
 			type="submit"
-			:disabled="applyBlocked"
+			:aria-disabled="applyBlocked"
 			data-rp-planning-apply
+			@click.capture="refuseInoperativeEvent"
 		>
 			{{ tr('planning.apply') }}
 		</button>

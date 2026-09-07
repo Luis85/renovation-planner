@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { restoreInoperativeChoice } from '../forms/inoperativeControl';
 import { tr } from '../../i18n/strings';
 import type { EditableRenovationDraft } from './renovationDraft';
 import { WORK_PROGRESS, type Renovation } from '../../../domain/renovation/Renovation';
@@ -26,7 +27,8 @@ defineProps<{ value: Renovation; frozen: boolean }>();
 	<label>{{ tr('renovation.progress') }}
 		<select
 			v-model="draft.work.progress"
-			:disabled="frozen"
+			:aria-disabled="frozen"
+			@change.capture="restoreInoperativeChoice($event, draft.work.progress)"
 		><option
 			v-for="progress in WORK_PROGRESS"
 			:key="progress"
@@ -36,7 +38,8 @@ defineProps<{ value: Renovation; frozen: boolean }>();
 	<label>{{ tr('renovation.responsibility') }}
 		<select
 			v-model="draft.work.responsibility"
-			:disabled="frozen"
+			:aria-disabled="frozen"
+			@change.capture="restoreInoperativeChoice($event, draft.work.responsibility)"
 		><option value="unassigned">{{ tr('renovation.unassigned') }}</option><option value="diy">{{ tr('renovation.diy') }}</option></select>
 	</label>
 	<p>{{ tr('renovation.trade-scope') }}</p>
@@ -49,7 +52,8 @@ defineProps<{ value: Renovation; frozen: boolean }>();
 			v-model="draft.work.outcomes"
 			type="checkbox"
 			:value="item.id"
-			:disabled="frozen"
+			:aria-disabled="frozen"
+			@change.capture="restoreInoperativeChoice($event, draft.work.outcomes)"
 		>{{ item.planned?.description || item.existing?.description }}</label>
 	</fieldset>
 	<fieldset>
@@ -61,7 +65,8 @@ defineProps<{ value: Renovation; frozen: boolean }>();
 			v-model="draft.work.dependencies"
 			type="checkbox"
 			:value="item.id"
-			:disabled="frozen"
+			:aria-disabled="frozen"
+			@change.capture="restoreInoperativeChoice($event, draft.work.dependencies)"
 		>{{ item.title }}</label>
 	</fieldset>
 </template>

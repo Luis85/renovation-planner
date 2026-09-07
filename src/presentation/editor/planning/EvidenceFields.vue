@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { refuseInoperativeEvent, restoreInoperativeChoice } from '../forms/inoperativeControl';
 import { recordChoices } from './recordChoices';
 import { onBeforeUnmount, ref, useId } from 'vue';
 import type { PlanningDraft } from './planningDraft';
@@ -41,8 +42,9 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 	</datalist>
 	<label>{{ tr('planning.type') }}<select
 		v-model="draft.type"
-		:disabled="paused"
+		:aria-disabled="paused"
 		name="type"
+		@change.capture="restoreInoperativeChoice($event, draft.type)"
 	><option
 		v-for="type in EVIDENCE_TYPES"
 		:key="type"
@@ -50,8 +52,9 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 	>{{ tr(`planning.${type}`) }}</option></select></label>
 	<label>{{ tr('planning.phase') }}<select
 		v-model="draft.phase"
-		:disabled="paused"
+		:aria-disabled="paused"
 		name="phase"
+		@change.capture="restoreInoperativeChoice($event, draft.phase)"
 	><option
 		v-for="phase in EVIDENCE_PHASES"
 		:key="phase"
@@ -59,8 +62,9 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 	>{{ tr(`planning.${phase}`) }}</option></select></label>
 	<label>{{ tr('planning.linked-record') }}<select
 		v-model="draft.recordId"
-		:disabled="paused"
+		:aria-disabled="paused"
 		name="record"
+		@change.capture="restoreInoperativeChoice($event, draft.recordId)"
 	><option value="">{{ tr('planning.unassigned') }}</option><option
 		v-for="record in recordChoices(baseline, draft.roomId)"
 		:key="record.id"
@@ -68,8 +72,9 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 	>{{ record.label }}</option></select></label>
 	<label><input
 		v-model="draft.pin"
-		:disabled="paused"
+		:aria-disabled="paused"
 		type="checkbox"
+		@change.capture="restoreInoperativeChoice($event, draft.pin)"
 	>{{ tr('planning.pin') }}</label>
 	<template v-if="draft.pin">
 		<label>{{ tr('planning.pin-x') }}<input
@@ -85,7 +90,8 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 	<template v-if="files">
 		<button
 			type="button"
-			:disabled="paused || writeBlocked || working || !!draft.path"
+			:aria-disabled="paused || writeBlocked || working || !!draft.path"
+			@click.capture="refuseInoperativeEvent"
 			@click="create()"
 		>
 			{{ tr('planning.create-note') }}
@@ -93,7 +99,9 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 		<label>{{ tr('planning.import') }}<input
 			type="file"
 			accept=".md,.pdf,.png,.jpg,.jpeg,.gif,.webp"
-			:disabled="paused || writeBlocked || working"
+			:aria-disabled="paused || writeBlocked || working"
+			@click.capture="refuseInoperativeEvent"
+			@change.capture="restoreInoperativeChoice($event, '')"
 			@change="importFile"
 		></label>
 	</template>

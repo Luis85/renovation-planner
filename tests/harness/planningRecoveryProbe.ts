@@ -22,16 +22,21 @@ export function planningRecoveryProbe(workspace: ReturnType<typeof referenceWork
  URL.createObjectURL = blob => { const url = createUrl(blob); urls.add(url); return url; };
  URL.revokeObjectURL = url => { urls.delete(url); revokeUrl(url); };
  let fail = false, arm = false;
+ let writeGate = Promise.resolve(), waitingWrites = 0;
+ let releaseWrite: (() => void) | undefined;
+ async function beforeWrite() { waitingWrites++; await writeGate; waitingWrites--; }
  const read = services.read.bind(services), planSave = stack.plans.save.bind(stack.plans), materialSave = stack.requirements.save.bind(stack.requirements);
  services.read = id => { counts.reads++; return fail ? Promise.resolve(err({ category: 'Persistence', code: 'fixture.read', message: 'Injected read-back failure' })) : read(id); };
- stack.plans.save = async (...args) => { const result = await planSave(...args); if (result.ok) { counts.planWrites++; if (arm) { fail = true; arm = false; } } return result; };
- stack.requirements.save = async (...args) => { const result = await materialSave(...args); if (result.ok) { counts.materialWrites++; if (arm) { fail = true; arm = false; } } return result; };
+ stack.plans.save = async (...args) => { await beforeWrite(); const result = await planSave(...args); if (result.ok) { counts.planWrites++; if (arm) { fail = true; arm = false; } } return result; };
+ stack.requirements.save = async (...args) => { await beforeWrite(); const result = await materialSave(...args); if (result.ok) { counts.materialWrites++; if (arm) { fail = true; arm = false; } } return result; };
  const getPlan = deps.queries.getPlan;
  deps.queries.getPlan = (...args) => { counts.spatialReads++; return getPlan(...args); };
  const changed = () => stack.events.publish({ type: 'PlanRenovationChanged', payload: { planId: plan.id, projectId: plan.projectId } });
- function snapshot() { return { ...counts, listeners: stack.vault.eventListenerCount, stages: Konva.stages.length, images: document.querySelectorAll('.rp-evidence-thumbnail').length, objectUrls: urls.size }; }
+ function snapshot() { return { ...counts, waitingWrites, listeners: stack.vault.eventListenerCount, stages: Konva.stages.length, images: document.querySelectorAll('.rp-evidence-thumbnail').length, objectUrls: urls.size }; }
  return {
   snapshot, scene, armFailure: () => { arm = true; }, setFailure: (value: boolean) => { fail = value; },
+  pauseWrites() { writeGate = new Promise<void>(resolve => { releaseWrite = resolve; }); },
+  resumeWrites() { releaseWrite?.(); },
   async events(count: number) { await Promise.all(Array.from({ length: count }, changed)); },
   files(paths: string[]) { for (const path of paths) { if (!stack.vault.entries.has(path)) stack.vault.entries.set(path, 'fixture'); stack.vault.trigger('modify', stack.vault.getAbstractFileByPath(path)); } },
   async geometryChange() {

@@ -20,7 +20,7 @@ async function setup(kind: BatchKind = 'work') {
 	const rig = await planningStack(), baseline = expectOk(await rig.read()), busy = ref(false), paused = ref(false);
 	const dispatch = vi.fn<(input: RenovationInput) => Promise<DispatchResult>>(() => Promise.resolve(ok('wrote')));
 	const files = { list: () => ['Notes/walls.md'], resolve: vi.fn<EvidenceFiles['resolve']>(() => ok({ path: 'Notes/walls.md', subpath: '', image: null })), open: vi.fn<EvidenceFiles['open']>(() => Promise.resolve(ok(undefined))), createNote: vi.fn<EvidenceFiles['createNote']>(() => Promise.resolve(ok('Notes/new.md'))), importFile: vi.fn<EvidenceFiles['importFile']>(() => Promise.resolve(ok('Attachments/file.pdf'))) };
-	const wrapper = mount(RenovationBatchForm, { props: { kind, baseline, targets: ['wall-a', 'wall-b'].map(targetId => ({ roomId: rig.roomId, targetId, name: targetId, kind: 'wall' as const })), busy, paused, dispatch, files } });
+	const wrapper = mount(RenovationBatchForm, { attachTo: document.body, props: { kind, baseline, targets: ['wall-a', 'wall-b'].map(targetId => ({ roomId: rig.roomId, targetId, name: targetId, kind: 'wall' as const })), busy, paused, dispatch, files } });
 	mounted.push(wrapper); return { ...rig, wrapper, dispatch, files, busy, paused };
 }
 it('requires a description, invalidates the preview after edits and cannot submit while paused', async () => {
@@ -37,6 +37,20 @@ it('validates a real vault file before creating shared evidence', async () => {
 	await rig.wrapper.findAll('select')[1].setValue('Notes/walls.md'); await rig.wrapper.findAll('select')[2].setValue('photo'); await rig.wrapper.get('form').trigger('keydown', { key: 'x' }); await rig.wrapper.get('form').trigger('submit'); await rig.wrapper.get('form').trigger('submit');
 	expect(rig.dispatch).toHaveBeenCalledOnce();
 	expect(rig.dispatch.mock.calls[0][0].renovation.depth?.evidence[0].type).toBe('photo');
+});
+it('retains native focus, preview and normalized evidence subpath during a pending batch save', async () => {
+	const rig = await setup('evidence'), w = rig.wrapper, pending = defer<DispatchResult>();
+	await w.get('input').setValue('Wall note'); await w.findAll('select')[1].setValue('Notes/walls.md');
+	rig.files.resolve.mockReturnValue(ok({ path: 'Notes/walls.md', subpath: '#Survey', image: null }));
+	await w.trigger('submit'); rig.dispatch.mockReturnValueOnce(pending.promise);
+	const submit = w.get<HTMLButtonElement>('button[type="submit"]'); submit.element.focus(); await submit.trigger('click'); await settle();
+	expect(submit.element.disabled).toBe(false); expect(document.activeElement).toBe(submit.element);
+	const path = w.findAll<HTMLSelectElement>('select')[1]; path.element.focus(); await path.setValue('');
+	expect(path.element.value).toBe('Notes/walls.md'); expect(document.activeElement).toBe(path.element);
+	expect(submit.text()).toBe('Apply'); expect(w.get<HTMLInputElement>('input').element.readOnly).toBe(true);
+	await submit.trigger('click'); expect(rig.dispatch).toHaveBeenCalledOnce();
+	expect(rig.dispatch.mock.calls[0][0].renovation.depth?.evidence[0].subpath).toBe('#Survey');
+	pending.resolve(ok('wrote')); await settle(); expect(w.emitted('submit')).toHaveLength(1);
 });
 it('attaches an existing Work record once while retaining its identity and facts', async () => {
 	const rig = await setup(); await rig.wrapper.get('select').setValue('work-sand');
@@ -64,7 +78,7 @@ it('attaches an existing evidence record without requiring its file to be chosen
 	const rig = await setup('evidence');
 	const baseline = expectOk(await rig.read());
 	rig.wrapper.unmount();
-	const wrapper = mount(RenovationBatchForm, { props: { kind: 'evidence', baseline: { ...baseline, plan: { ...baseline.plan, entity: expectOk(withPlanRenovation(baseline.plan.entity, { ...rig.value, depth: rig.depth })) } }, targets: [{ roomId: rig.roomId, targetId: 'wall-a', name: 'Wall', kind: 'wall' }], busy: rig.busy, paused: rig.paused, dispatch: rig.dispatch } });
+	const wrapper = mount(RenovationBatchForm, { attachTo: document.body, props: { kind: 'evidence', baseline: { ...baseline, plan: { ...baseline.plan, entity: expectOk(withPlanRenovation(baseline.plan.entity, { ...rig.value, depth: rig.depth })) } }, targets: [{ roomId: rig.roomId, targetId: 'wall-a', name: 'Wall', kind: 'wall' }], busy: rig.busy, paused: rig.paused, dispatch: rig.dispatch } });
 	mounted.push(wrapper);
 	await wrapper.get('select').setValue(rig.evidence.id); await wrapper.get('form').trigger('submit'); await wrapper.get('form').trigger('submit');
 	expect(rig.dispatch.mock.calls[0][0].renovation.depth?.evidence[0]).toMatchObject({ id: rig.evidence.id, path: rig.evidence.path, links: [{ roomId: rig.roomId, targetId: 'wall-a' }] });
@@ -74,7 +88,7 @@ it('explains affected hosted openings and linked records in the removal preview'
 	rig.wrapper.unmount();
 	const target = { roomId: rig.roomId, targetId: rig.roomId, name: 'Kitchen', kind: 'other' as const };
 	const opening = { id: 'opening-door', hostId: 'wall-a', kind: 'door' as const, offset: 100, width: 900, height: 2000, sill: 0 };
-	const wrapper = mount(RenovationBatchForm, { props: { kind: 'remove', baseline: { ...baseline, geometry: { ...baseline.geometry, document: { ...baseline.geometry.document, structure: { walls: baseline.geometry.document.structure?.walls ?? [], boundaries: [], openings: [opening] } } } }, targets: [target, { ...target, targetId: 'wall-a', name: 'Wall', kind: 'wall' }], busy: rig.busy, paused: rig.paused, dispatch: rig.dispatch } });
+	const wrapper = mount(RenovationBatchForm, { attachTo: document.body, props: { kind: 'remove', baseline: { ...baseline, geometry: { ...baseline.geometry, document: { ...baseline.geometry.document, structure: { walls: baseline.geometry.document.structure?.walls ?? [], boundaries: [], openings: [opening] } } } }, targets: [target, { ...target, targetId: 'wall-a', name: 'Wall', kind: 'wall' }], busy: rig.busy, paused: rig.paused, dispatch: rig.dispatch } });
 	mounted.push(wrapper);
 	await wrapper.get('form').trigger('submit'); expect(wrapper.text()).toContain('Sand floor'); expect(wrapper.text()).toContain('1');
 	await wrapper.get('form').trigger('submit'); expect(rig.dispatch).toHaveBeenCalledOnce();

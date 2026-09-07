@@ -22,10 +22,11 @@ export function provideReviewPresentation(context: PlanEditorContext, runtime: E
 		...value.value.work.map(item => [item.id, item.title] as const),
 		...value.value.decisions.map(item => [item.id, item.question] as const),
 	]));
-	const findings = computed(() => reviewRenovation(value.value).map(item => ({ ...item,
-		roomLabel: project.zones.get(item.roomId)?.name ?? item.roomId,
-		sourceLabel: labels.value.get(item.recordId) || item.recordId,
-	})));
+	const findings = computed(() => reviewRenovation(value.value).map(item => {
+		const sourceLabel = labels.value.get(item.recordId) || item.recordId;
+		return { ...item, roomLabel: project.zones.get(item.roomId)?.name ?? item.roomId, sourceLabel,
+			detailLabel: [...new Set([sourceLabel, ...item.causes])].join(' — ') };
+	}));
 	const depth = computed<ReviewPlanningFinding[]>(() => planning.findings.value.map(item => ({ ...item,
 		roomLabel: project.zones.get(item.roomId)?.name ?? item.roomId, sourceLabel: item.description || item.id,
 	})));

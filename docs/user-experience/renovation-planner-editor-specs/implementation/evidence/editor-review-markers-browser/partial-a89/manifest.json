@@ -1,0 +1,46 @@
+{
+  "source": "a89ab791e3de9a7e73848251e91ba8e2be165b8a",
+  "result": "partial: Light/Dark complete, Custom last-button bounds failed, German not reached",
+  "files": [
+    {
+      "file": "custom-accent-review-issues-design.png",
+      "sha256": "eaab6d125daac332b8f978dccb5e37e2f32125f5c034b25f35d360de8989d559"
+    },
+    {
+      "file": "dark-caption-inline-clamped.png",
+      "sha256": "cd1c70839fed70780ad1cd7426217f6be6b72d4d38327be604f69d1fcd404e86"
+    },
+    {
+      "file": "dark-photos-gallery.png",
+      "sha256": "47dea0cf5d1e0e1532f29b4e797420af5d521bf215c49ce314a3561d40fecff4"
+    },
+    {
+      "file": "dark-review-issues-design-axe.json",
+      "sha256": "ffd889781ed741dcc82b05b8d45c1ad8ade493054253fdb06f7cad27989d1a81"
+    },
+    {
+      "file": "dark-review-issues-design.png",
+      "sha256": "2cb7433edd82fdeb76e50f581c187e4cbe0c1130fda8c28e9154e03d732c1a91"
+    },
+    {
+      "file": "light-caption-inline-clamped.png",
+      "sha256": "bdff8a43e5d6028d18679805b5aa7a2e170a99f7340843a9bf3c3b3b2619e365"
+    },
+    {
+      "file": "light-photos-gallery.png",
+      "sha256": "4e1a2726cad6b8b2eea1fa8e9a64a30008539c4a59fbf7c25cfc88a88523bd97"
+    },
+    {
+      "file": "light-review-issues-design-axe.json",
+      "sha256": "6ba09f9d4f5b867f86fade9e54e45916f8851b8257146b403876dc278a74e89e"
+    },
+    {
+      "file": "light-review-issues-design.png",
+      "sha256": "854426e4451c78ac5bada0299745a703166307f5566edbc8015c4625b48fbfd9"
+    },
+    {
+      "file": "runner.txt",
+      "sha256": "3e5c85e8735c10cde4f25104952b62a381d29087ba7d75d2f28f2e55611796fb"
+    }
+  ]
+}

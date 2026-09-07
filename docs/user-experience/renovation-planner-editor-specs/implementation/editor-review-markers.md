@@ -64,3 +64,18 @@ planning/overview behavior remains covered. Original logs and hashes are in
 The actual extended four-theme browser run, issue-rich layout/marker mouse input, other screen
 comparisons and uninterrupted final nine-journey run remain pending. Native green does not
 declare full visual or live-host acceptance.
+
+## Extended browser checkpoint — a89ab791
+
+The joined run completed Light and Dark's full extended journey: actual caption/control/pin
+clearance through pan and inline editing, two native Decision saves, source/cancel/Back routes,
+and real mouse Room-marker selection without a dialog or file writes. Custom caption checks
+also passed, but its last review-note button exceeded the Inspector bottom by 8.39 pixels.
+The four-scenario run therefore failed and German was not reached; no old report is reused.
+
+The next correction reduces Review summary spacing by two pixels and the Open-room top margin
+by four pixels. Text sizes, controls, data and visibility assertions stay intact. Work findings
+with a shared dependency now show the actual Work label visibly as well as accessibly; repeated
+source/cause wording is deduplicated without changing any rule or source route. Current validation
+of these small follow-ups remains pending. The partial images and original failure log are saved
+under `evidence/editor-review-markers-browser/partial-a89`.

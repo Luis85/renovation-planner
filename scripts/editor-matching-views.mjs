@@ -37,7 +37,9 @@ export async function captureInspectorDesign(page, scenario, out, name, { select
 		await tabTo(page, topControl); await page.keyboard.press('Control+Home');
 		const inspector = await page.locator('[data-rp-region="inspector"]').boundingBox(); assert.ok(inspector);
 		await page.mouse.move(inspector.x + inspector.width * 0.8, inspector.y + 100);
-		await page.mouse.wheel(0, -2000); await settled(page);
+		await page.mouse.wheel(0, -2000);
+		await page.waitForFunction(() => document.querySelector('[data-rp-region="inspector"]')?.scrollTop === 0);
+		await settled(page);
 	}
 	const bounds = await inspectorVisibility(page, selectors, scenario.width === 460);
 	await recordShot(page, scenario, out, name);

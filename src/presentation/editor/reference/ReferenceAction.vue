@@ -13,6 +13,6 @@ const open = (event: Event) => runInspectorAction(event, 'reference', () => runt
 		:aria-disabled="runtime.referenceBlocked.value"
 		@click="open"
 	>
-		{{ tr(project.plan?.background ? 'editor.reference.action' : 'editor.reference.upload') }}
+		<slot>{{ tr(project.plan?.background ? 'editor.reference.action' : 'editor.reference.upload') }}</slot>
 	</button>
 </template>

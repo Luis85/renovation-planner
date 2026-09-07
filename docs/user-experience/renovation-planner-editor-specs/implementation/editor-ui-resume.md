@@ -69,6 +69,22 @@ M07 uses native Fit Floor before capture. The comparison map selects the new Flo
 All original connected actions/assertions remain. Three `node --check` syntax checks and diff
 check passed; the new captures and their assertions have not run in a browser.
 
+Root granted M05/M15/M17 presentation ownership after `cdbd30a3`. The following source-only
+WIP adds native Floor-start choice descriptions/icons (ReferenceAction's default remains),
+warning/error icons and message hierarchy inside the retained live region, and a read-only
+Review summary. Review consumes the existing Floor, renovation and planning projections:
+floor identity/counts/cost, room finding counts, selected-room transformation and real linked
+records. Room rows use the existing select-and-frame seam; Open room uses existing Renovate
+navigation. No new readiness rule or certified-ready status is introduced. Unavailable/partial
+data cannot produce a clear room status. Existing all-clear guard semantics remain.
+
+The native renovation workflow test has new assertions for unresolved/resolved room summaries,
+source contents, read-only selection, return context and Open room without vault writes. These
+new assertions have NOT run. Four pinned original Lucide SVG fixtures extend the test renderer.
+Diff/source review only; types, lint, Fallow complexity, tests, focus/recovery, narrow layout and
+screenshots remain pending. Root owns EvidenceInspector complexity, E owns downstream Work/Quote
+view cleanup and currently has the heavy verification slot. This UI package starts no heavy task.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

@@ -4,6 +4,7 @@ import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import { activateCreationEntry } from '../add/creationCatalogue';
 import ReferenceAction from './ReferenceAction.vue';
+import HostIcon from '../../components/HostIcon.vue';
 const emit = defineEmits<{ dismiss: [] }>();
 const runtime = useEditorRuntime();
 async function choose(choice: 'rooms' | 'empty', event: Event): Promise<void> {
@@ -26,14 +27,22 @@ async function choose(choice: 'rooms' | 'empty', event: Event): Promise<void> {
 			:aria-disabled="runtime.writesBlocked.value"
 			@click="choose('rooms', $event)"
 		>
-			{{ tr('editor.reference.rooms') }}
+			<HostIcon name="square-dashed" />
+			<span class="rp-floor-start__title">{{ tr('editor.reference.rooms') }}</span>
+			<span class="rp-floor-start__description">{{ tr('editor.reference.rooms-description') }}</span>
 		</button>
-		<ReferenceAction />
+		<ReferenceAction>
+			<HostIcon name="file-up" />
+			<span class="rp-floor-start__title">{{ tr('editor.reference.upload') }}</span>
+			<span class="rp-floor-start__description">{{ tr('editor.reference.upload-description') }}</span>
+		</ReferenceAction>
 		<button
 			type="button"
 			@click="choose('empty', $event)"
 		>
-			{{ tr('editor.reference.empty') }}
+			<HostIcon name="grid-2x2" />
+			<span class="rp-floor-start__title">{{ tr('editor.reference.empty') }}</span>
+			<span class="rp-floor-start__description">{{ tr('editor.reference.empty-description') }}</span>
 		</button>
 	</div>
 </template>

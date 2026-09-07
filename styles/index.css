@@ -88,6 +88,7 @@
 @import "./editor-visual-overview.css";
 /* Selection details override the preceding shared Inspector spacing. */
 @import "./editor-selection-details.css";
+@import "./editor-review-summary.css";
 
 @import "./editor-object.css";
 @import "./editor-material-table.css";

@@ -203,6 +203,7 @@ entries are added by the pull request that earns them, never invented at release
 - Keep Room rename/resize controls consistent with planning and unrecovered-write pauses, reload changed evidence thumbnails at the same resource path, and return keyboard focus into an already-open panel when its rail is activated again.
 
 - Restore Room and reviewed wall selection handles and Select/Add in Renovate, using the existing geometry history while retaining read-only Review.
+- Discarding an added generic element removes its intended geometry and canonical label together; Undo restores both, and a peer revision refuses stale history without overwriting it.
 
 - Planning and renovation dialogs keep busy native choices and actions focusable, refuse changes while saving, and retain the original draft values. Late save completion after closing a leaf does not reopen its form or move focus.
 

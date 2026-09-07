@@ -8,11 +8,13 @@ export function removeRenovationRecord(read: RenovationBaseline, id: string, pro
 	const value = read.plan.entity.renovation ?? EMPTY_RENOVATION;
 	const subject = value.subjects.find(item => item.id === id);
 	let intended = read.geometry.document.intended;
+	let spatial: RenovationInput['spatial'];
 	if (subject?.planned && intended) {
 		const current = read.geometry.document.structure;
 		const wall = current?.walls.find(item => item.id === subject.targetId);
 		const opening = current?.openings.find(item => item.id === subject.targetId);
 		intended = restoreElement(intended, current, subject.targetId);
+		spatial = discardedElementMetadata(read, subject.targetId);
 		intended = { ...intended, openings: intended.openings.filter(item => item.id !== subject.targetId) };
 		if (wall) intended = intended.walls.some(item => item.id === wall.id) ? editWall(intended, wall) : { ...intended, walls: [...intended.walls, wall] };
 		else intended = { ...intended, walls: intended.walls.filter(item => item.id !== subject.targetId) };
@@ -21,11 +23,20 @@ export function removeRenovationRecord(read: RenovationBaseline, id: string, pro
 		const restored = current?.boundaries.filter(item => item.wallIds.includes(subject.targetId) && item.wallIds.every(wallId => ids.has(wallId))) ?? [];
 		intended = { ...intended, boundaries: [...intended.boundaries.filter(item => !restored.some(other => other.roomId === item.roomId)), ...restored] };
 	}
-	return { intended, renovation: {
+	return { intended, spatial, renovation: {
 		...value,
 		subjects: value.subjects.flatMap(item => item.id !== id ? [item] : proposalOnly && item.existing ? [{ ...item, planned: null }] : []),
 		work: value.work.filter(item => item.id !== id), decisions: value.decisions.filter(item => item.id !== id),
 	} };
+}
+
+function discardedElementMetadata(read: RenovationBaseline, id: string): RenovationInput['spatial'] {
+	// An intended-only addition loses its label through the same command as its geometry.
+	const current = read.geometry.document.structure, metadata = read.plan.entity.spatialElements;
+	if (metadata?.some(item => item.id === id) && !current?.elements?.some(item => item.id === id)) {
+		return { structure: current, metadata: metadata.filter(item => item.id !== id) };
+	}
+	return undefined;
 }
 
 function restoreElement(intended: Structure, current: Structure | undefined, id: string): Structure {

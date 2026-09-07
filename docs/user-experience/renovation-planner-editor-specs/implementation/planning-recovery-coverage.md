@@ -112,3 +112,12 @@ zero vulnerabilities.
 | `src/presentation/i18n/locales/en/planning.ts` | 1/1 (100%) | 0/0 (100%) | 0/0 (100%) | 1/1 (100%) |
 | `src/presentation/i18n/planningFormat.ts` | 12/12 (100%) | 16/16 (100%) | 2/2 (100%) | 9/9 (100%) |
 | `src/presentation/stores/ProjectStore.ts` | 111/111 (100%) | 30/30 (100%) | 12/12 (100%) | 101/101 (100%) |
+
+## Element discard follow-up — 2026-09-07
+
+An isolated V8 run after the `75084550` modal checkpoint passed eight files / 60 tests
+in 33.95 seconds with two workers. `renovationRemoval.ts` reached 45/45 statements,
+34/34 branches, 22/22 functions and 25/25 lines. This is a targeted measurement, not a
+replacement for the historical full-tree figures above or the final integrated gate.
+The real intended-only discard failure, conditional-history fix and retired dialog cases
+are recorded in [the follow-up evidence](element-discard-recovery-evidence.md).

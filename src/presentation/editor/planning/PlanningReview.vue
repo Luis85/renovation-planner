@@ -12,7 +12,10 @@ const planning = usePlanningContext();
 	<p v-if="planning.failed.value">
 		{{ tr('planning.read-failed') }}
 	</p>
-	<ol class="rp-renovation-list">
+	<ol
+		v-if="findings.length"
+		class="rp-renovation-list"
+	>
 		<li
 			v-for="item in findings"
 			:key="`${item.kind}:${item.id}`"

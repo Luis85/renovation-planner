@@ -19,3 +19,9 @@ or focus override is used to make a screenshot fit. Narrow layouts retain ordina
 Syntax/source checks passed; corrected runtime, accessibility and pixel verification remain
 pending. This is WIP, not final M17 acceptance. The original scope disclaimer and read-oriented
 behavior remain visible; no complete readiness or construction approval is claimed.
+
+The first corrected gallery passed all Light phase/identity/visibility checks at `36691b1c`.
+The following Review check then measured its heading at y=−14.4 against an Inspector starting
+at y=55. Two empty findings lists still occupied grid spacing. The next correction omits only
+those empty lists and tightens Review spacing/Room-row padding, retaining auto-growing rows
+with at least 48-pixel targets. No existing finding, prose, quantity or action is hidden.

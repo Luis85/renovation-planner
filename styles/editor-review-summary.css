@@ -1,4 +1,5 @@
-.renovation-plan-editor .rp-review-summary { display: grid; gap: 10px; }
+.renovation-plan-editor .rp-review-summary { display: grid; gap: 8px; }
+.renovation-plan-editor .rp-review-inspector { gap: 8px; }
 .renovation-plan-editor .rp-review-summary__counts { margin: 0; color: var(--text-muted); }
 .renovation-plan-editor .rp-review-summary .rp-renovation-linked-summary { margin: 0; }
 .renovation-plan-editor .rp-review-summary h4 { margin: 0 0 6px; }
@@ -10,8 +11,8 @@
 	align-items: start;
 	width: 100%;
 	height: auto;
-	min-height: 56px;
-	padding: 9px 10px;
+	min-height: 48px;
+	padding: 6px 10px;
 	white-space: normal;
 	text-align: start;
 	background: var(--background-primary);

@@ -71,7 +71,10 @@ async function generate(): Promise<void> {
 		<p v-if="clear">
 			{{ tr('renovation.no-findings') }}
 		</p>
-		<ol class="rp-renovation-list">
+		<ol
+			v-if="findings.length"
+			class="rp-renovation-list"
+		>
 			<li
 				v-for="item in findings"
 				:key="`${item.kind}:${item.recordId}`"

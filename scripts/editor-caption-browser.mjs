@@ -22,7 +22,7 @@ async function inspect(page, roomId) {
 async function pan(page, dx, dy) {
 	const box = await page.locator('.rp-plan-canvas').boundingBox(); assert.ok(box);
 	const x = box.x + box.width * 0.85, y = box.y + (dy > 0 ? 30 : box.height - 30);
-	assert.equal(await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('button, input, textarea, select, summary, .rp-primary-actions'), { x, y }), false, 'pan begins on canvas content rather than a floating control');
+	assert.equal(await page.evaluate(point => !!document.elementFromPoint(point.x, point.y)?.closest('button, input, textarea, select, summary, .rp-primary-actions'), { x, y }), false, 'pan begins on canvas content rather than a floating control');
 	await page.mouse.move(x, y); await page.mouse.down({ button: 'middle' });
 	await page.mouse.move(x + dx, y + dy, { steps: 3 }); await page.mouse.up({ button: 'middle' });
 }

@@ -61,7 +61,7 @@ it('shows concrete linked-record impacts and refuses dangling deletes; explicit 
  await panel(rig).get('[data-rp-record="prepare"] button:last-child').trigger('click'); await settle(); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Paint'); await cancel(rig);
 });
 
-it('opens each Review finding and marker in its intended record context, and restores Renovate context', async () => {
+it('opens each Review issue in its source and keeps Room marker selection within Review', async () => {
  const rig = await setup();
  for (const text of ['incomplete dependencies', 'no planned outcome', 'decision']) {
   await rig.runtime.renovation.perspective('review'); await settle();
@@ -73,9 +73,11 @@ it('opens each Review finding and marker in its intended record context, and res
   if (text === 'decision') await cancel(rig);
  }
  await rig.runtime.renovation.perspective('review'); await settle();
- for (const marker of rig.stage.find('.renovation-marker')) {
-  marker.fire('click'); await settle(); if (rig.dialogs.current) await cancel(rig);
-  await rig.runtime.renovation.perspective('review'); await settle();
+ const roomMarkers = rig.stage.find('.review-room-marker'); expect(roomMarkers).toHaveLength(1);
+ for (const marker of roomMarkers) {
+  marker.fire('click'); await settle();
+  expect(rig.session.perspective).toBe('review'); expect(rig.dialogs.current).toBeNull();
+  expect(rig.selection.selectedIds).toEqual([rig.room.id]);
  }
  await button(rig, 'Back to'); expect(rig.session.perspective).toBe('renovate');
 });
@@ -112,17 +114,15 @@ it('persists keyboard-editable Work ordering, progress, responsibility and links
  expect(rig.project.plan?.renovation?.work.find(item => item.id === 'paint')).toMatchObject({ order: 0, description: 'Use a roller', progress: 'complete', responsibility: 'diy', outcomes: ['detail'], dependencies: [] });
  expect(panel(rig).findAll('li')[0].text()).toContain('Paint');
 });
-it('stacks markers from the top of their own room, not from the floor-wide record index', async () => {
- // `index` was the position in the floor-wide list, so a later room's first marker sat as
- // many rows down as every earlier room's markers, outside a small room altogether.
+it('keeps each Review Room marker near its Room regardless of other Room finding counts', async () => {
  const rig = await setup();
  const annex = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Annex', zoneType: 'Room', geometry: { points: [{ x: 6000, y: 6000 }, { x: 9000, y: 6000 }, { x: 9000, y: 9000 }, { x: 6000, y: 9000 }] } })).zone.entity;
  const read = expectOk(await rig.renovation.read(rig.plan.id)), value = expectDefined(read.plan.entity.renovation, 'renovation');
  const work = { id: 'annex-work', roomId: annex.id, targetId: annex.id, title: 'Annex work', description: '', order: 2, progress: 'pending' as const, responsibility: 'unassigned' as const, outcomes: [], dependencies: [] };
  expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(read, { renovation: { ...value, work: [...value.work, work] }, intended: undefined }, rig.runtime.structureTask.ledger)));
  await rig.runtime.refreshProjection(); await rig.runtime.renovation.perspective('review'); await settle();
- const markers = rig.stage.find('.renovation-marker'), inAnnex = markers.filter(marker => marker.y() >= 6000), inStudio = markers.filter(marker => marker.y() < 6000);
- expect(inAnnex).toHaveLength(1); expect(inStudio.length).toBeGreaterThan(1);
+ const markers = rig.stage.find('.review-room-marker'), inAnnex = markers.filter(marker => marker.y() >= 6000), inStudio = markers.filter(marker => marker.y() < 6000);
+ expect(inAnnex).toHaveLength(1); expect(inStudio).toHaveLength(1);
  expect(expectDefined(inAnnex[0], 'annex marker').y() - 6000).toBeCloseTo(Math.min(...inStudio.map(marker => marker.y())));
 });
 it('creates a wall observation via the ordinary Room entry and form, then keeps its source through unchanged/remove proposals', async () => {
@@ -254,6 +254,6 @@ it('starts the first Review marker at the same relative offset in every Room', a
  const subject = { ...value.subjects[0], id: 'second-detail', roomId: second.id, targetId: second.id };
  expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(read, { renovation: { ...value, subjects: [...value.subjects, subject] }, intended: undefined }, rig.runtime.structureTask.ledger)));
  await rig.runtime.refreshProjection(); await rig.runtime.renovation.perspective('review'); await settle();
- const markers = rig.stage.find('.renovation-marker'), starts = markers.filter(marker => marker.x() > 6000);
+ const markers = rig.stage.find('.review-room-marker'), starts = markers.filter(marker => marker.x() > 6000);
  expect(starts).toHaveLength(1); expect(starts[0].y()).toBe(markers[0].y());
 });

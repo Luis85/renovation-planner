@@ -50,16 +50,27 @@ function openRoom(roomId: string, event: Event): Promise<void> {
 					:aria-pressed="selected?.id === room.id"
 					@click="runtime.selectAndFrame(room.id)"
 				>
-					<span v-if="room.markerNumber" class="rp-review-room-number">{{ room.markerNumber }}</span>
-					<HostIcon v-else :name="room.icon" />
+					<span
+						v-if="room.markerNumber"
+						class="rp-review-room-number"
+					>{{ room.markerNumber }}</span>
+					<HostIcon
+						v-else
+						:name="room.icon"
+					/>
 					<span class="rp-review-room__name">{{ room.name }}</span>
 					<span class="rp-review-room__changes">{{ tr('renovation.summary.change-count', { count: String(room.changes) }) }}</span>
 					<span class="rp-review-room__status">{{ room.status }}</span>
 				</button>
 			</li>
 		</ul>
-		<div v-if="selected" :data-rp-review-summary-room="selected.id">
-			<h4 class="rp-visually-hidden">{{ selected.name }}</h4>
+		<div
+			v-if="selected"
+			:data-rp-review-summary-room="selected.id"
+		>
+			<h4 class="rp-visually-hidden">
+				{{ selected.name }}
+			</h4>
 			<TransformationSummary
 				:room-id="selected.id"
 				compact

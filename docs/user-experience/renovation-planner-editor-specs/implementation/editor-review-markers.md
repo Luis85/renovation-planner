@@ -43,3 +43,11 @@ The existing shared Work/missing Evidence test now compares Room and marker numb
 case distinguishes Work sources with a common dependency. The separate coverage task owns
 `reviewMarkerNavigation.test.ts`; it is not edited by this UI task. Native routing, unavailable
 states, full scope disclosure, all themes and actual issue-rich pixels still need verification.
+
+Initial typecheck passed. Whole Oxlint passed after a browser callback variable rename; scoped
+ESLint then identified only Vue formatting warnings, now corrected. Existing UI-owned route
+tests are updated from per-finding Review markers to the approved Room-marker contract, with
+explicit nonzero counts so an empty old-selector loop cannot pass vacuously. Issue-source
+assertions remain. A new browser step clears selection with native Escape, clicks the actual
+marker pixels, checks Review/number/summary with no dialog, and verifies Back restores Room/
+camera without writing files. This browser step and the current native batch remain pending.

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { activate } from './editor-area-browser.mjs';
+import { activate, tabTo } from './editor-area-browser.mjs';
 import { recordApply, recordText } from './editor-record-browser.mjs';
 import { editorContextSnapshot, assertEditorContext } from './editor-downstream-forms.mjs';
 import { panel } from './editor-structure-check.mjs';
@@ -48,6 +48,31 @@ async function assertIssues(page, roomId, questions, german) {
 async function returnToReview(page) {
 	await activate(page, '[data-rp-perspective="review"]');
 	await panel(page, 'details');
+}
+
+async function verifyRoomMarker(page, roomId, narrow, beforeReview) {
+	if (narrow) await page.keyboard.press('Escape');
+	await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Escape');
+	await page.locator('[data-rp-review-summary-room]').waitFor({ state: 'hidden' });
+	const scene = await page.evaluate(id => window.editorFidelity.captions(id), roomId);
+	assert.equal(scene.reviewMarkers.length, 1, 'two Decisions share one marked Room');
+	const marker = scene.reviewMarkers[0]; assert.equal(marker.roomId, roomId);
+	const notes = await page.evaluate(() => window.editorFidelity.savedNotes());
+	await page.mouse.click(scene.origin.x + marker.bounds.x + marker.bounds.width / 2, scene.origin.y + marker.bounds.y + marker.bounds.height / 2);
+	await page.locator(`[data-rp-review-summary-room="${roomId}"]`).waitFor();
+	assert.equal(await page.locator('[data-rp-perspective="review"]').getAttribute('aria-pressed'), 'true');
+	assert.equal(await page.locator('.rp-dialog').count(), 0, 'Room marker selection opens the summary, not a source dialog');
+	assert.equal(await page.locator(selectedReviewRoom).getAttribute('data-rp-review-room'), roomId);
+	assert.equal(await page.locator(selectedReviewRoom).getAttribute('data-rp-review-number'), String(marker.number));
+	const framed = await page.evaluate(id => window.editorFidelity.captions(id), roomId);
+	assert.notDeepEqual(framed.camera, scene.camera, 'marker frames its Room through native pointer input');
+	await activate(page, '.rp-review-inspector > button:not([data-rp-action])');
+	await editableSubject(page);
+	if (narrow) await page.keyboard.press('Escape');
+	await assertEditorContext(page, beforeReview);
+	assert.deepEqual(await page.evaluate(() => window.editorFidelity.savedNotes()), notes, 'Room marker selection and Back write no files');
+	await returnToReview(page);
+	return { roomId, number: marker.number, stayedInReview: true, cameraBefore: scene.camera, cameraFramed: framed.camera };
 }
 
 /** Additional native Decisions; original all-clear captures and generated note remain earlier evidence. */
@@ -104,6 +129,8 @@ export async function captureReviewIssues(page, scenario, out, shot) {
 	await assertEditorContext(page, beforeReview);
 	await returnToReview(page);
 	await assertIssues(page, roomId, questions, german);
-	return { decisions: ids, questions, roomId, visibility, viewport: `${scenario.width} × 1000`,
+	const marker = await verifyRoomMarker(page, roomId, narrow, beforeReview);
+	await assertIssues(page, roomId, questions, german);
+	return { decisions: ids, questions, roomId, visibility, marker, viewport: `${scenario.width} × 1000`,
 		routes: 'both Review issues open their exact unresolved Decision; Cancel preserves Room and camera' };
 }

@@ -12,7 +12,7 @@ const selection = useSelectionStore(), workspace = useWorkspaceStore(), runtime 
 const markers = computed(() => rows.value.filter(room => room.markerNumber !== null && room.points.length > 0).map(room => {
 	const left = Math.min(...room.points.map(point => point.x)), right = Math.max(...room.points.map(point => point.x));
 	const top = Math.min(...room.points.map(point => point.y)), bottom = Math.max(...room.points.map(point => point.y));
-	return { roomId: room.id, number: room.markerNumber, selected: selection.selectedIds.includes(room.id as never),
+	return { roomId: room.id, number: room.markerNumber, selected: selection.focusedId === room.id,
 		x: left + Math.min(32 / props.zoom, (right - left) / 2), y: top + Math.min(32 / props.zoom, (bottom - top) / 2) };
 }));
 function select(roomId: string): void {

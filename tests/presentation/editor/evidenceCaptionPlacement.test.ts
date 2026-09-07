@@ -32,8 +32,8 @@ function expectClearCaptions(group: Konva.Group, stage: Konva.Stage): void {
 	for (const caption of captions) {
 		const text = caption.getClientRect();
 		for (const pin of stage.find<Konva.Group>('.evidence-pin')) {
-			const circle = expectDefined(pin.findOne<Konva.Circle>('Circle'), 'pin hit target').getClientRect();
-			expect(text.x + text.width <= circle.x || circle.x + circle.width <= text.x || text.y + text.height <= circle.y || circle.y + circle.height <= text.y).toBe(true);
+			const target = expectDefined(pin.findOne<Konva.Shape>('.evidence-pin-target'), 'pin hit target').getClientRect();
+			expect(text.x + text.width <= target.x || target.x + target.width <= text.x || text.y + text.height <= target.y || target.y + target.height <= text.y).toBe(true);
 		}
 	}
 }

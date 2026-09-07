@@ -101,7 +101,9 @@ function installGlobals(): void {
  *
  * So the argument is swapped for the backing that DOES hold the pixels. That is what makes
  * a background raster genuinely drawn here rather than skipped, and it is the narrowest
- * possible intervention: one method, one argument, everything else untouched.
+ * possible intervention for DOM image arguments. The proxy also applies the browser's
+ * boolean conversion to arc's direction flag: Konva SVG paths pass numeric 0/1, which
+ * browser Canvas accepts but the native Rust binding rejects. Rasterization stays native.
  */
 function bridgeDrawImage(context: ReturnType<Canvas['getContext']>): unknown {
 	const backed = (source: unknown): unknown => {
@@ -117,6 +119,10 @@ function bridgeDrawImage(context: ReturnType<Canvas['getContext']>): unknown {
 		get(target, property) {
 			const value = Reflect.get(target, property) as unknown;
 			if (typeof value !== 'function') return value;
+			if (property === 'arc') return (...args: unknown[]) => {
+				args[5] = Boolean(args[5]);
+				return (value as (...values: unknown[]) => unknown).apply(target, args);
+			};
 			if (property !== 'drawImage') return value.bind(target);
 			return (source: unknown, ...rest: unknown[]) =>
 				(value as (...args: unknown[]) => unknown).call(target, backed(source), ...rest);

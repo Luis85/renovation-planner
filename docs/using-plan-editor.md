@@ -5,7 +5,7 @@ prepare a reference plan, or keep an empty canvas. A reference image or PDF can 
 rotated and scaled before it becomes the locked background. Reopen its settings to change
 its appearance or measurements.
 
-Room outlines can be adjusted with the same geometry history in Plan and Renovate. Renovate keeps Select and Add available; Review remains read-only. Proposed structure changes continue to use the Planned forms and their separate intended geometry.
+Room outlines and current wall measurements can be adjusted with the same geometry history in Plan and Renovate. Wall edits retain their Preview → Apply confirmation. Renovate keeps Select and Add available; Review remains read-only. Changes to intended structure use the Planned forms and their separate geometry.
 
 ## Shape and select the space
 

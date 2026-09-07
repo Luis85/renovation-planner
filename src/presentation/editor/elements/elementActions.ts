@@ -1,3 +1,4 @@
+import { createDraftRetry } from '../forms/createDraftRetry';
 import { createSpatialRemoval } from './spatialRemoval';
 import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
@@ -34,6 +35,7 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 	const active = ref(false), preview = ref<NamedSpatialElement | null>(null);
 	const blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective !== 'plan' || runtime.activeToolId.value !== 'select');
 	let alive = true;
+	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
 	async function read(id: string): Promise<{ baseline: RenovationBaseline; element: NamedSpatialElement } | null> {
 		const result = await context.commands.renovation?.read(context.planId as PlanId);
@@ -52,10 +54,6 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		try { const value = await read(id); if (value && alive && !blocked.value) await action(value); }
 		catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.element.operation-failed'); }
 		finally { active.value = false; preview.value = null; }
-	}
-	async function retry(): Promise<void> {
-		try { await runtime.refreshProjection(); }
-		catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); }
 	}
 	function edit(id: string): Promise<void> {
 		const selected = selection.selectedIds.join('|');

@@ -50,3 +50,29 @@ it('refuses Room drag previews while stale and after switching to Review', async
  tool.pointerDown(pointerAt(0, 0)); tool.pointerMove(pointerAt(-200, -200)); tool.pointerUp(pointerAt(-200, -200)); await settle();
  expect(rig.runtime.renderState.previewPolygon).toBeNull(); expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
+
+it('reviews a Renovate wall endpoint proposal before changing current geometry and preserves Room and intended state', async () => {
+ const rig = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id));
+ const roomPoints = expectDefined(rig.project.zones.get(rig.room.id), 'Room').points;
+ rig.selection.select(['wall-a' as never]); await settle();
+ expect(rig.stage.findOne<Konva.Layer>('.architecture')?.find('Circle')).toHaveLength(2);
+ const tool = rig.runtime.toolManager;
+ tool.pointerDown(pointerAt(4000, 0)); tool.pointerMove(pointerAt(5000, 0));
+ expect(rig.runtime.structureActions.preview.value?.walls[0].end.x).toBe(5000);
+ expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before.document);
+ tool.pointerUp(pointerAt(5000, 0)); await settle();
+ expect(rig.wrapper.get<HTMLInputElement>('.rp-dialog input[name="length"]').element.value).toBe('5');
+ await rig.wrapper.get('.rp-dialog form').trigger('submit'); await settle();
+ expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before.document);
+ await rig.wrapper.get('.rp-dialog form').trigger('submit');
+ await settleUntil(() => rig.project.structure.walls[0].end.x === 5000, 'reviewed wall saved');
+ expect(rig.project.structure.walls[1].start.x).toBe(5000);
+ expect(rig.project.zones.get(rig.room.id)?.points).toEqual(roomPoints); expect(rig.project.intended).toEqual(before.document.intended);
+ await rig.runtime.undo(); await settle(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before.document);
+ rig.project.stale = true; tool.pointerDown(pointerAt(4000, 0)); tool.pointerMove(pointerAt(5000, 0)); tool.pointerUp(pointerAt(5000, 0)); await settle();
+ expect(rig.runtime.structureActions.preview.value).toBeNull(); expect(rig.dialogs.current).toBeNull();
+ rig.project.stale = false; await rig.runtime.renovation.perspective('review'); await settle();
+ expect(rig.stage.findOne<Konva.Layer>('.architecture')?.find('Circle')).toHaveLength(0);
+ tool.pointerDown(pointerAt(4000, 0)); tool.pointerMove(pointerAt(5000, 0)); tool.pointerUp(pointerAt(5000, 0)); await settle();
+ expect(rig.dialogs.current).toBeNull(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before.document);
+});

@@ -1,3 +1,4 @@
+import { createDraftRetry } from '../forms/createDraftRetry';
 import { recordNavigationContext, type NavigationRecords } from './recordNavigationContext';
 import { usePlanningReadState } from '../planning/planningReadState';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
@@ -46,6 +47,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 	const loading = ref(false);
 	const blocked = computed(() => loading.value || runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
 	let alive = true;
+	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	let previous: { ids: typeof selection.selectedIds; viewport: typeof editor.viewport; roomId: string; targetId: string; focusedId: string; mode: RenovationMode } | null = null;
 	onBeforeUnmount(() => { alive = false; });
 	async function perspective(next: Perspective): Promise<void> {
@@ -135,10 +137,6 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 					dispatch: (input: RenovationInput) => dispatch(read, input) } });
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.batch.failed'); }
 		finally { loading.value = false; }
-	}
-	async function retry(): Promise<void> {
-		try { await runtime.refreshProjection(); }
-		catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); }
 	}
 	return { perspective, focus, edit, batch, change, blocked, available: context.commands.renovation !== undefined };
 }

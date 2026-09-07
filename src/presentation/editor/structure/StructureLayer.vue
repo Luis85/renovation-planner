@@ -19,7 +19,7 @@ const structure = computed(() => runtime.structureActions.preview.value ?? (isSt
 const points = (value: readonly Point[]): number[] => value.flatMap(p => [p.x, p.y]);
 const selected = (id: string): boolean => selection.selectedIds.some(candidate => candidate === id);
 const previewPoints = computed(() => task.draft.points.length && task.draft.cursor ? points([task.draft.points[task.draft.points.length - 1], task.draft.cursor]) : []);
-function handles(wall: Wall): readonly Point[] { return renovationSession.perspective === 'plan' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
+function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 function openingLines(opening: Opening) {
 	const { tokens, zoom } = props, linePoints = points(openingPoints(opening, structure.value.walls));
 	const thickness = structure.value.walls.find(wall => wall.id === opening.hostId)?.thickness ?? 100;

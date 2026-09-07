@@ -22,6 +22,27 @@ export async function createNamedCatalogueEntry(page, opener, name) {
 	await recordApply(page, '.rp-dialog-form');
 }
 
+export async function createRoomCost(page) {
+	const form = '[data-rp-form="planning"]';
+	await activateReady(page, '[data-rp-new-cost]');
+	await recordText(page, form, 'title', 'Floor preparation');
+	await chooseNative(page, `${form} select[name="work"]`, 1);
+	await recordText(page, form, 'planned', '800');
+	await activate(page, '[data-rp-add-fact]');
+	await recordText(page, form, 'amount', '500');
+	await recordText(page, form, 'fact-description', 'Floor preparation order');
+	await activate(page, '[data-rp-add-fact]');
+	const payment = `${form} fieldset:last-of-type`;
+	await chooseNative(page, `${payment} select[name="stage"]`, 1);
+	await recordText(page, payment, 'amount', '200');
+	await recordText(page, payment, 'fact-description', 'Deposit paid');
+	await chooseNative(page, `${payment} select[name="settles"]`, 1);
+	await recordApply(page, form);
+	for (const [stage, amount] of Object.entries({ planned: 800, committed: 500, actual: 200, openCommitment: 300 })) {
+		assert.match(await page.locator(`.rp-cost-totals [data-rp-stage="${stage}"] dd`).innerText(), new RegExp(String(amount)), `${stage} reflects persisted Cost facts`);
+	}
+}
+
 export async function createQuote(page, { title, amount, issued, description, supplier = 'Local craft' }, preview) {
 	await activateReady(page, '.rp-project-quotes .rp-project-work__controls > button:nth-of-type(2)');
 	const form = '.rp-quote-form'; await page.locator(form).waitFor();

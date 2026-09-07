@@ -8,6 +8,8 @@ import { err, ok } from '../../../src/core/result/Result';
 import { withPlanSpatialElements } from '../../../src/domain/plan/Plan';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { pointerAt } from '../../helpers/tool-context';
+import { resizeTo } from '../../helpers/layout';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -125,4 +127,27 @@ it('keeps current element drag edits gated while inspecting Renovate', async () 
  expect(rig.runtime.elementActions.preview.value).toBeNull();
  rig.runtime.toolManager.pointerUp(pointerAt(1700, 700)); await settle();
  expect([...rig.stack.vault.entries]).toEqual(before); expect(rig.selection.selectedIds).toEqual([element.id]);
+});
+
+it.each([1100, 460])('keeps a keyboard successor when returning an element to Plan at %ipx', async width => {
+ const rig = await setup(), editor = useEditorStore(rig.pinia);
+ resizeTo(rig.rootEl, width, 800); await settle();
+ await rig.runtime.renovation.perspective('renovate'); await settle();
+ const details = rig.wrapper.find<HTMLButtonElement>('[data-rp-rail="details"]');
+ if (details.exists()) { details.element.click(); await settle(); }
+ const bytes = [...rig.stack.vault.entries], viewport = { ...editor.viewport };
+ const action = rig.wrapper.get<HTMLButtonElement>('[data-rp-action="element-plan-geometry"]');
+ action.element.focus(); expect(document.activeElement).toBe(action.element); action.element.click(); await settle();
+ expect(rig.session.perspective).toBe('plan'); expect(rig.selection.selectedIds).toEqual([element.id]);
+ expect(editor.viewport).toEqual(viewport); expect([...rig.stack.vault.entries]).toEqual(bytes);
+ const successor = rig.wrapper.find<HTMLButtonElement>('[data-rp-rail="details"]');
+ const edit = rig.wrapper.find<HTMLButtonElement>('[data-rp-action="edit-element"]');
+ const targets = [successor, edit].filter(button => button.exists() && button.isVisible()).map(button => button.element);
+ expect(targets).toContain(document.activeElement);
+ if (!edit.exists() || !edit.isVisible()) { successor.element.click(); await settle(); }
+ rig.wrapper.get<HTMLButtonElement>('[data-rp-action="edit-element"]').element.click(); await settle();
+ expect(rig.wrapper.get('[data-rp-form="outline-points"]').exists()).toBe(true);
+ rig.dialogs.resolve('cancel'); await settle();
+ expect(rig.selection.selectedIds).toEqual([element.id]); expect(editor.viewport).toEqual(viewport);
+ expect([...rig.stack.vault.entries]).toEqual(bytes);
 });

@@ -6,6 +6,8 @@ import { ToolManager } from '../../../../src/presentation/editor/tools/tool-mana
 import type { EditorTool, EditorPointerEvent, ToolId } from '../../../../src/presentation/editor/tools/editor-tool';
 import type { EditorContext } from '../../../../src/presentation/editor/tools/editor-context';
 import { screenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
+import { ref } from 'vue';
+import { createToolSwitch } from '../../../../src/presentation/editor/tools/tool-switch';
 
 /**
  * A fake `EditorTool` that records every lifecycle call it receives, in order, onto a
@@ -58,6 +60,29 @@ function fakeContext(): EditorContext {
 }
 
 describe('ToolManager', () => {
+	it('checks the outgoing veto before cancel, clear and switch, and mirrors the actual tool', () => {
+		const calls: string[] = [], manager = new ToolManager(fakeContext), mirror = ref<ToolId | null>(null);
+		let busy = true;
+		manager.register({ ...fakeTool('edit-room-dimension', calls), canDeactivate: () => !busy });
+		manager.register(fakeTool('select', calls));
+		const switchTool = createToolSwitch(manager, mirror);
+		switchTool('edit-room-dimension'); manager.pointerDown(pointerEvent()); calls.length = 0;
+		manager.cancelGesture(); switchTool('select'); switchTool(null);
+		expect(calls).toEqual([]); expect(manager.gestureInFlight).toBe(true);
+		expect(mirror.value).toBe('edit-room-dimension'); expect(manager.activeToolId).toBe(mirror.value);
+		busy = false; switchTool('select');
+		expect(calls).toEqual(['edit-room-dimension:cancel', 'edit-room-dimension:deactivate', 'select:activate']);
+		expect(mirror.value).toBe('select'); expect(manager.gestureInFlight).toBe(false);
+	});
+	it('forces disposal through an outgoing veto, retires the registry, and is idempotent', () => {
+		const calls: string[] = [], manager = new ToolManager(fakeContext);
+		manager.register({ ...fakeTool('edit-room-dimension', calls), canDeactivate: () => false });
+		manager.setActiveTool('edit-room-dimension'); manager.pointerDown(pointerEvent()); calls.length = 0;
+		manager.dispose(); manager.dispose();
+		expect(calls).toEqual(['edit-room-dimension:deactivate']); expect(manager.activeToolId).toBeNull();
+		expect(manager.gestureInFlight).toBe(false); expect(manager.canDeactivateActiveTool()).toBe(true);
+		expect(() => manager.setActiveTool('edit-room-dimension')).toThrow('no tool is registered');
+	});
 	it('explicit completion is inert for a tool without a completion action', () => {
 		const calls: string[] = [];
 		const manager = new ToolManager(fakeContext);

@@ -17,7 +17,7 @@ function scene() {
 /** Deterministic browser-only failures around the production service/repository boundaries. */
 export function planningRecoveryProbe(workspace: ReturnType<typeof referenceWorkspace>, view: PlanEditorView) {
  const { stack, deps, plan, geometry } = workspace, services = expectDefined(deps.commands.planning, 'planning');
- const counts = { reads: 0, planWrites: 0, materialWrites: 0, spatialReads: 0 };
+ const counts = { reads: 0, planWrites: 0, materialWrites: 0, zoneWrites: 0, spatialReads: 0 };
  const urls = new Set<string>(), createUrl = URL.createObjectURL.bind(URL), revokeUrl = URL.revokeObjectURL.bind(URL);
  URL.createObjectURL = blob => { const url = createUrl(blob); urls.add(url); return url; };
  URL.revokeObjectURL = url => { urls.delete(url); revokeUrl(url); };
@@ -29,6 +29,8 @@ export function planningRecoveryProbe(workspace: ReturnType<typeof referenceWork
  services.read = id => { counts.reads++; return fail ? Promise.resolve(err({ category: 'Persistence', code: 'fixture.read', message: 'Injected read-back failure' })) : read(id); };
  stack.plans.save = async (...args) => { await beforeWrite(); const result = await planSave(...args); if (result.ok) { counts.planWrites++; if (arm) { fail = true; arm = false; } } return result; };
  stack.requirements.save = async (...args) => { await beforeWrite(); const result = await materialSave(...args); if (result.ok) { counts.materialWrites++; if (arm) { fail = true; arm = false; } } return result; };
+ const zoneSave = stack.zones.save.bind(stack.zones);
+ stack.zones.save = async (...args) => { await beforeWrite(); const result = await zoneSave(...args); if (result.ok) counts.zoneWrites++; return result; };
  const getPlan = deps.queries.getPlan;
  deps.queries.getPlan = (...args) => { counts.spatialReads++; return getPlan(...args); };
  const changed = () => stack.events.publish({ type: 'PlanRenovationChanged', payload: { planId: plan.id, projectId: plan.projectId } });

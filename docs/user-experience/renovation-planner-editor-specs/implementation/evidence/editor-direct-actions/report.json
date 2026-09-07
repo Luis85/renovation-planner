@@ -1,0 +1,154 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+      "--text-accent": "hsl(258, 88%, 66%)",
+      "--background-primary": "#ffffff",
+      "--background-secondary": "#f6f6f6"
+    },
+    "dimension": {
+      "input": "native decimal entry; invalid value announced",
+      "reflow": "same focused input at 720 × 450",
+      "pending": "Escape, editing and Select retain one pending write",
+      "history": "Apply then exact displayed dimension restored by Undo",
+      "accessibility": [
+        {
+          "state": "inline-invalid",
+          "violations": 0,
+          "incompleteChecks": 0
+        },
+        {
+          "state": "inline-pending",
+          "violations": 0,
+          "incompleteChecks": 1
+        }
+      ]
+    },
+    "directActionsAccessibility": {
+      "state": "direct-actions",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "storage": "production commands and repositories over FakeVault",
+    "state": "committed reference, wall loop, Room, Existing/Planned/Work; overview, Floor and shared Work preview/apply",
+    "selection": "keyboard additive wall membership retained after one shared command",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "dimension": {
+      "input": "native decimal entry; invalid value announced",
+      "reflow": "same focused input at 720 × 450",
+      "pending": "Escape, editing and Select retain one pending write",
+      "history": "Apply then exact displayed dimension restored by Undo",
+      "accessibility": [
+        {
+          "state": "inline-invalid",
+          "violations": 0,
+          "incompleteChecks": 0
+        },
+        {
+          "state": "inline-pending",
+          "violations": 0,
+          "incompleteChecks": 1
+        }
+      ]
+    },
+    "directActionsAccessibility": {
+      "state": "direct-actions",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "storage": "production commands and repositories over FakeVault",
+    "state": "committed reference, wall loop, Room, Existing/Planned/Work; overview, Floor and shared Work preview/apply",
+    "selection": "keyboard additive wall membership retained after one shared command",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "#7c246b",
+      "--text-accent": "#7c246b",
+      "--background-primary": "#fff8ed",
+      "--background-secondary": "#efe3d3"
+    },
+    "dimension": {
+      "input": "native decimal entry; invalid value announced",
+      "reflow": "same focused input at 720 × 450",
+      "pending": "Escape, editing and Select retain one pending write",
+      "history": "Apply then exact displayed dimension restored by Undo",
+      "accessibility": [
+        {
+          "state": "inline-invalid",
+          "violations": 0,
+          "incompleteChecks": 0
+        },
+        {
+          "state": "inline-pending",
+          "violations": 0,
+          "incompleteChecks": 1
+        }
+      ]
+    },
+    "directActionsAccessibility": {
+      "state": "direct-actions",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "storage": "production commands and repositories over FakeVault",
+    "state": "committed reference, wall loop, Room, Existing/Planned/Work; overview, Floor and shared Work preview/apply",
+    "selection": "keyboard additive wall membership retained after one shared command",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "dimension": {
+      "input": "native decimal entry; invalid value announced",
+      "reflow": "same focused input at 720 × 450",
+      "pending": "Escape, editing and Select retain one pending write",
+      "history": "Apply then exact displayed dimension restored by Undo",
+      "accessibility": [
+        {
+          "state": "inline-invalid",
+          "violations": 0,
+          "incompleteChecks": 0
+        },
+        {
+          "state": "inline-pending",
+          "violations": 0,
+          "incompleteChecks": 0
+        }
+      ]
+    },
+    "directActionsAccessibility": {
+      "state": "direct-actions",
+      "violations": 0,
+      "incompleteChecks": 1
+    },
+    "storage": "production commands and repositories over FakeVault",
+    "state": "committed reference, wall loop, Room, Existing/Planned/Work; overview, Floor and shared Work preview/apply",
+    "selection": "keyboard additive wall membership retained after one shared command",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

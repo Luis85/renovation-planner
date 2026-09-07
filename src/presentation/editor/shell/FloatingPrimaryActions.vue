@@ -13,8 +13,10 @@
  */
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
+import { computed } from 'vue';
 
 const runtime = useEditorRuntime();
+const canSwitch = computed(() => runtime.activeToolId.value === null || runtime.toolManager.canDeactivateActiveTool());
 const props = defineProps<{ addOpen: boolean }>();
 const emit = defineEmits<{ openAdd: [] }>();
 </script>
@@ -30,6 +32,7 @@ const emit = defineEmits<{ openAdd: [] }>();
 			class="rp-primary-actions__button"
 			data-rp-action="select"
 			:aria-pressed="runtime.activeToolId.value === 'select'"
+			:aria-disabled="!canSwitch"
 			@click="runtime.setTool('select')"
 		>
 			{{ tr('editor.primary.select') }}
@@ -40,7 +43,8 @@ const emit = defineEmits<{ openAdd: [] }>();
 			data-rp-action="add"
 			aria-haspopup="menu"
 			:aria-expanded="props.addOpen"
-			@click="emit('openAdd')"
+			:aria-disabled="!canSwitch"
+			@click="canSwitch && emit('openAdd')"
 		>
 			{{ tr('editor.primary.add') }}
 		</button>

@@ -53,6 +53,20 @@ export class ToolManager {
 		return this.activeTool?.id ?? null;
 	}
 
+	/** Ask before any deliberate cancellation or outgoing-tool mutation. */
+	canDeactivateActiveTool(): boolean {
+		return this.activeTool?.canDeactivate?.() ?? true;
+	}
+
+	/** Leaf disposal always retires the tool, even while its command is still settling. */
+	dispose(): void {
+		const outgoing = this.activeTool;
+		this.activeTool = null;
+		this.#gestureInFlight = false;
+		outgoing?.deactivate();
+		this.tools.clear();
+	}
+
 	/** Whether the active tool holds a draft; `false` with no tool. Escape's question. */
 	activeToolHasDraft(): boolean {
 		return this.activeTool?.hasDraft() ?? false;
@@ -105,6 +119,7 @@ export class ToolManager {
 		if (this.activeTool?.id === id) {
 			return;
 		}
+		if (!this.canDeactivateActiveTool()) return;
 		const outgoing = this.activeTool;
 		if (outgoing) {
 			if (this.#gestureInFlight) {
@@ -124,6 +139,7 @@ export class ToolManager {
 	 * then its `deactivate()`. A no-op when nothing is active.
 	 */
 	clearActiveTool(): void {
+		if (!this.canDeactivateActiveTool()) return;
 		const outgoing = this.activeTool;
 		if (!outgoing) return;
 		if (this.#gestureInFlight) {
@@ -181,6 +197,7 @@ export class ToolManager {
 		if (!this.activeTool) {
 			return;
 		}
+		if (!this.canDeactivateActiveTool()) return;
 		this.activeTool.cancel();
 		this.#gestureInFlight = false;
 	}

@@ -142,6 +142,12 @@ post-selection/visibility assertions are WIP pending integration and recapture. 
 content/actions are hidden and no fixture pins moved. UI released all heavy processes; Root
 now owns its short composition/phase verification batches.
 
+The actual M17 900-pixel capture also leaves its heading/first Room rows above the viewport
+after the native review-note action. Root approved a bounded Review-only two-column linked
+summary/cost alignment correction and an additional matching 1000-pixel capture with visibility
+assertions. Original 900-pixel capture/actions remain. See `editor-review-density.md` and its
+initial image. Four script syntax checks and diff checks passed; no new runtime pass yet.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

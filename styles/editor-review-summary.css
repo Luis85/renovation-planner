@@ -25,3 +25,9 @@
 .renovation-plan-editor .rp-review-room__status { grid-column: 2 / -1; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .renovation-plan-editor .rp-review-inspector > button { min-height: 34px; }
 .renovation-plan-editor .rp-review-summary [data-rp-action="review-open-room"] { width: 100%; min-height: 36px; margin-top: 10px; }
+.renovation-plan-editor .rp-review-summary .rp-renovation-linked-summary { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
+.renovation-plan-editor .rp-review-summary .rp-renovation-linked-summary > h4 { margin: 0; }
+.renovation-plan-editor .rp-review-summary .rp-linked-counts { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.renovation-plan-editor .rp-review-summary .rp-linked-counts__button { gap: 5px; padding: 6px; white-space: normal; text-align: start; }
+.renovation-plan-editor .rp-review-summary .rp-linked-counts__label { min-width: 0; }
+.renovation-plan-editor .rp-review-summary .rp-renovation-estimate { font-size: 20px; }

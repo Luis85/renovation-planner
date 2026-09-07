@@ -3,6 +3,7 @@ import { activate, tabTo } from './editor-area-browser.mjs';
 import { recordApply, recordText } from './editor-record-browser.mjs';
 import { chooseNative, editorContextSnapshot, assertEditorContext } from './editor-downstream-forms.mjs';
 import { panel } from './editor-structure-check.mjs';
+import { inspectorVisibility } from './editor-inspector-visibility.mjs';
 
 const form = '[data-rp-form="planning"]';
 const entries = [
@@ -40,17 +41,10 @@ async function assertGallery(page, ids) {
 	assert.deepEqual(await page.locator('[data-rp-evidence-photo]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-rp-evidence-photo'))), ids, 'selection and reflow retain the same six date-ordered photos');
 }
 
-async function galleryVisibility(page, ids, constrained) {
-	const inspector = await page.locator('[data-rp-shell-region="inspector"]').boundingBox();
-	assert.ok(inspector, 'Photos inspector is displayed');
+function galleryVisibility(page, ids, constrained) {
 	const selectors = ['.rp-renovation-inspector > h3', '.rp-evidence-filters', '[data-rp-new-evidence]',
 		'.rp-evidence-gallery li:first-child', '.rp-evidence-gallery li:last-child', `.rp-renovation-list > [data-rp-record="${ids[2]}"]`];
-	const boxes = {};
-	for (const selector of selectors) {
-		const box = await page.locator(selector).boundingBox(); assert.ok(box, `${selector} remains rendered`); boxes[selector] = box;
-		if (!constrained) assert.ok(box.y >= inspector.y - 1 && box.y + box.height <= inspector.y + inspector.height + 1, `${selector} stays inside the visible Photos inspector`);
-	}
-	return boxes;
+	return inspectorVisibility(page, selectors, constrained);
 }
 
 /** Six real relationship writes, using only synthetic file inputs; no editor-store seeding. */

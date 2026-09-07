@@ -146,7 +146,7 @@ it.each([1100, 460])('keeps a keyboard successor when returning an element to Pl
  expect(targets).toContain(document.activeElement);
  if (!edit.exists() || !edit.isVisible()) { successor.element.click(); await settle(); }
  rig.wrapper.get<HTMLButtonElement>('[data-rp-action="edit-element"]').element.click(); await settle();
- expect(rig.wrapper.get('[data-rp-form="outline-points"]').exists()).toBe(true);
+ expect(rig.wrapper.find('[data-rp-form="outline-points"]').exists()).toBe(true);
  rig.dialogs.resolve('cancel'); await settle();
  expect(rig.selection.selectedIds).toEqual([element.id]); expect(editor.viewport).toEqual(viewport);
  expect([...rig.stack.vault.entries]).toEqual(bytes);

@@ -1,38 +1,38 @@
 {
   "whole": {
     "statements": {
-      "covered": 14673,
-      "total": 14801
+      "covered": 14675,
+      "total": 14803
     },
     "branches": {
       "covered": 9498,
       "total": 9687
     },
     "functions": {
-      "covered": 4072,
-      "total": 4109
+      "covered": 4073,
+      "total": 4110
     },
     "lines": {
-      "covered": 11934,
-      "total": 12001
+      "covered": 11935,
+      "total": 12002
     }
   },
   "edited": {
     "statements": {
-      "covered": 1308,
-      "total": 1323
+      "covered": 1310,
+      "total": 1325
     },
     "branches": {
       "covered": 977,
       "total": 1002
     },
     "functions": {
-      "covered": 401,
-      "total": 410
+      "covered": 402,
+      "total": 411
     },
     "lines": {
-      "covered": 959,
-      "total": 968
+      "covered": 960,
+      "total": 969
     }
   },
   "files": [
@@ -762,53 +762,53 @@
       "path": "src/presentation/editor/renovation/RenovationForm.vue",
       "counts": {
         "statements": {
-          "covered": 63,
-          "total": 69
+          "covered": 65,
+          "total": 71
         },
         "branches": {
           "covered": 66,
           "total": 69
         },
         "functions": {
-          "covered": 13,
-          "total": 18
+          "covered": 14,
+          "total": 19
         },
         "lines": {
-          "covered": 43,
-          "total": 48
+          "covered": 44,
+          "total": 49
         }
       },
       "uncovered": {
         "statements": [
-          62,
-          105,
-          112,
+          63,
+          106,
           113,
-          120,
-          126
+          114,
+          121,
+          127
         ],
         "functions": [
-          105,
-          112,
+          106,
           113,
-          120,
-          126
+          114,
+          121,
+          127
         ],
         "branches": [
           {
-            "line": 43,
+            "line": 44,
             "arms": [
               1
             ]
           },
           {
-            "line": 62,
+            "line": 63,
             "arms": [
               0
             ]
           },
           {
-            "line": 67,
+            "line": 68,
             "arms": [
               1
             ]

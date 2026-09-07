@@ -22,6 +22,16 @@ zeros, scientific-notation quantities, rounding and language fallback. Repositor
 accept comma decimal input for material and cost facts. Existing locale parity/error, date and
 pluralization tests remain part of the full gate; this slice adds no new dates or plural forms.
 
+PR #90 review 3945673161 found that renovation Apply's ARIA state did not reflect a recovery
+pause although its submit handler refused the action. A shared `submitBlocked` computation now
+drives both, while the separate field-freezing state still permits recoverable text edits.
+The repository-backed regression first enters Apply, fails the background planning read,
+checks `aria-disabled`, edits the retained draft, verifies blocked submission leaves bytes
+unchanged, retries and saves exactly once. It reproduced the false enabled state before the fix.
+The browser artifacts below were captured at `26b693bd`; this follow-up changes the ARIA state
+and shared submit guard only, and its recovery behavior is verified by that focused regression
+and the subsequent complete gate rather than a repeated visual-layout claim.
+
 ## Original review fixes before the topic
 
 The three original #88 findings were fixed first on its existing branch in

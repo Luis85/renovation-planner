@@ -1,6 +1,6 @@
 # Wiederaufnahme der Editor-Finalisierung
 
-Stand: 2026-09-07T20:09:06.398Z (UTC). Dieses Dokument ist der zentrale Wiedereinstieg bei App-Neustart, Kontext- oder Nutzungslimit. Git und laufende Tasks beim Fortsetzen erneut prüfen. Die frühere Nutzerpause ist aufgehoben.
+Stand: 2026-09-07T21:54:19.460Z (UTC). Dieses Dokument ist der zentrale Wiedereinstieg bei App-Neustart, Kontext- oder Nutzungslimit. Git und laufende Tasks beim Fortsetzen erneut prüfen. Die frühere Nutzerpause ist aufgehoben.
 
 ## Auftrag und Abschlussmaßstab
 
@@ -27,25 +27,25 @@ Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument ak
 | Erreiche Editor-Testcoverage | 01a07cca-4d4b-75b0-96fb-9417d3b86f51 / codex/editor-coverage-finalization, PR#92 | Globale Coverage; genau fünf weitere öffentliche Grenzfälle sind source-only freigegeben |
 | Improve M15 recovery workflow | 01a07838-4e54-7ac3-bc24-a8eef9185d6e | Idle; native Host-Labels auf430 lesend geprüft, keine Host-Aktion ausgeführt |
 
-**UI hat den schweren lokalen Slot zurückerhalten** für M01/M04-Regressionen und passende Zusatzaufnahmen. Aktueller nativer Handle63964 (beim Wiedereinstieg Status prüfen), Produktionsstand bleibt währenddessen eingefroren. Coverage77006/26251 sind terminal;0c3a3315 ist geprüft/gepusht und ohne laufenden Prozess. Root übernimmt nur Source/Docs und hat keinen Heavyprozess. Coverage arbeitet an der nächsten begrenzten Restpriorisierung read-only.
+**UI besitzt den lokalen Prüfslot.** M01/M04-Produktion150e723e ist nativ/type/lint geprüft, aber noch nicht in Root. Capture-Helfer wurden nach echten Selektorfehlern korrigiert.89997 und41858 endeten mit Capture-Fehlern; keine Erfolgsaussage daraus. UI47097 ist terminal0; Root63863-Health ebenfalls, Slot ausdrücklich an UI zurückgegeben. Aktuellen nächsten Capture-Handle beim Owner prüfen. Coverageab4b8e0c ist nur Source-WIP. Root hat keinen Heavyprozess.
 
 Rechner ca.8GB RAM. Installs, Builds, Tests, Coverage, Analyzer und Browser-/Performancecaptures lokal serialisieren. Lesen, Source und Dokumentation können parallel laufen. Vor einer ruhigen Performance-Messung auch größere Archivierung/Bilddarstellung abstimmen. Keine fremden Prozessausgaben konsumieren oder Prozesse stoppen. Stille und Beobachtungstimeouts sind kein Prozessende; tatsächlichen Handle oder terminalen Owner-Beleg prüfen.
 
 Die dedizierte Coverage-Task besitzt globale Testpakete. Root/E/Helfer beginnen keine weiteren globalen Coverage-Pakete. UI behält Regressionen eigener Fixes. [Coverage-Auftrag](coverage-session-brief.md), [Steuerung](coverage-coordination.md).
 
-## Neueste vollständige CI auf545ad7b6
+## Neueste vollständige CI und Health auf07bc094a
 
-[Run34159212022](https://github.com/Luis85/renovation-planner/actions/runs/34159212022) ist beendet. Jede Linux22/24/26- und Windows22-Leg besteht **662Dateien/8116Tests,69Skip,0Testfehler**. Build/Lint bestanden, AuditPASS. Der Pan-Fix ist in diesem vollständigen Stand enthalten. Einziger CI-Fehler: unveränderte Branchgrenze.
+[Run34160382401](https://github.com/Luis85/renovation-planner/actions/runs/34160382401) ist vollständig beendet. Jede Linux22/24/26- und Windows22-Leg besteht **663Dateien/8121Tests,69Skip,0Testfehler**. Build/Lint bestanden; AuditPASS. Einziger CI-Fehler: unveränderte Branchgrenze.
 
-S18076/18237, F5182/5219, L14110/14174, B**12538/12813=97,85%**. Bei diesem Nenner fehlen **19Arme**, bevor das folgende geprüfte Repository-Paket einbezogen ist. Nach neuen Tests und UI-Produktion vollständig neu messen; keine ungemessene Gesamtquote behaupten.
+S18076/18237, F5182/5219, L14110/14174, B**12543/12813=97,89%**. Es fehlen **14Brancharme** bei diesem Nenner. Die fünf Repository-Lifecycle-Fälle sind jetzt in der vollen Messung enthalten und liefern exakt die erwarteten fünf zusätzlichen Hits. Neue UI-Produktion später vollständig neu messen.
 
-Merge571e28bf285d1879bef0ff34e1b8cd8c565e433b und Root545 teilen Baum0e76fb3394a343a39ca6782fe3529fac319ad742. Linux24 Job101857339464, Artefakt10032202903, OriginalJSON/LCOV im Root-Scratch ci-545ad7b6-linux24/. [Qualitätsreceipt](evidence/ci-545ad7b6-quality.json). Der vollständige430-Vorgänger hatte8115PASS und20fehlendeArme.
+Mergea7f5ff7ea652773d1f14fb4ee0f2869a19156f6c und Root07 haben denselben Baum009ffd1622554dc0119a595d7b2f8ffdb2a46f6c. Linux24 Job101860791807, Artefakt10032537778. OriginalJSON/LCOV im Root-Scratch ci-07bc094a-linux24/.
 
-Coverage **0c3a3315087127803d300bb9aca1ff39f8383c33** wird selektiv übernommen: repositoryLifecycleBoundaries.test.ts, Begleitdokument und Counter-Receipt. Fünf öffentliche Fälle betreffen kaputtes Asset-Sidecar, spätes Project-Verschwinden vor Quote-Insert, geparstes Markdown ohne Frontmatter, Peer-Entfernung nach gelandetem Write und Evidence-Linkauflösung nach Plan-Unindexierung. **5/5native PASS(43,51s), Types/Ox/scopedESLint/static PASS; scoped5/5(13,28s)**. Unveränderte globale Floors schlagen beim Scoped-Lauf erwartungsgemäß fehl.
+**Frischer vollständiger Health auf exakt diesem Source und OriginalJSON: Exit0,0Findings,748/748Dateien gemappt** (Root63863 terminal). Offizieller coverage-root, keine Counterumschreibung. [Gemeinsamer CI-/Health-Receipt](evidence/ci-07bc094a-quality.json). Der frühere9cb-Beleg ist damit nicht mehr der aktuelle Health-Stand.
 
-Root hat die **fünf neuen Branch-Treffer** zusätzlich gegen die545-Vollcounter bestätigt: identische Git-Sourceblobs und exakte Branchdeskriptoren, jeweils0→1. Keine Produktionsänderung und kein vollständiger Coverage-Union-Pass. [Paket und Grenzen](repository-lifecycle-boundaries.md), [exakter Receipt](evidence/repository-lifecycle-counter-gains.json). Diese Fälle nicht duplizieren; neue Restpriorisierung ist Coverage-owned und zunächst read-only.
+Coverage0c3a3315 ist als Root07 übernommen: repositoryLifecycleBoundaries.test.ts, Begleitdokument und Counter-Receipt. Native5/5,Types/Ox/scopedESLint/static bestanden; scoped5/5 und fünf exakt zugeordnete Hits zusätzlich von Root gegen545 bestätigt. Nicht duplizieren. [Paket](repository-lifecycle-boundaries.md), [Counter-Receipt](evidence/repository-lifecycle-counter-gains.json).
 
-Letzter vollständig passender Fallow-Health bleibt Vorgänger9cb: Exit0,0Findings,748/748Dateien gemappt. Kein frischer545-Health behauptet, während UI den lokalen Slot hält. [Historischer Receipt](evidence/ci-9cb87b1b-quality.json).
+Die nächsten genau fünf Fälle liegen ungeprüft auf Coverageab4b8e0c: catalogueSnapshotBoundaries.test.ts (ungültige Quote mit realem Rohversionstoken, Asset-/Trade-Listensnapshot), geometryMaterialGuardBoundaries.test.ts (ungültiges Material vor Geometry-Write, gelöschtes Material im laufenden Guardsnapshot). Source-only freigegeben; keine Produktion und noch kein Native-/Counter-Pass. Erst nach UI-Handback den begrenzten Prüfslot geben.
 
 ## Vollständiger Browserlauf und konkrete Reste
 
@@ -81,6 +81,14 @@ M17: Ein Marker wählt/framed den Room und bleibt in Review; Nummer und Summary 
 Requirement.with erhält bestehende requiredDate konstruktiv; sieben Aufrufer geprüft, öffentliche Erstellung/Hydrierung/Validierung unverändert. [Datumsbeleg](requirement-date-preservation.md). RequirementMapper nutzt nach erfolgreicher Schema-Prüfung die einzig gültige zone-Origin; V1/V2/V3 behalten literalzone und Domain-Rejection. Owner56/56 plus Types/Lint/static, Root10/10 gemeinsamer Nachlauf. [Origin-Beleg](requirement-origin-mapping.md).
 
 Vorgänger-Reviewaudit: PR74/75/76/82/83/85/86/87 vollständig paginiert,27Threads davon25offen; keine neuen Findings bei unveränderten Heads. PR88 sechs offene Threads, in Continuations/Root behoben, ältere Branches selbst unverändert und deshalb nicht fälschlich aufgelöst. PR91/92 hatten beim Sweep19:18:31UTC jeweils0Reviews/Threads/Kommentare. [Reviewaudit](review-audit.md); vor Abschluss erneut prüfen.
+
+## Aktuelle Capture-Folgen und sichere Provenienz
+
+M00 brauchte den tatsächlichen Renovation-Inspector-Selektor; M01 den eindeutigen primären Titel. M07 zeigte, dass Control+Home auf einem Button den Inspector nicht scrollt; die Zusatzaufnahme verwendet nun dokumentiertes natives Wheel-Scrolling im Inspector und unveränderte Sichtbarkeitsgrenzen. M13 adressiert das fachlich richtige direkte Gesamttotal statt eines mehrdeutigen Selektors. M16 ergänzt880pxL/D als Annäherung an den Referenz-Leaf und weiterhin ein echtes geschlossenes460pxDE-Canvas. Canonical selection im read-only Harness-Probe verhindert Attribution über bloß sichtbare DOM-Zeilen.
+
+Automatische Approval-Prüfung lehnte eine PowerShell-Löschung generierter Overview-Ausgaben ab. Sie wurde nicht ausgeführt und wird nicht über Node oder einen anderen Weg nachgeholt. Der neue Runner erhält vorhandene Dateien und verwendet nur protokollierte erfolgreiche screenshot-Aufrufe, Quelle-Zeit/Hash-Prüfung VOR Kopieren, neun aktuelle Reports/Manifeste,16Static-States und18zugeordnete Eingaben/36Compositions. Keine PNG-Glob-Inventarisierung. Positive Run-Grenze für nachgelagerte Stufen sowie sauberer vorheriger Evidence-Stand und priorEvidenceCommit werden ergänzt; ältere gleichnamige Dateien sind im archivierten Commit erhalten, nicht unverändert am selben Arbeitsbaum-Pfad. Den endgültigen gepushten Helper-Stand vor Integration prüfen.
+
+[Native Host-Prüfanleitung](native-host-walkthrough.md) ist vorbereitet, **noch nicht ausgeführt**. Labels wurden auf430 gelesen; verwendet werden muss der finale gemeinsame Build. Legacy/Reference-Prüfung auf dem noch leeren Plan geht der Room-Erstellung voraus. Die Anleitung ersetzt H1–H6 nicht.
 
 ## Verbindliche Quellen
 

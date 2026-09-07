@@ -16,12 +16,14 @@ Der Nutzer verlangt aktuelle Zwischenstände im Repo, sinnvolle Parallelisierung
 
 ## Neue Coverage-Zuständigkeit — Nutzerauftrag
 
-Der Nutzer startet selbst eine dedizierte Coverage-Session und meldet deren Start.
-**Reserviert, noch nicht gestartet/registriert; Task-ID unbekannt.** Root erstellt
-sie nicht automatisch. [Vollständiger Auftrag](coverage-session-brief.md) und
-[Steuerung](coverage-coordination.md) sind im Repo gesichert. Nach Startmeldung
-Task-ID/Branch/Basis prüfen, globale Coverage-Zuständigkeit und schweren Prüfslot
-explizit übergeben. UI/E sind informiert; Root/Helfer beginnen keine neuen globalen
+Der Nutzer hat die Coverage-Session gestartet und Root hat deren eigenen Receipt
+bestätigt. **Aktiv: Erreiche Editor-Testcoverage**, Task-ID
+01a07cca-4d4b-75b0-96fb-9417d3b86f51; Worktree
+.worktrees/editor-coverage-finalization, Branch codex/editor-coverage-finalization,
+Basis6f72eea1dbb87f0b1b2774c27fc9ce8becf536c4. [Vollständiger Auftrag](coverage-session-brief.md) und
+[Steuerung](coverage-coordination.md) sind im Repo gesichert. Globale Coverage-Zuständigkeit ist übergeben; zunächst Lesen/Sourcevorbereitung.
+UI hält den aktuellen schweren Slot; Root übergibt den nächsten nach terminalem
+UI-Receipt ausdrücklich an Coverage. UI/E sind informiert; Root/Helfer beginnen keine neuen globalen
 Coverage-Pakete. UI behält Regressionen eigener Fixes, E konkrete Hardening-Befunde.
 
 Das letzte bereits begonnene Root-Paket ist abgeschlossen: Financial/Project-Library

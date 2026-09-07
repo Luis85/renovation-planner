@@ -13,6 +13,11 @@ export async function tabTo(page, selector) {
 	throw new Error(`Tab did not reach ${selector}`);
 }
 export async function activate(page, selector) {
+	if (['[data-rp-action="rename-room"]', '[data-rp-action="edit-outline"]'].includes(selector)
+		&& await page.locator('.rp-room-more-actions:not([open]) > summary').isVisible()) {
+		await tabTo(page, '.rp-room-more-actions > summary');
+		await page.keyboard.press('Enter');
+	}
 	if (selector.startsWith('[data-rp-mode=') && !await page.locator(selector).isVisible()) {
 		await tabTo(page, '[data-rp-room-navigation]');
 		await page.keyboard.press('Enter');

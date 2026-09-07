@@ -1,6 +1,7 @@
 import { planningRecoveryProbe } from './planningRecoveryProbe';
 import { editorFidelityProbe } from './editorFidelityProbe';
 import { referenceWorkspace } from './referenceWorkspace';
+import { downstreamWorkspace } from './downstreamWorkspace';
 import { err, ok } from '../../src/core/result/Result';
 import type { PersistenceError } from '../../src/core/errors/AppError';
 import { Zone } from '../../src/domain/zone/Zone';
@@ -645,8 +646,10 @@ export function mountPlanEditorHarness(
 	const leafEl = root.createDiv('rp-harness-leaf');
 	const base = harnessDeps({ stale: options.stale });
 	const workspace = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN, new URLSearchParams(location.search).has('planning')) : null;
-	const deps = workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
-	const view = new PlanEditorView(new FakeLeaf() as never, deps);
+	const downstream = workspace && new URLSearchParams(location.search).has('downstream') ? downstreamWorkspace(workspace, leafEl) : null;
+	const deps = downstream?.deps ?? (workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base);
+	const view = new PlanEditorView((downstream?.leaf ?? new FakeLeaf()) as never, deps);
+	downstream?.attach(view);
 	leafEl.appendChild(view.containerEl);
 	if (workspace && new URLSearchParams(location.search).has('recovery')) Object.assign(window, { planningRecovery: planningRecoveryProbe(workspace, view) });
 	if (workspace && new URLSearchParams(location.search).has('fidelity')) Object.assign(window, { editorFidelity: editorFidelityProbe(workspace) });

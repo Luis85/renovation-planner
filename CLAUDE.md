@@ -1026,8 +1026,8 @@ that was fixing the previous instance.
 Not oversights; each has a trigger.
 
 - **dayjs**, and nothing else on the SDD's stack. Installing a dependency nothing imports
-  fails `npm run analyze`, so each arrives with its first real use — scheduling, which does
-  not exist yet.
+  fails `npm run analyze`, so it arrives only when calendar arithmetic needs it. Explicit
+  Work start/end dates currently use validated ISO calendar strings without date arithmetic.
 
 - **vue-router**, considered explicitly at design slice 21 because that slice introduced
   navigation and a router is the canonical Vue answer to it. Four reasons, and the first is

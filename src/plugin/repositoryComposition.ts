@@ -1,4 +1,11 @@
+import type { QuoteRepository } from '../application/ports/QuoteRepository';
+import { ObsidianQuoteRepository } from '../infrastructure/obsidian/repositories/ObsidianQuoteRepository';
 import type { FileManager, MetadataCache, Vault } from 'obsidian';
+import type { NamedRecordRepository } from '../application/ports/NamedRecordRepository';
+import type { Trade } from '../domain/trade/Trade';
+import type { Supplier } from '../domain/supplier/Supplier';
+import { TRADE_MAPPER, SUPPLIER_MAPPER } from '../infrastructure/persistence/mappers/namedCatalogueMapper';
+import { ObsidianNamedCatalogueRepository } from '../infrastructure/obsidian/repositories/ObsidianNamedCatalogueRepository';
 import type { Currency } from '../core/money/Money';
 import { ObsidianAssetRepository } from '../infrastructure/obsidian/repositories/ObsidianAssetRepository';
 import { ObsidianRequirementRepository } from '../infrastructure/obsidian/repositories/ObsidianRequirementRepository';
@@ -30,35 +37,12 @@ export interface VaultStack {
 }
 
 /**
- * The six repositories, the two geometry sidecars and the TWO index-backed reads — built
- * once, unguarded, from the vault stack and the settings a root was composed with.
- * `composeGuarded` in `composition-root.ts` is what wraps the members that leave the root
- * through `PersistenceServices`; this function only constructs them.
+ * Builds the canonical repositories, geometry sidecars and index-backed reads for one root.
+ * Trade and Supplier use separate domain/index identities and the same note-write machinery.
+ * Guarded command/query adapters wrap repositories when exposed to presentation.
  *
- * SIX rather than five since the per-project price override and the asset designer merged:
- * this sentence said five in the branch that extracted this function, and `overrides` arrived
- * on the other one. Re-derived rather than remembered —
- * `grep -cE 'new Obsidian[A-Za-z]*Repository\(' src/plugin/repositoryComposition.ts` printed
- * six, and the two sidecars (`PlanGeometryStore`, `AssetGeometryStore`) are counted separately
- * because neither is a repository.
- *
- * **And TWO reads rather than one, which this sentence got wrong the very next merge.** It
- * said "the library-overlap read" while the Home surface's branch added `listFacts` beside
- * `overlaps` — the same failure the paragraph above records, one clause to its left, in the
- * comment that exists to warn about it: the repository count was re-derived and the count
- * beside it was carried over by eye. `grep -cE 'new Index[A-Za-z]*\(' ` on this file prints
- * two (`IndexLibraryOverlaps`, `IndexProjectListFacts`). The lesson is not the number: a
- * count that arrives by MERGE is the one no author of either branch is looking at, because
- * both sentences read correctly in isolation.
- *
- * **Everything built here is PER ROOT, and every `KeyedQueues` in it therefore is too**
- * (G2/R7). `applySettings` calls this again on a settings save, so a write already in flight
- * holds a lane in a set nothing consults afterwards, and the next write for that entity finds
- * an empty lane in the new stack and runs beside it. That window is RECORDED rather than
- * closed: it needs a settings save to land during a write on the same entity, and closing it
- * means hoisting six repositories to the session — a change to what a root owns. The
- * reference LOCK set was hoisted (`SessionCollaborators.locks`) because it is one object the
- * plugin can hold; these are not, and the difference is the whole of why one moved.
+ * Reference locks belong to the plugin session. Repository KeyedQueues remain per root;
+ * a settings replacement during an in-flight write retains that established limitation.
  */
 export function composeRepositories(
 	deps: NoteVaultDeps,
@@ -67,6 +51,9 @@ export function composeRepositories(
 	libraryFolder: string,
 	defaultCurrency: Currency,
 ) {
+	const quotes: QuoteRepository = new ObsidianQuoteRepository(deps);
+	const trades: NamedRecordRepository<Trade> = new ObsidianNamedCatalogueRepository(deps, libraryFolder, TRADE_MAPPER);
+	const suppliers: NamedRecordRepository<Supplier> = new ObsidianNamedCatalogueRepository(deps, libraryFolder, SUPPLIER_MAPPER);
 	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, deps.index, deps.migrations, deps.echo);
 	// ONE store, two consumers, and the sharing is the point rather than an economy: the
 	// asset repository holds it for the DELETE (an asset's note and its sidecar go together)
@@ -84,6 +71,9 @@ export function composeRepositories(
 	);
 	return {
 		geometryStore,
+		trades,
+		suppliers,
+		quotes,
 		// The port, not the store: `plugin/` is where an infrastructure class becomes the
 		// application's own interface, and the design commands are typed against the port.
 		assetGeometry: new ObsidianAssetGeometrySidecar(assetGeometryStore),

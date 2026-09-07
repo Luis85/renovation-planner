@@ -2,6 +2,19 @@
 
 Status: active contribution on `codex/editor-plan-finalization`, isolated in `.worktrees/editor-plan-finalization`. Main remains on the integration branch. No PR has been merged by this task.
 
+## Latest accepted continuation checkpoints
+
+- UI View controls: `6654cfbf7d023199af49c6aaec50a770e44f1578`, integrated as `2c2c1d71e0147819c6c597172b0b5f57f0f5b918`. Fit floor/selection, zoom, grid and per-leaf snapping use the existing canvas and camera. Room fills/captions and the constrained German menu are corrected. The harness icon helper now resides under the existing import scanner root; the scanner is unchanged. Owner focused runs passed 184 and 22 cases, with build/types/static checks and four Edge scenarios/sixteen axe scans; see [editor-view-controls.md](editor-view-controls.md). CI on root `2c2c1d71` passed all 605 files/7,631 tests (69 skipped); branch coverage 97.70% remains below the unchanged 98% gate.
+
+- Hardening source lifecycle: `0673226c86e8cdb7f514e4fd7c9f567faa839ed7`, integrated as `9739176f`. Three peer-deleted structure projection defects are corrected before missing-target returns. Ten added lifecycle/marker regressions expect the existing root retry guard. Owner focused runs passed 50 and 63 cases; isolated three-source coverage failed at 93.03% statements/86.25% branches, with 100% functions/98.24% lines. Types/Oxlint/scoped ESLint passed. See [source-lifecycle-recovery-evidence.md](source-lifecycle-recovery-evidence.md); the combined full gate remains pending.
+
+- UI visual components: `4b34a4ccb1cac72ac78e4de22a06d5722ff3c978`, integrated as `aec50563c9777ce7f3680742b864fcd03b55567d`. Native host icons, centered Room names/areas, representative floor fixture and the three confirmed CI CSS fixes are joined. Owner evidence: 109 focused tests and 286 CSS/lifecycle tests pass; four Edge 152 scenarios/twelve axe scans report zero violations with incomplete checks retained. See [editor-visual-components.md](editor-visual-components.md).
+
+- Hardening: `7f0518741760062fff0ae119c59770bb829f7f7c`, integrated as `63857ec6208196dbf16efbf6a6120dbc349649ff`. Discarding an intended-only generic element removes its label with its geometry; conditional Undo restores both. Owner evidence: 60 tests in eight files passed, removal module 100% isolated coverage, types and scoped static checks passed.
+- UI: `fb48fb64f3191078e1ad5ba35dbda8c5fd293310`, integrated as `14093b4d`. Native Room dimensions, direct Room/wall actions and pending-tool deactivation guards use the existing geometry command and Room edit lifecycle. Owner evidence: 122 tests in nine files passed; isolated 99.30% statements, 98.92% branches, 100% functions/lines; build/types, whole Oxlint and scoped ESLint passed. Four Edge 152 journeys and twelve axe scans reported zero violations; incomplete checks and live-host limits remain documented in [editor-direct-actions.md](editor-direct-actions.md).
+
+These are bounded checkpoint results. The latest full joined run remains `63173897` (branch coverage 97.54%, below 98%). This root checkpoint adds Trade, manual schedule and Quote implementation with its own [targeted evidence](downstream-planning-evidence.md); neither owner checkpoint covers those changes. Native icons and representative matching-state fixtures are integrated; the final eight journeys, new downstream ninth journey and eighteen image comparisons must run after all required production source joins.
+
 ## Pushed predecessor ancestry
 
 The refreshed #88 head below contains every listed predecessor tip. Initial baseline `3006915e8019dec66b24c945710495df48336582` did not contain all of those corrections. The pending local predecessor merge was retired, own changes were safely stashed, and the branch fast-forwarded to the newer #88 head before reapplying those changes. The stash is retained until the contribution is committed.
@@ -95,3 +108,8 @@ Root `a630bf76` restores reviewed wall endpoint proposals in Renovate and extrac
 ### Native Room guard, mutable thumbnails and repeated rail activation
 
 Agreed E checkpoint `471cfc57eb5b2ac12f337d7bd0ff30f2c822d4e2` is cherry-picked after `d25805f7`. Conflict resolution preserves the joined EvidencePreview `metadataOnly`/gallery markup while adding revision-aware mutable image URLs, and keeps both the expanded root changelog and the new recovery entry. Room forms now consume canonical runtime.writesBlocked; PanelRail focuses an already-open drawer on repeated activation. Owner evidence: seven reproduced failures, then 119/119 cases in nine files; types, scoped ESLint, whole Oxlint and Fallow passed, with the old-coverage limitation retained. The joined full gate is the next verification boundary.
+
+
+### Complete joined checkpoint 63173897
+
+E471 is incorporated as `23a490887b46be077c0065ae1b42da5854b90a9f`; the German planning action correction is `63173897d97567542761926c4fc56540b4b54ec2`. Exact source `63173897d97567542761926c4fc56540b4b54ec2`, Node 24.20.0, VITEST_MAX_WORKERS=2: production build/types and complete Oxlint/ESLint pass. All 594 test files pass: 7,562 passed, 70 skipped, 975.45 s. Coverage is 99.05% statements (16413/16569), 97.54% branches (11176/11457), 99.15% functions (4677/4717), and 99.50% lines (13024/13089). Only the unchanged 98% branch floor fails, so npm run check exits 1 before analysis. A separate fresh complete Fallow run against that full coverage exits 0: zero dead-code issues, zero clone groups, zero health findings (including cognitive complexity and CRAP). The full JSON/lcov artifacts are preserved before scoped runs. No gates, exclusions or thresholds changed.

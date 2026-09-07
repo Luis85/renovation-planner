@@ -2,7 +2,7 @@
 
 Current reconciliation: [completion matrix](completion-matrix.md), [integration ancestry](integration-map.md), and [status ledger](implementation-status.md). Later connected renovation/planning amendments supersede earlier implementation snapshots. Missing requirements remain open until implemented and verified; integration is active and no overall acceptance is declared.
 
-Current integrated source includes generic spatial editing, shared record actions, cross-record navigation, material markers and persistent native Inspector/Layer regions. Object presentation and final combined quality/visual/host verification are active continuations. [User guidance](../../../using-plan-editor.md) describes the connected production journey; acceptance remains governed by the matrix.
+Current integrated source includes generic spatial editing, shared record actions, cross-record navigation, material markers and persistent native Inspector/Layer regions. Native dimensions, direct actions, host icons and Room captions are integrated. Shared Trade responsibility, explicit Work dates, Project Work and factual quote comparison have production source in the finalization candidate under ADR-0024; their verification and final combined quality/visual/host acceptance remain active. [User guidance](../../../using-plan-editor.md) describes the connected production journey; acceptance remains governed by the matrix.
 
 **Status:** In progress — see [implementation status and remaining scope](implementation-status.md).
 **Basis:** Locked mockups M00–M17 and shared component library  

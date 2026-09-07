@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { provideTradeCatalogue } from '../catalogue/tradeCatalogue';
 import { provideNoteCreation } from './add/noteCreation';
 import { providePlanningContext } from './planning/planningContext';
 import { notifyFault } from '../notices/notify';
@@ -19,6 +20,7 @@ import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import { usePlanEditorContext } from './PlanEditorContext';
 import { provideEditorRuntime } from './runtime';
+import { useEditorArrival } from './renovation/editorArrival';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSaveStateStore } from './save-state/save-state-store';
@@ -46,10 +48,13 @@ import { useSelectionStore } from './selection/selection-store';
 import { routeEscape } from './escapeRouting';
 
 const context = usePlanEditorContext();
+provideTradeCatalogue(context.commands.tradeCatalogue, context.commands.logger);
 // The return value is USED now, not discarded: `activeToolId` is what displaces the empty
 // state and `setTool` is what the noZones action calls, and this is the same runtime object
 // every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
+const navigateToRecord = useEditorArrival(context, runtime);
+defineExpose({ navigateToRecord });
 const planning = providePlanningContext(context, runtime);
 provideNoteCreation(runtime, planning);
 const projectStore = useProjectStore();

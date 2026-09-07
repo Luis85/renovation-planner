@@ -7,6 +7,7 @@ import { defer } from '../../helpers/async';
 import { err } from '../../../src/core/result/Result';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import * as notices from '../../../src/presentation/notices/notify';
+import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
@@ -45,4 +46,21 @@ it.each(['existing', 'creation'] as const)('does not report a late %s path retry
  await rig.wrapper.get('.rp-draft-recovery button').trigger('click'); await settle(); expect(query).toHaveBeenCalledOnce();
  mounted.splice(mounted.indexOf(rig), 1); rig.unmount(); pending.resolve(); await settle();
  expect(rig.report).not.toHaveBeenCalled();
+});
+
+it('freezes a retained element outline during planning failure and an unrecovered write', async () => {
+ const rig = await setup('existing'), text = rig.field.element.value, bytes = [...rig.stack.vault.entries];
+ rig.field.element.focus();
+ expect(rig.project.stale).toBe(false); expect(rig.runtime.writesBlocked.value).toBe(true);
+ expect(rig.field.element.readOnly).toBe(true); expect(document.activeElement).toBe(rig.field.element);
+ const form = rig.wrapper.get('[data-rp-form="outline-points"]'), dispatch = vi.spyOn(rig.runtime.dispatcher, 'run');
+ await form.trigger('submit'); await settle(); expect(dispatch).not.toHaveBeenCalled();
+ rig.read.mockRestore(); await rig.runtime.refreshProjection(); await settle();
+ expect(rig.field.element.readOnly).toBe(false); expect(rig.field.element.value).toBe(text);
+ useSaveStateStore(rig.pinia).markUnrecovered(); await settle();
+ expect(rig.project.stale).toBe(false); expect(rig.field.element.readOnly).toBe(true);
+ expect(form.get('input[name="name"]').attributes('readonly')).toBeDefined();
+ await form.trigger('submit'); await settle(); expect(dispatch).not.toHaveBeenCalled();
+ await rig.runtime.refreshProjection(); await settle();
+ expect(rig.field.element.readOnly).toBe(true); expect(rig.field.element.value).toBe(text); expect([...rig.stack.vault.entries]).toEqual(bytes);
 });

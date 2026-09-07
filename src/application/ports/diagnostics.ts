@@ -45,6 +45,8 @@ export type DiagnosticEntityKind =
 	| 'asset'
 	| 'requirement'
 	| 'asset-price'
+	| 'trade'
+	| 'supplier' | 'quote'
 	| 'plan-geometry';
 
 /**

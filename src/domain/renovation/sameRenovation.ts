@@ -6,7 +6,7 @@ function content(value: Renovation): unknown {
 	return [depthContent(value.depth ?? EMPTY_DEPTH), value.subjects.map(s => [s.id, s.roomId, s.targetId, s.kind,
 		s.existing ? [s.existing.description, s.existing.condition] : null,
 		s.planned ? [s.planned.change, s.planned.description] : null]),
-	value.work.map(w => [w.id, w.roomId, w.targetId, linksContent(w), w.title, w.description, w.order, w.progress, w.responsibility, w.outcomes, w.dependencies]),
+	value.work.map(w => [w.id, w.roomId, w.targetId, linksContent(w), w.title, w.description, w.order, w.progress, w.responsibility, w.tradeId, w.schedule?.start, w.schedule?.end, w.outcomes, w.dependencies]),
 	value.decisions.map(d => [d.id, d.roomId, d.subjectId, d.question, d.resolution, d.resolved])];
 }
 /** Compare owned facts, independent of mapper property insertion order. */

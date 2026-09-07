@@ -1,3 +1,7 @@
+import { quoteServices } from './quoteServices';
+import type { QuoteRepository } from '../application/ports/QuoteRepository';
+import type { ProjectDestination } from '../application/navigation/ProjectDestination';
+import { projectWorkServices } from './projectWorkServices';
 import type { Vault, Workspace } from 'obsidian';
 import { createEventBus, type EventBus } from '../core/events/EventBus';
 import type { Result } from '../core/result/Result';
@@ -39,6 +43,7 @@ import { unavailableRenovationProjectCommands } from '../presentation/views/reno
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import type { ContinueContext } from '../application/continueContext';
 import {
+	planEditorOpenNote,
 	renovationProjectOpenAsset,
 	renovationProjectOpenAssetLibrary,
 	renovationProjectOpenPlan,
@@ -61,6 +66,9 @@ import type { Project } from '../domain/project/Project';
 import type { Plan } from '../domain/plan/Plan';
 import type { Zone } from '../domain/zone/Zone';
 import type { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
+import type { NamedRecordRepository } from '../application/ports/NamedRecordRepository';
+import type { Trade } from '../domain/trade/Trade';
+import type { Supplier } from '../domain/supplier/Supplier';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
 import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { createMigrationRunner, type MigrationRunner } from '../infrastructure/persistence/migration/MigrationRunner';
@@ -172,6 +180,9 @@ export interface PersistenceServices
 		GuardedAssetPriceServices,
 		GuardedAssetDesignServices,
 		GuardedAssetLibraryServices {
+	readonly trades: NamedRecordRepository<Trade>;
+	readonly suppliers: NamedRecordRepository<Supplier>;
+	readonly quotes: QuoteRepository;
 	readonly index: ProjectIndex;
 	readonly vaultDeps: NoteVaultDeps;
 	readonly migrations: MigrationRunner;
@@ -519,6 +530,9 @@ export function createCompositionRoot(
 			plans,
 			zones,
 			assets,
+			trades: repositories.trades,
+			suppliers: repositories.suppliers,
+		quotes: repositories.quotes,
 			requirements,
 			overrides,
 			locks,
@@ -597,7 +611,7 @@ export function renovationProjectDeps(
 	vault: Vault,
 	options: {
 		projectId: string | null;
-		navigate: (projectId: string | null, section?: 'details' | 'prices') => void;
+		navigate: (projectId: string | null, section?: ProjectDestination) => void;
 		indexScanCompleted: () => boolean;
 		/**
 		 * The Continue context and its writer — plugin-local, per-device state Task 10 composes
@@ -612,11 +626,14 @@ export function renovationProjectDeps(
 	const persistence = root.persistence;
 	return {
 		projectId: options.projectId,
+		work: projectWorkServices(root, vault, workspace),
+		quotes: quoteServices(root),
 		navigate: options.navigate,
 		indexScanCompleted: options.indexScanCompleted,
 		continueContext: options.continueContext,
 		rememberContinue: options.rememberContinue,
 		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve('failed'),
+		openRecord: persistence ? planEditorOpenNote(workspace, vault, persistence.index, root.logger) : () => Promise.resolve('failed'),
 		openAsset: persistence ? renovationProjectOpenAsset(workspace, root.logger) : () => Promise.resolve(),
 		// UNCONDITIONAL, persistence or not — `onProjectsChanged`'s own reason two screens down:
 		// revealing the library needs no repository at all, and a refusing bundle underneath it

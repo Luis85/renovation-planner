@@ -1,3 +1,5 @@
+import { enProjectNavigation } from './en/projectNavigation';
+import { projectWorkEn } from './en/projectWork';
 import { planningEn } from './en/planning';
 import { enAssetLibrary } from './en-assetLibrary';
 import { editorEn } from './en/editor';
@@ -31,17 +33,13 @@ import { renovationEn } from './en/renovation';
  * typeof en` stays exact and no consumer of a key changes.
  */
 export const en = {
+	...projectWorkEn,
+	...enProjectNavigation,
 	...renovationEn,
 	...planningEn,
 	...editorEn,
 	'command.open-project': 'Open renovation project',
 	'command.open-project-detail': 'Go to renovation project',
-	'view.project.guidance-title': 'What would you like to do next?',
-	'view.project.guidance-body': 'Start with a plan, keep ideas in your project note, or set project prices. You can choose any order.',
-	'view.project.guidance-hide': 'Hide guidance',
-	'view.project.guidance-show': 'Show guidance',
-	'view.project.prices-open': 'Project prices',
-	'view.project.prices-back': 'Back to project',
 	'view.project.price-apply': 'Apply',
 	'view.project.price-cancel': 'Discard draft',
 	'view.project.price-saved-refresh-failed': 'Saved; could not refresh the display. Retry refresh before editing again.',

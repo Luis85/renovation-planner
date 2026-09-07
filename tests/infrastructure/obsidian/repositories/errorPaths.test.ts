@@ -1,3 +1,4 @@
+import { DOWNSTREAM_NOTE_CASES } from '../../../helpers/downstreamNoteCases';
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, parseFrontmatter, type RepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectFound, expectOk } from '../../../helpers/domain';
@@ -169,6 +170,7 @@ const NOTE_BACKED_CASES: ReadonlyArray<{
 	seed: (stack: RepositoryStack) => Promise<EntityId<string>>;
 	read: (stack: RepositoryStack, id: EntityId<string>) => Promise<Result<unknown, AppError>>;
 }> = [
+ ...DOWNSTREAM_NOTE_CASES,
 	{
 		kind: 'project',
 		seed: async (stack) => {

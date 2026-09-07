@@ -5,6 +5,7 @@ import { PlanFrontmatterSchema, PLAN_TYPE, type PlanFrontmatterDTO } from '../dt
 import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
 function planSchemaVersion(plan: Plan): number {
+	if (plan.renovation?.work.some(item => item.responsibility === 'trade' || item.schedule !== undefined)) return 7;
 	if (plan.spatialElements?.length) return 6;
 	const shared = [...plan.renovation?.work ?? [], ...plan.renovation?.depth?.evidence ?? []].some(item => (item.links?.length ?? 0) > 0);
 	return shared ? 5 : plan.renovation?.depth ? 4 : plan.renovation ? 3 : plan.background?.appearance ? 2 : 1;

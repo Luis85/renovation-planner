@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TradeResponsibility from '../../catalogue/TradeResponsibility.vue';
 import { usePlanEditorContext } from '../PlanEditorContext';
 const context = usePlanEditorContext();
 import { useEditorRuntime } from '../runtime';
@@ -29,7 +30,7 @@ function outcomeLabel(id: string) {
 		<p>{{ item.description }}</p>
 		<SharedRecordContexts :item="item" />
 		<p class="rp-record-state">
-			{{ tr(`renovation.progress.${item.progress}`) }} · {{ tr(item.responsibility === 'diy' ? 'renovation.diy' : 'renovation.unassigned') }}
+			{{ tr(`renovation.progress.${item.progress}`) }} · <TradeResponsibility :work="item" />
 		</p>
 		<p v-if="blockingWork(value, item).length">
 			{{ tr('renovation.blocked', { names: blockingWork(value, item).map(other => other.title).join(', ') }) }}

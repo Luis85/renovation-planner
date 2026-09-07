@@ -12,6 +12,9 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Project Work: assign shared Trades and explicit start/end dates through the existing Work form, inspect floor and Room context, and return to the source Work with conditional Undo/Redo.
+- Project quote comparison: shared Suppliers, precise decimal offer lines with explicit Work/catalogue scope, immutable received offers, separate revisions, and contextual return from Costs. Failed refreshes preserve draft text and successful writes; retries do not replay saved offers.
+
 - Plan editor: canvas Enter finishes named element drafts and Backspace removes their last point through the existing guarded tool lifecycle; native form input and pending numeric drafts retain their own behavior.
 
 - Plan editor: compact material rows, expandable cost groups that highlight their linked Work geometry, a photo gallery with selected metadata and phase controls, and persistent contextual navigation. Entering renovation details now uses the selected Room instead of restoring a previous wall.
@@ -203,6 +206,9 @@ entries are added by the pull request that earns them, never invented at release
 - Keep Room rename/resize controls consistent with planning and unrecovered-write pauses, reload changed evidence thumbnails at the same resource path, and return keyboard focus into an already-open panel when its rail is activated again.
 
 - Restore Room and reviewed wall selection handles and Select/Add in Renovate, using the existing geometry history while retaining read-only Review.
+- Plan editor: editing or removing a wall that a peer has already deleted refreshes the displayed structure and refuses the obsolete action without writing.
+
+- Discarding an added generic element removes its intended geometry and canonical label together; Undo restores both, and a peer revision refuses stale history without overwriting it.
 
 - Planning and renovation dialogs keep busy native choices and actions focusable, refuse changes while saving, and retain the original draft values. Late save completion after closing a leaf does not reopen its form or move focus.
 

@@ -47,6 +47,9 @@ import ViewFailure from '../components/ViewFailure.vue';
 import ProjectList from './ProjectList.vue';
 import ResumeRecovery from './ResumeRecovery.vue';
 import ProjectDetailState from './ProjectDetailState.vue';
+import { provideTradeCatalogue } from '../catalogue/tradeCatalogue';
+import ProjectWorkState from './work/ProjectWorkState.vue';
+import QuoteComparisonState from './quotes/QuoteComparisonState.vue';
 import NewProjectForm from './NewProjectForm.vue';
 import { openNewAssetDialog } from './newAssetDialog';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
@@ -64,6 +67,7 @@ import type { ProjectSession } from './RenovationProjectContext';
 import type { PlanSummaryDto } from '../read-models/PlanDto';
 
 const context = useRenovationProjectContext();
+provideTradeCatalogue(context.work?.trades, context.commands.logger);
 const store = useRenovationProjectStore();
 const dialogs = useDialogStore();
 const { projects, emptyStateKey, status, error, unreadable } = storeToRefs(store);
@@ -496,6 +500,14 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 			direct binding but not inside a template arrow function, so every handler over there
 			would have needed an assertion the compiler cannot check. A prop is `string`.
 		-->
+		<ProjectWorkState
+			v-else-if="context.section === 'schedule'"
+			:project-id="openProjectId"
+		/>
+		<QuoteComparisonState
+			v-else-if="context.section === 'quotes'"
+			:project-id="openProjectId"
+		/>
 		<ProjectDetailState
 			v-else
 			:project-id="openProjectId"

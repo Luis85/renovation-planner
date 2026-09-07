@@ -1,3 +1,4 @@
+import type { ProjectOrigin } from '../application/navigation/ProjectDestination';
 import type { Vault, Workspace } from 'obsidian';
 import type { Logger } from '../application/ports/Logger';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
@@ -17,8 +18,8 @@ import { notifyFault } from '../presentation/notices/notify';
  * extraction rather than a second collapsed literal. Same seam, same reasoning, just no
  * longer inline.
  */
-export function renovationProjectOpenPlan(workspace: Workspace, logger: Logger): (planId: string) => Promise<'opened' | 'failed'> {
-	return (planId) =>
+export function renovationProjectOpenPlan(workspace: Workspace, logger: Logger): (planId: string, origin?: ProjectOrigin) => Promise<'opened' | 'failed'> {
+	return (planId, origin) =>
 		revealPlanEditor(
 			{
 				workspace,
@@ -28,6 +29,7 @@ export function renovationProjectOpenPlan(workspace: Workspace, logger: Logger):
 			},
 			PLAN_EDITOR_VIEW,
 			planId,
+			origin,
 		);
 }
 

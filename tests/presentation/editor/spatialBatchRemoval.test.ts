@@ -6,12 +6,13 @@ import { settle } from '../../helpers/editor';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { err, ok } from '../../../src/core/result/Result';
 import { defer } from '../../helpers/async';
+import * as notices from '../../../src/presentation/notices/notify';
 import { planningDraft, materialInput } from '../../../src/presentation/editor/planning/planningDraft';
 import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 import { spatialRemovalInput } from '../../../src/presentation/editor/elements/spatialRemovalInput';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
-afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
+afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
 async function setup() {
  const rig = await renovationEditor(true); mounted.push(rig);
  for (const [id, kind] of [['element-path', 'path'], ['element-fence', 'fence']] as const) {
@@ -122,4 +123,17 @@ it.each(['read failure', 'leaf close'] as const)('does not confirm deletion afte
  if (kind === 'leaf close') { mounted.splice(mounted.indexOf(rig), 1); rig.unmount(); gate.resolve(ok(baseline)); }
  else gate.resolve(err(injectedPersistenceError()));
  await pending; expect(rig.dialogs.current).toBeNull(); expect([...rig.stack.vault.entries]).toEqual(before);
+});
+
+it('does not report a retired batch deletion read failure after the leaf closes', async () => {
+ const rig = await setup(), planning = expectDefined(rig.deps.commands.planning, 'planning');
+ const gate = defer<Awaited<ReturnType<typeof planning.read>>>();
+ const read = vi.spyOn(planning, 'read').mockReturnValueOnce(gate.promise);
+ const report = vi.spyOn(notices, 'notifyOperationFailure').mockImplementation(() => undefined);
+ const before = [...rig.stack.vault.entries];
+ const pending = rig.runtime.elementActions.removeMany([...rig.selection.selectedIds]); await settle();
+ expect(read).toHaveBeenCalledOnce();
+ mounted.splice(mounted.indexOf(rig), 1); rig.unmount(); gate.resolve(err(injectedPersistenceError())); await pending;
+ expect(report).not.toHaveBeenCalled(); expect([...rig.stack.vault.entries]).toEqual(before); expect(rig.dialogs.current).toBeNull();
+ report.mockRestore();
 });

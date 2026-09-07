@@ -1,3 +1,4 @@
+import { DOWNSTREAM_NOTE_CASES } from '../../../helpers/downstreamNoteCases';
 import { describe, expect, it } from 'vitest';
 import {
 	createRepositoryStack,
@@ -77,6 +78,7 @@ const PRESERVATION_CASES: ReadonlyArray<{
 	drive: (stack: RepositoryStack) => Promise<unknown>;
 	reads: unknown;
 }> = [
+ ...DOWNSTREAM_NOTE_CASES,
 	{
 		kind: 'project',
 		reads: 'Renamed project',

@@ -37,7 +37,7 @@ const {
 
 const newPlanBusy = ref(false);
 const guidanceHidden = ref(context.session?.guidanceHidden ?? false);
-const section = context.section ?? 'details';
+const section = context.section === 'prices' ? 'prices' : 'details';
 const draftReset = ref(0);
 const edits = new Map<string, { dirty: boolean; pending: boolean }>();
 const pricesLoading = ref(true);
@@ -315,6 +315,8 @@ if (section === 'prices') {
 		:logger="context.commands.logger"
 		@toggle-guidance="toggleGuidance"
 		@prices="context.navigate(projectId, 'prices')"
+		@schedule="context.navigate(projectId, 'schedule')"
+		@quotes="context.navigate(projectId, 'quotes')"
 		@refresh="reloadPrices"
 		@retry-plans="hydrate"
 		@edit-state="onEditState"

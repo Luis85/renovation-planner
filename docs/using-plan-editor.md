@@ -40,8 +40,8 @@ Select a Room or associated element, then open the current section’s navigatio
 
 1. **Existing** records what is present and its condition.
 2. **Planned** describes what to add, change, remove or keep. It preserves the Existing facts.
-3. **Work** links tasks to their Planned outcomes. Set order, progress, DIY responsibility
-   and dependencies. Incomplete predecessors explain why work is blocked; cycles are refused.
+3. **Work** links tasks to their Planned outcomes. Set order, progress, DIY or Trade responsibility
+   and dependencies. Optional start and end dates can be added independently. Incomplete predecessors explain why work is blocked; cycles are refused.
 4. **Materials** links catalogue items to measured or manual quantities. Inspect the
    calculation and waste allowance, retain an explicit override when needed, and record
    purchased or reserved quantities separately. The shopping list uses outstanding quantities.
@@ -62,8 +62,25 @@ on several targets within a Room are shown in that Room context. Explicit record
 navigation opens Details when constrained. Project and Materials library actions reuse
 the existing workspace views.
 
-Work responsibility currently offers unassigned or DIY, with dependencies within the floor.
-Trade catalogue assignment and scheduling are not implemented.
+Work can remain unassigned, belong to DIY, or reference a shared Trade category. Open
+**View schedule** from Work, or the Project Work section, to see each floor’s Work once,
+including shared Room contexts, dependency blockers and known dates. Add a Trade there,
+then choose it in the same Work editing form. Dates are entered explicitly; dependencies
+stay within the floor. A missing Trade stays visibly unresolved until you choose a new
+responsibility. Open the floor from a schedule row to return to that Work record.
+
+From Costs, **Compare quotes** opens the Project’s separate comparison. Add a Supplier,
+record an offer’s dates and priced lines, and explicitly link each line to Work or catalogue
+items. Preview before applying. Compare only the scope you recorded: uncovered rows are
+shown as not quoted, and each offer has its own totals per currency. Recording a quote does
+not create a commitment or payment. A received offer is immutable; use **Record revision**
+to start a new offer identity. Return to the floor to restore the original Room and record
+when they still exist.
+
+If a quote refresh fails while its form is open, raw input remains editable while Apply is
+paused. Retry refreshes the choices and facts without replacing the captured write version.
+After a conflict, explicitly keep the draft as a new quote to preserve it without overwriting
+the other offer, then preview it again.
 
 ## Keep drafts and saved data clear
 

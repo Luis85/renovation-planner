@@ -37,16 +37,19 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 	let alive = true;
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
+	function matchesProjection(baseline: RenovationBaseline, id: string): boolean {
+		const geometry = baseline.geometry.document.structure?.elements?.find(item => item.id === id);
+		const name = baseline.plan.entity.spatialElements?.find(item => item.id === id)?.name;
+		const shown = project.structure.elements?.find(item => item.id === id), shownName = project.plan?.spatialElements?.find(item => item.id === id)?.name;
+		return JSON.stringify(shown) === JSON.stringify(geometry) && shownName === name;
+	}
 	async function read(id: string): Promise<{ baseline: RenovationBaseline; element: NamedSpatialElement } | null> {
 		const result = await context.commands.renovation?.read(context.planId as PlanId);
 		if (!alive) return null;
 		if (!result?.ok) { if (result) notifyOperationFailure(result.error); return null; }
+		if (!matchesProjection(result.value, id)) { notifyOperationFailure(staleWriteRefusal()); await runtime.refreshProjection(); return null; }
 		const element = elementFrom(result.value, id);
-		if (!element) return null;
-		const { name, ...geometry } = element;
-		const shown = project.structure.elements?.find(item => item.id === id), shownName = project.plan?.spatialElements?.find(item => item.id === id)?.name;
-		if (JSON.stringify(shown) !== JSON.stringify(geometry) || shownName !== name) { notifyOperationFailure(staleWriteRefusal()); await runtime.refreshProjection(); return null; }
-		return { baseline: result.value, element };
+		return element ? { baseline: result.value, element } : null;
 	}
 	async function operate(id: string, action: (value: NonNullable<Awaited<ReturnType<typeof read>>>) => Promise<void>): Promise<void> {
 		if (!alive || active.value || blocked.value || dialogs.current || !context.commands.renovation) return;
@@ -61,7 +64,7 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 			if (selection.selectedIds.join('|') !== selected) return;
 			const busy = ref(false), latest = ref<string | null>(null);
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.element.edit', { name: element.name }), component: markRaw(OutlinePointsForm), busy, props: {
-				points: element.points, name: element.name, hint: 'editor.element.edit-hint', busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || project.stale || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
+				points: element.points, name: element.name, hint: 'editor.element.edit-hint', busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || runtime.writesBlocked.value || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
 				accepts: (points: readonly Point[]) => validSpatialElement({ ...element, points }) && (element.kind !== 'object' || areaOutline(points).ok),
 				preview: (polygon: { points: readonly Point[] } | null) => { preview.value = polygon ? { ...element, points: polygon.points } : null; },
 				dispatch: async (polygon: { points: readonly Point[] }, name: string) => {

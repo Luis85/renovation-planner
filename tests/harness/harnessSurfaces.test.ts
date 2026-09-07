@@ -181,7 +181,8 @@ describe('the browser harness, plan editor', () => {
 		// The knob's own last press: the drawer it opened to type in is shut behind it, so the
 		// capture shows the canvas and the banner rather than 80% of a pane of form.
 		expect(leafEl.querySelector('.rp-inspector-drawer')).toBeNull();
-		expect(leafEl.querySelector('.rp-new-room')).toBeNull();
+		expect(leafEl.querySelector('.rp-new-room')).not.toBeNull();
+		expect((leafEl.querySelector('[data-rp-shell-region="inspector"]') as HTMLElement).style.display).toBe('none');
 	});
 
 	/**

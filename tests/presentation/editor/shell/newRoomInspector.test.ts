@@ -336,17 +336,6 @@ describe('NewRoomInspector', () => {
 
 
 /**
- * **A control removed from the document fires no `blur`** (measured: `document.activeElement`
- * falls to `<body>` with no event at all), so the form's commit-on-blur contract owes its
- * fields one last read on the way out — `NewRoomInspector.onBeforeUnmount`.
- *
- * Driven through the REAL constrained shell rather than by unmounting the component directly,
- * because the thing that decides these three outcomes is not in this component: it is whether
- * `ResponsiveEditorShell` moves focus BEFORE or AFTER Vue patches the drawer away, and a
- * fixture that called `unmount()` itself would model one of those two orders by accident and
- * certify whichever it happened to pick.
- */
-/**
  * Opens the drawer on a constrained pane with the room tool live, types into Width and
  * leaves it focused and UNBLURRED — the state every case here is about.
  */
@@ -366,31 +355,27 @@ async function typingIntoWidth(): Promise<{ harness: Awaited<ReturnType<typeof m
 	return { harness, runtime };
 }
 
-describe('NewRoomInspector, unmounted with a field still being typed into', () => {
-	/**
-	 * The reported defect. `measure` must defer its focus move to `nextTick` — the persistent
-	 * region it targets does not exist until the `full` branch renders — so by the time focus
-	 * lands the input is already gone and no blur ever fired. Watched red before the fix, at
-	 * this assertion, reading `''`.
-	 */
-	it('keeps the typed width when a growth back to the full layout unmounts the drawer', async () => {
+describe('NewRoomInspector with a pending native edit', () => {
+	it('keeps the pending native width and focus when growth turns the drawer into a column', async () => {
 		const { harness, runtime } = await typingIntoWidth();
+		const input = harness.wrapper.get('input[name="width"]').element as HTMLInputElement;
 		resizeTo(harness.rootEl, 1280, 800);
 		await settle();
 		expect(harness.wrapper.find('.rp-inspector-drawer').exists()).toBe(false);
-		expect(runtime.roomDraft.widthText).toBe('4.2');
-		expect(runtime.roomDraft.widthMm).toBe(4200);
+		expect(harness.wrapper.get('input[name="width"]').element).toBe(input);
+		expect(document.activeElement).toBe(input);
+		expect(input.value).toBe('4.2');
+		expect(runtime.roomDraft.widthText).toBe('');
+		expect(runtime.roomDraft.widthMm).toBeNull();
 		harness.unmount();
 	});
 
 	/**
-	 * The other unmount route, which was already safe and is asserted so it stays that way:
+	 * Closing remains a blur/commit route, unlike resizing:
 	 * `closeOverlay` focuses the rail button SYNCHRONOUSLY, so the input is still in the
-	 * document and fires a real blur. The unmount commit's dirty guard is what keeps this from
-	 * being written twice — `commitDimension` stores the raw text, so the second read finds it
-	 * unchanged and returns.
+	 * document and fires a real blur before it is hidden.
 	 */
-	it('keeps the typed width when Escape on the drawer unmounts it', async () => {
+	it('commits the typed width when Escape closes the drawer', async () => {
 		const { harness, runtime } = await typingIntoWidth();
 		harness.wrapper.find('input[name="width"]').element
 			.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));

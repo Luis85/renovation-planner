@@ -1,34 +1,10 @@
 <script setup lang="ts">
 /**
- * The editor's layout (design spec §5.4): six named slots arranged three ways, decided by the
- * width of this component's own root and nothing else.
- *
- * It owns the `ResizeObserver` and writes `WorkspaceStore.layoutMode`; it owns nothing else.
- * Everything it arranges is a SLOT rather than an import, so `PlanEditorRoot` keeps deciding
- * what a region contains — which plan the canvas draws, which failure replaces it — and this
- * component keeps deciding only where those regions go.
- *
- * **The canvas slot is rendered ONCE, outside the mode branches, and that is the whole design
- * rather than a tidiness.** A `<slot name="canvas" />` inside a `full` branch and a second one
- * inside a `constrained` branch are two different positions in the render tree: Vue tears the
- * first down and mounts the second on the switch, so a user dragging a split narrower would
- * lose the camera, the Konva stage and the in-flight gesture and get an identical-looking
- * canvas back. One outlet under one `v-if` is patched in place instead, which makes "viewport
- * and selection survive a layout change" true by construction rather than by a watcher that
- * restores them. The PANEL and INSPECTOR slots really are rendered twice — column and overlay —
- * and may remount, because neither holds anything a remount would lose.
- *
- * **Every branch is its own `v-if` rather than a `v-if`/`v-else` chain**, so Vue keeps a
- * comment placeholder for each inactive one and the children of `.rp-editor-body` stay in the
- * same positions across a mode change. That is what lets the canvas outlet be patched rather
- * than re-created when the panels around it appear and disappear.
- *
- * **The mode is measured in `onMounted` as well as on every observer callback** — one function,
- * two callers. The real `ResizeObserver` reports once on `observe()`, so the second measurement
- * would be enough in a browser; the first is what makes the mode a fact about a REAL width in
- * hosts that do not, rather than about the 0 an unlaid-out element reports.
+ * One mounted outlet per region. Columns become modeless overlays through CSS, without
+ * replacing native controls or committing their pending text through an incidental blur.
+ * The canvas alone unmounts below the supported width, releasing its pointer gesture.
  */
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { layoutModeFor, type LayoutMode } from './layoutMode';
@@ -37,83 +13,65 @@ import OverlayPanel from './OverlayPanel.vue';
 import PanelRail from './PanelRail.vue';
 import UnsupportedWidthNotice from './UnsupportedWidthNotice.vue';
 
+type Region = 'layers' | 'inspector';
+const RAIL_BUTTON: Record<Region, string> = { layers: 'layers', inspector: 'details' };
 const workspace = useWorkspaceStore();
 const { layoutMode, overlay } = storeToRefs(workspace);
-
 const root = ref<HTMLElement | null>(null);
-/**
- * Definitely assigned in `onMounted`, which Vue runs before `onBeforeUnmount` for any component
- * that ever mounted — the house spelling for a local a lifecycle hook fills in, rather than a
- * `null` that every later read has to narrow past.
- */
 let observer!: ResizeObserver;
+let measurement = 0;
 
-/**
- * Which persistent region inherits focus when a GROWTH closes an overlay (R10), or `null` when
- * this measurement closes nothing — which is every ordinary resize.
- *
- * Asked BEFORE `setLayoutMode`, because that call clears `overlay` in the same statement, so
- * afterwards there is nothing left to say which of the two the user was operating.
- *
- * The target is the persistent ASIDE the overlay stood in for, and not its first control: the
- * aside is what the overlay was standing in for, while a control is a guess about which one
- * mattered. `closeOverlay` cannot serve here either — the rail button it focuses is removed by
- * this very transition, which is how a keyboard user used to land on `<body>`.
- */
-function regionInheritingFocus(next: LayoutMode): 'layers' | 'inspector' | null {
-	if (layoutMode.value !== 'constrained' || next !== 'full' || overlay.value === 'none') return null;
-	return overlay.value;
+function focusedRegion(active: Element): Region | null {
+	const container = active.closest<HTMLElement>('[data-rp-shell-region]');
+	if (container) return container.dataset.rpShellRegion as Region;
+	const rail = active.getAttribute('data-rp-rail');
+	if (rail === 'layers') return 'layers';
+	return rail === 'details' ? 'inspector' : null;
 }
 
-/**
- * `root` is cast rather than optional-chained at both call sites: it names this component's own
- * outermost element, which is bound before `onMounted` runs and stays bound for as long as the
- * observer can fire, so a null branch here would be one nothing could ever take.
- *
- * The focus move waits for `nextTick` because the region it targets does not exist yet: the
- * persistent panels are what the `full` branch renders, and Vue's re-render is asynchronous, so
- * at the moment `setLayoutMode` returns the DOM still holds the overlay this call just closed.
- *
- * `(aside as HTMLElement).focus()` has no null arm because `PlanEditorRoot` fills both the
- * `panel` and `inspector` slots unconditionally, so the region exists once `full` renders. A
- * standalone mount of this shell with an empty slot, resized out of `constrained` with that
- * overlay open, is the one shape that would throw — and no such caller exists (R10 refuses an
- * unreachable guard).
- */
+/** A surviving input keeps focus. Only disappearing chrome needs a replacement target. */
+function restoreFocus(active: Element, region: Region | null, next: LayoutMode, version: number): void {
+	if (!root.value || measurement !== version) return;
+	const current = root.value.ownerDocument.activeElement;
+	if (current !== active && current !== root.value.ownerDocument.body) return;
+	const selector = next === 'unsupported' ? '.rp-unsupported-width__action' : region === null
+		? '.rp-plan-canvas' : `[data-rp-region="${region}"]`;
+	const target = root.value.querySelector<HTMLElement>(selector);
+	if (target && !target.contains(active)) target.focus();
+}
+
 function measure(): void {
-	const next = layoutModeFor((root.value as HTMLElement).clientWidth);
-	const region = regionInheritingFocus(next);
+	const element = root.value as HTMLElement;
+	const next = layoutModeFor(element.clientWidth);
+	if (next === layoutMode.value) return;
+	const active = element.ownerDocument.activeElement as Element;
+	const inside = element.querySelector('.rp-editor-body')?.contains(active);
+	const region = inside ? focusedRegion(active) : null;
+	const version = ++measurement;
 	workspace.setLayoutMode(next);
-	if (region === null) return;
-	void nextTick(() => {
-		const aside = (root.value as HTMLElement).querySelector(`[data-rp-region="${region}"]`);
-		(aside as HTMLElement).focus();
-	});
+	// Reveal before Vue patches visibility, so the focused field is never hidden on shrink.
+	if (next === 'constrained' && region !== null) workspace.openOverlay(region);
+	if (inside) void nextTick(() => restoreFocus(active, region, next, version));
 }
 
-/**
- * Which rail button each overlay belongs to. A TABLE rather than a conditional, because the two
- * vocabularies differ on purpose — the rail says `details` where the store says `inspector` —
- * and one mapping written down is what keeps the focus return from being a second opinion about
- * that.
- */
-const RAIL_BUTTON: Record<'layers' | 'inspector', string> = { layers: 'layers', inspector: 'details' };
+/** Explicit rail/task opening takes focus unless the region already owns the keyboard. */
+watch([layoutMode, overlay], () => {
+	if (layoutMode.value !== 'constrained' || overlay.value === 'none') return;
+	const container = (root.value as HTMLElement).querySelector<HTMLElement>(`[data-rp-shell-region="${overlay.value}"]`) as HTMLElement;
+	if (!container.contains(container.ownerDocument.activeElement)) container.focus();
+}, { flush: 'post' });
 
-/**
- * Close the overlay and put focus back on the button that opened it (§5.5).
- *
- * The button is queried rather than remembered, and it is always there: this function is bound
- * only to the overlay's and the drawer's own `close` events, which can only be emitted while
- * one of them is rendered — which happens only in `constrained`, which is exactly when the rail
- * is rendered too. Vue's re-render is asynchronous, so the rail is still in the DOM at the
- * moment this runs even though the store has already been told the overlay is closed. Both
- * casts state that guarantee the way `AddMenu.focusEntry`'s does, instead of a `?.` whose other
- * arm no test could reach.
- */
-function closeOverlay(kind: 'layers' | 'inspector'): void {
+function closeOverlay(kind: Region): void {
 	workspace.closeOverlay();
-	const button = (root.value as HTMLElement).querySelector(`[data-rp-rail="${RAIL_BUTTON[kind]}"]`);
-	(button as HTMLElement).focus();
+	const button = (root.value as HTMLElement).querySelector<HTMLElement>(`[data-rp-rail="${RAIL_BUTTON[kind]}"]`) as HTMLElement;
+	// Synchronous focus return delivers blur before the region is hidden.
+	button.focus();
+}
+
+function escapeOverlay(event: KeyboardEvent, kind: Region): void {
+	if (layoutMode.value !== 'constrained') return;
+	event.stopPropagation();
+	closeOverlay(kind);
 }
 
 onMounted(() => {
@@ -121,10 +79,6 @@ onMounted(() => {
 	observer = new ResizeObserver(measure);
 	observer.observe(root.value as HTMLElement);
 });
-
-// A leaf can be closed with the editor mounted, and an observer outlives the element it
-// watches: without this, every closed Plan Editor leaves one behind holding this component's
-// whole closure.
 onBeforeUnmount(() => observer.disconnect());
 </script>
 
@@ -136,28 +90,26 @@ onBeforeUnmount(() => observer.disconnect());
 	>
 		<slot name="context-bar" />
 		<div class="rp-editor-body">
-			<slot
-				v-if="layoutMode === 'full'"
-				name="panel"
-			/>
+			<OverlayPanel
+				v-show="layoutMode === 'full' || (layoutMode === 'constrained' && overlay === 'layers')"
+				:floating="layoutMode === 'constrained' && overlay === 'layers'"
+				data-rp-shell-region="layers"
+				@close="closeOverlay('layers')"
+				@keydown.esc="escapeOverlay($event, 'layers')"
+			>
+				<slot name="panel" />
+			</OverlayPanel>
 			<PanelRail v-if="layoutMode === 'constrained'" />
 			<slot
 				v-if="layoutMode !== 'unsupported'"
 				name="canvas"
 			/>
-			<slot
-				v-if="layoutMode === 'full'"
-				name="inspector"
-			/>
-			<OverlayPanel
-				v-if="layoutMode === 'constrained' && overlay === 'layers'"
-				@close="closeOverlay('layers')"
-			>
-				<slot name="panel" />
-			</OverlayPanel>
 			<InspectorDrawer
-				v-if="layoutMode === 'constrained' && overlay === 'inspector'"
+				v-show="layoutMode === 'full' || (layoutMode === 'constrained' && overlay === 'inspector')"
+				:floating="layoutMode === 'constrained' && overlay === 'inspector'"
+				data-rp-shell-region="inspector"
 				@close="closeOverlay('inspector')"
+				@keydown.esc="escapeOverlay($event, 'inspector')"
 			>
 				<slot name="inspector" />
 			</InspectorDrawer>

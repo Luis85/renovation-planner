@@ -64,17 +64,22 @@
 
 /*
  * Both containers cover one edge of `.rp-editor-body` — its `position: relative` in
- * `editor.css` is what they resolve against — and neither needs a `z-index`: they are
- * positioned siblings declared AFTER the canvas, which is what puts them above it.
+ * `editor.css` is what they resolve against. The Layers outlet precedes the canvas so its
+ * column keeps the reading order; an explicit stacking level puts the floating panel above it.
  *
  * `min(17rem, 80%)` is the persistent Inspector's own 17rem, bounded so that the canvas behind
  * stays visible at the narrow end of `constrained` — the panel is a look at something, and one
  * covering the whole pane would be a screen rather than an overlay.
  */
+.rp-persistent-panel {
+	display: contents;
+}
+
 .rp-overlay-panel,
 .rp-inspector-drawer {
 	display: flex;
 	position: absolute;
+	z-index: 1;
 	flex-direction: column;
 	width: min(17rem, 80%);
 	min-height: 0;
@@ -132,7 +137,7 @@
 }
 
 /*
- * The container itself takes focus on mount so that Escape is heard immediately, which makes it
+ * Explicit opening focuses the container so that Escape is heard immediately, which makes it
  * a focus target with no visible ring of its own — `tabindex="-1"` never enters the Tab order,
  * so this ring appears only for that programmatic focus and says where the keyboard is.
  */

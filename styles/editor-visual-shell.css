@@ -46,11 +46,11 @@
 	outline-offset: 1px;
 }
 
-.renovation-plan-editor .rp-editor-body > .rp-editor-layers {
+.renovation-plan-editor .rp-persistent-panel > .rp-editor-layers {
 	width: clamp(12rem, 17cqw, 16rem);
 }
 
-.renovation-plan-editor .rp-editor-body > .rp-editor-inspector {
+.renovation-plan-editor .rp-persistent-panel > .rp-editor-inspector {
 	width: clamp(19rem, 25cqw, 23rem);
 }
 

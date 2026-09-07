@@ -2,7 +2,8 @@
 /**
  * Task 19's responsive shell (design spec §5.4/§5.5): `ResponsiveEditorShell.vue` reads its own
  * root width through a `ResizeObserver`, writes `WorkspaceStore.layoutMode`, and rearranges the
- * regions around ONE `PlanCanvas` instance that is never remounted.
+ * regions around one canvas instance across full/constrained transitions. Panel outlets also
+ * stay mounted; closing a constrained region hides its controls from display and Tab order.
  *
  * Every case here drives the REAL mounted editor and resizes the REAL shell root
  * (`harness.rootEl`), because the thing under test is what the observer does with a width — a
@@ -73,8 +74,8 @@ describe('the responsive shell', () => {
 		await settle();
 
 		expect(harness.rootEl.dataset.layout).toBe('constrained');
-		expect(harness.wrapper.find('.rp-editor-layers').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-editor-inspector').exists()).toBe(false);
+		expect(harness.wrapper.find('.rp-editor-layers').isVisible()).toBe(false);
+		expect(harness.wrapper.find('.rp-editor-inspector').isVisible()).toBe(false);
 		expect(harness.wrapper.find('.rp-panel-rail').exists()).toBe(true);
 		// The SAME node, not merely another canvas: a second `<slot name="canvas">` site under
 		// its own `v-if` would draw an identical picture over a remounted stage, losing the
@@ -416,14 +417,14 @@ describe('the responsive shell', () => {
 	 * transition watcher and its `role="status"` region moved out of `EntityInspector` into
 	 * `SelectionGuidance.vue`, mounted by `PlanEditorRoot` at shell level so it stays mounted
 	 * in every layout mode — including `constrained` with the drawer closed, where
-	 * `EntityInspector` itself is unmounted and therefore has nothing to observe the clear.
+	 * the Inspector is hidden and therefore cannot provide a visible announcement.
 	 */
 	it('announces the return to the floor once even while the constrained drawer is closed, and not again on a refresh', async () => {
 		const harness = await mountPlanEditorCanvas();
 		open = harness;
 		resizeTo(harness.rootEl, 460, 800);
 		await settle();
-		expect(harness.wrapper.find('.rp-inspector-drawer').exists()).toBe(false); // the Inspector is unmounted here
+		expect(harness.wrapper.find('.rp-editor-inspector').isVisible()).toBe(false); // mounted, but hidden
 		useSelectionStore().select(['zone-kitchen' as never]);
 		await settle();
 

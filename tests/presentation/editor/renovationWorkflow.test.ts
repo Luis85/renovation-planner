@@ -52,7 +52,7 @@ describe('connected Room renovation inspector', () => {
 		expect(rig.wrapper.find('[data-rp-action="add"]').exists()).toBe(false);
 		expect(rig.wrapper.get('.rp-renovation-inspector').text()).toContain('Which oil?');
 		expect(rig.wrapper.get('.rp-review-findings button').attributes('aria-label')).toContain('Which oil?');
-		expect(rig.wrapper.get(`[data-rp-review-room="${rig.room.id}"]`).text()).toContain('1 items need attention');
+		expect(rig.wrapper.get(`[data-rp-review-room="${rig.room.id}"]`).text()).toContain('Items needing attention: 1');
 		expect(rig.wrapper.get('.rp-review-summary .rp-transformation-summary').text()).toContain('Worn oak boards');
 		expect(rig.wrapper.get('.rp-review-summary .rp-transformation-summary').text()).toContain('Repair and oil boards');
 		expect(rig.wrapper.get('.rp-review-summary .rp-transformation-summary').text()).toContain('0/1 complete');

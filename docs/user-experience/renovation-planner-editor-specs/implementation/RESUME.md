@@ -10,6 +10,12 @@ Der gesamte Ablauf Project → Floor → Room/Area/Wall/Opening → Existing →
 
 Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument aktuell halten und sinnvolle Parallelisierung koordinieren. Klar gekennzeichneter WIP darf gesichert werden. Keine PR mergen, Releases veröffentlichen, Tasks schließen oder fremde Worktrees löschen. Keine Assertions, Grenzen, Timeouts oder Ausschlüsse für einen Pass abschwächen. Alte Stashes wurden bereits angewandt: nicht erneut anwenden oder poppen.
 
+## Aktueller Freeze für den vollständigen Abschlusslauf
+
+Root integriert acac7270ea252f04590dc2bd176c0ce1788f2b72 (Produktion1fee1286): grammatisch neutrale EN/DE-Counttexte, sinnvolle sichtbare Auswahlhilfe nur bei Rooms und idle Select, sowie verifizierter M13Downstream-Pilot. Native21Copy- und6Guide-Prüfungen, Types/Ox/scopedESLint bestanden. M13lief in allen4Szenarien mit unveränderten ursprünglichen Schedule/Quote-Abläufen; Root prüfte66archivierte Dateien und das Dark-Kostenbild. Keine weitere UI-Produktänderung geplant.
+
+Nach diesem Commit/Push erhält UI sofort den Source-SHA für den vollständigen9/18-Lauf mit den abgesicherten Frische-/Archivregeln. Source/HEAD währenddessen einfrieren. Root hat keinen Heavyprozess; Coverage bleibt bei read-only Priorisierung. Aktuelle Linux24-Vollmessung auf dem Vorgängera441:8128TestsPASS,69Skip, B12559/12824=97,93%,9ArmeRest. Neue gemeinsam eingefrorene Produktion benötigt ihre eigene Gesamtmessung und den finalen Host-Build.
+
 ## Neuester Integrationscheckpoint
 
 UI9f7e882d is integrated as Root6569a9e7: M01/M04, verified overview images and hardened no-deletion capture provenance. This checkpoint includes Coverage256a9384 with five verified Quote/catalogue/geometry cases. Root checked98UI artifact hashes and6branch/2statement gains against identical original07source/maps. [Joined evidence](joined-overview-snapshot-evidence.md). This production is newer than the measured07baseline below.

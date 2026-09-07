@@ -40,14 +40,22 @@ it('shows actual per-Room change cues and preserves partial/stale summary behavi
 	expect(floor.get('[data-rp-stat="rooms"]').classes()).toContain('rp-floor-inspector__stat--partial');
 	expect(floor.get(`[data-rp-id="${rooms[0].id}"] .rp-room-list__annotation`).text()).toBe(tr('editor.selection.unknown'));
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
+	rig.project.unreadableZones = 0;
+	rig.runtime.setTool('draw-wall'); await settleUntil(() => !rig.runtime.structureTask.draft.loading, 'wall baseline');
+	expect(floor.find('.rp-floor-inspector__guidance').exists()).toBe(false);
+	rig.runtime.returnToSelect(); await settle();
+	expect(floor.find('.rp-floor-inspector__guidance').exists()).toBe(true);
 });
 
 it('keeps the closed wall draft visibly distinct, screen-sized and uncommitted until Finish', async () => {
 	document.documentElement.style.setProperty('--interactive-accent', 'rgb(41, 84, 220)');
 	const rig = await structureEditor(); cleanups.push(rig.unmount);
 	const task = rig.runtime.structureTask, stage = expectDefined(rig.stage, 'stage');
+	expect(rig.wrapper.find('.rp-floor-inspector__guidance').exists()).toBe(false);
+	expect(rig.wrapper.get('.rp-floor-inspector .rp-editor-inspector-empty').text()).toBe(tr('editor.inspector.floor.no-rooms'));
 	const bytes = [...rig.stack.vault.entries];
 	rig.runtime.setTool('draw-wall'); await settleUntil(() => !task.draft.loading, 'wall baseline');
+	expect(rig.wrapper.find('.rp-floor-inspector__guidance').exists()).toBe(false);
 	expect(task.addNumeric()).toBe(true);
 	for (const [length, angle] of [['4', '0'], ['3', '90'], ['4', '180']]) {
 		task.draft.text.length = length; task.draft.text.angle = angle; expect(task.addNumeric()).toBe(true);

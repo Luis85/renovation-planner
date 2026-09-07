@@ -9,3 +9,7 @@ The no-deletion capture flow records actual successful screenshot paths and vali
 Coverage's five real Quote/catalogue and material/geometry interleavings passed native5/5(45.01s),Types/Ox/scopedESLint/static. Conditional expectations were moved outside forwarding spies, preserving the invariants. The scoped repeat passed5/5(14.37s); Root independently verified6new branch hits and2statement hits against original07data, identical source blobs and exact descriptors. No full aggregate pass is inferred. See [counter receipt](evidence/repository-snapshot-counter-gains.json).
 
 Remaining: small count-copy/idle-guidance corrections, M13downstream pilot, final combined9/18/newCI/Health/coverage closure and nativeH1–H6. UI owns the current verification slot. The last full07measurement had14missing arms before this six-hit packet and the new UI source.
+
+## Final bounded UI follow-up
+
+UIacac7270 (production1fee1286) is integrated after native21copy/6guide checks plus types/lint and the4-scenario downstream--design pilot. Count wording is neutral across zero/one/many without changing count logic; the visible Room-selection hint appears only with Rooms in idle Select. Root checked66downstream artifact hashes and inspected the Dark cost view, including aggregate/group/Add visibility. The shared source is now ready for its complete9/18rerun. Coverage and nativeH1–H6 remain open.

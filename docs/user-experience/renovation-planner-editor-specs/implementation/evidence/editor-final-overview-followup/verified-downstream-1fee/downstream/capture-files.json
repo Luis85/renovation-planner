@@ -1,0 +1,398 @@
+{
+  "source": "1fee128681663f4300f55b8302a044ecdc81e53e",
+  "started": 1788819856207,
+  "completed": 1788819899114,
+  "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
+  "files": [
+    {
+      "name": "light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788819866000,
+      "sha256": "1341fe01e562bc2d5270d20446c8ed61fc8cc53ff2e05ceb3b643e873da8af86"
+    },
+    {
+      "name": "light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788819866000,
+      "sha256": "c966b6289158c498dba62080ba9291cb583cb8b298df4d33394dc1338dd81feb"
+    },
+    {
+      "name": "light-schedule-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788819866000,
+      "sha256": "872b82eb10332b0cb756dbf121c72e1bee0d9eb9e31fc5599ca56a2e85970ef7"
+    },
+    {
+      "name": "light-project-schedule.png",
+      "kind": "image",
+      "modifiedAt": 1788819868000,
+      "sha256": "62f7f60b0002ad9c2e1f12288487ebbc1b9e156729695c8550fd8edbd33c46fb"
+    },
+    {
+      "name": "light-room-work.png",
+      "kind": "image",
+      "modifiedAt": 1788819868000,
+      "sha256": "93c928ae55abac53fa1489c20e55c932301d69721b2b91fa23cc5b4fde0c30f4"
+    },
+    {
+      "name": "light-room-costs.png",
+      "kind": "image",
+      "modifiedAt": 1788819870000,
+      "sha256": "adbe7e362f0cff52476b89eb7c17bd7c97bb07d87eb9b2b3d7df65dc707e568a"
+    },
+    {
+      "name": "light-room-costs-design.png",
+      "kind": "image",
+      "modifiedAt": 1788819870000,
+      "sha256": "36c7d9e63183d4a5a09ef689780382e33cafd42c03030868a5d4c53dbf4f12c2"
+    },
+    {
+      "name": "light-quote-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788819872000,
+      "sha256": "872c8a45b5be4cee2ecd3453f083a0ce1a97f2582aeac06aad5a10181c9fefb7"
+    },
+    {
+      "name": "light-quote-comparison.png",
+      "kind": "image",
+      "modifiedAt": 1788819872000,
+      "sha256": "30ba5c9193c37bd79fe8f89c426ad2b00e167b9d956a26b6ada09c95049952c0"
+    },
+    {
+      "name": "dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788819878000,
+      "sha256": "cb8d5d8db0b67860b6fd57304868429a300ddd7ef1674e14080d5f748801a5c6"
+    },
+    {
+      "name": "dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788819878000,
+      "sha256": "4666b2c2cef8190c8d8374d0e8baba4dfc84cedfa5f4240f6c4c13443c162711"
+    },
+    {
+      "name": "dark-schedule-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788819878000,
+      "sha256": "cdef98ac29fb0c69fd9f2326857b04bd10be7d38912e53ac203b749ab8006b20"
+    },
+    {
+      "name": "dark-project-schedule.png",
+      "kind": "image",
+      "modifiedAt": 1788819878000,
+      "sha256": "148c6dec96b46bff9843cb355bea2414889c0a843190ac5cb6359a1a05793d26"
+    },
+    {
+      "name": "dark-room-work.png",
+      "kind": "image",
+      "modifiedAt": 1788819880000,
+      "sha256": "707eed4067179108c50544c9bf8405546e252d987bbb51f0afa6ac1da9605be1"
+    },
+    {
+      "name": "dark-room-costs.png",
+      "kind": "image",
+      "modifiedAt": 1788819880000,
+      "sha256": "215bb1aaf13db554d15cc03a107aa6b76d10190a1fbc8e612338defb079d31fd"
+    },
+    {
+      "name": "dark-room-costs-design.png",
+      "kind": "image",
+      "modifiedAt": 1788819880000,
+      "sha256": "210fe4daa6e80ba194f1b270f6abe3b1519d6459ced7db4ab84ec9dc7b1eb6b9"
+    },
+    {
+      "name": "dark-quote-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788819882000,
+      "sha256": "6c7dcc3f7086c969b902329bdab1d4e0aad62dfd458b7a89bf3424b997570297"
+    },
+    {
+      "name": "dark-quote-comparison.png",
+      "kind": "image",
+      "modifiedAt": 1788819882000,
+      "sha256": "18d617d098e83ef37bc1782d6bc2df195f4428fce9338f6452fda100267e5b89"
+    },
+    {
+      "name": "custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788819886000,
+      "sha256": "bcc9df8c3ec75866d85633cae97fc9cf6c519ed1eb65f3524dcc6522929371ad"
+    },
+    {
+      "name": "custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788819886000,
+      "sha256": "2a1effef1ac1b5b231c06f6837c97b4b0b10eb33de23d08c0c9694ed1db9e803"
+    },
+    {
+      "name": "custom-accent-schedule-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788819888000,
+      "sha256": "27efdf0dfec20b8e11d49e122b0fd5930e3e02f0b3d4c2992c3655aabb8c8443"
+    },
+    {
+      "name": "custom-accent-project-schedule.png",
+      "kind": "image",
+      "modifiedAt": 1788819888000,
+      "sha256": "de41be39f307766f09c82b792841f63894b8acf0279f6f3f187005a51b145b57"
+    },
+    {
+      "name": "custom-accent-room-work.png",
+      "kind": "image",
+      "modifiedAt": 1788819888000,
+      "sha256": "43e76fa34053e31d37aab3148438139cf053c9e2fde913d1a7e275753f0fc704"
+    },
+    {
+      "name": "custom-accent-room-costs.png",
+      "kind": "image",
+      "modifiedAt": 1788819890000,
+      "sha256": "c50539be8cd9ec7769e5984dfabc821cc748d576029031e7d692d44f55ea9d1e"
+    },
+    {
+      "name": "custom-accent-room-costs-design.png",
+      "kind": "image",
+      "modifiedAt": 1788819890000,
+      "sha256": "479bf271e11ed7e33ffcd90b544ea543e6bd1205eb43c1f7a3abe6f7faaa29c8"
+    },
+    {
+      "name": "custom-accent-quote-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788819890000,
+      "sha256": "529a95f307f6355d1dfccaf0494a7b6474f046a75f6438d2b4830e85fb772993"
+    },
+    {
+      "name": "custom-accent-quote-comparison.png",
+      "kind": "image",
+      "modifiedAt": 1788819892000,
+      "sha256": "50889c13db90d038e77b74c7f101b0d9ce454e29fe698cf4e9dc2b5942b5f569"
+    },
+    {
+      "name": "german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788819896000,
+      "sha256": "c301d5adf930aa3d9fc3333a9ee3839000bcdb8e06840dff53d19dc140c1fc26"
+    },
+    {
+      "name": "german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788819896000,
+      "sha256": "1bc7d287b433032a5288193bcc88024b164aaf45e74f8673f8cfe9aa73e8fc89"
+    },
+    {
+      "name": "german-constrained-schedule-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788819896000,
+      "sha256": "a728ee7665e5da13533fa4177411ae0b7f09296d964df920fdbd342566b4e716"
+    },
+    {
+      "name": "german-constrained-project-schedule.png",
+      "kind": "image",
+      "modifiedAt": 1788819896000,
+      "sha256": "380497b381546126a16077660e790352046ba9faa8743b0944f0891c65feb204"
+    },
+    {
+      "name": "german-constrained-room-work.png",
+      "kind": "image",
+      "modifiedAt": 1788819898000,
+      "sha256": "32ffc09cc63087843ee410ad911fc64e6d8b4b53ce0e5ea3622c6e7148c90182"
+    },
+    {
+      "name": "german-constrained-room-costs.png",
+      "kind": "image",
+      "modifiedAt": 1788819898000,
+      "sha256": "31f4788bddc3c916265e9e66467c4907c0c9568cc83a0468c1cf7945cfae7d51"
+    },
+    {
+      "name": "german-constrained-room-costs-design.png",
+      "kind": "image",
+      "modifiedAt": 1788819898000,
+      "sha256": "f26c9db2d36a5d1855bb9fd4cf887d13b65ed48234f8d05ecd22158025ef5ee0"
+    },
+    {
+      "name": "german-constrained-quote-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788819898000,
+      "sha256": "4ad556cd055922a5a6172739004b267f2a44747cfe4dfa527316991469adc0ef"
+    },
+    {
+      "name": "german-constrained-quote-comparison.png",
+      "kind": "image",
+      "modifiedAt": 1788819900000,
+      "sha256": "9fc4c6b4ad5ef3c10c6e15209969eeed54f5c8e9e32526b768cb25267523eab6"
+    },
+    {
+      "name": "light-schedule-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819868000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "light-project-schedule-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819868000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "light-room-work-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819870000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "light-room-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819870000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "light-quote-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819872000,
+      "sha256": "52d5e021a1054f64f0501527196ad26bdfd4d2a5909657e6721935f5f9efffa2"
+    },
+    {
+      "name": "light-quote-comparison-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819872000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "dark-schedule-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819878000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "dark-project-schedule-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819880000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "dark-room-work-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819880000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "dark-room-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819880000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "dark-quote-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819882000,
+      "sha256": "52d5e021a1054f64f0501527196ad26bdfd4d2a5909657e6721935f5f9efffa2"
+    },
+    {
+      "name": "dark-quote-comparison-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819882000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "custom-accent-schedule-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819888000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "custom-accent-project-schedule-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819888000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "custom-accent-room-work-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819888000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "custom-accent-room-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819890000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "custom-accent-quote-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819890000,
+      "sha256": "52d5e021a1054f64f0501527196ad26bdfd4d2a5909657e6721935f5f9efffa2"
+    },
+    {
+      "name": "custom-accent-quote-comparison-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819892000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "german-constrained-schedule-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819896000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "german-constrained-project-schedule-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819896000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "german-constrained-room-work-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819898000,
+      "sha256": "8405973fa4ee27a6368f82268620c25118cb950a407348ccefac137615fc8972"
+    },
+    {
+      "name": "german-constrained-room-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819898000,
+      "sha256": "8405973fa4ee27a6368f82268620c25118cb950a407348ccefac137615fc8972"
+    },
+    {
+      "name": "german-constrained-quote-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819900000,
+      "sha256": "b00533729f13958b59f112668b908eaa4afad7bfbebe27b3a55459a8814f2ac6"
+    },
+    {
+      "name": "german-constrained-quote-comparison-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788819900000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "report.json",
+      "kind": "data",
+      "modifiedAt": 1788819900000,
+      "sha256": "9f2c50485a939d9b9e11ae7220aaf974dc6705d0db80d0f4d1c42db68bb8958c"
+    },
+    {
+      "name": "light-room-costs-design.json",
+      "kind": "data",
+      "modifiedAt": 1788819870000,
+      "sha256": "0dcf089b7c0ac6201ee72f78d8b77e02ee36e09d9d4be93ac17874a8c0edf0ca"
+    },
+    {
+      "name": "dark-room-costs-design.json",
+      "kind": "data",
+      "modifiedAt": 1788819880000,
+      "sha256": "1ebb10b9f467053a57670d91286025b720007b5b3365a70cc5ac83944c34c782"
+    },
+    {
+      "name": "custom-accent-room-costs-design.json",
+      "kind": "data",
+      "modifiedAt": 1788819890000,
+      "sha256": "03efec3a61830754803d2bb5f4c06fb891929d9eda9dfaaf4c805a40ce10f970"
+    },
+    {
+      "name": "german-constrained-room-costs-design.json",
+      "kind": "data",
+      "modifiedAt": 1788819898000,
+      "sha256": "f1be0da03713c140e37d761a365f71fb6f14f169ccef8ae69474ca44f898febb"
+    }
+  ]
+}

@@ -37,7 +37,7 @@ async function assertIssues(page, roomId, questions, german) {
 	assert.equal(await page.locator('.rp-review-rooms [data-rp-review-room]').count(), 4);
 	assert.equal(await page.locator(selectedReviewRoom).getAttribute('data-rp-review-room'), roomId);
 	assert.equal(await page.locator(`${selectedReviewRoom} .rp-review-room__status`).innerText(),
-		german ? '2 Punkte benötigen Aufmerksamkeit' : '2 items need attention');
+		german ? 'Punkte mit Handlungsbedarf: 2' : 'Items needing attention: 2');
 	assert.deepEqual((await page.locator(`${issueRows} [data-rp-review-cause]`).allTextContents()).map(text => text.trim()).toSorted(), questions.toSorted());
 	const allClear = german ? 'Im geprüften Umfang wurden keine Lücken gefunden.' : 'No gaps found within this review scope.';
 	assert.equal((await page.locator('.rp-review-inspector').innerText()).includes(allClear), false);

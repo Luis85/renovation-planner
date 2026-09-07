@@ -844,3 +844,8 @@ findings and subsequent generated-note/evidence recovery defects. The exact auto
 scope is recorded in [recovery evidence](planning-recovery-evidence.md) and its
 [coverage ledger](planning-recovery-coverage.md). This is a bounded Phase 12 slice; it does not
 close global M00–M17 acceptance, live assistive technology or release readiness.
+
+The persistent-shell follow-up corrects visible focus return from Room naming, dimensions,
+outline and Area details dialogs after reflow hides their mounted opener. Native-control,
+draft and focus evidence is tracked in [persistent shell evidence](persistent-shell-evidence.md#modal-focus-follow-up);
+its focused verification does not replace the final combined gate.

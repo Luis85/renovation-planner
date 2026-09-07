@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 /** Measure native content after interaction; do not reset scroll or focus for a screenshot. */
 export async function inspectorVisibility(page, selectors, constrained) {
-	const inspector = await page.locator('[data-rp-shell-region="inspector"]').boundingBox();
+	const inspector = await page.locator('[data-rp-region="inspector"]').boundingBox();
 	assert.ok(inspector, 'Inspector is displayed');
 	const boxes = {};
 	for (const selector of selectors) {

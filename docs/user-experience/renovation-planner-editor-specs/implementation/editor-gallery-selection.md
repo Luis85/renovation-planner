@@ -34,3 +34,11 @@ The original four screenshots, runner report/log and hashes are retained in
 
 Only script syntax and source/diff checks have run on this correction. Types/lint and the
 corrected native/browser state must be checked after Root's semantic checkpoint is integrated.
+
+After integrating Root `f3067d82` as `03057f63`, current types, whole Oxlint and scoped source
+ESLint passed. The first strengthened recapture passed the post-selection/resize phase and six-
+identity assertions. Its actual Light image shows six photos/pins and the caption inside Kitchen.
+It stopped because the visibility probe measured the `display: contents` shell wrapper, which
+has no bounding box. The probe now measures the real Inspector aside. Pixel inspection also
+showed the selected Work metadata cut at the bottom, so the thumbnail cap was reduced from
+88 to 80 pixels, retaining all card text/actions. The next recapture must validate both changes.

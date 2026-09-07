@@ -1,0 +1,73 @@
+{
+  "source": "dba43e5fc1d3301b5884e6c386e4722d38f831e4",
+  "quietSession": 67702,
+  "profileSession": 73590,
+  "exitCodes": [
+    0,
+    0
+  ],
+  "browser": "Edge 152.0.4191.62",
+  "driverChanges": [
+    "worktree import paths",
+    "output paths",
+    "profile source metadata"
+  ],
+  "files": [
+    {
+      "file": ".gitattributes",
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da"
+    },
+    {
+      "file": "cpu-comparison.json",
+      "sha256": "00175919302cc26f611eebb3fffe465a0a5a17f5a73901f8975c7986730c4a14"
+    },
+    {
+      "file": "custom-accent-large-photos.png",
+      "sha256": "559338afc98b93df9234103c64030842ecdecc1bb90072e78e879ec331ff3130"
+    },
+    {
+      "file": "dark-large-photos.png",
+      "sha256": "23a87c08650a8a31969c397d00a6745001fade0363647c9416e4d9a0aeed3e64"
+    },
+    {
+      "file": "german-constrained-large-photos.png",
+      "sha256": "313387229b9439124bd2245254d1a5407f5078d7434e680625af487aa180d424"
+    },
+    {
+      "file": "light-large-photos.png",
+      "sha256": "56b6c776861d9a3ff90511908362161808a885d51bbc13c5ce1fb64b0880d2d2"
+    },
+    {
+      "file": "pan-1.cpuprofile",
+      "sha256": "491d98cbc087c47bf0b59d04b3eac44e3d429f0f4a3797446f1fc39841923ae4"
+    },
+    {
+      "file": "pan-2.cpuprofile",
+      "sha256": "eb8977b6b1a7f81b4e076114656bf46d3f1da69f5b1aa0d5db458014f88e9af8"
+    },
+    {
+      "file": "profile-driver.mjs.txt",
+      "sha256": "7db223bfb26896c13d24775020c0f79e374b4374576531957a4f31c2b263b463"
+    },
+    {
+      "file": "profile-report.json",
+      "sha256": "7be627bd25b6bae7d74093e9d6859f0b6f21b4a1aab0ecbfcd47d4fd96f02e80"
+    },
+    {
+      "file": "profile.log",
+      "sha256": "8c119b73be4b4868e54e98da365af27f2ee4596b5f8d11c0ea0bff1b156ebe22"
+    },
+    {
+      "file": "quiet-driver.mjs.txt",
+      "sha256": "722cf411c58c60c1481317cfdda7ca9042cf8bd1f7bb0f82a253dd067f40ab3c"
+    },
+    {
+      "file": "quiet-report.json",
+      "sha256": "2cd30106b17cd52c9960ecd43f9f2e52054873e660c97e1535eb1fe4fc56bd5e"
+    },
+    {
+      "file": "quiet.log",
+      "sha256": "dc4d3f9fdeeefac1347e6d5f4e77b3aec011956957a529721bd2ac668aca9433"
+    }
+  ]
+}

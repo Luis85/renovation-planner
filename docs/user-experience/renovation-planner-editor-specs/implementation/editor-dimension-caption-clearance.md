@@ -58,3 +58,8 @@ the pan. It checks three retained caption texts/font sizes, six fixed pin world 
 world points/vault contents and visible, non-overlapping captions. No store writes or synthetic
 production obstacle injection are used by that browser helper. Syntax checks passed; execution
 awaits the next heavy slot.
+
+The remaining lint warning required animation frames to use the controls' own window. Scheduling
+and cancellation now retain the same `ownerDocument.defaultView`, including popout contexts.
+Updated types and scoped lint passed; 28 tests across dimension measurement/caption and existing
+inline/lifecycle files passed in 64.99 seconds. Actual extended browser capture remains next.

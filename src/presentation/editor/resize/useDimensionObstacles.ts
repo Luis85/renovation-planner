@@ -14,7 +14,7 @@ function sameBox(box: BoundingBox | null, other: BoundingBox | null): boolean {
 
 /** Native dimension controls own one observer; room renderers consume only world rectangles. */
 export function useDimensionObstacles(root: Ref<HTMLElement | null>, viewport: () => Viewport, publish: (layout: DimensionObstacleLayout) => void): void {
-	let observer: ResizeObserver | null = null, frame: number | null = null;
+	let observer: ResizeObserver | null = null, frame: { id: number; view: Window } | null = null;
 	let alive = true, previous: DimensionObstacleLayout = { bounds: [], viewport: null };
 	const observed = new Set<Element>();
 	// The controls use a 2px outline with a 2px offset. Reserve it even without focus.
@@ -43,14 +43,15 @@ export function useDimensionObstacles(root: Ref<HTMLElement | null>, viewport: (
 		update({ bounds, viewport: { min: screenToWorld(screenPoint(0, 0), camera, STAGE_PIXELS), max: screenToWorld(screenPoint(origin.width, origin.height), camera, STAGE_PIXELS) } });
 	}
 	function schedule(): void {
-		if (alive && frame === null) frame = requestAnimationFrame(measure);
+		const view = root.value?.ownerDocument.defaultView;
+		if (alive && frame === null && view) frame = { id: view.requestAnimationFrame(measure), view };
 	}
 	onMounted(() => { observer = new ResizeObserver(schedule); schedule(); });
 	// Position changes and button/inline-form replacement need measurement even without resize.
 	onUpdated(schedule);
 	onBeforeUnmount(() => {
 		alive = false;
-		if (frame !== null) cancelAnimationFrame(frame);
+		if (frame !== null) frame.view.cancelAnimationFrame(frame.id);
 		frame = null;
 		observer?.disconnect(); observer = null; observed.clear(); update({ bounds: [], viewport: null });
 	});

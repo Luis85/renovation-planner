@@ -1,4 +1,10 @@
 export const renovationDe = {
+	"renovation.review.limited-scope": "Begrenzter Prüfumfang",
+	"renovation.summary.compact-progress": "{done}/{total} erledigt",
+	"renovation.review.room-count": "{count} Räume",
+	"renovation.review.open-room": "{name} öffnen",
+	"renovation.review.no-room-findings": "Keine Hinweise in diesem Prüfumfang",
+	"renovation.review.unavailable": "Prüfergebnisse nicht verfügbar",
 	"renovation.summary.work": "Arbeit",
 	"renovation.shared.heading": "Gemeinsame Zuordnungen",
 	"renovation.shared.primary": "(Hauptzuordnung)",

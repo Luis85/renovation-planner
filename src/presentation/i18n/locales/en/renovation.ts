@@ -1,4 +1,10 @@
 export const renovationEn = {
+	"renovation.review.limited-scope": "Limited review scope",
+	"renovation.summary.compact-progress": "{done}/{total} complete",
+	"renovation.review.room-count": "{count} rooms",
+	"renovation.review.open-room": "Open {name}",
+	"renovation.review.no-room-findings": "No findings in this review scope",
+	"renovation.review.unavailable": "Review results unavailable",
 	"renovation.summary.work": "Work",
 	"renovation.shared.heading": "Shared contexts",
 	"renovation.shared.primary": "(Owner)",

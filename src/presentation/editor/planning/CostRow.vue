@@ -21,7 +21,9 @@ const selected = computed(() => !!session.focusedId && [props.row.record.id, pro
 		<p v-if="selected">
 			{{ tr('planning.selected') }}
 		</p>
-		<p>{{ planning.baseline.value?.plan.entity.renovation?.work.find(work => work.id === row.record.workId)?.title || tr('planning.unassigned') }}</p>
+		<p class="rp-cost-work-name">
+			{{ planning.baseline.value?.plan.entity.renovation?.work.find(work => work.id === row.record.workId)?.title || tr('planning.unassigned') }}
+		</p>
 		<p v-if="row.record.cancelled">
 			{{ tr('planning.cancelled') }}
 		</p><p v-if="row.stale">

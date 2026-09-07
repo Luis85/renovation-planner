@@ -48,6 +48,7 @@ import { tr, currentLanguage } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
 import { useEditorRuntime } from '../runtime';
 import { useNoteCreation } from './noteCreation';
+import HostIcon from '../../components/HostIcon.vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import {
@@ -372,12 +373,16 @@ onBeforeUnmount(() => {
 		@keydown.stop="onKeydown"
 		@focusout="onFocusOut"
 	>
+		<p class="rp-add-menu__title">
+			{{ tr('editor.add.menu') }}
+		</p>
 		<input
 			ref="searchInputEl"
 			v-model="query"
 			type="search"
 			class="rp-add-menu__search"
 			:aria-label="tr('editor.add.search')"
+			:placeholder="tr('editor.add.search')"
 		>
 		<div
 			role="menu"
@@ -420,6 +425,7 @@ onBeforeUnmount(() => {
 					@click="onItemClick(entry)"
 					@focus="focusedId = entry.id"
 				>
+					<HostIcon :name="entry.icon" />
 					<span class="rp-add-menu__item-label">{{ tr(entry.labelKey) }}</span>
 					<span class="rp-add-menu__item-description">{{ tr(entry.descriptionKey) }}</span>
 					<span

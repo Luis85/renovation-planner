@@ -37,3 +37,11 @@ therefore still failing for a scoped run. Requirement counters went from 54 to 5
 total arms and 39 to 38 hits: four total arms removed, of which three were uncovered
 and one was the covered preservation fallback. All 39 statements remain.
 [Original counter-map receipt](evidence/requirement-date-counter-removal.json).
+
+## Integration confirmation
+
+Root imported the exact production change and counter receipt from owner
+83ca2f751894f7e7081c30b76edaf2a8b3304e54. The Root command/domain integration
+run passed 16/16 tests in 6.04 seconds. Only the private update field type and date
+preservation expression changed; public constructors/validation remain intact.
+Root log: requirement-date-integrated.log in the finalization scratch.

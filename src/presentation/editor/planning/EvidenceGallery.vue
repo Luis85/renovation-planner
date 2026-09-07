@@ -21,12 +21,13 @@ const planning = usePlanningContext();
 				:aria-current="isSelected(item) ? 'true' : undefined"
 				@click="planning.runtime.renovation.focus(item.roomId, 'photos', item.id)"
 			>
-				<span class="rp-evidence-photo-title">{{ index + 1 }}. {{ item.description }}</span>
+				<span class="rp-evidence-photo-title rp-visually-hidden">{{ index + 1 }}. {{ item.description }}</span>
 				<EvidencePreview
 					:item="item"
 					:files="planning.files"
 					:plan-id="planning.context.planId"
 					:revision="planning.evidenceRevision.value"
+					thumbnail-only
 				/>
 			</button>
 		</li>

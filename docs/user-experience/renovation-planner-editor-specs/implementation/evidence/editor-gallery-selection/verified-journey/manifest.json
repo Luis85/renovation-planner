@@ -1,0 +1,100 @@
+{
+  "source": "bb77de0f95cc353e8b77407d6edab278505f239e",
+  "browser": "Edge 152.0.4191.62",
+  "journeys": "4 passed",
+  "visual": "Custom low-zoom caption/dimension overlap remains; issue-rich M17 and full final matrix pending",
+  "files": [
+    {
+      "file": "custom-accent-photos-gallery-axe.json",
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "file": "custom-accent-photos-gallery.png",
+      "sha256": "c5e82e80625800b80077c7805d4e05458dcf3e19ea5beebc93ebbdc9cd6b64ce"
+    },
+    {
+      "file": "custom-accent-review-design-axe.json",
+      "sha256": "8f88c06d09bf899e08e21719272c46a919ebed9c8ab8c783ca2c6cff0b8235ea"
+    },
+    {
+      "file": "custom-accent-review-design.png",
+      "sha256": "bc1b7935aff231ceac43f449a1933e078a1806f2dc728e20d515ea9ab44ddc50"
+    },
+    {
+      "file": "dark-photos-gallery-axe.json",
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "file": "dark-photos-gallery.png",
+      "sha256": "47dea0cf5d1e0e1532f29b4e797420af5d521bf215c49ce314a3561d40fecff4"
+    },
+    {
+      "file": "dark-review-design-axe.json",
+      "sha256": "60094822084001179e08cc7947d16effc663568be1ba9e5c743154e129d69277"
+    },
+    {
+      "file": "dark-review-design.png",
+      "sha256": "d7b3c500bb1aa8a613e0c7b88b137bd9b660249e36e833eb37ecdcaa078e5062"
+    },
+    {
+      "file": "eslint-review-compact.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "gallery-emphasis-native.txt",
+      "sha256": "74b46c8d95880578098fb200bb60cda09543fe8bc3da6d4ae005ee96de532b91"
+    },
+    {
+      "file": "german-constrained-photos-gallery-axe.json",
+      "sha256": "840929cf2658dd8e742eb4a2eb7c752a1528506fd0fbc565be94b77e58031185"
+    },
+    {
+      "file": "german-constrained-photos-gallery.png",
+      "sha256": "93138e1f8ff4f2947be21b689718caa031b8499f4aa52bf28c111429d72cd05d"
+    },
+    {
+      "file": "german-constrained-review-design-axe.json",
+      "sha256": "168d29acb17710785f39cf0c5a91a75b8fec855b52a7960ab7afb500e3b56fd0"
+    },
+    {
+      "file": "german-constrained-review-design.png",
+      "sha256": "10483d9adec45f24029859c125277359b1ab5bd6de14a00203c36e4026503141"
+    },
+    {
+      "file": "light-photos-gallery-axe.json",
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "file": "light-photos-gallery.png",
+      "sha256": "4e1a2726cad6b8b2eea1fa8e9a64a30008539c4a59fbf7c25cfc88a88523bd97"
+    },
+    {
+      "file": "light-review-design-axe.json",
+      "sha256": "8f88c06d09bf899e08e21719272c46a919ebed9c8ab8c783ca2c6cff0b8235ea"
+    },
+    {
+      "file": "light-review-design.png",
+      "sha256": "9ac0c2f79bbfdb984f4cf5a5a5a5fd281b334bfc951f18b932630b5b662438ec"
+    },
+    {
+      "file": "ox-review-compact.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "planning-design-compact.txt",
+      "sha256": "a145179cdad66f4926b8e9b4887df610c163ebf4f29653f2b96b017108eda415"
+    },
+    {
+      "file": "report.json",
+      "sha256": "7287a1a6dd297d4ce55e438d520a3833e3bc961859e78ccd6f02273c3a69aa08"
+    },
+    {
+      "file": "review-compact-native.txt",
+      "sha256": "38cb7aa00c42cd2ba02a26f141bfce520fab4e613d0050f028cae135ad643c2f"
+    },
+    {
+      "file": "types-review-compact.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

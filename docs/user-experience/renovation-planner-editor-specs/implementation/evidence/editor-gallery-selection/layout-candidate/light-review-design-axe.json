@@ -1,0 +1,192 @@
+{
+  "violations": [
+    {
+      "id": "color-contrast",
+      "impact": "serious",
+      "tags": [
+        "cat.color",
+        "wcag2aa",
+        "wcag143",
+        "TTv5",
+        "TT13.c",
+        "EN-301-549",
+        "EN-9.1.4.3",
+        "ACT",
+        "RGAAv4",
+        "RGAA-3.2.1"
+      ],
+      "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+      "nodes": [
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "fgColor": "#ffffff",
+                "bgColor": "#9873f7",
+                "contrastRatio": 3.42,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": null,
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<button type=\"button\" class=\"mod-cta\" data-rp-action=\"review-open-room\">",
+                  "target": [
+                    ".mod-cta"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element has insufficient color contrast of 3.42 (foreground color: #ffffff, background color: #9873f7, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button type=\"button\" class=\"mod-cta\" data-rp-action=\"review-open-room\">",
+          "target": [
+            ".mod-cta"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.42 (foreground color: #ffffff, background color: #9873f7, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+        }
+      ]
+    }
+  ],
+  "incomplete": [
+    {
+      "id": "color-contrast",
+      "impact": "serious",
+      "tags": [
+        "cat.color",
+        "wcag2aa",
+        "wcag143",
+        "TTv5",
+        "TT13.c",
+        "EN-301-549",
+        "EN-9.1.4.3",
+        "ACT",
+        "RGAAv4",
+        "RGAA-3.2.1"
+      ],
+      "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+      "nodes": [
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "elmPartiallyObscured",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<aside class=\"rp-editor-inspector\" tabindex=\"-1\" data-rp-region=\"inspector\" aria-label=\"Inspector\">",
+                  "target": [
+                    ".rp-editor-inspector"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it's partially obscured by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<h2 class=\"rp-editor-panel-title\">Inspector</h2>",
+          "target": [
+            ".rp-editor-inspector > h2"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "colorParse",
+                "expectedContrastRatio": "4.5:1",
+                "colorParse": "oklch(0 0 none / 0.067)"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Could not parse color string oklch(0 0 none / 0.067)"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-review-room__name\">Kitchen</span>",
+          "target": [
+            "li:nth-child(1) > button > .rp-review-room__name"
+          ],
+          "failureSummary": "Fix any of the following:\n  Could not parse color string oklch(0 0 none / 0.067)"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "colorParse",
+                "expectedContrastRatio": "4.5:1",
+                "colorParse": "oklch(0 0 none / 0.067)"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Could not parse color string oklch(0 0 none / 0.067)"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-review-room__changes\">1 planned changes</span>",
+          "target": [
+            "li:nth-child(1) > button > .rp-review-room__changes"
+          ],
+          "failureSummary": "Fix any of the following:\n  Could not parse color string oklch(0 0 none / 0.067)"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "colorParse",
+                "expectedContrastRatio": "4.5:1",
+                "colorParse": "oklch(0 0 none / 0.067)"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Could not parse color string oklch(0 0 none / 0.067)"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-review-room__status\">No findings in this review scope</span>",
+          "target": [
+            "li:nth-child(1) > button > .rp-review-room__status"
+          ],
+          "failureSummary": "Fix any of the following:\n  Could not parse color string oklch(0 0 none / 0.067)"
+        }
+      ]
+    }
+  ]
+}

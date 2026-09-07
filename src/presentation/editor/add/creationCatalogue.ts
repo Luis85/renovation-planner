@@ -9,6 +9,7 @@ export type CreationRuntime = Pick<EditorRuntime, 'setTool'> & { readonly create
 export interface CreationEntry {
 	readonly id: CreationEntryId;
 	readonly group: CreationGroup;
+	readonly icon: string;
 	readonly labelKey: StringKey;
 	readonly descriptionKey: StringKey;
 	readonly synonymKeys: readonly StringKey[];
@@ -16,10 +17,14 @@ export interface CreationEntry {
 	readonly activate: (runtime: CreationRuntime) => void;
 }
 type EntryFor<K extends CreationEntryId> = CreationEntry & { readonly id: K };
+const CREATION_ICONS: Readonly<Record<CreationEntryId, string>> = {
+	room: 'square-dashed', wall: 'brick-wall', door: 'door-open', window: 'panels-top-left', opening: 'rectangle-horizontal',
+	area: 'land-plot', path: 'route', fence: 'fence', item: 'armchair', measurement: 'ruler', note: 'sticky-note',
+};
 
 /** Every catalogue route is implemented; the menu explains missing capabilities in its current view. */
 function toolEntry<K extends CreationEntryId>(id: K, group: CreationGroup, tool: ToolId, synonymKeys: readonly StringKey[] = []): EntryFor<K> {
-	return { id, group, labelKey: `editor.add.${id}.label`, descriptionKey: `editor.add.${id}.description`, synonymKeys,
+	return { id, group, icon: CREATION_ICONS[id], labelKey: `editor.add.${id}.label`, descriptionKey: `editor.add.${id}.description`, synonymKeys,
 		availability: { kind: 'available' }, activate: runtime => runtime.setTool(tool) };
 }
 /** The mapped type requires every ID exactly once and prevents a row from naming another ID. */
@@ -35,7 +40,7 @@ const ENTRIES_BY_ID: { readonly [K in CreationEntryId]: EntryFor<K> } = {
 	item: toolEntry('item', 'planning', 'place-object'),
 	measurement: toolEntry('measurement', 'planning', 'measure'),
 	note: {
-		id: 'note', group: 'planning', labelKey: 'editor.add.note.label', descriptionKey: 'editor.add.note.description', synonymKeys: [],
+		id: 'note', group: 'planning', icon: CREATION_ICONS.note, labelKey: 'editor.add.note.label', descriptionKey: 'editor.add.note.description', synonymKeys: [],
 		availability: { kind: 'available' },
 		activate: runtime => { if (!runtime.createNote) throw new Error('Note requires its planning form capability'); runtime.createNote(); },
 	},

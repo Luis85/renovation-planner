@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
 import { resolveChromiumExecutable } from './chromium.mjs';
+import { prepareReferenceFidelity } from './editor-reference-fidelity.mjs';
 
 // Independent capture output; the existing journey scripts remain unchanged.
 const phase = process.argv[2] ?? 'after';
@@ -24,6 +25,7 @@ const states = [
 	{ name: 'M02-add', query: '&add', ready: '.rp-add-menu' },
 	{ name: 'M03-room-draft', query: '&room=4200x3800', ready: '.rp-new-room' },
 	{ name: 'M05-start', query: '&reference&planning', ready: '.rp-floor-start' },
+	{ name: 'M06-measurement', query: '&reference&planning&fidelity', ready: '.rp-floor-start' },
 	{ name: 'M11-multiple', query: '&select=harness-kitchen,harness-bath', ready: '.rp-multi-selection' },
 	{ name: 'M15-stale', query: '&stale&select=harness-kitchen', ready: '[data-rp-warning="stale"]' },
 ];
@@ -36,14 +38,20 @@ try {
 			await page.goto(`${server.resolvedUrls.local[0]}?view=plan-editor&bare&theme=${theme}${state.query}`);
 			try { await page.locator(state.ready).waitFor(); }
 			catch (error) { await page.screenshot({ path: `${out}/failed.png` }); console.log(await page.locator('body').innerText(), errors); throw error; }
+			if (state.name === 'M03-room-draft') await page.waitForFunction(() =>
+				document.querySelector('.rp-new-room input[name="width"]')?.value === '4.2' && document.querySelector('.rp-new-room input[name="depth"]')?.value === '3.8');
+			if (state.name === 'M06-measurement') await prepareReferenceFidelity(page);
 			await page.evaluate(() => document.fonts.ready);
 			if (state.name === 'M05-start') {
+				assert.equal(await page.locator('.rp-floor-start button').count(), 3);
+				assert.equal(await page.locator('.rp-task-banner, [data-rp-form="reference"]').count(), 0);
 				const fits = await page.locator('.rp-floor-start').evaluate(el => {
 					const card = el.getBoundingClientRect(), canvas = el.closest('.rp-plan-canvas').getBoundingClientRect();
 					return card.bottom <= canvas.bottom && card.right <= canvas.right && card.left >= canvas.left;
 				});
 				assert.ok(fits, 'starting choices stay within the canvas');
 			}
+			await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); }));
 			await page.screenshot({ path: `${out}/${theme}-${state.name}.png` });
 			const metrics = await page.locator('.rp-editor-shell').evaluate(el => ({ width: el.clientWidth, height: el.clientHeight, scroll: document.documentElement.scrollWidth, viewport: innerWidth }));
 			assert.ok(metrics.scroll <= metrics.viewport, `${state.name} page overflow`);

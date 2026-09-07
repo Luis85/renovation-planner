@@ -12,9 +12,12 @@ import InlineRoomDimension from './InlineRoomDimension.vue';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
+import { useDimensionObstacles, type DimensionObstacleLayout } from './useDimensionObstacles';
 
+const emit = defineEmits<{ obstacles: [layout: DimensionObstacleLayout] }>();
 const runtime = useEditorRuntime(), editor = useEditorStore(), project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession();
 const root = ref<HTMLElement | null>(null), axes = ['width', 'depth'] as const;
+useDimensionObstacles(root, () => editor.viewport, bounds => emit('obstacles', bounds));
 const selected = computed(() => selection.selectedIds.length === 1 ? project.zones.get(selection.selectedIds[0]) : undefined);
 const room = computed(() => selected.value?.zoneType === 'Room' ? selected.value : null);
 const draft = runtime.roomDimension.draft;

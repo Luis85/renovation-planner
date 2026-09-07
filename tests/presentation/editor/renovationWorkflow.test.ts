@@ -11,6 +11,23 @@ afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
 async function setup() { const rig = await renovationEditor(); mounted.push(rig); return rig; }
 async function apply(rig: Awaited<ReturnType<typeof setup>>) { await rig.wrapper.get('[data-rp-form="renovation"]').trigger('submit'); await rig.wrapper.get('[data-rp-form="renovation"]').trigger('submit'); await settle(); }
 describe('connected Room renovation inspector', () => {
+	it('frames a Review room without writing and restores the previous Renovate context', async () => {
+		const rig = await setup(), actions = rig.runtime.renovation;
+		const other = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Hall', zoneType: 'Room',
+			geometry: { points: [{ x: 6000, y: 0 }, { x: 9000, y: 0 }, { x: 9000, y: 2000 }, { x: 6000, y: 2000 }] } })).zone.entity;
+		rig.changePlan(); await settle();
+		actions.focus(rig.room.id, 'overview'); await settle();
+		const viewport = { ...useEditorStore(rig.pinia).viewport }, saved = [...rig.stack.vault.entries];
+		await actions.perspective('review'); await settle();
+		await rig.wrapper.get(`[data-rp-review-room="${other.id}"]`).trigger('click'); await settle();
+		expect(rig.session.perspective).toBe('review'); expect(rig.selection.selectedIds).toEqual([other.id]);
+		expect(rig.wrapper.get(`[data-rp-review-room="${other.id}"]`).attributes('aria-pressed')).toBe('true');
+		expect(rig.wrapper.get('[data-rp-action="review-open-room"]').text()).toContain('Hall');
+		expect([...rig.stack.vault.entries]).toEqual(saved);
+		await actions.perspective('renovate'); await settle();
+		expect(rig.selection.selectedIds).toEqual([rig.room.id]); expect(useEditorStore(rig.pinia).viewport).toEqual(viewport);
+		expect([...rig.stack.vault.entries]).toEqual(saved);
+	});
 	it('captures facts, proposes an outcome, links work and a Decision, resolves it and returns from Review', async () => {
 		const rig = await setup(), actions = rig.runtime.renovation;
 		actions.focus(rig.room.id, 'existing'); await settle();
@@ -34,6 +51,11 @@ describe('connected Room renovation inspector', () => {
 		await actions.perspective('review'); await settle();
 		expect(rig.wrapper.find('[data-rp-action="add"]').exists()).toBe(false);
 		expect(rig.wrapper.get('.rp-renovation-inspector').text()).toContain('Which oil?');
+		expect(rig.wrapper.get('.rp-review-findings button').attributes('aria-label')).toContain('Which oil?');
+		expect(rig.wrapper.get(`[data-rp-review-room="${rig.room.id}"]`).text()).toContain('1 items need attention');
+		expect(rig.wrapper.get('.rp-review-summary .rp-transformation-summary').text()).toContain('Worn oak boards');
+		expect(rig.wrapper.get('.rp-review-summary .rp-transformation-summary').text()).toContain('Repair and oil boards');
+		expect(rig.wrapper.get('.rp-review-summary .rp-transformation-summary').text()).toContain('0/1 complete');
 		const generate = rig.wrapper.findAll('.rp-renovation-inspector button').find(button => button.text().includes('review note'));
 		await expectDefined(generate, 'generate button').trigger('click'); await settle(); expect([...rig.stack.vault.entries.values()].some(text => text.includes('# Review'))).toBe(true);
 		await actions.perspective('renovate'); await settle(); expect(rig.session.focusedId).toBe(work.id); expect(useEditorStore(rig.pinia).viewport).toEqual(viewport);
@@ -43,6 +65,13 @@ describe('connected Room renovation inspector', () => {
 		expect(rig.project.plan?.renovation?.decisions[0]).toMatchObject({ resolved: true, resolution: 'Hardwax oil' });
 		expect(rig.project.plan?.renovation?.subjects[0].existing?.description).toBe('Worn oak boards');
 		await actions.perspective('review'); await settle(); expect(rig.wrapper.get('.rp-renovation-inspector').text()).toContain('No gaps found');
+		expect(rig.wrapper.get(`[data-rp-review-room="${rig.room.id}"]`).text()).toContain('No findings in this review scope');
+		const saved = [...rig.stack.vault.entries];
+		(rig.wrapper.get('[data-rp-action="review-open-room"]').element as HTMLButtonElement).focus();
+		await rig.wrapper.get('[data-rp-action="review-open-room"]').trigger('click'); await settle();
+		expect(rig.session.perspective).toBe('renovate'); expect(rig.selection.selectedIds).toEqual([rig.room.id]);
+		expect(document.activeElement).toBe(rig.wrapper.get('[data-rp-region="inspector"]').element);
+		expect([...rig.stack.vault.entries]).toEqual(saved);
 	});
 	it('retains a root dialog draft across constrained layout, cancels without writes, and toggles only marker visibility', async () => {
 		const rig = await setup(), actions = rig.runtime.renovation; actions.focus(rig.room.id, 'existing');

@@ -16,12 +16,14 @@ Der Nutzer verlangt aktuelle Zwischenstände im Repo, sinnvolle Parallelisierung
 
 ## Neue Coverage-Zuständigkeit — Nutzerauftrag
 
-Der Nutzer startet selbst eine dedizierte Coverage-Session und meldet deren Start.
-**Reserviert, noch nicht gestartet/registriert; Task-ID unbekannt.** Root erstellt
-sie nicht automatisch. [Vollständiger Auftrag](coverage-session-brief.md) und
-[Steuerung](coverage-coordination.md) sind im Repo gesichert. Nach Startmeldung
-Task-ID/Branch/Basis prüfen, globale Coverage-Zuständigkeit und schweren Prüfslot
-explizit übergeben. UI/E sind informiert; Root/Helfer beginnen keine neuen globalen
+Der Nutzer hat die Coverage-Session gestartet und Root hat deren eigenen Receipt
+bestätigt. **Aktiv: Erreiche Editor-Testcoverage**, Task-ID
+01a07cca-4d4b-75b0-96fb-9417d3b86f51; Worktree
+.worktrees/editor-coverage-finalization, Branch codex/editor-coverage-finalization,
+Basis6f72eea1dbb87f0b1b2774c27fc9ce8becf536c4. [Vollständiger Auftrag](coverage-session-brief.md) und
+[Steuerung](coverage-coordination.md) sind im Repo gesichert. Globale Coverage-Zuständigkeit ist übergeben; zunächst Lesen/Sourcevorbereitung.
+UI hält den aktuellen schweren Slot; Root übergibt den nächsten nach terminalem
+UI-Receipt ausdrücklich an Coverage. UI/E sind informiert; Root/Helfer beginnen keine neuen globalen
 Coverage-Pakete. UI behält Regressionen eigener Fixes, E konkrete Hardening-Befunde.
 
 Das letzte bereits begonnene Root-Paket ist abgeschlossen: Financial/Project-Library
@@ -29,6 +31,47 @@ Das letzte bereits begonnene Root-Paket ist abgeschlossen: Financial/Project-Lib
 neuen Testdateien sind im gepushten Nachfolger von45c58609 enthalten und dürfen
 von der neuen Coverage-Session nicht dupliziert werden. Produktion bleibt seit
 f306 unverändert. Root behält Integration, visuelle/Host-Abnahme und Gesamtgoal.
+
+## M17-Vertrag: neue konkrete Korrektur
+
+Marker-Auswahl muss laut M17 in Review bleiben und die Room-/Change-Zusammenfassung
+zeigen. Nur Issue-Auswahl öffnet die konkrete Bearbeitung in Renovate; ADR0021
+ändert diese Trennung nicht. Root-Code mit Marker→Dialog ist eine echte verbleibende
+Lücke. UI übernimmt einen gemeinsamen Leaf-Review-Read-Model für Roomliste und
+kompakte Marker, inklusive bestehender Planning-/Renovation-Findings und geteilter
+Kontexte. Keine neuen Readiness-Regeln. Coverage besitzt die entsprechende neue
+Testdatei und passt die Zielregressionen an; alte Ist-Tests gelten nicht als Abnahme.
+
+Coverage hat npm ci und erste Prüfungen beendet; Slot freigegeben. Root übernimmt
+aus227c23b3 nur die zwei grünen öffentlichen Commandfälle und deren gemessenen
+Counter-Beleg (+2Arme/+1Statement); Marker-Tests bleiben bis zur UI-Abstimmung außen vor.
+
+## Geprüfte Requirement-Bereinigung
+
+Coverage83ca2f75 wurde selektiv übernommen: der private Requirement.with-Parameter
+schließt requiredDate jetzt typseitig aus und übernimmt stets das bestehende Datum.
+Alle sieben öffentlichen Aufrufer wurden geprüft; keiner aktualisierte es.
+Öffentliche Erstellung, Hydrierung und Datumsvalidierung bleiben erhalten.
+Owner16/16 plus Types/Lint/static; Root-Integration16/16 in6,04s. Exakte Messung:
+vier Gesamtarme entfernt, davon drei vorher ungetroffene und ein getroffener
+Erhaltungsarm; Statements unverändert. Kein neues Health-Ergebnis aus alten
+Requirement-Countern ableiten; nächste vollständigeCI muss den neuen Source messen.
+[Datums-Evidence](requirement-date-preservation.md).
+
+## Gemeinsamer UI-Join zur Verifikation
+
+Root übernimmt den committeten UI-Checkpoint **f576d13c** auf Root-Basis
+1b554540. Git-Merge konfliktfrei; die UI hatte45/45nativeTests sowie aktuelle
+Types/Oxlint/scopedESLint bestanden. Das ist ein **gemeinsamer WIP-Kandidat**,
+kein abschließender Browser-/Host-Pass. Enthalten sind die gesamte UI-Folge,
+Dimension-Caption-Messung, die gemeinsam projizierten Review-Roommarker und
+Issue-Schaltflächen. Neue Marker bleiben in Review; Issue-Auswahl öffnet Quellen.
+
+Coverage muss den gepushten Join nach dem Ende seiner laufenden Outline-Prüfung
+in den eigenen Branch übernehmen und die gewünschten Markerregressionen daran
+prüfen. Keine Sourceänderung während laufender Prüfungen. Root behält die
+Integration; UI setzt den unveränderten echten Browserlauf fort und liefert neue
+Korrekturen separat. Finale9Journeys/18Referenzen und HostH1–H6 bleiben offen.
 
 ## Verbindliche Quellen
 
@@ -53,7 +96,7 @@ Repo: https://github.com/Luis85/renovation-planner. [PR #91](https://github.com/
 
 Root arbeitet bereits im isolierten Topic-Worktree. Keine Änderungen im main-Checkout. Nur die zwei bestehenden benutzereigenen Implementation-Tasks koordinieren; keine Ersatz-Tasks erzeugen. Der Nutzer hat zusätzliche begrenzte parallele Hilfsagenten erlaubt. Root-Helfer editor_coverage_audit arbeitet nur in ausdrücklich zugewiesenen neuen Test-/Evidence-Dateien.
 
-Root-Produktion ist seit **f3067d82f413de6c67f9d4598608ce1e1a059cb3** unverändert; neuester vollständig gemessener Testcheckpoint ist **45c58609596734f17570a22074d05f3e2f81fafb**. Nachfolger ergänzen Tests/Dokumentation; aktuellen HEAD/Pushstand mit Git prüfen. E9cc0fa6d (vier Project-Einstiegsfälle) ist als **3b12f432** übernommen. Die fünf neuen Planning-Fälle sind nativ/type/lint geprüft. Zwei weitere optionale Spatial-Removal-Fixtures bestehen nativ 2/2 (37,08 s); Types/Oxlint/scoped ESLint und statischer Fallow sind ebenfalls grün: tests/presentation/editor/spatialRemovalLegacy.test.ts und spatial-removal-legacy-evidence.md. Vor Annahmen deren aktuellen Git- und Prüfstatus lesen.
+Root-Produktion baute auf **f3067d82f413de6c67f9d4598608ce1e1a059cb3** auf; danach wurde ausschließlich die unten beschriebene private Requirement-Datumsaktualisierung bereinigt; neuester vollständig gemessener Testcheckpoint ist **45c58609596734f17570a22074d05f3e2f81fafb**. Nachfolger ergänzen Tests/Dokumentation; aktuellen HEAD/Pushstand mit Git prüfen. E9cc0fa6d (vier Project-Einstiegsfälle) ist als **3b12f432** übernommen. Die fünf neuen Planning-Fälle sind nativ/type/lint geprüft. Zwei weitere optionale Spatial-Removal-Fixtures bestehen nativ 2/2 (37,08 s); Types/Oxlint/scoped ESLint und statischer Fallow sind ebenfalls grün: tests/presentation/editor/spatialRemovalLegacy.test.ts und spatial-removal-legacy-evidence.md. Vor Annahmen deren aktuellen Git- und Prüfstatus lesen.
 
 Aktuelle E-Branches:
 

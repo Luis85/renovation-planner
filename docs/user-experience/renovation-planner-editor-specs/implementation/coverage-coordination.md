@@ -2,15 +2,23 @@
 
 Updated: 2026-09-07, user-requested ownership change.
 
-The user will create a dedicated coverage session and report when it has started.
-**Status: reserved, not yet started/registered; no task ID is known.** Root must not
-create it or assume it is running. The assignment is in
+The user confirmed startup; Root identified the task and received its own branch/base receipt.
+**Status: active and registered.**
+
+- Title: Erreiche Editor-Testcoverage
+- Task ID:01a07cca-4d4b-75b0-96fb-9417d3b86f51
+- Worktree:D:/Projects/renovation-planner/.worktrees/editor-coverage-finalization
+- Branch:codex/editor-coverage-finalization
+- Initial base:6f72eea1dbb87f0b1b2774c27fc9ce8becf536c4
+- Initial scope: read-only current CI/counter audit, then bounded new test files; existing financial/library packages are retained.
+- Heavy slot: UI currently owns it; coverage receives an explicit Root handoff after the current UI run is terminal. No installation/tests/analysis started under this registration.
+
+The assignment is in
 [coverage-session-brief.md](coverage-session-brief.md).
 
-Once the user reports startup, identify the actual task and record its ID, title,
-branch and base here. Confirm ownership and the heavy-verification schedule with
-that session. Global coverage analysis and new coverage test packages then belong
-to it. Root owns integration and the final acceptance decision.
+Root confirmed global coverage ownership directly to the new task. UI and E were
+informed of its actual ID. Future updates to base, scope and heavy-slot ownership
+must be acknowledged explicitly. Root retains integration and final acceptance.
 
 Existing UI and E tasks have been informed. Root's helper has been instructed to
 start no further coverage packages. UI continues regressions necessary for its own
@@ -25,3 +33,19 @@ Local heavy verification remains serialized through Root, including installation
 builds, native/coverage runs, analysis and browser/performance captures. A silent
 task or observation timeout is not a free slot; obtain an explicit handoff or
 verify the actual process/session status.
+
+## M17 contract coordination
+
+M17 explicitly distinguishes marker selection (stay in Review and expand the
+Room/change summary) from issue selection (open its actionable source in Renovate).
+ADR0021 preserves issue source navigation and does not override marker behavior.
+UI owns the Review-only shared Room projection/compact markers and accessible
+issue buttons. Coverage owns reviewMarkerNavigation.test.ts and will align its
+regressions; old marker-to-dialog checks are historical behavior, not acceptance.
+
+Coverage checkpoint227c23b3 has two independently verified public Command cases.
+Root selectively imports contextualMaterialBoundaries.test.ts and its counter
+receipt only; the pending marker tests are not included. Exact +2branch/+1statement
+gains are measured only on identical relevant maps, not on all scoped outputs.
+Installation and first verification are terminal; the heavy slot has been released.
+The next owner must receive a fresh explicit Root handoff.

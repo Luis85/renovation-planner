@@ -62,3 +62,12 @@ an incomplete contrast check and is not a complete accessibility certification.
 Date metadata and retained pin/list projection are owned by finalization, and the linked-summary
 focus correction is owned by hardening. The shared final nine-journey run and eighteen reference
 comparisons remain open until those changes and this checkpoint are integrated.
+
+## Capture-readiness follow-up
+
+The existing Photos capture now retains its loaded/natural-size checks, awaits every native
+`img.decode()` and a rendered frame, then requires the same connected image sources and valid
+natural sizes. A changed source retries the existing readiness wait; a rejected decode is not
+swallowed. No production component, fixture, timeout or screenshot assertion changes here.
+JavaScript syntax and diff checks passed. Browser verification of this source-only follow-up
+belongs to the next joined matrix; the earlier blank-thumbnail image remains historical evidence.

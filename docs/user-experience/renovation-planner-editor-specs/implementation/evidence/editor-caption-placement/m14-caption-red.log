@@ -1,0 +1,38 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-object-ui
+
+stderr | tests/presentation/editor/evidenceCaptionPlacement.test.ts > keeps every Room caption clear of centered photos through pan and zoom without moving pins or geometry
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/evidenceCaptionPlacement.test.ts (3 tests | 1 failed) 1070ms
+   × keeps every Room caption clear of centered photos through pan and zoom without moving pins or geometry 596ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/presentation/editor/evidenceCaptionPlacement.test.ts > keeps every Room caption clear of centered photos through pan and zoom without moving pins or geometry
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ expectClearCaptions tests/presentation/editor/evidenceCaptionPlacement.test.ts:36:155
+     34|   for (const pin of stage.find<Konva.Group>('.evidence-pin')) {
+     35|    const circle = expectDefined(pin.findOne<Konva.Circle>('Circle'), '…
+     36|    expect(text.x + text.width <= circle.x || circle.x + circle.width <…
+       |                                                                                                                                                           ^
+     37|   }
+     38|  }
+ ❯ tests/presentation/editor/evidenceCaptionPlacement.test.ts:48:2
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  13:20:42
+   Duration  44.46s (transform 11.06s, setup 0ms, import 18.61s, tests 1.07s, environment 24.01s)
+

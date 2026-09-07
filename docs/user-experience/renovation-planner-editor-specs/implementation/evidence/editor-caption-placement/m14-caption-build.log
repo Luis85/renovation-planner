@@ -1,0 +1,13 @@
+
+> renovation-planner@0.1.0 build
+> vue-tsc -noEmit && vite build
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 1046 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/styles.css     92.37 kB │ gzip:  13.09 kB
+dist/main.js     1,419.80 kB │ gzip: 415.70 kB
+
+✓ built in 2.48s

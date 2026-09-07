@@ -76,7 +76,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			const draft = renovationDraft(kind, roomId, id, read.plan.entity.renovation);
 			const busy = ref(false);
 			await dialogs.openDialog({ kind: 'form', title: tr(`renovation.edit.${kind}`), component: markRaw(RenovationForm), busy,
-				props: { draft, baseline: read, busy, paused: runtime.writesBlocked, retry: runtime.refreshProjection, openSource: runtime.openPlanNote,
+				props: { draft, baseline: read, busy, paused: runtime.writesBlocked, retry, openSource: runtime.openPlanNote,
 					dispatch: (input: RenovationInput) => alive && context.commands.renovation
 						? runtime.dispatcher.run(context.commands.renovation.command(read, input, runtime.structureTask.ledger))
 						: Promise.resolve(err(undoSuperseded(context.planId as PlanId))),
@@ -97,6 +97,10 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			if (alive && !result.ok) notifyOperationFailure(result.error);
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.change.failed'); }
 		finally { loading.value = false; }
+	}
+	async function retry(): Promise<void> {
+		try { await runtime.refreshProjection(); }
+		catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); }
 	}
 	return { perspective, focus, edit, change, blocked, available: context.commands.renovation !== undefined };
 }

@@ -43,4 +43,4 @@ async function journey(page, scenario, out) {
 	await proposalAndReview(page, scenario, out);
 	return { theme: tokens, records: 'Existing + Planned + linked Work + resolved Decision', source: 'ordinary Room created with closed walls through keyboard; actual repositories over FakeVault', navigation: 'list, perspectives, Review issue to resolution', reflow: 'draft text and focus retained', review: 'scoped findings and generated note; no Add controls' };
 }
-await runAreaBrowserMatrix('renovation-workflow', '&reference', journey, '[data-rp-empty="floor-start"]');
+await runAreaBrowserMatrix('renovation-workflow', `&reference${process.argv.includes('--design') ? '&fidelity' : ''}`, journey, '[data-rp-empty="floor-start"]');

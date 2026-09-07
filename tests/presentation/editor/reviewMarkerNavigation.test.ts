@@ -29,7 +29,7 @@ async function setup() {
 	return rig;
 }
 
-it.each(['blocked', 'missing-outcome', 'decision'] as const)('opens a fresh %s Review marker in its canonical context without writing', async kind => {
+async function openFinding(kind: 'blocked' | 'missing-outcome' | 'decision') {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
 	await rig.runtime.renovation.perspective('review'); await settle();
 	const markers = rig.stage.find<Konva.Group>('.renovation-marker');
@@ -42,14 +42,21 @@ it.each(['blocked', 'missing-outcome', 'decision'] as const)('opens a fresh %s R
 	expect(rig.selection.selectedIds).toEqual([rig.room.id]);
 	expect(rig.session.mode).toBe(kind === 'decision' ? 'planned' : 'work');
 	expect(rig.session.focusedId).toBe(kind === 'decision' ? 'reuse-boards' : 'dispose-floor');
-	if (kind === 'decision') {
-		await settleUntil(() => rig.wrapper.find('textarea[name="question"]').exists(), 'Decision dialog');
-		expect(rig.wrapper.get<HTMLTextAreaElement>('textarea[name="question"]').element.value).toBe('Can any boards be reused?');
-		rig.dialogs.resolve('cancel'); await settle();
-	} else {
-		expect(rig.dialogs.current).toBeNull();
-		expect(rig.wrapper.get('[data-rp-record="dispose-floor"]').text()).toContain('Dispose boards');
-	}
+	return { rig, bytes };
+}
+
+it.each(['blocked', 'missing-outcome'] as const)('opens a fresh %s Review marker in its canonical Work context without writing', async kind => {
+	const { rig, bytes } = await openFinding(kind);
+	expect(rig.dialogs.current).toBeNull();
+	expect(rig.wrapper.get('[data-rp-record="dispose-floor"]').text()).toContain('Dispose boards');
+	expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+it('opens the unresolved Decision on marker tap and cancels without writing', async () => {
+	const { rig, bytes } = await openFinding('decision');
+	await settleUntil(() => rig.wrapper.find('textarea[name="question"]').exists(), 'Decision dialog');
+	expect(rig.wrapper.get<HTMLTextAreaElement>('textarea[name="question"]').element.value).toBe('Can any boards be reused?');
+	rig.dialogs.resolve('cancel'); await settle();
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
 

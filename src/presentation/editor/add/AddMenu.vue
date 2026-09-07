@@ -373,7 +373,9 @@ onBeforeUnmount(() => {
 		@keydown.stop="onKeydown"
 		@focusout="onFocusOut"
 	>
-		<p class="rp-add-menu__title">{{ tr('editor.add.menu') }}</p>
+		<p class="rp-add-menu__title">
+			{{ tr('editor.add.menu') }}
+		</p>
 		<input
 			ref="searchInputEl"
 			v-model="query"

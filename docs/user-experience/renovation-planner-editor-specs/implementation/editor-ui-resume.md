@@ -104,6 +104,16 @@ correction uses the existing `recordNavigationContext` resolver for each finding
 Work/missing Evidence pair across two Rooms and explicitly focused Open room. These assertions
 remain unrun until the heavy slot; this correction is WIP, not a reported regression pass.
 
+Initial verification at `6d8a11d5`: `vue-tsc -noEmit` passed. Lint first caught an async-without-
+await callback, mutating array reversal and overview-driver complexity 18 over the unchanged
+16 limit. The correction uses a resolved callback result, `toReversed`, and the same native
+Fit Floor steps extracted into a helper. ESLint then found Vue formatting and old generated
+coverage HTML scripts under `harness-shots`. Formatting was fixed; untracked generated reports
+were preserved outside the source tree at
+`C:/Users/lum/AppData/Local/Temp/rp-ui-generated-reports-20260907` after absolute path checks.
+No lint rules/ignores changed. **Whole `npm run lint` now passes**, recorded in
+`harness-shots/ui-wip-validation/lint-clean.log`; native and browser verification still pending.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

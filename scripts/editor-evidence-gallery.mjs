@@ -48,7 +48,7 @@ export async function captureEvidenceGallery(page, scenario, out, shot) {
 	const before = await editorContextSnapshot(page);
 	await activate(page, '[data-rp-evidence-phase="during"]');
 	const ids = [];
-	for (const [index, entry] of [...entries.entries()].reverse()) ids[index] = await linkPhoto(page, entry, index, german);
+	for (const [index, entry] of [...entries.entries()].toReversed()) ids[index] = await linkPhoto(page, entry, index, german);
 	assert.ok(ids.every(id => typeof id === 'string' && id.length > 0), 'every native save exposes its Evidence identity');
 	assert.equal(new Set(ids).size, 6, 'six distinct persisted Evidence identities');
 	assert.equal(await page.locator('[data-rp-evidence-photo]').count(), 6, 'During filters out the original Before photo');

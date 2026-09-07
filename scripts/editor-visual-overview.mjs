@@ -6,6 +6,11 @@ import { verifyRoomDimension } from './editor-dimension-browser.mjs';
 import { editorAccessibility } from './editor-accessibility.mjs';
 import { verifyEditorView } from './editor-view-browser.mjs';
 const fidelity = process.argv.includes('--design');
+async function frameFloor(page, scenario) {
+	if (scenario.width === 460) await page.keyboard.press('Escape');
+	await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Shift+1');
+	await panel(page, 'details');
+}
 
 // Supplement the legacy unavailable-services shell fixture with a connected Floor/Room.
 async function journey(page, scenario, out) {
@@ -14,9 +19,7 @@ async function journey(page, scenario, out) {
 	if (fidelity) {
 		await page.evaluate(isGerman => window.editorFidelity.seedSurroundings(isGerman), german);
 		await page.waitForFunction(() => document.querySelectorAll('.rp-room-list__row').length === 4);
-		if (scenario.width === 460) await page.keyboard.press('Escape');
-		await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Shift+1');
-		await panel(page, 'details');
+		await frameFloor(page, scenario);
 	}
 	assert.equal(await page.locator('.rp-room-inspector').isVisible(), true, 'Room selection survives the connected setup');
 	if (scenario.width === 460) {
@@ -58,10 +61,7 @@ async function journey(page, scenario, out) {
 	await recordText(page, form, 'description', german ? 'Vorhandener Wandputz' : 'Original wall plaster'); await recordApply(page, form, true);
 	await activate(page, '[data-rp-action="plan-record"]'); await recordText(page, form, 'description', german ? 'Putz reparieren und streichen' : 'Repair and paint plaster'); await recordApply(page, form, true);
 	await activate(page, '[data-rp-mode="overview"]');
-	if (fidelity) {
-		if (scenario.width === 460) await page.keyboard.press('Escape');
-		await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Shift+1'); await panel(page, 'details');
-	}
+	if (fidelity) await frameFloor(page, scenario);
 	await recordShot(page, scenario, out, 'M07-connected-wall');
 	if (scenario.width === 460) await page.keyboard.press('Escape');
 	await panel(page, 'layers');

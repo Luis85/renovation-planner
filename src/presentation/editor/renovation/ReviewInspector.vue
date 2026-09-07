@@ -57,7 +57,10 @@ async function generate(): Promise<void> {
 <template>
 	<section class="rp-renovation-inspector rp-review-inspector">
 		<h3>{{ tr('renovation.review') }} {{ project.plan?.name }}</h3>
-		<ReviewSummary :findings="allFindings" :available="available" />
+		<ReviewSummary
+			:findings="allFindings"
+			:available="available"
+		/>
 		<p v-if="!context.commands.planning">
 			{{ tr('renovation.scope') }}
 		</p>

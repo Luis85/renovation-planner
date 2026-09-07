@@ -38,7 +38,7 @@ const rows = computed(() => (floor.value?.rooms ?? []).map(room => {
 }));
 const selected = computed(() => rows.value.find(room => room.id === selection.focusedId));
 function openRoom(roomId: string, event: Event): Promise<void> {
-	return runInspectorAction(event, 'review-open-room', async () => { runtime.renovation.focus(roomId, 'overview'); });
+	return runInspectorAction(event, 'review-open-room', () => Promise.resolve(runtime.renovation.focus(roomId, 'overview')));
 }
 </script>
 
@@ -77,7 +77,10 @@ function openRoom(roomId: string, event: Event): Promise<void> {
 		<div v-if="selected">
 			<h4>{{ selected.name }}</h4>
 			<TransformationSummary :room-id="selected.id" />
-			<RenovationLinkedSummary v-if="context.commands.planning" :room-id="selected.id" />
+			<RenovationLinkedSummary
+				v-if="context.commands.planning"
+				:room-id="selected.id"
+			/>
 			<button
 				type="button"
 				class="mod-cta"

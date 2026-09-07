@@ -22,6 +22,15 @@ switching perspectives, without per-marker context assertions. This new file iso
 the remaining counter boundaries without editing that existing package. No production,
 threshold, timeout, assertion, discovery or exclusion changes.
 
+## Second prepared package — unverified
+
+`tests/application/commands/contextualMaterialBoundaries.test.ts` adds two public
+application-command contracts with persisted valid materials: recalculation without
+optional packaging preserves due date and both overrides; cross-Room reassignment
+during deletion refuses a contextual material before entity writes and clears its
+sequence marker. Root was informed before preparation. These are service contracts,
+not native UI/host evidence. They await local type/lint/test validation.
+
 ## Measurement state
 
 Latest completed known full measurement: CI `34140688682`, head `45c58609`.
@@ -30,12 +39,24 @@ Original JSON/LCOV/missing-counter files remain untouched in
 `git diff 45c58609 HEAD -- src` is empty. The newer tests on the base have not yet
 been included in these counters; do not use the historical 39-arm deficit as current.
 CI `34145242834` on base `6f72eea1` was cancelled when Root pushed its registration
-document. Replacement CI `34145575098` on `2c3c6360` is running; Root has agreed to keep
-that checkpoint stable until full artifacts exist. Its production is still identical.
+document. Replacement CI `34145575098` on `2c3c6360` is complete. Its Linux24 job passed
+653 files / 8087 tests (69 skipped), then failed only the 98% branch threshold.
+It did not reach `analyze`. Downloaded original JSON/LCOV are preserved in
+`C:/Users/lum/AppData/Local/Temp/rp-coverage-finalization-ci-2c3c6360-linux24/`.
+The tested merge `f9f2f70a` and head `2c3c6360` have exactly the same Git tree.
+
+Current full counts: statements 17881/18049, functions 5122/5160, lines 13987/14053,
+branches 12406/12692. The deficit is **33 branch arms**, before this task's tests and
+the still-pending UI join. Original 45 → 2c maps and all source blobs match; the new
+Root tests yield 6 branch / 5 statement gains, zero losses and zero incomparable maps.
+See [exact receipt and counter gains](evidence/coverage-2c3c6360-receipt.json).
 
 Draft PR: https://github.com/Luis85/renovation-planner/pull/92. Initial unverified
 checkpoint: `145b36db`. Source review then added typed Konva group selection and a
-[defensive-arm audit](coverage-defensive-arm-audit.md); neither claims measured hits.
+[defensive-arm audit](coverage-defensive-arm-audit.md). CI `34145889916` passed build/
+types but rejected conditional assertions before tests. `2cfe3dff` splits the Decision
+and Work assertions into separate cases without dropping any assertion; its CI is
+running. No contribution from this task has yet been measured.
 
 All changes above remain **unverified WIP**. No coverage gain or gate pass is claimed.
 Next: obtain Root's explicit free slot, install dependencies, run the new native file

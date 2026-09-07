@@ -11,7 +11,9 @@ import type { Quote } from '../../src/domain/quote/Quote';
 import { saveQuote } from '../../src/application/commands/quote/QuoteServices';
 import { elementInput } from '../../src/presentation/editor/elements/elementInput';
 import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
-import { deriveCalibration } from '../../src/domain/plan/Calibration';
+import { deriveCalibration, validateCalibration } from '../../src/domain/plan/Calibration';
+import { ReversibleCalibratePlanCommand } from '../../src/application/commands/plan/ReversibleCalibratePlan';
+import { makePlan } from '../helpers/entities';
 
 afterEach(() => { vi.restoreAllMocks(); });
 
@@ -71,5 +73,33 @@ it('refuses finite calibration picks whose rescaled endpoints overflow before cr
 		expect(publish).not.toHaveBeenCalled();
 		expect(expectOk(await sidecar.read(rig.asset.id))).toEqual(before);
 		expect([...rig.stack.vault.entries]).toEqual(bytes);
+	} finally { rig.dispose(); }
+});
+
+it('refuses coincident rescaled Plan endpoints after finite derivation without consuming the previous calibration Undo', async () => {
+	const rig = await downstreamStack();
+	try {
+		const plan = makePlan({ projectId: rig.plan.projectId, name: 'Calibration boundary' });
+		expectOk(await rig.deps.plans.save(plan, 'absent'));
+		const empty = expectOk(await rig.geometry.read(plan.id));
+		const first = new ReversibleCalibratePlanCommand(rig.deps.plans, rig.geometry, rig.deps.events);
+		expectOk(await first.execute({ planId: plan.id, pointA: { x: 0, y: 0 }, pointB: { x: 1, y: 0 }, knownDistance: 1e308 }));
+		const before = expectOk(await rig.geometry.read(plan.id));
+		const calibration = expectDefined(before.document.calibration, 'real persisted first calibration');
+		expectOk(validateCalibration(calibration));
+		const pointA = { x: 0.6, y: 0 }, pointB = { x: 1.3, y: 0 }, knownDistance = Number.MIN_VALUE;
+		const derived = expectOk(deriveCalibration(pointA, pointB, knownDistance, calibration));
+		expect(derived.scaleCorrection).toBeGreaterThan(0);
+		expect(Number.isFinite(derived.calibration.pixelsPerWorldUnit)).toBe(true);
+		const bytes = [...rig.stack.vault.entries], write = vi.spyOn(rig.geometry, 'write'), publish = vi.spyOn(rig.deps.events, 'publish');
+		const next = new ReversibleCalibratePlanCommand(rig.deps.plans, rig.geometry, rig.deps.events);
+		expect(expectErr(await next.execute({ planId: plan.id, pointA, pointB, knownDistance })).code).toBe('plan.degenerate-points');
+		expect(write).not.toHaveBeenCalled();
+		expect(publish).not.toHaveBeenCalled();
+		expect(expectOk(await rig.geometry.read(plan.id))).toEqual(before);
+		expect([...rig.stack.vault.entries]).toEqual(bytes);
+		expectOk(await first.undo());
+		expect(write).toHaveBeenCalledOnce();
+		expect(expectOk(await rig.geometry.read(plan.id)).document).toEqual(empty.document);
 	} finally { rig.dispose(); }
 });

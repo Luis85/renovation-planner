@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-plan-finalization
+
+
+ Test Files  2 passed (2)
+      Tests  10 passed (10)
+   Start at  21:32:16
+   Duration  33.14s (transform 14.42s, setup 0ms, import 25.94s, tests 1.96s, environment 33.45s)
+

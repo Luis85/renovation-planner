@@ -18,7 +18,7 @@ Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument ak
 - Root **57144c81** hat UI **f576d13c** konfliktfrei auf Root1b554540 integriert. Die zuvor als ausstehend beschriebenen Galerie-, Caption-, Density- und Review-Markeränderungen sind damit im gemeinsamen Branch.
 - Root **465ffe42** übernimmt elf geprüfte Fälle aus Coverage44860131: Review6, Outline2, öffentliche Commandvalidierung3 samt Counter-Receipt. Keine Tests nochmals übernehmen.
 - UI-Folge **376fe37198672ca87e7574f27384df4d6fac615e** wird in diesem Checkpoint konfliktfrei integriert: Warntextseparator, ReviewRoomDetails-Extraktion, sichtbare Source-Labels, Custom-Abstände und explizite lokale Buttonklassen. Focus96/96 und nativeNachbarn54/54 sowie scopedESLint sind terminal grün. Archivmanifest-Hashes für df7100b4-Browserlauf und ecbf7e27-Warn-/Health-Belege wurden im Root nachgeprüft.
-- Coverage bereitet separat zwei weitere öffentliche Grenzfälle und den von Root geprüften requirementMapper-Cleanup vor. Noch kein Pass/Integration dieses Pakets.
+- Coverage **1debce64bab97686e1bc3ba8241b53331da9fc1b** wird selektiv integriert: schmaler Review-Tap aus geschlossenem Panel, öffentliche Kalibrierungs-Rundungsgrenze mit erhaltenem Undo und requirementMapper-Cleanup. Owner56/56 in8Dateien,Types/Ox/scopedESLint/static0. Ursprüngliche Overlay-Erwartung null wurde auf bestehenden Storewert none korrigiert. Counterlauf ausdrücklich zurückgestellt; keine ungemessenen Gewinne angeben.
 
 ## Owners und lokaler Prüfslot
 
@@ -29,23 +29,21 @@ Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument ak
 | Erreiche Editor-Testcoverage | 01a07cca-4d4b-75b0-96fb-9417d3b86f51 / codex/editor-coverage-finalization, PR#92 | Globale Coverage; Nutzer hat Task gestartet und Root hat Übergabe bestätigt |
 | Improve M15 recovery workflow | 01a07838-4e54-7ac3-bc24-a8eef9185d6e | Idle, konkrete neue Hardening-Befunde; keine neuen Coverage-Pakete |
 
-**Coverage hält jetzt den schweren lokalen Slot** für das begrenzte Review460/Calibrate/Mapper-Paket. UI hat30372(Focus96/96),99915(Nachbarn54/54) und54282(scopedLint) terminal0 beendet,376fe371 gepusht und den Slot explizit freigegeben. UI wartet auf finalen gemeinsamenSHA für9/18; Root integriert nur Source/Docs und hat keinen laufenden schweren Prozess. Slot erst nach explizitem terminalem Owner-Receipt neu vergeben. Keine fremden Prozessausgaben konsumieren, keine Fremdprozesse stoppen; Stille/Timeout bedeutet nicht Ende.
+**UI erhält jetzt den schweren lokalen Slot für original9/18** auf dem nachfolgenden gepushten gemeinsamen Checkpoint. Coverage56240 ist terminal0,1deb gepusht/sauber; kein Counterlauf gestartet. Root65611 FullHealth und Root11676 Integrationsnachlauf sind terminal0: **10/10Review-/Commandfälle in33,14s** auf gemeinsamem UI376+MapperStand. Keine Root-Heavy-Prozesse mehr. Coverage bleibt source-only; keine neue Produktion während finalem UI-Lauf. Tatsächlichen UI-StartSHA/Handle nach Handoff prüfen.
 
 Rechner ca.8GB RAM. Installs, Builds, Tests, Coverage, Analyzer und Browser-/Performancecaptures lokal serialisieren; Lesen/Source/Docs parallel. Die dedizierte Coverage-Task besitzt globale Testpakete. Root/E/Helfer beginnen keine weiteren globalen Coverage-Pakete. UI behält eigene Fixregressionen. [Auftrag](coverage-session-brief.md), [Steuerung](coverage-coordination.md).
 
 ## Neueste vollständige CI und exakte Restgröße
 
-Root465ffe42: [Run34152586317](https://github.com/Luis85/renovation-planner/actions/runs/34152586317), alle vier Verify-Jobs beendet/FAIL, AuditPASS. Linux24 job101837757667, Artefakt10030050526. Getesteter Merge23669557888f836846f8d71048fa17db5a2a9d87 hat denselben Gitbaum8b6a153e52c8bea61c6325dff6da2d2498c8f814 wie Root465.
+Root9cb87b1b: [Run34154814793](https://github.com/Luis85/renovation-planner/actions/runs/34154814793), alle vier Verify-Jobs beendet. **Jede Linux22/24/26- und Windows22-Leg besteht661Dateien/8114Tests,69Skip, keine Fehler.** Build/Lint ebenfalls bestanden, AuditPASS. Einziger CI-Fehler ist die unveränderte Branchgrenze.
 
-Linux24: **8104PASS /10FAIL /69SKIP**. S18055/18220, F5175/5212, L14099/14164, B**12540/12821**. Bei diesem Nenner fehlen **25 Brancharme** bis98%; die übrigen drei Floors sind erfüllt. Gegen571 sind Quelle und Maps identisch: exakt6neueBrancharme,5Statements,2Functions, keine Verluste. Nach kommenden UI-/Mapperänderungen neu messen;25 ist keine Zusage zum finalen Nenner.
+Linux24: S18059/18224, F5174/5211, L14103/14168, B**12537/12817=97,81%**. Bei diesem Nenner fehlen **24 Brancharme** bis98%. Nach dem jetzt integrierten Mapper-/Testpaket neu messen; keine ungemessenen Countergewinne behaupten.
 
-OriginalJSON/LCOV/Log: C:/Users/lum/AppData/Local/Temp/rp-coverage-finalization-ci-465ffe42-linux24/. Coverage hat Quelle/Baum/Maps geprüft. Vorherige Originale liegen unter Root-Scratch ci-57144c81-linux24/.
+Getesteter Mergee3f22791563526646bc1380365f699f8963857ef und Root9cb teilen Baum bf2382e0cb968c43c3152bf0a614e9cd18da393d. OriginalJSON/LCOV unter Root-Scratch ci-9cb87b1b-linux24/, Job101844333831, Artefakt10030720775. [Prüfbarer Qualitätsreceipt](evidence/ci-9cb87b1b-quality.json).
 
-Die zehn CI-Fehler sind bekannte UI-Folgen, keine neuen Coverage-Testfehler:
+Separater Root-Fallow-Health auf genau diesem Quellstand mit unverändertem OriginalJSON und offiziellem coverage-root: **Exit0,0Findings,748/748Dateien gemappt**. Das schließt den bisherigen ReviewSummary-Komplexitätsbefund auf aktueller Coverage. Rohbericht ci-9cb87b1b-health.json im Scratch; Hash und Summary im Receipt. Nach Mapperänderung ist dies ein präziser Vorgängerbeleg, kein vorweggenommener neuer FullPass.
 
-- Neun Warntextfälle: PersistentWarningStrip verschachtelte Severity/Message ohne literales Leerzeichen. UI ecbf7e27 erzeugt genau ein Leerzeichen; unveränderte drei Warnsuites **32/32PASS** in15,79s.
-- Ein Focus-Gate: neue anonyme Editor-Buttonresets konkurrieren im konservativen CSS-Scanner auch mit zwei unveränderten Asset-Shelf-Selektoren. Explizite lokale Klassen auf Subject/Work-Sekundäraktionen, Review-Room- und BatchActionList-Buttons begrenzen die Regeln. Unveränderter Gate **96/96PASS**; keine AssetCSS-/Matcher-/Teständerung. Native Nachbarn54/54 und scopedLint ebenfalls grün; Fix ist im vorliegenden UI-Join enthalten.
-- Full Health auf original571-Countern,747/747Dateien gemappt, fand ReviewSummary Template cognitive17>15. UI extrahiert den unveränderten Selected-Room-Block nach ReviewRoomDetails. Statischer Complexity-/Health-Nachlauf ohne Findings; ältere Coverage beweist keine frischen Counter für verschobene/neue Funktionen. Neuer gemeinsamer Vollrun erforderlich.
+Alle zehn bisherigen UI-CI-Fehler sind damit auf allen vier Legs behoben. Keine AssetCSS-, Testchecker-, Floor- oder Assertionabschwächung. Historischer Root465-Run hatte8104PASS/10FAIL und25fehlendeArme; dieser Stand ist überholt.
 
 ## Aktueller Funktions- und visueller Nachweis
 
@@ -61,7 +59,7 @@ Nach verifiziertem gemeinsamen Source muss scripts/editor-visual-final-check.mjs
 
 Requirement.with-Datumerhalt ist bereits Root1b554540: privaterParameter nimmt requiredDate typseitig nicht an, bestehendesDatum bleibt erhalten; öffentliche Erstellung/Hydrierung/Validierung unverändert. Owner16/16,Root16/16; vier Gesamtarme entfernt (drei vorher ungetroffen, ein getroffen), Statements unverändert. [Evidence](requirement-date-preservation.md).
 
-Neu freigegeben, noch nicht geprüft: requirementMapper darf nach erfolgreichem Schema-Parsen direkt die einzig gültige zone-Origin abbilden; redundante Reader-kind-Prüfung und Writer-Ternary samt unbenutztem err-Import entfernen. Alle V1/V2/V3-Schemas behalten literalzone und Domain unbekannte-Origin-Rejection. Keine Validierung unterdrücken. Bestehende Mapper/Requirement/public Roundtriptests und Counterreceipt erforderlich.
+Geprüftes Coverage1deb-Paket: requirementMapper bildet nach erfolgreichem Schema-Parsen direkt die einzig gültige zone-Origin ab; redundante Reader-kind-Prüfung/Writer-Ternary samt unbenutztem err-Import sind entfernt. Alle V1/V2/V3-Schemas behalten literalzone und Domain unbekannte-Origin-Rejection. Owner56/56 einschließlich Mapper/Requirement/public Roundtrips. Originalprotokolle mit Hashmanifest in evidence/requirement-origin-native; exakte Countermessung bleibt ausstehend.
 
 Frischer Vorgänger-Reviewaudit: PR74/75/76/82/83/85/86/87 vollständig paginiert,27Threads davon25offen; keine neuen Findings bei unveränderten Heads. PR88 sechs offene Threads, alle in Continuations/Root behoben; ältere Branches selbst unverändert, daher nicht als dort erledigt auflösen. PR89/90/91 keine offenen Reviewthreads beim Sweep. [Reviewaudit](review-audit.md). Erneut prüfen, bevor Kandidat als fertig gilt.
 
@@ -109,7 +107,7 @@ Computer-Use-Skill vor Hostbedienung lesen; unterstützte API nutzen. UIA konnte
 ## Nächste Schritte und technische Wiederaufnahme
 
 1. Gitstatus/HEAD/origin, Taskstatus und tatsächlichen Slotowner prüfen. UI376fe371 ist in diesem Checkpoint integriert; nächste echte Voll-CI auswerten.
-2. Coverage hat den lokalen Prüfslot ausdrücklich erhalten; neue Grenzfälle/Mappercleanup prüfen lassen und nur verifizierte Beiträge integrieren.
+2. Coverage1deb ist integriert und Root10/10 geprüft. UI bekommt jetzt unmittelbar den Slot; Coverage bereitet nur eine source-gültige Restliste vor.
 3. Neuen gemeinsamen Voll-CI-Lauf stabil bis zu Artefakten lassen; Source-/Baumgleichheit prüfen, Floors und Health aus originalen Countern neu bewerten. Kein docs-onlyPush während eines wertvollen vollständigen Laufs ohne Anlass.
 4. UI auf eingefrorenem gemeinsamem Stand originale9Journeys/18Referenzen liefern lassen; Bilder tatsächlich beurteilen. Anschließend finalen Build im benannten Testvault installieren und H1–H6 abschließen.
 5. Bei verbleibenden physischen Geräte-/Screenreaderfragen erst konkretes Hostpaket liefern und die zwei notwendigen menschlichen Angaben erfragen. Keine Abschlussbehauptung aus Teiltests.

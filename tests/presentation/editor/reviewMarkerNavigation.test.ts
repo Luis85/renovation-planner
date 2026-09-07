@@ -6,6 +6,8 @@ import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import type { Renovation } from '../../../src/domain/renovation/Renovation';
 import { tr } from '../../../src/presentation/i18n/strings';
+import { resizeTo } from '../../helpers/layout';
+import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 
 type Rig = Awaited<ReturnType<typeof renovationEditor>>;
 const mounted: Rig[] = [];
@@ -60,11 +62,13 @@ it('opens the unresolved Decision from its issue button and cancels without writ
 });
 
 // M17 separates spatial readiness selection from the explicit issue source action.
-// These expectations intentionally expose the predecessor's marker-to-Renovate gap.
-it.each(['click', 'tap'])('keeps Review and expands the Room readiness summary on marker %s', async event => {
+it.each([{ event: 'click', width: 1100, overlay: 'none' }, { event: 'tap', width: 460, overlay: 'inspector' }])('keeps Review and expands the Room summary on marker $event at $width px', async ({ event, width, overlay }) => {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
+	const workspace = useWorkspaceStore(rig.pinia);
+	resizeTo(rig.rootEl, width, 800); await settle();
 	await rig.runtime.renovation.perspective('review'); await settle();
-	rig.selection.clear(); await settle();
+	workspace.closeOverlay(); rig.selection.clear(); await settle();
+	expect(workspace.overlay).toBe('none');
 	expect(rig.wrapper.find('[data-rp-review-summary-room]').exists()).toBe(false);
 	const markers = rig.stage.find<Konva.Group>('.review-room-marker');
 	const marker = expectDefined(markers.find(item => item.getAttr('roomId') === rig.room.id), 'Room readiness marker');
@@ -72,11 +76,13 @@ it.each(['click', 'tap'])('keeps Review and expands the Room readiness summary o
 	expect(rig.session.perspective).toBe('review');
 	expect(rig.selection.selectedIds).toEqual([rig.room.id]);
 	expect(rig.selection.focusedId).toBe(rig.room.id);
+	expect(workspace.overlay).toBe(overlay);
 	expect(rig.dialogs.current).toBeNull();
 	expect(markers).toHaveLength(1);
 	expect(marker.getAttr('number')).toBe(1);
 	expect(rig.wrapper.get(`[data-rp-review-room="${rig.room.id}"]`).attributes('data-rp-review-number')).toBe('1');
 	const summary = rig.wrapper.get(`[data-rp-review-summary-room="${rig.room.id}"]`);
+	expect(summary.isVisible()).toBe(true);
 	expect(summary.text()).toContain(rig.room.name);
 	expect(summary.text()).toContain('Damaged floor boards');
 	expect(summary.text()).toContain('Clear room');

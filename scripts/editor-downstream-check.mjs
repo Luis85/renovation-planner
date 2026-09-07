@@ -55,7 +55,7 @@ async function quotes(page, scenario, out, matchingViews) {
 	await createRoomCost(page);
 	await recordShot(page, scenario, out, 'room-costs');
 	if (process.argv.includes('--design')) matchingViews.costs = await captureInspectorDesign(page, scenario, out, 'room-costs-design',
-		{ selectors: ['.rp-renovation-inspector > h3', '.rp-cost-totals', '[data-rp-new-cost]'], topControl: '[data-rp-room-navigation]' });
+		{ selectors: ['.rp-renovation-inspector > h3', '.rp-renovation-inspector > .rp-cost-totals', '.rp-cost-groups', '[data-rp-new-cost]'], topControl: '[data-rp-room-navigation]' });
 	await editorAccessibility(page, scenario, out, 'room-costs');
 	const before = await editorContextSnapshot(page);
 	const costs = await page.locator('.rp-cost-totals').first().innerText();

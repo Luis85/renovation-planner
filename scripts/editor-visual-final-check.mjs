@@ -8,6 +8,9 @@ const root = 'docs/user-experience/renovation-planner-editor-specs/implementatio
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 const sourceStatus = () => git('status', '--porcelain', '--untracked-files=normal', '--', 'src', 'styles', 'tests', 'scripts', 'package.json', 'package-lock.json', 'vite.config.ts', 'vite.harness.config.ts', 'tsconfig.json');
 assert.equal(sourceStatus(), '', 'Commit the production source and harness before final capture.');
+assert.equal(git('status', '--porcelain', '--untracked-files=all', '--', `${root}/after`, `${root}/comparisons`, `${root}/capture-provenance.json`), '',
+	'Commit or separately archive prior evidence before reusing generated output names.');
+const priorEvidenceCommit = git('log', '-1', '--format=%H', '--', `${root}/capture-provenance.json`);
 const commit = git('rev-parse', 'HEAD'), started = Date.now(), steps = [];
 const journeys = ['materials-costs-evidence', 'renovation-workflow', 'reference-plan', 'editor-visual-resilience', 'editor-visual-overview', 'editor-object', 'planning-recovery', 'modal-busy-focus', 'editor-downstream'];
 // Keep previous artifacts. Only recorded, freshly generated inputs may enter the new inventory.
@@ -52,5 +55,5 @@ for (const { screen, finalCapture } of comparisons.screens) {
 		images.push({ path, sha256: createHash('sha256').update(await readFile(`${root}/${path}`)).digest('hex') });
 	}
 }
-await writeFile(`${root}/capture-provenance.json`, JSON.stringify({ commit, startedAt: new Date(started).toISOString(), completedAt: new Date().toISOString(), steps, images }, null, 2));
+await writeFile(`${root}/capture-provenance.json`, JSON.stringify({ commit, priorEvidenceCommit, priorEvidencePolicy: 'Previously committed artifacts remain in Git history; same output names are refreshed.', startedAt: new Date(started).toISOString(), completedAt: new Date().toISOString(), steps, images }, null, 2));
 console.log(`Final visual matrix passed at ${commit}; manual comparison acceptance remains a separate review.`);

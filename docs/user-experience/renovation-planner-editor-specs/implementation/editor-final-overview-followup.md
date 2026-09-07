@@ -39,17 +39,23 @@ claiming final visual acceptance. The verified pan stabilization remains intact.
 ## Capture integrity without deletion
 
 Automatic approval review rejected recursive cleanup of generated captures. The final runner
-now retains previous files and records actual successful page.screenshot output paths instead
+does not delete output directories and records actual successful page.screenshot paths instead
 of scanning PNG folders. A successful journey emits a current-source manifest with original
 timestamps and hashes. Copying verifies each explicitly named source file's timestamp and hash
 before writing its destination; the nine original reports remain required. Static capture adds
 exactly sixteen named states. Every one of the eighteen comparison inputs must occur in that
 current manifest, and all thirty-six compositions must be fresh. The final image inventory is
 built from those recorded names, never from old failed or unused PNGs. Source/HEAD freeze stays.
+Reused output names are overwritten, so preflight refuses uncommitted prior after/comparison
+evidence. The preceding complete archive commit is recorded in provenance (the 430 run is in
+`d58e629e70d0224e44d31fb513f593d2c686d3e0`). A positive run-start boundary is mandatory for
+copying/composition; standalone invocation cannot silently treat zero as fresh acceptance.
 
 A small filesystem check passed fresh named copying, exclusion of an unrecorded fresh PNG,
 refusal of changed bytes before copying and refusal of a stale source before copying. Its
 temporary test data is retained without deletion. The first pilot's M00 header selector and
 the second pilot's ambiguous Floor/Rooms heading selector were corrected without changing
 production behavior. Captures now prefer the selected Room and explicitly label any Floor or
-element viewport sample, while retaining exact selected-entity IDs separately.
+element viewport sample, while retaining canonical selected IDs/focused ID from a read-only
+harness getter even when a drawer is closed. The top view uses normal Tab/Home and wheel
+input inside the Inspector, because Home from a button alone did not move its scroll container.

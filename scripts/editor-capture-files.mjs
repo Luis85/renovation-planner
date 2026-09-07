@@ -5,7 +5,11 @@ import { copyFile, mkdir, readFile, readdir, stat } from 'node:fs/promises';
 import { relative, resolve, sep } from 'node:path';
 
 export const captureSource = () => execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-export const captureStarted = () => Number(process.env.RP_CAPTURE_STARTED_AT ?? 0);
+export function captureStarted() {
+	const started = Number(process.env.RP_CAPTURE_STARTED_AT);
+	assert.ok(Number.isFinite(started) && started > 0, 'A positive RP_CAPTURE_STARTED_AT boundary is required; use the final capture runner.');
+	return started;
+}
 function filePath(directory, name) {
 	const root = resolve(directory), path = resolve(root, name);
 	assert.ok(path.startsWith(root + sep), 'capture file stays inside its output directory');

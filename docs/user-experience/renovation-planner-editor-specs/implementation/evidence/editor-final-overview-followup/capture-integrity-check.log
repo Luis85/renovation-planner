@@ -1,2 +1,2 @@
-PASS: fresh named copy; unrecorded PNG excluded; changed bytes refused before copy; stale source refused before copy.
-Temporary test data retained without deletion: C:\Users\lum\AppData\Local\Temp\rp-capture-integrity-QglcIo
+PASS: missing run boundary refused; fresh named copy; unrecorded PNG excluded; changed bytes refused before copy; stale source refused before copy.
+Temporary test data retained without deletion: C:\Users\lum\AppData\Local\Temp\rp-capture-integrity-uRvju6

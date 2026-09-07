@@ -9,14 +9,15 @@ async function settled(page) {
 }
 function context(page, roomId) {
 	return page.evaluate(id => ({ scene: window.editorFidelity.captions(id), notes: window.editorFidelity.savedNotes(),
-		selection: [...new Set([...document.querySelectorAll('[data-rp-id][aria-pressed="true"]')].map(element => element.getAttribute('data-rp-id')))].toSorted() }), roomId);
+		selection: window.editorFidelity.selection() }), roomId);
 }
 async function sampleRoom(page) {
-	assert.equal(await page.evaluate(() => typeof window.editorFidelity?.captions === 'function' && typeof window.editorFidelity?.savedNotes === 'function'), true, 'read-only fidelity adapter is installed');
+	assert.equal(await page.evaluate(() => ['captions', 'savedNotes', 'selection'].every(key => typeof window.editorFidelity?.[key] === 'function')), true, 'read-only fidelity adapter is installed');
 	const selected = page.locator('.rp-room-list__row[aria-pressed="true"]').first();
 	const isSelected = await selected.count() > 0;
 	const roomId = await (isSelected ? selected : page.locator('.rp-room-list__row').first()).getAttribute('data-rp-id');
 	assert.ok(roomId);
+	if (isSelected) assert.ok(await page.evaluate(id => window.editorFidelity.selection().ids.includes(id), roomId), 'sample is the actual selected Room');
 	return { roomId, role: isSelected ? 'selected-room' : 'floor/element viewport sample; selected entity IDs are recorded separately' };
 }
 function unchanged(before, after) {
@@ -32,14 +33,19 @@ export async function captureInspectorDesign(page, scenario, out, name, { select
 	const viewport = page.viewportSize(), sample = await sampleRoom(page);
 	const before = await context(page, sample.roomId);
 	await page.setViewportSize({ width: viewport.width, height: 1000 }); await settled(page);
-	if (topControl) { await tabTo(page, topControl); await page.keyboard.press('Control+Home'); await settled(page); }
+	if (topControl) {
+		await tabTo(page, topControl); await page.keyboard.press('Control+Home');
+		const inspector = await page.locator('[data-rp-region="inspector"]').boundingBox(); assert.ok(inspector);
+		await page.mouse.move(inspector.x + inspector.width * 0.8, inspector.y + 100);
+		await page.mouse.wheel(0, -2000); await settled(page);
+	}
 	const bounds = await inspectorVisibility(page, selectors, scenario.width === 460);
 	await recordShot(page, scenario, out, name);
 	const captured = await context(page, sample.roomId);
 	await page.setViewportSize(viewport); await settled(page);
 	unchanged(before, await context(page, sample.roomId));
-	const result = { viewport: { width: viewport.width, height: 1000 }, bounds, sample, selectedEntityIds: captured.selection,
-		input: topControl ? `Native Tab to ${topControl}, then Control+Home; no direct scroll/focus mutation` : 'Only viewport height changes; no scroll/focus reset',
+	const result = { viewport: { width: viewport.width, height: 1000 }, bounds, sample, selection: captured.selection,
+		input: topControl ? `Native Tab to ${topControl}, Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation` : 'Only viewport height changes; no scroll/focus reset',
 		camera: captured.scene.camera, constrained: scenario.width === 460, vaultAndSelectionUnchanged: true };
 	await writeFile(`${out}/${scenario.name}-${name}.json`, JSON.stringify(result, null, 2));
 	return result;
@@ -77,7 +83,7 @@ export async function captureConstrainedCanvas(page, scenario, out) {
 	if (hadLayers) await activate(page, '[data-rp-rail="layers"]');
 	await settled(page);
 	unchanged(before, await context(page, sample.roomId));
-	const result = { viewport: captureViewport, camera: captured.scene.camera, sample, selectedEntityIds: captured.selection,
+	const result = { viewport: captureViewport, camera: captured.scene.camera, sample, selection: captured.selection,
 		input: 'Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change', vaultAndSelectionUnchanged: true };
 	await writeFile(`${out}/${scenario.name}-M16-closed-constrained.json`, JSON.stringify(result, null, 2));
 	return result;

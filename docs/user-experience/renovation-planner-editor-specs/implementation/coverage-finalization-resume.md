@@ -10,6 +10,29 @@ Root owns shared status files and the final combined source/acceptance.
 
 ## Latest checkpoint
 
+**Next five cases are source-prepared only, with no production edits.** Root approved
+the exact package in `tests/plugin/catalogueSnapshotBoundaries.test.ts` (three cases)
+and `tests/application/commands/geometryMaterialGuardBoundaries.test.ts` (two cases).
+They exercise a real semantically invalid Quote with its actual raw CAS version,
+Asset/Trade listing snapshots overtaken by real index reconciliation, invalid persisted
+material blocking a valid geometry change, and a real material deletion during the
+guard's snapshot allowing removal of its otherwise unreferenced wall. Forwarded reads
+and repository deletion use real implementations; no fabricated Results are returned.
+The six target arms were zero in original545; their production sources still match
+the fetched integration branch. Source review corrected the Quote read-error expectation
+to the repository wrapper's `quote.entity-invalid`; the write refusal is `quote.invalid`.
+No tests, types, lint, analyzer or new coverage measurement has run for this package.
+UI retains the heavy slot; wait for Root's explicit handoff before any verification.
+
+Root reports the new complete `07bc094aabcf68e68e94f368c11f35fecdc56ef7` baseline:
+663 files, 8121 passing tests, 69 skips, B12543/12813 (97.89%), **14 remaining arms**.
+Run34160382401/job101860791807/artifact10032537778 tested merge
+`a7f5ff7ea652773d1f14fb4ee0f2869a19156f6c`, tree
+`009ffd1622554dc0119a595d7b2f8ffdb2a46f6c`, confirmed source-identical by Root.
+Original JSON/LCOV are preserved in Root scratch `ci-07bc094a-linux24/`.
+This validates the previous lifecycle package on the shared source; the next five
+cases have no measured gains yet. The full unchanged check remains outstanding.
+
 **Five repository lifecycle cases are verified on 067e3bf3:** 5/5 native PASS
 (43.51 seconds), types/whole Oxlint/scoped ESLint/static Fallow PASS (zero issues/clones).
 The 5/5 scoped coverage repeat (13.28 seconds) hit exactly the five announced null

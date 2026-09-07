@@ -28,7 +28,7 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 <template>
 	<label>{{ tr('planning.path') }}<input
 		v-model="draft.path"
-		:readonly="paused || writeBlocked || working"
+		:readonly="paused || working"
 		name="path"
 		:list="filesId"
 	></label>

@@ -1,0 +1,296 @@
+{
+  "scope": "Five verified public repository/service lifecycle boundaries",
+  "ownerSource": "067e3bf3",
+  "baselineSource": "43041936a7f86d31058f6d21a16c3a596e1bacc6",
+  "testFile": "tests/plugin/repositoryLifecycleBoundaries.test.ts",
+  "native": {
+    "result": "PASS",
+    "seconds": 43.51,
+    "tests": 5
+  },
+  "scopedCoverage": {
+    "seconds": 13.28,
+    "result": "Tests PASS; unchanged global coverage floors fail for scoped execution",
+    "tests": 5
+  },
+  "types": "PASS",
+  "wholeOxlint": "PASS",
+  "scopedEslint": "PASS",
+  "staticFallow": "PASS; zero issues and clone groups",
+  "gains": [
+    {
+      "path": "src/infrastructure/obsidian/repositories/AssetGeometryStore.ts",
+      "kind": "branch",
+      "id": "0",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 132,
+            "column": 10
+          },
+          "end": {
+            "line": 132,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 132,
+              "column": 30
+            },
+            "end": {
+              "line": 132,
+              "column": 55
+            }
+          },
+          {
+            "start": {
+              "line": 132,
+              "column": 55
+            },
+            "end": {
+              "line": 132,
+              "column": null
+            }
+          }
+        ],
+        "line": 132
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/obsidian/repositories/ObsidianEvidenceFiles.ts",
+      "kind": "branch",
+      "id": "1",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 17,
+            "column": 98
+          },
+          "end": {
+            "line": 17,
+            "column": 135
+          }
+        },
+        "type": "binary-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 17,
+              "column": 98
+            },
+            "end": {
+              "line": 17,
+              "column": 133
+            }
+          },
+          {
+            "start": {
+              "line": 17,
+              "column": 133
+            },
+            "end": {
+              "line": 17,
+              "column": 135
+            }
+          }
+        ],
+        "line": 17
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/obsidian/repositories/ObsidianQuoteRepository.ts",
+      "kind": "branch",
+      "id": "3",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 26,
+            "column": 127
+          },
+          "end": {
+            "line": 26,
+            "column": 192
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 26,
+              "column": 150
+            },
+            "end": {
+              "line": 26,
+              "column": 162
+            }
+          },
+          {
+            "start": {
+              "line": 26,
+              "column": 162
+            },
+            "end": {
+              "line": 26,
+              "column": 192
+            }
+          }
+        ],
+        "line": 26
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/obsidian/repositories/noteIo.ts",
+      "kind": "branch",
+      "id": "6",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 185,
+            "column": 8
+          },
+          "end": {
+            "line": 185,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 185,
+              "column": 37
+            },
+            "end": {
+              "line": 185,
+              "column": 59
+            }
+          },
+          {
+            "start": {
+              "line": 185,
+              "column": 59
+            },
+            "end": {
+              "line": 185,
+              "column": null
+            }
+          }
+        ],
+        "line": 185
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/infrastructure/obsidian/repositories/noteIo.ts",
+      "kind": "branch",
+      "id": "16",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 298,
+            "column": 27
+          },
+          "end": {
+            "line": 298,
+            "column": 51
+          }
+        },
+        "type": "binary-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 298,
+              "column": 27
+            },
+            "end": {
+              "line": 298,
+              "column": 49
+            }
+          },
+          {
+            "start": {
+              "line": 298,
+              "column": 49
+            },
+            "end": {
+              "line": 298,
+              "column": 51
+            }
+          }
+        ],
+        "line": 298
+      },
+      "before": 0,
+      "after": 1
+    }
+  ],
+  "comparisonLimit": "Only identical source and maps compared. Other source/scoped maps differ; no full coverage union or aggregate pass is inferred.",
+  "originalBaseline": "C:/Users/lum/AppData/Local/Temp/rp-finalization-20260907-88b9ee3d/ci-43041936-linux24/coverage-final.json",
+  "scopedData": "C:/Users/lum/AppData/Local/Temp/rp-coverage-finalization-lifecycle-scoped/coverage-final.json",
+  "rootIntegration": {
+    "baseline": "545ad7b6d7886557517c3fe78bfd9cc496dfea82",
+    "matchedGains": [
+      {
+        "path": "src/infrastructure/obsidian/repositories/AssetGeometryStore.ts",
+        "baselineId": "0",
+        "scopeId": "0",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "0585d23a1d0d2cc2506650d879c1f7e9da0f3dc5"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/ObsidianEvidenceFiles.ts",
+        "baselineId": "1",
+        "scopeId": "1",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "01d04ead159cc87b92a76bdf7b7185f537699811"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/ObsidianQuoteRepository.ts",
+        "baselineId": "3",
+        "scopeId": "3",
+        "arm": 0,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "4f02301253e1f8e03dd3d34f0569cc7222626a82"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/noteIo.ts",
+        "baselineId": "6",
+        "scopeId": "6",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "bceb54247eec81be9e8749978c31ec1babadd381"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/noteIo.ts",
+        "baselineId": "16",
+        "scopeId": "16",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "bceb54247eec81be9e8749978c31ec1babadd381"
+      }
+    ],
+    "scope": "Same source blobs and exact branch descriptors; no aggregate coverage union."
+  }
+}

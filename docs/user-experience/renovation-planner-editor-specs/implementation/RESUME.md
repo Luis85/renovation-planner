@@ -27,23 +27,25 @@ Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument ak
 | Erreiche Editor-Testcoverage | 01a07cca-4d4b-75b0-96fb-9417d3b86f51 / codex/editor-coverage-finalization, PR#92 | Globale Coverage; genau fünf weitere öffentliche Grenzfälle sind source-only freigegeben |
 | Improve M15 recovery workflow | 01a07838-4e54-7ac3-bc24-a8eef9185d6e | Idle; native Host-Labels auf430 lesend geprüft, keine Host-Aktion ausgeführt |
 
-**Coverage hält jetzt den schweren lokalen Slot** für genau fünf neue repositoryLifecycleBoundaries-Fälle plus notwendige Nachbarn, Types/Lint/static. UI hat67702(ruhige vier Szenarien) und73590(CPU-Vergleich) terminal0 beendet; keine UI-Heavyprozesse. UI bereitet M01/M04 und Zusatzaufnahmen source-only vor. Root integriert nur verifizierte Source/Docs, ohne Heavyprozess. Nach dem begrenzten Coverage-Receipt Slot ausdrücklich an UI zurückgeben; keine neue Restanalyse zwischen Testpass und Commit/Push einschieben.
+**UI hat den schweren lokalen Slot zurückerhalten** für M01/M04-Regressionen und passende Zusatzaufnahmen. Aktueller nativer Handle63964 (beim Wiedereinstieg Status prüfen), Produktionsstand bleibt währenddessen eingefroren. Coverage77006/26251 sind terminal;0c3a3315 ist geprüft/gepusht und ohne laufenden Prozess. Root übernimmt nur Source/Docs und hat keinen Heavyprozess. Coverage arbeitet an der nächsten begrenzten Restpriorisierung read-only.
 
 Rechner ca.8GB RAM. Installs, Builds, Tests, Coverage, Analyzer und Browser-/Performancecaptures lokal serialisieren. Lesen, Source und Dokumentation können parallel laufen. Vor einer ruhigen Performance-Messung auch größere Archivierung/Bilddarstellung abstimmen. Keine fremden Prozessausgaben konsumieren oder Prozesse stoppen. Stille und Beobachtungstimeouts sind kein Prozessende; tatsächlichen Handle oder terminalen Owner-Beleg prüfen.
 
 Die dedizierte Coverage-Task besitzt globale Testpakete. Root/E/Helfer beginnen keine weiteren globalen Coverage-Pakete. UI behält Regressionen eigener Fixes. [Coverage-Auftrag](coverage-session-brief.md), [Steuerung](coverage-coordination.md).
 
-## Vollständige CI auf43041936
+## Neueste vollständige CI auf545ad7b6
 
-[Run34156093009](https://github.com/Luis85/renovation-planner/actions/runs/34156093009) ist beendet. Jede Linux22/24/26- und Windows22-Leg besteht **661Dateien/8115Tests,69Skip,0Testfehler**. Build und Lint bestehen; AuditPASS. Einziger CI-Fehler ist die unveränderte Branchgrenze.
+[Run34159212022](https://github.com/Luis85/renovation-planner/actions/runs/34159212022) ist beendet. Jede Linux22/24/26- und Windows22-Leg besteht **662Dateien/8116Tests,69Skip,0Testfehler**. Build/Lint bestanden, AuditPASS. Der Pan-Fix ist in diesem vollständigen Stand enthalten. Einziger CI-Fehler: unveränderte Branchgrenze.
 
-S18060/18222, F5174/5211, L14102/14166, B**12537/12813=97,84%**. Bei diesem Nenner fehlen **20Brancharme** bis98%. Das Mapper-/Review-/Kalibrierungspaket ist bereits enthalten. Nach neuer UI-Produktion erneut messen.
+S18076/18237, F5182/5219, L14110/14174, B**12538/12813=97,85%**. Bei diesem Nenner fehlen **19Arme**, bevor das folgende geprüfte Repository-Paket einbezogen ist. Nach neuen Tests und UI-Produktion vollständig neu messen; keine ungemessene Gesamtquote behaupten.
 
-Getesteter Mergee33dec1ca2e245c5153c000fc0a59eb9fefba3af und Root430 haben denselben Baum bf78400fa5ab016b7aa8347726727ce267b00dad. Linux24: Job101848160370, Artefakt10031200230. OriginalJSON/LCOV unter Root-Scratch ci-43041936-linux24/. [Qualitätsreceipt mit Hashes](evidence/ci-43041936-quality.json).
+Merge571e28bf285d1879bef0ff34e1b8cd8c565e433b und Root545 teilen Baum0e76fb3394a343a39ca6782fe3529fac319ad742. Linux24 Job101857339464, Artefakt10032202903, OriginalJSON/LCOV im Root-Scratch ci-545ad7b6-linux24/. [Qualitätsreceipt](evidence/ci-545ad7b6-quality.json). Der vollständige430-Vorgänger hatte8115PASS und20fehlendeArme.
 
-Letzter vollständig passender Fallow-Health: Vorgänger9cb87b1b mit originalen CI-Countern und offiziellem coverage-root, **Exit0,0Findings,748/748Dateien gemappt**. [Receipt](evidence/ci-9cb87b1b-quality.json). Kein frischer430-Health behauptet; danach änderte sich der RequirementMapper.
+Coverage **0c3a3315087127803d300bb9aca1ff39f8383c33** wird selektiv übernommen: repositoryLifecycleBoundaries.test.ts, Begleitdokument und Counter-Receipt. Fünf öffentliche Fälle betreffen kaputtes Asset-Sidecar, spätes Project-Verschwinden vor Quote-Insert, geparstes Markdown ohne Frontmatter, Peer-Entfernung nach gelandetem Write und Evidence-Linkauflösung nach Plan-Unindexierung. **5/5native PASS(43,51s), Types/Ox/scopedESLint/static PASS; scoped5/5(13,28s)**. Unveränderte globale Floors schlagen beim Scoped-Lauf erwartungsgemäß fehl.
 
-Die fünf freigegebenen Coverage-Kandidaten sind im originalen430-JSON weiter ungetroffen: AssetGeometryStore b0[1] (ungültiges JSON-Schema beim ausdrücklich gewünschten Delete), QuoteRepository b3[0] (Project verschwindet zwischen echtem Read und Insert), noteIo b16[1] (Cache hat bereits Markdown ohne Frontmatter), noteIo b6[1] (Datei verschwindet nach gelandetem Write vor Echo-Stat), EvidenceFiles b1[1] (Linkauflösung ohne ursprünglichen Plan-Index). Echte öffentliche Grenzen, keine privaten Handler oder synthetischen Erfolgsmeldungen. Noch keine neuen Hits behaupten.
+Root hat die **fünf neuen Branch-Treffer** zusätzlich gegen die545-Vollcounter bestätigt: identische Git-Sourceblobs und exakte Branchdeskriptoren, jeweils0→1. Keine Produktionsänderung und kein vollständiger Coverage-Union-Pass. [Paket und Grenzen](repository-lifecycle-boundaries.md), [exakter Receipt](evidence/repository-lifecycle-counter-gains.json). Diese Fälle nicht duplizieren; neue Restpriorisierung ist Coverage-owned und zunächst read-only.
+
+Letzter vollständig passender Fallow-Health bleibt Vorgänger9cb: Exit0,0Findings,748/748Dateien gemappt. Kein frischer545-Health behauptet, während UI den lokalen Slot hält. [Historischer Receipt](evidence/ci-9cb87b1b-quality.json).
 
 ## Vollständiger Browserlauf und konkrete Reste
 
@@ -123,7 +125,7 @@ Computer-Use-Skill vor Hostbedienung lesen; unterstützte API nutzen. UIA konnte
 
 ## Nächste Aktionen und technische Wiederaufnahme
 
-1. Gitstatus/HEAD/origin, Taskstatus und tatsächlichen Slotowner prüfen. Coverage besitzt den begrenzten nächsten Prüfslot; UI bereitet M01/M04 und Zusatzaufnahmen vor. Pan-Fix ist geprüft und integriert. Keine alten Handles neu starten.
+1. Gitstatus/HEAD/origin, Taskstatus und tatsächlichen Slotowner prüfen. UI besitzt den Prüfslot für M01/M04 und Zusatzaufnahmen. Pan-Fix und fünf Repository-Grenzfälle sind geprüft und integriert. Keine alten Handles neu starten.
 2. Verifizierte UI-Folge prüfen und integrieren. Coverage genau fünf vorbereitete öffentliche Grenzfälle im nächsten expliziten Slot prüfen lassen; danach passende volle CI/Health und verbleibende Arme neu bewerten.
 3. Nach den Produktkorrekturen die erforderliche gemeinsame visuelle/Performance-Verifikation abschließen.340Bilder auf430 bleiben Vorgängerbeleg; kein pauschaler neuer Pass daraus.
 4. Finalen Build mit Source-/Bundle-/Styles-/Manifest-Hashes ausschließlich im benannten Testvault installieren/reloaden. H1–H6 ausführen. Originale synthetische Dateien und Installed-Hashes sind im Scratch unter host-before-final-build/ gesichert; das native Testvault-Fenster war zugänglich, weiterhin auf vorläufigem Build.

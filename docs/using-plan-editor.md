@@ -17,6 +17,18 @@ With canvas focus, Enter finishes an Object, Path, Fence or Measurement; Backspa
 its last draft point. Pending numeric input must be applied or discarded first. Enter in a
 numeric field applies that field’s form and does not finish the element.
 
+For a selected rectangular Room, activate its width or depth label to enter an exact
+length in metres. Commas and decimal points are accepted. Apply or Enter saves one
+geometry change; Escape cancels. The other dimension and the Room’s identity stay intact,
+and Undo restores the original outline. An invalid or conflicted entry stays visible.
+While saving, Select, Add and Cancel retain the pending edit. Switching tools deliberately
+abandons an unsaved entry; changing perspective first asks about the draft.
+
+The nearby **Edit shape** action opens the Room’s outline coordinates. **Add detail**
+opens the contextual Existing, Planned, Work, Materials, Costs or Evidence form. A selected
+wall offers **Edit length** and, when it has a Room context, **Mark change**. Length changes
+still require Preview and Apply; Mark change uses the separate Planned record.
+
 Use the floor list to select an element with the keyboard. Select several compatible
 elements to create shared Work or Evidence, apply a planned change, or inspect their totals.
 A shared record keeps one identity across its linked contexts. Deletion shows its impact

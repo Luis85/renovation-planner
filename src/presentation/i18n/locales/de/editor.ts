@@ -14,6 +14,16 @@ import type {
  */
 import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
+	'editor.direct.edit-shape': 'Form bearbeiten',
+	'editor.direct.edit-length': 'Länge bearbeiten',
+	'editor.direct.mark-change': 'Änderung markieren',
+	'editor.direct.add-detail': 'Detail hinzufügen',
+	'editor.direct.length-value': 'Wandlänge bearbeiten, {value} m',
+	'editor.dimension.edit-width': 'Raumbreite bearbeiten, {value} m',
+	'editor.dimension.edit-depth': 'Raumtiefe bearbeiten, {value} m',
+	'editor.dimension.context-changed': 'Die Auswahl wurde geändert. Die Eingabe bleibt erhalten. Abbrechen und das Maß für die aktuelle Auswahl erneut öffnen.',
+	'editor.dimension.task': 'Raummaß bearbeiten',
+	'editor.dimension.instruction': 'Länge in Metern eingeben. Anwenden oder Eingabe speichert; Escape bricht ab.',
 	...objectDe,
 	"editor.element.name-required": "Geben Sie einen Namen ein.",
 	"editor.element.edit": "{name} bearbeiten",

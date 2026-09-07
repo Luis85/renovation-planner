@@ -26,6 +26,16 @@ import { objectEn } from './object';
  */
 import { structureEn } from './structure';
 export const editorEn = {
+	'editor.direct.edit-shape': 'Edit shape',
+	'editor.direct.edit-length': 'Edit length',
+	'editor.direct.mark-change': 'Mark change',
+	'editor.direct.add-detail': 'Add detail',
+	'editor.direct.length-value': 'Edit wall length, {value} m',
+	'editor.dimension.edit-width': 'Edit room width, {value} m',
+	'editor.dimension.edit-depth': 'Edit room depth, {value} m',
+	'editor.dimension.context-changed': 'Selection changed. Your entry is retained. Cancel and reopen the dimension to edit the current selection.',
+	'editor.dimension.task': 'Edit room dimension',
+	'editor.dimension.instruction': 'Enter a length in metres. Apply saves the change. Escape cancels.',
 	...objectEn,
 	"editor.element.name-required": "Enter a name.",
 	"editor.element.edit": "Edit {name}",

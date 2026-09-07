@@ -33,6 +33,8 @@ import ZoneLayer from './layers/zone/ZoneLayer.vue';
 import StructureLayer from './structure/StructureLayer.vue';
 import RenovationLayer from './renovation/RenovationLayer.vue';
 import { structureCandidates } from './structure/structureCandidates';
+import RoomDimensionLabels from './resize/RoomDimensionLabels.vue';
+import DirectActionPopover from './selection/DirectActionPopover.vue';
 
 /** This surface's own subject, which `EditorSurface` requires rather than assuming. */
 const CANVAS_LABEL: StringKey = 'editor.canvas';
@@ -148,6 +150,8 @@ function framedBounds(all: boolean) {
 			</VStage>
 		</template>
 		<template #overlay>
+			<RoomDimensionLabels />
+			<DirectActionPopover />
 			<slot />
 		</template>
 	</EditorSurface>

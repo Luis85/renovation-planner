@@ -52,7 +52,7 @@ import { isElementTool } from '../elements/elementDraft';
 const runtime = useEditorRuntime();
 const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
 const isElement = computed(() => isElementTool(runtime.activeToolId.value));
-const cancelBlocked = computed(() => (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
+const cancelBlocked = computed(() => !runtime.toolManager.canDeactivateActiveTool() || (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
 function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
 function freeRoomName(event: Event): void {
 	const input = event.target as HTMLInputElement;
@@ -61,6 +61,7 @@ function freeRoomName(event: Event): void {
 }
 
 const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKey: StringKey; finish?: true }>>> = {
+	'edit-room-dimension': { nameKey: 'editor.dimension.task', instructionKey: 'editor.dimension.instruction' },
 	'place-object': { nameKey: 'editor.add.item.label', instructionKey: 'editor.element.banner.object', finish: true },
 	'draw-path': { nameKey: 'editor.add.path.label', instructionKey: 'editor.element.banner.path', finish: true },
 	'draw-fence': { nameKey: 'editor.add.fence.label', instructionKey: 'editor.element.banner.fence', finish: true },

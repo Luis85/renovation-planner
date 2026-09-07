@@ -82,6 +82,7 @@ import { createNudgeSelectionAction } from './nudge';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly roomDimension: EditorFormActions['roomDimension'];
 	readonly elementTask: ReturnType<typeof createElementTask>;
 	readonly elementActions: ReturnType<typeof createElementActions>;
 	readonly areaDetails: EditorFormActions['areaDetails'];

@@ -3,10 +3,10 @@ import { setIcon } from 'obsidian';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from '../renovation/renovationSession';
-import { useEvidencePins } from './evidencePins';
+import type { EvidencePin } from './evidencePins';
 import { evidencePinWidth } from '../layers/zone/captionPlacement';
-defineProps<{ tokens: ThemeTokens; zoom: number }>();
-const runtime = useEditorRuntime(), session = useRenovationSession(), pins = useEvidencePins();
+defineProps<{ pins: readonly EvidencePin[]; tokens: ThemeTokens; zoom: number }>();
+const runtime = useEditorRuntime(), session = useRenovationSession();
 const svgNumber = (node: Element, attribute: string) => Number(node.getAttribute(attribute));
 
 /** Use the host's existing Lucide geometry, without another icon catalogue or raster resource. */

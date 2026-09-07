@@ -24,7 +24,7 @@ const thumbnail = computed(() => {
 		:alt="item.description"
 		@error="failed = true"
 	>
-	<span class="rp-evidence-file-metadata">{{ item.path }}{{ item.subpath }} · {{ tr(`planning.${item.phase}`) }}</span>
+	<span class="rp-evidence-file-metadata">{{ item.path }}{{ item.subpath }} · {{ tr(`planning.${item.phase}`) }}<template v-if="item.date"> · <time :datetime="item.date">{{ item.date }}</time></template></span>
 	<span
 		v-if="!file?.ok"
 		class="rp-evidence-file-metadata"

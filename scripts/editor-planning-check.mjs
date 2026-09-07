@@ -11,7 +11,7 @@ async function shot(page, scenario, out, state) {
   if (!images.length || images.some(image => !image.complete || image.naturalWidth <= 0)) return false;
   const sources = images.map(image => image.currentSrc);
   await Promise.all(images.map(image => image.decode()));
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  await new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); });
   return images.every((image, index) => image.isConnected && image.complete && image.naturalWidth > 0 && image.currentSrc === sources[index]);
  });
  await recordShot(page, scenario, out, state);

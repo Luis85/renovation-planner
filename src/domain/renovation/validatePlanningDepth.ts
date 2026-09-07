@@ -1,3 +1,4 @@
+import { isCalendarDate } from '../schedule/WorkSchedule';
 import { of } from '../../core/money/Money';
 import { err, ok } from '../../core/result/Result';
 import { reconcileCosts } from '../cost/reconcileCosts';
@@ -27,7 +28,7 @@ function validCost(cost: CostRecord): boolean {
  return reconcileCosts(cost, example, example.currency).ok;
 }
 function validEvidence(evidence: Evidence, linked: ReadonlyMap<string, RoomContext>): boolean {
- if (!validSharedLinks(evidence)) return false;
+ if (!validSharedLinks(evidence) || (evidence.date !== undefined && !isCalendarDate(evidence.date))) return false;
  if (!evidence.path || !evidence.description.trim() || !EVIDENCE_TYPES.includes(evidence.type) || !EVIDENCE_PHASES.includes(evidence.phase)) return false;
  if (evidence.recordId && linked.has(evidence.recordId) && !hasRoomContext(linked.get(evidence.recordId), evidence.roomId)) return false;
  return !evidence.pin || [evidence.pin.x, evidence.pin.y].every(coordinate => Number.isFinite(coordinate) && coordinate >= 0 && coordinate <= 1);

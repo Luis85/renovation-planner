@@ -134,3 +134,26 @@ it('keeps the saved source action inert while Retry is reading and retires it af
   held.resolve(); await flushPromises(); expect(view.wrapper.find('[data-rp-recovery-source]').exists()).toBe(false); expect(writes).toHaveBeenCalledOnce();
  } finally { held.resolve(); closeView(view); }
 });
+
+it('reports a host file-lookup exception and allows source opening to recover without another saved Quote write', async () => {
+ const { rig, view, workspace, writes, saved } = await failedQuoteReadback();
+ try {
+  const failure = new Error('Host file lookup failed'), report = vi.spyOn(notices, 'notifyFault').mockImplementation(() => undefined), bytes = [...rig.stack.vault.entries];
+  vi.spyOn(rig.stack.deps.vault, 'getAbstractFileByPath').mockImplementationOnce(() => { throw failure; });
+  const source = view.wrapper.get('[data-rp-recovery-source]'); await source.trigger('click'); await flushPromises();
+  expect(report).toHaveBeenCalledExactlyOnceWith(failure, view.context.commands.logger, 'view.project.open-failed'); expect(source.attributes('aria-disabled')).toBe('false');
+  await source.trigger('click'); await flushPromises(); expect(workspace.leaves.at(-1)?.opened[0]?.path).toBe(rig.persistence.index.getPath(saved.entity.id));
+  expect(writes).toHaveBeenCalledOnce(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+ } finally { closeView(view); }
+});
+it('keeps a saved-source control inert behind a native Project dialog opened through the host command', async () => {
+ const { rig, view, workspace, writes } = await failedQuoteReadback();
+ try {
+  const command = (view.wrapper.vm as unknown as { openNewProjectDialog(): Promise<void> }).openNewProjectDialog;
+  void command(); await flushPromises(); expect(view.wrapper.find('.rp-dialog').exists()).toBe(true);
+  const bytes = [...rig.stack.vault.entries]; await view.wrapper.get('[data-rp-recovery-source]').trigger('click'); await flushPromises();
+  expect(workspace.leaves).toHaveLength(0); expect(writes).toHaveBeenCalledOnce(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+  await view.wrapper.get('[data-rp-action="cancel"]').trigger('click'); await flushPromises();
+  await view.wrapper.get('[data-rp-recovery-source]').trigger('click'); await flushPromises(); expect(workspace.leaves).toHaveLength(1); expect(writes).toHaveBeenCalledOnce();
+ } finally { closeView(view); }
+});

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { EvidencePin } from '../planning/evidencePins';
 import { inRenovationScope } from './renovationSummary';
 import MaterialMarkers from '../planning/MaterialMarkers.vue';
 import CostWorkHighlight from '../planning/CostWorkHighlight.vue';
@@ -12,7 +13,7 @@ import { useRenovationSession } from './renovationSession';
 import { EMPTY_RENOVATION, orderedWork, reviewRenovation } from '../../../domain/renovation/Renovation';
 import { openingPoints } from '../../../domain/spatial/Structure';
 import { tr } from '../../i18n/strings';
-const props = defineProps<{ tokens: ThemeTokens; transform: NodeTransform; zoom: number; visible: boolean }>();
+const props = defineProps<{ pins: readonly EvidencePin[]; tokens: ThemeTokens; transform: NodeTransform; zoom: number; visible: boolean }>();
 const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession();
 const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
 const markers = computed(() => {
@@ -59,6 +60,7 @@ function focus(roomId: string, id: string): void {
 				:zoom="zoom"
 			/>
 			<EvidencePins
+				:pins="props.pins"
 				:tokens="tokens"
 				:zoom="zoom"
 			/>

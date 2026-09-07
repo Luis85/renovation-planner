@@ -16,11 +16,12 @@ import type { NodeTransform } from '../../viewport/Viewport';
 import { toZoneRenderModel } from './ZoneRenderModel';
 import ZoneShape from './ZoneShape.vue';
 import { useSelectionStore } from '../../selection/selection-store';
-import { useEvidencePins } from '../../planning/evidencePins';
+import type { EvidencePin } from '../../planning/evidencePins';
 import { useRenovationSession } from '../../renovation/renovationSession';
 import { useWorkspaceStore } from '../../../stores/WorkspaceStore';
 
 const props = defineProps<{
+	pins: readonly EvidencePin[];
 	transform: NodeTransform;
 	tokens: ThemeTokens;
 	visible: boolean;
@@ -29,8 +30,8 @@ const props = defineProps<{
 
 const { zones } = storeToRefs(useProjectStore());
 const selection = useSelectionStore();
-const session = useRenovationSession(), workspace = useWorkspaceStore(), pins = useEvidencePins();
-const captionObstacles = computed(() => session.visible && workspace.layerVisibility.annotation ? pins.value : []);
+const session = useRenovationSession(), workspace = useWorkspaceStore();
+const captionObstacles = computed(() => session.visible && workspace.layerVisibility.annotation ? props.pins : []);
 const selected = computed(() => new Set<string>(selection.selectedIds));
 
 const models = computed(() => [...zones.value.values()].map((zone) => toZoneRenderModel(zone)));

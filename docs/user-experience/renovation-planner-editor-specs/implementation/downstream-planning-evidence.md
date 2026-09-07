@@ -58,3 +58,12 @@ The bounded boundary/refusal run passed the unchanged environment guard, both pl
 - Source-only recovery review found missing Trade/date comparison fields and named catalogues in Library relocation, both corrected by root. It traced remaining Work copy, form, shared-link and compensation paths without an additional finding. This is review evidence, not host acceptance.
 
 The unchanged full coverage/quality gates, final eight browser journeys plus the downstream ninth journey/eighteen image comparisons, performance/cleanup measurements and required live-host observations remain open. No timing or browser claim is transferred from an earlier source tree.
+
+
+## Post-restart native boundary verification — 2026-09-07
+
+Production remains unchanged from `5557385f`. The local continuation `a7d61da1` also incorporates E `7fd89801`. The seven-file root run passed 26 of 29 cases in 64.79 seconds. After correcting fixture assumptions, the two affected files passed all seven cases in 13.98 seconds. Together these runs establish 29 distinct passing cases, including the eight newly joined arrival/deletion cases. Root adds 14 cases across `downstreamSavedSource`, `projectSourceNavigation`, `downstreamUnavailableSettings`, `quoteIsolation` and `assetDefinitionPeerChanges`. They exercise native Vue controls, canonical composed repositories and the host note-opening seam.
+
+The three initial failures were fixture assumptions: completed Project rows follow their actual displayed order; hand-edited Quote frontmatter must reach the fake host MetadataCache before a metadata-backed read can observe it. The corrected tests retain their behavioral assertions and observe those boundaries. Source review also replaced a nonexistent FakeVault method and retained signed quote credits allowed by Money/Quote. Typed Project identity, typed navigation mocks and immutable sorting satisfy existing lint rules. Final whole Oxlint and scoped ESLint pass. Type checking passed before the final mock/sort-only corrections and remains part of the next joined build. No new production change or full-gate pass is claimed.
+
+CI on `5557385f` passes 633 files and 8,001 tests with 69 skips, production build/types and whole lint on all four platforms. Coverage fails statements at 98.86% and branches at 97.27%; functions at 99.02% and lines at 99.43% pass. Audit passes. Logs are preserved in the finalization scratch directory as `root-resume-native.log`, `root-resume-fixtures.log`, `root-resume-types.log`, `root-resume-oxlint.log` and `root-resume-eslint.log`.

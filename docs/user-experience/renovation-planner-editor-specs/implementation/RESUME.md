@@ -10,6 +10,12 @@ Der gesamte Ablauf Project → Floor → Room/Area/Wall/Opening → Existing →
 
 Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument aktuell halten und sinnvolle Parallelisierung koordinieren. Klar gekennzeichneter WIP darf gesichert werden. Keine PR mergen, Releases veröffentlichen, Tasks schließen oder fremde Worktrees löschen. Keine Assertions, Grenzen, Timeouts oder Ausschlüsse für einen Pass abschwächen. Alte Stashes wurden bereits angewandt: nicht erneut anwenden oder poppen.
 
+## Neuester Integrationscheckpoint
+
+UI9f7e882d is integrated as Root6569a9e7: M01/M04, verified overview images and hardened no-deletion capture provenance. This checkpoint includes Coverage256a9384 with five verified Quote/catalogue/geometry cases. Root checked98UI artifact hashes and6branch/2statement gains against identical original07source/maps. [Joined evidence](joined-overview-snapshot-evidence.md). This production is newer than the measured07baseline below.
+
+UI owns the slot for bounded count-copy/idle-guidance checks and M13pilot. Coverage91653/42286/77614/69697 are terminal;256a9384 is pushed and verified. Root has no heavy process. Then freeze the combined source for final9/18andCI/Health. Final nativeH1–H6remain open.
+
 ## Aktueller Gitstand
 
 - Hauptcheckout D:/Projects/renovation-planner bleibt sauber auf main (zuletzt44234f77).
@@ -27,7 +33,7 @@ Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument ak
 | Erreiche Editor-Testcoverage | 01a07cca-4d4b-75b0-96fb-9417d3b86f51 / codex/editor-coverage-finalization, PR#92 | Globale Coverage; genau fünf weitere öffentliche Grenzfälle sind source-only freigegeben |
 | Improve M15 recovery workflow | 01a07838-4e54-7ac3-bc24-a8eef9185d6e | Idle; native Host-Labels auf430 lesend geprüft, keine Host-Aktion ausgeführt |
 
-**UI besitzt den lokalen Prüfslot.** M01/M04-Produktion150e723e ist nativ/type/lint geprüft, aber noch nicht in Root. Capture-Helfer wurden nach echten Selektorfehlern korrigiert.89997 und41858 endeten mit Capture-Fehlern; keine Erfolgsaussage daraus. UI47097 ist terminal0; Root63863-Health ebenfalls, Slot ausdrücklich an UI zurückgegeben. Aktuellen nächsten Capture-Handle beim Owner prüfen. Coverageab4b8e0c ist nur Source-WIP. Root hat keinen Heavyprozess.
+**UI besitzt den lokalen Prüfslot.** M01/M04-Produktion150e723e ist nativ/type/lint geprüft und durch UI9f7e882d in Root6569a9e7 integriert. Capture-Helfer wurden nach echten Selektorfehlern korrigiert.89997 und41858 endeten mit Capture-Fehlern; keine Erfolgsaussage daraus. UI47097 ist terminal0; Root63863-Health ebenfalls, Slot ausdrücklich an UI zurückgegeben. Aktuellen nächsten Capture-Handle beim Owner prüfen. Coverage256a9384 ist verifiziert und mit diesem Checkpoint übernommen. Root hat keinen Heavyprozess.
 
 Rechner ca.8GB RAM. Installs, Builds, Tests, Coverage, Analyzer und Browser-/Performancecaptures lokal serialisieren. Lesen, Source und Dokumentation können parallel laufen. Vor einer ruhigen Performance-Messung auch größere Archivierung/Bilddarstellung abstimmen. Keine fremden Prozessausgaben konsumieren oder Prozesse stoppen. Stille und Beobachtungstimeouts sind kein Prozessende; tatsächlichen Handle oder terminalen Owner-Beleg prüfen.
 
@@ -45,7 +51,7 @@ Mergea7f5ff7ea652773d1f14fb4ee0f2869a19156f6c und Root07 haben denselben Baum009
 
 Coverage0c3a3315 ist als Root07 übernommen: repositoryLifecycleBoundaries.test.ts, Begleitdokument und Counter-Receipt. Native5/5,Types/Ox/scopedESLint/static bestanden; scoped5/5 und fünf exakt zugeordnete Hits zusätzlich von Root gegen545 bestätigt. Nicht duplizieren. [Paket](repository-lifecycle-boundaries.md), [Counter-Receipt](evidence/repository-lifecycle-counter-gains.json).
 
-Die nächsten genau fünf Fälle liegen ungeprüft auf Coverageab4b8e0c: catalogueSnapshotBoundaries.test.ts (ungültige Quote mit realem Rohversionstoken, Asset-/Trade-Listensnapshot), geometryMaterialGuardBoundaries.test.ts (ungültiges Material vor Geometry-Write, gelöschtes Material im laufenden Guardsnapshot). Source-only freigegeben; keine Produktion und noch kein Native-/Counter-Pass. Erst nach UI-Handback den begrenzten Prüfslot geben.
+Coverage256a9384 ist jetzt verifiziert und mit diesem Checkpoint übernommen: catalogueSnapshotBoundaries.test.ts und geometryMaterialGuardBoundaries.test.ts. Native5/5,Types/Ox/scopedESLint/static sowie scoped5/5 bestanden. Exakt6neueBranch-/2Statement-Hits wurden von Root auf identischen07Sourceblobs und Deskriptoren bestätigt. Keine Produktion durch das Coverage-Paket; neue Gesamtmessung nach UI-Integration erforderlich. Diese Fälle nicht duplizieren.
 
 ## Vollständiger Browserlauf und konkrete Reste
 

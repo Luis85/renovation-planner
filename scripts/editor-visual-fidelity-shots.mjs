@@ -1,18 +1,21 @@
 import assert from 'node:assert/strict';
-import { cp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
 import { resolveChromiumExecutable } from './chromium.mjs';
 import { prepareReferenceFidelity } from './editor-reference-fidelity.mjs';
+import { copyCaptureFiles, makeCaptureManifest, recordScreenshots } from './editor-capture-files.mjs';
 
 // Independent capture output; the existing journey scripts remain unchanged.
 const phase = process.argv[2] ?? 'after';
 assert.ok(['before', 'after'].includes(phase));
 const out = `docs/user-experience/renovation-planner-editor-specs/implementation/evidence/editor-visual-fidelity/${phase}`;
+const started = Date.now(), images = new Set(), copied = [];
 await mkdir(out, { recursive: true });
+await writeFile(`${out}/.gitattributes`, '* -text\n');
 for (const journey of ['materials-costs-evidence', 'renovation-workflow', 'reference-plan', 'editor-visual-resilience', 'editor-visual-overview', 'editor-object', 'planning-recovery', 'modal-busy-focus', 'editor-downstream']) {
-	try { await cp(`harness-shots/${journey}`, `${out}/${journey}`, { recursive: true }); }
+	try { copied.push(...await copyCaptureFiles(`harness-shots/${journey}`, `${out}/${journey}`, journey)); }
 	catch (error) { if (phase === 'after' || error.code !== 'ENOENT') throw error; }
 }
 const server = await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0, open: false } });
@@ -33,6 +36,7 @@ try {
 	for (const theme of ['light', 'dark']) {
 		for (const state of states) {
 			const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+			recordScreenshots(page, out, images);
 			const errors = [];
 			page.on('pageerror', error => errors.push(error.message));
 			await page.goto(`${server.resolvedUrls.local[0]}?view=plan-editor&bare&theme=${theme}${state.query}`);
@@ -61,5 +65,8 @@ try {
 		}
 	}
 	await writeFile(`${out}/shell-report.json`, JSON.stringify({ commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), browser: browser.version(), viewport: '1440 × 1000, deviceScaleFactor 1', results }, null, 2));
+	assert.equal(images.size, 16, 'all sixteen static states were captured');
+	const manifest = await makeCaptureManifest(out, started, images);
+	await writeFile(`${out}/capture-files.json`, JSON.stringify({ ...manifest, staticImages: [...images], files: [...copied, ...manifest.files] }, null, 2));
 } finally { await browser.close(); await server.close(); }
 console.log(`Visual evidence: ${out}`);

@@ -14,11 +14,13 @@ import { useEditorRuntime } from '../runtime';
 import { formatArea } from './formatArea';
 import type { SpatialRecordDto } from '../../read-models/spatialRecords';
 import type { EntityId } from '../../../core/identity/EntityId';
+import HostIcon from '../../components/HostIcon.vue';
 
 defineProps<{
 	readonly records: readonly SpatialRecordDto[];
 	readonly heading: string;
 	readonly toggleSelection?: boolean;
+	readonly annotations?: ReadonlyMap<string, string>;
 }>();
 
 const runtime = useEditorRuntime();
@@ -47,12 +49,17 @@ function isSelected(id: string): boolean {
 			<button
 				type="button"
 				class="rp-room-list__row"
+				:class="{ 'rp-room-list__row--annotated': annotations?.has(record.id) }"
 				:data-rp-id="record.id"
 				:aria-pressed="isSelected(record.id)"
 				@click="runtime.selectAndFrame(record.id, toggleSelection === true || $event.shiftKey)"
 			>
 				<span>{{ record.name }}</span>
 				<span class="rp-room-list__area">{{ formatArea(record.areaMm2) }}</span>
+				<template v-if="annotations?.has(record.id)">
+					<span class="rp-room-list__annotation">{{ annotations.get(record.id) }}</span>
+					<HostIcon name="chevron-right" />
+				</template>
 			</button>
 		</li>
 	</ul>

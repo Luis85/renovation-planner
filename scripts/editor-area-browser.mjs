@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
 import { resolveChromiumExecutable } from './chromium.mjs';
+import { makeCaptureManifest, recordScreenshots } from './editor-capture-files.mjs';
 
 /** Real keyboard navigation; no locator focus/fill shortcuts. */
 export async function tabTo(page, selector) {
@@ -72,6 +73,7 @@ export async function escapeAreaTool(page) {
 
 /** The editor journeys share browser, theme, viewport and error checks. */
 export async function runAreaBrowserMatrix(directory, query, journey, ready = '.rp-task-banner') {
+	const started = Date.now(), images = new Set();
 	const out = `harness-shots/${directory}`;
 	await mkdir(out, { recursive: true });
 	const server = await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0 } });
@@ -87,6 +89,7 @@ export async function runAreaBrowserMatrix(directory, query, journey, ready = '.
 			{ name: 'german-constrained', query: '&lang=de', width: 460 },
 		]) {
 			const page = await browser.newPage({ viewport: { width: scenario.width, height: 900 } });
+			recordScreenshots(page, out, images);
 			const errors = [];
 			page.on('pageerror', (error) => errors.push(error.message));
 			let evidence;
@@ -117,6 +120,7 @@ export async function runAreaBrowserMatrix(directory, query, journey, ready = '.
 			await page.close();
 		}
 		await writeFile(`${out}/report.json`, JSON.stringify(results, null, 2));
+		await writeFile(`${out}/capture-files.json`, JSON.stringify(await makeCaptureManifest(out, started, images), null, 2));
 		console.log(`Editor browser checks passed (${results.length} scenarios). Artifacts: ${out}`);
 	} finally {
 		await browser?.close();

@@ -1,0 +1,27 @@
+RP_CHROMIUM_EXECUTABLE is set: capturing with C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe, which is not the Chromium playwright-core pins.
+Read the pictures as approximate — a different build renders text and layout slightly differently.
+23:02:50 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+23:02:50 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+23:02:51 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+23:02:51 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.boundingBox: Error: strict mode violation: locator('.rp-floor-inspector > h3') resolved to 2 elements:
+    1) <h3>Ground floor</h3> aka getByRole('heading', { name: 'Ground floor', exact: true })
+    2) <h3 class="rp-editor-panel-subtitle">Rooms</h3> aka getByRole('heading', { name: 'Rooms', exact: true })
+
+Call log:
+  - waiting for locator('.rp-floor-inspector > h3')
+
+    at inspectorVisibility (D:\Projects\renovation-planner\.worktrees\editor-object-ui\scripts\editor-inspector-visibility.mjs:9:44)
+    at async captureInspectorDesign (D:\Projects\renovation-planner\.worktrees\editor-object-ui\scripts\editor-matching-views.mjs:36:17)
+    at async captureOverviewMatching (D:\Projects\renovation-planner\.worktrees\editor-object-ui\scripts\editor-matching-views.mjs:56:22)
+    at async journey (D:\Projects\renovation-planner\.worktrees\editor-object-ui\scripts\editor-visual-overview.mjs:51:24)
+    at async runAreaBrowserMatrix (D:\Projects\renovation-planner\.worktrees\editor-object-ui\scripts\editor-area-browser.mjs:100:15)
+    at async file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-visual-overview.mjs:86:1 {
+  log: [ "  - waiting for locator('.rp-floor-inspector > h3')" ]
+}
+
+Node.js v24.20.0

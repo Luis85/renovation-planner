@@ -1,24 +1,31 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import { captureSource, captureStarted, verifyCaptureFile } from './editor-capture-files.mjs';
 
 // Contact sheets compare app-owned content; reference host chrome is cropped out.
 const root = 'docs/user-experience/renovation-planner-editor-specs';
 const evidence = `${root}/implementation/evidence/editor-visual-fidelity`;
 const output = `${evidence}/comparisons`;
 await mkdir(output, { recursive: true });
+const afterManifestPath = `${evidence}/after/capture-files.json`;
+assert.ok((await stat(afterManifestPath)).mtimeMs >= captureStarted(), 'after manifest is current');
+const afterManifest = JSON.parse(await readFile(afterManifestPath, 'utf8'));
+assert.equal(afterManifest.source, captureSource());
+const afterFiles = new Map(afterManifest.files.filter(file => file.kind === 'image').map(file => [file.name, file]));
 const references = await readdir(`${root}/images`);
 const planning = 'materials-costs-evidence';
 const renovation = 'renovation-workflow';
 const pairs = [
-	['M00', 'light-M00-room.png', 'editor-visual-overview/light-M00-connected-room.png'], ['M01', 'light-M01-floor.png', 'editor-visual-overview/light-M01-connected-floor.png'],
+	['M00', 'light-M00-room.png', 'editor-visual-overview/light-M00-room-design.png'], ['M01', 'light-M01-floor.png', 'editor-visual-overview/light-M01-floor-design.png'],
 	['M02', 'light-M02-add.png', 'editor-visual-overview/light-M02-floor-add.png'], ['M03', 'light-M03-room-draft.png'],
 	['M04', `${planning}/dark-closed-loop.png`], ['M05', 'light-M05-start.png'],
-	['M06', 'reference-plan/light-measurement.png', 'light-M06-measurement.png'], ['M07', `${planning}/light-wall-inspector.png`, 'editor-visual-overview/light-M07-connected-wall.png'],
+	['M06', 'reference-plan/light-measurement.png', 'light-M06-measurement.png'], ['M07', `${planning}/light-wall-inspector.png`, 'editor-visual-overview/light-M07-wall-design.png'],
 	['M08', `${renovation}/dark-existing.png`], ['M09', `${renovation}/light-planned.png`],
 	['M10', `${renovation}/dark-work.png`, 'editor-downstream/dark-room-work.png'], ['M11', 'light-M11-multiple.png', 'editor-visual-overview/light-M11-connected-selection.png'],
-	['M12', `${planning}/light-materials.png`], ['M13', `${planning}/dark-costs.png`, 'editor-downstream/dark-room-costs.png'],
+	['M12', `${planning}/light-materials.png`], ['M13', `${planning}/dark-costs.png`, 'editor-downstream/dark-room-costs-design.png'],
 	['M14', `${planning}/light-photos.png`, `${planning}/light-photos-gallery.png`], ['M15', 'light-M15-stale.png', 'planning-recovery/light-saved-overview.png'],
-	['M16', `${planning}/german-constrained-materials.png`], ['M17', `${planning}/light-review.png`, `${planning}/light-review-issues-design.png`],
+	['M16', `${planning}/german-constrained-materials.png`, 'editor-visual-overview/dark-M16-closed-constrained.png'], ['M17', `${planning}/light-review.png`, `${planning}/light-review-issues-design.png`],
 ];
 const manifest = [];
 function label(ctx, text, x) {
@@ -32,6 +39,8 @@ for (const [screen, capture, finalCapture = capture] of pairs) {
 	const referencePath = references.find(name => name.startsWith(screen));
 	const reference = await loadImage(`${root}/images/${referencePath}`);
 	const before = await loadImage(`${evidence}/before/${capture}`);
+	assert.ok(afterFiles.has(finalCapture), `${screen} names an image captured in this run`);
+	await verifyCaptureFile(`${evidence}/after`, afterFiles.get(finalCapture), captureStarted());
 	const after = await loadImage(`${evidence}/after/${finalCapture}`);
 	const board = createCanvas(2160, 550), ctx = board.getContext('2d');
 	ctx.fillStyle = '#eeeeee'; ctx.fillRect(0, 0, board.width, board.height);

@@ -3,7 +3,7 @@ export const planningDe = {
 	'planning.calculated-badge': 'Berechnet',
 	'planning.manual-badge': 'Manuell',
 	'planning.by-work': 'Nach Arbeit',
-	'planning.add-material': 'Material hinzufügen',
+	'planning.add-material': 'Baustoff hinzufügen',
 	'planning.add-cost': 'Kosten hinzufügen',
 	"planning.open-library": "Bauteilkatalog öffnen",
 	'planning.selected': 'Ausgewählt',

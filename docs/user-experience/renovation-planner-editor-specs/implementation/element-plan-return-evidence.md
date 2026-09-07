@@ -1,4 +1,4 @@
-# Element return to Plan — native RED and pending correction verification
+# Element return to Plan — native RED/GREEN
 
 The full 73b0 coverage report did not execute the native ElementInspector action
 that returns from Renovate to Plan geometry editing. The new cases in
@@ -15,11 +15,13 @@ is `harness-shots/ui-wip-validation/native-joined.log` on the UI worktree.
 
 Root now routes the action through the existing `runInspectorAction`, restoring
 Edit or the Details rail after the perspective change. Selection, camera and vault
-assertions remain unchanged. This correction is **WIP pending the native rerun**.
+assertions remain unchanged. The UI join `7bb60f93` then passed the targeted rerun: **22/22 tests in three
+files, 21.74 seconds**, including both unchanged focus expectations and geometry
+form Cancel. Log: `harness-shots/ui-wip-validation/native-corrections.log`. This
+proves the native focus correction; it is not final browser/host acceptance.
 The separate new-test type mistake (`get(...).exists()`) is corrected to
 `find(...).exists()`; CI run 34134004116 stopped at that type error on all four legs,
-so no full coverage was produced. UI will apply the pushed correction after its
-terminal run and execute the focused rerun alongside the new downstream cases.
+so no full coverage was produced. UI applied the pushed correction and ran it alongside the new downstream cases.
 
 If the new case fails, first inspect whether the native action was reachable and
 which visible node retained focus. Preserve the same selection, viewport and

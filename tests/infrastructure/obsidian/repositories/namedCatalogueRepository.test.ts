@@ -8,9 +8,26 @@ import { createSupplier, type SupplierId } from '../../../../src/domain/supplier
 import { namedCatalogueServices } from '../../../../src/application/commands/catalogue/NamedCatalogueServices';
 import { err } from '../../../../src/core/result/Result';
 import type { NamedRecordRepository } from '../../../../src/application/ports/NamedRecordRepository';
+import { freshNotePath } from '../../../../src/infrastructure/obsidian/repositories/paths';
 afterEach(() => { vi.restoreAllMocks(); });
 function setup() { const stack = createRepositoryStack(); const trades: NamedRecordRepository<Trade> = new ObsidianNamedCatalogueRepository(stack.deps, 'Shared/Library', TRADE_MAPPER); return { stack, trades }; }
 describe('canonical shared Trade and Supplier notes', () => {
+ it('returns a real host create refusal without publishing and retries the same catalogue identity', async () => {
+  const { stack, trades } = setup(), services = namedCatalogueServices({ kind: 'trade', repository: trades, create: createTrade }, stack.events);
+  const input = { id: 'trade-create-retry', name: 'Floor finishing' }, trade = expectOk(createTrade(input.id as TradeId, input.name));
+  const path = freshNotePath(stack.deps.vault, 'Shared/Library/Trades', trade.name, trade.id), failure = 'create:' + path;
+  const publish = vi.spyOn(stack.events, 'publish'), before = [...stack.vault.entries];
+  stack.vault.failures.add(failure);
+  try {
+   expect(await services.create(input)).toMatchObject({ ok: false, error: { code: 'trade.write-failed' } });
+   expect(stack.vault.failedOps).toContain(failure); expect(publish).not.toHaveBeenCalled();
+   expect([...stack.vault.entries]).toEqual(before); expect(stack.index.getPath(trade.id)).toBeUndefined();
+   stack.vault.failures.delete(failure);
+   expect(expectOk(await services.create(input))).toEqual(trade);
+   expect(expectOk(await trades.listAll()).loaded.map(item => item.entity)).toEqual([trade]);
+   expect(publish).toHaveBeenCalledExactlyOnceWith({ type: 'TradeCreated', payload: { id: trade.id } });
+  } finally { stack.vault.failures.delete(failure); }
+ });
  it('stores separate stable identities outside projects and reads their custom names', async () => {
   const { stack, trades } = setup(), suppliers = new ObsidianNamedCatalogueRepository(stack.deps, 'Shared/Library', SUPPLIER_MAPPER);
   const trade = expectOk(createTrade('trade-a' as TradeId, ' Custom finishing '));

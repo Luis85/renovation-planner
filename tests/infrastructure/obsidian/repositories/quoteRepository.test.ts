@@ -18,6 +18,20 @@ async function setup() {
  return { ...rig, supplier, quote };
 }
 describe('project-owned quote notes and received immutability', () => {
+ it('refuses a comparison whose project disappeared and reads the complete comparison after repair', async () => {
+  const rig = await setup();
+  try {
+   expectOk(await saveQuote(rig.persistence, { quote: rig.quote, expected: 'absent' }));
+   const path = expectDefined(rig.persistence.index.getPath(rig.plan.projectId), 'project path'), original = expectDefined(rig.stack.vault.entries.get(path), 'project bytes');
+   rig.stack.vault.entries.delete(path); const before = [...rig.stack.vault.entries];
+   expect(await readQuoteComparison(rig.persistence, rig.plan.projectId)).toMatchObject({ ok: false, error: { code: 'project.not-found' } });
+   expect([...rig.stack.vault.entries]).toEqual(before);
+   rig.stack.vault.entries.set(path, original);
+   const restored = expectOk(await readQuoteComparison(rig.persistence, rig.plan.projectId));
+   expect(restored.work.project.id).toBe(rig.plan.projectId); expect(restored.work.rows.map(row => row.work)).toEqual(rig.value.work);
+   expect(restored.offers.map(offer => offer.entity)).toEqual([rig.quote]); expect(restored.unreadable).toBe(0);
+  } finally { rig.dispose(); }
+ });
  it.each([{ field: 'title' as const, value: 'Peer offer', revision: false }, { field: 'status' as const, value: 'received', revision: false }, { field: 'title' as const, value: 'Peer revision', revision: true }])('preserves a peer $field change arriving inside the host write callback', async ({ field, value, revision }) => {
   const rig = await setup();
   try {

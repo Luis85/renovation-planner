@@ -5,10 +5,49 @@ import { downstreamStack } from '../helpers/downstream';
 import { expectDefined, expectOk } from '../helpers/domain';
 import { readProjectWork } from '../../src/application/queries/schedule/ProjectWork';
 import { planningEditorServices } from '../../src/plugin/planningEditorServices';
+import { projectWorkServices } from '../../src/plugin/projectWorkServices';
+import { projectIndexEntryChanged } from '../../src/application/events/projectIndex.events';
 import { createTrade, type TradeId } from '../../src/domain/trade/Trade';
 import { parseFrontmatter } from '../helpers/vault';
 afterEach(() => { vi.restoreAllMocks(); });
 describe('project Work over the existing floor registers', () => {
+ it('preserves Work when a newly assigned Trade becomes unreadable and allows an explicit retry after repair', async () => {
+  const rig = await downstreamStack();
+  try {
+   const renovation = expectDefined(planningEditorServices(rig.root, rig.stack.deps.vault, {} as never).renovation, 'renovation');
+   const trade = expectOk(createTrade('trade-repair' as TradeId, 'Floor finishing')); expectOk(await rig.persistence.trades.save(trade, 'absent'));
+   const path = expectDefined(rig.persistence.index.getPath(trade.id), 'trade path'), original = expectDefined(rig.stack.vault.entries.get(path), 'trade bytes');
+   rig.stack.vault.entries.set(path, original.replace('schema-version: 1', 'schema-version: 99'));
+   const baseline = expectOk(await renovation.read(rig.plan.id)), before = [...rig.stack.vault.entries];
+   const value = { ...rig.value, work: [{ ...rig.value.work[0], responsibility: 'trade' as const, tradeId: trade.id }] };
+   const command = renovation.command(baseline, { renovation: value, intended: baseline.geometry.document.intended }, rig.ledger);
+   expect(await command.execute()).toMatchObject({ ok: false, error: { code: 'trade.schema-version-unsupported' } });
+   expect([...rig.stack.vault.entries]).toEqual(before); expect(expectOk(await renovation.read(rig.plan.id)).plan.entity.renovation).toEqual(rig.value);
+   rig.stack.vault.entries.set(path, original);
+   expectOk(await command.execute()); expect(expectOk(await renovation.read(rig.plan.id)).plan.entity.renovation).toEqual(value);
+  } finally { rig.dispose(); }
+ });
+ it('notifies Work about canonical project, floor and Room index changes and stops after disposal', async () => {
+  const rig = await downstreamStack();
+  try {
+   const services = expectDefined(projectWorkServices(rig.root, rig.stack.deps.vault, {} as never), 'project Work');
+   const listener = vi.fn<() => void>(), dispose = services.onChanged(listener);
+   try {
+    const changes = [
+     projectIndexEntryChanged({ entityId: rig.plan.projectId, entityType: 'renovation-project' }),
+     projectIndexEntryChanged({ entityId: rig.plan.id, entityType: 'renovation-plan' }),
+     projectIndexEntryChanged({ entityId: rig.roomId, entityType: 'renovation-zone' }),
+    ];
+    for (const event of changes) await rig.root.eventBus.publish(event);
+    expect(listener).toHaveBeenCalledTimes(3);
+    await rig.root.eventBus.publish(projectIndexEntryChanged({ entityId: rig.asset.id, entityType: 'renovation-asset' }));
+    expect(listener).toHaveBeenCalledTimes(3);
+    dispose();
+    for (const event of changes) await rig.root.eventBus.publish(event);
+    expect(listener).toHaveBeenCalledTimes(3);
+   } finally { dispose(); }
+  } finally { rig.dispose(); }
+ });
  it('assigns a real Trade and explicit dates through the editor command, preserves IDs on rename and allows unresolved existing assignments to remain', async () => {
   const rig = await downstreamStack();
   try {

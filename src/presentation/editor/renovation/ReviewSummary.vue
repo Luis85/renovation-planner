@@ -6,10 +6,9 @@ import { useEditorRuntime } from '../runtime';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import { tr } from '../../i18n/strings';
 import HostIcon from '../../components/HostIcon.vue';
-import TransformationSummary from './TransformationSummary.vue';
 import RenovationLinkedSummary from './RenovationLinkedSummary.vue';
-import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
 import { useReviewPresentation } from './useReviewPresentation';
+import ReviewRoomDetails from './ReviewRoomDetails.vue';
 
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const context = usePlanEditorContext();
@@ -19,9 +18,6 @@ const changes = computed(() => {
 	return value && value.state !== 'unavailable' ? String(value.value) : tr('editor.selection.unknown');
 });
 const selected = computed(() => rows.value.find(room => room.id === selection.focusedId));
-function openRoom(roomId: string, event: Event): Promise<void> {
-	return runInspectorAction(event, 'review-open-room', () => Promise.resolve(runtime.renovation.focus(roomId, 'overview')));
-}
 </script>
 
 <template>
@@ -64,29 +60,9 @@ function openRoom(roomId: string, event: Event): Promise<void> {
 				</button>
 			</li>
 		</ul>
-		<div
+		<ReviewRoomDetails
 			v-if="selected"
-			:data-rp-review-summary-room="selected.id"
-		>
-			<h4 class="rp-visually-hidden">
-				{{ selected.name }}
-			</h4>
-			<TransformationSummary
-				:room-id="selected.id"
-				compact
-			/>
-			<RenovationLinkedSummary
-				v-if="context.commands.planning"
-				:room-id="selected.id"
-			/>
-			<button
-				type="button"
-				class="mod-cta"
-				data-rp-action="review-open-room"
-				@click="openRoom(selected.id, $event)"
-			>
-				{{ tr('renovation.review.open-room', { name: selected.name }) }}<HostIcon name="arrow-right" />
-			</button>
-		</div>
+			:room="selected"
+		/>
 	</section>
 </template>

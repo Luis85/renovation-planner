@@ -7,6 +7,13 @@ is claimed. Main remains untouched; work is on `codex/editor-object-ui` in
 
 ## Source anchors and saved work
 
+Pan follow-up: Root's quiet/profile diagnosis confirmed avoidable vue-konva config work.
+ZoneShape now uses a primitive caption displacement, cached configs and a memoized existing
+Group. Genuine old-source RED and 24-test/47-test native GREEN batches are recorded in
+`editor-canvas-pan-stability.md`. The next checkpoint must be measured with the same quiet
+four-scenario and dark CPU drivers before claiming frame-rate improvement. UI owns that slot;
+Root is only archiving/reading. No M01/M04 source change has been made yet.
+
 Current complete browser checkpoint: the unchanged final runner passed at shared source
 `43041936a7f86d31058f6d21a16c3a596e1bacc6` (session 29535, exit 0, 2026-09-07 19:44:25 UTC).
 All nine journeys passed four scenarios each; static shots and all eighteen comparisons were

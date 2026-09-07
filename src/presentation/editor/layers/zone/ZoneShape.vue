@@ -85,63 +85,42 @@ const anchor = computed(() => labelAnchor(props.model.points));
  */
 const CAPTION_PX = 14;
 const captionScale = computed(() => 1 / props.zoom);
-const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y + captionOffsetY(anchor.value, props.pins, props.zoom, props.dimensionObstacles, props.captionViewport), width: 180, offsetX: 90, align: 'center',
+// Viewport/obstacle movement often leaves a caption in the same place. Propagate only a
+// changed displacement, so vue-konva does not diff six unchanged configs for every Room.
+const captionDisplacement = computed(() => captionOffsetY(anchor.value, props.pins, props.zoom, props.dimensionObstacles, props.captionViewport));
+const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y + captionDisplacement.value, width: 180, offsetX: 90, align: 'center',
 	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true,
 	stroke: props.tokens.canvasBackground, strokeWidth: 2, fillAfterStrokeEnabled: true }));
 
 const statusCaption = computed(() => tr(appearance.value.captionKey));
+const groupConfig = computed(() => ({ name: props.model.id, listening: false }));
+const fillConfig = computed(() => ({ points: flatPoints.value, closed: true, fill: fill.value,
+	opacity: props.selected ? 0.12 : 0.025, listening: false, perfectDrawEnabled: false }));
+const outlineConfig = computed(() => ({ points: flatPoints.value, closed: true, stroke: props.tokens.zoneStroke,
+	strokeWidth: 1.5, dash: appearance.value.dash, strokeScaleEnabled: false, listening: false, perfectDrawEnabled: false }));
+const nameConfig = computed(() => ({ ...captionLayout.value, offsetY: CAPTION_PX * 1.6,
+	text: props.model.label, fontSize: CAPTION_PX + 2, fontStyle: 'bold', height: CAPTION_PX + 5, fill: props.tokens.zoneLabel }));
+const areaConfig = computed(() => ({ ...captionLayout.value, offsetY: 0,
+	text: formatArea(props.model.areaMm2), fontSize: CAPTION_PX, fill: props.tokens.zoneLabel }));
+const statusConfig = computed(() => ({ ...captionLayout.value, offsetY: -CAPTION_PX * 1.3,
+	text: statusCaption.value, fontSize: CAPTION_PX * 0.85, fill: props.tokens.zoneCaption }));
 </script>
 
 <template>
-	<VGroup :config="{ name: props.model.id, listening: false }">
+	<VGroup
+		v-memo="[groupConfig, fillConfig, outlineConfig, nameConfig, areaConfig, statusConfig]"
+		:config="groupConfig"
+	>
 		<!--
 			Two line nodes over one point array, rather than one node with both a fill and a
 			stroke. Konva's `opacity` is per NODE, so a translucent fill on a single node would
 			take the outline down with it — and the fill has to be translucent, because a zone
 			sits over an imported plan the user still needs to see through it.
 		-->
-		<VLine
-			:config="{
-				points: flatPoints,
-				closed: true,
-				fill,
-				opacity: props.selected ? 0.12 : 0.025,
-				listening: false,
-				perfectDrawEnabled: false,
-			}"
-		/>
-		<VLine
-			:config="{
-				points: flatPoints,
-				closed: true,
-				stroke: props.tokens.zoneStroke,
-				strokeWidth: 1.5,
-				dash: appearance.dash,
-				strokeScaleEnabled: false,
-				listening: false,
-				perfectDrawEnabled: false,
-			}"
-		/>
-		<VText
-			:config="{
-				...captionLayout,
-				offsetY: CAPTION_PX * 1.6,
-				text: props.model.label,
-				fontSize: CAPTION_PX + 2,
-				fontStyle: 'bold',
-				height: CAPTION_PX + 5,
-				fill: props.tokens.zoneLabel,
-			}"
-		/>
-		<VText :config="{ ...captionLayout, offsetY: 0, text: formatArea(props.model.areaMm2), fontSize: CAPTION_PX, fill: props.tokens.zoneLabel }" />
-		<VText
-			:config="{
-				...captionLayout,
-				offsetY: -CAPTION_PX * 1.3,
-				text: statusCaption,
-				fontSize: CAPTION_PX * 0.85,
-				fill: props.tokens.zoneCaption,
-			}"
-		/>
+		<VLine :config="fillConfig" />
+		<VLine :config="outlineConfig" />
+		<VText :config="nameConfig" />
+		<VText :config="areaConfig" />
+		<VText :config="statusConfig" />
 	</VGroup>
 </template>

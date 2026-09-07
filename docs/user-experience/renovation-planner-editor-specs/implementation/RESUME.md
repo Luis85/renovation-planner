@@ -1,6 +1,6 @@
 # Wiederaufnahme der Editor-Finalisierung
 
-Stand: **2026-09-07, 13:48 UTC / 15:48 Europe/Berlin**.
+Stand: **2026-09-07T14:18:24.109Z (UTC)**.
 
 Dieses Dokument ist der zentrale Wiedereinstieg, wenn der Chatkontext oder das Nutzungslimit endet. Es ersetzt keine Prüfung des aktuellen Git-, Prozess- und CI-Zustands. Neuere direkte Nutzeranweisungen haben Vorrang. Alte Pause-Dateien vom App-Neustart sind historisch: Der Nutzer hat die Arbeit ausdrücklich mit „fahre fort“/„weiter“ wieder aufgenommen.
 
@@ -60,7 +60,7 @@ Nur die zwei bestehenden benutzereigenen Implementierungsaufgaben koordinieren; 
 | Aufgabe | ID | Worktree / Branch | Stand |
 |---|---|---|---|
 | Integration, diese Aufgabe | `01a0786f-b624-7303-987f-b18b94db48d9` | `editor-plan-finalization` / `codex/editor-plan-finalization` | Produkt-/Teststand 73b0c205 gepusht |
-| **Implement locked editor UI** | `01a0783d-199d-7772-920b-90493cf0d8b4` | `.worktrees/editor-object-ui` / `codex/editor-object-ui` | **sauber und gepusht: 023af9857227e95e928dfae9e4b916a5187c6ceb** |
+| **Implement locked editor UI** | `01a0783d-199d-7772-920b-90493cf0d8b4` | `.worktrees/editor-object-ui` / `codex/editor-object-ui` | **laut Owner gepusht: cdbd30a3**, weiterhin ungeprüfter UI-WIP |
 | **Improve M15 recovery workflow** | `01a07838-4e54-7ac3-bc24-a8eef9185d6e` | `.worktrees/native-recovery-boundaries` / `codex/native-recovery-boundaries` | sauber/gepusht: `1dd52cdad1e9b837fb24ee138cbe343a783e0c71`; Produktfix bleibt `300a0929`, Nachfolger sichert Audit-Dokumentation |
 
 UI-WIP ist **gesichert, aber noch nicht geprüft/angenommen und nicht in Root integriert**:
@@ -68,7 +68,9 @@ UI-WIP ist **gesichert, aber noch nicht geprüft/angenommen und nicht in Root in
 - `9d7f7e8baa258761042e45b9ecaa69a736484d09`: lokaler Root-73b0-Merge, im gepushten Nachfolger enthalten. Produktionskonflikte der drei Pin-Dateien wurden mit dem Root-Stand aufgelöst; required Props, zurückbehaltener Snapshot und Datum bleiben erhalten.
 - `023af9857227e95e928dfae9e4b916a5187c6ceb`: separater ungetesteter M04-WIP. Dateien: `StructureTaskForm.vue` (Labelklasse), `styles/editor-structure.css` (Flex/Scroll-Padding), `styles/editor-visual-tasks.css` (Checkbox aus allgemeinem Input-Minimum). Bericht `editor-wall-task-clearance.md` und Before-Bild liegen auf dem UI-Branch.
 
-Die beiden ursprünglichen UI-Hilfsreviews sind abgeschlossen: `visual_mid_screens` lieferte Audit/Dichteplan ohne Edits; `visual_outer_screens` lieferte Audit und den genannten M04-Entwurf ohne schwere Prüfungen. Der Mid-Helfer wurde danach für einen begrenzten source-only Dichteblock wieder eingesetzt: SubjectRow/WorkRow, CTA-/Präsentationsklassen in RoomRenovationDetails/CostRow und editor-visual-records.css. Alle Aktionen bleiben montiert, sichtbar und in ihrer Reihenfolge; keine Evidence-/Datums-/Domain-Edits. Dieser neue Abschnitt ist beim Snapshot noch nicht als neuer WIP-Commit bestätigt. Vor neuer Delegation aktuellen Agent-/Taskstatus prüfen.
+Weitere gepushte UI-WIPs: `5ca8cd65` Record-/Kosten-Dichte, `75a4c0ae` Overview-Abstände, `421c19b0` Add-Katalog/Host-Symbole, `226e0be9` M07/M11-Darstellung, `cdbd30a3` passende Capture-Kontexte. Letzterer bestand drei `node --check`; Browserprüfung und Integration stehen aus. UI besitzt zusätzlich die Präsentation von M05/M15/M17 aus vorhandenen Read-Modellen. Keine neuen Readiness-Regeln. Eigene Wiederaufnahme: `editor-ui-resume.md` auf UI-Branch.
+
+E hat den separaten Checkpoint **`46dd866138d49d0283849b3b59a130cb9f3a9ed3`** auf **`codex/downstream-view-states`**, Worktree `.worktrees/downstream-view-states`, von Root `b6d8934e` gepusht. Nur `QuoteComparisonState.vue`, `work/ProjectWorkState.vue` und eigene Evidence-Doku: abgeleitete Viewzustände zum Beheben der gemessenen Template-Komplexität. Noch WIP; E erhält nach Root-Session 20330 den exklusiven schweren Prüfslot. Root besitzt `EvidenceInspector.vue` und Coverage-Auswertung.
 
 Push-Regel ab jetzt: Nach zusammenhängenden Abschnitten und vor längeren Prüfungen kleine Checkpoints sichern; SHA, Branch, bestandene/offene Prüfungen, WIP-Status und nächste Aktion an die Integration melden. Keine regelmäßige Automation dafür anlegen. Gemeinsame Ledger aktualisiert primär Root; Eigentümer verwenden eigene Evidence-/Wiederaufnahmedateien.
 
@@ -126,23 +128,19 @@ Run [34126554088](https://github.com/Luis85/renovation-planner/actions/runs/3412
 - Functions **5106/5153 = 99,08 %**, Lines **13964/14038 = 99,47 %**: Vorgaben erfüllt.
 - Bei unverändertem Nenner fehlen noch **6 Statements und 62 Branch-Arme**. Nach Korrekturen neu messen; diese Zahl ist keine dauerhafte Restliste.
 
-**Drei konkrete Testkorrekturen sind vorbereitet/verstanden, aber zum Snapshot noch nicht angewandt**, weil der lokale Volltest seine Quellen unverändert behalten soll:
-1. `tests/infrastructure/persistence/referencePlanMigration.test.ts` erwartet noch latest 7, idempotente Migration mit 7 und lastApplied 6→7. Für den neuen Vertrag auf latest 8 / 7→8 aktualisieren; Originaldaten-Unverändertheit beibehalten.
-2. Dieselbe Datei behandelt Version 8 noch als Zukunft. Jetzt Version 9 prüfen. Den zusätzlich vorhandenen alten ≤7-Writer-Test gegen echte dated-v8-Payloads unverändert behalten.
-3. `tests/presentation/editor/planningWorkflow.test.ts`, Fall „routes evidence to Work, Decision and cost obligations …“, klickt `> p > button`. Der neue separate Work-Link steht davor. Statt Positionsannahme gezielt den vorhandenen **Related-record-Link** über seine Beschriftung auswählen; alle erwarteten Work/Decision/Cost/Subject-Routen und die Löschwarnungsassertions erhalten.
+### Volltest abgeschlossen, Vertragskorrekturen gezielt grün
 
-Bisher kein aus diesen drei CI-Fehlern nachgewiesener neuer Produktionsdefekt. Vollständiges Fallow auf dem neuen Coverage-Stand steht noch aus.
+Der lokale vollständige Lauf auf Produktstand `73b0c205` ist **terminal, Exit 1**, Session 6991 beendet: 647 Dateien, 644 bestanden/3 fehlgeschlagen; 8051 Tests bestanden/4 fehlgeschlagen/70 übersprungen, 2156,81 Sekunden. Neben den drei identischen CI-Vertragsfehlern trat lokal ein unveränderter 5-s-Timeout in `temporaryToolBanner.test.ts` auf. Coverage entspricht exakt den oben angegebenen CI-Werten.
 
-### Laufender lokaler Volltest
+Anschließend wurden zwei Testdateien korrigiert:
+1. `referencePlanMigration.test.ts`: latest/idempotente Migration Schema 8, letzter Schritt 7→8, Zukunftsversion 9. Unverändertheit der Originaldaten und alte Writer-Schutzprüfung bleiben erhalten.
+2. `planningWorkflow.test.ts`: Related-record-Link anhand seiner übersetzten Beschriftung auswählen, da der separate Work-Link jetzt davor steht. Sämtliche Work-/Decision-/Cost-/Subject-Navigationen und Löschwarnungen bleiben geprüft.
 
-Beim letzten tatsächlichen Poll **noch live**:
-- Unified exec **Session 6991**.
-- Vitest-Hauptprozess **PID 8456**, Start **2026-09-07 15:28:58 lokal**, Commandline nennt den Integrationsworktree und `vitest run --coverage`.
-- Zwei Worker wechselten fortlaufend; deren PIDs sind keine dauerhaften Kennungen.
-- Log: `C:/Users/lum/AppData/Local/Temp/rp-finalization-20260907-88b9ee3d/full-checkpoint-73b0c205/check.log`.
-- Wrapper erhält unverändertes `npm run check`, archiviert neu erzeugtes vollständiges JSON/lcov und führt bei Coveragefehlern anschließend ein separates Fallow aus.
+Gezielter Nachlauf **Session 20330 terminal, Exit 0: 49/49 Tests in fünf Dateien, 86,04 s**. Aufruf: `npm test -- tests/infrastructure/persistence/referencePlanMigration.test.ts tests/presentation/editor/planningWorkflow.test.ts tests/presentation/editor/shell/temporaryToolBanner.test.ts tests/presentation/editor/evidenceDate.test.ts tests/presentation/editor/evidenceWorkLink.test.ts`, `VITEST_MAX_WORKERS=1`. Der lokale Timeout bestand beim unveränderten Wiederholungslauf; keine Grenze erhöht. Log `post-ci-contract-corrections.log` im unten genannten Scratch. Diese Korrekturen sind im selben Checkpoint wie diese Aktualisierung enthalten; ein vollständiger Folgepass wird daraus nicht behauptet.
 
-**Nach Neustart niemals diese Session/PIDs als live annehmen.** Erst den Handle pollen; falls nicht mehr verfügbar, tatsächliche Prozesse anhand vollständigem Pfad/Commandline/Startzeit prüfen. Fehlender neuer Logtext oder ein Beobachtungstimeout ist kein Prozessende. Keinen zweiten Volltest starten und `coverage/.tmp` nicht löschen, solange der erste tatsächlich läuft.
+Frisches vollständiges **Fallow ebenfalls Exit 1**: drei Template-Cognitive-Complexity-Befunde bei Grenzwert 15: `QuoteComparisonState.vue` 18, `work/ProjectWorkState.vue` 19, `planning/EvidenceInspector.vue` 16. **Null Dead-Code-Issues, null Clone-Gruppen.** E bearbeitet die ersten zwei, Root den Inspector. Die allgemeine Empfehlung zu `renovationSummary.ts` ist keiner dieser drei Fehler. Keine Suppression oder Grenzwertänderung.
+
+Vollständiges JSON/lcov und Check-/Analyze-Logs samt Exitdateien sind vor scoped Coverage gesichert unter `C:/Users/lum/AppData/Local/Temp/rp-finalization-20260907-88b9ee3d/full-checkpoint-73b0c205/`. Für die nächste Coverage-Auswertung diese frische Messung verwenden. Root hat aktuell keinen schweren Prozess; E hat den Prüfslot, UI arbeitet source-only. Nach Neustart aktuelle Handles und Prozesse erneut prüfen, alte Sessionnummern nicht als lebend behandeln.
 
 Ein früherer PowerShell-5-Wrapper brach fälschlich an informativem Vite-stderr ab. Korrigiert: direkt im vorhandenen PowerShell ausführen, `npm.cmd` auflösen und den echten Exitcode auswerten. Der spätere Gate-Lintfehler des RAF-Executors sowie zwei Komplexitätsgrenzen und ein Date-Placeholder-Lintfehler sind bereits korrigiert.
 
@@ -226,8 +224,8 @@ Pro beobachtetem Teil SHA/Umgebung/Aktion/Soll/Ist/Bild-/Dateibeleg festhalten. 
 ## 10. Nächste Schritte in sinnvoller Reihenfolge
 
 1. Diesen Snapshot gegen Git, Owner-Branches, Tasks und echte Prozesszustände abgleichen. Letzte Nutzeranweisung auf Pause/Weiter prüfen.
-2. Den noch laufenden lokalen 73b0-Volltest/Fallow beenden lassen und vollständiges JSON/lcov **vor** gezielten Coverage-Runs sichern.
-3. Die zwei genannten Testdateien korrigieren; gezielte Regressionen mit unveränderten Assertions verifizieren und pushen.
+2. Gesichertes vollständiges 73b0-JSON/lcov auswerten; Volltest/Fallow und gezielter 49-Test-Nachlauf sind beendet.
+3. E-Verifikation der Work-/Quote-Viewzustände abwarten und geprüften Commit integrieren; Root korrigiert EvidenceInspector-Komplexität.
 4. Frische Countermaps nach echten erreichbaren Verhaltensgrenzen untersuchen. Root kann E einen begrenzten read-only Coverage-Audit geben. Keine privaten Handler, unmöglichen Serviceantworten oder Fake-Projektionen zum Füllen der Statistik.
 5. Optionale sinnvolle Parallelisierung: Coverage-JSON/lcov aus bestehenden CI-Matrixjobs als diagnostische Artefakte sichern. E hat einen read-only Vorschlag: ein Upload-Step nach unverändertem `npm run check`, auch bei Fehlern aber nicht nach Cancel, eindeutiger OS/Node/SHA/Attempt-Name, nur die zwei Dateien. Noch **nicht implementiert**. Bestehende CI-/Manifest-Contracts prüfen; keine Gates ändern.
 6. UI-WIPs auf dem gemeinsamen Datumsstand verifizieren, dann bestätigte visuelle Korrekturen gebündelt mit eindeutiger Dateizuständigkeit umsetzen/integrieren. Nur gepushte vereinbarte Checkpoints übernehmen.
@@ -271,7 +269,7 @@ Temporärer Zusatzspeicher:
 
 Wichtige Namen dort:
 - `root-resumed-20260907.md` und historisches `PAUSED-FOR-RESTART.md`.
-- `full-checkpoint-73b0c205/`: laufender vollständiger Check und spätere JSON/lcov-Kopien.
+- `full-checkpoint-73b0c205/`: abgeschlossener vollständiger Check/Fallow und gesicherte JSON/lcov-Kopien.
 - `coverage-c1091086-final.json` / `-lcov.info` / `-missing.json`: **ältere** vollständige Vergleichsmessung.
 - `ci-73b0c205-linux22.log` / `linux24.log` / `linux26.log` / `windows22.log`.
 - `checkpoint-native-final.log`, `metadata-final-types.log`, `metadata-final-lint.log`.
@@ -293,4 +291,3 @@ Bei jedem wesentlichen gepushten Checkpoint aktualisieren:
 6. CI/PR-/Host-Abnahmestatus ohne historische Werte als aktuell auszugeben.
 
 Vor einem bekannten Nutzungsstopp oder einer Nutzerpause alle Änderungen sichern, Owner-Checkpoints erfassen und laufende Prozesse ausdrücklich koordinieren. Ein Goal nicht allein wegen Nutzungslimit/Arbeitsende als vollständig markieren.
-

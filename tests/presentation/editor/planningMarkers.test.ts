@@ -21,6 +21,13 @@ it('connects numbered material rows and markers bidirectionally and highlights t
  const marker = expectDefined(rig.stage?.findOne('.material-marker'), 'material marker');
  expect((marker as Konva.Group).findOne('Text')?.getAttr('text')).toBe('1');
  const row = rig.wrapper.get('[data-rp-record="' + draft.id + '"]'); expect(row.get('.rp-material-number').text()).toBe('1.');
+ expect(rig.wrapper.findAll('.rp-material-table thead th').map(header => header.text())).toEqual(['Material', 'Needed', 'Purchased']);
+ expect(row.element.tagName).toBe('TBODY');
+ const disclosure = row.get('[data-rp-material-details]'), detail = row.get('.rp-material-detail-row');
+ expect(disclosure.attributes('aria-expanded')).toBe('false'); expect(detail.isVisible()).toBe(false);
+ await disclosure.trigger('click'); expect(disclosure.attributes('aria-expanded')).toBe('true'); expect(detail.isVisible()).toBe(true);
+ expect(detail.text()).toContain('Reserved separately'); expect(detail.text()).toContain('Explain calculation');
+ await disclosure.trigger('click'); expect(detail.isVisible()).toBe(false);
  await row.get('.rp-record-title').trigger('click'); await settle();
  expect(rig.session.focusedId).toBe(draft.id);
  expect(rig.stage?.findOne('.material-source')?.getAttr('points')).toEqual(rig.room.geometry.points.flatMap(point => [point.x, point.y]));

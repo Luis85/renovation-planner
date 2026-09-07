@@ -34,14 +34,6 @@ async function shopping(): Promise<void> {
 </script>
 <template>
 	<button
-		type="button"
-		:disabled="planning.blocked.value"
-		data-rp-new-material
-		@click="planning.edit('material')"
-	>
-		{{ tr('planning.edit.material') }}
-	</button>
-	<button
 		v-if="planning.context.navigation"
 		type="button"
 		data-rp-open-library
@@ -58,8 +50,19 @@ async function shopping(): Promise<void> {
 		:key="group.id"
 		class="rp-planning-group"
 	>
-		<h4>{{ group.name }}</h4>
-		<ol class="rp-renovation-list">
+		<table class="rp-material-table">
+			<caption>{{ group.name }}</caption>
+			<thead>
+				<tr>
+					<th scope="col">
+						{{ tr('planning.material') }}
+					</th><th scope="col">
+						{{ tr('planning.needed') }}
+					</th><th scope="col">
+						{{ tr('planning.purchased') }}
+					</th>
+				</tr>
+			</thead>
 			<MaterialRow
 				v-for="row in group.rows"
 				:key="row.entity.id"
@@ -67,11 +70,20 @@ async function shopping(): Promise<void> {
 				:number="row.number"
 				@remove="remove"
 			/>
-		</ol>
+		</table>
 	</section>
 	<p v-if="!rows.length">
 		{{ tr('renovation.empty') }}
 	</p>
+	<button
+		type="button"
+		class="mod-cta"
+		:disabled="planning.blocked.value"
+		data-rp-new-material
+		@click="planning.edit('material')"
+	>
+		{{ tr('planning.add-material') }}
+	</button>
 	<button
 		v-if="planning.context.commands.shoppingNote"
 		type="button"

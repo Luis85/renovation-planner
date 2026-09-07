@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import OutlineEditAction from '../resize/OutlineEditAction.vue';
-import AreaDetailsAction from '../metadata/AreaDetailsAction.vue';
-import RoomSizeAction from '../resize/RoomSizeAction.vue';
-import RenovationEntry from '../renovation/RenovationEntry.vue';
-import RoomNameAction from '../naming/RoomNameAction.vue';
+import SpatialInspectorActions from './SpatialInspectorActions.vue';
 /**
  * The Inspector's ROOM state (component library §8's `RoomInspector`) — the BODY the frame
  * (`EntityInspector.vue`, Task 15) routes to once exactly one entity is selected. Through
@@ -191,19 +187,9 @@ const unavailableNavigation = computed(() => overview.value && !runtime.renovati
 			<dd>{{ formatArea(overview.record.areaMm2) }}</dd>
 		</dl>
 
-		<template v-if="overview?.record.kind === 'room'">
-			<RenovationEntry :room-id="dto.id" />
-			<RoomNameAction :zone-id="dto.id" />
-			<RoomSizeAction
-				:zone-id="dto.id"
-				:points="overview.record.points"
-			/>
-		</template>
-
-		<OutlineEditAction :zone-id="dto.id" />
-		<AreaDetailsAction
-			v-if="overview?.record.kind === 'area'"
+		<SpatialInspectorActions
 			:zone-id="dto.id"
+			:record="overview?.record"
 		/>
 
 		<section

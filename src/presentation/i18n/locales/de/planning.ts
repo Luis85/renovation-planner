@@ -1,4 +1,10 @@
 export const planningDe = {
+	'planning.material-details': 'Details und Aktionen für {name}',
+	'planning.calculated-badge': 'Berechnet',
+	'planning.manual-badge': 'Manuell',
+	'planning.by-work': 'Nach Arbeit',
+	'planning.add-material': 'Material hinzufügen',
+	'planning.add-cost': 'Kosten hinzufügen',
 	"planning.open-library": "Bauteilkatalog öffnen",
 	'planning.selected': 'Ausgewählt',
 	'planning.recovery.unrecovered': 'Der Vorgang konnte nicht abgeschlossen oder vollständig rückgängig gemacht werden. Erneutes Lesen repariert diese Dateien nicht. Ihr Entwurf bleibt erhalten. Prüfen Sie die Quellnotiz und zugehörige Dateien und wählen Sie Abbrechen, bevor Sie sie mit Ihrer Sicherung vergleichen.',

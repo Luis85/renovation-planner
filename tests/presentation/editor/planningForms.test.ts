@@ -84,6 +84,8 @@ describe('explicit planning form contracts', () => {
  expect(w.get('img').attributes('alt')).toBe(item.description); await w.get('img').trigger('error'); expect(w.find('img').exists()).toBe(false); expect(w.text()).toContain('Thumbnail unavailable');
  await w.setProps({ revision: 1 }); expect(w.get('img').attributes('loading')).toBe('lazy');
  expect(w.get('img').attributes('decoding')).toBe('async');
+ await w.setProps({ metadataOnly: true }); expect(w.find('img').exists()).toBe(false); expect(w.text()).toContain(item.path); expect(w.text()).not.toContain('Thumbnail unavailable');
+ await w.setProps({ metadataOnly: false });
  await w.get('img').trigger('error'); await w.setProps({ item: { ...item, path: 'Evidence/replacement.png' } });
  expect(w.find('img').exists()).toBe(true); expect(w.text()).toContain('Evidence/replacement.png');
  await w.setProps({ files: undefined }); expect(w.text()).toContain('missing');

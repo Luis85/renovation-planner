@@ -1,0 +1,58 @@
+/* M12 keeps quantities comparable while retaining each material's native actions. */
+.renovation-plan-editor .rp-material-table {
+	width: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
+	font-variant-numeric: tabular-nums;
+}
+
+.renovation-plan-editor .rp-material-table caption {
+	padding: 8px 0;
+	text-align: start;
+	font-weight: var(--font-semibold);
+}
+
+.renovation-plan-editor .rp-material-table th,
+.renovation-plan-editor .rp-material-table td {
+	padding: 8px 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	vertical-align: top;
+	text-align: end;
+	font-weight: var(--font-normal);
+}
+
+.renovation-plan-editor .rp-material-table th:first-child { width: 48%; text-align: start; }
+.renovation-plan-editor .rp-material-table thead th { color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.renovation-plan-editor .rp-material-row.is-selected { background: var(--background-modifier-active-hover); }
+.renovation-plan-editor .rp-material-row.is-selected > tr:first-child > th { box-shadow: inset 2px 0 0 var(--interactive-accent); }
+.renovation-plan-editor .rp-material-identity { display: flex; align-items: baseline; gap: 4px; }
+.renovation-plan-editor .rp-material-number { color: var(--text-normal); flex: 0 0 auto; }
+.renovation-plan-editor .rp-material-quantity-source { display: block; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.renovation-plan-editor .rp-material-identity .rp-record-title {
+	flex: 1;
+	min-width: 0;
+	height: auto;
+	padding: 2px;
+	text-align: start;
+	white-space: normal;
+	background: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+}
+
+.renovation-plan-editor .rp-material-identity .rp-material-disclosure {
+	flex: 0 0 28px;
+	min-height: 28px;
+	padding: 2px;
+	background: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+}
+
+.renovation-plan-editor .rp-material-identity button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.renovation-plan-editor .rp-material-detail-row > td { text-align: start; padding: 12px 8px; }
+.renovation-plan-editor .rp-material-detail-row .rp-planning-totals { margin-bottom: 8px; }

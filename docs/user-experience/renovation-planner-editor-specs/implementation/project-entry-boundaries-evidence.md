@@ -1,6 +1,6 @@
-# Project entry boundaries — WIP and resume
+# Project entry boundaries — verified native cases and resume
 
-Updated: 2026-09-07. **WIP: source prepared; tests have not run.**
+Updated: 2026-09-07. **All four native cases and type/lint checks passed in Root. Full coverage contribution remains pending.** The original owner checkpoint was source-only; see Root verification below.
 
 Worktree: `D:/Projects/renovation-planner/.worktrees/project-entry-boundaries`.
 Branch: `codex/project-entry-boundaries`.
@@ -40,3 +40,11 @@ after verification; do not claim full-gate or coverage success from source prepa
 
 Integration recommendation: WIP review/test preparation only. Root task:
 `01a0786f-b624-7303-987f-b18b94db48d9`.
+
+## Root verification
+
+All four native cases passed in Root's two-file run (`planning-project-boundaries-native.log`,
+49.58 seconds across both files). The unrelated material test assertion was corrected
+separately; this file remained unchanged. Type checking, whole Oxlint and scoped
+ESLint then passed. Original E source `9cc0fa6d` is integrated as `3b12f432`.
+No coverage hit count is claimed until the next full CI measurement.

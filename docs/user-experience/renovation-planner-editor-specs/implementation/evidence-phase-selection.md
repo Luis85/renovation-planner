@@ -34,10 +34,10 @@ no limit or assertion was changed.
   passed.
 - Fallow static scan: zero dead-code issues and clone groups. No cognitive or
   cyclomatic violations.
-- Health still exits 1 against the old full coverage input: three **estimated**
-  CRAP findings in `perspective`, `focus` and `change`, whose source positions shifted.
-  This is not a fresh coverage measurement. Re-evaluate with the next full CI
-  artifact before claiming the complete health gate passed.
+- The earlier health run exited1 with three estimated CRAP findings because source
+  positions had shifted. The completed f306 CI now provides matching full counters.
+  Fresh health with the original JSON and official coverage-root mapping exits0:
+  zero findings,742/742file paths matched; no counters or thresholds modified.
 - Four-platform CI on earlier `95e7510b`: 647 files/8058 tests pass on each leg;
   statements 98.98% and branches 97.54% remain below unchanged floors. All four
   diagnostic artifacts uploaded; Linux24 JSON/LCOV download and hashes verified in

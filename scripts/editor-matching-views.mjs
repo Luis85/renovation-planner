@@ -11,6 +11,14 @@ function context(page, roomId) {
 	return page.evaluate(id => ({ scene: window.editorFidelity.captions(id), notes: window.editorFidelity.savedNotes(),
 		selection: [...new Set([...document.querySelectorAll('[data-rp-id][aria-pressed="true"]')].map(element => element.getAttribute('data-rp-id')))].toSorted() }), roomId);
 }
+async function sampleRoom(page) {
+	assert.equal(await page.evaluate(() => typeof window.editorFidelity?.captions === 'function' && typeof window.editorFidelity?.savedNotes === 'function'), true, 'read-only fidelity adapter is installed');
+	const selected = page.locator('.rp-room-list__row[aria-pressed="true"]').first();
+	const isSelected = await selected.count() > 0;
+	const roomId = await (isSelected ? selected : page.locator('.rp-room-list__row').first()).getAttribute('data-rp-id');
+	assert.ok(roomId);
+	return { roomId, role: isSelected ? 'selected-room' : 'floor/element viewport sample; selected entity IDs are recorded separately' };
+}
 function unchanged(before, after) {
 	assert.deepEqual(after.notes, before.notes, 'matching view does not write vault data');
 	assert.deepEqual(after.selection, before.selection, 'matching view retains spatial selection');
@@ -21,16 +29,16 @@ function unchanged(before, after) {
 
 /** Additional, attributed views; the original 900px journey screenshots remain untouched. */
 export async function captureInspectorDesign(page, scenario, out, name, { selectors, topControl }) {
-	const viewport = page.viewportSize(), roomId = await page.locator('.rp-room-list__row').first().getAttribute('data-rp-id');
-	assert.ok(roomId); const before = await context(page, roomId);
+	const viewport = page.viewportSize(), sample = await sampleRoom(page);
+	const before = await context(page, sample.roomId);
 	await page.setViewportSize({ width: viewport.width, height: 1000 }); await settled(page);
 	if (topControl) { await tabTo(page, topControl); await page.keyboard.press('Control+Home'); await settled(page); }
 	const bounds = await inspectorVisibility(page, selectors, scenario.width === 460);
 	await recordShot(page, scenario, out, name);
-	const captured = await context(page, roomId);
+	const captured = await context(page, sample.roomId);
 	await page.setViewportSize(viewport); await settled(page);
-	unchanged(before, await context(page, roomId));
-	const result = { viewport: { width: viewport.width, height: 1000 }, bounds,
+	unchanged(before, await context(page, sample.roomId));
+	const result = { viewport: { width: viewport.width, height: 1000 }, bounds, sample, selectedEntityIds: captured.selection,
 		input: topControl ? `Native Tab to ${topControl}, then Control+Home; no direct scroll/focus mutation` : 'Only viewport height changes; no scroll/focus reset',
 		camera: captured.scene.camera, constrained: scenario.width === 460, vaultAndSelectionUnchanged: true };
 	await writeFile(`${out}/${scenario.name}-${name}.json`, JSON.stringify(result, null, 2));
@@ -38,7 +46,7 @@ export async function captureInspectorDesign(page, scenario, out, name, { select
 }
 
 const overviewViews = {
-	room: { name: 'M00-room-design', selectors: ['.rp-room-inspector > h3', '.rp-transformation-summary', '.rp-linked-counts', '[data-rp-action="continue-renovation"]'] },
+	room: { name: 'M00-room-design', selectors: ['.rp-renovation-inspector > h3', '.rp-transformation-summary', '.rp-linked-counts', '[data-rp-action="continue-renovation"]'] },
 	floor: { name: 'M01-floor-design', selectors: ['.rp-floor-inspector > h3', '.rp-floor-planning-summary', '.rp-floor-inspector__guidance', '.rp-floor-inspector .rp-room-list'] },
 	wall: { name: 'M07-wall-design', selectors: ['.rp-structure-inspector > h3', '.rp-structure-inspector > .rp-editor-inspector-fields', '[data-rp-action="edit-structure"]'], topControl: '[data-rp-action="edit-structure"]' },
 };
@@ -50,8 +58,8 @@ export async function captureOverviewMatching(page, scenario, out, state) {
 }
 
 export async function captureConstrainedCanvas(page, scenario, out) {
-	const viewport = page.viewportSize(), roomId = await page.locator('.rp-room-list__row').first().getAttribute('data-rp-id');
-	assert.ok(roomId); const before = await context(page, roomId);
+	const viewport = page.viewportSize(), sample = await sampleRoom(page);
+	const before = await context(page, sample.roomId);
 	const hadDetails = await page.locator('.rp-inspector-drawer:visible').count(), hadLayers = await page.locator('.rp-overlay-panel:visible').count();
 	const captureViewport = { width: scenario.width === 460 ? 460 : 880, height: 1000 };
 	await page.setViewportSize(captureViewport); await settled(page);
@@ -63,13 +71,13 @@ export async function captureConstrainedCanvas(page, scenario, out) {
 	assert.equal(await page.locator('.rp-inspector-drawer:visible, .rp-overlay-panel:visible').count(), 0);
 	for (const selector of ['[data-rp-action="select"]', '[data-rp-action="add"]']) assert.equal(await page.locator(selector).isVisible(), true);
 	await recordShot(page, scenario, out, 'M16-closed-constrained');
-	const captured = await context(page, roomId);
+	const captured = await context(page, sample.roomId);
 	await page.setViewportSize(viewport); await settled(page);
 	if (hadDetails) await activate(page, '[data-rp-rail="details"]');
 	if (hadLayers) await activate(page, '[data-rp-rail="layers"]');
 	await settled(page);
-	unchanged(before, await context(page, roomId));
-	const result = { viewport: captureViewport, camera: captured.scene.camera,
+	unchanged(before, await context(page, sample.roomId));
+	const result = { viewport: captureViewport, camera: captured.scene.camera, sample, selectedEntityIds: captured.selection,
 		input: 'Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change', vaultAndSelectionUnchanged: true };
 	await writeFile(`${out}/${scenario.name}-M16-closed-constrained.json`, JSON.stringify(result, null, 2));
 	return result;

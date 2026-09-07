@@ -45,6 +45,7 @@ async function journey(page, scenario, out) {
 	await panel(page, 'details'); await page.locator('.rp-floor-inspector').waitFor();
 	await activate(page, '[data-rp-perspective="plan"]');
 	await recordShot(page, scenario, out, 'M01-connected-floor');
+	await activate(page, '[data-rp-perspective="renovate"]');
 	if (fidelity) {
 		await activate(page, '[data-rp-action="add"]'); await page.locator('.rp-add-menu').waitFor();
 		await recordShot(page, scenario, out, 'M02-floor-add');
@@ -53,7 +54,6 @@ async function journey(page, scenario, out) {
 		await editorAccessibility(page, scenario, out, 'floor-add');
 		await page.keyboard.press('Escape');
 	}
-	await activate(page, '[data-rp-perspective="renovate"]');
 	await panel(page, 'layers'); await activate(page, '.rp-structure-list__row');
 	if (scenario.width === 460) await page.keyboard.press('Escape');
 	await panel(page, 'details');

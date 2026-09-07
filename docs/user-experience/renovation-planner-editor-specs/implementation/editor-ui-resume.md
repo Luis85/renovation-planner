@@ -202,6 +202,15 @@ UI released heavy at session 87001's terminal result; Coverage has the brief Out
 Next after explicit release: extended planning browser, inspect/fix actual failures, then overview
 and final nine-journey/eighteen-screen matrix. No overall completion or full visual pass yet.
 
+After the clean Root571 merge (`a89ab791`), the extended browser completed Light and Dark,
+including actual caption pan/inline/clamp and mouse Room-marker/issue-source/Back routes.
+Custom stopped at only 8.39 pixels of last-button overflow. `92bc6a45` preserves those partial
+images/logs and makes a small spacing correction; validation is pending. Work source labels
+are now visibly and accessibly distinct even with a shared dependency explanation.
+The M02 Floor Add capture also moves its already-existing Renovate activation before capture
+to match the locked perspective; the original M01 Plan capture and all route assertions remain.
+Coverage has the current short Review validation slot; UI has no running process.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

@@ -7,6 +7,14 @@ is claimed. Main remains untouched; work is on `codex/editor-object-ui` in
 
 ## Source anchors and saved work
 
+Latest: count-copy and idle/available-Room guidance fixes verified and pushed1fee1286. M13
+downstream --design92676 exited0, all4 scenarios; source/hash-attributed archive is
+`editor-final-overview-followup/verified-downstream-1fee`. No UI process remains. All bounded
+pilots now pass. Root must integrate the final copy/guide/evidence checkpoint and supply the
+shared freeze SHA; then run the full nine-journey/18-reference matrix with no deletion and
+fresh named input manifests. No further UI production change is planned unless that run or
+its image review reveals a concrete defect. Full CI/coverage/host remain Root-owned.
+
 Current verified overview: 97353663, session73294 terminal0, all4 scenarios including original
 900px flow, matching1000px views and closed M16 at880/460DE.60 screenshots, no failed files in
 recorded manifest; copied only after source hash/time verification. See verified-973 evidence

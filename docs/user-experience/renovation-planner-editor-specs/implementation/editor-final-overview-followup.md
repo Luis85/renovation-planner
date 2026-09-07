@@ -80,3 +80,11 @@ hint is now limited to idle Select with readable Rooms; it no longer contradicts
 floor or active drawing task. The existing no-Rooms text and live announcement remain. Six
 focused empty/drawing/normal-Floor cases, types and lint passed (44222). Final captures must
 include these small follow-ups rather than treating the earlier images as current-source proof.
+
+The downstream design pilot subsequently passed all four scenarios at
+`1fee128681663f4300f55b8302a044ecdc81e53e` (92676, exit 0). The exact aggregate CostTotals
+block, expanded groups and Add-cost action fit the wide 1000px view; German retains ordinary
+drawer scrolling. Canonical Room selection, camera, geometry/text and vault data survive the
+supplement. Original schedule, quote comparison, return-context and unchanged-spending checks
+also passed. Dark and German images were inspected, and all named files were hash-verified
+before copying into `verified-downstream-1fee`. The next gate is the complete shared-source run.

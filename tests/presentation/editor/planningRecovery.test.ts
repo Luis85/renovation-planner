@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
-import { expectDefined, expectOk } from '../../helpers/domain';
+import { expectDefined, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { settle, mountPlanEditorCanvas, runtimeOf } from '../../helpers/editor';
 import { referenceWorkspace } from '../../harness/referenceWorkspace';
 import { HARNESS_PLAN, harnessDeps } from '../../harness/planEditor';
@@ -9,6 +9,7 @@ import { WALL_LOOP } from '../../helpers/structure';
 import { defer } from '../../helpers/async';
 import { err, ok } from '../../../src/core/result/Result';
 import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
+import { markUncompensated, type DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 const cleanups: (() => void)[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); for (const cleanup of cleanups.splice(0)) cleanup(); });
@@ -19,6 +20,48 @@ async function setup() {
 }
 const failure = err({ category: 'Persistence' as const, code: 'test.offline', message: 'Read unavailable' });
 describe('connected planning read-back recovery', () => {
+ it('refuses a captured read-retry action after an unrecovered write supersedes the read failure', async () => {
+  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');
+  await rig.wrapper.get('[data-rp-new-material]').trigger('click'); await settle();
+  const read = vi.spyOn(services, 'read').mockResolvedValue(failure); rig.changeCatalogue(); await settle();
+  const retry = rig.wrapper.get<HTMLButtonElement>('.rp-draft-recovery button').element;
+  useSaveStateStore(rig.pinia).markUnrecovered(); await settle(); read.mockClear();
+  retry.click(); await settle(); expect(read).not.toHaveBeenCalled();
+  expect(rig.wrapper.get('.rp-draft-recovery').findAll('button')).toHaveLength(1);
+  rig.dialogs.resolve('cancel');
+ });
+ it.each(['planning', 'renovation'] as const)('offers source inspection and Cancel instead of read retry after an unrecovered write in the %s form', async kind => {
+  const rig = await setup(), save = useSaveStateStore(rig.pinia);
+  if (kind === 'planning') {
+   await rig.wrapper.get('[data-rp-new-material]').trigger('click'); await settle();
+   const asset = expectOk(await rig.stack.assets.listAll()).loaded.find(item => item.entity.unit === 'm2');
+   await rig.wrapper.get('select[name="asset"]').setValue(expectDefined(asset, 'area material').entity.id);
+  } else { void rig.runtime.renovation.edit('existing', rig.room.id); }
+  await settle();
+  const form = rig.wrapper.get(`[data-rp-form="${kind}"]`), field = form.get<HTMLInputElement | HTMLTextAreaElement>(kind === 'planning' ? '[name="waste"]' : '[name="description"]');
+  await field.setValue(kind === 'planning' ? '17,5' : 'Preserved oak boards'); field.element.focus();
+  const draft = field.element.value, bytes = [...rig.stack.vault.entries];
+  const execute = vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(err(markUncompensated(injectedPersistenceError()))));
+  const command = { execute, undo: () => Promise.resolve(err(injectedPersistenceError())) };
+  if (kind === 'planning') vi.spyOn(expectDefined(rig.deps.commands.planning, 'planning'), 'material').mockReturnValueOnce(command);
+  else vi.spyOn(expectDefined(rig.deps.commands.renovation, 'renovation'), 'command').mockReturnValueOnce(command);
+  await form.trigger('submit'); await settle();
+  if (kind === 'renovation') { await form.trigger('submit'); await settle(); }
+  expect(save.unrecoveredWrite).toBe(true); expect(execute).toHaveBeenCalledOnce();
+  const recovery = rig.wrapper.get('.rp-draft-recovery');
+  expect(recovery.findAll('button')).toHaveLength(1); expect(recovery.text()).toContain('cannot repair');
+  expect(recovery.text()).not.toContain('Apply is paused until the plan can be read again');
+  expect(document.activeElement).toBe(field.element); expect(field.element.readOnly).toBe(false);
+  await recovery.get('button').trigger('click'); expect(rig.openedNote()).toBe(1);
+  await form.trigger('submit'); await settle(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+  await rig.runtime.refreshProjection(); await settle();
+  expect(save.unrecoveredWrite).toBe(true); expect(rig.runtime.writesBlocked.value).toBe(true);
+  expect(recovery.findAll('button')).toHaveLength(1); expect(field.element.value).toBe(draft);
+  await form.trigger('submit'); await settle(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+  rig.dialogs.resolve('cancel'); await settle(); expect(rig.wrapper.find(`[data-rp-form="${kind}"]`).exists()).toBe(false);
+  expect([...rig.stack.vault.entries]).toEqual(bytes);
+  expect(execute).toHaveBeenCalledOnce();
+ });
  it('keeps the evidence path editable while recovery blocks file creation, import and Apply', async () => {
   const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');
   rig.runtime.renovation.focus(rig.room.id, 'documents'); await settle();

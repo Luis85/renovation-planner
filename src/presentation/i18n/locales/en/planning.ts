@@ -1,6 +1,7 @@
 export const planningEn = {
 	"planning.open-library": "Open asset library",
 	'planning.selected': 'Selected',
+	'planning.recovery.unrecovered': 'The operation could not finish or undo all its changes. Reading again cannot repair those files. Your draft is kept; inspect the source note and related files, then cancel before checking them against your backup.',
 	'planning.recovery.draft': 'Your draft is kept for this target. Apply is paused until the plan can be read again. Retrying only reads saved data.',
 	'planning.decimal-input': 'Use a decimal point or comma. Do not enter thousands separators.',
 	"planning.review-scope": "Review checks stale quantities, negative cost remaining and missing linked files. Evidence is optional; purchase progress does not determine work readiness.",

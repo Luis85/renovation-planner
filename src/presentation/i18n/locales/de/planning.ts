@@ -1,6 +1,7 @@
 export const planningDe = {
 	"planning.open-library": "Bauteilkatalog öffnen",
 	'planning.selected': 'Ausgewählt',
+	'planning.recovery.unrecovered': 'Der Vorgang konnte nicht abgeschlossen oder vollständig rückgängig gemacht werden. Erneutes Lesen repariert diese Dateien nicht. Ihr Entwurf bleibt erhalten. Prüfen Sie die Quellnotiz und zugehörige Dateien und wählen Sie Abbrechen, bevor Sie sie mit Ihrer Sicherung vergleichen.',
 	'planning.recovery.draft': 'Ihr Entwurf bleibt diesem Ziel zugeordnet. Übernehmen ist angehalten, bis der Grundriss wieder gelesen werden kann. Erneut versuchen liest nur gespeicherte Daten.',
 	'planning.decimal-input': 'Verwenden Sie ein Dezimalkomma oder einen Dezimalpunkt, ohne Tausendertrennzeichen.',
 	"planning.review-scope": "Die Prüfung zeigt veraltete Mengen, negative Restkosten und fehlende verknüpfte Dateien. Nachweise sind optional; Einkaufsmengen bestimmen nicht die Arbeitsbereitschaft.",

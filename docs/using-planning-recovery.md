@@ -39,6 +39,10 @@ these planning operations. Closing the editor or saving plugin settings currentl
 the editor and loses this in-memory warning; that does **not** prove the vault was repaired.
 The existing specialized requirement-sequence recovery mechanism remains separate.
 
+An open draft in this state offers source-note inspection and Cancel. It does not offer a
+read retry or promise that reading will resume Apply. You can copy its retained text before
+cancelling and reviewing the affected files against your backup.
+
 ## Quantities, costs and files
 
 English and German displays use their decimal and grouping conventions. Editable quantities,

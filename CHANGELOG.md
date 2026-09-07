@@ -196,6 +196,8 @@ entries are added by the pull request that earns them, never invented at release
 
 - Preserve native Inspector/Layer controls, pending text, caret selection and focus while resizing the editor. A focused region opens automatically at constrained widths; close and Escape still return focus to the rail.
 
+- Open drafts distinguish an incomplete write from a failed refresh: source inspection and Cancel remain available, without offering a read retry that cannot repair partial writes.
+
 - Evidence opened from a material or cost announces the same selected state it highlights; unlinked evidence stays unselected until explicitly focused.
 
 - Keep the evidence-path draft editable during refresh recovery while blocking file writes and Apply; retain readable Room names in freshly generated Review notes, with ID fallback for missing Rooms.

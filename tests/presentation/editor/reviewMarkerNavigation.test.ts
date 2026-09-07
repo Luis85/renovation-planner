@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
+import type Konva from 'konva';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
@@ -31,9 +32,9 @@ async function setup() {
 it.each(['blocked', 'missing-outcome', 'decision'] as const)('opens a fresh %s Review marker in its canonical context without writing', async kind => {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
 	await rig.runtime.renovation.perspective('review'); await settle();
-	const markers = rig.stage.find('.renovation-marker');
+	const markers = rig.stage.find<Konva.Group>('.renovation-marker');
 	expect(markers).toHaveLength(3);
-	const marker = expectDefined(markers.find(item => item.findOne('Text')?.getAttr('text').includes(tr(`renovation.finding.${kind}`))), kind);
+	const marker = expectDefined(markers.find(item => item.findOne<Konva.Text>('Text')?.text().includes(tr(`renovation.finding.${kind}`))), kind);
 	marker.fire(kind === 'decision' ? 'tap' : 'click');
 	await settleUntil(() => rig.session.perspective === 'renovate', 'Review marker navigation');
 	expect(rig.session.roomId).toBe(rig.room.id);
@@ -54,7 +55,7 @@ it.each(['blocked', 'missing-outcome', 'decision'] as const)('opens a fresh %s R
 
 it('labels a planned removal with the existing fact and selects the same subject on tap', async () => {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
-	const markers = rig.stage.find('.renovation-marker');
+	const markers = rig.stage.find<Konva.Group>('.renovation-marker');
 	expect(markers).toHaveLength(1);
 	expect(markers[0].findOne('Text')?.getAttr('text')).toContain('Damaged floor boards');
 	expect(markers[0].findOne('Text')?.getAttr('text')).toContain(tr('renovation.change.remove'));

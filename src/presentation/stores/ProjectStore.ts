@@ -344,6 +344,8 @@ export const useProjectStore = defineStore('project', () => {
 			done();
 		}
 	}
+	/** Retire an active read immediately when its replacement is queued, retaining the scene. */
+	function invalidateHydration(): void { latestHydration++; refreshing.value = true; }
 	function cancelHydration(): void { latestHydration++; refreshing.value = false; }
 
 	/**
@@ -426,6 +428,7 @@ export const useProjectStore = defineStore('project', () => {
 		emptyStateKey,
 		hydrate,
 		cancelHydration,
+		invalidateHydration,
 		reset,
 	};
 });

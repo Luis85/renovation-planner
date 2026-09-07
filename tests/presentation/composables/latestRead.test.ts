@@ -3,6 +3,20 @@ import { createLatestRead } from '../../../src/presentation/composables/latest-r
 import { defer } from '../../helpers/async';
 
 describe('coalesced projection reads', () => {
+	it('continues with the latest queued read after an obsolete read rejects', async () => {
+		const old = defer<void>(), publish = vi.fn<(value: number) => void>();
+		const read = vi.fn<() => Promise<number>>().mockReturnValueOnce(old.promise.then(() => { throw new Error('obsolete'); })).mockResolvedValue(2);
+		const queue = createLatestRead(read, publish), first = queue.refresh(); await Promise.resolve();
+		const second = queue.refresh(); old.resolve(undefined); await Promise.all([first, second]);
+		expect(read).toHaveBeenCalledTimes(2); expect(publish.mock.calls).toEqual([[2]]);
+	});
+	it('settles disposal without publishing or retrying a subsequently rejected read', async () => {
+		const pending = defer<void>(), publish = vi.fn<(value: number) => void>();
+		const read = vi.fn<() => Promise<number>>(() => pending.promise.then(() => { throw new Error('closed'); }));
+		const queue = createLatestRead(read, publish), request = queue.refresh(); await Promise.resolve();
+		queue.dispose(); await request; pending.resolve(undefined); await Promise.resolve(); await Promise.resolve();
+		expect(read).toHaveBeenCalledOnce(); expect(publish).not.toHaveBeenCalled();
+	});
  it('coalesces a same-turn burst and keeps one latest follow-up for invalidations during a read', async () => {
   const old = defer<number>(), latest = defer<number>(), publish = vi.fn<(value: number) => void>();
   const read = vi.fn<() => Promise<number>>().mockReturnValueOnce(old.promise).mockReturnValueOnce(latest.promise);

@@ -575,23 +575,30 @@ function buildDispatcherChain(
 	readonly refreshProjection: () => Promise<void>;
 	readonly writesBlocked: Readonly<Ref<boolean>>;
 	readonly pausedReasonId: string;
-	readonly inspectorRef: { current: { refresh(): Promise<void> } | null };
+	readonly inspectorRef: { current: { refresh(): Promise<void>; invalidate(): void } | null };
 } {
 	const projectStore = useProjectStore(), session = useRenovationSession();
 	const history = new CommandHistory();
-	const inspectorRef: { current: { refresh(): Promise<void> } | null } = { current: null };
+	const inspectorRef: { current: { refresh(): Promise<void>; invalidate(): void } | null } = { current: null };
 	const planning = createPlanningRefresh(context);
 	const refreshSpatial = createProjectionRefresh({
 		projectStore,
 		// The cell breaks construction order and is retired on disposal. A late hydration
 		// must not start another Inspector query after the editor has closed.
-		inspectorStore: { refresh: async () => { await inspectorRef.current?.refresh(); } },
+		// A superseded hydration leaves refreshing set for its queued replacement. Its
+		// Inspector query must wait for that replacement's scene instead of reading now.
+		inspectorStore: { refresh: async () => { if (!projectStore.refreshing) await inspectorRef.current?.refresh(); } },
 		queries: context.queries,
 		planId: context.planId,
 	});
 	const spatialReads = createLatestRead(refreshSpatial, () => {});
-	const refreshProjection = async (): Promise<void> => { await Promise.all([spatialReads.refresh(), planning.refresh()]); };
-	onBeforeUnmount(() => { inspectorRef.current = null; spatialReads.dispose(); projectStore.cancelHydration(); });
+	let active = true;
+	const refreshProjection = async (): Promise<void> => {
+		if (!active) return;
+		projectStore.invalidateHydration(); inspectorRef.current?.invalidate();
+		await Promise.all([spatialReads.refresh(), planning.refresh()]);
+	};
+	onBeforeUnmount(() => { active = false; inspectorRef.current?.invalidate(); inspectorRef.current = null; spatialReads.dispose(); projectStore.cancelHydration(); });
 	const dispatcher = withStateRefresh(history, refreshProjection);
 	const save = useSaveStateStore();
 	const tracked = withSaveStateTracking(dispatcher, save);

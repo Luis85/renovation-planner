@@ -8,9 +8,11 @@ export function createLatestRead<T>(read: () => Promise<T>, publish: (value: T) 
  }
  async function drain(): Promise<void> {
   try {
-   for (;;) {
-    if (!alive) break;
-    const ticket = generation, value = await read();
+   while (alive) {
+    const ticket = generation;
+    let value: T;
+    try { value = await read(); }
+    catch (cause) { if (alive && ticket !== generation) continue; throw cause; }
     if (!alive) break;
     if (ticket !== generation) continue;
     publish(value);

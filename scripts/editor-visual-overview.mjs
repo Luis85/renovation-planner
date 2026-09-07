@@ -42,6 +42,14 @@ async function journey(page, scenario, out) {
 	await panel(page, 'details'); await page.locator('.rp-floor-inspector').waitFor();
 	await activate(page, '[data-rp-perspective="plan"]');
 	await recordShot(page, scenario, out, 'M01-connected-floor');
+	if (fidelity) {
+		await activate(page, '[data-rp-action="add"]'); await page.locator('.rp-add-menu').waitFor();
+		await recordShot(page, scenario, out, 'M02-floor-add');
+		assert.equal(await page.locator('[data-rp-entry]').count(), 11, 'the matching Floor menu retains every real route');
+		assert.equal(await page.locator('[data-icon-missing]').count(), 0, 'all Add entries use matching host icon fixtures');
+		await editorAccessibility(page, scenario, out, 'floor-add');
+		await page.keyboard.press('Escape');
+	}
 	await activate(page, '[data-rp-perspective="renovate"]');
 	await panel(page, 'layers'); await activate(page, '.rp-structure-list__row');
 	if (scenario.width === 460) await page.keyboard.press('Escape');
@@ -49,7 +57,12 @@ async function journey(page, scenario, out) {
 	await activate(page, '[data-rp-mode="existing"]'); await activate(page, '[data-rp-action="new-record"]');
 	await recordText(page, form, 'description', german ? 'Vorhandener Wandputz' : 'Original wall plaster'); await recordApply(page, form, true);
 	await activate(page, '[data-rp-action="plan-record"]'); await recordText(page, form, 'description', german ? 'Putz reparieren und streichen' : 'Repair and paint plaster'); await recordApply(page, form, true);
-	await activate(page, '[data-rp-mode="overview"]'); await recordShot(page, scenario, out, 'M07-connected-wall');
+	await activate(page, '[data-rp-mode="overview"]');
+	if (fidelity) {
+		if (scenario.width === 460) await page.keyboard.press('Escape');
+		await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Shift+1'); await panel(page, 'details');
+	}
+	await recordShot(page, scenario, out, 'M07-connected-wall');
 	if (scenario.width === 460) await page.keyboard.press('Escape');
 	await panel(page, 'layers');
 	await tabTo(page, '.rp-structure-list > ul > li:nth-child(2) > button'); await page.keyboard.down('Shift'); await page.keyboard.press('Enter'); await page.keyboard.up('Shift');

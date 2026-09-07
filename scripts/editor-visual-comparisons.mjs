@@ -11,7 +11,7 @@ const planning = 'materials-costs-evidence';
 const renovation = 'renovation-workflow';
 const pairs = [
 	['M00', 'light-M00-room.png', 'editor-visual-overview/light-M00-connected-room.png'], ['M01', 'light-M01-floor.png', 'editor-visual-overview/light-M01-connected-floor.png'],
-	['M02', 'light-M02-add.png', 'editor-visual-overview/light-M02-connected-add.png'], ['M03', 'light-M03-room-draft.png'],
+	['M02', 'light-M02-add.png', 'editor-visual-overview/light-M02-floor-add.png'], ['M03', 'light-M03-room-draft.png'],
 	['M04', `${planning}/dark-closed-loop.png`], ['M05', 'light-M05-start.png'],
 	['M06', 'reference-plan/light-measurement.png'], ['M07', `${planning}/light-wall-inspector.png`, 'editor-visual-overview/light-M07-connected-wall.png'],
 	['M08', `${renovation}/dark-existing.png`], ['M09', `${renovation}/light-planned.png`],

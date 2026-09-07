@@ -61,6 +61,14 @@ existing selection projection returns an area; quantities and selection logic ar
 Source/diff review only. Room/Area versus wall-only states, German labels, action focus and
 assembled-style/browser checks remain pending.
 
+Matching capture preparation now reuses the existing explicit `editorFidelity.seedSurroundings`
+test-data helper before the six-photo state, preserves the original selected Room, and invokes
+native Fit Floor. The overview driver keeps its original Room-context Add capture and adds an
+unselected Floor-context capture for M02, with eleven-entry/icon checks and accessibility scan.
+M07 uses native Fit Floor before capture. The comparison map selects the new Floor Add image.
+All original connected actions/assertions remain. Three `node --check` syntax checks and diff
+check passed; the new captures and their assertions have not run in a browser.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

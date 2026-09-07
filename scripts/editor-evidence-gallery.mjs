@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { activate, tabTo } from './editor-area-browser.mjs';
 import { recordApply, recordText } from './editor-record-browser.mjs';
 import { chooseNative, editorContextSnapshot, assertEditorContext } from './editor-downstream-forms.mjs';
+import { panel } from './editor-structure-check.mjs';
 
 const form = '[data-rp-form="planning"]';
 const entries = [
@@ -36,7 +37,15 @@ async function linkPhoto(page, entry, index, german) {
 
 /** Six real relationship writes, using only synthetic file inputs; no editor-store seeding. */
 export async function captureEvidenceGallery(page, scenario, out, shot) {
-	const before = await editorContextSnapshot(page), german = scenario.name === 'german-constrained';
+	const german = scenario.name === 'german-constrained';
+	const selectedRoom = await page.locator('.rp-room-list__row[aria-pressed="true"]').getAttribute('data-rp-id');
+	await page.evaluate(isGerman => window.editorFidelity.seedSurroundings(isGerman), german);
+	await page.waitForFunction(() => document.querySelectorAll('.rp-room-list__row').length === 4);
+	if (scenario.width === 460) await page.keyboard.press('Escape');
+	await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Shift+1');
+	await panel(page, 'details');
+	assert.equal(await page.locator('.rp-room-list__row[aria-pressed="true"]').getAttribute('data-rp-id'), selectedRoom, 'adding explicit surroundings retains the selected Room');
+	const before = await editorContextSnapshot(page);
 	await activate(page, '[data-rp-evidence-phase="during"]');
 	const ids = [];
 	for (const [index, entry] of [...entries.entries()].reverse()) ids[index] = await linkPhoto(page, entry, index, german);

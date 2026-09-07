@@ -1,0 +1,119 @@
+{
+  "scope": "Two public command tests only; not full coverage or M17 acceptance",
+  "baselineRef": "2c3c63604c87c4f0adf254b3462734aa70e4e645",
+  "baselineRun": 34145575098,
+  "sourceRef": "3f337030 with Money comparison-only test correction",
+  "testFile": "tests/application/commands/contextualMaterialBoundaries.test.ts",
+  "testsPassed": 2,
+  "durationSeconds": 9.87,
+  "coverageCommand": "npx vitest run tests/application/commands/contextualMaterialBoundaries.test.ts --coverage --coverage.reportsDirectory <dedicated-temp-folder>",
+  "exit": "1: unchanged global coverage floors fail on scoped execution",
+  "gains": [
+    {
+      "path": "src/application/commands/requirement/contextualFigures.ts",
+      "kind": "branch",
+      "id": "4",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 20,
+            "column": 53
+          },
+          "end": {
+            "line": 20,
+            "column": 189
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 20,
+              "column": 66
+            },
+            "end": {
+              "line": 20,
+              "column": 179
+            }
+          },
+          {
+            "start": {
+              "line": 20,
+              "column": 179
+            },
+            "end": {
+              "line": 20,
+              "column": 189
+            }
+          }
+        ],
+        "line": 20
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/application/reference/deleteResolution.ts",
+      "kind": "branch",
+      "id": "5",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 204,
+            "column": 3
+          },
+          "end": {
+            "line": 204,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 204,
+              "column": 3
+            },
+            "end": {
+              "line": 204,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 204
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/application/reference/deleteResolution.ts",
+      "kind": "statement",
+      "id": "15",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 204,
+          "column": 22
+        },
+        "end": {
+          "line": 204,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 1
+    }
+  ],
+  "comparisonLimitation": "Only identical source blobs and identical maps were compared. 467 other maps differ in the scoped run; no overall counter union or full result is claimed.",
+  "types": "PASS",
+  "oxlint": "PASS entire tree",
+  "eslint": "PASS both new test files",
+  "staticFallow": "PASS dead-code and duplication; zero findings",
+  "health": "PASS with original full CI coverage and official Linux coverage-root; 742/742 paths matched, zero findings"
+}

@@ -32,6 +32,20 @@ neuen Testdateien sind im gepushten Nachfolger von45c58609 enthalten und dürfen
 von der neuen Coverage-Session nicht dupliziert werden. Produktion bleibt seit
 f306 unverändert. Root behält Integration, visuelle/Host-Abnahme und Gesamtgoal.
 
+## M17-Vertrag: neue konkrete Korrektur
+
+Marker-Auswahl muss laut M17 in Review bleiben und die Room-/Change-Zusammenfassung
+zeigen. Nur Issue-Auswahl öffnet die konkrete Bearbeitung in Renovate; ADR0021
+ändert diese Trennung nicht. Root-Code mit Marker→Dialog ist eine echte verbleibende
+Lücke. UI übernimmt einen gemeinsamen Leaf-Review-Read-Model für Roomliste und
+kompakte Marker, inklusive bestehender Planning-/Renovation-Findings und geteilter
+Kontexte. Keine neuen Readiness-Regeln. Coverage besitzt die entsprechende neue
+Testdatei und passt die Zielregressionen an; alte Ist-Tests gelten nicht als Abnahme.
+
+Coverage hat npm ci und erste Prüfungen beendet; Slot freigegeben. Root übernimmt
+aus227c23b3 nur die zwei grünen öffentlichen Commandfälle und deren gemessenen
+Counter-Beleg (+2Arme/+1Statement); Marker-Tests bleiben bis zur UI-Abstimmung außen vor.
+
 ## Verbindliche Quellen
 
 Zuerst vorhandene AGENTS.md und bei .codex/ deren instructions.md/Workflow lesen. Beim letzten Audit waren sie im Repo nicht vorhanden; Nutzeranweisungen im Task gelten weiterhin. [CLAUDE.md](../../../../CLAUDE.md) und [SDD](../../../development/sdds/obsidian-renovation-planner-SDD.md) enthalten die Projektregeln. Aktuelle akzeptierte ADR-/SDD-Amendments gehen alten Snapshots vor.

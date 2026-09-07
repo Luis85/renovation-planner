@@ -33,3 +33,19 @@ Local heavy verification remains serialized through Root, including installation
 builds, native/coverage runs, analysis and browser/performance captures. A silent
 task or observation timeout is not a free slot; obtain an explicit handoff or
 verify the actual process/session status.
+
+## M17 contract coordination
+
+M17 explicitly distinguishes marker selection (stay in Review and expand the
+Room/change summary) from issue selection (open its actionable source in Renovate).
+ADR0021 preserves issue source navigation and does not override marker behavior.
+UI owns the Review-only shared Room projection/compact markers and accessible
+issue buttons. Coverage owns reviewMarkerNavigation.test.ts and will align its
+regressions; old marker-to-dialog checks are historical behavior, not acceptance.
+
+Coverage checkpoint227c23b3 has two independently verified public Command cases.
+Root selectively imports contextualMaterialBoundaries.test.ts and its counter
+receipt only; the pending marker tests are not included. Exact +2branch/+1statement
+gains are measured only on identical relevant maps, not on all scoped outputs.
+Installation and first verification are terminal; the heavy slot has been released.
+The next owner must receive a fresh explicit Root handoff.

@@ -75,6 +75,12 @@ async function largeFloor(page, scenario, out) {
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const pan = await panFrames(page);
  await activate(page, '[data-rp-perspective="renovate"]'); await panel(page, 'details');
+ await activate(page, '[data-rp-mode="materials"]'); await idle(page);
+ await page.waitForFunction(() => window.planningRecovery.scene()[0]?.materialMarkers === 3);
+ if (scenario.width === 460) await page.keyboard.press('Escape');
+ const materialPan = await panFrames(page);
+ assert.equal(materialPan.sceneAfter.materialMarkers, 3, 'first Room retains its three material markers through pan/zoom');
+ await panel(page, 'details');
  await tabTo(page, '[data-rp-mode="photos"]');
  const inspectorStart = await page.evaluate(() => performance.now()); await page.keyboard.press('Enter');
  await page.waitForFunction(() => document.querySelectorAll('.rp-evidence-thumbnail').length === 40);
@@ -82,17 +88,23 @@ async function largeFloor(page, scenario, out) {
  await page.locator('.rp-evidence-thumbnail').first().scrollIntoViewIfNeeded(); await page.waitForFunction(() => document.querySelector('.rp-evidence-thumbnail')?.naturalWidth === 1600);
  await recordShot(page, scenario, out, 'large-photos');
  const resources = []; for (let count = 0; count < 3; count++) { const result = await page.evaluate(() => window.planningRecovery.close()); resources.push(result); assert.equal(result.stages, 0); assert.equal(result.listeners, 0); assert.equal(result.images, 0); assert.equal(result.objectUrls, 0); await page.evaluate(() => window.planningRecovery.reopen()); await page.locator('.rp-plan-canvas').waitFor(); }
- return { fixture, usableMs, selectionMs, inspectorMs, pan, resources, targets: { usableMs: 1500, selectionMs: 100, inspectorMs: 200, fps: 'target60/min30' }, limitation: 'warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements' };
+ return { fixture, usableMs, selectionMs, inspectorMs, pan, materialPan, resources, targets: { usableMs: 1500, selectionMs: 100, inspectorMs: 200, fps: 'target60/min30' }, limitation: 'warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements' };
 }
 async function panFrames(page) {
  const canvas = await page.locator('.rp-plan-canvas').boundingBox(); assert.ok(canvas);
+ const sceneBefore = await page.evaluate(() => window.planningRecovery.scene()[0]); assert.ok(sceneBefore.camera);
  const sampled = page.evaluate(() => new Promise(resolve => { const gaps = []; let previous = performance.now(); function frame(now) { gaps.push(now - previous); previous = now; if (gaps.length < 60) requestAnimationFrame(frame); else resolve(gaps.slice(1)); } requestAnimationFrame(frame); }));
  const x = canvas.x + canvas.width / 2, y = canvas.y + canvas.height / 2;
  await page.mouse.move(x, y); await page.mouse.down({ button: 'middle' });
  for (let index = 0; index < 30; index++) { await page.mouse.move(x + index * 2, y + index); await page.waitForTimeout(16); }
- await page.mouse.up({ button: 'middle' }); await page.mouse.wheel(0, -80);
+ await page.mouse.up({ button: 'middle' });
+ await page.waitForFunction(before => { const after = window.planningRecovery.scene()[0]?.camera; return after && (after.x !== before.x || after.y !== before.y); }, sceneBefore.camera);
+ const sceneAfterPan = await page.evaluate(() => window.planningRecovery.scene()[0]);
+ await page.mouse.wheel(0, -80);
+ await page.waitForFunction(zoom => { const camera = window.planningRecovery.scene()[0]?.camera; return camera && camera.zoom !== zoom; }, sceneAfterPan.camera.zoom);
+ const sceneAfter = await page.evaluate(() => window.planningRecovery.scene()[0]);
  const frames = (await sampled).toSorted((a, b) => a - b);
- return { samples: frames.length, medianMs: frames[Math.floor(frames.length / 2)], p95Ms: frames[Math.floor(frames.length * .95)], method: 'requestAnimationFrame cadence during middle-button pan and wheel zoom, headless browser' };
+ return { samples: frames.length, medianMs: frames[Math.floor(frames.length / 2)], p95Ms: frames[Math.floor(frames.length * .95)], sceneBefore, sceneAfterPan, sceneAfter, method: 'requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser' };
 }
 async function zoomReflow(page, scenario, out) {
  await page.setViewportSize({ width: Math.max(920, scenario.width), height: 900 }); await panel(page, 'details');

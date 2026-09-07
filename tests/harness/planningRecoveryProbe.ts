@@ -23,8 +23,14 @@ export function planningRecoveryProbe(workspace: ReturnType<typeof referenceWork
  deps.queries.getPlan = (...args) => { counts.spatialReads++; return getPlan(...args); };
  const changed = () => stack.events.publish({ type: 'PlanRenovationChanged', payload: { planId: plan.id, projectId: plan.projectId } });
  function snapshot() { return { ...counts, listeners: stack.vault.eventListenerCount, stages: Konva.stages.length, images: document.querySelectorAll('.rp-evidence-thumbnail').length, objectUrls: urls.size }; }
+ function scene() {
+  return Konva.stages.map(stage => {
+   const layer = stage.findOne('.zone');
+   return { materialMarkers: stage.find('.material-marker').length, camera: layer ? { x: layer.x(), y: layer.y(), zoom: layer.scaleX() } : null };
+  });
+ }
  return {
-  snapshot, armFailure: () => { arm = true; }, setFailure: (value: boolean) => { fail = value; },
+  snapshot, scene, armFailure: () => { arm = true; }, setFailure: (value: boolean) => { fail = value; },
   async events(count: number) { await Promise.all(Array.from({ length: count }, changed)); },
   files(paths: string[]) { for (const path of paths) { if (!stack.vault.entries.has(path)) stack.vault.entries.set(path, 'fixture'); stack.vault.trigger('modify', stack.vault.getAbstractFileByPath(path)); } },
   async geometryChange() {

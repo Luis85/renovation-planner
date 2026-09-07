@@ -14,3 +14,16 @@
 .rp-quote-form details label { display: flex; gap: var(--size-4-2); align-items: start; margin-block: var(--size-4-2); }
 .rp-quote-form details { max-height: 16em; overflow: auto; }
 .rp-quote-comparison tr.is-selected { background: var(--background-modifier-active-hover); }
+
+.rp-project-downstream .rp-project-detail__header { grid-template-columns: minmax(0, 1fr) auto auto; }
+.rp-project-downstream .rp-project-detail__name { white-space: normal; overflow-wrap: anywhere; }
+.rp-project-downstream .rp-project-detail__body { padding: var(--size-4-3); gap: var(--size-4-2); }
+.rp-project-downstream__retry { align-self: start; }
+@container (max-width: 640px) {
+ .rp-project-downstream .rp-project-detail__header { grid-template-columns: minmax(0, 1fr) auto; }
+ .rp-project-downstream .rp-project-detail__open-note { justify-self: start; }
+}
+
+.rp-quote-form > label, .rp-quote-form fieldset > label { display: flex; flex-direction: column; gap: var(--size-4-1); min-width: 0; }
+.rp-quote-form > label input, .rp-quote-form > label select, .rp-quote-form fieldset > label input, .rp-quote-form fieldset > label select { width: 100%; min-width: 0; }
+.rp-quote-form > label { margin-block: var(--size-4-2); }

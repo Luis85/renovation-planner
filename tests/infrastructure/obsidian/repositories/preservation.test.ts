@@ -1,4 +1,4 @@
-import { DOWNSTREAM_NOTE_CASES } from '../../../helpers/downstreamNoteCases';
+import { DOWNSTREAM_NOTE_CASES } from '../../../contracts/downstreamNoteCases';
 import { describe, expect, it } from 'vitest';
 import {
 	createRepositoryStack,

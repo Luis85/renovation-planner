@@ -5,11 +5,11 @@ import { useProjectWorkRead } from './projectWorkRead';
 import { useProjectWorkActions } from './projectWorkActions';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import NamedCatalogueForm from '../../catalogue/NamedCatalogueForm.vue';
-import TradeResponsibility from '../../catalogue/TradeResponsibility.vue';
+import ProjectWorkToolbar from './ProjectWorkToolbar.vue';
+import ProjectWorkRow from './ProjectWorkRow.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { SAVE_STATE_KEYS } from '../../editor/save-state/save-state';
-import type { WorkPackage } from '../../../domain/renovation/Renovation';
 const props = defineProps<{ projectId: string }>();
 const context = useRenovationProjectContext(), dialogs = useDialogStore();
 const read = useProjectWorkRead(context.work, props.projectId), actions = useProjectWorkActions(context, read);
@@ -17,7 +17,6 @@ const filter = ref('all');
 const floors = computed(() => Array.from(new Map(read.data.value?.rows.map(row => [row.planId, row.floor])).entries()));
 const rows = computed(() => read.data.value?.rows.filter(row => filter.value === 'all' || row.planId === filter.value) ?? []);
 const saveLabel = computed(() => tr(actions.save.state === 'saved' && read.error.value ? 'save-state.saved-refresh-needed' : SAVE_STATE_KEYS[actions.save.state]));
-function progress(work: WorkPackage): string { return tr(('renovation.progress.' + work.progress) as 'renovation.progress.pending' | 'renovation.progress.in-progress' | 'renovation.progress.complete'); }
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
 async function createTrade(): Promise<void> {
@@ -30,20 +29,24 @@ async function createTrade(): Promise<void> {
 </script>
 <template>
 	<section
-		class="rp-project-work rp-project-detail"
+		class="rp-project-work rp-project-detail rp-project-downstream"
 		:aria-label="tr('schedule.title')"
 	>
 		<header class="rp-project-detail__header">
 			<button
 				type="button"
+				class="rp-project-detail__back"
 				@click="context.navigate(projectId)"
 			>
 				{{ tr('view.project.prices-back') }}
 			</button>
-			<h2>{{ read.data.value?.project.name }} · {{ tr('schedule.title') }}</h2>
+			<h2 class="rp-project-detail__name">
+				{{ read.data.value?.project.name }} · {{ tr('schedule.title') }}
+			</h2>
 			<button
 				v-if="context.origin"
 				type="button"
+				class="rp-project-detail__open-note"
 				@click="context.openPlan(context.origin.planId, context.origin)"
 			>
 				{{ tr('schedule.return') }}
@@ -71,7 +74,9 @@ async function createTrade(): Promise<void> {
 				{{ tr('schedule.unrecovered') }}
 			</p>
 			<button
+				v-if="read.error.value"
 				type="button"
+				class="rp-project-downstream__retry"
 				@click="read.refresh"
 			>
 				{{ tr('view.project.resume-retry') }}
@@ -89,68 +94,28 @@ async function createTrade(): Promise<void> {
 				>
 					{{ tr('schedule.rooms-incomplete') }}
 				</p>
-				<div class="rp-project-work__controls">
-					<label>{{ tr('schedule.floor') }}<select v-model="filter"><option value="all">{{ tr('schedule.all-floors') }}</option><option
-						v-for="[id, name] in floors"
-						:key="id"
-						:value="id"
-					>{{ name }}</option></select></label>
-					<button
-						type="button"
-						:aria-disabled="actions.blocked.value || !actions.canUndo.value"
-						@click="actions.step('undo')"
-					>
-						{{ tr('editor.context.undo') }}
-					</button>
-					<button
-						type="button"
-						:aria-disabled="actions.blocked.value || !actions.canRedo.value"
-						@click="actions.step('redo')"
-					>
-						{{ tr('editor.context.redo') }}
-					</button>
-					<button
-						type="button"
-						:aria-disabled="actions.blocked.value"
-						@click="createTrade"
-					>
-						{{ tr('trade.add') }}
-					</button>
-				</div>
+				<ProjectWorkToolbar
+					v-model="filter"
+					:floors="floors"
+					:blocked="actions.blocked.value"
+					:can-undo="actions.canUndo.value"
+					:can-redo="actions.canRedo.value"
+					@step="actions.step"
+					@create-trade="createTrade"
+				/>
 				<p v-if="!rows.length">
 					{{ tr('schedule.empty') }}
 				</p>
 				<ol class="rp-project-work__rows">
-					<li
+					<ProjectWorkRow
 						v-for="row in rows"
 						:key="row.planId + ':' + row.work.id"
-						:data-work-id="row.work.id"
-						:class="{ 'is-selected': context.origin?.planId === row.planId && context.origin.workId === row.work.id }"
-					>
-						<h3>{{ row.work.title }}</h3>
-						<p>{{ row.floor }} · {{ row.rooms.map(room => room.name ?? tr('schedule.room-missing', { id: room.id })).join(', ') }}</p>
-						<p>{{ progress(row.work) }} · <TradeResponsibility :work="row.work" /></p>
-						<p>{{ tr('schedule.start') }}: {{ row.work.schedule?.start ?? tr('schedule.unscheduled') }} · {{ tr('schedule.end') }}: {{ row.work.schedule?.end ?? tr('schedule.unscheduled') }}</p>
-						<p v-if="row.blocking.length">
-							{{ tr('renovation.blocked', { names: row.blocking.map(item => item.title).join(', ') }) }}
-						</p>
-						<p v-else>
-							{{ tr('schedule.no-blockers') }}
-						</p>
-						<button
-							type="button"
-							:aria-disabled="actions.blocked.value"
-							@click="actions.edit(row)"
-						>
-							{{ tr('renovation.edit.work') }}
-						</button>
-						<button
-							type="button"
-							@click="actions.open(row)"
-						>
-							{{ tr('schedule.open-floor') }}
-						</button>
-					</li>
+						:row="row"
+						:origin="context.origin"
+						:blocked="actions.blocked.value"
+						@edit="actions.edit"
+						@open="actions.open"
+					/>
 				</ol>
 			</template>
 		</div>

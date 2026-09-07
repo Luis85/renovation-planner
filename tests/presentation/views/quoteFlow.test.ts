@@ -33,6 +33,10 @@ describe('Project quote comparison through native forms and repositories', () =>
   const writes = vi.spyOn(rig.persistence.quotes, 'save').mockImplementationOnce(async (...args) => { entered.resolve(); await held.promise; return original(...args); });
   await form.trigger('submit'); await entered.promise;
   expect(await view.context.session?.canLeave?.()).toBe(false);
+  expect(form.get<HTMLInputElement>('input[name="title"]').element.readOnly).toBe(true);
+  await view.button(tr('quote.add-item')).trigger('click'); await view.button(tr('quote.remove-item')).trigger('click');
+  const chosenWork = form.get<HTMLInputElement>('input[type="checkbox"]'); await chosenWork.setValue(false);
+  expect(chosenWork.element.checked).toBe(true); expect(form.findAll('fieldset')).toHaveLength(1);
   const timerIndex = timers.mock.calls.findIndex(call => call[1] === 60_000), timer = timers.mock.results[timerIndex].value;
   view.dispose(); held.resolve(); await flushPromises();
   expect(expectOk(await rig.persistence.quotes.getById(saved.entity.id))?.entity.title).toBe('Landed after closing');
@@ -123,4 +127,24 @@ describe('Project quote comparison through native forms and repositories', () =>
    expect(offers.find(offer => offer.entity.id !== peer.entity.id)?.entity.items[0].amount.amount).toBe('800.005');
   } finally { view.dispose(); }
  });
+});
+
+it('requires a new preview after editing line items and retains exact credits under their shared explicit Work scope', async () => {
+ const { rig, view, saved } = await setup();
+ try {
+  await view.button(tr('quote.edit')).trigger('click'); await flushPromises(); const form = view.wrapper.get('.rp-quote-form');
+  await view.button(tr('quote.remove-item')).trigger('click'); await form.trigger('submit'); await flushPromises();
+  expect(form.find('[role="alert"]').exists()).toBe(true); expect(expectOk(await rig.persistence.quotes.getById(saved.entity.id))?.entity.items).toHaveLength(1);
+  for (const [description, amount] of [['Installation', '50,005'], ['Credit', '-0,005']]) {
+   await view.button(tr('quote.add-item')).trigger('click'); const item = expectDefined(form.findAll('fieldset').at(-1), 'new item');
+   await item.get('input[name="item-description"]').setValue(description); await item.get('input[name="item-amount"]').setValue(amount); await item.get('input[type="checkbox"]').setValue(true);
+  }
+  const writes = vi.spyOn(rig.persistence.quotes, 'save'); await form.trigger('submit'); await flushPromises(); expect(writes).not.toHaveBeenCalled();
+  await form.get('input[name="item-description"]').setValue('Installation confirmed'); await form.trigger('submit'); await flushPromises(); expect(writes).not.toHaveBeenCalled();
+  await form.trigger('submit'); await flushPromises(); expect(writes).toHaveBeenCalledOnce();
+  const quote = expectDefined(expectOk(await rig.persistence.quotes.getById(saved.entity.id)), 'saved quote').entity;
+  expect(quote.items.map(item => item.amount.amount)).toEqual(['50.005', '-0.005']); expect(quote.items.map(item => item.description)).toEqual(['Installation confirmed', 'Credit']);
+  const rows = view.wrapper.findAll('.rp-quote-comparison tbody tr'); expect(rows).toHaveLength(1); expect(rows[0].findAll('td li')).toHaveLength(2);
+  expect(view.wrapper.get('.rp-quote-comparison tfoot').text()).toContain('50.00 EUR');
+ } finally { view.dispose(); }
 });

@@ -51,9 +51,9 @@ export function useProjectWorkActions(context: RenovationProjectDeps, read: Retu
   finally { loading.value = false; }
  }
  async function step(direction: 'undo' | 'redo'): Promise<void> {
-  if (blocked.value || dialogs.current) return;
+  if (blocked.value || dialogs.current || !(direction === 'undo' ? canUndo.value : canRedo.value)) return;
   loading.value = true;
-  try { const result = await dispatcher[direction](); if (alive) { revision.value++; if (!result.ok) notifyOperationFailure(result.error); } }
+  try { const result = await dispatcher[direction](); if (alive) { revision.value++; if (!result.ok) { notifyOperationFailure(result.error); await read.refresh(); } } }
   catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'project.work-history-failed'); }
   finally { loading.value = false; }
  }

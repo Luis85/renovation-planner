@@ -58,18 +58,22 @@ async function supplier(): Promise<void> {
 </script>
 <template>
 	<section
-		class="rp-project-detail rp-project-quotes"
+		class="rp-project-detail rp-project-quotes rp-project-downstream"
 		:aria-label="tr('quote.comparison')"
 	>
 		<header class="rp-project-detail__header">
 			<button
 				type="button"
+				class="rp-project-detail__back"
 				@click="context.navigate(projectId)"
 			>
 				{{ tr('view.project.prices-back') }}
-			</button><h2>{{ read.data.value?.work.project.name }} · {{ tr('quote.comparison') }}</h2><button
+			</button><h2 class="rp-project-detail__name">
+				{{ read.data.value?.work.project.name }} · {{ tr('quote.comparison') }}
+			</h2><button
 				v-if="context.origin"
 				type="button"
+				class="rp-project-detail__open-note"
 				@click="context.openPlan(context.origin.planId, context.origin)"
 			>
 				{{ tr('schedule.return') }}
@@ -99,7 +103,9 @@ async function supplier(): Promise<void> {
 				{{ trError(read.error.value) }}
 			</p>
 			<button
+				v-if="read.error.value"
 				type="button"
+				class="rp-project-downstream__retry"
 				@click="read.refresh"
 			>
 				{{ tr('view.project.resume-retry') }}

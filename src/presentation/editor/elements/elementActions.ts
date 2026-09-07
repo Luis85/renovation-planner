@@ -64,7 +64,7 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 			if (selection.selectedIds.join('|') !== selected) return;
 			const busy = ref(false), latest = ref<string | null>(null);
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.element.edit', { name: element.name }), component: markRaw(OutlinePointsForm), busy, props: {
-				points: element.points, name: element.name, hint: 'editor.element.edit-hint', busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || runtime.writesBlocked.value || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
+				points: element.points, name: element.name, hint: 'editor.element.edit-hint', busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || save.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
 				accepts: (points: readonly Point[]) => validSpatialElement({ ...element, points }) && (element.kind !== 'object' || areaOutline(points).ok),
 				preview: (polygon: { points: readonly Point[] } | null) => { preview.value = polygon ? { ...element, points: polygon.points } : null; },
 				dispatch: async (polygon: { points: readonly Point[] }, name: string) => {

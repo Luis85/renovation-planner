@@ -1,6 +1,6 @@
 # Composition boundary cases — source checkpoint
 
-Status: **WIP, unverified**. Prepared on the root topic worktree from `95e7510b` on
+Status: **native/type/lint verified; full coverage contribution unmeasured**. Prepared on the root topic worktree from `95e7510b` on
 2026-09-07. Only five existing test files and this document were changed. No
 production code, thresholds, suppressions, fixture helpers or shared status files
 were changed. Root owns checkpointing and verification; UI held the heavy slot
@@ -57,3 +57,13 @@ test files with the scheduled native batch, then the normal shared checks. Check
 the actual coverage delta against a fresh combined full-run report; do not sum
 the estimate into the reported global percentage. Preserve the original full-run
 coverage files when executing any scoped coverage command.
+
+## Verified root follow-up
+
+The five-file native run passed **34/34 tests in 55.23 seconds** on local checkpoint
+`2ce6b020`. Type checking, whole Oxlint and scoped ESLint for all five edited files
+subsequently passed. Log `composition-boundaries-native.log` and
+`phase-composition-*` under the root finalization scratch preserve results.
+The seven-branch/six-statement estimate remains unmeasured; the next full CI report
+will determine the actual contribution. No production or gate changes accompany
+these tests.

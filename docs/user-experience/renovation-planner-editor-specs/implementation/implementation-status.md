@@ -2,9 +2,11 @@
 
 Operational continuation: [RESUME.md](RESUME.md) is the central handoff for a later session or usage-limit interruption. It distinguishes pushed code, unverified WIPs, current processes and remaining acceptance.
 
-Latest completed Linux24 CI leg on `00034c5e`: **647 files/8056 tests passed**, 69 skipped; only statements 98.97% (17844/18028) and branches 97.54% (12374/12686) miss the unchanged floors. Functions 99.12% and lines 99.47% pass. Other legs must be checked separately. [Run 34132312075](https://github.com/Luis85/renovation-planner/actions/runs/34132312075).
+Latest complete four-leg CI on `95e7510b`: **647 files/8058 tests pass on every leg**, 69 skipped. Only unchanged coverage floors fail: statements 98.98% (17861/18044), branches 97.54% (12378/12690); functions99.14% and lines99.48% pass. All four full diagnostics artifacts uploaded; Linux24 JSON/LCOV download verified. [Run34134549702](https://github.com/Luis85/renovation-planner/actions/runs/34134549702).
 
-Current follow-up derives EvidenceInspector relationship links and integrates verified Work/Quote view states. Native Inspector/CI contracts pass 54 tests; E passes 34 downstream tests. Types and relevant lint pass. Combined Fallow reports zero dead-code, clone and health findings, eliminating all three template-complexity violations. Its coverage input still precedes these refactors; full current coverage remains open. CI now retains full JSON/lcov diagnostics after failed coverage. See [quality-followup.md](quality-followup.md). UI WIPs through `0a007a62` await owner verification and are not integrated.
+Current continuation adds six real composition/repository cases (34 native tests with neighbors pass) and fixes evidence selection clearing the current phase. Three native REDs corroborated the seven-photo mismatch seen in the real M14 capture; the fix passes42 native tests, then4 after helper extraction, plus types/Oxlint/scoped ESLint. Static analysis has no dead-code/clones or cognitive violations; current full health awaits fresh coverage because the changed source no longer matches old function positions. [Phase evidence](evidence-phase-selection.md).
+
+UI WIPs through `36d93f0b` remain outside Root: native corrections22/22 and current type/whole-lint pass, but M14/M17 pixel inspection rejected the initial captures for phase/scroll/density issues. Owner is preparing a corrected recapture against the checked phase behavior. Complete nine-journey/eighteen-reference and host acceptance remain open.
 
 Historical previous full measurement:
 

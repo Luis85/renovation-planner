@@ -1,6 +1,6 @@
 # Wiederaufnahme der Editor-Finalisierung
 
-Stand: **2026-09-07T14:29:20.557Z (UTC)**.
+Stand: **2026-09-07T15:03:27.978Z (UTC)**.
 
 Dieses Dokument ist der zentrale Wiedereinstieg, wenn der Chatkontext oder das Nutzungslimit endet. Es ersetzt keine Prüfung des aktuellen Git-, Prozess- und CI-Zustands. Neuere direkte Nutzeranweisungen haben Vorrang. Alte Pause-Dateien vom App-Neustart sind historisch: Der Nutzer hat die Arbeit ausdrücklich mit „fahre fort“/„weiter“ wieder aufgenommen.
 
@@ -43,7 +43,7 @@ Repository: `https://github.com/Luis85/renovation-planner`.
 | Hauptcheckout | `D:/Projects/renovation-planner`, sauber auf `main`, zuletzt `44234f77c229fa5b6122fc75d86e2f2d19a31dfa` |
 | Integrationsworktree | `D:/Projects/renovation-planner/.worktrees/editor-plan-finalization` |
 | Integrationsbranch | `codex/editor-plan-finalization` |
-| Letzter gepushter Produkt-/Testcheckpoint | `73b0c205d8abaf1ab5869ee8cffead8654061f00` |
+| Letzter vollständig in vier CI-Jobs gemessener Produktstand | `95e7510bbc86db3be0cfc92054608a35e09630cd`; neuere lokale/gepushte Checkpoints mit `git log` und Abschnitt 7 abgleichen |
 | PR | [#91](https://github.com/Luis85/renovation-planner/pull/91), **OPEN / DRAFT** |
 | PR-Basis | `codex/materials-costs-evidence`, #88, `3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a` |
 
@@ -157,6 +157,16 @@ UI durch `43cd1ac8` ergänzt M05-Beschreibungen, M15-Warnpräsentation und M17-R
 WIP-Testcheckpoint `705bffbd` wurde gepusht. Beide neuen nativen Fälle (1100/460 px) scheitern im UI-Join `ee1e20ab` an Fokus auf `document.body`; Auswahl-/Kamera-/Bytes-Prüfungen davor bestehen. Root korrigiert den bestehenden ElementInspector-Planbutton über `runInspectorAction`. [Element-Evidence](element-plan-return-evidence.md) dokumentiert RED und GREEN: UI-Join `7bb60f93` besteht alle 22 Fälle in drei Dateien (21,74 s), einschließlich beider Fokusfälle und der drei E-Grenztests. Zusätzlich ist die neue Testzeile `get(...).exists()` zu `find(...).exists()` korrigiert; CI `34134004116` endete deshalb zuvor in allen vier Jobs bei Types, nicht bei Coverage. UI hat den exklusiven Prüfslot; sein 21-Dateien-Lauf ist terminal mit 309 PASS/3 FAIL, davon diese beiden Fokusfälle und ein fehlendes Fixture-Refresh im neuen Review-Test.
 
 E hat drei native Quote-/Work-Grenztests als `a7bdd443` auf `codex/downstream-late-boundaries` gepusht. UI wird den einzelnen neuen Test nach dem ersten Batch im vorhandenen Worktree mitprüfen. Die Fälle sind weiterhin WIP, keine Branchhit-Behauptung. Der zusätzliche reine application/plugin/domain-Audit hat sechs echte Kandidaten mit ca. sieben Brancharmen identifiziert; keine künstlichen Invariantenfälle.
+
+### Frische vollständige CI und echte M14-Filterkorrektur
+
+Run `34134549702` auf Head `95e7510b` (getesteter PR-Merge `f707a66a`) ist vollständig: **alle vier Jobs 647 Dateien/8058 Tests PASS, 69 übersprungen**, Audit PASS. Nur Coverage rot: Statements **17861/18044=98,98%**, Branches **12378/12690=97,54%**, Functions **5114/5158=99,14%**, Lines **13977/14050=99,48%**. Alle vier Artefakte wurden hochgeladen; Linux24-Download ist tatsächlich verifiziert, JSON/LCOV und frische `missing-counters.json` liegen in Scratch `ci-95e7510b-linux24/`. [Receipt](evidence/ci-95e7510b-coverage.json) nennt Hashes, Run/Job/Artifact und beide SHAs. Bei diesem Nenner fehlen drei Statements/59 Branch-Arme.
+
+Die sechs neuen Composition-Fälle (`2ce6b020`) bestehen mit ihren Nachbarn **34/34**, Types/Ox/scoped Lint PASS; Branchgewinn noch nicht gemessen. [Composition-Evidence](composition-boundaries-evidence.md).
+
+Aktuelle M14-Captures aus UI `a59a0ec3` wurden visuell **abgelehnt**, obwohl der ursprüngliche Vier-Szenarien-Driver bestand: Auswahl einer During-Aufnahme setzte den Filter zurück und zeigte ein siebtes Before-Foto. Root hat drei native REDs plus eine bestehende Outside-Phase-Guard nachgewiesen und die Navigation über den zurückbehaltenen Planning-Baseline korrigiert. **42 native Tests PASS**, nach Helper-Extraktion die vier Phasenfälle nochmals PASS; Types/Ox/scoped Lint PASS. [Phase-Evidence](evidence-phase-selection.md). Fallow static ist grün; drei CRAP-Schätzbefunde aus verschobenen alten Coveragepositionen müssen mit neuer CI gemessen werden. Kein neuer Health-Pass behauptet. Root hat alle schweren Handles beendet und den Slot an UI zurückgegeben.
+
+UI durch `efa8cd09` hat M14-Dichte, kontextuellen Add-Text und nachgelagerte Auswahl-/Resize-/Sichtbarkeitsassertions vorbereitet; noch WIP. UI korrigiert zusätzlich die beim tatsächlichen M17-Bild beobachtete Dichte und erstellt ein passendes 1000px-Bild, erhält aber den ursprünglichen 900px-Notizablauf. Die Root-Phasenkorrektur zuerst mergen; keine Filter-/Scrollposition nur für das Bild zurücksetzen.
 
 ## 8. Bekannter visueller Restumfang
 

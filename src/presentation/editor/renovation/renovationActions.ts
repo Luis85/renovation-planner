@@ -35,6 +35,12 @@ function navigationTarget(records: NavigationRecords, roomId: string, id: string
 function revealRecord(id: string, workspace: ReturnType<typeof useWorkspaceStore>): void {
  if (id && workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
 }
+/** Keep the visible evidence set stable unless an explicit destination is outside it. */
+function revealEvidence(id: string, session: ReturnType<typeof useRenovationSession>, planning: ReturnType<typeof usePlanningReadState>): void {
+ if (!id) return;
+ const evidence = planning.baseline?.plan.entity.renovation?.depth?.evidence.find(item => item.id === id);
+ if (evidence?.phase !== session.evidencePhase) session.evidencePhase = '';
+}
 function currentContext(roomId: string, targetId: EntityId<string> | undefined, project: ReturnType<typeof useProjectStore>, session: ReturnType<typeof useRenovationSession>) {
 	if (!targetId) return null;
 	const room = project.zones.get(targetId)?.zoneType === 'Room' ? targetId : null;
@@ -72,7 +78,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		runtime.returnToSelect();
 		const target = navigationTarget({ renovation: project.plan?.renovation ?? EMPTY_RENOVATION, materials: planning.baseline?.materials ?? [] }, roomId, id, currentContext(roomId, selection.selectedIds[0], project, session), mode);
   Object.assign(session, target, { mode, focusedId: id, perspective: 'renovate' });
-  if (id) session.evidencePhase = '';
+  revealEvidence(id, session, planning);
   revealRecord(id, workspace);
   if (selection.selectedIds.length !== 1 || selection.selectedIds[0] !== target.targetId) selection.select([target.targetId as EntityId<string>]);
 	}

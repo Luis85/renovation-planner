@@ -120,7 +120,10 @@ async function panFrames(page) {
  return { samples: frames.length, medianMs: frames[Math.floor(frames.length / 2)], p95Ms: frames[Math.floor(frames.length * .95)], sceneBefore, sceneAfterPan, sceneAfter, method: 'requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser' };
 }
 async function zoomReflow(page, scenario, out) {
- await page.setViewportSize({ width: Math.max(920, scenario.width), height: 900 }); await panel(page, 'details');
+ await page.setViewportSize({ width: Math.max(920, scenario.width), height: 900 });
+ // ResizeObserver must retire the constrained rail before the keyboard chooses its target.
+ await page.locator('.rp-editor-shell[data-layout="full"]').waitFor({ state: 'visible' });
+ await panel(page, 'details');
  await activate(page, '[data-rp-new-material]'); await recordText(page, form, 'waste', '13,5');
  const before = await snapshot(page);
  await page.evaluate(() => { document.body.style.zoom = '2'; });

@@ -2,7 +2,7 @@
 
 **Status: active integration audit; no screen or overall release acceptance is declared complete.**
 
-Current pushed implementation checkpoint: cd362dd0. Its full gate failed and correction work is recorded in [downstream evidence](downstream-planning-evidence.md). The UI ninth-journey checkpoint 83d7af0c is pushed but awaits root integration; owner functional evidence is separate from final visual acceptance.
+Current integrated production checkpoint: 25b4365c, including root corrections, UI through 9009c313 and hardening a2c75f47. The previous cd362dd0 full gate failed; correction work is recorded in [downstream evidence](downstream-planning-evidence.md). Owner functional evidence is separate from the pending combined gate and final visual acceptance.
 
 Initial baseline inspected: `3006915e8019dec66b24c945710495df48336582` (#88); now integrated predecessor checkpoint: `3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a`. This matrix supersedes contradictory top-level snapshots in the historical implementation ledger. Every numbered acceptance bullet in M00–M17 has a row below; additional use-case and cross-cutting gaps follow.
 

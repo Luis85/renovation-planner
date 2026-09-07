@@ -1,6 +1,8 @@
 # Editor implementation status — 2026-09-07
 
-Current pushed source is cd362dd0. The joined full run failed with five reproducible contract/behavior failures, two additional local lint-test timeouts, and coverage below the unchanged floors; separate Fallow also failed. Root corrections restore editable read-paused element drafts, fix missing translations and contract expectations, refresh Quote catalogue/Room context, and simplify downstream rendering. The explicit browser environment for the two new plugin-composition tests restores the prior Vue coverage transform. See [current correction evidence](downstream-planning-evidence.md); no final gate or host acceptance is claimed.
+The latest integrated production source is 25b4365c, combining root correction 80437fa0, UI through 9009c313 and hardening a2c75f47. Combined verification and final captures remain pending.
+
+The previous pushed source was cd362dd0. The joined full run failed with five reproducible contract/behavior failures, two additional local lint-test timeouts, and coverage below the unchanged floors; separate Fallow also failed. Root corrections restore editable read-paused element drafts, fix missing translations and contract expectations, refresh Quote catalogue/Room context, and simplify downstream rendering. The explicit browser environment for the two new plugin-composition tests restores the prior Vue coverage transform. See [current correction evidence](downstream-planning-evidence.md); no final gate or host acceptance is claimed.
 
 The following earlier checkpoint measurements remain historical evidence.
 

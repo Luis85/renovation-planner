@@ -9,7 +9,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { usePlanningContext } from './planningContext';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
-import { EMPTY_DEPTH, EVIDENCE_PHASES } from '../../../domain/renovation/PlanningDepth';
+import { EMPTY_DEPTH, EVIDENCE_PHASES, type Evidence } from '../../../domain/renovation/PlanningDepth';
 import { tr } from '../../i18n/strings';
 const props = defineProps<{ baseline: PlanningBaseline }>();
 const contextLabel = useRenovationContextLabel();
@@ -18,6 +18,9 @@ let alive = true; onBeforeUnmount(() => { alive = false; });
 const choices = computed(() => recordChoices(props.baseline, session.roomId));
 const type = computed(() => session.mode === 'photos' ? 'photo' : session.mode === 'notes' ? 'note' : 'document');
 const rows = computed(() => (props.baseline.plan.entity.renovation?.depth?.evidence ?? []).filter(item => inRenovationScope(item, session.roomId, session.targetId) && item.type === type.value && (!session.evidencePhase || item.phase === session.evidencePhase)));
+function isSelected(item: Evidence): boolean {
+	return !!session.focusedId && (session.focusedId === item.id || session.focusedId === item.recordId);
+}
 async function open(path: string, subpath: string): Promise<void> { const result = await planning.files?.open(path, subpath); if (alive && result && !result.ok) error.value = tr('planning.file-failed'); }
 function related(id: string): void {
  const baseline = props.baseline;
@@ -55,16 +58,16 @@ function unlink(id: string): void {
 			v-for="(item, index) in rows"
 			:key="item.id"
 			:data-rp-record="item.id"
-			:class="{ 'is-selected': session.focusedId === item.id || session.focusedId === item.recordId }"
+			:class="{ 'is-selected': isSelected(item) }"
 		>
 			<button
 				type="button"
 				class="rp-record-title"
-				:aria-current="session.focusedId === item.id ? 'true' : undefined"
+				:aria-current="isSelected(item) ? 'true' : undefined"
 				@click="planning.runtime.renovation.focus(item.roomId, session.mode, item.id)"
 			>
 				{{ index + 1 }}. {{ item.description }}
-				<span v-if="session.focusedId === item.id"> · {{ tr('planning.selected') }}</span>
+				<span v-if="isSelected(item)"> · {{ tr('planning.selected') }}</span>
 			</button>
 			<SharedRecordContexts :item="item" />
 			<EvidencePreview

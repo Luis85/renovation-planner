@@ -5,6 +5,8 @@ import { useProjectWorkRead } from './projectWorkRead';
 import { useProjectWorkActions } from './projectWorkActions';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import NamedCatalogueForm from '../../catalogue/NamedCatalogueForm.vue';
+import { captureDownstreamDialogFocus } from '../downstreamDialogFocus';
+import RecoverySourceAction from '../RecoverySourceAction.vue';
 import ProjectWorkToolbar from './ProjectWorkToolbar.vue';
 import ProjectWorkRow from './ProjectWorkRow.vue';
 import { tr } from '../../i18n/strings';
@@ -19,6 +21,10 @@ const rows = computed(() => read.data.value?.rows.filter(row => filter.value ===
 const saveLabel = computed(() => tr(actions.save.state === 'saved' && read.error.value ? 'save-state.saved-refresh-needed' : SAVE_STATE_KEYS[actions.save.state]));
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
+async function retry(): Promise<void> {
+ const restoreFocus = captureDownstreamDialogFocus();
+ try { await read.refresh(); } finally { await restoreFocus(); }
+}
 async function createTrade(): Promise<void> {
  if (actions.blocked.value || dialogs.current || !context.work) return;
  const busy = ref(false);
@@ -77,10 +83,15 @@ async function createTrade(): Promise<void> {
 				v-if="read.error.value"
 				type="button"
 				class="rp-project-downstream__retry"
-				@click="read.refresh"
+				@click="retry"
 			>
 				{{ tr('view.project.resume-retry') }}
 			</button>
+			<RecoverySourceAction
+				v-if="actions.sourceId.value && ((actions.save.state === 'saved' && read.error.value) || actions.save.unrecoveredWrite)"
+				:id="actions.sourceId.value"
+				:blocked="read.loading.value || actions.save.state === 'saving'"
+			/>
 			<template v-if="read.data.value">
 				<p
 					v-if="read.data.value.unreadablePlans"

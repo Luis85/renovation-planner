@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Work and Quote recovery opens the actual saved source after failed read-back, including a newly created Quote and Undo across floors. Successful Retry restores keyboard focus when its warning disappears; source opening and retry never replay the write.
+
 - Work and Quote dialogs return keyboard focus to the Project control when a refreshed row removes their opener, including a Quote becoming received or a peer deleting the edited record.
 
 - Reference dialogs return keyboard focus to the originating Layers/Details control or width-recovery action when reflow hides their opener; cancellation preserves the saved reference.

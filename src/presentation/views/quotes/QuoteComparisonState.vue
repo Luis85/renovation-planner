@@ -12,6 +12,7 @@ import { useLiveRead } from '../../composables/live-read';
 import { captureDownstreamDialogFocus } from '../downstreamDialogFocus';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import NamedCatalogueForm from '../../catalogue/NamedCatalogueForm.vue';
+import RecoverySourceAction from '../RecoverySourceAction.vue';
 import QuoteForm from './QuoteForm.vue';
 import QuoteComparisonTable from './QuoteComparisonTable.vue';
 import { tr } from '../../i18n/strings';
@@ -19,7 +20,7 @@ import { trError } from '../../i18n/toUserMessage';
 const props = defineProps<{ projectId: string }>();
 const context = useRenovationProjectContext(), dialogs = useDialogStore(), services = context.quotes;
 const read = useLiveRead(services ? { read: () => services.read(props.projectId as ProjectId), onChanged: services.onChanged } : undefined);
-const writing = ref(false), saved = ref(false);
+const writing = ref(false), saved = ref<string | null>(null);
 const blocked = computed(() => !!context.readOnly || read.paused.value || writing.value);
 const originRoom = computed(() => context.origin?.roomId ? read.data.value?.work.rooms.find(room => room.id === context.origin?.roomId)?.name ?? tr('quote.unresolved', { id: context.origin.roomId }) : '');
 const today = ref('');
@@ -30,10 +31,14 @@ let alive = true;
 function canLeave(): Promise<boolean> { return Promise.resolve(!writing.value && dialogs.current === null); }
 if (context.session) context.session.canLeave = canLeave;
 onBeforeUnmount(() => { alive = false; clearInterval(timer); if (context.session?.canLeave === canLeave) delete context.session.canLeave; });
+async function retry(): Promise<void> {
+ const restoreFocus = captureDownstreamDialogFocus();
+ try { await read.refresh(); } finally { await restoreFocus(); }
+}
 async function save(input: QuoteInput) {
  if (!alive || blocked.value || !services) return err(persistenceError('quote.paused', 'Quote editing is paused.'));
  writing.value = true;
- try { const result = await services.save(input); if (alive && result.ok) { saved.value = true; await read.refresh(); } return result; }
+ try { const result = await services.save(input); if (alive && result.ok) { saved.value = result.value.entity.id; await read.refresh(); } return result; }
  finally { writing.value = false; }
 }
 async function edit(original?: Loaded<Quote>): Promise<void> {
@@ -111,10 +116,15 @@ async function supplier(): Promise<void> {
 				v-if="read.error.value"
 				type="button"
 				class="rp-project-downstream__retry"
-				@click="read.refresh"
+				@click="retry"
 			>
 				{{ tr('view.project.resume-retry') }}
 			</button>
+			<RecoverySourceAction
+				v-if="saved && read.error.value"
+				:id="saved"
+				:blocked="writing || read.loading.value"
+			/>
 			<p
 				v-if="read.data.value && (read.data.value.unreadable || read.data.value.work.unreadablePlans || read.data.value.work.roomsIncomplete)"
 				role="status"

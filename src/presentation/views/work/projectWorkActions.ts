@@ -1,4 +1,5 @@
 import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
+import { leftWritesBehind } from '../../../application/commands/DispatchOutcome';
 import { err } from '../../../core/result/Result';
 import type { RenovationProjectDeps } from '../RenovationProjectContext';
 import type { ProjectWorkRow } from '../../../application/queries/schedule/ProjectWork';
@@ -18,7 +19,7 @@ import { captureDownstreamDialogFocus } from '../downstreamDialogFocus';
 
 export function useProjectWorkActions(context: RenovationProjectDeps, read: ReturnType<typeof useProjectWorkRead>) {
  const dialogs = useDialogStore(), save = useSaveStateStore(), history = new CommandHistory(), ledger = new SessionWriteLedger();
- const loading = ref(false), revision = ref(0);
+ const loading = ref(false), revision = ref(0), sourceId = ref<string | null>(null);
  let alive = true;
  const dispatcher = withSaveStateTracking(withStateRefresh(history, read.refresh), save);
  const paused = computed(() => read.paused.value || save.unrecoveredWrite || !!context.readOnly);
@@ -30,7 +31,14 @@ export function useProjectWorkActions(context: RenovationProjectDeps, read: Retu
  onBeforeUnmount(() => { alive = false; if (context.session?.canLeave === canLeave) delete context.session.canLeave; });
  async function dispatch(baseline: RenovationBaseline, input: RenovationInput) {
   if (!alive || paused.value || !context.work) return err(undoSuperseded(baseline.plan.entity.id));
-  const result = await dispatcher.run(context.work.renovation.command(baseline, input, ledger));
+  const command = context.work.renovation.command(baseline, input, ledger);
+  // Remember the source of the actual command, including Undo/Redo across floors.
+  const track = async (operation: 'execute' | 'undo') => {
+   const result = await command[operation]();
+   if (alive && (result.ok ? result.value === 'wrote' : leftWritesBehind(result.error))) sourceId.value = baseline.plan.entity.id;
+   return result;
+  };
+  const result = await dispatcher.run({ execute: () => track('execute'), undo: () => track('undo') });
   if (alive) revision.value++;
   return result;
  }
@@ -64,5 +72,5 @@ export function useProjectWorkActions(context: RenovationProjectDeps, read: Retu
   if (!alive || !(await canLeave()) || !alive) return;
   await context.openPlan(row.planId, { planId: row.planId, roomId: row.work.roomId, workId: row.work.id });
  }
- return { edit, step, open, blocked, canUndo, canRedo, save };
+ return { edit, step, open, blocked, canUndo, canRedo, save, sourceId };
 }

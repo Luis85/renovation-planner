@@ -82,6 +82,13 @@ paused. Retry refreshes the choices and facts without replacing the captured wri
 After a conflict, explicitly keep the draft as a new quote to preserve it without overwriting
 the other offer, then preview it again.
 
+If Work or a Quote was saved but its refreshed view cannot be read, use **Open source note**
+to inspect the saved record. A new Quote remains reachable even if it has not appeared in
+the comparison yet; after Work Undo/Redo, the action opens the floor changed by that operation.
+Retry reads the current data without repeating the write. If the source was deleted elsewhere,
+the action reports that it is missing and does not recreate it. When Retry removes its focused
+warning button, keyboard focus returns to the Project Back control.
+
 ## Keep drafts and saved data clear
 
 At narrow supported widths, the Layers and Details rails open the same controls used in

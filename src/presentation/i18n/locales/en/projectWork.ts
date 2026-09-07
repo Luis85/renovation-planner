@@ -1,4 +1,5 @@
 export const projectWorkEn = {
+ 'project.source-note-missing': 'The source note could not be found.',
   "project.not-found": "This project is no longer available. Return to the project list and choose an existing project.",
   "trade.create-conflict": "This trade draft was already saved with a different name. Close the draft and refresh the catalogue.",
   "supplier.create-conflict": "This supplier draft was already saved with a different name. Close the draft and refresh the catalogue.",

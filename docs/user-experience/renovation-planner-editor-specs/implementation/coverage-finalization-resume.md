@@ -10,6 +10,25 @@ Root owns shared status files and the final combined source/acceptance.
 
 ## Latest checkpoint
 
+Root465 full CI `34152586317` confirms the owner gains without extrapolation:
+18055/18220 statements, 5175/5212 functions, 14099/14164 lines, 12540/12821 branches.
+Exactly +6 branches/+5 statements/+2 functions versus full Root571, identical source
+and maps, no losses. At that denominator 25 branch arms remain. The same 10 known UI
+failures remain; 8104 tests pass and 69 skip. Original data/log:
+`C:/Users/lum/AppData/Local/Temp/rp-coverage-finalization-ci-465ffe42-linux24/`.
+Tested merge `23669557888f836846f8d71048fa17db5a2a9d87` and Root465 have the identical
+tree `8b6a153e52c8bea61c6325dff6da2d2498c8f814`.
+
+Next bounded package is source-prepared and unverified: Review Tap at 460 px must open
+the Details overlay while retaining Review; a fourth public validation case creates
+its first valid Plan calibration through the real command, then rejects coincident
+rescaled points after finite subnormal derivation and preserves the previous Undo.
+Root also approved the [origin mapper cleanup](requirement-origin-mapping.md): direct
+typed zoneId serialization and removal of the redundant post-schema origin-kind check.
+Root granted a slot for this package plus relevant mapper/Requirement neighbors and
+checks. Keep source fixed during execution. NewProjectForm draft-type cleanup is only
+a proposal and has not been changed or included in the granted package.
+
 **Joined owner package verified on Root571 source:** Review6 + Outline2 pass 8/8
 (33.46 seconds); public validation passes 3/3 separately (10.16 seconds). Types,
 whole Oxlint, scoped ESLint and Fallow static scans pass. The common scoped coverage

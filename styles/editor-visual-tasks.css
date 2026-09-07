@@ -53,7 +53,7 @@
 }
 
 .renovation-plan-editor .rp-structure-task label { gap: 6px; }
-.renovation-plan-editor .rp-structure-task input { min-height: 32px; }
+.renovation-plan-editor .rp-structure-task input:not([type='checkbox']) { min-height: 32px; }
 .renovation-plan-editor .rp-reference-setup { gap: 16px; }
 .renovation-plan-editor .rp-reference-grid { gap: 12px; }
 .renovation-plan-editor .rp-reference-setup section {

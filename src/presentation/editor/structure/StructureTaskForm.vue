@@ -137,7 +137,10 @@ function submit(): void { if (wall.value) add(); else void task.finish(); }
 				{{ tr('editor.structure.close-loop') }}
 			</button>
 		</div>
-		<label v-if="closed"><input
+		<label
+			v-if="closed"
+			class="rp-structure-task__room"
+		><input
 			v-model="draft.room"
 			type="checkbox"
 			:disabled="task.blocked.value"

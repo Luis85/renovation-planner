@@ -97,6 +97,13 @@ batch: types and full lint; focused native Add/Room/renovation/Review/planning/s
 reference checks; Fallow; then actual planning/gallery and overview captures. Report concrete
 initial failures before expanding source. No original assertions or quality floors are weakened.
 
+A bounded source review found two Review WIP defects: primary-owner grouping omitted secondary
+shared Room contexts, and Open room unmounted the focused CTA without a destination. The next
+correction uses the existing `recordNavigationContext` resolver for each finding and the existing
+`runInspectorAction` focus-restoration seam. Native regressions cover a genuinely saved shared
+Work/missing Evidence pair across two Rooms and explicitly focused Open room. These assertions
+remain unrun until the heavy slot; this correction is WIP, not a reported regression pass.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

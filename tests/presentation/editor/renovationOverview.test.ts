@@ -13,6 +13,23 @@ const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
 async function setup(planning = true) { const rig = await renovationEditor(planning); mounted.push(rig); rig.changePlan(); await settle(); return rig; }
 
+it('shows shared Work and missing Evidence findings in both linked Review rooms', async () => {
+	const rig = await setup();
+	const other = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Hall', zoneType: 'Room',
+		geometry: { points: [{ x: 6000, y: 0 }, { x: 9000, y: 0 }, { x: 9000, y: 2000 }, { x: 6000, y: 2000 }] } })).zone.entity;
+	const roomId = rig.room.id, links = [{ roomId: other.id, targetId: other.id }];
+	const value: Renovation = { subjects: [], decisions: [], work: [{ id: 'shared-work', roomId, targetId: roomId, links,
+		title: 'Prepare both rooms', description: '', order: 0, progress: 'pending', responsibility: 'diy', outcomes: [], dependencies: [] }],
+		depth: { ...EMPTY_DEPTH, evidence: [{ id: 'shared-evidence', roomId, targetId: roomId, links, workId: 'shared-work', recordId: '',
+			path: 'Notes/missing-review.md', subpath: '', description: 'Shared missing evidence', type: 'document', phase: 'before', pin: null }] } };
+	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(expectOk(await rig.renovation.read(rig.plan.id)), { renovation: value, intended: undefined }, rig.runtime.structureTask.ledger)));
+	rig.changePlan(); await settle(); await rig.runtime.renovation.perspective('review'); await settle();
+	for (const id of [roomId, other.id]) {
+		const row = rig.wrapper.get(`[data-rp-review-room="${id}"]`);
+		expect(row.text()).toContain('2 items need attention'); expect(row.text()).not.toContain('No findings');
+	}
+});
+
 it.each([false, true])('shows unavailable linked sections only without connected planning (%s)', async planning => {
 	const rig = await setup(planning); await rig.runtime.renovation.perspective('plan'); await settle();
 	expect(rig.wrapper.find('.rp-linked-content').exists()).toBe(!planning);

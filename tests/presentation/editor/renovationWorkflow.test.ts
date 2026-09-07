@@ -64,8 +64,10 @@ describe('connected Room renovation inspector', () => {
 		await actions.perspective('review'); await settle(); expect(rig.wrapper.get('.rp-renovation-inspector').text()).toContain('No gaps found');
 		expect(rig.wrapper.get(`[data-rp-review-room="${rig.room.id}"]`).text()).toContain('No findings in this review scope');
 		const saved = [...rig.stack.vault.entries];
+		(rig.wrapper.get('[data-rp-action="review-open-room"]').element as HTMLButtonElement).focus();
 		await rig.wrapper.get('[data-rp-action="review-open-room"]').trigger('click'); await settle();
 		expect(rig.session.perspective).toBe('renovate'); expect(rig.selection.selectedIds).toEqual([rig.room.id]);
+		expect(document.activeElement).toBe(rig.wrapper.get('[data-rp-region="inspector"]').element);
 		expect([...rig.stack.vault.entries]).toEqual(saved);
 	});
 	it('retains a root dialog draft across constrained layout, cancels without writes, and toggles only marker visibility', async () => {

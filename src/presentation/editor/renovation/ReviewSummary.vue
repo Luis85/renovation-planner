@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
+import { EMPTY_RENOVATION, type ReadinessFinding } from '../../../domain/renovation/Renovation';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useFloorSummary } from '../shell/useFloorSummary';
 import { useSelectionStore } from '../selection/selection-store';
@@ -11,22 +11,35 @@ import HostIcon from '../../components/HostIcon.vue';
 import TransformationSummary from './TransformationSummary.vue';
 import RenovationLinkedSummary from './RenovationLinkedSummary.vue';
 import { renovationSummary } from './renovationSummary';
+import { recordNavigationContext } from './recordNavigationContext';
+import { usePlanningContext } from '../planning/planningContext';
+import type { PlanningFinding } from '../planning/planningProjection';
+import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
 
-const props = defineProps<{ findings: readonly { roomId: string }[]; available: boolean }>();
+const props = defineProps<{ findings: readonly (ReadinessFinding | PlanningFinding)[]; available: boolean }>();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const context = usePlanEditorContext(), floor = useFloorSummary();
+const planning = usePlanningContext();
+const records = computed(() => ({ renovation: project.plan?.renovation ?? EMPTY_RENOVATION, materials: planning.baseline.value?.materials ?? [] }));
 const changes = computed(() => {
 	const value = floor.value?.plannedChanges;
 	return value && value.state !== 'unavailable' ? String(value.value) : tr('editor.selection.unknown');
 });
 const complete = computed(() => props.available && !project.stale && project.unreadableZones === 0);
 const rows = computed(() => (floor.value?.rooms ?? []).map(room => {
-	const count = props.findings.filter(item => item.roomId === room.id).length;
+	const count = props.findings.filter(item => {
+		const id = 'recordId' in item ? item.recordId : item.id;
+		const source = recordNavigationContext(records.value, id, room.id, null);
+		return (source?.roomId ?? item.roomId) === room.id;
+	}).length;
 	return { ...room, changes: renovationSummary(project.plan?.renovation ?? EMPTY_RENOVATION, room.id).changes,
 		status: !complete.value ? tr('renovation.review.unavailable') : count ? tr('renovation.summary.open', { count: String(count) }) : tr('renovation.review.no-room-findings'),
 		icon: !complete.value ? 'clipboard-list' : count ? 'triangle-alert' : 'circle-check' };
 }));
 const selected = computed(() => rows.value.find(room => room.id === selection.focusedId));
+function openRoom(roomId: string, event: Event): Promise<void> {
+	return runInspectorAction(event, 'review-open-room', async () => { runtime.renovation.focus(roomId, 'overview'); });
+}
 </script>
 
 <template>
@@ -69,7 +82,7 @@ const selected = computed(() => rows.value.find(room => room.id === selection.fo
 				type="button"
 				class="mod-cta"
 				data-rp-action="review-open-room"
-				@click="runtime.renovation.focus(selected.id, 'overview')"
+				@click="openRoom(selected.id, $event)"
 			>
 				{{ tr('renovation.review.open-room', { name: selected.name }) }}<HostIcon name="arrow-right" />
 			</button>

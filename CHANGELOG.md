@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Reference dialogs return keyboard focus to the originating Layers/Details control or width-recovery action when reflow hides their opener; cancellation preserves the saved reference.
+
 - Recovery regression coverage: native cancellation after peer-deleted element edits, corrected Object geometry and Undo, retired leaf callbacks, and composed downstream repository fault boundaries. Structural edit/removal share one fresh-baseline recovery decision.
 
 - Project Work: assign shared Trades and explicit start/end dates through the existing Work form, inspect floor and Room context, and return to the source Work with conditional Undo/Redo.

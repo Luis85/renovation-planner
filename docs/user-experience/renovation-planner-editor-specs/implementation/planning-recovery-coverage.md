@@ -143,3 +143,11 @@ duplication scan reports zero clone groups. These are execution and duplication 
 not new coverage percentages or a complete quality-gate result. See
 [the element completion evidence](element-lifecycle-completion-evidence.md) for the exact
 scope, fixture correction and acceptance limitations.
+
+## Reference reflow focus correction — 2026-09-07
+
+The final browser Reference journey exposed a connected-but-hidden opener after reflow.
+Six native editor regressions reproduced four failures before the shared regional
+focus-return correction. The first integrated focused run then passed 46 tests in three
+files. [The Reference focus evidence](reference-focus-recovery-evidence.md) records the
+root cause, exact verification scope and the still-required final shared browser rerun.

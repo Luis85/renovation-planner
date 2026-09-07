@@ -25,6 +25,20 @@ describe('Inspector action focus after root-owned dialogs', () => {
 		const { root, opener } = setup(), other = button(root, 'data-other'); other.focus();
 		restoreInspectorActionFocus(opener, root, 'rename-room'); expect(document.activeElement).toBe(other);
 	});
+	it('remembers the Layers origin even if the opener is removed before the dialog closes', async () => {
+		const { root, region, opener } = setup(), pending = defer<void>(); root.className = 'renovation-plan-editor'; region.dataset.rpShellRegion = 'layers';
+		button(root, 'data-rp-rail'); const layers = button(root, 'data-rp-rail'); layers.dataset.rpRail = 'layers';
+		let finished: Promise<void> | undefined;
+		opener.addEventListener('click', event => { finished = runInspectorAction(event, 'reference', () => pending.promise); }, { once: true });
+		opener.click(); opener.remove(); pending.resolve(); await finished;
+		expect(document.activeElement).toBe(layers);
+	});
+	it('skips a hidden replacement action before the visible destination', () => {
+		const { root, region, opener } = setup(); opener.remove(); region.style.display = 'none';
+		const hidden = button(region, 'data-rp-action'); hidden.dataset.rpAction = 'reference';
+		const visible = button(root, 'data-rp-action'); visible.dataset.rpAction = 'reference';
+		restoreInspectorActionFocus(opener, root, 'reference'); expect(document.activeElement).toBe(visible);
+	});
 	it('returns to the visible rail when the persistent opener is hidden', () => {
 		const { root, region, opener } = setup(), rail = button(root, 'data-rp-rail'); region.style.display = 'none';
 		restoreInspectorActionFocus(opener, root, 'rename-room'); expect(document.activeElement).toBe(rail);

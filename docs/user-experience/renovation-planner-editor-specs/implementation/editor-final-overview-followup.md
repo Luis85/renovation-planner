@@ -73,3 +73,10 @@ scrolling is observed until scrollTop reaches zero, rather than relying on two a
 The recorded output names contain 60 fresh screenshots and no failed files. Original source
 hashes were verified before copying to `evidence/editor-final-overview-followup/verified-973`.
 The downstream M13 design pilot and final complete nine-journey matrix are still pending.
+
+The subsequent copy follow-up makes three existing EN/DE count labels number-neutral, without
+new count branches. Its 21 native cases, types and lint passed (9773). The visible selection
+hint is now limited to idle Select with readable Rooms; it no longer contradicts an empty
+floor or active drawing task. The existing no-Rooms text and live announcement remain. Six
+focused empty/drawing/normal-Floor cases, types and lint passed (44222). Final captures must
+include these small follow-ups rather than treating the earlier images as current-source proof.

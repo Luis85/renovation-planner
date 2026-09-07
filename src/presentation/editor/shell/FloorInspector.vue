@@ -26,7 +26,9 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { renovationSummary } from '../renovation/renovationSummary';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import HostIcon from '../../components/HostIcon.vue';
+import { useEditorRuntime } from '../runtime';
 const context = usePlanEditorContext();
+const runtime = useEditorRuntime();
 
 /**
  * `null` before the first successful hydrate — and this component may well be mounted
@@ -133,7 +135,10 @@ const count = (value: number): string => String(value);
 				</dd>
 			</dl>
 		</div>
-		<p class="rp-floor-inspector__guidance">
+		<p
+			v-if="summary.rooms.length > 0 && runtime.activeToolId.value === 'select'"
+			class="rp-floor-inspector__guidance"
+		>
 			<HostIcon name="info" /><span>{{ tr('editor.inspector.floor.guidance') }}</span>
 		</p>
 

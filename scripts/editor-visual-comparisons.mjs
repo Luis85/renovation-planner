@@ -52,4 +52,4 @@ for (const [screen, capture, finalCapture = capture] of pairs) {
 	await writeFile(`${output}/${screen}-detail.png`, detail.toBuffer('image/png'));
 	manifest.push({ screen, reference: referencePath, capture, finalCapture, referenceSize: [reference.width, reference.height], beforeSize: [before.width, before.height], afterSize: [after.width, after.height], referenceCrop, referenceDetail, afterDetail });
 }
-await writeFile(`${output}/manifest.json`, JSON.stringify({ method: 'Aspect-preserving app crops in equal comparison cells; fixture geometry and content are not replaced to match the illustrations.', screens: manifest }, null, 2));
+await writeFile(`${output}/manifest.json`, JSON.stringify({ method: 'Aspect-preserving app crops in equal comparison cells. Connected overview uses a representative synthetic floor with real Room records; fixture dimensions, content and totals remain distinct from the illustration.', screens: manifest }, null, 2));

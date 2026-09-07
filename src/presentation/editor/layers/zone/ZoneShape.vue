@@ -36,6 +36,7 @@ import { computed } from 'vue';
 import { tr } from '../../../i18n/strings';
 import type { ThemeTokens } from '../../theme/themeTokens';
 import { labelAnchor, statusAppearance, zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
+import { formatArea } from '../../shell/formatArea';
 
 const props = defineProps<{
 	model: ZoneRenderModel;
@@ -78,6 +79,8 @@ const anchor = computed(() => labelAnchor(props.model.points));
  */
 const CAPTION_PX = 14;
 const captionScale = computed(() => 1 / props.zoom);
+const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y, width: 180, offsetX: 90, align: 'center',
+	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true }));
 
 const statusCaption = computed(() => tr(appearance.value.captionKey));
 </script>
@@ -114,28 +117,23 @@ const statusCaption = computed(() => tr(appearance.value.captionKey));
 		/>
 		<VText
 			:config="{
-				x: anchor.x,
-				y: anchor.y,
-				offsetY: CAPTION_PX * 2.2,
+				...captionLayout,
+				offsetY: CAPTION_PX * 1.6,
 				text: props.model.label,
-				fontSize: CAPTION_PX,
+				fontSize: CAPTION_PX + 2,
+				fontStyle: 'bold',
+				height: CAPTION_PX + 5,
 				fill: props.tokens.zoneLabel,
-				scaleX: captionScale,
-				scaleY: captionScale,
-				listening: false,
 			}"
 		/>
+		<VText :config="{ ...captionLayout, offsetY: 0, text: formatArea(props.model.areaMm2), fontSize: CAPTION_PX, fill: props.tokens.zoneLabel }" />
 		<VText
 			:config="{
-				x: anchor.x,
-				y: anchor.y,
-				offsetY: CAPTION_PX * 1.1,
+				...captionLayout,
+				offsetY: -CAPTION_PX * 1.3,
 				text: statusCaption,
 				fontSize: CAPTION_PX * 0.85,
 				fill: props.tokens.zoneCaption,
-				scaleX: captionScale,
-				scaleY: captionScale,
-				listening: false,
 			}"
 		/>
 	</VGroup>

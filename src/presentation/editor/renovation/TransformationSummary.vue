@@ -6,6 +6,7 @@ import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
 import { renovationSummary } from './renovationSummary';
 import { tr } from '../../i18n/strings';
+import HostIcon from '../../components/HostIcon.vue';
 
 const props = defineProps<{ roomId: string; targetId?: string; continuationOnly?: boolean }>();
 const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession();
@@ -52,6 +53,6 @@ function continuePlanning(): void {
 		:disabled="session.perspective === 'review'"
 		@click="continuePlanning()"
 	>
-		{{ tr('renovation.summary.continue', { section: tr(`renovation.${summary.nextMode}`) }) }}
+		{{ tr('renovation.summary.continue', { section: tr(`renovation.${summary.nextMode}`) }) }}<HostIcon name="arrow-right" />
 	</button>
 </template>

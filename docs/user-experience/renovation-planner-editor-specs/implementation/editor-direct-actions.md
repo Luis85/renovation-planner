@@ -48,9 +48,10 @@ Escape/Select refusal and Undo. Its test-only probe pauses the actual Zone repos
   Chromium version pinned by Playwright. Native Tab/Enter typing, exact Undo, one held Zone
   write, repeated constrained Details activation and shared Work Preview/Apply pass with
   no page errors. See [browser report](evidence/editor-direct-actions/report.json).
-- Twelve axe scans report zero violations. Pending-state scans flag the already scrolled
-  Inspector heading as an incomplete contrast check; they do not establish screen-reader
-  acceptance. The same heading and host colors are visible in the saved-state screenshots.
+- Twelve axe scans report zero violations. Incomplete contrast checks include scrolled
+  Inspector/Room headings and canvas controls obscured by the constrained Details panel.
+  They do not establish screen-reader acceptance; review the saved screenshots and each
+  scan's `incomplete` nodes alongside the zero-violation result.
 - Visually inspected the light Room overview, light/dark inline draft at 720 × 450, and
   German wall Inspector. Controls remain native and inside the canvas; scalar text/focus
   survives supported CSS reflow. This is not actual host zoom or physical-device evidence.

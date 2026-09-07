@@ -16,6 +16,11 @@ export async function verifyRoomDimension(page, scenario, out) {
 	await page.setViewportSize({ width: 720, height: 450 });
 	assert.equal(await page.locator(`${form} input`).inputValue(), '4,200');
 	assert.equal(await page.locator(`${form} input`).evaluate(el => el === document.activeElement), true, 'native field survives supported reflow');
+	const actionsVisible = await page.locator(form).evaluate(element => {
+		const bounds = element.getBoundingClientRect();
+		return [...element.querySelectorAll('button')].every(button => { const rect = button.getBoundingClientRect(); return rect.top >= bounds.top && rect.bottom <= bounds.bottom && rect.bottom <= innerHeight; });
+	});
+	assert.equal(actionsVisible, true, 'Apply and Cancel stay inside the visible inline form at supported reflow');
 	await recordShot(page, scenario, out, 'M00-inline-dimension-draft');
 	await page.setViewportSize({ width: scenario.width, height: 900 });
 	const writes = await page.evaluate(() => window.planningRecovery.snapshot().zoneWrites);
@@ -34,5 +39,5 @@ export async function verifyRoomDimension(page, scenario, out) {
 	assert.equal(await page.locator(label).innerText(), '4.2 m');
 	await activate(page, '[data-rp-action="undo"]');
 	await page.waitForFunction(expected => document.querySelector(expected.label)?.textContent.trim() === expected.initial, { label, initial });
-	return { input: 'native decimal entry; invalid value announced', reflow: 'same focused input at 720 × 450', pending: 'Escape, editing and Select retain one pending write', history: 'Apply then exact displayed dimension restored by Undo', accessibility: [invalidAccessibility, pendingAccessibility] };
+	return { input: 'native decimal entry; invalid value announced', reflow: 'same focused input and visible Apply/Cancel at 720 × 450', pending: 'Escape, editing and Select retain one pending write', history: 'Apply then exact displayed dimension restored by Undo', accessibility: [invalidAccessibility, pendingAccessibility] };
 }

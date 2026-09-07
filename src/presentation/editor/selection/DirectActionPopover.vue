@@ -11,6 +11,8 @@ import type { RenovationMode } from '../renovation/renovationSession';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
+import HostIcon from '../../components/HostIcon.vue';
+import { EDITOR_MODE_ICONS } from '../editorIcons';
 
 const runtime = useEditorRuntime(), editor = useEditorStore(), planning = usePlanningContext();
 const saves = useSaveStateStore();
@@ -81,7 +83,7 @@ function escape(event: KeyboardEvent): void {
 				:aria-disabled="blocked"
 				@click="edit"
 			>
-				{{ tr(target?.wall ? 'editor.direct.edit-length' : 'editor.direct.edit-shape') }}
+				<HostIcon :name="target?.wall ? 'ruler' : 'pencil'" />{{ tr(target?.wall ? 'editor.direct.edit-length' : 'editor.direct.edit-shape') }}
 			</button>
 			<button
 				v-if="target?.wall && target.roomId && runtime.renovation.available"
@@ -90,7 +92,7 @@ function escape(event: KeyboardEvent): void {
 				:aria-disabled="detailBlocked"
 				@click="detail('planned')"
 			>
-				{{ tr('editor.direct.mark-change') }}
+				<HostIcon name="pencil" />{{ tr('editor.direct.mark-change') }}
 			</button>
 			<button
 				v-else-if="target?.roomId && runtime.renovation.available"
@@ -102,7 +104,7 @@ function escape(event: KeyboardEvent): void {
 				:aria-disabled="detailBlocked"
 				@click="!detailBlocked && (expanded = !expanded)"
 			>
-				{{ tr('editor.direct.add-detail') }}
+				<HostIcon name="grid-2x2" />{{ tr('editor.direct.add-detail') }}
 			</button>
 		</div>
 		<div
@@ -120,7 +122,7 @@ function escape(event: KeyboardEvent): void {
 				:aria-disabled="detailBlocked"
 				@click="detail(mode)"
 			>
-				{{ tr(`renovation.${mode}`) }}
+				<HostIcon :name="EDITOR_MODE_ICONS[mode]" />{{ tr(`renovation.${mode}`) }}
 			</button>
 		</div>
 	</div>

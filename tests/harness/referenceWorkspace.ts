@@ -31,7 +31,7 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 	})();
 	const geometry = new ObsidianPlanGeometrySidecar(stack.store);
 	const reviewNotes = new ObsidianReviewNotes(stack.deps.vault, stack.index);
-	const sources = { 'scan.png': new URL('../fixtures/editor-background-png-test.png', import.meta.url).href, 'scan.pdf': new URL('../fixtures/editor-background-pdf-test.pdf', import.meta.url).href } as const;
+	const sources = { 'scan.png': new URLSearchParams(location.search).has('fidelity') ? new URL('../fixtures/editor-floor-reference.png', import.meta.url).href : new URL('../fixtures/editor-background-png-test.png', import.meta.url).href, 'scan.pdf': new URL('../fixtures/editor-background-pdf-test.pdf', import.meta.url).href } as const;
 	const previousResourcePath = stack.deps.vault.getResourcePath.bind(stack.deps.vault);
 	stack.deps.vault.getResourcePath = file => sources[file.path as keyof typeof sources] ?? previousResourcePath(file);
 	const services = referencePlanServices(stack.plans, geometry, stack.events, { fileExists: path => path in sources });

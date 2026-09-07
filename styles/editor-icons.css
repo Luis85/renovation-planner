@@ -1,0 +1,21 @@
+/* Icons remain decorative companions to text and inherit the host's native SVG tokens. */
+.rp-host-icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: var(--icon-size, 18px); height: var(--icon-size, 18px); color: inherit; }
+.rp-host-icon svg { width: 100%; height: 100%; stroke-width: var(--icon-stroke, 1.75); }
+.rp-icon-label { display: inline-flex; align-items: center; gap: 8px; }
+.renovation-plan-editor .rp-primary-actions__button, .renovation-plan-editor .rp-perspective-button, .renovation-plan-editor .rp-context-bar__button { gap: 8px; }
+.renovation-plan-editor .rp-primary-actions__button .rp-host-icon { --icon-size: 20px; }
+.renovation-plan-editor .rp-direct-actions__buttons button, .renovation-plan-editor .rp-direct-actions__details button { display: flex; align-items: center; gap: 8px; }
+.renovation-plan-editor .rp-direct-actions--zone .rp-direct-actions__buttons button { flex-direction: column; gap: 5px; }
+.renovation-plan-editor .rp-direct-actions__details .rp-host-icon { --icon-size: 16px; }
+.renovation-plan-editor .rp-room-navigation__button { display: flex; align-items: center; gap: 10px; text-align: start; }
+.renovation-plan-editor .rp-room-navigation__text { display: grid; gap: 2px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.renovation-plan-editor .rp-room-navigation__text small { font-size: var(--font-ui-smaller); font-weight: var(--font-normal); color: var(--text-muted); }
+.renovation-plan-editor .rp-room-navigation__arrow { --icon-size: 15px; margin-inline-start: auto; }
+.renovation-plan-editor .rp-transformation-summary + .rp-room-navigation .rp-room-navigation__button > .rp-host-icon:first-child { --icon-size: 25px; }
+.renovation-plan-editor .rp-transformation-summary + .rp-room-navigation .rp-room-navigation__button { min-height: 58px; font-weight: var(--font-semibold); }
+.renovation-plan-editor .rp-linked-counts__button { gap: 10px; }
+.renovation-plan-editor .rp-linked-counts__label { flex: 1; text-align: start; }
+.renovation-plan-editor .rp-linked-counts__button > .rp-host-icon:last-child { --icon-size: 14px; }
+.renovation-plan-editor [data-rp-action="continue-renovation"] { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-height: 44px; }
+.rp-editor-shell[data-layout="constrained"] .rp-perspective-button { gap: 5px; padding-inline: 8px; }
+.rp-editor-shell[data-layout="constrained"] .rp-context-bar__button[data-rp-action] { gap: 4px; padding-inline: 6px; }

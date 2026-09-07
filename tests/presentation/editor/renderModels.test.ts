@@ -28,6 +28,7 @@ describe('turning a zone DTO into a render model', () => {
 			zoneType: 'Room',
 			status: 'Planned',
 			label: 'Kitchen',
+			areaMm2: 12_000_000,
 			points: FIXTURE_ZONES[0].points,
 		});
 	});
@@ -84,11 +85,15 @@ describe('how a zone looks', () => {
 });
 
 describe('where a zone caption sits', () => {
-	it('anchors at the top-left of the bounding box, in world millimetres', () => {
-		expect(labelAnchor([{ x: 300, y: -50 }, { x: 100, y: 200 }, { x: 250, y: 40 }])).toEqual({
-			x: 100,
-			y: -50,
-		});
+	it('anchors inside the Room in world millimetres', () => {
+		expect(labelAnchor(FIXTURE_ZONES[0].points)).toEqual({ x: 2000, y: 1500 });
+	});
+	it('does not put a concave Room caption in the empty space around it', () => {
+		const points = [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 4000 }, { x: 3000, y: 4000 }, { x: 3000, y: 1000 }, { x: 1000, y: 1000 }, { x: 1000, y: 4000 }, { x: 0, y: 4000 }];
+		expect(labelAnchor(points)).toEqual(points[0]);
+	});
+	it('keeps a degenerate draft caption on its first available vertex', () => {
+		expect(labelAnchor([{ x: 12, y: 34 }, { x: 56, y: 78 }])).toEqual({ x: 12, y: 34 });
 	});
 
 	/**

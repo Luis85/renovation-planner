@@ -1,4 +1,5 @@
 import { planningRecoveryProbe } from './planningRecoveryProbe';
+import { editorFidelityProbe } from './editorFidelityProbe';
 import { referenceWorkspace } from './referenceWorkspace';
 import { err, ok } from '../../src/core/result/Result';
 import type { PersistenceError } from '../../src/core/errors/AppError';
@@ -648,6 +649,7 @@ export function mountPlanEditorHarness(
 	const view = new PlanEditorView(new FakeLeaf() as never, deps);
 	leafEl.appendChild(view.containerEl);
 	if (workspace && new URLSearchParams(location.search).has('recovery')) Object.assign(window, { planningRecovery: planningRecoveryProbe(workspace, view) });
+	if (workspace && new URLSearchParams(location.search).has('fidelity')) Object.assign(window, { editorFidelity: editorFidelityProbe(workspace) });
 
 	// State first, then open — the restored-leaf order. `void` rather than awaited: the
 	// page entry cannot await, and both do their work synchronously before resolving.

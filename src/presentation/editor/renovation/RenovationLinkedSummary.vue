@@ -6,6 +6,8 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { tr } from '../../i18n/strings';
 import { renovationCostSummary } from './renovationCostSummary';
 import { inRenovationScope } from './renovationSummary';
+import HostIcon from '../../components/HostIcon.vue';
+import { EDITOR_MODE_ICONS } from '../editorIcons';
 
 const props = defineProps<{ roomId?: string; targetId?: string }>();
 const planning = usePlanningContext(), project = useProjectStore();
@@ -43,7 +45,7 @@ const links = computed(() => {
 				:data-rp-linked="link.mode"
 				@click="planning.runtime.renovation.focus(roomId, link.mode)"
 			>
-				<span>{{ tr(`renovation.${link.mode}`) }}</span><span>{{ incomplete ? tr('editor.selection.unknown') : link.count }}</span>
+				<HostIcon :name="EDITOR_MODE_ICONS[link.mode]" /><span class="rp-linked-counts__label">{{ tr(`renovation.${link.mode}`) }}</span><span>{{ incomplete ? tr('editor.selection.unknown') : link.count }}</span><HostIcon name="chevron-right" />
 			</button>
 		</nav>
 		<h4>{{ tr('renovation.summary.estimate') }}</h4>

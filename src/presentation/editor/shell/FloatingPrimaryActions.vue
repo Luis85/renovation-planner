@@ -14,6 +14,7 @@
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import { computed } from 'vue';
+import HostIcon from '../../components/HostIcon.vue';
 
 const runtime = useEditorRuntime();
 const canSwitch = computed(() => runtime.activeToolId.value === null || runtime.toolManager.canDeactivateActiveTool());
@@ -35,7 +36,7 @@ const emit = defineEmits<{ openAdd: [] }>();
 			:aria-disabled="!canSwitch"
 			@click="runtime.setTool('select')"
 		>
-			{{ tr('editor.primary.select') }}
+			<HostIcon name="mouse-pointer-2" />{{ tr('editor.primary.select') }}
 		</button>
 		<button
 			type="button"
@@ -46,7 +47,7 @@ const emit = defineEmits<{ openAdd: [] }>();
 			:aria-disabled="!canSwitch"
 			@click="canSwitch && emit('openAdd')"
 		>
-			{{ tr('editor.primary.add') }}
+			<HostIcon name="plus" />{{ tr('editor.primary.add') }}
 		</button>
 	</div>
 </template>

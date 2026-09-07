@@ -1,0 +1,145 @@
+{
+  "source": "df7100b434e864d9d93c52f180dd58529c72f8ad",
+  "command": "node scripts/editor-planning-check.mjs --design",
+  "terminalSession": 98235,
+  "exitCode": 0,
+  "browser": "Edge 152.0.4191.62",
+  "files": [
+    {
+      "file": "custom-accent-caption-inline-clamped.png",
+      "sha256": "03fb5b2cfc59ce84611fcb761de570b06d37f7db0e40a62ffde93f3edbced0b0"
+    },
+    {
+      "file": "custom-accent-caption-inline.png",
+      "sha256": "cc6b805453dcc93766e0e2bad07e11ddd6147bf5d9be9894ab87d3ff27a689db"
+    },
+    {
+      "file": "custom-accent-photos-gallery-axe.json",
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "file": "custom-accent-photos-gallery.png",
+      "sha256": "ac993761688a9c35c0723f3deb97b887880f3dcba711f7ee62396e7789bb0805"
+    },
+    {
+      "file": "custom-accent-review-design-axe.json",
+      "sha256": "a845f3e242d04aeb29b3840ef34eaa0900c9d045d2dd3f8167f795850c7203bd"
+    },
+    {
+      "file": "custom-accent-review-design.png",
+      "sha256": "3fc4623b201702c65d5434ca5202f6a8d897e3a72fc4e26c0e458e95f7f79faf"
+    },
+    {
+      "file": "custom-accent-review-issues-design-axe.json",
+      "sha256": "6ba09f9d4f5b867f86fade9e54e45916f8851b8257146b403876dc278a74e89e"
+    },
+    {
+      "file": "custom-accent-review-issues-design.png",
+      "sha256": "eb628dee8b9a08c95f27d34dda55a73dc99793dceba0b823bb20a07da5f4f851"
+    },
+    {
+      "file": "dark-caption-inline-clamped.png",
+      "sha256": "cd1c70839fed70780ad1cd7426217f6be6b72d4d38327be604f69d1fcd404e86"
+    },
+    {
+      "file": "dark-caption-inline.png",
+      "sha256": "a8caf0f25b962a68f17ea96c1e1e2c19f031c07a75cfa55b8ac7eecd50357744"
+    },
+    {
+      "file": "dark-photos-gallery-axe.json",
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "file": "dark-photos-gallery.png",
+      "sha256": "47dea0cf5d1e0e1532f29b4e797420af5d521bf215c49ce314a3561d40fecff4"
+    },
+    {
+      "file": "dark-review-design-axe.json",
+      "sha256": "37da62930e2ed00b2582bd98475fedff333bd1a1ed4bb6695696759f060c48f7"
+    },
+    {
+      "file": "dark-review-design.png",
+      "sha256": "7e7aa35bc0e68a9b36a774b385503e54ffb40a4f42d9285cbbaded1e9c528e94"
+    },
+    {
+      "file": "dark-review-issues-design-axe.json",
+      "sha256": "ffd889781ed741dcc82b05b8d45c1ad8ade493054253fdb06f7cad27989d1a81"
+    },
+    {
+      "file": "dark-review-issues-design.png",
+      "sha256": "c8e1805df3dcb82d06995fa6f1e035a765f59c39c1fd38ef9bb8c5e9176f8fee"
+    },
+    {
+      "file": "german-constrained-caption-inline-clamped.png",
+      "sha256": "f83d5d51e10c7aff5d2676048650c7bec93b46d558eb60625ea6f252a8186c82"
+    },
+    {
+      "file": "german-constrained-caption-inline.png",
+      "sha256": "548db3653072424863de0c730a62dfec6a763445b90d9a7edbf7b0f1cfbe6e40"
+    },
+    {
+      "file": "german-constrained-photos-gallery-axe.json",
+      "sha256": "840929cf2658dd8e742eb4a2eb7c752a1528506fd0fbc565be94b77e58031185"
+    },
+    {
+      "file": "german-constrained-photos-gallery.png",
+      "sha256": "93138e1f8ff4f2947be21b689718caa031b8499f4aa52bf28c111429d72cd05d"
+    },
+    {
+      "file": "german-constrained-review-design-axe.json",
+      "sha256": "9f47853660746dfdef1ccb9f7baa949c230a04e6ff9384e03aa44469ad2518a1"
+    },
+    {
+      "file": "german-constrained-review-design.png",
+      "sha256": "cc06425ee61d31c6257cf045b44ec15776cd3d986c54e6b6b80775f41eb092fb"
+    },
+    {
+      "file": "german-constrained-review-issues-design-axe.json",
+      "sha256": "60feb81437a8c1e41c51a6232e9618623d2883a9e84ddbae66442e7d7e3ac528"
+    },
+    {
+      "file": "german-constrained-review-issues-design.png",
+      "sha256": "6b7a33a5eaf3ca573ab802273896cb4202ba076db18d3dfec8b72f21d61f91a4"
+    },
+    {
+      "file": "light-caption-inline-clamped.png",
+      "sha256": "bdff8a43e5d6028d18679805b5aa7a2e170a99f7340843a9bf3c3b3b2619e365"
+    },
+    {
+      "file": "light-caption-inline.png",
+      "sha256": "df97c30d67c4afa9997f19c155d923e8428ef86313f86eea11a3a0f91ef687b4"
+    },
+    {
+      "file": "light-photos-gallery-axe.json",
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "file": "light-photos-gallery.png",
+      "sha256": "4e1a2726cad6b8b2eea1fa8e9a64a30008539c4a59fbf7c25cfc88a88523bd97"
+    },
+    {
+      "file": "light-review-design-axe.json",
+      "sha256": "a845f3e242d04aeb29b3840ef34eaa0900c9d045d2dd3f8167f795850c7203bd"
+    },
+    {
+      "file": "light-review-design.png",
+      "sha256": "ce11d8ec145d2adbe518ed1484d8d3119684cf9431ae7616cd22f0483e620bc8"
+    },
+    {
+      "file": "light-review-issues-design-axe.json",
+      "sha256": "6ba09f9d4f5b867f86fade9e54e45916f8851b8257146b403876dc278a74e89e"
+    },
+    {
+      "file": "light-review-issues-design.png",
+      "sha256": "07f6a128bd9aceede5c103a29305daead807c0f7650c4e1e4f6e140fa9fa56ee"
+    },
+    {
+      "file": "planning-review-complete.log",
+      "sha256": "3cde6d6dd1924ffc2d1890cd848306be9000819bd8a9c8a58cbb41d541d0525e"
+    },
+    {
+      "file": "report.json",
+      "sha256": "8c691468d340cb364f2ad1933eb506d0dc5bd3ed21dc2e36ac50e5a81a01c69d"
+    }
+  ]
+}

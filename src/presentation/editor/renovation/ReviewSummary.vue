@@ -41,6 +41,7 @@ const selected = computed(() => rows.value.find(room => room.id === selection.fo
 			>
 				<button
 					type="button"
+					class="rp-review-room-button"
 					:data-rp-review-room="room.id"
 					:data-rp-review-number="room.markerNumber ?? undefined"
 					:aria-pressed="selected?.id === room.id"

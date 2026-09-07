@@ -79,3 +79,19 @@ with a shared dependency now show the actual Work label visibly as well as acces
 source/cause wording is deduplicated without changing any rule or source route. Current validation
 of these small follow-ups remains pending. The partial images and original failure log are saved
 under `evidence/editor-review-markers-browser/partial-a89`.
+
+## Complete extended browser checkpoint — df7100b4
+
+The complete extended planning journey passed all four scenarios (Light, Dark, Custom accent,
+German at 460 pixels) on `df7100b434e864d9d93c52f180dd58529c72f8ad`, using Edge
+152.0.4191.62. Session 98235 exited zero. The six native photo records retain their During
+filter, date order, selected metadata and Work context through selection and resizing. Actual
+Konva captions clear dimensions, pins and normal/top-clamped inline forms through native pan,
+cancel and reverse pan, with unchanged fonts, text, geometry and vault contents.
+
+Two native unresolved Decisions exercise visible issue causes, source/Cancel/Back routes and
+real mouse Room markers with matching numbers and unchanged data. Full-size Inspector bounds
+pass in all three wide themes; German keeps ordinary drawer scrolling and native reachability.
+The fresh report, selected screenshots, axe reports, terminal log and hashes are preserved in
+`evidence/editor-review-markers-browser/verified-df7100b4`. This is one complete extended
+planning run, not the still-pending original nine-journey/eighteen-reference final acceptance.

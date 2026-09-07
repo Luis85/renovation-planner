@@ -4,7 +4,7 @@
 .renovation-plan-editor .rp-review-summary .rp-renovation-linked-summary { margin: 0; }
 .renovation-plan-editor .rp-review-summary h4 { margin: 0 0 6px; }
 .renovation-plan-editor .rp-review-rooms { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.renovation-plan-editor .rp-review-rooms button {
+.renovation-plan-editor .rp-review-rooms .rp-review-room-button {
 	display: grid;
 	grid-template-columns: 20px minmax(0, 1fr) auto;
 	gap: 4px 8px;
@@ -19,8 +19,8 @@
 	border: 1px solid var(--background-modifier-border);
 	box-shadow: none;
 }
-.renovation-plan-editor .rp-review-rooms button[aria-pressed="true"] { background: var(--background-modifier-hover); border-color: var(--interactive-accent); }
-.renovation-plan-editor .rp-review-rooms button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.renovation-plan-editor .rp-review-rooms .rp-review-room-button[aria-pressed="true"] { background: var(--background-modifier-hover); border-color: var(--interactive-accent); }
+.renovation-plan-editor .rp-review-rooms .rp-review-room-button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 .renovation-plan-editor .rp-review-room__name { font-weight: var(--font-semibold); }
 .renovation-plan-editor .rp-review-room__changes { max-width: 9em; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .renovation-plan-editor .rp-review-room__status { grid-column: 2 / -1; font-size: var(--font-ui-smaller); color: var(--text-muted); }

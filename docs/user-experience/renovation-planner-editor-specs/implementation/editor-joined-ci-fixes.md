@@ -29,3 +29,17 @@ handling. Fallow reports zero functions above the unchanged limits (cognitive 15
 and new functions do not have current full coverage proved by that older file. This is not a
 claim of a current full gate. Logs, the raw health report and hashes are in
 `evidence/editor-joined-ci-fixes`. The extended browser/final matrix remains next.
+
+## Explicit action classes — unchanged focus gate green
+
+The remaining two asset-shelf reports came from the conservative cascade checker broadcasting
+classless editor button resets to known button classes. Subject/Work secondary actions, Review
+Room buttons and primary batch actions now carry explicit local classes, used consistently by
+their reset, hover and focus rules. Titles and the separate batch Delete action remain outside
+those resets. Native DOM hierarchy, labels and handlers are unchanged. Neither asset-shelf CSS
+nor the checker or its tests changed.
+
+The unchanged focus gate passed 96/96 (session 30372, 3.88 seconds). The affected native
+Routes, Overview, Workflow, BatchForm and BatchGuards suites passed 54/54 across five files
+(session 99915, 57.97 seconds). This clears the previously recorded focus blocker; full joined
+CI and the final nine-journey visual run remain separate work.

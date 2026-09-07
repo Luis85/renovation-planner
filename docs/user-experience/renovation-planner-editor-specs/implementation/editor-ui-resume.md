@@ -7,6 +7,15 @@ is claimed. Main remains untouched; work is on `codex/editor-object-ui` in
 
 ## Source anchors and saved work
 
+Latest continuation (2026-09-07): source `df7100b4` completed all four extended planning browser
+scenarios, including six-photo selection, caption/inline clearance and issue-rich M17 marker
+and source routes. Evidence is archived in `editor-review-markers-browser/verified-df7100b4`.
+The next source checkpoint replaces anonymous editor button shadow resets with explicit local
+action classes. The unchanged focus gate passes 96/96 and five affected native suites pass
+54/54; asset CSS and the checker remain untouched. Root must integrate this pushed checkpoint
+and confirm a shared source freeze before the original nine journeys and all eighteen reference
+comparisons. UI owns the current heavy slot through verification/push; no full acceptance yet.
+
 - Shared production checkpoint: `73b0c205d8abaf1ab5869ee8cffead8654061f00`, integrated locally
   through merge `9d7f7e8baa258761042e45b9ecaa69a736484d09`. Preserve its date, retained-pin
   projection, required-pin props and focus fixes during future merges.

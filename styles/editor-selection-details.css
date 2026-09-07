@@ -47,7 +47,7 @@
 	gap: 6px;
 }
 
-.renovation-plan-editor .rp-multi-selection .rp-batch-actions > .rp-renovation-actions > button {
+.renovation-plan-editor .rp-multi-selection .rp-batch-actions > .rp-renovation-actions > .rp-batch-action {
 	width: 100%;
 	min-height: 36px;
 	height: auto;
@@ -60,11 +60,11 @@
 	box-shadow: none;
 }
 
-.renovation-plan-editor .rp-multi-selection .rp-batch-actions > .rp-renovation-actions > button:not(:disabled):hover {
+.renovation-plan-editor .rp-multi-selection .rp-batch-actions > .rp-renovation-actions > .rp-batch-action:not(:disabled):hover {
 	background: var(--background-modifier-hover);
 }
 
-.renovation-plan-editor .rp-multi-selection .rp-batch-actions > .rp-renovation-actions > button:focus-visible {
+.renovation-plan-editor .rp-multi-selection .rp-batch-actions > .rp-renovation-actions > .rp-batch-action:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }

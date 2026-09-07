@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-object-ui
+
+
+ Test Files  1 passed (1)
+      Tests  96 passed (96)
+   Start at  21:09:11
+   Duration  3.88s (transform 288ms, setup 0ms, import 465ms, tests 2.59s, environment 0ms)
+

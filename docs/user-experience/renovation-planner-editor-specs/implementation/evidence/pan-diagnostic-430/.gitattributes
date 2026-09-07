@@ -1,0 +1,2 @@
+# Preserve the exact original diagnostic bytes for manifest hashes.
+* -text

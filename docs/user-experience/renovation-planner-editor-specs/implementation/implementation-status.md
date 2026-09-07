@@ -2,11 +2,11 @@
 
 Operational continuation: [RESUME.md](RESUME.md) is the central handoff for a later session or usage-limit interruption. It distinguishes pushed code, unverified WIPs, current processes and remaining acceptance.
 
-Full CI on Root9cb87b1b now passes **661files/8114tests on every Linux22/24/26 and Windows22 leg**,69skipped. Build and lint pass; only unchanged branch coverage97.81% (12537/12817) fails98%, a deficit of24arms at this denominator. Separate full Health on identical source/original counters passes with0findings and748/748file paths mapped. [Run34154814793](https://github.com/Luis85/renovation-planner/actions/runs/34154814793), [exact receipt](evidence/ci-9cb87b1b-quality.json).
+Full CI43041936 passes **661files/8115tests on every Linux22/24/26 and Windows22 leg**,69skipped. Build/lint pass; only unchanged branch coverage97.84% (12537/12813) fails98%, leaving20arms at this denominator. [Run34156093009](https://github.com/Luis85/renovation-planner/actions/runs/34156093009), [exact receipt](evidence/ci-43041936-quality.json). Latest fully matched Health on predecessor9cb has0findings/748of748mappedfiles; current430Health is not claimed.
 
-UI376fe371 is integrated: warning separator, ReviewRoomDetails extraction, source labels, Custom spacing and explicit local button classes. All ten previous full-CI failures are closed. Coverage1deb adds the reviewed mapper cleanup, constrained Review Tap and public calibration boundary;56/56owner native tests plusTypes/Lint/static passed. Counter gains for that new package remain unmeasured.
+The complete unchanged final browser runner on430 passed9journeys×4scenarios and produced all18reference comparisons. Archive d58 is integrated; Root verified340PNG hashes. All18 were inspected by UI. Remaining visual work is concrete: M01floor-summary/Room cues, M04closed-draft contrast, and correctly attributed M00/M07/M13/M16 supplemental views. Original captures/assertions remain.
 
-Extended UIdf710 browser capture passes all four scenarios. The original full9journeys/18references and live-host H1–H6 remain open; RESUME owns the next freeze/slot handoff. No final acceptance is claimed.
+Performance remains open: ordinary pan medians around33ms reproduce despite roughly16.7ms idle cadence; CPU profiles identify repeated Vue-Konva config/reactivity work. A quiet repeat also retained one107ms selection against100ms. UI owns the bounded correction; no fixture/quality reduction. [Diagnosis](pan-performance-diagnosis.md). Coverage prepares five further public boundary cases source-only. Native-host H1–H6 remain open. RESUME contains actual ownership and next steps; no final acceptance is claimed.
 
 Fresh review sweep across #74–#91 found no new outstanding Root code defect. Predecessor threads remain open where fixes live in the integration continuations rather than the unchanged older branches; no thread is falsely resolved. [Review audit](review-audit.md).
 

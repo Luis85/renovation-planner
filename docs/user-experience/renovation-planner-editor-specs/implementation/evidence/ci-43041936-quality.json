@@ -1,0 +1,53 @@
+{
+  "source": "43041936a7f86d31058f6d21a16c3a596e1bacc6",
+  "testedMerge": "e33dec1ca2e245c5153c000fc0a59eb9fefba3af",
+  "sourceAndMergeTree": "bf78400fa5ab016b7aa8347726727ce267b00dad",
+  "run": 34156093009,
+  "linux24Job": 101848160370,
+  "linux24Artifact": 10031200230,
+  "matrix": {
+    "legs": [
+      "ubuntu22",
+      "ubuntu24",
+      "ubuntu26",
+      "windows22"
+    ],
+    "filesPerLeg": 661,
+    "testsPassedPerLeg": 8115,
+    "testsFailedPerLeg": 0,
+    "skippedPerLeg": 69,
+    "verdict": "Build, lint and native suite pass on all four legs; unchanged branch threshold fails."
+  },
+  "coverage": {
+    "statements": [
+      18060,
+      18222
+    ],
+    "branches": [
+      12537,
+      12813
+    ],
+    "functions": [
+      5174,
+      5211
+    ],
+    "lines": [
+      14102,
+      14166
+    ],
+    "additionalCoveredArmsAtThisDenominator": 20
+  },
+  "health": "Latest complete matched health is on predecessor9cb87b1b:0findings,748/748mappedfiles. No fresh430 health claimed.",
+  "rawFiles": [
+    {
+      "file": "coverage-final.json",
+      "sha256": "8ce5815e577cfa7494922a2bfae4c79169a66018a491db887dd27866e19ac5fa",
+      "bytes": 5089531
+    },
+    {
+      "file": "lcov.info",
+      "sha256": "c6d7dec276b10759c7b5fcc5293fb91c23154de5a4f33ec671ecd4799c660471",
+      "bytes": 641839
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "source": "43041936a7f86d31058f6d21a16c3a596e1bacc6",
+  "browser": "Edge152.0.4191.62",
+  "quiet": {
+    "session": 92959,
+    "exitCode": 0,
+    "scenarios": 4
+  },
+  "profile": {
+    "session": 88423,
+    "exitCode": 0,
+    "scenarios": [
+      "dark"
+    ],
+    "scope": "CPU profiling has overhead; its timings are diagnostic, not acceptance."
+  },
+  "files": [
+    {
+      "file": "quiet-driver.mjs.txt",
+      "bytes": 15213,
+      "sha256": "5dced7fc6f0695348d06008442a5ce4a50b60cfafdb6abdafd132eba2eebf36a"
+    },
+    {
+      "file": "quiet-driver-provenance.json",
+      "bytes": 689,
+      "sha256": "c5ffdcac836743f3ee45f5f58b5c94ba1b1e06291c0199f04847c501f0a4a221"
+    },
+    {
+      "file": "quiet-report.json",
+      "bytes": 37649,
+      "sha256": "44df38b36904de4beafec9a76c1ed138b71d51bebe3dc1d1242c0e9becf61d02"
+    },
+    {
+      "file": "quiet.log",
+      "bytes": 11951,
+      "sha256": "a8990a30948f835f0827218c934492bfebe2faa8b97f3ba66d28ea267575ec05"
+    },
+    {
+      "file": "profile-driver.mjs.txt",
+      "bytes": 17063,
+      "sha256": "31e3ad39111195124b205fa3922240819889263085ec4c22614b00dbad7a837f"
+    },
+    {
+      "file": "profile-report.json",
+      "bytes": 9509,
+      "sha256": "412d5bb19a6b7d51e9e8d07952bd1f3d7e9436d565ec4000b98a4b3e31e34a7f"
+    },
+    {
+      "file": "profile.log",
+      "bytes": 3158,
+      "sha256": "a25b82790c1409c9163ee93bcfa57bf521e0d9e62236183d5bf28062e516657c"
+    },
+    {
+      "file": "pan-1.cpuprofile",
+      "bytes": 164800,
+      "sha256": "8885b5715a353149ae72267bb0ac103ff82d37c3404e04355622794566703850"
+    },
+    {
+      "file": "pan-2.cpuprofile",
+      "bytes": 189345,
+      "sha256": "7eaa676fc47e21eb503c3bb1e59f44bce07f6f6441365726ea2b115b5f3848af"
+    }
+  ],
+  "driverStorage": "Original executable scratch bytes are archived as .mjs.txt evidence, not runnable repository scripts. Runtime scratch paths are recorded in the resume/diagnosis."
+}

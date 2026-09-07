@@ -47,7 +47,7 @@ function continuePlanning(): void {
 			{{ tr('renovation.summary.change-count', { count: String(summary.changes) }) }} · {{ tr('renovation.summary.progress', { done: String(summary.complete), total: String(summary.work.length) }) }}
 		</p>
 		<p
-			v-if="summary.findings.length"
+			v-if="summary.findings.length && !compact"
 			class="rp-record-metadata"
 		>
 			{{ tr('renovation.summary.open', { count: String(summary.findings.length) }) }}

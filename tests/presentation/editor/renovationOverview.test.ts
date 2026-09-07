@@ -24,10 +24,27 @@ it('shows shared Work and missing Evidence findings in both linked Review rooms'
 			path: 'Notes/missing-review.md', subpath: '', description: 'Shared missing evidence', type: 'document', phase: 'before', pin: null }] } };
 	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(expectOk(await rig.renovation.read(rig.plan.id)), { renovation: value, intended: undefined }, rig.runtime.structureTask.ledger)));
 	rig.changePlan(); await settle(); await rig.runtime.renovation.perspective('review'); await settle();
+	const markers = expectDefined(rig.stage, 'native stage').find('.review-room-marker');
+	expect(markers).toHaveLength(2);
 	for (const id of [roomId, other.id]) {
 		const row = rig.wrapper.get(`[data-rp-review-room="${id}"]`);
 		expect(row.text()).toContain('2 items need attention'); expect(row.text()).not.toContain('No findings');
+		const marker = expectDefined(markers.find(item => item.getAttr('roomId') === id), 'shared Room marker');
+		expect(String(marker.getAttr('number'))).toBe(row.attributes('data-rp-review-number'));
 	}
+});
+
+it('distinguishes blocked Work sources that share the same dependency explanation', async () => {
+	const rig = await setup(), roomId = rig.room.id;
+	const value: Renovation = { subjects: [{ id: 'finish', roomId, targetId: roomId, kind: 'floor', existing: null,
+		planned: { change: 'add', description: 'Finished room' } }], decisions: [],
+		work: ['Base preparation', 'Paint walls', 'Install tiles'].map((title, order) => ({ id: `work-${order}`, roomId, targetId: roomId, title,
+			description: '', order, progress: 'pending', responsibility: 'diy', outcomes: ['finish'], dependencies: order === 0 ? [] : ['work-0'] })) };
+	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(expectOk(await rig.renovation.read(rig.plan.id)), { renovation: value, intended: undefined }, rig.runtime.structureTask.ledger)));
+	rig.changePlan(); await settle(); await rig.runtime.renovation.perspective('review'); await settle();
+	expect(rig.wrapper.get('[data-rp-review-issue="work-1"]').attributes('aria-label')).toContain('Paint walls');
+	expect(rig.wrapper.get('[data-rp-review-issue="work-2"]').attributes('aria-label')).toContain('Install tiles');
+	for (const id of ['work-1', 'work-2']) expect(rig.wrapper.get(`[data-rp-review-issue="${id}"]`).text()).toContain('Base preparation');
 });
 
 it.each([false, true])('shows unavailable linked sections only without connected planning (%s)', async planning => {

@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import PlanningReview from '../planning/PlanningReview.vue';
-import { usePlanningContext } from '../planning/planningContext';
 import { planningFindings } from '../planning/planningProjection';
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { onBeforeUnmount, ref } from 'vue';
 import { EMPTY_RENOVATION, reviewRenovation, type ReadinessFinding, type Renovation } from '../../../domain/renovation/Renovation';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
@@ -12,20 +11,17 @@ import type { PlanId } from '../../../domain/plan/PlanId';
 import { persistenceError } from '../../../application/errors';
 import { renovationMessage } from './renovationMessage';
 import ReviewSummary from './ReviewSummary.vue';
+import { useReviewPresentation } from './useReviewPresentation';
+import ReviewScope from './ReviewScope.vue';
 const project = useProjectStore(), runtime = useEditorRuntime();
 const context = usePlanEditorContext(), busy = ref(false), error = ref('');
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
-const findings = computed(() => reviewRenovation(project.plan?.renovation ?? EMPTY_RENOVATION));
-const planning = usePlanningContext();
-const depth = planning.findings;
+const { findings, depth, clear } = useReviewPresentation();
 // The all-clear is one claim over BOTH lists, and none at all until the planning read has
 // settled: while it loads there is nothing to be clear about, and after it fails the refusal
 // beside it would be contradicted. A plan without planning services needs no guard of its own —
 // its context never reads, so `baseline` stays null and `loading`/`failed` stay false.
-const available = computed(() => !runtime.writesBlocked.value && !planning.loading.value && !planning.failed.value && (!context.commands.planning || !!planning.baseline.value));
-const clear = computed(() => available.value && !findings.value.length && !depth.value.length);
-const allFindings = computed(() => [...findings.value, ...depth.value]);
 function open(item: ReadinessFinding): void {
 	runtime.renovation.focus(item.roomId, item.kind === 'blocked' || item.kind === 'missing-outcome' ? 'work' : 'planned', item.recordId);
 	if (item.kind === 'decision') void runtime.renovation.edit('decision', item.roomId, item.recordId);
@@ -57,13 +53,8 @@ async function generate(): Promise<void> {
 <template>
 	<section class="rp-renovation-inspector rp-review-inspector">
 		<h3>{{ tr('renovation.review') }} {{ project.plan?.name }}</h3>
-		<ReviewSummary
-			:findings="allFindings"
-			:available="available"
-		/>
-		<p v-if="!context.commands.planning">
-			{{ tr('renovation.scope') }}
-		</p>
+		<ReviewSummary />
+		<ReviewScope v-if="!context.commands.planning" />
 		<PlanningReview
 			v-if="context.commands.planning"
 			:findings="depth"
@@ -73,7 +64,7 @@ async function generate(): Promise<void> {
 		</p>
 		<ol
 			v-if="findings.length"
-			class="rp-renovation-list"
+			class="rp-renovation-list rp-review-findings"
 		>
 			<li
 				v-for="item in findings"
@@ -81,11 +72,14 @@ async function generate(): Promise<void> {
 			>
 				<button
 					type="button"
+					class="rp-review-finding"
+					:data-rp-review-issue="item.recordId"
+					:aria-label="`${item.roomLabel} · ${tr(`renovation.finding.${item.kind}`)}: ${item.sourceLabel}; ${item.causes.join(', ')}`"
 					@click="open(item)"
 				>
-					{{ project.zones.get(item.roomId)?.name }} · {{ tr(`renovation.finding.${item.kind}`) }}
+					<span class="rp-review-finding__context">{{ item.roomLabel }} · {{ tr(`renovation.finding.${item.kind}`) }}</span>
+					<span data-rp-review-cause>{{ item.causes.length ? item.causes.join(', ') : item.sourceLabel }}</span>
 				</button>
-				<p>{{ item.causes.join(', ') }}</p>
 			</li>
 		</ol>
 		<button

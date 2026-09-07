@@ -38,7 +38,7 @@ async function assertIssues(page, roomId, questions, german) {
 	assert.equal(await page.locator(selectedReviewRoom).getAttribute('data-rp-review-room'), roomId);
 	assert.equal(await page.locator(`${selectedReviewRoom} .rp-review-room__status`).innerText(),
 		german ? '2 Punkte benötigen Aufmerksamkeit' : '2 items need attention');
-	assert.deepEqual((await page.locator(`${issueRows} > p`).allTextContents()).map(text => text.trim()).toSorted(), questions.toSorted());
+	assert.deepEqual((await page.locator(`${issueRows} [data-rp-review-cause]`).allTextContents()).map(text => text.trim()).toSorted(), questions.toSorted());
 	const allClear = german ? 'Im geprüften Umfang wurden keine Lücken gefunden.' : 'No gaps found within this review scope.';
 	assert.equal((await page.locator('.rp-review-inspector').innerText()).includes(allClear), false);
 	assert.equal(await page.locator('[data-rp-action="add"]').count(), 0);
@@ -82,7 +82,7 @@ export async function captureReviewIssues(page, scenario, out, shot) {
 	await editorAccessibility(page, scenario, out, 'review-issues-design');
 	await page.setViewportSize({ width: scenario.width, height: 900 });
 	for (const [index, question] of questions.entries()) {
-		const texts = await page.locator(`${issueRows} > p`).allTextContents();
+		const texts = await page.locator(`${issueRows} [data-rp-review-cause]`).allTextContents();
 		const issueIndex = texts.findIndex(text => text.trim() === question);
 		assert.ok(issueIndex >= 0);
 		await activate(page, `${issueRows}:nth-child(${issueIndex + 1}) > button`);

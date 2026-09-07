@@ -186,6 +186,14 @@ whole Oxlint/scoped ESLint, dimension lifecycle tests and actual extended planni
 are next. Root presently owns an eight-case short heavy slot; UI has no process running.
 Global coverage belongs to the user's new dedicated coverage task, not this UI workstream.
 
+Actual caption browser progress: the Light run passes native pan, normal/clamped inline forms,
+reverse camera movement and unchanged fonts/pins/points/vault contents. The issue-rich M17 run
+then creates two real Decisions but fails full Inspector bounds on its second large finding card.
+Root approved shared Room review markers and compact actionable findings per M17/ADR-0021.
+The source-only correction is described in `editor-review-markers.md`; no native/browser pass
+is claimed yet. The coverage task owns its separate reviewMarkerNavigation test file.
+Coverage currently has the heavy slot; UI source preparation continues with no running process.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

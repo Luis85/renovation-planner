@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { EMPTY_RENOVATION, type ReadinessFinding } from '../../../domain/renovation/Renovation';
 import { useProjectStore } from '../../stores/ProjectStore';
-import { useFloorSummary } from '../shell/useFloorSummary';
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import { usePlanEditorContext } from '../PlanEditorContext';
@@ -10,32 +8,16 @@ import { tr } from '../../i18n/strings';
 import HostIcon from '../../components/HostIcon.vue';
 import TransformationSummary from './TransformationSummary.vue';
 import RenovationLinkedSummary from './RenovationLinkedSummary.vue';
-import { renovationSummary } from './renovationSummary';
-import { recordNavigationContext } from './recordNavigationContext';
-import { usePlanningContext } from '../planning/planningContext';
-import type { PlanningFinding } from '../planning/planningProjection';
 import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
+import { useReviewPresentation } from './useReviewPresentation';
 
-const props = defineProps<{ findings: readonly (ReadinessFinding | PlanningFinding)[]; available: boolean }>();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
-const context = usePlanEditorContext(), floor = useFloorSummary();
-const planning = usePlanningContext();
-const records = computed(() => ({ renovation: project.plan?.renovation ?? EMPTY_RENOVATION, materials: planning.baseline.value?.materials ?? [] }));
+const context = usePlanEditorContext();
+const { floor, rows } = useReviewPresentation();
 const changes = computed(() => {
 	const value = floor.value?.plannedChanges;
 	return value && value.state !== 'unavailable' ? String(value.value) : tr('editor.selection.unknown');
 });
-const complete = computed(() => props.available && !project.stale && project.unreadableZones === 0);
-const rows = computed(() => (floor.value?.rooms ?? []).map(room => {
-	const count = props.findings.filter(item => {
-		const id = 'recordId' in item ? item.recordId : item.id;
-		const source = recordNavigationContext(records.value, id, room.id, null);
-		return (source?.roomId ?? item.roomId) === room.id;
-	}).length;
-	return { ...room, changes: renovationSummary(project.plan?.renovation ?? EMPTY_RENOVATION, room.id).changes,
-		status: !complete.value ? tr('renovation.review.unavailable') : count ? tr('renovation.summary.open', { count: String(count) }) : tr('renovation.review.no-room-findings'),
-		icon: !complete.value ? 'clipboard-list' : count ? 'triangle-alert' : 'circle-check' };
-}));
 const selected = computed(() => rows.value.find(room => room.id === selection.focusedId));
 function openRoom(roomId: string, event: Event): Promise<void> {
 	return runInspectorAction(event, 'review-open-room', () => Promise.resolve(runtime.renovation.focus(roomId, 'overview')));
@@ -64,18 +46,20 @@ function openRoom(roomId: string, event: Event): Promise<void> {
 				<button
 					type="button"
 					:data-rp-review-room="room.id"
+					:data-rp-review-number="room.markerNumber ?? undefined"
 					:aria-pressed="selected?.id === room.id"
 					@click="runtime.selectAndFrame(room.id)"
 				>
-					<HostIcon :name="room.icon" />
+					<span v-if="room.markerNumber" class="rp-review-room-number">{{ room.markerNumber }}</span>
+					<HostIcon v-else :name="room.icon" />
 					<span class="rp-review-room__name">{{ room.name }}</span>
 					<span class="rp-review-room__changes">{{ tr('renovation.summary.change-count', { count: String(room.changes) }) }}</span>
 					<span class="rp-review-room__status">{{ room.status }}</span>
 				</button>
 			</li>
 		</ul>
-		<div v-if="selected">
-			<h4>{{ selected.name }}</h4>
+		<div v-if="selected" :data-rp-review-summary-room="selected.id">
+			<h4 class="rp-visually-hidden">{{ selected.name }}</h4>
 			<TransformationSummary
 				:room-id="selected.id"
 				compact

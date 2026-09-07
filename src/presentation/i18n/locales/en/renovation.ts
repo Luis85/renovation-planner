@@ -1,4 +1,5 @@
 export const renovationEn = {
+	"renovation.review.limited-scope": "Limited review scope",
 	"renovation.summary.compact-progress": "{done}/{total} complete",
 	"renovation.review.room-count": "{count} rooms",
 	"renovation.review.open-room": "Open {name}",

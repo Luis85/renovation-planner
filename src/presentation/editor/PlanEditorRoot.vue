@@ -2,6 +2,7 @@
 import { provideTradeCatalogue } from '../catalogue/tradeCatalogue';
 import { provideNoteCreation } from './add/noteCreation';
 import { providePlanningContext } from './planning/planningContext';
+import { provideReviewPresentation } from './renovation/useReviewPresentation';
 import { notifyFault } from '../notices/notify';
 import { useRenovationSession } from './renovation/renovationSession';
 const renovationSession = useRenovationSession();
@@ -56,6 +57,7 @@ const runtime = provideEditorRuntime(context);
 const navigateToRecord = useEditorArrival(context, runtime);
 defineExpose({ navigateToRecord });
 const planning = providePlanningContext(context, runtime);
+provideReviewPresentation(context, runtime);
 provideNoteCreation(runtime, planning);
 const projectStore = useProjectStore();
 const selection = useSelectionStore();

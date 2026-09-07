@@ -259,9 +259,9 @@
 .renovation-plan-editor .rp-evidence-file-metadata { display: block; }
 .renovation-plan-editor .rp-evidence-gallery { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .renovation-plan-editor .rp-evidence-gallery li { min-width: 0; }
-.renovation-plan-editor .rp-evidence-gallery button { display: block; width: 100%; height: 100%; padding: 6px; white-space: normal; text-align: start; }
+.renovation-plan-editor .rp-evidence-gallery button { display: block; width: 100%; height: 100%; padding: 4px; white-space: normal; text-align: start; }
 .renovation-plan-editor .rp-evidence-gallery button[aria-current='true'] { border-color: var(--interactive-accent); background: var(--background-modifier-active-hover); }
 .renovation-plan-editor .rp-evidence-photo-title { display: block; margin-bottom: 4px; font-weight: var(--font-semibold); }
-.renovation-plan-editor .rp-evidence-gallery .rp-evidence-thumbnail { aspect-ratio: 4 / 3; max-height: 80px; object-fit: cover; }
+.renovation-plan-editor .rp-evidence-gallery .rp-evidence-thumbnail { aspect-ratio: 4 / 3; max-height: 140px; object-fit: cover; }
 .renovation-plan-editor .rp-evidence-gallery .rp-evidence-file-metadata { font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .renovation-plan-editor .rp-evidence-gallery + .rp-renovation-list > li { padding: 8px; gap: 4px; }

@@ -48,3 +48,12 @@ cards fit, but the selected metadata card still exceeded the Inspector bottom. I
 14-pixel padding and 10-pixel grid gaps are now tightened to 8 and 4 pixels only for the metadata
 list immediately following the photo gallery. Text, image size, controls and their order stay
 intact. Visibility failures now report the measured rectangles as well as the selector.
+
+Root's subsequent review of the locked image clarified that visibly repeating all metadata on
+every thumbnail was an implementation preference, not a user requirement. The gallery now uses
+the existing visually-hidden utility for its descriptive titles and duplicate metadata while
+retaining descriptive accessible button names and full visible selected-photo metadata. Missing
+file and thumbnail-error notices remain visible; when a thumbnail is unavailable, its file
+metadata remains visible too. Preview images return to a natural 4:3 composition capped at
+140 pixels. This product presentation follows the reference's image emphasis; it is not a
+screenshot-only override. Current runtime/pixel verification of this revision remains pending.

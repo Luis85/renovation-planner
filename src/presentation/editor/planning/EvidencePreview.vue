@@ -5,7 +5,7 @@ import type { EvidenceFiles } from '../../../application/ports/EvidenceFiles';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { tr } from '../../i18n/strings';
 import { evidenceThumbnailSource } from './evidenceThumbnail';
-const props = defineProps<{ item: Evidence; files?: EvidenceFiles; planId: string; revision?: number; metadataOnly?: boolean }>();
+const props = defineProps<{ item: Evidence; files?: EvidenceFiles; planId: string; revision?: number; metadataOnly?: boolean; thumbnailOnly?: boolean }>();
 const failed = ref(false);
 const file = computed(() => { void props.revision; return props.files?.resolve(props.item.path + props.item.subpath, props.planId as PlanId); });
 watch(file, () => { failed.value = false; });
@@ -21,10 +21,13 @@ const thumbnail = computed(() => {
 		loading="lazy"
 		decoding="async"
 		:src="thumbnail"
-		:alt="item.description"
+		:alt="thumbnailOnly ? '' : item.description"
 		@error="failed = true"
 	>
-	<span class="rp-evidence-file-metadata">{{ item.path }}{{ item.subpath }} · {{ tr(`planning.${item.phase}`) }}<template v-if="item.date"> · <time :datetime="item.date">{{ item.date }}</time></template></span>
+	<span
+		class="rp-evidence-file-metadata"
+		:class="{ 'rp-visually-hidden': thumbnailOnly && thumbnail }"
+	>{{ item.path }}{{ item.subpath }} · {{ tr(`planning.${item.phase}`) }}<template v-if="item.date"> · <time :datetime="item.date">{{ item.date }}</time></template></span>
 	<span
 		v-if="!file?.ok"
 		class="rp-evidence-file-metadata"

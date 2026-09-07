@@ -6,9 +6,13 @@ import { runAreaBrowserMatrix, activate, tabTo } from './editor-area-browser.mjs
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 const form = '[data-rp-form="planning"]';
 async function shot(page, scenario, out, state) {
- if (state === 'photos') await page.waitForFunction(() => {
+ if (state === 'photos') await page.waitForFunction(async () => {
   const images = [...document.querySelectorAll('img.rp-evidence-thumbnail')];
-  return images.length > 0 && images.every(image => image.complete && image.naturalWidth > 0);
+  if (!images.length || images.some(image => !image.complete || image.naturalWidth <= 0)) return false;
+  const sources = images.map(image => image.currentSrc);
+  await Promise.all(images.map(image => image.decode()));
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  return images.every((image, index) => image.isConnected && image.complete && image.naturalWidth > 0 && image.currentSrc === sources[index]);
  });
  await recordShot(page, scenario, out, state);
  if (['materials', 'costs', 'photos'].includes(state)) await editorAccessibility(page, scenario, out, state);

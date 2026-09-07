@@ -1,196 +1,75 @@
 # Wiederaufnahme der Editor-Finalisierung
 
-Stand: **2026-09-07T15:45:19.483Z (UTC)**. Dieses Dokument ist der zentrale Wiedereinstieg bei App-Neustart, Kontext- oder Nutzungslimit. Git, Prozesse und Tasks beim Fortsetzen erneut prüfen. Der Nutzer hat die frühere Pause mit „fahre fort“/„weiter“ aufgehoben; alte Pause-Dateien sind historisch.
+Stand: 2026-09-07T19:11:50.314Z (UTC). Zentraler Wiedereinstieg bei App-Neustart, Kontext- oder Nutzungslimit. Git, laufende Prozesse und Owner beim Fortsetzen erneut prüfen. Der Nutzer hat die frühere Pause aufgehoben.
 
 ## Auftrag und Abschlussmaßstab
 
-Das aktive, nicht abgeschlossene Goal ohne Tokenbudget lautet:
+Aktives Goal ohne Tokenbudget: Finalize the Renovation Planner editor implementation plan by coordinating the existing implementation tasks, closing remaining in-scope M00–M17 requirements, integrating committed results, and delivering one verified, reviewable completion candidate. Do not mark complete while required implementation, verification, or live-host acceptance remains outstanding.
 
-> Finalize the Renovation Planner editor implementation plan by coordinating the two existing implementation tasks, closing remaining in-scope M00–M17 requirements, integrating committed results, and delivering one verified, reviewable completion candidate. Do not mark complete while required implementation, verification, or live-host acceptance remains outstanding.
+Der gesamte Ablauf Project → Floor → Room/Area/Wall/Opening → Existing → Planned → Work → Materials → Costs → Evidence → Review → Safe recovery bleibt im Scope. Einzelne Teiltests oder eine offene PR sind kein Abschluss. Unveränderte Qualitätsgrenzen, finale visuelle Evidence und anwendbare Host-Nachweise sind erforderlich.
 
-Zusammenhängender Ablauf: Project → Floor setup → Room/Area/Wall/Opening → Existing → Planned → Work → Materials → Costs → Evidence → Review → Safe recovery.
+Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument aktuell halten und sinnvolle Parallelisierung koordinieren. Klar gekennzeichneter WIP darf gesichert werden. Keine PR mergen, Releases veröffentlichen, Tasks schließen oder fremde Worktrees löschen. Keine Assertions, Grenzen, Timeouts oder Ausschlüsse für einen Pass abschwächen. Alte Stashes wurden bereits angewandt: nicht erneut anwenden/pop.
 
-Ein bestandener Teiltest, viele grüne Tests, vorhandene Vergleichsbilder oder eine offene PR sind kein Abschluss. Alle anwendbaren M00–M17-Anforderungen, unveränderte Gates, echte visuelle und erforderliche Host-Evidence müssen nachgewiesen sein. Keine alten „not delivered“-Sätze als akzeptierte Scope-Entfernung verwenden.
+## Aktueller Repo- und Integrationsstand
 
-Der Nutzer verlangt aktuelle Zwischenstände im Repo, sinnvolle Parallelisierung, dieses dauerhafte Dokument und regelmäßige kleine Commits/Pushes aller drei Tasks. Klar gekennzeichneter WIP ist zur Sicherung erlaubt; er ist kein Prüfpass. Vor längeren Prüfungen/Pausen eigene Evidence/Resume aktualisieren. Keine Automation dafür anlegen. Keine PR mergen, keinen Release veröffentlichen, keine Tasks schließen oder fremde Worktrees löschen. Keine Grenzen, Assertions, Timeouts oder Ausschlüsse für einen Pass abschwächen.
+- Hauptcheckout D:/Projects/renovation-planner bleibt sauber auf main (zuletzt44234f77).
+- Root arbeitet ausschließlich in .worktrees/editor-plan-finalization, Branch codex/editor-plan-finalization. Verifizierter Start dieses Updates: HEAD/origin **465ffe42b33162f173a15194ffe4f48fa5efc369**, sauber. Spätere Dokumentations-/Integrationscommits mit Git prüfen.
+- [PR #91](https://github.com/Luis85/renovation-planner/pull/91) ist OPEN/DRAFT, Basis codex/materials-costs-evidence (#88,3c1c737a). Review-/Mergeentscheidung bleibt beim Menschen.
+- Root **57144c81** hat UI **f576d13c** konfliktfrei auf Root1b554540 integriert. Die zuvor als ausstehend beschriebenen Galerie-, Caption-, Density- und Review-Markeränderungen sind damit im gemeinsamen Branch.
+- Root **465ffe42** übernimmt elf geprüfte Fälle aus Coverage44860131: Review6, Outline2, öffentliche Commandvalidierung3 samt Counter-Receipt. Keine Tests nochmals übernehmen.
+- UI-Folge nachf576 ist noch separat: Warntextseparator, ReviewRoomDetails-Extraktion, sichtbare Source-Labels, Custom-Abstände, lokale Buttonklassen. Letzter committeter UI-Anker **df7100b4**; zusätzlicher Fokusfix ist noch in Verifikation. Erst nach gepushtem SHA/Terminalreceipt integrieren.
+- Coverage bereitet separat zwei weitere öffentliche Grenzfälle und den von Root geprüften requirementMapper-Cleanup vor. Noch kein Pass/Integration dieses Pakets.
 
-## Neue Coverage-Zuständigkeit — Nutzerauftrag
+## Owners und lokaler Prüfslot
 
-Der Nutzer hat die Coverage-Session gestartet und Root hat deren eigenen Receipt
-bestätigt. **Aktiv: Erreiche Editor-Testcoverage**, Task-ID
-01a07cca-4d4b-75b0-96fb-9417d3b86f51; Worktree
-.worktrees/editor-coverage-finalization, Branch codex/editor-coverage-finalization,
-Basis6f72eea1dbb87f0b1b2774c27fc9ce8becf536c4. [Vollständiger Auftrag](coverage-session-brief.md) und
-[Steuerung](coverage-coordination.md) sind im Repo gesichert. Globale Coverage-Zuständigkeit ist übergeben; zunächst Lesen/Sourcevorbereitung.
-UI hält den aktuellen schweren Slot; Root übergibt den nächsten nach terminalem
-UI-Receipt ausdrücklich an Coverage. UI/E sind informiert; Root/Helfer beginnen keine neuen globalen
-Coverage-Pakete. UI behält Regressionen eigener Fixes, E konkrete Hardening-Befunde.
+| Owner | Task / Branch | Auftrag |
+|---|---|---|
+| Root | 01a0786f-b624-7303-987f-b18b94db48d9 / codex/editor-plan-finalization | Integration, Gesamtstatus, finale CI-/Bild-/Host-Abnahme |
+| Implement locked editor UI | 01a0783d-199d-7772-920b-90493cf0d8b4 / codex/editor-object-ui | UI-Fixes, eigene Regressionen, originale finale9Journeys/18Referenzen |
+| Erreiche Editor-Testcoverage | 01a07cca-4d4b-75b0-96fb-9417d3b86f51 / codex/editor-coverage-finalization, PR#92 | Globale Coverage; Nutzer hat Task gestartet und Root hat Übergabe bestätigt |
+| Improve M15 recovery workflow | 01a07838-4e54-7ac3-bc24-a8eef9185d6e | Idle, konkrete neue Hardening-Befunde; keine neuen Coverage-Pakete |
 
-Das letzte bereits begonnene Root-Paket ist abgeschlossen: Financial/Project-Library
-8/8 Tests in43,84s, Types/whole Ox/scoped ESLint und statischer Fallow grün. Beide
-neuen Testdateien sind im gepushten Nachfolger von45c58609 enthalten und dürfen
-von der neuen Coverage-Session nicht dupliziert werden. Produktion bleibt seit
-f306 unverändert. Root behält Integration, visuelle/Host-Abnahme und Gesamtgoal.
+**UI hält den schweren lokalen Slot** für die letzten Fokus-/Nachbarprüfungen. Root und Coverage arbeiten lesend bzw. source-only. Der unveränderte Focus-Gate ist inzwischen96/96PASS in3,88s (UI30372 terminal0); native Nachbarn folgen. Root hat keinen laufenden schweren Prozess. Slot erst nach explizitem terminalem Owner-Receipt neu vergeben. Keine fremden Prozessausgaben konsumieren, keine Fremdprozesse stoppen; Stille/Timeout bedeutet nicht Ende.
 
-## M17-Vertrag: neue konkrete Korrektur
+Rechner ca.8GB RAM. Installs, Builds, Tests, Coverage, Analyzer und Browser-/Performancecaptures lokal serialisieren; Lesen/Source/Docs parallel. Die dedizierte Coverage-Task besitzt globale Testpakete. Root/E/Helfer beginnen keine weiteren globalen Coverage-Pakete. UI behält eigene Fixregressionen. [Auftrag](coverage-session-brief.md), [Steuerung](coverage-coordination.md).
 
-Marker-Auswahl muss laut M17 in Review bleiben und die Room-/Change-Zusammenfassung
-zeigen. Nur Issue-Auswahl öffnet die konkrete Bearbeitung in Renovate; ADR0021
-ändert diese Trennung nicht. Root-Code mit Marker→Dialog ist eine echte verbleibende
-Lücke. UI übernimmt einen gemeinsamen Leaf-Review-Read-Model für Roomliste und
-kompakte Marker, inklusive bestehender Planning-/Renovation-Findings und geteilter
-Kontexte. Keine neuen Readiness-Regeln. Coverage besitzt die entsprechende neue
-Testdatei und passt die Zielregressionen an; alte Ist-Tests gelten nicht als Abnahme.
+## Neueste vollständige CI und exakte Restgröße
 
-Coverage hat npm ci und erste Prüfungen beendet; Slot freigegeben. Root übernimmt
-aus227c23b3 nur die zwei grünen öffentlichen Commandfälle und deren gemessenen
-Counter-Beleg (+2Arme/+1Statement); Marker-Tests bleiben bis zur UI-Abstimmung außen vor.
+Root465ffe42: [Run34152586317](https://github.com/Luis85/renovation-planner/actions/runs/34152586317), alle vier Verify-Jobs beendet/FAIL, AuditPASS. Linux24 job101837757667, Artefakt10030050526. Getesteter Merge23669557888f836846f8d71048fa17db5a2a9d87 hat denselben Gitbaum8b6a153e52c8bea61c6325dff6da2d2498c8f814 wie Root465.
 
-## Geprüfte Requirement-Bereinigung
+Linux24: **8104PASS /10FAIL /69SKIP**. S18055/18220, F5175/5212, L14099/14164, B**12540/12821**. Bei diesem Nenner fehlen **25 Brancharme** bis98%; die übrigen drei Floors sind erfüllt. Gegen571 sind Quelle und Maps identisch: exakt6neueBrancharme,5Statements,2Functions, keine Verluste. Nach kommenden UI-/Mapperänderungen neu messen;25 ist keine Zusage zum finalen Nenner.
 
-Coverage83ca2f75 wurde selektiv übernommen: der private Requirement.with-Parameter
-schließt requiredDate jetzt typseitig aus und übernimmt stets das bestehende Datum.
-Alle sieben öffentlichen Aufrufer wurden geprüft; keiner aktualisierte es.
-Öffentliche Erstellung, Hydrierung und Datumsvalidierung bleiben erhalten.
-Owner16/16 plus Types/Lint/static; Root-Integration16/16 in6,04s. Exakte Messung:
-vier Gesamtarme entfernt, davon drei vorher ungetroffene und ein getroffener
-Erhaltungsarm; Statements unverändert. Kein neues Health-Ergebnis aus alten
-Requirement-Countern ableiten; nächste vollständigeCI muss den neuen Source messen.
-[Datums-Evidence](requirement-date-preservation.md).
+OriginalJSON/LCOV/Log: C:/Users/lum/AppData/Local/Temp/rp-coverage-finalization-ci-465ffe42-linux24/. Coverage hat Quelle/Baum/Maps geprüft. Vorherige Originale liegen unter Root-Scratch ci-57144c81-linux24/.
 
-## Gemeinsamer UI-Join zur Verifikation
+Die zehn CI-Fehler sind bekannte UI-Folgen, keine neuen Coverage-Testfehler:
 
-Root übernimmt den committeten UI-Checkpoint **f576d13c** auf Root-Basis
-1b554540. Git-Merge konfliktfrei; die UI hatte45/45nativeTests sowie aktuelle
-Types/Oxlint/scopedESLint bestanden. Das ist ein **gemeinsamer WIP-Kandidat**,
-kein abschließender Browser-/Host-Pass. Enthalten sind die gesamte UI-Folge,
-Dimension-Caption-Messung, die gemeinsam projizierten Review-Roommarker und
-Issue-Schaltflächen. Neue Marker bleiben in Review; Issue-Auswahl öffnet Quellen.
+- Neun Warntextfälle: PersistentWarningStrip verschachtelte Severity/Message ohne literales Leerzeichen. UI ecbf7e27 erzeugt genau ein Leerzeichen; unveränderte drei Warnsuites **32/32PASS** in15,79s.
+- Ein Focus-Gate: neue anonyme Editor-Buttonresets konkurrieren im konservativen CSS-Scanner auch mit zwei unveränderten Asset-Shelf-Selektoren. Explizite lokale Klassen auf Subject/Work-Sekundäraktionen, Review-Room- und BatchActionList-Buttons begrenzen die Regeln. Unveränderter Gate **96/96PASS**; keine AssetCSS-/Matcher-/Teständerung. Native Nachbarn und gepushter Receipt noch abwarten.
+- Full Health auf original571-Countern,747/747Dateien gemappt, fand ReviewSummary Template cognitive17>15. UI extrahiert den unveränderten Selected-Room-Block nach ReviewRoomDetails. Statischer Complexity-/Health-Nachlauf ohne Findings; ältere Coverage beweist keine frischen Counter für verschobene/neue Funktionen. Neuer gemeinsamer Vollrun erforderlich.
 
-Coverage muss den gepushten Join nach dem Ende seiner laufenden Outline-Prüfung
-in den eigenen Branch übernehmen und die gewünschten Markerregressionen daran
-prüfen. Keine Sourceänderung während laufender Prüfungen. Root behält die
-Integration; UI setzt den unveränderten echten Browserlauf fort und liefert neue
-Korrekturen separat. Finale9Journeys/18Referenzen und HostH1–H6 bleiben offen.
+## Aktueller Funktions- und visueller Nachweis
 
-## Aktueller gemeinsamer CI-Befund
+M17-Vertrag ist im Root571 umgesetzt: Marker wählt/framed Room und bleibt Review, zeigt dieselbe nummerierte Zusammenfassung wie die Roomliste; Issue öffnet die konkrete Quelle in Renovate. Shared useReviewPresentation ist einmal leaf-owned und nutzt vorhandene Planning-/Renovation-Findings, keine neuen Readiness-Regeln. Existing/Planned/Work behalten ihre bisherigen Markeraktionen. Review6+Outline2 und Command3 wurden nativ/type/lint/static geprüft und sind in465 enthalten.
 
-Root57144c81 integriert UI f576d13c. Vollständiger Linux24-Lauf34150756164
-(job101832368840) berichtet8093PASS/10FAIL/69SKIP,658Dateien (654PASS/4FAIL).
-Neun Fehler: fehlendes Leerzeichen zwischen Warnungsstufe und Meldung nach der
-UI-Verschachtelung; Quelle PersistentWarningStrip.vue, UI korrigiert sie mit
-unveränderten Assertions. Ein Fehler: buttonFocusRing.test mit fünf gemeldeten
-Selektoren; neue Editor-/Review-Fokusregeln werden von UI korrigiert. Zwei
-unveränderte Asset-Shelf-Selektoren sind zunächst auf einen Cascade-/Matcher-Effekt
-zu prüfen, kein blindes Patchen der Library.
+UI-Browserlauf98235 aufdf7100b4 ist terminal: **alle vier erweiterten Szenarien grün**. Enthält sechs echte During-Fotos mit Datum/Work, echte Caption/Control/Pin-Prüfungen bei Pan/Inline/Clamping, zwei nativ angelegte Decisions, Review-Issuequelle/Cancel/Back und echte Mausauswahl des Roommarkers. Ein solcher Teilrun ersetzt den finalen Gesamtvergleich nicht. Finale Fokusklassen kamen danach.
 
-Coverage: Statements99,06%, Branches12534/12821=97,76%, Functions99,25%,
-Lines99,53%. Früh abgebrochene Tests können Counters mindern; erst nach diesen
-Korrekturen neue Restliste bestimmen. OriginalJSON/LCOV und Log liegen in
-Scratch ci-57144c81-linux24/ bzw. ci-57144c81-linux24.log; getesteter Merge
-d44de8c2ae119d1773e67e0f11e375d1f50c1e1a hat exakt denselben Baum
-e4c487929880df212d355713b3f6721b0994314a wie Root571.
+Caption-Platzierung verwendet tatsächlich gemessene Dimension-/Inline-DOMRects über einen owned ResizeObserver/coalesced RAF und gemeinsame screenToWorld-Umrechnung. Originalschrift,182×56Envelope, alle drei Statuszeilen, Pinpositionen und Geometrie bleiben erhalten. Drei echte Vorgänger-REDs belegen Controlkollision/Inlinekollision/Clipping; native Nachläufe25/25 bzw.28/28 bestanden. Vollständig verdeckter Fallback erhält dokumentiert die Ausgangsposition. Bilder nach finalem Source erneut prüfen.
 
-Separat ist der gewünschte Review-Vertrag auf dem Join nativ grün: Coverage
-Session79591, Review6+Outline2 =8/8PASS in33,46s. Marker bleibt Review, Nummer/
-Roomsummary stimmen, Issue öffnet Quelle, Auswahl/Fokus/Vault erhalten.
-Coverage führt danach den begrenzten dreiteiligen öffentlichen Validierungsblock
-und Types/Lint/Countermessung aus und gibt den Slot zurück. UI ist dabei source-only.
-Outline-Test+Receipt sind im Rootarbeitsbaum selektiv vorbereitet, noch zu committen.
+Nach verifiziertem gemeinsamen Source muss scripts/editor-visual-final-check.mjs unverändert alle neun Journeys in **einem** Lauf liefern: materials-costs-evidence, renovation-workflow, reference-plan, editor-visual-resilience, editor-visual-overview, editor-object, planning-recovery, modal-busy-focus, editor-downstream. Danach18Referenzen über editor-visual-fidelity-shots/editor-visual-comparisons; capture-provenance.json, Originalreports, Hashes und Bilder tatsächlich prüfen. Keine unterbrochenen Teilläufe zusammenzählen. Fixtureflächen12/18m² statt15,9/24,3m² und fehlende Building-Hierarchie sind akzeptierte Daten-/ADR-Unterschiede.
 
-## Geprüfte Tests auf dem gemeinsamen UI-Stand
+## Bereinigungen und Review
 
-Coverage44860131 wurde selektiv übernommen: reviewMarkerNavigation.test.ts (6),
-outlinePeerBoundaries.test.ts (2), commandValidationBoundaries.test.ts (3) und
-[gemeinsamer Counter-Receipt](evidence/joined-owner-test-counter-gains.json).
-Alle elf Fälle sind auf Source571 geprüft, Types/Oxlint/scopedESLint/static grün.
-Exakt6neueBrancharme/5Statements/2Functions in vergleichbaren Maps; andere
-Scoped-Maps wurden nicht als Gesamtmessung ausgegeben.
+Requirement.with-Datumerhalt ist bereits Root1b554540: privaterParameter nimmt requiredDate typseitig nicht an, bestehendesDatum bleibt erhalten; öffentliche Erstellung/Hydrierung/Validierung unverändert. Owner16/16,Root16/16; vier Gesamtarme entfernt (drei vorher ungetroffen, ein getroffen), Statements unverändert. [Evidence](requirement-date-preservation.md).
 
-Vollständiges Health mit originalen571-Countern und747/747gemappten Dateien
-meldet einen echten Befund: ReviewSummary.vue Template cognitive17>15. UI
-extrahiert den vorhandenen Selected-Room-Block in ReviewRoomDetails, unveränderte
-DOM-/Fokus-/Source-Verträge. Die neun Warntext-Leerzeichenfehler und der Fokusring-
-Vertrag bleiben bis zur Prüfung der UI-Korrektur offen. Coverage-Slot ist frei;
-UI hat den nächsten schweren Block. Root beginnt keine parallele schwere Prüfung.
+Neu freigegeben, noch nicht geprüft: requirementMapper darf nach erfolgreichem Schema-Parsen direkt die einzig gültige zone-Origin abbilden; redundante Reader-kind-Prüfung und Writer-Ternary samt unbenutztem err-Import entfernen. Alle V1/V2/V3-Schemas behalten literalzone und Domain unbekannte-Origin-Rejection. Keine Validierung unterdrücken. Bestehende Mapper/Requirement/public Roundtriptests und Counterreceipt erforderlich.
+
+Frischer Vorgänger-Reviewaudit: PR74/75/76/82/83/85/86/87 vollständig paginiert,27Threads davon25offen; keine neuen Findings bei unveränderten Heads. PR88 sechs offene Threads, alle in Continuations/Root behoben; ältere Branches selbst unverändert, daher nicht als dort erledigt auflösen. PR89/90/91 keine offenen Reviewthreads beim Sweep. [Reviewaudit](review-audit.md). Erneut prüfen, bevor Kandidat als fertig gilt.
 
 ## Verbindliche Quellen
 
-Zuerst vorhandene AGENTS.md und bei .codex/ deren instructions.md/Workflow lesen. Beim letzten Audit waren sie im Repo nicht vorhanden; Nutzeranweisungen im Task gelten weiterhin. [CLAUDE.md](../../../../CLAUDE.md) und [SDD](../../../development/sdds/obsidian-renovation-planner-SDD.md) enthalten die Projektregeln. Aktuelle akzeptierte ADR-/SDD-Amendments gehen alten Snapshots vor.
+AGENTS.md/.codex waren bei frischer Prüfung weder in Hauptcheckout noch Rootworktree vorhanden. Nutzeranweisungen gelten. [CLAUDE.md](../../../../CLAUDE.md), [SDD](../../../development/sdds/obsidian-renovation-planner-SDD.md) und aktuelle ADRs enthalten die Projektregeln.
 
-- [Spezifikation und M00–M17-Bilder](../README.md), [Komponenten](../components/component-library.md)
-- [Implementierungsplan](implementation-plan.md), [Status](implementation-status.md), [Completion-Matrix](completion-matrix.md), [Integrationsmap](integration-map.md)
-- [Metadaten](evidence-metadata-completion.md), [Phasenauswahl](evidence-phase-selection.md), [Element-Plan-Fokus](element-plan-return-evidence.md)
-- [Qualitätsfolge](quality-followup.md), [Composition-Grenzen](composition-boundaries-evidence.md), [Planning-Grenzen](planning-boundary-choices-evidence.md), [Project-Einstiege](project-entry-boundaries-evidence.md)
-- [Host-Vorbereitung](live-host-preparation.md), [ausführbarer Host-/CI-Audit](e-host-ci-audit.md), [E-Wiederaufnahme](e-hardening-resume.md)
-
-## Repository und Zuständigkeiten
-
-Repo: https://github.com/Luis85/renovation-planner. [PR #91](https://github.com/Luis85/renovation-planner/pull/91) bleibt **OPEN/DRAFT**, Basis codex/materials-costs-evidence (#88, 3c1c737a).
-
-| Bestandteil | Pfad / Branch / Task |
-|---|---|
-| Hauptcheckout | D:/Projects/renovation-planner, sauber auf main; zuletzt44234f77 |
-| Root | .worktrees/editor-plan-finalization / codex/editor-plan-finalization; Task01a0786f-b624-7303-987f-b18b94db48d9 |
-| UI, „Implement locked editor UI“ | .worktrees/editor-object-ui / codex/editor-object-ui; Task01a0783d-199d-7772-920b-90493cf0d8b4 |
-| E, „Improve M15 recovery workflow“ | Task01a07838-4e54-7ac3-bc24-a8eef9185d6e; aktuelle Teilbranches siehe unten |
-
-Root arbeitet bereits im isolierten Topic-Worktree. Keine Änderungen im main-Checkout. Nur die zwei bestehenden benutzereigenen Implementation-Tasks koordinieren; keine Ersatz-Tasks erzeugen. Der Nutzer hat zusätzliche begrenzte parallele Hilfsagenten erlaubt. Root-Helfer editor_coverage_audit arbeitet nur in ausdrücklich zugewiesenen neuen Test-/Evidence-Dateien.
-
-Root-Produktion baute auf **f3067d82f413de6c67f9d4598608ce1e1a059cb3** auf; danach wurde ausschließlich die unten beschriebene private Requirement-Datumsaktualisierung bereinigt; neuester vollständig gemessener Testcheckpoint ist **45c58609596734f17570a22074d05f3e2f81fafb**. Nachfolger ergänzen Tests/Dokumentation; aktuellen HEAD/Pushstand mit Git prüfen. E9cc0fa6d (vier Project-Einstiegsfälle) ist als **3b12f432** übernommen. Die fünf neuen Planning-Fälle sind nativ/type/lint geprüft. Zwei weitere optionale Spatial-Removal-Fixtures bestehen nativ 2/2 (37,08 s); Types/Oxlint/scoped ESLint und statischer Fallow sind ebenfalls grün: tests/presentation/editor/spatialRemovalLegacy.test.ts und spatial-removal-legacy-evidence.md. Vor Annahmen deren aktuellen Git- und Prüfstatus lesen.
-
-Aktuelle E-Branches:
-
-- codex/downstream-view-states:46dd8661 +3d6ad34d; Root60629492/1201656e. Work-/Quote-Viewzustände geprüft. Auditnachfolger f7b093be separat.
-- codex/downstream-late-boundaries:a7bdd443 +7e386d50. Drei native Quote-/Work-Lifecycle-Fälle; UI übernahm a7 als6dfdd827 und prüfte sie im22er-Nachlauf. Noch nicht separat im Root-Testbaum integriert, solange UI nicht übernommen ist.
-- codex/project-entry-boundaries:9cc0fa6d; Root3b12f432. Vier native Fälle bestanden, Types/Lint ebenfalls.
-
-UI-WIP-Anker: Galerie b0c68a03; M04 023af985; Record-/Kosten-Dichte5ca8cd65; Overview75a4c0ae; Add421c19b0; M07/M11 226e0be9; Capture-Kontexte cdbd30a3/0a007a62; M05/M15/M17 43cd1ac8 und Review-Fixes6d8a11d5/0e39c1a7. UI hat Root f306 als03057f63 gemergt. Danach M14/M17-Korrekturen efa8cd09,36d93f0b,28878a5d,36691b1c,bd9c7862,98434761 (Galerie mit größeren Bildern),49640b66 (Review-CTA-Kontrast). Neuere Owner-Commits prüfen. Diese UI-Produktion ist noch nicht in Root integriert.
-
-Alte Stashes wurden bereits angewandt und nur als Sicherung behalten: **nicht erneut anwenden/pop**. Exakte alte Ancestry steht in integration-map.md. Abhängigkeiten: #74→#75→#76→#82→#83→#85→#86→#87→#88, dann gewählten #89/#90/#91-Weg genau einmal. Retargeting/Merge-Strategie entscheidet der Mensch.
-
-## Belastbare aktuelle Verifikation
-
-**Neueste vollständige CI45c58609, Run34140688682:** Alle vier Jobs bestehen651Dateien/8079Tests (69übersprungen). Statements99,04%, Functions99,26%, Lines99,51% erfüllen Vorgaben; Branches12400/12692=97,69% bleiben unter98%, bei diesem Nenner39Arme Rest. Neue elfFälle bringen13zusätzlicheBranchhits.
-
-**Vorherige vollständige CI f3067d82, Run34136358483:** alle vier Linux 22/24/26-/Windows 22-Jobs bestehen648 Dateien/8068 Tests,69übersprungen. Audit grün. Statements17872/18049=99,01%, Functions5118/5160=99,18%, Lines13981/14053=99,48% erfüllen Vorgaben. Nur Branches12387/12692=97,59% scheitern an98%; bei diesem Nenner fehlen52 Arme. Nach Änderungen neu messen.
-
-Alle vier Jobs haben vollständige JSON/LCOV-Artefakte hochgeladen. Linux24-Download tatsächlich geprüft. Artifactname enthält den getesteten PR-Merge **ad1d23d0853ce20a7cbb5c6dab06013849c08835**, nicht den Headnamen. Dessen Gitbaum **4a36652288df6c9c07fc868d1e93583211bf3502** ist exakt gleich dem Root f306-Baum.
-
-**Frisches Fallow mit genau diesen unveränderten CI-Countern:** Exit0, null Health-Findings;742/742Dateipfade zugeordnet. Offiziellen --coverage-root-Schalter verwenden. Keine Zähler wurden umgeschrieben. Frühere CRAP-Schätzfehler entstanden durch verschobene/andere Quellpfade und sind damit geklärt. Separater aktueller statischer Scan: null Dead-Code-Issues, null Clone-Gruppen. [CI-/Health-Receipt](evidence/ci-f3067d82-quality.json).
-
-Gezielte Nachfolger:
-
-- Sechs Composition-Fälle plus Nachbarn:34/34PASS. Vergleich identischer95→f306-Countermaps belegt genau **7 neue Brancharme und6 Statements**, siehe [Counter-Gewinne](evidence/composition-counter-gains.json).
-- Phase/Date/Work/Shared-Evidence/Planning:42/42PASS; nach Helper-Extraktion4/4 nochmalsPASS. Types/Ox/scoped ESLint PASS.
-- Element-Rückkehr zu Plan: echte REDs bei1100/460 px (Fokus auf body), danach beide imUI22er-KorrekturlaufPASS. Auswahl/Kamera/Vault unverändert.
-- Vier Project-EinstiegePASS. Fünf neue Planning-FällePASS nach Korrektur einer Testannahme:594.00 und594 sind exakt derselbe Money-Wert; jetzt Domainvergleich plus unveränderte Overrides und Cancel-Bytes. Types/whole Ox/scoped ESLint PASS. Beitrag dieser neun Fälle zur vollen Coverage noch ungemessen.
-
-Verifikation gilt für genannten Source und Scope. Keine überlappenden Testzahlen addieren. Kein vollständiger neuer npm-run-check-Pass behauptet; Branchgrenze und finale gemeinsame UI/Host-Abnahme sind offen.
-
-## Aktueller visueller Arbeitsstand
-
-UI34er-Nachlauf und frühere309+gezielte22er-Prüfungen, Types/wholeLint sind dokumentiert. Originale Vier-Szenarien-Capture konnte funktional bestehen und trotzdem M14 visuell verfehlen: Auswahl löschte During und zeigte siebtes Before-Foto. Root f306 korrigiert das semantisch über den zurückbehaltenen Planning-Baseline; Galerie/Pin/Zeile behalten passende Phase, explizite außerhalb liegende Ziele bleiben erreichbar.
-
-Aktuelle M14-Light-Bilder zeigen sechs größere4:3Thumbnails, aktivesDuring, passendePins/Datum/Work, sichtbareÜberschrift/Add/Metadaten. Doppelte Thumbnail-Metadaten bleiben zugänglich, volle ausgewählte Metadaten sichtbar; Missing-/Thumbnailfehler bleiben sichtbar. Keine Filter- oder Scrollposition nur für Bilder zurücksetzen.
-
-M17-Light/Dark waren innerhalb der Grenzen. Custom legte zusätzlichen Platzbedarf offen. UI hat die kompakte Review-Transformation mit sichtbarem Workfortschritt und lesbaren Linklabels umgesetzt; normales M00 bleibt erhalten. Ein tatsächlicher Kontrastfehler der verschachtelten OpenRoom-CTA wurde mit der bereits vorhandenen semantischen Farbe korrigiert. **Der korrigierte Lauf auf bb77de0f hat inzwischen alle vier Szenarien bestanden**, einschließlich During/6 IDs, Sichtbarkeitsgrenzen und axe. Die Prüfung der acht Bilder fand noch eine Caption-/Maßlabel-Kollision in Custom bei 5% Zoom; UI5154504f liefert inzwischen drei echte predecessor-REDs und25/25GREEN für gemessene Dimension-/Inline-Form-Hindernisse, einschließlich sichtbarer Ausweichposition bei Clamping. Types/Lint/Browser folgen; kein finaler Pixelpass. Kein M14-Endpass trotz bestandenem Driver. Anschließend braucht M17 einen echten Zustand mit zwei nativ angelegten Decisions/Findings; das All-clear-Bild allein reicht nicht. Der ursprüngliche900 px-Notizablauf bleibt, zusätzlich1000 px-Matching-State.
-
-Aktuelle lokale Bildorte: UI-Worktree/harness-shots/materials-costs-evidence/light-photos-gallery.png und light-review-design.png; weitere Szenarien dark, custom-accent, german-constrained. Zeit/Source/Manifest prüfen: Dateien können durch spätere Läufe ersetzt werden. UI archiviert akzeptierte und verworfene Stände mit Hashes in eigenen Evidence-Ordnern. Eigene Dokumente: editor-ui-resume.md, editor-ui-verification.md, editor-gallery-selection.md, editor-review-density.md auf dem UI-Branch.
-
-Nach verifizierter UI-Integration muss der originale scripts/editor-visual-final-check.mjs auf eingefrorenem Source alle **neun** Journeys liefern:
-
-1. materials-costs-evidence
-2. renovation-workflow
-3. reference-plan
-4. editor-visual-resilience
-5. editor-visual-overview
-6. editor-object
-7. planning-recovery
-8. modal-busy-focus
-9. editor-downstream
-
-Danach18 Referenzen, editor-visual-fidelity-shots.mjs/editor-visual-comparisons.mjs, Hashes und capture-provenance.json prüfen und Bilder tatsächlich ansehen. Keine unterbrochenen Teilläufe zu einem Pass zusammensetzen. M03/M05-Captures existieren im Runner; frühere fehlende Bilder waren Folge eines Abbruchs. Echte Fixturegrößen12/18m² statt15,9/24,3m² und fehlende Building-Hierarchie sind dokumentierte Daten-/ADR-Unterschiede, keine Aufforderung zu gefälschten Werten.
+[Specs](../README.md), [Plan](implementation-plan.md), [Status](implementation-status.md), [Completion-Matrix](completion-matrix.md), [Integration](integration-map.md), [Hostvorbereitung](live-host-preparation.md), [Host-/CI-Audit](e-host-ci-audit.md), [UI-Join](joined-ui-f576-evidence.md). Historische Einzelbelege bleiben in diesen Docs und Git; für die nächste Aktion gilt dieser Snapshot plus neuere echte Receipts.
 
 ## Produktinvarianten
 
@@ -227,29 +106,16 @@ Erst nach konkretem Host-Belegpaket bleiben zwei menschliche Fragen: welche tats
 
 Computer-Use-Skill vor Hostbedienung lesen; unterstützte API nutzen. UIA konnte Dokumentroot melden trotz sichtbaremCaret; Fokus auch visuell prüfen. Nach asynchronen Aktionen Ergebnis nachlesen, Submit nicht blind wiederholen. Security-/Privacy-Abfragen nicht automatisch bestätigen oder per Dateien umgehen.
 
-## Nächste Schritte und Ressourcen
+## Nächste Schritte und technische Wiederaufnahme
 
-1. Aktuellen Git-/Task-/Prozesszustand gegen diesen Snapshot prüfen. Userpause/Weiter hat Vorrang.
-2. Die elf neuen Grenzfälle sind gezielt/type/lint geprüft und im aktuellen Checkpoint gesichert. Nächste volle CI-Messung und tatsächliche Branch-Gewinne auswerten; Owner-Testbeiträge nicht doppelt übernehmen.
-3. UI hat den nächsten schweren Slot für laufende begrenzte Capture-Korrekturen. Root hat seine letzten Tests/Types/Lint/Fallow beendet. Neue Handles immer tatsächlich nachlesen; alte IDs sind keine laufenden Prozesse.
-4. Branch-Coverage über echte erreichbare Fälle schließen und neue vollständigeCI-Artefakte vergleichen. KeinTest gegen unmögliche Baselines/privateHandler. SinnloseInvariantenarme nicht künstlich ausführen.
-5. UI-Ergebnis erst nach Source-/Evidence-Review integrieren; gemeinsamesFull9/18, vollständigeGates/CI/PR-Review und Hostpaket abschließen.
-6. Erst bei nachgewiesener vollständiger Erfüllung Goal abschließen. PR bleibtDraft bis dahin; Mensch entscheidetIntegration/Merge.
+1. Gitstatus/HEAD/origin, Taskstatus und tatsächlichen Slotowner prüfen. UI-Fokusnachbarn abwarten, gepushte Folge nachf576 reviewen und integrieren.
+2. Coverage den nächsten lokalen Prüfslot ausdrücklich übergeben; neue Grenzfälle/Mappercleanup prüfen und nur verifizierte Beiträge integrieren.
+3. Neuen gemeinsamen Voll-CI-Lauf stabil bis zu Artefakten lassen; Source-/Baumgleichheit prüfen, Floors und Health aus originalen Countern neu bewerten. Kein docs-onlyPush während eines wertvollen vollständigen Laufs ohne Anlass.
+4. UI auf eingefrorenem gemeinsamem Stand originale9Journeys/18Referenzen liefern lassen; Bilder tatsächlich beurteilen. Anschließend finalen Build im benannten Testvault installieren und H1–H6 abschließen.
+5. Bei verbleibenden physischen Geräte-/Screenreaderfragen erst konkretes Hostpaket liefern und die zwei notwendigen menschlichen Angaben erfragen. Keine Abschlussbehauptung aus Teiltests.
 
-Rechner ca. 8 GB RAM, Node 24.20.0. **Schwere lokale Tests, Builds, Browser-/Performancecaptures serialisieren**. Lesen, Sourcevorbereitung und Dokumentation parallel. Nie fremde Prozesse töten oder aus einem leerenLog/Timeout auf Prozessende schließen. wait/read-Taskresultate waren teilweiseleer trotz laufenderArbeit; konkreteOwnerhandles/Prozesspfad/Startzeit/Log verwenden.
+Root-Scratch: C:/Users/lum/AppData/Local/Temp/rp-finalization-20260907-88b9ee3d. Historische Full-CI-Originale95e/f306/45c/571 bewahren. Offizielle Fallow-Option: fallow health --coverage <original coverage-final.json> --coverage-root /home/runner/work/renovation-planner/renovation-planner. Originalcounter niemals umschreiben; Source- und Mappinggleichheit nachweisen.
 
-Scratch: **C:/Users/lum/AppData/Local/Temp/rp-finalization-20260907-88b9ee3d**.
+Browser ausdrücklich Edge: RP_CHROMIUM_EXECUTABLE=C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe, BROWSER=none. Kein behaupteter gepinnterChromium-/Obsidian-Pass. CI-Artefakte haben14TageRetention; fehlende Belege erneut erheben, nicht als bestanden erfinden.
 
-- full-checkpoint-73b0c205/: historischer Volltest/Fallow, originalesJSON/LCOV.
-- ci-95e7510b-linux24/: frühere volle CI-Daten; ci-f3067d82-linux24/: neue volle Daten.
-- ci-f3067d82-health.json: frischesHealth mitOriginal-CI-Daten und offiziellemPfadprefix.
-- planning-project-boundaries-native.log, planning-boundaries-green.log, planning-project-boundaries-types.log/static.json.
-- evidence-phase-selection-red/green/final.log; phase-composition-*; frühereNodehandles sind terminal.
-
-Browser: RP_CHROMIUM_EXECUTABLE=C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe, BROWSER=none. Edge-Evidence ist kein behaupteter gepinnterChromium- oder Obsidian-Lauf.
-
-Nach Neustart zuerst lesend: git status --short --branch; git worktree list; git log -5 --oneline; gh pr view 91; gh run list --branch codex/editor-plan-finalization. Falls Checkout auf neuemRechner fehlt, vom gepushten Topic-Branch fortsetzen, nicht blind main. Vorhandene Änderungen nicht überschreiben. npm ci nur bei fehlenden Abhängigkeiten und freiemschwerenSlot.
-
-Health mit roherLinux-CI-Datei: fallow health --coverage <coverage-final.json> --coverage-root /home/runner/work/renovation-planner/renovation-planner. Erst Gitbaum-/Sourcegleichheit prüfen. OriginalJSON/LCOV vor scopedRuns erhalten. Artefakte laufen nach14 Tagen ab; fallsLogsfehlen, Evidence/Commits verwenden und erforderlichePrüfung erneut durchführen, niemalsfehlendenBeleg durchPassbehauptung ersetzen.
-
-Dieses Dokument bei jedem wesentlichenCheckpoint ersetzen/aktualisieren: aktuellerSource, echteErgebnisse, Ownergrenzen, ungesicherteWIPs, nächsteAktion. HistorischeDetails bleiben in verlinktenEvidence-Dateien undGit. Ein Goal nicht wegen Nutzungslimit oder Arbeitsende als fertig markieren.
+Nach Neustart lesend: git status --short --branch; git worktree list; git log -5 --oneline; gh pr view91; gh run list --branch codex/editor-plan-finalization. Bei neuem Rechner vom gepushten Topicbranch fortsetzen; vorhandene Änderungen erhalten. npmci nur bei fehlenden Abhängigkeiten und freiemSlot. Dieses Dokument bei wesentlichen Checkpoints aktualisieren; Goal bleibt bis zur tatsächlichen Erfüllung aktiv.

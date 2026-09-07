@@ -6,6 +6,10 @@ import { runAreaBrowserMatrix, activate, tabTo } from './editor-area-browser.mjs
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 const form = '[data-rp-form="planning"]';
 async function shot(page, scenario, out, state) {
+ if (state === 'photos') await page.waitForFunction(() => {
+  const images = [...document.querySelectorAll('img.rp-evidence-thumbnail')];
+  return images.length > 0 && images.every(image => image.complete && image.naturalWidth > 0);
+ });
  await recordShot(page, scenario, out, state);
  if (['materials', 'costs', 'photos'].includes(state)) await editorAccessibility(page, scenario, out, state);
 }
@@ -53,4 +57,4 @@ export async function journey(page, scenario, out) {
  await work(page); await materials(page, scenario, out); await costs(page, scenario, out); await evidence(page, scenario, out);
  return { theme: tokens, storage: 'production application services and repositories over FakeVault', journey: 'Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review', input: 'Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts', reflow: 'material draft and native focus preserved', history: 'evidence undo/redo', scope: 'browser host file open is recorded, not a live Obsidian leaf' };
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await runAreaBrowserMatrix('materials-costs-evidence', '&reference&planning', journey, '[data-rp-empty="floor-start"]');
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await runAreaBrowserMatrix('materials-costs-evidence', `&reference&planning${process.argv.includes('--design') ? '&fidelity' : ''}`, journey, '[data-rp-empty="floor-start"]');

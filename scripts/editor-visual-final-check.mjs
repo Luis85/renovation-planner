@@ -17,7 +17,7 @@ for (const directory of [...journeys.map(name => `harness-shots/${name}`), `${ro
 	await rm(target, { recursive: true, force: true });
 }
 const commands = [
-	['editor-planning-check.mjs'], ['editor-renovation-check.mjs'], ['editor-reference-check.mjs'],
+	['editor-planning-check.mjs', '--design'], ['editor-renovation-check.mjs', '--design'], ['editor-reference-check.mjs'],
 	['editor-visual-resilience.mjs'], ['editor-visual-overview.mjs', '--design'], ['editor-object-check.mjs'],
 	['editor-recovery-check.mjs'],
 	['editor-modal-busy-check.mjs'],

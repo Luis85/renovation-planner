@@ -88,3 +88,11 @@ totals are compared after returning. Work and Costs each receive a visible-surfa
 These additions are prepared for the next complete run; the earlier four-scenario evidence does
 not verify them. Failure artifacts now include the active element and Reference/rail visibility
 to distinguish focus regression from a harness readiness failure.
+
+The final runner also selects `--design` for the original planning and renovation journeys,
+matching the overview's existing opt-in mode. Ordinary runs retain the historical smoke-chart
+reference. All original assertions remain in place. The photo capture additionally waits for
+the actual thumbnail to finish loading with a nonzero natural width; a blank placeholder cannot
+qualify as the final M14 image. No replacement screenshot or fabricated Evidence record is used.
+These source-only preparations passed JavaScript syntax and diff checks; browser acceptance is
+pending the next joined run.

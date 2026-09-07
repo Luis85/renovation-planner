@@ -14,6 +14,7 @@ import RenovationForm from '../../editor/renovation/RenovationForm.vue';
 import { notifyFault, notifyOperationFailure } from '../../notices/notify';
 import { tr } from '../../i18n/strings';
 import type { useProjectWorkRead } from './projectWorkRead';
+import { captureDownstreamDialogFocus } from '../downstreamDialogFocus';
 
 export function useProjectWorkActions(context: RenovationProjectDeps, read: ReturnType<typeof useProjectWorkRead>) {
  const dialogs = useDialogStore(), save = useSaveStateStore(), history = new CommandHistory(), ledger = new SessionWriteLedger();
@@ -43,10 +44,12 @@ export function useProjectWorkActions(context: RenovationProjectDeps, read: Retu
    const current = baseline.value.plan.entity.renovation?.work.find(item => item.id === row.work.id);
    if (JSON.stringify(current) !== JSON.stringify(row.work)) { notifyOperationFailure(undoSuperseded(row.planId)); await read.refresh(); return; }
    const busy = ref(false);
+   const restoreFocus = captureDownstreamDialogFocus();
    await dialogs.openDialog({ kind: 'form', title: tr('renovation.edit.work'), component: markRaw(RenovationForm), busy,
     props: { baseline: baseline.value, draft: renovationDraft('work', row.work.roomId, row.work.id, baseline.value.plan.entity.renovation),
      busy, paused, retry: read.refresh, openSource: () => context.openRecord?.(row.planId).then(() => undefined) ?? Promise.resolve(),
      dispatch: (input: RenovationInput) => dispatch(baseline.value, input) } });
+   await restoreFocus();
   } catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'project.work-edit-failed'); }
   finally { loading.value = false; }
  }

@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Work and Quote dialogs return keyboard focus to the Project control when a refreshed row removes their opener, including a Quote becoming received or a peer deleting the edited record.
+
 - Reference dialogs return keyboard focus to the originating Layers/Details control or width-recovery action when reflow hides their opener; cancellation preserves the saved reference.
 
 - Recovery regression coverage: native cancellation after peer-deleted element edits, corrected Object geometry and Undo, retired leaf callbacks, and composed downstream repository fault boundaries. Structural edit/removal share one fresh-baseline recovery decision.

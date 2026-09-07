@@ -9,6 +9,7 @@ import type { QuoteInput } from '../../../application/commands/quote/QuoteServic
 import { persistenceError } from '../../../application/errors';
 import { useRenovationProjectContext } from '../RenovationProjectContext';
 import { useLiveRead } from '../../composables/live-read';
+import { captureDownstreamDialogFocus } from '../downstreamDialogFocus';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import NamedCatalogueForm from '../../catalogue/NamedCatalogueForm.vue';
 import QuoteForm from './QuoteForm.vue';
@@ -38,15 +39,19 @@ async function save(input: QuoteInput) {
 async function edit(original?: Loaded<Quote>): Promise<void> {
  if (blocked.value || dialogs.current || !read.data.value || original?.entity.status === 'received') return;
  const busy = ref(false);
+ const restoreFocus = captureDownstreamDialogFocus();
  await dialogs.openDialog({ kind: 'form', title: tr('quote.edit'), component: markRaw(QuoteForm), busy,
   props: { read: read.data.value, choices: read.data, original, busy, paused: read.paused, retry: read.refresh, save } });
+ await restoreFocus();
 }
 async function revise(offer: Loaded<Quote>): Promise<void> {
  if (blocked.value || dialogs.current || !read.data.value) return;
  const busy = ref(false);
  const original = { ...offer, entity: { ...offer.entity, id: createEntityId('quote'), status: 'draft' as const } };
+ const restoreFocus = captureDownstreamDialogFocus();
  await dialogs.openDialog({ kind: 'form', title: tr('quote.revise'), component: markRaw(QuoteForm), busy,
   props: { read: read.data.value, choices: read.data, original, busy, paused: read.paused, retry: read.refresh, save: (input: QuoteInput) => save({ ...input, expected: 'absent' }) } });
+ await restoreFocus();
 }
 async function supplier(): Promise<void> {
  if (blocked.value || dialogs.current || !services) return;

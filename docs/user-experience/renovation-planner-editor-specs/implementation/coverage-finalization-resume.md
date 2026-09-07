@@ -10,6 +10,26 @@ Root owns shared status files and the final combined source/acceptance.
 
 ## Latest checkpoint
 
+**Joined owner package verified on Root571 source:** Review6 + Outline2 pass 8/8
+(33.46 seconds); public validation passes 3/3 separately (10.16 seconds). Types,
+whole Oxlint, scoped ESLint and Fallow static scans pass. The common scoped coverage
+run passes all 11 cases (38.82 seconds) and yields exactly +6 branches/+5 statements/
+2 functions in comparable maps against Root571's original full counters.
+[Combined exact receipt](evidence/joined-owner-test-counter-gains.json).
+
+Current Health is **not green**: original full Root571 coverage maps 747/747 files
+to the identical source, and finds `ReviewSummary.vue` template cognitive complexity
+17 > 15. Root/UI own that correction. The full Root571 CI also has 10 UI failures
+(nine warning-spacing expectations, one focus-style contract). UI correction `65d34e06`
+is ready for its next heavy run. Existing failures may depress coverage; avoid adding
+duplicate tests for the paths those fixes restore. Root571 full counts remain
+12534/12821 branches, a historical deficit of 31 on this precise source/test set.
+
+All owner handles 79591/55714/38229 are terminal and the slot has been explicitly
+returned to Root/UI. Next: deliver the green test files/receipts, await the corrected
+common source and complete full CI counters, then close the actual remaining gaps.
+The overall unchanged `npm run check` and final coverage target remain outstanding.
+
 Common source merged as `05ddc506` from Root `57144c81`; `git diff` against Root's
 `src/` is empty. The sole conflict was the added Root integration paragraph in the
 Requirement proof; both verification records were retained. Imported raw UI logs have

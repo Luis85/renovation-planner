@@ -50,6 +50,13 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 		:key="type"
 		:value="type"
 	>{{ tr(`planning.${type}`) }}</option></select></label>
+	<label>{{ tr('planning.evidence-date') }}<input
+		v-model="draft.date"
+		:readonly="paused"
+		name="evidence-date"
+		:placeholder="tr('planning.evidence-date-format')"
+	></label>
+	<p>{{ tr('planning.evidence-date-help') }}</p>
 	<label>{{ tr('planning.phase') }}<select
 		v-model="draft.phase"
 		:aria-disabled="paused"

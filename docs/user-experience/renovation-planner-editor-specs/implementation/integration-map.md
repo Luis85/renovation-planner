@@ -4,6 +4,9 @@ Status: active contribution on `codex/editor-plan-finalization`, isolated in `.w
 
 ## Latest accepted continuation checkpoints
 
+The current checkpoint also incorporates E `7fd89801` → `a7d61da1`, E `fe76028e` → `eb08df28`, UI `f8fcc32b` → `ae7685a0`, E `300a0929` → `11e5aa26`, UI `454e7b61` → `08797c24`, and UI `905f3f30` → `56d73f3e`. Root adds dated evidence metadata, schema 8, retained pin projection and the distinct Work link. The capture Promise executor is corrected in root; the equivalent UI preparation is not counted as a second patch. Current target checks/types/lint pass; final full coverage and 9/18/host acceptance remain open.
+
+
 - Native downstream choice coverage: UI `51aaac72225baa2da050dcaa6ba641ff8e120853` → `9acb6e29`. Three new native test files and dedicated evidence; owner 12/12 cases, types/whole Oxlint/scoped ESLint and dead-code/clone checks pass. Relative to matching c1091086 coverage maps, the cases cover 16 previously missed statements, nine functions and 22 branches. This is a measured delta, not a full coverage pass.
 
 
@@ -28,7 +31,7 @@ The latest committed production correction is 0d115e38. Root saved-source and Re
 - Hardening: `7f0518741760062fff0ae119c59770bb829f7f7c`, integrated as `63857ec6208196dbf16efbf6a6120dbc349649ff`. Discarding an intended-only generic element removes its label with its geometry; conditional Undo restores both. Owner evidence: 60 tests in eight files passed, removal module 100% isolated coverage, types and scoped static checks passed.
 - UI: `fb48fb64f3191078e1ad5ba35dbda8c5fd293310`, integrated as `14093b4d`. Native Room dimensions, direct Room/wall actions and pending-tool deactivation guards use the existing geometry command and Room edit lifecycle. Owner evidence: 122 tests in nine files passed; isolated 99.30% statements, 98.92% branches, 100% functions/lines; build/types, whole Oxlint and scoped ESLint passed. Four Edge 152 journeys and twelve axe scans reported zero violations; incomplete checks and live-host limits remain documented in [editor-direct-actions.md](editor-direct-actions.md).
 
-These are bounded checkpoint results. The latest complete joined CI is c1091086: all four platforms pass 625 files/7,967 tests (69 skipped), failing only the unchanged statement, function and branch coverage floors. Coverage is 98.68% statements, 98.65% functions, 96.87% branches and 99.31% lines. The local run has the identical coverage but also three unchanged 60-second build/lint-test timeouts. Fresh Fallow passes with zero dead-code, clone or above-threshold health findings; its existing hidden-source warning remains. Earlier 9e2b89f8, cd362dd0 and 63173897 results are historical; see [downstream evidence](downstream-planning-evidence.md). Native icons and representative matching-state fixtures are integrated; the final eight journeys, new downstream ninth journey and eighteen image comparisons must run after all required production source joins.
+These are bounded checkpoint results. The latest complete joined CI is `5557385f`: all four platforms pass build/types, whole lint and 633 files/8,001 tests (69 skipped). Only the unchanged statement (98.86%) and branch (97.27%) coverage floors fail; functions (99.02%) and lines (99.43%) pass. Audit passes; this CI does not reach Fallow. The latest separate full Fallow pass remains c1091086, with zero dead-code, clone or above-threshold health findings and the existing hidden-source warning. The restarted original browser runner passes six four-scenario journeys and stops at the seventh German recovery resize/layout race; final nine-journey/eighteen-reference acceptance and live-host acceptance remain required. See [downstream evidence](downstream-planning-evidence.md).
 
 ## Pushed predecessor ancestry
 

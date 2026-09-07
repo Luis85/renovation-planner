@@ -12,6 +12,9 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Evidence supports explicit capture/document dates without inferring file timestamps, stable gallery/pin date order during recovery, and navigation to its separately linked Work. Dated Plans use schema 8 so older writers cannot discard the field.
+- Evidence pins show host type symbols beside their numbers, and Room captions remain clear of pins. Inspector overview links preserve native focus when their source control disappears.
+
 - Work and Quote recovery opens the actual saved source after failed read-back, including a newly created Quote and Undo across floors. Successful Retry restores keyboard focus when its warning disappears; source opening and retry never replay the write.
 
 - Work and Quote dialogs return keyboard focus to the Project control when a refreshed row removes their opener, including a Quote becoming received or a peer deleting the edited record.

@@ -38,6 +38,8 @@ export interface CostRecord extends ContextLink {
 export const EVIDENCE_TYPES = ['document', 'photo', 'note'] as const;
 export const EVIDENCE_PHASES = ['before', 'during', 'after', 'hidden-services'] as const;
 export interface Evidence extends ContextLink {
+	/** Explicit capture/document date. Omitted means unknown; never inferred from file timestamps. */
+	readonly date?: string;
 	readonly links?: readonly SpatialLink[];
 	readonly description: string;
 	readonly type: typeof EVIDENCE_TYPES[number];

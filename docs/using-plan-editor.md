@@ -51,7 +51,9 @@ Select a Room or associated element, then open the current section’s navigatio
    explanation to understand what contributes to the displayed totals. Procurement does not
    itself record a payment.
 6. **Evidence** links ordinary vault files, notes and photos. Select a photo thumbnail to
-   show its metadata. Phase filters organize the gallery or list; following a specific record reveals it even if another phase was selected before.
+   show its metadata. Optionally record its capture or document date as YYYY-MM-DD; leave it
+   blank when unknown. Recorded dates sort chronologically, with undated records following;
+   the date is never taken from the file timestamp. Phase filters organize the gallery or list; following a specific record reveals it even if another phase was selected before.
 7. **Review** identifies the supported planning gaps and links back to the source controls.
    A generated Review note summarizes these findings; it is not a construction approval.
 

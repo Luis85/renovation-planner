@@ -3053,3 +3053,8 @@ and [user recovery guidance](../../using-planning-recovery.md) for measured acce
 ## Editor completion amendment — generic floor elements (2026-09-07)
 
 [ADR-0023](../adrs/0023-generic-spatial-elements.md) extends the existing floor sidecar current/intended Structure with generic Object, Path, Fence and Measurement identities and world-millimetre points. Their editable names remain Plan Markdown metadata joined by ID; no second persistence authority or catalogue is introduced. Non-empty element payloads use geometry v4 and Plan metadata v6 after shared-context v5. Explicit element-length/object-area Requirement sources use v3 and the existing quantity engine; older payloads retain their prior written versions. §26 readability and its self-intersection/winding deferrals remain unchanged. Implementation and host acceptance status are recorded in the editor completion matrix; this amendment is not a verification pass.
+
+
+### Editor completion amendment — evidence dates (2026-09-07)
+
+M14's explicit capture/document date remains optional metadata on the existing Plan Evidence relationship. ADR-0022 defines the calendar-date validation, unknown-date semantics, stable date order shared by gallery/list/pins, and retained-snapshot consistency during failed read-back. No date is inferred from a file timestamp. Plans that contain this capability write schema8; pure read migration adds no date or filesystem write, and older-capability payloads retain their appropriate written discriminator. Existing guarded writes, date-aware owned-fact comparison and conditional history remain authoritative. Final verification is recorded in the editor completion matrix.

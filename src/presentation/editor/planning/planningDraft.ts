@@ -17,7 +17,7 @@ export interface PlanningDraft {
 	title: string; assetId: string; requirementId: string; waste: string; override: string;
 	source: RequirementSource; purchased: string; reserved: string;
 	category: CostRecord['category']; planned: string; facts: { id: string; stage: 'committed' | 'actual'; amount: string; description: string; commitmentId: string; cancelled: boolean }[];
-	cancelled: boolean; path: string; subpath: string; type: Evidence['type']; phase: Evidence['phase']; pin: boolean; pinX: string; pinY: string;
+	date?: string; cancelled: boolean; path: string; subpath: string; type: Evidence['type']; phase: Evidence['phase']; pin: boolean; pinX: string; pinY: string;
 }
 function materialDraft(baseline: PlanningBaseline, roomId: string, id: string, focusedId: string, targetId: string) {
  const material = baseline.materials.find(item => item.entity.id === id && inRenovationScope({ roomId: item.entity.origin.zoneId, targetId: item.entity.source?.targetId ?? item.entity.origin.zoneId }, roomId, targetId))?.entity;
@@ -32,7 +32,9 @@ function costDraft(cost: CostRecord | undefined) {
  return { category: cost?.category ?? 'material' as const, planned: cost?.planned?.amount ?? '', facts: cost?.facts.map(fact => ({ ...fact, amount: fact.amount.amount })) ?? [], cancelled: cost?.cancelled ?? false };
 }
 function evidenceDraft(evidence: Evidence | undefined) {
- return { path: evidence?.path ?? '', subpath: evidence?.subpath ?? '', type: evidence?.type ?? 'document' as const, phase: evidence?.phase ?? 'before' as const, pin: !!evidence?.pin, pinX: String(evidence?.pin?.x ?? 0.5), pinY: String(evidence?.pin?.y ?? 0.5) };
+ const current: Partial<Evidence> = evidence ?? {};
+ const { date = '', path = '', subpath = '', type = 'document', phase = 'before', pin } = current;
+ return { date, path, subpath, type, phase, pin: !!pin, pinX: String(pin?.x ?? 0.5), pinY: String(pin?.y ?? 0.5) };
 }
 function procurementDraft(procurement: Procurement | undefined) { return { purchased: procurement?.purchased ?? '0', reserved: procurement?.reserved ?? '0' }; }
 type PlanningFocus = string | { focusedId?: string; targetId?: string };
@@ -78,7 +80,7 @@ export function planningInput(draft: PlanningDraft, baseline: PlanningBaseline):
 		return { renovation: { ...renovation, depth: { ...depth, costs: replace(depth.costs, record) } }, intended: baseline.geometry.document.intended };
 	}
 	const original = depth.evidence.find(item => item.id === draft.id);
-	const record: Evidence = { ...original, ...link, description: draft.title, type: draft.type, phase: draft.phase, path: draft.path, subpath: draft.subpath,
+	const record: Evidence = { ...original, ...link, description: draft.title, date: draft.date?.trim() || undefined, type: draft.type, phase: draft.phase, path: draft.path, subpath: draft.subpath,
 		recordId: draft.recordId, pin: draft.pin ? { x: Number(decimalInput(draft.pinX)), y: Number(decimalInput(draft.pinY)) } : null };
 	return { renovation: { ...renovation, depth: { ...depth, evidence: replace(depth.evidence, record) } }, intended: baseline.geometry.document.intended };
 }

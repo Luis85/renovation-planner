@@ -11,6 +11,7 @@
  * therefore listens on `EditorSurface`'s DOM container rather than on the Stage, which is
  * also what lets it keep working once individual nodes start listening.
  */
+import { useEvidencePins } from './planning/evidencePins';
 import type { Point } from '../../core/geometry/Point';
 import { computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -48,6 +49,8 @@ const workspace = useWorkspaceStore();
 const project = useProjectStore();
 const selection = useSelectionStore();
 const runtime = useEditorRuntime();
+// Pins and caption obstacles use the same retained evidence facts as the Inspector.
+const evidencePins = useEvidencePins(() => runtime.planning.baseline.value?.plan.entity.renovation?.depth?.evidence ?? []);
 const context = usePlanEditorContext();
 const { viewport } = storeToRefs(editor);
 const { layerVisibility } = storeToRefs(workspace);
@@ -118,6 +121,7 @@ const framedBounds = usePlanFrame();
 					:visible="layerVisibility.architecture"
 				/>
 				<ZoneLayer
+					:pins="evidencePins"
 					:transform="transform"
 					:tokens="props.tokens"
 					:visible="layerVisibility.zone"
@@ -134,6 +138,7 @@ const framedBounds = usePlanFrame();
 					:visible="layerVisibility.asset"
 				/>
 				<RenovationLayer
+					:pins="evidencePins"
 					:tokens="props.tokens"
 					:transform="transform"
 					:zoom="viewport.zoom"

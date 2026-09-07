@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { orderEvidenceByDate } from './evidenceOrder';
 import SharedRecordContexts from '../renovation/SharedRecordContexts.vue';
 import { useRenovationContextLabel } from '../renovation/renovationContextLabel';
 import { inRenovationScope } from '../renovation/renovationSummary';
@@ -18,11 +19,12 @@ const planning = usePlanningContext(), session = useRenovationSession(), error =
 let alive = true; onBeforeUnmount(() => { alive = false; });
 const choices = computed(() => recordChoices(props.baseline, session.roomId));
 const type = computed(() => session.mode === 'photos' ? 'photo' : session.mode === 'notes' ? 'note' : 'document');
-const rows = computed(() => (props.baseline.plan.entity.renovation?.depth?.evidence ?? []).filter(item => inRenovationScope(item, session.roomId, session.targetId) && item.type === type.value && (!session.evidencePhase || item.phase === session.evidencePhase)));
+const rows = computed(() => orderEvidenceByDate((props.baseline.plan.entity.renovation?.depth?.evidence ?? []).filter(item => inRenovationScope(item, session.roomId, session.targetId) && item.type === type.value && (!session.evidencePhase || item.phase === session.evidencePhase))));
 function isSelected(item: Evidence): boolean {
 	return !!session.focusedId && (session.focusedId === item.id || session.focusedId === item.recordId);
 }
 async function open(path: string, subpath: string): Promise<void> { const result = await planning.files?.open(path, subpath); if (alive && result && !result.ok) error.value = tr('planning.file-failed'); }
+function relatedLabel(id: string): string { return choices.value.find(record => record.id === id)?.label || id; }
 function related(id: string): void {
  const baseline = props.baseline;
  const renovation = baseline.plan.entity.renovation ?? EMPTY_RENOVATION;
@@ -123,12 +125,20 @@ function unlink(id: string): void {
 					{{ tr('planning.unlink') }}
 				</button>
 			</div>
+			<p v-if="item.workId && item.workId !== item.recordId">
+				<button
+					type="button"
+					@click="related(item.workId)"
+				>
+					{{ tr('renovation.work') }}: {{ relatedLabel(item.workId) }}
+				</button>
+			</p>
 			<p v-if="item.recordId">
 				<button
 					type="button"
 					@click="related(item.recordId)"
 				>
-					{{ tr('planning.linked-record') }}: {{ choices.find(record => record.id === item.recordId)?.label || item.recordId }}
+					{{ tr('planning.linked-record') }}: {{ relatedLabel(item.recordId) }}
 				</button>
 			</p>
 		</li>

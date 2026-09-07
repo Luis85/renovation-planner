@@ -19,5 +19,5 @@ function depthContent(depth: PlanningDepth): unknown {
  return [depth.procurement.map(item => [...context(item), item.requirementId, item.unit, item.purchased, item.reserved]),
  depth.costs.map(item => [...context(item), item.title, item.category, item.requirementId, item.planned ? [item.planned.amount, item.planned.currency] : null, item.cancelled,
  item.facts.map(fact => [fact.id, fact.stage, fact.amount.amount, fact.amount.currency, fact.description, fact.commitmentId, fact.cancelled])]),
- depth.evidence.map(item => [...context(item), linksContent(item), item.description, item.type, item.phase, item.path, item.subpath, item.recordId, item.pin ? [item.pin.x, item.pin.y] : null])];
+ depth.evidence.map(item => [...context(item), linksContent(item), item.description, item.type, item.phase, item.date, item.path, item.subpath, item.recordId, item.pin ? [item.pin.x, item.pin.y] : null])];
 }

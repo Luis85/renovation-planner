@@ -46,6 +46,18 @@ Coverage hat npm ci und erste Prüfungen beendet; Slot freigegeben. Root überni
 aus227c23b3 nur die zwei grünen öffentlichen Commandfälle und deren gemessenen
 Counter-Beleg (+2Arme/+1Statement); Marker-Tests bleiben bis zur UI-Abstimmung außen vor.
 
+## Geprüfte Requirement-Bereinigung
+
+Coverage83ca2f75 wurde selektiv übernommen: der private Requirement.with-Parameter
+schließt requiredDate jetzt typseitig aus und übernimmt stets das bestehende Datum.
+Alle sieben öffentlichen Aufrufer wurden geprüft; keiner aktualisierte es.
+Öffentliche Erstellung, Hydrierung und Datumsvalidierung bleiben erhalten.
+Owner16/16 plus Types/Lint/static; Root-Integration16/16 in6,04s. Exakte Messung:
+vier Gesamtarme entfernt, davon drei vorher ungetroffene und ein getroffener
+Erhaltungsarm; Statements unverändert. Kein neues Health-Ergebnis aus alten
+Requirement-Countern ableiten; nächste vollständigeCI muss den neuen Source messen.
+[Datums-Evidence](requirement-date-preservation.md).
+
 ## Verbindliche Quellen
 
 Zuerst vorhandene AGENTS.md und bei .codex/ deren instructions.md/Workflow lesen. Beim letzten Audit waren sie im Repo nicht vorhanden; Nutzeranweisungen im Task gelten weiterhin. [CLAUDE.md](../../../../CLAUDE.md) und [SDD](../../../development/sdds/obsidian-renovation-planner-SDD.md) enthalten die Projektregeln. Aktuelle akzeptierte ADR-/SDD-Amendments gehen alten Snapshots vor.
@@ -69,7 +81,7 @@ Repo: https://github.com/Luis85/renovation-planner. [PR #91](https://github.com/
 
 Root arbeitet bereits im isolierten Topic-Worktree. Keine Änderungen im main-Checkout. Nur die zwei bestehenden benutzereigenen Implementation-Tasks koordinieren; keine Ersatz-Tasks erzeugen. Der Nutzer hat zusätzliche begrenzte parallele Hilfsagenten erlaubt. Root-Helfer editor_coverage_audit arbeitet nur in ausdrücklich zugewiesenen neuen Test-/Evidence-Dateien.
 
-Root-Produktion ist seit **f3067d82f413de6c67f9d4598608ce1e1a059cb3** unverändert; neuester vollständig gemessener Testcheckpoint ist **45c58609596734f17570a22074d05f3e2f81fafb**. Nachfolger ergänzen Tests/Dokumentation; aktuellen HEAD/Pushstand mit Git prüfen. E9cc0fa6d (vier Project-Einstiegsfälle) ist als **3b12f432** übernommen. Die fünf neuen Planning-Fälle sind nativ/type/lint geprüft. Zwei weitere optionale Spatial-Removal-Fixtures bestehen nativ 2/2 (37,08 s); Types/Oxlint/scoped ESLint und statischer Fallow sind ebenfalls grün: tests/presentation/editor/spatialRemovalLegacy.test.ts und spatial-removal-legacy-evidence.md. Vor Annahmen deren aktuellen Git- und Prüfstatus lesen.
+Root-Produktion baute auf **f3067d82f413de6c67f9d4598608ce1e1a059cb3** auf; danach wurde ausschließlich die unten beschriebene private Requirement-Datumsaktualisierung bereinigt; neuester vollständig gemessener Testcheckpoint ist **45c58609596734f17570a22074d05f3e2f81fafb**. Nachfolger ergänzen Tests/Dokumentation; aktuellen HEAD/Pushstand mit Git prüfen. E9cc0fa6d (vier Project-Einstiegsfälle) ist als **3b12f432** übernommen. Die fünf neuen Planning-Fälle sind nativ/type/lint geprüft. Zwei weitere optionale Spatial-Removal-Fixtures bestehen nativ 2/2 (37,08 s); Types/Oxlint/scoped ESLint und statischer Fallow sind ebenfalls grün: tests/presentation/editor/spatialRemovalLegacy.test.ts und spatial-removal-legacy-evidence.md. Vor Annahmen deren aktuellen Git- und Prüfstatus lesen.
 
 Aktuelle E-Branches:
 

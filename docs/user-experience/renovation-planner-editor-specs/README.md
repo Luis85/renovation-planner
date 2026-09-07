@@ -5,6 +5,10 @@
 **Primary user:** Private homeowner with little or no CAD experience  
 **Source:** Locked Product Design mockup suite created in September 2026
 
+## Current implementation handoff
+
+For continuation after a usage limit or a later session, start with [RESUME.md](implementation/RESUME.md). It records the pushed integration and WIP branches, verification results, live-process checks, ownership and the remaining acceptance work. Revalidate the snapshot against current repository and task state before acting.
+
 ## Purpose
 
 This specification set translates the locked editor mockups into implementable product-design contracts. It deliberately separates user-facing concepts from internal geometry concepts and keeps the spatial canvas and renovation project model aligned.

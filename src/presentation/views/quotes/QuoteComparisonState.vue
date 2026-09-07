@@ -22,6 +22,11 @@ const context = useRenovationProjectContext(), dialogs = useDialogStore(), servi
 const read = useLiveRead(services ? { read: () => services.read(props.projectId as ProjectId), onChanged: services.onChanged } : undefined);
 const writing = ref(false), saved = ref<string | null>(null);
 const blocked = computed(() => !!context.readOnly || read.paused.value || writing.value);
+const savedLabel = computed(() => read.error.value ? 'save-state.saved-refresh-needed' : 'save-state.saved');
+const partial = computed(() => {
+ const current = read.data.value;
+ return !!current && !!(current.unreadable || current.work.unreadablePlans || current.work.roomsIncomplete);
+});
 const originRoom = computed(() => context.origin?.roomId ? read.data.value?.work.rooms.find(room => room.id === context.origin?.roomId)?.name ?? tr('quote.unresolved', { id: context.origin.roomId }) : '');
 const today = ref('');
 function updateDate(): void { const date = new Date(); today.value = [String(date.getFullYear()).padStart(4, '0'), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-'); }
@@ -104,7 +109,7 @@ async function supplier(): Promise<void> {
 				v-if="saved"
 				role="status"
 			>
-				{{ tr(read.error.value ? 'save-state.saved-refresh-needed' : 'save-state.saved') }}
+				{{ tr(savedLabel) }}
 			</p>
 			<p
 				v-if="read.error.value"
@@ -126,7 +131,7 @@ async function supplier(): Promise<void> {
 				:blocked="writing || read.loading.value"
 			/>
 			<p
-				v-if="read.data.value && (read.data.value.unreadable || read.data.value.work.unreadablePlans || read.data.value.work.roomsIncomplete)"
+				v-if="partial"
 				role="status"
 			>
 				{{ tr('quote.partial') }}

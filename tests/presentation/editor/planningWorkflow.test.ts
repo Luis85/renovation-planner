@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { tr } from '../../../src/presentation/i18n/strings';
 import { withPlanRenovation } from '../../../src/domain/plan/Plan';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +25,11 @@ async function material(rig: Awaited<ReturnType<typeof setup>>) {
 }
 async function action(rig: Awaited<ReturnType<typeof setup>>, text: string, scope = '.rp-renovation-inspector') {
  const button = rig.wrapper.findAll(`${scope} button`).find(candidate => candidate.text() === text); await expectDefined(button, text).trigger('click'); await settle();
+}
+async function followEvidenceRelation(rig: Awaited<ReturnType<typeof setup>>, id: string): Promise<void> {
+ const row = rig.wrapper.get('[data-rp-record="' + id + '"]');
+ const button = row.findAll('button').find(candidate => candidate.text().startsWith(tr('planning.linked-record') + ':'));
+ await expectDefined(button, 'related record link').trigger('click'); await settle();
 }
 function evidenceSelected(rig: Awaited<ReturnType<typeof setup>>, id: string, selected: boolean): void {
  const row = rig.wrapper.get(`[data-rp-record="${id}"]`), title = row.get('button');
@@ -193,9 +199,9 @@ describe('connected planning editor', () => {
  const cost = { id: 'source-cost', roomId, targetId: roomId, workId: work.id, title: 'Manual labor', category: 'labor' as const, requirementId: '', planned: of('100', 'EUR'), facts: [], cancelled: true };
  const evidence = [work.id, decision.id, cost.id, subject.id].map((recordId, index) => ({ id: `file-${index}`, roomId, targetId: roomId, workId: work.id, recordId, description: `Evidence ${index}`, path: 'scan.pdf', subpath: '', type: 'document' as const, phase: 'during' as const, pin: null }));
  expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: { subjects: [subject], work: [work], decisions: [decision], depth: { procurement: [], costs: [cost], evidence } }, intended: undefined }, rig.runtime.structureTask.ledger))); rig.changePlan(); await settle();
- for (const [index, mode] of ['work', 'planned', 'costs'].entries()) { rig.runtime.renovation.focus(roomId, 'documents'); await settle(); await rig.wrapper.get(`[data-rp-record="file-${index}"] > p > button`).trigger('click'); await settle(); expect(rig.session.mode).toBe(mode); }
+ for (const [index, mode] of ['work', 'planned', 'costs'].entries()) { rig.runtime.renovation.focus(roomId, 'documents'); await settle(); await followEvidenceRelation(rig, `file-${index}`); expect(rig.session.mode).toBe(mode); }
  expect(rig.wrapper.text()).toContain('Cancelled'); expect(rig.wrapper.text()).toContain('Finish');
- rig.runtime.renovation.focus(roomId, 'documents'); await settle(); await rig.wrapper.get('[data-rp-record="file-3"] > p > button').trigger('click'); await settle();
+ rig.runtime.renovation.focus(roomId, 'documents'); await settle(); await followEvidenceRelation(rig, 'file-3');
  expect(rig.session.mode).toBe('existing'); expect(rig.wrapper.get('[data-rp-record="source-subject"]').text()).toContain('Timber');
  rig.runtime.renovation.focus(roomId, 'work', work.id); await settle(); const remove = rig.wrapper.findAll('[data-rp-record="source-work"] button').find(button => button.text() === 'Delete record'); await expectDefined(remove, 'remove Work').trigger('click'); await settle(); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Manual labor'); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Evidence 0'); rig.dialogs.resolve('cancel');
  });

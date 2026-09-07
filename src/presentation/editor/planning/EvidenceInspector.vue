@@ -25,6 +25,12 @@ function isSelected(item: Evidence): boolean {
 }
 async function open(path: string, subpath: string): Promise<void> { const result = await planning.files?.open(path, subpath); if (alive && result && !result.ok) error.value = tr('planning.file-failed'); }
 function relatedLabel(id: string): string { return choices.value.find(record => record.id === id)?.label || id; }
+function relationLinks(item: Evidence): { id: string; label: string }[] {
+ const links = [];
+ if (item.workId && item.workId !== item.recordId) links.push({ id: item.workId, label: tr('renovation.work') + ': ' + relatedLabel(item.workId) });
+ if (item.recordId) links.push({ id: item.recordId, label: tr('planning.linked-record') + ': ' + relatedLabel(item.recordId) });
+ return links;
+}
 function related(id: string): void {
  const baseline = props.baseline;
  const renovation = baseline.plan.entity.renovation ?? EMPTY_RENOVATION;
@@ -125,20 +131,15 @@ function unlink(id: string): void {
 					{{ tr('planning.unlink') }}
 				</button>
 			</div>
-			<p v-if="item.workId && item.workId !== item.recordId">
+			<p
+				v-for="link in relationLinks(item)"
+				:key="link.id"
+			>
 				<button
 					type="button"
-					@click="related(item.workId)"
+					@click="related(link.id)"
 				>
-					{{ tr('renovation.work') }}: {{ relatedLabel(item.workId) }}
-				</button>
-			</p>
-			<p v-if="item.recordId">
-				<button
-					type="button"
-					@click="related(item.recordId)"
-				>
-					{{ tr('planning.linked-record') }}: {{ relatedLabel(item.recordId) }}
+					{{ link.label }}
 				</button>
 			</p>
 		</li>

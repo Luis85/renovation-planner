@@ -24,6 +24,12 @@ async function material(rig: Awaited<ReturnType<typeof setup>>) {
 async function action(rig: Awaited<ReturnType<typeof setup>>, text: string, scope = '.rp-renovation-inspector') {
  const button = rig.wrapper.findAll(`${scope} button`).find(candidate => candidate.text() === text); await expectDefined(button, text).trigger('click'); await settle();
 }
+function evidenceSelected(rig: Awaited<ReturnType<typeof setup>>, id: string, selected: boolean): void {
+ const row = rig.wrapper.get(`[data-rp-record="${id}"]`), title = row.get('button');
+ expect(row.classes('is-selected')).toBe(selected);
+ expect(title.attributes('aria-current')).toBe(selected ? 'true' : undefined);
+ expect(title.text().includes('Selected')).toBe(selected);
+}
 describe('connected planning editor', () => {
  it('adds material, updates allocations, records a partial payment, links evidence, and follows Review back', async () => {
  const rig = await setup(), requirement = await material(rig);
@@ -38,10 +44,29 @@ describe('connected planning editor', () => {
  const cost = expectDefined(rig.project.plan?.renovation?.depth?.costs[0], 'cost'); rig.runtime.renovation.focus(rig.room.id, 'documents', cost.id); await settle(); await rig.wrapper.get('[data-rp-new-evidence]').trigger('click'); await settle();
  await rig.wrapper.get('input[name="title"]').setValue('Invoice'); await rig.wrapper.get('input[name="path"]').setValue('scan.pdf'); await rig.wrapper.get('select[name="phase"]').setValue('during'); await apply(rig);
  const evidence = expectDefined(rig.project.plan?.renovation?.depth?.evidence[0], 'evidence'); expect(evidence.recordId).toBe(cost.id); expect(evidence.path).toBe('scan.pdf');
+ rig.runtime.renovation.focus(rig.room.id, 'costs', cost.id); await settle();
+ await action(rig, 'Documents', `[data-rp-record="${cost.id}"]`);
+ expect(rig.session.focusedId).toBe(cost.id); evidenceSelected(rig, evidence.id, true);
  await action(rig, 'Open in vault'); await action(rig, 'Unlink'); rig.dialogs.resolve('confirm'); await settle(); expect(rig.stack.vault.entries.has('scan.pdf')).toBe(true);
  await rig.runtime.dispatcher.undo(); rig.changePlan(); await settle(); expect(rig.project.plan?.renovation?.depth?.evidence[0].id).toBe(evidence.id);
  rig.stack.vault.entries.delete('scan.pdf'); rig.changeFile('scan.pdf'); await settle(); expect(rig.wrapper.text()).toContain('missing'); await rig.runtime.renovation.perspective('review'); await settle(); expect(rig.wrapper.text()).toContain('Invoice');
  const finding = rig.wrapper.findAll('button').find(button => button.text().includes('Invoice')); await expectDefined(finding, 'missing-file route').trigger('click'); await settle(); expect(rig.session.focusedId).toBe(evidence.id);
+ });
+ it('keeps idle evidence unselected and announces direct and material-linked selection consistently', async () => {
+ const rig = await setup(), requirement = await material(rig), before = expectDefined(expectOk(await rig.stack.plans.getById(rig.plan.id)), 'Plan');
+ const common = { roomId: rig.room.id, targetId: rig.room.id, workId: '', path: 'scan.pdf', subpath: '', type: 'document' as const, phase: 'before' as const, pin: null };
+ const evidence = [{ ...common, id: 'product-sheet', recordId: requirement.id, description: 'Product sheet' }, { ...common, id: 'site-document', recordId: '', description: 'Site document' }];
+ expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(before.entity, { subjects: [], work: [], decisions: [], depth: { costs: [], procurement: [], evidence } })), before.version)); rig.changePlan(); await settle();
+ rig.runtime.renovation.focus(rig.room.id, 'documents'); await settle();
+ evidenceSelected(rig, 'product-sheet', false); evidenceSelected(rig, 'site-document', false);
+ rig.runtime.renovation.focus(rig.room.id, 'materials', requirement.id); await settle();
+ await action(rig, 'Documents', `[data-rp-record="${requirement.id}"]`);
+ expect(rig.session.focusedId).toBe(requirement.id);
+ evidenceSelected(rig, 'product-sheet', true); evidenceSelected(rig, 'site-document', false);
+ await rig.wrapper.get('[data-rp-record="site-document"] > button').trigger('click'); await settle();
+ evidenceSelected(rig, 'product-sheet', false); evidenceSelected(rig, 'site-document', true);
+ await rig.wrapper.get('[data-rp-record="product-sheet"] > button').trigger('click'); await settle();
+ evidenceSelected(rig, 'product-sheet', true); evidenceSelected(rig, 'site-document', false);
  });
  it('keeps explicit drafts across reflow and cancels without writes', async () => {
  const rig = await setup(), bytes = [...rig.stack.vault.entries]; await rig.wrapper.get('[data-rp-new-material]').trigger('click'); await settle();
@@ -79,7 +104,8 @@ describe('connected planning editor', () => {
  it('edits evidence, follows linked material and cost records, and filters without replacing spatial selection', async () => {
  const rig = await setup(), requirement = await material(rig), selection = [...rig.selection.selectedIds]; await action(rig, 'Documents', '.rp-planning-actions'); await rig.wrapper.get('[data-rp-new-evidence]').trigger('click'); await settle();
  await rig.wrapper.get('input[name="title"]').setValue('Receipt'); await rig.wrapper.get('input[name="path"]').setValue('scan.pdf'); await apply(rig);
- await action(rig, '1. Receipt'); await action(rig, 'Edit'); await rig.wrapper.get('input[name="title"]').setValue('Paid receipt'); await apply(rig); expect(rig.wrapper.text()).toContain('Paid receipt');
+ const receipt = rig.wrapper.get('.rp-renovation-list > [data-rp-record] > button'); expect(receipt.text()).toContain('Receipt'); expect(receipt.attributes('aria-current')).toBe('true'); await receipt.trigger('click'); await settle();
+ await action(rig, 'Edit'); await rig.wrapper.get('input[name="title"]').setValue('Paid receipt'); await apply(rig); expect(rig.wrapper.text()).toContain('Paid receipt');
  const linked = rig.wrapper.findAll('.rp-renovation-inspector button').find(button => button.text().startsWith('Related record')); await expectDefined(linked, 'source link').trigger('click'); await settle(); expect(rig.session.mode).toBe('materials'); expect(rig.session.focusedId).toBe(requirement.id); expect(rig.selection.selectedIds).toEqual(selection);
  await action(rig, 'Costs', '.rp-planning-actions'); await rig.wrapper.get('[data-rp-new-cost]').trigger('click'); await settle(); await rig.wrapper.get('input[name="title"]').setValue('Labor'); await rig.wrapper.get('select[name="category"]').setValue('labor'); await rig.wrapper.get('input[name="planned"]').setValue('100'); await apply(rig);
  rig.session.focusedId = ''; await settle(); expect(rig.wrapper.find('.rp-renovation-list > [aria-current="true"]').exists()).toBe(false);

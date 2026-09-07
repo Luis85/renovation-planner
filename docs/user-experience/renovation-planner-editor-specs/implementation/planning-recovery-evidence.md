@@ -185,3 +185,22 @@ After the fixes, both focused files passed **14/14 tests** (17.18 s, two workers
 `npx vue-tsc -noEmit`, whole-project `npx oxlint --deny-warnings`, ESLint over the two changed
 Vue components and their two regression files (`--max-warnings 0`), and `git diff --check`
 all passed. No repository schema, exclusion or threshold changed.
+
+## Review follow-up — Evidence selection announcements
+
+PR #90 comment `3945879365` identified a mismatch between the visual selection and its
+announcement when Documents opens from a material or cost. One nonempty-focus predicate now
+drives the row highlight, title `aria-current` and localized Selected text. Direct evidence
+selection and linked-record selection agree; idle unlinked evidence stays unselected.
+
+Repository-backed workflow regressions exercise the real material and cost Documents buttons,
+direct selection of linked and unlinked evidence, and all three selection channels. Against
+`7ba5937d` the focused workflow file produced **2 failures and 21 passes**, reproducing both the
+missing linked announcement and the empty-ID false selection. An existing exact-title lookup
+was updated to include the newly correct Selected text. This review checkpoint follows the
+integration task's targeted-verification contract; the historical full-gate counters remain
+attributed to their original revision, and finalization owns the combined unchanged-floor gate.
+
+The final three-file planning workflow/recovery/Review run passed **37/37 tests** (21.93 s,
+two workers). `npx vue-tsc -noEmit`, whole-project `npx oxlint --deny-warnings`, ESLint over
+the changed component and workflow regression file (`--max-warnings 0`) all passed.

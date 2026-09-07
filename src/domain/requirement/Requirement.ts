@@ -136,7 +136,7 @@ export class Requirement {
 		);
 	}
 
-	private with(fields: Partial<RequirementFields>): Result<Requirement, ValidationError> {
+	private with(fields: Partial<Omit<RequirementFields, 'requiredDate'>>): Result<Requirement, ValidationError> {
 		return Requirement.create({
 			source: fields.source ?? this.source,
 			id: this.id,
@@ -149,7 +149,7 @@ export class Requirement {
 			estimatedCost: fields.estimatedCost ?? this.estimatedCost,
 			calculatedFrom: fields.calculatedFrom ?? this.calculatedFrom,
 			recalculationStatus: fields.recalculationStatus ?? this.recalculationStatus,
-			requiredDate: 'requiredDate' in fields ? (fields.requiredDate ?? null) : this.requiredDate,
+			requiredDate: this.requiredDate,
 		});
 	}
 
@@ -220,4 +220,3 @@ export class Requirement {
 		return this.with({ origin, assetId, recalculationStatus: 'stale' });
 	}
 }
-

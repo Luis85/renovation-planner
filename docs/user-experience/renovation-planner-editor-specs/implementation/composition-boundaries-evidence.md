@@ -67,3 +67,11 @@ subsequently passed. Log `composition-boundaries-native.log` and
 The seven-branch/six-statement estimate remains unmeasured; the next full CI report
 will determine the actual contribution. No production or gate changes accompany
 these tests.
+
+## Measured contribution
+
+The full CI counter maps from95e7510b andf3067d82 are identical for all six affected
+production files. Comparing their counts confirms **seven newly covered branch
+arms and six statements**, precisely the proposed real boundaries. The exact
+locations are preserved in [composition-counter-gains.json](evidence/composition-counter-gains.json).
+No generated counter was edited or treated as an execution.

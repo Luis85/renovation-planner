@@ -54,6 +54,13 @@ files from the already-pinned Lucide revision extend only the test renderer; pro
 to call host `setIcon`. Source/diff review passed; no runtime, lint, type or visual acceptance is
 claimed. Verify the installed host icon names and all eleven routes in light/dark/custom/German.
 
+The next source-only M07/M11 continuation adds `editor-selection-details.css` after the shared
+overview styles. It tightens existing Wall measurements/context/More spacing and gives batch
+actions full-width wrapping rows. The overlapping-area explanation is shown only when the
+existing selection projection returns an area; quantities and selection logic are unchanged.
+Source/diff review only. Room/Area versus wall-only states, German labels, action focus and
+assembled-style/browser checks remain pending.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

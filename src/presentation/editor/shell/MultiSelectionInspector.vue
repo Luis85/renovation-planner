@@ -46,7 +46,9 @@ async function clearSelection(): Promise<void> {
 		<p v-if="selection.unavailable > 0">
 			{{ tr('editor.selection.unavailable', { count: String(selection.unavailable) }) }}
 		</p>
-		<p>{{ tr('editor.selection.area-sum-hint') }}</p>
+		<p v-if="selection.areaMm2 !== null">
+			{{ tr('editor.selection.area-sum-hint') }}
+		</p>
 		<p v-if="selection.lengthMm !== null">
 			{{ tr('renovation.batch.length-hint') }}
 		</p>

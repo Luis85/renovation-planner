@@ -86,6 +86,8 @@
 @import "./editor-visual-records.css";
 @import "./editor-visual-tasks.css";
 @import "./editor-visual-overview.css";
+/* Selection details override the preceding shared Inspector spacing. */
+@import "./editor-selection-details.css";
 
 @import "./editor-object.css";
 @import "./editor-material-table.css";

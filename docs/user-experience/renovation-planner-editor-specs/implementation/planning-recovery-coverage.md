@@ -121,3 +121,14 @@ in 33.95 seconds with two workers. `renovationRemoval.ts` reached 45/45 statemen
 replacement for the historical full-tree figures above or the final integrated gate.
 The real intended-only discard failure, conditional-history fix and retired dialog cases
 are recorded in [the follow-up evidence](element-discard-recovery-evidence.md).
+
+## Source and lifecycle follow-up — 2026-09-07
+
+Ten additional recovery regressions cover peer-deleted structures, retired element reads
+and callbacks, legacy material sources and retained facts with missing target geometry.
+The expanded targeted run passed 63 tests in nine files using the integration's existing
+element retry guard. Its isolated three-source coverage failed the unchanged thresholds:
+187/201 statements, 138/160 branches, 52/52 functions and 112/114 lines. The new structural
+refresh fix, red evidence and integration dependency are recorded in
+[the source/lifecycle evidence](source-lifecycle-recovery-evidence.md). This measurement
+does not replace the complete integrated gate or the historical full-tree figures above.

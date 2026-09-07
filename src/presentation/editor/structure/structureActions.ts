@@ -50,10 +50,10 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 			if (!alive || selection.selectedIds.join() !== selected || runtime.writesBlocked.value) return;
 			if (!baseline.ok) { notifyOperationFailure(baseline.error); return; }
 			const structure = baseline.value.document.structure;
-			if (!structure || ![...structure.walls, ...structure.openings].some(item => item.id === id)) return;
 			if (!matchesProjection(baseline.value.document)) {
 				notifyOperationFailure(staleWriteRefusal()); await runtime.refreshProjection(); return;
 			}
+			if (!structure || ![...structure.walls, ...structure.openings].some(item => item.id === id)) return;
 			const busy = ref(false), services = context.commands.structure;
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.structure.edit'), component: markRaw(StructureEditForm), busy, props: {
 				structure, id, end, busy, blocked,
@@ -92,8 +92,8 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 			if (!alive) return;
 			if (!baseline.ok) { notifyOperationFailure(baseline.error); return; }
 			const structure = baseline.value.document.structure;
-			if (!structure) return;
 			if (!matchesProjection(baseline.value.document)) { notifyOperationFailure(staleWriteRefusal()); await runtime.refreshProjection(); return; }
+			if (!structure) return;
 			const removedOpenings = structure.openings.filter(item => selected.includes(item.id) || selected.includes(item.hostId));
 			const removedBoundaries = structure.boundaries.filter(boundary => boundary.wallIds.some(wallId => selected.includes(wallId)));
 			const ids = [...selected, ...removedOpenings.map(item => item.id)];

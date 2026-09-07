@@ -31,12 +31,15 @@ the original full `2c3c6360` CI with the official Linux coverage-root: zero find
 the separate static and correctly mapped full-CI health runs then passed. No scoped
 coverage was presented as health evidence.
 
-Next: prepare contract-correct marker stays-in-Review assertions plus separate native
-issue buttons to Decision/Work. Expected predecessor RED is a UI dependency, not a
+Contract-correct source is now prepared: three explicit issue-button cases, two
+Click/Tap cases requiring one Room marker and Review/summary retention, and the
+unchanged planned-removal marker case. The revised six-case file has **not been run**.
+Initial selectors use the observed predecessor; Root will supply any changed UI selectors.
+Expected predecessor RED is a UI dependency, not a
 reason to weaken or skip a test. Obtain UI source/selector details from Root and a new
 heavy slot before testing. Final full coverage awaits the joined production source.
 
-## Initial marker package — historical behavior, held for replacement
+## Initial marker package — historical behavior, superseded by prepared revision
 
 `tests/presentation/editor/reviewMarkerNavigation.test.ts` adds four native editor
 cases using persisted renovation records and real commands/repositories. Each Review

@@ -32,11 +32,9 @@ async function setup() {
 async function openFinding(kind: 'blocked' | 'missing-outcome' | 'decision') {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
 	await rig.runtime.renovation.perspective('review'); await settle();
-	const markers = rig.stage.find<Konva.Group>('.renovation-marker');
-	expect(markers).toHaveLength(3);
-	const marker = expectDefined(markers.find(item => item.findOne<Konva.Text>('Text')?.text().includes(tr(`renovation.finding.${kind}`))), kind);
-	marker.fire(kind === 'decision' ? 'tap' : 'click');
-	await settleUntil(() => rig.session.perspective === 'renovate', 'Review marker navigation');
+	const issue = expectDefined(rig.wrapper.findAll('.rp-renovation-list > li > button').find(item => item.text().includes(tr(`renovation.finding.${kind}`))), kind);
+	issue.element.click();
+	await settleUntil(() => rig.session.perspective === 'renovate', 'explicit Review issue navigation');
 	expect(rig.session.roomId).toBe(rig.room.id);
 	expect(rig.session.targetId).toBe(rig.room.id);
 	expect(rig.selection.selectedIds).toEqual([rig.room.id]);
@@ -45,18 +43,36 @@ async function openFinding(kind: 'blocked' | 'missing-outcome' | 'decision') {
 	return { rig, bytes };
 }
 
-it.each(['blocked', 'missing-outcome'] as const)('opens a fresh %s Review marker in its canonical Work context without writing', async kind => {
+it.each(['blocked', 'missing-outcome'] as const)('opens the explicit %s issue in its canonical Work context without writing', async kind => {
 	const { rig, bytes } = await openFinding(kind);
 	expect(rig.dialogs.current).toBeNull();
 	expect(rig.wrapper.get('[data-rp-record="dispose-floor"]').text()).toContain('Dispose boards');
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
 
-it('opens the unresolved Decision on marker tap and cancels without writing', async () => {
+it('opens the unresolved Decision from its issue button and cancels without writing', async () => {
 	const { rig, bytes } = await openFinding('decision');
 	await settleUntil(() => rig.wrapper.find('textarea[name="question"]').exists(), 'Decision dialog');
 	expect(rig.wrapper.get<HTMLTextAreaElement>('textarea[name="question"]').element.value).toBe('Can any boards be reused?');
 	rig.dialogs.resolve('cancel'); await settle();
+	expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+// M17 separates spatial readiness selection from the explicit issue source action.
+// These expectations intentionally expose the predecessor's marker-to-Renovate gap.
+it.each(['click', 'tap'])('keeps Review and expands the Room readiness summary on marker %s', async event => {
+	const rig = await setup(), bytes = [...rig.stack.vault.entries];
+	await rig.runtime.renovation.perspective('review'); await settle();
+	const markers = rig.stage.find<Konva.Group>('.renovation-marker');
+	const marker = expectDefined(markers[0], 'Room readiness marker');
+	marker.fire(event); await settle();
+	expect(rig.session.perspective).toBe('review');
+	expect(rig.session.roomId).toBe(rig.room.id);
+	expect(rig.selection.selectedIds).toEqual([rig.room.id]);
+	expect(rig.dialogs.current).toBeNull();
+	expect(markers).toHaveLength(1);
+	expect(rig.wrapper.get('.rp-renovation-inspector').text()).toContain(rig.room.name);
+	expect(rig.wrapper.get('.rp-renovation-inspector').text()).toContain('Can any boards be reused?');
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
 

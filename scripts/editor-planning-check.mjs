@@ -4,18 +4,19 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { runAreaBrowserMatrix, activate, tabTo } from './editor-area-browser.mjs';
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
+import { captureEvidenceGallery } from './editor-evidence-gallery.mjs';
 const form = '[data-rp-form="planning"]';
 async function shot(page, scenario, out, state) {
- if (state === 'photos') await page.waitForFunction(async () => {
+ if (state === 'photos' || state === 'photos-gallery') await page.waitForFunction(async () => {
   const images = [...document.querySelectorAll('img.rp-evidence-thumbnail')];
   if (!images.length || images.some(image => !image.complete || image.naturalWidth <= 0)) return false;
   const sources = images.map(image => image.currentSrc);
   await Promise.all(images.map(image => image.decode()));
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  await new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); });
   return images.every((image, index) => image.isConnected && image.complete && image.naturalWidth > 0 && image.currentSrc === sources[index]);
  });
  await recordShot(page, scenario, out, state);
- if (['materials', 'costs', 'photos'].includes(state)) await editorAccessibility(page, scenario, out, state);
+ if (['materials', 'costs', 'photos', 'photos-gallery'].includes(state)) await editorAccessibility(page, scenario, out, state);
 }
 const text = (page, name, value, scope = form) => recordText(page, scope, name, value);
 async function choose(page, name, index) { await tabTo(page, `${form} select[name="${name}"]`); await page.keyboard.press('Home'); for (let i = 0; i < index; i++) await page.keyboard.press('ArrowDown'); await page.keyboard.press('Tab'); }
@@ -47,6 +48,7 @@ async function costs(page, scenario, out) {
  await shot(page, scenario, out, 'costs');
 }
 async function evidence(page, scenario, out) {
+ let gallery;
  await activate(page, '.rp-planning-actions button:last-child'); await activate(page, '[data-rp-new-evidence]'); await text(page, 'title', 'Invoice'); await text(page, 'path', 'scan.pdf'); await choose(page, 'phase', 1); await apply(page); await shot(page, scenario, out, 'documents');
  await activate(page, '.rp-planning-actions button:first-child');
  await activate(page, '[data-rp-mode="notes"]'); await activate(page, '[data-rp-new-evidence]'); await text(page, 'title', 'Hidden service route'); await activate(page, `${form} button[type="button"]`); await page.waitForFunction(() => document.querySelector('[name="path"]')?.value.includes('Evidence/Note-')); await choose(page, 'phase', 3); await tabTo(page, `${form} input[type="checkbox"]`); await page.keyboard.press('Space'); await apply(page); await shot(page, scenario, out, 'notes');
@@ -54,11 +56,13 @@ async function evidence(page, scenario, out) {
  await activate(page, '[data-rp-action="undo"]'); await activate(page, '[data-rp-action="redo"]'); await panel(page, 'details');
  await activate(page, '[data-rp-mode="photos"]'); await activate(page, '[data-rp-new-evidence]'); await text(page, 'title', 'Floor before'); await text(page, 'path', 'scan.png'); await tabTo(page, `${form} input[type="checkbox"]`); await page.keyboard.press('Space'); await apply(page);
  await activate(page, '[data-rp-evidence-photo]'); await page.waitForFunction(() => [...document.querySelectorAll('.rp-evidence-gallery img')].some(image => image.complete && image.naturalWidth > 0)); await shot(page, scenario, out, 'photos');
+ if (process.argv.includes('--design')) gallery = await captureEvidenceGallery(page, scenario, out, shot);
  if (scenario.width === 460) await page.keyboard.press('Escape'); await activate(page, '[data-rp-perspective="review"]'); await panel(page, 'details'); assert.equal(await page.locator('[data-rp-action="add"]').count(), 0); await activate(page, '[data-rp-action="review-note"]'); await shot(page, scenario, out, 'review');
+ return gallery;
 }
 export async function journey(page, scenario, out) {
  const tokens = await recordRoom(page, scenario, out, { preserveTheme, drawWalls, panel });
- await work(page); await materials(page, scenario, out); await costs(page, scenario, out); await evidence(page, scenario, out);
- return { theme: tokens, storage: 'production application services and repositories over FakeVault', journey: 'Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review', input: 'Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts', reflow: 'material draft and native focus preserved', history: 'evidence undo/redo', scope: 'browser host file open is recorded, not a live Obsidian leaf' };
+ await work(page); await materials(page, scenario, out); await costs(page, scenario, out); const gallery = await evidence(page, scenario, out);
+ return { theme: tokens, gallery, storage: 'production application services and repositories over FakeVault', journey: 'Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review', input: 'Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts', reflow: 'material draft and native focus preserved', history: 'evidence undo/redo', scope: 'browser host file open is recorded, not a live Obsidian leaf' };
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await runAreaBrowserMatrix('materials-costs-evidence', `&reference&planning${process.argv.includes('--design') ? '&fidelity' : ''}`, journey, '[data-rp-empty="floor-start"]');
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await runAreaBrowserMatrix('materials-costs-evidence', `&reference&planning${process.argv.includes('--design') ? '&fidelity&gallery-fixtures' : ''}`, journey, '[data-rp-empty="floor-start"]');

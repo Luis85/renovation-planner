@@ -128,6 +128,12 @@ scoped UI run), resulting in 95 threshold findings across the repository. This i
 full health pass or a fresh full coverage measurement. Preserve the unchanged gate; the combined
 full-tree coverage/health assessment remains Root-owned. Logs remain in `ui-wip-validation`.
 
+Root `95e7510b` merged clean as `7bb60f93`; the three-file correction batch passed all 22 tests
+in 21.74s. Current joined types and whole lint also passed. Source and original logs are secured
+in `editor-ui-verification.md` and its evidence folder. The next step is actual planning/gallery
+capture on the documentation checkpoint, followed by direct pixel review; no visual acceptance
+is claimed yet. UI retains the heavy slot; Root/E have no overlapping heavy work.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

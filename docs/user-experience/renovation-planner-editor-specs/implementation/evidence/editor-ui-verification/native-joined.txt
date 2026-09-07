@@ -1,0 +1,317 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-object-ui
+
+stderr | tests/presentation/editor/elementInteractionGuards.test.ts > keeps a keyboard successor when returning an element to Plan at 1100px
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/elementInteractionGuards.test.ts > keeps a keyboard successor when returning an element to Plan at 460px
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/elementInteractionGuards.test.ts (15 tests | 2 failed) 3111ms
+   × keeps a keyboard successor when returning an element to Plan at 1100px 221ms
+   × keeps a keyboard successor when returning an element to Plan at 460px 183ms
+stderr | tests/presentation/editor/renovationWorkflow.test.ts > connected Room renovation inspector > frames a Review room without writing and restores the previous Renovate context
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/renovationWorkflow.test.ts (4 tests | 1 failed) 1256ms
+     × frames a Review room without writing and restores the previous Renovate context 422ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/presentation/editor/renovationWorkflow.test.ts > connected Room renovation inspector > frames a Review room without writing and restores the previous Renovate context
+Error: Unable to get [data-rp-review-room="zone-01M1Y51V11TCD1FASZ25TT06Z2"] within: <div class="renovation-plan-editor">
+  <!--
+			The layout is `ResponsiveEditorShell`'s (Task 19, design spec §5.4) and the CONTENT
+			of each region is still this component's: what the canvas region draws — a canvas, a
+			failure, a loading line — is a question about hydration, which is what this file
+			owns, and the shell only decides where that region goes and whether the pane is wide
+			enough for one at all.
+		-->
+  <div class="rp-editor-shell" data-layout="full">
+    <header class="rp-context-bar" aria-label="Editor context">
+      <div class="rp-context-bar__crumbs"><span class="rp-context-bar__crumb">Willow House</span><span class="rp-context-bar__crumb">Ground floor</span></div>
+      <nav class="rp-renovation-switch" aria-label="Plan"><button class="rp-perspective-button" data-rp-perspective="plan" type="button" aria-pressed="false"><span class="rp-host-icon" aria-hidden="true" data-icon="grid-2x2"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-grid-2x2"><path d="M12 3v18"></path><path d="M3 12h18"></path><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg></span>Plan</button><button class="rp-perspective-button" data-rp-perspective="renovate" type="button" aria-pressed="false"><span class="rp-host-icon" aria-hidden="true" data-icon="paintbrush"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-paintbrush"><path d="m14.622 17.897-10.68-2.913"></path><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"></path><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"></path></svg></span>Renovate</button><button class="rp-perspective-button" data-rp-perspective="review" type="button" aria-pressed="true"><span class="rp-host-icon" aria-hidden="true" data-icon="clipboard-list"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-clipboard-list"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg></span>Review</button></nav><span class="rp-context-bar__spacer"></span>
+      <!--v-if-->
+      <!--v-if-->
+      <details class="rp-view-menu">
+        <summary class="rp-context-bar__button">View</summary>
+        <div class="rp-view-menu__content"><button type="button" data-rp-view="floor">Fit floor <kbd>F</kbd></button><button type="button" data-rp-view="selection">Fit selection <kbd>⇧2</kbd></button>
+          <div class="rp-view-menu__zoom"><button type="button" data-rp-view="zoom-out" aria-label="Zoom out"> − </button><output aria-label="Zoom">10%</output><button type="button" data-rp-view="zoom-in" aria-label="Zoom in"> + </button></div><label><input type="checkbox" data-rp-view="grid">Show grid</label><label><input checked="" type="checkbox" data-rp-view="snap">Snap to objects</label>
+          <p>The grid is a visual guide; hold shift to constrain drawing angles, while wall openings stay attached to their wall.</p>
+        </div>
+      </details>
+    </header>
+    <div class="rp-editor-body">
+      <div class="rp-persistent-panel" data-rp-shell-region="layers">
+        <!--v-if-->
+        <aside class="rp-editor-layers" tabindex="-1" data-rp-region="layers" aria-label="Property and layers">
+          <h2 class="rp-editor-panel-title">Floor — Ground floor</h2>
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+          <section class="rp-structure-list">
+            <h3>Walls and openings</h3>
+            <ul>
+              <li><button type="button" class="rp-structure-list__row" aria-pressed="false">Wall 1</button>
+                <!--v-if-->
+              </li>
+              <li><button type="button" class="rp-structure-list__row" aria-pressed="false">Wall 2</button>
+                <!--v-if-->
+              </li>
+              <li><button type="button" class="rp-structure-list__row" aria-pressed="false">Wall 3</button>
+                <!--v-if-->
+              </li>
+              <li><button type="button" class="rp-structure-list__row" aria-pressed="false">Wall 4</button>
+                <!--v-if-->
+              </li>
+            </ul>
+          </section><label><input type="checkbox"> Show renovation markers and planned comparison</label>
+          <h3 class="rp-editor-panel-subtitle">Rooms and areas</h3>
+          <ul class="rp-room-list">
+            <li><button type="button" class="rp-room-list__row" data-rp-id="zone-01M1Y51TZ7SSTK0937ZR41FS64" aria-pressed="true"><span>Studio</span><span class="rp-room-list__area">12 m²</span></button></li>
+          </ul>
+          <!--v-if-->
+          <!--v-if-->
+        </aside>
+      </div>
+      <!--v-if-->
+      <!--
+					The canvas is mounted only once there is a Plan to draw. A Konva stage over a
+					plan that is still loading, or over one that does not exist, would size itself,
+					bind a camera and draw an empty scene indistinguishable from a plan with no
+					zones — which is the state slice 14's empty states exist to tell apart.
+				-->
+      <div class="rp-plan-canvas" role="application" tabindex="0" aria-label="Plan canvas">
+        <!--v-if-->
+        <div>
+          <!--v-if-->
+          <!---->
+          <!--v-if-->
+          <!---->
+          <!--v-if-->
+          <!---->
+          <!--v-if-->
+          <!---->
+          <!--v-if-->
+          <!--v-if-->
+          <!--
+			Two line nodes over one point array, rather than one node with both a fill and a
+			stroke. Konva's `opacity` is per NODE, so a translucent fill on a single node would
+			take the outline down with it — and the fill has to be translucent, because a zone
+			sits over an imported plan the user still needs to see through it.
+		-->
+          <!---->
+          <!---->
+          <!---->
+          <!---->
+          <!---->
+          <!---->
+          <!---->
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+          <!---->
+          <div style="position: relative; user-select: none; width: 800px; height: 600px;" class="konvajs-content" role="presentation"><canvas style="padding: 0px; margin: 0px; border: 0px; background: transparent; position: absolute; top: 0px; left: 0px; width: 800px; height: 600px; display: block;" width="800" height="600"></canvas><canvas style="padding: 0px; margin: 0px; border: 0px; background: transparent; position: absolute; top: 0px; left: 0px; width: 800px; height: 600px; display: block;" width="800" height="600"></canvas><canvas style="padding: 0px; margin: 0px; border: 0px; background: transparent; position: absolute; top: 0px; left: 0px; width: 800px; height: 600px; display: block;" width="800" height="600"></canvas><canvas style="padding: 0px; margin: 0px; border: 0px; background: transparent; position: absolute; top: 0px; left: 0px; width: 800px; height: 600px; display: block;" width="800" height="600"></canvas><canvas style="padding: 0px; margin: 0px; border: 0px; background: transparent; position: absolute; top: 0px; left: 0px; width: 800px; height: 600px; display: block;" width="800" height="600"></canvas><canvas style="padding: 0px; margin: 0px; border: 0px; background: transparent; position: absolute; top: 0px; left: 0px; width: 800px; height: 600px; display: block;" width="800" height="600"></canvas><canvas style="padding: 0px; margin: 0px; border: 0px; background: transparent; position: absolute; top: 0px; left: 0px; width: 800px; height: 600px; display: block;" width="800" height="600"></canvas></div>
+        </div>
+        <!--
+			Whatever floats over the stage — design slice 14's empty state today. It is a
+			SIBLING of the default slot's stage inside this div rather than a child of it:
+			Konva owns everything inside the stage and would not render a DOM node there at
+			all. The div is already `position: relative` (`styles/editor.css`), so an
+			absolutely positioned overlay resolves against the canvas region and not against
+			the shell — which is what keeps it off the layers panel and the inspector.
+
+			**The `.stop` modifiers are the pointer half of `isCanvasKey`**, and they are
+			expressed HERE rather than as a predicate at each handler on purpose. `keydown`
+			could ask `event.target === container` because a key goes to whatever has focus;
+			a press cannot, because its target is the Konva canvas the stage draws into and
+			never this div. So the rule is structural instead: the overlay region is simply
+			not part of the canvas's gesture surface, which stays true for whatever the slot
+			holds next and cannot be forgotten at a sixth pointer door the way a predicate
+			can.
+
+			`planEditor.noZones` carries an action button, and `.rp-empty-state__action`
+			re-enables `pointer-events` against the overlay's own `none` — so it is a real
+			pointer target sitting over the stage, and its press bubbled here and started a
+			camera pan under the user while they were merely clicking the button. The same
+			class as the `keydown` defect one round earlier, left unfixed for pointers.
+
+			Both ends, never one: a swallowed press owes a swallowed release, or the active
+			tool gets a release with no matching press — the grammar defect this file has
+			already recorded three times. A gesture that STARTED on the stage is unaffected,
+			because `onPointerDown` captures the pointer, and a captured event retargets to
+			the stage however far the drag wanders over this region.
+
+			The modifiers stop propagation at the BUBBLE phase, so the overlay's own controls
+			have already had the event: their handlers run untouched and only the canvas
+			behind them is kept out of it.
+
+			`wheel` too (2026-09-04): the Add menu is scrollable, and a wheel over its overflow
+			used to pan or zoom the plan.
+		-->
+        <div class="rp-plan-overlay">
+          <div class="rp-dimension-labels">
+            <!--v-if-->
+          </div>
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+          <!--v-if-->
+        </div>
+      </div>
+      <div class="rp-persistent-panel" data-rp-shell-region="inspector">
+        <!--v-if-->
+        <aside class="rp-editor-inspector" tabindex="-1" data-rp-region="inspector" aria-label="Inspector">
+          <h2 class="rp-editor-panel-title">Inspector</h2>
+          <section class="rp-renovation-inspector rp-review-inspector">
+            <h3>Review Ground floor</h3>
+            <section class="rp-review-summary" aria-label="Review">
+              <p class="rp-review-summary__counts">1 rooms · 0 planned changes</p>
+              <!--v-if-->
+              <!--v-if-->
+              <ul class="rp-review-rooms">
+                <li><button type="button" data-rp-review-room="zone-01M1Y51TZ7SSTK0937ZR41FS64" aria-pressed="true"><span class="rp-host-icon" aria-hidden="true" data-icon="circle-check"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-circle-check"><circle cx="12" cy="12" r="10"></circle><path d="m16 9-5.5 5.5L8 12"></path></svg></span><span class="rp-review-room__name">Studio</span><span class="rp-review-room__changes">0 planned changes</span><span class="rp-review-room__status">No findings in this review scope</span></button></li>
+              </ul>
+              <div>
+                <h4>Studio</h4>
+                <section class="rp-transformation-summary" aria-label="Overview">
+                  <div class="rp-transformation-summary__stages">
+                    <div>
+                      <h4>Existing</h4>
+                      <p>Not recorded yet</p>
+                    </div>
+                    <div>
+                      <h4>Work</h4>
+                      <p>Not recorded yet</p>
+                    </div>
+                    <div>
+                      <h4>Planned</h4>
+                      <p>Not recorded yet</p>
+                    </div>
+                  </div>
+                  <p>0 planned changes · 0 of 0 work items complete</p>
+                  <!--v-if-->
+                </section>
+                <!--v-if-->
+                <!--v-if--><button type="button" class="mod-cta" data-rp-action="review-open-room">Open Studio<span class="rp-host-icon" aria-hidden="true" data-icon="arrow-right"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-arrow-right"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span></button>
+              </div>
+            </section>
+            <p>Review checks decisions, outcome/work links and work dependencies. It does not assess engineering or construction readiness.</p>
+            <!--v-if-->
+            <p>No gaps found within this review scope. This is not a complete readiness assessment.</p>
+            <ol class="rp-renovation-list"></ol><button type="button">Back to renovate</button><button type="button" data-rp-action="review-note">Create or open review note</button>
+            <!--v-if-->
+          </section>
+        </aside>
+      </div>
+      <!--v-if-->
+    </div>
+    <!--
+					ADDITIVE, and never the in-place failure state, because the canvas is showing valid
+					data. `withEditorStateRefresh` re-reads after a successful write with
+					`keepPreviousOnFailure`, so a failed read-back leaves `status === 'ready'` with the
+					PRE-command scene still drawn and an `error` set. Replacing that with a failure panel
+					would hide a plan the user can still work on, to report a read that failed; saying
+					nothing left the indicator reading Saved over a canvas quietly out of date. A strip
+					that persists while the condition does is the shape that fits.
+
+					Task 20 collapsed what used to be four independent `<p class="rp-editor-notice">`
+					blocks — each with its own `v-if`, none sharing an identity Vue could track — into
+					`editorWarnings`, one pure derivation of the same three facts, rendered by
+					`PersistentWarningStrip` keyed on `w.id`. The independence those four blocks were
+					careful to keep (a review bot's own finding: chaining staleness in front of the
+					background notices let a failed read-back silently swallow the sentence explaining
+					an absent background) is now a property of `editorWarnings`' fixed order rather than
+					of four separate template conditions agreeing not to chain.
+
+
+					SelectionGuidance mounts here too, BEFORE the strip (R15,
+					[[Selection clearing is silent while the constrained Inspector is closed]]): this
+					region exists in every layout mode, where EntityInspector does not — the
+					constrained drawer unmounts it while closed, and a watcher that is not mounted
+					hears nothing.
+				-->
+    <!--
+					Design spec §2.9: the ONE hidden sentence every paused control's `aria-describedby`
+					points at, minted here as `runtime.pausedReasonId` (one `useId()` per leaf) and
+					rendered only while `runtime.writesBlocked` — a reference naming an id no element
+					carries is what axe reports as `aria-valid-attr-value`, so the two share this one
+					`v-if` rather than the sentence being always in the DOM.
+				-->
+    <!--v-if-->
+    <p class="rp-selection-guidance" role="status"></p>
+    <div class="rp-warning-strip" role="status" tabindex="-1"></div>
+    <!--
+		Each region carries a ROLE beside its `aria-label`, because `aria-label` on a plain
+		`<div>` is prohibited — axe's `aria-prohibited-attr`, and it caught all three of these
+		the first time `tests/harness/accessibility.test.ts` was pointed at this component.
+		`group` for the two that are read on request; `status` for the save state, which is
+		the one region whose whole job is to announce a change. The
+		measurements deliberately are NOT a live region: it updates on every pointer move,
+		and a screen reader reciting coordinates continuously is worse than silence.
+	-->
+    <footer class="rp-editor-status-bar">
+      <div class="rp-editor-status" role="group" aria-label="Status"><span class="rp-editor-plan-name">Ground floor</span>
+        <!--v-if--><span class="rp-editor-pan-hint">Space or the middle button pans</span>
+        <!--v-if-->
+      </div>
+      <div class="rp-editor-measurements" role="group" aria-label="Measurements"><span class="rp-editor-scale">Scale not set</span><span>Zoom 10%</span><span>Grid off</span><span>Snap on</span><span class="rp-editor-pointer">—</span></div>
+      <div class="rp-editor-save-state" role="status" aria-label="Save state"><span class="rp-save-state-label rp-save-state-saved"><span class="rp-save-state-mark" aria-hidden="true"></span>Saved</span></div>
+    </footer>
+  </div>
+  <!--
+			Last child, and a sibling of the SHELL rather than nested inside one of its regions:
+			the host makes its parent's OTHER children inert while a dialog is open, so the whole
+			shell — every region at once — is what has to be its sibling for the background to
+			actually go inert. It sat beside the five regions until Task 19 moved them one level
+			down into `ResponsiveEditorShell`; the rule is unchanged and now covers them in one.
+		-->
+  <!--v-if-->
+</div>
+ ❯ VueWrapper.get node_modules/@vue/test-utils/dist/vue-test-utils.cjs.js:7182:15
+ ❯ tests/presentation/editor/renovationWorkflow.test.ts:21:21
+     19|   const viewport = { ...useEditorStore(rig.pinia).viewport }, saved = …
+     20|   await actions.perspective('review'); await settle();
+     21|   await rig.wrapper.get(`[data-rp-review-room="${other.id}"]`).trigger…
+       |                     ^
+     22|   expect(rig.session.perspective).toBe('review'); expect(rig.selection…
+     23|   expect(rig.wrapper.get(`[data-rp-review-room="${other.id}"]`).attrib…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |suite| tests/presentation/editor/elementInteractionGuards.test.ts > keeps a keyboard successor when returning an element to Plan at 1100px
+AssertionError: expected [ Array(1) ] to include <body><div>…(1)</div></body>
+ ❯ tests/presentation/editor/elementInteractionGuards.test.ts:146:18
+    144|  const edit = rig.wrapper.find<HTMLButtonElement>('[data-rp-action="ed…
+    145|  const targets = [successor, edit].filter(button => button.exists() &&…
+    146|  expect(targets).toContain(document.activeElement);
+       |                  ^
+    147|  if (!edit.exists() || !edit.isVisible()) { successor.element.click();…
+    148|  rig.wrapper.get<HTMLButtonElement>('[data-rp-action="edit-element"]')…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |suite| tests/presentation/editor/elementInteractionGuards.test.ts > keeps a keyboard successor when returning an element to Plan at 460px
+AssertionError: expected [ <button …(4)></button>, …(1) ] to include <body><div>…(1)</div></body>
+ ❯ tests/presentation/editor/elementInteractionGuards.test.ts:146:18
+    144|  const edit = rig.wrapper.find<HTMLButtonElement>('[data-rp-action="ed…
+    145|  const targets = [successor, edit].filter(button => button.exists() &&…
+    146|  expect(targets).toContain(document.activeElement);
+       |                  ^
+    147|  if (!edit.exists() || !edit.isVisible()) { successor.element.click();…
+    148|  rig.wrapper.get<HTMLButtonElement>('[data-rp-action="edit-element"]')…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed | 19 passed (21)
+      Tests  3 failed | 309 passed (312)
+   Start at  16:38:56
+   Duration  160.78s (transform 18.71s, setup 0ms, import 57.58s, tests 45.66s, environment 50.44s)
+

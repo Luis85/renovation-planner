@@ -1,0 +1,1522 @@
+
+> renovation-planner@0.1.0 analyze
+> fallow
+
+loaded config: D:\Projects\renovation-planner\.worktrees\editor-object-ui\.fallowrc.json
+   0.159427900s  WARN fallow: skipped 1 hidden directory that contains source files (.claude). Hidden directories are not traversed and no config field adds one: analyze it with fallow --root .claude if it holds first-party source, or add '.claude/**' to ignorePatterns to silence this.
+
+■ Metrics: dead files 0.0% (0 of 808) · dead exports 0.0% (0 of 1575) · MI 87.9 (good)
+  808 files analyzed
+  765 entry points detected (655 plugin, 56 dynamically loaded, 49 manual entry, 5 package.json)
+  26 refactoring targets — start with src/presentation/editor/renovation/renovationSummary.ts (high impact)
+
+── Dead Code ──────────────────────────────────────
+
+✓ No issues found (3.82s)
+
+── Duplication ────────────────────────────────────
+note: skipped 648 files matching default duplicates ignores (use --explain-skipped for the list)
+note: hid 1 reviewed clone group from duplicates.ignoredClones (remove a key to review it again)
+
+✓ No code duplication found (0.17s)
+
+── Complexity ─────────────────────────────────────
+
+■ Metrics: 100,070 LOC · dead files 0.0% · dead exports 0.0% · avg cyclomatic 2.5 · p90 cyclomatic 6 · maintainability 87.9 (good) · 0 churn hotspots (since 6 months)
+
+  Function size: 86% low · 6% medium · 4% high · 4% very high  (1-15 / 16-30 / 31-60 / >60 LOC)
+
+● Large functions (10 shown, 184 total)
+  src\presentation\views\NewAssetForm.vue
+    :395 <template>  568 lines
+  src\presentation\views\ProjectList.vue
+    :319 <template>  562 lines
+  src\presentation\views\ViewRoot.vue
+    :388 <template>  508 lines
+  src\presentation\editor\PlanEditorRoot.vue
+    :344 <template>  469 lines
+  src\presentation\dialogs\DialogHost.vue
+    :385 <template>  442 lines
+  src\presentation\editor\add\AddMenu.vue
+    :373 <template>  440 lines
+  src\presentation\designer\AssetDesignerRoot.vue
+    :349 <template>  431 lines
+  src\presentation\editor\shell\RequirementRow.vue
+    :254 <template>  387 lines
+  src\presentation\editor\shell\NewRoomInspector.vue
+    :240 <template>  372 lines
+  src\presentation\views\ProjectDetailState.vue
+    :301 <template>  360 lines
+  Functions exceeding 60 lines of code (very high risk): https://docs.fallow.tools/explanations/health#unit-size
+  use --top 184 to see all
+
+● High complexity functions (95)
+  CRAP scores use Istanbul coverage where matched (37/18853 functions); the rest fall back to the static estimate.
+  src/domain/asset/Asset.ts
+    :266 withChanges HIGH
+          16   cyclomatic   15   cognitive   17 lines
+          71.3 ! CRAP
+  src/domain/project/Project.ts
+    :157 create HIGH
+          16   cyclomatic   15   cognitive   39 lines
+          71.3 ! CRAP
+  src/application/commands/renovation/materialPlanning.ts
+    :66 prepareMaterial HIGH
+          15   cyclomatic   13   cognitive   18 lines
+          63.6 ! CRAP
+  src/application/queries/buildRequirementRow.ts
+    :264 buildRequirementRow HIGH
+          15   cyclomatic   10   cognitive   45 lines
+          63.6 ! CRAP
+  src/application/commands/renovation/RenovationCommand.ts
+    :93 apply HIGH
+          15   cyclomatic   12   cognitive   19 lines
+          63.6 ! CRAP
+  src/application/commands/requirement/RecalculateRequirement.ts
+    :68 execute HIGH
+          15   cyclomatic   14   cognitive   94 lines
+          63.6 ! CRAP
+  src/presentation/errors/errorSurfacePolicy.ts
+    :133 surfaceFor HIGH
+          15   cyclomatic    8   cognitive   48 lines
+          63.6 ! CRAP
+  src/presentation/editor/elements/spatialRemoval.ts
+    :47 remove HIGH
+          15   cyclomatic   14   cognitive   19 lines
+          63.6 ! CRAP
+  src/infrastructure/obsidian/repositories/PlanGeometryStore.ts
+    :201 readUnlocked HIGH
+          15   cyclomatic   14   cognitive   71 lines
+          63.6 ! CRAP
+  src/application/commands/renovation/MaterialCommand.ts
+    :85 isCurrent HIGH
+          15   cyclomatic   13   cognitive   13 lines
+          63.6 ! CRAP
+    :98 write HIGH
+          15   cyclomatic   15   cognitive   20 lines
+          63.6 ! CRAP
+  src/presentation/editor/tools/select-tool.ts
+    :138 pointerDown HIGH
+          15   cyclomatic   13   cognitive   53 lines
+          63.6 ! CRAP
+  src/presentation/editor/surface/EditorSurface.vue
+    :1037 onKeyDown HIGH
+          14   cyclomatic   15   cognitive  138 lines
+          56.3 ! CRAP
+  src/domain/renovation/Renovation.ts
+    :138 reviewRenovation HIGH
+          14   cyclomatic   14   cognitive   11 lines
+          56.3 ! CRAP
+  src/presentation/editor/renovation/DownstreamAction.vue
+    :25 open HIGH
+          14   cyclomatic   12   cognitive   15 lines
+          56.3 ! CRAP
+  src/domain/asset/Asset.ts
+    :215 create HIGH
+          14   cyclomatic   13   cognitive   46 lines
+          56.3 ! CRAP
+  src/presentation/editor/elements/elementTask.ts
+    :56 finish HIGH
+          14   cyclomatic   11   cognitive   16 lines
+          56.3 ! CRAP
+  src/presentation/editor/structure/structureTask.ts
+    :41 start HIGH
+          14   cyclomatic   13   cognitive   18 lines
+          56.3 ! CRAP
+    :79 finish HIGH
+          14   cyclomatic   13   cognitive   21 lines
+          56.3 ! CRAP
+  src/application/commands/asset-price/SetAssetPriceOverride.ts
+    :113 upsert HIGH
+          14   cyclomatic   13   cognitive  113 lines
+          56.3 ! CRAP
+  src/plugin/settings/libraryMigration.ts
+    :142 migrateLibraryFolder HIGH
+          14   cyclomatic   15   cognitive  235 lines
+          56.3 ! CRAP
+  src/infrastructure/persistence/mappers/planMapper.ts
+    :27 planToPersistence
+          13   cyclomatic    7   cognitive   18 lines
+          49.5 ! CRAP
+  src/presentation/editor/surface/EditorSurface.vue
+    :978 fitShortcut
+          13   cyclomatic    9   cognitive   14 lines
+          49.5 ! CRAP
+  src/presentation/editor/structure/structureActions.ts
+    :93 remove
+          13   cyclomatic   13   cognitive   23 lines
+          49.5 ! CRAP
+  src/domain/plan/ReferenceAppearance.ts
+    :12 validReferenceAppearance
+          13   cyclomatic    1   cognitive    8 lines
+          49.5 ! CRAP
+  src/domain/renovation/Renovation.ts
+    :64 validSubject
+          13   cyclomatic   11   cognitive   12 lines
+          49.5 ! CRAP
+  src/presentation/editor/elements/elementBaseline.ts
+    :42 retry
+          13   cyclomatic   11   cognitive   10 lines
+          49.5 ! CRAP
+  src/application/commands/renovation/planningLinks.ts
+    :26 validateDepthLinks
+          13   cyclomatic   15   cognitive   20 lines
+          49.5 ! CRAP
+  src/presentation/editor/add/areaCornerInput.ts
+    :25 apply
+          13   cyclomatic   12   cognitive   21 lines
+          49.5 ! CRAP
+  src/domain/cost/reconcileCosts.ts
+    :38 reconcileCosts
+          13   cyclomatic   10   cognitive   16 lines
+          49.5 ! CRAP
+  src/domain/spatial/structureGeometry.ts
+    :45 validateStructure
+          13   cyclomatic   14   cognitive   16 lines
+          49.5 ! CRAP
+  src/presentation/editor/renovation/renovationActions.ts
+    :53 perspective
+          13   cyclomatic   10   cognitive   13 lines
+          49.5 ! CRAP
+  src/presentation/editor/renovation/ReviewInspector.vue
+    :45 generate
+          13   cyclomatic   13   cognitive   11 lines
+          49.5 ! CRAP
+  src/application/commands/renovation/MaterialCommand.ts
+    :41 apply
+          13   cyclomatic   12   cognitive   17 lines
+          49.5 ! CRAP
+  src/presentation/editor/roomEditLifecycle.ts
+    :46 open
+          13   cyclomatic   12   cognitive   26 lines
+          49.5 ! CRAP
+  src/presentation/editor/renovation/RenovationBatchForm.vue
+    :33 submit
+          13   cyclomatic   14   cognitive   19 lines
+          49.5 ! CRAP
+  src/presentation/editor/renovation/editorArrival.ts
+    :36 reveal
+          13   cyclomatic    9   cognitive   11 lines
+          49.5 ! CRAP
+  src/domain/asset/AssetShape.ts
+    :158 validateAssetShape
+          13   cyclomatic   14   cognitive   55 lines
+          49.5 ! CRAP
+  src/presentation/editor/tools/select-tool.ts
+    :227 pointerUp
+          13   cyclomatic   12   cognitive   56 lines
+          49.5 ! CRAP
+  src/presentation/editor/structure/StructureEditForm.vue
+    :50 submit
+          13   cyclomatic   12   cognitive   16 lines
+          49.5 ! CRAP
+  src/presentation/editor/elements/objectRectangleInput.ts
+    :9 objectRectangleProposal
+          13   cyclomatic   12   cognitive    9 lines
+          49.5 ! CRAP
+  src/presentation/editor/reference/referenceAction.ts
+    :23 openReference
+          13   cyclomatic    9   cognitive   22 lines
+          49.5 ! CRAP
+  src/presentation/editor/PlanEditorRoot.vue
+    :86 overlay
+          13   cyclomatic    8   cognitive    9 lines
+          49.5 ! CRAP
+  src/infrastructure/obsidian/repositories/ObsidianZoneRepository.ts
+    :224 saveQueued
+          13   cyclomatic   14   cognitive   96 lines
+          49.5 ! CRAP
+  src/presentation/editor/renovation/renovationDraft.ts
+    :37 renovationTargetDraft
+          13   cyclomatic    8   cognitive   10 lines
+          49.5 ! CRAP
+  src/infrastructure/persistence/mappers/planMapper.ts
+    :9 planSchemaVersion
+          12   cyclomatic   14   cognitive    8 lines
+          43.1 ! CRAP
+  src/presentation/editor/surface/EditorSurface.vue
+    :524 onPointerMove
+          12   cyclomatic   15   cognitive  107 lines
+          43.1 ! CRAP
+  src/presentation/editor/planning/planningDraft.ts
+    :44 planningDraft
+          12   cyclomatic   10   cognitive   12 lines
+          43.1 ! CRAP
+  src/domain/renovation/renovationTargets.ts
+    :17 validateRenovationTargets
+          12   cyclomatic   13   cognitive   14 lines
+          43.1 ! CRAP
+  src/presentation/views/ViewRoot.vue
+    :152 onResume
+          12   cyclomatic    9   cognitive   11 lines
+          43.1 ! CRAP
+  src/presentation/editor/planning/EvidenceFields.vue
+    :16 create
+          12   cyclomatic   12   cognitive   11 lines
+          43.1 ! CRAP
+  src/domain/spatial/structureGeometry.ts
+    :31 openingError
+          12   cyclomatic    6   cognitive    9 lines
+          43.1 ! CRAP
+  src/presentation/editor/renovation/recordNavigationContext.ts
+    :8 recordContext
+          12   cyclomatic    6   cognitive   13 lines
+          43.1 ! CRAP
+  src/application/reference/recoverInterruptedSequences.ts
+    :46 restoreEntry
+          12   cyclomatic   10   cognitive   66 lines
+          43.1 ! CRAP
+  src/domain/requirement/Requirement.ts
+    :139 with
+          12   cyclomatic   11   cognitive   16 lines
+          43.1 ! CRAP
+  src/presentation/editor/renovation/renovationActions.ts
+    :66 focus
+          12   cyclomatic    9   cognitive   13 lines
+          43.1 ! CRAP
+  src/presentation/editor/structure/structureDraft.ts
+    :50 addWallPoint
+          12   cyclomatic    8   cognitive   10 lines
+          43.1 ! CRAP
+  src/infrastructure/obsidian/repositories/ObsidianReviewNotes.ts
+    :18 write
+          12   cyclomatic   11   cognitive   26 lines
+          43.1 ! CRAP
+  src/application/commands/asset/UpdateAsset.ts
+    :75 execute
+          12   cyclomatic   13   cognitive   39 lines
+          43.1 ! CRAP
+  src/presentation/editor/renovation/plannedGeometry.ts
+    :61 applyPlannedGeometry
+          12   cyclomatic   12   cognitive   25 lines
+          43.1 ! CRAP
+  src/infrastructure/obsidian/plugin-data/SequenceMarkerFileStore.ts
+    :80 readEnvelope
+          12   cyclomatic   10   cognitive   37 lines
+          43.1 ! CRAP
+  src/domain/renovation/validatePlanningDepth.ts
+    :30 validEvidence
+          12   cyclomatic    8   cognitive    6 lines
+          43.1 ! CRAP
+  src/infrastructure/obsidian/repositories/renovationGeometryGuard.ts
+    :16 guardRenovationGeometry
+          12   cyclomatic    9   cognitive   20 lines
+          43.1 ! CRAP
+  src/presentation/editor/structure/StructureRenovationEntry.vue
+    :11 <arrow>
+          12   cyclomatic    5   cognitive    8 lines
+          43.1 ! CRAP
+  src/application/queries/GetAssetDesign.ts
+    :114 execute
+          11   cyclomatic   11   cognitive   47 lines
+          37.1 ! CRAP
+  src/presentation/editor/surface/EditorSurface.vue
+    :448 onPointerDown
+          11   cyclomatic    9   cognitive   75 lines
+          37.1 ! CRAP
+  src/presentation/editor/planning/planningDraft.ts
+    :68 planningInput
+          11   cyclomatic    9   cognitive   19 lines
+          37.1 ! CRAP
+  src/presentation/editor/structure/structureActions.ts
+    :54 edit
+          11   cyclomatic   10   cognitive   21 lines
+          37.1 ! CRAP
+  src/domain/plan/Plan.ts
+    :95 create
+          11   cyclomatic   11   cognitive   34 lines
+          37.1 ! CRAP
+  src/domain/requirement/RequirementSource.ts
+    :36 validRequirementSource
+          11   cyclomatic    4   cognitive    6 lines
+          37.1 ! CRAP
+    :76 sourceMeasurement
+          11   cyclomatic   12   cognitive   10 lines
+          37.1 ! CRAP
+  src/presentation/editor/elements/elementBaseline.ts
+    :26 readBaseline
+          11   cyclomatic   11   cognitive   11 lines
+          37.1 ! CRAP
+  src/presentation/editor/resize/roomDimensions.ts
+    :41 dimensionProposal
+          11   cyclomatic   12   cognitive   22 lines
+          37.1 ! CRAP
+  src/presentation/editor/renovation/RenovationInspector.vue
+    :16 <arrow>
+          11   cyclomatic    6   cognitive   11 lines
+          37.1 ! CRAP
+  src/presentation/editor/selection/directActionContext.ts
+    :13 target
+          11   cyclomatic    9   cognitive   12 lines
+          37.1 ! CRAP
+  src/application/commands/zone/EditZoneDetails.ts
+    :28 dispatch
+          11   cyclomatic   10   cognitive   20 lines
+          37.1 ! CRAP
+  src/presentation/editor/planning/planningContext.ts
+    :34 edit
+          11   cyclomatic   11   cognitive   17 lines
+          37.1 ! CRAP
+  src/domain/spatial/structureGeometry.ts
+    :14 wallsConflict
+          11   cyclomatic    9   cognitive   12 lines
+          37.1 ! CRAP
+  src/presentation/editor/planning/MaterialMarkers.vue
+    :19 <arrow>
+          11   cyclomatic    6   cognitive    9 lines
+         react: 1 props
+          37.1 ! CRAP
+  src/presentation/editor/renovation/recordNavigationContext.ts
+    :22 linkedEvidenceContext
+          11   cyclomatic   13   cognitive   10 lines
+          37.1 ! CRAP
+  src/presentation/editor/renovation/renovationActions.ts
+    :114 change
+          11   cyclomatic   10   cognitive   13 lines
+          37.1 ! CRAP
+  src/application/commands/asset/SetAssetBackground.ts
+    :182 write
+          11   cyclomatic   11   cognitive   67 lines
+          37.1 ! CRAP
+  src/presentation/library/definitionDraft.ts
+    :32 validateDefinition
+          11   cyclomatic   13   cognitive   17 lines
+          37.1 ! CRAP
+    :59 definitionChanges
+          11   cyclomatic   12   cognitive   14 lines
+          37.1 ! CRAP
+  src/application/commands/renovation/MaterialCommand.ts
+    :67 confirmGeometry
+          11   cyclomatic   12   cognitive   17 lines
+          37.1 ! CRAP
+  src/presentation/editor/elements/elementActions.ts
+    :54 operate
+          11   cyclomatic    7   cognitive    7 lines
+          37.1 ! CRAP
+  src/presentation/dialogs/DialogHost.vue
+    :235 onKeydown
+          11   cyclomatic   10   cognitive   43 lines
+          37.1 ! CRAP
+  src/infrastructure/obsidian/repositories/ObsidianPlanRepository.ts
+    :276 <arrow>
+          11   cyclomatic   11   cognitive   60 lines
+          37.1 ! CRAP
+  src/infrastructure/obsidian/repositories/noteEntityWrite.ts
+    :206 trashNoteBackedEntity
+          11   cyclomatic   15   cognitive   79 lines
+          37.1 ! CRAP
+  src/presentation/editor/tools/calibrate-tool.ts
+    :346 complete
+          11   cyclomatic    9   cognitive   63 lines
+          37.1 ! CRAP
+  src/presentation/editor/renovation/plannedGeometry.ts
+    :29 geometryIdentity
+          11   cyclomatic    8   cognitive    3 lines
+          37.1 ! CRAP
+    :32 plannedGeometryDraft
+          11   cyclomatic    6   cognitive    9 lines
+          37.1 ! CRAP
+  src/core/geometry/operations.ts
+    :473 intersect
+          11   cyclomatic    8   cognitive   32 lines
+          37.1 ! CRAP
+  src/domain/quote/Quote.ts
+    :34 validateQuote
+          11   cyclomatic    9   cognitive    7 lines
+          37.1 ! CRAP
+  src/presentation/editor/renovation/BatchActionList.vue
+    :21 targetKind
+          11   cyclomatic   10   cognitive    7 lines
+          37.1 ! CRAP
+  Functions exceeding cyclomatic, cognitive, or CRAP thresholds; ! marks the dimension that breached (https://docs.fallow.tools/explanations/health#complexity-metrics)
+  To suppress: // fallow-ignore-next-line complexity
+
+● File health scores (664 files) · sorted by triage concern
+
+   86.9    src\domain\asset\Asset.ts                       risk
+            294 LOC   40 fan-in    7 fan-out    0% dead  0.16 density  71.3 risk
+
+   88.0    src\domain\project\Project.ts                   risk
+            220 LOC   23 fan-in    6 fan-out    0% dead  0.14 density  71.3 risk
+
+   68.0    src\presentation\editor\elements\spatialRemoval.ts  risk
+             68 LOC    1 fan-in   20 fan-out    0% dead  0.66 density  63.6 risk
+
+   71.4    src\application\commands\renovation\MaterialCommand.ts  risk
+            125 LOC    1 fan-in   13 fan-out    0% dead  0.60 density  63.6 risk
+
+   77.6    src\application\commands\renovation\RenovationCommand.ts  risk
+            182 LOC   31 fan-in   20 fan-out    0% dead  0.34 density  63.6 risk
+
+   77.8    src\application\commands\renovation\materialPlanning.ts  risk
+             84 LOC    2 fan-in   24 fan-out    0% dead  0.31 density  63.6 risk
+
+   82.0    src\infrastructure\obsidian\repositories\PlanGeometryStore.ts  risk
+            289 LOC    6 fan-in   15 fan-out    0% dead  0.23 density  63.6 risk  exempt (raised threshold)
+
+   83.1    src\application\queries\buildRequirementRow.ts  risk
+            319 LOC    2 fan-in   21 fan-out    0% dead  0.15 density  63.6 risk
+
+   83.5    src\presentation\editor\tools\select-tool.ts    risk
+            357 LOC    9 fan-in   15 fan-out    0% dead  0.18 density  63.6 risk
+
+   84.1    src\application\commands\requirement\RecalculateRequirement.ts  risk
+            163 LOC   18 fan-in   24 fan-out    0% dead  0.10 density  63.6 risk
+
+  ... and 654 more files (--format json for full list)
+
+  Sorted by triage concern: the larger of low-MI concern and CRAP risk. The risk / structure tag marks which one placed each file. MI reflects complexity, coupling, and dead code; risk reflects untested complexity (CRAP) and can diverge from MI. Risk: low <16, moderate 16-32, high >=32. CRAP from Istanbul coverage data (37/18853 functions matched). https://docs.fallow.tools/explanations/health#file-health-scores
+
+● Hotspots (332 files, since 6 months)
+
+    9.2 ▲  src\presentation\editor\runtime.ts
+          82 commits   3134 churn  0.11 density  69 fan-in  ▲ accelerating
+
+    8.0 ▼  src\presentation\editor\PlanCanvas.vue
+          62 commits   3178 churn  0.13 density   1 fan-in  ▼ cooling
+
+    6.2 ▲  src\presentation\editor\PlanEditorRoot.vue
+          41 commits    977 churn  0.15 density   2 fan-in  ▲ accelerating
+
+    6.0 ▼  src\presentation\editor\elements\elementActions.ts
+           7 commits    134 churn  0.81 density   1 fan-in  ▼ cooling
+
+    5.8 ▲  src\presentation\editor\renovation\renovationActions.ts
+           8 commits    205 churn  0.69 density   1 fan-in  ▲ accelerating
+
+    5.3 ▲  src\presentation\views\ViewRoot.vue
+          31 commits   1133 churn  0.17 density  15 fan-in  ▲ accelerating
+
+    4.7 ▼  src\presentation\editor\planning\planningDraft.ts
+           5 commits     66 churn  0.90 density  18 fan-in  ▼ cooling
+
+    4.1 ─  src\plugin\RenovationPlannerPlugin.ts
+          52 commits   1837 churn  0.08 density   7 fan-in  ─ stable
+
+    4.0 ▼  src\presentation\library\AssetLibraryRoot.vue
+          16 commits   1515 churn  0.24 density   2 fan-in  ▼ cooling
+
+    4.0 ▼  src\presentation\editor\renovation\RenovationLayer.vue
+           6 commits     95 churn  0.64 density   1 fan-in  ▼ cooling
+
+    3.9 ▲  src\presentation\editor\structure\structureActions.ts
+           6 commits    167 churn  0.62 density   1 fan-in  ▲ accelerating
+
+    3.8 ▲  src\domain\renovation\renovationTargets.ts
+           3 commits     47 churn  1.20 density  10 fan-in  ▲ accelerating
+
+    3.7 ▼  src\presentation\editor\renovation\ReviewInspector.vue
+           7 commits    175 churn  0.50 density   1 fan-in  ▼ cooling
+
+    3.7 ─  src\infrastructure\persistence\mappers\planMapper.ts
+          10 commits    142 churn  0.37 density  10 fan-in  ─ stable
+
+    3.7 ▲  src\presentation\editor\renovation\renovationRemoval.ts
+           4 commits     47 churn  0.87 density   5 fan-in  ▲ accelerating
+
+    3.7 ─  src\presentation\editor\planning\planningProjection.ts
+           4 commits     41 churn  0.87 density  14 fan-in  ─ stable
+
+    3.5 ─  src\presentation\editor\layers\InteractionLayer.vue
+          19 commits    759 churn  0.18 density   1 fan-in  ─ stable
+
+    3.5 ─  src\domain\renovation\sameRenovation.ts
+           4 commits     22 churn  0.83 density   7 fan-in  ─ stable
+
+    3.4 ▲  src\presentation\editor\renovation\RenovationInspector.vue
+           5 commits     73 churn  0.65 density   1 fan-in  ▲ accelerating
+
+    3.4 ▼  src\presentation\editor\selection\DirectActionPopover.vue
+           6 commits    316 churn  0.54 density   1 fan-in  ▼ cooling
+
+    3.3 ▼  src\presentation\editor\planning\planningContext.ts
+           6 commits     93 churn  0.53 density  16 fan-in  ▼ cooling
+
+    3.3 ▼  src\presentation\views\ProjectDetailState.vue
+          15 commits   1042 churn  0.22 density   1 fan-in  ▼ cooling
+
+    3.2 ─  src\infrastructure\obsidian\repositories\ObsidianZoneRepository.ts
+          23 commits    924 churn  0.14 density   5 fan-in  ─ stable
+
+    3.2 ▼  src\presentation\editor\planning\EvidenceInspector.vue
+           8 commits    102 churn  0.38 density   1 fan-in  ▼ cooling
+
+    3.1 ─  src\presentation\editor\renovation\BatchActionList.vue
+           4 commits    110 churn  0.74 density   1 fan-in  ─ stable
+
+    3.1 ▲  src\presentation\editor\shell\TemporaryToolBanner.vue
+          13 commits    305 churn  0.23 density   1 fan-in  ▲ accelerating
+
+    3.0 ▲  src\presentation\editor\surface\EditorSurface.vue
+          32 commits   1692 churn  0.09 density   2 fan-in  ▲ accelerating
+
+    3.0 ▲  src\presentation\editor\renovation\renovationDraft.ts
+           3 commits     74 churn  0.96 density  13 fan-in  ▲ accelerating
+
+    3.0 ▲  src\presentation\editor\renovation\recordNavigationContext.ts
+           3 commits     50 churn  0.95 density   3 fan-in  ▲ accelerating
+
+    2.9 ─  src\presentation\views\work\projectWorkActions.ts
+           4 commits     86 churn  0.70 density   1 fan-in  ─ stable
+
+    2.8 ─  src\infrastructure\obsidian\repositories\ObsidianPlanRepository.ts
+          22 commits    766 churn  0.13 density   5 fan-in  ─ stable
+
+    2.8 ─  src\presentation\editor\add\AddMenu.vue
+          15 commits    578 churn  0.18 density   2 fan-in  ─ stable
+
+    2.7 ─  src\infrastructure\obsidian\repositories\PlanGeometryStore.ts
+          12 commits    403 churn  0.23 density   6 fan-in  ─ stable
+
+    2.7 ▲  src\presentation\editor\tools\select-tool.ts
+          15 commits    669 churn  0.18 density   9 fan-in  ▲ accelerating
+
+    2.6 ▼  src\infrastructure\obsidian\repositories\noteIo.ts
+          24 commits    910 churn  0.11 density  28 fan-in  ▼ cooling
+
+    2.5 ▲  src\presentation\editor\structure\structureTask.ts
+           4 commits    121 churn  0.59 density   1 fan-in  ▲ accelerating
+
+    2.5 ─  src\domain\renovation\Renovation.ts
+           4 commits    155 churn  0.60 density  66 fan-in  ─ stable
+
+    2.5 ▼  src\presentation\editor\renovation\plannedGeometry.ts
+           3 commits     95 churn  0.80 density   6 fan-in  ▼ cooling
+
+    2.5 ▼  src\presentation\editor\renovation\RoomRenovationDetails.vue
+           5 commits    183 churn  0.47 density   1 fan-in  ▼ cooling
+
+    2.5 ▲  src\presentation\views\ProjectList.vue
+          19 commits    803 churn  0.13 density   9 fan-in  ▲ accelerating
+
+    2.4 ─  src\infrastructure\persistence\index\VaultChangeAdapter.ts
+          24 commits   1376 churn  0.10 density  12 fan-in  ─ stable
+
+    2.3 ─  src\presentation\editor\tools\draw-polygon-tool.ts
+          18 commits    717 churn  0.13 density   5 fan-in  ─ stable
+
+    2.3 ─  src\presentation\editor\renovation\RenovationLinkedSummary.vue
+           5 commits     93 churn  0.43 density   3 fan-in  ─ stable
+
+    2.3 ▲  src\presentation\editor\structure\StructureTool.ts
+           3 commits     40 churn  0.74 density   3 fan-in  ▲ accelerating
+
+    2.3 ▼  src\presentation\editor\planning\MaterialsInspector.vue
+           6 commits     55 churn  0.36 density   1 fan-in  ▼ cooling
+
+    2.3 ▲  src\infrastructure\persistence\migration\geometry\plan\plan-geometry.migrations.ts
+           4 commits     17 churn  0.56 density   4 fan-in  ▲ accelerating
+
+    2.2 ─  src\plugin\composition-root.ts
+          75 commits   1887 churn  0.03 density  24 fan-in  ─ stable
+
+    2.2 ▼  src\infrastructure\obsidian\repositories\ObsidianProjectRepository.ts
+          19 commits    410 churn  0.12 density   3 fan-in  ▼ cooling
+
+    2.1 ▼  src\presentation\editor\elements\spatialRemoval.ts
+           3 commits     73 churn  0.66 density   1 fan-in  ▼ cooling
+
+    2.1 ▲  src\presentation\editor\selection\resolveSelectionTarget.ts
+           5 commits    143 churn  0.40 density   5 fan-in  ▲ accelerating
+
+    2.1 ─  src\presentation\editor\tools\tool-manager.ts
+          13 commits    347 churn  0.16 density  12 fan-in  ─ stable
+
+    2.1 ─  src\presentation\editor\structure\StructureLayer.vue
+           4 commits     87 churn  0.51 density   1 fan-in  ─ stable
+
+    2.1 ▼  src\presentation\editor\reference\ReferenceSetupForm.vue
+           4 commits    274 churn  0.50 density   1 fan-in  ▼ cooling
+
+    2.1 ─  src\presentation\editor\shell\EntityInspector.vue
+          11 commits    199 churn  0.18 density   1 fan-in  ─ stable
+
+    2.0 ▲  src\core\geometry\operations.ts
+          14 commits    748 churn  0.14 density  33 fan-in  ▲ accelerating
+
+    2.0 ▼  src\presentation\library\AssetInspector.vue
+           7 commits    594 churn  0.27 density   2 fan-in  ▼ cooling
+
+    1.9 ─  src\presentation\library\definitionDraft.ts
+           5 commits    154 churn  0.37 density   3 fan-in  ─ stable
+
+    1.9 ─  src\presentation\editor\resize\RoomDimensionLabels.vue
+           4 commits    204 churn  0.46 density   1 fan-in  ─ stable
+
+    1.9 ▲  src\presentation\editor\renovation\RenovationForm.vue
+           5 commits    171 churn  0.36 density   4 fan-in  ▲ accelerating
+
+    1.9 ▲  src\presentation\editor\resize\OutlinePointsForm.vue
+           5 commits    165 churn  0.37 density   3 fan-in  ▲ accelerating
+
+    1.9 ▼  src\presentation\views\quotes\QuoteComparisonState.vue
+           5 commits    183 churn  0.37 density   1 fan-in  ▼ cooling
+
+    1.9 ▼  src\infrastructure\persistence\index\buildProjectIndexEntries.ts
+          21 commits    709 churn  0.09 density  10 fan-in  ▼ cooling
+
+    1.8 ▲  src\presentation\composables\latest-read.ts
+           3 commits     54 churn  0.57 density   5 fan-in  ▲ accelerating
+
+    1.8 ─  src\infrastructure\obsidian\repositories\paths.ts
+          18 commits    479 churn  0.10 density  42 fan-in  ─ stable
+
+    1.8 ▼  src\presentation\editor\planning\evidencePins.ts
+           3 commits     51 churn  0.58 density   4 fan-in  ▼ cooling
+
+    1.8 ▼  src\application\commands\spatial\sameGeometryDocument.ts
+           3 commits     35 churn  0.58 density  11 fan-in  ▼ cooling
+
+    1.8 ▲  src\plugin\settings\SettingsTab.ts
+          17 commits    392 churn  0.11 density   4 fan-in  ▲ accelerating
+
+    1.7 ▼  src\presentation\editor\tools\calibrate-tool.ts
+          19 commits    609 churn  0.09 density   6 fan-in  ▼ cooling
+
+    1.7 ▼  src\presentation\editor\add\areaTask.ts
+           3 commits     51 churn  0.55 density   1 fan-in  ▼ cooling
+
+    1.7 ▲  src\presentation\editor\selection\spatialSelection.ts
+           3 commits     43 churn  0.53 density   4 fan-in  ▲ accelerating
+
+    1.7 ─  src\presentation\views\PlanEditorView.ts
+          15 commits    344 churn  0.11 density  19 fan-in  ─ stable
+
+    1.7 ▼  src\infrastructure\obsidian\repositories\ObsidianRequirementRepository.ts
+          11 commits    494 churn  0.16 density   3 fan-in  ▼ cooling
+
+    1.7 ─  src\presentation\editor\renovation\RenovationEntry.vue
+           5 commits     92 churn  0.32 density   2 fan-in  ─ stable
+
+    1.7 ─  src\presentation\read-models\planEditorQueries.ts
+          14 commits    349 churn  0.12 density  19 fan-in  ─ stable
+
+    1.7 ▲  src\infrastructure\persistence\migration\entities\plan\plan.migrations.ts
+           8 commits     44 churn  0.20 density   7 fan-in  ▲ accelerating
+
+    1.6 ▲  src\presentation\editor\tools\registerEditorTools.ts
+           9 commits    313 churn  0.17 density   2 fan-in  ▲ accelerating
+
+    1.6 ▼  src\presentation\editor\shell\RequirementRow.vue
+          13 commits    556 churn  0.12 density   2 fan-in  ▼ cooling
+
+    1.6 ▲  src\presentation\stores\ProjectStore.ts
+          22 commits    702 churn  0.07 density  79 fan-in  ▲ accelerating
+
+    1.5 ─  src\infrastructure\obsidian\repositories\noteEntityWrite.ts
+          15 commits    361 churn  0.10 density   5 fan-in  ─ stable
+
+    1.5 ▲  src\presentation\editor\inspector-wiring.ts
+          11 commits    193 churn  0.13 density   1 fan-in  ▲ accelerating
+
+    1.5 ─  src\presentation\views\AssetPriceRow.vue
+           5 commits    976 churn  0.29 density   1 fan-in  ─ stable
+
+    1.5 ▼  src\presentation\editor\planning\EvidencePreview.vue
+           4 commits     37 churn  0.36 density   4 fan-in  ▼ cooling
+
+    1.5 ▲  src\presentation\library\useDefinitionDraft.ts
+           3 commits    108 churn  0.49 density   1 fan-in  ▲ accelerating
+
+    1.5 ▼  src\presentation\designer\DesignerCanvas.vue
+          12 commits    321 churn  0.12 density   1 fan-in  ▼ cooling
+
+    1.5 ─  src\presentation\editor\layers\zone\captionPlacement.ts
+           4 commits     64 churn  0.35 density   2 fan-in  ─ stable
+
+    1.5 ▲  src\presentation\editor\planning\EvidencePins.vue
+           6 commits    115 churn  0.24 density   1 fan-in  ▲ accelerating
+
+    1.4 ▼  src\presentation\editor\shell\ResponsiveEditorShell.vue
+           4 commits    355 churn  0.34 density   1 fan-in  ▼ cooling
+
+    1.4 ─  src\presentation\designer\AssetDesignerRoot.vue
+          14 commits    623 churn  0.10 density   8 fan-in  ─ stable
+
+    1.4 ▲  src\infrastructure\obsidian\repositories\digest.ts
+          14 commits    291 churn  0.10 density  16 fan-in  ▲ accelerating
+
+    1.4 ─  src\presentation\editor\snapping\snap-service.ts
+          10 commits    421 churn  0.14 density   9 fan-in  ─ stable
+
+    1.4 ▲  src\presentation\editor\shell\RoomInspector.vue
+          12 commits    370 churn  0.11 density   2 fan-in  ▲ accelerating
+
+    1.4 ▲  src\presentation\editor\shell\StatusBar.vue
+          11 commits    237 churn  0.13 density   3 fan-in  ▲ accelerating
+
+    1.4 ▲  src\presentation\editor\add\creationCatalogue.ts
+           9 commits    436 churn  0.15 density   4 fan-in  ▲ accelerating
+
+    1.3 ─  src\domain\project\Project.ts
+           9 commits    287 churn  0.14 density  23 fan-in  ─ stable
+
+    1.3 ▼  src\presentation\editor\renovation\RenovationBatchForm.vue
+           3 commits    162 churn  0.41 density   3 fan-in  ▼ cooling
+
+    1.3 ▼  src\presentation\dialogs\DialogHost.vue
+          17 commits    608 churn  0.08 density   5 fan-in  ▼ cooling
+
+    1.3 ▼  src\presentation\editor\planning\PlanningForm.vue
+           4 commits     52 churn  0.32 density   6 fan-in  ▼ cooling
+
+    1.3 ▼  src\presentation\editor\renovation\ReviewSummary.vue
+           3 commits    106 churn  0.40 density   1 fan-in  ▼ cooling
+
+    1.3 ─  src\plugin\planEditorCommands.ts
+          10 commits    350 churn  0.13 density   2 fan-in  ─ stable
+
+    1.3 ▲  src\presentation\editor\shell\EditorContextBar.vue
+           9 commits    136 churn  0.14 density   1 fan-in  ▲ accelerating
+
+    1.3 ▼  src\domain\cost\costPipeline.ts
+           8 commits    320 churn  0.16 density   5 fan-in  ▼ cooling
+
+    1.2 ─  src\domain\plan\Plan.ts
+           7 commits    232 churn  0.17 density  55 fan-in  ─ stable
+
+    1.2 ▼  src\presentation\designer\AssetDesignerView.ts
+          12 commits    269 churn  0.10 density  12 fan-in  ▼ cooling
+
+    1.2 ▲  src\presentation\emptyStates\selectors.ts
+          12 commits    228 churn  0.10 density   6 fan-in  ▲ accelerating
+
+    1.2 ▲  src\presentation\editor\layers\background\BackgroundLayer.vue
+           8 commits    289 churn  0.15 density   2 fan-in  ▲ accelerating
+
+    1.2 ─  src\application\commands\plan\ReversibleCalibratePlan.ts
+           9 commits    418 churn  0.13 density  13 fan-in  ─ stable
+
+    1.2 ▼  src\presentation\library\AssetShelves.vue
+           8 commits    460 churn  0.14 density   2 fan-in  ▼ cooling
+
+    1.2 ─  src\presentation\views\RenovationProjectView.ts
+          14 commits    514 churn  0.09 density  11 fan-in  ─ stable
+
+    1.1 ▼  src\application\commands\renovation\RenovationCommand.ts
+           3 commits    198 churn  0.34 density  31 fan-in  ▼ cooling
+
+    1.1 ▼  src\domain\asset\AssetShape.ts
+           9 commits    290 churn  0.12 density  34 fan-in  ▼ cooling
+
+    1.1 ▼  src\presentation\editor\planning\EvidenceFields.vue
+           4 commits     46 churn  0.25 density   1 fan-in  ▼ cooling
+
+    1.1 ▼  src\application\reference\deleteResolution.ts
+           9 commits    698 churn  0.12 density  21 fan-in  ▼ cooling
+
+    1.1 ─  src\application\commands\zone\reversible-delete-zone-command.ts
+          11 commits    339 churn  0.10 density   8 fan-in  ─ stable
+
+    1.1 ─  src\infrastructure\obsidian\repositories\AssetGeometryStore.ts
+          12 commits    493 churn  0.09 density   5 fan-in  ─ stable
+
+    1.1 ▼  src\presentation\editor\elements\ElementInspector.vue
+           3 commits     99 churn  0.34 density   2 fan-in  ▼ cooling
+
+    1.1 ▼  src\presentation\views\work\ProjectWorkState.vue
+           4 commits    269 churn  0.25 density   1 fan-in  ▼ cooling
+
+    1.1 ▼  src\domain\cost\quantityEngine.ts
+           8 commits    282 churn  0.14 density   6 fan-in  ▼ cooling
+
+    1.1 ─  src\presentation\notices\queue.ts
+           8 commits    346 churn  0.14 density   2 fan-in  ─ stable
+
+    1.1 ▼  src\application\commands\zone\DeleteZone.ts
+          10 commits    316 churn  0.11 density  18 fan-in  ▼ cooling
+
+    1.1 ▼  src\presentation\editor\resize\roomResizeAction.ts
+           3 commits    147 churn  0.34 density   1 fan-in  ▼ cooling
+
+    1.1 ▼  src\presentation\editor\planning\CostsInspector.vue
+           5 commits     53 churn  0.20 density   1 fan-in  ▼ cooling
+
+    1.1 ▲  src\infrastructure\persistence\index\InMemoryProjectIndex.ts
+           4 commits    120 churn  0.27 density  16 fan-in  ▲ accelerating
+
+    1.1 ▼  src\application\editor\asset\ReversibleAssetDesignCommands.ts
+          14 commits    989 churn  0.08 density   8 fan-in  ▼ cooling
+
+    1.1 ▲  src\application\queries\ListReassignmentTargets.ts
+           6 commits    111 churn  0.18 density   7 fan-in  ▲ accelerating
+
+    1.1 ▼  src\presentation\stores\EditorStore.ts
+          18 commits    465 churn  0.06 density  44 fan-in  ▼ cooling
+
+    1.0 ─  src\domain\asset\Asset.ts
+           6 commits    353 churn  0.16 density  40 fan-in  ─ stable
+
+    1.0 ─  src\application\reference\recoverInterruptedSequences.ts
+           8 commits    365 churn  0.12 density   4 fan-in  ─ stable
+
+    1.0 ▲  src\application\commands\asset\SetAssetBackground.ts
+           8 commits    271 churn  0.12 density   7 fan-in  ▲ accelerating
+
+    1.0 ▼  src\presentation\editor\inspector\inspector-store.ts
+          13 commits    401 churn  0.08 density  10 fan-in  ▼ cooling
+
+    1.0 ▲  src\infrastructure\obsidian\repositories\ObsidianPlanGeometrySidecar.ts
+           4 commits    107 churn  0.25 density   9 fan-in  ▲ accelerating
+
+    1.0 ▼  src\infrastructure\obsidian\repositories\ObsidianAssetRepository.ts
+          10 commits    482 churn  0.10 density   3 fan-in  ▼ cooling
+
+    1.0 ▼  src\core\money\Money.ts
+          11 commits    634 churn  0.09 density  143 fan-in  ▼ cooling
+
+    1.0 ─  src\plugin\settings\settings.ts
+          10 commits    221 churn  0.10 density  33 fan-in  ─ stable
+
+    1.0 ▲  src\application\events\planChangeSource.ts
+           9 commits    166 churn  0.11 density   6 fan-in  ▲ accelerating
+
+    1.0 ─  src\presentation\editor\surface\keyboard.ts
+           4 commits    114 churn  0.24 density   2 fan-in  ─ stable
+
+    0.9 ▼  src\plugin\settings\libraryMigration.ts
+          13 commits    795 churn  0.07 density   5 fan-in  ▼ cooling
+
+    0.9 ─  src\application\commands\plan\ConfigurePlanReference.ts
+           4 commits    136 churn  0.22 density   9 fan-in  ─ stable
+
+    0.9 ▲  src\presentation\editor\add\AreaCornerEditor.vue
+           4 commits    170 churn  0.21 density   1 fan-in  ▲ accelerating
+
+    0.9 ─  src\presentation\editor\add\room-draft-store.ts
+           8 commits    566 churn  0.11 density  11 fan-in  ─ stable
+
+    0.9 ─  src\application\commands\requirement\reversible-assign-asset-command.ts
+          10 commits    260 churn  0.09 density   5 fan-in  ─ stable
+
+    0.9 ▼  src\presentation\editor\selection\selection-store.ts
+           6 commits    116 churn  0.15 density  83 fan-in  ▼ cooling
+
+    0.9 ▼  src\presentation\stores\AssetLibraryStore.ts
+           9 commits    513 churn  0.10 density   7 fan-in  ▼ cooling
+
+    0.9 ▼  src\presentation\notices\notify.ts
+          15 commits    854 churn  0.06 density  97 fan-in  ▼ cooling
+
+    0.9 ▲  src\infrastructure\persistence\mappers\assetMapper.ts
+           4 commits     77 churn  0.23 density   3 fan-in  ▲ accelerating
+
+    0.9 ▼  eslint.config.mjs
+          30 commits   1509 churn  0.03 density   2 fan-in  ▼ cooling
+
+    0.9 ▲  src\presentation\editor\shell\PropertyLayerPanel.vue
+           9 commits    117 churn  0.10 density   1 fan-in  ▲ accelerating
+
+    0.8 ─  src\application\commands\asset\UpdateAsset.ts
+           6 commits    216 churn  0.13 density  11 fan-in  ─ stable
+
+    0.8 ▼  src\presentation\editor\save-state\with-save-state-tracking.ts
+           5 commits    113 churn  0.15 density   5 fan-in  ▼ cooling
+
+    0.8 ─  src\infrastructure\persistence\migration\MigrationRunner.ts
+           5 commits    177 churn  0.16 density  24 fan-in  ─ stable
+
+    0.8 ▼  src\infrastructure\obsidian\workspace\revealPlanEditor.ts
+           5 commits     85 churn  0.15 density   6 fan-in  ▼ cooling
+
+    0.8 ▼  src\presentation\editor\planning\CostRow.vue
+           3 commits     21 churn  0.26 density   1 fan-in  ▼ cooling
+
+    0.8 ▲  src\presentation\editor\renovation\TransformationSummary.vue
+           3 commits     63 churn  0.24 density   2 fan-in  ▲ accelerating
+
+    0.8 ─  src\presentation\editor\planEditorCommands.ts
+          17 commits    357 churn  0.05 density  19 fan-in  ─ stable
+
+    0.8 ▼  src\presentation\views\NewProjectForm.vue
+           9 commits    523 churn  0.09 density   6 fan-in  ▼ cooling
+
+    0.8 ▲  src\presentation\editor\layers\zone\ZoneLayer.vue
+           6 commits     75 churn  0.13 density   1 fan-in  ▲ accelerating
+
+    0.8 ▼  src\presentation\views\ProjectDetail.vue
+           9 commits    427 churn  0.09 density   3 fan-in  ▼ cooling
+
+    0.8 ▼  src\presentation\editor\tools\command-history.ts
+           6 commits    215 churn  0.14 density  16 fan-in  ▼ cooling
+
+    0.8 ▲  src\presentation\editor\structure\StructureList.vue
+           4 commits     97 churn  0.18 density   1 fan-in  ▲ accelerating
+
+    0.8 ▲  src\presentation\editor\reference\ReferenceAction.vue
+           3 commits     32 churn  0.26 density   3 fan-in  ▲ accelerating
+
+    0.8 ▲  src\presentation\editor\layers\zone\ZoneShape.vue
+          11 commits    334 churn  0.07 density   1 fan-in  ▲ accelerating
+
+    0.7 ─  src\domain\requirement\Requirement.ts
+           4 commits    278 churn  0.17 density  35 fan-in  ─ stable
+
+    0.7 ▼  src\domain\plan\Calibration.ts
+           6 commits    243 churn  0.12 density  18 fan-in  ▼ cooling
+
+    0.7 ▼  src\presentation\composables\use-field-commit.ts
+          10 commits    615 churn  0.07 density   5 fan-in  ▼ cooling
+
+    0.7 ─  src\domain\zone\Zone.ts
+           5 commits    179 churn  0.14 density  34 fan-in  ─ stable
+
+    0.7 ─  src\application\commands\requirement\SetRequirementQuantityOverride.ts
+           9 commits    281 churn  0.08 density  18 fan-in  ─ stable
+
+    0.7 ─  src\infrastructure\persistence\index\EchoWindow.ts
+           9 commits    364 churn  0.08 density  13 fan-in  ─ stable
+
+    0.7 ▼  src\application\commands\asset\updateAssetShape.ts
+          11 commits    515 churn  0.06 density   8 fan-in  ▼ cooling
+
+    0.7 ─  src\application\commands\zone\reversible-create-zone-command.ts
+          10 commits    341 churn  0.07 density   6 fan-in  ─ stable
+
+    0.7 ▼  src\application\commands\requirement\reversible-override-commands.ts
+           8 commits    310 churn  0.09 density   5 fan-in  ▼ cooling
+
+    0.7 ▼  src\presentation\editor\viewport\pan-override.ts
+           8 commits    300 churn  0.09 density   4 fan-in  ▼ cooling
+
+    0.7 ▼  src\presentation\editor\naming\RoomNameForm.vue
+           3 commits    159 churn  0.22 density   1 fan-in  ▼ cooling
+
+    0.7 ▼  src\application\commands\asset\DeleteAsset.ts
+           8 commits    338 churn  0.09 density  10 fan-in  ▼ cooling
+
+    0.7 ▲  src\application\queries\GetRequirementsForZone.ts
+           8 commits    756 churn  0.09 density  18 fan-in  ▲ accelerating
+
+    0.7 ▼  src\plugin\assetLibraryDeps.ts
+           8 commits    181 churn  0.09 density   4 fan-in  ▼ cooling
+
+    0.7 ─  src\presentation\read-models\renovationProjectQueries.ts
+          12 commits    272 churn  0.06 density  14 fan-in  ─ stable
+
+    0.7 ▼  src\presentation\editor\shell\FloorInspector.vue
+           7 commits    188 churn  0.10 density   2 fan-in  ▼ cooling
+
+    0.7 ─  src\plugin\renovationProjectOpenSeams.ts
+           6 commits    142 churn  0.11 density   7 fan-in  ─ stable
+
+    0.7 ▲  src\presentation\editor\roomEditAction.ts
+           5 commits    222 churn  0.14 density   5 fan-in  ▲ accelerating
+
+    0.7 ▲  src\presentation\stores\WorkspaceStore.ts
+           8 commits    169 churn  0.09 density  27 fan-in  ▲ accelerating
+
+    0.6 ▼  src\presentation\stores\ProjectDetailStore.ts
+           9 commits    377 churn  0.07 density   2 fan-in  ▼ cooling
+
+    0.6 ─  src\presentation\library\AssetMark.vue
+           5 commits    175 churn  0.12 density   3 fan-in  ─ stable
+
+    0.6 ▼  src\presentation\designer\runtime.ts
+           9 commits    445 churn  0.07 density   4 fan-in  ▼ cooling
+
+    0.6 ▼  src\presentation\stores\AssetSelectionStore.ts
+           4 commits    427 churn  0.14 density   4 fan-in  ▼ cooling
+
+    0.6 ▼  src\presentation\views\ProjectRow.vue
+           6 commits    299 churn  0.10 density   2 fan-in  ▼ cooling
+
+    0.6 ▲  src\application\ports\versioning.ts
+           8 commits    153 churn  0.08 density  164 fan-in  ▲ accelerating
+
+    0.6 ▼  src\presentation\editor\shell\NewRoomInspector.vue
+           6 commits    402 churn  0.09 density   1 fan-in  ▼ cooling
+
+    0.6 ▼  src\presentation\editor\tools\draw-room-tool.ts
+           4 commits    247 churn  0.15 density   3 fan-in  ▼ cooling
+
+    0.6 ─  src\presentation\editor\tools\reversible-move-zone-command.ts
+           8 commits    177 churn  0.08 density  11 fan-in  ─ stable
+
+    0.6 ─  src\presentation\library\viewportMarks.ts
+           5 commits    314 churn  0.11 density   1 fan-in  ─ stable
+
+    0.6 ─  src\presentation\editor\renovation\WorkRow.vue
+           4 commits     71 churn  0.15 density   1 fan-in  ─ stable
+
+    0.6 ─  src\presentation\i18n\strings.ts
+           5 commits     86 churn  0.13 density  292 fan-in  ─ stable
+
+    0.6 ▼  src\plugin\slice10Composition.ts
+          10 commits    211 churn  0.06 density   2 fan-in  ▼ cooling
+
+    0.6 ─  src\application\commands\asset\CalibrateAsset.ts
+           4 commits    279 churn  0.14 density   6 fan-in  ─ stable
+
+    0.6 ▼  src\application\events\assetLibraryChangeSource.ts
+           5 commits    287 churn  0.12 density   9 fan-in  ▼ cooling
+
+    0.6 ▼  src\presentation\editor\shell\PersistentWarningStrip.vue
+           5 commits    145 churn  0.11 density   1 fan-in  ▼ cooling
+
+    0.6 ▼  src\application\events\assetDesignChangeSource.ts
+           5 commits    240 churn  0.11 density   5 fan-in  ▼ cooling
+
+    0.6 ─  src\application\events\projectPricesChangeSource.ts
+           7 commits    270 churn  0.08 density   3 fan-in  ─ stable
+
+    0.6 ▼  src\presentation\editor\renovation\SubjectRow.vue
+           3 commits     94 churn  0.19 density   1 fan-in  ▼ cooling
+
+    0.6 ▲  src\application\queries\ListAssets.ts
+           3 commits     30 churn  0.19 density   7 fan-in  ▲ accelerating
+
+    0.6 ▲  src\infrastructure\persistence\dto\planFrontmatter.ts
+          12 commits     94 churn  0.05 density   6 fan-in  ▲ accelerating
+
+    0.6 ▲  src\infrastructure\persistence\migration\entities\requirement\requirement.migrations.ts
+           3 commits     22 churn  0.20 density   3 fan-in  ▲ accelerating
+
+    0.6 ▲  src\application\reference\ReferenceLocks.ts
+           7 commits    430 churn  0.09 density  51 fan-in  ▲ accelerating
+
+    0.5 ─  src\presentation\views\NewAssetForm.vue
+           7 commits    648 churn  0.07 density   6 fan-in  ─ stable
+
+    0.5 ▲  src\application\queries\ListRequirementsReferencing.ts
+           4 commits    255 churn  0.13 density  21 fan-in  ▲ accelerating
+
+    0.5 ─  src\presentation\library\shelfFocus.ts
+           4 commits    252 churn  0.12 density   4 fan-in  ─ stable
+
+    0.5 ─  src\infrastructure\obsidian\repositories\ObsidianAssetGeometrySidecar.ts
+           4 commits    183 churn  0.12 density  14 fan-in  ─ stable
+
+    0.5 ▲  src\application\events\requirementFiguresChangeSource.ts
+           4 commits    133 churn  0.11 density   2 fan-in  ▲ accelerating
+
+    0.5 ▼  src\presentation\dialogs\dialog-store.ts
+          13 commits    424 churn  0.04 density  58 fan-in  ▼ cooling
+
+    0.5 ▼  src\application\commands\requirement\SetRequirementCostOverride.ts
+           5 commits    129 churn  0.10 density  16 fan-in  ▼ cooling
+
+    0.5 ─  src\plugin\sampleProject.ts
+          11 commits    365 churn  0.05 density   2 fan-in  ─ stable
+
+    0.5 ─  src\presentation\designer\tools\set-facing-tool.ts
+           4 commits    250 churn  0.12 density   2 fan-in  ─ stable
+
+    0.5 ▲  src\presentation\editor\save-state\save-state-store.ts
+           5 commits    172 churn  0.09 density  40 fan-in  ▲ accelerating
+
+    0.5 ▼  src\application\commands\asset\SetAssetFootprint.ts
+           6 commits    368 churn  0.09 density  14 fan-in  ▼ cooling
+
+    0.5 ▲  src\presentation\read-models\spatialRecords.ts
+           4 commits    108 churn  0.13 density  16 fan-in  ▲ accelerating
+
+    0.5 ▲  src\application\event-handlers\requirement\onAssetPriceOverrideChanged.ts
+           3 commits     53 churn  0.15 density   2 fan-in  ▲ accelerating
+
+    0.5 ▼  src\infrastructure\obsidian\workspace\openNote.ts
+           8 commits    320 churn  0.06 density   3 fan-in  ▼ cooling
+
+    0.5 ─  src\presentation\dialogs\FormDialog.vue
+           7 commits    115 churn  0.08 density   2 fan-in  ─ stable
+
+    0.5 ─  src\presentation\editor\shell\MultiSelectionInspector.vue
+           4 commits    100 churn  0.12 density   1 fan-in  ─ stable
+
+    0.5 ─  src\presentation\editor\renovation\WorkFields.vue
+           4 commits    100 churn  0.11 density   2 fan-in  ─ stable
+
+    0.5 ─  src\presentation\editor\planning\MaterialRow.vue
+           4 commits    160 churn  0.11 density   2 fan-in  ─ stable
+
+    0.5 ─  src\application\errors.ts
+           4 commits     43 churn  0.13 density  37 fan-in  ─ stable
+
+    0.5 ─  src\presentation\editor\shell\FloatingPrimaryActions.vue
+           7 commits     92 churn  0.07 density   2 fan-in  ─ stable
+
+    0.4 ─  src\application\commands\requirement\RecalculateRequirement.ts
+           4 commits    216 churn  0.10 density  18 fan-in  ─ stable
+
+    0.4 ▼  src\presentation\errors\errorSurfacePolicy.ts
+           3 commits    180 churn  0.12 density  11 fan-in  ▼ cooling
+
+    0.4 ▼  src\presentation\editor\shell\formatLength.ts
+           4 commits    140 churn  0.09 density  26 fan-in  ▼ cooling
+
+    0.4 ▲  src\application\commands\requirement\AssignAsset.ts
+           4 commits    243 churn  0.10 density  24 fan-in  ▲ accelerating
+
+    0.4 ─  src\application\event-handlers\requirement\onAssetUpdated.ts
+           4 commits    146 churn  0.10 density   6 fan-in  ─ stable
+
+    0.4 ▼  src\application\ports\AssetPriceOverrideRepository.ts
+           5 commits    150 churn  0.07 density  21 fan-in  ▼ cooling
+
+    0.4 ▼  src\presentation\views\ContinueRow.vue
+           3 commits    140 churn  0.12 density   3 fan-in  ▼ cooling
+
+    0.4 ▼  src\presentation\library\AssetLibraryView.ts
+           6 commits    402 churn  0.07 density  11 fan-in  ▼ cooling
+
+    0.4 ▲  src\infrastructure\obsidian\repositories\ObsidianAssetPriceOverrideRepository.ts
+           3 commits    199 churn  0.13 density   4 fan-in  ▲ accelerating
+
+    0.4 ▼  src\infrastructure\persistence\in-memory\InMemoryRequirementRepository.ts
+           3 commits    149 churn  0.13 density  24 fan-in  ▼ cooling
+
+    0.4 ▼  src\application\commands\asset\SetAssetClearance.ts
+           4 commits    122 churn  0.10 density   5 fan-in  ▼ cooling
+
+    0.4 ─  src\presentation\editor\save-state\SaveStateIndicator.vue
+           4 commits     69 churn  0.11 density   3 fan-in  ─ stable
+
+    0.4 ▲  src\presentation\editor\shell\LayerList.vue
+           3 commits    149 churn  0.14 density   1 fan-in  ▲ accelerating
+
+    0.4 ▼  src\presentation\stores\RenovationProjectStore.ts
+           5 commits    188 churn  0.08 density   4 fan-in  ▼ cooling
+
+    0.4 ▼  src\presentation\library\UnreadableStrip.vue
+           5 commits    183 churn  0.07 density   1 fan-in  ▼ cooling
+
+    0.4 ▼  src\infrastructure\obsidian\workspace\reveal.ts
+           8 commits    279 churn  0.05 density   4 fan-in  ▼ cooling
+
+    0.4 ▲  src\plugin\guardedServices.ts
+          18 commits    518 churn  0.02 density  13 fan-in  ▲ accelerating
+
+    0.4 ─  src\presentation\read-models\PlanDto.ts
+          12 commits    222 churn  0.03 density  58 fan-in  ─ stable
+
+    0.4 ▼  src\application\events\projectListChangeSource.ts
+           5 commits    181 churn  0.08 density   2 fan-in  ▼ cooling
+
+    0.4 ─  src\infrastructure\obsidian\repositories\foldersOverlap.ts
+           4 commits    131 churn  0.09 density   4 fan-in  ─ stable
+
+    0.4 ▲  src\presentation\views\renovationProjectCommands.ts
+           8 commits    197 churn  0.05 density  12 fan-in  ▲ accelerating
+
+    0.4 ▼  src\presentation\library\AssetInspectorFields.vue
+           3 commits    923 churn  0.14 density   1 fan-in  ▼ cooling
+
+    0.4 ▼  src\application\commands\asset\SetAssetAnchor.ts
+           4 commits    102 churn  0.09 density   5 fan-in  ▼ cooling
+
+    0.4 ▲  src\infrastructure\persistence\mappers\projectMapper.ts
+           4 commits     90 churn  0.11 density   6 fan-in  ▲ accelerating
+
+    0.4 ─  src\presentation\designer\tools\registerDesignerTools.ts
+           7 commits    321 churn  0.06 density   3 fan-in  ─ stable
+
+    0.4 ▲  src\presentation\editor\renovation\PlannedGeometryFields.vue
+           3 commits     81 churn  0.14 density   1 fan-in  ▲ accelerating
+
+    0.4 ▲  src\presentation\library\AssetLibraryBody.vue
+           6 commits    343 churn  0.06 density   1 fan-in  ▲ accelerating
+
+    0.4 ─  src\presentation\editor\deleteZoneFlow.ts
+           6 commits    560 churn  0.06 density   2 fan-in  ─ stable
+
+    0.4 ─  src\application\queries\ListProjects.ts
+           6 commits    106 churn  0.07 density   6 fan-in  ─ stable
+
+    0.4 ▲  src\domain\zone\Zone.events.ts
+           3 commits     42 churn  0.12 density  14 fan-in  ▲ accelerating
+
+    0.4 ▼  src\presentation\editor\shell\RoomSummaryList.vue
+           5 commits     65 churn  0.07 density   3 fan-in  ▼ cooling
+
+    0.3 ▼  src\infrastructure\persistence\index\ReconcilingProjectIndex.ts
+           3 commits    334 churn  0.11 density   2 fan-in  ▼ cooling
+
+    0.3 ▼  src\presentation\editor\viewport\Viewport.ts
+           6 commits    260 churn  0.06 density  44 fan-in  ▼ cooling
+
+    0.3 ▲  src\presentation\editor\escapeRouting.ts
+           3 commits     59 churn  0.10 density   3 fan-in  ▲ accelerating
+
+    0.3 ▲  src\plugin\planEditorDeps.ts
+           5 commits     28 churn  0.05 density   7 fan-in  ▲ accelerating
+
+    0.3 ▼  src\application\commands\plan\CreatePlan.ts
+           3 commits     74 churn  0.09 density  11 fan-in  ▼ cooling
+
+    0.3 ▼  src\presentation\library\AssetRow.vue
+           3 commits    181 churn  0.10 density   2 fan-in  ▼ cooling
+
+    0.3 ─  src\application\commands\requirement\DeleteRequirement.ts
+           4 commits     89 churn  0.08 density   6 fan-in  ─ stable
+
+    0.3 ▼  src\infrastructure\obsidian\workspace\navigateToProject.ts
+           7 commits    593 churn  0.04 density   4 fan-in  ▼ cooling
+
+    0.3 ─  src\presentation\i18n\toUserMessage.ts
+           4 commits     99 churn  0.07 density  33 fan-in  ─ stable
+
+    0.3 ▼  src\presentation\editor\shell\KnownDistanceForm.vue
+           4 commits     80 churn  0.09 density   2 fan-in  ▼ cooling
+
+    0.3 ▲  src\presentation\editor\layers\zone\ZoneRenderModel.ts
+           3 commits    147 churn  0.09 density   3 fan-in  ▲ accelerating
+
+    0.3 ▼  src\presentation\designer\inspector\DesignerInspector.vue
+           3 commits    183 churn  0.11 density   2 fan-in  ▼ cooling
+
+    0.3 ▼  src\application\commands\project\CreateProject.ts
+           4 commits     71 churn  0.07 density  11 fan-in  ▼ cooling
+
+    0.3 ─  src\application\event-handlers\requirement\cascade.ts
+           4 commits    143 churn  0.07 density   4 fan-in  ─ stable
+
+    0.3 ▲  src\application\errors\guardAgainstThrowing.ts
+           3 commits    132 churn  0.09 density  15 fan-in  ▲ accelerating
+
+    0.3 ▼  src\infrastructure\obsidian\repositories\NoteVaultDeps.ts
+           5 commits     72 churn  0.06 density  12 fan-in  ▼ cooling
+
+    0.3 ▲  src\application\events\assetCatalogueChangeSource.ts
+           3 commits    104 churn  0.10 density   4 fan-in  ▲ accelerating
+
+    0.3 ▼  src\presentation\editor\layers\rulerGeometry.ts
+           3 commits    167 churn  0.09 density   4 fan-in  ▼ cooling
+
+    0.3 ▲  src\infrastructure\persistence\in-memory\InMemoryAssetRepository.ts
+           3 commits     61 churn  0.11 density  19 fan-in  ▲ accelerating
+
+    0.3 ▲  src\presentation\editor\editorFormActions.ts
+           3 commits     29 churn  0.11 density   1 fan-in  ▲ accelerating
+
+    0.3 ▼  src\presentation\designer\designerCommands.ts
+           4 commits    166 churn  0.07 density  11 fan-in  ▼ cooling
+
+    0.3 ▼  src\application\commands\DispatchOutcome.ts
+           9 commits    269 churn  0.03 density  98 fan-in  ▼ cooling
+
+    0.3 ▲  src\presentation\editor\snapping\editorSnapping.ts
+           6 commits    141 churn  0.04 density   7 fan-in  ▲ accelerating
+
+    0.3 ▲  src\presentation\editor\shell\zoneTypeLabel.ts
+           3 commits     21 churn  0.09 density   6 fan-in  ▲ accelerating
+
+    0.3 ▲  src\domain\requirement\Requirement.events.ts
+           5 commits    155 churn  0.05 density  15 fan-in  ▲ accelerating
+
+    0.3 ▲  src\domain\asset\Asset.events.ts
+           4 commits     65 churn  0.07 density  27 fan-in  ▲ accelerating
+
+    0.3 ─  src\presentation\editor\tools\with-editor-state-refresh.ts
+           7 commits    322 churn  0.05 density   3 fan-in  ─ stable
+
+    0.2 ▼  src\application\queries\GetAssetDesign.ts
+           3 commits    167 churn  0.07 density  21 fan-in  ▼ cooling
+
+    0.2 ─  src\presentation\designer\stores\assetDesignStore.ts
+           4 commits    216 churn  0.06 density   6 fan-in  ─ stable
+
+    0.2 ▲  src\application\commands\requirement\deriveRequirementFigures.ts
+           3 commits    133 churn  0.07 density   7 fan-in  ▲ accelerating
+
+    0.2 ▼  src\presentation\editor\shell\warnings.ts
+           3 commits    158 churn  0.06 density   3 fan-in  ▼ cooling
+
+    0.2 ▼  src\application\commands\zone\CreateZone.ts
+           3 commits    114 churn  0.06 density  22 fan-in  ▼ cooling
+
+    0.2 ─  src\application\commands\zone\MoveSpatialObject.ts
+           4 commits    113 churn  0.06 density  21 fan-in  ─ stable
+
+    0.2 ▲  src\presentation\composables\use-form-commit.ts
+           3 commits    181 churn  0.06 density  10 fan-in  ▲ accelerating
+
+    0.2 ▲  src\presentation\editor\layers\background\BackgroundRenderModel.ts
+           4 commits    221 churn  0.06 density  24 fan-in  ▲ accelerating
+
+    0.2 ▼  src\presentation\editor\pointerButtons.ts
+           3 commits     86 churn  0.06 density   1 fan-in  ▼ cooling
+
+    0.2 ─  src\presentation\views\NewPlanForm.vue
+           4 commits    331 churn  0.05 density   3 fan-in  ─ stable
+
+    0.2 ▼  src\presentation\editor\report-failure.ts
+           4 commits    245 churn  0.05 density  13 fan-in  ▼ cooling
+
+    0.2 ▼  src\application\commands\requirement\resolveEffectiveUnitCost.ts
+           3 commits     84 churn  0.06 density   5 fan-in  ▼ cooling
+
+    0.2 ─  src\application\editor\WriteLedger.ts
+           4 commits    200 churn  0.06 density  54 fan-in  ─ stable
+
+    0.2 ▼  src\presentation\editor\save-state\affects-save-state.ts
+          10 commits    543 churn  0.02 density   6 fan-in  ▼ cooling
+
+    0.2 ▼  src\domain\plan\PlanBackgroundRef.ts
+           4 commits     46 churn  0.06 density  12 fan-in  ▼ cooling
+
+    0.2 ─  src\presentation\views\ProjectFilter.vue
+           4 commits    236 churn  0.05 density   2 fan-in  ─ stable
+
+    0.2 ▼  src\presentation\views\newAssetDialog.ts
+           4 commits     92 churn  0.05 density   2 fan-in  ▼ cooling
+
+    0.2 ▼  src\application\commands\asset\SetAssetFacing.ts
+           3 commits     93 churn  0.08 density   5 fan-in  ▼ cooling
+
+    0.2 ▼  src\domain\asset-price\AssetPriceOverride.ts
+           3 commits    116 churn  0.05 density  18 fan-in  ▼ cooling
+
+    0.2 ▼  src\application\queries\ListPlansByProject.ts
+           3 commits    103 churn  0.06 density   5 fan-in  ▼ cooling
+
+    0.2 ▼  src\application\queries\FindZonesByPlan.ts
+           3 commits     42 churn  0.07 density   9 fan-in  ▼ cooling
+
+    0.2 ─  src\presentation\views\RenovationProjectContext.ts
+          16 commits    337 churn  0.01 density  31 fan-in  ─ stable
+
+    0.2 ▲  src\presentation\editor\tools\tool-switch.ts
+           3 commits     49 churn  0.07 density   3 fan-in  ▲ accelerating
+
+    0.2 ▼  src\infrastructure\persistence\in-memory\checkExpected.ts
+           3 commits     61 churn  0.08 density   1 fan-in  ▼ cooling
+
+    0.2 ▼  src\presentation\components\EmptyState.vue
+           4 commits    114 churn  0.06 density   8 fan-in  ▼ cooling
+
+    0.2 ▼  src\presentation\editor\theme\useThemeTokens.ts
+           3 commits     53 churn  0.07 density   3 fan-in  ▼ cooling
+
+    0.2 ▲  src\presentation\dialogs\ConfirmDialog.vue
+           3 commits     54 churn  0.06 density   2 fan-in  ▲ accelerating
+
+    0.2 ▼  src\presentation\dialogs\DeleteReferenceDialog.vue
+           5 commits     83 churn  0.05 density   2 fan-in  ▼ cooling
+
+    0.2 ▲  src\infrastructure\obsidian\workspace\revealView.ts
+           6 commits     89 churn  0.04 density   6 fan-in  ▲ accelerating
+
+    0.2 ▼  src\plugin\runDetached.ts
+           4 commits     78 churn  0.04 density   5 fan-in  ▼ cooling
+
+    0.1 ▼  vite.config.ts
+           3 commits     97 churn  0.03 density   0 fan-in  ▼ cooling
+
+    0.1 ▼  src\plugin\repositoryComposition.ts
+           6 commits    158 churn  0.01 density   1 fan-in  ▼ cooling
+
+    0.1 ▼  src\presentation\library\AssetLibraryDeps.ts
+           9 commits    260 churn  0.01 density  10 fan-in  ▼ cooling
+
+    0.1 ▼  src\plugin\guardedAssetLibrary.ts
+           3 commits    126 churn  0.02 density   1 fan-in  ▼ cooling
+
+    0.1 ─  src\presentation\editor\tools\editor-context.ts
+          10 commits    256 churn  0.01 density  23 fan-in  ─ stable
+
+    0.1 ▲  src\presentation\designer\layers\DesignerGestureLayer.vue
+           3 commits    220 churn  0.02 density   1 fan-in  ▲ accelerating
+
+    0.1 ▼  src\presentation\editor\layers\RoomDraftSketch.vue
+           4 commits    285 churn  0.02 density   1 fan-in  ▼ cooling
+
+    0.1 ─  src\presentation\designer\AssetDesignerContext.ts
+          10 commits    189 churn  0.01 density  17 fan-in  ─ stable
+
+    0.1 ▲  src\presentation\editor\PlanEditorContext.ts
+          10 commits    184 churn  0.01 density  54 fan-in  ▲ accelerating
+
+    0.1 ▲  src\infrastructure\persistence\dto\projectFrontmatter.ts
+           3 commits     66 churn  0.03 density   5 fan-in  ▲ accelerating
+
+    0.1 ▼  src\presentation\editor\layers\background\pdfRaster.ts
+           3 commits    260 churn  0.02 density   4 fan-in  ▼ cooling
+
+    0.1 ▼  src\presentation\library\AssetLibraryContext.ts
+           4 commits    105 churn  0.02 density   9 fan-in  ▼ cooling
+
+    0.1 ▲  src\presentation\designer\DesignerToolbar.vue
+           3 commits    115 churn  0.03 density   1 fan-in  ▲ accelerating
+
+    0.1 ▲  src\application\events\projectIndex.events.ts
+           5 commits    152 churn  0.03 density  25 fan-in  ▲ accelerating
+
+    0.1 ▲  src\infrastructure\persistence\dto\assetFrontmatter.ts
+           4 commits     67 churn  0.02 density   3 fan-in  ▲ accelerating
+
+    0.1 ▲  src\presentation\dialogs\EntityPickerDialog.vue
+           3 commits     67 churn  0.05 density   2 fan-in  ▲ accelerating
+
+    0.1 ▼  vite.harness.config.ts
+           3 commits     60 churn  0.05 density   1 fan-in  ▼ cooling
+
+    0.1 ▼  src\presentation\editor\tools\render-state.ts
+          10 commits    179 churn  0.01 density  14 fan-in  ▼ cooling
+
+    0.1 ▲  src\infrastructure\persistence\dto\requirementFrontmatter.ts
+           3 commits     54 churn  0.02 density   3 fan-in  ▲ accelerating
+
+    0.1 ▼  src\presentation\editor\shell\formatArea.ts
+           3 commits     69 churn  0.02 density  11 fan-in  ▼ cooling
+
+    0.0 ▼  vitest.config.ts
+          66 commits   1560 churn  0.00 density   1 fan-in  ▼ cooling
+
+    0.0 ▲  src\presentation\designer\layers\backgroundLayer.ts
+           3 commits     96 churn  0.01 density   2 fan-in  ▲ accelerating
+
+  318 files excluded (< 3 commits)
+
+  Files with high churn and high complexity: https://docs.fallow.tools/explanations/health#hotspot-metrics
+
+● Refactoring targets (26)
+  13 medium · 13 high
+    score = quick-win ROI (higher = better) · pri = absolute priority
+
+   18.4  pri:36.7    src\presentation\editor\renovation\renovationSummary.ts
+         high impact · effort:medium · confidence:medium  Split high-impact file (24 LOC), 16 dependents amplify every change
+         importers: src\presentation\editor\planning\CostWorkHighlight.vue (inRenovationScope); src\presentation\editor\planning\EvidenceInspector.vue (inRenovationScope); src\presentation\editor\planning\MaterialMarkers.vue (inRenovationScope); src\presentation\editor\planning\MaterialsInspector.vue (inRenovationScope); src\presentation\editor\planning\evidencePins.ts (inRenovationScope)
+
+   16.9  pri:33.8    src\application\commands\renovation\RenovationCommand.ts
+         high impact · effort:medium · confidence:medium  Split high-impact file (182 LOC), 31 dependents amplify every change
+         importers: src\application\commands\renovation\materialPlanning.ts (RenovationBaseline, renovationServices); src\application\queries\schedule\ProjectWork.ts (RenovationServices); src\plugin\guardedRenovation.ts (RenovationServices); src\plugin\planningEditorServices.ts (renovationServices); src\presentation\editor\elements\elementActions.ts (RenovationBaseline)
+
+   16.6  pri:33.2    src\presentation\editor\renovation\recordNavigationContext.ts
+         untested risk · effort:medium · confidence:high  2 complex functions lack test coverage path, add tests before modifying
+         importers: src\presentation\editor\renovation\ReviewSummary.vue (recordNavigationContext); src\presentation\editor\renovation\renovationActions.ts (NavigationRecords, recordNavigationContext); tests\presentation\editor\recordNavigation.test.ts (recordNavigationContext)
+
+   16.6  pri:33.1    src\application\commands\renovation\PlanningServices.ts
+         high impact · effort:medium · confidence:medium  Split high-impact file (7 LOC), 25 dependents amplify every change
+         importers: src\application\commands\renovation\planningLinks.ts (PlanningBaseline); src\plugin\planningEditorServices.ts (PlanningDeps, planningServices, readPlanning); src\presentation\editor\planEditorCommands.ts (PlanningServices); src\presentation\editor\planning\CostFields.vue (PlanningBaseline); src\presentation\editor\planning\CostsInspector.vue (PlanningBaseline)
+
+   16.6  pri:33.1    src\presentation\editor\planning\planningContext.ts
+         high impact · effort:medium · confidence:medium  Split high-impact file (57 LOC), 16 dependents amplify every change
+         importers: src\presentation\editor\PlanEditorRoot.vue (providePlanningContext); src\presentation\editor\add\noteCreation.ts (usePlanningContext); src\presentation\editor\planning\CostGroup.vue (usePlanningContext); src\presentation\editor\planning\CostRow.vue (usePlanningContext); src\presentation\editor\planning\CostsInspector.vue (usePlanningContext)
+
+   16.3  pri:32.6    src\domain\quote\Quote.ts
+         high impact · effort:medium · confidence:medium  Split high-impact file (49 LOC), 22 dependents amplify every change
+         importers: src\application\commands\quote\QuoteServices.ts (Quote, sameQuote, validateQuote); src\application\ports\QuoteRepository.ts (Quote, QuoteId); src\domain\quote\compareQuotes.ts (Quote); src\infrastructure\obsidian\repositories\ObsidianQuoteRepository.ts (Quote, QuoteId); src\infrastructure\persistence\mappers\quoteMapper.ts (Quote, QuoteId, QuoteItem, validateQuote)
+
+   14.6  pri:29.2    src\presentation\editor\elements\elementBaseline.ts
+         untested risk · effort:medium · confidence:high  2 complex functions lack test coverage path, add tests before modifying
+         importers: src\presentation\editor\elements\elementTask.ts (createElementBaseline)
+
+   13.9  pri:41.7    src\presentation\editor\planning\planningDraft.ts
+         high impact · effort:high · confidence:medium  Split high-impact file (87 LOC), 18 dependents amplify every change
+         importers: src\presentation\editor\planning\CostFields.vue (PlanningDraft); src\presentation\editor\planning\EvidenceFields.vue (PlanningDraft); src\presentation\editor\planning\MaterialFields.vue (PlanningDraft); src\presentation\editor\planning\PlanningForm.vue (PlanningDraft, materialInput, planningInput); src\presentation\editor\planning\planningContext.ts (PlanningKind, planningDraft)
+
+   13.9  pri:27.7    src\domain\renovation\SharedLinks.ts
+         high impact · effort:medium · confidence:medium  Split high-impact file (22 LOC), 17 dependents amplify every change
+         importers: src\application\commands\renovation\planningLinks.ts (RoomContext, hasRoomContext); src\domain\renovation\PlanningDepth.ts (SpatialLink); src\domain\renovation\Renovation.ts (SpatialLink, hasRoomContext, validSharedLinks); src\domain\renovation\renovationTargets.ts (spatialContexts); src\domain\renovation\sameRenovation.ts (linksContent)
+
+   13.4  pri:40.3    src\domain\spatial\structureGeometry.ts
+         high impact · effort:high · confidence:medium  Split high-impact file (84 LOC), 18 dependents amplify every change
+         importers: src\application\commands\plan\ReversibleCalibratePlan.ts (scaleStructure, validateStructure); src\application\commands\renovation\RenovationCommand.ts (validateStructure); src\application\commands\spatial\RoomBoundaryHistory.ts (validateStructure); src\application\commands\spatial\StructureCommand.ts (validateStructure); src\infrastructure\obsidian\repositories\PlanGeometryStore.ts (validateStructure)
+
+  ... and 16 more targets (--format json for full list)
+
+  Prioritized refactoring recommendations based on complexity, churn, and coupling signals: https://docs.fallow.tools/explanations/health#refactoring-targets
+
+✗ 95 above threshold · 4681 analyzed · maintainability 87.9 (good) (0.64s)
+
+Failed: health (95 above threshold): start with src/presentation/editor/renovation/renovationSummary.ts

@@ -1,0 +1,4 @@
+
+> renovation-planner@0.1.0 lint
+> oxlint --deny-warnings && eslint . --max-warnings 0
+

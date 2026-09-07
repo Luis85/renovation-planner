@@ -249,15 +249,20 @@ The new regressions reproduced obsolete geometry and Inspector publication, loss
 queued follow-up after rejection, and unhandled Inspector/requirement failures against the
 previous production source. The missing-Plan fixture initially used a helper requiring a
 canvas; after switching to the ordinary editor mount, it reproduced the extra retry warning.
-Peer geometry and name changes use real repositories. Final targeted verification passed
+Peer geometry and name changes use real repositories. Targeted verification at `f252606b` passed
 **80/80 tests in seven files** (18.18 s, two workers), with no unhandled errors. A separate
 coalescer coverage run passed 7/7 tests and measured 40/40 statements, 14/14 branches,
 9/9 functions and 22/22 lines. Coverage thresholds and exclusions are unchanged.
 
-Type checking, whole-project Oxlint, changed-file ESLint and diff checks passed. Fallow reports
-no dead code, duplication or complexity violations; its CRAP inputs remain the prior full
-coverage artifact. The new rejection branch first raised the drain's cognitive complexity to
-16; expressing the existing loop condition as `while (alive)` cleared that finding without
-changing the tested lifecycle behavior. A shared notice spy initially retained calls between
-parameterized cases and now restores itself after each case. This is the authorized targeted
+Type checking, changed-file ESLint and Fallow passed at that checkpoint, but the last loop
+simplification was not rechecked with Oxlint. CI passed the build and then rejected
+`while (alive)` because the flag changes outside the loop. The correction separates the read
+attempt from lifecycle/publication decisions and restores the explicit loop exits, without a
+suppression. Its 14 focused regressions pass (44.73 s); fresh isolated coverage measures
+43/43 statements, 14/14 branches, 10/10 functions and 24/24 lines. Whole-project Oxlint,
+vue-tsc, scoped ESLint, Fallow and diff checks pass on the corrected source. A shared notice
+spy initially retained calls between parameterized
+cases and now restores itself after each case.
+
+Fallow's CRAP inputs remain the prior full coverage artifact. This is the authorized targeted
 review gate, not a fresh whole-project coverage run or final integrated browser acceptance.

@@ -1,3 +1,4 @@
+import { isElementTool } from '../elements/elementDraft';
 import type { Vector } from '../../../core/geometry/Vector';
 import type { ToolId } from '../tools/editor-tool';
 
@@ -67,16 +68,16 @@ export interface DraftFinishDoors {
 	readonly tool: ToolId | null;
 	finishArea(): void;
 	finishActiveTool(): void;
-	undoWallPoint(): void;
+	undoDraftPoint(): void;
 }
 
-/** The tools whose draft a plain Enter finishes: an Area, a wall chain, a hosted opening. */
+/** The tools whose draft Enter finishes through the existing guarded task. */
 function finishesOnEnter(tool: ToolId): boolean {
-	return tool === 'draw-area' || tool === 'draw-wall' || tool.startsWith('place-');
+	return tool === 'draw-area' || tool === 'draw-wall' || tool.startsWith('place-') || isElementTool(tool);
 }
 
 /**
- * Enter finishes a draft, and Backspace takes a wall chain's last point back. An Area finishes
+ * Enter finishes a draft, and Backspace takes the active wall/element draft's last point back. An Area finishes
  * through `finishArea` (the runtime's guarded action — see `EditorSurface`'s prop of that name);
  * a wall chain or a hosted opening through `finishActiveTool`, whose structure tool asks its
  * task's `blocked` itself. Only a PLAIN Enter finishes (`plainPress`), but `preventDefault`
@@ -87,9 +88,9 @@ function finishesOnEnter(tool: ToolId): boolean {
  */
 export function finishShortcut(event: FinishKeyPress, doors: DraftFinishDoors): boolean {
 	const tool = doors.tool;
-	if (event.key === 'Backspace' && tool === 'draw-wall') {
+	if (event.key === 'Backspace' && (tool === 'draw-wall' || isElementTool(tool))) {
 		event.preventDefault();
-		if (!event.repeat) doors.undoWallPoint();
+		if (!event.repeat) doors.undoDraftPoint();
 		return true;
 	}
 	if (event.key !== 'Enter' || tool === null || !finishesOnEnter(tool)) return false;

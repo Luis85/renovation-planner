@@ -59,3 +59,31 @@ Object `aa9896db2aa75a592797b835fff84549886383e9` is incorporated through `853e7
 Capture-only UI `443d721d992e90d5bc7465d72c8c1a716ef9f7b0` is incorporated, followed by recovery `2c353329c92c4e93b753afbab7649ad7964b37d8` through `149ec0bd`. The latter distinguishes unrecovered writes in the shared draft panel without changing callers. Release-note and guide conflicts retain both tasks’ information. Owner verification: 65 focused tests plus types/oxlint/scoped ESLint; combined verification is in progress.
 
 The joined root followup passes types/scoped ESLint and the focused verification recorded in [joined editor verification](joined-editor-verification.md). Standalone joined-tree Fallow duplication and dead-code diagnostics both report zero findings; the full coverage-weighted gate remains required.
+
+## Current integration after compact detail layouts
+
+Full `24ee3177` verification failed only the unchanged statement, branch and function coverage floors after build/full lint and all 580 test files passed; complete Fallow diagnostics also identified three complexity findings. Exact results and followups are recorded in [joined editor verification](joined-editor-verification.md). These failures supersede earlier pending-gate descriptions.
+
+UI `c080b0a956470cb862ad29f73f8bfd8ba46c7f64` is integrated through `ed7617110c59f95db4b95658812eee0c81c05343`. It adds compact M12 material rows, M13 Work groups, M14 photo gallery and phase controls, compact persistent navigation, bounded Room Inspector extraction and the browser-discovered Plan-to-Renovate target correction. The owner reports build/types/scoped ESLint/whole oxlint, 95 focused tests, 57 navigation regressions, and four connected browser scenarios with 12 zero-violation axe scans. Raw incomplete checks and five screenshots are in [the detail-layout ledger](editor-detail-layout.md). This is owner evidence; the new combined tree is not yet verified.
+
+Recovery probe preparation `650adabeb5b567949419c4308dffd1a7a2066f9a` follows through `7b76277b2031165ff1710847e4c32d7dd5d7d538`, adapting the existing probe to compact material rows and contextual disclosures. It is source preparation, not a new performance/cleanup result. Both merges are conflict-free; semantic review preserves asynchronous record reveal, native cost-group opening, selected-photo metadata and the canonical selected spatial context.
+
+Three new #90 review findings remain assigned to the original recovery branch. Its modal native-control followup is isolated in a separate worktree. No replacement task, merge, release or worktree deletion has been performed.
+
+UI final-runner preparation `ba9bccd1609d602a8368350b9b6e94775da84077` is integrated through `7d3fe5054c2d81bb1a16d8994ebe968017b31b46`. It schedules the existing recovery/performance probe sequentially within the all-screen runner, requires freshly generated reports and uses the actual saved-refresh-needed state for M15 comparison. UI and recovery explicitly agreed shared interpretation to avoid duplicate captures. Syntax checks are owner evidence only; no final runner execution has occurred.
+
+Projection/recovery `f252606b5e8d07fab9e4c943c0984b2446056484` is incorporated through `b19f73c4d234a8635020aa391d9ad4a37e5de42c`; production merges are automatic and the release-note conflict keeps both focus and projection fixes. The owner reports 80 passing targeted tests, but CI then found an Oxlint loop-condition error in its final edit. That failure is confirmed by root’s joined Oxlint and requires the owner’s followup before a complete gate.
+
+Saved Room overview recovery capture preparation `a4e902de0e805f657e65332df05b5e93afee5604` is incorporated through `a3c31190f6730028e0965577af5e72bffd72bbca`. The existing recovery probe now navigates Materials → Room overview → Materials while read-back remains stale, checking retained warnings and unchanged write counts. It remains unexecuted preparation.
+
+Recovery loop correction `00adf08254bf9f6cde1618697f19b8bb4a94d0bb` is incorporated through `531132b958ff4cc9fae9773f8533d9fdd4d327a0`. The owner reran whole Oxlint, types, scoped ESLint, Fallow and 14 focused regressions after the final edit; the coalescer has 100% scoped coverage. Fresh CI and the final combined gate remain pending. Semantic review confirms immediate retirement of both store tickets, disposal guarding, and continuation after superseded read rejection.
+
+M13 UI followup `adaeb7821c407674828807a8bb5be834b9936829` is integrated through `54717024f7f6814764763e5a5cf4dd0e621baf2d`. Explicit native group opening selects its Work context and highlights current spatial targets, with intended-only fallback and no invented geometry. Owner verification: 27 tests, two components at 100% scoped coverage, build/types/scoped ESLint/whole Oxlint, and four browser journeys with 12 zero-violation axe scans. The report explicitly notes an inset focus-ring CSS rule added after browser/build verification; final combined capture must include it. First/programmatic opening and unassigned groups retain focus; exact cost/material reveal remains intact.
+
+### Modal controls and shared Work outline integration
+
+- Cherry-picked agreed E checkpoint `75084550d5d577943278af44ea99686ddec064e2` as `253924fa`: native pending-save focus/refusal, removed unused nested-draft forwarding, modal browser driver and owner evidence.
+- Merged agreed UI `faeba386833a98963577ddb01957a3287b3e70b0` as `9b2c32bbd5d985cc179f5e30b9241d7122dba1f3`: one highlight per physical target, preserved distinct Room relationships, and modal final-driver hookup. No source conflicts.
+- Root spatial/regression work was backed up as stash `0be7dacea5b3cfa1d171b25928a712eb7873238e` and restored cleanly. This is a local integration checkpoint; the combined full gate remains pending.
+
+- Cherry-picked E review checkpoint `37da445f94d9aa43897c3b013bfa237541dcd1ea` as `0fff8855`: planning/renovation draft retry failures are reported once and late reports are suppressed. Conflict resolution preserves the joined shared `dispatch` helper, batch action and both changelog entries, while substituting the safe retry callback. Root additionally owns the same concrete failure in existing-element and creation-draft retries.

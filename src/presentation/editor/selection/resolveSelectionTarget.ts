@@ -17,6 +17,12 @@ function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: nu
 	});
 }
 
+function containsCandidate(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
+	if (candidate.kind && candidate.kind !== 'object') return nearLine(candidate, point, tolerance);
+	const inside = contains({ points: candidate.points }, point);
+	return inside.ok && inside.value;
+}
+
 function handleAt(input: {
 	readonly candidates: readonly SpatialObjectCandidate[];
 	readonly selectedIds: readonly string[];
@@ -72,8 +78,7 @@ export function resolveSelectionTarget(input: {
 	const candidates = input.candidates.toSorted((a, b) => priority(a) - priority(b));
 	for (let index = candidates.length - 1; index >= 0; index -= 1) {
 		const candidate = candidates[index];
-		const inside = candidate.kind && candidate.kind !== 'object' ? { ok: true, value: nearLine(candidate, input.worldPoint, input.handleToleranceWorld) } : contains({ points: candidate.points }, input.worldPoint);
-		if (inside.ok && inside.value) {
+		if (containsCandidate(candidate, input.worldPoint, input.handleToleranceWorld)) {
 			if (!input.cycle) return { kind: 'body', id: candidate.id };
 			hits.push(candidate.id);
 		}

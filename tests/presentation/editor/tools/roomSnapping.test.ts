@@ -14,6 +14,15 @@ function armed() {
  const actual = { ...context, snapService: EDITOR_SNAP_SERVICE }; tool.activate(actual);
  return { draft, tool, context: actual };
 }
+it('closes Object edges for snapping while keeping paths and fence segments open', () => {
+ const object = { id: 'element-object', kind: 'object' as const, points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }] };
+ const path = { id: 'element-path', kind: 'path' as const, points: [{ x: 2000, y: 0 }, { x: 3000, y: 0 }, { x: 3000, y: 1000 }] };
+ const result = roomSnapCandidates([], { walls: [], openings: [], boundaries: [], elements: [object, path] });
+ expect(result.edges).toHaveLength(6); expect(result.vertices).toHaveLength(7);
+ expect(result.edges).toContainEqual({ start: object.points[3], end: object.points[0] });
+ expect(result.edges).not.toContainEqual({ start: path.points[2], end: path.points[0] });
+});
+
 describe('Room snapping uses current geometry and screen-sized tolerance', () => {
  it('snaps press, preview and release through the same service while keeping dimensions rectangular', () => {
   const { tool, draft, context } = armed();

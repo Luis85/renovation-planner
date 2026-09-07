@@ -129,8 +129,8 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 	}];
 }));
 
-/** Selected vertices are editable in the plan perspective alone; review and renovate draw none. */
-const editableVertices = computed(() => renovationSession.perspective === 'plan' ? selectedScreenPoints.value : []);
+/** Room outlines stay editable in Plan and Renovate; Review draws no editing handles. */
+const editableVertices = computed(() => renovationSession.perspective !== 'review' ? selectedScreenPoints.value : []);
 </script>
 
 <template>

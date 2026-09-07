@@ -53,13 +53,17 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.element.operation-failed'); }
 		finally { active.value = false; preview.value = null; }
 	}
+	async function retry(): Promise<void> {
+		try { await runtime.refreshProjection(); }
+		catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); }
+	}
 	function edit(id: string): Promise<void> {
 		const selected = selection.selectedIds.join('|');
 		return operate(id, async ({ baseline, element }) => {
 			if (selection.selectedIds.join('|') !== selected) return;
 			const busy = ref(false), latest = ref<string | null>(null);
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.element.edit', { name: element.name }), component: markRaw(OutlinePointsForm), busy, props: {
-				points: element.points, name: element.name, hint: 'editor.element.edit-hint', busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || project.stale || latest.value !== null), retry: runtime.refreshProjection, openSource: runtime.openPlanNote, logger: context.commands.logger,
+				points: element.points, name: element.name, hint: 'editor.element.edit-hint', busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || project.stale || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
 				accepts: (points: readonly Point[]) => validSpatialElement({ ...element, points }) && (element.kind !== 'object' || areaOutline(points).ok),
 				preview: (polygon: { points: readonly Point[] } | null) => { preview.value = polygon ? { ...element, points: polygon.points } : null; },
 				dispatch: async (polygon: { points: readonly Point[] }, name: string) => {

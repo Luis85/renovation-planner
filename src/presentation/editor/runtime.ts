@@ -703,7 +703,9 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 			// The trust path (design spec §2.2, §2.9): threaded from the SAME computed
 			// `writesBlocked` above rather than re-read from the store, to the one tool
 			// (`SelectTool`) that is not itself inside the Vue tree.
-			writesBlocked: () => writesBlocked.value || session.perspective !== 'plan',
+			// Room/Area outlines are shared across editable perspectives. Direct current-structure
+			// gestures stay in Plan; proposed structure uses the separate Planned command path.
+			writesBlocked: () => writesBlocked.value || session.perspective === 'review' || (session.perspective === 'renovate' && selection.selectedIds.some(id => !projectStore.zones.has(id))),
 		}),
 	);
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather

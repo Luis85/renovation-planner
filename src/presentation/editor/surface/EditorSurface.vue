@@ -971,7 +971,7 @@ function finishKeys(event: KeyboardEvent): boolean {
 		tool: activeToolId.value,
 		finishArea: props.finishArea,
 		finishActiveTool: () => toolManager.finishActiveTool(),
-		undoWallPoint: () => toolManager.editActiveCorner(-1, null),
+		undoDraftPoint: () => toolManager.editActiveCorner(-1, null),
 	});
 }
 

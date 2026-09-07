@@ -329,7 +329,7 @@ onMounted(() => {
 onBeforeUnmount(context.onPlanChanged(hydrate));
 const visibleOverlay = computed(() => renovationSession.perspective === 'plan' ? overlay.value : null);
 const showFloorStart = computed(() => visibleOverlay.value !== null && emptyStateKey.value === 'noBackground');
-const showAddMenu = computed(() => renovationSession.perspective === 'plan' && addMenuOpen.value);
+const showAddMenu = computed(() => renovationSession.perspective !== 'review' && addMenuOpen.value);
 </script>
 
 <template>
@@ -380,7 +380,7 @@ const showAddMenu = computed(() => renovationSession.perspective === 'plan' && a
 					/>
 					<TemporaryToolBanner />
 					<FloatingPrimaryActions
-						v-if="renovationSession.perspective === 'plan'"
+						v-if="renovationSession.perspective !== 'review'"
 						:add-open="addMenuOpen"
 						@open-add="onOpenAdd"
 					/>

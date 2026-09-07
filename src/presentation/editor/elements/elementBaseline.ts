@@ -46,7 +46,8 @@ export function createElementBaseline(context: PlanEditorContext, runtime: Pick<
 			await runtime.refreshProjection();
 			if (!alive || ticket !== generation) return;
 			if (!baseline.value && !draft.conflict) await readBaseline(ticket);
-		} finally { if (ticket === generation) retrying = false; }
+		} catch (cause) { if (alive && ticket === generation) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); }
+		finally { if (ticket === generation) retrying = false; }
 	}
 	const needsRead = computed(() => baseline.value === null && !draft.loading && !draft.conflict);
 	onBeforeUnmount(() => { alive = false; stop(); });

@@ -1,21 +1,29 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 import { elementLength } from '../../../domain/spatial/SpatialElement';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { formatMetres } from '../shell/formatLength';
-defineProps<{ elements: readonly NamedSpatialElement[]; selectedIds: readonly string[]; tokens: ThemeTokens; zoom: number }>();
+const props = defineProps<{ elements: readonly NamedSpatialElement[]; selectedIds: readonly string[]; tokens: ThemeTokens; zoom: number }>();
+const shapes = computed(() => props.elements.map(element => {
+	const selected = props.selectedIds.includes(element.id), closed = element.kind === 'object';
+	const point = element.points[0], zoom = props.zoom, tokens = props.tokens;
+	return { id: element.id, name: 'element-' + element.kind,
+		line: { points: element.points.flatMap(vertex => [vertex.x, vertex.y]), closed, stroke: selected ? tokens.accent : tokens.zoneStroke, strokeWidth: (selected ? 3 : 2) / zoom, dash: element.kind === 'fence' ? [4 / zoom, 4 / zoom] : [], fill: closed ? tokens.canvasBackground : undefined },
+		label: point ? { x: point.x, y: point.y - 18 / zoom, text: element.kind === 'measurement' ? element.name + ' · ' + formatMetres(elementLength(element)) + ' m' : element.name, fontSize: 12 / zoom, fill: tokens.zoneLabel, listening: false } : null };
+}));
 </script>
 <template>
 	<VGroup>
 		<VGroup
-			v-for="element in elements"
-			:key="element.id"
-			:config="{ name: `element-${element.kind}` }"
+			v-for="shape in shapes"
+			:key="shape.id"
+			:config="{ name: shape.name }"
 		>
-			<VLine :config="{ points: element.points.flatMap(point => [point.x, point.y]), closed: element.kind === 'object', stroke: selectedIds.includes(element.id) ? tokens.accent : tokens.zoneStroke, strokeWidth: (selectedIds.includes(element.id) ? 3 : 2) / zoom, dash: element.kind === 'fence' ? [4 / zoom, 4 / zoom] : [], fill: element.kind === 'object' ? tokens.canvasBackground : undefined }" />
+			<VLine :config="shape.line" />
 			<VText
-				v-if="element.points[0]"
-				:config="{ x: element.points[0].x, y: element.points[0].y - 18 / zoom, text: element.kind === 'measurement' ? `${element.name} · ${formatMetres(elementLength(element))} m` : element.name, fontSize: 12 / zoom, fill: tokens.zoneLabel, listening: false }"
+				v-if="shape.label"
+				:config="shape.label"
 			/>
 		</VGroup>
 	</VGroup>

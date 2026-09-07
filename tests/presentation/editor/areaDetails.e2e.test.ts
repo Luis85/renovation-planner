@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeZone } from '../../helpers/entities';
 import { rig } from '../../helpers/planEditorRig';
 import { runtimeOf, settle, settleUntil } from '../../helpers/editor';
@@ -7,6 +7,7 @@ import { expectFound, expectOk } from '../../helpers/domain';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { resizeTo } from '../../helpers/layout';
+import { defer } from '../../helpers/async';
 const mounted: Awaited<ReturnType<typeof rig>>[] = [];
 afterEach(() => { for (const r of mounted.splice(0)) r.harness.unmount(); });
 async function setup() {
@@ -74,4 +75,25 @@ describe('Area details in the production Inspector', () => {
 		expect(r.harness.wrapper.get('[data-rp-form="area-details"]').text()).toContain('Peer garden');
 		expect(expectFound(await r.zonesRepo.getById(r.area.entity.id)).entity.name).toBe('Peer garden');
 	});
+});
+
+it.each(['open', 'disposed'] as const)('keeps one Area commit and native input state while the leaf is %s', async leaf => {
+ const r = await setup(), form = r.harness.wrapper.get('[data-rp-form="area-details"]');
+ const name = form.get<HTMLInputElement>('input[name="name"]'), type = form.get<HTMLSelectElement>('select[name="zoneType"]');
+ await name.setValue('Finished patio'); await type.setValue('Terrace');
+ const composing = new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true, cancelable: true });
+ name.element.dispatchEvent(composing); expect(composing.defaultPrevented).toBe(true); expect(expectFound(await r.zonesRepo.getById(r.area.entity.id))).toEqual(r.area);
+ const gate = defer<void>(), completed = defer<void>(), save = r.zonesRepo.save.bind(r.zonesRepo);
+ const saving = vi.spyOn(r.zonesRepo, 'save').mockImplementationOnce(async (...args) => { await gate.promise; try { return await save(...args); } finally { completed.resolve(); } });
+ type.element.focus(); await form.trigger('submit'); await settleUntil(() => saving.mock.calls.length === 1, 'pending Area write');
+ expect(document.activeElement).toBe(type.element); expect(type.element.disabled).toBe(false); expect(name.element.readOnly).toBe(true);
+ await type.setValue('Garden'); await name.setValue('Changed during write'); await form.trigger('submit');
+ expect(type.element.value).toBe('Terrace'); expect(name.element.value).toBe('Finished patio'); expect(saving).toHaveBeenCalledTimes(1);
+ const otherLeaf = document.createElement('button'); document.body.append(otherLeaf);
+ if (leaf === 'disposed') { mounted.splice(mounted.findIndex(item => item.harness === r.harness), 1); r.harness.unmount(); otherLeaf.focus(); }
+ try {
+  gate.resolve(); await completed.promise; await settle();
+  expect(expectFound(await r.zonesRepo.getById(r.area.entity.id)).entity).toMatchObject({ name: 'Finished patio', zoneType: 'Terrace', geometry: r.area.entity.geometry });
+  expect(document.activeElement).toBe(leaf === 'disposed' ? otherLeaf : r.opener);
+ } finally { gate.resolve(); otherLeaf.remove(); }
 });

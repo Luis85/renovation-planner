@@ -24,8 +24,9 @@ async function setup() {
 it('deletes a mixed wall/element selection once, including hosted openings, and restores exact labels/shapes with Undo/Redo', async () => {
  const rig = await setup(), baseline = expectOk(await rig.renovation.read(rig.plan.id));
  const structure = expectDefined(baseline.geometry.document.structure, 'structure');
+ const associated = { ...structure, boundaries: [{ roomId: rig.room.id, wallIds: structure.walls.map(wall => wall.id) }] };
  const opening = { id: 'opening-a', hostId: 'wall-a', kind: 'door' as const, offset: 100, width: 800, height: 2000, sill: 0 };
- expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.geometry.document, structure: { ...structure, openings: [opening] }, intended: { ...structure, openings: [opening] } }, baseline.geometry.version));
+ expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.geometry.document, structure: { ...associated, openings: [opening] }, intended: { ...associated, openings: [opening] } }, baseline.geometry.version));
  await rig.runtime.refreshProjection(); rig.selection.select(['element-path', 'wall-a'] as never[]); await settle();
  const before = expectOk(await rig.renovation.read(rig.plan.id)), labels = rig.project.plan?.spatialElements;
  const command = vi.spyOn(rig.renovation, 'command');
@@ -33,7 +34,7 @@ it('deletes a mixed wall/element selection once, including hosted openings, and 
  expect(rig.wrapper.get('.rp-dialog').text()).toContain('element-path'); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Wall 1');
  rig.dialogs.resolve('confirm'); await settle();
  expect(command).toHaveBeenCalledTimes(1); expect(rig.project.structure.walls.some(item => item.id === 'wall-a')).toBe(false);
- expect(rig.project.structure.openings).toEqual([]); expect(rig.project.structure.elements?.map(item => item.id)).toEqual(['element-fence']);
+ expect(rig.project.structure.openings).toEqual([]); expect(rig.project.structure.boundaries).toEqual([]); expect(rig.project.intended?.boundaries).toEqual([]); expect(rig.project.structure.elements?.map(item => item.id)).toEqual(['element-fence']);
  expect(rig.project.intended?.elements?.map(item => item.id)).toEqual(['element-fence']);
  expect(rig.project.zones.get(rig.room.id)?.points).toEqual(rig.room.geometry.points);
  expectOk(await rig.runtime.dispatcher.undo()); await settle();
@@ -101,4 +102,24 @@ it('refreshes a peer shape before asking for deletion and does not overwrite tha
  await rig.runtime.elementActions.removeMany([...rig.selection.selectedIds]); await settle();
  expect(rig.dialogs.current).toBeNull(); expect(command).not.toHaveBeenCalled(); expect([...rig.stack.vault.entries]).toEqual(before);
  expect(rig.project.structure.elements).toEqual(elements);
+});
+
+it('refuses repeated deletion while its read is pending and reports a thrown read without writes', async () => {
+ const rig = await setup(), ids = [...rig.selection.selectedIds], before = [...rig.stack.vault.entries];
+ const baseline = expectOk(await rig.renovation.read(rig.plan.id)), gate = defer<Awaited<ReturnType<typeof rig.renovation.read>>>();
+ const read = vi.spyOn(rig.renovation, 'read').mockReturnValueOnce(gate.promise);
+ const pending = rig.runtime.elementActions.removeMany(ids); await rig.runtime.elementActions.removeMany(ids);
+ expect(read).toHaveBeenCalledTimes(1); rig.selection.clear(); gate.resolve(ok(baseline)); await pending;
+ rig.selection.select(ids as never[]); await settle(); read.mockRejectedValueOnce(new Error('Offline geometry'));
+ await rig.runtime.elementActions.removeMany(ids); expect(rig.runtime.elementActions.removeManyActive.value).toBe(false);
+ expect(rig.dialogs.current).toBeNull(); expect([...rig.stack.vault.entries]).toEqual(before);
+});
+it.each(['read failure', 'leaf close'] as const)('does not confirm deletion after material %s', async kind => {
+ const rig = await setup(), planning = expectDefined(rig.deps.commands.planning, 'planning');
+ const baseline = expectOk(await planning.read(rig.plan.id)), gate = defer<Awaited<ReturnType<typeof planning.read>>>();
+ const read = vi.spyOn(planning, 'read').mockReturnValueOnce(gate.promise), before = [...rig.stack.vault.entries];
+ const pending = rig.runtime.elementActions.removeMany([...rig.selection.selectedIds]); await settle(); expect(read).toHaveBeenCalledTimes(1);
+ if (kind === 'leaf close') { mounted.splice(mounted.indexOf(rig), 1); rig.unmount(); gate.resolve(ok(baseline)); }
+ else gate.resolve(err(injectedPersistenceError()));
+ await pending; expect(rig.dialogs.current).toBeNull(); expect([...rig.stack.vault.entries]).toEqual(before);
 });

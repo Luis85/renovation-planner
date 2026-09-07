@@ -35,7 +35,7 @@ describe('plainPress', () => {
 });
 
 function doors(tool: DraftFinishDoors['tool']) {
-	return { tool, finishArea: vi.fn<() => void>(), finishActiveTool: vi.fn<() => void>(), undoWallPoint: vi.fn<() => void>() };
+	return { tool, finishArea: vi.fn<() => void>(), finishActiveTool: vi.fn<() => void>(), undoDraftPoint: vi.fn<() => void>() };
 }
 function press(key: string, extra: Partial<FinishKeyPress> = {}) {
 	return { key, repeat: false, ctrlKey: false, metaKey: false, altKey: false, isComposing: false, preventDefault: vi.fn<() => void>(), ...extra };
@@ -66,7 +66,7 @@ describe('finishShortcut', () => {
 		const d = doors('draw-wall');
 		expect(finishShortcut(press('Backspace'), d)).toBe(true);
 		expect(finishShortcut(press('Backspace', { repeat: true }), d)).toBe(true);
-		expect(d.undoWallPoint).toHaveBeenCalledOnce();
+		expect(d.undoDraftPoint).toHaveBeenCalledOnce();
 	});
 	it('answers false, and prevents nothing, for every other key or tool', () => {
 		for (const [key, tool] of [['Enter', null], ['Enter', 'select'], ['Enter', 'draw-polygon'], ['Backspace', 'draw-area'], ['a', 'draw-wall']] as const) {

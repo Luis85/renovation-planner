@@ -10,6 +10,23 @@ Root owns shared status files and the final combined source/acceptance.
 
 ## Latest checkpoint
 
+Common source merged as `05ddc506` from Root `57144c81`; `git diff` against Root's
+`src/` is empty. The sole conflict was the added Root integration paragraph in the
+Requirement proof; both verification records were retained. Imported raw UI logs have
+trailing blank-line diagnostics under `git diff --check`; their original content was
+not rewritten. The coverage task's own diff remains clean.
+
+The next three public validation cases are prepared in
+`tests/plugin/commandValidationBoundaries.test.ts`: invalid Quote title, empty spatial
+metadata name, and finite calibration inputs whose rescaled endpoints overflow. All
+start from valid persisted records and assert real command refusals before writes;
+no repository result is mocked. The browser environment is required by the real
+composition's imports and is not a browser/host acceptance claim. This file is unverified.
+
+Root has granted the next bounded slot for the six Review and two Outline cases on
+the common join, followed by the prepared validation block and checks. Keep source
+stable throughout those runs and release the slot explicitly afterward.
+
 Outline verification is complete: corrected 2/2 native cases pass in 34.48 seconds,
 types/whole Oxlint/scoped ESLint/static Fallow pass, and the 2/2 scoped coverage run
 (15.99 seconds) confirms +2 branches/+1 statement/+1 function on comparable maps.

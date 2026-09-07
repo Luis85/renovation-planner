@@ -10,6 +10,15 @@ Root owns shared status files and the final combined source/acceptance.
 
 ## Latest checkpoint
 
+**Five repository lifecycle cases are verified on 067e3bf3:** 5/5 native PASS
+(43.51 seconds), types/whole Oxlint/scoped ESLint/static Fallow PASS (zero issues/clones).
+The 5/5 scoped coverage repeat (13.28 seconds) hit exactly the five announced null
+arms from original430 on unchanged source/maps. [Exact receipt](evidence/repository-lifecycle-counter-gains.json).
+No test correction or production change was needed. No full aggregate pass is inferred.
+Handles 77006/26251 are terminal and the heavy slot has been explicitly returned.
+Next: hand Root the verified file/receipt, await the new shared source/full CI, and
+only then evaluate the remaining branch deficit. No other package was added to this slot.
+
 Root integrated the verified package as `4f070aa4` and froze `43041936a7f86d31058f6d21a16c3a596e1bacc6`.
 Its full Linux24 CI `34156093009` passed all 8115 tests in 661 files (69 skipped), with
 S18060/18222, F5174/5211, L14102/14166 and B12537/12813. Only the 98% branch floor fails;

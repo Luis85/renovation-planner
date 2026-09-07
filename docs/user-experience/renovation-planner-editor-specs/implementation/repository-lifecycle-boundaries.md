@@ -1,4 +1,4 @@
-# Public repository lifecycle boundaries — prepared
+# Public repository lifecycle boundaries — verified
 
 Five source-prepared cases live in `tests/plugin/repositoryLifecycleBoundaries.test.ts`.
 Root approved this exact bounded package. No production code changes are included.
@@ -24,4 +24,9 @@ real fixture files, and records the native open request. It does not claim compl
 Obsidian link-resolution behavior or actual host navigation. No private Vue handler
 is invoked and no UI, browser, physical-device or performance acceptance is claimed.
 
-Status: unverified source checkpoint. No new hit count or test pass is claimed yet.
+Verified on owner `067e3bf3`: 5/5 native tests passed (43.51 seconds), types,
+whole Oxlint, scoped ESLint and Fallow static analysis passed with zero issues/clones.
+The scoped coverage repeat passed 5/5 (13.28 seconds) and hit exactly the five
+originally identified branch arms on unchanged source/maps. No statement/function
+gain or aggregate full coverage pass is claimed. All global floors stayed unchanged.
+[Exact original-map receipt](evidence/repository-lifecycle-counter-gains.json).

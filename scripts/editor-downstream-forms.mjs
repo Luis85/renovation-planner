@@ -39,7 +39,7 @@ export async function createRoomCost(page) {
 	await chooseNative(page, `${payment} select[name="settles"]`, 1);
 	await recordApply(page, form);
 	for (const [stage, amount] of Object.entries({ planned: 800, committed: 500, actual: 200, openCommitment: 300 })) {
-		assert.match(await page.locator(`.rp-cost-totals [data-rp-stage="${stage}"] dd`).innerText(), new RegExp(String(amount)), `${stage} reflects persisted Cost facts`);
+		assert.match(await page.locator(`.rp-cost-totals [data-rp-stage="${stage}"] dd`).first().innerText(), new RegExp(`^${amount}(?:[.,]00)? EUR$`), `${stage} reflects persisted Cost facts`);
 	}
 }
 

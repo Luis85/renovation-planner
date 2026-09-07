@@ -1,0 +1,39 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-object-ui
+
+stderr | tests/presentation/editor/zonePanConfiguration.test.ts > does not resubmit unchanged zone configurations when the world viewport moves
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/zonePanConfiguration.test.ts (1 test | 1 failed) 449ms
+   × does not resubmit unchanged zone configurations when the world viewport moves 447ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/presentation/editor/zonePanConfiguration.test.ts > does not resubmit unchanged zone configurations when the world viewport moves
+AssertionError: expected { name: 'zone-kitchen', …(1) } to be { name: 'zone-kitchen', …(1) } // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: { name: 'zone-kitchen', …(1) }
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ tests/presentation/editor/zonePanConfiguration.test.ts:41:76
+     39|  await flushDimensionFrames();
+     40|  expect(shape.props('captionViewport')).not.toEqual(viewport);
+     41|  for (const [index, node] of nodes.entries()) expect(node.props('confi…
+       |                                                                            ^
+     42|  expect(group!.getChildren()).toEqual(children);
+     43|  expect(group!.find<Konva.Text>('Text').map(node => node.text())).toEq…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  22:04:20
+   Duration  8.34s (transform 5.09s, setup 0ms, import 6.58s, tests 449ms, environment 1.08s)
+

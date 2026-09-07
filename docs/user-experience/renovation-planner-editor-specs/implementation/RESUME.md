@@ -13,7 +13,7 @@ Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument ak
 ## Aktueller Gitstand
 
 - Hauptcheckout D:/Projects/renovation-planner bleibt sauber auf main (zuletzt44234f77).
-- Root arbeitet ausschließlich in .worktrees/editor-plan-finalization, Branch codex/editor-plan-finalization. Aktuelle Produktion: **43041936a7f86d31058f6d21a16c3a596e1bacc6**. Das reine UI-Bildarchiv **d58e629e70d0224e44d31fb513f593d2c686d3e0** ist zusätzlich übernommen; nachfolgende Root-Commits dokumentieren CI und Performance. HEAD/origin mit Git prüfen.
+- Root arbeitet ausschließlich in .worktrees/editor-plan-finalization, Branch codex/editor-plan-finalization. Aktuelle Produktion enthält den geprüften Pan-Fix aus **dba43e5fc1d3301b5884e6c386e4722d38f831e4**, integriert mit seinem Evidence-Checkpoint **eefc7c151045d58b6503daeef99fb196cd699fbc**. Das vollständige430-Bildarchivd58 und Root-Diagnosefb928f8e bleiben enthalten. HEAD/origin mit Git prüfen.
 - [PR #91](https://github.com/Luis85/renovation-planner/pull/91) bleibt OPEN/DRAFT, Basis codex/materials-costs-evidence (#88,3c1c737a). Der Mensch entscheidet Merge/Integrationsweg.
 - Root57144c81 integriert UI f576d13c; Root9cb87b1b integriert dessen verifizierte Folge bis376fe371. Galerie, Caption-Hindernisse, Review-Marker, Warntext- und Fokuskorrekturen sind enthalten. Nicht nochmals integrieren.
 - Root465ffe42 enthält die elf geprüften Review/Outline/Command-Fälle aus Coverage44860131. Root4f070aa4 übernimmt selektiv Coverage1debce64: Requirement-Origin-Mapper, schmaler Review-Tap und Kalibrierungsgrenze. Root prüfte die zwei geänderten Testdateien auf dem gemeinsamen UI-Stand:10/10 PASS in33,14s.43041936 schützt ausschließlich die archivierten Logbytes vor Zeilenumbruchkonvertierung.
@@ -27,7 +27,7 @@ Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument ak
 | Erreiche Editor-Testcoverage | 01a07cca-4d4b-75b0-96fb-9417d3b86f51 / codex/editor-coverage-finalization, PR#92 | Globale Coverage; genau fünf weitere öffentliche Grenzfälle sind source-only freigegeben |
 | Improve M15 recovery workflow | 01a07838-4e54-7ac3-bc24-a8eef9185d6e | Idle; native Host-Labels auf430 lesend geprüft, keine Host-Aktion ausgeführt |
 
-**UI hält den schweren lokalen Slot.** Finalrunner29535 ist terminal0; Archiv-Push99980 ebenfalls. Root-Diagnose92959 und CPU-Profil88423 sind terminal0. Root hat keinen schweren Prozess mehr. UI beginnt mit einer Regression für unnötige Konva-Config-Updates bei tatsächlicher Viewportänderung, bevor sie die Produktion optimiert. Coverage darf nur die fünf freigegebenen Fälle vorbereiten, keine Tests/Builds/Analyzer bis zur expliziten Übergabe.
+**Coverage hält jetzt den schweren lokalen Slot** für genau fünf neue repositoryLifecycleBoundaries-Fälle plus notwendige Nachbarn, Types/Lint/static. UI hat67702(ruhige vier Szenarien) und73590(CPU-Vergleich) terminal0 beendet; keine UI-Heavyprozesse. UI bereitet M01/M04 und Zusatzaufnahmen source-only vor. Root integriert nur verifizierte Source/Docs, ohne Heavyprozess. Nach dem begrenzten Coverage-Receipt Slot ausdrücklich an UI zurückgeben; keine neue Restanalyse zwischen Testpass und Commit/Push einschieben.
 
 Rechner ca.8GB RAM. Installs, Builds, Tests, Coverage, Analyzer und Browser-/Performancecaptures lokal serialisieren. Lesen, Source und Dokumentation können parallel laufen. Vor einer ruhigen Performance-Messung auch größere Archivierung/Bilddarstellung abstimmen. Keine fremden Prozessausgaben konsumieren oder Prozesse stoppen. Stille und Beobachtungstimeouts sind kein Prozessende; tatsächlichen Handle oder terminalen Owner-Beleg prüfen.
 
@@ -58,15 +58,19 @@ UI hat alle18Vergleiche angesehen. Root bestätigt M01/M04 anhand der Bilder. No
 
 Der vollständige Funktions-/Capture-Pass ersetzt keine visuelle oder Host-Abnahme. Neue Produktkorrekturen brauchen passende erneute gemeinsame Verifikation;430 bleibt als präziser Vorgängerbeleg erhalten. Fixturegrößen12/18m² statt15,9/24,3m² und fehlende Building-Hierarchie sind akzeptierte Daten-/ADR-Unterschiede, keine Aufforderung zu erfundenen Werten.
 
-## Nachgewiesener Performance-Befund
+## Verifizierte Pan-Performancekorrektur
 
-Vollrun: ordinary Panmedian33,1–33,3ms, p9550–83,2ms. Readiness-/Selection-/Inspector-Latenzbudgets bestehen dort; zwölf Close/Reopen-Zyklen enden mit null getrackten Ressourcen.
+Der vollständige430-Vorgängerlauf hatte ordinary Panmedian33,1–33,3ms und p9550–83,2ms. Ein ruhiger Nachlauf reproduzierte Panmedian33ms in3/4Szenarien bei rund16,7ms Idle; Light-Selection107ms lag über100ms. Originaldaten bleiben in [Root-Diagnose](pan-performance-diagnosis.md) erhalten.
 
-Ruhiger Root-Nachlauf92959 mit unveränderter80-Room/240-material/24-asset/40-photo-Fixture: Idlemedian16,6–16,7ms und p95 ungefähr17ms, aber Panmedian33ms in drei von vier Szenarien. Ein Light-Selectionwert107ms überschreitet100ms und bleibt dokumentiert. Kein Performance-Endpass.
+UIdba43e5f stabilisiert ausschließlich ZoneShape: primitive Captionverschiebung, sechs gecachte echte Konva-Configs und Memoisierung des vorhandenen permanenten Groups über diese Configs. Modell, Geometrie, Zoom, Theme, Selection und tatsächliche Text-/Captionänderungen bleiben Abhängigkeiten. Keine Knoten, Fonts, Statuszeilen, Pins, Fixturebestandteile oder Providerverträge entfernt.
 
-Darksingle-CPU-Profil88423 zeigt wiederholte Vue-Konva-Configdiffs und reactive Assignments als große Selbstkosten. Tatsächlicher installierter vue-konva-Code wurde gelesen. Änderungen der Welt-CaptionViewport-Grenzen invalidieren viele ZoneShapes; UI untersucht eine begrenzte Stabilisierung der primitiven Captionverschiebung, der tatsächlichen Konva-Configs und des bestehenden Group-Templates.
+Echter Vorgänger-RED32581 gegen430; danach24/24 Caption/Scene/Order/Observer/Fallback-Tests und47/47 Resize/Outline/Inline/Lifecycle-Nachbarn. Types, whole Oxlint und scoped ESLint bestanden. Beide abschließenden Browserprozesse sind terminal0.
 
-Geometrie, Modell-/Theme-/Zoom-/Selection-/Textänderungen sowie Caption-Clipping, Pins, Fonts, alle Statuszeilen und Providerverträge müssen erhalten bleiben. Keine kleinere Fixture oder abgeschwächten Budgets. Dieselbe unprofilierte Messung plus bestehende Caption-/Geometry-/Order-Regressionsfälle müssen einen Fix prüfen. [Diagnose](pan-performance-diagnosis.md), [Originaldaten/Hashes](evidence/pan-diagnostic-430/manifest.json). Profiling verursacht Overhead; Profilzeiten sind keine Abnahmemessung.
+**Unprofilierter identischer Nachlauf67702 aufdba:** alle vier Szenarien Pan-/MaterialPanmedian16,6–16,7ms, p95≤17,1ms; usable467,4–508,6ms, selection52,6–59,8ms, Inspector43,7–53,1ms.80Rooms/240Materials/24Assets/40Photos(1600×1200) unverändert; zwölf Close/Reopen-Zyklen trackedResources0. Reale Kameradeltas, drei Materialmarker und PageError-Assertions bleiben Bestandteil desselben Drivers.
+
+Root verglich beide verwendeten Driver exakt mit den Originalen: nur Worktree-/Outputpfade und Profil-Source-Metadaten unterscheiden sich. CPU-Diagnose73590 unterstützt die Ursache: Vue-Konva M/g-Selbstzeit344/476ms→27/43ms, kein Abnahmeurteil aus Profilzeiten. Root prüfte20Dateihashes in den beiden UI-Manifesten. [Fix und Evidence](editor-canvas-pan-stability.md).
+
+Der Root-Integrationsindex stimmt in src/styles/scripts/tests/package samt Lockdatei vollständig mit verifiziertemUIeef überein; deshalb kein identischer zusätzlicher Native-Nachlauf. Neue volle CI/Health und die noch ausstehenden M01/M04-/Host-Schritte bleiben erforderlich. Dieser repräsentative Browsernachweis ersetzt keine physische Geräte- oder native Host-Abnahme.
 
 ## Weitere verifizierte Verträge
 
@@ -119,7 +123,7 @@ Computer-Use-Skill vor Hostbedienung lesen; unterstützte API nutzen. UIA konnte
 
 ## Nächste Aktionen und technische Wiederaufnahme
 
-1. Gitstatus/HEAD/origin, Taskstatus und tatsächlichen Slotowner prüfen. UI besitzt den Slot für Performance/M01/M04 und Zusatzaufnahmen. Keine alten Handles neu starten.
+1. Gitstatus/HEAD/origin, Taskstatus und tatsächlichen Slotowner prüfen. Coverage besitzt den begrenzten nächsten Prüfslot; UI bereitet M01/M04 und Zusatzaufnahmen vor. Pan-Fix ist geprüft und integriert. Keine alten Handles neu starten.
 2. Verifizierte UI-Folge prüfen und integrieren. Coverage genau fünf vorbereitete öffentliche Grenzfälle im nächsten expliziten Slot prüfen lassen; danach passende volle CI/Health und verbleibende Arme neu bewerten.
 3. Nach den Produktkorrekturen die erforderliche gemeinsame visuelle/Performance-Verifikation abschließen.340Bilder auf430 bleiben Vorgängerbeleg; kein pauschaler neuer Pass daraus.
 4. Finalen Build mit Source-/Bundle-/Styles-/Manifest-Hashes ausschließlich im benannten Testvault installieren/reloaden. H1–H6 ausführen. Originale synthetische Dateien und Installed-Hashes sind im Scratch unter host-before-final-build/ gesichert; das native Testvault-Fenster war zugänglich, weiterhin auf vorläufigem Build.

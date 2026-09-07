@@ -9,3 +9,9 @@ A separate single Dark CPU profile (88423,exit0) identifies repeated vue-konva c
 UI owns a bounded follow-up that must preserve real changes to geometry, room labels, selection, theme, zoom, numbered pins and measured caption/control/clamping behavior. The fixture size, fonts, all status lines, provider contracts and performance/coverage limits remain unchanged. The same quiet procedure and existing native caption/geometry/order regressions must verify any correction.
 
 Original reports, scratch drivers, raw CPU profiles and exact hashes are in [the evidence folder](evidence/pan-diagnostic-430/manifest.json). Scratch drivers include absolute imports from the observed workspace; for another checkout regenerate those import paths from the named original repository script. The original CI/full9/18 evidence remains separate and unchanged. Profiling adds overhead, so CPU-profile timings are not acceptance measurements. The unprofiled four-scenario diagnostic is the comparison baseline.
+
+## Verified follow-up on dba43e5f
+
+The UI correction caches the six actual Konva configurations and memoizes the existing Group; a primitive caption displacement prevents unchanged layouts from being recreated for every world-viewport update. An actual predecessor RED and24+47 native batches, types and lint passed. The same unprofiled four-scenario driver now measures Pan/materialPan medians16.6–16.7ms and p95≤17.1ms; all usable/selection/Inspector latency budgets pass and twelve resource-cleanup cycles remain clear. Root verified exact driver equality after only worktree/output/source-metadata substitutions. Fixture size, image dimensions, stimulus and assertions are unchanged.
+
+Evidence is in [editor-canvas-pan-stability](editor-canvas-pan-stability.md), integrated with eefc7c15. This closes the reproduced browser pan regression for that source and measurement scope. Original430 failures stay above; later source and native-device acceptance remain separate.

@@ -1,0 +1,35 @@
+{
+  "originalProduction": "43041936a7f86d31058f6d21a16c3a596e1bacc6",
+  "sourceGitBlob": "66ca40e3a1648bb9b0b629f8510529872d6ec8e3",
+  "redSession": 32581,
+  "greenSessions": [
+    67035,
+    70796
+  ],
+  "files": [
+    {
+      "file": "zone-pan-config-red.log",
+      "sha256": "ecdc2dfee73d9f1d9165da62117584b19b2665d56629681caac912cb5f248f7a"
+    },
+    {
+      "file": "zone-pan-config-green.log",
+      "sha256": "5d0e19d9e851a89a8797b3c364d5194c26cd1d8ac3fe0118eb9fc297568f514b"
+    },
+    {
+      "file": "zone-pan-geometry.log",
+      "sha256": "7b4d899ae251bf22b66f2d75779a8352bcff45f1fff19531d174a3c14a913157"
+    },
+    {
+      "file": "zone-pan-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "zone-pan-oxlint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "zone-pan-eslint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

@@ -159,3 +159,13 @@ control disappeared. The shared focus-return correction passed all four alongsid
 existing flow/recovery cases: 20 tests in four files, 12.66 seconds. See
 [the downstream focus evidence](downstream-dialog-focus-evidence.md) for exact triggers,
 write boundaries and the separate browser/full-gate acceptance limits.
+
+## Cost arrival and element deletion lifecycle — 2026-09-07
+
+Eight additional public navigation/native lifecycle cases pass with unchanged production.
+The combined focused run passed 33 tests in five files, 21.76 seconds. Exact counter maps
+match the preserved `c1091086` full report, and the new run exercises six previously missing
+statements, one function and eleven branches across `editorArrival.ts` and `elementActions.ts`.
+Its isolated coverage still fails the unchanged floors (157/161 statements, 132/142 branches,
+40/41 functions, 84/84 lines). See [the arrival/deletion evidence](arrival-element-lifecycle-evidence.md)
+for fixture correction, per-module counters and the distinction from a final full gate.

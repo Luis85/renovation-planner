@@ -69,3 +69,22 @@ these production corrections. The constrained comparison itself remains a native
 scrollable table; no whole-page horizontal overflow was observed.
 
 Final implementation, complete visual comparison and actual-host acceptance remain open.
+
+## Final matrix preflight correction
+
+The joined source `0f0fdab1a94200e3e19822736c44f9d0bba72825` has the identical tracked tree
+`10e74111027686bf9833c6025a20904e15b45b88` as integration source
+`9e2b89f893ae8facd0dede86f99be492453d7b26`. The final runner passed its first two journeys
+(four scenarios each), then stopped at Reference cancellation after desktop-to-constrained
+reflow: focus attempted to return to a connected but hidden opener. The Reference journey's
+assertion and timeout remain unchanged; this is an outstanding production correction.
+
+Inspection also found the historical M10 screenshot came from the older fixture without
+Project navigation. The final M10/M13 mappings now select native ninth-journey Room Work and
+Costs captures, retaining the historical before images. That journey uses the representative
+floor image and adds a real Cost through its form: 800 planned, 500 committed, and a 200 actual
+deposit settling that commitment. Stage values are asserted before opening quotes; the complete
+totals are compared after returning. Work and Costs each receive a visible-surface axe scan.
+These additions are prepared for the next complete run; the earlier four-scenario evidence does
+not verify them. Failure artifacts now include the active element and Reference/rail visibility
+to distinguish focus regression from a harness readiness failure.

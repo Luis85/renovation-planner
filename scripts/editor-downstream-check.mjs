@@ -3,7 +3,7 @@ import { activate, runAreaBrowserMatrix } from './editor-area-browser.mjs';
 import { recordRoom, recordText, recordApply, recordShot } from './editor-record-browser.mjs';
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 import { editorAccessibility } from './editor-accessibility.mjs';
-import { activateReady, assertEditorContext, chooseNative, createNamedCatalogueEntry, createQuote, editorContextSnapshot, reviseReceivedQuote } from './editor-downstream-forms.mjs';
+import { activateReady, assertEditorContext, chooseNative, createNamedCatalogueEntry, createQuote, createRoomCost, editorContextSnapshot, reviseReceivedQuote } from './editor-downstream-forms.mjs';
 
 async function prepareWork(page, german) {
 	const form = '[data-rp-form="renovation"]';
@@ -44,11 +44,16 @@ async function schedule(page, scenario, out) {
 	await assertEditorContext(page, before);
 	await panel(page, 'details'); await activate(page, '[data-rp-mode="work"]');
 	assert.match(await page.locator('.rp-renovation-inspector').innerText(), /Floor finishing/);
+	await recordShot(page, scenario, out, 'room-work');
+	await editorAccessibility(page, scenario, out, 'room-work');
 	return accessibility;
 }
 
 async function quotes(page, scenario, out) {
 	await activate(page, '[data-rp-mode="costs"]');
+	await createRoomCost(page);
+	await recordShot(page, scenario, out, 'room-costs');
+	await editorAccessibility(page, scenario, out, 'room-costs');
 	const before = await editorContextSnapshot(page);
 	const costs = await page.locator('.rp-cost-totals').innerText();
 	await activateReady(page, '[data-rp-downstream="quotes"]'); await page.locator('.rp-project-quotes').waitFor();
@@ -87,4 +92,4 @@ async function journey(page, scenario, out) {
 		hostBoundary: 'browser workspace adapter; real Obsidian leaf/history/MetadataCache observations remain separate' };
 }
 
-await runAreaBrowserMatrix('editor-downstream', '&reference&planning&downstream', journey, '[data-rp-empty="floor-start"]');
+await runAreaBrowserMatrix('editor-downstream', '&reference&planning&downstream&fidelity', journey, '[data-rp-empty="floor-start"]');

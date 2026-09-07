@@ -104,6 +104,13 @@ export async function runAreaBrowserMatrix(directory, query, journey, ready = '.
 				await page.screenshot({ path: `${out}/${scenario.name}-failed.png` });
 				await writeFile(`${out}/${scenario.name}-failed.txt`, await page.locator('body').innerText());
 				await writeFile(`${out}/${scenario.name}-failed-errors.json`, JSON.stringify(errors, null, 2));
+				await writeFile(`${out}/${scenario.name}-failed-focus.json`, JSON.stringify(await page.evaluate(() => ({
+					activeElement: document.activeElement?.outerHTML,
+					viewport: { width: innerWidth, height: innerHeight },
+					referenceTargets: [...document.querySelectorAll('[data-rp-action="reference"], [data-rp-rail]')].map(element => ({
+						html: element.outerHTML, visible: element.checkVisibility(),
+					})),
+				})), null, 2));
 				throw cause;
 			}
 			results.push({ scenario: scenario.name, browser: browser.version(), ...evidence, keyboard: 'passed', pageErrors: errors });

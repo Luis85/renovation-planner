@@ -19,6 +19,11 @@ is claimed. Main remains untouched; work is on `codex/editor-object-ui` in
   WorkRow, creation CTA, CostRow presentation class and scoped CSS. Every action retains its DOM
   ancestry, order, selector, handler and visibility. No action is hidden in a new disclosure.
   Five financial values and existing selection rules remain. This draft is not verified.
+- The following overview-density WIP changes only `styles/editor-visual-overview.css`: remove
+  inherited cost-paragraph margins, tighten existing summary/link spacing and preserve the
+  linked navigation's accessible heading/name without a redundant visible heading row. Closed
+  More actions receives less padding. No control, handler or data changes; matching viewport,
+  theme, focus, types/lint and browser verification remain pending.
 
 The exact current SHA is the commit containing this file on the topic branch; check `git log -1`.
 The finalization task records each reported pushed SHA in root `RESUME.md`. Do not restore old

@@ -1,6 +1,7 @@
 # Downstream view states — verification and resume
 
-Updated: 2026-09-07. **WIP: source prepared, not yet verified.**
+Updated: 2026-09-07. **Bounded verification completed.** The original source was pushed as
+WIP `46dd866138d49d0283849b3b59a130cb9f3a9ed3`; the implementation needed no correction.
 
 ## Scope and basis
 
@@ -25,24 +26,50 @@ translated in the template; the computed value supplies only its key.
 ## Verification state
 
 - Source comparison against current root: passed before edits.
-- Diff checks: passed for this WIP checkpoint.
-- Dependency installation: not yet performed in this fresh worktree.
-- Native recovery/navigation tests, types, lint and Fallow: pending the exclusive heavy slot.
+- Diff checks: passed.
+- `npm ci --ignore-scripts --no-audit --no-fund`: passed, 567 packages installed.
+- Native tests: 34/34 passed in seven files, 47.96 seconds. These cover downstream
+  saved-source, dialog focus, lifecycle, unavailable settings, Project Work recovery/flow
+  and Quote flow. Draft, Retry, source-opening and history behavior passed unchanged.
+- `vue-tsc --noEmit`, whole-tree Oxlint and scoped ESLint for the two views: passed.
+- Fallow dead code/duplicates: passed, zero issues and zero clone groups.
+- Fallow template health: neither changed view exceeds the unchanged cognitive ceiling
+  of 15. The sole remaining cognitive finding is root-owned EvidenceInspector at 16.
 - Browser capture and full coverage: not run or claimed by this checkpoint.
 
-The implementation is deliberately pushed as WIP to preserve progress under usage limits.
-Do not call the two template findings resolved until the actual Fallow measurement passes.
-The DOM, focus/draft/retry/source guards must be verified by the existing native tests.
+The initial WIP push preserved progress under usage limits. The 34 native tests now verify
+the DOM behavior and focus/draft/retry/source guards after deriving the view states.
+
+Analysis commands were `node node_modules/fallow/bin/fallow --skip health --fail-on-issues
+--format json` and a separate `fallow health --coverage <preserved-full-73-JSON> --format json`.
+The first exited 0; the second exited 1. The preserved full coverage uses another worktree's
+absolute source paths, and the health report confirms **zero of 18,807 Istanbul positions
+matched**. Its 95 additional estimated-CRAP findings are therefore not evidence of new
+production defects, and this is not a complete health/CRAP pass. Template cognitive
+measurements are independent of that coverage mismatch and show both targeted findings
+removed. No config, threshold, suppression or coverage input was rewritten to hide findings.
+Fallow also reported the existing skipped `.claude` directory; it was not changed.
+
+Machine output remains at `%TEMP%/rp-e-downstream-states-native.json`,
+`rp-e-downstream-states-static.json` and `rp-e-downstream-states-health.json`. A compact
+derived record is committed as
+[`downstream-view-states-verification.json`](evidence/downstream-view-states-verification.json).
 
 ## Next action
 
-Wait for integration to release its current heavy slot. Then install dependencies and run
-the existing downstream saved-source, dialog-focus, lifecycle, unavailable-settings,
-Project Work recovery/flow and Quote flow tests. Run type checking, whole Oxlint and scoped
-ESLint for the two views. Measure Fallow's template health plus dead code/duplicates using
-the preserved full coverage carefully: its source paths refer to a different worktree and
-its counter maps precede this refactor, so do not present its coverage/CRAP values as a new
-full-tree measurement. Record the exact analysis command and any unrelated findings.
+The exclusive heavy slot was explicitly released to integration after every process
+terminated. Root verifies its EvidenceInspector and CI changes next, then UI receives its
+turn. No further heavy command is authorized for this contributor until another handoff.
+
+Integration can cherry-pick the WIP source commit followed by this verification record,
+then verify complete health against fresh correctly addressed combined coverage. This
+checkpoint does not claim the integration's separate EvidenceInspector finding is fixed.
+
+Next contributor work is read-only: inspect the preserved full `73b0c205/missing-counters.json`
+for QuoteForm.vue and work/projectWorkActions.ts (six missing branch arms each), and propose
+a bounded package of real native lifecycle/late-result cases before any source edits. Avoid
+private handlers or impossible service results. Preserve the next audit as its own small
+documentation commit and push before a long pause.
 
 If checks expose a behavior change, fix only this bounded view concern, repeat the relevant
 failed check, update this record, and push a verification checkpoint. Report branch/SHA,

@@ -7,8 +7,12 @@ import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 async function journey(page, scenario, out) {
 	const theme = await recordRoom(page, scenario, out, { drawWalls, panel, preserveTheme });
 	const german = scenario.name === 'german-constrained', form = '[data-rp-form="renovation"]';
-	if (scenario.width === 460) await page.keyboard.press('Escape');
-	await activate(page, '[data-rp-action="add"]'); await recordShot(page, scenario, out, 'M02-connected-add'); await page.keyboard.press('Escape');
+	assert.equal(await page.locator('.rp-room-inspector').isVisible(), true, 'Room selection survives the connected setup');
+	if (scenario.width === 460) {
+		console.log('Overview initial narrow focus:', await page.evaluate(() => document.activeElement?.outerHTML));
+		await activate(page, '.rp-inspector-drawer__close');
+	}
+	await activate(page, '[data-rp-action="add"]'); await page.locator('.rp-add-menu').waitFor(); await recordShot(page, scenario, out, 'M02-connected-add'); await page.keyboard.press('Escape');
 	await panel(page, 'details');
 	await activate(page, '[data-rp-mode="existing"]'); await activate(page, '[data-rp-action="new-record"]');
 	await recordText(page, form, 'description', german ? 'Abgenutzte Dielen' : 'Worn timber boards'); await recordApply(page, form, true);

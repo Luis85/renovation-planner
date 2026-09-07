@@ -87,3 +87,7 @@ M13 UI followup `adaeb7821c407674828807a8bb5be834b9936829` is integrated through
 - Root spatial/regression work was backed up as stash `0be7dacea5b3cfa1d171b25928a712eb7873238e` and restored cleanly. This is a local integration checkpoint; the combined full gate remains pending.
 
 - Cherry-picked E review checkpoint `37da445f94d9aa43897c3b013bfa237541dcd1ea` as `0fff8855`: planning/renovation draft retry failures are reported once and late reports are suppressed. Conflict resolution preserves the joined shared `dispatch` helper, batch action and both changelog entries, while substituting the safe retry callback. Root additionally owns the same concrete failure in existing-element and creation-draft retries.
+
+### Reviewed wall controls and preliminary journey evidence
+
+Root `a630bf76` restores reviewed wall endpoint proposals in Renovate and extracts the shared draft retry callback. Forty-one focused cases, full npm run lint and vue-tsc pass; full coverage remains pending. Agreed UI checkpoint `408b443ff24c1b914b810ab3b9e773668db8d6ea` is merged after it, adding the native Close-panel driver correction and four-scenario overview plus four-scenario resilience evidence from `4dbc96dd` plus that driver change. Its reports retain the initial constrained-focus failure and explicitly exclude final M00/M07/all-18 acceptance.

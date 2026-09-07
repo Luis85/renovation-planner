@@ -204,3 +204,28 @@ attributed to their original revision, and finalization owns the combined unchan
 The final three-file planning workflow/recovery/Review run passed **37/37 tests** (21.93 s,
 two workers). `npx vue-tsc -noEmit`, whole-project `npx oxlint --deny-warnings`, ESLint over
 the changed component and workflow regression file (`--max-warnings 0`) all passed.
+
+## Review follow-up — Unrecovered write guidance in drafts
+
+PR #90 comment `3945997046` identified misleading read-retry guidance after a command reports
+uncompensated writes. The shared DraftRecovery panel now reads the existing per-editor
+SaveStateStore flag, which is the actual pause cause. It offers source-note inspection and
+the dialog's existing Cancel action with distinct EN/DE guidance, hides read retry and guards
+a previously captured retry handler. Normal failed-read recovery retains its existing retry.
+Callers, including Planning and Renovation forms, need no new props or parallel state.
+
+Repository-backed form regressions inject a marked uncompensated command result through the
+real dispatcher for both workflows. They verify one command attempt, a retained editable
+draft, source inspection, blocked subsequent submissions, no retry after successful hydration,
+unchanged fixture vault bytes and Cancel. A separate transition case exercises a captured
+retry control after the unrecovered state supersedes a read failure. These UI tests do not
+claim to repair actual partial files or add durable restart recovery.
+
+The four-file planning recovery/workflow/Review/localization run passed **65/65 tests**
+(22.42 s, two workers). The first run exposed a test spy attached to a copied runtime callback;
+the assertion now checks the actual host-note-open counter. Oxlint required an explicit mock
+function type on the injected command; that annotation was added without changing behavior.
+Final `npx vue-tsc -noEmit`, whole-project `npx oxlint --deny-warnings`, changed-file ESLint
+(`--max-warnings 0`) and `git diff --check` passed. English wording also follows the required
+sentence-case rule. This intermediate review checkpoint uses the authorized targeted gate;
+finalization still owns the combined coverage/Fallow run at unchanged thresholds.

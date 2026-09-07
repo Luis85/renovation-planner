@@ -178,6 +178,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Fixed
 
+- Open drafts distinguish an incomplete write from a failed refresh: source inspection and Cancel remain available, without offering a read retry that cannot repair partial writes.
+
 - Evidence opened from a material or cost announces the same selected state it highlights; unlinked evidence stays unselected until explicitly focused.
 
 - Keep the evidence-path draft editable during refresh recovery while blocking file writes and Apply; retain readable Room names in freshly generated Review notes, with ID fallback for missing Rooms.

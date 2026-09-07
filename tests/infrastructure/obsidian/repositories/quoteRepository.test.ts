@@ -83,3 +83,32 @@ describe('project-owned quote notes and received immutability', () => {
   } finally { rig.dispose(); }
  });
 });
+
+it.each(['quotes', 'projects', 'assets', 'plans'] as const)('preserves an ordinary %s lookup refusal before saving a quote', async kind => {
+ const rig = await setup();
+ try {
+  const fault = { category: 'Persistence' as const, code: 'test.quote-read-refused', message: 'The linked record cannot be read.' }, bytes = [...rig.stack.vault.entries];
+  vi.spyOn(rig.persistence[kind], 'getById').mockResolvedValueOnce(err(fault));
+  const writes = vi.spyOn(rig.persistence.quotes, 'save');
+  expect(await saveQuote(rig.persistence, { quote: rig.quote, expected: 'absent' })).toEqual(err(fault));
+  expect(writes).not.toHaveBeenCalled(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+ } finally { rig.dispose(); }
+});
+it.each(['quotes', 'suppliers', 'assets'] as const)('preserves a %s listing refusal instead of presenting an empty comparison', async kind => {
+ const rig = await setup();
+ try {
+  const fault = { category: 'Persistence' as const, code: 'test.quote-list-refused', message: 'The catalogue cannot be listed.' };
+  if (kind === 'quotes') vi.spyOn(rig.persistence.quotes, 'listByProject').mockResolvedValueOnce(err(fault));
+  else vi.spyOn(rig.persistence[kind], 'listAll').mockResolvedValueOnce(err(fault));
+  expect(await readQuoteComparison(rig.persistence, rig.plan.projectId)).toEqual(err(fault));
+ } finally { rig.dispose(); }
+});
+it.each(['project', 'plan'] as const)('refuses a linked %s deleted before quote creation without recreating notes', async kind => {
+ const rig = await setup();
+ try {
+  const id = kind === 'project' ? rig.plan.projectId : rig.plan.id, path = expectDefined(rig.persistence.index.getPath(id), 'linked note');
+  rig.stack.vault.entries.delete(path); const bytes = [...rig.stack.vault.entries], writes = vi.spyOn(rig.persistence.quotes, 'save');
+  expect(await saveQuote(rig.persistence, { quote: rig.quote, expected: 'absent' })).toMatchObject({ ok: false, error: { code: 'quote.link-missing' } });
+  expect(writes).not.toHaveBeenCalled(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+ } finally { rig.dispose(); }
+});

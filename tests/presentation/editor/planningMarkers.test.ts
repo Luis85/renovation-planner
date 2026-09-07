@@ -12,7 +12,7 @@ const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
 it('highlights current Work targets and intended-only additions without inventing unavailable geometry', async () => {
  const rig = await renovationEditor(true); mounted.push(rig); const roomId = rig.room.id;
- const work = { id: 'work-highlight', roomId, targetId: 'wall-a', links: [{ roomId, targetId: 'new-object' }, { roomId, targetId: 'unavailable-target' }], title: 'Install cabinet', description: '', order: 0, progress: 'pending' as const, responsibility: 'diy' as const, outcomes: [], dependencies: [] };
+ const work = { id: 'work-highlight', roomId, targetId: 'wall-a', links: [{ roomId, targetId: 'new-object' }, { roomId, targetId: 'unavailable-target' }, { roomId: 'adjoining-room', targetId: 'wall-a' }], title: 'Install cabinet', description: '', order: 0, progress: 'pending' as const, responsibility: 'diy' as const, outcomes: [], dependencies: [] };
  rig.runtime.renovation.focus(roomId, 'costs'); await settle();
  const plan = expectDefined(rig.project.plan, 'Plan projection'), current = rig.project.structure;
  const points = [{ x: 100, y: 100 }, { x: 1100, y: 100 }, { x: 1100, y: 800 }, { x: 100, y: 800 }];

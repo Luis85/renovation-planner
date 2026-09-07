@@ -17,9 +17,10 @@ const outlines = computed(() => {
 	const intended = structureRecords(project.intended ?? project.structure, project.plan.id);
 	// Work has no measurement-state authority: show current targets, with intended-only additions as a fallback.
 	const geometry = new Map([...intended, ...records, ...project.zones.values()].map(item => [item.id, item]));
-	return spatialContexts(work).filter(item => inRenovationScope(item, session.roomId, session.targetId)).flatMap(item => {
-		const target = geometry.get(item.targetId);
-		return target?.points.length ? [{ id: item.targetId, points: target.points.flatMap(point => [point.x, point.y]), closed: project.zones.has(item.targetId) || target.zoneType === 'object' }] : [];
+	const targets = new Set(spatialContexts(work).filter(item => inRenovationScope(item, session.roomId, session.targetId)).map(item => item.targetId));
+	return [...targets].flatMap(id => {
+		const target = geometry.get(id);
+		return target?.points.length ? [{ id, points: target.points.flatMap(point => [point.x, point.y]), closed: project.zones.has(id) || target.zoneType === 'object' }] : [];
 	});
 });
 </script>

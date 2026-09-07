@@ -9,7 +9,7 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 const sourceStatus = () => git('status', '--porcelain', '--untracked-files=normal', '--', 'src', 'styles', 'tests', 'scripts', 'package.json', 'package-lock.json', 'vite.config.ts', 'vite.harness.config.ts', 'tsconfig.json');
 assert.equal(sourceStatus(), '', 'Commit the production source and harness before final capture.');
 const commit = git('rev-parse', 'HEAD'), started = Date.now(), steps = [];
-const journeys = ['materials-costs-evidence', 'renovation-workflow', 'reference-plan', 'editor-visual-resilience', 'editor-visual-overview', 'editor-object', 'planning-recovery'];
+const journeys = ['materials-costs-evidence', 'renovation-workflow', 'reference-plan', 'editor-visual-resilience', 'editor-visual-overview', 'editor-object', 'planning-recovery', 'modal-busy-focus'];
 // Retire only this runner's generated outputs so a failed earlier capture cannot enter the inventory.
 for (const directory of [...journeys.map(name => `harness-shots/${name}`), `${root}/after`, `${root}/comparisons`, `${root}/capture-provenance.json`]) {
 	const target = resolvePath(directory);
@@ -20,6 +20,7 @@ const commands = [
 	['editor-planning-check.mjs'], ['editor-renovation-check.mjs'], ['editor-reference-check.mjs'],
 	['editor-visual-resilience.mjs'], ['editor-visual-overview.mjs'], ['editor-object-check.mjs'],
 	['editor-recovery-check.mjs'],
+	['editor-modal-busy-check.mjs'],
 	['editor-visual-fidelity-shots.mjs', 'after'], ['editor-visual-comparisons.mjs'],
 ];
 for (const [script, ...args] of commands) {

@@ -1,0 +1,44 @@
+{
+  "sourceBase": "f8fcc32b1f47eb7ecedf9eb0830f6bfcd266290d",
+  "scope": "Bounded pin symbol, caption clearance and actual canvas adapter verification; full M14 and final nine/eighteen acceptance open",
+  "sourceFiles": [
+    {
+      "path": "src/presentation/editor/planning/EvidencePins.vue",
+      "sha256": "026e2073d6e8fb6b3770c46007ca8f04d128135106f26f2a7eeba48b7cd6b026",
+      "gitBlob": "8c6c27506ed43c3855f7bd44e76539986aeb628e"
+    },
+    {
+      "path": "src/presentation/editor/layers/zone/captionPlacement.ts",
+      "sha256": "1932e51244814190dc58de428298962dc29a69dbeb99d3b23731010da2268b2b",
+      "gitBlob": "fa5db727d063db3cea7d345aaeacc2df6002f0ea"
+    },
+    {
+      "path": "src/presentation/editor/layers/zone/ZoneShape.vue",
+      "sha256": "bfc971facd257a81b27415059cf82586a0aaf105aa22f870e5b92d4663216723",
+      "gitBlob": "35c7ae2ed8d1ee1fd181872d13e3c2a7dc54292c"
+    },
+    {
+      "path": "tests/helpers/canvas.ts",
+      "sha256": "861d5af6a8debfc6c9dc86a0969aa44b9a825846b895141c31c021a3a4c2f276",
+      "gitBlob": "c544cbe7d91f070a0490f7b5337280076a1573ab"
+    }
+  ],
+  "images": [
+    {
+      "file": "custom-accent-photos.png",
+      "sha256": "f145e49dcc34872ae057fc662a82eaab3e2727ef43c72f83e4ecc1443ffdaf9c"
+    },
+    {
+      "file": "dark-photos.png",
+      "sha256": "0234621e7e3c56a4bf415bab7863bad6bc93cc0f8b06ed38b45653fc02e0015c"
+    },
+    {
+      "file": "german-constrained-photos.png",
+      "sha256": "094110de9954b817c9cdab9367db672f50df61f98ccd5e44b74de78f8c4c4761"
+    },
+    {
+      "file": "light-photos.png",
+      "sha256": "338055facfa7f6b4510227aec8488d164979af754b729b1b760263f64f0a6b0a"
+    }
+  ]
+}

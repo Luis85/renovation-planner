@@ -37,8 +37,7 @@ import { tr } from '../../../i18n/strings';
 import type { ThemeTokens } from '../../theme/themeTokens';
 import { labelAnchor, statusAppearance, zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
 import { formatArea } from '../../shell/formatArea';
-import type { Point } from '../../../../core/geometry/Point';
-import { captionOffsetY } from './captionPlacement';
+import { captionOffsetY, type NumberedPin } from './captionPlacement';
 
 const props = defineProps<{
 	model: ZoneRenderModel;
@@ -46,7 +45,7 @@ const props = defineProps<{
 	/** Stage pixels per world millimetre — what a screen-sized caption divides by. */
 	zoom: number;
 	selected: boolean;
-	pins: readonly Point[];
+	pins: readonly NumberedPin[];
 }>();
 
 /**

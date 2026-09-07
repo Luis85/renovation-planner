@@ -70,7 +70,8 @@ async function quotes(page, scenario, out) {
 	await reviseReceivedQuote(page);
 	await activate(page, '.rp-project-quotes > header > button:last-of-type'); await page.locator('.rp-plan-canvas').waitFor();
 	await assertEditorContext(page, before);
-	await panel(page, 'details'); await activate(page, '[data-rp-mode="costs"]');
+	await panel(page, 'details');
+	await activate(page, await page.locator('[data-rp-linked="costs"]').isVisible() ? '[data-rp-linked="costs"]' : '[data-rp-mode="costs"]');
 	assert.equal(await page.locator('.rp-cost-totals').innerText(), costs, 'quote offers do not silently become spending facts');
 	return accessibility;
 }

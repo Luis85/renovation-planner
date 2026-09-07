@@ -12,7 +12,7 @@ import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import HostIcon from '../../components/HostIcon.vue';
-import { EDITOR_MODE_ICONS } from '../editorIcons';
+import DirectDetailOptions from './DirectDetailOptions.vue';
 
 const runtime = useEditorRuntime(), editor = useEditorStore(), planning = usePlanningContext();
 const saves = useSaveStateStore();
@@ -23,6 +23,8 @@ const visible = computed(() => target.value !== null && target.value.visible && 
 	&& (target.value.zone || target.value.wall || target.value.opening || session.perspective === 'plan'));
 const blocked = computed(() => runtime.writesBlocked.value || saves.state === 'saving');
 const detailBlocked = computed(() => blocked.value || runtime.renovation.blocked.value || (planning.context.commands.planning !== undefined && planning.blocked.value));
+const editIcon = computed(() => target.value?.wall ? 'ruler' : 'pencil');
+const editLabel = computed(() => tr(target.value?.wall ? 'editor.direct.edit-length' : 'editor.direct.edit-shape'));
 function position(box: BoundingBox, zone: boolean) {
 	const point = worldToScreen({ x: zone ? (box.min.x + box.max.x) / 2 : box.max.x, y: box.max.y }, editor.viewport, STAGE_PIXELS);
 	return { left: `${Math.max(8, Math.min(editor.stageSize.width - 180, point.x + (zone ? -86 : 20)))}px`,
@@ -83,7 +85,7 @@ function escape(event: KeyboardEvent): void {
 				:aria-disabled="blocked"
 				@click="edit"
 			>
-				<HostIcon :name="target?.wall ? 'ruler' : 'pencil'" />{{ tr(target?.wall ? 'editor.direct.edit-length' : 'editor.direct.edit-shape') }}
+				<HostIcon :name="editIcon" />{{ editLabel }}
 			</button>
 			<button
 				v-if="target?.wall && target.roomId && runtime.renovation.available"
@@ -114,16 +116,11 @@ function escape(event: KeyboardEvent): void {
 			:aria-label="tr('editor.direct.add-detail')"
 			role="group"
 		>
-			<button
-				v-for="mode in modes"
-				:key="mode"
-				type="button"
-				:data-rp-canvas-detail-mode="mode"
-				:aria-disabled="detailBlocked"
-				@click="detail(mode)"
-			>
-				<HostIcon :name="EDITOR_MODE_ICONS[mode]" />{{ tr(`renovation.${mode}`) }}
-			</button>
+			<DirectDetailOptions
+				:modes="modes"
+				:blocked="detailBlocked"
+				@select="detail"
+			/>
 		</div>
 	</div>
 </template>

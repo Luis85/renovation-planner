@@ -656,8 +656,10 @@ export function mountPlanEditorHarness(
 
 	// State first, then open — the restored-leaf order. `void` rather than awaited: the
 	// page entry cannot await, and both do their work synchronously before resolving.
-	void view.setState({ planId: HARNESS_PLAN.id }, {} as never);
-	void view.onOpen();
+	const open = () => { void view.setState({ planId: HARNESS_PLAN.id }, {} as never); return view.onOpen(); };
+	// The opt-in shared root must finish fixture seeding/index scan before any mounted read.
+	if (downstream) void downstream.ready.then(open);
+	else void open();
 
 	// Every knob runs against `leafEl`, never `document`, so a jsdom case mounting more than
 	// one editor in a suite cannot have one's knob reach into another's DOM.

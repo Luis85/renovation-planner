@@ -17,6 +17,7 @@ function outcomeLabel(id: string) {
 </script>
 <template>
 	<li
+		class="rp-work-row"
 		:data-rp-record="item.id"
 		:class="{ 'is-selected': session.focusedId === item.id || item.outcomes.includes(session.focusedId) }"
 	>
@@ -27,7 +28,9 @@ function outcomeLabel(id: string) {
 		>
 			<span class="rp-work-number">{{ index + 1 }}.</span> {{ item.title }}
 		</button>
-		<p>{{ item.description }}</p>
+		<p v-if="item.description">
+			{{ item.description }}
+		</p>
 		<SharedRecordContexts :item="item" />
 		<p class="rp-record-state">
 			{{ tr(`renovation.progress.${item.progress}`) }} · <TradeResponsibility :work="item" />

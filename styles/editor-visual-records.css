@@ -118,22 +118,24 @@
 	color: var(--text-muted);
 }
 
-.renovation-plan-editor .rp-cost-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.renovation-plan-editor .rp-cost-totals {
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 96px), 1fr));
+	gap: 6px 8px;
+}
 .renovation-plan-editor .rp-cost-total {
-	padding: 10px;
+	padding: 6px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
 	background: var(--background-secondary);
 }
 
-.renovation-plan-editor .rp-cost-total dd { margin-top: 4px; font-size: 16px; font-weight: var(--font-semibold); }
-.renovation-plan-editor .rp-cost-total[data-rp-stage='remaining'] { grid-column: 1 / -1; }
+.renovation-plan-editor .rp-cost-total dd { margin-top: 3px; font-size: var(--font-ui-small); font-weight: var(--font-semibold); }
 .renovation-plan-editor .rp-cost-row .rp-cost-totals { display: block; }
 .renovation-plan-editor .rp-cost-row .rp-cost-total {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	gap: 12px;
-	padding: 5px 0;
+	gap: 8px;
+	padding: 3px 0;
 	border: 0;
 	background: transparent;
 }
@@ -143,6 +145,54 @@
 	font-size: var(--font-ui-small);
 	text-align: end;
 }
+
+/* Compact records retain every native action and its original DOM position. */
+.renovation-plan-editor .rp-renovation-list :is(.rp-subject-row, .rp-work-row) {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 6px;
+	padding: 8px 10px;
+	border-radius: var(--radius-s);
+}
+
+.renovation-plan-editor .rp-renovation-list :is(.rp-subject-row, .rp-work-row).is-selected {
+	background: var(--background-modifier-active-hover);
+}
+
+.renovation-plan-editor :is(.rp-subject-row, .rp-work-row) > :is(.rp-record-title, p, .rp-shared-contexts) {
+	flex-basis: 100%;
+	min-width: 0;
+	margin: 0;
+}
+
+.renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions { display: contents; }
+.renovation-plan-editor :is(.rp-subject-row, .rp-work-row) > button:not(.rp-record-title),
+.renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions > button {
+	min-height: 28px;
+	max-width: 100%;
+	padding: 3px 6px;
+	border: 1px solid transparent;
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--font-ui-small);
+	line-height: 1.35;
+}
+
+.renovation-plan-editor :is(.rp-subject-row, .rp-work-row) > button:not(:disabled):hover,
+.renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions > button:not(:disabled):hover {
+	background: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor :is(.rp-subject-row, .rp-work-row) > button:focus-visible,
+.renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions > button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.renovation-plan-editor .rp-renovation-list .rp-cost-row { padding: 8px 10px; gap: 6px; }
+.renovation-plan-editor .rp-cost-row > .rp-cost-work-name { color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.renovation-plan-editor .rp-cost-group[open] .rp-cost-row > p { margin-top: 0; }
 
 .renovation-plan-editor .rp-renovation-inspector details {
 	padding: 10px 0;

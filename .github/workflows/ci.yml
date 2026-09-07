@@ -79,6 +79,19 @@ jobs:
       - name: Definition of done (npm run check)
         run: npm run check
 
+      # Preserve full counters even when tests or coverage fail, without continuing a
+      # superseded run. A build/lint failure may leave no coverage files to upload.
+      - name: Upload coverage diagnostics
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.os }}-node-${{ matrix.node }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            coverage/coverage-final.json
+            coverage/lcov.info
+          if-no-files-found: warn
+          retention-days: 14
+
   # Its own job, never a step in `verify`. `npm run check` is the offline definition of
   # done and every step in it can be satisfied by the commit being written; an advisory
   # can be published with no patched version, which is a red nobody can clear. Keeping it

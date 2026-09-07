@@ -2,6 +2,12 @@
 
 Operational continuation: [RESUME.md](RESUME.md) is the central handoff for a later session or usage-limit interruption. It distinguishes pushed code, unverified WIPs, current processes and remaining acceptance.
 
+Latest completed Linux24 CI leg on `00034c5e`: **647 files/8056 tests passed**, 69 skipped; only statements 98.97% (17844/18028) and branches 97.54% (12374/12686) miss the unchanged floors. Functions 99.12% and lines 99.47% pass. Other legs must be checked separately. [Run 34132312075](https://github.com/Luis85/renovation-planner/actions/runs/34132312075).
+
+Current follow-up derives EvidenceInspector relationship links and integrates verified Work/Quote view states. Native Inspector/CI contracts pass 54 tests; E passes 34 downstream tests. Types and relevant lint pass. Combined Fallow reports zero dead-code, clone and health findings, eliminating all three template-complexity violations. Its coverage input still precedes these refactors; full current coverage remains open. CI now retains full JSON/lcov diagnostics after failed coverage. See [quality-followup.md](quality-followup.md). UI WIPs through `0a007a62` await owner verification and are not integrated.
+
+Historical previous full measurement:
+
 Latest completed full CI on `73b0c205`: all four Linux/Windows verify jobs report 8053 passed tests, three failures in two test files, and unchanged coverage floors missed: statements 98.96% (17842/18028), branches 97.51% (12371/12686); functions 99.08% and lines 99.47% pass. Audit passes. [CI run](https://github.com/Luis85/renovation-planner/actions/runs/34126554088). Local full coverage matches; it additionally encountered one 5-second temporaryToolBanner timeout. Fresh full Fallow reports three template complexity findings: QuoteComparisonState 18, ProjectWorkState 19, EvidenceInspector 16 (limit 15), with zero dead-code issues and zero clones.
 
 Current checkpoint corrects the stale schema-7 migration expectations for schema 8 and selects the Related-record action by label after the independent Work link was added. All route/deletion assertions remain. Targeted rerun passed 49 tests in five files (86.04 seconds), including the unchanged timeout case, date and Work-link regressions. Full follow-up gates, coverage closure, owner UI WIP verification and final visual/host acceptance remain open. See RESUME.md for current owners and saved full diagnostics.

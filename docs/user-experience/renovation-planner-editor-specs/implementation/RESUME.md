@@ -1,6 +1,6 @@
 # Wiederaufnahme der Editor-Finalisierung
 
-Stand: **2026-09-07T14:18:24.109Z (UTC)**.
+Stand: **2026-09-07T14:29:20.557Z (UTC)**.
 
 Dieses Dokument ist der zentrale Wiedereinstieg, wenn der Chatkontext oder das Nutzungslimit endet. Es ersetzt keine Prüfung des aktuellen Git-, Prozess- und CI-Zustands. Neuere direkte Nutzeranweisungen haben Vorrang. Alte Pause-Dateien vom App-Neustart sind historisch: Der Nutzer hat die Arbeit ausdrücklich mit „fahre fort“/„weiter“ wieder aufgenommen.
 
@@ -60,7 +60,7 @@ Nur die zwei bestehenden benutzereigenen Implementierungsaufgaben koordinieren; 
 | Aufgabe | ID | Worktree / Branch | Stand |
 |---|---|---|---|
 | Integration, diese Aufgabe | `01a0786f-b624-7303-987f-b18b94db48d9` | `editor-plan-finalization` / `codex/editor-plan-finalization` | Produkt-/Teststand 73b0c205 gepusht |
-| **Implement locked editor UI** | `01a0783d-199d-7772-920b-90493cf0d8b4` | `.worktrees/editor-object-ui` / `codex/editor-object-ui` | **laut Owner gepusht: cdbd30a3**, weiterhin ungeprüfter UI-WIP |
+| **Implement locked editor UI** | `01a0783d-199d-7772-920b-90493cf0d8b4` | `.worktrees/editor-object-ui` / `codex/editor-object-ui` | **laut Owner gepusht: 0a007a62**, weiterhin ungeprüfter UI-WIP |
 | **Improve M15 recovery workflow** | `01a07838-4e54-7ac3-bc24-a8eef9185d6e` | `.worktrees/native-recovery-boundaries` / `codex/native-recovery-boundaries` | sauber/gepusht: `1dd52cdad1e9b837fb24ee138cbe343a783e0c71`; Produktfix bleibt `300a0929`, Nachfolger sichert Audit-Dokumentation |
 
 UI-WIP ist **gesichert, aber noch nicht geprüft/angenommen und nicht in Root integriert**:
@@ -70,7 +70,7 @@ UI-WIP ist **gesichert, aber noch nicht geprüft/angenommen und nicht in Root in
 
 Weitere gepushte UI-WIPs: `5ca8cd65` Record-/Kosten-Dichte, `75a4c0ae` Overview-Abstände, `421c19b0` Add-Katalog/Host-Symbole, `226e0be9` M07/M11-Darstellung, `cdbd30a3` passende Capture-Kontexte. Letzterer bestand drei `node --check`; Browserprüfung und Integration stehen aus. UI besitzt zusätzlich die Präsentation von M05/M15/M17 aus vorhandenen Read-Modellen. Keine neuen Readiness-Regeln. Eigene Wiederaufnahme: `editor-ui-resume.md` auf UI-Branch.
 
-E hat den separaten Checkpoint **`46dd866138d49d0283849b3b59a130cb9f3a9ed3`** auf **`codex/downstream-view-states`**, Worktree `.worktrees/downstream-view-states`, von Root `b6d8934e` gepusht. Nur `QuoteComparisonState.vue`, `work/ProjectWorkState.vue` und eigene Evidence-Doku: abgeleitete Viewzustände zum Beheben der gemessenen Template-Komplexität. Noch WIP; E erhält nach Root-Session 20330 den exklusiven schweren Prüfslot. Root besitzt `EvidenceInspector.vue` und Coverage-Auswertung.
+E hat den separaten Checkpoint **`46dd866138d49d0283849b3b59a130cb9f3a9ed3`** auf **`codex/downstream-view-states`**, Worktree `.worktrees/downstream-view-states`, von Root `b6d8934e` gepusht. Nur `QuoteComparisonState.vue`, `work/ProjectWorkState.vue` und eigene Evidence-Doku: abgeleitete Viewzustände zum Beheben der gemessenen Template-Komplexität. Owner-Verifikation gesichert in `3d6ad34d`: 34 native Tests, Types/Ox/scoped ESLint grün; null Dead-Code/Clone-Funde, Work-/Quote-Cognitive-Findings beseitigt. Vollständige Health-/CRAP-Werte mit fremden Coveragepfaden sind ausdrücklich nicht verwertbar. Root besitzt `EvidenceInspector.vue` und Coverage-Auswertung.
 
 Push-Regel ab jetzt: Nach zusammenhängenden Abschnitten und vor längeren Prüfungen kleine Checkpoints sichern; SHA, Branch, bestandene/offene Prüfungen, WIP-Status und nächste Aktion an die Integration melden. Keine regelmäßige Automation dafür anlegen. Gemeinsame Ledger aktualisiert primär Root; Eigentümer verwenden eigene Evidence-/Wiederaufnahmedateien.
 
@@ -143,6 +143,14 @@ Frisches vollständiges **Fallow ebenfalls Exit 1**: drei Template-Cognitive-Com
 Vollständiges JSON/lcov und Check-/Analyze-Logs samt Exitdateien sind vor scoped Coverage gesichert unter `C:/Users/lum/AppData/Local/Temp/rp-finalization-20260907-88b9ee3d/full-checkpoint-73b0c205/`. Für die nächste Coverage-Auswertung diese frische Messung verwenden. Root hat aktuell keinen schweren Prozess; E hat den Prüfslot, UI arbeitet source-only. Nach Neustart aktuelle Handles und Prozesse erneut prüfen, alte Sessionnummern nicht als lebend behandeln.
 
 Ein früherer PowerShell-5-Wrapper brach fälschlich an informativem Vite-stderr ab. Korrigiert: direkt im vorhandenen PowerShell ausführen, `npm.cmd` auflösen und den echten Exitcode auswerten. Der spätere Gate-Lintfehler des RAF-Executors sowie zwei Komplexitätsgrenzen und ein Date-Placeholder-Lintfehler sind bereits korrigiert.
+
+### Neuer Nachweis auf 00034c5e und aktueller Qualitätsblock
+
+Linux24-Job `101775091435` in [Run 34132312075](https://github.com/Luis85/renovation-planner/actions/runs/34132312075) ist vollständig: **647 Dateien/8056 Tests bestanden, 69 übersprungen**. Nur Coverage rot: Statements **17844/18028=98,97%**, Branches **12374/12686=97,54%**, Functions **5108/5153=99,12%**, Lines **13964/14038=99,47%**. Bei diesem Nenner fehlen vier Statements und 59 Branch-Arme. Andere Matrixjobs separat prüfen; kein pauschaler Vier-Plattform-Pass.
+
+Root vereinfacht EvidenceInspector über eine geordnete Beziehungsliste und ergänzt den vorhandenen CI-Job um vollständige Coverage-Artefakte. [quality-followup.md](quality-followup.md) enthält Source-/Verifikationsstand. Der gezielte Folgeblock ist **54/54 Tests, sieben Dateien, 72,49 s** grün (Datum, Work-Link, Shared-Evidence, Planning-Workflow, CI-/Manifest-/Engine-Contracts). Types/whole Ox/scoped ESLint sind ebenfalls terminal grün. E ist als `60629492`/`1201656e` integriert. Gemeinsames Fallow: null Dead-Code-/Clone-/Health-Findings, Exit 0; die drei Template-Verletzungen sind beseitigt. Coverage-Input ist weiterhin die volle 73b0-Messung, kein neuer Coverage-Pass. Root-Sessions 9788/9409 sind beendet; der nächste exklusive schwere Slot ist an UI übergeben.
+
+UI durch `43cd1ac8` ergänzt M05-Beschreibungen, M15-Warnpräsentation und M17-Review aus vorhandenen Daten; `0a007a62` bereitet passende Captures vor. Alles WIP. Owner korrigiert vor Verifikation zwei per Source-Audit gefundene Review-Probleme: sekundäre Room-Links gemeinsamer Findings und Tastaturfokus nach OpenRoom. Keine weitere Produktionserweiterung bis zur Prüfung.
 
 ## 8. Bekannter visueller Restumfang
 
@@ -225,9 +233,9 @@ Pro beobachtetem Teil SHA/Umgebung/Aktion/Soll/Ist/Bild-/Dateibeleg festhalten. 
 
 1. Diesen Snapshot gegen Git, Owner-Branches, Tasks und echte Prozesszustände abgleichen. Letzte Nutzeranweisung auf Pause/Weiter prüfen.
 2. Gesichertes vollständiges 73b0-JSON/lcov auswerten; Volltest/Fallow und gezielter 49-Test-Nachlauf sind beendet.
-3. E-Verifikation der Work-/Quote-Viewzustände abwarten und geprüften Commit integrieren; Root korrigiert EvidenceInspector-Komplexität.
+3. Work-/Quote-Viewzustände sind geprüft und integriert; EvidenceInspector-Komplexität ist korrigiert. Der gemeinsame Fallow-Lauf hat null Findings. Nächster Schwerpunkt: UI-WIP-Verifikation und frische vollständige Coverage.
 4. Frische Countermaps nach echten erreichbaren Verhaltensgrenzen untersuchen. Root kann E einen begrenzten read-only Coverage-Audit geben. Keine privaten Handler, unmöglichen Serviceantworten oder Fake-Projektionen zum Füllen der Statistik.
-5. Optionale sinnvolle Parallelisierung: Coverage-JSON/lcov aus bestehenden CI-Matrixjobs als diagnostische Artefakte sichern. E hat einen read-only Vorschlag: ein Upload-Step nach unverändertem `npm run check`, auch bei Fehlern aber nicht nach Cancel, eindeutiger OS/Node/SHA/Attempt-Name, nur die zwei Dateien. Noch **nicht implementiert**. Bestehende CI-/Manifest-Contracts prüfen; keine Gates ändern.
+5. Root-CI-Artefakt-Step ist implementiert; bestehende CI-/Manifest-/Engine-Contracts bestanden. Tatsächlichen Upload/Download beim nächsten vollständigen Remote-Lauf nachweisen; nur JSON/lcov, Gates unverändert.
 6. UI-WIPs auf dem gemeinsamen Datumsstand verifizieren, dann bestätigte visuelle Korrekturen gebündelt mit eindeutiger Dateizuständigkeit umsetzen/integrieren. Nur gepushte vereinbarte Checkpoints übernehmen.
 7. Auf eingefrorenem gemeinsamen Source alle neun Journeys/18 Referenzen/Themes/DE/Reflow/Keyboard/Performance/Cleanup laufen lassen und wirklich visuell beurteilen.
 8. Finale vollständige Gates/CI/Reviewthreads auf dem aktuellen Head abschließen; Host-H1–H6 wie oben durchführen. Menschlichen Anteil konkret vorbereiten.

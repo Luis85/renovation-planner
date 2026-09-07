@@ -91,3 +91,7 @@ M13 UI followup `adaeb7821c407674828807a8bb5be834b9936829` is integrated through
 ### Reviewed wall controls and preliminary journey evidence
 
 Root `a630bf76` restores reviewed wall endpoint proposals in Renovate and extracts the shared draft retry callback. Forty-one focused cases, full npm run lint and vue-tsc pass; full coverage remains pending. Agreed UI checkpoint `408b443ff24c1b914b810ab3b9e773668db8d6ea` is merged after it, adding the native Close-panel driver correction and four-scenario overview plus four-scenario resilience evidence from `4dbc96dd` plus that driver change. Its reports retain the initial constrained-focus failure and explicitly exclude final M00/M07/all-18 acceptance.
+
+### Native Room guard, mutable thumbnails and repeated rail activation
+
+Agreed E checkpoint `471cfc57eb5b2ac12f337d7bd0ff30f2c822d4e2` is cherry-picked after `d25805f7`. Conflict resolution preserves the joined EvidencePreview `metadataOnly`/gallery markup while adding revision-aware mutable image URLs, and keeps both the expanded root changelog and the new recovery entry. Room forms now consume canonical runtime.writesBlocked; PanelRail focuses an already-open drawer on repeated activation. Owner evidence: seven reproduced failures, then 119/119 cases in nine files; types, scoped ESLint, whole Oxlint and Fallow passed, with the old-coverage limitation retained. The joined full gate is the next verification boundary.

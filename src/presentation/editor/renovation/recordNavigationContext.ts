@@ -25,7 +25,7 @@ function linkedEvidenceContext(records: NavigationRecords, id: string, mode: Ren
  const linked = records.renovation.depth?.evidence.filter(item => item.recordId === id && item.type === type) ?? [];
  if (!linked.length) return null;
  if (current && linked.every(item => inRenovationScope(item, current.roomId, current.targetId))) return current;
- const contexts = linked.flatMap(spatialContexts);
+ const contexts = linked.flatMap(item => spatialContexts(item));
  const context = contexts.find(item => item.roomId === roomId) ?? contexts[0];
  return linked.length === 1 ? context : { roomId: context.roomId, targetId: context.roomId };
 }

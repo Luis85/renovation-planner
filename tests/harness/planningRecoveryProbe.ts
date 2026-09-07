@@ -7,6 +7,13 @@ import { makeZone } from '../helpers/entities';
 import type { referenceWorkspace } from './referenceWorkspace';
 import type { PlanEditorView } from '../../src/presentation/views/PlanEditorView';
 
+function scene() {
+ return Konva.stages.map(stage => {
+  const layer = stage.findOne('.zone');
+  return { materialMarkers: stage.find('.material-marker').length, camera: layer ? { x: layer.x(), y: layer.y(), zoom: layer.scaleX() } : null };
+ });
+}
+
 /** Deterministic browser-only failures around the production service/repository boundaries. */
 export function planningRecoveryProbe(workspace: ReturnType<typeof referenceWorkspace>, view: PlanEditorView) {
  const { stack, deps, plan, geometry } = workspace, services = expectDefined(deps.commands.planning, 'planning');
@@ -23,12 +30,6 @@ export function planningRecoveryProbe(workspace: ReturnType<typeof referenceWork
  deps.queries.getPlan = (...args) => { counts.spatialReads++; return getPlan(...args); };
  const changed = () => stack.events.publish({ type: 'PlanRenovationChanged', payload: { planId: plan.id, projectId: plan.projectId } });
  function snapshot() { return { ...counts, listeners: stack.vault.eventListenerCount, stages: Konva.stages.length, images: document.querySelectorAll('.rp-evidence-thumbnail').length, objectUrls: urls.size }; }
- function scene() {
-  return Konva.stages.map(stage => {
-   const layer = stage.findOne('.zone');
-   return { materialMarkers: stage.find('.material-marker').length, camera: layer ? { x: layer.x(), y: layer.y(), zoom: layer.scaleX() } : null };
-  });
- }
  return {
   snapshot, scene, armFailure: () => { arm = true; }, setFailure: (value: boolean) => { fail = value; },
   async events(count: number) { await Promise.all(Array.from({ length: count }, changed)); },

@@ -39,7 +39,7 @@ function input(index: number, axis: 'x' | 'y', event: Event): void {
 	if (refuseInput(control, value(index, axis))) return;
 	form.setField('edits', form.values.value.edits.map((entry, n) => n === index ? { ...entry, [axis]: control.value } : entry));
 }
-function nameInput(event: Event): void { commitTextInput(event, form.values.value.name, refuseInput, value => form.setField('name', value)); }
+function nameInput(event: Event): void { commitTextInput(event, form.values.value.name, refuseInput, name => form.setField('name', name)); }
 async function submit(): Promise<void> {
 	if (disabled.value) return;
 	if (proposal.value.polygon === null || invalidName.value) { await focusFirstInvalidControl(); return; }

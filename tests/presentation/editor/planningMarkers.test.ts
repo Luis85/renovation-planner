@@ -10,6 +10,24 @@ import { planningDraft, materialInput } from '../../../src/presentation/editor/p
 import { EMPTY_DEPTH } from '../../../src/domain/renovation/PlanningDepth';
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
+it('highlights current Work targets and intended-only additions without inventing unavailable geometry', async () => {
+ const rig = await renovationEditor(true); mounted.push(rig); const roomId = rig.room.id;
+ const work = { id: 'work-highlight', roomId, targetId: 'wall-a', links: [{ roomId, targetId: 'new-object' }, { roomId, targetId: 'unavailable-target' }], title: 'Install cabinet', description: '', order: 0, progress: 'pending' as const, responsibility: 'diy' as const, outcomes: [], dependencies: [] };
+ rig.runtime.renovation.focus(roomId, 'costs'); await settle();
+ const plan = expectDefined(rig.project.plan, 'Plan projection'), current = rig.project.structure;
+ const points = [{ x: 100, y: 100 }, { x: 1100, y: 100 }, { x: 1100, y: 800 }, { x: 100, y: 800 }];
+ rig.project.plan = { ...plan, renovation: { subjects: [], work: [work], decisions: [] } };
+ rig.project.intended = { ...current, walls: current.walls.map(wall => ({ ...wall, end: { ...wall.end, x: wall.end.x + 100 } })), elements: [{ id: 'new-object', kind: 'object', points }] };
+ rig.session.focusedId = work.id; await settle();
+ const outlines = rig.stage?.find('.cost-work-source'); expect(outlines).toHaveLength(2);
+ const wall = expectDefined(current.walls.find(item => item.id === 'wall-a'), 'current wall');
+ expect(outlines?.[0].getAttr('points')).toEqual([wall.start.x, wall.start.y, wall.end.x, wall.end.y]);
+ expect(outlines?.[1].getAttr('points')).toEqual(points.flatMap(point => [point.x, point.y])); expect(outlines?.[1].getAttr('closed')).toBe(true);
+ rig.session.targetId = 'wall-a'; await settle(); expect(rig.stage?.find('.cost-work-source')).toHaveLength(1);
+ rig.session.targetId = roomId; rig.project.intended = undefined; await settle(); expect(rig.stage?.find('.cost-work-source')).toHaveLength(1);
+ rig.session.mode = 'work'; await settle(); expect(rig.stage?.find('.cost-work-source')).toHaveLength(0);
+ rig.session.mode = 'costs'; rig.session.perspective = 'plan'; await settle(); expect(rig.stage?.find('.cost-work-source')).toHaveLength(0);
+});
 it('connects numbered material rows and markers bidirectionally and highlights the quantity source geometry', async () => {
  const rig = await renovationEditor(true); mounted.push(rig);
  const planning = expectDefined(rig.deps.commands.planning, 'planning');

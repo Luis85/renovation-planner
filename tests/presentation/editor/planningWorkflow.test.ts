@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { withPlanRenovation } from '../../../src/domain/plan/Plan';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle } from '../../helpers/editor';
@@ -34,7 +35,7 @@ describe('connected planning editor', () => {
  it('groups scoped cost obligations by Work and reveals a collapsed exact source before returning focus', async () => {
  const rig = await setup(), requirement = await material(rig), before = expectDefined(expectOk(await rig.stack.plans.getById(rig.plan.id)), 'Plan');
  const roomId = rig.room.id;
- const work = { id: 'cost-group-work', roomId, targetId: roomId, title: 'Prepare walls', description: '', order: 0, progress: 'pending' as const, responsibility: 'diy' as const, outcomes: [], dependencies: [] };
+ const work = { id: 'cost-group-work', roomId, targetId: roomId, links: [{ roomId, targetId: 'wall-a' }], title: 'Prepare walls', description: '', order: 0, progress: 'pending' as const, responsibility: 'diy' as const, outcomes: [], dependencies: [] };
  const common = { roomId, targetId: roomId, workId: work.id, category: 'labor' as const, requirementId: '', facts: [], cancelled: false };
  const costs = [{ ...common, id: 'labor-first', title: 'Preparation', planned: of('25', 'EUR') }, { ...common, id: 'labor-second', title: 'Painting', planned: of('50', 'EUR') }];
  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(before.entity, { subjects: [], work: [work], decisions: [], depth: { costs, procurement: [], evidence: [] } })), before.version)); rig.changePlan(); await settle();
@@ -42,9 +43,22 @@ describe('connected planning editor', () => {
  const groups = rig.wrapper.findAll<HTMLDetailsElement>('.rp-cost-group'); expect(groups).toHaveLength(2);
  const workGroup = expectDefined(groups.find(group => group.get('summary').text().includes(work.title)), 'Work group');
  expect(workGroup.get('summary').text()).toContain('75.00 EUR'); expect(workGroup.findAll('.rp-cost-row')).toHaveLength(2);
+ const editor = useEditorStore(rig.pinia), selection = [...rig.selection.selectedIds], viewport = { ...editor.viewport }, totals = rig.wrapper.get('.rp-cost-totals').text();
+ expect(rig.session.focusedId).toBe(''); expect(rig.stage?.find('.cost-work-source')).toHaveLength(0);
+ workGroup.element.open = true; await workGroup.trigger('toggle'); expect(rig.session.focusedId).toBe('');
+ workGroup.element.open = false; await workGroup.get('summary').trigger('click'); await settle();
+ expect(rig.session.focusedId).toBe(work.id); expect(workGroup.get('summary').attributes('aria-current')).toBe('true');
+ expect(rig.selection.selectedIds).toEqual(selection); expect(editor.viewport).toEqual(viewport); expect(rig.wrapper.get('.rp-cost-totals').text()).toBe(totals);
+ const outlines = rig.stage?.find('.cost-work-source'); expect(outlines).toHaveLength(2);
+ expect(outlines?.map(outline => outline.getAttr('closed'))).toEqual([true, false]);
+ expect(outlines?.[0].getAttr('points')).toEqual(rig.room.geometry.points.flatMap(point => [point.x, point.y]));
+ workGroup.element.open = true; await workGroup.get('summary').trigger('click'); expect(rig.session.focusedId).toBe(work.id);
  workGroup.element.open = false;
  rig.runtime.renovation.focus(roomId, 'costs', 'labor-second'); await settle();
  expect(workGroup.element.open).toBe(true); expect(rig.wrapper.get('[data-rp-record="labor-second"]').element.contains(document.activeElement)).toBe(true);
+ expect(rig.stage?.find('.cost-work-source')).toHaveLength(0);
+ const unassigned = expectDefined(groups.find(group => group !== workGroup && group.get('summary').text().includes('Unassigned')), 'Unassigned group');
+ unassigned.element.open = false; await unassigned.get('summary').trigger('click'); expect(rig.session.focusedId).toBe('labor-second');
  rig.runtime.renovation.focus(roomId, 'costs', requirement.id); await settle();
  expect(rig.wrapper.get(`[data-rp-record="estimate:${requirement.id}"]`).element.contains(document.activeElement)).toBe(true);
  });
@@ -101,7 +115,8 @@ describe('connected planning editor', () => {
  await rig.wrapper.get('select[name="phase"]').setValue('hidden-services'); await rig.wrapper.get('.rp-dialog input[type="checkbox"]').setValue(true); await apply(rig);
  expect(rig.stage?.find('.evidence-pin')).toHaveLength(1); rig.stage?.findOne('.evidence-pin')?.fire('click'); rig.stage?.findOne('.evidence-pin')?.fire('tap'); await settle(); expect(rig.session.focusedId).toBe(rig.project.plan?.renovation?.depth?.evidence[0].id);
  rig.session.evidencePhase = 'after'; await settle(); expect(rig.stage?.find('.evidence-pin')).toHaveLength(0); rig.session.evidencePhase = ''; await settle();
- rig.runtime.renovation.focus(rig.room.id, 'photos'); await settle(); await rig.wrapper.get('[data-rp-new-evidence]').trigger('click'); await settle(); await rig.wrapper.get('input[name="title"]').setValue('Floor before'); await rig.wrapper.get('input[name="path"]').setValue('scan.png'); await apply(rig); expect(rig.wrapper.text()).toContain('Thumbnail unavailable'); expect(rig.stack.vault.entries.has(path)).toBe(true);
+ rig.runtime.renovation.focus(rig.room.id, 'photos'); await settle(); await rig.wrapper.get('[data-rp-new-evidence]').trigger('click'); await settle(); await rig.wrapper.get('input[name="title"]').setValue('Floor before'); await rig.wrapper.get('input[name="path"]').setValue('scan.png'); await apply(rig);
+ await rig.wrapper.get('.rp-evidence-gallery img').trigger('error'); expect(rig.wrapper.text()).toContain('Thumbnail unavailable'); expect(rig.stack.vault.entries.has(path)).toBe(true);
  const photo = rig.wrapper.get('[data-rp-evidence-photo]'), photoId = photo.attributes('data-rp-evidence-photo');
  rig.session.focusedId = ''; await settle(); expect(photo.attributes('aria-current')).toBeUndefined(); expect(rig.wrapper.get(`[data-rp-record="${photoId}"]`).isVisible()).toBe(false);
  await photo.trigger('click'); await settle(); expect(photo.attributes('aria-current')).toBe('true'); expect(rig.session.focusedId).toBe(photoId); expect(rig.wrapper.get(`[data-rp-record="${photoId}"]`).isVisible()).toBe(true);

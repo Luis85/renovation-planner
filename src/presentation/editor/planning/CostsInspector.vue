@@ -38,6 +38,7 @@ const groups = computed(() => [...new Set(rows.value.map(row => row.record.workI
 		<CostGroup
 			v-for="(group, index) in groups"
 			:key="group.id"
+			:work-id="group.id"
 			:name="group.name"
 			:rows="group.rows"
 			:currency="baseline.currency"

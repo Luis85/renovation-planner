@@ -42,3 +42,9 @@ It stopped because the visibility probe measured the `display: contents` shell w
 has no bounding box. The probe now measures the real Inspector aside. Pixel inspection also
 showed the selected Work metadata cut at the bottom, so the thumbnail cap was reduced from
 88 to 80 pixels, retaining all card text/actions. The next recapture must validate both changes.
+
+The next run at `28878a5d` reached the real visibility assertion: heading, filter, Add and six
+cards fit, but the selected metadata card still exceeded the Inspector bottom. Its existing
+14-pixel padding and 10-pixel grid gaps are now tightened to 8 and 4 pixels only for the metadata
+list immediately following the photo gallery. Text, image size, controls and their order stay
+intact. Visibility failures now report the measured rectangles as well as the selector.

@@ -264,3 +264,4 @@
 .renovation-plan-editor .rp-evidence-photo-title { display: block; margin-bottom: 4px; font-weight: var(--font-semibold); }
 .renovation-plan-editor .rp-evidence-gallery .rp-evidence-thumbnail { aspect-ratio: 4 / 3; max-height: 80px; object-fit: cover; }
 .renovation-plan-editor .rp-evidence-gallery .rp-evidence-file-metadata { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.renovation-plan-editor .rp-evidence-gallery + .rp-renovation-list > li { padding: 8px; gap: 4px; }

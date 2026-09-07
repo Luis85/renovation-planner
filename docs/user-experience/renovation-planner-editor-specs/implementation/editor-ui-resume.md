@@ -114,6 +114,20 @@ were preserved outside the source tree at
 No lint rules/ignores changed. **Whole `npm run lint` now passes**, recorded in
 `harness-shots/ui-wip-validation/lint-clean.log`; native and browser verification still pending.
 
+Joined production build/types passed at `f41c87ad` (1049 modules). Root test checkpoint 705bffbd
+merged as `ee1e20ab`; native batch ended with 309 passed and three failures in 21 files, 160.78s.
+Two Root Element-to-Plan cases reproduced body-focus loss at 1100/460; Root owns the fix. The
+new UI two-Room test omitted the fixture's explicit change notification after creating its
+second Room; that setup is corrected, with assertions retained. Other shared-Review and
+focused Open-room assertions passed in that run. E's three late-boundary WIP tests are now
+cherry-picked as `6dfdd827`, not yet run.
+
+`npm run analyze` reported zero dead code and zero duplication, but exited 1 at health:
+this worktree's old 62,819-byte coverage input matches only 37/18,853 functions (the earlier
+scoped UI run), resulting in 95 threshold findings across the repository. This is not a current
+full health pass or a fresh full coverage measurement. Preserve the unchanged gate; the combined
+full-tree coverage/health assessment remains Root-owned. Logs remain in `ui-wip-validation`.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

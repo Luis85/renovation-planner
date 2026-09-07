@@ -15,6 +15,7 @@ describe('connected Room renovation inspector', () => {
 		const rig = await setup(), actions = rig.runtime.renovation;
 		const other = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Hall', zoneType: 'Room',
 			geometry: { points: [{ x: 6000, y: 0 }, { x: 9000, y: 0 }, { x: 9000, y: 2000 }, { x: 6000, y: 2000 }] } })).zone.entity;
+		rig.changePlan(); await settle();
 		actions.focus(rig.room.id, 'overview'); await settle();
 		const viewport = { ...useEditorStore(rig.pinia).viewport }, saved = [...rig.stack.vault.entries];
 		await actions.perspective('review'); await settle();

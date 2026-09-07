@@ -73,6 +73,47 @@ prüfen. Keine Sourceänderung während laufender Prüfungen. Root behält die
 Integration; UI setzt den unveränderten echten Browserlauf fort und liefert neue
 Korrekturen separat. Finale9Journeys/18Referenzen und HostH1–H6 bleiben offen.
 
+## Aktueller gemeinsamer CI-Befund
+
+Root57144c81 integriert UI f576d13c. Vollständiger Linux24-Lauf34150756164
+(job101832368840) berichtet8093PASS/10FAIL/69SKIP,658Dateien (654PASS/4FAIL).
+Neun Fehler: fehlendes Leerzeichen zwischen Warnungsstufe und Meldung nach der
+UI-Verschachtelung; Quelle PersistentWarningStrip.vue, UI korrigiert sie mit
+unveränderten Assertions. Ein Fehler: buttonFocusRing.test mit fünf gemeldeten
+Selektoren; neue Editor-/Review-Fokusregeln werden von UI korrigiert. Zwei
+unveränderte Asset-Shelf-Selektoren sind zunächst auf einen Cascade-/Matcher-Effekt
+zu prüfen, kein blindes Patchen der Library.
+
+Coverage: Statements99,06%, Branches12534/12821=97,76%, Functions99,25%,
+Lines99,53%. Früh abgebrochene Tests können Counters mindern; erst nach diesen
+Korrekturen neue Restliste bestimmen. OriginalJSON/LCOV und Log liegen in
+Scratch ci-57144c81-linux24/ bzw. ci-57144c81-linux24.log; getesteter Merge
+d44de8c2ae119d1773e67e0f11e375d1f50c1e1a hat exakt denselben Baum
+e4c487929880df212d355713b3f6721b0994314a wie Root571.
+
+Separat ist der gewünschte Review-Vertrag auf dem Join nativ grün: Coverage
+Session79591, Review6+Outline2 =8/8PASS in33,46s. Marker bleibt Review, Nummer/
+Roomsummary stimmen, Issue öffnet Quelle, Auswahl/Fokus/Vault erhalten.
+Coverage führt danach den begrenzten dreiteiligen öffentlichen Validierungsblock
+und Types/Lint/Countermessung aus und gibt den Slot zurück. UI ist dabei source-only.
+Outline-Test+Receipt sind im Rootarbeitsbaum selektiv vorbereitet, noch zu committen.
+
+## Geprüfte Tests auf dem gemeinsamen UI-Stand
+
+Coverage44860131 wurde selektiv übernommen: reviewMarkerNavigation.test.ts (6),
+outlinePeerBoundaries.test.ts (2), commandValidationBoundaries.test.ts (3) und
+[gemeinsamer Counter-Receipt](evidence/joined-owner-test-counter-gains.json).
+Alle elf Fälle sind auf Source571 geprüft, Types/Oxlint/scopedESLint/static grün.
+Exakt6neueBrancharme/5Statements/2Functions in vergleichbaren Maps; andere
+Scoped-Maps wurden nicht als Gesamtmessung ausgegeben.
+
+Vollständiges Health mit originalen571-Countern und747/747gemappten Dateien
+meldet einen echten Befund: ReviewSummary.vue Template cognitive17>15. UI
+extrahiert den vorhandenen Selected-Room-Block in ReviewRoomDetails, unveränderte
+DOM-/Fokus-/Source-Verträge. Die neun Warntext-Leerzeichenfehler und der Fokusring-
+Vertrag bleiben bis zur Prüfung der UI-Korrektur offen. Coverage-Slot ist frei;
+UI hat den nächsten schweren Block. Root beginnt keine parallele schwere Prüfung.
+
 ## Verbindliche Quellen
 
 Zuerst vorhandene AGENTS.md und bei .codex/ deren instructions.md/Workflow lesen. Beim letzten Audit waren sie im Repo nicht vorhanden; Nutzeranweisungen im Task gelten weiterhin. [CLAUDE.md](../../../../CLAUDE.md) und [SDD](../../../development/sdds/obsidian-renovation-planner-SDD.md) enthalten die Projektregeln. Aktuelle akzeptierte ADR-/SDD-Amendments gehen alten Snapshots vor.

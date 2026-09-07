@@ -1,0 +1,199 @@
+{
+  "scope": "Two native Outline peer boundary tests on pre-UI production",
+  "ownerSource": "563b4c70640e937d245c3fd9a6c486a12d49622b",
+  "testFile": "tests/presentation/editor/outlinePeerBoundaries.test.ts",
+  "nativePassed": 2,
+  "nativeSeconds": 34.48,
+  "scopedCoveragePassed": 2,
+  "scopedSeconds": 15.99,
+  "types": "PASS",
+  "wholeOxlint": "PASS",
+  "scopedEslint": "PASS",
+  "staticFallow": {
+    "total_issues": 0,
+    "unused_files": 0,
+    "unused_exports": 0,
+    "unused_types": 0,
+    "private_type_leaks": 0,
+    "unused_dependencies": 0,
+    "unused_enum_members": 0,
+    "unused_class_members": 0,
+    "unused_store_members": 0,
+    "unprovided_injects": 0,
+    "unrendered_components": 0,
+    "unused_component_props": 0,
+    "unused_component_emits": 0,
+    "unused_component_inputs": 0,
+    "unused_component_outputs": 0,
+    "unused_svelte_events": 0,
+    "unused_server_actions": 0,
+    "unused_load_data_keys": 0,
+    "unresolved_imports": 0,
+    "unlisted_dependencies": 0,
+    "duplicate_exports": 0,
+    "type_only_dependencies": 0,
+    "test_only_dependencies": 0,
+    "dev_dependencies_in_production": 0,
+    "circular_dependencies": 0,
+    "re_export_cycles": 0,
+    "boundary_violations": 0,
+    "boundary_coverage_violations": 0,
+    "boundary_call_violations": 0,
+    "policy_violations": 0,
+    "stale_suppressions": 0,
+    "unused_catalog_entries": 0,
+    "empty_catalog_groups": 0,
+    "unresolved_catalog_references": 0,
+    "unused_dependency_overrides": 0,
+    "misconfigured_dependency_overrides": 0,
+    "invalid_client_exports": 0,
+    "mixed_client_server_barrels": 0,
+    "misplaced_directives": 0,
+    "route_collisions": 0,
+    "dynamic_segment_name_conflicts": 0
+  },
+  "cloneGroups": 0,
+  "gains": [
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "branch",
+      "id": "0",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 11,
+            "column": 21
+          },
+          "end": {
+            "line": 11,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 11,
+              "column": 31
+            },
+            "end": {
+              "line": 11,
+              "column": 85
+            }
+          },
+          {
+            "start": {
+              "line": 11,
+              "column": 85
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          }
+        ],
+        "line": 11
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "branch",
+      "id": "0",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 11,
+            "column": 21
+          },
+          "end": {
+            "line": 11,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 11,
+              "column": 31
+            },
+            "end": {
+              "line": 11,
+              "column": 85
+            }
+          },
+          {
+            "start": {
+              "line": 11,
+              "column": 85
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          }
+        ],
+        "line": 11
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "statement",
+      "id": "2",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 11,
+          "column": 21
+        },
+        "end": {
+          "line": 11,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 2
+    },
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "function",
+      "id": "2",
+      "arm": 0,
+      "location": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 11,
+            "column": 2
+          },
+          "end": {
+            "line": 11,
+            "column": 10
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 11,
+            "column": 21
+          },
+          "end": {
+            "line": 11,
+            "column": null
+          }
+        },
+        "line": 11
+      },
+      "before": 0,
+      "after": 2
+    }
+  ],
+  "comparisonLimit": "Only identical source/maps compared. Requirement changed and other scoped maps differ; no full aggregate result or current Health pass is claimed.",
+  "thresholds": "Unchanged; scoped global coverage command exits 1 as expected",
+  "logs": "C:/Users/lum/AppData/Local/Temp/rp-coverage-finalization-outline-*"
+}

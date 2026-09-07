@@ -32,7 +32,8 @@ async function setup() {
 async function openFinding(kind: 'blocked' | 'missing-outcome' | 'decision') {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
 	await rig.runtime.renovation.perspective('review'); await settle();
-	const issue = expectDefined(rig.wrapper.findAll<HTMLButtonElement>('.rp-renovation-list > li > button').find(item => item.text().includes(tr(`renovation.finding.${kind}`))), kind);
+	const recordId = kind === 'decision' ? 'reuse-boards' : 'dispose-floor';
+	const issue = expectDefined(rig.wrapper.findAll<HTMLButtonElement>(`[data-rp-review-issue="${recordId}"]`).find(item => item.text().includes(tr(`renovation.finding.${kind}`))), kind);
 	issue.element.click();
 	await settleUntil(() => rig.session.perspective === 'renovate', 'explicit Review issue navigation');
 	expect(rig.session.roomId).toBe(rig.room.id);
@@ -63,16 +64,19 @@ it('opens the unresolved Decision from its issue button and cancels without writ
 it.each(['click', 'tap'])('keeps Review and expands the Room readiness summary on marker %s', async event => {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
 	await rig.runtime.renovation.perspective('review'); await settle();
-	const markers = rig.stage.find<Konva.Group>('.renovation-marker');
-	const marker = expectDefined(markers[0], 'Room readiness marker');
+	const markers = rig.stage.find<Konva.Group>('.review-room-marker');
+	const marker = expectDefined(markers.find(item => item.getAttr('roomId') === rig.room.id), 'Room readiness marker');
 	marker.fire(event); await settle();
 	expect(rig.session.perspective).toBe('review');
 	expect(rig.session.roomId).toBe(rig.room.id);
 	expect(rig.selection.selectedIds).toEqual([rig.room.id]);
 	expect(rig.dialogs.current).toBeNull();
 	expect(markers).toHaveLength(1);
-	expect(rig.wrapper.get('.rp-renovation-inspector').text()).toContain(rig.room.name);
-	expect(rig.wrapper.get('.rp-renovation-inspector').text()).toContain('Can any boards be reused?');
+	expect(marker.getAttr('number')).toBe(1);
+	expect(rig.wrapper.get(`[data-rp-review-room="${rig.room.id}"]`).attributes('data-rp-review-number')).toBe('1');
+	const summary = rig.wrapper.get(`[data-rp-review-summary-room="${rig.room.id}"]`);
+	expect(summary.text()).toContain(rig.room.name);
+	expect(summary.text()).toContain('Can any boards be reused?');
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
 

@@ -25,7 +25,18 @@ adaptation is prepared separately and remains unverified. The future Outline pee
 boundary file is approved for source-only preparation; no production fix in that area
 is authorized without first reporting a concrete defect.
 
-## Current verification and contract correction
+The confirmed-selector revision and new `outlinePeerBoundaries.test.ts` are prepared
+but unverified. Outline cases use real conditional repository saves/deletion, retain
+draft coordinates, check no recreation/repeated attempt, and cancel through native
+reflow focus. They need the next granted slot.
+
+Full predecessor CI `34147564049` on `bdca2910` now supplies the actual M17 RED on
+all four legs: Click/Tap leave Review. Linux24 has 8093 passed / 2 failed / 69 skipped
+tests. [Exact predecessor and source receipt](review-marker-predecessor-red.md).
+It also confirms the command package's +2 branches/+1 statement in a full comparison:
+12408/12692 branches, before the Requirement cleanup and pending UI production.
+
+## Initial verification and contract correction — before the private date cleanup
 
 Installed 567 dependencies using `npm ci --no-audit` (50 seconds), Node 24.20.0.
 Both prepared files passed 6/6 tests in 13.13 seconds, followed by types, whole
@@ -47,6 +58,8 @@ the original full `2c3c6360` CI with the official Linux coverage-root: zero find
 742/742 files mapped. Bare Fallow initially refused the absent local coverage file;
 the separate static and correctly mapped full-CI health runs then passed. No scoped
 coverage was presented as health evidence.
+This full-CI health result predates the Requirement production edit and is historical;
+the current branch needs new matching full counters before claiming a current CRAP pass.
 
 Contract-correct source is now prepared: three explicit issue-button cases, two
 Click/Tap cases requiring one Room marker and Review/summary retention, and the

@@ -267,12 +267,12 @@
 /* `aria-disabled`, never `disabled`: an unsupported entry stays reachable, so this is colour
    and cursor only — `DialogHost.vue`'s own header states the reason this plugin keeps that
    invariant everywhere a control can be "here, but not yet". */
-.rp-add-menu__item--unsupported {
+.rp-add-menu__item[aria-disabled="true"] {
 	cursor: default;
 }
 
-.rp-add-menu__item--unsupported .rp-add-menu__item-label,
-.rp-add-menu__item--unsupported .rp-add-menu__item-description {
+.rp-add-menu__item[aria-disabled="true"] .rp-add-menu__item-label,
+.rp-add-menu__item[aria-disabled="true"] .rp-add-menu__item-description {
 	color: var(--text-faint);
 }
 

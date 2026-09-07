@@ -10,7 +10,7 @@ const phase = process.argv[2] ?? 'after';
 assert.ok(['before', 'after'].includes(phase));
 const out = `docs/user-experience/renovation-planner-editor-specs/implementation/evidence/editor-visual-fidelity/${phase}`;
 await mkdir(out, { recursive: true });
-for (const journey of ['materials-costs-evidence', 'renovation-workflow', 'reference-plan', 'editor-visual-resilience', 'editor-visual-overview']) {
+for (const journey of ['materials-costs-evidence', 'renovation-workflow', 'reference-plan', 'editor-visual-resilience', 'editor-visual-overview', 'editor-object']) {
 	try { await cp(`harness-shots/${journey}`, `${out}/${journey}`, { recursive: true }); }
 	catch (error) { if (phase === 'after' || error.code !== 'ENOENT') throw error; }
 }

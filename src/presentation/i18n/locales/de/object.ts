@@ -1,0 +1,20 @@
+import type { objectEn } from '../en/object';
+export const objectDe: Record<keyof typeof objectEn, string> = {
+	'editor.element.list': 'Elemente im Plan',
+	'editor.element.delete-action': 'Löschen',
+	'editor.element.point-repeated': 'Einen anderen Punkt als den vorherigen wählen.',
+	'editor.element.banner.object': 'Den Umriss des Gegenstands zeichnen oder Position und Größe unter Details eingeben.',
+	'editor.element.banner.path': 'Den Weg im Plan markieren. Genaue Positionen unter Details eingeben.',
+	'editor.element.banner.fence': 'Die Zaunlinie im Plan markieren. Genaue Positionen unter Details eingeben.',
+	'editor.element.banner.measurement': 'Zwei Punkte zum Messen wählen. Genaue Positionen unter Details eingeben.',
+	'editor.add.element.unavailable': '{name} ist in dieser Ansicht nicht verfügbar.',
+	'editor.object.rectangle': 'Rechteck verwenden',
+	'editor.object.rectangle-hint': 'Position der linken oberen Ecke und Größe in Metern ab dem Planursprung (0, 0) eingeben: X verläuft nach rechts, Y nach unten. Übernehmen ersetzt den aktuellen Umriss. Fertig speichert den Gegenstand.',
+	'editor.object.apply-rectangle': 'Rechteck übernehmen',
+	'editor.object.discard-rectangle': 'Rechteckeingabe verwerfen',
+	'editor.object.pending-rectangle': 'Rechteckeingabe übernehmen oder verwerfen, bevor Sie den Umriss fortsetzen oder fertigstellen.',
+	'editor.object.invalid-position': 'Position in Metern eingeben. Null und negative Werte sind erlaubt.',
+	'editor.object.invalid-size': 'Eine positive Größe von mindestens 0,001 m eingeben.',
+	'editor.object.position-too-large': 'Das Rechteck muss innerhalb der unterstützten Plankoordinaten liegen.',
+	'editor.object.size-too-large': 'Eine Größe von höchstens 1000 m eingeben.',
+};

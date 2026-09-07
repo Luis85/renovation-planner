@@ -47,10 +47,12 @@ import { useEditorRuntime } from '../runtime';
 import AreaCornerEditor from '../add/AreaCornerEditor.vue';
 import StructureTaskForm from '../structure/StructureTaskForm.vue';
 import { isStructureTool } from '../structure/structureDraft';
+import { isElementTool } from '../elements/elementDraft';
 
 const runtime = useEditorRuntime();
 const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
-const cancelBlocked = computed(() => isStructure.value && runtime.structureTask.draft.busy);
+const isElement = computed(() => isElementTool(runtime.activeToolId.value));
+const cancelBlocked = computed(() => (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
 function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
 function freeRoomName(event: Event): void {
 	const input = event.target as HTMLInputElement;
@@ -59,6 +61,10 @@ function freeRoomName(event: Event): void {
 }
 
 const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKey: StringKey; finish?: true }>>> = {
+	'place-object': { nameKey: 'editor.add.item.label', instructionKey: 'editor.element.banner.object', finish: true },
+	'draw-path': { nameKey: 'editor.add.path.label', instructionKey: 'editor.element.banner.path', finish: true },
+	'draw-fence': { nameKey: 'editor.add.fence.label', instructionKey: 'editor.element.banner.fence', finish: true },
+	measure: { nameKey: 'editor.add.measurement.label', instructionKey: 'editor.element.banner.measurement', finish: true },
 	'draw-wall': { nameKey: 'editor.structure.draw-wall', instructionKey: 'editor.structure.instructions' },
 	'place-door': { nameKey: 'editor.add.door.label', instructionKey: 'editor.structure.host-instructions' },
 	'place-window': { nameKey: 'editor.add.window.label', instructionKey: 'editor.structure.host-instructions' },
@@ -78,8 +84,12 @@ const root = ref<HTMLElement | null>(null);
 const instructionId = useId();
 const isArea = computed(() => runtime.activeToolId.value === 'draw-area');
 const isOutline = computed(() => isArea.value || runtime.activeToolId.value === 'draw-polygon');
-const finishLabel = computed(() => tr(isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
-const canFinish = computed(() => isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
+const finishLabel = computed(() => tr(isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
+const canFinish = computed(() => isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
+const showSnapHint = computed(() => runtime.activeToolId.value === 'draw-room' && runtime.renderState.snapGuides.length > 0);
+const isFreeRoom = computed(() => runtime.activeToolId.value === 'draw-polygon');
+const finishBlocked = computed(() => !canFinish.value || runtime.writesBlocked.value);
+const finishDescription = computed(() => [instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' '));
 
 /**
  * The `aria-disabled` promise kept at the control, not only at the action — the same shape
@@ -90,7 +100,8 @@ const canFinish = computed(() => isOutline.value ? runtime.canFinishArea.value :
  */
 function onFinish(): void {
 	if (!canFinish.value || runtime.writesBlocked.value) return;
-	if (isOutline.value) runtime.finishArea();
+	if (isElement.value) void runtime.elementTask.finish();
+	else if (isOutline.value) runtime.finishArea();
 	else void runtime.createRoom();
 }
 
@@ -146,14 +157,14 @@ watch(task, (next) => {
 	>
 		<strong role="status">{{ tr(task.nameKey) }}</strong>
 		<span
-			v-if="runtime.activeToolId.value === 'draw-room' && runtime.renderState.snapGuides.length > 0"
+			v-if="showSnapHint"
 			role="status"
 		>{{ tr('editor.room.snapped') }}</span>
 		<span
 			v-if="!isStructure"
 			:id="instructionId"
 		>{{ tr(task.instructionKey) }}</span>
-		<label v-if="runtime.activeToolId.value === 'draw-polygon'">{{ tr('editor.room.name') }}
+		<label v-if="isFreeRoom">{{ tr('editor.room.name') }}
 			<input
 				name="free-room-name"
 				type="text"
@@ -178,8 +189,8 @@ watch(task, (next) => {
 			v-if="task.finish"
 			type="button"
 			class="rp-task-banner__finish"
-			:aria-disabled="!canFinish || runtime.writesBlocked.value"
-			:aria-describedby="[instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' ')"
+			:aria-disabled="finishBlocked"
+			:aria-describedby="finishDescription"
 			@click="onFinish"
 		>
 			{{ finishLabel }}

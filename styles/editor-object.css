@@ -1,0 +1,54 @@
+/* Numeric creation stays within the shared temporary task and native control system. */
+.renovation-plan-editor .rp-object-rectangle {
+	margin-block: var(--size-4-2);
+}
+
+.renovation-plan-editor .rp-object-rectangle > summary {
+	padding-block: var(--size-4-2);
+	cursor: pointer;
+}
+
+.renovation-plan-editor .rp-object-rectangle__fields {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--size-4-2);
+	margin-block: var(--size-4-2);
+}
+
+.renovation-plan-editor .rp-object-rectangle__fields input {
+	width: 100%;
+	min-width: 0;
+}
+
+.renovation-plan-editor .rp-object-rectangle .rp-dialog-actions {
+	flex-wrap: wrap;
+}
+
+.renovation-plan-editor .rp-element-task,
+.renovation-plan-editor .rp-element-inspector {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	min-width: 0;
+}
+
+.renovation-plan-editor .rp-element-inspector > p { margin: 0; }
+.renovation-plan-editor .rp-element-inspector > .rp-dialog-actions { justify-content: flex-start; }
+.renovation-plan-editor .rp-element-inspector button { height: auto; min-height: 32px; white-space: normal; }
+
+.renovation-plan-editor .rp-element-task > form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+.renovation-plan-editor .rp-element-task input {
+	width: 100%;
+	min-width: 0;
+}
+
+.renovation-plan-editor .rp-element-task button {
+	height: auto;
+	min-height: 32px;
+	white-space: normal;
+}

@@ -1,4 +1,7 @@
 export const planningDe = {
+	'planning.add.photo': 'Foto hinzufügen',
+	'planning.add.document': 'Dokument hinzufügen',
+	'planning.add.note': 'Notiz hinzufügen',
 	'planning.material-details': 'Details und Aktionen für {name}',
 	'planning.calculated-badge': 'Berechnet',
 	'planning.manual-badge': 'Manuell',

@@ -74,9 +74,10 @@ function unlink(id: string): void {
 		type="button"
 		:disabled="planning.blocked.value"
 		data-rp-new-evidence
+		class="mod-cta"
 		@click="planning.edit('evidence')"
 	>
-		{{ tr('planning.edit.evidence') }}
+		{{ tr(`planning.add.${type}`) }}
 	</button>
 	<p v-if="!rows.length">
 		{{ tr('renovation.empty') }}

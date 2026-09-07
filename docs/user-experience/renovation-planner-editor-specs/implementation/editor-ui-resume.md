@@ -134,6 +134,14 @@ in `editor-ui-verification.md` and its evidence folder. The next step is actual 
 capture on the documentation checkpoint, followed by direct pixel review; no visual acceptance
 is claimed yet. UI retains the heavy slot; Root/E have no overlapping heavy work.
 
+Actual planning `--design` at `a59a0ec3` passed all four scenario journeys. Pixel inspection
+nevertheless found lost During filtering after photo selection (seven cards/pins) and heading/
+filter/Add scrolling above the viewport. See `editor-gallery-selection.md` and its original
+four-image evidence. Root owns the phase semantic correction. UI's bounded density/CTA and
+post-selection/visibility assertions are WIP pending integration and recapture. No production
+content/actions are hidden and no fixture pins moved. UI released all heavy processes; Root
+now owns its short composition/phase verification batches.
+
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.
 - M02: oversized menu rows limit scanning; the catalog lacks the required supplementary icons

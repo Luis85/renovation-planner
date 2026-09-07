@@ -4,6 +4,10 @@ Date: 2026-09-07. Contribution on `codex/native-recovery-boundaries`, based on
 `a7d61da1`. The four native cases and the first browser resize correction are verified;
 the German recovery journey remains incomplete at a later Material-pan boundary.
 
+Subsequent outcome: the separate production focus correction and completed German probe are
+documented in [Overview-link focus continuity](linked-summary-focus-evidence.md). The failed
+before/after probe below remains the evidence for this earlier checkpoint.
+
 ## Native cases
 
 Two new test files exercise four paths through the mounted Vue/Pinia/Konva editor:

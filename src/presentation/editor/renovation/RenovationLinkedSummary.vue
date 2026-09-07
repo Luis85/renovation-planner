@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatPlanningMoney } from '../../i18n/planningFormat';
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
 import { usePlanningContext } from '../planning/planningContext';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { tr } from '../../i18n/strings';
@@ -8,6 +8,7 @@ import { renovationCostSummary } from './renovationCostSummary';
 import { inRenovationScope } from './renovationSummary';
 import HostIcon from '../../components/HostIcon.vue';
 import { EDITOR_MODE_ICONS } from '../editorIcons';
+import type { RenovationMode } from './renovationSession';
 
 const props = defineProps<{ roomId?: string; targetId?: string }>();
 const planning = usePlanningContext(), project = useProjectStore();
@@ -26,6 +27,14 @@ const links = computed(() => {
 		{ mode: 'notes', count: evidence.filter(item => item.type === 'note').length },
 	] as const;
 });
+async function navigate(roomId: string, mode: RenovationMode, event: Event): Promise<void> {
+	const opener = event.currentTarget as HTMLElement;
+	const inspector = opener.closest<HTMLElement>('[data-rp-region="inspector"]');
+	planning.runtime.renovation.focus(roomId, mode);
+	await nextTick();
+	if (opener.isConnected || !inspector?.isConnected || opener.ownerDocument.activeElement !== opener.ownerDocument.body) return;
+	(inspector.querySelector<HTMLElement>('[data-rp-room-navigation]') ?? inspector).focus();
+}
 </script>
 <template>
 	<section class="rp-renovation-linked-summary">
@@ -43,7 +52,7 @@ const links = computed(() => {
 				class="rp-linked-counts__button"
 				type="button"
 				:data-rp-linked="link.mode"
-				@click="planning.runtime.renovation.focus(roomId, link.mode)"
+				@click="navigate(roomId, link.mode, $event)"
 			>
 				<HostIcon :name="EDITOR_MODE_ICONS[link.mode]" /><span class="rp-linked-counts__label">{{ tr(`renovation.${link.mode}`) }}</span><span>{{ incomplete ? tr('editor.selection.unknown') : link.count }}</span><HostIcon name="chevron-right" />
 			</button>

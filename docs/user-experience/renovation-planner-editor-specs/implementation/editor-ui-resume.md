@@ -7,6 +7,15 @@ is claimed. Main remains untouched; work is on `codex/editor-object-ui` in
 
 ## Source anchors and saved work
 
+Latest continuation (2026-09-07): source `df7100b4` completed all four extended planning browser
+scenarios, including six-photo selection, caption/inline clearance and issue-rich M17 marker
+and source routes. Evidence is archived in `editor-review-markers-browser/verified-df7100b4`.
+The next source checkpoint replaces anonymous editor button shadow resets with explicit local
+action classes. The unchanged focus gate passes 96/96 and five affected native suites pass
+54/54; asset CSS and the checker remain untouched. Root must integrate this pushed checkpoint
+and confirm a shared source freeze before the original nine journeys and all eighteen reference
+comparisons. UI owns the current heavy slot through verification/push; no full acceptance yet.
+
 - Shared production checkpoint: `73b0c205d8abaf1ab5869ee8cffead8654061f00`, integrated locally
   through merge `9d7f7e8baa258761042e45b9ecaa69a736484d09`. Preserve its date, retained-pin
   projection, required-pin props and focus fixes during future merges.
@@ -193,6 +202,29 @@ Root approved shared Room review markers and compact actionable findings per M17
 The source-only correction is described in `editor-review-markers.md`; no native/browser pass
 is claimed yet. The coverage task owns its separate reviewMarkerNavigation test file.
 Coverage currently has the heavy slot; UI source preparation continues with no running process.
+
+Review checkpoint `f576d13c`: current types, whole Oxlint, scoped lint and 45 native tests in
+five files passed (66.38s). Both finding families/shared Room numbers/source labels and normal
+overview/route regressions are covered. Logs are archived under `evidence/editor-review-markers-native`.
+The new actual mouse-marker/issue-rich browser step remains unrun against this corrected source.
+UI released heavy at session 87001's terminal result; Coverage has the brief Outline batch.
+Next after explicit release: extended planning browser, inspect/fix actual failures, then overview
+and final nine-journey/eighteen-screen matrix. No overall completion or full visual pass yet.
+
+After the clean Root571 merge (`a89ab791`), the extended browser completed Light and Dark,
+including actual caption pan/inline/clamp and mouse Room-marker/issue-source/Back routes.
+Custom stopped at only 8.39 pixels of last-button overflow. `92bc6a45` preserves those partial
+images/logs and makes a small spacing correction; validation is pending. Work source labels
+are now visibly and accessibly distinct even with a shared dependency explanation.
+The M02 Floor Add capture also moves its already-existing Renovate activation before capture
+to match the locked perspective; the original M01 Plan capture and all route assertions remain.
+Coverage has the current short Review validation slot; UI has no running process.
+
+Joined full CI additionally found nine warning text-separator regressions and new editor focus
+selector mismatches. Source corrections preserve the existing severity/message whitespace contract
+and add exact matching focus-visible selectors; unchanged tests and all asset-shelf styles remain
+intact. See `editor-joined-ci-fixes.md`. These corrections await the next UI heavy slot for the
+three warning suites, buttonFocusRing and current small Review follow-ups before browser recapture.
 
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.

@@ -99,7 +99,7 @@ onUpdated(() => {
 		>
 			<HostIcon :name="w.severity === 'warning' ? 'triangle-alert' : 'circle-alert'" />
 			<span class="rp-warning-strip__content">
-				<span class="rp-warning-strip__severity">{{ tr(SEVERITY_LABEL[w.severity]) }}</span>
+				<span class="rp-warning-strip__severity">{{ tr(SEVERITY_LABEL[w.severity]) + ' ' }}</span>
 				<span>{{ tr(w.messageKey, w.params) }}</span>
 			</span>
 			<span

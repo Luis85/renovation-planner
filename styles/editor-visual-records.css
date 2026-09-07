@@ -168,8 +168,7 @@
 }
 
 .renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions { display: contents; }
-.renovation-plan-editor :is(.rp-subject-row, .rp-work-row) > button:not(.rp-record-title),
-.renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions > button {
+.renovation-plan-editor .rp-record-secondary-action {
 	min-height: 28px;
 	max-width: 100%;
 	padding: 3px 6px;
@@ -180,13 +179,11 @@
 	line-height: 1.35;
 }
 
-.renovation-plan-editor :is(.rp-subject-row, .rp-work-row) > button:not(:disabled):hover,
-.renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions > button:not(:disabled):hover {
+.renovation-plan-editor .rp-record-secondary-action:not(:disabled):hover {
 	background: var(--background-modifier-hover);
 }
 
-.renovation-plan-editor :is(.rp-subject-row, .rp-work-row) > button:focus-visible,
-.renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions > button:focus-visible {
+.renovation-plan-editor .rp-record-secondary-action:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }

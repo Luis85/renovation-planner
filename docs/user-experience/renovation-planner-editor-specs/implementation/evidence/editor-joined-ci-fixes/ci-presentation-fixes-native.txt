@@ -1,0 +1,230 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-object-ui
+
+ ❯ |build| tests/build/buttonFocusRing.test.ts (96 tests | 1 failed) 1836ms
+     × gives every flattened button a focus-visible rule, since suppressing the shadow removes the ring 1806ms
+stderr | tests/presentation/editor/backgroundInEditor.test.ts > a background that cannot be drawn > tells the user when the file is gone, rather than drawing an empty canvas
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/backgroundInEditor.test.ts > a background that cannot be drawn > says something DIFFERENT when the file is there but will not decode
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/backgroundInEditor.test.ts (17 tests | 2 failed) 2128ms
+     × tells the user when the file is gone, rather than drawing an empty canvas 107ms
+     × says something DIFFERENT when the file is there but will not decode 101ms
+stderr | tests/presentation/editor/planEditorFailure.test.ts > the Plan Editor, when a post-write refresh fails > keeps the canvas and says the view may be out of date
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/planEditorFailure.test.ts > the Plan Editor, when a post-write refresh fails > keeps saying so while the next read is in flight, and stops only when one succeeds
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/planEditorFailure.test.ts > the Plan Editor, when a post-write refresh fails > keeps saying so through an ORDINARY refresh too, not only a keep-on-failure one
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/planEditorFailure.test.ts > the Plan Editor, when a post-write refresh fails > does not swallow the background notice, which is about something else entirely
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/planEditorFailure.test.ts > the Plan Editor, when a post-write refresh fails > does not swallow the background notice, which is about something else entirely
+[Vue warn]: Component emitted event "background-status" but it is neither declared in the emits option nor as an "onBackgroundStatus" prop.
+
+ ❯ |suite| tests/presentation/editor/planEditorFailure.test.ts (10 tests | 4 failed) 729ms
+     × keeps the canvas and says the view may be out of date 122ms
+     × keeps saying so while the next read is in flight, and stops only when one succeeds 76ms
+     × keeps saying so through an ORDINARY refresh too, not only a keep-on-failure one 63ms
+     × does not swallow the background notice, which is about something else entirely 70ms
+stderr | tests/presentation/editor/unreadableZonesNotice.test.ts > the canvas reports zones it could not read > draws a counted notice when some zone notes refused
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/unreadableZonesNotice.test.ts > the canvas reports zones it could not read > offers no empty state when the zones that would fill it are the ones that refused
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/unreadableZonesNotice.test.ts > the canvas reports zones it could not read > draws it INDEPENDENTLY of the background chain
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/unreadableZonesNotice.test.ts (5 tests | 3 failed) 733ms
+     × draws a counted notice when some zone notes refused 292ms
+     × offers no empty state when the zones that would fill it are the ones that refused 99ms
+     × draws it INDEPENDENTLY of the background chain 114ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |build| tests/build/buttonFocusRing.test.ts > a flattened button and its focus ring > gives every flattened button a focus-visible rule, since suppressing the shadow removes the ring
+AssertionError: expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "styles/asset-shelf.css: .rp-al-shelf .rp-al-row--on",
++   "styles/asset-shelf.css: .rp-al-shelf .rp-al-row--on:focus-visible",
++ ]
+
+ ❯ tests/build/buttonFocusRing.test.ts:53:68
+     51|   // Spread rather than `Iterator.toArray()`: that method is ES2025 an…
+     52|   // stops at ES2023.Array, so it typed as `any` and took the callback…
+     53|   expect([...offenders.values()].flat().map((site) => site.where)).toE…
+       |                                                                    ^
+     54|   expect(seen).toBeGreaterThan(2);
+     55|  });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  |suite| tests/presentation/editor/backgroundInEditor.test.ts > a background that cannot be drawn > tells the user when the file is gone, rather than drawing an empty canvas
+AssertionError: expected 'Warning   The background file for thi…' to be 'Warning The background file for this …' // Object.is equality
+
+Expected: "Warning The background file for this plan is missing."
+Received: "Warning   The background file for this plan is missing."
+
+ ❯ tests/presentation/editor/backgroundInEditor.test.ts:182:66
+    180|   // R5: the item's text includes its severity word (`background-missi…
+    181|   // beside the message, per `PersistentWarningStrip.vue`'s severity m…
+    182|   expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+       |                                                                  ^
+    183|    `${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.ba…
+    184|   );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  |suite| tests/presentation/editor/backgroundInEditor.test.ts > a background that cannot be drawn > says something DIFFERENT when the file is there but will not decode
+AssertionError: expected 'Error   The background for this plan …' to be 'Error The background for this plan co…' // Object.is equality
+
+Expected: "Error The background for this plan could not be rendered."
+Received: "Error   The background for this plan could not be rendered."
+
+ ❯ tests/presentation/editor/backgroundInEditor.test.ts:198:66
+    196|
+    197|   // `background-unreadable` is `error` (a read refused), unlike the m…
+    198|   expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+       |                                                                  ^
+    199|    `${t('en', 'editor.warning.severity.error')} ${t('en', 'editor.back…
+    200|   );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  |suite| tests/presentation/editor/planEditorFailure.test.ts > the Plan Editor, when a post-write refresh fails > keeps the canvas and says the view may be out of date
+AssertionError: expected 'Warning   This plan could not be re-r…' to contain 'Warning This plan could not be re-rea…'
+
+Expected: "Warning This plan could not be re-read after the last change; what you see may be out of date."
+Received: "Warning   This plan could not be re-read after the last change; what you see may be out of date.Try againOpen source note"
+
+ ❯ tests/presentation/editor/planEditorFailure.test.ts:216:66
+    214|   // buttons, so the item's full text now carries their labels too — t…
+    215|   // this asserts is unchanged.
+    216|   expect(harness.wrapper.find('.rp-warning-strip__item').text()).toCon…
+       |                                                                  ^
+    217|    `${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.re…
+    218|   );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  |suite| tests/presentation/editor/planEditorFailure.test.ts > the Plan Editor, when a post-write refresh fails > keeps saying so while the next read is in flight, and stops only when one succeeds
+AssertionError: expected 'Warning   This plan could not be re-r…' to contain 'Warning This plan could not be re-rea…'
+
+Expected: "Warning This plan could not be re-read after the last change; what you see may be out of date."
+Received: "Warning   This plan could not be re-read after the last change; what you see may be out of date.Try againOpen source note"
+
+ ❯ tests/presentation/editor/planEditorFailure.test.ts:252:66
+    250|   await flushPromises();
+    251|   // R5: `stale` is `warning`, so the item's text carries that word be…
+    252|   expect(harness.wrapper.find('.rp-warning-strip__item').text()).toCon…
+       |                                                                  ^
+    253|    `${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.re…
+    254|   );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+ FAIL  |suite| tests/presentation/editor/planEditorFailure.test.ts > the Plan Editor, when a post-write refresh fails > keeps saying so through an ORDINARY refresh too, not only a keep-on-failure one
+AssertionError: expected 'Warning   This plan could not be re-r…' to contain 'Warning This plan could not be re-rea…'
+
+Expected: "Warning This plan could not be re-read after the last change; what you see may be out of date."
+Received: "Warning   This plan could not be re-read after the last change; what you see may be out of date.Try againOpen source note"
+
+ ❯ tests/presentation/editor/planEditorFailure.test.ts:303:66
+    301|   await flushPromises();
+    302|   // R5: `stale` is `warning`, so the item's text carries that word be…
+    303|   expect(harness.wrapper.find('.rp-warning-strip__item').text()).toCon…
+       |                                                                  ^
+    304|    `${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.re…
+    305|   );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯
+
+ FAIL  |suite| tests/presentation/editor/planEditorFailure.test.ts > the Plan Editor, when a post-write refresh fails > does not swallow the background notice, which is about something else entirely
+AssertionError: expected 'Warning   This plan could not be re-r…' to contain 'Warning This plan could not be re-rea…'
+
+Expected: "Warning This plan could not be re-read after the last change; what you see may be out of date."
+Received: "Warning   This plan could not be re-read after the last change; what you see may be out of date.Try againOpen source note"
+
+ ❯ tests/presentation/editor/planEditorFailure.test.ts:359:20
+    357|   const items = harness.wrapper.findAll('.rp-warning-strip__item').map…
+    358|   expect(items).toHaveLength(2);
+    359|   expect(items[0]).toContain(`${t('en', 'editor.warning.severity.warni…
+       |                    ^
+    360|   expect(items[1]).toBe(`${t('en', 'editor.warning.severity.warning')}…
+    361|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  |suite| tests/presentation/editor/unreadableZonesNotice.test.ts > the canvas reports zones it could not read > draws a counted notice when some zone notes refused
+AssertionError: expected [ Array(1) ] to include 'Error 3 room(s) or area(s) in this pl…'
+ ❯ tests/presentation/editor/unreadableZonesNotice.test.ts:48:28
+     46|
+     47|   // R5: `unreadable-zones` is `error` (a read refused), so the item c…
+     48|   expect(notices(harness)).toContain(
+       |                            ^
+     49|    `${t('en', 'editor.warning.severity.error')} ${t('en', 'editor.some…
+     50|   );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ FAIL  |suite| tests/presentation/editor/unreadableZonesNotice.test.ts > the canvas reports zones it could not read > offers no empty state when the zones that would fill it are the ones that refused
+AssertionError: expected [ …(2) ] to include 'Error 3 room(s) or area(s) in this pl…'
+ ❯ tests/presentation/editor/unreadableZonesNotice.test.ts:84:28
+     82|   expect(harness.wrapper.find('.rp-empty-state').exists()).toBe(false);
+     83|   // R5: `unreadable-zones` is `error` (a read refused), so the item c…
+     84|   expect(notices(harness)).toContain(
+       |                            ^
+     85|    `${t('en', 'editor.warning.severity.error')} ${t('en', 'editor.some…
+     86|   );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯
+
+ FAIL  |suite| tests/presentation/editor/unreadableZonesNotice.test.ts > the canvas reports zones it could not read > draws it INDEPENDENTLY of the background chain
+AssertionError: expected [ …(2) ] to deeply equal [ …(2) ]
+
+- Expected
++ Received
+
+  [
+-   "Error 1 room(s) or area(s) in this plan could not be read and are not drawn. Open the diagnostics report to see which notes refused.",
+-   "Warning The background file for this plan is missing.",
++   "Error   1 room(s) or area(s) in this plan could not be read and are not drawn. Open the diagnostics report to see which notes refused.",
++   "Warning   The background file for this plan is missing.",
+  ]
+
+ ❯ tests/presentation/editor/unreadableZonesNotice.test.ts:115:28
+    113|   await settle();
+    114|
+    115|   expect(notices(harness)).toEqual([
+       |                            ^
+    116|    `${t('en', 'editor.warning.severity.error')} ${t('en', 'editor.some…
+    117|    `${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.ba…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+ Test Files  4 failed | 3 passed (7)
+      Tests  10 failed | 143 passed (153)
+   Start at  20:40:53
+   Duration  66.67s (transform 9.07s, setup 0ms, import 21.65s, tests 11.26s, environment 32.05s)
+

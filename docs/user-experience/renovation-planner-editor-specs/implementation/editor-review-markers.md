@@ -51,3 +51,47 @@ explicit nonzero counts so an empty old-selector loop cannot pass vacuously. Iss
 assertions remain. A new browser step clears selection with native Escape, clicks the actual
 marker pixels, checks Review/number/summary with no dialog, and verifies Back restores Room/
 camera without writing files. This browser step and the current native batch remain pending.
+
+## Native checkpoint — f576d13c
+
+Current types, whole Oxlint and scoped ESLint passed. The native batch passed all 45 tests in
+five files in 66.38 seconds: renovation Workflow/Overview/Routes and Planning Review/Markers.
+This includes both finding families in shared Rooms, matching marker/list numbers, distinct
+Work source labels, issue source routes and the updated Room-marker contract. Existing normal
+planning/overview behavior remains covered. Original logs and hashes are in
+[the native evidence](evidence/editor-review-markers-native/).
+
+The actual extended four-theme browser run, issue-rich layout/marker mouse input, other screen
+comparisons and uninterrupted final nine-journey run remain pending. Native green does not
+declare full visual or live-host acceptance.
+
+## Extended browser checkpoint — a89ab791
+
+The joined run completed Light and Dark's full extended journey: actual caption/control/pin
+clearance through pan and inline editing, two native Decision saves, source/cancel/Back routes,
+and real mouse Room-marker selection without a dialog or file writes. Custom caption checks
+also passed, but its last review-note button exceeded the Inspector bottom by 8.39 pixels.
+The four-scenario run therefore failed and German was not reached; no old report is reused.
+
+The next correction reduces Review summary spacing by two pixels and the Open-room top margin
+by four pixels. Text sizes, controls, data and visibility assertions stay intact. Work findings
+with a shared dependency now show the actual Work label visibly as well as accessibly; repeated
+source/cause wording is deduplicated without changing any rule or source route. Current validation
+of these small follow-ups remains pending. The partial images and original failure log are saved
+under `evidence/editor-review-markers-browser/partial-a89`.
+
+## Complete extended browser checkpoint — df7100b4
+
+The complete extended planning journey passed all four scenarios (Light, Dark, Custom accent,
+German at 460 pixels) on `df7100b434e864d9d93c52f180dd58529c72f8ad`, using Edge
+152.0.4191.62. Session 98235 exited zero. The six native photo records retain their During
+filter, date order, selected metadata and Work context through selection and resizing. Actual
+Konva captions clear dimensions, pins and normal/top-clamped inline forms through native pan,
+cancel and reverse pan, with unchanged fonts, text, geometry and vault contents.
+
+Two native unresolved Decisions exercise visible issue causes, source/Cancel/Back routes and
+real mouse Room markers with matching numbers and unchanged data. Full-size Inspector bounds
+pass in all three wide themes; German keeps ordinary drawer scrolling and native reachability.
+The fresh report, selected screenshots, axe reports, terminal log and hashes are preserved in
+`evidence/editor-review-markers-browser/verified-df7100b4`. This is one complete extended
+planning run, not the still-pending original nine-journey/eighteen-reference final acceptance.

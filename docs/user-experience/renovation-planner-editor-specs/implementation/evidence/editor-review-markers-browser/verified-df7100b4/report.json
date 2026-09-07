@@ -1,0 +1,3722 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+      "--text-accent": "hsl(258, 88%, 66%)",
+      "--background-primary": "#ffffff",
+      "--background-secondary": "#f6f6f6"
+    },
+    "gallery": {
+      "images": 6,
+      "phase": "during",
+      "selectedId": "record-01M1YKASZCQ2BB2CBYFDZKA2YZ",
+      "selectedDate": "2026-08-28",
+      "work": "Floor finish",
+      "visibility": {
+        ".rp-renovation-inspector > h3": {
+          "x": 1097,
+          "y": 102.59375,
+          "width": 312,
+          "height": 25
+        },
+        ".rp-evidence-filters": {
+          "x": 1097,
+          "y": 225.984375,
+          "width": 312,
+          "height": 68
+        },
+        "[data-rp-new-evidence]": {
+          "x": 1097,
+          "y": 305.984375,
+          "width": 312,
+          "height": 30
+        },
+        ".rp-evidence-gallery li:first-child": {
+          "x": 1097,
+          "y": 347.984375,
+          "width": 152,
+          "height": 119
+        },
+        ".rp-evidence-gallery li:last-child": {
+          "x": 1257,
+          "y": 601.984375,
+          "width": 152,
+          "height": 119
+        },
+        ".rp-renovation-list > [data-rp-record=\"record-01M1YKASZCQ2BB2CBYFDZKA2YZ\"]": {
+          "x": 1097,
+          "y": 732.984375,
+          "width": 312,
+          "height": 136.84375
+        }
+      },
+      "captionControls": {
+        "before": {
+          "origin": {
+            "x": 244.796875,
+            "y": 55
+          },
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "size": {
+            "width": 835,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 216.34878048780485,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 238.74878048780485,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 256.9487804878048,
+                "width": 182,
+                "height": 13.899999999999977
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 61.04878048780486,
+                "y": 315.59999999999997,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 335.01951219512193,
+                "y": 293.9707317073171,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 176.40487804878046,
+                "y": 277.7487804878049,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 212.45365853658535,
+                "y": 331.82195121951213,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 277.3414634146341,
+                "y": 169.6024390243902,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 89.88780487804877,
+                "y": 164.19512195121948,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 203.34375,
+              "y": 77.109375,
+              "width": 49.78125,
+              "height": 38
+            },
+            {
+              "x": 15.109375,
+              "y": 242.296875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "panned": {
+          "origin": {
+            "x": 244.796875,
+            "y": 55
+          },
+          "camera": {
+            "x": 64.99999999999999,
+            "y": 112.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "size": {
+            "width": 835,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 203.34878048780485,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 225.74878048780485,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 243.94878048780484,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 78.04878048780486,
+                "y": 302.59999999999997,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 352.01951219512193,
+                "y": 280.9707317073171,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 193.40487804878046,
+                "y": 264.7487804878049,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 229.45365853658535,
+                "y": 318.82195121951213,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 294.3414634146341,
+                "y": 156.6024390243902,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 106.88780487804877,
+                "y": 151.19512195121948,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 220.34375,
+              "y": 64.109375,
+              "width": 49.78125,
+              "height": 38
+            },
+            {
+              "x": 15.109375,
+              "y": 229.296875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "editing": {
+          "origin": {
+            "x": 244.796875,
+            "y": 55
+          },
+          "camera": {
+            "x": 64.99999999999999,
+            "y": 112.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "size": {
+            "width": 835,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 2.7093750000000085,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 25.109375,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 43.309375,
+                "width": 182,
+                "height": 13.899999999999999
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 78.04878048780486,
+                "y": 302.59999999999997,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 352.01951219512193,
+                "y": 280.9707317073171,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 193.40487804878046,
+                "y": 264.7487804878049,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 229.45365853658535,
+                "y": 318.82195121951213,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 294.3414634146341,
+                "y": 156.6024390243902,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 106.88780487804877,
+                "y": 151.19512195121948,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 121.234375,
+              "y": 64.109375,
+              "width": 248,
+              "height": 150.6875
+            },
+            {
+              "x": 15.109375,
+              "y": 229.296875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "clamped": {
+          "origin": {
+            "x": 244.796875,
+            "y": 55
+          },
+          "camera": {
+            "x": 64.99999999999999,
+            "y": 32.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "size": {
+            "width": 835,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 275.42195121951215,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 297.82195121951213,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 316.02195121951206,
+                "width": 182,
+                "height": 13.899999999999977
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 78.04878048780486,
+                "y": 222.59999999999997,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 352.01951219512193,
+                "y": 200.97073170731707,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 193.40487804878046,
+                "y": 184.74878048780485,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 229.45365853658535,
+                "y": 238.82195121951216,
+                "width": 46,
+                "height": 29.99999999999997
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 294.3414634146341,
+                "y": 76.60243902439021,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 106.88780487804877,
+                "y": 71.19512195121948,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 121.234375,
+              "y": 44,
+              "width": 248,
+              "height": 150.6875
+            },
+            {
+              "x": 15.109375,
+              "y": 149.296875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "restored": {
+          "origin": {
+            "x": 244.796875,
+            "y": 55
+          },
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "size": {
+            "width": 835,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 216.34878048780485,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 238.74878048780485,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 256.9487804878048,
+                "width": 182,
+                "height": 13.899999999999977
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 61.04878048780486,
+                "y": 315.59999999999997,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 335.01951219512193,
+                "y": 293.9707317073171,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 176.40487804878046,
+                "y": 277.7487804878049,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 212.45365853658535,
+                "y": 331.82195121951213,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 277.3414634146341,
+                "y": 169.6024390243902,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 89.88780487804877,
+                "y": 164.19512195121948,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 203.34375,
+              "y": 77.109375,
+              "width": 49.78125,
+              "height": 38
+            },
+            {
+              "x": 15.109375,
+              "y": 242.296875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "vaultUnchanged": true
+      },
+      "viewport": "1440 × 1000",
+      "inputs": "six explicit synthetic PNG files linked through native production forms",
+      "reviewIssues": {
+        "decisions": [
+          "decision-01M1YKAXP66SHCEGQR8AEQHKHW",
+          "decision-01M1YKAXTC7HT0EGMANMGE3M28"
+        ],
+        "questions": [
+          "Which oil finish?",
+          "Which floor finish sample?"
+        ],
+        "roomId": "zone-01M1YKAJRCEJ8ACM4WQ0NABVBM",
+        "visibility": {
+          ".rp-review-inspector > h3": {
+            "x": 1097,
+            "y": 102.59375,
+            "width": 312,
+            "height": 25
+          },
+          ".rp-review-rooms": {
+            "x": 1097,
+            "y": 203.4375,
+            "width": 312,
+            "height": 222
+          },
+          ".rp-review-summary .rp-transformation-summary": {
+            "x": 1097,
+            "y": 431.4375,
+            "width": 312,
+            "height": 89.765625
+          },
+          "[data-rp-action=\"review-open-room\"]": {
+            "x": 1097,
+            "y": 674.203125,
+            "width": 312,
+            "height": 36
+          },
+          ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(1)": {
+            "x": 1097,
+            "y": 756.203125,
+            "width": 312,
+            "height": 50
+          },
+          ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(2)": {
+            "x": 1097,
+            "y": 810.203125,
+            "width": 312,
+            "height": 50
+          },
+          "[data-rp-action=\"review-note\"]": {
+            "x": 1097,
+            "y": 910.203125,
+            "width": 312,
+            "height": 34
+          }
+        },
+        "marker": {
+          "roomId": "zone-01M1YKAJRCEJ8ACM4WQ0NABVBM",
+          "number": 1,
+          "stayedInReview": true,
+          "cameraBefore": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "cameraFramed": {
+            "x": 47.999999999999986,
+            "y": 127.375,
+            "zoom": 0.18475
+          }
+        },
+        "viewport": "1440 × 1000",
+        "routes": "both Review issues open their exact unresolved Decision; Cancel preserves Room and camera"
+      }
+    },
+    "storage": "production application services and repositories over FakeVault",
+    "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+    "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+    "reflow": "material draft and native focus preserved",
+    "history": "evidence undo/redo",
+    "scope": "browser host file open is recorded, not a live Obsidian leaf",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "gallery": {
+      "images": 6,
+      "phase": "during",
+      "selectedId": "record-01M1YKB9E5CGSR3T1EZ613HRDC",
+      "selectedDate": "2026-08-28",
+      "work": "Floor finish",
+      "visibility": {
+        ".rp-renovation-inspector > h3": {
+          "x": 1097,
+          "y": 102.59375,
+          "width": 312,
+          "height": 25
+        },
+        ".rp-evidence-filters": {
+          "x": 1097,
+          "y": 225.984375,
+          "width": 312,
+          "height": 68
+        },
+        "[data-rp-new-evidence]": {
+          "x": 1097,
+          "y": 305.984375,
+          "width": 312,
+          "height": 30
+        },
+        ".rp-evidence-gallery li:first-child": {
+          "x": 1097,
+          "y": 347.984375,
+          "width": 152,
+          "height": 119
+        },
+        ".rp-evidence-gallery li:last-child": {
+          "x": 1257,
+          "y": 601.984375,
+          "width": 152,
+          "height": 119
+        },
+        ".rp-renovation-list > [data-rp-record=\"record-01M1YKB9E5CGSR3T1EZ613HRDC\"]": {
+          "x": 1097,
+          "y": 732.984375,
+          "width": 312,
+          "height": 136.84375
+        }
+      },
+      "captionControls": {
+        "before": {
+          "origin": {
+            "x": 244.796875,
+            "y": 55
+          },
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "size": {
+            "width": 835,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 216.34878048780485,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 238.74878048780485,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 256.9487804878048,
+                "width": 182,
+                "height": 13.899999999999977
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 61.04878048780486,
+                "y": 315.59999999999997,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 335.01951219512193,
+                "y": 293.9707317073171,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 176.40487804878046,
+                "y": 277.7487804878049,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 212.45365853658535,
+                "y": 331.82195121951213,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 277.3414634146341,
+                "y": 169.6024390243902,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 89.88780487804877,
+                "y": 164.19512195121948,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 203.34375,
+              "y": 77.109375,
+              "width": 49.78125,
+              "height": 38
+            },
+            {
+              "x": 15.109375,
+              "y": 242.296875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "panned": {
+          "origin": {
+            "x": 244.796875,
+            "y": 55
+          },
+          "camera": {
+            "x": 64.99999999999999,
+            "y": 112.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "size": {
+            "width": 835,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 203.34878048780485,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 225.74878048780485,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 243.94878048780484,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 78.04878048780486,
+                "y": 302.59999999999997,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 352.01951219512193,
+                "y": 280.9707317073171,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 193.40487804878046,
+                "y": 264.7487804878049,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 229.45365853658535,
+                "y": 318.82195121951213,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 294.3414634146341,
+                "y": 156.6024390243902,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 106.88780487804877,
+                "y": 151.19512195121948,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 220.34375,
+              "y": 64.109375,
+              "width": 49.78125,
+              "height": 38
+            },
+            {
+              "x": 15.109375,
+              "y": 229.296875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "editing": {
+          "origin": {
+            "x": 244.796875,
+            "y": 55
+          },
+          "camera": {
+            "x": 64.99999999999999,
+            "y": 112.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "size": {
+            "width": 835,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 2.7093750000000085,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 25.109375,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 43.309375,
+                "width": 182,
+                "height": 13.899999999999999
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 78.04878048780486,
+                "y": 302.59999999999997,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 352.01951219512193,
+                "y": 280.9707317073171,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 193.40487804878046,
+                "y": 264.7487804878049,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 229.45365853658535,
+                "y": 318.82195121951213,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 294.3414634146341,
+                "y": 156.6024390243902,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 106.88780487804877,
+                "y": 151.19512195121948,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 121.234375,
+              "y": 64.109375,
+              "width": 248,
+              "height": 150.6875
+            },
+            {
+              "x": 15.109375,
+              "y": 229.296875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "clamped": {
+          "origin": {
+            "x": 244.796875,
+            "y": 55
+          },
+          "camera": {
+            "x": 64.99999999999999,
+            "y": 32.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "size": {
+            "width": 835,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 275.42195121951215,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 297.82195121951213,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 154.2439024390244,
+                "y": 316.02195121951206,
+                "width": 182,
+                "height": 13.899999999999977
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 78.04878048780486,
+                "y": 222.59999999999997,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 352.01951219512193,
+                "y": 200.97073170731707,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 193.40487804878046,
+                "y": 184.74878048780485,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 229.45365853658535,
+                "y": 238.82195121951216,
+                "width": 46,
+                "height": 29.99999999999997
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 294.3414634146341,
+                "y": 76.60243902439021,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 106.88780487804877,
+                "y": 71.19512195121948,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 121.234375,
+              "y": 44,
+              "width": 248,
+              "height": 150.6875
+            },
+            {
+              "x": 15.109375,
+              "y": 149.296875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "restored": {
+          "origin": {
+            "x": 244.796875,
+            "y": 55
+          },
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "size": {
+            "width": 835,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 216.34878048780485,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 238.74878048780485,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 137.2439024390244,
+                "y": 256.9487804878048,
+                "width": 182,
+                "height": 13.899999999999977
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 61.04878048780486,
+                "y": 315.59999999999997,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 335.01951219512193,
+                "y": 293.9707317073171,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 176.40487804878046,
+                "y": 277.7487804878049,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 212.45365853658535,
+                "y": 331.82195121951213,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 277.3414634146341,
+                "y": 169.6024390243902,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 89.88780487804877,
+                "y": 164.19512195121948,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 203.34375,
+              "y": 77.109375,
+              "width": 49.78125,
+              "height": 38
+            },
+            {
+              "x": 15.109375,
+              "y": 242.296875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "vaultUnchanged": true
+      },
+      "viewport": "1440 × 1000",
+      "inputs": "six explicit synthetic PNG files linked through native production forms",
+      "reviewIssues": {
+        "decisions": [
+          "decision-01M1YKBCWFYZ1HXQ6F985H9KQ9",
+          "decision-01M1YKBCZV6BW7W1KQ41XVG604"
+        ],
+        "questions": [
+          "Which oil finish?",
+          "Which floor finish sample?"
+        ],
+        "roomId": "zone-01M1YKB2K3JNMDH1086NGM96VH",
+        "visibility": {
+          ".rp-review-inspector > h3": {
+            "x": 1097,
+            "y": 102.59375,
+            "width": 312,
+            "height": 25
+          },
+          ".rp-review-rooms": {
+            "x": 1097,
+            "y": 203.4375,
+            "width": 312,
+            "height": 222
+          },
+          ".rp-review-summary .rp-transformation-summary": {
+            "x": 1097,
+            "y": 431.4375,
+            "width": 312,
+            "height": 89.765625
+          },
+          "[data-rp-action=\"review-open-room\"]": {
+            "x": 1097,
+            "y": 674.203125,
+            "width": 312,
+            "height": 36
+          },
+          ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(1)": {
+            "x": 1097,
+            "y": 756.203125,
+            "width": 312,
+            "height": 50
+          },
+          ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(2)": {
+            "x": 1097,
+            "y": 810.203125,
+            "width": 312,
+            "height": 50
+          },
+          "[data-rp-action=\"review-note\"]": {
+            "x": 1097,
+            "y": 910.203125,
+            "width": 312,
+            "height": 34
+          }
+        },
+        "marker": {
+          "roomId": "zone-01M1YKB2K3JNMDH1086NGM96VH",
+          "number": 1,
+          "stayedInReview": true,
+          "cameraBefore": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "cameraFramed": {
+            "x": 47.999999999999986,
+            "y": 114.87499999999997,
+            "zoom": 0.18475
+          }
+        },
+        "viewport": "1440 × 1000",
+        "routes": "both Review issues open their exact unresolved Decision; Cancel preserves Room and camera"
+      }
+    },
+    "storage": "production application services and repositories over FakeVault",
+    "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+    "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+    "reflow": "material draft and native focus preserved",
+    "history": "evidence undo/redo",
+    "scope": "browser host file open is recorded, not a live Obsidian leaf",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "#7c246b",
+      "--text-accent": "#7c246b",
+      "--background-primary": "#fff8ed",
+      "--background-secondary": "#efe3d3"
+    },
+    "gallery": {
+      "images": 6,
+      "phase": "during",
+      "selectedId": "record-01M1YKBQYR8FHAQX8M8A8P27N0",
+      "selectedDate": "2026-08-28",
+      "work": "Floor finish",
+      "visibility": {
+        ".rp-renovation-inspector > h3": {
+          "x": 713,
+          "y": 102.59375,
+          "width": 256,
+          "height": 25
+        },
+        ".rp-evidence-filters": {
+          "x": 713,
+          "y": 225.984375,
+          "width": 256,
+          "height": 68
+        },
+        "[data-rp-new-evidence]": {
+          "x": 713,
+          "y": 305.984375,
+          "width": 256,
+          "height": 30
+        },
+        ".rp-evidence-gallery li:first-child": {
+          "x": 713,
+          "y": 347.984375,
+          "width": 124,
+          "height": 98
+        },
+        ".rp-evidence-gallery li:last-child": {
+          "x": 845,
+          "y": 559.984375,
+          "width": 124,
+          "height": 98
+        },
+        ".rp-renovation-list > [data-rp-record=\"record-01M1YKBQYR8FHAQX8M8A8P27N0\"]": {
+          "x": 713,
+          "y": 669.984375,
+          "width": 256,
+          "height": 136.84375
+        }
+      },
+      "captionControls": {
+        "before": {
+          "origin": {
+            "x": 192,
+            "y": 55
+          },
+          "camera": {
+            "x": 47.99999999999997,
+            "y": 250.2560975609756,
+            "zoom": 0.04975609756097561
+          },
+          "size": {
+            "width": 504,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 56.512195121951194,
+                "y": 140.85,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 56.512195121951194,
+                "y": 163.25,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 56.512195121951194,
+                "y": 181.45,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 44.90243902439022,
+                "y": 348.7,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 196.16097560975606,
+                "y": 336.75853658536585,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 108.590243902439,
+                "y": 327.80243902439025,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 128.49268292682925,
+                "y": 357.6560975609756,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 164.31707317073167,
+                "y": 268.09512195121954,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 60.824390243902414,
+                "y": 265.109756097561,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 122.609375,
+              "y": 202.25,
+              "width": 49.78125,
+              "height": 38
+            },
+            {
+              "x": 15.109375,
+              "y": 306.875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "panned": {
+          "origin": {
+            "x": 192,
+            "y": 55
+          },
+          "camera": {
+            "x": 64.99999999999996,
+            "y": 237.25609756097563,
+            "zoom": 0.04975609756097561
+          },
+          "size": {
+            "width": 504,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 73.51219512195118,
+                "y": 127.84999999999997,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 73.51219512195118,
+                "y": 150.25,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 73.51219512195118,
+                "y": 168.45,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 61.902439024390205,
+                "y": 335.70000000000005,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 213.16097560975606,
+                "y": 323.7585365853659,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 125.590243902439,
+                "y": 314.80243902439025,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 145.49268292682922,
+                "y": 344.65609756097564,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 181.31707317073165,
+                "y": 255.09512195121954,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 77.8243902439024,
+                "y": 252.109756097561,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 139.609375,
+              "y": 189.25,
+              "width": 49.78125,
+              "height": 38
+            },
+            {
+              "x": 15.109375,
+              "y": 293.875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "editing": {
+          "origin": {
+            "x": 192,
+            "y": 55
+          },
+          "camera": {
+            "x": 64.99999999999996,
+            "y": 237.25609756097563,
+            "zoom": 0.04975609756097561
+          },
+          "size": {
+            "width": 504,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 73.51219512195118,
+                "y": 127.84999999999997,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 73.51219512195118,
+                "y": 150.25,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 73.51219512195118,
+                "y": 168.45,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 61.902439024390205,
+                "y": 335.70000000000005,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 213.16097560975606,
+                "y": 323.7585365853659,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 125.590243902439,
+                "y": 314.80243902439025,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 145.49268292682922,
+                "y": 344.65609756097564,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 181.31707317073165,
+                "y": 255.09512195121954,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 77.8243902439024,
+                "y": 252.109756097561,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 40.5,
+              "y": 189.25,
+              "width": 248,
+              "height": 150.6875
+            },
+            {
+              "x": 15.109375,
+              "y": 293.875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "clamped": {
+          "origin": {
+            "x": 192,
+            "y": 55
+          },
+          "camera": {
+            "x": 64.99999999999996,
+            "y": 77.25609756097562,
+            "zoom": 0.04975609756097561
+          },
+          "size": {
+            "width": 504,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 73.51219512195118,
+                "y": 221.2560975609756,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 73.51219512195118,
+                "y": 243.65609756097558,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 73.51219512195118,
+                "y": 261.8560975609756,
+                "width": 182,
+                "height": 13.899999999999977
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 61.902439024390205,
+                "y": 175.70000000000002,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 213.16097560975606,
+                "y": 163.75853658536587,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 125.590243902439,
+                "y": 154.80243902439025,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 145.49268292682922,
+                "y": 184.65609756097564,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 181.31707317073165,
+                "y": 95.09512195121953,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 77.8243902439024,
+                "y": 92.10975609756099,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 40.5,
+              "y": 44,
+              "width": 248,
+              "height": 150.6875
+            },
+            {
+              "x": 15.109375,
+              "y": 133.875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "restored": {
+          "origin": {
+            "x": 192,
+            "y": 55
+          },
+          "camera": {
+            "x": 47.999999999999964,
+            "y": 250.2560975609756,
+            "zoom": 0.04975609756097561
+          },
+          "size": {
+            "width": 504,
+            "height": 809
+          },
+          "captions": [
+            {
+              "text": "Kitchen",
+              "fontSize": 16,
+              "bounds": {
+                "x": 56.51219512195119,
+                "y": 140.85,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 56.51219512195119,
+                "y": 163.25,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Planned",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 56.51219512195119,
+                "y": 181.45,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 44.902439024390205,
+                "y": 348.7,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 196.16097560975606,
+                "y": 336.75853658536585,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 108.590243902439,
+                "y": 327.80243902439025,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 128.49268292682925,
+                "y": 357.6560975609756,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 164.31707317073167,
+                "y": 268.09512195121954,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 60.8243902439024,
+                "y": 265.109756097561,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 122.609375,
+              "y": 202.25,
+              "width": 49.78125,
+              "height": 38
+            },
+            {
+              "x": 15.109375,
+              "y": 306.875,
+              "width": 49.78125,
+              "height": 38
+            }
+          ]
+        },
+        "vaultUnchanged": true
+      },
+      "viewport": "1000 × 1000",
+      "inputs": "six explicit synthetic PNG files linked through native production forms",
+      "reviewIssues": {
+        "decisions": [
+          "decision-01M1YKBVG4NAJZ7CB9KQNZ2GR6",
+          "decision-01M1YKBVKF51MTV3HS7FXG02BF"
+        ],
+        "questions": [
+          "Which oil finish?",
+          "Which floor finish sample?"
+        ],
+        "roomId": "zone-01M1YKBHPRJD7727HG1KA9VNBV",
+        "visibility": {
+          ".rp-review-inspector > h3": {
+            "x": 713,
+            "y": 102.59375,
+            "width": 256,
+            "height": 25
+          },
+          ".rp-review-rooms": {
+            "x": 713,
+            "y": 203.4375,
+            "width": 256,
+            "height": 222
+          },
+          ".rp-review-summary .rp-transformation-summary": {
+            "x": 713,
+            "y": 431.4375,
+            "width": 256,
+            "height": 107.953125
+          },
+          "[data-rp-action=\"review-open-room\"]": {
+            "x": 713,
+            "y": 692.390625,
+            "width": 256,
+            "height": 36
+          },
+          ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(1)": {
+            "x": 713,
+            "y": 774.390625,
+            "width": 256,
+            "height": 50
+          },
+          ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(2)": {
+            "x": 713,
+            "y": 828.390625,
+            "width": 256,
+            "height": 50
+          },
+          "[data-rp-action=\"review-note\"]": {
+            "x": 713,
+            "y": 928.390625,
+            "width": 256,
+            "height": 34
+          }
+        },
+        "marker": {
+          "roomId": "zone-01M1YKBHPRJD7727HG1KA9VNBV",
+          "number": 1,
+          "stayedInReview": true,
+          "cameraBefore": {
+            "x": 47.999999999999964,
+            "y": 250.2560975609756,
+            "zoom": 0.04975609756097561
+          },
+          "cameraFramed": {
+            "x": 48.000000000000036,
+            "y": 239.00000000000003,
+            "zoom": 0.102
+          }
+        },
+        "viewport": "1000 × 1000",
+        "routes": "both Review issues open their exact unresolved Decision; Cancel preserves Room and camera"
+      }
+    },
+    "storage": "production application services and repositories over FakeVault",
+    "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+    "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+    "reflow": "material draft and native focus preserved",
+    "history": "evidence undo/redo",
+    "scope": "browser host file open is recorded, not a live Obsidian leaf",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "gallery": {
+      "images": 6,
+      "phase": "during",
+      "selectedId": "record-01M1YKC5R6ER8RRRXV01FV4JPP",
+      "selectedDate": "2026-08-28",
+      "work": "Floor finish",
+      "visibility": {
+        ".rp-renovation-inspector > h3": {
+          "x": 109,
+          "y": 98.4375,
+          "width": 335,
+          "height": 25
+        },
+        ".rp-evidence-filters": {
+          "x": 109,
+          "y": 221.828125,
+          "width": 335,
+          "height": 68
+        },
+        "[data-rp-new-evidence]": {
+          "x": 109,
+          "y": 301.828125,
+          "width": 335,
+          "height": 30
+        },
+        ".rp-evidence-gallery li:first-child": {
+          "x": 109,
+          "y": 343.828125,
+          "width": 163.5,
+          "height": 127.625
+        },
+        ".rp-evidence-gallery li:last-child": {
+          "x": 280.5,
+          "y": 615.078125,
+          "width": 163.5,
+          "height": 127.625
+        },
+        ".rp-renovation-list > [data-rp-record=\"record-01M1YKC5R6ER8RRRXV01FV4JPP\"]": {
+          "x": 109,
+          "y": 754.703125,
+          "width": 335,
+          "height": 170.84375
+        }
+      },
+      "captionControls": {
+        "before": {
+          "origin": {
+            "x": 69.53125,
+            "y": 119.84375
+          },
+          "camera": {
+            "x": 48.00000000000001,
+            "y": 249.8536585365854,
+            "zoom": 0.03585365853658536
+          },
+          "size": {
+            "width": 390,
+            "height": 722
+          },
+          "captions": [
+            {
+              "text": "Küche",
+              "fontSize": 16,
+              "bounds": {
+                "x": 28.707317073170724,
+                "y": 140.44374999999997,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 28.707317073170724,
+                "y": 162.84375,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Geplant",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 28.707317073170724,
+                "y": 181.04375,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 39.34146341463415,
+                "y": 316.6,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 148.33658536585367,
+                "y": 307.9951219512196,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 85.23414634146341,
+                "y": 301.5414634146342,
+                "width": 46.000000000000014,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 99.57560975609755,
+                "y": 323.05365853658543,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 125.39024390243901,
+                "y": 258.51707317073175,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 50.81463414634146,
+                "y": 256.36585365853665,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 94.8125,
+              "y": 201.84375,
+              "width": 49.78125,
+              "height": 52
+            },
+            {
+              "x": 15.109375,
+              "y": 285.625,
+              "width": 49.78125,
+              "height": 52
+            }
+          ]
+        },
+        "panned": {
+          "origin": {
+            "x": 69.53125,
+            "y": 119.84375
+          },
+          "camera": {
+            "x": 65,
+            "y": 236.85365853658539,
+            "zoom": 0.03585365853658536
+          },
+          "size": {
+            "width": 390,
+            "height": 722
+          },
+          "captions": [
+            {
+              "text": "Küche",
+              "fontSize": 16,
+              "bounds": {
+                "x": 45.707317073170714,
+                "y": 127.44374999999997,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 45.707317073170714,
+                "y": 149.84374999999994,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Geplant",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 45.707317073170714,
+                "y": 168.04374999999996,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 56.34146341463415,
+                "y": 303.6,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 165.33658536585364,
+                "y": 294.9951219512195,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 102.2341463414634,
+                "y": 288.54146341463417,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 116.57560975609755,
+                "y": 310.0536585365854,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 142.390243902439,
+                "y": 245.51707317073175,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 67.81463414634146,
+                "y": 243.3658536585366,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 111.8125,
+              "y": 188.84375,
+              "width": 49.78125,
+              "height": 52
+            },
+            {
+              "x": 15.109375,
+              "y": 272.625,
+              "width": 49.78125,
+              "height": 52
+            }
+          ]
+        },
+        "editing": {
+          "origin": {
+            "x": 69.53125,
+            "y": 119.84375
+          },
+          "camera": {
+            "x": 65,
+            "y": 236.85365853658539,
+            "zoom": 0.03585365853658536
+          },
+          "size": {
+            "width": 390,
+            "height": 744
+          },
+          "captions": [
+            {
+              "text": "Küche",
+              "fontSize": 16,
+              "bounds": {
+                "x": 45.707317073170714,
+                "y": 127.44374999999997,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 45.707317073170714,
+                "y": 149.84374999999994,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Geplant",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 45.707317073170714,
+                "y": 168.04374999999996,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 56.34146341463415,
+                "y": 303.6,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 165.33658536585364,
+                "y": 294.9951219512195,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 102.2341463414634,
+                "y": 288.54146341463417,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 116.57560975609755,
+                "y": 310.0536585365854,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 142.390243902439,
+                "y": 245.51707317073175,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 67.81463414634146,
+                "y": 243.3658536585366,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 12.703125,
+              "y": 188.84375,
+              "width": 248,
+              "height": 150.6875
+            },
+            {
+              "x": 15.109375,
+              "y": 272.625,
+              "width": 49.78125,
+              "height": 52
+            }
+          ]
+        },
+        "clamped": {
+          "origin": {
+            "x": 69.53125,
+            "y": 119.84375
+          },
+          "camera": {
+            "x": 65,
+            "y": 76.8536585365854,
+            "zoom": 0.03585365853658536
+          },
+          "size": {
+            "width": 390,
+            "height": 744
+          },
+          "captions": [
+            {
+              "text": "Küche",
+              "fontSize": 16,
+              "bounds": {
+                "x": 45.707317073170714,
+                "y": 201.28749999999997,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 45.707317073170714,
+                "y": 223.6875,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Geplant",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 45.707317073170714,
+                "y": 241.8875,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 56.34146341463415,
+                "y": 143.60000000000002,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 165.33658536585364,
+                "y": 134.99512195121955,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 102.2341463414634,
+                "y": 128.54146341463417,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 116.57560975609755,
+                "y": 150.05365853658537,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 142.390243902439,
+                "y": 85.51707317073173,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 67.81463414634146,
+                "y": 83.36585365853662,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 12.703125,
+              "y": 44,
+              "width": 248,
+              "height": 150.6875
+            },
+            {
+              "x": 15.109375,
+              "y": 112.625,
+              "width": 49.78125,
+              "height": 52
+            }
+          ]
+        },
+        "restored": {
+          "origin": {
+            "x": 69.53125,
+            "y": 119.84375
+          },
+          "camera": {
+            "x": 48.00000000000001,
+            "y": 249.8536585365854,
+            "zoom": 0.03585365853658536
+          },
+          "size": {
+            "width": 390,
+            "height": 722
+          },
+          "captions": [
+            {
+              "text": "Küche",
+              "fontSize": 16,
+              "bounds": {
+                "x": 28.707317073170724,
+                "y": 140.44374999999997,
+                "width": 182,
+                "height": 21
+              }
+            },
+            {
+              "text": "12 m²",
+              "fontSize": 14,
+              "bounds": {
+                "x": 28.707317073170724,
+                "y": 162.84375,
+                "width": 182,
+                "height": 16
+              }
+            },
+            {
+              "text": "Geplant",
+              "fontSize": 11.9,
+              "bounds": {
+                "x": 28.707317073170724,
+                "y": 181.04375,
+                "width": 182,
+                "height": 13.900000000000006
+              }
+            }
+          ],
+          "points": [
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ],
+            [
+              0,
+              0,
+              4000,
+              0,
+              4000,
+              3000,
+              0,
+              3000
+            ]
+          ],
+          "pins": [
+            {
+              "position": {
+                "x": 400,
+                "y": 2280
+              },
+              "bounds": {
+                "x": 39.34146341463415,
+                "y": 316.6,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 3440,
+                "y": 2040.0000000000002
+              },
+              "bounds": {
+                "x": 148.33658536585367,
+                "y": 307.9951219512196,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 1680,
+                "y": 1860
+              },
+              "bounds": {
+                "x": 85.23414634146341,
+                "y": 301.5414634146342,
+                "width": 46.000000000000014,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2080,
+                "y": 2460
+              },
+              "bounds": {
+                "x": 99.57560975609755,
+                "y": 323.05365853658543,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 2800,
+                "y": 660
+              },
+              "bounds": {
+                "x": 125.39024390243901,
+                "y": 258.51707317073175,
+                "width": 46,
+                "height": 30
+              }
+            },
+            {
+              "position": {
+                "x": 720,
+                "y": 600
+              },
+              "bounds": {
+                "x": 50.81463414634146,
+                "y": 256.36585365853665,
+                "width": 46,
+                "height": 30
+              }
+            }
+          ],
+          "reviewMarkers": [],
+          "controls": [
+            {
+              "x": 94.8125,
+              "y": 201.84375,
+              "width": 49.78125,
+              "height": 52
+            },
+            {
+              "x": 15.109375,
+              "y": 285.625,
+              "width": 49.78125,
+              "height": 52
+            }
+          ]
+        },
+        "vaultUnchanged": true
+      },
+      "viewport": "460 × 1000",
+      "inputs": "six explicit synthetic PNG files linked through native production forms",
+      "reviewIssues": {
+        "decisions": [
+          "decision-01M1YKC97DTDNK84N7JJ76PMWH",
+          "decision-01M1YKC9AMP7MRFDDNB7XNE2A8"
+        ],
+        "questions": [
+          "Welches Öl?",
+          "Welches Bodenmuster?"
+        ],
+        "roomId": "zone-01M1YKC06WNYQ5S131V37C6APY",
+        "visibility": {
+          ".rp-review-inspector > h3": {
+            "x": 109,
+            "y": 160.4375,
+            "width": 335,
+            "height": 25
+          },
+          ".rp-review-rooms": {
+            "x": 109,
+            "y": 261.28125,
+            "width": 335,
+            "height": 276
+          },
+          ".rp-review-summary .rp-transformation-summary": {
+            "x": 109,
+            "y": 543.28125,
+            "width": 335,
+            "height": 89.765625
+          },
+          "[data-rp-action=\"review-open-room\"]": {
+            "x": 109,
+            "y": 786.046875,
+            "width": 335,
+            "height": 36
+          },
+          ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(1)": {
+            "x": 109,
+            "y": 868.046875,
+            "width": 335,
+            "height": 50
+          },
+          ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(2)": {
+            "x": 109,
+            "y": 922.046875,
+            "width": 335,
+            "height": 50
+          },
+          "[data-rp-action=\"review-note\"]": {
+            "x": 109,
+            "y": 1022.046875,
+            "width": 335,
+            "height": 34
+          }
+        },
+        "marker": {
+          "roomId": "zone-01M1YKC06WNYQ5S131V37C6APY",
+          "number": 1,
+          "stayedInReview": true,
+          "cameraBefore": {
+            "x": 48.00000000000001,
+            "y": 249.8536585365854,
+            "zoom": 0.03585365853658536
+          },
+          "cameraFramed": {
+            "x": 48.000000000000014,
+            "y": 269.75,
+            "zoom": 0.0735
+          }
+        },
+        "viewport": "460 × 1000",
+        "routes": "both Review issues open their exact unresolved Decision; Cancel preserves Room and camera"
+      }
+    },
+    "storage": "production application services and repositories over FakeVault",
+    "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+    "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+    "reflow": "material draft and native focus preserved",
+    "history": "evidence undo/redo",
+    "scope": "browser host file open is recorded, not a live Obsidian leaf",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

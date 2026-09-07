@@ -44,6 +44,8 @@ it('distinguishes blocked Work sources that share the same dependency explanatio
 	rig.changePlan(); await settle(); await rig.runtime.renovation.perspective('review'); await settle();
 	expect(rig.wrapper.get('[data-rp-review-issue="work-1"]').attributes('aria-label')).toContain('Paint walls');
 	expect(rig.wrapper.get('[data-rp-review-issue="work-2"]').attributes('aria-label')).toContain('Install tiles');
+	expect(rig.wrapper.get('[data-rp-review-issue="work-1"]').text()).toContain('Paint walls');
+	expect(rig.wrapper.get('[data-rp-review-issue="work-2"]').text()).toContain('Install tiles');
 	for (const id of ['work-1', 'work-2']) expect(rig.wrapper.get(`[data-rp-review-issue="${id}"]`).text()).toContain('Base preparation');
 });
 

@@ -17,7 +17,7 @@ Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument ak
 - [PR #91](https://github.com/Luis85/renovation-planner/pull/91) ist OPEN/DRAFT, Basis codex/materials-costs-evidence (#88,3c1c737a). Review-/Mergeentscheidung bleibt beim Menschen.
 - Root **57144c81** hat UI **f576d13c** konfliktfrei auf Root1b554540 integriert. Die zuvor als ausstehend beschriebenen Galerie-, Caption-, Density- und Review-Markeränderungen sind damit im gemeinsamen Branch.
 - Root **465ffe42** übernimmt elf geprüfte Fälle aus Coverage44860131: Review6, Outline2, öffentliche Commandvalidierung3 samt Counter-Receipt. Keine Tests nochmals übernehmen.
-- UI-Folge nachf576 ist noch separat: Warntextseparator, ReviewRoomDetails-Extraktion, sichtbare Source-Labels, Custom-Abstände, lokale Buttonklassen. Letzter committeter UI-Anker **df7100b4**; zusätzlicher Fokusfix ist noch in Verifikation. Erst nach gepushtem SHA/Terminalreceipt integrieren.
+- UI-Folge **376fe37198672ca87e7574f27384df4d6fac615e** wird in diesem Checkpoint konfliktfrei integriert: Warntextseparator, ReviewRoomDetails-Extraktion, sichtbare Source-Labels, Custom-Abstände und explizite lokale Buttonklassen. Focus96/96 und nativeNachbarn54/54 sowie scopedESLint sind terminal grün. Archivmanifest-Hashes für df7100b4-Browserlauf und ecbf7e27-Warn-/Health-Belege wurden im Root nachgeprüft.
 - Coverage bereitet separat zwei weitere öffentliche Grenzfälle und den von Root geprüften requirementMapper-Cleanup vor. Noch kein Pass/Integration dieses Pakets.
 
 ## Owners und lokaler Prüfslot
@@ -29,7 +29,7 @@ Nutzerauftrag: regelmäßig Zwischenstände committen/pushen, dieses Dokument ak
 | Erreiche Editor-Testcoverage | 01a07cca-4d4b-75b0-96fb-9417d3b86f51 / codex/editor-coverage-finalization, PR#92 | Globale Coverage; Nutzer hat Task gestartet und Root hat Übergabe bestätigt |
 | Improve M15 recovery workflow | 01a07838-4e54-7ac3-bc24-a8eef9185d6e | Idle, konkrete neue Hardening-Befunde; keine neuen Coverage-Pakete |
 
-**UI hält den schweren lokalen Slot** für die letzten Fokus-/Nachbarprüfungen. Root und Coverage arbeiten lesend bzw. source-only. Der unveränderte Focus-Gate ist inzwischen96/96PASS in3,88s (UI30372 terminal0); native Nachbarn folgen. Root hat keinen laufenden schweren Prozess. Slot erst nach explizitem terminalem Owner-Receipt neu vergeben. Keine fremden Prozessausgaben konsumieren, keine Fremdprozesse stoppen; Stille/Timeout bedeutet nicht Ende.
+**Coverage hält jetzt den schweren lokalen Slot** für das begrenzte Review460/Calibrate/Mapper-Paket. UI hat30372(Focus96/96),99915(Nachbarn54/54) und54282(scopedLint) terminal0 beendet,376fe371 gepusht und den Slot explizit freigegeben. UI wartet auf finalen gemeinsamenSHA für9/18; Root integriert nur Source/Docs und hat keinen laufenden schweren Prozess. Slot erst nach explizitem terminalem Owner-Receipt neu vergeben. Keine fremden Prozessausgaben konsumieren, keine Fremdprozesse stoppen; Stille/Timeout bedeutet nicht Ende.
 
 Rechner ca.8GB RAM. Installs, Builds, Tests, Coverage, Analyzer und Browser-/Performancecaptures lokal serialisieren; Lesen/Source/Docs parallel. Die dedizierte Coverage-Task besitzt globale Testpakete. Root/E/Helfer beginnen keine weiteren globalen Coverage-Pakete. UI behält eigene Fixregressionen. [Auftrag](coverage-session-brief.md), [Steuerung](coverage-coordination.md).
 
@@ -44,7 +44,7 @@ OriginalJSON/LCOV/Log: C:/Users/lum/AppData/Local/Temp/rp-coverage-finalization-
 Die zehn CI-Fehler sind bekannte UI-Folgen, keine neuen Coverage-Testfehler:
 
 - Neun Warntextfälle: PersistentWarningStrip verschachtelte Severity/Message ohne literales Leerzeichen. UI ecbf7e27 erzeugt genau ein Leerzeichen; unveränderte drei Warnsuites **32/32PASS** in15,79s.
-- Ein Focus-Gate: neue anonyme Editor-Buttonresets konkurrieren im konservativen CSS-Scanner auch mit zwei unveränderten Asset-Shelf-Selektoren. Explizite lokale Klassen auf Subject/Work-Sekundäraktionen, Review-Room- und BatchActionList-Buttons begrenzen die Regeln. Unveränderter Gate **96/96PASS**; keine AssetCSS-/Matcher-/Teständerung. Native Nachbarn und gepushter Receipt noch abwarten.
+- Ein Focus-Gate: neue anonyme Editor-Buttonresets konkurrieren im konservativen CSS-Scanner auch mit zwei unveränderten Asset-Shelf-Selektoren. Explizite lokale Klassen auf Subject/Work-Sekundäraktionen, Review-Room- und BatchActionList-Buttons begrenzen die Regeln. Unveränderter Gate **96/96PASS**; keine AssetCSS-/Matcher-/Teständerung. Native Nachbarn54/54 und scopedLint ebenfalls grün; Fix ist im vorliegenden UI-Join enthalten.
 - Full Health auf original571-Countern,747/747Dateien gemappt, fand ReviewSummary Template cognitive17>15. UI extrahiert den unveränderten Selected-Room-Block nach ReviewRoomDetails. Statischer Complexity-/Health-Nachlauf ohne Findings; ältere Coverage beweist keine frischen Counter für verschobene/neue Funktionen. Neuer gemeinsamer Vollrun erforderlich.
 
 ## Aktueller Funktions- und visueller Nachweis
@@ -108,8 +108,8 @@ Computer-Use-Skill vor Hostbedienung lesen; unterstützte API nutzen. UIA konnte
 
 ## Nächste Schritte und technische Wiederaufnahme
 
-1. Gitstatus/HEAD/origin, Taskstatus und tatsächlichen Slotowner prüfen. UI-Fokusnachbarn abwarten, gepushte Folge nachf576 reviewen und integrieren.
-2. Coverage den nächsten lokalen Prüfslot ausdrücklich übergeben; neue Grenzfälle/Mappercleanup prüfen und nur verifizierte Beiträge integrieren.
+1. Gitstatus/HEAD/origin, Taskstatus und tatsächlichen Slotowner prüfen. UI376fe371 ist in diesem Checkpoint integriert; nächste echte Voll-CI auswerten.
+2. Coverage hat den lokalen Prüfslot ausdrücklich erhalten; neue Grenzfälle/Mappercleanup prüfen lassen und nur verifizierte Beiträge integrieren.
 3. Neuen gemeinsamen Voll-CI-Lauf stabil bis zu Artefakten lassen; Source-/Baumgleichheit prüfen, Floors und Health aus originalen Countern neu bewerten. Kein docs-onlyPush während eines wertvollen vollständigen Laufs ohne Anlass.
 4. UI auf eingefrorenem gemeinsamem Stand originale9Journeys/18Referenzen liefern lassen; Bilder tatsächlich beurteilen. Anschließend finalen Build im benannten Testvault installieren und H1–H6 abschließen.
 5. Bei verbleibenden physischen Geräte-/Screenreaderfragen erst konkretes Hostpaket liefern und die zwei notwendigen menschlichen Angaben erfragen. Keine Abschlussbehauptung aus Teiltests.

@@ -55,6 +55,7 @@ function deleteSelection(): Promise<void> { return generic.value ? runtime.eleme
 				v-for="action in actions"
 				:key="action.kind"
 				type="button"
+				class="rp-batch-action"
 				:data-rp-batch="action.kind"
 				:disabled="action.disabled"
 				@click="runtime.renovation.batch(action.kind, targets)"

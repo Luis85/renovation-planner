@@ -2,11 +2,13 @@
 
 Operational continuation: [RESUME.md](RESUME.md) is the central handoff for a later session or usage-limit interruption. It distinguishes pushed code, unverified WIPs, current processes and remaining acceptance.
 
-Latest complete four-leg CI on `95e7510b`: **647 files/8058 tests pass on every leg**, 69 skipped. Only unchanged coverage floors fail: statements 98.98% (17861/18044), branches 97.54% (12378/12690); functions99.14% and lines99.48% pass. All four full diagnostics artifacts uploaded; Linux24 JSON/LCOV download verified. [Run34134549702](https://github.com/Luis85/renovation-planner/actions/runs/34134549702).
+Latest complete four-leg CI on `45c58609`: **651 files/8079 tests pass on every leg**, 69 skipped. Statements99.04%, functions99.26% and lines99.51% pass; only branch coverage97.69% (12400/12692) remains below98%, a deficit of39arms at this denominator. The eleven new native cases add13covered branches. All complete diagnostics remain available. [Run34140688682](https://github.com/Luis85/renovation-planner/actions/runs/34140688682).
 
-Current continuation adds six real composition/repository cases (34 native tests with neighbors pass) and fixes evidence selection clearing the current phase. Three native REDs corroborated the seven-photo mismatch seen in the real M14 capture; the fix passes42 native tests, then4 after helper extraction, plus types/Oxlint/scoped ESLint. Static analysis has no dead-code/clones or cognitive violations; current full health awaits fresh coverage because the changed source no longer matches old function positions. [Phase evidence](evidence-phase-selection.md).
+Production is unchanged fromf3067d82. Fresh Fallow health with its original complete CI data and official coverage-root mapping passes with zero findings and742/742matched file paths; current static scans have zero dead-code/clone findings. Native/type/lint verification covers the new Project/Library-dependent planning and optional persisted-field scenarios. [Quality receipt](evidence/ci-f3067d82-quality.json).
 
-UI WIPs through `36d93f0b` remain outside Root: native corrections22/22 and current type/whole-lint pass, but M14/M17 pixel inspection rejected the initial captures for phase/scroll/density issues. Owner is preparing a corrected recapture against the checked phase behavior. Complete nine-journey/eighteen-reference and host acceptance remain open.
+UI through5154504f remains outside Root. The four-scenario bb77de0f journey passed phase/selection/bounds/axe, but pixel inspection found a Custom low-zoom caption/dimension collision. The new measured-obstacle bridge has a meaningful three-case predecessor RED and25/25current native checks; its current type/lint/browser validation and issue-richM17 captures are still being completed. Full9/18 and live-host acceptance remain open.
+
+Fresh review sweep across #74–#91 found no new outstanding Root code defect. Predecessor threads remain open where fixes live in the integration continuations rather than the unchanged older branches; no thread is falsely resolved. [Review audit](review-audit.md).
 
 Historical previous full measurement:
 

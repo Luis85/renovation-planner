@@ -1,0 +1,19 @@
+{
+  "date": "2026-09-07T16:52:44.300Z",
+  "base": "45c58609596734f17570a22074d05f3e2f81fafb",
+  "native": {
+    "files": 2,
+    "passed": 8,
+    "seconds": 43.84
+  },
+  "types": 0,
+  "oxlint": 0,
+  "scopedEslint": 0,
+  "static": 0,
+  "productionChanges": false,
+  "coverageContribution": "Pending next complete CI and dedicated coverage session",
+  "files": {
+    "tests/presentation/editor/planningFinancialBoundaries.test.ts": "752fa3004b8702c50b402431d8688ee03cb8ac5571f090a1133564b6081dc633",
+    "tests/presentation/editor/projectLibraryFlows.test.ts": "821bad3b12976526f118322e68b271399ba39fa3792ffb17884ed376bdb44d44"
+  }
+}

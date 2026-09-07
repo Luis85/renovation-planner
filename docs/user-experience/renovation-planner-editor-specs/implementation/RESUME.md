@@ -14,6 +14,22 @@ Ein bestandener Teiltest, viele grüne Tests, vorhandene Vergleichsbilder oder e
 
 Der Nutzer verlangt aktuelle Zwischenstände im Repo, sinnvolle Parallelisierung, dieses dauerhafte Dokument und regelmäßige kleine Commits/Pushes aller drei Tasks. Klar gekennzeichneter WIP ist zur Sicherung erlaubt; er ist kein Prüfpass. Vor längeren Prüfungen/Pausen eigene Evidence/Resume aktualisieren. Keine Automation dafür anlegen. Keine PR mergen, keinen Release veröffentlichen, keine Tasks schließen oder fremde Worktrees löschen. Keine Grenzen, Assertions, Timeouts oder Ausschlüsse für einen Pass abschwächen.
 
+## Neue Coverage-Zuständigkeit — Nutzerauftrag
+
+Der Nutzer startet selbst eine dedizierte Coverage-Session und meldet deren Start.
+**Reserviert, noch nicht gestartet/registriert; Task-ID unbekannt.** Root erstellt
+sie nicht automatisch. [Vollständiger Auftrag](coverage-session-brief.md) und
+[Steuerung](coverage-coordination.md) sind im Repo gesichert. Nach Startmeldung
+Task-ID/Branch/Basis prüfen, globale Coverage-Zuständigkeit und schweren Prüfslot
+explizit übergeben. UI/E sind informiert; Root/Helfer beginnen keine neuen globalen
+Coverage-Pakete. UI behält Regressionen eigener Fixes, E konkrete Hardening-Befunde.
+
+Das letzte bereits begonnene Root-Paket ist abgeschlossen: Financial/Project-Library
+8/8 Tests in43,84s, Types/whole Ox/scoped ESLint und statischer Fallow grün. Beide
+neuen Testdateien sind im gepushten Nachfolger von45c58609 enthalten und dürfen
+von der neuen Coverage-Session nicht dupliziert werden. Produktion bleibt seit
+f306 unverändert. Root behält Integration, visuelle/Host-Abnahme und Gesamtgoal.
+
 ## Verbindliche Quellen
 
 Zuerst vorhandene AGENTS.md und bei .codex/ deren instructions.md/Workflow lesen. Beim letzten Audit waren sie im Repo nicht vorhanden; Nutzeranweisungen im Task gelten weiterhin. [CLAUDE.md](../../../../CLAUDE.md) und [SDD](../../../development/sdds/obsidian-renovation-planner-SDD.md) enthalten die Projektregeln. Aktuelle akzeptierte ADR-/SDD-Amendments gehen alten Snapshots vor.
@@ -37,7 +53,7 @@ Repo: https://github.com/Luis85/renovation-planner. [PR #91](https://github.com/
 
 Root arbeitet bereits im isolierten Topic-Worktree. Keine Änderungen im main-Checkout. Nur die zwei bestehenden benutzereigenen Implementation-Tasks koordinieren; keine Ersatz-Tasks erzeugen. Der Nutzer hat zusätzliche begrenzte parallele Hilfsagenten erlaubt. Root-Helfer editor_coverage_audit arbeitet nur in ausdrücklich zugewiesenen neuen Test-/Evidence-Dateien.
 
-Root-Produktion zuletzt vollständig gemessen: **f3067d82f413de6c67f9d4598608ce1e1a059cb3**. Nachfolger ergänzen Tests/Dokumentation; aktuellen HEAD/Pushstand mit Git prüfen. E9cc0fa6d (vier Project-Einstiegsfälle) ist als **3b12f432** übernommen. Die fünf neuen Planning-Fälle sind nativ/type/lint geprüft. Zwei weitere optionale Spatial-Removal-Fixtures bestehen nativ 2/2 (37,08 s); Types/Oxlint/scoped ESLint und statischer Fallow sind ebenfalls grün: tests/presentation/editor/spatialRemovalLegacy.test.ts und spatial-removal-legacy-evidence.md. Vor Annahmen deren aktuellen Git- und Prüfstatus lesen.
+Root-Produktion ist seit **f3067d82f413de6c67f9d4598608ce1e1a059cb3** unverändert; neuester vollständig gemessener Testcheckpoint ist **45c58609596734f17570a22074d05f3e2f81fafb**. Nachfolger ergänzen Tests/Dokumentation; aktuellen HEAD/Pushstand mit Git prüfen. E9cc0fa6d (vier Project-Einstiegsfälle) ist als **3b12f432** übernommen. Die fünf neuen Planning-Fälle sind nativ/type/lint geprüft. Zwei weitere optionale Spatial-Removal-Fixtures bestehen nativ 2/2 (37,08 s); Types/Oxlint/scoped ESLint und statischer Fallow sind ebenfalls grün: tests/presentation/editor/spatialRemovalLegacy.test.ts und spatial-removal-legacy-evidence.md. Vor Annahmen deren aktuellen Git- und Prüfstatus lesen.
 
 Aktuelle E-Branches:
 
@@ -51,7 +67,9 @@ Alte Stashes wurden bereits angewandt und nur als Sicherung behalten: **nicht er
 
 ## Belastbare aktuelle Verifikation
 
-**Vollständige CI f3067d82, Run34136358483:** alle vier Linux 22/24/26-/Windows 22-Jobs bestehen648 Dateien/8068 Tests,69übersprungen. Audit grün. Statements17872/18049=99,01%, Functions5118/5160=99,18%, Lines13981/14053=99,48% erfüllen Vorgaben. Nur Branches12387/12692=97,59% scheitern an98%; bei diesem Nenner fehlen52 Arme. Nach Änderungen neu messen.
+**Neueste vollständige CI45c58609, Run34140688682:** Alle vier Jobs bestehen651Dateien/8079Tests (69übersprungen). Statements99,04%, Functions99,26%, Lines99,51% erfüllen Vorgaben; Branches12400/12692=97,69% bleiben unter98%, bei diesem Nenner39Arme Rest. Neue elfFälle bringen13zusätzlicheBranchhits.
+
+**Vorherige vollständige CI f3067d82, Run34136358483:** alle vier Linux 22/24/26-/Windows 22-Jobs bestehen648 Dateien/8068 Tests,69übersprungen. Audit grün. Statements17872/18049=99,01%, Functions5118/5160=99,18%, Lines13981/14053=99,48% erfüllen Vorgaben. Nur Branches12387/12692=97,59% scheitern an98%; bei diesem Nenner fehlen52 Arme. Nach Änderungen neu messen.
 
 Alle vier Jobs haben vollständige JSON/LCOV-Artefakte hochgeladen. Linux24-Download tatsächlich geprüft. Artifactname enthält den getesteten PR-Merge **ad1d23d0853ce20a7cbb5c6dab06013849c08835**, nicht den Headnamen. Dessen Gitbaum **4a36652288df6c9c07fc868d1e93583211bf3502** ist exakt gleich dem Root f306-Baum.
 
@@ -72,7 +90,7 @@ UI34er-Nachlauf und frühere309+gezielte22er-Prüfungen, Types/wholeLint sind do
 
 Aktuelle M14-Light-Bilder zeigen sechs größere4:3Thumbnails, aktivesDuring, passendePins/Datum/Work, sichtbareÜberschrift/Add/Metadaten. Doppelte Thumbnail-Metadaten bleiben zugänglich, volle ausgewählte Metadaten sichtbar; Missing-/Thumbnailfehler bleiben sichtbar. Keine Filter- oder Scrollposition nur für Bilder zurücksetzen.
 
-M17-Light/Dark waren innerhalb der Grenzen. Custom legte zusätzlichen Platzbedarf offen. UI hat die kompakte Review-Transformation mit sichtbarem Workfortschritt und lesbaren Linklabels umgesetzt; normales M00 bleibt erhalten. Ein tatsächlicher Kontrastfehler der verschachtelten OpenRoom-CTA wurde mit der bereits vorhandenen semantischen Farbe korrigiert. **Der korrigierte Lauf auf bb77de0f hat inzwischen alle vier Szenarien bestanden**, einschließlich During/6 IDs, Sichtbarkeitsgrenzen und axe. Die Prüfung der acht Bilder fand noch eine Caption-/Maßlabel-Kollision in Custom bei 5% Zoom; der Owner auditiert sie gezielt. Kein M14-Endpass trotz bestandenem Driver. Anschließend braucht M17 einen echten Zustand mit zwei nativ angelegten Decisions/Findings; das All-clear-Bild allein reicht nicht. Der ursprüngliche900 px-Notizablauf bleibt, zusätzlich1000 px-Matching-State.
+M17-Light/Dark waren innerhalb der Grenzen. Custom legte zusätzlichen Platzbedarf offen. UI hat die kompakte Review-Transformation mit sichtbarem Workfortschritt und lesbaren Linklabels umgesetzt; normales M00 bleibt erhalten. Ein tatsächlicher Kontrastfehler der verschachtelten OpenRoom-CTA wurde mit der bereits vorhandenen semantischen Farbe korrigiert. **Der korrigierte Lauf auf bb77de0f hat inzwischen alle vier Szenarien bestanden**, einschließlich During/6 IDs, Sichtbarkeitsgrenzen und axe. Die Prüfung der acht Bilder fand noch eine Caption-/Maßlabel-Kollision in Custom bei 5% Zoom; UI5154504f liefert inzwischen drei echte predecessor-REDs und25/25GREEN für gemessene Dimension-/Inline-Form-Hindernisse, einschließlich sichtbarer Ausweichposition bei Clamping. Types/Lint/Browser folgen; kein finaler Pixelpass. Kein M14-Endpass trotz bestandenem Driver. Anschließend braucht M17 einen echten Zustand mit zwei nativ angelegten Decisions/Findings; das All-clear-Bild allein reicht nicht. Der ursprüngliche900 px-Notizablauf bleibt, zusätzlich1000 px-Matching-State.
 
 Aktuelle lokale Bildorte: UI-Worktree/harness-shots/materials-costs-evidence/light-photos-gallery.png und light-review-design.png; weitere Szenarien dark, custom-accent, german-constrained. Zeit/Source/Manifest prüfen: Dateien können durch spätere Läufe ersetzt werden. UI archiviert akzeptierte und verworfene Stände mit Hashes in eigenen Evidence-Ordnern. Eigene Dokumente: editor-ui-resume.md, editor-ui-verification.md, editor-gallery-selection.md, editor-review-density.md auf dem UI-Branch.
 

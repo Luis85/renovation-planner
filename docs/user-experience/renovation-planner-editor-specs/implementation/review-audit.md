@@ -1,5 +1,29 @@
 # Editor integration review audit
 
+## Fresh sweep — 2026-09-07
+
+Current Root45c58609 was checked against all affected predecessor reviews. For
+#74/#75/#76/#82/#83/#85/#86/#87, all thread/comment/review/general-comment pages
+were exhausted:27threads,25unresolved, unchanged heads and no new finding or reply
+since the recorded audit. Latest unresolved-thread reply remains00:45:42UTC.
+Their fixes remain present in current source and corresponding regressions.
+Two older replies name implementations since replaced equivalently: Area completion
+now uses canFinish; peer rename now reaches ordered refreshProjection.
+
+#88 still has six unresolved findings. Root source confirms index-before-evidence
+rename ordering, thumbnail reset on changed source, staleness before shopping
+filtering, atomic settlement-link clearing, Existing-only evidence routing, and
+one fresh baseline for both Review finding families. Existing owner replies already
+identify their pushed continuation fixes. #89/#90/#91 have no unresolved threads.
+
+The unresolved predecessor state is a branch/integration dependency, not a newly
+found Root defect. No review reply or resolve was sent merely for this audit;
+unchanged older branches must not be presented as repaired. Current Root code and
+tests are the completion-candidate evidence, with merge order still requiring the
+human decision. This sweep itself reran no tests; full Root CI is recorded separately.
+
+## Historical initial audit
+
 Initial snapshot: 2026-09-06, #88 at `3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a`. A reply or outdated diff is not evidence of closure. No thread is resolved by this audit alone.
 
 | Review | File | Assessment queue | GitHub state |

@@ -1,6 +1,6 @@
 # Planning financial boundaries — WIP and resume
 
-Updated: 2026-09-07. **WIP: four approved native cases prepared, not executed.**
+Updated: 2026-09-07. **Native/type/lint verified in Root; full coverage contribution pending.**
 
 Worktree: `D:/Projects/renovation-planner/.worktrees/planning-financial-boundaries`.
 Branch: `codex/planning-financial-boundaries`.
@@ -44,3 +44,11 @@ Next: obtain exact native/static results, investigate any genuine failure withou
 the Shopping preconditions or Money assertions, and record/push a verification checkpoint.
 Report actual counter gains only from a fresh complete map or an explicitly scoped measured
 comparison. Root task: `01a0786f-b624-7303-987f-b18b94db48d9`. No active E heavy process.
+
+## Root verification
+
+The combined two-file run passed all8cases in43.84seconds. Whole type checking,
+whole Oxlint, scoped ESLint and a fresh static Fallow scan passed; zero dead-code
+issues or clone groups. No production change or assertion correction was needed.
+Logs: financial-library-native/types/static in the root finalization scratch.
+The dedicated coverage session will measure the actual full-run contribution.

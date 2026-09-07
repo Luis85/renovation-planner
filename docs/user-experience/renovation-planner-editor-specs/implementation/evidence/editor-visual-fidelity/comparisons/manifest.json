@@ -1,0 +1,653 @@
+{
+  "method": "Aspect-preserving app crops in equal comparison cells. Connected overview uses a representative synthetic floor with real Room records; fixture dimensions, content and totals remain distinct from the illustration.",
+  "screens": [
+    {
+      "screen": "M00",
+      "reference": "M00-kitchen-selected-overview.png",
+      "capture": "light-M00-room.png",
+      "finalCapture": "editor-visual-overview/light-M00-connected-room.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        1000
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 812
+      }
+    },
+    {
+      "screen": "M01",
+      "reference": "M01-standard-plan-view.png",
+      "capture": "light-M01-floor.png",
+      "finalCapture": "editor-visual-overview/light-M01-connected-floor.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        1000
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 812
+      }
+    },
+    {
+      "screen": "M02",
+      "reference": "M02-add-menu.png",
+      "capture": "light-M02-add.png",
+      "finalCapture": "editor-visual-overview/light-M02-floor-add.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        1000
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "afterDetail": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "screen": "M03",
+      "reference": "M03-add-room.png",
+      "capture": "light-M03-room-draft.png",
+      "finalCapture": "light-M03-room-draft.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        1000
+      ],
+      "afterSize": [
+        1440,
+        1000
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 912
+      }
+    },
+    {
+      "screen": "M04",
+      "reference": "M04-draw-walls.png",
+      "capture": "materials-costs-evidence/dark-closed-loop.png",
+      "finalCapture": "materials-costs-evidence/dark-closed-loop.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        900
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "afterDetail": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "screen": "M05",
+      "reference": "M05-new-floor-start.png",
+      "capture": "light-M05-start.png",
+      "finalCapture": "light-M05-start.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        1000
+      ],
+      "afterSize": [
+        1440,
+        1000
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "afterDetail": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "screen": "M06",
+      "reference": "M06-reference-plan-setup.png",
+      "capture": "reference-plan/light-measurement.png",
+      "finalCapture": "light-M06-measurement.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        900
+      ],
+      "afterSize": [
+        1440,
+        1000
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "afterDetail": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "screen": "M07",
+      "reference": "M07-wall-selected.png",
+      "capture": "materials-costs-evidence/light-wall-inspector.png",
+      "finalCapture": "editor-visual-overview/light-M07-connected-wall.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        900
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 812
+      }
+    },
+    {
+      "screen": "M08",
+      "reference": "M08-existing-room-details.png",
+      "capture": "renovation-workflow/dark-existing.png",
+      "finalCapture": "renovation-workflow/dark-existing.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        900
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 812
+      }
+    },
+    {
+      "screen": "M09",
+      "reference": "M09-planned-room-details.png",
+      "capture": "renovation-workflow/light-planned.png",
+      "finalCapture": "renovation-workflow/light-planned.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        900
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 812
+      }
+    },
+    {
+      "screen": "M10",
+      "reference": "M10-room-work.png",
+      "capture": "renovation-workflow/dark-work.png",
+      "finalCapture": "editor-downstream/dark-room-work.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        900
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 812
+      }
+    },
+    {
+      "screen": "M11",
+      "reference": "M11-multi-selection.png",
+      "capture": "light-M11-multiple.png",
+      "finalCapture": "editor-visual-overview/light-M11-connected-selection.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        1000
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 812
+      }
+    },
+    {
+      "screen": "M12",
+      "reference": "M12-room-materials.png",
+      "capture": "materials-costs-evidence/light-materials.png",
+      "finalCapture": "materials-costs-evidence/light-materials.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        900
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 812
+      }
+    },
+    {
+      "screen": "M13",
+      "reference": "M13-room-costs.png",
+      "capture": "materials-costs-evidence/dark-costs.png",
+      "finalCapture": "editor-downstream/dark-room-costs.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        900
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 812
+      }
+    },
+    {
+      "screen": "M14",
+      "reference": "M14-room-evidence.png",
+      "capture": "materials-costs-evidence/light-photos.png",
+      "finalCapture": "materials-costs-evidence/light-photos-gallery.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        900
+      ],
+      "afterSize": [
+        1440,
+        1000
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 912
+      }
+    },
+    {
+      "screen": "M15",
+      "reference": "M15-stale-data-warning.png",
+      "capture": "light-M15-stale.png",
+      "finalCapture": "planning-recovery/light-saved-overview.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        1000
+      ],
+      "afterSize": [
+        1440,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "afterDetail": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "screen": "M16",
+      "reference": "M16-constrained-workspace.png",
+      "capture": "materials-costs-evidence/german-constrained-materials.png",
+      "finalCapture": "materials-costs-evidence/german-constrained-materials.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        460,
+        900
+      ],
+      "afterSize": [
+        460,
+        900
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 955,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 55,
+        "y": 61,
+        "width": 955,
+        "height": 948
+      },
+      "afterDetail": {
+        "x": 0,
+        "y": 0,
+        "width": 460,
+        "height": 900
+      }
+    },
+    {
+      "screen": "M17",
+      "reference": "M17-review-perspective.png",
+      "capture": "materials-costs-evidence/light-review.png",
+      "finalCapture": "materials-costs-evidence/light-review-issues-design.png",
+      "referenceSize": [
+        1487,
+        1058
+      ],
+      "beforeSize": [
+        1440,
+        900
+      ],
+      "afterSize": [
+        1440,
+        1000
+      ],
+      "referenceCrop": {
+        "x": 55,
+        "y": 61,
+        "width": 1425,
+        "height": 948
+      },
+      "referenceDetail": {
+        "x": 1145,
+        "y": 130,
+        "width": 342,
+        "height": 828
+      },
+      "afterDetail": {
+        "x": 1080,
+        "y": 52,
+        "width": 360,
+        "height": 912
+      }
+    }
+  ]
+}

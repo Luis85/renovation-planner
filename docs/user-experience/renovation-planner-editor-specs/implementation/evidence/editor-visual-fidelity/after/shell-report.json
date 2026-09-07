@@ -1,0 +1,183 @@
+{
+  "commit": "43041936a7f86d31058f6d21a16c3a596e1bacc6",
+  "browser": "152.0.4191.62",
+  "viewport": "1440 × 1000, deviceScaleFactor 1",
+  "results": [
+    {
+      "state": "M01-floor",
+      "theme": "light",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M00-room",
+      "theme": "light",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M02-add",
+      "theme": "light",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M03-room-draft",
+      "theme": "light",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M05-start",
+      "theme": "light",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M06-measurement",
+      "theme": "light",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M11-multiple",
+      "theme": "light",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M15-stale",
+      "theme": "light",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M01-floor",
+      "theme": "dark",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M00-room",
+      "theme": "dark",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M02-add",
+      "theme": "dark",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M03-room-draft",
+      "theme": "dark",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M05-start",
+      "theme": "dark",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M06-measurement",
+      "theme": "dark",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M11-multiple",
+      "theme": "dark",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    },
+    {
+      "state": "M15-stale",
+      "theme": "dark",
+      "metrics": {
+        "width": 1440,
+        "height": 1000,
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "errors": []
+    }
+  ]
+}

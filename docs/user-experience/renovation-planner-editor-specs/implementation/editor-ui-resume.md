@@ -7,6 +7,14 @@ is claimed. Main remains untouched; work is on `codex/editor-object-ui` in
 
 ## Source anchors and saved work
 
+Current complete browser checkpoint: the unchanged final runner passed at shared source
+`43041936a7f86d31058f6d21a16c3a596e1bacc6` (session 29535, exit 0, 2026-09-07 19:44:25 UTC).
+All nine journeys passed four scenarios each; static shots and all eighteen comparisons were
+generated and inspected. `editor-final-visual-run.md` records the remaining matching-view and
+source/visual assessments. Original reports and all 340 image hashes are archived. Pan medians
+miss the 60-fps target despite successful latency and resource checks; Root owns the next quiet
+diagnostic slot. UI has no running process. No complete visual/performance/host acceptance yet.
+
 Latest continuation (2026-09-07): source `df7100b4` completed all four extended planning browser
 scenarios, including six-photo selection, caption/inline clearance and issue-rich M17 marker
 and source routes. Evidence is archived in `editor-review-markers-browser/verified-df7100b4`.

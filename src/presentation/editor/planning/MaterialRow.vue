@@ -4,7 +4,7 @@ import type { materialRows } from './planningProjection';
 import { usePlanningContext } from './planningContext';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { tr } from '../../i18n/strings';
-defineProps<{ row: ReturnType<typeof materialRows>[number] }>();
+defineProps<{ row: ReturnType<typeof materialRows>[number]; number?: number }>();
 const emit = defineEmits<{ remove: [id: string] }>();
 const planning = usePlanningContext(), session = useRenovationSession();
 </script>
@@ -14,6 +14,10 @@ const planning = usePlanningContext(), session = useRenovationSession();
 		:data-rp-record="row.entity.id"
 		:class="{ 'is-selected': session.focusedId === row.entity.id }"
 	>
+		<span
+			v-if="number"
+			class="rp-material-number"
+		>{{ number }}. </span>
 		<button
 			type="button"
 			class="rp-record-title"

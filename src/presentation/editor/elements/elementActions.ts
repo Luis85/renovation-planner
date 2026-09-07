@@ -1,3 +1,4 @@
+import { createSpatialRemoval } from './spatialRemoval';
 import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { PlanId } from '../../../domain/plan/PlanId';
@@ -30,6 +31,7 @@ function elementFrom(baseline: RenovationBaseline, id: string): NamedSpatialElem
 type Runtime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'structureTask' | 'openPlanNote'>;
 export function createElementActions(context: PlanEditorContext, runtime: Runtime) {
 	const project = useProjectStore(), dialogs = useDialogStore(), save = useSaveStateStore(), session = useRenovationSession(), selection = useSelectionStore();
+	const removal = createSpatialRemoval(context, runtime);
 	const active = ref(false), preview = ref<NamedSpatialElement | null>(null);
 	const blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective !== 'plan' || runtime.activeToolId.value !== 'select');
 	let alive = true;
@@ -94,5 +96,5 @@ export function createElementActions(context: PlanEditorContext, runtime: Runtim
 		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
 		preview.value = alive && !blocked.value && element && name && points ? { ...element, name, points } : null;
 	}
-	return { edit, remove, move, active, blocked, preview, previewElement };
+	return { edit, remove, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
 }

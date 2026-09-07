@@ -1,3 +1,6 @@
+import { recordNavigationContext } from './recordNavigationContext';
+import { usePlanningReadState } from '../planning/planningReadState';
+import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { sameRenovation } from '../../../domain/renovation/sameRenovation';
@@ -22,8 +25,14 @@ import RenovationForm from './RenovationForm.vue';
 import RenovationBatchForm from './RenovationBatchForm.vue';
 import type { BatchKind, BatchTarget } from './renovationBatch';
 
+function navigationTarget(records: Parameters<typeof recordNavigationContext>[0], roomId: string, id: string, session: Parameters<typeof recordNavigationContext>[3], hasSelection: boolean) {
+ const current = hasSelection ? session : null;
+ const destination = id ? recordNavigationContext(records, id, roomId, current) : null;
+ return destination ?? (current?.roomId === roomId ? current : { roomId, targetId: roomId });
+}
+
 export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask' | 'writesBlocked' | 'openPlanNote'>) {
-	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore();
+	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore(), planning = usePlanningReadState();
 	const session = useRenovationSession(), dialogs = useDialogStore(), save = useSaveStateStore();
 	const loading = ref(false);
 	const blocked = computed(() => loading.value || runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
@@ -50,9 +59,10 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			return;
 		}
 		runtime.returnToSelect();
-		const sameRoom = session.roomId === roomId && selection.selectedIds.length > 0;
-		Object.assign(session, { roomId, mode, focusedId: id, perspective: 'renovate' });
-		if (!sameRoom) { session.targetId = roomId; selection.select([roomId as EntityId<string>]); }
+		const target = navigationTarget({ renovation: project.plan?.renovation ?? EMPTY_RENOVATION, materials: planning.baseline?.materials ?? [] }, roomId, id, session, selection.selectedIds.length > 0);
+  Object.assign(session, target, { mode, focusedId: id, perspective: 'renovate' });
+  if (id) session.evidencePhase = '';
+  if (selection.selectedIds.length !== 1 || selection.selectedIds[0] !== target.targetId) selection.select([target.targetId as EntityId<string>]);
 	}
 	function matches(read: RenovationBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation)

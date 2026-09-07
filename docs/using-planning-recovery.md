@@ -57,11 +57,13 @@ available again. Unlink removes the relationship, not the user's file.
 
 ## Existing vaults
 
-This slice adds no persisted schema version. Existing Plan v4, Requirement v2 and geometry v3
-formats remain current. Supported older records are upgraded in memory on read; opening a
-Plan does not bulk-rewrite the vault. A later explicit edit writes the current supported
-format through the existing conditional repository boundary. Unsupported future versions
-remain refused, and unrelated human-written note content is preserved.
+The combined editor reads Plan metadata through v6, Requirement metadata through v3 and
+geometry through v4. Writers use these versions only for their new content: generic element
+labels/shapes and element-length or object-area sources. Shared Work/Evidence contexts use
+Plan v5 when no generic labels require v6. Older payloads retain their earlier persisted
+versions; opening a Plan does not bulk-rewrite the vault. Unsupported future versions are
+refused, and unrelated human-written note content is preserved. Use a build that understands
+these formats before editing a vault containing the new element types.
 
 Browser and automated evidence is recorded in the
 [Increment E report](user-experience/renovation-planner-editor-specs/implementation/planning-recovery-evidence.md).

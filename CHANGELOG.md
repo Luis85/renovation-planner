@@ -12,6 +12,10 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: numbered material markers highlight source geometry and navigate to the same Inspector record. Explicit Work, cost, material, Decision and evidence links reveal their target while preserving a valid shared Room context.
+
+- Plan editor: deleting a mixed wall/opening/Object/Path/Fence/Measurement selection uses one guarded transaction with impact confirmation and Undo/Redo; hosted openings and boundary references are handled together while independent Room outlines remain intact.
+
 - Plan editor: Path, Fence and Measurement creation with numeric coordinates, snapping, selection, precise editing, movement and guarded Undo/Redo. Generic element geometry and canonical names participate in existing/intended renovation, material quantities and explicit Room contexts. Failed baseline reads preserve drafts for read-only retry; compensated retries retain the same creation identity.
 
 - Align dragged Room rectangles to saved geometry with visible snap feedback; exact numeric edits remain available.

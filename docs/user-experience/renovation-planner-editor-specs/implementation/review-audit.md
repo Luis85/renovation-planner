@@ -1,6 +1,6 @@
 # Editor integration review audit
 
-Snapshot: 2026-09-06, #88 at `3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a`. A reply or outdated diff is not evidence of closure. No thread is resolved by this audit alone.
+Initial snapshot: 2026-09-06, #88 at `3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a`. A reply or outdated diff is not evidence of closure. No thread is resolved by this audit alone.
 
 | Review | File | Assessment queue | GitHub state |
 |---|---|---|---|
@@ -42,3 +42,10 @@ Resolved-before-integration comments and GitHub CI must be rechecked on the fina
 
 
 Latest fetch (2026-09-07): all nine predecessor heads are unchanged and all review-thread/comment pages were exhausted. No new review findings appeared since this audit. The order-independent geometry comparison is already incorporated through predecessor ancestry; an additional two-Zone real-sidecar mixed-history regression now passes (`structureMixedHistory.test.ts`, 4 cases). No remote review thread was replied to or resolved from this unpushed finalization tree.
+
+
+## Integration review update — 2026-09-07
+
+PR #91 is open as a draft over #88 at foundation `a0e91241`. The latest fetch exhausted all thread/comment pages for #74–#91 (the affected stack and siblings). Seven root-owned findings now have replies linking pushed fixes and their targeted verification: #76 axis precision, #82 resize availability, #85 serialized cascades/calibration stability, #86 order-independent geometry history, #87 deletion receipts, and #88 Existing-only evidence routing. They remain unresolved on predecessor branches until the chosen integration path actually carries those changes there. No original branch was rewritten by this task.
+
+Two new #90 findings are owned by the recovery task: [editable evidence paths](https://github.com/Luis85/renovation-planner/pull/90#discussion_r3945749013) and [readable Room names in generated Review notes](https://github.com/Luis85/renovation-planner/pull/90#discussion_r3945749016). Both fixes are pushed on the original #90 branch at `7ba5937d127d596a0705f634638cb13df1940038`, integrated via `bf8eb4be`. The owner recorded both regressions failing at 66b and 14 tests passing after the fix, plus types/oxlint/scoped ESLint; replies `r3945866534` and `r3945866578` link the fix, and the threads were resolved after push. No #89 or #91 actionable review thread existed at this fetch. Final combined CI and a final review refresh remain required.

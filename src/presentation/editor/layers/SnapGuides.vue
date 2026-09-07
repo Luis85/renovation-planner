@@ -7,7 +7,7 @@ const props = defineProps<{ guides: readonly LineSegment[]; toScreen: ToScreen; 
 const marks = computed(() => props.guides.map(guide => ({ start: props.toScreen(guide.start), end: props.toScreen(guide.end) })));
 </script>
 <template>
-	<VGroup :config="{ listening: false }">
+	<VGroup :config="{ name: 'snap-guides', listening: false }">
 		<template
 			v-for="(mark, index) in marks"
 			:key="index"

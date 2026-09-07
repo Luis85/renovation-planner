@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { inRenovationScope } from './renovationSummary';
+import MaterialMarkers from '../planning/MaterialMarkers.vue';
 import EvidencePins from '../planning/EvidencePins.vue';
 import { computed } from 'vue';
 import type { ThemeTokens } from '../theme/themeTokens';
@@ -48,6 +49,10 @@ function focus(roomId: string, id: string): void {
 <template>
 	<VLayer :config="{ name: 'annotation', listening: session.perspective !== 'plan', visible, ...transform }">
 		<VGroup :config="{ name: 'renovation', visible: session.visible && session.perspective !== 'plan' }">
+			<MaterialMarkers
+				:tokens="tokens"
+				:zoom="zoom"
+			/>
 			<EvidencePins
 				:tokens="tokens"
 				:zoom="zoom"

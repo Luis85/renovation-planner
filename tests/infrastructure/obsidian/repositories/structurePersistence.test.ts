@@ -19,7 +19,7 @@ describe('ADR-SO sidecar compatibility and refusal', () => {
 		expect(expectOk(await geometry.read(plan.id)).document.objects).toEqual(before.document.objects);
 		for (const [name, content] of bytes.filter(([entryPath]) => entryPath.endsWith('.md'))) expect(stack.vault.entries.get(name)).toBe(content);
 	});
-	it.each([4, 200])('refuses a future schema %i without writes', async schemaVersion => {
+	it.each([5, 200])('refuses a future schema %i without writes', async schemaVersion => {
 		const { stack, plan, geometry } = await structureStack();
 		const path = expectDefined(stack.index.getGeometrySidecarPath(plan.id), 'sidecar path');
 		const dto = JSON.parse(expectDefined(stack.vault.entries.get(path), 'sidecar'));

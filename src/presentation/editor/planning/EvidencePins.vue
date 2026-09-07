@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { inRenovationScope } from '../renovation/renovationSummary';
 import { computed } from 'vue';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { useProjectStore } from '../../stores/ProjectStore';
@@ -9,7 +10,7 @@ const project = useProjectStore(), runtime = useEditorRuntime(), session = useRe
 const pins = computed(() => {
 	if (!['documents', 'photos', 'notes'].includes(session.mode) || session.perspective !== 'renovate') return [];
 	const type = session.mode === 'photos' ? 'photo' : session.mode === 'notes' ? 'note' : 'document';
-	const rows = (project.plan?.renovation?.depth?.evidence ?? []).filter(item => item.roomId === session.roomId && item.type === type && (!session.evidencePhase || item.phase === session.evidencePhase));
+	const rows = (project.plan?.renovation?.depth?.evidence ?? []).filter(item => inRenovationScope(item, session.roomId, session.targetId) && item.type === type && (!session.evidencePhase || item.phase === session.evidencePhase));
 	return rows.flatMap((item, index) => {
 		const room = project.zones.get(item.roomId);
 		if (!item.pin || !room?.points.length) return [];

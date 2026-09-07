@@ -1,0 +1,42 @@
+// @vitest-environment jsdom
+import { afterEach, expect, it } from 'vitest';
+import type Konva from 'konva';
+import { renovationEditor } from '../../helpers/renovationEditor';
+import { expectDefined, expectOk } from '../../helpers/domain';
+import { settle } from '../../helpers/editor';
+import { planningDraft, materialInput } from '../../../src/presentation/editor/planning/planningDraft';
+import { EMPTY_DEPTH } from '../../../src/domain/renovation/PlanningDepth';
+const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
+afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
+it('connects numbered material rows and markers bidirectionally and highlights the quantity source geometry', async () => {
+ const rig = await renovationEditor(true); mounted.push(rig);
+ const planning = expectDefined(rig.deps.commands.planning, 'planning');
+ const baseline = expectOk(await planning.read(rig.plan.id));
+ const draft = planningDraft('material', baseline, rig.room.id);
+ draft.assetId = expectDefined(baseline.catalogue.find(item => item.asset.unit === 'm2'), 'area asset').asset.id;
+ expectOk(await rig.runtime.dispatcher.run(planning.material(baseline, materialInput(draft), rig.runtime.structureTask.ledger)));
+ rig.runtime.renovation.focus(rig.room.id, 'materials'); await settle();
+ const marker = expectDefined(rig.stage?.findOne('.material-marker'), 'material marker');
+ expect((marker as Konva.Group).findOne('Text')?.getAttr('text')).toBe('1');
+ const row = rig.wrapper.get('[data-rp-record="' + draft.id + '"]'); expect(row.get('.rp-material-number').text()).toBe('1.');
+ await row.get('.rp-record-title').trigger('click'); await settle();
+ expect(rig.session.focusedId).toBe(draft.id);
+ expect(rig.stage?.findOne('.material-source')?.getAttr('points')).toEqual(rig.room.geometry.points.flatMap(point => [point.x, point.y]));
+ rig.session.focusedId = ''; await settle(); marker.fire('click'); await settle();
+ expect(rig.session.focusedId).toBe(draft.id); expect(row.element.contains(document.activeElement)).toBe(true);
+ rig.session.focusedId = ''; marker.fire('tap'); await settle(); expect(rig.session.focusedId).toBe(draft.id);
+ await rig.runtime.renovation.perspective('review'); await settle(); expect(rig.stage?.find('.material-marker')).toHaveLength(0);
+});
+it('filters evidence pins and rows by the same explicit shared target and phase', async () => {
+ const rig = await renovationEditor(true); mounted.push(rig); const roomId = rig.room.id;
+ const item = { id: 'evidence-shared-pin', roomId, targetId: 'wall-a', workId: '', recordId: '', path: 'Notes/walls.md', subpath: '', description: 'Wall survey', type: 'note' as const, phase: 'before' as const, pin: { x: 0.5, y: 0.6 }, links: [{ roomId, targetId: 'wall-b' }] };
+ const input = { renovation: { subjects: [], work: [], decisions: [], depth: { ...EMPTY_DEPTH, evidence: [item] } }, intended: undefined };
+ expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(expectOk(await rig.renovation.read(rig.plan.id)), input, rig.runtime.structureTask.ledger)));
+ rig.selection.select(['wall-b' as never]); await settle(); rig.session.roomId = roomId;
+ rig.runtime.renovation.focus(roomId, 'notes'); await settle();
+ expect(rig.wrapper.find('[data-rp-record="' + item.id + '"]').exists()).toBe(true); expect(rig.stage?.find('.evidence-pin')).toHaveLength(1);
+ rig.stage?.findOne('.evidence-pin')?.fire('click'); await settle(); expect(rig.session.targetId).toBe('wall-b'); expect(rig.session.focusedId).toBe(item.id);
+ rig.session.evidencePhase = 'after'; await settle(); expect(rig.stage?.find('.evidence-pin')).toHaveLength(0);
+ rig.session.evidencePhase = ''; rig.selection.select(['wall-c' as never]); await settle(); rig.session.roomId = roomId;
+ expect(rig.wrapper.find('[data-rp-record="' + item.id + '"]').exists()).toBe(false); expect(rig.stage?.find('.evidence-pin')).toHaveLength(0);
+});

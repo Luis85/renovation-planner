@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
+import { makeZone } from '../../helpers/entities';
 import { rig } from '../../helpers/planEditorRig';
 import { runtimeOf, settle, settleUntil } from '../../helpers/editor';
 import { expectFound, expectOk } from '../../helpers/domain';
@@ -9,7 +10,7 @@ afterEach(() => { for (const r of mounted.splice(0)) r.harness.unmount(); });
 async function setup() {
 	const r = await rig(); mounted.push(r);
 	const before = expectFound(await r.zonesRepo.getById('zone-a' as never));
-	const area = expectOk(await r.zonesRepo.save(expectOk(before.entity.withDetails('Area 1', 'Custom')), before.version));
+	const area = expectOk(await r.zonesRepo.save(makeZone({ ...before.entity, id: 'zone-area' as never, name: 'Area 1', zoneType: 'Custom' }), 'absent'));
 	const runtime = runtimeOf(r.harness); await runtime.refreshProjection();
 	useSelectionStore(r.harness.pinia).select([area.entity.id]); await settle();
 	await r.harness.wrapper.get('[data-rp-action="area-details"]').trigger('click');

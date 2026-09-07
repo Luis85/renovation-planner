@@ -28,7 +28,9 @@ const compatible = computed(() => targets.value.length === props.selection.ids.l
 const changeCompatible = computed(() => compatible.value && props.selection.records.every(item => item.kind !== 'room' && item.kind !== 'area'));
 const kinds = ['remove', 'modify', 'work', 'evidence'] as const;
 const actions = computed(() => kinds.map(kind => ({ kind, disabled: runtime.renovation.blocked.value || !compatible.value || ((kind === 'remove' || kind === 'modify') && !changeCompatible.value) })));
-const deleteBlocked = computed(() => runtime.writesBlocked.value || runtime.structureActions.active.value || !props.selection.records.every(item => item.kind === 'wall' || item.kind === 'opening') || props.selection.unavailable > 0);
+const generic = computed(() => props.selection.records.some(item => ['object', 'path', 'fence', 'measurement'].includes(item.kind)));
+const deleteBlocked = computed(() => runtime.writesBlocked.value || runtime.structureActions.active.value || runtime.elementActions.removeManyActive.value || !props.selection.records.every(item => item.kind !== 'room' && item.kind !== 'area') || props.selection.unavailable > 0);
+function deleteSelection(): Promise<void> { return generic.value ? runtime.elementActions.removeMany(props.selection.ids) : runtime.structureActions.remove(props.selection.ids); }
 </script>
 <template>
 	<section
@@ -66,7 +68,7 @@ const deleteBlocked = computed(() => runtime.writesBlocked.value || runtime.stru
 				type="button"
 				data-rp-batch="delete"
 				:disabled="deleteBlocked"
-				@click="runtime.structureActions.remove(selection.ids)"
+				@click="deleteSelection"
 			>
 				{{ tr('renovation.batch.delete') }}
 			</button>

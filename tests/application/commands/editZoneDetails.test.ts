@@ -20,19 +20,21 @@ async function seed() {
 describe('Area details use one versioned Zone transaction', () => {
 	it('updates name/type together, preserves other facts, and announces every history direction', async () => {
 		const r = await seed(), changed = vi.fn<() => void>(), other = vi.fn<() => void>();
+		const published = vi.spyOn(r.events, 'publish');
+		const expectedEvent = { type: 'ZoneDetailsChanged', payload: { zoneId: r.input.zoneId, planId: r.original.entity.planId, projectId: r.original.entity.projectId } };
 		createPlanChangeSource(r.events)(r.original.entity.planId, changed); createPlanChangeSource(r.events)('other', other);
-		expectOk(await r.command.execute());
+		expectOk(await r.command.execute()); expect(published).toHaveBeenNthCalledWith(1, expectedEvent);
 		expect(expectFound(await r.zones.getById(r.input.zoneId)).entity).toEqual(expectOk(r.original.entity.withDetails('Patio', 'Terrace')));
-		expectOk(await r.command.undo()); expect(expectFound(await r.zones.getById(r.input.zoneId)).entity).toEqual(r.original.entity);
-		expectOk(await r.command.execute()); expect(changed).toHaveBeenCalledTimes(3); expect(other).not.toHaveBeenCalled();
+		expectOk(await r.command.undo()); expect(published).toHaveBeenNthCalledWith(2, expectedEvent); expect(expectFound(await r.zones.getById(r.input.zoneId)).entity).toEqual(r.original.entity);
+		expectOk(await r.command.execute()); expect(published).toHaveBeenNthCalledWith(3, expectedEvent); expect(changed).toHaveBeenCalledTimes(3); expect(other).not.toHaveBeenCalled();
 	});
 	it('refuses invalid metadata and treats unchanged normalized details as no write', async () => {
-		const r = await seed(), save = vi.spyOn(r.zones, 'save');
+		const r = await seed(), save = vi.spyOn(r.zones, 'save'), published = vi.spyOn(r.events, 'publish');
 		for (const forward of [{ name: '', zoneType: 'Custom' as const }, { name: 'Patio', zoneType: 'unknown' as ZoneType }, { name: 'Room', zoneType: 'Room' as const }]) {
 			expect(await new EditZoneDetailsCommand(r.zones, r.events, r.ledger, { ...r.input, forward }).execute()).toMatchObject({ ok: false, error: { category: 'Validation' } });
 		}
 		expect(await new EditZoneDetailsCommand(r.zones, r.events, r.ledger, { ...r.input, forward: { ...r.input.inverse, name: ' Area 1 ' } }).execute()).toEqual({ ok: true, value: 'no-write' });
-		expect(save).not.toHaveBeenCalled();
+		expect(save).not.toHaveBeenCalled(); expect(published).not.toHaveBeenCalled();
 		expect(makeZone({ planId: r.original.entity.planId, projectId: r.original.entity.projectId, zoneType: 'Room' }).withDetails('Area', 'Custom')).toMatchObject({ ok: false, error: { code: 'zone.category-change' } });
 	});
 	it('refuses stale baselines and history after a peer revision or forgotten tip', async () => {

@@ -1,5 +1,7 @@
-import { withPlanRenovation } from '../../../domain/plan/Plan';
+import { withPlanRenovation, withPlanSpatialElements } from '../../../domain/plan/Plan';
 import { sameRenovation } from '../../../domain/renovation/sameRenovation';
+import { sameElementMetadata, validElementMetadataLinks } from '../../../domain/spatial/SpatialElement';
+import { planError } from '../../../domain/plan/Plan.errors';
 import type { AppError } from '../../../core/errors/AppError';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { EntityId } from '../../../core/identity/EntityId';
@@ -23,6 +25,7 @@ export interface RenovationBaseline {
 	readonly geometry: PlanGeometrySnapshot;
 }
 export interface RenovationInput {
+	readonly spatial?: { readonly structure: PlanGeometryDocument['structure']; readonly metadata: Plan['spatialElements'] };
 	readonly renovation: Renovation;
 	readonly intended: PlanGeometryDocument['intended'];
 }
@@ -39,8 +42,9 @@ export function validateRenovationInput(renovation: Renovation, document: PlanGe
 	const roomIds = document.objects.map(item => item.id);
 	const targets = validateRenovationTargets(renovation, { ...document, roomIds });
 	if (!targets.ok) return targets;
-	if (document.intended) {
-		const structure = validateStructure(document.intended, roomIds);
+	for (const candidate of [document.structure, document.intended]) {
+		if (!candidate) continue;
+		const structure = validateStructure(candidate, roomIds);
 		if (!structure.ok) return structure;
 	}
 	return ok(undefined);
@@ -89,9 +93,12 @@ class RenovationCommand {
 	private async apply(forward: boolean): Promise<DispatchResult> {
 			const renovation = forward ? this.input.renovation : this.baseline.plan.entity.renovation;
 			const owner: Plan = this.current.plan.entity;
-			const plan = withPlanRenovation(owner, renovation);
+			const changed = withPlanRenovation(owner, renovation);
+			if (!changed.ok) return changed;
+			const plan = this.input.spatial ? withPlanSpatialElements(changed.value, forward ? this.input.spatial.metadata : this.baseline.plan.entity.spatialElements) : changed;
 			if (!plan.ok) return plan;
-			const document = { ...this.current.geometry.document, intended: forward ? this.input.intended : this.baseline.geometry.document.intended };
+			const document = this.proposedGeometry(forward);
+			if (!validElementMetadataLinks(plan.value.spatialElements, [document.structure?.elements, document.intended?.elements])) return err(planError('invalid-spatial-elements', 'Element metadata and geometry must identify the same elements.'));
 			const valid = validateRenovationInput(renovation ?? EMPTY_RENOVATION, document);
 			if (!valid.ok) return valid;
 			const links = await this.deps.checkLinks?.(plan.value, document);
@@ -101,6 +108,11 @@ class RenovationCommand {
 			this.applied = forward;
 			await this.deps.events.publish({ type: 'PlanRenovationChanged', payload: { planId: plan.value.id, projectId: plan.value.projectId } });
 			return result;
+	}
+
+	private proposedGeometry(forward: boolean): PlanGeometryDocument {
+		return { ...this.current.geometry.document, intended: forward ? this.input.intended : this.baseline.geometry.document.intended,
+			...(this.input.spatial ? { structure: forward ? this.input.spatial.structure : this.baseline.geometry.document.structure } : {}) };
 	}
 
 	private async check(): Promise<DispatchResult> {
@@ -114,7 +126,7 @@ class RenovationCommand {
 			this.generation = this.ledger.observe(this.key, plan.version);
 		} else {
 			const generation = this.ledger.observe(this.key, plan.version);
-			if (generation !== this.generation || !sameRenovation(plan.entity.renovation, this.current.plan.entity.renovation) || !sameGeometryDocument(geometry.document, this.current.geometry.document)) return err(undoSuperseded(id));
+			if (generation !== this.generation || !sameRenovation(plan.entity.renovation, this.current.plan.entity.renovation) || !sameElementMetadata(plan.entity.spatialElements, this.current.plan.entity.spatialElements) || !sameGeometryDocument(geometry.document, this.current.geometry.document)) return err(undoSuperseded(id));
 		}
 		this.current = { plan: plan, geometry: geometry };
 		return ok('no-write');

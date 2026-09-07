@@ -2,6 +2,7 @@ import type { Point } from '../../core/geometry/Point';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, ok, type Result } from '../../core/result/Result';
 import { samePoint, wallLength, type Opening, type Structure, type Wall } from './Structure';
+import { validSpatialElement } from './SpatialElement';
 
 export function spatialError(detail: string): ValidationError {
 	return { category: 'Validation', code: `spatial.${detail}`, message: `Invalid spatial structure: ${detail}.` };
@@ -42,8 +43,9 @@ function validWall(wall: Wall): boolean {
 }
 
 export function validateStructure(structure: Structure, roomIds: readonly string[]): Result<Structure, ValidationError> {
-	const ids = [...structure.walls, ...structure.openings].map(item => item.id);
+	const ids = [...structure.walls, ...structure.openings, ...structure.elements ?? []].map(item => item.id);
 	if (new Set(ids).size !== ids.length || ids.some(id => !id || roomIds.includes(id))) return err(spatialError('duplicate-id'));
+	if (!structure.elements?.every(validSpatialElement) && structure.elements !== undefined) return err(spatialError('element-invalid'));
 	if (!structure.walls.every(validWall)) return err(spatialError('wall-dimensions'));
 	for (let i = 0; i < structure.walls.length; i++) {
 		if (structure.walls.slice(i + 1).some(other => wallsConflict(structure.walls[i], other))) return err(spatialError('intersection'));
@@ -74,6 +76,7 @@ export function editWall(structure: Structure, edited: Wall): Structure {
 export function scaleStructure(structure: Structure, factor: number): Structure {
 	const point = (p: Point): Point => ({ x: p.x * factor, y: p.y * factor });
 	return { ...structure,
+		...(structure.elements ? { elements: structure.elements.map(element => ({ ...element, points: element.points.map(point) })) } : {}),
 		walls: structure.walls.map(wall => ({ ...wall, start: point(wall.start), end: point(wall.end), height: wall.height * factor, thickness: wall.thickness * factor })),
 		openings: structure.openings.map(opening => ({ ...opening, offset: opening.offset * factor, width: opening.width * factor, height: opening.height * factor, sill: opening.sill * factor })),
 	};

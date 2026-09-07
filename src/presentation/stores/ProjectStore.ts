@@ -376,7 +376,7 @@ export const useProjectStore = defineStore('project', () => {
 	 * guarantee this store does not keep in the one case that actually needs stating.
 	 */
 	const emptyStateKey = computed(() =>
-		structure.value.walls.length ? null : selectPlanEditorEmptyState(plan.value, [...zones.value.values()], unreadableZones.value),
+		structure.value.walls.length || structure.value.elements?.length ? null : selectPlanEditorEmptyState(plan.value, [...zones.value.values()], unreadableZones.value),
 	);
 
 	/**

@@ -7,6 +7,7 @@ import { validateCalibration, type Calibration } from './Calibration';
 import { PLAN_BACKGROUND_KINDS, type PlanBackgroundRef } from './PlanBackgroundRef';
 import { planError } from './Plan.errors';
 import type { PlanId } from './PlanId';
+import type { SpatialElementMetadata } from '../spatial/SpatialElement';
 
 /**
  * The ONE answer to "is this a usable background reference", shared by `create` and
@@ -44,6 +45,7 @@ function validateBackground(background: PlanBackgroundRef | null): Result<void, 
 }
 
 export interface CreatePlanProps {
+	readonly spatialElements?: readonly SpatialElementMetadata[];
 	readonly renovation?: Renovation;
 	readonly id: PlanId;
 	readonly projectId: ProjectId;
@@ -53,6 +55,7 @@ export interface CreatePlanProps {
 }
 
 interface PlanFields {
+	readonly spatialElements?: readonly SpatialElementMetadata[];
 	readonly renovation?: Renovation;
 	readonly id: PlanId;
 	readonly projectId: ProjectId;
@@ -69,6 +72,7 @@ interface PlanFields {
  * writes it there, never through this entity.
  */
 export class Plan {
+	readonly spatialElements?: readonly SpatialElementMetadata[];
 	readonly renovation?: Renovation;
 	readonly id: PlanId;
 	readonly projectId: ProjectId;
@@ -78,6 +82,7 @@ export class Plan {
 	readonly layers: readonly string[];
 
 	private constructor(fields: PlanFields) {
+		this.spatialElements = fields.spatialElements;
 		this.renovation = fields.renovation;
 		this.id = fields.id;
 		this.projectId = fields.projectId;
@@ -88,6 +93,9 @@ export class Plan {
 	}
 
 	static create(props: CreatePlanProps): Result<Plan, ValidationError> {
+		if (props.spatialElements && (new Set(props.spatialElements.map(item => item.id)).size !== props.spatialElements.length || props.spatialElements.some(item => !item.id.startsWith('element-') || !item.name.trim()))) {
+			return err(planError('invalid-spatial-elements', 'Spatial element labels need unique identities and non-empty names.'));
+		}
 		if (props.renovation) {
 			const valid = validateRenovation(props.renovation);
 			if (!valid.ok) return valid;
@@ -107,6 +115,7 @@ export class Plan {
 		}
 		return ok(
 			new Plan({
+				spatialElements: props.spatialElements?.map(item => ({ ...item, name: item.name.trim() })),
 				renovation: props.renovation,
 				id: props.id,
 				projectId: props.projectId,
@@ -162,6 +171,7 @@ export class Plan {
 
 	private fields(): PlanFields {
 		return {
+			spatialElements: this.spatialElements,
 			renovation: this.renovation,
 			id: this.id,
 			projectId: this.projectId,
@@ -175,4 +185,8 @@ export class Plan {
 
 export function withPlanRenovation(plan: Plan, renovation: Renovation | undefined): Result<Plan, ValidationError> {
 	return Plan.create({ ...plan, renovation });
+}
+
+export function withPlanSpatialElements(plan: Plan, spatialElements: readonly SpatialElementMetadata[] | undefined): Result<Plan, ValidationError> {
+	return Plan.create({ ...plan, spatialElements });
 }

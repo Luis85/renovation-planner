@@ -23,6 +23,7 @@ import { reportDispatchFailure } from '../report-failure';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import { structureCandidates } from '../structure/structureCandidates';
 import type { Point } from '../../../core/geometry/Point';
+import type { ElementMoveDeps } from '../elements/ElementMove';
 
 /**
  * One reversible command per drag OR per keyboard nudge — `SelectTool`'s pointer gesture and
@@ -47,7 +48,7 @@ export function moveGesture(
  * so the one cast that turns Obsidian's opaque per-leaf string into a branded id stays a
  * single site — see `subject` below, which is built from the same value.
  */
-export interface EditorToolDeps {
+export interface EditorToolDeps extends ElementMoveDeps {
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly canFinishArea: () => boolean;
@@ -74,6 +75,8 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
 	toolManager.register(
 		new SelectTool({
+			previewElement: deps.previewElement,
+			moveElement: deps.moveElement,
 			previewWall: deps.previewWall,
 			editWall: deps.editWall,
 			spatialObjects: () =>
@@ -135,7 +138,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			// The two dialogs this gesture may open, in the order it opens them. Both go
 			// through the leaf's OWN store, so a calibration in one split pane cannot trap
 			// the other — `DialogHost` is per view for exactly that reason.
-			hasGeometryToRescale: () => projectStore.zones.size > 0 || projectStore.structure.walls.length > 0,
+			hasGeometryToRescale: () => projectStore.zones.size > 0 || projectStore.structure.walls.length > 0 || (projectStore.structure.elements?.length ?? 0) > 0 || (projectStore.intended?.walls.length ?? 0) > 0 || (projectStore.intended?.elements?.length ?? 0) > 0,
 			confirmRecalibration: async () =>
 				(await dialogs.openDialog({
 					kind: 'confirm',

@@ -7,11 +7,23 @@ const project = useProjectStore(), runtime = useEditorRuntime(), selection = use
 </script>
 <template>
 	<section
-		v-if="project.structure.walls.length"
+		v-if="project.structure.walls.length || project.structure.elements?.length"
 		class="rp-structure-list"
 	>
 		<h3>{{ tr('editor.structure.list') }}</h3>
 		<ul>
+			<li
+				v-for="element in project.structure.elements ?? []"
+				:key="element.id"
+			>
+				<button
+					type="button"
+					:aria-pressed="selection.selectedIds.some(id => id === element.id)"
+					@click="runtime.selectAndFrame(element.id, $event.shiftKey)"
+				>
+					{{ project.plan?.spatialElements?.find(item => item.id === element.id)?.name ?? element.id }}
+				</button>
+			</li>
 			<li
 				v-for="(wall, index) in project.structure.walls"
 				:key="wall.id"

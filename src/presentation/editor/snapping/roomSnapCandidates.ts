@@ -13,5 +13,10 @@ export function roomSnapCandidates(zones: Iterable<{ readonly points: readonly P
  }
  for (const wall of structure.walls) { vertices.push(wall.start, wall.end); edges.push({ start: wall.start, end: wall.end }); }
  for (const opening of structure.openings) vertices.push(...openingPoints(opening, structure.walls));
+ for (const element of structure.elements ?? []) {
+  vertices.push(...element.points);
+  element.points.slice(1).forEach((point, index) => edges.push({ start: element.points[index], end: point }));
+  if (element.kind === 'object' && element.points.length > 2) edges.push({ start: element.points[element.points.length - 1], end: element.points[0] });
+ }
  return { vertices, edges };
 }

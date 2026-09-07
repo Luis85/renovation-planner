@@ -1,3 +1,4 @@
+import { inRenovationScope } from '../renovation/renovationSummary';
 import { createRequirementId } from '../../../domain/requirement/RequirementId';
 import { Decimal } from 'decimal.js';
 import { createEntityId } from '../../../core/identity/generateId';
@@ -18,9 +19,9 @@ export interface PlanningDraft {
 	category: CostRecord['category']; planned: string; facts: { id: string; stage: 'committed' | 'actual'; amount: string; description: string; commitmentId: string; cancelled: boolean }[];
 	cancelled: boolean; path: string; subpath: string; type: Evidence['type']; phase: Evidence['phase']; pin: boolean; pinX: string; pinY: string;
 }
-function materialDraft(baseline: PlanningBaseline, roomId: string, id: string, focusedId: string) {
- const material = baseline.materials.find(item => item.entity.id === id && item.entity.origin.zoneId === roomId)?.entity;
- const context = planningSelectionContext(baseline, roomId, focusedId);
+function materialDraft(baseline: PlanningBaseline, roomId: string, id: string, focusedId: string, targetId: string) {
+ const material = baseline.materials.find(item => item.entity.id === id && inRenovationScope({ roomId: item.entity.origin.zoneId, targetId: item.entity.source?.targetId ?? item.entity.origin.zoneId }, roomId, targetId))?.entity;
+ const context = planningSelectionContext(baseline, roomId, focusedId, targetId);
  const source: RequirementSource = material?.source ?? { planId: baseline.plan.entity.id, targetId: context.targetId, workId: context.workId, outcomeId: context.outcomeId, state: 'current', rule: 'room-area', manual: '0', coverage: '1', lot: '', minimum: '' };
  return { source, ...materialValues(material) };
 }
@@ -34,20 +35,25 @@ function evidenceDraft(evidence: Evidence | undefined) {
  return { path: evidence?.path ?? '', subpath: evidence?.subpath ?? '', type: evidence?.type ?? 'document' as const, phase: evidence?.phase ?? 'before' as const, pin: !!evidence?.pin, pinX: String(evidence?.pin?.x ?? 0.5), pinY: String(evidence?.pin?.y ?? 0.5) };
 }
 function procurementDraft(procurement: Procurement | undefined) { return { purchased: procurement?.purchased ?? '0', reserved: procurement?.reserved ?? '0' }; }
-export function planningDraft(kind: PlanningKind, baseline: PlanningBaseline, roomId: string, id = '', focusedId = ''): PlanningDraft {
+type PlanningFocus = string | { focusedId?: string; targetId?: string };
+function focusContext(focus: PlanningFocus, roomId: string) {
+ return typeof focus === 'string' ? { focusedId: focus, targetId: roomId } : { focusedId: focus.focusedId ?? '', targetId: focus.targetId ?? roomId };
+}
+export function planningDraft(kind: PlanningKind, baseline: PlanningBaseline, roomId: string, id = '', focus: PlanningFocus = ''): PlanningDraft {
+ const { focusedId, targetId } = focusContext(focus, roomId);
  const depth = baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH;
- const material = materialDraft(baseline, roomId, id, focusedId);
- const context = planningSelectionContext(baseline, roomId, focusedId);
- const cost = depth.costs.find(item => item.id === id && item.roomId === roomId), evidence = depth.evidence.find(item => item.id === id && item.roomId === roomId);
+ const material = materialDraft(baseline, roomId, id, focusedId, targetId);
+ const context = planningSelectionContext(baseline, roomId, focusedId, targetId);
+ const cost = depth.costs.find(item => item.id === id && inRenovationScope(item, roomId, targetId)), evidence = depth.evidence.find(item => item.id === id && inRenovationScope(item, roomId, targetId));
  const procurement = depth.procurement.find(item => item.requirementId === id);
  const existing = kind === 'material' ? material.requirementId : kind === 'procurement' ? procurement?.id : '';
  return { kind, id: existing || (kind === 'material' ? createRequirementId() : createEntityId('record')), roomId, targetId: material.source.targetId, workId: material.source.workId,
  recordId: context.recordId, title: '', ...material, requirementId: material.requirementId || (kind === 'cost' ? context.requirementId : ''), ...procurementDraft(procurement), ...costDraft(cost), ...evidenceDraft(evidence),
- ...recordDraft(cost, evidence) };
+ ...(material.requirementId ? { roomId: baseline.materials.find(item => item.entity.id === material.requirementId)?.entity.origin.zoneId ?? roomId } : {}), ...recordDraft(cost, evidence) };
 }
 function recordDraft(cost: CostRecord | undefined, evidence: Evidence | undefined): Partial<PlanningDraft> {
- if (cost) return { id: cost.id, targetId: cost.targetId, workId: cost.workId, title: cost.title, requirementId: cost.requirementId };
- if (evidence) return { id: evidence.id, targetId: evidence.targetId, workId: evidence.workId, title: evidence.description, recordId: evidence.recordId };
+ if (cost) return { id: cost.id, roomId: cost.roomId, targetId: cost.targetId, workId: cost.workId, title: cost.title, requirementId: cost.requirementId };
+ if (evidence) return { id: evidence.id, roomId: evidence.roomId, targetId: evidence.targetId, workId: evidence.workId, title: evidence.description, recordId: evidence.recordId };
  return {};
 }
 /** Inputs accept a decimal comma or point, with no thousands separators. */
@@ -71,7 +77,8 @@ export function planningInput(draft: PlanningDraft, baseline: PlanningBaseline):
 			facts: draft.facts.map(fact => ({ ...fact, amount: of(decimalInput(fact.amount), baseline.currency) })) };
 		return { renovation: { ...renovation, depth: { ...depth, costs: replace(depth.costs, record) } }, intended: baseline.geometry.document.intended };
 	}
-	const record: Evidence = { ...link, description: draft.title, type: draft.type, phase: draft.phase, path: draft.path, subpath: draft.subpath,
+	const original = depth.evidence.find(item => item.id === draft.id);
+	const record: Evidence = { ...original, ...link, description: draft.title, type: draft.type, phase: draft.phase, path: draft.path, subpath: draft.subpath,
 		recordId: draft.recordId, pin: draft.pin ? { x: Number(decimalInput(draft.pinX)), y: Number(decimalInput(draft.pinY)) } : null };
 	return { renovation: { ...renovation, depth: { ...depth, evidence: replace(depth.evidence, record) } }, intended: baseline.geometry.document.intended };
 }

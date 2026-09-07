@@ -9,6 +9,7 @@ import RoomRenovationDetails from './RoomRenovationDetails.vue';
 import ReviewInspector from './ReviewInspector.vue';
 import FloorInspector from '../shell/FloorInspector.vue';
 import StructureInspector from '../structure/StructureInspector.vue';
+import ElementInspector from '../elements/ElementInspector.vue';
 
 const project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession();
 const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
@@ -25,6 +26,7 @@ watch(() => selection.selectedIds, ids => {
 }, { immediate: true });
 const room = computed(() => project.zones.get(session.roomId));
 const element = computed(() => project.structure.walls.some(item => item.id === session.targetId) || project.structure.openings.some(item => item.id === session.targetId));
+const generic = computed(() => project.structure.elements?.some(item => item.id === session.targetId));
 const root = ref<HTMLElement | null>(null);
 watch(() => [session.focusedId, session.mode], () => {
 	if (!session.focusedId) return;
@@ -42,7 +44,8 @@ watch(() => [session.focusedId, session.mode], () => {
 		ref="root"
 		class="rp-renovation-inspector"
 	>
-		<StructureInspector v-if="element" />
+		<ElementInspector v-if="generic" />
+		<StructureInspector v-else-if="element" />
 		<h3 v-else>
 			{{ room?.name || tr('renovation.select-room') }}
 		</h3>

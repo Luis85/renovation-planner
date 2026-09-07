@@ -7,5 +7,5 @@ export function renovationCostSummary(baseline: PlanningBaseline, roomId = '', t
 	const roomIds = roomId && (!targetId || targetId === roomId) ? [roomId] : baseline.geometry.document.objects.map(item => item.id);
 	const prepared = materialRows(baseline);
 	const rows = roomIds.flatMap(id => costRows(baseline, id, prepared)).filter(row => !roomId || inRenovationScope(row.record, roomId, targetId));
-	return { count: rows.filter(row => !row.record.cancelled).length, totals: aggregateCosts(rows, baseline.currency) };
+	return { rows, count: rows.filter(row => !row.record.cancelled).length, totals: aggregateCosts(rows, baseline.currency) };
 }

@@ -49,7 +49,7 @@ const scale = computed(() => {
 	return setupMeasurement([a, b], length.value, appearance, raster.value.worldScale, calibration);
 });
 const reviewScale = computed(() => scale.value === null ? tr('editor.reference.invalid-scale') : tr('editor.reference.scale-summary', { scale: Number(scale.value.millimetresPerSourcePixel.toPrecision(6)).toLocaleString(), length: length.value }));
-const needsConsent = computed(() => (props.baseline.geometry.document.objects.length > 0 || (props.baseline.geometry.document.structure?.walls.length ?? 0) > 0) && scale.value?.scaleCorrection !== 1);
+const needsConsent = computed(() => (props.baseline.geometry.document.objects.length > 0 || [props.baseline.geometry.document.structure, props.baseline.geometry.document.intended].some(structure => structure && (structure.walls.length > 0 || (structure.elements?.length ?? 0) > 0))) && scale.value?.scaleCorrection !== 1);
 watch(scale, value => { if (value !== null && step.value === 2) error.value = ''; });
 const submitLabel = computed(() => tr(step.value === 3 ? 'editor.reference.finish' : step.value === 2 ? 'editor.reference.apply-scale' : 'editor.reference.continue'));
 const stageLabel = computed(() => tr(step.value === 1 ? 'editor.reference.prepare' : step.value === 2 ? 'editor.reference.scale' : 'editor.reference.review'));

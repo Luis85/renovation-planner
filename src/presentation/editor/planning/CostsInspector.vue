@@ -5,11 +5,12 @@ import CostTotals from './CostTotals.vue';
 import { computed } from 'vue';
 import { usePlanningContext } from './planningContext';
 import { useRenovationSession } from '../renovation/renovationSession';
-import { costRows, aggregateCosts } from './planningProjection';
+import { renovationCostSummary } from '../renovation/renovationCostSummary';
+import { aggregateCosts } from './planningProjection';
 import { tr } from '../../i18n/strings';
 const props = defineProps<{ baseline: PlanningBaseline }>();
 const planning = usePlanningContext(), session = useRenovationSession();
-const rows = computed(() => costRows(props.baseline, session.roomId));
+const rows = computed(() => renovationCostSummary(props.baseline, session.roomId, session.targetId).rows);
 const totals = computed(() => aggregateCosts(rows.value, props.baseline.currency));
 </script>
 <template>

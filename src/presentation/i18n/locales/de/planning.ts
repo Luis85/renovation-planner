@@ -92,6 +92,8 @@ export const planningDe = {
 	"planning.rule.room-perimeter": "Raumumfang",
 	"planning.rule.wall-gross": "Brutto-Wandfläche",
 	"planning.rule.wall-net": "Netto-Wandfläche",
+	"planning.rule.element-length": "Elementlänge",
+	"planning.rule.object-area": "Objektfläche",
 	"planning.rule.wall-length": "Wandlänge",
 	"planning.rule.opening-area": "Öffnungsfläche",
 	"planning.rule.count": "Ein ausgewähltes Element",

@@ -5,6 +5,7 @@ import { PlanFrontmatterSchema, PLAN_TYPE, type PlanFrontmatterDTO } from '../dt
 import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
 function planSchemaVersion(plan: Plan): number {
+	if (plan.spatialElements?.length) return 6;
 	const shared = [...plan.renovation?.work ?? [], ...plan.renovation?.depth?.evidence ?? []].some(item => (item.links?.length ?? 0) > 0);
 	return shared ? 5 : plan.renovation?.depth ? 4 : plan.renovation ? 3 : plan.background?.appearance ? 2 : 1;
 }
@@ -23,6 +24,7 @@ export function planToPersistence(plan: Plan, revision: number): Record<string, 
 	return {
 		type: PLAN_TYPE,
 		'schema-version': planSchemaVersion(plan),
+		...(plan.spatialElements?.length ? { 'spatial-elements': plan.spatialElements } : {}),
 		...(plan.renovation ? { renovation: plan.renovation } : {}),
 		id: plan.id,
 		revision,
@@ -42,6 +44,7 @@ function fromDto(
 ): Result<Plan, ValidationError | CalculationError> {
 	const path = dto['background-path'];
 	const constructed = Plan.create({
+		spatialElements: dto['spatial-elements'],
 		renovation: dto.renovation,
 		id: dto.id as Plan['id'],
 		projectId: dto.project as Plan['projectId'],

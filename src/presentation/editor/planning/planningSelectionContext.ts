@@ -1,10 +1,11 @@
+import { inRenovationScope } from '../renovation/renovationSummary';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 
 /** Resolve leaf focus through canonical records; a stale or foreign-room ID carries no link. */
-export function planningSelectionContext(baseline: PlanningBaseline, roomId: string, focusedId: string) {
+export function planningSelectionContext(baseline: PlanningBaseline, roomId: string, focusedId: string, targetId = roomId) {
 	const renovation = baseline.plan.entity.renovation ?? EMPTY_RENOVATION;
-	const empty = { targetId: roomId, workId: '', outcomeId: '', requirementId: '', recordId: '' };
+	const empty = { targetId, workId: '', outcomeId: '', requirementId: '', recordId: '' };
 	const records = [
 		...baseline.materials.map(({ entity }) => ({ ...empty, id: entity.id, roomId: entity.origin.zoneId, ...entity.source, requirementId: entity.id, recordId: entity.id })),
 		...renovation.work.map(item => ({ ...empty, ...item, workId: item.id, recordId: item.id })),
@@ -13,5 +14,5 @@ export function planningSelectionContext(baseline: PlanningBaseline, roomId: str
 		...(renovation.depth?.costs ?? []).map(item => ({ ...empty, ...item, requirementId: '', recordId: item.id })),
 		...(renovation.depth?.evidence ?? []).map(item => ({ ...empty, ...item })),
 	];
-	return records.find(item => item.id === focusedId && item.roomId === roomId) ?? empty;
+	return records.find(item => item.id === focusedId && inRenovationScope(item, roomId, targetId)) ?? empty;
 }

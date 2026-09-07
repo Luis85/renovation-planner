@@ -1,4 +1,6 @@
+import type { SpatialElement } from '../../domain/spatial/SpatialElement';
 import type { Ref } from 'vue';
+import type { Point } from '../../core/geometry/Point';
 import type { WriteLedger } from '../../application/editor/WriteLedger';
 import { translate } from '../../core/geometry/operations';
 import type { Polygon } from '../../core/geometry/Polygon';
@@ -65,6 +67,7 @@ export function createNudgeSelectionAction(deps: {
 	readonly activeToolId: Ref<ToolId | null>;
 	readonly selection: ReturnType<typeof useSelectionStore>;
 	readonly projectStore: ReturnType<typeof useProjectStore>;
+	readonly moveElement?: (id: string, points: readonly Point[], original: SpatialElement) => Promise<void>;
 }): (by: Vector) => Promise<void> {
 	function resolveNudgeTarget(): ZoneId | null {
 		if (deps.activeToolId.value !== 'select') return null;
@@ -73,6 +76,8 @@ export function createNudgeSelectionAction(deps: {
 		return zoneId as ZoneId;
 	}
 	async function runNudge(zoneId: ZoneId, by: Vector): Promise<void> {
+		const element = deps.projectStore.structure.elements?.find(item => item.id === zoneId);
+		if (element && deps.moveElement) { await deps.moveElement(element.id, element.points.map(point => ({ x: point.x + by.dx, y: point.y + by.dy })), element); return; }
 		const zone = deps.projectStore.zones.get(String(zoneId));
 		if (zone === undefined) return;
 		const inverse: Polygon = { points: zone.points };

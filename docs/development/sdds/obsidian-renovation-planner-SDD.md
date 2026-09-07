@@ -3048,3 +3048,8 @@ existing guarded command boundary still refuses a conflicting captured baseline 
 Presentation-only EN/DE number formatting leaves Decimal/Money arithmetic and persisted schemas
 unchanged. See the [recovery evidence](../../user-experience/renovation-planner-editor-specs/implementation/planning-recovery-evidence.md)
 and [user recovery guidance](../../using-planning-recovery.md) for measured acceptance and limits.
+
+
+## Editor completion amendment — generic floor elements (2026-09-07)
+
+[ADR-0023](../adrs/0023-generic-spatial-elements.md) extends the existing floor sidecar current/intended Structure with generic Object, Path, Fence and Measurement identities and world-millimetre points. Their editable names remain Plan Markdown metadata joined by ID; no second persistence authority or catalogue is introduced. Non-empty element payloads use geometry v4 and Plan metadata v6 after shared-context v5. Explicit element-length/object-area Requirement sources use v3 and the existing quantity engine; older payloads retain their prior written versions. §26 readability and its self-intersection/winding deferrals remain unchanged. Implementation and host acceptance status are recorded in the editor completion matrix; this amendment is not a verification pass.

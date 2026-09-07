@@ -89,6 +89,10 @@ const hoverOutlineFlat = computed(() => {
 		return [at.x, at.y];
 	});
 });
+const hoverClosed = computed(() => {
+	const kind = candidates.value.get(runtime.renderState.hoveredObjectId ?? '')?.kind;
+	return kind === undefined || kind === 'object';
+});
 
 /**
  * Vertex handles belong to a single selection. Multiple selections use numbered outlines.
@@ -113,6 +117,7 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 	const zone = candidates.value.get(id);
 	return zone === undefined ? [] : [{
 		id,
+		closed: zone.kind === undefined || zone.kind === 'object',
 		number: selectedIds.value.indexOf(id) + 1,
 		anchor: zone.points.length > 0 ? toScreen(zone.points[0]) : null,
 		strokeWidth: focusedId.value === id ? 3 : 2,
@@ -158,7 +163,7 @@ const editableVertices = computed(() => renovationSession.perspective === 'plan'
 			:config="{
 				name: 'hover-outline',
 				points: hoverOutlineFlat,
-				closed: true,
+				closed: hoverClosed,
 				stroke: props.tokens.accent,
 				strokeWidth: 1,
 				dash: [4, 4],
@@ -204,7 +209,7 @@ const editableVertices = computed(() => renovationSession.perspective === 'plan'
 				:config="{
 					name: 'selection-outline',
 					points: outline.points,
-					closed: true,
+					closed: outline.closed,
 					stroke: props.tokens.accent,
 					strokeWidth: outline.strokeWidth,
 					strokeScaleEnabled: false,

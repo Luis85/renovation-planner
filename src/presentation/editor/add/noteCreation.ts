@@ -13,7 +13,9 @@ export function provideNoteCreation(runtime: EditorRuntime, planning: ReturnType
  const roomId = computed(() => {
   if (selection.selectedIds.length !== 1) return '';
   const id = selection.selectedIds[0];
-  return project.zones.get(id)?.zoneType === 'Room' ? id : '';
+  if (project.zones.get(id)?.zoneType === 'Room') return id;
+  const element = [...project.structure.walls, ...project.structure.openings, ...project.structure.elements ?? []].some(item => item.id === id);
+  return element && session.targetId === id && project.zones.get(session.roomId)?.zoneType === 'Room' ? session.roomId : '';
  });
  const available = computed(() => roomId.value !== '' && !!planning.files && !!planning.context.commands.planning
   && runtime.renovation.available && !planning.blocked.value);

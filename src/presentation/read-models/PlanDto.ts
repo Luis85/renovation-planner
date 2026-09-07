@@ -21,6 +21,7 @@ import type { Zone } from '../../domain/zone/Zone';
  * it would make that store the owner of a shape the query boundary decides.
  */
 export interface PlanDto {
+	readonly spatialElements?: Plan['spatialElements'];
 	readonly renovation?: Renovation;
 	readonly id: string;
 	readonly projectId: string;
@@ -123,6 +124,7 @@ export interface PlanSummaryDto {
 
 export function toPlanDto(plan: Plan): PlanDto {
 	return {
+		...(plan.spatialElements ? { spatialElements: plan.spatialElements } : {}),
 		...(plan.renovation ? { renovation: plan.renovation } : {}),
 		id: plan.id,
 		projectId: plan.projectId,

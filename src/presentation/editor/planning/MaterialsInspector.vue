@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { inRenovationScope } from '../renovation/renovationSummary';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import MaterialRow from './MaterialRow.vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
@@ -11,7 +12,7 @@ import { materialReferents } from '../../../application/commands/renovation/plan
 const props = defineProps<{ baseline: PlanningBaseline }>();
 const planning = usePlanningContext(), session = useRenovationSession(), dialogs = useDialogStore(), error = ref(''), generating = ref(false);
 let alive = true; onBeforeUnmount(() => { alive = false; });
-const rows = computed(() => materialRows(props.baseline).filter(item => item.entity.origin.zoneId === session.roomId));
+const rows = computed(() => materialRows(props.baseline).filter(item => inRenovationScope({ roomId: item.entity.origin.zoneId, targetId: item.source.targetId }, session.roomId, session.targetId)));
 const groups = computed(() => [...new Set(rows.value.map(item => item.source.workId))].map(id => ({ id, name: props.baseline.plan.entity.renovation?.work.find(item => item.id === id)?.title ?? tr('planning.unassigned'), rows: rows.value.filter(item => item.source.workId === id) })));
 async function remove(id: string): Promise<void> {
 	const baseline = props.baseline;

@@ -16,6 +16,19 @@ async function setup() {
 }
 
 describe('contextual planning drafts through canonical records', () => {
+	it('starts a new record at the selected element and preserves shared evidence ownership on edit', async () => {
+		const rig = await setup();
+		expect(planningDraft('evidence', rig.baseline, rig.roomId, '', { targetId: 'wall-b' })).toMatchObject({ targetId: 'wall-b', recordId: '', workId: '' });
+		const shared = { ...rig.evidence, targetId: 'wall-a', links: [{ roomId: rig.roomId, targetId: 'wall-b' }] };
+		const input = { renovation: { ...rig.value, depth: { ...rig.depth, evidence: [shared] } }, intended: undefined };
+		expectOk(await rig.renovation.command(rig.baseline, input, rig.ledger).execute());
+		const baseline = expectOk(await rig.read());
+		const draft = planningDraft('evidence', baseline, rig.roomId, shared.id, { targetId: 'wall-b' });
+		expect(draft).toMatchObject({ id: shared.id, roomId: shared.roomId, targetId: shared.targetId });
+		draft.title = 'Updated survey';
+		expectOk(await rig.renovation.command(baseline, planningInput(draft, baseline), rig.ledger).execute());
+		expect(expectOk(await rig.read()).plan.entity.renovation?.depth?.evidence).toEqual([{ ...shared, description: draft.title }]);
+	});
 	it('inherits material target, Work and record link into a persistable new document', async () => {
 		const rig = await setup();
 		const draft = planningDraft('evidence', rig.baseline, rig.roomId, '', rig.input.id);

@@ -25,7 +25,7 @@ const frozen = computed(() => props.busy.value);
 const applyBlocked = computed(() => frozen.value || props.paused.value);
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
-const targets = computed(() => [...new Set([draft.value.roomId, ...props.baseline.geometry.document.structure?.walls.map(item => item.id) ?? [], ...props.baseline.geometry.document.structure?.openings.map(item => item.id) ?? [], ...props.baseline.geometry.document.intended?.walls.map(item => item.id) ?? [], ...props.baseline.geometry.document.intended?.openings.map(item => item.id) ?? []])]);
+const targets = computed(() => [...new Set([draft.value.roomId, ...props.baseline.geometry.document.structure?.elements?.map(item => item.id) ?? [], ...props.baseline.geometry.document.intended?.elements?.map(item => item.id) ?? [], ...props.baseline.geometry.document.structure?.walls.map(item => item.id) ?? [], ...props.baseline.geometry.document.structure?.openings.map(item => item.id) ?? [], ...props.baseline.geometry.document.intended?.walls.map(item => item.id) ?? [], ...props.baseline.geometry.document.intended?.openings.map(item => item.id) ?? []])]);
 function input(): MaterialInput | RenovationInput | null {
 	if (draft.value.kind === 'material') {
 		const next = materialInput(draft.value), result = prepareMaterial(props.baseline, next);

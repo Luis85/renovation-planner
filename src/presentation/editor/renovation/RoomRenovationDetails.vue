@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import type { ZoneId } from '../../../domain/zone/ZoneId';
+import RoomNameAction from '../naming/RoomNameAction.vue';
+import OutlineEditAction from '../resize/OutlineEditAction.vue';
 import { usePlanningContext } from '../planning/planningContext';
 import PlanningInspector from '../planning/PlanningInspector.vue';
 import { computed } from 'vue';
@@ -11,8 +14,7 @@ import { removeRenovationRecord } from './renovationRemoval';
 import { tr } from '../../i18n/strings';
 import { formatArea } from '../shell/formatArea';
 import { toSpatialRecordDto } from '../../read-models/spatialRecords';
-import SubjectRow from './SubjectRow.vue';
-import WorkRow from './WorkRow.vue';
+import RenovationRecordList from './RenovationRecordList.vue';
 import DecisionList from './DecisionList.vue';
 import RenovationEntry from './RenovationEntry.vue';
 import TransformationSummary from './TransformationSummary.vue';
@@ -52,6 +54,13 @@ function remove(id: string, name: string, proposalOnly = false): void {
 		:room-id="room.id"
 	/>
 	<template v-if="session.mode === 'overview'">
+		<div
+			v-if="!session.targetId || session.targetId === room.id"
+			class="rp-planning-actions"
+		>
+			<RoomNameAction :zone-id="room.id as ZoneId" />
+			<OutlineEditAction :zone-id="room.id as ZoneId" />
+		</div>
 		<RenovationLinkedSummary
 			v-if="planning.context.commands.planning"
 			:room-id="room.id"
@@ -76,30 +85,13 @@ function remove(id: string, name: string, proposalOnly = false): void {
 		<p v-if="empty">
 			{{ tr('renovation.empty') }}
 		</p>
-		<ol
-			v-if="session.mode !== 'work'"
-			class="rp-renovation-list"
-		>
-			<SubjectRow
-				v-for="item in subjects"
-				:key="item.id"
-				:item="item"
-				@remove="remove"
-			/>
-		</ol>
-		<ol
-			v-else
-			class="rp-renovation-list"
-		>
-			<WorkRow
-				v-for="(item, index) in work"
-				:key="item.id"
-				:item="item"
-				:index="index"
-				:value="value"
-				@remove="remove"
-			/>
-		</ol>
+		<RenovationRecordList
+			:mode="session.mode"
+			:subjects="subjects"
+			:work="work"
+			:value="value"
+			@remove="remove"
+		/>
 		<DecisionList
 			:decisions="decisions"
 			@remove="remove"

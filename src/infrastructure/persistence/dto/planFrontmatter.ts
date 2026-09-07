@@ -50,5 +50,7 @@ const PlanFrontmatterSchemaV3 = PlanFrontmatterSchemaV2.extend({
 export const PlanFrontmatterSchemaV4 = PlanFrontmatterSchemaV3.extend({ 'schema-version': z.literal(4) });
 /** Shared contexts must be refused by v4 writers, which otherwise strip those links. */
 export const PlanFrontmatterSchemaV5 = PlanFrontmatterSchemaV4.extend({ 'schema-version': z.literal(5) });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV5>;
+export const SpatialElementMetadataSchema = z.array(z.object({ id: z.string().startsWith('element-'), name: z.string().min(1) }));
+export const PlanFrontmatterSchemaV6 = PlanFrontmatterSchemaV5.extend({ 'schema-version': z.literal(6), 'spatial-elements': SpatialElementMetadataSchema.optional() });
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV6>;

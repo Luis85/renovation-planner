@@ -51,13 +51,16 @@ import StructureInspector from '../structure/StructureInspector.vue';
 import RenovationInspector from '../renovation/RenovationInspector.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { structureRecords } from '../structure/structureRecords';
+import ElementInspector from '../elements/ElementInspector.vue';
+import ElementTaskForm from '../elements/ElementTaskForm.vue';
+import { isElementTool } from '../elements/elementDraft';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
 const project = useProjectStore();
 const rooms = useSpatialRecords();
 const renovationSession = useRenovationSession();
-const records = computed(() => [...rooms.value, ...structureRecords(project.structure, project.plan?.id ?? '')]);
+const records = computed(() => [...rooms.value, ...structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements)]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
 </script>
 
@@ -73,6 +76,7 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 		</h2>
 		<RenovationInspector v-if="renovationSession.perspective === 'review'" />
 		<NewRoomInspector v-else-if="activeToolId === 'draw-room'" />
+		<ElementTaskForm v-else-if="isElementTool(activeToolId)" />
 		<MultiSelectionInspector
 			v-else-if="selection.kind === 'multiple'"
 			:selection="selection"
@@ -80,6 +84,7 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 		<RenovationInspector v-else-if="renovationSession.perspective === 'renovate'" />
 		<FloorInspector v-else-if="selectedIds.length === 0" />
 		<StructureInspector v-else-if="project.structure.walls.some(wall => wall.id === selectedIds[0]) || project.structure.openings.some(opening => opening.id === selectedIds[0])" />
+		<ElementInspector v-else-if="project.structure.elements?.some(element => element.id === selectedIds[0])" />
 		<RoomInspector v-else />
 	</aside>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { inRenovationScope } from './renovationSummary';
 import EvidencePins from '../planning/EvidencePins.vue';
 import { computed } from 'vue';
 import type { ThemeTokens } from '../theme/themeTokens';
@@ -15,8 +16,8 @@ const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
 const markers = computed(() => {
 	if (session.perspective !== 'review' && !['existing', 'planned', 'work'].includes(session.mode)) return [];
 	const records = session.perspective === 'review' ? reviewRenovation(value.value).map(item => ({ id: item.recordId, roomId: item.roomId, label: tr(`renovation.finding.${item.kind}`) }))
-		: session.mode === 'work' ? orderedWork(value.value).filter(item => item.roomId === session.roomId).map(item => ({ ...item, label: item.title }))
-			: value.value.subjects.filter(item => item.roomId === session.roomId && item[session.mode === 'existing' ? 'existing' : 'planned']).map(item => ({ ...item, label: session.mode === 'existing' ? item.existing?.description : `${item.planned ? tr(`renovation.change.${item.planned.change}`) : ''} ${item.planned?.description || item.existing?.description}` }));
+		: session.mode === 'work' ? orderedWork(value.value).filter(item => inRenovationScope(item, session.roomId, session.targetId)).map(item => ({ ...item, label: item.title }))
+			: value.value.subjects.filter(item => inRenovationScope(item, session.roomId, session.targetId) && item[session.mode === 'existing' ? 'existing' : 'planned']).map(item => ({ ...item, label: session.mode === 'existing' ? item.existing?.description : `${item.planned ? tr(`renovation.change.${item.planned.change}`) : ''} ${item.planned?.description || item.existing?.description}` }));
 	// Each room stacks its own markers from its own top: the review list spans every room,
 	// and a floor-wide index put a later room's first marker rows below it (a Codex P2 on #87).
 	const rows = new Map<string, number>();
@@ -33,8 +34,9 @@ const comparisons = computed(() => value.value.subjects.flatMap(item => {
 	if (!item.planned) return [];
 	const structure = item.planned.change === 'remove' ? project.structure : project.intended ?? project.structure;
 	const wall = structure.walls.find(candidate => candidate.id === item.targetId), opening = structure.openings.find(candidate => candidate.id === item.targetId);
-	const points = wall ? [wall.start, wall.end] : opening ? openingPoints(opening, structure.walls) : [];
-	return points.length ? [{ id: item.id, points: points.flatMap(point => [point.x, point.y]), x: points[0].x, y: points[0].y, label: tr(`renovation.change.${item.planned.change}`), remove: item.planned.change === 'remove' }] : [];
+	const element = structure.elements?.find(candidate => candidate.id === item.targetId);
+	const points = wall ? [wall.start, wall.end] : opening ? openingPoints(opening, structure.walls) : element?.points ?? [];
+	return points.length ? [{ id: item.id, closed: element?.kind === 'object', points: points.flatMap(point => [point.x, point.y]), x: points[0].x, y: points[0].y, label: tr(`renovation.change.${item.planned.change}`), remove: item.planned.change === 'remove' }] : [];
 }));
 function focus(roomId: string, id: string): void {
 	const issue = session.perspective === 'review' ? reviewRenovation(value.value).find(item => item.recordId === id) : undefined;
@@ -55,7 +57,7 @@ function focus(roomId: string, id: string): void {
 				:key="item.id"
 				:config="{ listening: false }"
 			>
-				<VLine :config="{ points: item.points, stroke: tokens.accent, strokeWidth: 5 / zoom, dash: item.remove ? [3 / zoom, 6 / zoom] : [12 / zoom, 4 / zoom] }" />
+				<VLine :config="{ points: item.points, closed: item.closed, stroke: tokens.accent, strokeWidth: 5 / zoom, dash: item.remove ? [3 / zoom, 6 / zoom] : [12 / zoom, 4 / zoom] }" />
 				<VText :config="{ x: item.x, y: item.y - 18 / zoom, text: item.label, fontSize: 14 / zoom, fill: tokens.zoneStroke }" />
 			</VGroup>
 			<VGroup

@@ -25,7 +25,7 @@ function entryById(id: CreationEntryId): CreationEntry {
 describe('the creation catalogue', () => {
 	it('offers Room and Area, each activating its own geometry path', () => {
 		const available = CREATION_CATALOGUE.filter((e) => e.availability.kind === 'available');
-		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'area', 'note']);
+		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'area', 'path', 'fence', 'measurement', 'note']);
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		available[0].activate({ setTool });
 		expect(setTool).toHaveBeenCalledWith('draw-room');

@@ -10,6 +10,8 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import { openingPoints, type Opening, type Wall } from '../../../domain/spatial/Structure';
 import { draftStructure, isStructureTool } from './structureDraft';
+import ElementShapes from '../elements/ElementShapes.vue';
+import { isElementTool } from '../elements/elementDraft';
 const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visible: boolean; zoom: number }>();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const task = runtime.structureTask;
@@ -28,9 +30,29 @@ function openingLines(opening: Opening) {
 	};
 }
 const openings = computed(() => structure.value.openings.map(opening => ({ id: opening.id, ...openingLines(opening) })));
+const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
+const elements = computed(() => (structure.value.elements ?? []).map(element => runtime.elementActions.preview.value?.id === element.id ? runtime.elementActions.preview.value : ({ ...element, name: elementNames.value.get(element.id) ?? element.id })));
+const elementDraft = computed(() => {
+	const draft = runtime.elementTask.draft;
+	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];
+	const cursor = draft.cursor && (draft.kind !== 'measurement' || draft.points.length < 2) ? [draft.cursor] : [];
+	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...cursor] }];
+});
 </script>
 <template>
 	<VLayer :config="{ name: 'architecture', listening: false, visible, ...transform }">
+		<ElementShapes
+			:elements="elements"
+			:selected-ids="selection.selectedIds"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
+		<ElementShapes
+			:elements="elementDraft"
+			:selected-ids="['element-preview']"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
 		<VGroup
 			v-for="wall in structure.walls"
 			:key="wall.id"

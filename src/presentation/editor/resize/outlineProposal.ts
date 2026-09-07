@@ -4,7 +4,7 @@ import { areaOutline } from '../add/areaOutline';
 import { parseCoordinateMetres, type LengthRefusal } from '../shell/formatLength';
 export type CoordinateEdits = readonly Partial<Record<'x' | 'y', string>>[];
 /** Undefined means untouched; explicitly retyping the displayed value is still an edit. */
-export function outlineProposal(points: readonly Point[], edits: CoordinateEdits): { polygon: Polygon | null; errors: ReadonlyMap<string, LengthRefusal> } {
+export function outlineProposal(points: readonly Point[], edits: CoordinateEdits, accepts = (value: readonly Point[]) => areaOutline(value).ok): { polygon: Polygon | null; errors: ReadonlyMap<string, LengthRefusal> } {
 	const errors = new Map<string, LengthRefusal>();
 	const next = points.map((point, index) => {
 		const value = { ...point };
@@ -18,6 +18,5 @@ export function outlineProposal(points: readonly Point[], edits: CoordinateEdits
 		return value;
 	});
 	if (errors.size) return { polygon: null, errors };
-	const checked = areaOutline(next);
-	return { polygon: checked.ok ? checked.value : null, errors };
+	return { polygon: accepts(next) ? { points: next } : null, errors };
 }

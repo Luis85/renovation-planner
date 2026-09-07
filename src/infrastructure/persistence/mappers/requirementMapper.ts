@@ -67,7 +67,7 @@ export function requirementToPersistence(
 	const currency = requirement.calculatedFrom.unitCost.currency;
 	return {
 		type: REQUIREMENT_TYPE,
-		'schema-version': requirement.source ? 2 : 1,
+		'schema-version': requirement.source?.rule === 'element-length' || requirement.source?.rule === 'object-area' ? 3 : requirement.source ? 2 : 1,
 		...(requirement.source ? { source: requirement.source } : {}),
 		id: requirement.id,
 		revision,

@@ -19,11 +19,16 @@ const targets = computed(() => props.selection.records.flatMap(record => {
 }));
 function targetKind(record: SpatialRecordDto): BatchTarget['kind'] {
 	if (record.kind === 'room') return 'other';
+	if (record.kind === 'object') return 'fixture';
+	if (record.kind === 'path' || record.kind === 'fence' || record.kind === 'measurement') return 'other';
 	const opening = project.structure.openings.find(item => item.id === record.id);
 	return opening?.kind === 'door' ? 'door' : opening?.kind === 'window' ? 'window' : opening ? 'other' : 'wall';
 }
 const compatible = computed(() => targets.value.length === props.selection.ids.length && !props.selection.unavailable);
-const changeCompatible = computed(() => compatible.value && props.selection.records.every(item => item.kind === 'wall' || item.kind === 'opening'));
+const changeCompatible = computed(() => compatible.value && props.selection.records.every(item => item.kind !== 'room' && item.kind !== 'area'));
+const kinds = ['remove', 'modify', 'work', 'evidence'] as const;
+const actions = computed(() => kinds.map(kind => ({ kind, disabled: runtime.renovation.blocked.value || !compatible.value || ((kind === 'remove' || kind === 'modify') && !changeCompatible.value) })));
+const deleteBlocked = computed(() => runtime.writesBlocked.value || runtime.structureActions.active.value || !props.selection.records.every(item => item.kind === 'wall' || item.kind === 'opening') || props.selection.unavailable > 0);
 </script>
 <template>
 	<section
@@ -46,21 +51,21 @@ const changeCompatible = computed(() => compatible.value && props.selection.reco
 		</p>
 		<div class="rp-renovation-actions">
 			<button
-				v-for="kind in (['remove', 'modify', 'work', 'evidence'] as const)"
-				:key="kind"
+				v-for="action in actions"
+				:key="action.kind"
 				type="button"
-				:data-rp-batch="kind"
-				:disabled="runtime.renovation.blocked.value || !compatible || ((kind === 'remove' || kind === 'modify') && !changeCompatible)"
-				@click="runtime.renovation.batch(kind, targets)"
+				:data-rp-batch="action.kind"
+				:disabled="action.disabled"
+				@click="runtime.renovation.batch(action.kind, targets)"
 			>
-				{{ tr(`renovation.batch.${kind}`) }}
+				{{ tr(`renovation.batch.${action.kind}`) }}
 			</button>
 		</div>
 		<details>
 			<summary>{{ tr('editor.structure.more') }}</summary><button
 				type="button"
 				data-rp-batch="delete"
-				:disabled="runtime.writesBlocked.value || runtime.structureActions.active.value || !selection.records.every(item => item.kind === 'wall' || item.kind === 'opening') || selection.unavailable > 0"
+				:disabled="deleteBlocked"
 				@click="runtime.structureActions.remove(selection.ids)"
 			>
 				{{ tr('renovation.batch.delete') }}

@@ -75,7 +75,7 @@ const referencePoints = ref<readonly Point[]>([]);
 function onReferencePoints(points: readonly Point[]): void { referencePoints.value = points; }
 watch([referencePoints, () => editor.stageSize, () => layerVisibility.value.background], ([points]) => {
  const bounds = boundsOfZones([{ points }]);
- if (bounds !== null && project.zones.size === 0 && project.structure.walls.length === 0 && layerVisibility.value.background && runtime.activeToolId.value === 'select') editor.fitTo(bounds, editor.stageSize);
+ if (bounds !== null && project.zones.size === 0 && project.structure.walls.length === 0 && !project.structure.elements?.length && layerVisibility.value.background && runtime.activeToolId.value === 'select') editor.fitTo(bounds, editor.stageSize);
 }, { flush: 'post' });
 function framedBounds(all: boolean) {
 	const zones = [...project.zones.values(), ...structureCandidates(project.structure)];

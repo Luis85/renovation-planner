@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DraftRecovery from '../forms/DraftRecovery.vue';
 import { computed, onBeforeUnmount, watchEffect, type Ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { Polygon } from '../../../core/geometry/Polygon';
@@ -14,19 +15,22 @@ import { trError } from '../../i18n/toUserMessage';
 import { formatMetres } from '../shell/formatLength';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { outlineProposal, type CoordinateEdits } from './outlineProposal';
+import type { StringKey } from '../../i18n/locales/en';
 const props = defineProps<{ points: readonly Point[]; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; latest: Readonly<Ref<string | null>>;
-	logger: Logger; dispatch: (polygon: Polygon) => Promise<DispatchResult>; preview: (polygon: Polygon | null) => void }>();
+	name?: string; hint?: StringKey; inputBlocked?: Readonly<Ref<boolean>>; retry?: () => Promise<void>; openSource?: () => Promise<void>; accepts?: (points: readonly Point[]) => boolean;
+	logger: Logger; dispatch: (polygon: Polygon, name?: string) => Promise<DispatchResult>; preview: (polygon: Polygon | null) => void }>();
 const emit = defineEmits<{ submit: [] }>();
 let alive = true; onBeforeUnmount(() => { alive = false; props.preview(null); });
-const form = useFormCommit({ initial: { edits: props.points.map(() => ({})) as CoordinateEdits }, logger: props.logger, errorMap: {}, toUserMessage: trError,
-	dispatch: ({ edits }: { edits: CoordinateEdits }) => props.dispatch(outlineProposal(props.points, edits).polygon as Polygon) });
+const form = useFormCommit({ initial: { edits: props.points.map(() => ({})) as CoordinateEdits, name: props.name ?? '' }, logger: props.logger, errorMap: {}, toUserMessage: trError,
+	dispatch: ({ edits, name }: { edits: CoordinateEdits; name: string }) => props.dispatch(outlineProposal(props.points, edits, props.accepts).polygon as Polygon, name.trim()) });
 const refuseInput = useDialogFormBusy(form.submitting, props.busy);
 const { formEl, focusFirstInvalidControl } = useInvalidFieldFocus();
-const proposal = computed(() => outlineProposal(props.points, form.values.value.edits));
+const proposal = computed(() => outlineProposal(props.points, form.values.value.edits, props.accepts));
+const invalidName = computed(() => props.name !== undefined && !form.values.value.name.trim());
 watchEffect(() => props.preview(proposal.value.polygon));
-const paused = computed(() => props.blocked.value || form.submitting.value);
-const changed = computed(() => JSON.stringify(proposal.value.polygon?.points) !== JSON.stringify(props.points));
-const disabled = computed(() => paused.value || props.latest.value !== null || !changed.value);
+const paused = computed(() => (props.inputBlocked?.value ?? props.blocked.value) || form.submitting.value);
+const changed = computed(() => JSON.stringify(proposal.value.polygon?.points) !== JSON.stringify(props.points) || (props.name !== undefined && form.values.value.name.trim() !== props.name));
+const disabled = computed(() => props.blocked.value || paused.value || props.latest.value !== null || !changed.value);
 const axes = ['x', 'y'] as const;
 function value(index: number, axis: 'x' | 'y'): string { return form.values.value.edits[index]?.[axis] ?? formatMetres(props.points[index][axis]); }
 function input(index: number, axis: 'x' | 'y', event: Event): void {
@@ -34,9 +38,13 @@ function input(index: number, axis: 'x' | 'y', event: Event): void {
 	if (refuseInput(control, value(index, axis))) return;
 	form.setField('edits', form.values.value.edits.map((entry, n) => n === index ? { ...entry, [axis]: control.value } : entry));
 }
+function nameInput(event: Event): void {
+	const control = event.target as HTMLInputElement;
+	if (!refuseInput(control, form.values.value.name)) form.setField('name', control.value);
+}
 async function submit(): Promise<void> {
 	if (disabled.value) return;
-	if (proposal.value.polygon === null) { await focusFirstInvalidControl(); return; }
+	if (proposal.value.polygon === null || invalidName.value) { await focusFirstInvalidControl(); return; }
 	if (await form.submit() && alive) emit('submit');
 }
 </script>
@@ -48,7 +56,32 @@ async function submit(): Promise<void> {
 		@submit.prevent="submit"
 		@keydown="nativeSubmitKey"
 	>
-		<p>{{ tr('editor.outline.hint') }}</p>
+		<DraftRecovery
+			v-if="blocked.value && !busy.value && retry && openSource"
+			:retry="retry"
+			:open-source="openSource"
+		/>
+		<p>{{ tr(hint ?? 'editor.outline.hint') }}</p>
+		<FieldError
+			v-if="name !== undefined"
+			v-slot="{ inputId, aria }"
+			:message="invalidName ? tr('editor.element.name-required') : null"
+		>
+			<label
+				:for="inputId"
+				class="rp-dialog-field"
+			>{{ tr('editor.area.name') }}
+				<input
+					:id="inputId"
+					v-bind="aria"
+					name="name"
+					type="text"
+					:value="form.values.value.name"
+					:readonly="paused"
+					@input="nameInput"
+				>
+			</label>
+		</FieldError>
 		<FormBanner :message="form.banner.value" />
 		<p
 			v-if="latest.value !== null"

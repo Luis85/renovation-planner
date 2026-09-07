@@ -35,7 +35,7 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 		if (blocked.value || dialogs.current || !baseline.value || !services) return;
 		const shown = baseline.value;
 		if (!matches(shown)) { notifyOperationFailure(undoSuperseded(context.planId as PlanId)); await refresh(); return; }
-		const draft = planningDraft(kind, shown, session.roomId, id, session.focusedId);
+		const draft = planningDraft(kind, shown, session.roomId, id, { focusedId: session.focusedId, targetId: session.targetId || session.roomId });
         if (kind === 'evidence' && !id) draft.type = session.mode === 'photos' ? 'photo' : session.mode === 'notes' ? 'note' : 'document';
 		const busy = ref(false);
 		await dialogs.openDialog({ kind: 'form', title: tr(`planning.edit.${kind}`), component: markRaw(PlanningForm), busy,

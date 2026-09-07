@@ -13,6 +13,16 @@ const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
 async function setup(planning = true) { const rig = await renovationEditor(planning); mounted.push(rig); rig.changePlan(); await settle(); return rig; }
 
+it('opens Room name and outline editing from Overview while retaining the selected Room', async () => {
+	const rig = await setup(); await rig.runtime.renovation.perspective('renovate'); await settle();
+	await rig.wrapper.get('[data-rp-action="rename-room"]').trigger('click'); await settle();
+	expect(rig.dialogs.current?.kind).toBe('form'); rig.dialogs.resolve('cancel'); await settle();
+	await rig.wrapper.get('[data-rp-action="edit-outline"]').trigger('click'); await settle();
+	expect(rig.wrapper.find('[data-rp-form="outline-points"]').exists()).toBe(true);
+	rig.dialogs.resolve('cancel'); await settle(); expect(rig.selection.selectedIds).toEqual([rig.room.id]);
+	expect(rig.session.mode).toBe('overview');
+});
+
 it('retains keyboard focus through Room views and returns it to Details when Overview removes its trigger', async () => {
 	const rig = await setup(); await rig.runtime.renovation.perspective('renovate'); await settle();
 	const nav = rig.wrapper.get('.rp-room-navigation').element;
@@ -28,7 +38,7 @@ it('retains keyboard focus through Room views and returns it to Details when Ove
 it('shows an honest overview, continues to capture facts and returns to a real floor summary', async () => {
 	const rig = await setup(); await rig.runtime.renovation.perspective('renovate'); await settle();
 	expect(rig.wrapper.get('.rp-transformation-summary').text()).toContain('Not recorded yet');
-	expect(rig.wrapper.get('[data-rp-stat="renovation-cost"]').text()).toContain('0 EUR');
+	expect(rig.wrapper.get('[data-rp-stat="renovation-cost"]').text()).toBe('0.00 EUR');
 	await rig.wrapper.get('[data-rp-action="continue-renovation"]').trigger('click'); await settle(); expect(rig.session.mode).toBe('existing');
 	rig.selection.clear(); await settle(); expect(rig.wrapper.find('.rp-floor-inspector').exists()).toBe(true); expect(rig.wrapper.find('[data-rp-stat="renovation-cost"]').exists()).toBe(true);
 });
@@ -90,7 +100,7 @@ it('connects recorded outcomes, an unresolved decision and real evidence counts 
 	rig.changePlan(); rig.runtime.renovation.focus(roomId, 'overview'); await settle();
 	const overview = rig.wrapper.get('.rp-transformation-summary');
 	expect(overview.text()).toContain('Original boards'); expect(overview.text()).toContain('Prepare boards'); expect(overview.text()).toContain('Oiled boards');
-	expect(rig.wrapper.get('[data-rp-stat="renovation-cost"]').text()).toContain('125 EUR');
+	expect(rig.wrapper.get('[data-rp-stat="renovation-cost"]').text()).toBe('125.00 EUR');
 	for (const mode of ['costs', 'documents', 'photos', 'notes'] as const) {
 		expect(rig.wrapper.get(`[data-rp-linked="${mode}"]`).text()).toContain('1');
 		await rig.wrapper.get(`[data-rp-linked="${mode}"]`).trigger('click'); await settle(); expect(rig.session.mode).toBe(mode); expect(rig.selection.selectedIds).toEqual([roomId]);

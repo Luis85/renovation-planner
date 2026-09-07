@@ -116,10 +116,10 @@ const ENTRIES_BY_ID: { readonly [K in CreationEntryId]: EntryFor<K> } = {
 		availability: { kind: 'available' },
 		activate: (runtime) => runtime.setTool('draw-area'),
 	},
-	path: unsupported('path', 'property'),
-	fence: unsupported('fence', 'property'),
+	path: { ...unsupported('path', 'property'), availability: { kind: 'available' }, activate: runtime => runtime.setTool('draw-path') },
+	fence: { ...unsupported('fence', 'property'), availability: { kind: 'available' }, activate: runtime => runtime.setTool('draw-fence') },
 	item: unsupported('item', 'planning'),
-	measurement: unsupported('measurement', 'planning'),
+	measurement: { ...unsupported('measurement', 'planning'), availability: { kind: 'available' }, activate: runtime => runtime.setTool('measure') },
 	note: {
 		id: 'note', group: 'planning', labelKey: 'editor.add.note.label', descriptionKey: 'editor.add.note.description', synonymKeys: [],
 		availability: { kind: 'available' },

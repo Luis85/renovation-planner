@@ -85,12 +85,12 @@ describe('persistence composition', () => {
 		// to `MIGRATION_SET` and running this file is what proves it now.
 		expect(snapshot?.schemaVersions).toEqual({
 			project: 1,
-			plan: 5,
+			plan: 6,
 			zone: 1,
 			asset: 1,
-			requirement: 2,
+			requirement: 3,
 			'asset-price': 1,
-			'plan-geometry': 3,
+			'plan-geometry': 4,
 		});
 		expect(snapshot?.migrationState.pending).toEqual([]);
 		expect(snapshot?.obsidianVersion).toBe(apiVersion);

@@ -5,4 +5,5 @@ import type { Migration } from '../../MigrationRunner';
  * `work-package`/`asset` origin kinds are ADDITIVE to the discriminated union, not
  * breaking — which is why no migration category exists for them in advance.
  */
-export const REQUIREMENT_MIGRATIONS: Migration[] = [{ fromVersion: 1, toVersion: 2, migrate: input => typeof input === 'object' && input !== null ? { ...input, 'schema-version': 2 } : input }];
+export const REQUIREMENT_MIGRATIONS: Migration[] = [{ fromVersion: 1, toVersion: 2, migrate: input => typeof input === 'object' && input !== null ? { ...input, 'schema-version': 2 } : input },
+{ fromVersion: 2, toVersion: 3, migrate: input => typeof input === 'object' && input !== null ? { ...input, 'schema-version': 3 } : input }];

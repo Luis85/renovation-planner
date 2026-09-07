@@ -39,30 +39,40 @@ function validateBatch(input: RenovationInput, baseline: RenovationBaseline) {
 	const valid = validateRenovationInput(input.renovation, { ...baseline.geometry.document, intended: input.intended });
 	return valid.ok ? ok(input) : valid;
 }
+function affectedTargets(current: Structure, targets: readonly BatchTarget[], removing: boolean): readonly BatchTarget[] {
+ if (!removing) return targets;
+ const ids = new Set(targets.map(item => item.targetId));
+ return [...targets, ...current.openings.flatMap(opening => {
+  const host = targets.find(item => item.targetId === opening.hostId);
+  if (!host || ids.has(opening.id)) return [];
+  return [{ roomId: host.roomId, targetId: opening.id, name: `${tr(`editor.add.${opening.kind}.label`)} · ${host.name}`, kind: opening.kind === 'door' ? 'door' as const : opening.kind === 'window' ? 'window' as const : 'other' as const }];
+ })];
+}
+function changedSubjects(values: readonly RenovationSubject[], targets: readonly BatchTarget[], draft: BatchDraft): readonly RenovationSubject[] {
+ let subjects = [...values];
+ for (const target of targets) {
+  const original = subjects.find(item => item.targetId === target.targetId);
+  const subject: RenovationSubject = original ?? { id: createEntityId('detail'), roomId: target.roomId, targetId: target.targetId, kind: target.kind, existing: { description: target.name, condition: 'unknown' }, planned: null };
+  subjects = replace(subjects, { ...subject, planned: { change: draft.kind === 'remove' ? 'remove' : 'modify', description: draft.kind === 'remove' ? '' : draft.title } });
+ }
+ return subjects;
+}
+function removedTargets(before: Structure, ids: ReadonlySet<string>): Structure {
+ return { ...before, elements: before.elements?.filter(item => !ids.has(item.id)), walls: before.walls.filter(item => !ids.has(item.id)), openings: before.openings.filter(item => !ids.has(item.id)), boundaries: before.boundaries.filter(item => !item.wallIds.some(id => ids.has(id))) };
+}
 function changeTargets(baseline: RenovationBaseline, targets: readonly BatchTarget[], draft: BatchDraft): RenovationInput {
-	const value = baseline.plan.entity.renovation ?? EMPTY_RENOVATION, current = baseline.geometry.document.structure ?? EMPTY_STRUCTURE;
-	const before = baseline.geometry.document.intended ?? current;
-	const ids = new Set(targets.map(item => item.targetId));
-	const affected = [...targets];
-	if (draft.kind === 'remove') for (const opening of current.openings) {
-		const host = targets.find(item => item.targetId === opening.hostId);
-		if (!host || ids.has(opening.id)) continue;
-		affected.push({ roomId: host.roomId, targetId: opening.id, name: `${tr(`editor.add.${opening.kind}.label`)} · ${host.name}`, kind: opening.kind === 'door' ? 'door' : opening.kind === 'window' ? 'window' : 'other' }); ids.add(opening.id);
-	}
-	let subjects = [...value.subjects];
-	for (const target of affected) {
-		const original = subjects.find(item => item.targetId === target.targetId);
-		const subject: RenovationSubject = original ?? { id: createEntityId('detail'), roomId: target.roomId, targetId: target.targetId, kind: target.kind, existing: { description: target.name, condition: 'unknown' }, planned: null };
-		subjects = replace(subjects, { ...subject, planned: { change: draft.kind === 'remove' ? 'remove' : 'modify', description: draft.kind === 'remove' ? '' : draft.title } });
-	}
-	const intended = draft.kind === 'remove' ? { walls: before.walls.filter(item => !ids.has(item.id)), openings: before.openings.filter(item => !ids.has(item.id)), boundaries: before.boundaries.filter(item => !item.wallIds.some(id => ids.has(id))) }
-		: baseline.geometry.document.intended ? restoreTargets(current, before, ids) : undefined;
-	return { renovation: { ...value, subjects }, intended };
+ const value = baseline.plan.entity.renovation ?? EMPTY_RENOVATION, current = baseline.geometry.document.structure ?? EMPTY_STRUCTURE;
+ const before = baseline.geometry.document.intended ?? current;
+ const affected = affectedTargets(current, targets, draft.kind === 'remove'), ids = new Set(affected.map(item => item.targetId));
+ const subjects = changedSubjects(value.subjects, affected, draft);
+ const intended = draft.kind === 'remove' ? removedTargets(before, ids) : baseline.geometry.document.intended ? restoreTargets(current, before, ids) : undefined;
+ return { renovation: { ...value, subjects }, intended };
 }
 function restoreTargets(current: Structure, before: Structure, ids: ReadonlySet<string>): Structure {
 	const walls = [...before.walls, ...current.walls.filter(item => ids.has(item.id) && !before.walls.some(existing => existing.id === item.id))];
 	const openings = [...before.openings, ...current.openings.filter(item => ids.has(item.id) && !before.openings.some(existing => existing.id === item.id))];
 	const wallIds = new Set(walls.map(item => item.id));
 	const boundaries = [...before.boundaries, ...current.boundaries.filter(item => !before.boundaries.some(existing => existing.roomId === item.roomId) && item.wallIds.every(id => wallIds.has(id)))];
-	return { walls, openings, boundaries };
+	const elements = [...before.elements ?? [], ...current.elements?.filter(item => ids.has(item.id) && !before.elements?.some(existing => existing.id === item.id)) ?? []];
+	return { ...before, ...(elements.length ? { elements } : {}), walls, openings, boundaries };
 }

@@ -25,6 +25,19 @@
  */
 import { structureEn } from './structure';
 export const editorEn = {
+	"editor.element.name-required": "Enter a name.",
+	"editor.element.edit": "Edit {name}",
+	"editor.element.edit-action": "Edit name and coordinates",
+	"editor.element.edit-hint": "Edit the name and exact coordinates. Apply saves these changes together.",
+	"editor.element.changed": "This element changed. Cancel and reopen to use the latest saved version.",
+	"editor.element.delete-impact": "Delete {name} and its geometry? Undo can restore it.",
+	"editor.element.create-hint": "Place points on the plan or enter coordinates in metres, then finish. Measurements need two points.",
+	"editor.element.add-point": "Add point",
+	"editor.element.undo-point": "Remove last point",
+	"editor.element.finish": "Finish",
+	"editor.element.cancel": "Cancel",
+	"spatial.element-invalid": "Enter a name and a valid shape before finishing.",
+	"plan.invalid-spatial-elements": "Element names and identities must be valid and unique.",
 	'editor.room.snapped': "Snapped to nearby geometry.",
 	'editor.add.note.context-required': "Select one room and wait for its notes to load before adding a note.",
 	'zone.category-change': "Room and area identity cannot be changed here.",

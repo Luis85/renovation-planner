@@ -11,7 +11,7 @@ export interface RenovationSpatialContext {
 	readonly intended?: Structure;
 }
 function spatialIds(structure: Structure = EMPTY_STRUCTURE, rooms: readonly string[]): Set<string> {
-	return new Set([...rooms, ...structure.walls.map(item => item.id), ...structure.openings.map(item => item.id)]);
+	return new Set([...rooms, ...structure.walls.map(item => item.id), ...structure.openings.map(item => item.id), ...(structure.elements ?? []).map(item => item.id)]);
 }
 
 export function validateRenovationTargets(value: Renovation, context: RenovationSpatialContext): Result<void, ValidationError> {

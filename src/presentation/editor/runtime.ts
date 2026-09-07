@@ -1,6 +1,8 @@
 import { createEditorFormActions, type EditorFormActions } from './editorFormActions';
 import { createLatestRead } from '../composables/latest-read';
 import { createPlanningRefresh } from './planning/planningRefresh';
+import { createElementTask } from './elements/elementTask';
+import { createElementActions } from './elements/elementActions';
 import { selectAndFrameOn } from './selection/selectAndFrame';
 import { createRenovationDeletionGuard } from './renovation/renovationDeleteGuard';
 import { createHistoryActions } from './tools/historyActions';
@@ -80,6 +82,8 @@ import { createNudgeSelectionAction } from './nudge';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly elementTask: ReturnType<typeof createElementTask>;
+	readonly elementActions: ReturnType<typeof createElementActions>;
 	readonly areaDetails: EditorFormActions['areaDetails'];
 	readonly outlineEdit: EditorFormActions['outlineEdit'];
 	readonly planning: ReturnType<typeof createPlanningRefresh>;
@@ -456,7 +460,7 @@ function registerSelectionRetirement(
 	watch(
 		() => [projectStore.zones, projectStore.structure] as const,
 		([zones, structure]) => {
-			const exists = (id: string): boolean => zones.has(id) || [...structure.walls, ...structure.openings].some(item => item.id === id);
+			const exists = (id: string): boolean => zones.has(id) || [...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === id);
 			const survivors = selection.selectedIds.filter((id) => exists(String(id)));
 			if (survivors.length !== selection.selectedIds.length) selection.select(survivors);
 			if (renderState.hoveredObjectId !== null && !exists(renderState.hoveredObjectId)) {
@@ -718,7 +722,11 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect, roomDraft, defaultRoomName });
 	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
-	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value, previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
+	const elementTask = createElementTask(context, { toolManager, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
+	const elementActions = createElementActions(context, { activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, structureTask, openPlanNote: () => context.openPlanNote() });
+	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value,
+		previewElement: elementActions.previewElement, moveElement: (id, points, original) => { void elementActions.move(id, points, original); },
+		previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
 	// BECOMES `'ready'` — and a `previous !== 'ready'` guard would be dead code here, not a
@@ -780,7 +788,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	}
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
-	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore });
+	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore, moveElement: elementActions.move });
 
 	// The assign picker's options and the Inspector's rows, hydrated at mount and re-read on the
 	// three doors that carry what they draw — the catalogue's, the price's and the recalculation
@@ -792,14 +800,14 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 
 	return {
 		dispatcher: wrappedDispatcher,
-		structureTask, structureActions,
+		structureTask, structureActions, elementTask, elementActions,
 		toolManager, renderState, activeToolId, setTool, returnToSelect, cancelActiveTask,
 		undo, redo, canUndo, canRedo,
 		inspectorDto: storeToRefs(inspector).dto,
 		inspectorRequirements: storeToRefs(inspector).requirements,
 		assetOptions: assetOptionsRef,
 		hydrateInspector: (ids) => inspector.hydrateFrom(ids),
-		deleteZone, commitEdit, commitField, selectAndFrame,
+		deleteZone: (id, name) => projectStore.structure.elements?.some(item => item.id === id) ? elementActions.remove(id) : deleteZone(id, name), commitEdit, commitField, selectAndFrame,
 		multiSelectionMode: ref(false),
 		createRoom, canCreateRoom, roomDraftIncomplete, roomDraft,
 		...areaTask,

@@ -13,6 +13,19 @@ import type {
  */
 import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
+	"editor.element.name-required": "Gib einen Namen ein.",
+	"editor.element.edit": "{name} bearbeiten",
+	"editor.element.edit-action": "Name und Koordinaten bearbeiten",
+	"editor.element.edit-hint": "Bearbeite den Namen und die genauen Koordinaten. Anwenden speichert die Änderungen gemeinsam.",
+	"editor.element.changed": "Dieses Element wurde geändert. Brich ab und öffne es erneut, um die aktuelle Version zu verwenden.",
+	"editor.element.delete-impact": "{name} und seine Geometrie löschen? Rückgängig kann es wiederherstellen.",
+	"editor.element.create-hint": "Setze Punkte im Plan oder gib Koordinaten in Metern ein. Schließe danach ab. Messungen benötigen zwei Punkte.",
+	"editor.element.add-point": "Punkt hinzufügen",
+	"editor.element.undo-point": "Letzten Punkt entfernen",
+	"editor.element.finish": "Abschließen",
+	"editor.element.cancel": "Abbrechen",
+	"spatial.element-invalid": "Gib vor dem Abschließen einen Namen und eine gültige Form ein.",
+	"plan.invalid-spatial-elements": "Elementnamen und Kennungen müssen gültig und eindeutig sein.",
 	'editor.room.snapped': "An nahegelegener Geometrie eingerastet.",
 	'editor.add.note.context-required': "Wähle einen Raum aus und warte, bis seine Notizen geladen sind.",
 	'zone.category-change': "Die Identität als Raum oder Fläche kann hier nicht geändert werden.",

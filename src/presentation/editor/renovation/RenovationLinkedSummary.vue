@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatPlanningMoney } from '../../i18n/planningFormat';
 import { computed } from 'vue';
 import { usePlanningContext } from '../planning/planningContext';
 import { useProjectStore } from '../../stores/ProjectStore';
@@ -63,7 +64,7 @@ const links = computed(() => {
 			data-rp-stat="renovation-cost"
 			class="rp-renovation-estimate"
 		>
-			{{ costs!.totals!.planned.amount }} {{ costs!.totals!.planned.currency }}
+			{{ formatPlanningMoney(costs!.totals!.planned) }}
 		</p>
 	</section>
 </template>

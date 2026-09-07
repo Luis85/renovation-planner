@@ -1,4 +1,5 @@
 import type { Point } from '../../core/geometry/Point';
+import type { SpatialElementKind } from '../../domain/spatial/SpatialElement';
 import { area } from '../../core/geometry/operations';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from './PlanDto';
 
@@ -7,7 +8,7 @@ import type { PlanDto, ProjectSummaryDto, ZoneDto } from './PlanDto';
  * every other type is an Area, and the id is the `ZoneId` unchanged. Area is DERIVED here
  * from the geometry the DTO already carries; it is never stored and never copied from a note.
  */
-export type SpatialKind = 'room' | 'area' | 'wall' | 'opening';
+export type SpatialKind = 'room' | 'area' | 'wall' | 'opening' | SpatialElementKind;
 
 export interface SpatialRecordDto {
 	readonly kind: SpatialKind;

@@ -7,7 +7,7 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchema, PlanGeometrySchemaV3 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV4 } from '../../persistence/dto/planGeometry';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
@@ -21,8 +21,8 @@ function canonicalJson(dto: PlanGeometryDTO): string {
 	return JSON.stringify(dto, null, '\t');
 }
 
-function writtenSchema(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): 1 | 2 | 3 {
-	return dto.intended ? 3 : dto.structure ? 2 : 1;
+function writtenSchema(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): 1 | 2 | 3 | 4 {
+	return dto.structure?.elements?.length || dto.intended?.elements?.length ? 4 : dto.intended ? 3 : dto.structure ? 2 : 1;
 }
 
 function schemaVersionOf(parsed: unknown): number {
@@ -242,7 +242,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV3.safeParse(migrated);
+		const validated = PlanGeometrySchemaV4.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',

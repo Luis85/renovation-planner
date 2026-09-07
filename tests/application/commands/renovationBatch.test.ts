@@ -37,7 +37,7 @@ describe('shared editor records through repository history', () => {
 		const saved = expectDefined(expectOk(await rig.read()).plan.entity.renovation, 'saved renovation');
 		const raw = planToPersistence(expectOk(await rig.read()).plan.entity, 1);
 		expect(raw['schema-version']).toBe(5); expect(PlanFrontmatterSchemaV4.safeParse(raw).success).toBe(false);
-		expect(() => createMigrationRunner({ plan: PLAN_MIGRATIONS.slice(0, -1) }).migrateToLatest('plan', raw, 5)).toThrow(/newer than this build supports/);
+		expect(() => createMigrationRunner({ plan: PLAN_MIGRATIONS.filter(step => step.toVersion <= 4) }).migrateToLatest('plan', raw, 5)).toThrow(/newer than this build supports/);
 		const depth = saved.depth ?? EMPTY_DEPTH;
 		const item = expectDefined(kind === 'work' ? saved.work.find(record => record.title === draft.title) : depth.evidence[0], 'shared record');
 		expect(item.links).toEqual([{ roomId: rig.roomId, targetId: 'wall-b' }]);

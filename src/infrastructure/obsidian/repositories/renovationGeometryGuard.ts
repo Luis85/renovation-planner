@@ -10,7 +10,7 @@ import { validateRenovationTargets } from '../../../domain/renovation/renovation
 import { renovationError } from '../../../domain/renovation/Renovation';
 import { persistenceError } from './noteIo';
 
-const ids = (dto: PlanGeometryDTO): string[] => [...dto.objects.map(item => item.id), ...dto.structure?.walls.map(item => item.id) ?? [], ...dto.structure?.openings.map(item => item.id) ?? []];
+const ids = (dto: PlanGeometryDTO): string[] => [...dto.objects.map(item => item.id), ...dto.structure?.walls.map(item => item.id) ?? [], ...dto.structure?.openings.map(item => item.id) ?? [], ...dto.structure?.elements?.map(item => item.id) ?? []];
 
 /** Read actual bytes before a spatial deletion; a metadata-cache lag cannot waive links. */
 export async function guardRenovationGeometry(deps: { vault: Vault; index: ProjectIndex }, planId: PlanId, before: PlanGeometryDTO, after: PlanGeometryDTO): Promise<Result<void, PersistenceError | ValidationError>> {

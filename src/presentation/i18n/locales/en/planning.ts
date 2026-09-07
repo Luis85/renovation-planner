@@ -92,6 +92,8 @@ export const planningEn = {
 	"planning.rule.room-perimeter": "Room outline perimeter",
 	"planning.rule.wall-gross": "Wall gross face area",
 	"planning.rule.wall-net": "Wall net face area",
+	"planning.rule.element-length": "Element length",
+	"planning.rule.object-area": "Object area",
 	"planning.rule.wall-length": "Wall length",
 	"planning.rule.opening-area": "Opening area",
 	"planning.rule.count": "One selected item",

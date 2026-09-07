@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: Path, Fence and Measurement creation with numeric coordinates, snapping, selection, precise editing, movement and guarded Undo/Redo. Generic element geometry and canonical names participate in existing/intended renovation, material quantities and explicit Room contexts. Failed baseline reads preserve drafts for read-only retry; compensated retries retain the same creation identity.
+
 - Align dragged Room rectangles to saved geometry with visible snap feedback; exact numeric edits remain available.
 
 - Plan editor: Add → Note opens the selected Room’s Notes form. Notes remain ordinary vault files; Undo/Redo removes/restores the evidence link without deleting the note file.

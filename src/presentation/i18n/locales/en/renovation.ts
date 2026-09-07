@@ -20,7 +20,7 @@ export const renovationEn = {
 	"renovation.batch.preview": "Apply saves this selection together. Undo reverses it as one action. Current geometry stays unchanged when marking a planned change.",
 	"renovation.batch.hosted": "Also marks {count} hosted openings for removal. Related room outlines stay unchanged.",
 	"renovation.batch.unsupported": "Every selected element must be available and have a room context. Areas do not support these renovation actions.",
-	"renovation.batch.structure-only": "Change and delete actions require only walls or openings. Rooms can share work and evidence.",
+	"renovation.batch.structure-only": "Edit room outlines individually. Rooms can share work and evidence.",
 	"renovation.batch.length": "Total element length",
 	"renovation.batch.length-hint": "Sum of selected wall and opening lengths. Hosted openings are counted separately.",
 	"renovation.batch.delete": "Delete selected elements",

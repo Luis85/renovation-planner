@@ -2,11 +2,17 @@
 import { tr } from '../../i18n/strings';
 import { geometryFields, type PlannedGeometryDraft } from './plannedGeometry';
 import type { Structure } from '../../../domain/spatial/Structure';
+import PlannedElementFields from '../elements/PlannedElementFields.vue';
 const draft = defineModel<PlannedGeometryDraft>('draft', { required: true });
 defineProps<{ addition: boolean; structure: Structure; paused: boolean }>();
 </script>
 <template>
 	<section class="rp-renovation-fields">
+		<PlannedElementFields
+			v-if="draft.kind === 'element'"
+			v-model:draft="draft"
+			:paused="paused"
+		/>
 		<label v-if="addition && !draft.id">
 			{{ tr('renovation.geometry') }}
 			<select

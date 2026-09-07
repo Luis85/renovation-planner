@@ -20,7 +20,7 @@ export const renovationDe = {
 	"renovation.batch.preview": "Anwenden speichert die Auswahl gemeinsam. Rückgängig widerruft alles in einem Schritt. Beim Vormerken bleibt die bestehende Geometrie unverändert.",
 	"renovation.batch.hosted": "Zusätzlich werden {count} Wandöffnungen zum Entfernen vorgemerkt. Zugehörige Raumumrisse bleiben unverändert.",
 	"renovation.batch.unsupported": "Jedes ausgewählte Element muss verfügbar und einem Raum zugeordnet sein. Bereiche unterstützen diese Renovierungsaktionen nicht.",
-	"renovation.batch.structure-only": "Ändern und Löschen erfordern ausschließlich Wände oder Öffnungen. Räume können Arbeiten und Nachweise gemeinsam verknüpfen.",
+	"renovation.batch.structure-only": "Bearbeiten Sie Raumumrisse einzeln. Räume können Arbeiten und Nachweise gemeinsam verknüpfen.",
 	"renovation.batch.length": "Gesamte Elementlänge",
 	"renovation.batch.length-hint": "Summe der ausgewählten Wand- und Öffnungslängen. Wandöffnungen werden zusätzlich gezählt.",
 	"renovation.batch.delete": "Ausgewählte Elemente löschen",

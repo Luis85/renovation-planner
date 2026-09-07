@@ -4,7 +4,7 @@ import { planEditorDeps } from '../../src/plugin/planEditorDeps';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
 import { navigateToProject } from '../../src/infrastructure/obsidian/workspace/navigateToProject';
-import { PlanEditorView, PLAN_EDITOR_VIEW } from '../../src/presentation/views/PlanEditorView';
+import { type PlanEditorView, PLAN_EDITOR_VIEW } from '../../src/presentation/views/PlanEditorView';
 import { RenovationProjectView, RENOVATION_PROJECT_VIEW } from '../../src/presentation/views/RenovationProjectView';
 import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
 import { expectDefined } from '../helpers/domain';
@@ -52,6 +52,7 @@ export function downstreamWorkspace(reference: ReturnType<typeof referenceWorksp
 		const scan = buildProjectIndexEntries({ ...stack.deps, echo: persistence.vaultDeps.echo });
 		persistence.index.rebuild(scan.entries, scan.exclusions);
 		scanned = true;
+		return undefined;
 	});
 	const vault = stack.deps.vault as Vault;
 	const workspace = new BrowserWorkspace((leaf, type) => {
@@ -67,12 +68,7 @@ export function downstreamWorkspace(reference: ReturnType<typeof referenceWorksp
 		return view;
 	});
 	const native = planEditorDeps(root, workspace as unknown as Workspace, vault);
-	const deps = { ...native, vault: reference.deps.vault, onThemeChange: reference.deps.onThemeChange,
-		queries: { ...native.queries,
-			getPlan: async (...args: Parameters<typeof native.queries.getPlan>) => { await ready; return native.queries.getPlan(...args); },
-			findZonesByPlan: async (...args: Parameters<typeof native.queries.findZonesByPlan>) => { await ready; return native.queries.findZonesByPlan(...args); },
-		},
-	};
+	const deps = { ...native, vault: reference.deps.vault, onThemeChange: reference.deps.onThemeChange };
 	const leaf = workspace.getLeaf();
 	leaf.state = { type: PLAN_EDITOR_VIEW, state: { planId: reference.plan.id } };
 	const attach = (view: PlanEditorView) => {
@@ -82,5 +78,5 @@ export function downstreamWorkspace(reference: ReturnType<typeof referenceWorksp
 			for (const subscription of persistence.subscriptions) subscription.dispose();
 		}, { once: true });
 	};
-	return { deps, leaf, attach };
+	return { deps, leaf, attach, ready };
 }

@@ -1,0 +1,102 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+      "--text-accent": "hsl(258, 88%, 66%)",
+      "--background-primary": "#ffffff",
+      "--background-secondary": "#f6f6f6"
+    },
+    "scheduleAccessibility": {
+      "state": "project-schedule",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "quoteAccessibility": {
+      "state": "quote-comparison",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "storage": "production Work/Trade/Supplier/Quote services over the connected reference workspace vault",
+    "navigation": "native editor and Project view-state paths; retained editor Room projection and selection",
+    "hostBoundary": "browser workspace adapter; real Obsidian leaf/history/MetadataCache observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "scheduleAccessibility": {
+      "state": "project-schedule",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "quoteAccessibility": {
+      "state": "quote-comparison",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "storage": "production Work/Trade/Supplier/Quote services over the connected reference workspace vault",
+    "navigation": "native editor and Project view-state paths; retained editor Room projection and selection",
+    "hostBoundary": "browser workspace adapter; real Obsidian leaf/history/MetadataCache observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "#7c246b",
+      "--text-accent": "#7c246b",
+      "--background-primary": "#fff8ed",
+      "--background-secondary": "#efe3d3"
+    },
+    "scheduleAccessibility": {
+      "state": "project-schedule",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "quoteAccessibility": {
+      "state": "quote-comparison",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "storage": "production Work/Trade/Supplier/Quote services over the connected reference workspace vault",
+    "navigation": "native editor and Project view-state paths; retained editor Room projection and selection",
+    "hostBoundary": "browser workspace adapter; real Obsidian leaf/history/MetadataCache observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "scheduleAccessibility": {
+      "state": "project-schedule",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "quoteAccessibility": {
+      "state": "quote-comparison",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "storage": "production Work/Trade/Supplier/Quote services over the connected reference workspace vault",
+    "navigation": "native editor and Project view-state paths; retained editor Room projection and selection",
+    "hostBoundary": "browser workspace adapter; real Obsidian leaf/history/MetadataCache observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

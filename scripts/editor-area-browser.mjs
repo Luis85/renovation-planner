@@ -89,20 +89,23 @@ export async function runAreaBrowserMatrix(directory, query, journey, ready = '.
 			const page = await browser.newPage({ viewport: { width: scenario.width, height: 900 } });
 			const errors = [];
 			page.on('pageerror', (error) => errors.push(error.message));
+			let evidence;
+			try {
 			await page.goto(`${server.resolvedUrls.local[0]}?view=plan-editor&bare${query}${scenario.query}`);
 			await page.locator(ready).waitFor();
 			if (scenario.accent) {
 				await page.addStyleTag({ content: 'body { --interactive-accent: #7c246b; --text-accent: #7c246b; --background-primary: #fff8ed; --background-secondary: #efe3d3; }' });
 				await page.evaluate(() => window.dispatchEvent(new Event('rp-harness-theme')));
 			}
-			let evidence;
-			try { evidence = await journey(page, scenario, out); }
+			evidence = await journey(page, scenario, out);
+			assert.deepEqual(errors, []);
+			}
 			catch (cause) {
 				await page.screenshot({ path: `${out}/${scenario.name}-failed.png` });
 				await writeFile(`${out}/${scenario.name}-failed.txt`, await page.locator('body').innerText());
+				await writeFile(`${out}/${scenario.name}-failed-errors.json`, JSON.stringify(errors, null, 2));
 				throw cause;
 			}
-			assert.deepEqual(errors, []);
 			results.push({ scenario: scenario.name, browser: browser.version(), ...evidence, keyboard: 'passed', pageErrors: errors });
 			await page.close();
 		}

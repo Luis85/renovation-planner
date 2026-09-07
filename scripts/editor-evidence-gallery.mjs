@@ -4,6 +4,7 @@ import { recordApply, recordText } from './editor-record-browser.mjs';
 import { chooseNative, editorContextSnapshot, assertEditorContext } from './editor-downstream-forms.mjs';
 import { panel } from './editor-structure-check.mjs';
 import { inspectorVisibility } from './editor-inspector-visibility.mjs';
+import { verifyCaptionControls } from './editor-caption-browser.mjs';
 
 const form = '[data-rp-form="planning"]';
 const entries = [
@@ -77,6 +78,8 @@ export async function captureEvidenceGallery(page, scenario, out, shot) {
 	const visibility = await galleryVisibility(page, ids, scenario.width === 460);
 	await page.setViewportSize({ width: scenario.width, height: 900 });
 	await assertEditorContext(page, before);
-	return { images: 6, phase: 'during', selectedId: ids[2], selectedDate: '2026-08-28', work: 'Floor finish', visibility,
+	const captionControls = await verifyCaptionControls(page, scenario, out, ids[2]);
+	await assertGallery(page, ids); await assertEditorContext(page, before);
+	return { images: 6, phase: 'during', selectedId: ids[2], selectedDate: '2026-08-28', work: 'Floor finish', visibility, captionControls,
 		viewport: `${scenario.width} × 1000`, inputs: 'six explicit synthetic PNG files linked through native production forms' };
 }

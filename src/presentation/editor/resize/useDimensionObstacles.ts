@@ -7,6 +7,11 @@ export interface DimensionObstacleLayout {
 	readonly viewport: BoundingBox | null;
 }
 
+function sameBox(box: BoundingBox | null, other: BoundingBox | null): boolean {
+	return box === null || other === null ? box === other
+		: box.min.x === other.min.x && box.min.y === other.min.y && box.max.x === other.max.x && box.max.y === other.max.y;
+}
+
 /** Native dimension controls own one observer; room renderers consume only world rectangles. */
 export function useDimensionObstacles(root: Ref<HTMLElement | null>, viewport: () => Viewport, publish: (layout: DimensionObstacleLayout) => void): void {
 	let observer: ResizeObserver | null = null, frame: number | null = null;
@@ -14,10 +19,6 @@ export function useDimensionObstacles(root: Ref<HTMLElement | null>, viewport: (
 	const observed = new Set<Element>();
 	// The controls use a 2px outline with a 2px offset. Reserve it even without focus.
 	const clearance = 4;
-	function sameBox(box: BoundingBox | null, other: BoundingBox | null): boolean {
-		return box === null || other === null ? box === other
-			: box.min.x === other.min.x && box.min.y === other.min.y && box.max.x === other.max.x && box.max.y === other.max.y;
-	}
 	function update(layout: DimensionObstacleLayout): void {
 		if (sameBox(layout.viewport, previous.viewport) && layout.bounds.length === previous.bounds.length && layout.bounds.every((box, index) => sameBox(box, previous.bounds[index]))) return;
 		previous = layout;

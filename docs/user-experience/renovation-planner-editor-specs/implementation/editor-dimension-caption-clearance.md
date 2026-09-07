@@ -38,3 +38,23 @@ Verification prepared, not run:
 
 Actual browser layout, four-scenario recapture, native inline-form focus, full performance and
 the unchanged repository gates remain to be run by the integrating task.
+
+## Initial measured regression results
+
+The independent mounted test was run against the predecessor renderer (`242bfa33`, five tracked
+production files temporarily restored and then restored to HEAD in `finally`). All three cases
+failed for the expected real reasons: 5% dimension overlap, 9% inline-form overlap and a clamped
+caption at y=−46.4 outside the canvas. Six native pin targets and all three Text nodes were required.
+
+The current renderer at `5154504f` passed 25 tests across the new integration/lifecycle/fallback
+files and existing scene/evidence-caption tests. Current types passed. Oxlint identified the pure
+`sameBox` function nested unnecessarily; it has been moved to module scope without behavior change.
+Remaining scoped lint, Room-dimension lifecycle regressions and actual browser checks are pending.
+
+The browser preparation reads actual Konva Text/pin rectangles and native control rectangles
+relative to the real Stage container, independently of the published obstacle snapshot. It uses
+native middle-button pan, opens/cancels normal and top-clamped inline dimensions, and reverses
+the pan. It checks three retained caption texts/font sizes, six fixed pin world positions, unchanged
+world points/vault contents and visible, non-overlapping captions. No store writes or synthetic
+production obstacle injection are used by that browser helper. Syntax checks passed; execution
+awaits the next heavy slot.

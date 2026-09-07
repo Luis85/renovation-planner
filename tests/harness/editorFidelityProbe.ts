@@ -2,11 +2,12 @@ import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZon
 import { zoneRenamed } from '../../src/domain/zone/Zone.events';
 import { expectDefined, expectOk } from '../helpers/domain';
 import type { referenceWorkspace } from './referenceWorkspace';
+import { editorCaptionScene } from './editorCaptionProbe';
 
 /** Explicit test-data preparation, never a production control or a write performed by a query. */
 export function editorFidelityProbe(workspace: ReturnType<typeof referenceWorkspace>) {
 	let seeded = false;
-	return { async seedSurroundings(german: boolean) {
+	return { captions: editorCaptionScene, savedNotes: () => [...workspace.stack.vault.entries], async seedSurroundings(german: boolean) {
 		if (seeded) return;
 		seeded = true;
 		const { stack, plan } = workspace;

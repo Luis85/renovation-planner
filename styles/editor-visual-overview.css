@@ -1,7 +1,7 @@
 .renovation-plan-editor .rp-transformation-summary {
 	display: grid;
-	gap: 12px;
-	padding: 14px;
+	gap: 8px;
+	padding: 12px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-m);
 	background: var(--background-secondary);
@@ -39,8 +39,18 @@
 
 .renovation-plan-editor .rp-renovation-linked-summary {
 	display: grid;
-	gap: 12px;
-	margin: 16px 0;
+	gap: 8px;
+	margin: 8px 0;
+}
+
+/* The native navigation retains its accessible name without another visible title row. */
+.renovation-plan-editor .rp-renovation-linked-summary > h4:has(+ .rp-linked-counts) {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 
 .renovation-plan-editor .rp-linked-counts {
@@ -53,7 +63,7 @@
 	justify-content: space-between;
 	width: 100%;
 	min-height: 34px;
-	padding: 8px;
+	padding: 6px 8px;
 	background: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
 	box-shadow: none;
@@ -65,9 +75,14 @@
 }
 
 .renovation-plan-editor .rp-renovation-estimate {
+	margin: 0;
 	font-size: 24px;
 	font-weight: var(--font-semibold);
 	font-variant-numeric: tabular-nums;
+}
+
+.renovation-plan-editor .rp-renovation-inspector .rp-room-more-actions:not([open]) {
+	padding-block: 6px;
 }
 
 .renovation-plan-editor .rp-batch-actions,

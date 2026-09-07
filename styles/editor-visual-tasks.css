@@ -1,14 +1,33 @@
 /* Task controls remain in their accepted banner, inspector and modal hosts. */
 .renovation-plan-editor .rp-add-menu {
-	width: min(24rem, calc(100% - 32px));
-	max-height: min(34rem, calc(100% - 100px));
-	padding: 12px;
+	width: min(23rem, calc(100% - 32px));
+	max-height: min(40rem, calc(100% - 100px));
+	padding: 10px;
 	bottom: 80px;
 }
 
-.renovation-plan-editor .rp-add-menu__item { padding: 12px; gap: 5px; }
+.renovation-plan-editor .rp-add-menu__title { margin: 0 0 4px; font-weight: var(--font-semibold); }
+.renovation-plan-editor .rp-add-menu__item {
+	display: grid;
+	grid-template-columns: 18px minmax(0, 0.85fr) minmax(0, 1.5fr);
+	align-items: center;
+	min-height: 34px;
+	padding: 6px;
+	gap: 3px 8px;
+	white-space: normal;
+}
+.renovation-plan-editor .rp-add-menu__item + .rp-add-menu__item { margin-top: 0; }
+.renovation-plan-editor .rp-add-menu__item .rp-host-icon { width: 18px; height: 18px; }
+.renovation-plan-editor .rp-add-menu__item-description { line-height: 1.35; }
+.renovation-plan-editor .rp-add-menu__reason { grid-column: 2 / -1; }
+.renovation-plan-editor .rp-add-menu__group + .rp-add-menu__group {
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 4px;
+	padding-top: 2px;
+}
+.renovation-plan-editor .rp-add-menu__group h3 { text-transform: none; }
 .renovation-plan-editor .rp-add-menu__item-label { font-weight: var(--font-semibold); }
-.renovation-plan-editor .rp-add-menu__search { min-height: 36px; margin-bottom: 8px; }
+.renovation-plan-editor .rp-add-menu__search { flex-shrink: 0; min-height: 32px; margin-bottom: 2px; }
 .renovation-plan-editor .rp-add-menu__item[aria-disabled="true"] .rp-add-menu__item-label,
 .renovation-plan-editor .rp-add-menu__item[aria-disabled="true"] .rp-add-menu__item-description,
 .renovation-plan-editor .rp-add-menu__reason { color: var(--text-muted); }
@@ -53,7 +72,7 @@
 }
 
 .renovation-plan-editor .rp-structure-task label { gap: 6px; }
-.renovation-plan-editor .rp-structure-task input { min-height: 32px; }
+.renovation-plan-editor .rp-structure-task input:not([type='checkbox']) { min-height: 32px; }
 .renovation-plan-editor .rp-reference-setup { gap: 16px; }
 .renovation-plan-editor .rp-reference-grid { gap: 12px; }
 .renovation-plan-editor .rp-reference-setup section {

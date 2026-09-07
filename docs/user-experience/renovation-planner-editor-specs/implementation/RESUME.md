@@ -58,6 +58,21 @@ Erhaltungsarm; Statements unverändert. Kein neues Health-Ergebnis aus alten
 Requirement-Countern ableiten; nächste vollständigeCI muss den neuen Source messen.
 [Datums-Evidence](requirement-date-preservation.md).
 
+## Gemeinsamer UI-Join zur Verifikation
+
+Root übernimmt den committeten UI-Checkpoint **f576d13c** auf Root-Basis
+1b554540. Git-Merge konfliktfrei; die UI hatte45/45nativeTests sowie aktuelle
+Types/Oxlint/scopedESLint bestanden. Das ist ein **gemeinsamer WIP-Kandidat**,
+kein abschließender Browser-/Host-Pass. Enthalten sind die gesamte UI-Folge,
+Dimension-Caption-Messung, die gemeinsam projizierten Review-Roommarker und
+Issue-Schaltflächen. Neue Marker bleiben in Review; Issue-Auswahl öffnet Quellen.
+
+Coverage muss den gepushten Join nach dem Ende seiner laufenden Outline-Prüfung
+in den eigenen Branch übernehmen und die gewünschten Markerregressionen daran
+prüfen. Keine Sourceänderung während laufender Prüfungen. Root behält die
+Integration; UI setzt den unveränderten echten Browserlauf fort und liefert neue
+Korrekturen separat. Finale9Journeys/18Referenzen und HostH1–H6 bleiben offen.
+
 ## Verbindliche Quellen
 
 Zuerst vorhandene AGENTS.md und bei .codex/ deren instructions.md/Workflow lesen. Beim letzten Audit waren sie im Repo nicht vorhanden; Nutzeranweisungen im Task gelten weiterhin. [CLAUDE.md](../../../../CLAUDE.md) und [SDD](../../../development/sdds/obsidian-renovation-planner-SDD.md) enthalten die Projektregeln. Aktuelle akzeptierte ADR-/SDD-Amendments gehen alten Snapshots vor.

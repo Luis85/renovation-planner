@@ -11,6 +11,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 </script>
 <template>
 	<li
+		class="rp-subject-row"
 		:data-rp-record="item.id"
 		:class="{ 'is-selected': session.focusedId === item.id }"
 	>

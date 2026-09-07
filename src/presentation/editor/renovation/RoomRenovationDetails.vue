@@ -84,6 +84,7 @@ function remove(id: string, name: string, proposalOnly = false): void {
 		/>
 		<button
 			type="button"
+			class="mod-cta"
 			:disabled="actions.blocked.value"
 			data-rp-action="new-record"
 			@click="actions.edit(session.mode as 'existing' | 'planned' | 'work', room.id)"

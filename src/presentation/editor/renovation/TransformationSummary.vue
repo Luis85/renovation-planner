@@ -8,7 +8,7 @@ import { renovationSummary } from './renovationSummary';
 import { tr } from '../../i18n/strings';
 import HostIcon from '../../components/HostIcon.vue';
 
-const props = defineProps<{ roomId: string; targetId?: string; continuationOnly?: boolean }>();
+const props = defineProps<{ roomId: string; targetId?: string; continuationOnly?: boolean; compact?: boolean }>();
 const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession();
 const summary = computed(() => renovationSummary(project.plan?.renovation ?? EMPTY_RENOVATION, props.roomId, props.targetId));
 function continuePlanning(): void {
@@ -29,7 +29,13 @@ function continuePlanning(): void {
 				<p>{{ summary.existing.slice(0, 3).map(item => item.existing!.description).join(', ') || tr('renovation.summary.unrecorded') }}</p>
 			</div>
 			<div>
-				<h4>{{ tr('renovation.summary.work') }}</h4>
+				<h4>
+					{{ tr('renovation.summary.work') }}
+					<span
+						v-if="compact"
+						class="rp-transformation-progress"
+					>{{ tr('renovation.summary.compact-progress', { done: String(summary.complete), total: String(summary.work.length) }) }}</span>
+				</h4>
 				<p>{{ summary.work.slice(0, 3).map(item => item.title).join(', ') || tr('renovation.summary.unrecorded') }}</p>
 			</div>
 			<div>
@@ -37,9 +43,11 @@ function continuePlanning(): void {
 				<p>{{ summary.planned.slice(0, 3).map(item => `${tr(`renovation.change.${item.planned!.change}`)}: ${item.planned!.description || item.existing?.description}`).join(', ') || tr('renovation.summary.unrecorded') }}</p>
 			</div>
 		</div>
-		<p>{{ tr('renovation.summary.change-count', { count: String(summary.changes) }) }} · {{ tr('renovation.summary.progress', { done: String(summary.complete), total: String(summary.work.length) }) }}</p>
+		<p v-if="!compact">
+			{{ tr('renovation.summary.change-count', { count: String(summary.changes) }) }} · {{ tr('renovation.summary.progress', { done: String(summary.complete), total: String(summary.work.length) }) }}
+		</p>
 		<p
-			v-if="summary.findings.length"
+			v-if="summary.findings.length && !compact"
 			class="rp-record-metadata"
 		>
 			{{ tr('renovation.summary.open', { count: String(summary.findings.length) }) }}

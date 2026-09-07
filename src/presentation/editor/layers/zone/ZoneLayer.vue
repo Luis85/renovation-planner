@@ -19,9 +19,12 @@ import { useSelectionStore } from '../../selection/selection-store';
 import type { EvidencePin } from '../../planning/evidencePins';
 import { useRenovationSession } from '../../renovation/renovationSession';
 import { useWorkspaceStore } from '../../../stores/WorkspaceStore';
+import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
 
 const props = defineProps<{
 	pins: readonly EvidencePin[];
+	dimensionObstacles: readonly BoundingBox[];
+	captionViewport: BoundingBox | null;
 	transform: NodeTransform;
 	tokens: ThemeTokens;
 	visible: boolean;
@@ -54,6 +57,8 @@ const models = computed(() => [...zones.value.values()].map((zone) => toZoneRend
 			:zoom="props.zoom"
 			:selected="selected.has(model.id)"
 			:pins="captionObstacles"
+			:dimension-obstacles="dimensionObstacles"
+			:caption-viewport="captionViewport"
 		/>
 	</VLayer>
 </template>

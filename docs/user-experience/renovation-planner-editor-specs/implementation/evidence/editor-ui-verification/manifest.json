@@ -1,0 +1,39 @@
+{
+  "source": "7bb60f93b659e55dc515fe12fc8f3cb1ecb9b161",
+  "initialNativeSource": "ee1e20ab686c2eef19b8f751440d45947b216abb",
+  "buildSource": "f41c87ad6f60e04aedcc0e5cece88ee64a247a08",
+  "capturedAt": "2026-09-07T16:49:17.5808039+02:00",
+  "logs": [
+    {
+      "file": "build-joined.txt",
+      "sha256": "47c0e63d1a8dd6f0804e98784464a5f9baa47e01d99d036f804fd8d385472cee",
+      "capturedSha256": "ef229714258e33996e04fce18663d1087d1ec2a520301870cbb41e4a38defe12"
+    },
+    {
+      "file": "native-joined.txt",
+      "sha256": "9bf876a6a6b92fc40352869bf378cba53e3ef27d84bce535483adf8ed632e3b8",
+      "capturedSha256": "389c2397d35d0035f84c8e4aa2b79cde7fc0f192f3dda8bcc86fc515e00cc613"
+    },
+    {
+      "file": "native-corrections.txt",
+      "sha256": "626dd2b38432b84bbaf2a65d21445cfc9407d6acbacd9be8da51542d88e302c6",
+      "capturedSha256": "1343eca2e7c8a02ede8b3eb00d6f59caabdc00afc6b7b644e593b3cf1741a3cf"
+    },
+    {
+      "file": "types-final-joined.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "capturedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lint-final-joined.txt",
+      "sha256": "c1f90838011438eae07162ea003c37c9d596df71ee9ebe93a2f68590d47afab0",
+      "capturedSha256": "24a7dbb4c22c6f8e44ed333e31346216b6d4b84739106b8ad18a0b950fa2bf80"
+    },
+    {
+      "file": "analyze-joined.txt",
+      "sha256": "08a83de0cc028a508784eec2a2bf6fd445ff733b658399e87544c9c19c48cc39",
+      "capturedSha256": "d7fd3e793d6d91e8796f093e538ffc8caf4646e1cacf37a5a442be53aeee3c13"
+    }
+  ],
+  "archivedLineEndings": "LF; capturedSha256 preserves the original Windows log hash"
+}

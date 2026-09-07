@@ -54,6 +54,7 @@ describe('connected Room renovation inspector', () => {
 		expect(rig.wrapper.get(`[data-rp-review-room="${rig.room.id}"]`).text()).toContain('1 items need attention');
 		expect(rig.wrapper.get('.rp-review-summary .rp-transformation-summary').text()).toContain('Worn oak boards');
 		expect(rig.wrapper.get('.rp-review-summary .rp-transformation-summary').text()).toContain('Repair and oil boards');
+		expect(rig.wrapper.get('.rp-review-summary .rp-transformation-summary').text()).toContain('0/1 complete');
 		const generate = rig.wrapper.findAll('.rp-renovation-inspector button').find(button => button.text().includes('review note'));
 		await expectDefined(generate, 'generate button').trigger('click'); await settle(); expect([...rig.stack.vault.entries.values()].some(text => text.includes('# Review'))).toBe(true);
 		await actions.perspective('renovate'); await settle(); expect(rig.session.focusedId).toBe(work.id); expect(useEditorStore(rig.pinia).viewport).toEqual(viewport);

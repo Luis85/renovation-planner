@@ -29,6 +29,7 @@
 .renovation-plan-editor .rp-review-summary .rp-renovation-linked-summary { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
 .renovation-plan-editor .rp-review-summary .rp-renovation-linked-summary > h4 { margin: 0; }
 .renovation-plan-editor .rp-review-summary .rp-linked-counts { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.renovation-plan-editor .rp-review-summary .rp-linked-counts__button { gap: 5px; padding: 6px; white-space: normal; text-align: start; }
+.renovation-plan-editor .rp-review-summary .rp-linked-counts__button { gap: 3px; padding: 6px 4px; height: auto; white-space: normal; text-align: start; }
 .renovation-plan-editor .rp-review-summary .rp-linked-counts__label { min-width: 0; }
 .renovation-plan-editor .rp-review-summary .rp-renovation-estimate { font-size: 20px; }
+.renovation-plan-editor .rp-review-summary .rp-transformation-progress { display: block; margin-top: 4px; font-weight: var(--font-normal); }

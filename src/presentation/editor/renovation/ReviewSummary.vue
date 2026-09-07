@@ -76,7 +76,10 @@ function openRoom(roomId: string, event: Event): Promise<void> {
 		</ul>
 		<div v-if="selected">
 			<h4>{{ selected.name }}</h4>
-			<TransformationSummary :room-id="selected.id" />
+			<TransformationSummary
+				:room-id="selected.id"
+				compact
+			/>
 			<RenovationLinkedSummary
 				v-if="context.commands.planning"
 				:room-id="selected.id"

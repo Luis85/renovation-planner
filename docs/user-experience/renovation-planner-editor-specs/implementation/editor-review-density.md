@@ -32,3 +32,12 @@ then correctly failed Open room's contrast (3.42:1, required 4.5:1). The existin
 color rule covered only direct Inspector children; it now also covers the nested Review CTA.
 No color tokens, contrast criteria or accessibility assertions were changed. The next actual
 four-theme capture remains pending.
+
+The contrast correction passed Light and Dark's complete strengthened journeys. At the narrower
+1000-pixel custom-theme leaf, Review still placed its heading 31.4 pixels above the Inspector.
+The selected transformation's long footer wrapped, and Documents wrapped inside its small link.
+A Review-only compact summary now puts the same Work completion ratio in the Work heading;
+the change count remains visible in the selected Room row. Other overview callers retain their
+original footer. Link padding/gaps are tighter horizontally and buttons can grow with real text.
+No counts, labels, controls, rules or limits are discarded. Current runtime verification remains
+pending; whole Oxlint and diff checks passed on this correction.

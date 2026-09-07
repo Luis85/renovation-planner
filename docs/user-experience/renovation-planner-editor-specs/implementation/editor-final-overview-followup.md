@@ -35,3 +35,21 @@ the downstream journey for its additional design view; no existing journey is re
 The first complete 43041936 run and its comparison inventory remain archived. These new
 production/capture changes need their own verified images and subsequent complete matrix before
 claiming final visual acceptance. The verified pan stabilization remains intact.
+
+## Capture integrity without deletion
+
+Automatic approval review rejected recursive cleanup of generated captures. The final runner
+now retains previous files and records actual successful page.screenshot output paths instead
+of scanning PNG folders. A successful journey emits a current-source manifest with original
+timestamps and hashes. Copying verifies each explicitly named source file's timestamp and hash
+before writing its destination; the nine original reports remain required. Static capture adds
+exactly sixteen named states. Every one of the eighteen comparison inputs must occur in that
+current manifest, and all thirty-six compositions must be fresh. The final image inventory is
+built from those recorded names, never from old failed or unused PNGs. Source/HEAD freeze stays.
+
+A small filesystem check passed fresh named copying, exclusion of an unrecorded fresh PNG,
+refusal of changed bytes before copying and refusal of a stale source before copying. Its
+temporary test data is retained without deletion. The first pilot's M00 header selector and
+the second pilot's ambiguous Floor/Rooms heading selector were corrected without changing
+production behavior. Captures now prefer the selected Room and explicitly label any Floor or
+element viewport sample, while retaining exact selected-entity IDs separately.

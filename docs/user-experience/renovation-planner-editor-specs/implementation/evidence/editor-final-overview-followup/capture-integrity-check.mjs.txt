@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile, writeFile, utimes } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { makeCaptureManifest, copyCaptureFiles } from 'file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-capture-files.mjs';
+
+const directory = await mkdtemp(join(tmpdir(), 'rp-capture-integrity-'));
+const started = Date.now() - 1000;
+process.env.RP_CAPTURE_STARTED_AT = String(started);
+await writeFile(join(directory, 'current.png'), 'synthetic bytes for provenance checks');
+await writeFile(join(directory, 'unused.png'), 'fresh but not captured');
+await writeFile(join(directory, 'report.json'), '{}');
+const manifest = await makeCaptureManifest(directory, started, new Set(['current.png']));
+assert.deepEqual(manifest.files.filter(file => file.kind === 'image').map(file => file.name), ['current.png']);
+await writeFile(join(directory, 'capture-files.json'), JSON.stringify(manifest));
+const destination = join(directory, 'copy');
+await copyCaptureFiles(directory, destination, 'journey');
+const original = await readFile(join(destination, 'current.png'));
+await writeFile(join(directory, 'current.png'), 'changed bytes');
+await assert.rejects(copyCaptureFiles(directory, destination, 'journey'), /matches its recorded source bytes/);
+assert.deepEqual(await readFile(join(destination, 'current.png')), original);
+await writeFile(join(directory, 'current.png'), original);
+const old = new Date(started - 10000);
+await utimes(join(directory, 'current.png'), old, old);
+await assert.rejects(copyCaptureFiles(directory, destination, 'journey'), /was generated in this run/);
+assert.deepEqual(await readFile(join(destination, 'current.png')), original);
+console.log('PASS: fresh named copy; unrecorded PNG excluded; changed bytes refused before copy; stale source refused before copy.');
+console.log(`Temporary test data retained without deletion: ${directory}`);

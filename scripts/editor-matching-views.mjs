@@ -47,7 +47,7 @@ export async function captureInspectorDesign(page, scenario, out, name, { select
 
 const overviewViews = {
 	room: { name: 'M00-room-design', selectors: ['.rp-renovation-inspector > h3', '.rp-transformation-summary', '.rp-linked-counts', '[data-rp-action="continue-renovation"]'] },
-	floor: { name: 'M01-floor-design', selectors: ['.rp-floor-inspector > h3', '.rp-floor-planning-summary', '.rp-floor-inspector__guidance', '.rp-floor-inspector .rp-room-list'] },
+	floor: { name: 'M01-floor-design', selectors: ['.rp-floor-inspector > h3:first-of-type', '.rp-floor-planning-summary', '.rp-floor-inspector__guidance', '.rp-floor-inspector .rp-room-list:has(.rp-room-list__row--annotated)'] },
 	wall: { name: 'M07-wall-design', selectors: ['.rp-structure-inspector > h3', '.rp-structure-inspector > .rp-editor-inspector-fields', '[data-rp-action="edit-structure"]'], topControl: '[data-rp-action="edit-structure"]' },
 };
 export async function captureOverviewMatching(page, scenario, out, state) {

@@ -31,6 +31,23 @@ function evidenceSelected(rig: Awaited<ReturnType<typeof setup>>, id: string, se
  expect(title.text().includes('Selected')).toBe(selected);
 }
 describe('connected planning editor', () => {
+ it('groups scoped cost obligations by Work and reveals a collapsed exact source before returning focus', async () => {
+ const rig = await setup(), requirement = await material(rig), before = expectDefined(expectOk(await rig.stack.plans.getById(rig.plan.id)), 'Plan');
+ const roomId = rig.room.id;
+ const work = { id: 'cost-group-work', roomId, targetId: roomId, title: 'Prepare walls', description: '', order: 0, progress: 'pending' as const, responsibility: 'diy' as const, outcomes: [], dependencies: [] };
+ const common = { roomId, targetId: roomId, workId: work.id, category: 'labor' as const, requirementId: '', facts: [], cancelled: false };
+ const costs = [{ ...common, id: 'labor-first', title: 'Preparation', planned: of('25', 'EUR') }, { ...common, id: 'labor-second', title: 'Painting', planned: of('50', 'EUR') }];
+ expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(before.entity, { subjects: [], work: [work], decisions: [], depth: { costs, procurement: [], evidence: [] } })), before.version)); rig.changePlan(); await settle();
+ rig.runtime.renovation.focus(roomId, 'costs'); await settle();
+ const groups = rig.wrapper.findAll<HTMLDetailsElement>('.rp-cost-group'); expect(groups).toHaveLength(2);
+ const workGroup = expectDefined(groups.find(group => group.get('summary').text().includes(work.title)), 'Work group');
+ expect(workGroup.get('summary').text()).toContain('75.00 EUR'); expect(workGroup.findAll('.rp-cost-row')).toHaveLength(2);
+ workGroup.element.open = false;
+ rig.runtime.renovation.focus(roomId, 'costs', 'labor-second'); await settle();
+ expect(workGroup.element.open).toBe(true); expect(rig.wrapper.get('[data-rp-record="labor-second"]').element.contains(document.activeElement)).toBe(true);
+ rig.runtime.renovation.focus(roomId, 'costs', requirement.id); await settle();
+ expect(rig.wrapper.get(`[data-rp-record="estimate:${requirement.id}"]`).element.contains(document.activeElement)).toBe(true);
+ });
  it('adds material, updates allocations, records a partial payment, links evidence, and follows Review back', async () => {
  const rig = await setup(), requirement = await material(rig);
  expect(rig.wrapper.text()).toContain('13.2'); await action(rig, 'Purchase quantities');
@@ -85,6 +102,9 @@ describe('connected planning editor', () => {
  expect(rig.stage?.find('.evidence-pin')).toHaveLength(1); rig.stage?.findOne('.evidence-pin')?.fire('click'); rig.stage?.findOne('.evidence-pin')?.fire('tap'); await settle(); expect(rig.session.focusedId).toBe(rig.project.plan?.renovation?.depth?.evidence[0].id);
  rig.session.evidencePhase = 'after'; await settle(); expect(rig.stage?.find('.evidence-pin')).toHaveLength(0); rig.session.evidencePhase = ''; await settle();
  rig.runtime.renovation.focus(rig.room.id, 'photos'); await settle(); await rig.wrapper.get('[data-rp-new-evidence]').trigger('click'); await settle(); await rig.wrapper.get('input[name="title"]').setValue('Floor before'); await rig.wrapper.get('input[name="path"]').setValue('scan.png'); await apply(rig); expect(rig.wrapper.text()).toContain('Thumbnail unavailable'); expect(rig.stack.vault.entries.has(path)).toBe(true);
+ const photo = rig.wrapper.get('[data-rp-evidence-photo]'), photoId = photo.attributes('data-rp-evidence-photo');
+ rig.session.focusedId = ''; await settle(); expect(photo.attributes('aria-current')).toBeUndefined(); expect(rig.wrapper.get(`[data-rp-record="${photoId}"]`).isVisible()).toBe(false);
+ await photo.trigger('click'); await settle(); expect(photo.attributes('aria-current')).toBe('true'); expect(rig.session.focusedId).toBe(photoId); expect(rig.wrapper.get(`[data-rp-record="${photoId}"]`).isVisible()).toBe(true);
  });
  it('surfaces read/write failures, retries, and refuses a late peer edit while retaining the draft', async () => {
  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');
@@ -109,7 +129,7 @@ describe('connected planning editor', () => {
  const linked = rig.wrapper.findAll('.rp-renovation-inspector button').find(button => button.text().startsWith('Related record')); await expectDefined(linked, 'source link').trigger('click'); await settle(); expect(rig.session.mode).toBe('materials'); expect(rig.session.focusedId).toBe(requirement.id); expect(rig.selection.selectedIds).toEqual(selection);
  await action(rig, 'Costs', '.rp-planning-actions'); await rig.wrapper.get('[data-rp-new-cost]').trigger('click'); await settle(); await rig.wrapper.get('input[name="title"]').setValue('Labor'); await rig.wrapper.get('select[name="category"]').setValue('labor'); await rig.wrapper.get('input[name="planned"]').setValue('100'); await apply(rig);
  rig.session.focusedId = ''; await settle(); expect(rig.wrapper.find('.rp-renovation-list > [aria-current="true"]').exists()).toBe(false);
- await action(rig, 'Documents', '.rp-planning-actions'); const phase = rig.wrapper.get('.rp-renovation-inspector select'); await phase.setValue('after'); expect(rig.wrapper.text()).not.toContain('Paid receipt'); expect(rig.selection.selectedIds).toEqual(selection); await phase.setValue('');
+ await action(rig, 'Documents', '.rp-planning-actions'); const phase = rig.wrapper.get('[data-rp-evidence-phase="after"]'); await phase.trigger('click'); expect(phase.attributes('aria-pressed')).toBe('true'); expect(rig.wrapper.text()).not.toContain('Paid receipt'); expect(rig.selection.selectedIds).toEqual(selection); await rig.wrapper.get('[data-rp-evidence-phase=""]').trigger('click'); expect(phase.attributes('aria-pressed')).toBe('false');
  const files = expectDefined(rig.deps.commands.evidenceFiles, 'files'); vi.spyOn(files, 'open').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.open', message: 'offline' })); await action(rig, 'Open in vault'); expect(rig.wrapper.text()).toContain('file action failed');
  });
  it('shows failed shopping writes and stale quantity findings with a route back from Review', async () => {

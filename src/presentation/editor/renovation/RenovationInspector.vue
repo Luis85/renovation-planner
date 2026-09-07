@@ -33,6 +33,8 @@ watch(() => [session.focusedId, session.mode], async () => {
 	await nextTick();
 	const row = [...root.value?.querySelectorAll<HTMLElement>('[data-rp-record]') ?? []].find(item => item.dataset.rpRecord === session.focusedId)
 		?? root.value?.querySelector<HTMLElement>('[data-rp-record].is-selected');
+	const group = row?.closest('details');
+	if (group) group.open = true;
 	row?.querySelector('button')?.focus();
 }, { flush: 'post' });
 

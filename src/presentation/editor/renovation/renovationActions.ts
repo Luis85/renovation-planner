@@ -34,6 +34,11 @@ function navigationTarget(records: NavigationRecords, roomId: string, id: string
 function revealRecord(id: string, workspace: ReturnType<typeof useWorkspaceStore>): void {
  if (id && workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
 }
+function currentContext(roomId: string, targetId: EntityId<string> | undefined, project: ReturnType<typeof useProjectStore>, session: ReturnType<typeof useRenovationSession>) {
+	if (!targetId) return null;
+	const room = project.zones.get(targetId)?.zoneType === 'Room' ? targetId : null;
+	return { roomId: room ?? (targetId === session.targetId ? session.roomId : roomId), targetId };
+}
 
 export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask' | 'writesBlocked' | 'openPlanNote'>) {
 	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore(), planning = usePlanningReadState(), workspace = useWorkspaceStore();
@@ -63,7 +68,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			return;
 		}
 		runtime.returnToSelect();
-		const target = navigationTarget({ renovation: project.plan?.renovation ?? EMPTY_RENOVATION, materials: planning.baseline?.materials ?? [] }, roomId, id, selection.selectedIds.length > 0 ? session : null, mode);
+		const target = navigationTarget({ renovation: project.plan?.renovation ?? EMPTY_RENOVATION, materials: planning.baseline?.materials ?? [] }, roomId, id, currentContext(roomId, selection.selectedIds[0], project, session), mode);
   Object.assign(session, target, { mode, focusedId: id, perspective: 'renovate' });
   if (id) session.evidencePhase = '';
   revealRecord(id, workspace);

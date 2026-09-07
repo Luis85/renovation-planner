@@ -1,4 +1,10 @@
 export const planningEn = {
+	'planning.material-details': 'Details and actions for {name}',
+	'planning.calculated-badge': 'Calculated',
+	'planning.manual-badge': 'Manual',
+	'planning.by-work': 'By work',
+	'planning.add-material': 'Add material',
+	'planning.add-cost': 'Add cost',
 	"planning.open-library": "Open asset library",
 	'planning.selected': 'Selected',
 	'planning.recovery.unrecovered': 'The operation could not finish or undo all its changes. Reading again cannot repair those files. Your draft is kept; inspect the source note and related files, then cancel before checking them against your backup.',

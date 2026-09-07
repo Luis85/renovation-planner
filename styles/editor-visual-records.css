@@ -1,4 +1,31 @@
 /* Real renovation records keep their existing commands and keyboard order. */
+.renovation-plan-editor .rp-renovation-inspector > .mod-cta {
+	background: color-mix(in srgb, var(--interactive-accent) 70%, var(--text-normal));
+	color: var(--background-primary);
+}
+
+.renovation-plan-editor .rp-room-navigation-opener {
+	display: flex;
+	justify-content: space-between;
+	width: 100%;
+	height: auto;
+	min-height: 36px;
+	padding: 8px 0;
+	border: 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	white-space: normal;
+}
+
+.renovation-plan-editor .rp-room-navigation-opener:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
 .renovation-plan-editor .rp-room-navigation {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -91,7 +118,7 @@
 	color: var(--text-muted);
 }
 
-.renovation-plan-editor .rp-cost-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.renovation-plan-editor .rp-cost-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .renovation-plan-editor .rp-cost-total {
 	padding: 10px;
 	border: 1px solid var(--background-modifier-border);
@@ -99,8 +126,8 @@
 	background: var(--background-secondary);
 }
 
-.renovation-plan-editor .rp-cost-total dd { margin-top: 4px; font-size: 18px; font-weight: var(--font-semibold); }
-.renovation-plan-editor .rp-cost-total[data-rp-stage='remaining'] { grid-column: 2 / -1; }
+.renovation-plan-editor .rp-cost-total dd { margin-top: 4px; font-size: 16px; font-weight: var(--font-semibold); }
+.renovation-plan-editor .rp-cost-total[data-rp-stage='remaining'] { grid-column: 1 / -1; }
 .renovation-plan-editor .rp-cost-row .rp-cost-totals { display: block; }
 .renovation-plan-editor .rp-cost-row .rp-cost-total {
 	display: grid;
@@ -158,3 +185,30 @@
 }
 
 .renovation-plan-editor .rp-renovation-inspector > label select { min-width: 0; width: 100%; }
+
+.renovation-plan-editor .rp-cost-groups > h4 { margin: 0 0 8px; }
+.renovation-plan-editor .rp-cost-groups .rp-cost-group {
+	margin-top: 8px;
+	padding: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	color: var(--text-normal);
+}
+
+.renovation-plan-editor .rp-cost-group > summary { padding: 12px; }
+.renovation-plan-editor .rp-cost-group-amount { float: inline-end; margin-inline-start: 8px; font-variant-numeric: tabular-nums; }
+.renovation-plan-editor .rp-cost-group .rp-renovation-list { margin: 0; gap: 0; }
+.renovation-plan-editor .rp-cost-group .rp-cost-row { border: 0; border-top: 1px solid var(--background-modifier-border); border-radius: 0; }
+
+.renovation-plan-editor .rp-evidence-filters { display: flex; flex-wrap: wrap; gap: 4px; }
+.renovation-plan-editor .rp-evidence-filters button { height: auto; min-height: 32px; padding: 5px 8px; white-space: normal; }
+.renovation-plan-editor .rp-evidence-filters button[aria-pressed='true'] { border-color: var(--interactive-accent); background: var(--background-modifier-active-hover); }
+
+.renovation-plan-editor .rp-evidence-file-metadata { display: block; }
+.renovation-plan-editor .rp-evidence-gallery { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.renovation-plan-editor .rp-evidence-gallery li { min-width: 0; }
+.renovation-plan-editor .rp-evidence-gallery button { display: block; width: 100%; height: 100%; padding: 8px; white-space: normal; text-align: start; }
+.renovation-plan-editor .rp-evidence-gallery button[aria-current='true'] { border-color: var(--interactive-accent); background: var(--background-modifier-active-hover); }
+.renovation-plan-editor .rp-evidence-photo-title { display: block; margin-bottom: 8px; font-weight: var(--font-semibold); }
+.renovation-plan-editor .rp-evidence-gallery .rp-evidence-thumbnail { aspect-ratio: 4 / 3; object-fit: cover; }
+.renovation-plan-editor .rp-evidence-gallery .rp-evidence-file-metadata { font-size: var(--font-ui-smaller); color: var(--text-muted); }

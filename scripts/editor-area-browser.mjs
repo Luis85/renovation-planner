@@ -13,6 +13,10 @@ export async function tabTo(page, selector) {
 	throw new Error(`Tab did not reach ${selector}`);
 }
 export async function activate(page, selector) {
+	if (selector.startsWith('[data-rp-mode=') && !await page.locator(selector).isVisible()) {
+		await tabTo(page, '[data-rp-room-navigation]');
+		await page.keyboard.press('Enter');
+	}
 	await tabTo(page, selector);
 	await page.keyboard.press('Enter');
 }

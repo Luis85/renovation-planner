@@ -26,14 +26,21 @@ it('opens Room name and outline editing from Overview while retaining the select
 it('retains keyboard focus through Room views and returns it to Details when Overview removes its trigger', async () => {
 	const rig = await setup(); await rig.runtime.renovation.perspective('renovate'); await settle();
 	const nav = rig.wrapper.get('.rp-room-navigation').element;
-	for (const mode of ['existing', 'planned', 'work', 'overview'] as const) {
+	for (const mode of ['existing', 'planned', 'work'] as const) {
 		const button = rig.wrapper.get<HTMLButtonElement>(`[data-rp-mode="${mode}"]`);
 		button.element.focus(); expect(document.activeElement).toBe(button.element);
 		await button.trigger('click'); await settle();
 		expect(rig.wrapper.get('.rp-room-navigation').element).toBe(nav);
-		expect(document.activeElement).toBe(mode === 'overview' ? rig.wrapper.get('[data-rp-region="inspector"]').element : button.element);
+		expect(document.activeElement).toBe(rig.wrapper.get('[data-rp-room-navigation]').element);
+		expect(rig.wrapper.get('.rp-room-navigation').isVisible()).toBe(false);
+		await rig.wrapper.get('[data-rp-room-navigation]').trigger('click');
+		expect(rig.wrapper.get('.rp-room-navigation').isVisible()).toBe(true);
 		expect(rig.selection.selectedIds).toEqual([rig.room.id]);
 	}
+	await rig.wrapper.get('[data-rp-mode="overview"]').trigger('click'); await settle();
+	expect(rig.wrapper.get('.rp-room-navigation').element).toBe(nav);
+	expect(document.activeElement).toBe(rig.wrapper.get('[data-rp-region="inspector"]').element);
+	expect(rig.selection.selectedIds).toEqual([rig.room.id]);
 });
 it('shows an honest overview, continues to capture facts and returns to a real floor summary', async () => {
 	const rig = await setup(); await rig.runtime.renovation.perspective('renovate'); await settle();
@@ -41,6 +48,24 @@ it('shows an honest overview, continues to capture facts and returns to a real f
 	expect(rig.wrapper.get('[data-rp-stat="renovation-cost"]').text()).toBe('0.00 EUR');
 	await rig.wrapper.get('[data-rp-action="continue-renovation"]').trigger('click'); await settle(); expect(rig.session.mode).toBe('existing');
 	rig.selection.clear(); await settle(); expect(rig.wrapper.find('.rp-floor-inspector').exists()).toBe(true); expect(rig.wrapper.find('[data-rp-stat="renovation-cost"]').exists()).toBe(true);
+});
+
+it('does not return navigation focus into a disposed editor leaf', async () => {
+	const rig = await setup(); await rig.runtime.renovation.perspective('renovate'); await settle();
+	const button = rig.wrapper.get<HTMLButtonElement>('[data-rp-mode="existing"]');
+	button.element.focus();
+	const navigation = button.trigger('click'); rig.unmount(); await navigation; await settle();
+	expect(document.activeElement?.closest('.renovation-plan-editor')).toBeNull();
+});
+
+it('uses the Room selected in Plan when entering renovation instead of the last inspected wall', async () => {
+	const rig = await setup(); await rig.runtime.renovation.perspective('renovate'); await settle();
+	rig.selection.select(['wall-a' as never]); await settle(); expect(rig.session.targetId).toBe('wall-a');
+	await rig.runtime.renovation.perspective('plan'); await settle();
+	await rig.runtime.selectAndFrame(rig.room.id); await settle();
+	expect(rig.session.targetId).toBe('wall-a');
+	await rig.wrapper.get('[data-rp-mode="existing"]').trigger('click'); await settle();
+	expect(rig.selection.selectedIds).toEqual([rig.room.id]); expect(rig.session.targetId).toBe(rig.room.id); expect(rig.session.roomId).toBe(rig.room.id);
 });
 it('keeps a wall selected while capturing its own finish and opening its existing record for change', async () => {
 	const rig = await setup(); rig.selection.select(['wall-a' as never]); await settle();

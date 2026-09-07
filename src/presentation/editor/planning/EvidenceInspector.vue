@@ -4,6 +4,7 @@ import { useRenovationContextLabel } from '../renovation/renovationContextLabel'
 import { inRenovationScope } from '../renovation/renovationSummary';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import EvidencePreview from './EvidencePreview.vue';
+import EvidenceGallery from './EvidenceGallery.vue';
 import { recordChoices } from './recordChoices';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { usePlanningContext } from './planningContext';
@@ -37,11 +38,30 @@ function unlink(id: string): void {
 }
 </script>
 <template>
-	<label>{{ tr('planning.phase') }}<select v-model="session.evidencePhase"><option value="">{{ tr('planning.all-phases') }}</option><option
-		v-for="phase in EVIDENCE_PHASES"
-		:key="phase"
-		:value="phase"
-	>{{ tr(`planning.${phase}`) }}</option></select></label>
+	<div
+		class="rp-evidence-filters"
+		role="group"
+		:aria-label="tr('planning.phase')"
+	>
+		<button
+			type="button"
+			data-rp-evidence-phase=""
+			:aria-pressed="session.evidencePhase === ''"
+			@click="session.evidencePhase = ''"
+		>
+			{{ tr('planning.all-phases') }}
+		</button>
+		<button
+			v-for="phase in EVIDENCE_PHASES"
+			:key="phase"
+			type="button"
+			:data-rp-evidence-phase="phase"
+			:aria-pressed="session.evidencePhase === phase"
+			@click="session.evidencePhase = phase"
+		>
+			{{ tr(`planning.${phase}`) }}
+		</button>
+	</div>
 	<button
 		type="button"
 		:disabled="planning.blocked.value"
@@ -53,9 +73,15 @@ function unlink(id: string): void {
 	<p v-if="!rows.length">
 		{{ tr('renovation.empty') }}
 	</p>
+	<EvidenceGallery
+		v-if="type === 'photo'"
+		:rows="rows"
+		:is-selected="isSelected"
+	/>
 	<ol class="rp-renovation-list">
 		<li
 			v-for="(item, index) in rows"
+			v-show="type !== 'photo' || isSelected(item)"
 			:key="item.id"
 			:data-rp-record="item.id"
 			:class="{ 'is-selected': isSelected(item) }"
@@ -75,6 +101,7 @@ function unlink(id: string): void {
 				:files="planning.files"
 				:plan-id="planning.context.planId"
 				:revision="planning.evidenceRevision.value"
+				:metadata-only="type === 'photo'"
 			/>
 			<div class="rp-planning-actions">
 				<button

@@ -1,14 +1,33 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { editorWorkspaceNavigation } from '../../src/plugin/editorWorkspaceNavigation';
 import { installObsidianDom } from '../helpers/dom';
 import { FakeWorkspace } from '../helpers/workspace';
 import { recorder, resetRecorder, lines } from '../helpers/logger';
 import { activateNotices } from '../../src/presentation/notices/notify';
 import { settle } from '../helpers/async';
+import { expectDefined } from '../helpers/domain';
 
 installObsidianDom();
 describe('editor host navigation composition', () => {
+ it('keeps the editor intact across Work and Quote routes, including a failed host state change', async () => {
+  activateNotices(); resetRecorder();
+  const workspace = new FakeWorkspace(), editor = workspace.withOpen('renovation-plan-editor', { planId: 'plan-ground' });
+  const project = workspace.withOpen('renovation-project', { projectId: 'project-house' }), originalEditor = editor.state;
+  const downstream = expectDefined(editorWorkspaceNavigation(workspace as never, recorder).downstream, 'downstream navigation');
+  const origin = { planId: 'plan-ground', roomId: 'room-kitchen', workId: 'work-floor' };
+  await downstream('project-house', { section: 'schedule', origin });
+  expect(project.state?.state).toMatchObject({ projectId: 'project-house', section: 'schedule', origin });
+  const originalProject = project.state, setState = vi.spyOn(project, 'setViewState').mockRejectedValueOnce(new Error('Host view unavailable'));
+  try {
+   await expect(downstream('project-house', { section: 'quotes', origin })).resolves.toBeUndefined();
+   expect(project.state).toBe(originalProject); expect(editor.state).toBe(originalEditor);
+   expect(lines.filter(line => line.event === 'plan-editor.open-project-failed')).toHaveLength(1);
+   await downstream('project-house', { section: 'quotes', origin });
+   expect(project.state?.state).toMatchObject({ projectId: 'project-house', section: 'quotes', origin });
+   expect(editor.state).toBe(originalEditor); expect(workspace.leaves).toHaveLength(2);
+  } finally { setState.mockRestore(); }
+ });
 	it('reuses related leaves and preserves the originating editor and existing library state', async () => {
 		const workspace = new FakeWorkspace();
 		const editor = workspace.withOpen('renovation-plan-editor', { planId: 'plan-ground' });

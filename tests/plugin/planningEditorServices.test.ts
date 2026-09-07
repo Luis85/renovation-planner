@@ -7,6 +7,7 @@ import { evidenceRenamed } from '../../src/plugin/evidenceRename';
 import { err } from '../../src/core/result/Result';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { planningStack } from '../helpers/planning';
+import { renovationStack } from '../helpers/renovation';
 import { expectDefined, expectOk } from '../helpers/domain';
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
 import { installObsidianDom } from '../helpers/dom';
@@ -21,6 +22,25 @@ async function setup() {
  return { ...rig, root, persistence, services, openLinkText };
 }
 describe('production planning composition and fresh-stack hydration', () => {
+ it('creates the first renovation register through composition and removes it again on undo', async () => {
+  const rig = await renovationStack(); rig.stack.metadataCache.catchUp();
+  const root = createCompositionRoot(DEFAULT_SETTINGS, rig.stack.logger, rig.stack.deps);
+  const persistence = expectDefined(root.persistence, 'persistence');
+  try {
+   const scan = buildProjectIndexEntries({ ...rig.stack.deps, echo: persistence.vaultDeps.echo }); persistence.index.rebuild(scan.entries, scan.exclusions);
+   const renovation = expectDefined(planningEditorServices(root, rig.stack.deps.vault, {} as never).renovation, 'composed renovation');
+   const baseline = expectOk(await renovation.read(rig.plan.id)); expect(baseline.plan.entity.renovation).toBeUndefined();
+   const command = renovation.command(baseline, { renovation: rig.value, intended: baseline.geometry.document.intended }, rig.ledger);
+   expectOk(await command.execute());
+   expect(expectOk(await renovation.read(rig.plan.id)).plan.entity.renovation).toEqual(rig.value);
+   expectOk(await command.undo());
+   const undone = expectOk(await renovation.read(rig.plan.id));
+   expect(undone.plan.entity.renovation).toBeUndefined(); expect(undone.geometry.document).toEqual(baseline.geometry.document);
+   expectOk(await command.execute());
+   const restored = expectOk(await renovation.read(rig.plan.id));
+   expect(restored.plan.entity.renovation).toEqual(rig.value); expect(restored.geometry.document).toEqual(baseline.geometry.document);
+  } finally { for (const subscription of persistence.subscriptions) subscription.dispose(); }
+ });
  it('drives guarded material and linked plan commands, then hydrates fresh repositories from bytes', async () => {
  const rig = await setup(), planning = expectDefined(rig.services.planning, 'planning'), renovation = expectDefined(rig.services.renovation, 'renovation');
  const baseline = expectOk(await planning.read(rig.plan.id)); const command = planning.material(baseline, rig.input, rig.ledger);

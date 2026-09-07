@@ -7,6 +7,14 @@ is claimed. Main remains untouched; work is on `codex/editor-object-ui` in
 
 ## Source anchors and saved work
 
+Current verified overview: 97353663, session73294 terminal0, all4 scenarios including original
+900px flow, matching1000px views and closed M16 at880/460DE.60 screenshots, no failed files in
+recorded manifest; copied only after source hash/time verification. See verified-973 evidence
+and `editor-final-overview-followup.md`. UI released the heavy slot for Coverage's next five
+cases; no UI process is running. Next: downstream --design pilot, then shared-source freeze
+and complete final runner. Final runner now uses positive run boundaries and recorded file
+manifests without deletion, refuses dirty prior evidence and records its prior archive commit.
+
 Latest prepared UI follow-up: M01 grouped original metrics/guidance and Room change cues;
 M04 read-only dashed wall draft/corners; explicit 1000px/top and 880px/460px closed-canvas
 supplements. Native120 unchanged checks plus corrected2 new cases, types/Oxlint/scoped lint

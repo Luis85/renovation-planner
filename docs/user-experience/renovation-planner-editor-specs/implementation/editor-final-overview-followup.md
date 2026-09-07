@@ -59,3 +59,17 @@ production behavior. Captures now prefer the selected Room and explicitly label 
 element viewport sample, while retaining canonical selected IDs/focused ID from a read-only
 harness getter even when a drawer is closed. The top view uses normal Tab/Home and wheel
 input inside the Inspector, because Home from a button alone did not move its scroll container.
+
+## Verified overview capture — 97353663
+
+Session 73294 completed all four scenarios successfully at
+`97353663c2ab7467a25e16befe0acde1594578b7`. The original 900px journey and additional views
+passed together. M00 continuation, M01 summary/guidance/Room cues, M07 identity/measurements
+and M04 distinct draft rendering were visually inspected. M16 is captured with panels closed
+at 880px in Light/Dark/custom and at 460px in German; canonical selected Room, focused ID,
+camera, geometry, text/fonts and vault bytes are retained through restoration. Native wheel
+scrolling is observed until scrollTop reaches zero, rather than relying on two animation frames.
+
+The recorded output names contain 60 fresh screenshots and no failed files. Original source
+hashes were verified before copying to `evidence/editor-final-overview-followup/verified-973`.
+The downstream M13 design pilot and final complete nine-journey matrix are still pending.

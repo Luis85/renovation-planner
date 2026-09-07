@@ -56,6 +56,31 @@ async function measure(r: Rig) {
 async function cancel(r: Rig) { await r.harness.wrapper.get('.rp-dialog [data-rp-action="cancel"]').trigger('click'); await settle(); }
 
 describe('M05 → M06 in the real editor with FakeVault repository commands', () => {
+	it.each([
+		{ region: 'layers', rail: 'layers', from: 1440, to: 460 },
+		{ region: 'inspector', rail: 'details', from: 1440, to: 460 },
+		{ region: 'layers', rail: 'layers', from: 460, to: 1440 },
+		{ region: 'inspector', rail: 'details', from: 460, to: 1440 },
+		{ region: 'layers', rail: 'layers', from: 1440, to: 300 },
+		{ region: 'inspector', rail: 'details', from: 1440, to: 300 },
+	])('returns Reference focus from $region after $from → $to reflow without applying the draft', async ({ region, rail, from, to }) => {
+		const r = await rig(); resizeTo(r.harness.rootEl, from, 900); await settle();
+		if (from === 460) r.harness.wrapper.get<HTMLButtonElement>(`[data-rp-rail="${rail}"]`).element.click();
+		await settle();
+		const opener = r.harness.wrapper.get<HTMLButtonElement>(`[data-rp-shell-region="${region}"] [data-rp-action="reference"]`).element;
+		opener.focus(); opener.click(); await settleUntil(() => r.harness.wrapper.find(FORM).exists(), 'native Reference open');
+		const source = r.harness.wrapper.get<HTMLInputElement>(`${FORM} input[name="source"]`);
+		await source.setValue('retained-draft.png'); source.element.focus();
+		const bytes = [...r.stack.vault.entries], run = vi.spyOn(runtimeOf(r.harness).dispatcher, 'run');
+		resizeTo(r.harness.rootEl, to, 900); await settle();
+		expect(source.element.value).toBe('retained-draft.png'); expect(document.activeElement).toBe(source.element);
+		source.element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await settle();
+		expect(r.harness.wrapper.find(FORM).exists()).toBe(false);
+		const target = to === 300 ? r.harness.wrapper.get('.rp-unsupported-width__action').element
+			: to === 460 ? r.harness.wrapper.get(`[data-rp-rail="${rail}"]`).element : opener;
+		expect(document.activeElement).toBe(target); expect(target.isConnected).toBe(true);
+		expect(run).not.toHaveBeenCalled(); expect([...r.stack.vault.entries]).toEqual(bytes);
+	});
 	it('uses one geometry calibration snapshot and requests consent on a wall-only floor', async () => {
 		const r = await rig();
 		const before = expectOk(await r.geometry.read(r.plan.id));

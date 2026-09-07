@@ -1,0 +1,4 @@
+# Keep original terminal and analyzer bytes stable for the manifest hashes.
+*.log -text
+*.json -text
+*.err -text

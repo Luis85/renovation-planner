@@ -18,7 +18,7 @@ for (const directory of [...journeys.map(name => `harness-shots/${name}`), `${ro
 }
 const commands = [
 	['editor-planning-check.mjs'], ['editor-renovation-check.mjs'], ['editor-reference-check.mjs'],
-	['editor-visual-resilience.mjs'], ['editor-visual-overview.mjs'], ['editor-object-check.mjs'],
+	['editor-visual-resilience.mjs'], ['editor-visual-overview.mjs', '--design'], ['editor-object-check.mjs'],
 	['editor-recovery-check.mjs'],
 	['editor-modal-busy-check.mjs'],
 	['editor-visual-fidelity-shots.mjs', 'after'], ['editor-visual-comparisons.mjs'],

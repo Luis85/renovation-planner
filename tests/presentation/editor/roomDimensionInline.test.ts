@@ -43,8 +43,8 @@ describe('native selected Room dimension editing', () => {
 		expect(useSelectionStore(r.harness.pinia).selectedIds).toEqual(['zone-a']);
 		expect(document.activeElement).toBe(r.harness.wrapper.get('[data-rp-dimension="width"]').element);
 		expect(runtime.activeToolId.value).toBe('select');
-		await runtime.undo(); expect((await read(r)).entity.geometry).toEqual(before.entity.geometry);
-		await runtime.redo(); expect((await read(r)).entity.geometry.points[2]).toEqual({ x: 5700, y: 3400 });
+		await r.harness.wrapper.get('[data-rp-action="undo"]').trigger('click'); await settle(); expect((await read(r)).entity.geometry).toEqual(before.entity.geometry);
+		await r.harness.wrapper.get('[data-rp-action="redo"]').trigger('click'); await settle(); expect((await read(r)).entity.geometry.points[2]).toEqual({ x: 5700, y: 3400 });
 		r.harness.unmount();
 	});
 	it('keeps invalid text and native key ownership, and cancels without history', async () => {

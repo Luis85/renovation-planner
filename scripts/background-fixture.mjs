@@ -49,6 +49,7 @@
  */
 import { createCanvas } from '@napi-rs/canvas';
 import { writeFileSync } from 'node:fs';
+import { writeFloorReference } from './editor-floor-reference.mjs';
 
 /** World millimetres per source pixel — `PLACEHOLDER_WORLD_SCALE`, restated as a fact. */
 const MM_PER_PIXEL = 1;
@@ -187,5 +188,6 @@ for (let y = MAJOR_GRID; y < HEIGHT; y += MAJOR_GRID) {
 const png = canvas.encodeSync('png');
 const targets = ['tests/fixtures/editor-background-png-test.png', 'docs/tests/fixtures/editor-background-png-test.png'];
 for (const target of targets) writeFileSync(target, png);
+writeFloorReference();
 console.log(`${WIDTH}x${HEIGHT} px (${WIDTH * MM_PER_PIXEL}x${HEIGHT * MM_PER_PIXEL} mm at 1 px = 1 mm) written to:`);
 for (const target of targets) console.log(`  ${target}`);

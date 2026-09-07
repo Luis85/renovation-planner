@@ -1,8 +1,9 @@
 /* Native canvas controls share the editor's host tokens and remain screen-sized on zoom. */
-.rp-dimension-labels { position: absolute; inset: 0; pointer-events: none; }
+.rp-dimension-labels { --rp-dimension-max-height: 240px; position: absolute; inset: 0; pointer-events: none; }
 .rp-dimension-anchor { position: absolute; transform: translateX(-50%); }
+.rp-dimension-anchor:has(.rp-inline-dimension) { z-index: 2; }
 .rp-dimension-label, .rp-inline-dimension, .rp-direct-actions { pointer-events: auto; }
-.rp-dimension-label { min-height: 28px; padding: 3px 9px; border: 1px solid var(--interactive-accent); border-radius: 5px; color: var(--text-normal); background: var(--background-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.renovation-plan-editor .rp-dimension-label { min-height: 28px; padding: 3px 9px; border: 1px solid var(--interactive-accent); border-radius: 5px; color: var(--text-normal); background: var(--background-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rp-inline-dimension { width: 240px; max-width: calc(100vw - 32px); padding: 10px; border: 1px solid var(--interactive-accent); border-radius: 7px; background: var(--background-primary); color: var(--text-normal); box-shadow: var(--shadow-s); }
 .rp-inline-dimension label { display: block; margin-bottom: 4px; }
 .rp-inline-dimension input { width: 100%; min-height: 32px; font-variant-numeric: tabular-nums; }
@@ -14,7 +15,7 @@
 .rp-direct-actions__buttons button:hover, .rp-direct-actions__details button:hover { background: var(--background-modifier-hover); }
 .rp-direct-actions__details { margin-top: 5px; max-height: 240px; overflow-y: auto; }
 .rp-wall-dimension { margin-bottom: 8px; }
-.rp-direct-actions button:focus-visible, .rp-dimension-anchor button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.rp-direct-actions__buttons button:focus-visible, .rp-direct-actions__details button:focus-visible, .renovation-plan-editor .rp-dimension-label:focus-visible, .rp-dimension-anchor button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
 .rp-inline-dimension { box-sizing: border-box; max-height: var(--rp-dimension-max-height); overflow-y: auto; }
 .rp-editor-shell[data-layout="constrained"] .rp-dimension-label { min-height: 44px; }
 .rp-inline-dimension .rp-inline-dimension__subject { margin-top: 0; font-weight: var(--font-semibold); overflow-wrap: anywhere; }

@@ -26,7 +26,7 @@ function anchor(axis: keyof DimensionsText, bounds: BoundingBox) {
 	const point = worldToScreen({ x: axis === 'width' ? (bounds.min.x + bounds.max.x) / 2 : bounds.min.x,
 		y: axis === 'width' ? bounds.min.y : (bounds.min.y + bounds.max.y) / 2 }, editor.viewport, STAGE_PIXELS);
 	const editing = draft.value?.axis === axis;
-	const top = Math.max(48, Math.min(editor.stageSize.height - (editing ? 170 : 88), point.y - (axis === 'width' ? 44 : 14)));
+	const top = Math.max(48, Math.min(editor.stageSize.height - (editing ? 250 : 88), point.y - (axis === 'width' ? 44 : 14)));
 	return { left: Math.max(editing ? 124 : 40, Math.min(editor.stageSize.width - (editing ? 124 : 40), point.x - (axis === 'depth' ? 28 : 0))),
 		top, maxHeight: Math.max(100, editor.stageSize.height - top - 88) };
 }

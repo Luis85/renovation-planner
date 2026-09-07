@@ -114,9 +114,9 @@ it('deletes compatible current walls atomically only after confirmation and rest
 	rig.dialogs.resolve('confirm'); await pending; await settle(); expect(rig.project.structure.walls).toHaveLength(2);
 	expectOk(await rig.runtime.dispatcher.undo()); await settle(); expect(rig.project.structure.walls).toHaveLength(4);
 });
-it('connects recorded outcomes, an unresolved decision and real evidence counts without losing selection', async () => {
+it.each(['Oiled boards', ''])('connects recorded outcomes (%s), an unresolved decision and real evidence counts without losing selection', async plannedDescription => {
 	const rig = await setup(), roomId = rig.room.id;
-	const value: Renovation = { subjects: [{ id: 'detail-floor', roomId, targetId: roomId, kind: 'floor', existing: { description: 'Original boards', condition: 'worn' }, planned: { change: 'modify', description: 'Oiled boards' } }],
+	const value: Renovation = { subjects: [{ id: 'detail-floor', roomId, targetId: roomId, kind: 'floor', existing: { description: 'Original boards', condition: 'worn' }, planned: { change: plannedDescription ? 'modify' : 'remove', description: plannedDescription } }],
 		work: [{ id: 'work-floor', roomId, targetId: roomId, title: 'Prepare boards', description: '', order: 0, progress: 'complete', responsibility: 'diy', outcomes: ['detail-floor'], dependencies: [] }],
 		decisions: [{ id: 'decision-oil', roomId, subjectId: 'detail-floor', question: 'Choose finish', resolved: false, resolution: '' }],
 		depth: { ...EMPTY_DEPTH, costs: [{ id: 'cost-oil', roomId, targetId: roomId, title: 'Oil', workId: 'work-floor', category: 'material', requirementId: '', planned: of('125', 'EUR'), facts: [], cancelled: false }],
@@ -124,7 +124,8 @@ it('connects recorded outcomes, an unresolved decision and real evidence counts 
 	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(expectOk(await rig.renovation.read(rig.plan.id)), { renovation: value, intended: undefined }, rig.runtime.structureTask.ledger)));
 	rig.changePlan(); rig.runtime.renovation.focus(roomId, 'overview'); await settle();
 	const overview = rig.wrapper.get('.rp-transformation-summary');
-	expect(overview.text()).toContain('Original boards'); expect(overview.text()).toContain('Prepare boards'); expect(overview.text()).toContain('Oiled boards');
+	expect(overview.text()).toContain('Original boards'); expect(overview.text()).toContain('Prepare boards');
+	expect(overview.get('.rp-transformation-summary__stages > div:last-child').text()).toContain(plannedDescription || 'Original boards');
 	expect(rig.wrapper.get('[data-rp-stat="renovation-cost"]').text()).toBe('125.00 EUR');
 	for (const mode of ['costs', 'documents', 'photos', 'notes'] as const) {
 		expect(rig.wrapper.get(`[data-rp-linked="${mode}"]`).text()).toContain('1');

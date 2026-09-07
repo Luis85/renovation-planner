@@ -5,6 +5,8 @@ import { useEditorRuntime } from '../runtime';
 import { useRenovationSession, type RenovationMode } from './renovationSession';
 import { tr } from '../../i18n/strings';
 import { computed, nextTick, ref } from 'vue';
+import HostIcon from '../../components/HostIcon.vue';
+import { EDITOR_MODE_ICONS } from '../editorIcons';
 const props = defineProps<{ roomId: string }>();
 const runtime = useEditorRuntime(), session = useRenovationSession();
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null);
@@ -29,7 +31,7 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 		:aria-expanded="expanded"
 		@click="expanded = !expanded"
 	>
-		{{ tr(`renovation.${session.mode}`) }} <span aria-hidden="true">{{ expanded ? '⌃' : '⌄' }}</span>
+		<span class="rp-icon-label"><HostIcon :name="EDITOR_MODE_ICONS[session.mode]" />{{ tr(`renovation.${session.mode}`) }}</span><HostIcon :name="expanded ? 'chevron-up' : 'chevron-down'" />
 	</button>
 	<nav
 		v-if="runtime.renovation.available"
@@ -46,7 +48,15 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 			type="button"
 			@click="navigate(mode, $event)"
 		>
-			{{ tr(`renovation.${mode}`) }}
+			<HostIcon :name="EDITOR_MODE_ICONS[mode]" />
+			<span class="rp-room-navigation__text">
+				<span>{{ tr(`renovation.${mode}`) }}</span>
+				<small v-if="session.mode === 'overview' && (mode === 'existing' || mode === 'planned' || mode === 'work')">{{ tr(`renovation.summary.${mode}`) }}</small>
+			</span>
+			<HostIcon
+				name="chevron-right"
+				class="rp-room-navigation__arrow"
+			/>
 		</button>
 	</nav>
 </template>

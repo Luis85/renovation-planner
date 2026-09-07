@@ -1113,6 +1113,9 @@ Not oversights; each has a trigger.
 - **A `docs/` register gate** (`npm run docs` in the source project: every wikilink
   resolving, every module specified by a note, opt-in claim citations). Add it when `docs/`
   has a convention worth enforcing — see section 5 of `docs/setup/quality-harness.md`.
-- **`npm run perf`** and the icon renderer in the harness. The first needs a render cost to
-  argue about; the second needs the first `setIcon` call, and until then every icon would be
-  an invisible gap in the tool built for looking.
+- **`npm run perf`** needs a render cost to argue about.
+
+The editor now uses native `setIcon` through `HostIcon.vue`. The harness renders the same
+requested icon names using pinned, licensed fixtures in `tests/fixtures/editor-icons`;
+those paths are test-only and are not bundled into the plugin. Missing harness icon names
+are marked explicitly rather than replaced with a different icon.

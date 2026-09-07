@@ -2,6 +2,8 @@ import type { Point } from '../../../../core/geometry/Point';
 import type { ZoneDto } from '../../../read-models/PlanDto';
 import type { StringKey } from '../../../i18n/locales/en';
 import type { ThemeTokenName } from '../../theme/themeTokens';
+import { centroid, contains } from '../../../../core/geometry/operations';
+import { toSpatialRecordDto } from '../../../read-models/spatialRecords';
 
 /**
  * The render model half of SDD §16's pipeline:
@@ -22,6 +24,8 @@ export interface ZoneRenderModel {
 	readonly status: string;
 	/** The zone's name, as drawn on the canvas. */
 	readonly label: string;
+	/** Calculated from the same geometry as Inspector area; never a stored value. */
+	readonly areaMm2: number;
 	/** World millimetres. */
 	readonly points: readonly Point[];
 }
@@ -32,6 +36,7 @@ export function toZoneRenderModel(zone: ZoneDto): ZoneRenderModel {
 		zoneType: zone.zoneType,
 		status: zone.status,
 		label: zone.name,
+		areaMm2: toSpatialRecordDto(zone).areaMm2,
 		// The DTO's own array, passed through unchanged rather than copied: this reference
 		// is what `<v-line>`'s `points` receives, and DoD 5 asserts it is IDENTICAL across
 		// a pan — which is the check that the viewport transform really lives on the Group
@@ -92,9 +97,9 @@ export function statusAppearance(status: string): StatusAppearance {
 }
 
 /**
- * Where a zone's caption sits: the top-left of its own bounding box, in world
- * millimetres, so the text rides the content Group's transform like every other
- * world-space node instead of being positioned in pixels.
+ * Captions sit inside the geometry in world millimetres. A concave polygon can have an
+ * exterior centroid; in that case use its first boundary vertex rather than label another
+ * room. Both calculations use Core's geometry authority and leave geometry untouched.
  *
  * An empty point list answers the origin rather than `NaN` from `Math.min()` of nothing —
  * a Polygon is unvalidated by design (slice 2), so a render model legitimately arrives
@@ -102,8 +107,8 @@ export function statusAppearance(status: string): StatusAppearance {
  */
 export function labelAnchor(points: readonly Point[]): Point {
 	if (points.length === 0) return { x: 0, y: 0 };
-	return {
-		x: Math.min(...points.map((point) => point.x)),
-		y: Math.min(...points.map((point) => point.y)),
-	};
+	const center = centroid({ points });
+	if (!center.ok) return points[0];
+	const inside = contains({ points }, center.value);
+	return inside.ok && inside.value ? center.value : points[0];
 }

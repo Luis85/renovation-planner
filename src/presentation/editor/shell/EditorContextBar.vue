@@ -6,6 +6,8 @@ import { useEditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { usePlanEditorContext } from '../PlanEditorContext';
+import HostIcon from '../../components/HostIcon.vue';
+import { EDITOR_PERSPECTIVE_ICONS } from '../editorIcons';
 
 const runtime = useEditorRuntime();
 const session = useRenovationSession();
@@ -52,7 +54,7 @@ const { project, plan } = storeToRefs(useProjectStore());
 				:aria-pressed="session.perspective === perspective"
 				@click="runtime.renovation.perspective(perspective)"
 			>
-				{{ tr(`renovation.${perspective}`) }}
+				<HostIcon :name="EDITOR_PERSPECTIVE_ICONS[perspective]" />{{ tr(`renovation.${perspective}`) }}
 			</button>
 		</nav>
 		<span class="rp-context-bar__spacer" />
@@ -64,7 +66,7 @@ const { project, plan } = storeToRefs(useProjectStore());
 			:disabled="!runtime.canUndo.value"
 			@click="runtime.undo()"
 		>
-			{{ tr('editor.context.undo') }}
+			<HostIcon name="undo-2" />{{ tr('editor.context.undo') }}
 		</button>
 		<button
 			v-if="session.perspective !== 'review'"
@@ -74,7 +76,7 @@ const { project, plan } = storeToRefs(useProjectStore());
 			:disabled="!runtime.canRedo.value"
 			@click="runtime.redo()"
 		>
-			{{ tr('editor.context.redo') }}
+			<HostIcon name="redo-2" />{{ tr('editor.context.redo') }}
 		</button>
 	</header>
 </template>

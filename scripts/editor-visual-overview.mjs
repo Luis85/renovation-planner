@@ -4,11 +4,19 @@ import { recordRoom, recordShot, recordText, recordApply } from './editor-record
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 import { verifyRoomDimension } from './editor-dimension-browser.mjs';
 import { editorAccessibility } from './editor-accessibility.mjs';
+const fidelity = process.argv.includes('--design');
 
 // Supplement the legacy unavailable-services shell fixture with a connected Floor/Room.
 async function journey(page, scenario, out) {
 	const theme = await recordRoom(page, scenario, out, { drawWalls, panel, preserveTheme });
 	const german = scenario.name === 'german-constrained', form = '[data-rp-form="renovation"]';
+	if (fidelity) {
+		await page.evaluate(isGerman => window.editorFidelity.seedSurroundings(isGerman), german);
+		await page.waitForFunction(() => document.querySelectorAll('.rp-room-list__row').length === 4);
+		if (scenario.width === 460) await page.keyboard.press('Escape');
+		await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Shift+1');
+		await panel(page, 'details');
+	}
 	assert.equal(await page.locator('.rp-room-inspector').isVisible(), true, 'Room selection survives the connected setup');
 	if (scenario.width === 460) {
 		await panel(page, 'details');
@@ -25,6 +33,7 @@ async function journey(page, scenario, out) {
 	await activate(page, '[data-rp-mode="planned"]'); await activate(page, '[data-rp-action="work-record"]'); await recordText(page, form, 'title', german ? 'Boden vorbereiten' : 'Prepare the floor'); await recordApply(page, form, true);
 	await activate(page, '[data-rp-mode="overview"]'); await page.locator('.rp-transformation-summary').waitFor();
 	await recordShot(page, scenario, out, 'M00-connected-room');
+	assert.equal(await page.locator('[data-icon-missing]').count(), 0, 'every requested host icon has a matching harness fixture');
 	const directActionsAccessibility = await editorAccessibility(page, scenario, out, 'direct-actions');
 	if (scenario.width === 460) await page.keyboard.press('Escape');
 	await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Escape');
@@ -54,4 +63,4 @@ async function journey(page, scenario, out) {
 	assert.equal(await page.locator('.rp-multi-selection').isVisible(), true);
 	return { theme, dimension, directActionsAccessibility, storage: 'production commands and repositories over FakeVault', state: 'committed reference, wall loop, Room, Existing/Planned/Work; overview, Floor and shared Work preview/apply', selection: 'keyboard additive wall membership retained after one shared command' };
 }
-await runAreaBrowserMatrix('editor-visual-overview', '&reference&planning&recovery', journey, '[data-rp-empty="floor-start"]');
+await runAreaBrowserMatrix('editor-visual-overview', `&reference&planning&recovery${fidelity ? '&fidelity' : ''}`, journey, '[data-rp-empty="floor-start"]');

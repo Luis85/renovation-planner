@@ -4,11 +4,39 @@ Task: `01a07cca-4d4b-75b0-96fb-9417d3b86f51`.
 Branch/worktree: `codex/editor-coverage-finalization`, `.worktrees/editor-coverage-finalization`.
 Base: `6f72eea1dbb87f0b1b2774c27fc9ce8becf536c4`, fetched from Root's integration branch on 2026-09-07.
 
-Root confirmed global coverage ownership. UI owns the current heavy slot;
-no installation, tests, build or analyzer has started in this worktree.
+Root confirmed global coverage ownership. The first granted heavy slot is complete
+and was explicitly returned to Root. All local process handles are terminal.
 Root owns shared status files and the final combined source/acceptance.
 
-## Prepared, unverified WIP
+## Current verification and contract correction
+
+Installed 567 dependencies using `npm ci --no-audit` (50 seconds), Node 24.20.0.
+Both prepared files passed 6/6 tests in 13.13 seconds, followed by types, whole
+Oxlint and scoped ESLint. **Four marker tests establish historical current behavior
+only and must not be integrated as M17 acceptance.** Root clarified that marker
+selection must remain in Review and expand the Room summary; only an explicit issue
+action enters Renovate. UI owns the production correction. This task owns revisions
+to its new marker test file. Do not preserve the incorrect behavior just for coverage.
+
+The two public command cases are valid and passed again under scoped coverage
+(2/2, 9.87 seconds). Exact comparable gains: **2 branches, 1 statement**; see
+[receipt](evidence/contextual-material-counter-gains.json). Their initial test failures
+were Money representation differences (`900` versus `900.00`), corrected with the
+existing `sameMoney` domain comparison while checking every other persisted field
+and the independent override separately. No production correction was needed.
+
+Fallow dead-code/duplication: zero findings, zero clone groups. Fallow health against
+the original full `2c3c6360` CI with the official Linux coverage-root: zero findings,
+742/742 files mapped. Bare Fallow initially refused the absent local coverage file;
+the separate static and correctly mapped full-CI health runs then passed. No scoped
+coverage was presented as health evidence.
+
+Next: prepare contract-correct marker stays-in-Review assertions plus separate native
+issue buttons to Decision/Work. Expected predecessor RED is a UI dependency, not a
+reason to weaken or skip a test. Obtain UI source/selector details from Root and a new
+heavy slot before testing. Final full coverage awaits the joined production source.
+
+## Initial marker package — historical behavior, held for replacement
 
 `tests/presentation/editor/reviewMarkerNavigation.test.ts` adds four native editor
 cases using persisted renovation records and real commands/repositories. Each Review
@@ -22,14 +50,14 @@ switching perspectives, without per-marker context assertions. This new file iso
 the remaining counter boundaries without editing that existing package. No production,
 threshold, timeout, assertion, discovery or exclusion changes.
 
-## Second prepared package — unverified
+## Public command package — verified
 
 `tests/application/commands/contextualMaterialBoundaries.test.ts` adds two public
 application-command contracts with persisted valid materials: recalculation without
 optional packaging preserves due date and both overrides; cross-Room reassignment
 during deletion refuses a contextual material before entity writes and clears its
-sequence marker. Root was informed before preparation. These are service contracts,
-not native UI/host evidence. They await local type/lint/test validation.
+sequence marker. Root was informed before preparation. These are verified service
+contracts, not native UI/host evidence.
 
 ## Measurement state
 
@@ -58,8 +86,5 @@ types but rejected conditional assertions before tests. `2cfe3dff` splits the De
 and Work assertions into separate cases without dropping any assertion; its CI is
 running. No contribution from this task has yet been measured.
 
-All changes above remain **unverified WIP**. No coverage gain or gate pass is claimed.
-Next: obtain Root's explicit free slot, install dependencies, run the new native file
-and targeted type/lint verification; audit the new complete CI counters before choosing
-the next package. Final acceptance requires unchanged `npm run check` and full matching
-coverage on the combined UI integration source Root supplies.
+The complete gate has **not** passed. Final acceptance requires unchanged `npm run check`
+and full matching coverage on the combined UI integration source Root supplies.

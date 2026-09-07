@@ -4,7 +4,7 @@ import { planningStack } from '../../helpers/planning';
 import { expectDefined, expectErr, expectOk } from '../../helpers/domain';
 import { zoneSequenceCollaborators } from '../../helpers/slice10';
 import { Requirement } from '../../../src/domain/requirement/Requirement';
-import { of } from '../../../src/core/money/Money';
+import { of, sameMoney } from '../../../src/core/money/Money';
 import { RecalculateRequirementCommand } from '../../../src/application/commands/requirement/RecalculateRequirement';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
@@ -31,11 +31,15 @@ it('recalculates an unpackaged material while preserving its identity, due date 
 	expect(result.requiredDate).toBe('2026-10-20');
 	expect(result.quantity.calculated.value.toString()).toBe('13.2');
 	expect(result.quantity.override?.value.toString()).toBe('20');
-	expect(result.estimatedCost.calculated).toEqual(of('900', 'EUR'));
+	expect(sameMoney(result.estimatedCost.calculated, of('900', 'EUR'))).toBe(true);
 	expect(result.estimatedCost.override).toEqual(of('999', 'EUR'));
 	expect(result.recalculationStatus).toBe('current');
 	const persisted = expectDefined(expectOk(await rig.deps.requirements.getById(result.id)), 'reread material');
-	expect(persisted.entity).toEqual(result);
+	const { estimatedCost: persistedCost, ...persistedFields } = persisted.entity;
+	const { estimatedCost: resultCost, ...resultFields } = result;
+	expect(persistedFields).toEqual(resultFields);
+	expect(sameMoney(persistedCost.calculated, resultCost.calculated)).toBe(true);
+	expect(persistedCost.override).toEqual(resultCost.override);
 });
 
 it('refuses moving a contextual material to another Room during delete resolution and leaves no writes or recovery marker', async () => {

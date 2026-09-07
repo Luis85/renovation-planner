@@ -132,3 +132,14 @@ element retry guard. Its isolated three-source coverage failed the unchanged thr
 refresh fix, red evidence and integration dependency are recorded in
 [the source/lifecycle evidence](source-lifecycle-recovery-evidence.md). This measurement
 does not replace the complete integrated gate or the historical full-tree figures above.
+
+## Element completion and service boundaries — 2026-09-07
+
+Four native element-form lifecycle scenarios and fifteen actual plugin-composition fault
+cases extend the recovery evidence. The final focused run passed 46 tests in five files in
+30.18 seconds, including the existing structure action, lifecycle and source-disappearance
+regressions after consolidating their shared baseline preparation. The repository Fallow
+duplication scan reports zero clone groups. These are execution and duplication results,
+not new coverage percentages or a complete quality-gate result. See
+[the element completion evidence](element-lifecycle-completion-evidence.md) for the exact
+scope, fixture correction and acceptance limitations.

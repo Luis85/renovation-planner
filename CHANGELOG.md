@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Recovery regression coverage: native cancellation after peer-deleted element edits, corrected Object geometry and Undo, retired leaf callbacks, and composed downstream repository fault boundaries. Structural edit/removal share one fresh-baseline recovery decision.
+
 - Project Work: assign shared Trades and explicit start/end dates through the existing Work form, inspect floor and Room context, and return to the source Work with conditional Undo/Redo.
 - Project quote comparison: shared Suppliers, precise decimal offer lines with explicit Work/catalogue scope, immutable received offers, separate revisions, and contextual return from Costs. Failed refreshes preserve draft text and successful writes; retries do not replay saved offers.
 

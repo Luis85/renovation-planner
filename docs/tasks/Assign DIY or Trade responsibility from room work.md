@@ -52,3 +52,26 @@ responsibility model.
 ## Finalization candidate — 2026-09-07
 
 Production source is implemented in the editor finalization worktree under [ADR-0024](../development/adrs/0024-trades-manual-schedules-and-quote-comparison.md). Canonical repositories, guarded commands and contextual Project routes are reused. Targeted tests and the unchanged combined gates are in progress; final browser and live-host acceptance remain open. See the [completion matrix](../user-experience/renovation-planner-editor-specs/implementation/completion-matrix.md).
+
+## Amendments
+
+**2026-09-08** — the finalization candidate landed in 59977120 (#91, ADR-0024), and this task
+stays In Progress for criterion 7's keyboard half. Criteria 1 and 2 are
+`tests/plugin/projectWork.test.ts`'s 'assigns a real Trade and explicit dates through the editor
+command, preserves IDs on rename and allows unresolved existing assignments to remain' and
+`tests/presentation/views/projectWorkFlow.test.ts`'s 'refreshes a renamed Trade and preserves a
+missing assignment while allowing an explicit DIY change' (DIY is a responsibility value, not a
+synthetic Trade). Criterion 3 is the rename half of both. Criterion 4 is
+`tests/presentation/views/workChoiceRecovery.test.ts`'s 'refuses a different Trade while the
+catalogue is unavailable, keeping the one already chosen' and 'retains a Trade selection on
+catalogue failure and retries the real catalogue without writing the Plan'. Criterion 5 is
+'preserves Work when a newly assigned Trade becomes unreadable and allows an explicit retry after
+repair' (`projectWork.test.ts`) and 'discloses a refused Trade note while keeping readable choices
+available'. Criterion 6 is `tests/presentation/views/projectWorkRecovery.test.ts`'s 'refreshes a
+peer-changed Work baseline before opening any draft and preserves the peer write' and
+`projectWork.test.ts`'s 'refuses a peer edit against a stale schedule baseline and can undo a
+supported explicit date change'. Criterion 7's command half holds — the Project Work view
+dispatches the same editor command — and its keyboard half does not: the forms are native
+controls inside the shared dialog host, and no case in those files sends a keystroke to them.
+Held by the platform, not by this suite; the completion matrix's H2 walk is where it would be
+observed, and that walk has not been run on the landed build.

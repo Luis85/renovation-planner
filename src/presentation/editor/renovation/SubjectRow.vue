@@ -20,6 +20,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 			class="rp-record-title"
 			@click="actions.focus(item.roomId, session.mode, item.id)"
 		>
+			{{ tr(`renovation.kind.${item.kind}`) }} ·
 			{{ session.mode === 'existing' ? item.existing?.description : item.planned?.description || item.existing?.description }}
 		</button>
 		<p

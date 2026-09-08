@@ -12,6 +12,9 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: rotate a single Room, Area, Object, Path, Fence or Measurement through guarded pointer and numeric angle actions, preserving saved identities, metadata, item order and exact Undo/Redo. Quarter turns retain axis-aligned Room sizing.
+- Plan editor: rotate a wall around its midpoint with connected wall ends and hosted openings. Door, Window and Opening selections rotate their host through impact review, preserving opening measurements, independent Room outlines and intended geometry, with guarded Undo/Redo and read-only recovery.
+
 - Evidence supports explicit capture/document dates without inferring file timestamps, stable gallery/pin date order during recovery, and navigation to its separately linked Work. Dated Plans use schema 8 so older writers cannot discard the field.
 - Evidence pins show host type symbols beside their numbers, and Room captions remain clear of pins. Inspector overview links preserve native focus when their source control disappears.
 
@@ -153,7 +156,13 @@ entries are added by the pull request that earns them, never invented at release
   asks oxlint which files it lints so a narrowed `ignorePatterns` fails the build instead of
   quietly shrinking the gate.
 
+### Fixed
+
+- Existing and Planned detail rows and canvas markers show their saved surface or element kind, so identical descriptions remain distinguishable.
+
 ### Changed
+
+- Spatial rotation uses a recognizable circular-arrow handle with a larger grab area, pivot and angle feedback, and localized numeric and quarter-turn controls in each eligible Inspector. Openings explicitly rotate with their host wall.
 
 - Build with Vite instead of esbuild, per the SDD's stack: single CJS bundle into `dist/`,
   a dev-server browser harness, and `@vitejs/plugin-vue` one line away when the first Vue
@@ -213,6 +222,8 @@ entries are added by the pull request that earns them, never invented at release
   (`tests/release/manifest.test.ts`).
 
 ### Fixed
+
+- Plan editor: Object-first overlap selection follows the confirmed interaction contract, while clicking a selected Object, Opening or Wall in a mixed selection focuses it without collapsing the set. Explicitly retyped Room dimensions apply their exact numeric value, preserving untouched coordinates and true no-op history. Fresh persisted-opening tests cover all kinds, subsequent edits, host guards and read-only recovery without write replay.
 
 - Keep Room rename/resize controls consistent with planning and unrecovered-write pauses, reload changed evidence thumbnails at the same resource path, and return keyboard focus into an already-open panel when its rail is activated again.
 

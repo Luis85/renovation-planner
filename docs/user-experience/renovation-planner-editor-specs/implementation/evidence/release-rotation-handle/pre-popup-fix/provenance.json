@@ -1,0 +1,15 @@
+{
+  "source": "c5e93f6429966002089739819ac74eebcfc7a093",
+  "visualFinding": "The Edit shape popover covers the live angle badge and part of the moving handle. This behavioral pass is not visual acceptance.",
+  "result": "Four behavioral scenarios passed; every manifest file hash verified before copying",
+  "command": "node scripts/editor-object-rotation-check.mjs",
+  "inspected": [
+    "light-selected-handle.png",
+    "light-pointer-preview.png",
+    "dark-pointer-preview.png",
+    "custom-accent-selected-handle.png",
+    "german-constrained-selected-handle.png",
+    "german-constrained-pointer-preview.png"
+  ],
+  "browser": "Microsoft Edge 152.0.4191.62 via explicit override"
+}

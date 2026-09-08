@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { rig, pointer, ZONE_A_DTO } from '../../helpers/planEditorRig';
 import { runtimeOf, settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectFound, expectOk } from '../../helpers/domain';
@@ -26,6 +26,28 @@ async function apply(r: Rig): Promise<void> { await r.harness.wrapper.get(select
 async function read(r: Rig) { return expectFound(await r.zonesRepo.getById('zone-a' as never)); }
 
 describe('native selected Room dimension editing', () => {
+	it('treats retyped display text as exact numeric input and leaves the untouched axis precise', async () => {
+		const original = [{ x: 1500.25, y: 1500.5 }, { x: 2734.65, y: 1500.5 }, { x: 2734.65, y: 3400.75 }, { x: 1500.25, y: 3400.75 }];
+		const r = await rig(async ({ zones }) => {
+			const before = expectFound(await zones.getById('zone-a' as never));
+			expectOk(await zones.save(expectOk(before.entity.withGeometry({ points: original })), before.version));
+		});
+		onTestFinished(() => r.harness.unmount());
+		const runtime = runtimeOf(r.harness);
+		await open(r); await apply(r);
+		expect(runtime.canUndo.value).toBe(false); expect((await read(r)).entity.geometry.points).toEqual(original);
+		await open(r);
+		await r.harness.wrapper.get(`${selector} input`).setValue('1.234');
+		expect(runtime.renderState.previewPolygon?.[2]).toEqual({ x: 2734.25, y: 3400.75 });
+		await apply(r);
+		expect((await read(r)).entity.geometry.points[2]).toEqual({ x: 2734.25, y: 3400.75 });
+		await runtime.undo(); expect((await read(r)).entity.geometry.points).toEqual(original);
+		expect(runtime.canUndo.value).toBe(false);
+		await runtime.redo();
+		await open(r); await r.harness.wrapper.get(`${selector} input`).setValue('1,2340'); await apply(r);
+		await runtime.undo(); expect((await read(r)).entity.geometry.points).toEqual(original);
+		expect(runtime.canUndo.value).toBe(false);
+	});
 	it('edits one scalar in Renovate, preserves raw comma text through viewport changes, and reverses exactly', async () => {
 		const r = await rig(), runtime = runtimeOf(r.harness), before = await read(r);
 		useRenovationSession(r.harness.pinia).perspective = 'renovate';

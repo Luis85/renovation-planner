@@ -34,12 +34,13 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import type { ThemeTokens } from '../theme/themeTokens';
-import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
+import { STAGE_PIXELS, worldToScreen, viewportTransform } from '../viewport/Viewport';
 import { SELECTION_BADGE_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
 import RoomDraftSketch from './RoomDraftSketch.vue';
 import { structureCandidates } from '../structure/structureCandidates';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import GestureSketch from './GestureSketch.vue';
+import ObjectRotationHandle from '../elements/ObjectRotationHandle.vue';
 import SnapGuides from './SnapGuides.vue';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
@@ -138,6 +139,7 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 		<VLine
 			v-if="previewFlat !== null"
 			:config="{
+				name: 'geometry-preview',
 				points: previewFlat,
 				closed: true,
 				stroke: props.tokens.accent,
@@ -239,5 +241,14 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 				/>
 			</template>
 		</template>
+		<VGroup :config="{ name: 'rotation-handle-viewport', ...viewportTransform(editorStore.viewport) }">
+			<ObjectRotationHandle
+				:tokens="props.tokens"
+				:zoom="editorStore.viewport.zoom"
+			/>
+		</VGroup>
 	</VLayer>
 </template>
+
+
+

@@ -19,7 +19,7 @@ const saves = useSaveStateStore();
 const { target, session } = useDirectActionContext();
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null), optionsId = useId();
 const modes = computed(() => planning.context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const);
-const visible = computed(() => target.value !== null && target.value.visible && session.perspective !== 'review' && runtime.activeToolId.value === 'select'
+const visible = computed(() => target.value !== null && target.value.visible && session.perspective !== 'review' && runtime.activeToolId.value === 'select' && runtime.renderState.rotationDegrees === null
 	&& (target.value.zone || target.value.wall || target.value.opening || session.perspective === 'plan'));
 const blocked = computed(() => runtime.writesBlocked.value || saves.state === 'saving');
 const detailBlocked = computed(() => blocked.value || runtime.renovation.blocked.value || (planning.context.commands.planning !== undefined && planning.blocked.value));
@@ -106,7 +106,7 @@ function escape(event: KeyboardEvent): void {
 				:aria-disabled="detailBlocked"
 				@click="!detailBlocked && (expanded = !expanded)"
 			>
-				<HostIcon name="grid-2x2" />{{ tr('editor.direct.add-detail') }}
+				<HostIcon name="grid-2x-2" />{{ tr('editor.direct.add-detail') }}
 			</button>
 		</div>
 		<div

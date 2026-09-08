@@ -22,6 +22,7 @@ import { err, type Result } from '../../../core/result/Result';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import { editWall } from '../../../domain/spatial/structureGeometry';
+import { createWallRotationActions } from './wallRotationActions';
 function removalIds(id: string | readonly string[]): readonly string[] { return typeof id === 'string' ? [id] : [...new Set(id)]; }
 function removalSummary(structure: Structure, selected: readonly string[], openings: number, rooms: number): string {
 	const names = selected.map(target => {
@@ -35,6 +36,7 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	const dialogs = useDialogStore(), project = useProjectStore(), selection = useSelectionStore();
 	const preview = ref<Structure | null>(null), active = ref(false);
 	const session = useRenovationSession(), save = useSaveStateStore(), blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
+	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked });
 	let alive = true;
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
 	function matchesProjection(document: PlanGeometryDocument): boolean {
@@ -116,5 +118,5 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		const wall = project.structure.walls.find(item => item.id === id);
 		preview.value = alive && wall && end ? editWall(project.structure, { ...wall, end }) : null;
 	}
-	return { edit, remove, preview, previewWall, active };
+	return { edit, remove, preview, previewWall, active, ...rotation };
 }

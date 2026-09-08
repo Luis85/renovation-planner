@@ -1,5 +1,10 @@
 import type { structureEn } from '../en/structure';
 export const structureDe: Record<keyof typeof structureEn, string> = {
+	'editor.rotation.host-wall': 'Zugeordnete Wand drehen…',
+	'editor.rotation.wall-title': '{name} drehen',
+	'editor.rotation.host-title': 'Zugeordnete Wand drehen: {name}',
+	'editor.rotation.wall-hint': 'Um den Mittelpunkt dieser Wand drehen. Verbundene Wandenden bewegen sich mit dieser Wand. Öffnungen behalten ihre Wandzuordnung und Maße. Raumumrisse bleiben unverändert. Positive Winkel drehen im Uhrzeigersinn.',
+	'editor.rotation.wall-apply': 'Wanddrehung übernehmen',
 	'editor.add.opening.label': 'Öffnung',
 	'editor.add.opening.description': 'Ein offener Durchgang durch eine Wand',
 	'editor.structure.draw-wall': 'Verbundene Wände zeichnen',

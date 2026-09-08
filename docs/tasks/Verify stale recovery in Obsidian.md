@@ -68,3 +68,12 @@ the scene, and the store's ticket is what decides), and whether the shared pause
 reaches a screen reader. Step 4a is the recorded hole in the "unsafe menu, command, keyboard and
 pointer paths" criterion, looked at rather than assumed; step 4b is the status bar clipping its
 paused hint at a sidebar's width, which belongs to [[Build full and compact editor status bars]].
+
+## Amendments
+
+**2026-09-08** — the plan-editor stack landed (dfe9b2a6 through 7d4bc381) and this case has not
+been run against it: the completion matrix's H6 row reads *not performed*, and #91's body says
+the native host steps are prepared in the repository and have not been executed on the final
+build. The surfaces this case drives were widened by #91 (guarded read-back shared by planning
+and spatial recovery, `Saved · refresh needed` across both), so the run this task owes is against
+7d4bc381 or later, not the build the Progress section describes.

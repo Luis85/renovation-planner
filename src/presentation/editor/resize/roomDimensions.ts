@@ -37,13 +37,13 @@ export function dimensionTexts(box: BoundingBox): DimensionsText {
 	return { width: formatMetres(box.max.x - box.min.x), depth: formatMetres(box.max.y - box.min.y) };
 }
 
-/** Untouched fields preserve exact coordinates, including sub-millimetre mouse geometry. */
-export function dimensionProposal(points: readonly Point[], box: BoundingBox, text: DimensionsText) {
+/** Input events mark retyped display text as exact; untouched axes keep pointer precision. */
+export function dimensionProposal(points: readonly Point[], box: BoundingBox, text: DimensionsText, edited: Partial<Record<keyof DimensionsText, boolean>> = {}) {
 	const initial = dimensionTexts(box);
 	const errors: Record<keyof DimensionsText, LengthRefusal | null> = { width: null, depth: null };
 	const sizes = { width: box.max.x - box.min.x, depth: box.max.y - box.min.y };
 	for (const axis of ['width', 'depth'] as const) {
-		if (text[axis] === initial[axis]) continue;
+		if (!edited[axis] && text[axis] === initial[axis]) continue;
 		const parsed = parseMetres(text[axis]);
 		if (parsed.ok) sizes[axis] = parsed.mm;
 		else errors[axis] = parsed.reason;
@@ -52,8 +52,8 @@ export function dimensionProposal(points: readonly Point[], box: BoundingBox, te
 	const resized = boundsFromDimensions(box.min, sizes.width, sizes.depth);
 	// Keep vertex order/winding as well as the top-left anchor. This is not bounding-box conversion.
 	const polygon = createPolygon(points.map((point) => ({
-		x: text.width === initial.width || point.x === box.min.x ? point.x : resized.max.x,
-		y: text.depth === initial.depth || point.y === box.min.y ? point.y : resized.max.y,
+		x: sizes.width === box.max.x - box.min.x || point.x === box.min.x ? point.x : resized.max.x,
+		y: sizes.depth === box.max.y - box.min.y || point.y === box.min.y ? point.y : resized.max.y,
 	})));
 	if (!polygon.ok || roomDimensions(polygon.value.points) === null) return { errors, polygon: null, areaMm2: null };
 	const measured = area(polygon.value);

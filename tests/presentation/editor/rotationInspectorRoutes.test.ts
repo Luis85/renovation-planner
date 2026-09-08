@@ -31,15 +31,14 @@ it('opens the canonical rotation form from every eligible Inspector and explains
 		expect(controls).toHaveLength(1);
 		expect(controls[0].findAll('button')).toHaveLength(3);
 		expect(rig.wrapper.findAll('.rp-direct-actions .rp-object-rotation-actions')).toHaveLength(0);
-		if (id === 'opening-rotation') {
-			expect(controls[0].get('[data-rp-action="rotate-object"]').text()).toContain('Rotate host wall');
-			expect(controls[0].text()).toContain('other openings in that wall');
-		}
+		expect(controls[0].get('[data-rp-action="rotate-object"]').text()).toContain(id === 'opening-rotation' ? 'Rotate host wall' : 'Rotate by');
+		expect(controls[0].find('.rp-object-rotation-hint').exists()).toBe(id === 'opening-rotation');
 		await controls[0].get('[data-rp-action="rotate-object"]').trigger('click'); await settle();
 		expect(rig.wrapper.find(`[data-rp-form="${id === 'wall-a' || id === 'opening-rotation' ? 'wall-rotation' : 'object-rotation'}"]`).exists()).toBe(true);
 		rig.dialogs.resolve('cancel'); await settle();
 		expect(rig.selection.selectedIds).toEqual([id]);
 	}
+	expect(rig.wrapper.get('.rp-object-rotation-hint').text()).toContain('other openings in that wall');
 	await rig.runtime.renovation.perspective('renovate');
 	resizeTo(rig.rootEl, 460, 900); await settle();
 	for (const id of [rig.room.id, area.id, 'wall-a', 'opening-rotation']) {

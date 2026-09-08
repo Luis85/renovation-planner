@@ -26,7 +26,11 @@ const positions = computed(() => {
 	const points = props.angle === null ? [handle, anchor] : rotate({ points: [handle, anchor] }, props.angle * Math.PI / 180, pivot).points;
 	return { handle: points[0], anchor: points[1], pivot };
 });
-const angleLabel = computed(() => props.angle === null ? '' : `${props.angle > 0 ? '+' : ''}${new Intl.NumberFormat(currentLanguage(), { maximumFractionDigits: 1, useGrouping: false }).format(props.angle)}°`);
+// The template reads this only while an angle is present.
+const angleLabel = computed(() => {
+	const angle = props.angle as number;
+	return `${angle > 0 ? '+' : ''}${new Intl.NumberFormat(currentLanguage(), { maximumFractionDigits: 1, useGrouping: false }).format(angle)}°`;
+});
 const labelPosition = computed(() => {
 	const x = positions.value.handle.x - 28 / props.zoom, y = positions.value.handle.y - 40 / props.zoom;
 	const visible = props.visibleBounds;

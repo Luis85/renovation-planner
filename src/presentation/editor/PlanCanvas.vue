@@ -157,12 +157,12 @@ const framedBounds = usePlanFrame();
 			</VStage>
 		</template>
 		<template #overlay>
-			<RoomDimensionLabels @obstacles="layout => { dimensionLayout = layout; runtime.rotationActions.setObstacles(layout.bounds); }" />
-			<DirectActionPopover v-if="!existingPhotos.length" />
-			<ExistingPhotoStrip
-				v-else
-				:rows="existingPhotos"
+			<RoomDimensionLabels
+				@obstacles="layout => { dimensionLayout = layout; }"
+				@rotation-obstacles="runtime.rotationActions.setObstacles"
 			/>
+			<DirectActionPopover v-if="!existingPhotos.length" />
+			<ExistingPhotoStrip v-else :rows="existingPhotos" />
 			<slot />
 		</template>
 	</EditorSurface>

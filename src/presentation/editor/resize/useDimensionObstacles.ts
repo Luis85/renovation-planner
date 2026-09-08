@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted, onUpdated, type Ref } from 'vue';
+import { onBeforeUnmount, onMounted, onUpdated, watch, type Ref } from 'vue';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { screenPoint, screenToWorld, STAGE_PIXELS, type Viewport } from '../viewport/Viewport';
 
@@ -13,12 +13,18 @@ function sameBox(box: BoundingBox | null, other: BoundingBox | null): boolean {
 }
 
 /** Native dimension controls own one observer; room renderers consume only world rectangles. */
-export function useDimensionObstacles(root: Ref<HTMLElement | null>, viewport: () => Viewport, publish: (layout: DimensionObstacleLayout) => void): void {
+export function useDimensionObstacles(root: Ref<HTMLElement | null>, viewport: () => Viewport, publish: (layout: DimensionObstacleLayout) => void,
+	rotation?: { publish: (bounds: readonly BoundingBox[]) => void; invalidate: () => unknown }): void {
 	let observer: ResizeObserver | null = null, frame: { id: number; view: Window } | null = null;
+	let mutation: MutationObserver | null = null, rotationBounds: readonly BoundingBox[] = [];
 	let alive = true, previous: DimensionObstacleLayout = { bounds: [], viewport: null };
 	const observed = new Set<Element>();
 	// The controls use a 2px outline with a 2px offset. Reserve it even without focus.
 	const clearance = 4;
+	function updateRotation(bounds: readonly BoundingBox[]): void {
+		if (bounds.length === rotationBounds.length && bounds.every((box, index) => sameBox(box, rotationBounds[index]))) return;
+		rotationBounds = bounds; rotation?.publish(bounds);
+	}
 	function update(layout: DimensionObstacleLayout): void {
 		if (sameBox(layout.viewport, previous.viewport) && layout.bounds.length === previous.bounds.length && layout.bounds.every((box, index) => sameBox(box, previous.bounds[index]))) return;
 		previous = layout;
@@ -29,30 +35,47 @@ export function useDimensionObstacles(root: Ref<HTMLElement | null>, viewport: (
 		if (!alive || !root.value) return;
 		const container = root.value, origin = container.getBoundingClientRect();
 		const anchors = [...container.querySelectorAll<HTMLElement>('.rp-dimension-anchor')];
-		const targets = new Set<Element>([container, ...anchors]);
+		const scope = container.closest('.renovation-plan-editor') ?? container;
+		const otherControls = rotation ? [...scope.querySelectorAll<HTMLElement>('.rp-direct-actions, .rp-primary-actions, .rp-add-menu, .rp-overlay-panel, .rp-inspector-drawer, .rp-focus-leaf-notice')] : [];
+		const targets = new Set<Element>([container, ...anchors, ...otherControls]);
 		for (const element of observed) if (!targets.has(element)) { observer?.unobserve(element); observed.delete(element); }
 		for (const element of targets) if (!observed.has(element)) { observer?.observe(element); observed.add(element); }
-		if (!origin.width || !origin.height) { update({ bounds: [], viewport: null }); return; }
+		if (!origin.width || !origin.height) { update({ bounds: [], viewport: null }); updateRotation([]); return; }
 		const camera = viewport();
-		const bounds = anchors.flatMap(anchor => {
+		const rectangles = (elements: readonly HTMLElement[]) => elements.flatMap(anchor => {
 			const rect = anchor.getBoundingClientRect();
 			if (!rect.width || !rect.height) return [];
+			const visibility = anchor.ownerDocument.defaultView?.getComputedStyle(anchor).visibility;
+			if (visibility === 'hidden' || visibility === 'collapse') return [];
 			return [{ min: screenToWorld(screenPoint(rect.left - origin.left - clearance, rect.top - origin.top - clearance), camera, STAGE_PIXELS),
 				max: screenToWorld(screenPoint(rect.right - origin.left + clearance, rect.bottom - origin.top + clearance), camera, STAGE_PIXELS) }];
 		});
+		const bounds = rectangles(anchors);
 		update({ bounds, viewport: { min: screenToWorld(screenPoint(0, 0), camera, STAGE_PIXELS), max: screenToWorld(screenPoint(origin.width, origin.height), camera, STAGE_PIXELS) } });
+		updateRotation([...bounds, ...rectangles(otherControls)]);
 	}
 	function schedule(): void {
 		const view = root.value?.ownerDocument.defaultView;
 		if (alive && frame === null && view) frame = { id: view.requestAnimationFrame(measure), view };
 	}
-	onMounted(() => { observer = new ResizeObserver(schedule); schedule(); });
+	onMounted(() => {
+		observer = new ResizeObserver(schedule);
+		const scope = root.value?.closest('.renovation-plan-editor');
+		if (rotation && scope) {
+			mutation = new MutationObserver(records => {
+				if (records.some(record => [...record.addedNodes, ...record.removedNodes].some(node => node.nodeType === 1))) schedule();
+			});
+			mutation.observe(scope, { childList: true, subtree: true });
+		}
+		schedule();
+	});
+	if (rotation) watch(rotation.invalidate, schedule, { flush: 'post' });
 	// Position changes and button/inline-form replacement need measurement even without resize.
 	onUpdated(schedule);
 	onBeforeUnmount(() => {
 		alive = false;
 		if (frame !== null) frame.view.cancelAnimationFrame(frame.id);
 		frame = null;
-		observer?.disconnect(); observer = null; observed.clear(); update({ bounds: [], viewport: null });
+		observer?.disconnect(); observer = null; mutation?.disconnect(); mutation = null; observed.clear(); update({ bounds: [], viewport: null }); updateRotation([]);
 	});
 }

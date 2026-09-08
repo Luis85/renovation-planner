@@ -1,6 +1,7 @@
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
-import { distance, translate } from '../../../core/geometry/operations';
+import { translate } from '../../../core/geometry/operations';
 import { ElementRotation, type RotationGestureDeps } from '../elements/ElementRotation';
+import { rotationControlContains, type RotationControlGeometry } from '../elements/rotationControl';
 import { ElementMove, type ElementMoveDeps } from '../elements/ElementMove';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
@@ -9,7 +10,7 @@ import type { Vector } from '../../../core/geometry/Vector';
 import { selectSpatial } from '../selection/selectSpatial';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
-import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, ROTATION_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX } from '../handleMetrics';
+import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX } from '../handleMetrics';
 import { resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
@@ -141,7 +142,7 @@ export class SelectTool implements EditorTool {
 		const context = this.context;
 		if (context === null || event.button !== 'primary') return;
 
-		const { candidates, target } = this.targetAt(context, event);
+		const { candidates, target, rotationControl } = this.targetAt(context, event);
 		// A press is exactly when the predicted hover stops meaning anything, on every path
 		// out of this method — a body hit, a handle hit, a miss that clears the selection, and
 		// a target the candidate list no longer has: the pointer is about to act rather than
@@ -156,7 +157,7 @@ export class SelectTool implements EditorTool {
 		const hit = candidates.find((candidate) => candidate.id === target.id);
 		if (hit === undefined) return;
 		if (this.focusSelectedMember(context, event, hit.id)) return;
-		if (target.kind === 'rotation') { const shape = this.deps.rotationTarget?.(); if (shape?.id === target.id) this.elementRotation.start(context, event, shape); return; }
+		if (target.kind === 'rotation') { this.startRotation(context, event, target.id, rotationControl); return; }
 		if (hit.kind) { this.selectStructure(context, event, hit, target); return; }
 		if (target.kind === 'handle') {
 			// While the canvas is stale the gate would refuse the commit anyway; a ghost the
@@ -323,19 +324,22 @@ export class SelectTool implements EditorTool {
 	 * `.find` afterwards, and re-calling `spatialObjects()` there would be the two-calls-per-
 	 * gesture cost this method already exists to avoid.
 	 */
+	private startRotation(context: EditorContext, event: EditorPointerEvent, id: string, control: RotationControlGeometry | null | undefined): void {
+		const shape = this.deps.rotationTarget?.();
+		if (shape?.id === id && control) this.elementRotation.start(context, event, shape, control);
+	}
 	private rotationAt(context: EditorContext, event: EditorPointerEvent) {
-		const selected = this.deps.rotationTarget?.(), point = this.deps.rotationHandle?.();
-		const decoration = point && selected && this.deps.canRotateShape?.() !== false && !context.writesBlocked() ? { id: selected.id, point } : undefined;
-		return { decoration, hit: decoration !== undefined && !event.modifiers.alt && distance(decoration.point, event.worldPoint) <= ROTATION_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel() };
+		const selected = this.deps.rotationTarget?.(), control = this.deps.rotationControl?.();
+		const decoration = control && selected && this.deps.canRotateShape?.() !== false && !context.writesBlocked() ? { id: selected.id, bounds: control.bounds } : undefined;
+		return { decoration, control, hit: decoration !== undefined && !event.modifiers.alt && rotationControlContains(decoration.bounds, event.worldPoint) };
 	}
 	private targetAt(
 		context: EditorContext,
 		event: EditorPointerEvent,
-	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget } {
+	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget; readonly rotationControl: RotationControlGeometry | null | undefined } {
 		const candidates = this.deps.spatialObjects();
 		const rotation = this.rotationAt(context, event);
 		const target = resolveSelectionTarget({
-			rotationToleranceWorld: ROTATION_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
 			rotationHandle: rotation.decoration,
 			candidates,
 			selectedIds: event.modifiers.shift && !rotation.hit ? [] : context.selection.selectedIds.map(String),
@@ -344,7 +348,7 @@ export class SelectTool implements EditorTool {
 			cycle: event.modifiers.alt,
 			badgeToleranceWorld: SELECTION_BADGE_RADIUS_PX * context.viewport.worldPerScreenPixel(),
 		});
-		return { candidates, target };
+		return { candidates, target, rotationControl: rotation.control };
 	}
 
 	private async commit(
@@ -368,6 +372,4 @@ export class SelectTool implements EditorTool {
 		if (!result.ok) this.deps.reportRejected(result.error);
 	}
 }
-
-
 

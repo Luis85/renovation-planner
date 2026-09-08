@@ -41,7 +41,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Runti
 	});
 	const active = computed(() => working.value || (runtime.wall?.active.value ?? false));
 	const blocked = computed(() => !target.value || runtime.writesBlocked.value || saves.state === 'saving' || runtime.activeToolId.value !== 'select' || session.perspective === 'review' || runtime.elementActions.active.value || (session.perspective !== 'plan' && !['room', 'area', 'wall'].includes(target.value.kind)));
-	function clear(): void { preview.value = null; runtime.renderState.previewPolygon = null; runtime.renderState.rotationDegrees = null; runtime.wall?.previewRotation(null); }
+	function clear(): void { preview.value = null; runtime.renderState.previewPolygon = null; runtime.renderState.rotationDegrees = null; runtime.renderState.rotationInteraction = null; runtime.wall?.previewRotation(null); }
 	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { generation.value++; clear(); }, { flush: 'sync' });
 	onBeforeUnmount(() => { alive = false; generation.value++; clear(); });
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
@@ -98,7 +98,5 @@ export function createRotationActions(context: PlanEditorContext, runtime: Runti
 			} });
 		});
 	}
-	return { setObstacles: (bounds: readonly BoundingBox[]) => { obstacles.value = bounds; }, target, active, blocked, preview, previewShape, handleGeometry, visibleBounds, handle: computed(() => handleGeometry.value?.handle ?? null), available: computed(() => target.value !== null), rotate, move };
+	return { setObstacles: (bounds: readonly BoundingBox[]) => { obstacles.value = bounds; }, obstacles: computed(() => obstacles.value), target, active, blocked, preview, previewShape, handleGeometry, visibleBounds, handle: computed(() => handleGeometry.value?.handle ?? null), available: computed(() => target.value !== null), rotate, move };
 }
-
-

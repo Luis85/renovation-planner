@@ -90,6 +90,16 @@
 
 .rp-al-search__input {
 	width: 100%;
+	padding-inline-end: calc(var(--size-4-2) + 1.5em);
+}
+
+/* Chromium draws its own cancel "×" on a non-empty `type="search"` input, in the same trailing
+   slot as the control below and bypassing `clearSearchField` (no focus return). One clear
+   affordance, ours: the native one is suppressed and the input reserves room for the button. */
+.rp-al-search__input::-webkit-search-cancel-button {
+	-webkit-appearance: none;
+	appearance: none;
+	display: none;
 }
 
 /* The clear control sits over the field's trailing edge; the `×` is decorative, the accessible

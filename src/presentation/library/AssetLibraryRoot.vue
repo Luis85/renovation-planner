@@ -89,11 +89,21 @@ const paneAssetId = computed(() => (showingSelection.value ? (selectedId.value ?
  * scroll offset would never be captured. `paneAssetId` is the same value the narrow-composition
  * CSS itself keys on (`data-selected-asset-id`), so it changes on exactly the transitions that
  * actually hide or reveal `.rp-al-shelves`.
+ *
+ * On a WIDE pane the shelves never leave — AL10's own condition ("when the narrow pane switches
+ * to the inspector") never applies. Restoring there anyway snaps a scroll position the user is
+ * still actively controlling back to a stale offset the moment `paneAssetId` clears for any other
+ * reason (e.g. typing into search flips `store.searching`). So restore is gated on
+ * `shelvesWithdrawn(shellEl.value)` read at the moment the pane leaves the selection: inside a
+ * `flush: 'sync'` watch the DOM has not yet applied the width-driven layout change, so it reflects
+ * whether the shelves were actually hidden, not whether they are about to be.
  */
-watch(paneAssetId, async (assetId) => {
+watch(paneAssetId, async (now, before) => {
 	const shelves = bodyRef.value?.shelvesElement() ?? null;
 	if (shelves === null) return;
-	if (assetId !== '') { savedScrollTop = shelves.scrollTop; return; }
+	if (now !== '' && before === '') { savedScrollTop = shelves.scrollTop; return; }
+	if (now !== '' || before === '') return;
+	if (!shelvesWithdrawn(shellEl.value)) return;
 	await nextTick();
 	shelves.scrollTop = savedScrollTop;
 }, { flush: 'sync' });

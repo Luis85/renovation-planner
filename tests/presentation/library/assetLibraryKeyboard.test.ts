@@ -253,6 +253,16 @@ describe('the narrow composition\'s scroll restore', () => {
 		await root.get('.rp-al-inspector__back').trigger('click'); await settle();
 		expect(root.get('.rp-al-shelves').element.scrollTop).toBe(120);
 	});
+
+	it('leaves a wide pane\'s live scroll position alone when the selection leaves', async () => {
+		const root = await mountLibrary();
+		const shelves = root.get('.rp-al-shelves').element;
+		shelves.scrollTop = 300;
+		await root.get(`[data-asset-id="${ALDER.assetId}"]`).trigger('click'); await settle();
+		shelves.scrollTop = 500;
+		await root.get('.rp-al-search__input').setValue('birch'); await settle();
+		expect(root.get('.rp-al-shelves').element.scrollTop).toBe(500);
+	});
 });
 
 describe('the clear-search control on the field', () => {

@@ -208,3 +208,19 @@ describe('shelf column headings and cells', () => {
 		expect(hidingSupplierHeading).toEqual(hidingSupplierCell);
 	});
 });
+
+describe('the search field\'s native cancel button', () => {
+	/**
+	 * Chromium (Obsidian runs on Electron/Chromium) draws its own "x" on a non-empty
+	 * `type="search"` input, in the same trailing slot `.rp-al-search__clear` occupies, and
+	 * clicking it bypasses `clearSearchField()` entirely (no focus return, no Vue handler) —
+	 * review finding. One clear affordance, ours: the native one is suppressed.
+	 */
+	it('hides the native ::-webkit-search-cancel-button on the search input', () => {
+		const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//gu, '');
+		const rule = /\.rp-al-search__input::-webkit-search-cancel-button\s*\{([^}]*)\}/u.exec(sheet);
+
+		expect(rule).not.toBeNull();
+		expect(rule?.[1]).toMatch(/display:\s*none/u);
+	});
+});

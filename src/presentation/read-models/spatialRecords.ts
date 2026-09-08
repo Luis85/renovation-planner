@@ -19,6 +19,7 @@ export interface SpatialRecordDto {
 	/** World millimetres, straight from the `ZoneDto`. */
 	readonly points: readonly Point[];
 	readonly bulges?: readonly number[];
+	readonly hitPoints?: readonly Point[];
 	readonly areaMm2: number;
 }
 

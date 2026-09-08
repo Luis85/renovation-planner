@@ -2,6 +2,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { boundingBoxOf, distance } from '../../../core/geometry/operations';
 import { arcLength, arcPoint, arcTangent } from '../../../core/geometry/circularArc';
+import { spatialElementFootprint, type StairOptions } from '../../../domain/spatial/stairGeometry';
 import { ROTATION_CONTROL_WIDTH_PX, ROTATION_CONTROL_TOP_PX, ROTATION_CONTROL_BOTTOM_PX, ROTATION_HANDLE_OFFSET_PX, ROTATION_VIEW_MARGIN_PX, ROTATION_HANDLE_CLEARANCE_PX, ROTATION_PIVOT_DEADZONE_PX, VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
 
 export interface RotationControlGeometry {
@@ -45,16 +46,17 @@ function clampControl(point: Point, width: number, scale: number, visible?: Boun
 		y: Math.max(visible.min.y + ROTATION_CONTROL_TOP_PX * scale + margin, Math.min(visible.max.y - ROTATION_CONTROL_BOTTOM_PX * scale - margin, point.y)) };
 }
 
-type Shape = { id: string; kind: string; points: readonly Point[]; bulges?: readonly number[]; wall?: { id: string; bulge?: number } };
+type Shape = { id: string; kind: string; points: readonly Point[]; bulges?: readonly number[]; wall?: { id: string; bulge?: number }; stair?: StairOptions };
 const EDGE_POSITIONS = [1, 2].flatMap(multiplier => [[0.25, 1], [0.75, 1], [0.5, 1], [0.25, -1], [0.75, -1], [0.5, -1]].map(([fraction, side]) => [fraction, side, multiplier]));
 function edgePoints(shape: Shape): readonly Point[] {
+	if (shape.kind === 'stair') return spatialElementFootprint(shape);
 	if (shape.kind !== 'group') return shape.points;
 	const bounds = boundingBoxOf(shape); if (!bounds.ok) return [];
 	const { min, max } = bounds.value;
 	return [min, { x: max.x, y: min.y }, max, { x: min.x, y: max.y }];
 }
 function edgesOf(shape: Shape) {
-	const points = edgePoints(shape), closed = ['room', 'area', 'object', 'group'].includes(shape.kind);
+	const points = edgePoints(shape), closed = ['room', 'area', 'object', 'group', 'stair'].includes(shape.kind);
 	const winding = points.reduce((sum, a, index) => { const b = points[(index + 1) % points.length]; return sum + a.x * b.y - b.x * a.y; }, 0);
 	return points.slice(0, closed ? points.length : -1).map((a, index) => {
 		const b = points[(index + 1) % points.length], bulge = shape.kind === 'group' ? 0 : shape.wall?.bulge ?? shape.bulges?.[index] ?? 0, curve = { start: a, end: b, bulge }, length = arcLength(curve), sign = winding < 0 ? -1 : 1;

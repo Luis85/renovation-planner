@@ -3,6 +3,7 @@ import { curvesDe } from './curves';
 import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
+import { stairsArrowsDe } from './stairsArrows';
 import { inputDe } from './input';
 import { groupsDe } from './groups';
 import { creationDe } from './creation';
@@ -23,6 +24,7 @@ import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
 	...curvesDe,
 	...groupsDe,
+	...stairsArrowsDe,
 	...inputDe,
 	...creationDe,
 	'editor.direct.edit-shape': 'Form bearbeiten',

@@ -1,10 +1,9 @@
 import { createDraftRetry } from '../forms/createDraftRetry';
 import { createSpatialRemoval } from './spatialRemoval';
-import { computed, markRaw, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { NamedSpatialElement, SpatialElement } from '../../../domain/spatial/SpatialElement';
-import { validSpatialElement } from '../../../domain/spatial/SpatialElement';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
@@ -18,8 +17,7 @@ import { removalSources } from '../planning/removalSources';
 import { notifyFault, notifyOperationFailure } from '../../notices/notify';
 import { tr } from '../../i18n/strings';
 import { elementInput } from './elementInput';
-import { areaOutline } from '../add/areaOutline';
-import OutlinePointsForm from '../resize/OutlinePointsForm.vue';
+import { elementEditPresentation } from './elementEditPresentation';
 import { err } from '../../../core/result/Result';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
 import type { RenovationBaseline } from '../../../application/commands/renovation/RenovationCommand';
@@ -64,16 +62,15 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		return operate(id, async ({ baseline, element }) => {
 			if (selection.selectedIds.join('|') !== selected) return;
 			const busy = ref(false), latest = ref<string | null>(null);
-			await dialogs.openDialog({ kind: 'form', title: tr('editor.element.edit', { name: element.name }), component: markRaw(OutlinePointsForm), busy, props: {
-				points: element.points, name: element.name, hint: 'editor.element.edit-hint', busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || save.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
-				accepts: (points: readonly Point[]) => validSpatialElement({ ...element, points }) && (element.kind !== 'object' || areaOutline(points).ok),
-				preview: (polygon: { points: readonly Point[] } | null) => { preview.value = polygon ? { ...element, points: polygon.points } : null; },
-				dispatch: async (polygon: { points: readonly Point[] }, name: string) => {
+			const presentation = elementEditPresentation(element, async value => {
 					if (!alive || blocked.value || latest.value || !context.commands.renovation) return err(staleWriteRefusal());
-					const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, name, points: polygon.points }), runtime.structureTask.ledger));
+					const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, ...value }), runtime.structureTask.ledger));
 					if (alive && !result.ok && (result.error.code.includes('conflict') || result.error.code === 'undo.superseded')) { latest.value = tr('editor.element.changed'); await runtime.refreshProjection(); }
 					return result;
-				},
+				}, value => { preview.value = value; });
+			await dialogs.openDialog({ kind: 'form', title: tr('editor.element.edit', { name: element.name }), component: presentation.component, busy, props: {
+				points: element.points, name: element.name, busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || save.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
+				...presentation.props,
 			} });
 		});
 	}
@@ -93,7 +90,7 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		const epoch = rotationEpoch;
 		return operate(id, async ({ baseline, element }) => {
 			if (epoch !== rotationEpoch) return;
-			if (element.kind !== original.kind || JSON.stringify(element.points) !== JSON.stringify(original.points)) { notifyOperationFailure(staleWriteRefusal()); return; }
+			if (element.kind !== original.kind || JSON.stringify(element.points) !== JSON.stringify(original.points) || JSON.stringify(element.stair) !== JSON.stringify(original.stair)) { notifyOperationFailure(staleWriteRefusal()); return; }
 			if (!context.commands.renovation) return;
 			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, points }), runtime.structureTask.ledger));
 			if (alive && !result.ok) notifyOperationFailure(result.error);

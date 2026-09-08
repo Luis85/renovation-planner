@@ -13,6 +13,12 @@ ISC notice and the MIT notice for Feather-derived icons. No user data is involve
 The harness records unknown requests with `data-icon-missing`; it never substitutes an
 unrelated icon. Actual-host acceptance must still verify the installed host catalogue.
 
+The `arrow-up-right` fixture uses the same pinned source revision and matches the checked
+Obsidian 1.13.7 native key. `rp-stairs` is deliberately application-owned artwork registered
+by `src/plugin/editorIconRegistration.ts`; it is not a Lucide fixture or a native-icon alias.
+The adapter records its real add/remove lifecycle and renders the registered SVG content
+in the host's 100-unit custom-icon coordinate system.
+
 Obsidian 1.13.7's canonical key for upstream `grid-2x2.svg` is `grid-2x-2`; the generated node
 map uses the host key while the original upstream filename and SVG bytes remain unchanged.
 The adapter removes the explicit `lucide-` family prefix for fixture lookup and the `data-icon`

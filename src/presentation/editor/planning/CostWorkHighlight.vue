@@ -22,7 +22,7 @@ const outlines = computed(() => {
 	return [...targets].flatMap(id => {
 		const target = geometry.get(id);
 		const shape = target && { ...target, kind: 'kind' in target ? target.kind === 'room' || target.kind === 'area' ? undefined : target.kind : undefined };
-		return shape?.points.length ? [{ id, points: spatialOutlinePoints(shape, 0.25 / props.zoom).flatMap(point => [point.x, point.y]), closed: project.zones.has(id) || shape.zoneType === 'object' }] : [];
+		return shape?.points.length ? [{ id, points: spatialOutlinePoints(shape, 0.25 / props.zoom).flatMap(point => [point.x, point.y]), closed: project.zones.has(id) || ['object', 'stair'].includes(shape.zoneType) }] : [];
 	});
 });
 </script>

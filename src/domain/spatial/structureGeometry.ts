@@ -91,7 +91,7 @@ export function editWall(structure: Structure, edited: Wall): Structure {
 export function scaleStructure(structure: Structure, factor: number): Structure {
 	const point = (p: Point): Point => ({ x: p.x * factor, y: p.y * factor });
 	return { ...structure,
-		...(structure.elements ? { elements: structure.elements.map(element => ({ ...element, points: element.points.map(point) })) } : {}),
+		...(structure.elements ? { elements: structure.elements.map(element => ({ ...element, points: element.points.map(point), ...(element.stair ? { stair: { ...element.stair, width: element.stair.width * factor } } : {}) })) } : {}),
 		walls: structure.walls.map(wall => ({ ...wall, start: point(wall.start), end: point(wall.end), height: wall.height * factor, thickness: wall.thickness * factor })),
 		openings: structure.openings.map(opening => ({ ...opening, offset: opening.offset * factor, width: opening.width * factor, height: opening.height * factor, sill: opening.sill * factor })),
 	};

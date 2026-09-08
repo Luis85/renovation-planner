@@ -28,6 +28,8 @@ import type { EditorContext } from './editor-context';
 export type ToolId =
 	| 'select'
 	| 'pan'
+	| 'place-stair'
+	| 'draw-arrow'
 	| 'draw-polygon'
 	| 'draw-room'
 	| 'edit-room-dimension'

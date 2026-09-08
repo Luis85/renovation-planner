@@ -45,7 +45,7 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		draft.points = points.map(point => ({ ...point })); draft.error = null; return true;
 	}
 	function addPoint(point: Point): boolean {
-		if (blocked.value || draft.pendingInput || (draft.kind === 'measurement' && draft.points.length === 2)) return false;
+		if (blocked.value || draft.pendingInput || ((draft.kind === 'measurement' || draft.kind === 'stair') && draft.points.length === 2)) return false;
 		const previous = draft.points[draft.points.length - 1];
 		if (previous && previous.x === point.x && previous.y === point.y) return false;
 		const added = setPoints([...draft.points, point]);

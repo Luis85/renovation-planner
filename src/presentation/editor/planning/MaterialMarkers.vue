@@ -7,7 +7,7 @@ import { useRenovationSession } from '../renovation/renovationSession';
 import { inRenovationScope } from '../renovation/renovationSummary';
 import { structureRecords } from '../structure/structureRecords';
 import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
-import { boundingBoxOf } from '../../../core/geometry/operations';
+import { boundsOfZones } from '../viewport/zoneExtent';
 const props = defineProps<{ tokens: ThemeTokens; zoom: number }>();
 const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession();
 const markers = computed(() => {
@@ -22,13 +22,13 @@ const markers = computed(() => {
   const targetId = entity.source?.targetId ?? entity.origin.zoneId, target = (entity.source?.state === 'intended' ? intendedPoints : currentPoints).get(targetId);
   if (!target?.points.length) return [];
   const shape = { ...target, kind: 'kind' in target ? target.kind === 'room' || target.kind === 'area' ? undefined : target.kind : undefined };
-  const points = spatialOutlinePoints(shape, 0.25 / props.zoom), box = boundingBoxOf(target);
-  if (!box.ok) return [];
+  const points = spatialOutlinePoints(shape, 0.25 / props.zoom), box = boundsOfZones([target]);
+  if (!box) return [];
   const offset = offsets.get(targetId) ?? 0; offsets.set(targetId, offset + 1);
   return [{ id: entity.id, roomId: entity.origin.zoneId, number: index + 1,
-   x: box.value.min.x + (22 + offset * 34) / props.zoom,
-   y: box.value.min.y + 22 / props.zoom,
-   points: points.flatMap(point => [point.x, point.y]), closed: project.zones.has(targetId) || (entity.source?.state === 'intended' ? intended : current).some(item => item.id === targetId && item.kind === 'object') }];
+   x: box.min.x + (22 + offset * 34) / props.zoom,
+   y: box.min.y + 22 / props.zoom,
+   points: points.flatMap(point => [point.x, point.y]), closed: project.zones.has(targetId) || (entity.source?.state === 'intended' ? intended : current).some(item => item.id === targetId && ['object', 'stair'].includes(item.kind)) }];
  });
 });
 </script>

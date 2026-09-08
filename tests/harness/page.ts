@@ -24,6 +24,11 @@ import { componentEntries, prototypeEntries, registerEntries, registrableCompone
 import IndexPage from './IndexPage.vue';
 import { installObsidianDom } from '../helpers/dom';
 import { applyLanguage, applyPlatform, applyWantedScheme, drawSchemeToggle } from './theme';
+import { registerEditorIcons } from '../../src/plugin/editorIconRegistration';
+
+// This harness mounts views directly, so it explicitly supplies the plugin's icon lifecycle.
+const unregisterEditorIcons = registerEditorIcons();
+window.addEventListener('beforeunload', unregisterEditorIcons, { once: true });
 
 // Before the mount: `is-phone` is a body class that a toolbar's own fit measurement can
 // see, and applying it afterwards would leave that measurement made against the other

@@ -3,6 +3,7 @@ import { curvesEn } from './curves';
 import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
+import { stairsArrowsEn } from './stairsArrows';
 import { inputEn } from './input';
 import { groupsEn } from './groups';
 import { creationEn } from './creation';
@@ -35,6 +36,7 @@ import { structureEn } from './structure';
 export const editorEn = {
 	...curvesEn,
 	...groupsEn,
+	...stairsArrowsEn,
 	...inputEn,
 	...creationEn,
 	'editor.direct.edit-shape': 'Edit shape',

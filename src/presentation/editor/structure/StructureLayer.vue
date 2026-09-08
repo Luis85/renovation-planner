@@ -42,14 +42,15 @@ const elements = computed(() => (structure.value.elements ?? []).map(element => 
 const elementDraft = computed(() => {
 	const draft = runtime.elementTask.draft;
 	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];
-	const cursor = draft.cursor && (draft.kind !== 'measurement' || draft.points.length < 2) ? [draft.cursor] : [];
-	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...cursor] }];
+	const cursor = draft.cursor && (!['measurement', 'stair'].includes(draft.kind) || draft.points.length < 2) ? [draft.cursor] : [];
+	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...cursor], ...(draft.kind === 'stair' ? { stair: draft.stair } : {}) }];
 });
 </script>
 <template>
 	<VLayer :config="{ name: 'architecture', listening: false, visible, ...transform }">
 		<ElementShapes
 			:elements="elements"
+			:editable="renovationSession.perspective === 'plan' && runtime.activeToolId.value === 'select'"
 			:selected-ids="selection.selectedIds"
 			:tokens="tokens"
 			:zoom="zoom"

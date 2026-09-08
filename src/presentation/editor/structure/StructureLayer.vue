@@ -13,8 +13,12 @@ import { draftStructure, isStructureTool } from './structureDraft';
 import ElementShapes from '../elements/ElementShapes.vue';
 import { isElementTool } from '../elements/elementDraft';
 import WallDraftOverlay from './WallDraftOverlay.vue';
+import { useEditorStore } from '../../stores/EditorStore';
 const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visible: boolean; zoom: number }>();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
+const editor = useEditorStore();
+const draftViewport = computed(() => ({ min: { x: -props.transform.x / props.zoom, y: -props.transform.y / props.zoom },
+	max: { x: (editor.stageSize.width - props.transform.x) / props.zoom, y: (editor.stageSize.height - props.transform.y) / props.zoom } }));
 const task = runtime.structureTask;
 const structure = computed(() => runtime.structureActions.preview.value ?? (isStructureTool(runtime.activeToolId.value) ? draftStructure(task.draft, project.structure) : null) ?? project.structure);
 const points = (value: readonly Point[]): number[] => value.flatMap(p => [p.x, p.y]);
@@ -85,10 +89,10 @@ const elementDraft = computed(() => {
 		/>
 		<WallDraftOverlay
 			:points="wallDraftPoints"
+			:viewport="draftViewport"
 			:cursor="runtime.activeToolId.value === 'draw-wall' ? task.draft.cursor : null"
 			:tokens="tokens"
 			:zoom="zoom"
 		/>
 	</VLayer>
 </template>
-

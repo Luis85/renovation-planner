@@ -1,7 +1,7 @@
 /* Creation stays in the existing per-leaf task; the Inspector contains precise fields. */
 .renovation-plan-editor .rp-task-banner--structure {
 	top: auto;
-	bottom: 24px;
+	bottom: var(--rp-taskbar-clearance, 88px);
 	width: fit-content;
 	max-width: calc(100% - 32px);
 	display: flex;
@@ -48,5 +48,5 @@
 	.renovation-plan-editor .rp-floor-start { top: 8%; padding: 8px; gap: 8px; }
 	.renovation-plan-editor .rp-floor-start__helper { margin: 0 0 8px; }
 	.renovation-plan-editor .rp-floor-start > button { min-height: 72px; padding: 12px; }
-	.renovation-plan-editor .rp-task-banner--structure { bottom: 12px; gap: 6px; }
+	.renovation-plan-editor .rp-task-banner--structure { gap: 6px; }
 }

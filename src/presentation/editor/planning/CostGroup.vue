@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import CostRow from './CostRow.vue';
+import CostTotals from './CostTotals.vue';
 import { aggregateCosts, type costRows } from './planningProjection';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { formatPlanningMoney } from '../../i18n/planningFormat';
@@ -35,6 +36,10 @@ function focusWork(event: MouseEvent): void {
 			>{{ tr('planning.planned') }} {{ formatPlanningMoney(totals.planned) }}</span>
 			<span v-else>{{ tr('planning.totals-refused') }}</span>
 		</summary>
+		<CostTotals
+			v-if="totals"
+			:totals="totals"
+		/>
 		<ol class="rp-renovation-list">
 			<CostRow
 				v-for="row in rows"

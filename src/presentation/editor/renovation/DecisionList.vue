@@ -8,7 +8,7 @@ const emit = defineEmits<{ remove: [id: string, name: string] }>();
 const actions = useEditorRuntime().renovation, session = useRenovationSession();
 </script>
 <template>
-	<section v-if="session.mode === 'planned'">
+	<section v-if="session.mode === 'planned' && decisions.length">
 		<h4>{{ tr('renovation.question') }}</h4>
 		<div
 			v-for="item in decisions"

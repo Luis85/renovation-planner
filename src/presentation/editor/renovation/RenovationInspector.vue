@@ -52,13 +52,16 @@ watch(() => [session.focusedId, session.mode], async () => {
 	>
 		<ElementInspector v-if="generic" />
 		<StructureInspector v-else-if="element" />
-		<h3 v-else>
+		<h3 v-else-if="session.mode === 'overview' || !room">
 			{{ selectedZone?.name || room?.name || tr('renovation.select-room') }}
 		</h3>
-		<ObjectRotationControls
-			v-if="selectedZone"
-			:id="selectedZone.id"
-		/>
+		<details
+			v-if="selectedZone && !room"
+			class="rp-room-more-actions"
+		>
+			<summary>{{ tr('editor.structure.more') }}</summary>
+			<ObjectRotationControls :id="selectedZone.id" />
+		</details>
 		<RoomRenovationDetails
 			v-if="room"
 			:room="room"

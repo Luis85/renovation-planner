@@ -33,14 +33,6 @@ async function shopping(): Promise<void> {
 }
 </script>
 <template>
-	<button
-		v-if="planning.context.navigation"
-		type="button"
-		data-rp-open-library
-		@click="planning.context.navigation.library()"
-	>
-		{{ tr('planning.open-library') }}
-	</button>
 	<details>
 		<summary>{{ tr('planning.procurement') }}</summary>
 		<p>{{ tr('planning.procurement-policy') }}</p>
@@ -91,6 +83,14 @@ async function shopping(): Promise<void> {
 		@click="shopping"
 	>
 		{{ tr('planning.shopping') }}
+	</button>
+	<button
+		v-if="planning.context.navigation"
+		type="button"
+		data-rp-open-library
+		@click="planning.context.navigation.library()"
+	>
+		{{ tr('planning.open-library') }}
 	</button>
 	<p
 		v-if="error"

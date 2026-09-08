@@ -79,7 +79,8 @@ it('retains keyboard focus through Room views and returns it to Details when Ove
 		await button.trigger('click'); await settle();
 		expect(rig.wrapper.get('.rp-room-navigation').element).toBe(nav);
 		expect(document.activeElement).toBe(rig.wrapper.get('[data-rp-room-navigation]').element);
-		expect(rig.wrapper.get('.rp-room-navigation').isVisible()).toBe(false);
+		expect(rig.wrapper.get('.rp-room-navigation').isVisible()).toBe(true);
+		expect(rig.wrapper.get(`[data-rp-mode="${mode}"]`).attributes('aria-pressed')).toBe('true');
 		await rig.wrapper.get('[data-rp-room-navigation]').trigger('click');
 		expect(rig.wrapper.get('.rp-room-navigation').isVisible()).toBe(true);
 		expect(rig.selection.selectedIds).toEqual([rig.room.id]);

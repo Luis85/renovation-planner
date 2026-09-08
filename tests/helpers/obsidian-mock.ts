@@ -596,3 +596,9 @@ export class PluginSettingTab {
 	}
 }
 
+
+/** Obsidian's link splitter keeps the hash-prefixed heading/block separate from the file path. */
+export function parseLinktext(linktext: string): { path: string; subpath: string } {
+ const index = linktext.indexOf('#');
+ return index < 0 ? { path: linktext, subpath: '' } : { path: linktext.slice(0, index), subpath: linktext.slice(index) };
+}

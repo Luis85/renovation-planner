@@ -1,3 +1,6 @@
+import type { PlanGeometrySidecar } from '../ports/PlanGeometrySidecar';
+import type { PlanId } from '../../domain/plan/PlanId';
+import { sourceMeasurement } from '../../domain/requirement/RequirementSource';
 import { Decimal } from 'decimal.js';
 import { err, isErr, isOk, ok, type Result } from '../../core/result/Result';
 import type { RepositoryError } from '../ports/repositoryErrors';
@@ -156,6 +159,7 @@ function buildUnitCostGroup(
  * wider deps bundle satisfies this structurally; nothing here asks it to narrow first.
  */
 export interface RequirementRowDeps {
+	readonly geometry?: PlanGeometrySidecar;
 	readonly assets: AssetRepository;
 	readonly zones: ZoneRepository;
 	readonly overrides: AssetPriceOverrideRepository;
@@ -273,9 +277,10 @@ export async function buildRequirementRow(
 	const effective = await effectiveAsset(deps, requirement, assetEntity, overrideMemo);
 	if (isErr(effective)) return err(effective.error);
 
+	const sourceZone = await measuredSource(deps, requirement, zone.value?.entity ?? null);
 	const stale = isStaleReading(
 		requirement,
-		zone.value?.entity ?? null,
+		sourceZone,
 		effective.value,
 		projectCurrency,
 	);
@@ -300,4 +305,14 @@ export async function buildRequirementRow(
 		unitCost: buildUnitCostGroup(requirement, assetEntity, effective.value),
 		recalculationStatus: stale ? 'stale' : 'current',
 	});
+}
+
+async function measuredSource(deps: RequirementRowDeps, requirement: Requirement, zone: Zone | null) {
+	let sourceZone: { area(): Result<number, unknown> } | null = zone;
+	if (requirement.source) {
+		const geometry = await deps.geometry?.read(requirement.source.planId as PlanId);
+		const measured = geometry?.ok ? sourceMeasurement(requirement.source, requirement.origin.zoneId, geometry.value.document, requirement.unit) : null;
+		sourceZone = measured?.ok ? { area: () => ok(measured.value.toNumber()) } : null;
+	}
+	return sourceZone;
 }

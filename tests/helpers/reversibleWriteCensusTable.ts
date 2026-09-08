@@ -56,6 +56,8 @@ export interface CensusRow {
 }
 
 export const CENSUS_TABLE: readonly CensusRow[] = [
+ { module: 'MaterialCommand', direction: 'execute', mustPublish: 'Requirement lifecycle, changed effective cost and PlanRenovationChanged after conditional write; planningFaults.test.ts' },
+ { module: 'MaterialCommand', direction: 'undo', mustPublish: 'Requirement lifecycle, changed effective cost and PlanRenovationChanged after conditional inverse; planningFaults.test.ts' },
 	{ module: 'RenovationCommand', direction: 'execute', mustPublish: 'PlanRenovationChanged after composite write; renovationCommand.test.ts' },
 	{ module: 'RenovationCommand', direction: 'undo', mustPublish: 'PlanRenovationChanged after composite restore; renovationCommand.test.ts' },
 	{ module: 'StructureCommand', direction: 'execute', mustPublish: 'PlanStructureChanged after successful composite write; structureCommand.test.ts' },

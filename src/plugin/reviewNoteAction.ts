@@ -9,8 +9,8 @@ import { VAULT_EXCEPTION_MAPPER } from './guardedServices';
 import { ok } from '../core/result/Result';
 import { openReviewNote } from '../infrastructure/obsidian/workspace/openReviewNote';
 
-export function reviewNoteAction(vault: Vault, workspace: Workspace, index: ProjectIndex, logger: Logger) {
-	const notes = new ObsidianReviewNotes(vault, index);
+export function reviewNoteAction(vault: Vault, workspace: Workspace, index: ProjectIndex, logger: Logger, kind: 'review' | 'shopping' = 'review') {
+	const notes = new ObsidianReviewNotes(vault, index, kind);
 	const action = guardCommand({ async execute(input: { planId: PlanId; body: string }) {
 		const source = index.getPath(input.planId) ?? '';
 		const result = await notes.generate(input.planId, `${input.body}\n\n[${tr('renovation.source-floor')}](${source.split('/').map(segment => encodeURIComponent(segment)).join('/').replaceAll('(', '%28').replaceAll(')', '%29')})\n`);

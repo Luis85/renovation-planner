@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
 import { normalizePath } from 'obsidian';
+import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, toRaw, watch, type Ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';

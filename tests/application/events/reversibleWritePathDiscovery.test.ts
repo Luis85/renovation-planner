@@ -206,6 +206,7 @@ function notAnAdapter(reason: string): Disposition {
  * entry for a class that no longer exists fails too.
  */
 const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
+ 'src/application/commands/renovation/MaterialCommand.ts::MaterialCommand': rows(['execute', 'undo'], 'MaterialCommand'),
 	'src/application/commands/renovation/RenovationCommand.ts::RenovationCommand': rows(['execute', 'undo'], 'RenovationCommand'),
 	'src/application/commands/spatial/StructureCommand.ts::StructureCommand': rows(['execute', 'undo'], 'StructureCommand'),
 	'src/application/commands/plan/ConfigurePlanReference.ts::ConfigurePlanReference': rows(['execute', 'undo'], 'ConfigurePlanReference'),

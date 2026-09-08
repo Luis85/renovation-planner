@@ -102,3 +102,11 @@ total or quote comparison.
 - [[Budget aggregation]]
 - [[Project settings]]
 - [[Quote comparison]]
+
+
+## Bounded implementation evidence — 2026-09-06
+
+Implemented: material-derived and manual obligations, separate committed/actual facts, partial settlement, Remaining and evidence/source routes. Full quote comparison, financial integrations and live acceptance remain open.
+This does not mark all acceptance criteria complete. [ADR-0022](../development/adrs/0022-material-quantities-cost-facts-and-vault-evidence.md)
+defines ownership and arithmetic; [connected planning traceability](../user-experience/renovation-planner-editor-specs/implementation/connected-planning-evidence.md)
+links actual tests and browser evidence to each demonstrated contract.

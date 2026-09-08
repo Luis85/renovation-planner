@@ -1,3 +1,4 @@
+import { planningEn } from './en/planning';
 import { enAssetLibrary } from './en-assetLibrary';
 import { editorEn } from './en/editor';
 import { renovationEn } from './en/renovation';
@@ -31,6 +32,7 @@ import { renovationEn } from './en/renovation';
  */
 export const en = {
 	...renovationEn,
+	...planningEn,
 	...editorEn,
 	'command.open-project': 'Open renovation project',
 	'command.open-project-detail': 'Go to renovation project',

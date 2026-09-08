@@ -1,3 +1,4 @@
+import { selectAndFrameOn } from './selection/selectAndFrame';
 import { createRenovationDeletionGuard } from './renovation/renovationDeleteGuard';
 import { createHistoryActions } from './tools/historyActions';
 import { createRenovationActions } from './renovation/renovationActions';
@@ -5,7 +6,6 @@ import { useRenovationSession } from './renovation/renovationSession';
 import { createReferenceAction } from './reference/referenceAction';
 import { createStructureTask } from './structure/structureTask';
 import { createStructureActions } from './structure/structureActions';
-import { structureCandidates } from './structure/structureCandidates';
 import { createRoomResizeAction } from './resize/roomResizeAction';
 import { createRoomNamingAction } from './naming/roomNamingAction';
 import {
@@ -32,7 +32,6 @@ import type { Vector } from '../../core/geometry/Vector';
 import { useEditorStore } from '../stores/EditorStore';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
-import { selectSpatial } from './selection/selectSpatial';
 import type { InspectorDto, InspectorEdit } from './inspector/inspector-store';
 import type { RequirementInspectorDTO } from '../../application/queries/GetRequirementsForZone';
 import { CommandHistory } from './tools/command-history';
@@ -54,7 +53,6 @@ import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { EDITOR_SNAP_SERVICE } from './snapping/editorSnapping';
 import { editorViewportAdapter } from './viewport/editorViewportAdapter';
-import { boundsOfZones } from './viewport/zoneExtent';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
 import { mapDispatchFaults, reportDispatchFailure, type ToolDispatcher } from './report-failure';
@@ -429,21 +427,6 @@ function createDeleteZoneAction(
  * come from two different reads) is still worth marking as the user's intent, and the camera
  * simply has nothing to move to.
  */
-function selectAndFrameOn(
-	projectStore: ReturnType<typeof useProjectStore>,
-	selection: ReturnType<typeof useSelectionStore>,
-	editor: ReturnType<typeof useEditorStore>,
-	target: { readonly id: string; readonly toggle: boolean },
-): void {
-	const { id, toggle } = target;
-	selectSpatial(selection, id, toggle);
-	if (toggle) return;
-	const zone = projectStore.zones.get(id) ?? structureCandidates(projectStore.structure).find(candidate => candidate.id === id);
-	if (zone === undefined) return;
-	const bounds = boundsOfZones([zone]);
-	if (bounds === null) return; // nothing to frame: the selection stands, the camera stays
-	editor.fitTo(bounds, editor.stageSize);
-}
 
 /**
  * A selected id the vault no longer holds is RETIRED, never rebound by name or position (spec

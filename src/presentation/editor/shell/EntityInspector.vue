@@ -55,9 +55,9 @@ import { structureRecords } from '../structure/structureRecords';
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
 const project = useProjectStore();
+const rooms = useSpatialRecords();
 const renovationSession = useRenovationSession();
-const zoneRecords = useSpatialRecords();
-const records = computed(() => [...zoneRecords.value, ...structureRecords(project.structure, project.plan?.id ?? '')]);
+const records = computed(() => [...rooms.value, ...structureRecords(project.structure, project.plan?.id ?? '')]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
 </script>
 

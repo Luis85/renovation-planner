@@ -1,3 +1,5 @@
+import { deSaveState } from './de/saveState';
+import { planningDe } from './de/planning';
 /**
  * German. `Partial` on purpose: a key this table does not answer falls back to English
  * PER KEY in `t`, so an incomplete translation degrades one string at a time instead of
@@ -24,6 +26,7 @@ import { renovationDe } from './de/renovation';
 
 export const de: Partial<Record<StringKey, string>> = {
 	...renovationDe,
+	...planningDe,
 	...editorDe,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
@@ -509,10 +512,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'zone.nothing-to-undo': 'Noch nichts rückgängig zu machen.',
 	'plan.nothing-to-undo': 'Noch nichts rückgängig zu machen.',
 	'undo.before-execute': 'Noch nichts rückgängig zu machen.',
-	'save-state.saved': 'Gespeichert',
-	'save-state.saving': 'Wird gespeichert',
-	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',
-	'save-state.save-error': 'Fehler beim Speichern',
-	'save-state.saved-refresh-needed': 'Gespeichert · Aktualisierung nötig',
+	...deSaveState,
 	...deAssetLibrary,
 };

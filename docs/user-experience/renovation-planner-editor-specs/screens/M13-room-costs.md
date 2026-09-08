@@ -60,3 +60,12 @@ Costs relates planned, committed, and actual spending to the selected room and i
 - Remaining is derived and clearly defined.
 - Geometry-based estimates are marked Calculated.
 - The Inspector never implies accounting/tax validity.
+
+
+### Implemented continuation — 2026-09-06
+
+The connected planning slice implements material estimates, manual labor/other obligations, separate commitment/actual facts, partial settlement and Remaining. Contracts and exclusions are in
+[ADR-0022](../../../development/adrs/0022-material-quantities-cost-facts-and-vault-evidence.md).
+See [evidence and traceability](../implementation/connected-planning-evidence.md) for reproducible
+verification and unperformed acceptance. This records bounded criteria, not complete screen
+acceptance, Increment D completion or release readiness.

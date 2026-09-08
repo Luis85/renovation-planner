@@ -1,3 +1,4 @@
+import { guardMaterialRemoval } from './planningReferentialGuard';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { AssetId } from '../../../domain/asset/AssetId';
@@ -105,9 +106,10 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 	}
 
 	delete(id: RequirementId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
-		return this.queues.run(`requirement:${id}`, () =>
-			trashNoteBackedEntity(this.deps, 'requirement', id, expected, { deleteFailedCode: 'requirement.delete-failed' }),
-		);
+		return this.queues.run(`requirement:${id}`, async () => {
+			const links = await guardMaterialRemoval(this.deps, id);
+			return links.ok ? trashNoteBackedEntity(this.deps, 'requirement', id, expected, { deleteFailedCode: 'requirement.delete-failed' }) : links;
+		});
 	}
 
 	listByZone(zoneId: ZoneId): Promise<Result<Loaded<Requirement>[], RepositoryError>> {

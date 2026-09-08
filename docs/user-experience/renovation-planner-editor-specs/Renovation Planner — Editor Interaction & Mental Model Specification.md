@@ -2610,3 +2610,13 @@ The goal is to validate:
 > **interaction structure and information hierarchy**
 
 before spending effort on visual styling.
+
+## Connected planning implementation contract (2026-09-06)
+
+Room/Work/outcome context continues into Materials, Costs and the shared evidence shell.
+Spatial selection and viewport remain in the single editor runtime; focused record IDs are
+separate leaf state. Explicit Apply/Cancel drafts survive responsive reflow. Procurement never
+implies payment or Work progress. Cost stages describe one obligation; Remaining subtracts
+actuals and open commitments. Evidence filters and pins have equivalent list routes. Review is
+read-oriented and routes to the relevant mode. ADR-0022 and the implementation evidence define
+the measured subset and remaining live acceptance; the broader design remains a target.

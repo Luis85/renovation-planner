@@ -61,8 +61,7 @@ describe('inherited canvas keyboard and drag runtime routes', () => {
 		rig.runtime.toolManager.pointerDown(pointerAt(0, 0)); await settle();
 		const edit = rig.wrapper.get<HTMLButtonElement>('[data-rp-corner="edit"]'); edit.element.focus();
 		edit.element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await settle();
-		expect(rig.runtime.areaCorners.points.value).toHaveLength(0);
-		// Apply, not the X input: a native field keeps Escape, and the next press must still leave the tool.
-		expect(document.activeElement).toBe(rig.wrapper.get('[data-rp-corner="apply"]').element);
+		expect(rig.runtime.areaCorners.points.value).toHaveLength(0); expect(document.activeElement).toBe(rig.wrapper.get('[data-rp-corner="apply"]').element);
+        document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await settle(); expect(rig.runtime.activeToolId.value).toBe('select');
 	});
 });

@@ -1,3 +1,4 @@
+import type { PlanGeometrySidecar } from '../ports/PlanGeometrySidecar';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { RepositoryError } from '../ports/repositoryErrors';
 import type { Currency } from '../../core/money/Money';
@@ -26,6 +27,7 @@ export type { RequirementInspectorDTO };
  * made this the sixth.
  */
 export interface GetRequirementsForZoneDeps {
+	readonly geometry?: PlanGeometrySidecar;
 	readonly requirements: RequirementRepository;
 	readonly zones: ZoneRepository;
 	readonly assets: AssetRepository;

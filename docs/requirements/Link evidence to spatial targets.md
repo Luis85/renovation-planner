@@ -68,3 +68,11 @@ but never owns a second evidence catalogue.
 
 M14 Room Evidence read narrowly to contextual linking/viewing; the editor implementation plan
 Phase 11; the first vertical slice plan's reserved Evidence seam; PRD §23, §44, §60 and §83.
+
+
+## Bounded implementation evidence — 2026-09-06
+
+Implemented: ordinary file links with a Room and one supported spatial target, separate related-record IDs, host rename/move handling, imports, list/pin navigation and unlink preservation. Multi-target evidence identity/deduplication and the wider evidence lifecycle remain open; separate contextual records may share one user file.
+This does not mark all acceptance criteria complete. [ADR-0022](../development/adrs/0022-material-quantities-cost-facts-and-vault-evidence.md)
+defines ownership and arithmetic; [connected planning traceability](../user-experience/renovation-planner-editor-specs/implementation/connected-planning-evidence.md)
+links actual tests and browser evidence to each demonstrated contract.

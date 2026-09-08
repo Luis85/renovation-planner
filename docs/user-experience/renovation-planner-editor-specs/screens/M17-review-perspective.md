@@ -73,3 +73,12 @@ Room selection remains spatial. See [evidence and traceability](../implementatio
 Evidence, financial reconciliation, materials purchasing, Trade catalogue and scheduling remain
 later work. These screens are not declared fully accepted; live Obsidian and screenreader
 acceptance remain unperformed.
+
+
+### Implemented continuation — 2026-09-06
+
+The connected planning slice implements deterministic stale-quantity, reconciliation/negative-Remaining and missing-file findings with source routes and safe generated notes. Contracts and exclusions are in
+[ADR-0022](../../../development/adrs/0022-material-quantities-cost-facts-and-vault-evidence.md).
+See [evidence and traceability](../implementation/connected-planning-evidence.md) for reproducible
+verification and unperformed acceptance. This records bounded criteria, not complete screen
+acceptance, Increment D completion or release readiness.

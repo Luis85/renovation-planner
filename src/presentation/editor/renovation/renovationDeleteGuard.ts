@@ -1,3 +1,4 @@
+import { removalSources } from '../planning/removalSources';
 import { onBeforeUnmount } from 'vue';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { PlanId } from '../../../domain/plan/PlanId';
@@ -14,7 +15,10 @@ export function createRenovationDeletionGuard(context: PlanEditorContext, dialog
 		const read = await context.commands.renovation?.read(context.planId as PlanId);
 		if (!alive) return false;
 		if (read && !read.ok) { notifyOperationFailure(read.error); return false; }
-		const references = renovationReferents(read?.value.plan.entity.renovation ?? EMPTY_RENOVATION, id);
+		const materials = await removalSources(context, [id]);
+		if (!alive) return false;
+		if (!materials.ok) { notifyOperationFailure(materials.error); return false; }
+		const references = [...materials.value, ...renovationReferents(read?.value.plan.entity.renovation ?? EMPTY_RENOVATION, id)];
 		if (!references.length) return true;
 		await dialogs.openDialog({ kind: 'confirm', title, message: tr('renovation.links', { names: references.join(', ') }) });
 		return false;

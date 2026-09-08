@@ -1,3 +1,4 @@
+import { RequirementSourceSchema } from './planningDepth';
 import { z } from 'zod';
 import { UNIT_KIND, type MeasurementUnit } from '../../../core/units/MeasurementUnit';
 
@@ -20,7 +21,7 @@ const UNIT_SYMBOL = z.string().refine(
  * not be written — and `calculated-from-asset-unit` is the one whose loss would be
  * invisible, so it gets its own round-trip assertion in the contract suite.
  */
-export const RequirementFrontmatterSchemaV1 = z.object({
+const RequirementFrontmatterSchemaV1 = z.object({
 	type: z.literal(REQUIREMENT_TYPE),
 	'schema-version': z.literal(1),
 	id: z.string().min(1),
@@ -47,3 +48,6 @@ export const RequirementFrontmatterSchemaV1 = z.object({
 	'recalculation-status': z.enum(['current', 'stale']),
 	'required-date': z.string().nullable().catch(null),
 });
+
+export const RequirementFrontmatterSchemaV2 = RequirementFrontmatterSchemaV1.extend({ 'schema-version': z.literal(2), source: RequirementSourceSchema.optional() });
+export const RequirementFrontmatterSchema = z.union([RequirementFrontmatterSchemaV1, RequirementFrontmatterSchemaV2]);

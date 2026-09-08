@@ -36,3 +36,14 @@ fields. The conversions between them are
 box for another would fail.
 
 **Sources.** PRD §32 · PRD §59.
+
+
+## Implemented ownership amendment — 2026-09-06
+
+ADR-0022 preserves the four distinct meanings while narrowing the current persistence topology:
+Requirement remains its own Asset-backed note; exclusive local procurement allocations and cost
+obligations are separate typed records in Plan renovation frontmatter. They are not fields on
+Requirement and neither implies installed quantity or Work progress. The older "four separate
+notes" sentence describes the broader target architecture, not the bounded current register.
+`planningDepth.test.ts` and the application/editor `planningWorkflow.test.ts` assert independent
+quantities and non-double-counted financial stages. Shared inventory and installation remain open.

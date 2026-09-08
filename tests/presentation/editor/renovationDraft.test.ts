@@ -81,3 +81,15 @@ it('adds and discards intended geometry on a legacy plan with no current structu
  const discarded = removeRenovationRecord(saved, subject.id, true);
  expect(discarded.intended).toEqual(EMPTY_STRUCTURE); expect(discarded.renovation.subjects).toEqual([]);
 });
+
+
+it('keeps an unsaved geometry choice editable after preview, including a refused host', async () => {
+ const rig = await renovationStack(), baseline = expectOk(await rig.read());
+ const subject = { ...rig.value.subjects[0], existing: null, planned: { change: 'add' as const, description: 'Partition' } };
+ const input = { renovation: { subjects: [subject], work: [], decisions: [] }, intended: undefined };
+ const draft = plannedGeometryDraft(baseline, subject); draft.kind = 'opening'; draft.hostId = 'missing';
+ const before = structuredClone(draft), preview = expectOk(applyPlannedGeometry(baseline, input, subject, draft));
+ expect(validateRenovationInput(preview.renovation, { ...baseline.geometry.document, intended: preview.intended }).ok).toBe(false);
+ expect(draft).toEqual(before); expect(draft.id).toBe(''); draft.kind = 'wall'; draft.text.x = '1'; draft.text.endX = '3'; draft.text.y = '1'; draft.text.endY = '1';
+ const wall = expectOk(applyPlannedGeometry(baseline, input, subject, draft)); expect(validateRenovationInput(wall.renovation, { ...baseline.geometry.document, intended: wall.intended }).ok).toBe(true); expect(draft.id).toBe('');
+});

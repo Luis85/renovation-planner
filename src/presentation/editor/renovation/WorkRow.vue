@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { usePlanEditorContext } from '../PlanEditorContext';
+const context = usePlanEditorContext();
 import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
 import { blockingWork, type Renovation, type WorkPackage } from '../../../domain/renovation/Renovation';
@@ -49,6 +51,13 @@ function outcomeLabel(id: string) {
 			@click="emit('remove', item.id, item.title)"
 		>
 			{{ tr('renovation.delete') }}
+		</button>
+		<button
+			v-if="context.commands.planning"
+			type="button"
+			@click="actions.focus(item.roomId, 'materials', item.id)"
+		>
+			{{ tr('renovation.materials') }}
 		</button>
 	</li>
 </template>

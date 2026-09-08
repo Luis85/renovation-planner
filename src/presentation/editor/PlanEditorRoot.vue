@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { providePlanningContext } from './planning/planningContext';
 import { useRenovationSession } from './renovation/renovationSession';
 const renovationSession = useRenovationSession();
 /**
@@ -47,6 +48,7 @@ const context = usePlanEditorContext();
 // state and `setTool` is what the noZones action calls, and this is the same runtime object
 // every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
+providePlanningContext(context, runtime);
 const projectStore = useProjectStore();
 const selection = useSelectionStore();
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);

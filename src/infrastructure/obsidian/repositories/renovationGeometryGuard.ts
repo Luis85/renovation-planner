@@ -1,3 +1,4 @@
+import { guardMaterialGeometry } from './planningReferentialGuard';
 import { parseYaml, TFile, type Vault } from 'obsidian';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
@@ -14,6 +15,8 @@ const ids = (dto: PlanGeometryDTO): string[] => [...dto.objects.map(item => item
 /** Read actual bytes before a spatial deletion; a metadata-cache lag cannot waive links. */
 export async function guardRenovationGeometry(deps: { vault: Vault; index: ProjectIndex }, planId: PlanId, before: PlanGeometryDTO, after: PlanGeometryDTO): Promise<Result<void, PersistenceError | ValidationError>> {
 
+	const materials = await guardMaterialGeometry(deps, planId, before, after);
+	if (!materials.ok) return materials;
 	const surviving = new Set(ids(after));
 	// Geometry modifications retain IDs; the same-state host validator owns their validity.
 	if (ids(before).every(id => surviving.has(id))) return ok(undefined);

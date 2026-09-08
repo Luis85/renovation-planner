@@ -348,6 +348,10 @@ class FakeVault extends VaultEventBus {
 		}
 	}
 
+ createBinary(path: string, data: ArrayBuffer): Promise<TFile> {
+  return this.create(path, Array.from(new Uint8Array(data), byte => String.fromCharCode(byte)).join(''));
+ }
+
 	modify(file: TFile, data: string): Promise<void> {
 		try {
 			this.op('modify', file.path);

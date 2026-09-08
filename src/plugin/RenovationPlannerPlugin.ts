@@ -1,3 +1,4 @@
+import { evidenceRenamed } from './evidenceRename';
 import { apiVersion, Platform, Plugin, TFile, type TAbstractFile, type WorkspaceLeaf } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../presentation/views/GeometrySidecarView';
@@ -949,6 +950,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			this.registerEvent(this.app.vault.on('delete', onNoteFile(adapterOf, 'onDelete')));
 			this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
 				if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
+				void evidenceRenamed(this.root, oldPath, file.path);
 			}));
 		} catch (cause) {
 			// G4: the scan READS the vault and can throw — `libraryMigration.ts` already wraps

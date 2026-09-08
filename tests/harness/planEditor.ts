@@ -643,7 +643,7 @@ export function mountPlanEditorHarness(
 	// Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
 	const base = harnessDeps({ stale: options.stale });
-	const deps = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN).deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
+	const deps = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN, new URLSearchParams(location.search).has('planning')).deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
 	const view = new PlanEditorView(new FakeLeaf() as never, deps);
 	leafEl.appendChild(view.containerEl);
 

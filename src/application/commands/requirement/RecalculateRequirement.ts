@@ -1,3 +1,5 @@
+import { contextualFigures } from './contextualFigures';
+import type { PlanGeometrySidecar } from '../../ports/PlanGeometrySidecar';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type {
 	CalculationError,
@@ -35,6 +37,7 @@ export type RecalculateRequirementErrors =
 
 /** One bundle instead of six positional collaborators (the max-params budget). */
 export interface RecalculateRequirementDeps {
+	readonly geometry?: PlanGeometrySidecar;
 	readonly requirements: RequirementRepository;
 	readonly zones: ZoneRepository;
 	readonly assets: AssetRepository;
@@ -90,7 +93,7 @@ export class RecalculateRequirementCommand
 		// recalculation that relabeled an area as a length would be the silent-mislabeling
 		// bug the assignment check exists to prevent, so it refuses here too.
 		const pricedAgainst: Asset = asset.value;
-		if (!pricedAgainst.isAreaKind()) {
+		if (!requirement.source && !pricedAgainst.isAreaKind()) {
 			return err(
 				calculationError(
 					'requirement.unit-not-area',
@@ -121,7 +124,8 @@ export class RecalculateRequirementCommand
 		// and the write take a project from two different places.
 		const unitCost = await resolveEffectiveUnitCost(this.deps.overrides, requirement.projectId, asset.value);
 		if (isErr(unitCost)) return unitCost;
-		const figures = deriveRequirementFigures({
+		const figures = requirement.source ? await contextualFigures(this.deps, requirement, asset.value, unitCost.value, project.value.entity.currency) : deriveRequirementFigures({
+			quantityOverride: requirement.quantity.override,
 			zoneAreaMm2: area.value,
 			assetUnit: asset.value.unit,
 			unitCost: unitCost.value,

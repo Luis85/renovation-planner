@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { usePlanEditorContext } from '../PlanEditorContext';
+const context = usePlanEditorContext();
 import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
 import { tr } from '../../i18n/strings';
@@ -12,7 +14,7 @@ const runtime = useEditorRuntime(), session = useRenovationSession();
 		:aria-label="tr('renovation.renovate')"
 	>
 		<button
-			v-for="mode in ['existing', 'planned', 'work'] as const"
+			v-for="mode in (context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const)"
 			:key="mode"
 			:data-rp-mode="mode"
 			:aria-pressed="session.mode === mode"

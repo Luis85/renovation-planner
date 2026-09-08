@@ -805,3 +805,17 @@ During final verification, #74 advanced to `2f1fce9b` while #86 stayed unchanged
 also carries #74’s `48febd87` Alt-hover refresh and `381bcdc4` per-leaf multi-selection mode
 fixes, with their upstream regression tests. The base remains #86; `origin/main`’s concurrent
 #84 polish merge is recorded separately in the evidence and is not folded into this feature.
+
+
+## Materials → Costs → Evidence continuation — 2026-09-06
+
+Bounded M12–M14 and M17 criteria are implemented in the continuation of open PR #87:
+contextual Asset-backed Requirement quantities and overrides, exclusive purchased/reserved
+allocations, outstanding shopping, obligations with separate commitment/actual facts, partial
+settlement and Remaining, ordinary vault evidence with phases/pins and source-linked Review.
+This supersedes earlier statements that all materials/costs/evidence remain unbuilt; scheduling,
+suppliers, shared inventory, full quote comparison and live acceptance remain open.
+
+See [connected planning evidence and traceability](connected-planning-evidence.md),
+[changed-file coverage](connected-planning-coverage.md) and ADR-0022. Only that demonstrated
+subset is complete. Global Increment D and full M12–M17 acceptance are not complete.

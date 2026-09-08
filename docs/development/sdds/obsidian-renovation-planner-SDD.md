@@ -3010,3 +3010,18 @@ Where a question is decided, in order:
 What is proposed in a package and not adopted is not described here as architecture. What is
 deferred is named with its trigger (§89), so the next reader finds the decision waiting rather
 than an absence.
+
+
+## 102. Connected material quantities, cost obligations and evidence
+
+[ADR-0022](../adrs/0022-material-quantities-cost-facts-and-vault-evidence.md) extends §101's
+Plan renovation register and the existing Requirement quantity/cost pipeline. Requirement v2
+owns optional current/intended source metadata and independently preserved manual overrides;
+Plan v4 owns optional procurement, cost facts and evidence. Geometry remains v3. This is the
+implemented authority for the bounded M12–M14/M17 continuation: needed/purchased/reserved are
+exclusive local allocation quantities; financial stages belong to one obligation and Remaining
+subtracts actuals and only open commitments. Ordinary file links retain canonical paths and
+separate subpaths. Host rename events and generated-note owner/digest guards preserve user files.
+The ADR defines dimensional conversions, cancellation, stale refusal, pin coordinates, schema
+migrations, conditional history and acceptance exclusions. No parallel material repository,
+second runtime, shared inventory or durable transaction journal is introduced.

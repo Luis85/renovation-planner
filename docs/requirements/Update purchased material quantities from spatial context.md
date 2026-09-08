@@ -96,3 +96,11 @@ command and renders its query result.
 - [[Requirement, procurement, cost and installed quantity stay four concepts]]
 - [[Purchase quantity rounds up to whole lots, then up to the minimum order]]
 - [[A mismatched unit or currency is an error, not a coercion]]
+
+
+## Bounded implementation evidence — 2026-09-06
+
+Implemented: one canonical local allocation record per Requirement in the Plan register, independent purchased/reserved values, outstanding calculation, unit validation and fresh hydration. Multiple procurement items per Requirement, deliveries and shared inventory remain later work.
+This does not mark all acceptance criteria complete. [ADR-0022](../development/adrs/0022-material-quantities-cost-facts-and-vault-evidence.md)
+defines ownership and arithmetic; [connected planning traceability](../user-experience/renovation-planner-editor-specs/implementation/connected-planning-evidence.md)
+links actual tests and browser evidence to each demonstrated contract.

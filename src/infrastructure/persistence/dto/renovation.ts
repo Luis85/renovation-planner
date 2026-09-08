@@ -1,8 +1,10 @@
+import { PlanningDepthSchema } from './planningDepth';
 import { z } from 'zod';
 import { CHANGES, CONDITIONS, DETAIL_KINDS, WORK_PROGRESS } from '../../../domain/renovation/Renovation';
 
 const id = z.string().min(1);
 export const RenovationSchema = z.object({
+	depth: PlanningDepthSchema.optional(),
 	subjects: z.array(z.object({
 		id, roomId: id, targetId: id, kind: z.enum(DETAIL_KINDS),
 		existing: z.object({ description: z.string(), condition: z.enum(CONDITIONS) }).nullable(),

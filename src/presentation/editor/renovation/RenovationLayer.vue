@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EvidencePins from '../planning/EvidencePins.vue';
 import { computed } from 'vue';
 import type { ThemeTokens } from '../theme/themeTokens';
 import type { NodeTransform } from '../viewport/Viewport';
@@ -12,6 +13,7 @@ const props = defineProps<{ tokens: ThemeTokens; transform: NodeTransform; zoom:
 const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession();
 const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
 const markers = computed(() => {
+	if (session.perspective !== 'review' && !['existing', 'planned', 'work'].includes(session.mode)) return [];
 	const records = session.perspective === 'review' ? reviewRenovation(value.value).map(item => ({ id: item.recordId, roomId: item.roomId, label: tr(`renovation.finding.${item.kind}`) }))
 		: session.mode === 'work' ? orderedWork(value.value).filter(item => item.roomId === session.roomId).map(item => ({ ...item, label: item.title }))
 			: value.value.subjects.filter(item => item.roomId === session.roomId && item[session.mode === 'existing' ? 'existing' : 'planned']).map(item => ({ ...item, label: session.mode === 'existing' ? item.existing?.description : `${item.planned ? tr(`renovation.change.${item.planned.change}`) : ''} ${item.planned?.description || item.existing?.description}` }));
@@ -44,6 +46,10 @@ function focus(roomId: string, id: string): void {
 <template>
 	<VLayer :config="{ name: 'annotation', listening: session.perspective !== 'plan', visible, ...transform }">
 		<VGroup :config="{ name: 'renovation', visible: session.visible && session.perspective !== 'plan' }">
+			<EvidencePins
+				:tokens="tokens"
+				:zoom="zoom"
+			/>
 			<VGroup
 				v-for="item in comparisons"
 				:key="item.id"

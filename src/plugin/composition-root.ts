@@ -335,6 +335,7 @@ function composeSlice10Wiring(
 	const { markers, locks } = session;
 	const { projects, zones, assets, requirements, overrides } = repositories;
 	const recalculate = new RecalculateRequirementCommand({
+		geometry: new ObsidianPlanGeometrySidecar(repositories.geometryStore),
 		requirements,
 		zones,
 		assets,
@@ -343,6 +344,7 @@ function composeSlice10Wiring(
 		overrides,
 	});
 	const wiring: Slice10Wiring = {
+		plans: repositories.plans, geometry: new ObsidianPlanGeometrySidecar(repositories.geometryStore),
 		zones,
 		assets,
 		requirements,

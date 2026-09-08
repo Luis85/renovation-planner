@@ -106,4 +106,20 @@ export class ContinueContextStore {
 		}
 		return Promise.resolve();
 	}
+
+	/**
+	 * Forgets the stored target — a reliably missing project's own remedy (`ViewRoot`'s
+	 * `resolveStored`, on `ok(null)` once the index scan has completed), not a general "reset"
+	 * door. Same swallow-and-warn shape as `write`, through the same adapter: `saveLocalStorage`
+	 * is undocumented to throw and this class assumes nothing of a host API it does not
+	 * implement, matching `write`'s own caution.
+	 */
+	clear(): Promise<void> {
+		try {
+			this.adapter.saveLocalStorage(this.key, null);
+		} catch (cause) {
+			this.logger.warn('continue-context.clear-failed', { cause });
+		}
+		return Promise.resolve();
+	}
 }

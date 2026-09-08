@@ -113,7 +113,7 @@ function refusingDeps(): RenovationProjectDeps {
 		navigate: () => undefined,
 		indexScanCompleted: () => true,
 		continueContext: () => Promise.resolve(null),
-		rememberContinue: () => undefined,
+		rememberContinue: () => undefined, forgetContinue: () => undefined,
 	});
 }
 
@@ -141,7 +141,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 		const listener = vi.fn<() => void>();
 
@@ -165,7 +165,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 		const listener = vi.fn<() => void>();
 
@@ -183,7 +183,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 		const result = await deps.queries.listProjects();
 
@@ -205,7 +205,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 		const result = await deps.queries.listProjects();
 
@@ -230,7 +230,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 
 		const found = await deps.queries.getProject(saved.entity.id);
@@ -253,7 +253,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 
 		expect(deps.commands.createProject).toBe(root.persistence?.createProject);
@@ -279,7 +279,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 		const created = await deps.commands.createPlan.execute({ projectId: project.entity.id, name: 'Ground floor' });
 		const plans = await deps.queries.listPlansByProject(project.entity.id);
@@ -326,7 +326,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 		await deps.openProject('project-1');
 
@@ -352,7 +352,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 		await expect(deps.openProject('project-1')).resolves.toBe('failed');
 
@@ -375,7 +375,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 
 		await expect(deps.openPlan('plan-1')).resolves.toBe('failed');
@@ -398,7 +398,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 
 		await expect(deps.openAsset('asset-1')).resolves.toBeUndefined();
@@ -422,7 +422,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 
 		await expect(deps.openProject('project-1')).resolves.toBe('missing');
@@ -460,7 +460,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 
 		// `'failed'`, not `'missing'`: the id DID resolve, so the list behind the row is not
@@ -502,7 +502,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 
 		// Both in the same tick, which is what a double click IS: the second call finds the
@@ -527,7 +527,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 		const heard = vi.fn<() => void>();
 		deps.onPlansChanged('project-01JAAA', heard);
@@ -558,7 +558,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 
 		await deps.openPlan('plan-01JXXX', origin);
@@ -579,7 +579,7 @@ describe('the renovation project dependencies', () => {
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 
 		await deps.openAsset('asset-01JXXX');
@@ -612,7 +612,7 @@ describe('the renovation project dependencies', () => {
 			// are passed straight through. Stated rather than defaulted, per the reason that
 			// signature's own comment gives for making them required.
 			continueContext: () => Promise.resolve(null),
-			rememberContinue: () => undefined,
+			rememberContinue: () => undefined, forgetContinue: () => undefined,
 		});
 
 		deps.openAssetLibrary();
@@ -626,14 +626,16 @@ describe('the renovation project dependencies', () => {
 	 * already takes and for the same reason: this function composes what `persistence` can
 	 * decide, and the Continue store is the CALLER's to own (the plugin's), never `persistence`'s
 	 * — asserted with settings unrecovered too, since a session with no repository can still
-	 * remember and restore where the user was.
+	 * remember and restore where the user was. `forgetContinue` (Task 2, design slice 22) joins
+	 * the pair for the identical reason, over the same store.
 	 */
 	it.each([
 		['with persistence composed', DEFAULT_SETTINGS],
 		['with settings unrecovered', null],
-	])('passes continueContext and rememberContinue straight through, %s', (_what, settings) => {
+	])('passes continueContext, rememberContinue and forgetContinue straight through, %s', (_what, settings) => {
 		const continueContext = vi.fn<() => Promise<ContinueContext | null>>().mockResolvedValue(null);
 		const rememberContinue = vi.fn<(context: ContinueContext) => void>();
+		const forgetContinue = vi.fn<() => void>();
 		const root = createCompositionRoot(settings, recorder, vaultStack());
 
 		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault, {
@@ -642,10 +644,12 @@ describe('the renovation project dependencies', () => {
 			indexScanCompleted: () => true,
 			continueContext,
 			rememberContinue,
+			forgetContinue,
 		});
 
 		expect(deps.continueContext).toBe(continueContext);
 		expect(deps.rememberContinue).toBe(rememberContinue);
+		expect(deps.forgetContinue).toBe(forgetContinue);
 	});
 });
 
@@ -726,9 +730,12 @@ describe('the registered view factory', () => {
 	 * `ContinueContextStore` over `this.app.loadLocalStorage`/`saveLocalStorage`, proved by a
 	 * round trip rather than by the members merely existing — this file's own header states
 	 * why: a composition that forgot to wire the store would still compile and every OTHER
-	 * case here would still pass.
+	 * case here would still pass. `forgetContinue` (Task 2, design slice 22) joins the same
+	 * case rather than getting its own: it is the SAME store's `clear`, proved on the tail of
+	 * the identical round trip — a composition that wired it to a fresh store, or to nothing at
+	 * all, would still compile and this is what would catch it.
 	 */
-	it('remembers and restores a context through the real store', async () => {
+	it('remembers, restores and forgets a context through the real store', async () => {
 		const { loadedPlugin } = await import('../helpers/plugin');
 		const { plugin } = await loadedPlugin();
 		const deps = (plugin as unknown as { projectViewDeps(leaf: unknown): RenovationProjectDeps }).projectViewDeps(
@@ -736,8 +743,10 @@ describe('the registered view factory', () => {
 		);
 
 		deps.rememberContinue({ projectId: 'project-1', planId: 'plan-1' });
-
 		await expect(deps.continueContext()).resolves.toEqual({ projectId: 'project-1', planId: 'plan-1' });
+
+		deps.forgetContinue();
+		await expect(deps.continueContext()).resolves.toBeNull();
 	});
 
 	/**

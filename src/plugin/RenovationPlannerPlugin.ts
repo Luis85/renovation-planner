@@ -735,6 +735,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// there is no rejection here for `runDetached` or a `.catch` to have to catch.
 			continueContext: () => this.continueContextStore(this.root.logger).read(),
 			rememberContinue: (context) => void this.continueContextStore(this.root.logger).write(context),
+			// Task 2 (design slice 22). Same `void` reasoning as `rememberContinue` above:
+			// `ContinueContextStore.clear` cannot reject either.
+			forgetContinue: () => void this.continueContextStore(this.root.logger).clear(),
 		});
 	}
 

@@ -201,6 +201,7 @@ async function mountOnListState(outcome: ProjectOpenOutcome) {
 					// `provide` value is typed `unknown`). Stated, not defaulted: an omitted key is what
 					// nothing can see.
 					rememberContinue: () => undefined,
+					forgetContinue: () => undefined,
 				},
 			},
 		},

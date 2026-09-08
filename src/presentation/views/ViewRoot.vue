@@ -145,7 +145,7 @@ async function resolveStored(): Promise<void> {
 	const found = await context.queries.getProject(resume.projectId);
 	if (ticket !== resolveTicket || disposed) return;
 	if (isErr(found)) { resumeState.value = 'unreadable'; return; }
-	if (!found.value) { resumeState.value = 'missing-project'; return; }
+	if (!found.value) { context.forgetContinue(); resumeState.value = 'missing-project'; return; }
 	if (resume.planId === null) { resumeState.value = 'ready'; return; }
 	await resolvePlan(resume, ticket);
 }

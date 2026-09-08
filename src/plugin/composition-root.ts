@@ -621,6 +621,12 @@ export function renovationProjectDeps(
 		 */
 		continueContext: () => Promise<ContinueContext | null>;
 		rememberContinue: (context: ContinueContext) => void;
+		/**
+		 * Task 2 (design slice 22)'s sibling of `rememberContinue`, over the same store, the same
+		 * required-not-defaulted reason: a composition that forgot to wire it would still compile
+		 * and silently leave a reliably missing project's target stuck.
+		 */
+		forgetContinue: () => void;
 	},
 ): RenovationProjectDeps {
 	const persistence = root.persistence;
@@ -632,6 +638,7 @@ export function renovationProjectDeps(
 		indexScanCompleted: options.indexScanCompleted,
 		continueContext: options.continueContext,
 		rememberContinue: options.rememberContinue,
+		forgetContinue: options.forgetContinue,
 		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve('failed'),
 		openRecord: persistence ? planEditorOpenNote(workspace, vault, persistence.index, root.logger) : () => Promise.resolve('failed'),
 		openAsset: persistence ? renovationProjectOpenAsset(workspace, root.logger) : () => Promise.resolve(),

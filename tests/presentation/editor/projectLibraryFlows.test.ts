@@ -109,7 +109,7 @@ describe('Project and Library dependencies of editor navigation', () => {
   const previousMobile = platform.isMobile;
   const leaf = workspace.withOpen('renovation-project', { projectId: '' });
   const deps = renovationProjectDeps(rig.root, workspace as never, rig.stack.deps.vault, {
-   projectId: null, indexScanCompleted: () => true, continueContext: () => Promise.resolve(null), rememberContinue: () => undefined,
+   projectId: null, indexScanCompleted: () => true, continueContext: () => Promise.resolve(null), rememberContinue: () => undefined, forgetContinue: () => undefined,
    navigate: (id, section) => { void navigateToProject({ workspace: workspace as never, reportFault: cause => rig.root.logger.error('test.navigation.failed', { cause }) }, 'renovation-project', id, leaf as never, section); },
   });
   const openPlan = vi.spyOn(deps, 'openPlan'), create = vi.spyOn(deps.commands.createProject, 'execute');

@@ -16,7 +16,7 @@ it.each(['schedule', 'quotes'] as const)('restores %s with explicit unavailable-
  const rig = await downstreamStack(), workspace = new FakeWorkspace(), navigate = vi.fn<(projectId: string | null) => void>();
  const unavailable = createCompositionRoot(null, rig.stack.logger, rig.stack.deps);
  const context = { ...renovationProjectDeps(unavailable, workspace as never, rig.stack.deps.vault, { projectId: rig.plan.projectId, navigate,
-  indexScanCompleted: () => false, continueContext: () => Promise.resolve(null), rememberContinue: () => undefined }), section };
+  indexScanCompleted: () => false, continueContext: () => Promise.resolve(null), rememberContinue: () => undefined, forgetContinue: () => undefined }), section };
  const wrapper = mount(ViewRoot, { attachTo: document.body, global: { plugins: [createPinia()], provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } } });
  try {
   await flushPromises(); const bytes = [...rig.stack.vault.entries];

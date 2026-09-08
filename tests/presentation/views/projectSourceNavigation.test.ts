@@ -17,7 +17,7 @@ async function setup() {
  const attic = makeProject({ name: 'Completed attic', status: 'COMPLETE' }), cellar = makeProject({ name: 'Completed cellar', status: 'COMPLETE' });
  for (const project of [attic, cellar]) expectOk(await rig.persistence.projects.save(project, 'absent'));
  const context = renovationProjectDeps(rig.root, workspace as never, rig.stack.deps.vault, { projectId: null, navigate,
-  indexScanCompleted: () => true, continueContext: () => Promise.resolve({ projectId: rig.plan.projectId, planId: rig.plan.id }), rememberContinue: () => undefined });
+  indexScanCompleted: () => true, continueContext: () => Promise.resolve({ projectId: rig.plan.projectId, planId: rig.plan.id }), rememberContinue: () => undefined, forgetContinue: () => undefined });
  const wrapper = mount(ViewRoot, { attachTo: document.body, global: { plugins: [createPinia()], provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } } });
  await flushPromises(); return { rig, workspace, navigate, wrapper, attic, cellar, dispose: () => { wrapper.unmount(); rig.dispose(); } };
 }

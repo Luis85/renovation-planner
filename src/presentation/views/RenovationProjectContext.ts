@@ -243,6 +243,16 @@ export interface RenovationProjectDeps {
 	 * and a failed write costs a Continue row rather than an error.
 	 */
 	readonly rememberContinue: (context: ContinueContext) => void;
+	/**
+	 * Forgets the stored Resume target. Fires on exactly ONE condition — `ViewRoot`'s
+	 * `resolveStored()` finding the project RELIABLY missing: the index scan has completed AND
+	 * `getProject` answered `ok(null)`. Every other refusal (a read error, indexing still in
+	 * flight, the plan gone, an opening that failed) leaves the stored target alone, because
+	 * each of those is a state the same context might resolve out of on a later hydrate —
+	 * `view.project.resume-unreadable`'s own copy promises exactly that. Fire-and-forget like
+	 * `rememberContinue`, for the identical reason: it answers `void`, not a promise.
+	 */
+	readonly forgetContinue: () => void;
 }
 
 export const RENOVATION_PROJECT_CONTEXT: InjectionKey<RenovationProjectDeps> = Symbol(

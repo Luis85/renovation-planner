@@ -141,4 +141,32 @@ describe('ContinueContextStore', () => {
 
 		expect(await store.read()).toEqual({ projectId: 'p1', planId: 'plan-1' });
 	});
+
+	describe('clear', () => {
+		it('writes null, so a following read answers null', async () => {
+			const { adapter } = fakeAdapter();
+			const store = new ContinueContextStore(adapter, KEY, logger);
+			await store.write({ projectId: 'p1', planId: 'plan-1' });
+
+			await store.clear();
+
+			expect(await store.read()).toBeNull();
+		});
+
+		it('logs rather than rejecting when the adapter throws', async () => {
+			resetRecorder();
+			const spy = vi.spyOn(logger, 'warn');
+			const adapter: LocalStorageAdapter = {
+				loadLocalStorage: () => null,
+				saveLocalStorage: () => {
+					throw new Error('quota exceeded');
+				},
+			};
+
+			await expect(new ContinueContextStore(adapter, KEY, logger).clear()).resolves.toBeUndefined();
+
+			expect(spy).toHaveBeenCalledWith('continue-context.clear-failed', expect.objectContaining({ cause: expect.any(Error) }));
+			spy.mockRestore();
+		});
+	});
 });

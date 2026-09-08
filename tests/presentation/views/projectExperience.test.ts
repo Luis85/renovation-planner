@@ -96,6 +96,7 @@ describe('project experience', () => {
 		await flushPromises();
 		expect(wrapper.text()).toContain('saved context is retained');
 		expect(context.rememberContinue).not.toHaveBeenCalled();
+		expect(context.forgetContinue).not.toHaveBeenCalled();
 	});
 
 	it('offers the project when its plan disappeared; retries without a substitute plan', async () => {
@@ -103,6 +104,7 @@ describe('project experience', () => {
 		const { wrapper, context } = rig({ continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }), queries: { ...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })), getProject: () => Promise.resolve(ok(project)), listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })) } });
 		await flushPromises();
 		expect(wrapper.text()).toContain('last plan is no longer available');
+		expect(context.forgetContinue).not.toHaveBeenCalled();
 		await wrapper.get('.rp-resume-recovery button:last-child').trigger('click');
 		expect(context.navigate).toHaveBeenCalledWith(project.id);
 		expect(context.openPlan).not.toHaveBeenCalled();
@@ -204,20 +206,42 @@ describe('project experience', () => {
 		await flushPromises();
 		await wrapper.get('.rp-plan-list__row').trigger('click'); await flushPromises();
 		expect(context.rememberContinue).not.toHaveBeenCalled();
+		expect(context.forgetContinue).not.toHaveBeenCalled();
 	});
 
-	it.each(['project-error', 'project-missing', 'plan-error', 'plan-unreadable'] as const)('keeps the saved target recoverable for %s', async (problem) => {
+	it.each(['project-error', 'plan-error', 'plan-unreadable'] as const)('keeps the saved target recoverable for %s', async (problem) => {
 		const base = defaultRenovationProjectDeps();
 		const { wrapper, context } = rig({ continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }), queries: {
 			...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })),
-			getProject: () => Promise.resolve(problem === 'project-error' ? failure : ok(problem === 'project-missing' ? null : project)),
+			getProject: () => Promise.resolve(problem === 'project-error' ? failure : ok(project)),
 			listPlansByProject: () => Promise.resolve(problem === 'plan-error' ? failure : ok({ plans: [], unreadable: 1 })),
 		} });
 		await flushPromises();
 		expect(wrapper.find('.rp-resume-recovery').exists()).toBe(true);
 		expect(wrapper.find('.rp-continue__resume').exists()).toBe(false);
 		expect(context.rememberContinue).not.toHaveBeenCalled();
-		expect(wrapper.text()).toContain(problem === 'project-missing' ? 'last project is no longer available' : 'saved context is retained');
+		expect(context.forgetContinue).not.toHaveBeenCalled();
+		expect(wrapper.text()).toContain('saved context is retained');
+	});
+
+	/**
+	 * Task 2 (design slice 22)'s own case, pulled out of the table above rather than added to
+	 * it: a reliably missing project — the index scan has completed AND `getProject` answered
+	 * `ok(null)` — is the ONE branch that clears the stored target rather than keeping it
+	 * recoverable, so it needs its own positive assertion instead of joining the "not called"
+	 * table it used to sit in.
+	 */
+	it('forgets the stored target exactly once when the project is reliably missing', async () => {
+		const base = defaultRenovationProjectDeps();
+		const { wrapper, context } = rig({ continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }), queries: {
+			...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })),
+			getProject: () => Promise.resolve(ok(null)),
+		} });
+		await flushPromises();
+		expect(wrapper.find('.rp-resume-recovery').exists()).toBe(true);
+		expect(wrapper.text()).toContain('last project is no longer available');
+		expect(context.forgetContinue).toHaveBeenCalledOnce();
+		expect(context.rememberContinue).not.toHaveBeenCalled();
 	});
 
 	it('ignores a slow Resume opening after another project is selected', async () => {

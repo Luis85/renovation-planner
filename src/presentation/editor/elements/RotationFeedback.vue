@@ -5,9 +5,9 @@ import type { Point } from '../../../core/geometry/Point';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { currentLanguage, tr } from '../../i18n/strings';
 
-const props = defineProps<{ handle: Point; controlBounds: BoundingBox; zoom: number; tokens: ThemeTokens; angle: number | null; snapDegrees: number | null; visibleBounds?: BoundingBox; obstacles: readonly BoundingBox[] }>();
+const props = defineProps<{ handle: Point; controlBounds: BoundingBox; zoom: number; tokens: ThemeTokens; angle: number | null; snapDegrees: number | null; visibleBounds?: BoundingBox; obstacles: readonly BoundingBox[]; hostWall: boolean }>();
 const format = (value: number): string => new Intl.NumberFormat(currentLanguage(), { maximumFractionDigits: 1, useGrouping: false }).format(value);
-const title = computed(() => props.angle === null ? tr('editor.rotation.drag-hint') : `${props.angle > 0 ? '+' : ''}${format(props.angle)}°`);
+const title = computed(() => props.angle === null ? tr(props.hostWall ? 'editor.rotation.host-label' : 'editor.rotation.drag-hint') : `${props.angle > 0 ? '+' : ''}${format(props.angle)}°`);
 const detail = computed(() => props.angle === null ? tr('editor.rotation.click-hint')
 	: `${tr(props.angle < 0 ? 'editor.rotation.direction.counterclockwise' : 'editor.rotation.direction.clockwise')}${props.snapDegrees === null ? '' : ` · ${tr('editor.rotation.snap-feedback', { step: format(props.snapDegrees) })}`}`);
 const layout = computed(() => {

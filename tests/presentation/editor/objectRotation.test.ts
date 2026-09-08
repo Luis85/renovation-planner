@@ -105,15 +105,15 @@ it.each([0.2, 1, 4])('keeps a clamped rotation target clear of Room vertex handl
 	const point = (x: number, y: number) => ({ x: 1000 + x * scale, y: -500 + y * scale });
 	const shape = { id: 'room-clamped', kind: 'room' as const, points: [point(100, 60), point(472, 60), point(472, 300), point(100, 300)] };
 	const placement = expectDefined(rotationHandleGeometry(shape, scale, { min: point(0, 0), max: point(500, 400) }), 'clear placement');
-	expect(placement.handle).toEqual(point(286, 26)); expect(placement.anchor).toEqual(point(286, 60));
+	expect(placement.handle).toEqual(point(193, 42)); expect(placement.anchor).toEqual(point(193, 60));
 	for (const vertex of shape.points) expect(distance(placement.handle, vertex) / scale).toBeGreaterThanOrEqual(34);
 	expect(resolveSelectionTarget({ candidates: [{ id: shape.id, points: shape.points }], selectedIds: [shape.id], worldPoint: shape.points[1], handleToleranceWorld: 8 * scale, rotationHandle: { id: shape.id, bounds: placement.bounds } })).toEqual({ id: shape.id, kind: 'handle', vertexIndex: 1 });
 });
 it('slides a viewport-filling Room handle away from clipped corners and avoids measured native controls', () => {
 	const visible = { min: { x: 0, y: 0 }, max: { x: 500, y: 400 } };
 	const shape = { id: 'room-full', kind: 'room' as const, points: [{ x: 28, y: 60 }, { x: 472, y: 60 }, { x: 472, y: 372 }, { x: 28, y: 372 }] };
-	const placement = expectDefined(rotationHandleGeometry(shape, 1, visible), 'slid placement'); expect(placement.handle).toEqual({ x: 250, y: 26 });
-	const obstruction = { min: { x: 215, y: 10 }, max: { x: 285, y: 55 } };
+	const placement = expectDefined(rotationHandleGeometry(shape, 1, visible), 'slid placement'); expect(placement.handle).toEqual({ x: 139, y: 42 });
+	const obstruction = { min: { x: 110, y: 10 }, max: { x: 165, y: 70 } };
 	const shifted = expectDefined(rotationHandleGeometry(shape, 1, visible, [obstruction]), 'native-control clearance'); expect(shifted.handle).not.toEqual(placement.handle);
 	for (const vertex of shape.points) expect(distance(shifted.handle, vertex)).toBeGreaterThanOrEqual(34);
 	expect(rotationHandleGeometry(shape, 1, visible, [visible])).toBeNull();

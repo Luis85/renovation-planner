@@ -7,6 +7,8 @@ import { resizeTo } from '../../helpers/layout';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { pointerAt } from '../../helpers/tool-context';
+import { hoverRotation } from '../../helpers/rotationHover';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -61,7 +63,7 @@ it('keeps rotation feedback clear of the direct-action popover and restores acti
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
 	const object = { id: 'element-feedback', kind: 'object' as const, name: 'Cabinet', points: [{ x: 1000, y: 500 }, { x: 1800, y: 500 }, { x: 1800, y: 1100 }, { x: 1000, y: 1100 }] };
 	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, elementInput(baseline, object), rig.runtime.structureTask.ledger)));
-	rig.selection.select([object.id as never]); await settle();
+	rig.selection.select([object.id as never]); await settle(); await hoverRotation(rig.runtime, useEditorStore(rig.pinia), object.points[0]);
 	const saved = new Map(rig.stack.vault.entries);
 	const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'rotation handle');
 	const tool = rig.runtime.toolManager, destination = pointerAt(handle.x + 1000, handle.y + 1000);

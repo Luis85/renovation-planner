@@ -72,6 +72,9 @@ export class RenderState {
 	hoveredObjectId: string | null = null;
 	rotationDegrees: number | null = null;
 	rotationInteraction: RotationInteraction | null = null;
+	rotationHoverSuppressed = false;
+	/** Affordance ownership may bridge edge-to-arrow travel; ordinary hover still predicts body selection. */
+	rotationHoverId: string | null = null;
 	/**
 	 * WHAT the hovered target is, beside WHICH one it is (spec §6.2: a body promises a
 	 * selection and a vertex handle promises a drag of that vertex, and the cursor has to say
@@ -108,6 +111,8 @@ export class RenderState {
 		this.hoveredObjectId = null;
 		this.rotationDegrees = null;
 		this.rotationInteraction = null;
+		this.rotationHoverSuppressed = false;
+		this.rotationHoverId = null;
 		this.hoveredTargetKind = null;
 		this.previewPolygon = null;
 		this.marquee = null;

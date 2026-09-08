@@ -18,6 +18,9 @@ import { toPlanDto, toZoneDto } from '../../../src/presentation/read-models/Plan
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import { pointerAt } from '../../helpers/tool-context';
+import { hoverRotation } from '../../helpers/rotationHover';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { structureCandidates } from '../../../src/presentation/editor/structure/structureCandidates';
 
 const mounted: { unmount(): void }[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
@@ -30,15 +33,19 @@ async function setup() {
 	const baseline = expectOk(await rig.geometry.read(rig.plan.id));
 	const structure = { ...WALL_LOOP, openings, boundaries: [{ roomId: room.id, wallIds: WALL_LOOP.walls.map(wall => wall.id) }] };
 	expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.document, structure, intended }, baseline.version));
-	await rig.runtime.refreshProjection(); rig.selection.select(['wall-a' as never]); await settle();
+	await rig.runtime.refreshProjection(); rig.selection.select(['wall-a' as never]); await settle(); await hoverWall(rig, 'wall-a');
 	return { rig, room, structure };
 }
 const formSelector = '[data-rp-form="wall-rotation"]';
+async function hoverWall(rig: Awaited<ReturnType<typeof structureEditor>>, id: string) {
+	const point = expectDefined(structureCandidates(rig.project.structure).find(candidate => candidate.id === id)?.points[0], 'hovered wall/opening');
+	await hoverRotation(rig.runtime, useEditorStore(rig.pinia), point);
+}
 async function formReady(rig: Awaited<ReturnType<typeof structureEditor>>) { await settleUntil(() => rig.wrapper.find(formSelector).exists(), 'wall rotation form'); return rig.wrapper.get(formSelector); }
 
 describe('reviewed wall rotation and hosted opening runtime', () => {
 	it('abandons the frozen wall pointer preview when a peer moves its host before the next pointer move', async () => {
-		const { rig, structure } = await setup(); rig.selection.select(['opening-a' as never]); await settle();
+		const { rig, structure } = await setup(); rig.selection.select(['opening-a' as never]); await settle(); await hoverWall(rig, 'opening-a');
 		const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'host rotation handle'), pivot = wallRotationPivot(structure.walls[0]);
 		const quarter = pointerAt(pivot.x - (handle.y - pivot.y), pivot.y + (handle.x - pivot.x)), tool = rig.runtime.toolManager;
 		tool.pointerDown(pointerAt(handle.x, handle.y));
@@ -65,7 +72,7 @@ describe('reviewed wall rotation and hosted opening runtime', () => {
 		await rig.runtime.undo(); expect(rig.project.structure).toEqual(structure); expect(rig.runtime.canUndo.value).toBe(false);
 	});
 	it.each(['wall-a', 'opening-a'])('routes a %s pointer handle through host impact review and one reversible write', async id => {
-		const { rig, structure } = await setup(); rig.selection.select([id as never]); await settle();
+		const { rig, structure } = await setup(); rig.selection.select([id as never]); await settle(); await hoverWall(rig, id);
 		const shape = rig.runtime.rotationActions.target.value, handle = rig.runtime.rotationActions.handle.value;
 		if (!shape || !handle) throw new Error('Wall selection must expose the integrated rotation handle');
 		expect(shape).toMatchObject({ id, kind: 'wall', wall: structure.walls[0] });

@@ -27,6 +27,7 @@ import { structureCandidates } from '../structure/structureCandidates';
 import type { Point } from '../../../core/geometry/Point';
 import type { RotationGestureDeps } from '../elements/ElementRotation';
 import type { ElementMoveDeps } from '../elements/ElementMove';
+import type { SelectionInteractions } from '../selection/selectionInteractions';
 
 /**
  * One reversible command per drag OR per keyboard nudge — `SelectTool`'s pointer gesture and
@@ -80,7 +81,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 	toolManager.register(
 		new SelectTool({
 			expandSelection: deps.expandSelection, selectionMove: deps.selectionMove,
-			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationControl: deps.rotationControl, requestRotation: deps.requestRotation, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
+			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationControl: deps.rotationControl, rotationDisplayTarget: deps.rotationDisplayTarget, rotationControls: deps.rotationControls, requestRotation: deps.requestRotation, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
 			previewElement: deps.previewElement,
 			moveElement: deps.moveElement,
 			previewWall: deps.previewWall,

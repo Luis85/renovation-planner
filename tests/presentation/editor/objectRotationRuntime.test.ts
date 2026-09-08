@@ -18,6 +18,7 @@ import { elementInput } from '../../../src/presentation/editor/elements/elementI
 import { rotationPivot, rotationPoints } from '../../../src/presentation/editor/elements/objectRotation';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { pointerAt } from '../../helpers/tool-context';
+import { hoverRotation } from '../../helpers/rotationHover';
 import { err, ok } from '../../../src/core/result/Result';
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
 const mounted: { unmount(): void }[] = [];
@@ -28,7 +29,7 @@ async function setup(source: NamedSpatialElement = element) {
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
 	const input = elementInput(baseline, source);
 	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { ...input, intended: { walls: [], openings: [], boundaries: [], elements: [{ id: source.id, kind: source.kind, points: source.points.map(p => ({ ...p, x: p.x + 300 })) }] } }, rig.runtime.structureTask.ledger)));
-	rig.selection.select([element.id as never]); await settle(); return rig;
+	rig.selection.select([element.id as never]); await settle(); await hoverRotation(rig.runtime, useEditorStore(rig.pinia), source.points[0]); return rig;
 }
 it('commits numeric decimal comma once, matches preview, preserves intended metadata, and restores exact Undo/Redo', async () => {
 	const rig = await setup(), before = expectOk(await rig.renovation.read(rig.plan.id));
@@ -102,7 +103,7 @@ it('uses the rendered handle under pan/zoom, previews final Shift bearing and ma
 	const rig = await setup(), editor = useEditorStore(rig.pinia); editor.viewport = { ...editor.viewport, zoom: 0.2, pan: { x: 70, y: 90 } }; await settle();
 	const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'handle');
 	const painted = expectDefined(expectDefined(rig.stage, 'stage').findOne<Konva.Group>('.object-rotation-handle'), 'painted handle');
-	const circle = expectDefined(painted.findOne<Konva.Circle>('Circle'), 'handle circle'); expect(circle.x()).toBe(handle.x); expect(circle.y()).toBe(handle.y);
+	const control = expectDefined(painted.findOne<Konva.Rect>('.rotation-control-target'), 'edge target'); expect(control.x() + control.width() / 2).toBe(handle.x); expect(control.y() + control.height() / 2).toBe(handle.y);
 	const tool = rig.runtime.toolManager, write = vi.spyOn(rig.geometry, 'write');
 	tool.pointerDown(pointerAt(handle.x, handle.y)); tool.pointerMove(pointerAt(2000, 800)); await settle();
 	const release = pointerAt(1900, 1500), snapped = { ...release, modifiers: { ...release.modifiers, shift: true } };
@@ -137,7 +138,7 @@ it('Escape discards the pointer preview and a refreshed peer edit cannot be over
 	const tool = rig.runtime.toolManager, canvas = expectDefined(rig.canvasEl, 'canvas'), write = vi.spyOn(rig.geometry, 'write');
 	tool.pointerDown(pointerAt(handle.x, handle.y)); tool.pointerMove(pointerAt(2000, 1000)); canvas.focus(); canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); tool.pointerUp(pointerAt(2000, 1000)); await settle();
 	expect(write).not.toHaveBeenCalled(); expect(rig.runtime.rotationActions.preview.value).toBeNull();
-	rig.selection.select([element.id as never]); tool.pointerDown(pointerAt(handle.x, handle.y));
+	rig.selection.select([element.id as never]); await hoverRotation(rig.runtime, useEditorStore(rig.pinia), element.points[0]); tool.pointerDown(pointerAt(handle.x, handle.y));
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id)), peer = { ...element, points: element.points.map(point => ({ ...point, x: point.x + 200 })) };
 	expectOk(await rig.renovation.command(baseline, elementInput(baseline, peer), rig.runtime.structureTask.ledger).execute()); await rig.runtime.refreshProjection(); const count = write.mock.calls.length;
 	tool.pointerMove(pointerAt(2000, 1000)); await settle(); expect(rig.runtime.rotationActions.preview.value).toBeNull(); expect(rig.runtime.renderState.rotationDegrees).toBeNull();
@@ -171,7 +172,7 @@ it('does not write when the editor is disposed while the rotation baseline is pe
 it.each(['Room', 'Custom'] as const)('rotates %s through the guarded Zone command without changing wall/current/intended associations', async zoneType => {
 	const rig = await setup();
 	const zone = zoneType === 'Room' ? rig.room : expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Outside area', zoneType, geometry: { points: element.points.map(point => ({ ...point, x: point.x + 5000 })) } })).zone.entity;
-	await rig.runtime.refreshProjection(); rig.selection.select([zone.id]); await settle();
+	await rig.runtime.refreshProjection(); rig.runtime.selectAndFrame(zone.id); await settle(); await hoverRotation(rig.runtime, useEditorStore(rig.pinia), zone.geometry.points[0]);
 	const original = zone.geometry.points, document = expectOk(await rig.geometry.read(rig.plan.id)).document, structure = document.structure, intended = document.intended;
 	const shape = expectDefined(rig.runtime.rotationActions.target.value, 'rotation target'); expect(editorRotationScene(zone.id).points).toEqual(zone.geometry.points.flatMap(point => [point.x, point.y])); expect(shape.kind).toBe(zoneType === 'Room' ? 'room' : 'area');
 	await rig.runtime.rotationActions.rotate(zone.id, 27.25); await settle();
@@ -194,7 +195,8 @@ it('refuses a peer-modified Room baseline at numeric Apply without replacing its
 });
 
 it('paints Room rotation in the top interaction layer and hides only its pointer handle with the source layer', async () => {
-	const rig = await setup(); rig.selection.select([rig.room.id]); await settle();
+	const rig = await setup(); rig.runtime.selectAndFrame(rig.room.id); await settle(); await hoverRotation(rig.runtime, useEditorStore(rig.pinia), rig.room.geometry.points[0]);
+	expect(rig.runtime.renderState.rotationHoverId).toBe(rig.room.id);
 	const handle = expectDefined(expectDefined(rig.stage, 'stage').findOne('.object-rotation-handle'), 'Room handle'); expect(handle.getLayer()?.name()).toBe('interaction');
 	const workspace = useWorkspaceStore(rig.pinia); workspace.toggleLayer('zone'); await settle();
 	expect(rig.runtime.rotationActions.handle.value).toBeNull(); expect(rig.runtime.rotationActions.available.value).toBe(true);
@@ -225,4 +227,3 @@ it('continues a frozen pointer draft through a geometry-identical projection ref
 	const preview = expectDefined(rig.runtime.rotationActions.preview.value, 'retained preview').points;
 	tool.pointerUp(pointerAt(1900, 1600)); await settle(); expect(rig.project.structure.elements?.[0].points).toEqual(preview);
 });
-

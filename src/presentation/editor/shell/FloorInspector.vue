@@ -45,6 +45,7 @@ const runtime = useEditorRuntime();
  */
 const summary = useFloorSummary();
 const project = useProjectStore();
+const starting = computed(() => project.emptyStateKey === 'noBackground' && project.zones.size === 0 && project.unreadableZones === 0);
 const roomAnnotations = computed(() => new Map(summary.value?.rooms.map(room => [room.id,
 	project.stale || project.unreadableZones > 0
 		? tr('editor.selection.unknown')
@@ -81,7 +82,22 @@ const count = (value: number): string => String(value);
 	>
 		<h3>{{ summary.floor.name }}</h3>
 		<ReferenceAction />
-		<dl class="rp-editor-inspector-fields">
+		<section
+			v-if="starting"
+			class="rp-floor-setup"
+		>
+			<p>{{ tr('editor.creation.nothing-added') }}</p>
+			<h4>{{ tr('editor.creation.get-started') }}</h4>
+			<ul>
+				<li><HostIcon name="square-dashed" />{{ tr('editor.creation.reference') }}</li>
+				<li><HostIcon name="square-dashed" />{{ tr('editor.inspector.floor.rooms') }}</li>
+				<li><HostIcon name="square-dashed" />{{ tr('editor.creation.scale') }}</li>
+			</ul>
+		</section>
+		<dl
+			v-if="!starting"
+			class="rp-editor-inspector-fields"
+		>
 			<dt>{{ tr('editor.inspector.floor.rooms') }}</dt>
 			<dd
 				data-rp-stat="rooms"
@@ -109,7 +125,10 @@ const count = (value: number): string => String(value);
 				{{ textFor(summary.totalAreaMm2, formatArea) }}
 			</dd>
 		</dl>
-		<div class="rp-floor-planning-summary">
+		<div
+			v-if="!starting"
+			class="rp-floor-planning-summary"
+		>
 			<dl class="rp-floor-planning-metric">
 				<dt>{{ tr('editor.inspector.floor.planned-changes') }}</dt>
 				<dd
@@ -149,7 +168,7 @@ const count = (value: number): string => String(value);
 			:annotations="roomAnnotations"
 		/>
 		<p
-			v-else
+			v-else-if="!starting"
 			class="rp-editor-inspector-empty"
 		>
 			{{ tr('editor.inspector.floor.no-rooms') }}

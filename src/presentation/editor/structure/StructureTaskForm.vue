@@ -36,6 +36,7 @@ function submit(): void { if (wall.value) add(); else void task.finish(); }
 		@submit.prevent="submit"
 		@keydown="keydown"
 	>
+		<h3>{{ tr(wall ? 'editor.creation.new-walls' : `editor.add.${draft.kind === 'place-window' ? 'window' : draft.kind === 'place-door' ? 'door' : 'opening'}.label`) }}</h3>
 		<p>{{ instructions }}</p>
 		<p
 			v-if="draft.loading"

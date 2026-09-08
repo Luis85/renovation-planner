@@ -1,4 +1,5 @@
 import { objectEn } from './object';
+import { creationEn } from './creation';
 /**
  * The Plan Editor's own vocabulary — the shell (context bar, rail, status bar),
  * the add-menu catalogue, the Inspector (its floor and room panels, its requirements
@@ -26,6 +27,7 @@ import { objectEn } from './object';
  */
 import { structureEn } from './structure';
 export const editorEn = {
+	...creationEn,
 	'editor.direct.edit-shape': 'Edit shape',
 	'editor.direct.edit-length': 'Edit length',
 	'editor.direct.mark-change': 'Mark change',

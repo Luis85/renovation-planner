@@ -70,3 +70,33 @@ Reference Plan Setup is a contextual three-step workflow for preparing an import
 - Applying scale produces a deterministic unit conversion.
 - Cancel restores the previous committed reference plan.
 - Completed references default to visible and locked.
+
+
+## Implementation contract — 2026-09-06
+
+See [ADR-0019](../../../development/adrs/0019-floor-reference-configuration.md) for the persisted
+schema, coordinate order, calibration and history contract. The existing reference layer's
+Set scale gesture remains contextual; Configure reference opens the complete three-step task.
+There is no permanent Calibrate toolbar action.
+
+Source selection uses supported vault-file suggestions and a vault-relative path (PNG/JPG/JPEG
+or PDF). The source is not copied or rewritten. Crop and endpoint fields use source raster
+pixels; PDF rasterization remains two pixels per PDF point. Rotation is clockwise around the
+cropped origin. Keyboard users can enter all four endpoint coordinates and the known distance
+in metres, including decimal comma. Pointer picking is an alternative, not a prerequisite.
+Apply scale validates and advances; only Finish writes. Review explicitly acknowledges the
+existing complete-plan rescale when rooms/areas are present and the factor changes.
+
+New references default to 0.65 opacity, visible and locked. Opacity previews immediately.
+Unlocking records the preference and explains that position changes still use setup; direct
+reference dragging is not introduced. Layer visibility can still be toggled for the current
+session. Committed preferences seed visibility when the configuration loads or changes.
+
+The root dialog survives wide/constrained shell changes. Source-change notifications invalidate
+stale rasters; late responses cannot revive a cancelled/disposed task. Missing/unreadable source
+errors provide load/retry/replacement. Stale and version-conflict refusals retain the draft and
+pause writing. Compensated failures retain the previous reference; failed compensation uses the
+existing unrecovered-write warning. Cross-file forced-process crash recovery is not claimed.
+
+See [Configure a reference plan](../../../tests/cases/Configure%20a%20reference%20plan.md) for
+criterion-level evidence and open live-host/screenreader acceptance.

@@ -86,4 +86,11 @@ describe('Plan.withCalibration', () => {
 		}));
 		expect(error.code).toBe('plan.degenerate-points');
 	});
+
+	it('clears with null, which is what a sidecar restored past its first calibration carries', () => {
+		const calibration: Calibration = { pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 2000, pixelsPerWorldUnit: 0.05 };
+		const calibrated = expectOk(base().withCalibration(calibration));
+		expect(expectOk(calibrated.withCalibration(null)).calibration).toBeNull();
+		expect(calibrated.calibration).toBe(calibration);
+	});
 });

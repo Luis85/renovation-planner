@@ -248,7 +248,7 @@ export class ObsidianPlanRepository {
 		supersedes: ObservationToken | undefined,
 	): Promise<Result<Loaded<Plan>, RepositoryError>> {
 		try {
-			await writeOwnedFrontmatter(this.deps.fileManager, note, dto);
+			await writeOwnedFrontmatter(this.deps.fileManager, note, dto, 'reference-appearance' in dto ? [] : ['reference-appearance']);
 		} catch (cause) {
 			return err(persistenceError('plan.write-failed', `Could not write the note for plan ${plan.id}.`, cause));
 		}

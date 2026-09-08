@@ -239,6 +239,10 @@ Exit criteria:
 
 - Imported plans become locked, calibrated, revisitable layers.
 
+Implementation note (2026-09-06): M05/M06 now have the connected reference workflow described
+in ADR-0019 and the implementation-status ledger. Automated and Edge keyboard evidence are
+recorded there; host/screenreader and complete Phase 6 acceptance remain open.
+
 ### Phase 7 — Existing and Planned semantic state
 
 **Screens:** M08, M09  

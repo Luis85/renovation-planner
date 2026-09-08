@@ -11,7 +11,8 @@
  * therefore listens on `EditorSurface`'s DOM container rather than on the Stage, which is
  * also what lets it keep working once individual nodes start listening.
  */
-import { computed } from 'vue';
+import type { Point } from '../../core/geometry/Point';
+import { computed, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useEditorStore } from '../stores/EditorStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
@@ -61,19 +62,25 @@ const transform = computed(() => viewportTransform(viewport.value));
 /**
  * What the fit shortcuts frame — everything, or just what is selected — answered HERE because
  * it is the one thing they ask that names a Plan's own contents. `EditorSurface` owns the
- * keystroke and the camera; this owns the zones.
+ * keystroke and the camera; this combines zones with the visible prepared reference.
  *
  * A fit with nothing to frame does NOTHING, which is why `boundsOfZones` answers `null` rather
  * than defaulting: a jump to nowhere costs the user the view they had and tells them nothing
  * about why.
  */
+const referencePoints = ref<readonly Point[]>([]);
+function onReferencePoints(points: readonly Point[]): void { referencePoints.value = points; }
+watch([referencePoints, () => editor.stageSize, () => layerVisibility.value.background], ([points]) => {
+ const bounds = boundsOfZones([{ points }]);
+ if (bounds !== null && project.zones.size === 0 && layerVisibility.value.background && runtime.activeToolId.value === 'select') editor.fitTo(bounds, editor.stageSize);
+}, { flush: 'post' });
 function framedBounds(all: boolean) {
 	const zones = [...project.zones.values()];
 	const framed = all
 		? zones
 		: zones.filter((zone) => selection.selectedIds.some((id) => String(id) === zone.id));
 
-	return boundsOfZones(framed);
+	return boundsOfZones(all && layerVisibility.value.background ? [...framed, { points: referencePoints.value }] : framed);
 }
 </script>
 
@@ -102,6 +109,7 @@ function framedBounds(all: boolean) {
 					:pixels-per-world-unit="pixelsPerWorldUnit"
 					:file-changes="context.onVaultFileChanged"
 					@status="(status) => emit('backgroundStatus', status)"
+					@reference-points="onReferencePoints"
 				/>
 				<EmptyLayer
 					layer-id="architecture"

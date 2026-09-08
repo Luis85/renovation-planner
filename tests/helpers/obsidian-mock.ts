@@ -136,7 +136,9 @@ export function normalizePath(path: string): string {
  * of them.
  */
 export async function loadPdfJs(): Promise<unknown> {
-	return await import('pdfjs-dist/legacy/build/pdf.mjs');
+	const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+	if (typeof process === 'undefined') pdfjs.GlobalWorkerOptions.workerSrc = new URL('../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs', import.meta.url).href;
+	return pdfjs;
 }
 
 export type ViewFactory = (leaf: WorkspaceLeaf) => unknown;

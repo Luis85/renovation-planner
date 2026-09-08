@@ -6,6 +6,9 @@
  * Plan whose file is gone says so instead.
  */
 import Konva from 'konva';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
+import { expectDefined } from '../../helpers/domain';
 import { afterEach, describe, expect, it } from 'vitest';
 import { TFile } from 'obsidian';
 import { ok } from '../../../src/core/result/Result';
@@ -14,7 +17,7 @@ import type { BackgroundVault } from '../../../src/presentation/editor/layers/ba
 import type { PlanDto } from '../../../src/presentation/read-models/PlanDto';
 import { clearResources, registerResource, releaseResource } from '../../helpers/canvas';
 import { pngFixture } from '../../helpers/backgroundFixtures';
-import { mountPlanEditor, settle, settleUntil, type EditorHarness } from '../../helpers/editor';
+import { mountPlanEditor, runtimeOf, settle, settleUntil, type EditorHarness } from '../../helpers/editor';
 import { FIXTURE_PLAN, FIXTURE_PROJECT } from '../../helpers/planFixtures';
 
 let harness: EditorHarness | null = null;
@@ -69,6 +72,37 @@ function backgroundImage(mounted: EditorHarness | null): Konva.Image | undefined
 }
 
 describe('a plan with a background', () => {
+	it('renders prepared crop, rotation and opacity at the existing calibrated scale without making the layer interactive', async () => {
+		registerResource(`app://fake/${PNG}`, pngFixture(400, 300));
+		const appearance = { crop: { x: 20, y: 30, width: 200, height: 100 }, rotation: 90, opacity: 0.4, visible: true, locked: true };
+		harness = await mountPlanEditor({
+			plan: { ...planWith({ path: PNG, kind: 'image', appearance }), calibration: { pointA: { x: 0, y: 0 }, pointB: { x: 200, y: 0 }, knownDistance: 200, pixelsPerWorldUnit: 0.5 } },
+			vault: vaultWith([PNG]), zones: [],
+		});
+		await settle();
+		const image = backgroundImage(harness);
+		expect(image?.crop()).toEqual(appearance.crop);
+		expect({ width: image?.width(), height: image?.height(), rotation: image?.rotation(), opacity: image?.opacity() }).toEqual({ width: 400, height: 200, rotation: 90, opacity: 0.4 });
+		expect(image?.isListening()).toBe(false);
+		expect(harness.wrapper.find('.rp-empty-state').exists()).toBe(false);
+		const editor = useEditorStore(harness.pinia), rect = expectDefined(image, 'prepared image').getClientRect();
+		expect(rect.x).toBeGreaterThanOrEqual(0); expect(rect.y).toBeGreaterThanOrEqual(0);
+		expect(rect.x + rect.width).toBeLessThanOrEqual(editor.stageSize.width);
+		expect(rect.y + rect.height).toBeLessThanOrEqual(editor.stageSize.height);
+		const fitted = editor.viewport;
+		editor.viewport = { ...fitted, pan: { x: 10000, y: 10000 } };
+		harness.canvasEl?.dispatchEvent(new KeyboardEvent('keydown', { key: '!', code: 'Digit1', shiftKey: true, bubbles: true })); await settle();
+		expect(editor.viewport).toEqual(fitted);
+		useWorkspaceStore(harness.pinia).layerVisibility.background = false; await settle();
+		editor.viewport = { ...fitted, pan: { x: 10000, y: 10000 } };
+		harness.canvasEl?.dispatchEvent(new KeyboardEvent('keydown', { key: '!', code: 'Digit1', shiftKey: true, bubbles: true })); await settle();
+		expect(editor.viewport.pan).toEqual({ x: 10000, y: 10000 });
+		useWorkspaceStore(harness.pinia).layerVisibility.background = true; await settle();
+		runtimeOf(harness).setTool('draw-room');
+		editor.viewport = { ...fitted, pan: { x: 10000, y: 10000 } };
+		editor.setStageSize({ width: editor.stageSize.width + 10, height: editor.stageSize.height }); await settle();
+		expect(editor.viewport.pan).toEqual({ x: 10000, y: 10000 });
+	});
 	it('draws the raster at the world size its placeholder scale implies', async () => {
 		registerResource(`app://fake/${PNG}`, pngFixture(400, 300));
 		harness = await mountPlanEditor({

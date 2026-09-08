@@ -1,3 +1,4 @@
+import { validReferenceAppearance } from './ReferenceAppearance';
 import { err, ok, type Result } from '../../core/result/Result';
 import type { CalculationError, ValidationError } from '../../core/errors/AppError';
 import type { ProjectId } from '../project/ProjectId';
@@ -21,6 +22,9 @@ import type { PlanId } from './PlanId';
 function validateBackground(background: PlanBackgroundRef | null): Result<void, ValidationError> {
 	if (background === null) {
 		return ok(undefined);
+	}
+	if (background.appearance !== undefined && !validReferenceAppearance(background.appearance)) {
+		return err(planError('invalid-reference-appearance', 'Reference crop, rotation or appearance is invalid.'));
 	}
 	if (!background.path.trim()) {
 		return err(planError('empty-background-path', 'A background reference needs a path.'));
@@ -129,11 +133,17 @@ export class Plan {
 	 * `ReversibleCalibratePlanCommand`'s whole job and nothing an immutable entity can do
 	 * to files it cannot see. Re-validated here anyway: a hand-edited sidecar reaches this
 	 * door, and the sidecar's Zod schema checks shapes, not the relationships between them.
+	 *
+	 * `null` clears it, exactly as `withBackground(null)` does: a sidecar CAN go back to
+	 * uncalibrated — `ReversibleCalibratePlanCommand.undo` restores the exact document it
+	 * read, and past a FIRST calibration that document carries `calibration: null` — so a
+	 * reader merging a fresh snapshot over an entity loaded earlier has to be able to drop
+	 * the stale one (a Codex P2 on pull request #85).
 	 */
 	withCalibration(
-		calibration: Calibration,
+		calibration: Calibration | null,
 	): Result<Plan, ValidationError | CalculationError> {
-		const checked = validateCalibration(calibration);
+		const checked = calibration === null ? ok(null) : validateCalibration(calibration);
 		if (!checked.ok) {
 			return checked;
 		}

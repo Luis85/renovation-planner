@@ -398,7 +398,7 @@ export function openNoteById(
 }
 
 function yamlScalar(value: unknown): string {
-	return typeof value === 'string' ? JSON.stringify(value) : String(value);
+	return typeof value === 'string' || (typeof value === 'object' && value !== null) ? JSON.stringify(value) : String(value);
 }
 
 /**

@@ -58,3 +58,18 @@ This is the meaningful empty state for a floor with no rooms or reference plan. 
 - No path requires a floor plan.
 - Selecting an option leads into the canonical existing command/tool path.
 - Empty state disappears while a temporary creation task is active.
+
+
+## Implementation contract — 2026-09-06
+
+M05 is query-derived: show the three choices only when the ready floor has no reference and no
+readable or unreadable spatial records. A floor with rooms but no reference is a valid drawing
+workspace. Add rooms uses the canonical room creation entry. Upload opens M06; Start empty
+hides this overlay for the current mounted floor. Active creation/reference setup hides it too.
+The Floor Inspector and layer panel retain reference entry after dismissal. Missing reference
+files remain a named warning rather than silently becoming a new empty floor. Existing floor
+metadata editing is reused.
+
+Automated/query and browser acceptance is recorded in
+[Configure a reference plan](../../../tests/cases/Configure%20a%20reference%20plan.md).
+Live Obsidian, screenreader and final product acceptance remain open.

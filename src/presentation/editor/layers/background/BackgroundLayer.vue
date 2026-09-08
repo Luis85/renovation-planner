@@ -30,6 +30,8 @@
  * same consequence: `PlanCanvas` now answers the two questions that name a Plan, and this
  * file answers none of them.
  */
+import type { Point } from '../../../../core/geometry/Point';
+import { referenceCorners } from '../../../../domain/plan/ReferenceAppearance';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { TFile } from 'obsidian';
 import type { NodeTransform } from '../../viewport/Viewport';
@@ -86,7 +88,7 @@ const props = defineProps<{
 	fileChanges: (listener: (path: string) => void) => () => void;
 }>();
 
-const emit = defineEmits<{ status: [status: BackgroundStatus] }>();
+const emit = defineEmits<{ status: [status: BackgroundStatus]; referencePoints: [points: readonly Point[]] }>();
 
 const model = ref<BackgroundRenderModel>(NO_BACKGROUND);
 
@@ -179,6 +181,9 @@ onBeforeUnmount(() => {
 });
 
 const raster = computed(() => (model.value.kind === 'raster' ? model.value : null));
+const referencePoints = computed(() => raster.value && props.reference?.appearance
+ ? referenceCorners(props.reference.appearance, drawnWorldScale(raster.value.worldScale, props.pixelsPerWorldUnit)) : []);
+watch(referencePoints, points => emit('referencePoints', points), { immediate: true });
 </script>
 
 <template>
@@ -196,8 +201,11 @@ const raster = computed(() => (model.value.kind === 'raster' ? model.value : nul
 				image: raster.image,
 				x: raster.worldOrigin.x,
 				y: raster.worldOrigin.y,
-				width: raster.width * drawnWorldScale(raster.worldScale, props.pixelsPerWorldUnit),
-				height: raster.height * drawnWorldScale(raster.worldScale, props.pixelsPerWorldUnit),
+				crop: props.reference?.appearance?.crop,
+				rotation: props.reference?.appearance?.rotation ?? 0,
+				opacity: props.reference?.appearance?.opacity ?? 1,
+				width: (props.reference?.appearance?.crop.width ?? raster.width) * drawnWorldScale(raster.worldScale, props.pixelsPerWorldUnit),
+				height: (props.reference?.appearance?.crop.height ?? raster.height) * drawnWorldScale(raster.worldScale, props.pixelsPerWorldUnit),
 				listening: false,
 			}"
 		/>

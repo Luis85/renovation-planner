@@ -123,8 +123,8 @@ export async function renderPdfPage(bytes: ArrayBuffer, pageNumber: number): Pro
 	// a few other exotic codecs, which vector floor plans use none of; `wasmUrl` stays the
 	// documented upgrade path if a real PDF ever needs one.
 	const task = pdfjs.getDocument({ data: new Uint8Array(bytes.slice(0)), useWasm: false });
-	const document_ = await task.promise;
 	try {
+		const document_ = await task.promise;
 		const page = await document_.getPage(pageNumber);
 		const viewport = page.getViewport({ scale: RASTER_SCALE });
 		const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));

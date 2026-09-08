@@ -31,6 +31,17 @@ export const PlanFrontmatterSchemaV1 = z.object({
 	'background-kind': backgroundKind,
 	'background-page': z.number().int().positive().nullable().catch(null),
 	layers: z.array(z.string()),
+
 });
 
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV1>;
+/** V2 prevents older builds silently dropping prepared-reference transforms on write. */
+export const PlanFrontmatterSchemaV2 = PlanFrontmatterSchemaV1.extend({
+	'schema-version': z.literal(2),
+	'reference-appearance': z.object({
+		crop: z.object({ x: z.number().nonnegative(), y: z.number().nonnegative(), width: z.number().positive(), height: z.number().positive() }),
+		rotation: z.number().min(-180).max(180), opacity: z.number().min(0).max(1),
+		visible: z.boolean(), locked: z.boolean(),
+	}).optional(),
+});
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV2>;

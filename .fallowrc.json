@@ -86,6 +86,7 @@
 		"scripts/editor-area-numeric-check.mjs",
 		"scripts/editor-room-resize-check.mjs",
 		"scripts/editor-room-naming-check.mjs",
+		"scripts/editor-reference-check.mjs",
 		"scripts/asset-library-shots.mjs",
 		"scripts/concept-shots.mjs",
 		"scripts/background-fixture.mjs",

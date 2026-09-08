@@ -1,3 +1,4 @@
+import { unavailablePlanEditorCommands } from '../../src/presentation/editor/planEditorCommands';
 /**
  * The wired Plan Editor, mounted for real — real Vue, real Pinia, real Konva, the real
  * toolbar/canvas/inspector wiring — against in-memory repositories, so a drawn zone is
@@ -218,6 +219,7 @@ export async function rig(
 		listReassignmentTargets: new ListReassignmentTargets(zonesRepo, assetsRepo),
 	});
 	const commands = {
+		referencePlan: unavailablePlanEditorCommands().referencePlan,
 		createZone: new CreateZoneCommand(zonesRepo, plans, events),
 		moveObject: new MoveSpatialObjectCommand(zonesRepo, events),
 		// The SAME requirement repository and lock set the panel's assign control writes

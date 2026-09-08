@@ -1,3 +1,4 @@
+import type { ReferenceAppearance } from '../../../../domain/plan/ReferenceAppearance';
 import { normalizePath, TFile, type Vault } from 'obsidian';
 import type { Point } from '../../../../core/geometry/Point';
 import { renderPdfPage } from './pdfRaster';
@@ -20,6 +21,7 @@ import { renderPdfPage } from './pdfRaster';
  */
 export interface BackgroundDocumentRef {
 	readonly path: string;
+	readonly appearance?: ReferenceAppearance;
 	readonly kind: 'image' | 'pdf';
 	readonly page?: number | null;
 }
@@ -63,7 +65,7 @@ export type BackgroundRenderModel =
  * `Vault` rather than as a hand-written look-alike — so the contract cannot drift from the
  * API and a real `Vault` is passed straight in.
  */
-export type BackgroundVault = Pick<Vault, 'getAbstractFileByPath' | 'getResourcePath' | 'readBinary'>;
+export type BackgroundVault = Pick<Vault, 'getAbstractFileByPath' | 'getResourcePath' | 'readBinary'> & Partial<Pick<Vault, 'getFiles'>>;
 
 /**
  * The placeholder scale a raster is decoded at: one source pixel is one world millimetre.

@@ -581,6 +581,13 @@ export const en = {
 	// those before they answer.
 	'asset.background-not-found': 'That file is no longer in the vault. Choose another spec sheet.',
 	'plan.background-not-found': 'That file is no longer in the vault. Choose another plan document.',
+	// The two ConfigurePlanReference refusals that reach the reference form's error line. The
+	// command's other two stay absent for reasons `toUserMessage.test.ts`'s exclusion table
+	// carries: `plan.unsupported-background` is unreachable through the form, and
+	// `reference.restore-failed` only ever travels as `reference.compensation-failed`'s cause.
+	'plan-geometry.write-failed': 'The reference scale could not be saved. Your draft is retained; try again.',
+	'reference.compensation-failed':
+		'The reference could not be saved and the floor could not be restored. Reopen the floor before editing.',
 	// The one code the FORM mints rather than routes: a rectangle needs both halves, and
 	// nothing downstream refuses one given without the other because nothing downstream is
 	// asked. `NewAssetForm.dimensionsIncomplete` is the raise site.

@@ -12,7 +12,7 @@ import { scale as scaleShape } from '../../../core/geometry/operations';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { planCalibrated } from '../../../domain/plan/Plan.events';
 import { planError } from '../../../domain/plan/Plan.errors';
-import { deriveCalibration, nonFiniteRescaleError } from '../../../domain/plan/Calibration';
+import { deriveCalibration, nonFiniteRescaleError, validateCalibration } from '../../../domain/plan/Calibration';
 import { zoneGeometryChanged } from '../../../domain/zone/Zone.events';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
@@ -61,9 +61,45 @@ function allPointsFinite(document: PlanGeometryDocument): boolean {
 	);
 }
 
+export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<CalibratePlanInput, 'pointA' | 'pointB' | 'knownDistance'>) {
+		const derived = deriveCalibration(input.pointA, input.pointB, input.knownDistance, previous.calibration);
+		if (!derived.ok) {
+			return derived;
+		}
+		const { calibration, scaleCorrection } = derived.value;
+		const origin: Point = { x: 0, y: 0 };
+		// The rescale anchors at the world origin: background sizing and every zone move
+		// uniformly, so alignment between them is preserved — only what the numbers MEAN
+		// in millimetres changes.
+		const document: PlanGeometryDocument = {
+			calibration: {
+				pointA: scaleShape(calibration.pointA, scaleCorrection, origin),
+				pointB: scaleShape(calibration.pointB, scaleCorrection, origin),
+				knownDistance: calibration.knownDistance,
+				pixelsPerWorldUnit: calibration.pixelsPerWorldUnit,
+			},
+			objects: previous.objects.map((object) => ({
+				id: object.id,
+				points: scaleShape({ points: object.points }, scaleCorrection, origin).points,
+			})),
+		};
+		// The ratio passing finite does not mean the PRODUCT did: a legal-looking input
+		// (measured ~1e-302 over known 3200) yields a finite correction whose rescaled
+		// coordinates overflow — and JSON persists Infinity as null, which the schema then
+		// refuses on every later read. Refusing here keeps the sidecar readable.
+		if (!allPointsFinite(document)) {
+			return err(nonFiniteRescaleError());
+		}
+		if (document.calibration !== null) {
+			const checked = validateCalibration(document.calibration);
+			if (!checked.ok) return checked;
+		}
+		return ok(document);
+}
+
 /**
- * Design slice 7's undoable calibration (SDD §25, §29-31) — the ONE command that writes
- * a plan's calibration. It replaced slice 3's plain `CalibratePlanCommand`, which was
+ * Design slice 7's undoable calibration (SDD §25, §29-31). Reference setup now shares
+ * its complete-document math through `calibrateDocument` (ADR-0019). It replaced slice 3's plain `CalibratePlanCommand`, which was
  * deleted rather than left beside it, and keeps that command's input shape and its
  * `PlanCalibrated`/`ZoneGeometryChanged` event vocabulary.
  *
@@ -153,34 +189,9 @@ export class ReversibleCalibratePlanCommand {
 		if (!snapshot.ok) {
 			return snapshot;
 		}
-		const derived = deriveCalibration(input.pointA, input.pointB, input.knownDistance, snapshot.value.document.calibration);
-		if (!derived.ok) {
-			return derived;
-		}
-		const { calibration, scaleCorrection } = derived.value;
-		const origin: Point = { x: 0, y: 0 };
-		// The rescale anchors at the world origin: background sizing and every zone move
-		// uniformly, so alignment between them is preserved — only what the numbers MEAN
-		// in millimetres changes.
-		const document: PlanGeometryDocument = {
-			calibration: {
-				pointA: scaleShape(calibration.pointA, scaleCorrection, origin),
-				pointB: scaleShape(calibration.pointB, scaleCorrection, origin),
-				knownDistance: calibration.knownDistance,
-				pixelsPerWorldUnit: calibration.pixelsPerWorldUnit,
-			},
-			objects: snapshot.value.document.objects.map((object) => ({
-				id: object.id,
-				points: scaleShape({ points: object.points }, scaleCorrection, origin).points,
-			})),
-		};
-		// The ratio passing finite does not mean the PRODUCT did: a legal-looking input
-		// (measured ~1e-302 over known 3200) yields a finite correction whose rescaled
-		// coordinates overflow — and JSON persists Infinity as null, which the schema then
-		// refuses on every later read. Refusing here keeps the sidecar readable.
-		if (!allPointsFinite(document)) {
-			return err(nonFiniteRescaleError());
-		}
+		const calibrated = calibrateDocument(snapshot.value.document, input);
+		if (!calibrated.ok) return calibrated;
+		const document = calibrated.value;
 		const expected = this.lastWritten ?? snapshot.value.version;
 		const written = await this.geometry.write(input.planId, document, expected);
 		if (!written.ok) {

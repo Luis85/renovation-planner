@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[User Interface]]"
 order: 80
-status: Active
+status: Done
 started: "2026-09-05"
-finished: ""
+finished: "2026-09-08"
 horizon: "MVP"
 start: ""
 due: ""
@@ -90,3 +90,5 @@ Evidence and remaining limitations: [execution record](../user-experience/renova
 `docs/requirements/Explicitly save or discard asset metadata changes.md`, `Switch assets without accidentally losing input.md`, `Continue safely after save failures or external changes.md`;
 `docs/user-experience/renovation-planner-project-specs/implementation/repository-reconciliation-and-backlog.md`
 (PBI-07, PBI-09, and its §1 row on the price row).
+
+Closed 2026-09-08 by `useDefinitionDraft.ts`, one explicit Save/Discard over one `UpdateAsset` write for the Asset library surface.

@@ -1,3 +1,4 @@
+import { Platform } from 'obsidian';
 import { isErr, ok, type Result } from '../core/result/Result';
 import type { AppError } from '../core/errors/AppError';
 import type { Point } from '../core/geometry/Point';
@@ -229,6 +230,11 @@ export function registerSampleProjectCommand(host: PluginCommandHost): void {
 		id: 'create-sample-project',
 		name: tr('command.create-sample-project'),
 		checkCallback: (checking: boolean) => {
+			// It seeds a project, a plan and five zones and then OPENS THE EDITOR on what it made,
+			// which mobile refuses outright — so the whole gesture ends on a surface that says it
+			// cannot be used. Beside the persistence check rather than instead of it: they are two
+			// different reasons this command has nothing to offer.
+			if (Platform.isMobile) return false;
 			const services = host.root.persistence;
 			if (services === null) return false;
 			// Detached like every other command handler, and answered like every other one:

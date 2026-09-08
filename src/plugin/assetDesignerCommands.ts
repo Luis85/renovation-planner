@@ -1,3 +1,4 @@
+import { Platform } from 'obsidian';
 import { isErr } from '../core/result/Result';
 import type { Asset } from '../domain/asset/Asset';
 import { revealAssetDesigner } from '../infrastructure/obsidian/workspace/revealAssetDesigner';
@@ -86,8 +87,18 @@ export function registerAssetDesignerCommands(host: PluginCommandHost): void {
 	host.addCommand({
 		id: 'open-asset-designer',
 		name: tr('command.open-asset-designer'),
-		callback: () => {
-			void openAssetPicker(host);
+		/**
+		 * The ONE precondition this command has, and it is deliberately not the kind the docblock
+		 * above refuses: that one is about the VAULT (a command invisible until the user has made
+		 * the thing it opens), this one is about the DEVICE. `AssetDesignerView.sync` draws a
+		 * refusal and mounts nothing on mobile, so a palette entry there opens a leaf that says it
+		 * cannot be used — `new-project`'s own comment is the full argument. Nothing about the
+		 * picker or the empty-catalogue path changes, and the command id is DATA.
+		 */
+		checkCallback: (checking: boolean) => {
+			if (Platform.isMobile) return false;
+			if (!checking) void openAssetPicker(host);
+			return true;
 		},
 	});
 }

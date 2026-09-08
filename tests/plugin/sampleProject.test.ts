@@ -10,7 +10,7 @@
  * proved three commands were called would say nothing about whether a human opening
  * Obsidian gets a plan they can see.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 // Mock-only surface, imported BY NAME. `Notice` carries members
 // the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
 // `'obsidian'` specifier type-checks against a surface that has no such thing. The
@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 // the same statics — proven, not assumed — and the import now says which surface it
 // wants.
 import { Notice } from '../helpers/obsidian-mock';
+import { Platform } from 'obsidian';
 import { currencyOf } from '../../src/core/money/Money';
 import { registerSampleProjectCommand, seedSampleProject } from '../../src/plugin/sampleProject';
 import type { PluginCommandHost } from '../../src/plugin/commandHost';
@@ -114,6 +115,12 @@ beforeEach(() => {
 	// stands. Per TEST, and for a second reason: the queue DEDUPS, so two cases raising the
 	// identical sentence would fold into one `(×2)` and construct no second `Notice`.
 	activateNotices();
+});
+
+// `Platform` is a plain mutable object in the mock, so a case that assigns `isMobile` owes every
+// later file in this worker the reset.
+afterEach(() => {
+	Platform.isMobile = false;
 });
 
 describe('seeding the sample project', () => {
@@ -222,6 +229,21 @@ describe('the create-sample-project command', () => {
 		const { commands } = hosted(null);
 
 		expect(commands[0].checkCallback?.(true)).toBe(false);
+	});
+
+	/**
+	 * The SECOND reason this command has nothing to offer, and it is a different one: this vault
+	 * can write perfectly well, and the gesture ends by opening the Plan Editor, which mobile
+	 * refuses outright. Driven with persistence PRESENT, so the `false` is the platform's.
+	 */
+	it('stays out of the palette on mobile even with somewhere to write', () => {
+		const { commands, workspace } = hosted(wired().services);
+		Platform.isMobile = true;
+
+		expect(commands[0].checkCallback?.(true)).toBe(false);
+		expect(commands[0].checkCallback?.(false)).toBe(false);
+
+		expect(workspace.leaves).toHaveLength(0);
 	});
 
 	it('carries an unprefixed id and a translated name', () => {

@@ -13,8 +13,8 @@
  * the state: keying on the type alone would collapse the multiplicity the designer exists to
  * permit, and the same-asset case alone would pass against that broken key.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
-import type { Command } from 'obsidian';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { Platform, type Command } from 'obsidian';
 // Mock-only surface, imported BY NAME — see `planEditorCommands.test.ts`'s own header for why:
 // `FuzzySuggestModal` and `Notice` carry members (`opened`, `shown`, `choose`) the real
 // `obsidian` module does not declare, and the vitest alias points the bare specifier at this
@@ -92,18 +92,37 @@ beforeEach(() => {
 	activateNotices();
 });
 
+// `Platform` is a plain mutable object in the mock, so a case that assigns `isMobile` owes every
+// later file in this worker the reset.
+afterEach(() => {
+	Platform.isMobile = false;
+});
+
 describe('open asset designer', () => {
 	/**
-	 * Case 1 of Task B9's brief: NO precondition, unlike `open-plan-editor` before its own
-	 * fix. A `checkCallback` requiring some existing state would keep this command out of the
-	 * palette in exactly the vault it exists to help — one with no assets yet.
+	 * Case 1 of Task B9's brief: no VAULT precondition, unlike `open-plan-editor` before its own
+	 * fix. A check requiring some existing state would keep this command out of the palette in
+	 * exactly the vault it exists to help — one with no assets yet. Asserted through the check
+	 * ANSWERING rather than through its absence, since the mobile task gave it one: the platform
+	 * is not a thing the vault can change, which is what makes it a different question.
 	 */
-	it('is a plain callback, so it appears in the palette in a vault with no assets', async () => {
+	it('appears in the palette in a vault with no assets', async () => {
 		const { commands } = await wired({ assets: [] });
 
 		const registered = commands.find((c) => c.id === 'open-asset-designer');
-		expect(registered?.callback).toBeTypeOf('function');
-		expect(registered?.checkCallback).toBeUndefined();
+		expect(registered?.checkCallback?.(true)).toBe(true);
+	});
+
+	it('stays out of the palette on mobile, opening no picker', async () => {
+		const { commands } = await wired();
+		Platform.isMobile = true;
+
+		const registered = commands.find((c) => c.id === 'open-asset-designer');
+		expect(registered?.checkCallback?.(true)).toBe(false);
+		expect(registered?.checkCallback?.(false)).toBe(false);
+		await flush();
+
+		expect(FuzzySuggestModal.opened).toHaveLength(0);
 	});
 
 	it('carries an unprefixed id and a translated name', async () => {
@@ -118,7 +137,7 @@ describe('open asset designer', () => {
 		const asset = makeAsset({ name: 'Porcelain Tile' });
 		const { commands } = await wired({ assets: [asset] });
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 		// `openAssetPicker` is async — it awaits `ListAssets` — so the picker opens only after
 		// that resolves, unlike `open-plan-editor`'s synchronous index read.
 		await flush();
@@ -134,7 +153,7 @@ describe('open asset designer', () => {
 		const asset = makeAsset({ name: 'Porcelain Tile' });
 		const { commands, workspace } = await wired({ assets: [asset] });
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 		await flush();
 		// Opening the picker must not open a leaf: choosing is what acts.
 		expect(workspace.leaves).toHaveLength(0);
@@ -180,7 +199,7 @@ describe('open asset designer', () => {
 		};
 		registerAssetDesignerCommands(host);
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 		await flush();
 		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<Asset>;
 		picker.choose(picker.getItems()[0]);
@@ -194,7 +213,7 @@ describe('open asset designer', () => {
 	it('says so rather than opening an empty picker when the vault has no assets', async () => {
 		const { commands } = await wired({ assets: [] });
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 		await flush();
 
 		expect(FuzzySuggestModal.opened).toHaveLength(0);
@@ -205,7 +224,7 @@ describe('open asset designer', () => {
 	it('says so when settings were never recovered', async () => {
 		const { commands } = await wired({ withPersistence: false });
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 		await flush();
 
 		expect(FuzzySuggestModal.opened).toHaveLength(0);
@@ -236,7 +255,7 @@ describe('open asset designer', () => {
 		};
 		registerAssetDesignerCommands(host);
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 		await flush();
 
 		expect(FuzzySuggestModal.opened).toHaveLength(0);
@@ -263,7 +282,7 @@ describe('two activations racing', () => {
 		const asset = makeAsset({ name: 'Porcelain Tile' });
 		const { commands, workspace } = await wired({ assets: [asset] });
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 		await flush();
 		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<Asset>;
 
@@ -284,7 +303,7 @@ describe('two activations racing', () => {
 		const assetB = makeAsset({ name: 'Oak Worktop' });
 		const { commands, workspace } = await wired({ assets: [assetA, assetB] });
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 		await flush();
 		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<Asset>;
 

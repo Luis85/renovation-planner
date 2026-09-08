@@ -1,4 +1,4 @@
-import type { App, TFile } from 'obsidian';
+import { Platform, type App, type TFile } from 'obsidian';
 import { isErr, type Result } from '../core/result/Result';
 import type { PlanId } from '../domain/plan/PlanId';
 import type { Command } from '../application/commands/Command';
@@ -147,8 +147,21 @@ export function registerPlanEditorCommands(
 	host.addCommand({
 		id: 'open-plan-editor',
 		name: tr('command.open-plan-editor'),
-		callback: () => {
-			openPlanPicker(host, rememberContinue);
+		/**
+		 * A `checkCallback` again, and for the OPPOSITE reason to the one that took the first one
+		 * away. The old check asked whether a plan note was the ACTIVE FILE — a precondition
+		 * something else in the app has to satisfy first, which kept this command invisible in
+		 * every vault that had none. This one asks about the DEVICE, which nothing in the vault can
+		 * change: the Plan Editor draws no canvas on mobile at all (`PlanEditorView.sync`), so a
+		 * palette entry there would open a leaf that says it cannot be used. `new-project` states
+		 * the same argument at length; the picker over the Project Index is untouched.
+		 *
+		 * The command id is unchanged, because a user's hotkey is bound to it.
+		 */
+		checkCallback: (checking: boolean) => {
+			if (Platform.isMobile) return false;
+			if (!checking) openPlanPicker(host, rememberContinue);
+			return true;
 		},
 	});
 
@@ -156,6 +169,10 @@ export function registerPlanEditorCommands(
 		id: 'set-plan-background',
 		name: tr('command.set-plan-background'),
 		checkCallback: (checking: boolean) => {
+			// The mobile refusal FIRST, before the active-view question: the editor mounts nothing
+			// there, so there is never an active one to find and the answer would be the same —
+			// stating it here is what makes the reason readable rather than incidental.
+			if (Platform.isMobile) return false;
 			const view = host.app.workspace.getActiveViewOfType(PlanEditorView);
 			const planId = view?.getState()['planId'];
 			if (typeof planId !== 'string' || planId.length === 0) return false;

@@ -1,0 +1,94 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+      "--text-accent": "hsl(258, 88%, 66%)",
+      "--background-primary": "#ffffff",
+      "--background-secondary": "#f6f6f6"
+    },
+    "phase": "before",
+    "rows": [
+      "White tile",
+      "White tile"
+    ],
+    "planned": [
+      "New tile",
+      "New tile"
+    ],
+    "source": "Two distinct surface kinds with identical descriptions created through production forms and repositories",
+    "scope": "Browser evidence; host and screen-reader observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "phase": "before",
+    "rows": [
+      "White tile",
+      "White tile"
+    ],
+    "planned": [
+      "New tile",
+      "New tile"
+    ],
+    "source": "Two distinct surface kinds with identical descriptions created through production forms and repositories",
+    "scope": "Browser evidence; host and screen-reader observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "#7c246b",
+      "--text-accent": "#7c246b",
+      "--background-primary": "#fff8ed",
+      "--background-secondary": "#efe3d3"
+    },
+    "phase": "before",
+    "rows": [
+      "White tile",
+      "White tile"
+    ],
+    "planned": [
+      "New tile",
+      "New tile"
+    ],
+    "source": "Two distinct surface kinds with identical descriptions created through production forms and repositories",
+    "scope": "Browser evidence; host and screen-reader observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "phase": "before",
+    "rows": [
+      "Weiße Fliesen",
+      "Weiße Fliesen"
+    ],
+    "planned": [
+      "Neue Fliesen",
+      "Neue Fliesen"
+    ],
+    "source": "Two distinct surface kinds with identical descriptions created through production forms and repositories",
+    "scope": "Browser evidence; host and screen-reader observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

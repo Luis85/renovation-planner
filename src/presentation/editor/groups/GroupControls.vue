@@ -19,7 +19,9 @@ async function run(action: CanvasGroupAction, event: Event): Promise<void> {
 	const origin = event.currentTarget as HTMLElement, owned = origin.ownerDocument.activeElement === origin;
 	const inspector = root.value?.closest<HTMLElement>('[data-rp-region="inspector"]');
 	await action.run(); await nextTick();
-	if (owned && !origin.isConnected && origin.ownerDocument.activeElement === origin.ownerDocument.body) inspector?.querySelector<HTMLButtonElement>('[data-rp-group-controls] button:not(:disabled)')?.focus();
+	if (!owned || origin.isConnected || origin.ownerDocument.activeElement !== origin.ownerDocument.body) return;
+	if (action.id === 'inspect') inspector?.focus();
+	else inspector?.querySelector<HTMLButtonElement>('[data-rp-group-controls] button:not(:disabled)')?.focus();
 }
 </script>
 <template>

@@ -5,6 +5,8 @@ export const groupsEn = {
 	'editor.group.ungroup': 'Ungroup',
 	'editor.group.enclose': 'Enclose with walls and group',
 	'editor.group.saved': 'Saved group',
+	'editor.group.select-member': 'Select focused item',
+	'editor.group.select-saved': 'Select saved group',
 	'editor.group.transform': 'Move or rotate together',
 	'editor.group.transform-hint': 'Move every member, including hidden items and hosted openings. Connected wall endpoints follow.',
 	'editor.group.left': 'Rotate left 90°',

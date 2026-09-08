@@ -104,7 +104,7 @@ describe('AssetRow', () => {
 
 	it('prints the unit cost, right-aligned by class, with its own unit suffix', () => {
 		const row = mountRow({ entry: anEntry({ unit: 'm2', unitCostAmount: '34.95' }) });
-		expect(row.get('.rp-al-row__unit').text()).toBe('/ m2');
+		expect(row.get('.rp-al-row__unit').text()).toBe('/ m²');
 	});
 
 	it('prints a non-zero waste factor as a signed percentage', () => {
@@ -174,5 +174,11 @@ describe('AssetRow', () => {
 		const firstId = first.get('button').attributes('aria-describedby');
 		const secondId = second.get('button').attributes('aria-describedby');
 		expect(firstId).not.toBe(secondId);
+	});
+
+	it('prints the unit as its symbol, not its raw key', () => {
+		const wrapper = mountRow({ entry: anEntry({ unit: 'm2' }) });
+		expect(wrapper.get('.rp-al-row__unit').text()).toBe('/ m²');
+		expect(wrapper.text()).not.toContain('m2');
 	});
 });

@@ -43,3 +43,19 @@ export const MEASUREMENT_UNIT_LABELS: Record<MeasurementUnit, StringKey> = {
 	day: 'form.new-asset.unit.day',
 	fixed: 'form.new-asset.unit.fixed',
 };
+
+/**
+ * The SHORT reading of a unit, for a shelf row's price cell (`AssetRow.vue`): `34,95 € / m²`
+ * rather than `/ m2` (the raw key, which browse case step 4 recorded as a defect) or
+ * `/ Square metres` (the form label, which does not fit a 5ch column). Same `Record` shape
+ * and the same compile-time completeness argument as the two tables above.
+ */
+export const MEASUREMENT_UNIT_SYMBOLS: Record<MeasurementUnit, StringKey> = {
+	piece: 'form.new-asset.unit-symbol.piece',
+	m: 'form.new-asset.unit-symbol.m',
+	m2: 'form.new-asset.unit-symbol.m2',
+	m3: 'form.new-asset.unit-symbol.m3',
+	hour: 'form.new-asset.unit-symbol.hour',
+	day: 'form.new-asset.unit-symbol.day',
+	fixed: 'form.new-asset.unit-symbol.fixed',
+};

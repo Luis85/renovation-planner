@@ -14,6 +14,7 @@ import { UNIT_KIND, type MeasurementUnit } from '../../../src/core/units/Measure
 import {
 	ASSET_CATEGORY_LABELS,
 	MEASUREMENT_UNIT_LABELS,
+	MEASUREMENT_UNIT_SYMBOLS,
 } from '../../../src/presentation/views/assetLabels';
 import { t } from '../../../src/presentation/i18n/strings';
 import { de } from '../../../src/presentation/i18n/locales/de';
@@ -71,5 +72,18 @@ describe('MEASUREMENT_UNIT_LABELS', () => {
 describe('the German category vocabulary', () => {
 	it('calls the material category Baustoff, so Objekt stays the word for an Asset', () => {
 		expect(de[ASSET_CATEGORY_LABELS.material]).toBe('Baustoff');
+	});
+});
+
+describe('MEASUREMENT_UNIT_SYMBOLS', () => {
+	it.each(UNITS)('gives %s a short, non-empty symbol in both locales', (unit) => {
+		const key = MEASUREMENT_UNIT_SYMBOLS[unit];
+		expect(t('en', key)).not.toBe('');
+		expect(t('en', key).length).toBeLessThanOrEqual(6);
+		expect(de[key]).toBeDefined();
+	});
+	it('prints the square and cubic metre as m² and m³, not the raw key', () => {
+		expect(t('en', MEASUREMENT_UNIT_SYMBOLS.m2)).toBe('m²');
+		expect(t('en', MEASUREMENT_UNIT_SYMBOLS.m3)).toBe('m³');
 	});
 });

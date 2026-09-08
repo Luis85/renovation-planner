@@ -28,6 +28,7 @@ import type { AssetOutline } from '../../application/queries/ListAssetOutlines';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { Dimensions } from '../../domain/asset/AssetShape';
 import { currentLanguage, tr } from '../i18n/strings';
+import { MEASUREMENT_UNIT_SYMBOLS } from '../views/assetLabels';
 import AssetMark from './AssetMark.vue';
 
 const props = defineProps<{
@@ -117,6 +118,8 @@ const wasteLabel = computed((): string | null => {
 	const percent = Number((fraction * 100).toFixed(3));
 	return `+${String(percent)}%`;
 });
+
+const unitSymbol = computed((): string => tr(MEASUREMENT_UNIT_SYMBOLS[props.entry.unit]));
 </script>
 
 <template>
@@ -134,7 +137,7 @@ const wasteLabel = computed((): string | null => {
 			<span class="rp-al-row__name">{{ entry.name }}</span>
 			<span class="rp-al-row__cost">
 				<span class="rp-al-row__amount">{{ priceLabel }}</span>
-				<span class="rp-al-row__unit"> / {{ entry.unit }}</span>
+				<span class="rp-al-row__unit">/ {{ unitSymbol }}</span>
 			</span>
 			<span class="rp-al-row__waste">{{ wasteLabel ?? '' }}</span>
 			<span class="rp-al-row__supplier">{{ entry.supplier ?? '' }}</span>

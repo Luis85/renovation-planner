@@ -454,13 +454,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'form.new-asset.unit.hour': 'Stunde',
 	'form.new-asset.unit.day': 'Tag',
 	'form.new-asset.unit.fixed': 'Pauschale',
-	'form.new-asset.unit-symbol.piece': 'Stk.',
-	'form.new-asset.unit-symbol.m': 'm',
-	'form.new-asset.unit-symbol.m2': 'm²',
-	'form.new-asset.unit-symbol.m3': 'm³',
-	'form.new-asset.unit-symbol.hour': 'Std.',
-	'form.new-asset.unit-symbol.day': 'Tag',
-	'form.new-asset.unit-symbol.fixed': 'pauschal',
 	'view.asset.create': 'Neues Objekt',
 	// Design slice B3 (ADR-0015). "Objekt" für Asset, nie "Material" — siehe den Kommentar
 	// weiter oben in dieser Datei; "Material" ist hier eine Kategorie und kein Synonym.

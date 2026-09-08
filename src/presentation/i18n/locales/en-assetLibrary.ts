@@ -177,4 +177,15 @@ export const enAssetLibrary = {
 	"view.asset-library.draft.saved": "Asset saved",
 	"view.asset-library.outside-search": "Selected asset is outside the search results.",
 	"view.asset-library.used-in.library-price": "Library price",
+	// Short symbols for a table cell, beside the long labels a form control shows. `m²` and
+	// `m³` are glyphs rather than words; the rest are the shortest reading a row can carry.
+	// Housed here rather than in `en.ts` for the same `max-lines` reason as the rest of this
+	// file — moved by the CLAUDE.md rule this file's own header cites.
+	'form.new-asset.unit-symbol.piece': 'pcs',
+	'form.new-asset.unit-symbol.m': 'm',
+	'form.new-asset.unit-symbol.m2': 'm²',
+	'form.new-asset.unit-symbol.m3': 'm³',
+	'form.new-asset.unit-symbol.hour': 'h',
+	'form.new-asset.unit-symbol.day': 'd',
+	'form.new-asset.unit-symbol.fixed': 'fixed',
 } as const;

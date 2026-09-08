@@ -636,15 +636,6 @@ export const en = {
 	'form.new-asset.unit.hour': 'Hour',
 	'form.new-asset.unit.day': 'Day',
 	'form.new-asset.unit.fixed': 'Fixed price',
-	// Short symbols for a table cell, beside the long labels a form control shows. `m²` and
-	// `m³` are glyphs rather than words; the rest are the shortest reading a row can carry.
-	'form.new-asset.unit-symbol.piece': 'pcs',
-	'form.new-asset.unit-symbol.m': 'm',
-	'form.new-asset.unit-symbol.m2': 'm²',
-	'form.new-asset.unit-symbol.m3': 'm³',
-	'form.new-asset.unit-symbol.hour': 'h',
-	'form.new-asset.unit-symbol.day': 'd',
-	'form.new-asset.unit-symbol.fixed': 'fixed',
 	// The project list header's second action. The catalogue is VAULT-wide since design slice
 	// 19, so this sits on the list state rather than inside a project's detail state.
 	'view.asset.create': 'New asset',

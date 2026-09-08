@@ -336,6 +336,24 @@ const localeModuleFiles = obsidianmd.configs.recommendedWithLocalesEn.find(
 const ASSET_LIBRARY_ACRONYMS = [...DEFAULT_ACRONYMS, 'SKU'];
 
 /**
+ * The seven `form.new-asset.unit-symbol.*` values (`MEASUREMENT_UNIT_SYMBOLS`'s printed
+ * strings for a shelf row: 'pcs', 'm', 'm²', 'm³', 'h', 'd', 'fixed') are notation, not
+ * prose — a unit of measure, never a sentence a reader parses word by word — so
+ * `sentence-case-locale-module` reporting them for not opening with a capital letter is the
+ * rule applied outside its own domain, the same shape `ASSET_LIBRARY_ACRONYMS` above widens
+ * for `SKU`: fix the RULE's vocabulary, not the copy, because "M²" is wrong regardless of
+ * what a linter's word list wants.
+ *
+ * Anchored with `^…$` rather than left bare: `ignoreRegex` is tested with a plain
+ * `RegExp#test` (`sentenceCaseUtil.js`'s `shouldIgnoreByRegex`), which does no anchoring of
+ * its own, so an unanchored alternation would ALSO exempt any longer string merely
+ * containing one of these as a substring — a "d" bare match would swallow prose that happens
+ * to contain the letter. The anchors are what keeps this reaching exactly the seven symbol
+ * values and nothing that only starts or ends with one.
+ */
+const UNIT_SYMBOLS_PATTERN = '^(?:pcs|m|m²|m³|h|d|fixed)$';
+
+/**
  * `eslint-plugin-vue`'s flat configs carry NO `files` of their own, so spreading them as
  * shipped applies every Vue rule to every linted file — and that is not a style objection:
  * `vue/multi-word-component-names` loading against `package.json` throws
@@ -755,7 +773,10 @@ export default defineConfig([
 		files: localeModuleFiles,
 		ignores: [TESTS],
 		rules: {
-			'obsidianmd/ui/sentence-case-locale-module': ['warn', { acronyms: ASSET_LIBRARY_ACRONYMS }],
+			'obsidianmd/ui/sentence-case-locale-module': [
+				'warn',
+				{ acronyms: ASSET_LIBRARY_ACRONYMS, ignoreRegex: [UNIT_SYMBOLS_PATTERN] },
+			],
 		},
 	},
 	{

@@ -15,6 +15,17 @@ function armed() {
 describe('DrawRoomTool', () => {
 	beforeEach(() => setActivePinia(createPinia()));
 
+	it('resizes a draft corner around its opposite corner and restores an abandoned resize', () => {
+		const { tool, draft } = armed();
+		draft.setRect({ x: 1000, y: 1000, width: 4000, depth: 3000 });
+		tool.pointerDown(pointerAt(1000, 1000)); tool.pointerMove(pointerAt(500, 800));
+		expect(draft.rect).toEqual({ x: 500, y: 800, width: 4500, depth: 3200 });
+		tool.abandonGesture();
+		expect(draft.rect).toEqual({ x: 1000, y: 1000, width: 4000, depth: 3000 });
+		tool.pointerDown(pointerAt(5000, 4000)); tool.pointerUp(pointerAt(5500, 4500));
+		expect(draft.rect).toEqual({ x: 1000, y: 1000, width: 4500, depth: 3500 });
+	});
+
 	it('activation begins the task with the default name and no rectangle', () => {
 		const { draft } = armed();
 		expect(draft.name).toBe('Room 1');

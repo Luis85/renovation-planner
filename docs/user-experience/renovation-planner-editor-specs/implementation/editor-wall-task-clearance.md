@@ -1,5 +1,10 @@
 # WIP — wall-task Room-choice clearance
 
+Historical preparation. The later [creation fidelity contribution](editor-creation-fidelity.md)
+moves the same wall form into the Inspector and keeps the canvas taskbar compact. Its current
+verification and visual acceptance are tracked separately; the banner placement below describes
+the earlier implementation, not an architectural requirement.
+
 The available closed-loop capture shows the optional Room checkbox and label obscured beneath
 the sticky Finish control. The accepted banner host remains appropriate; the defect is within
 its scrolling content. [Before capture](evidence/editor-wall-task-clearance/before-dark.png).

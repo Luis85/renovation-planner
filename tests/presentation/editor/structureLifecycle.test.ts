@@ -54,11 +54,17 @@ describe('spatial task failure, busy and leaf lifetime', () => {
 	it('traces a temporary loop, operates every numeric field, creates its Room and uses list selection and deletion focus', async () => {
 		const value = await rig(), task = await start(value);
 		const before = expectOk(await value.geometry.read(value.plan.id));
+		expect(value.wrapper.findAll('.rp-structure-task')).toHaveLength(1);
+		expect(value.wrapper.find('.rp-editor-inspector .rp-structure-task').exists()).toBe(true);
+		expect(value.wrapper.find('.rp-task-banner .rp-structure-task').exists()).toBe(false);
 		await value.wrapper.find('.rp-structure-task input[name="x"]').setValue('0'); await value.wrapper.find('.rp-structure-task input[name="y"]').setValue('0');
 		await value.wrapper.find('.rp-structure-task input[name="height"]').setValue('2.5'); await value.wrapper.find('.rp-structure-task input[name="thickness"]').setValue('0.2');
 		value.runtime.toolManager.pointerDown(pointerAt(0, 0)); value.runtime.toolManager.pointerMove(pointerAt(4000, 2)); await settle();
 		expect(value.wrapper.find('.rp-structure-task').text()).toContain('4 m');
-		value.runtime.toolManager.pointerDown(pointerAt(4000, 0)); value.runtime.toolManager.pointerDown(pointerAt(4000, 3000));
+		value.runtime.toolManager.pointerDown(pointerAt(4000, 0)); value.runtime.toolManager.pointerMove(pointerAt(4000, 3000)); await settle();
+		expect(value.stage.find('.wall-draft-length').map(node => node.getAttr('text'))).toEqual(['4 m', '3 m']);
+		expect(value.stage.findOne('.wall-draft-angle-label')?.getAttr('text')).toBe('90°');
+		value.runtime.toolManager.pointerDown(pointerAt(4000, 3000));
 		await value.wrapper.find('.rp-structure-task .rp-dialog-actions button:first-child').trigger('click'); expect(task.draft.points).toHaveLength(2);
 		value.runtime.toolManager.pointerDown(pointerAt(4000, 3000)); value.runtime.toolManager.pointerDown(pointerAt(0, 3000));
 		await value.wrapper.find('.rp-structure-task .rp-dialog-actions button:last-child').trigger('click');

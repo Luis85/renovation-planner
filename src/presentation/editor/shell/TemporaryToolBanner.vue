@@ -45,7 +45,6 @@ import type { StringKey } from '../../i18n/locales/en';
 import type { ToolId } from '../tools/editor-tool';
 import { useEditorRuntime } from '../runtime';
 import AreaCornerEditor from '../add/AreaCornerEditor.vue';
-import StructureTaskForm from '../structure/StructureTaskForm.vue';
 import { isStructureTool } from '../structure/structureDraft';
 import { isElementTool } from '../elements/elementDraft';
 
@@ -86,7 +85,7 @@ const instructionId = useId();
 const isArea = computed(() => runtime.activeToolId.value === 'draw-area');
 const isOutline = computed(() => isArea.value || runtime.activeToolId.value === 'draw-polygon');
 const finishLabel = computed(() => tr(isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
-const canFinish = computed(() => isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
+const canFinish = computed(() => isStructure.value ? !runtime.structureTask.blocked.value : isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
 const showSnapHint = computed(() => runtime.activeToolId.value === 'draw-room' && runtime.renderState.snapGuides.length > 0);
 const isFreeRoom = computed(() => runtime.activeToolId.value === 'draw-polygon');
 const finishBlocked = computed(() => !canFinish.value || runtime.writesBlocked.value);
@@ -101,7 +100,8 @@ const finishDescription = computed(() => [instructionId, runtime.writesBlocked.v
  */
 function onFinish(): void {
 	if (!canFinish.value || runtime.writesBlocked.value) return;
-	if (isElement.value) void runtime.elementTask.finish();
+	if (isStructure.value) void runtime.structureTask.finish();
+	else if (isElement.value) void runtime.elementTask.finish();
 	else if (isOutline.value) runtime.finishArea();
 	else void runtime.createRoom();
 }
@@ -162,7 +162,6 @@ watch(task, (next) => {
 			role="status"
 		>{{ tr('editor.room.snapped') }}</span>
 		<span
-			v-if="!isStructure"
 			:id="instructionId"
 		>{{ tr(task.instructionKey) }}</span>
 		<label v-if="isFreeRoom">{{ tr('editor.room.name') }}
@@ -175,7 +174,14 @@ watch(task, (next) => {
 			>
 		</label>
 		<AreaCornerEditor v-if="isOutline" />
-		<StructureTaskForm v-if="isStructure" />
+		<button
+			v-if="runtime.activeToolId.value === 'draw-wall'"
+			type="button"
+			:aria-disabled="runtime.structureTask.blocked.value"
+			@click="runtime.structureTask.undoPoint()"
+		>
+			{{ tr('editor.structure.undo-point') }}
+		</button>
 		<label
 			v-if="isArea"
 			class="rp-task-banner__repeat"
@@ -187,7 +193,7 @@ watch(task, (next) => {
 			{{ tr('editor.area.keep-adding') }}
 		</label>
 		<button
-			v-if="task.finish"
+			v-if="task.finish || isStructure"
 			type="button"
 			class="rp-task-banner__finish"
 			:aria-disabled="finishBlocked"

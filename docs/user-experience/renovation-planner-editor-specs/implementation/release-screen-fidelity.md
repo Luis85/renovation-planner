@@ -32,6 +32,21 @@ Each screen table expands the exact source use cases (UC), interactions (I) and 
 
 Source-image review is complete. Current product screenshots and targeted verification will be recorded here before claiming visual acceptance.
 
+F1 confirmed by current rendered reproduction: M08/M09 subject rows and their canvas markers show description/condition/change but omit the saved surface or element kind. Two saved Floor/Wall records with identical descriptions appear identical until Edit is opened. The four-scenario before pilot passed at HEAD `8400e034` with production unchanged from `7d4bc381` and an authored, uncommitted reproducer; its exact script and hashes are retained in [before evidence](evidence/release-subject-kinds/before/provenance.json). Light M08/M09 and German constrained M08 were visually inspected. `RenovationForm` already stores the kind and EN/DE labels. Correction: show the localized kind in both row title and marker, retaining IDs, geometry, links and commands. Owner: fidelity; targeted regression and after-image acceptance follow below.
+
+![M08 before: indistinguishable saved Floor and Wall descriptions](evidence/release-subject-kinds/before/light-M08-identical-descriptions.png)
+
+![M09 before: indistinguishable intended descriptions](evidence/release-subject-kinds/before/light-M09-identical-descriptions.png)
+
+The correction reuses `renovation.kind.*` in `SubjectRow` and the subject-only branch of
+`RenovationLayer`. Work and Review markers retain their previous labels. A production-editor
+regression creates two real saved kinds with identical descriptions, checks both Existing and
+Planned labels, follows each marker/list identity, resizes to 460 px, and verifies that navigation
+does not change vault bytes. `renovationRoutes` and `reviewMarkerNavigation` passed 23 tests;
+the same invocation could not start the new test's fork worker and exited 1. The isolated
+unchanged `subjectKindPresentation` retry then passed 1 test (99.91 s; test body 1.88 s).
+That resource failure is retained as a failed attempt, not recast as a product assertion failure.
+
 ## M00 — Kitchen Selected Overview
 
 Production entry points: `src/presentation/editor/shell/RoomInspector.vue`; `src/presentation/editor/renovation/RoomRenovationDetails.vue`; `src/presentation/editor/layers/InteractionLayer.vue`. Evidence/source revision: `7d4bc381`. Owner: fidelity for presentation; parent for final integrated/host acceptance. Dependencies: existing production commands plus selection/rotation integration where applicable.
@@ -175,7 +190,7 @@ Production entry points: `src/presentation/editor/reference/FloorStart.vue`; `sr
 
 ## M06 — Reference Plan Setup
 
-Production entry points: . Evidence/source revision: `7d4bc381`. Owner: fidelity for presentation; parent for final integrated/host acceptance. Dependencies: existing production commands plus selection/rotation integration where applicable.
+Production entry points: `src/presentation/editor/reference/ReferenceSetupForm.vue`; `src/presentation/editor/reference/referenceSetup.ts`. Evidence/source revision: `7d4bc381`. Owner: fidelity for presentation; parent for final integrated/host acceptance. Dependencies: existing production commands plus selection/rotation integration where applicable.
 
 | Source requirement | Classification | Remaining action / acceptance |
 |---|---|---|
@@ -466,3 +481,22 @@ Source: [component library](../components/component-library.md), revision `7d4bc
 | `RoomDetectedPrompt` | **Responsibility:** Offer room creation when a wall loop closes. |
 | `EntityInspector` | **Responsibility:** Shared Inspector frame: entity identity, close/back behavior, contextual body, primary action. |
 | `TransformationSummary` | **Responsibility:** Compact Existing → Work → Planned glanceable narrative. **Rule:** Summary is not navigation when `HomeownerQuestionNav` is present; it avoids duplicated active destinations. |
+
+## Shared states, overlays and input acceptance
+
+All rows use the shared component library/SDD source at `7d4bc381`, are implemented but unverified on the final joined revision, and depend on the parent’s integrated gate and applicable host observation. They are explicit acceptance work, not feature requests inferred from screenshots.
+
+| Contract source | Production owner / required observation |
+|---|---|
+| Component §§2, 12: one shell, shared stores, leaf-local panels and drafts | `PlanEditorRoot`, runtime, Project/Workspace/Selection stores: resize and navigation preserve selection/camera/draft; no second data authority. |
+| Component §5: Room/Area/Wall/Opening/reference shape layers | `ZoneLayer`, `StructureLayer`, reference layer: projections use correct selection/hover/hit identity, no direct repository write. |
+| Component §5: Work/Material/Evidence/Review and surface markers | `RenovationLayer`, `MaterialMarkers`, `EvidencePins`, `ReviewRoomMarkers`: readable labels with list equivalents; stable in-context numbering; bidirectional record focus. |
+| Component §5: snap feedback | Existing snapping service and interaction overlays: guides/text communicate endpoint/alignment/angle; zoom preserves screen-space tolerance. |
+| Component §7: temporary banner and draft overlays | Runtime ToolManager/task forms: one-shot default; explicit repeat; no write until Finish; Escape order and input ownership; native numeric routes. |
+| Component §8: Inspector child navigation | `RenovationEntry`, `EntityInspector`, shared responsive region: context stays selected; transformation summary is not competing navigation. |
+| Component §9: fields and calculated provenance | Native fields and existing dialog host: validation retains raw draft; calculated provenance is visible; labels/units/errors are associated; busy/refused states preserve focus. |
+| Component §9: list/grid/financial/evidence semantics | Existing Inspector components: real labels/headers, selected state, ordinary vault links, fallback for missing thumbnails, no facts inferred from color alone. |
+| Component §9: impact/confirmation/error surfaces | Existing `DialogHost`, warning strips and save state: confirmed destructive effects name dependencies; independent warnings coexist; no raw infrastructure exception. |
+| Component §10: save-state and compact status | `StatusBar` and `SaveStateIndicator`: Saved/Saving/Unsaved/Failed/refresh-needed remain distinct; status and View preserve essential controls at 460 px. |
+| Component §11: host theme tokens | Semantic CSS and theme adapter: light/dark/custom accent with noncolor status patterns and native-size controls. |
+| Component §14: architecture and accessibility | Unchanged build/lint/coverage/analysis gate; browser keyboard checks; separate actual screen-reader/physical-device review. |

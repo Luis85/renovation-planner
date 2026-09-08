@@ -20,7 +20,7 @@ const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
 const markers = computed(() => {
 	if (session.perspective === 'review' || !['existing', 'planned', 'work'].includes(session.mode)) return [];
 	const records = session.mode === 'work' ? orderedWork(value.value).filter(item => inRenovationScope(item, session.roomId, session.targetId)).map(item => ({ ...item, label: item.title }))
-			: value.value.subjects.filter(item => inRenovationScope(item, session.roomId, session.targetId) && item[session.mode === 'existing' ? 'existing' : 'planned']).map(item => ({ ...item, label: session.mode === 'existing' ? item.existing?.description : `${item.planned ? tr(`renovation.change.${item.planned.change}`) : ''} ${item.planned?.description || item.existing?.description}` }));
+			: value.value.subjects.filter(item => inRenovationScope(item, session.roomId, session.targetId) && item[session.mode === 'existing' ? 'existing' : 'planned']).map(item => ({ ...item, label: `${tr(`renovation.kind.${item.kind}`)} · ${session.mode === 'existing' ? item.existing?.description : `${item.planned ? tr(`renovation.change.${item.planned.change}`) : ''} ${item.planned?.description || item.existing?.description}`}` }));
 	// Existing/Planned/Work records retain their per-room stacks; Review uses Room markers.
 	const rows = new Map<string, number>();
 	return records.flatMap(item => {

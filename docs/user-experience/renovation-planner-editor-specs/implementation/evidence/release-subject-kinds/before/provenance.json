@@ -1,0 +1,11 @@
+{
+  "browser": "Microsoft Edge 152.0.4191.62 via explicit RP_CHROMIUM_EXECUTABLE override",
+  "productionSource": "7d4bc381",
+  "command": "node scripts/editor-subject-kind-check.mjs --before",
+  "reproducerSha256": "b3a76c674ef753de3caf40824c243cd3cba1f89350ab2071503964870012e10a",
+  "head": "8400e03473b5db79ae61696497048905f138252c",
+  "result": "Four scenarios passed; duplicated description labels observed in Existing and Planned",
+  "capture": "Pre-fix current rendered reproduction; production unchanged from baseline",
+  "scope": "Browser and FakeVault; not actual Obsidian, screen-reader or physical-device acceptance",
+  "authoredUncommittedSource": "scripts/editor-subject-kind-check.mjs"
+}

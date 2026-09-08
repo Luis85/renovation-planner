@@ -1,5 +1,18 @@
 # M07 — Wall Selected
 
+**Spatial subset, 2026-09-06:** Wall/Opening selection, persistent list access, measurements,
+associated Room names, exact numeric edits with impact preview, end-junction dragging and
+confirmed deletion are implemented under ADR-0020. `Edit measurements` opens the root-owned
+form; Preview then Apply is required for both typed length and pointer endpoint proposals.
+Length anchors the start; coincident endpoints at the end move together. Invalid host
+containment/overlap refuses the edit. Rooms retain their original outlines, stated in the preview.
+
+Opening → Wall → Room priority and Alt-click cycling share the existing selection resolver.
+Shift activation from the list adds/removes selection members; mixed selection remains read-only.
+No shared delete, Existing/New, Mark change, Work, Materials, Costs, construction or Evidence
+control is advertised. Those illustrated capabilities await later phases; **full M07 is open**.
+See [acceptance evidence](../../../tests/cases/Draw%20connected%20walls%20and%20openings.md).
+
 ![M07 — Wall Selected](../images/M07-wall-selected.png)
 
 ## Screen description

@@ -36,7 +36,7 @@ import type { EditorPointerEvent, ToolId } from '../tools/editor-tool';
 import type { ToolManager } from '../tools/tool-manager';
 import type { RenderState } from '../tools/render-state';
 import { routeEscape } from '../escapeRouting';
-import { arrowVector, plainPress } from './keyboard';
+import { arrowVector, finishShortcut } from './keyboard';
 import { cursorClassFor } from './cursor';
 
 /**
@@ -965,18 +965,14 @@ function onPointerLeave(event: PointerEvent): void {
  * answer that way rather than defaulting: a jump to nowhere costs the user the view they
  * had and tells them nothing about why.
  */
-/**
- * Enter finishes a draw-area draft — and only a PLAIN Enter: not a repeat, not a chord, not
- * a keystroke an IME is still composing (`plainPress`). `preventDefault` runs for every Enter
- * while that tool is active, chorded or not, so nothing beneath the canvas activates on it.
- * Its own function beside `fitShortcut` for the same reason that one is: `onKeyDown` was at
- * its cognitive-complexity budget the day the merge added this branch to it.
- */
-function finishShortcut(event: KeyboardEvent): boolean {
-	if (event.key !== 'Enter' || activeToolId.value !== 'draw-area') return false;
-	event.preventDefault();
-	if (plainPress(event)) props.finishArea();
-	return true;
+/** `finishShortcut`'s doors — the key semantics live in `surface/keyboard.ts`. */
+function finishKeys(event: KeyboardEvent): boolean {
+	return finishShortcut(event, {
+		tool: activeToolId.value,
+		finishArea: props.finishArea,
+		finishActiveTool: () => toolManager.finishActiveTool(),
+		undoWallPoint: () => toolManager.editActiveCorner(-1, null),
+	});
 }
 
 function fitShortcut(event: KeyboardEvent): boolean {
@@ -1173,7 +1169,7 @@ function onKeyDown(event: KeyboardEvent): void {
 		return;
 	}
 	// One short-circuit chain, in this order: a running gesture swallows every key below it.
-	if (gestureInFlight() || finishShortcut(event) || fitShortcut(event)) return;
+	if (gestureInFlight() || finishKeys(event) || fitShortcut(event)) return;
 	zoomShortcut(event);
 }
 

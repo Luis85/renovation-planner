@@ -197,7 +197,7 @@ Tasks:
 - Implement/persist Wall and hosted Opening relationships as approved.
 - Add connected-wall draft state, segment dimensions, angle indication, and undo point.
 - Add loop detection and optional Room creation in one composite command.
-- Add Wall Inspector measurements and change-state actions.
+- Add Wall Inspector measurements; change-state actions depend on Phase 7 and remain unavailable until then.
 - Implement exact-length transform impact preview.
 - Add Door/Window/Opening placement using wall hosting and snapping.
 
@@ -212,6 +212,12 @@ Tests:
 Exit criteria:
 
 - Precise layouts can be created without compromising the room-first path.
+
+The 2026-09-06 continuation implements the spatial subset under ADR-0020. Its acceptance
+evidence, bounded geometry rules and open host/product checks are recorded in
+[implementation status](implementation-status.md#connected-wall-and-opening-continuation--2026-09-06)
+and [Draw connected walls and openings](../../../tests/cases/Draw%20connected%20walls%20and%20openings.md).
+This does not complete the later renovation semantics illustrated in M07.
 
 ### Phase 6 — Floor acquisition and reference-plan workflow
 

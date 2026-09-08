@@ -23,7 +23,9 @@
  * not `editor.*` at all — they happened to sit between `editor.inspector.linked.notes` and
  * `editor.room.default-name` in the source file's reading order. They stayed in `en.ts`.
  */
+import { structureEn } from './structure';
 export const editorEn = {
+	...structureEn,
 	"editor.reference.title": "Reference plan setup",
 	"editor.reference.prepare": "Prepare plan",
 	"editor.reference.scale": "Set scale",
@@ -59,8 +61,8 @@ export const editorEn = {
 	"editor.reference.visible": "Visible",
 	"editor.reference.locked": "Locked",
 	"editor.reference.unlock-help": "Position changes are made through setup; the canvas does not drag references.",
-	"editor.reference.rescale": "Rescale all existing rooms and areas by {factor} about the floor origin. Their calculated quantities will change.",
-	"editor.reference.consent": "Confirm the effect on existing rooms and areas before finishing.",
+	"editor.reference.rescale": "Rescale all walls, openings, rooms and areas by {factor} about the floor origin. Measurements and calculated quantities will change.",
+	"editor.reference.consent": "Confirm the effect on existing walls, openings, rooms and areas before finishing.",
 	"editor.reference.invalid-prepare": "Load a source and enter a positive crop within the image, with rotation from -180° to 180°.",
 	"editor.reference.invalid-scale": "Enter two different points inside the crop and a finite positive known distance.",
 	"editor.reference.paused": "Saving is paused. Wait for the operation, or cancel and reopen after refreshing the floor.",
@@ -90,7 +92,7 @@ export const editorEn = {
 	'editor.selection.count': 'Selected elements',
 	'editor.selection.area-sum': 'Sum of areas',
 	'editor.selection.area-sum-hint': 'Overlapping areas are counted separately.',
-	'editor.selection.members': 'Selected rooms and areas',
+	'editor.selection.members': 'Selected items',
 	'editor.selection.records': 'Rooms and areas',
 	'editor.selection.clear': 'Clear selection',
 	'editor.selection.hint': 'Shift-click to add or remove a selection. Alt-click on the plan to cycle overlapping elements.',
@@ -260,8 +262,8 @@ export const editorEn = {
 	// noun true of both surfaces. The key keeps its `editor.` prefix because the FORM lives in
 	// `presentation/editor/shell/` and a key rename orphans nothing but reads as a move.
 	'editor.calibrate.distance.measured': 'Measured on the background:',
-	'editor.calibrate.recalibrate.title': 'Rescale the rooms or areas on this plan?',
-	'editor.calibrate.recalibrate.message': 'This plan already has rooms or areas drawn on it. Setting the scale rescales every one of them. You can undo it.',
+	'editor.calibrate.recalibrate.title': 'Rescale the walls, openings, rooms or areas on this plan?',
+	'editor.calibrate.recalibrate.message': 'This plan already has walls, openings, rooms or areas drawn on it. Setting the scale rescales all their measurements. You can undo it.',
 	// Task 18's temporary task banner: names the active creation task over the canvas and
 	// offers a Cancel button. NOT `routeEscape` (R7, 2026-09-04): Cancel LEAVES the task —
 	// clears any draft, returns to Select, never touches the selection — where Escape (Task 9)

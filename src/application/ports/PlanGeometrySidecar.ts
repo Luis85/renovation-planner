@@ -4,6 +4,7 @@ import type { Point } from '../../core/geometry/Point';
 import type { Calibration } from '../../domain/plan/Calibration';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { EntityVersion } from './versioning';
+import type { Structure } from '../../domain/spatial/Structure';
 
 /**
  * One geometry entry of the plan sidecar (ADR-002/ADR-011), raised to domain shapes: the
@@ -17,6 +18,7 @@ export interface SpatialObjectGeometry {
 
 /** The whole editable content of one plan's sidecar, calibration included. */
 export interface PlanGeometryDocument {
+	readonly structure?: Structure;
 	readonly calibration: Calibration | null;
 	readonly objects: readonly SpatialObjectGeometry[];
 }

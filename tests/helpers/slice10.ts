@@ -67,7 +67,7 @@ export const noopCascadeNotify = {
 export function makeDeleteZoneCommand(
 	zones: ZoneRepository,
 	events: EventBus,
-	requirements = new InMemoryRequirementRepository(),
+	requirements: RequirementRepository = new InMemoryRequirementRepository(),
 	locks = new ReferenceLocks(),
 	projects: InMemoryProjectRepository = new InMemoryProjectRepository(),
 ): DeleteZoneCommand {

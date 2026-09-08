@@ -7,10 +7,10 @@ behavior on `cf536f32` from the current contribution. It does not declare the wh
 |---|---|---|
 | 0 | Existing Room/Zone and Floor/Plan ADRs; ADR-0018 records selection, Inspector and refresh ownership | New-domain contracts, perspective implementation and stakeholder acceptance |
 | 1 | Responsive shell, context bar, rails and drawers already exist | Perspective controls when their domains are available; full theme/release acceptance |
-| 2 | This contribution adds ordered unique multi-selection, independent member focus, badges, overlap cycling, persistent list access and shared-property summary | Wall/Opening/Object hit priority and inspectors when those entities exist |
+| 2 | Ordered unique multi-selection, independent member focus, badges, overlap cycling, persistent list access; Phase 5 adds Wall/Opening hit priority and Inspectors | Object selection and remaining release acceptance |
 | 3 | Select/Add and temporary Room tools exist; the Area continuation adds its catalogue path, validated outline, one-shot/repeated completion and keyboard routing; the numeric continuation adds corner placement/correction | Unavailable creation domains, complete cross-tool/non-canvas routes and release acceptance |
 | 4 | Rectangular room creation exists; the dimensions continuation adds keyboard resizing of existing axis-aligned four-corner Rooms; the naming continuation adds explicit keyboard renaming for all Room outlines | Broader resizing, room-kind decision and complete M03/live acceptance |
-| 5 | Not delivered | Walls, hosted openings, connected creation, exact-length impact and composite undo |
+| 5 | Connected walls, hosted openings, optional Room transaction, measurements, exact-length impact, confirmed deletion and conditional history (ADR-0020) | Live Obsidian/screenreader and complete M04/product acceptance; M07 renovation semantics await later phases |
 | 6 | Query-derived floor start and compensated prepare/scale/review setup, persistent appearance, exact-version history and contextual revisiting (ADR-0019) | Live Obsidian/screenreader, forced-process recovery and complete M05/M06 acceptance |
 | 7 | Not delivered | Separate Existing/Planned state and change relationships |
 | 8 | Not delivered | Work dependencies, readiness, Review and vault-backed review notes |
@@ -552,3 +552,227 @@ The remaining uncovered paths were inspected:
 
 Live host timing, screenreader behavior, large PDFs and forced-process termination remain
 manual acceptance gaps, independently of these counters.
+
+## Connected-wall and opening continuation — 2026-09-06
+
+Phase 5's M04 and **spatial subset** of M07 are implemented. Increment B and full M07 acceptance
+remain open. Existing/New, change classification, Work, Materials, Costs and Evidence belong to
+later phases and have no partial controls here. ADR-0020 resolves the first non-polygon spatial
+object contract: straight centre-line walls, hosted door/window/opening intervals and Room-boundary
+provenance in `.rpgeo` v2. Existing Room/Area polygons and Markdown ownership remain intact.
+
+### Demonstrated journey
+
+- Add → Wall starts a temporary connected chain. Pointer endpoint/axis snapping and first-point
+  plus segment length/angle keyboard entry share validation. Live measurements, point Undo,
+  explicit loop closing, Finish and Cancel remain available in the responsive shell. A closed
+  loop can create a named Room using the existing compensated Zone command in one history item.
+- Architecture renders real walls and opening patterns. Shared selection prioritizes openings,
+  walls, then polygons; Alt cycles overlaps. The persistent list supports keyboard selection and
+  mixed selection. The wall Inspector shows length, height, thickness and associated Room names.
+  Numeric length and endpoint gestures use the same connected-junction edit and impact dialog.
+- Doors, windows and openings have explicit host IDs and offset/width/height/sill measurements.
+  Placement, editing, preview/cancel, confirmed deletion and reversed history preserve containment
+  and refuse overlap. Shortening a host never clamps or detaches its openings. Deleting a host
+  removes its openings and association records while retaining Rooms. Room deletion Undo restores
+  associations or compensates the restored Room when referential integrity cannot be maintained.
+- Failures retain the active draft, busy guards prevent duplicate submissions, stale/conflicting
+  observations refuse writes, and disposed leaves ignore late UI responses. The command compensates
+  reported multi-write failures, conditionally restores snapshots and announces committed changes.
+  Activation compares the displayed structure and calibration with its freshly read baseline;
+  a mismatch pauses and refreshes before accepting points. Two regressions reproduced the stale
+  display/fresh-baseline race and pass after the fix, alongside the mounted keyboard journey.
+
+Room boundary records describe creation provenance/adjacency, not a second outline. Wall edits
+preview affected Rooms but leave their manually maintained outlines unchanged. Exact endpoint
+connectivity, supported junction edits, numeric bounds and refusal rules are explicit in ADR-0020.
+
+### Geometry-consumer audit
+
+| Consumer | Result |
+|---|---|
+| Sidecar DTO/migration/store/adapters | Pure idempotent v1→v2 read; v2 writes with structure, legacy-compatible v1 without it; future versions and invalid relationships refused. Fresh repositories retain IDs, values and legacy notes. |
+| Zone repository mutation/deletion | Polygon updates preserve structure; deleting a Room removes boundary references; reversible deletion restores validated associations through the sidecar port. |
+| Calibration/reference setup | Every endpoint and Wall/Opening dimension scales about origin with polygons; populated consent includes all entity types; appearance metadata survives. |
+| Query/store hydration and events | Structure uses the existing ticketed projection, stale state and retirement; committed structure events refresh the plan. |
+| Enumeration, hit testing, framing and selection | Explicit typed line candidates participate beside Room/Area polygons, including mixed outlines and opening-first priority. No fake persisted Zones. |
+| Inspector and calculations | Wall/Opening measurements use dedicated records; existing Room/Area area and material calculations remain based on their polygons. M07 renovation calculations are deferred. |
+| History and save state | Existing dispatcher and guarded factories; conditional complete-sidecar commands, Room composition, compensated failures and recovery warning. |
+
+### Branch and inherited review state
+
+Fetched/pruned and rechecked the stack on 2026-09-06. All six PRs remain open, with no head changes:
+
+| PR | Head | Base |
+|---|---|---|
+| #85 | `e53bf9ac62ff2cfad924efb768bd9e3d3a159001` | `codex/editor-room-naming` |
+| #83 | `d3746681980e6f472d1d2e2218ea524b692dd43c` | `codex/editor-room-dimensions` |
+| #82 | `b43e76fe6e9f3676a2dca80d0e3bf6c92880715c` | `codex/editor-area-numeric` |
+| #76 | `29eb0a07053cbedb4050fa71c922bc41c69da872` | `codex/editor-area-creation` |
+| #75 | `d91431b2ab787e54ad6105bb7fb7ebbdf01e3d19` | `codex/editor-implementation` |
+| #74 | `bb62e2f3db88c35990f34e56dad919fdccce0fd0` | `main` |
+
+Continuation: `codex/connected-walls`, based on #85 at the head above, in
+`D:/Projects/renovation-planner/.worktrees/connected-walls`. Main remains clean on the integration
+branch. No existing PR branch is modified or merged. All six stack PRs' four Linux/Windows verify
+matrix legs, audit and GitGuardian were successful at recheck; ancestry was confirmed locally.
+This continuation's CI is reported on its PR.
+
+Inherited findings are distinct from this feature's regressions:
+
+- [#74 native asset-picker Escape](https://github.com/Luis85/renovation-planner/pull/74#discussion_r3941930056)
+  remains unresolved on GitHub, but the inherited root handler already excludes native selects.
+- [#75 busy Area completion](https://github.com/Luis85/renovation-planner/pull/75#discussion_r3941885495)
+  remains unresolved on GitHub, but inherited tool registration already supplies `canFinishArea`.
+- [#76 Escape after clearing corner rows](https://github.com/Luis85/renovation-planner/pull/76#discussion_r3942047113)
+  remains open: clearing an Area draft from a removed row can still lose focus. This inherited
+  Area-specific acceptance gap is not marked fixed by the new wall workflow.
+- Three #85 findings were reproduced and corrected **in this continuation**:
+  [appearance observation tokens](https://github.com/Luis85/renovation-planner/pull/85#discussion_r3943671961),
+  [mixed calibration baseline](https://github.com/Luis85/renovation-planner/pull/85#discussion_r3943671962) and
+  [canonical source paths](https://github.com/Luis85/renovation-planner/pull/85#discussion_r3943671966).
+  Regression tests failed on the inherited code, then the 275-test reference/digest run passed.
+  Their original GitHub threads remain unresolved; no claim is made about review approval.
+
+### Evidence and open acceptance
+
+Reproduction and requirement-to-test mapping:
+[Draw connected walls and openings](../../../tests/cases/Draw%20connected%20walls%20and%20openings.md).
+`scripts/editor-structure-check.mjs` performs actual browser keyboard journeys in English light/dark
+at 1440 px, custom accent at 1000 px and German dark at 460 px. It preserves and asserts custom theme
+tokens across fixture reload, checks input focus through reflow and records zero page errors in all
+four scenarios. Populated-floor recalibration requires consent, scales the structure and supports Undo.
+The report and 28 PNGs are under ignored `harness-shots/connected-walls/`; representative screenshots
+were opened and visually inspected, including constrained forms, impact previews and recalibration.
+The installed Chromium used was 148.0.7778.96; pinned-browser downloads twice failed to renew their
+download lock. This rendering evidence therefore uses the documented executable override.
+
+FakeVault tests exercise actual repositories and fresh-stack reload. Mounted DOM/axe tests cover
+semantic accessibility; browser keyboard screenshots cover the harness, not live Obsidian. Live
+split leaves, real MetadataCache timing, screenreaders, restart acceptance, physical pointer/touch,
+large-plan performance and complete M04/M07 product acceptance remain open. Reported transaction
+failures are compensated; abrupt process loss between files still has no durable crash journal.
+Conservative whole-sidecar history can refuse after other geometry writers have advanced its
+observation. Curves, automatic crossing/T-junction splitting, opening dragging, door swing and
+automatic Room-outline synchronization are outside the documented minimal contract.
+
+### Final verification and changed-file coverage
+
+On 2026-09-06 the complete `VITEST_MAX_WORKERS=2 npm run check` exited 0 on the final source tree:
+build/type-check, zero-warning lint, 505 passing files / 6,891 passing tests (70 pre-existing skips),
+all coverage gates, and Fallow with no dead-code, duplication or above-threshold health findings.
+Global coverage: statements **99.23% (12,185/12,279)**, functions **99.28% (3,324/3,348)**,
+branches **98.01% (7,274/7,421)**, lines **99.59% (10,242/10,284)**. No threshold, dependency,
+assertion, blanket skip or test configuration was relaxed. The expected version-bump refusal
+printed by a negative build-script test is not a failing check.
+
+The final four-scenario browser matrix also passed with zero page errors and 28 screenshots.
+Representative final PNGs were opened and inspected, including the corrected deletion count,
+German connected-wall impact, custom accent canvas, closed-loop form and populated recalibration.
+The screenshots are rendering/keyboard evidence using real repositories over FakeVault; they do
+not replace live Obsidian or screenreader acceptance. Browser reproduction uses the executable
+override documented above.
+
+These are **complete changed-source-file** counters, including inherited lines. Aggregate changed
+coverage: statements **99.29% (2,549/2,567)**, functions **99.30% (712/717)**, branches **97.81%
+(1,660/1,697)** and lines **99.74% (1,940/1,945)**. The global gate and changed-file branch aggregate
+are different measures; the latter is not represented as meeting a separate 98% gate. New domain
+geometry and the structure/Room-boundary application commands have complete executable coverage.
+Type-only files have 0/0 counters; CSS and the browser runner are verified by their own gates and
+browser evidence rather than included in these source counters.
+
+| Changed source file (under `src/`) | Statements | Functions | Branches | Lines |
+|---|---:|---:|---:|---:|
+| `application/commands/plan/ReversibleCalibratePlan.ts` | 63/64 | 11/11 | 37/39 | 59/59 |
+| `application/commands/spatial/RoomBoundaryHistory.ts` | 26/26 | 5/5 | 12/12 | 19/19 |
+| `application/commands/spatial/StructureCommand.ts` | 114/114 | 30/30 | 60/60 | 80/80 |
+| `application/commands/spatial/sameGeometryDocument.ts` | 10/10 | 7/7 | 4/4 | 8/8 |
+| `application/commands/zone/reversible-delete-zone-command.ts` | 53/53 | 7/7 | 26/28 | 46/46 |
+| `application/events/planChangeSource.ts` | 14/14 | 6/6 | 8/8 | 12/12 |
+| `application/ports/PlanGeometrySidecar.ts` | 0/0 | 0/0 | 0/0 | 0/0 |
+| `domain/spatial/Structure.ts` | 10/10 | 5/5 | 4/4 | 7/7 |
+| `domain/spatial/structureGeometry.ts` | 73/73 | 30/30 | 83/83 | 41/41 |
+| `infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar.ts` | 19/19 | 12/12 | 12/12 | 18/18 |
+| `infrastructure/obsidian/repositories/ObsidianZoneRepository.ts` | 133/134 | 25/25 | 66/68 | 119/119 |
+| `infrastructure/obsidian/repositories/PlanGeometryStore.ts` | 89/89 | 17/17 | 46/47 | 77/77 |
+| `infrastructure/obsidian/repositories/digest.ts` | 23/23 | 7/7 | 8/8 | 22/22 |
+| `infrastructure/persistence/dto/planFrontmatter.ts` | 11/11 | 2/2 | 2/2 | 10/10 |
+| `infrastructure/persistence/dto/planGeometry.ts` | 6/6 | 0/0 | 0/0 | 6/6 |
+| `infrastructure/persistence/migration/geometry/plan/plan-geometry.migrations.ts` | 2/2 | 1/1 | 4/4 | 2/2 |
+| `plugin/composition-root.ts` | 34/34 | 8/8 | 19/19 | 34/34 |
+| `plugin/guardedStructure.ts` | 13/13 | 9/9 | 0/0 | 8/8 |
+| `plugin/planEditorDeps.ts` | 5/5 | 3/3 | 6/6 | 5/5 |
+| `presentation/editor/PlanCanvas.vue` | 37/37 | 16/16 | 19/19 | 30/30 |
+| `presentation/editor/add/AddMenu.vue` | 127/127 | 39/39 | 75/75 | 102/102 |
+| `presentation/editor/add/createZoneHistory.ts` | 2/2 | 1/1 | 0/0 | 2/2 |
+| `presentation/editor/add/creationCatalogue.ts` | 21/21 | 13/13 | 2/2 | 18/18 |
+| `presentation/editor/forms/nativeSubmitKey.ts` | 2/2 | 1/1 | 9/9 | 1/1 |
+| `presentation/editor/inspector-wiring.ts` | 24/24 | 13/13 | 12/12 | 23/23 |
+| `presentation/editor/layers/InteractionLayer.vue` | 59/59 | 23/23 | 43/44 | 46/46 |
+| `presentation/editor/naming/RoomNameForm.vue` | 31/31 | 9/9 | 26/27 | 23/23 |
+| `presentation/editor/planEditorCommands.ts` | 14/15 | 12/13 | 0/0 | 13/13 |
+| `presentation/editor/reference/ReferenceSetupForm.vue` | 163/167 | 41/42 | 154/158 | 93/94 |
+| `presentation/editor/resize/RoomDimensionsForm.vue` | 53/54 | 16/16 | 41/42 | 37/37 |
+| `presentation/editor/runtime.ts` | 149/150 | 50/51 | 42/43 | 123/123 |
+| `presentation/editor/selection/resolveSelectionTarget.ts` | 47/47 | 10/10 | 39/40 | 32/32 |
+| `presentation/editor/selection/spatialSelection.ts` | 12/12 | 6/6 | 14/14 | 10/10 |
+| `presentation/editor/shell/EntityInspector.vue` | 12/12 | 5/5 | 11/12 | 8/8 |
+| `presentation/editor/shell/PropertyLayerPanel.vue` | 15/15 | 5/5 | 9/9 | 11/11 |
+| `presentation/editor/shell/TemporaryToolBanner.vue` | 35/35 | 11/11 | 40/41 | 24/24 |
+| `presentation/editor/shell/zoneTypeLabel.ts` | 2/2 | 1/1 | 2/2 | 2/2 |
+| `presentation/editor/structure/StructureEditForm.vue` | 86/86 | 21/21 | 72/73 | 49/49 |
+| `presentation/editor/structure/StructureInspector.vue` | 31/31 | 14/14 | 25/26 | 19/19 |
+| `presentation/editor/structure/StructureLayer.vue` | 32/32 | 17/17 | 19/19 | 20/20 |
+| `presentation/editor/structure/StructureList.vue` | 12/12 | 8/8 | 2/2 | 10/10 |
+| `presentation/editor/structure/StructureTaskForm.vue` | 47/47 | 24/24 | 61/61 | 32/32 |
+| `presentation/editor/structure/StructureTool.ts` | 33/33 | 11/11 | 25/25 | 17/17 |
+| `presentation/editor/structure/spatialMessage.ts` | 4/4 | 2/2 | 2/2 | 3/3 |
+| `presentation/editor/structure/structureActions.ts` | 71/71 | 17/17 | 54/56 | 41/41 |
+| `presentation/editor/structure/structureCandidates.ts` | 3/3 | 3/3 | 0/0 | 3/3 |
+| `presentation/editor/structure/structureDraft.ts` | 89/89 | 22/22 | 97/97 | 54/54 |
+| `presentation/editor/structure/structureRecords.ts` | 3/3 | 3/3 | 0/0 | 3/3 |
+| `presentation/editor/structure/structureTask.ts` | 102/102 | 20/20 | 67/68 | 53/53 |
+| `presentation/editor/surface/EditorSurface.vue` | 238/243 | 33/34 | 167/177 | 207/210 |
+| `presentation/editor/tools/editor-tool.ts` | 0/0 | 0/0 | 0/0 | 0/0 |
+| `presentation/editor/tools/historyActions.ts` | 4/4 | 3/3 | 0/0 | 4/4 |
+| `presentation/editor/tools/registerEditorTools.ts` | 21/22 | 13/14 | 4/4 | 20/21 |
+| `presentation/editor/tools/select-tool.ts` | 117/119 | 14/14 | 70/72 | 100/100 |
+| `presentation/i18n/locales/de/editor.ts` | 1/1 | 0/0 | 0/0 | 1/1 |
+| `presentation/i18n/locales/de/structure.ts` | 1/1 | 0/0 | 0/0 | 1/1 |
+| `presentation/i18n/locales/en/editor.ts` | 1/1 | 0/0 | 0/0 | 1/1 |
+| `presentation/i18n/locales/en/structure.ts` | 1/1 | 0/0 | 0/0 | 1/1 |
+| `presentation/read-models/planEditorQueries.ts` | 38/39 | 12/12 | 26/28 | 29/29 |
+| `presentation/read-models/spatialRecords.ts` | 12/12 | 7/7 | 6/6 | 9/9 |
+| `presentation/stores/ProjectStore.ts` | 99/99 | 11/11 | 28/28 | 92/92 |
+
+### Remaining measured coverage gaps
+
+The remaining counters were inspected; they do not imply acceptance of the unperformed routes:
+
+- Spatial forms/actions: missing-Room-name fallbacks, the impact count's defensive null-proposal
+  fallback, unavailable structure services after an otherwise mounted task, and calling a captured
+  edit dispatch callback after its leaf has already gone. Actual pending read/write rejection after
+  disposal, command failure/retry, version conflicts and both stale-projection activation cases pass.
+- Surface integration: canvas Backspace for walls and canvas Enter's wall/opening arms are not hit
+  by the instrumented suite; point Undo and completion through native buttons/forms are covered,
+  including the actual browser keyboard journey. The direct-drag runtime adapter is also uncovered
+  as an integration callback: SelectTool's endpoint dispatch and the same impact form/command with
+  a proposed endpoint are exercised separately. Physical pointer/touch acceptance remains open.
+- Shared editor fallbacks: no canvas element/bounds during pointer/size calculation, overlay pointer
+  cancellation, an empty multi-selection outline, absent badge tolerance, an empty Inspector target,
+  attempts to cancel a saving wall from the banner, and SelectTool's missing target/context guards.
+  The inherited free-polygon creation adapter's Undo callback and asset-refresh rejection in runtime
+  also remain uncovered. Existing domain/command history suites still run in the complete check.
+- Reference/Room forms: defensive null calibration/proposal guards, paused preview callback,
+  redundant null source/scale checks after submit validation, a thrown reference dispatch after
+  disposal, generated crop replacement callback, and the disposed Room-name submit response.
+  The reference appearance token, canonical path and mixed-baseline regressions are covered.
+- Repository/query fallbacks: nonnumeric revision after a validated snapshot, vanished Zone during
+  enumeration or note cleanup, refused query results and the geometry-absent optional query path.
+  Reversible Room deletion's relationship-restore compensation failure arm and impossible empty
+  successful restore box are not directly hit. Other structure compensation-failure paths, refused
+  conditional restoration, missing-wall rollback, future schema refusal and fresh reload are covered.
+- The unavailable command EventBus error sink remains the inherited uncalled function.
+
+The new coverage review is recorded separately from the previous Phase 6 counters above. It makes
+no claim that branch coverage or harness screenshots constitute complete M04/M07 host acceptance.

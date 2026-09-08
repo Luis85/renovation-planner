@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
 import { computed, onBeforeUnmount, useId, type Ref } from 'vue';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { Logger } from '../../../application/ports/Logger';
@@ -40,9 +41,7 @@ async function submit(): Promise<void> {
 	if (await form.submit()) { if (alive) emit('submit'); }
 	else if (alive) await focusFirstInvalidControl();
 }
-function keydown(event: KeyboardEvent): void {
-	if (event.key === 'Enter' && (event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)) event.preventDefault();
-}
+
 </script>
 
 <template>

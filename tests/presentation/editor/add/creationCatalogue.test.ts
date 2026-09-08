@@ -25,7 +25,7 @@ function entryById(id: CreationEntryId): CreationEntry {
 describe('the creation catalogue', () => {
 	it('offers Room and Area, each activating its own geometry path', () => {
 		const available = CREATION_CATALOGUE.filter((e) => e.availability.kind === 'available');
-		expect(available.map((e) => e.id)).toEqual(['room', 'area']);
+		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'area']);
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		available[0].activate({ setTool });
 		expect(setTool).toHaveBeenCalledWith('draw-room');
@@ -95,6 +95,7 @@ describe('the creation catalogue', () => {
 			'wall',
 			'door',
 			'window',
+			'opening',
 			'area',
 			'path',
 			'fence',
@@ -109,7 +110,9 @@ describe('the creation catalogue', () => {
 		activateCreationEntry('room', { setTool });
 		expect(setTool).toHaveBeenCalledTimes(1);
 		expect(setTool).toHaveBeenCalledWith('draw-room');
-		expect(() => activateCreationEntry('wall', { setTool })).toThrow(/unsupported/);
+		for (const [entry, tool] of [['wall', 'draw-wall'], ['door', 'place-door'], ['window', 'place-window'], ['opening', 'place-opening']] as const) {
+			setTool.mockClear(); activateCreationEntry(entry, { setTool }); expect(setTool).toHaveBeenCalledExactlyOnceWith(tool);
+		}
 	});
 });
 

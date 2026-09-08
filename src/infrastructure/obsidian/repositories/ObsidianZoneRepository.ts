@@ -421,6 +421,7 @@ export class ObsidianZoneRepository {
 				await this.geometry.mutate(cachedPlan, (sidecarDto) => ({
 					...sidecarDto,
 					objects: sidecarDto.objects.filter((object) => object.id !== id),
+					...(sidecarDto.structure ? { structure: { ...sidecarDto.structure, boundaries: sidecarDto.structure.boundaries.filter(boundary => boundary.roomId !== id) } } : {}),
 				}));
 
 			// Compensate so a failed delete leaves NOTHING deleted — a caller's failed

@@ -1,4 +1,6 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
+import type { Structure } from '../../domain/spatial/Structure';
+import type { PlanGeometrySidecar } from '../../application/ports/PlanGeometrySidecar';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
@@ -42,6 +44,7 @@ export interface AssetOptionDto {
  * declined to load, and the view speaks of zones the user cannot see.
  */
 export interface ZoneScene {
+	readonly structure?: Structure;
 	readonly zones: readonly ZoneDto[];
 	readonly unreadable: number;
 }
@@ -157,6 +160,7 @@ export function unavailablePlanEditorQueries(): PlanEditorQueryServices {
  * check-then-act the versioning design exists to refuse.
  */
 export function createPlanEditorQueries(queries: {
+	readonly geometry?: PlanGeometrySidecar;
 	readonly getPlan: Query<GetPlanInput, Result<Loaded<PlanEntity> | null, RepositoryError>>;
 	readonly getProject: Query<GetProjectInput, Result<Loaded<ProjectEntity> | null, RepositoryError>>;
 	readonly findZonesByPlan: Query<FindZonesByPlanInput, Result<ZoneListing, RepositoryError>>;
@@ -200,10 +204,13 @@ export function createPlanEditorQueries(queries: {
 			);
 		},
 		async findZonesByPlan(planId) {
+			const geometry = await queries.geometry?.read(planId as PlanId);
+			if (geometry && !geometry.ok) return geometry;
 			const found = await queries.findZonesByPlan.execute({ planId: planId as PlanId });
 			if (isErr(found)) return found;
 			return ok({
 				zones: found.value.loaded.map((loaded) => toZoneDto(loaded.entity)),
+				...(geometry?.ok && geometry.value.document.structure ? { structure: geometry.value.document.structure } : {}),
 				unreadable: found.value.refused,
 			});
 		},

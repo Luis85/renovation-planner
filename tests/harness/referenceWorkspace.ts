@@ -3,6 +3,8 @@ import { makePlan, makeProject } from '../helpers/entities';
 import { expectOk } from '../helpers/domain';
 import { ObsidianPlanGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { referencePlanServices } from '../../src/application/commands/plan/ConfigurePlanReference';
+import { structureServices } from '../../src/application/commands/spatial/StructureCommand';
+import { makeDeleteZoneCommand } from '../helpers/slice10';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../../src/application/queries/GetZoneInspector';
@@ -28,9 +30,10 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto) {
 		...base,
 		queries: { ...base.queries,
 			getPlan: async () => { await ready; const result = await stack.plans.getById(plan.id); return result.ok ? ok(result.value ? toPlanDto(result.value.entity) : null) : result; },
-			findZonesByPlan: async () => { await ready; const result = await stack.zones.listByPlan(plan.id); return result.ok ? ok({ zones: result.value.loaded.map(z => toZoneDto(z.entity)), unreadable: result.value.refused }) : result; },
+			findZonesByPlan: async () => { await ready; const snapshot = await geometry.read(plan.id); if (!snapshot.ok) return snapshot; const result = await stack.zones.listByPlan(plan.id); return result.ok ? ok({ zones: result.value.loaded.map(z => toZoneDto(z.entity)), unreadable: result.value.refused, structure: snapshot.value.document.structure }) : result; },
 		},
 		commands: { ...base.commands, referencePlan: services, zones: stack.zones, events: stack.events,
+			structure: structureServices(geometry, stack.events), deleteZone: makeDeleteZoneCommand(stack.zones, stack.events, stack.requirements), requirementEdits: { ...base.commands.requirementEdits, requirements: stack.requirements },
 			createZone: new CreateZoneCommand(stack.zones, stack.plans, stack.events), moveObject: new MoveSpatialObjectCommand(stack.zones, stack.events), zoneInspector: new GetZoneInspector(stack.zones),
 		},
 		vault: {

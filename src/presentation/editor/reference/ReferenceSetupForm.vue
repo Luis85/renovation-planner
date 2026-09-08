@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
+import { normalizePath } from 'obsidian';
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, toRaw, watch, type Ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
@@ -15,28 +17,28 @@ import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { notifyFault } from '../../notices/notify';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
-import { normalizePath } from 'obsidian';
 
 const props = defineProps<{ baseline: ReferenceBaseline; vault: BackgroundVault; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>;
 	logger: Logger; fileChanges: (listener: (path: string) => void) => () => void; dispatch: (input: ConfigureReferenceInput) => Promise<DispatchResult> }>();
 const emit = defineEmits<{ submit: [] }>();
 const candidates = props.vault.getFiles?.().filter(file => backgroundKindFor(file.path) !== null).map(file => file.path) ?? [];
 const previous = props.baseline.plan.entity;
+const calibration = props.baseline.geometry.document.calibration;
 const path = ref(previous.background?.path ?? ''), page = ref(previous.background?.page ?? 1), step = ref(1);
+// ONE canonical spelling, normalized once: a vault event carries `TFile.path`, and comparing
+// the raw text against it let a `/scan.png` draft miss its own file's change and persist a
+// spelling `BackgroundLayer` would never match either (a Codex P2 on pull request #85).
+const sourcePath = computed(() => normalizePath(path.value.trim()));
 const raster = ref<Extract<BackgroundRenderModel, { kind: 'raster' }> | null>(null);
 const submitting = ref(false);
 useDialogFormBusy(submitting, props.busy);
 const loading = ref(false), error = ref(''), conflict = ref(false), acknowledged = ref(false);
 const appearance = reactive({ crop: { x: 0, y: 0, width: 1, height: 1 }, rotation: 0, opacity: 0.65, visible: true, locked: true });
 const coordinates = reactive({ ax: '', ay: '', bx: '', by: '' });
-const length = ref(previous.calibration ? String(previous.calibration.knownDistance / 1000) : '');
+const length = ref(calibration ? String(calibration.knownDistance / 1000) : '');
 const heading = ref<HTMLElement | null>(null);
 let alive = true, generation = 0, nextPoint = 0;
-// ONE canonical spelling, normalized once: a vault event carries `TFile.path`, and comparing
-// the raw text against it let a `/scan.png` draft miss its own file's change and persist a
-// spelling `BackgroundLayer` would never match either (a Codex P2 on pull request #85).
-const source = computed(() => normalizePath(path.value.trim()));
-const kind = computed(() => backgroundKindFor(source.value));
+const kind = computed(() => backgroundKindFor(sourcePath.value));
 const paused = computed(() => submitting.value || props.busy.value || props.blocked.value || conflict.value);
 const points = computed(() => Object.values(coordinates).every(s => String(s).trim() !== '' && Number.isFinite(Number(s)))
 	? [{ x: Number(coordinates.ax), y: Number(coordinates.ay) }, { x: Number(coordinates.bx), y: Number(coordinates.by) }] : []);
@@ -44,27 +46,27 @@ const prepared = computed(() => raster.value !== null && prepareValid(appearance
 const scale = computed(() => {
 	const [a, b] = points.value, c = appearance.crop;
 	if (!prepared.value || !a || !b || !raster.value || ![a, b].every(p => p.x >= c.x && p.x <= c.x + c.width && p.y >= c.y && p.y <= c.y + c.height)) return null;
-	return setupMeasurement([a, b], length.value, appearance, raster.value.worldScale, previous.calibration);
+	return setupMeasurement([a, b], length.value, appearance, raster.value.worldScale, calibration);
 });
 const reviewScale = computed(() => scale.value === null ? tr('editor.reference.invalid-scale') : tr('editor.reference.scale-summary', { scale: Number(scale.value.millimetresPerSourcePixel.toPrecision(6)).toLocaleString(), length: length.value }));
-const needsConsent = computed(() => props.baseline.geometry.document.objects.length > 0 && scale.value?.scaleCorrection !== 1);
+const needsConsent = computed(() => (props.baseline.geometry.document.objects.length > 0 || (props.baseline.geometry.document.structure?.walls.length ?? 0) > 0) && scale.value?.scaleCorrection !== 1);
 watch(scale, value => { if (value !== null && step.value === 2) error.value = ''; });
 const submitLabel = computed(() => tr(step.value === 3 ? 'editor.reference.finish' : step.value === 2 ? 'editor.reference.apply-scale' : 'editor.reference.continue'));
 const stageLabel = computed(() => tr(step.value === 1 ? 'editor.reference.prepare' : step.value === 2 ? 'editor.reference.scale' : 'editor.reference.review'));
 function invalidate(): void { generation++; raster.value = null; loading.value = false; }
 watch([path, page], invalidate);
-onBeforeUnmount(props.fileChanges(changed => { if (changed === source.value) { invalidate(); error.value = tr('editor.reference.source-changed'); } }));
+onBeforeUnmount(props.fileChanges(changed => { if (changed === sourcePath.value) { invalidate(); error.value = tr('editor.reference.source-changed'); } }));
 onBeforeUnmount(() => { alive = false; invalidate(); });
 function anotherDistance(): void { Object.assign(coordinates, { ax: '', ay: '', bx: '', by: '' }); length.value = ''; nextPoint = 0; acknowledged.value = false; }
 function initialise(model: Extract<BackgroundRenderModel, { kind: 'raster' }>): void {
-	const same = previous.background?.path === source.value && (previous.background.page ?? 1) === Number(page.value);
+	const same = previous.background?.path === sourcePath.value && (previous.background.page ?? 1) === Number(page.value);
 	Object.assign(appearance, same && previous.background?.appearance ? structuredClone(previous.background.appearance)
 		: { crop: { x: 0, y: 0, width: model.width, height: model.height }, rotation: 0, opacity: 0.65, visible: true, locked: true });
-	if (same && previous.calibration) {
-		const angle = -appearance.rotation * Math.PI / 180, worldScale = model.worldScale / previous.calibration.pixelsPerWorldUnit;
+	if (same && calibration) {
+		const angle = -appearance.rotation * Math.PI / 180, worldScale = model.worldScale / calibration.pixelsPerWorldUnit;
 		const invert = (p: Point) => ({ x: (p.x * Math.cos(angle) - p.y * Math.sin(angle)) / worldScale + appearance.crop.x,
 			y: (p.x * Math.sin(angle) + p.y * Math.cos(angle)) / worldScale + appearance.crop.y });
-		const a = invert(previous.calibration.pointA), b = invert(previous.calibration.pointB);
+		const a = invert(calibration.pointA), b = invert(calibration.pointB);
 		Object.assign(coordinates, { ax: String(a.x), ay: String(a.y), bx: String(b.x), by: String(b.y) });
 	} else anotherDistance();
 }
@@ -75,7 +77,7 @@ async function load(): Promise<void> {
 	const token = ++generation;
 	loading.value = true;
 	let model: BackgroundRenderModel;
-	try { model = await loadBackground({ path: source.value, kind: kind.value, page: Number(page.value) }, props.vault); }
+	try { model = await loadBackground({ path: sourcePath.value, kind: kind.value, page: Number(page.value) }, props.vault); }
 	catch { model = { kind: 'unavailable', reason: 'unreadable' }; }
 	if (!alive || token !== generation) return;
 	loading.value = false;
@@ -98,7 +100,7 @@ async function commit(): Promise<void> {
 	if (sourceKind === null) return;
 	submitting.value = true;
 	try {
-		const result = await props.dispatch({ background: { path: source.value, kind: sourceKind,
+		const result = await props.dispatch({ background: { path: sourcePath.value, kind: sourceKind,
 			...(sourceKind === 'pdf' ? { page: Number(page.value) } : {}), appearance: structuredClone(toRaw(appearance)) }, measurement: scale.value.measurement });
 		if (!alive) return;
 		if (result.ok) emit('submit');
@@ -114,9 +116,7 @@ async function submit(): Promise<void> {
 	if (needsConsent.value && !acknowledged.value) { error.value = tr('editor.reference.consent'); return; }
 	await commit();
 }
-function keydown(event: KeyboardEvent): void {
-	if (event.key === 'Enter' && (event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)) event.preventDefault();
-}
+
 onMounted(() => { if (path.value) void load(); });
 </script>
 <template>

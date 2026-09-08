@@ -8,7 +8,7 @@ import { markUncompensated } from '../../../src/application/commands/DispatchOut
 import { installObsidianDom } from '../../helpers/dom';
 import { resizeTo } from '../../helpers/layout';
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mountPlanEditor, runtimeOf, settle, settleUntil } from '../../helpers/editor';
 import { harnessDeps, HARNESS_PLAN } from '../../harness/planEditor';
 import { referenceWorkspace } from '../../harness/referenceWorkspace';
@@ -20,14 +20,20 @@ import { err } from '../../../src/core/result/Result';
 import * as backgrounds from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import type { BackgroundRenderModel } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { makeZone } from '../../helpers/entities';
+import { WALL_LOOP } from '../../helpers/structure';
+import { installCanvas } from '../../helpers/canvas';
 
 beforeEach(() => { installObsidianDom(); activateNotices(); });
+const mounted: { unmount(): void }[] = [];
+afterEach(() => { for (const harness of mounted.splice(0)) harness.unmount(); });
 async function rig(worldScale = 1) {
+	installCanvas();
 	const workspace = referenceWorkspace(harnessDeps(), HARNESS_PLAN); await workspace.ready;
 	const image = document.createElement('canvas'); image.width = 800; image.height = 600;
 	const raster = { kind: 'raster', image, width: 800, height: 600, worldOrigin: { x: 0, y: 0 }, worldScale } as const;
 	const load = vi.spyOn(backgrounds, 'loadBackground').mockImplementation(source => Promise.resolve(source === null ? { kind: 'none' } : raster));
 	const harness = await mountPlanEditor({ plan: HARNESS_PLAN, queries: workspace.deps.queries, commands: workspace.deps.commands, vault: workspace.deps.vault });
+	mounted.push(harness);
 	return { ...workspace, harness, load, raster };
 }
 type Rig = Awaited<ReturnType<typeof rig>>;
@@ -50,6 +56,28 @@ async function measure(r: Rig) {
 async function cancel(r: Rig) { await r.harness.wrapper.get('.rp-dialog [data-rp-action="cancel"]').trigger('click'); await settle(); }
 
 describe('M05 → M06 in the real editor with FakeVault repository commands', () => {
+	it('uses one geometry calibration snapshot and requests consent on a wall-only floor', async () => {
+		const r = await rig();
+		const before = expectOk(await r.geometry.read(r.plan.id));
+		const document = { ...before.document, structure: WALL_LOOP, calibration: { pointA: { x: 0, y: 0 }, pointB: { x: 200, y: 0 }, knownDistance: 200, pixelsPerWorldUnit: 0.5 } };
+		expectOk(await r.geometry.write(r.plan.id, document, before.version));
+		const baseline = expectOk(await r.services.read(r.plan.id));
+		const stalePlan = expectOk(baseline.plan.entity.withCalibration({ pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 100, pixelsPerWorldUnit: 1 }));
+		vi.spyOn(r.services, 'read').mockResolvedValueOnce({ ok: true, value: { ...baseline, plan: { ...baseline.plan, entity: stalePlan } } });
+		await open(r); await prepare(r); await measure(r);
+		await submit(r); expect(r.harness.wrapper.text()).toContain('Confirm the effect');
+		await r.harness.wrapper.get('input[name="consent"]').setValue(true); await submit(r);
+		expect(expectOk(await r.geometry.read(r.plan.id)).document.structure?.walls[0].end.x).toBe(20000);
+		r.harness.unmount();
+	});
+	it('normalizes source paths for preview, dispatch and change invalidation', async () => {
+		const r = await rig(); await open(r); await prepare(r, ' /scan.png ');
+		expect(r.load).toHaveBeenLastCalledWith(expect.objectContaining({ path: 'scan.png' }), expect.anything());
+		r.harness.changeFile('scan.png'); await settle(); expect(r.harness.wrapper.find('.rp-reference-preview').exists()).toBe(false);
+		await prepare(r, ' /scan.png '); await measure(r); await submit(r);
+		expect(expectFound(await r.stack.plans.getById(r.plan.id)).entity.background?.path).toBe('scan.png');
+		r.harness.unmount();
+	});
 	it('offers three query-derived starts, dismisses and hides onboarding during Room creation', async () => {
 		const r = await rig(); const start = r.harness.wrapper.get('[data-rp-empty="floor-start"]');
 		expect(start.text()).toContain('Add rooms'); expect(start.text()).toContain('Upload a floor plan'); expect(start.text()).toContain('Start empty');

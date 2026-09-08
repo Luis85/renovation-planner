@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
 import { computed, onBeforeUnmount, ref, useId, watchEffect, type Ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { Polygon } from '../../../core/geometry/Polygon';
@@ -61,9 +62,7 @@ async function submit(): Promise<void> {
 	if (await form.submit() && alive) emit('submit');
 }
 /** Preserve native editing; held/composed/chorded Enter must not submit repeatedly. */
-function keydown(event: KeyboardEvent): void {
-	if (event.key === 'Enter' && (event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)) event.preventDefault();
-}
+
 </script>
 
 <template>

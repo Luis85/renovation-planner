@@ -526,6 +526,7 @@ export function createCompositionRoot(
 			defaultCurrency: repositories.defaultCurrency,
 			...guarded,
 			planEditorQueries: createPlanEditorQueries({
+				geometry: new ObsidianPlanGeometrySidecar(geometryStore),
 				...guarded.queries,
 				...guarded.requirementQueries,
 			}),

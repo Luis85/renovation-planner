@@ -45,4 +45,13 @@ export const PlanGeometrySchemaV1 = z.object({
 	objects: z.array(SpatialObjectGeometrySchemaV1),
 });
 
-export type PlanGeometryDTO = z.infer<typeof PlanGeometrySchemaV1>;
+const SpatialPointSchema = z.object({ x: z.number(), y: z.number() });
+const StructureSchema = z.object({
+	walls: z.array(z.object({ id: z.string().startsWith('wall-'), start: SpatialPointSchema, end: SpatialPointSchema, height: z.number(), thickness: z.number() })),
+	openings: z.array(z.object({ id: z.string().startsWith('opening-'), kind: z.enum(['door', 'window', 'opening']), hostId: z.string(), offset: z.number(), width: z.number(), height: z.number(), sill: z.number() })),
+	boundaries: z.array(z.object({ roomId: z.string(), wallIds: z.array(z.string()) })),
+});
+export const PlanGeometrySchemaV2 = PlanGeometrySchemaV1.extend({ schemaVersion: z.literal(2), structure: StructureSchema.optional() });
+/** Either persisted version, for a reader that asks only what the file DECLARES (no migration). */
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2]);
+export type PlanGeometryDTO = z.infer<typeof PlanGeometrySchemaV1> & { structure?: z.infer<typeof StructureSchema> } | z.infer<typeof PlanGeometrySchemaV2>;

@@ -1,5 +1,18 @@
 # M04 — Draw Walls
 
+**Spatial implementation, 2026-09-06:** ADR-0020 is the accepted minimal contract. The current
+task supports exact first-point x/y and segment length/angle fields, point/axis snapping, Undo
+point, Close walls to start, Finish and Cancel. Height/thickness live in a disclosure. A closed
+simple chain offers a checkbox and existing Room name field; the whole operation is reversible.
+Existing/New state, project defaults, implicit intersection splitting and automatic room detection
+remain later work. [Acceptance evidence](../../../tests/cases/Draw%20connected%20walls%20and%20openings.md).
+
+Native inputs retain Space, Backspace, Delete and Escape. Enter submits the focused form action;
+on the canvas it finishes. Canvas Escape clears a draft first, then exits an empty task, following
+the shared temporary-tool lifecycle. The explicit Cancel button discards and exits in one action.
+Invalid geometry retains the draft with an error. A version conflict pauses it until cancellation
+and reopening against the latest floor.
+
 ![M04 — Draw Walls](../images/M04-draw-walls.png)
 
 ## Screen description

@@ -18,6 +18,8 @@ import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 import type { ResolvedSequence } from '../../reference/deleteResolution';
 import { undoDeleteResolution, type Compensation } from '../../reference/undoDeleteResolution';
 import { restoreZone } from './restore-zone';
+import type { RoomBoundaryHistory } from '../spatial/RoomBoundaryHistory';
+import { markUncompensated } from '../DispatchOutcome';
 
 export type DeleteCommand = Command<
 	DeleteZoneInput,
@@ -31,6 +33,7 @@ export type DeleteCommand = Command<
  * bus the restored zone is announced on once the whole undo succeeds.
  */
 export interface DeleteZoneUndoDeps {
+	readonly boundary?: RoomBoundaryHistory;
 	readonly requirements: RequirementRepository;
 	readonly locks: ReferenceLocks;
 	readonly logger: Logger;
@@ -148,6 +151,8 @@ export class ReversibleDeleteZoneCommand {
 			return err(referenceError('zone.zone-not-found', `Zone ${this.input.zoneId} not found.`));
 		}
 		const snapshot = found.value;
+		const captured = await this.undoDeps.boundary?.capture(snapshot.entity);
+		if (captured && !captured.ok) return captured;
 		const expected = this.ledger.lastWritten(this.input.zoneId);
 		const input: DeleteZoneInput =
 			expected === null ? this.input : { ...this.input, expected };
@@ -183,6 +188,11 @@ export class ReversibleDeleteZoneCommand {
 				restoreEntity: async () => {
 					const written = await restoreZone(this.zones, this.ledger, snapshot);
 					if (isErr(written)) return written;
+					const boundary = await this.undoDeps.boundary?.restore(written.value.entity);
+					if (boundary && !boundary.ok) {
+						const removed = await this.removeAgain(written.value.version)();
+						return removed.ok ? boundary : err(markUncompensated(removed.error));
+					}
 					restored.value = written.value;
 					return ok(this.removeAgain(written.value.version));
 				},

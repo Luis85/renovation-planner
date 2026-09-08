@@ -46,10 +46,19 @@ import type { StringKey } from '../../i18n/locales/en';
 import type { ToolId } from '../tools/editor-tool';
 import { useEditorRuntime } from '../runtime';
 import AreaCornerEditor from '../add/AreaCornerEditor.vue';
+import StructureTaskForm from '../structure/StructureTaskForm.vue';
+import { isStructureTool } from '../structure/structureDraft';
 
 const runtime = useEditorRuntime();
+const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
+const cancelBlocked = computed(() => isStructure.value && runtime.structureTask.draft.busy);
+function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
 
 const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKey: StringKey; finish?: true }>>> = {
+	'draw-wall': { nameKey: 'editor.structure.draw-wall', instructionKey: 'editor.structure.instructions' },
+	'place-door': { nameKey: 'editor.add.door.label', instructionKey: 'editor.structure.host-instructions' },
+	'place-window': { nameKey: 'editor.add.window.label', instructionKey: 'editor.structure.host-instructions' },
+	'place-opening': { nameKey: 'editor.add.opening.label', instructionKey: 'editor.structure.host-instructions' },
 	'draw-polygon': { nameKey: 'editor.task.draw-room.name', instructionKey: 'editor.task.draw-room.instruction' },
 	'draw-room': { nameKey: 'editor.task.add-room.name', instructionKey: 'editor.task.add-room.instruction', finish: true },
 	'draw-area': { nameKey: 'editor.task.add-area.name', instructionKey: 'editor.task.add-area.instruction', finish: true },
@@ -64,6 +73,7 @@ const task = computed(() => {
 const root = ref<HTMLElement | null>(null);
 const instructionId = useId();
 const isArea = computed(() => runtime.activeToolId.value === 'draw-area');
+const finishLabel = computed(() => tr(isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
 const canFinish = computed(() => isArea.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
 
 /**
@@ -125,12 +135,17 @@ watch(task, (next) => {
 		v-if="task !== null"
 		ref="root"
 		class="rp-task-banner"
+		:class="{ 'rp-task-banner--structure': isStructure }"
 		role="region"
 		:aria-label="tr('editor.task.banner')"
 	>
 		<strong role="status">{{ tr(task.nameKey) }}</strong>
-		<span :id="instructionId">{{ tr(task.instructionKey) }}</span>
+		<span
+			v-if="!isStructure"
+			:id="instructionId"
+		>{{ tr(task.instructionKey) }}</span>
 		<AreaCornerEditor v-if="isArea" />
+		<StructureTaskForm v-if="isStructure" />
 		<label
 			v-if="isArea"
 			class="rp-task-banner__repeat"
@@ -149,12 +164,13 @@ watch(task, (next) => {
 			:aria-describedby="[instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' ')"
 			@click="onFinish"
 		>
-			{{ tr(isArea ? 'editor.area.finish' : 'editor.task.finish') }}
+			{{ finishLabel }}
 		</button>
 		<button
 			type="button"
 			class="rp-task-banner__cancel"
-			@click="runtime.cancelActiveTask()"
+			:aria-disabled="cancelBlocked"
+			@click="cancel"
 		>
 			{{ tr('editor.task.cancel') }}
 		</button>

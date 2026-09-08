@@ -1,5 +1,5 @@
 import type { SessionWriteLedger, WriteLedger } from '../../../application/editor/WriteLedger';
-import { ReversibleCreateZoneCommand } from '../../../application/commands/zone/reversible-create-zone-command';
+import { createZoneHistory } from '../add/createZoneHistory';
 import type { Polygon } from '../../../core/geometry/Polygon';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
@@ -20,6 +20,8 @@ import { tr } from '../../i18n/strings';
 import { notifyOperationFailure } from '../../notices/notify';
 import { reportDispatchFailure } from '../report-failure';
 import type { PlanEditorContext } from '../PlanEditorContext';
+import { structureCandidates } from '../structure/structureCandidates';
+import type { Point } from '../../../core/geometry/Point';
 
 /**
  * One reversible command per drag OR per keyboard nudge — `SelectTool`'s pointer gesture and
@@ -45,6 +47,8 @@ export function moveGesture(
  * single site — see `subject` below, which is built from the same value.
  */
 export interface EditorToolDeps {
+	readonly previewWall?: (id: string | null, end?: Point) => void;
+	readonly editWall?: (id: string, end: Point) => void;
 	readonly canFinishArea: () => boolean;
 	readonly onAreaCompleted: () => void;
 	readonly context: PlanEditorContext;
@@ -69,8 +73,10 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
 	toolManager.register(
 		new SelectTool({
+			previewWall: deps.previewWall,
+			editWall: deps.editWall,
 			spatialObjects: () =>
-				[...projectStore.zones.values()].map((zone) => ({ id: zone.id, points: zone.points })),
+				[...[...projectStore.zones.values()].map((zone) => ({ id: zone.id, points: zone.points })), ...structureCandidates(projectStore.structure)],
 			// Body drags AND vertex drags produce the same command: a vertex drag is a
 			// whole-geometry replacement in which one point differs, so there is one adapter
 			// and only forward/inverse change.
@@ -96,23 +102,12 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 				// hydrated, until a creation form asks instead.
 				completion: {
 					commandFor: (geometry) => {
-						const command = new ReversibleCreateZoneCommand(
-							context.commands.createZone,
-							context.commands.deleteZone,
-							ledger,
-							{
+						const command = createZoneHistory(context, ledger, {
 								planId,
 								name: entry.defaultName(),
 								zoneType: entry.zoneType,
 								geometry,
-							},
-							{
-								zones: context.commands.zones,
-								events: context.commands.events,
-								requirements: context.commands.requirementEdits.requirements,
-								logger: context.commands.logger,
-							},
-						);
+							});
 						// An adapter rather than the command itself: `createdZoneId` is the
 						// application layer's own word for this and is named by its tests and by
 						// design slice 8's document, so the translation into the tool's
@@ -138,7 +133,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			// The two dialogs this gesture may open, in the order it opens them. Both go
 			// through the leaf's OWN store, so a calibration in one split pane cannot trap
 			// the other — `DialogHost` is per view for exactly that reason.
-			hasGeometryToRescale: () => projectStore.zones.size > 0,
+			hasGeometryToRescale: () => projectStore.zones.size > 0 || projectStore.structure.walls.length > 0,
 			confirmRecalibration: async () =>
 				(await dialogs.openDialog({
 					kind: 'confirm',

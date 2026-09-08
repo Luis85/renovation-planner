@@ -41,6 +41,12 @@ barrier. ADR-0018 continues to own spatial selection and Inspector routing.
 - Changing scale continues to rescale every geometry object and the stored measurement around
   world origin. Existing geometry requires an explicit review acknowledgement when the factor
   differs from one. Crop/rotation affect the reference; they do not rotate or crop rooms.
+- ADR-0020 extends rescaling and consent to all Wall/Opening measurements. The geometry
+  snapshot's calibration is the single baseline for preview conversion and command math,
+  even when an earlier plan-note read observed a different sidecar revision. Canonicalize
+  editable vault paths before loading, comparing source events and dispatching. Plan-owned
+  observation tokens include the v2 `reference-appearance` field, protecting external edits
+  even when they did not increment the note revision.
 - `ReferenceSetupForm` owns one disposable draft in the existing root DialogHost. Preparation,
   Apply scale and opacity/lock changes do not write. Finish dispatches one guarded
   `ConfigurePlanReference` history item, conditional on both captured note and sidecar versions.
@@ -55,7 +61,8 @@ barrier. ADR-0018 continues to own spatial selection and Inspector routing.
   the schema discriminator in memory. Legacy absent appearance retains the previous complete,
   unrotated, fully opaque rendering. Read-only access does not rewrite a note. Legacy-compatible
   saves without appearance remain v1; Undo removes the owned appearance key. Old readers reject
-  v2 instead of silently dropping transforms. `.rpgeo` remains v1, with unchanged calibration.
+  v2 instead of silently dropping transforms. Legacy polygon `.rpgeo` remains v1; ADR-0020 later
+  adds v2 structure while preserving calibration and polygon entries.
 - Seed per-leaf reference visibility from committed configuration on hydration/configuration
   changes. Existing layer toggles remain session state. Default a new prepared reference to
   opacity 0.65, visible and locked. An unlocked preference is persisted, but no direct dragging

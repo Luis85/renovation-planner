@@ -30,6 +30,8 @@ import BackgroundLayer from './layers/background/BackgroundLayer.vue';
 import EmptyLayer from './layers/EmptyLayer.vue';
 import InteractionLayer from './layers/InteractionLayer.vue';
 import ZoneLayer from './layers/zone/ZoneLayer.vue';
+import StructureLayer from './structure/StructureLayer.vue';
+import { structureCandidates } from './structure/structureCandidates';
 
 /** This surface's own subject, which `EditorSurface` requires rather than assuming. */
 const CANVAS_LABEL: StringKey = 'editor.canvas';
@@ -72,10 +74,10 @@ const referencePoints = ref<readonly Point[]>([]);
 function onReferencePoints(points: readonly Point[]): void { referencePoints.value = points; }
 watch([referencePoints, () => editor.stageSize, () => layerVisibility.value.background], ([points]) => {
  const bounds = boundsOfZones([{ points }]);
- if (bounds !== null && project.zones.size === 0 && layerVisibility.value.background && runtime.activeToolId.value === 'select') editor.fitTo(bounds, editor.stageSize);
+ if (bounds !== null && project.zones.size === 0 && project.structure.walls.length === 0 && layerVisibility.value.background && runtime.activeToolId.value === 'select') editor.fitTo(bounds, editor.stageSize);
 }, { flush: 'post' });
 function framedBounds(all: boolean) {
-	const zones = [...project.zones.values()];
+	const zones = [...project.zones.values(), ...structureCandidates(project.structure)];
 	const framed = all
 		? zones
 		: zones.filter((zone) => selection.selectedIds.some((id) => String(id) === zone.id));
@@ -111,9 +113,10 @@ function framedBounds(all: boolean) {
 					@status="(status) => emit('backgroundStatus', status)"
 					@reference-points="onReferencePoints"
 				/>
-				<EmptyLayer
-					layer-id="architecture"
+				<StructureLayer
 					:transform="transform"
+					:tokens="props.tokens"
+					:zoom="viewport.zoom"
 					:visible="layerVisibility.architecture"
 				/>
 				<ZoneLayer

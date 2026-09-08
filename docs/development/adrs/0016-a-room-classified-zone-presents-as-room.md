@@ -49,6 +49,11 @@ commands and queries. A homeowner label is never written to a note.
 
 ## Revisit when
 
+Revisited at Phase 5 (2026-09-06): ADR-0020 keeps the Room as its existing Zone. The wall-ID
+association belongs to the plan's spatial sidecar and describes provenance, not a new Room
+outline or renovation state. This needs no Room-only field on Zone. Wall and Room edits are
+explicitly independent; deleting and restoring a Room removes/restores the association safely.
+
 A Room needs a field or an invariant a Zone cannot carry without harming Areas (a ceiling
 height, a wall list, an Existing/Planned state that Areas do not have). That is the trigger
 for a `Room` entity, and it arrives with Feature B's wall model or Feature C's semantics,

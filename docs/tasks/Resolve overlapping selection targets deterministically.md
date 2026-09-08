@@ -62,3 +62,8 @@ The criterion's own wording is rewritten to state that rule rather than "regardl
 iteration order", which the resolver was never meant to hold: `candidates` IS z-order, bottom
 first, and the resolver deliberately scans it in reverse so the last-drawn body wins. Closes
 [[The overlap-order test repeats the same candidate order]].
+
+
+## Implementation update — 2026-09-05
+
+Alt-click now reaches lower overlapping bodies and wraps in render order; hover uses the same alternate resolution. spatialSelection.test.ts covers cycling, wrap, modifier-only selection and badge focus. Priority among Wall/Opening/Object candidates still belongs to the slice introducing those types.

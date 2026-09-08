@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Select several parts of a plan]]"
 order: 10
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -35,3 +35,8 @@ Sorting by mutable labels can renumber badges unexpectedly.
 ## Outcome
 
 Several selected parts have one deterministic identity representation.
+
+
+## Implementation update — 2026-09-05
+
+The selection store now deduplicates IDs in insertion order. Canvas/list toggles share selectSpatial. Numbered canvas badges and M11 rows use the same order. spatialSelection.test.ts and multiSelectionInspector.test.ts cover membership, order, duplicates, modified clicks without a move gesture, and unchanged projected room data.

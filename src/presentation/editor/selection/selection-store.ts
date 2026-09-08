@@ -10,6 +10,7 @@ import type { EntityId } from '../../../core/identity/EntityId';
  */
 export const useSelectionStore = defineStore('editor-selection', () => {
 	const selectedIds = ref<readonly EntityId<string>[]>([]);
+	const focusedId = ref<EntityId<string> | null>(null);
 
 	/**
 	 * Selecting what is ALREADY selected is a no-op, down to the ref's identity.
@@ -22,26 +23,33 @@ export const useSelectionStore = defineStore('editor-selection', () => {
 	 * already on screen.
 	 */
 	function select(ids: readonly EntityId<string>[]): void {
+		const unique = [...new Set(ids)];
 		const current = selectedIds.value;
-		if (current.length === ids.length && current.every((id, index) => id === ids[index])) return;
-		selectedIds.value = [...ids];
+		if (current.length === unique.length && current.every((id, index) => id === unique[index])) return;
+		selectedIds.value = unique;
+		if (focusedId.value === null || !unique.includes(focusedId.value)) focusedId.value = unique[0] ?? null;
+	}
+
+	function focus(id: EntityId<string>): void {
+		if (selectedIds.value.includes(id)) focusedId.value = id;
 	}
 
 	function clear(): void {
 		if (selectedIds.value.length === 0) return;
 		selectedIds.value = [];
+		focusedId.value = null;
 	}
 
 	function isSelected(id: EntityId<string>): boolean {
 		return selectedIds.value.includes(id);
 	}
 
-	return { selectedIds, select, clear, isSelected };
+	return { selectedIds, focusedId, select, focus, clear, isSelected };
 });
 
 /**
  * The contract `EditorContext.selection` hands a tool (design slice 6, Task 8) — exactly
- * the four members the spec's Interfaces & Contracts block declares, and nothing else.
+ * the membership and focused-member operations, and nothing else (ADR-0018).
  * Declared here rather than beside that consumer: "a type belongs with the code that
  * PRODUCES it" (CLAUDE.md), and this file is what produces it.
  *
@@ -62,13 +70,15 @@ export const useSelectionStore = defineStore('editor-selection', () => {
  * It carries only domain IDs — no Konva node, ref, or shape type is reachable from it,
  * since nothing in this module imports `konva`/`vue-konva`, including a subpath of either
  * (`tests/presentation/editor/tools/editorContext.test.ts` checks that import absence at
- * this file, plus a required presence — the store's runtime keys stay exactly its four
- * declared members — rather than asserting the wider "or names anything from either",
+ * this file, plus a required presence — the store's runtime keys stay exactly its declared
+ * members — rather than asserting the wider "or names anything from either",
  * which nothing here checks).
  */
 export interface SelectionStore {
 	readonly selectedIds: readonly EntityId<string>[];
+	readonly focusedId: EntityId<string> | null;
 	select(ids: readonly EntityId<string>[]): void;
+	focus(id: EntityId<string>): void;
 	clear(): void;
 	isSelected(id: EntityId<string>): boolean;
 }

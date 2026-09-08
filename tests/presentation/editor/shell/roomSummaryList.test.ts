@@ -66,6 +66,8 @@ describe('RoomSummaryList', () => {
 
 		await rows[0].trigger('click');
 
-		expect(selectAndFrame).toHaveBeenCalledWith('zone-kitchen');
+		expect(selectAndFrame).toHaveBeenCalledWith('zone-kitchen', false);
+		await rows[1].trigger('click', { shiftKey: true });
+		expect(selectAndFrame).toHaveBeenLastCalledWith('zone-terrace', true);
 	});
 });

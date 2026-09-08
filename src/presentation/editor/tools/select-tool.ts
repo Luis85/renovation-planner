@@ -3,9 +3,10 @@ import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
 import type { Vector } from '../../../core/geometry/Vector';
+import { selectSpatial } from '../selection/selectSpatial';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
-import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
+import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX } from '../handleMetrics';
 import { resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
@@ -127,7 +128,7 @@ export class SelectTool implements EditorTool {
 		const context = this.context;
 		if (context === null || event.button !== 'primary') return;
 
-		const { candidates, target } = this.targetAt(context, event.worldPoint);
+		const { candidates, target } = this.targetAt(context, event);
 		// A press is exactly when the predicted hover stops meaning anything, on every path
 		// out of this method — a body hit, a handle hit, a miss that clears the selection, and
 		// a target the candidate list no longer has: the pointer is about to act rather than
@@ -156,7 +157,13 @@ export class SelectTool implements EditorTool {
 			};
 			return;
 		}
-		context.selection.select([hit.id as EntityId<string>]);
+		if (!event.modifiers.shift && !event.modifiers.alt && context.selection.selectedIds.length > 1 && context.selection.isSelected(hit.id as EntityId<string>)) {
+			context.selection.focus(hit.id as EntityId<string>);
+			return;
+		}
+		selectSpatial(context.selection, hit.id, event.modifiers.shift);
+		// Modified clicks choose records only; they never start an accidental edit.
+		if (event.modifiers.shift || event.modifiers.alt) return;
 		// While the canvas is stale the gate would refuse the commit anyway; a ghost the release
 		// cannot keep is a promise, so no gesture begins. Selection still happens — inspecting
 		// stays available (design spec §2.9).
@@ -179,7 +186,7 @@ export class SelectTool implements EditorTool {
 			// keeps the cursor's promise and the click's outcome unable to disagree. Both halves
 			// of the resolver's answer are kept: WHICH record, and WHAT of it — a body or one of
 			// its vertex handles — because §6.2 asks the cursor to distinguish the two.
-			const { target } = this.targetAt(context, event.worldPoint);
+			const { target } = this.targetAt(context, event);
 			context.renderState.hoveredObjectId = target === null ? null : target.id;
 			context.renderState.hoveredTargetKind = target === null ? null : target.kind;
 			return;
@@ -282,14 +289,16 @@ export class SelectTool implements EditorTool {
 	 */
 	private targetAt(
 		context: EditorContext,
-		worldPoint: Point,
+		event: EditorPointerEvent,
 	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget } {
 		const candidates = this.deps.spatialObjects();
 		const target = resolveSelectionTarget({
 			candidates,
-			selectedIds: context.selection.selectedIds.map(String),
-			worldPoint,
+			selectedIds: event.modifiers.shift ? [] : context.selection.selectedIds.map(String),
+			worldPoint: event.worldPoint,
 			handleToleranceWorld: VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
+			cycle: event.modifiers.alt,
+			badgeToleranceWorld: SELECTION_BADGE_RADIUS_PX * context.viewport.worldPerScreenPixel(),
 		});
 		return { candidates, target };
 	}

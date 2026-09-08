@@ -40,7 +40,7 @@ describe('the floor state', () => {
 
 	it('lists every room and every area as a button, and a row selects and frames its record', async () => {
 		harness = await mountPlanEditorCanvas();
-		const rows = harness.wrapper.findAll('.rp-room-list__row');
+		const rows = harness.wrapper.find('.rp-floor-inspector').findAll('.rp-room-list__row');
 
 		expect(rows.map((row) => row.text())).toEqual(['Kitchen', 'Terrace']);
 

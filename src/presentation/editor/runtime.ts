@@ -21,6 +21,7 @@ import type { Vector } from '../../core/geometry/Vector';
 import { useEditorStore } from '../stores/EditorStore';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
+import { selectSpatial } from './selection/selectSpatial';
 import type { InspectorDto, InspectorEdit } from './inspector/inspector-store';
 import type { RequirementInspectorDTO } from '../../application/queries/GetRequirementsForZone';
 import { CommandHistory } from './tools/command-history';
@@ -120,7 +121,16 @@ export interface EditorRuntime {
 	 * user picking a row from a list wants it highlighted whether or not the camera can also
 	 * move to it.
 	 */
-	readonly selectAndFrame: (id: string) => void;
+	readonly selectAndFrame: (id: string, toggle?: boolean) => void;
+	/**
+	 * The list's "select multiple" checkbox, held HERE rather than in `PropertyLayerPanel`
+	 * because that panel is unmounted whenever the constrained overlay standing in for it
+	 * closes — a component-local flag came back `false` on every reopen, so a touch or
+	 * keyboard user who enabled it, went to the canvas and returned to add a room had the
+	 * next row click replace the whole set. Per-leaf like everything else in this object,
+	 * and for the same reason the active tool is.
+	 */
+	readonly multiSelectionMode: Ref<boolean>;
 	/**
 	 * Design spec §5.2's one action: dispatch the room draft as a `ReversibleCreateZoneCommand`
 	 * through this leaf's one dispatcher. See `roomCreation.ts` for the two doors, one action
@@ -397,9 +407,11 @@ function selectAndFrameOn(
 	projectStore: ReturnType<typeof useProjectStore>,
 	selection: ReturnType<typeof useSelectionStore>,
 	editor: ReturnType<typeof useEditorStore>,
-	id: string,
+	target: { readonly id: string; readonly toggle: boolean },
 ): void {
-	selection.select([id as EntityId<string>]);
+	const { id, toggle } = target;
+	selectSpatial(selection, id, toggle);
+	if (toggle) return;
 	const zone = projectStore.zones.get(id);
 	if (zone === undefined) return;
 	const bounds = boundsOfZones([zone]);
@@ -641,10 +653,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	 * extraction. So the literal is back in its natural shape, which is the point of taking
 	 * the extraction rather than shaving another line.
 	 */
-	const subject = (): EditorContext['subject'] => ({
-		id: planId,
-		calibration: projectStore.plan?.calibration ?? null,
-	});
+	const subject = (): EditorContext['subject'] => ({ id: planId, calibration: projectStore.plan?.calibration ?? null });
 
 	// A FRESH context per activation, assembled through the same one assembler — which is
 	// the guarantee `ToolManager`'s header states its factory exists for, and which a
@@ -706,7 +715,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		},
 	);
 
-	const selectAndFrame = (id: string): void => selectAndFrameOn(projectStore, selection, editor, id);
+	const selectAndFrame = (id: string, toggle = false): void => selectAndFrameOn(projectStore, selection, editor, { id, toggle });
 	registerSelectionRetirement(projectStore, selection, renderState);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
@@ -785,6 +794,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		commitEdit,
 		commitField,
 		selectAndFrame,
+		multiSelectionMode: ref(false),
 		createRoom,
 		canCreateRoom,
 		roomDraftIncomplete,

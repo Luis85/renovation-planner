@@ -7,7 +7,7 @@
  * routine (slice 8 re-runs the same one after a committed command), and the context it
  * needs arrives through the one injection the view provides.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
@@ -36,6 +36,8 @@ import StatusBar from './shell/StatusBar.vue';
 import { editorWarnings } from './shell/warnings';
 import AddMenu from './add/AddMenu.vue';
 import TemporaryToolBanner from './shell/TemporaryToolBanner.vue';
+import { useSelectionStore } from './selection/selection-store';
+import { routeEscape } from './escapeRouting';
 
 const context = usePlanEditorContext();
 // The return value is USED now, not discarded: `activeToolId` is what displaces the empty
@@ -43,6 +45,7 @@ const context = usePlanEditorContext();
 // every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
 const projectStore = useProjectStore();
+const selection = useSelectionStore();
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
 const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
@@ -69,6 +72,8 @@ const overlay = computed(() => {
 	const key = emptyStateKey.value;
 	const tool = runtime.activeToolId.value;
 	if (key === null || (tool !== null && tool !== 'select')) return null;
+	// Reference onboarding must not obscure selected geometry or its focus badges.
+	if (key === 'noBackground' && selection.selectedIds.length > 0) return null;
 	return resolveEmptyState(EMPTY_STATE_CONTENT.planEditor[key]);
 });
 
@@ -178,14 +183,45 @@ function onOpenAdd(): void {
  * could do with the same key, and it reaches only THIS editor leaf's tree rather than every
  * Plan Editor leaf a document-global handler would also close.
  *
- * Guarded on `addMenuOpen` so Escape with the menu already closed falls through untouched —
- * to the canvas's own draft-cancel/deselect routing, which this root has no opinion about.
+ * With the menu closed, descendants handle their own Escape first. The root's bubbling
+ * handler supplies the selection fallback for controls outside the canvas.
  */
 function onRootKeydown(event: KeyboardEvent): void {
 	if (!addMenuOpen.value || event.key !== 'Escape') return;
 	event.stopPropagation();
 	event.preventDefault();
 	addMenuOpen.value = false;
+}
+
+/**
+ * Overlays and the canvas consume Escape first; list and rail controls bubble here.
+ *
+ * The Inspector's native asset `<select>` is deliberately NOT excluded, against a review
+ * bot's finding that Escape on its OPEN popup would reach this handler before the popup
+ * closed and clear the selection under it. Measured in Chromium, which is what Obsidian
+ * runs: with the popup open, Escape closes it and dispatches NO keydown to the page — only
+ * a keyup, once it is shut — because the popup is its own widget and consumes the press;
+ * with the popup closed, the same press dispatches a keydown here, which is the keyboard
+ * user's "leave this room" and must keep working. Excluding the control would trade a
+ * defect Chromium does not have for one it would. Firefox does dispatch that keydown, and
+ * is not a runtime this plugin has.
+ */
+function onSelectionKeydown(event: KeyboardEvent): void {
+	if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || selection.selectedIds.length === 0) return;
+	event.stopPropagation();
+	event.preventDefault();
+	const inspector = (event.target as HTMLElement).closest<HTMLElement>('[data-rp-region="inspector"]');
+	const outcome = routeEscape({
+		panning: false, // The canvas consumes its camera/gesture keys before bubbling.
+		activeToolId: runtime.activeToolId.value,
+		hasDraft: () => runtime.toolManager.activeToolHasDraft(),
+		cancelGesture: () => runtime.toolManager.cancelGesture(),
+		setTool: runtime.setTool,
+		hasSelection: true,
+		clearSelection: () => selection.clear(),
+	});
+	// Selected-entity controls unmount on clear; persistent list/rail controls keep their focus.
+	if (outcome === 'cleared-selection' && inspector !== null) void nextTick(() => inspector.focus());
 }
 
 /**
@@ -284,6 +320,7 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 		ref="root"
 		class="renovation-plan-editor"
 		@keydown.capture="onRootKeydown"
+		@keydown="onSelectionKeydown"
 	>
 		<!--
 			The layout is `ResponsiveEditorShell`'s (Task 19, design spec §5.4) and the CONTENT

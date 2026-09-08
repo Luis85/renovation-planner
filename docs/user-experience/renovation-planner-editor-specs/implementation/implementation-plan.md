@@ -1,6 +1,6 @@
 # Renovation Planner — Editor Implementation Plan
 
-**Status:** Proposed implementation sequence  
+**Status:** In progress — see [implementation status and remaining scope](implementation-status.md).
 **Basis:** Locked mockups M00–M17 and shared component library  
 **Constraint:** Evolve the existing Vue 3/Pinia/Konva editor; do not replace the working layered architecture
 
@@ -483,4 +483,3 @@ A screen is done only when:
 8. Tests: responsive shell, selection routing, and theme semantics.
 
 This backlog deliberately creates the interaction foundation before expanding the renovation domain.
-

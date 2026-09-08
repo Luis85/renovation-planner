@@ -17,6 +17,7 @@ import type { EntityId } from '../../../core/identity/EntityId';
 defineProps<{
 	readonly records: readonly SpatialRecordDto[];
 	readonly heading: string;
+	readonly toggleSelection?: boolean;
 }>();
 
 const runtime = useEditorRuntime();
@@ -47,7 +48,7 @@ function isSelected(id: string): boolean {
 				class="rp-room-list__row"
 				:data-rp-id="record.id"
 				:aria-pressed="isSelected(record.id)"
-				@click="runtime.selectAndFrame(record.id)"
+				@click="runtime.selectAndFrame(record.id, toggleSelection === true || $event.shiftKey)"
 			>
 				{{ record.name }}
 			</button>

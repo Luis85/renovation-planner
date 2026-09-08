@@ -27,6 +27,7 @@ import { FakeLeaf } from '../helpers/workspace';
 // the Plan Editor's, with Vite's dependency optimizer refusing to bundle a native `.node` file
 // as JavaScript. `../helpers/settle` has no import beyond `Promise`/`Date`/`setTimeout`.
 import { settleUntil } from '../helpers/settle';
+import { selectMultipleOnceReady } from './multiSelectionKnob';
 
 /**
  * The REAL Plan Editor, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -437,6 +438,10 @@ export interface PlanEditorHarnessOptions {
  * hydration and the shell's own layout measurement let the row exist.
  */
 async function selectZoneOnceReady(root: HTMLElement, zoneId: string): Promise<void> {
+	if (zoneId.includes(',')) {
+		await selectMultipleOnceReady(root, zoneId.split(','));
+		return;
+	}
 	await settleUntil(
 		() => root.querySelector('.rp-room-list__row, [data-rp-rail="details"]') !== null,
 		`the ?select knob's room list, or the rail that holds it, to render for "${zoneId}"`,

@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Select several parts of a plan]]"
 order: 40
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -39,3 +39,8 @@ Single-selection APIs may replace the shared set when reused for focus.
 ## Outcome
 
 The renovator can inspect one selected target while preserving the batch scope.
+
+
+## Implementation update — 2026-09-05
+
+SelectionStore.focus is shared by selected canvas-body/badge clicks and M11 list rows. Membership is unchanged; removal picks the first surviving member and clear resets focus. spatialSelection.test.ts and multiSelectionInspector.test.ts exercise these paths.

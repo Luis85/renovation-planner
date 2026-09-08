@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Select several parts of a plan]]"
 order: 20
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -35,3 +35,8 @@ Ignoring unreadable members can make a partial aggregate look complete.
 ## Outcome
 
 The multi-selection Inspector states only what is true of the whole selected set.
+
+
+## Implementation update — 2026-09-05
+
+M11 now displays the sum of individual selected areas and shared or mixed room/area types. Canvas badges and ordered rows agree. multiSelectionInspector.test.ts covers the current types. Failed/unavailable domain aggregates and per-batch-action compatibility remain open; this task is not complete.

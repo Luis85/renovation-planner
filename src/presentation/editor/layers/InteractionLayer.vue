@@ -2,7 +2,8 @@
 /**
  * §19's transient layer, filled by design slice 8: the in-progress polygon a drawing tool
  * broadcasts through `RenderState`, the calibration segment's ruler marks, and the selected
- * zone's body outline and vertex handles.
+ * zone's body outline and vertex handles — or, for a multi-selection, one numbered outline per
+ * selected zone and no handles, since nothing here edits a group.
  *
  * **Still screen-space, and still `listening: false`.** Everything here works in stage
  * pixels: world points go through `worldToScreen` per recompute (a `computed`, so a camera
@@ -32,7 +33,7 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
-import { VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
+import { SELECTION_BADGE_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
 import RoomDraftSketch from './RoomDraftSketch.vue';
 import GestureSketch from './GestureSketch.vue';
 
@@ -41,7 +42,7 @@ const props = defineProps<{ tokens: ThemeTokens }>();
 const editorStore = useEditorStore();
 const projectStore = useProjectStore();
 const { zones } = storeToRefs(projectStore);
-const { selectedIds } = storeToRefs(useSelectionStore());
+const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 const runtime = useEditorRuntime();
 
 function toScreen(point: { x: number; y: number }) {
@@ -84,8 +85,7 @@ const hoverOutlineFlat = computed(() => {
 });
 
 /**
- * The selected zone's outline and vertex handles. Exactly one zone is selectable in this
- * slice (`SelectTool` sets one id); anything else renders nothing rather than guessing.
+ * Vertex handles belong to a single selection. Multiple selections use numbered outlines.
  */
 const selectedScreenPoints = computed(() => {
 	const ids = selectedIds.value;
@@ -101,6 +101,22 @@ const selectedFlat = computed(() =>
 		? null
 		: selectedScreenPoints.value.flatMap((at) => [at.x, at.y]),
 );
+
+/** Multiple selections show all outlines, without handles suggesting a group edit. */
+const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selectedIds.value.flatMap((id) => {
+	const zone = zones.value.get(id);
+	return zone === undefined ? [] : [{
+		id,
+		number: selectedIds.value.indexOf(id) + 1,
+		anchor: zone.points.length > 0 ? toScreen(zone.points[0]) : null,
+		strokeWidth: focusedId.value === id ? 3 : 2,
+		badgeStrokeWidth: focusedId.value === id ? 3 : 1.5,
+		points: zone.points.flatMap((point) => {
+			const at = toScreen(point);
+			return [at.x, at.y];
+		}),
+	}];
+}));
 
 </script>
 
@@ -166,6 +182,44 @@ const selectedFlat = computed(() =>
 					listening: false,
 				}"
 			/>
+		</template>
+		<template
+			v-for="outline in multiOutlines"
+			:key="outline.id"
+		>
+			<VLine
+				:config="{
+					name: 'selection-outline',
+					points: outline.points,
+					closed: true,
+					stroke: props.tokens.accent,
+					strokeWidth: outline.strokeWidth,
+					strokeScaleEnabled: false,
+					listening: false,
+				}"
+			/>
+			<template v-if="outline.anchor !== null">
+				<VCircle
+					:config="{
+						name: 'selection-badge',
+						x: outline.anchor.x, y: outline.anchor.y,
+						radius: SELECTION_BADGE_RADIUS_PX,
+						fill: props.tokens.canvasBackground,
+						stroke: props.tokens.accent,
+						strokeWidth: outline.badgeStrokeWidth,
+						listening: false,
+					}"
+				/>
+				<VText
+					:config="{
+						x: outline.anchor.x - SELECTION_BADGE_RADIUS_PX,
+						y: outline.anchor.y - 6,
+						width: SELECTION_BADGE_RADIUS_PX * 2,
+						text: String(outline.number), fontSize: 12, align: 'center',
+						fill: props.tokens.zoneLabel, listening: false,
+					}"
+				/>
+			</template>
 		</template>
 	</VLayer>
 </template>

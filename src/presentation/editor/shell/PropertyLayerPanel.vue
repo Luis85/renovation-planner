@@ -25,6 +25,8 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import type { PlanDto } from '../../read-models/PlanDto';
 import { layerCatalogue } from '../layers/layerCatalogue';
 import LayerList from './LayerList.vue';
+import RoomSummaryList from './RoomSummaryList.vue';
+import { toSpatialRecordDto } from '../../read-models/spatialRecords';
 
 const props = defineProps<{ plan: PlanDto | null }>();
 const runtime = useEditorRuntime();
@@ -36,6 +38,10 @@ const runtime = useEditorRuntime();
  * throws with no `PlanEditorRoot` above it to provide one.
  */
 const { stale } = storeToRefs(useProjectStore());
+const project = useProjectStore();
+const records = computed(() => [...project.zones.values()].map((zone) => toSpatialRecordDto(zone)));
+// Per-leaf on the runtime, not local: this panel is unmounted by every overlay close.
+const toggleSelection = runtime.multiSelectionMode;
 const entries = computed(() => layerCatalogue(props.plan, stale.value));
 // Computed rather than interpolated inline: a plan-less heading (still loading, missing,
 // failed) is just the region name, and building that branch in the template needs a nested
@@ -57,5 +63,22 @@ const heading = computed(() => (props.plan === null ? tr('editor.floor') : `${tr
 			:entries="entries"
 			@activate-tool="runtime.setTool"
 		/>
+		<RoomSummaryList
+			v-if="records.length > 0"
+			:records="records"
+			:heading="tr('editor.selection.records')"
+			:toggle-selection="toggleSelection"
+		/>
+		<label v-if="records.length > 1">
+			<input
+				v-model="toggleSelection"
+				type="checkbox"
+				data-rp-action="multiple-selection"
+			>
+			{{ tr('editor.selection.toggle-mode') }}
+		</label>
+		<p v-if="records.length > 1">
+			{{ tr('editor.selection.hint') }}
+		</p>
 	</aside>
 </template>

@@ -51,7 +51,10 @@ export interface ToolContextOptions {
 /** A selection store double narrowed to `SelectionStore`'s four members, and nothing else. */
 function selectionDouble(): EditorContext['selection'] {
 	let ids: readonly EntityId<string>[] = [];
+	let focusedId: EntityId<string> | null = null;
 	return {
+		get focusedId() { return focusedId; },
+		focus(id) { if (ids.includes(id)) focusedId = id; },
 		get selectedIds() {
 			return ids;
 		},

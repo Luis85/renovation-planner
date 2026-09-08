@@ -15,6 +15,7 @@ import { t } from '../../../src/presentation/i18n/strings';
 import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../../helpers/editor';
 import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 
 let harness: EditorHarness | null = null;
 
@@ -52,6 +53,16 @@ function press(element: HTMLElement, type: string, x: number, y: number): void {
 }
 
 describe('the plan editor empty states', () => {
+	it('keeps selected geometry visible without a reference, and restores onboarding after clear', async () => {
+		harness = await mountPlanEditor({ plan: FIXTURE_PLAN, zones: FIXTURE_ZONES });
+		const selection = useSelectionStore(harness.pinia);
+		selection.select(['zone-kitchen', 'zone-terrace'] as never[]);
+		await settle();
+		expect(overlay(harness).exists()).toBe(false);
+		selection.clear();
+		await settle();
+		expect(overlay(harness).exists()).toBe(true);
+	});
 	it('keeps the canvas mounted while an empty state is showing', async () => {
 		harness = await mountPlanEditor({ plan: FIXTURE_PLAN, zones: [] });
 

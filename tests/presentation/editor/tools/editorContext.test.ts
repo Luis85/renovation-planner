@@ -89,6 +89,8 @@ const KONVA_IMPORT = /from\s+['"](?:vue-)?konva(?:\/[^'"]*)?['"]/;
 function stubSelection(): SelectionStore {
 	return {
 		selectedIds: [],
+		focusedId: null,
+		focus: () => undefined,
 		select: () => undefined,
 		clear: () => undefined,
 		isSelected: () => false,
@@ -264,6 +266,6 @@ describe('EditorContext', () => {
 		const store = useSelectionStore();
 		const ownKeys = Object.keys(store).filter((key) => !key.startsWith('$') && !key.startsWith('_'));
 
-		expect(ownKeys.toSorted()).toEqual(['selectedIds', 'select', 'clear', 'isSelected'].toSorted());
+		expect(ownKeys.toSorted()).toEqual(['selectedIds', 'focusedId', 'select', 'focus', 'clear', 'isSelected'].toSorted());
 	});
 });

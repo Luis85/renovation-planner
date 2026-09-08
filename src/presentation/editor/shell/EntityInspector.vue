@@ -36,15 +36,23 @@
  * task ends by returning to Select, which unmounts the very control the user pressed.
  */
 import { storeToRefs } from 'pinia';
+import { computed } from 'vue';
 import { tr } from '../../i18n/strings';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useSelectionStore } from '../selection/selection-store';
 import FloorInspector from './FloorInspector.vue';
 import NewRoomInspector from './NewRoomInspector.vue';
 import RoomInspector from './RoomInspector.vue';
+import MultiSelectionInspector from './MultiSelectionInspector.vue';
+import { useProjectStore } from '../../stores/ProjectStore';
+import { toSpatialRecordDto } from '../../read-models/spatialRecords';
+import { spatialSelection } from '../selection/spatialSelection';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
+const project = useProjectStore();
+const records = computed(() => [...project.zones.values()].map((zone) => toSpatialRecordDto(zone)));
+const selection = computed(() => spatialSelection(selectedIds.value, records.value));
 </script>
 
 <template>
@@ -59,12 +67,10 @@ const { activeToolId } = storeToRefs(useEditorStore());
 		</h2>
 		<NewRoomInspector v-if="activeToolId === 'draw-room'" />
 		<FloorInspector v-else-if="selectedIds.length === 0" />
-		<p
-			v-else-if="selectedIds.length > 1"
-			class="rp-editor-inspector-empty"
-		>
-			{{ tr('editor.inspector.multiple') }}
-		</p>
+		<MultiSelectionInspector
+			v-else-if="selection.kind === 'multiple'"
+			:selection="selection"
+		/>
 		<RoomInspector v-else />
 	</aside>
 </template>

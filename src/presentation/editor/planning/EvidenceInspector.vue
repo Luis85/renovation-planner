@@ -18,7 +18,8 @@ async function open(path: string, subpath: string): Promise<void> { const result
 function related(id: string): void {
  const baseline = props.baseline;
  const renovation = baseline.plan.entity.renovation ?? EMPTY_RENOVATION;
- const mode = baseline.materials.some(item => item.entity.id === id) ? 'materials' : renovation.depth?.costs.some(item => item.id === id) ? 'costs' : renovation.work.some(item => item.id === id) ? 'work' : 'planned';
+ const subjectMode = renovation.subjects.some(item => item.id === id && !item.planned) ? 'existing' : 'planned';
+ const mode = baseline.materials.some(item => item.entity.id === id) ? 'materials' : renovation.depth?.costs.some(item => item.id === id) ? 'costs' : renovation.work.some(item => item.id === id) ? 'work' : subjectMode;
  planning.runtime.renovation.focus(session.roomId, mode, id);
 }
 function unlink(id: string): void {

@@ -58,3 +58,22 @@ actual label/target hit agreement, obscured-control avoidance and EN/DE constrai
 Test every supported kind's route, including clearly named host-wall rotation for openings.
 Existing persistence, preview/commit, exact Undo/Redo, order, peer-conflict and readback tests
 remain mandatory. Actual native and physical-device/screen-reader evidence stays separate.
+
+## Later user choice: small edge arrows on hover — 2026-09-08
+
+The user subsequently rejected the permanent labelled handle presentation and requested small
+curved-arrow rotation controls on item edges when hovering. This supersedes the always-visible
+Rotate label and top-centre placement in items 1–2 above; it is a direct product preference,
+not a new research or usability-study finding. The `5853827a` implementation is retained as a
+tested predecessor rather than described as accepted final design.
+
+The edge-hover continuation keeps actual 44×44 rectangular targets, centre/guide explanation
+when hovering an arrow, click-to-angle input and the four-pixel drag threshold. Hover itself
+changes no selection. Pressing an unselected item's arrow selects and freezes that item;
+hovering an existing selected-group member preserves its group. The short approach from an
+edge to its arrow may retain affordance ownership, while ordinary hover/click resolution still
+predicts the actual body under the pointer. Alt suppresses rotation and retains cycling.
+
+Numeric and quarter-turn Inspector routes remain. See the bounded
+[edge-hover implementation and pending verification](rotation-edge-hover.md); group actions
+and curve persistence keep their separately owned domain contracts.

@@ -1,7 +1,7 @@
 import type { Point } from '../../../core/geometry/Point';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
-import { extentOf } from '../../../core/geometry/operations';
-import { ROTATION_CONTROL_WIDTH_PX, ROTATION_HOST_CONTROL_WIDTH_PX, ROTATION_CONTROL_TOP_PX, ROTATION_CONTROL_BOTTOM_PX, ROTATION_HANDLE_OFFSET_PX, ROTATION_VIEW_MARGIN_PX, ROTATION_HANDLE_CLEARANCE_PX, ROTATION_PIVOT_DEADZONE_PX, VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
+import { boundingBoxOf, distance } from '../../../core/geometry/operations';
+import { ROTATION_CONTROL_WIDTH_PX, ROTATION_CONTROL_TOP_PX, ROTATION_CONTROL_BOTTOM_PX, ROTATION_HANDLE_OFFSET_PX, ROTATION_VIEW_MARGIN_PX, ROTATION_HANDLE_CLEARANCE_PX, ROTATION_PIVOT_DEADZONE_PX, VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
 
 export interface RotationControlGeometry {
 	readonly handle: Point;
@@ -10,6 +10,7 @@ export interface RotationControlGeometry {
 	readonly bounds: BoundingBox;
 	readonly widthPx: number;
 	readonly hostWall: boolean;
+	readonly edgeIndex?: number;
 }
 export interface RotationInteraction {
 	readonly control: RotationControlGeometry;
@@ -24,6 +25,12 @@ export function rotationControlBounds(handle: Point, widthPx: number, worldPerPi
 export function rotationControlContains(bounds: BoundingBox, point: Point): boolean {
 	return point.x >= bounds.min.x && point.x <= bounds.max.x && point.y >= bounds.min.y && point.y <= bounds.max.y;
 }
+/** Hover may cross the short gap from the edge to an arrow; this never expands its click target. */
+export function rotationControlApproachContains(control: RotationControlGeometry, point: Point, scale: number): boolean {
+	const margin = VERTEX_GRAB_RADIUS_PX * scale;
+	return rotationControlContains({ min: { x: Math.min(control.anchor.x, control.bounds.min.x) - margin, y: Math.min(control.anchor.y, control.bounds.min.y) - margin },
+		max: { x: Math.max(control.anchor.x, control.bounds.max.x) + margin, y: Math.max(control.anchor.y, control.bounds.max.y) + margin } }, point);
+}
 function overlaps(a: BoundingBox, b: BoundingBox, gap: number): boolean {
 	return a.min.x - gap <= b.max.x && a.max.x + gap >= b.min.x && a.min.y - gap <= b.max.y && a.max.y + gap >= b.min.y;
 }
@@ -37,31 +44,43 @@ function clampControl(point: Point, width: number, scale: number, visible?: Boun
 		y: Math.max(visible.min.y + ROTATION_CONTROL_TOP_PX * scale + margin, Math.min(visible.max.y - ROTATION_CONTROL_BOTTOM_PX * scale - margin, point.y)) };
 }
 
-/** One rectangular target for paint, hover and release; no corner suggests the rotation pivot. */
-export function layoutRotationControl(shape: { id: string; kind: string; points: readonly Point[]; wall?: { id: string } }, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): RotationControlGeometry | null {
+type Shape = { id: string; kind: string; points: readonly Point[]; wall?: { id: string } };
+const EDGE_POSITIONS = [1, 2].flatMap(multiplier => [[0.25, 1], [0.75, 1], [0.5, 1], [0.25, -1], [0.75, -1], [0.5, -1]].map(([fraction, side]) => [fraction, side, multiplier]));
+function edgePoints(shape: Shape): readonly Point[] {
+	if (shape.kind !== 'group') return shape.points;
+	const bounds = boundingBoxOf(shape); if (!bounds.ok) return [];
+	const { min, max } = bounds.value;
+	return [min, { x: max.x, y: min.y }, max, { x: min.x, y: max.y }];
+}
+function edgesOf(shape: Shape) {
+	const points = edgePoints(shape), closed = ['room', 'area', 'object', 'group'].includes(shape.kind);
+	const winding = points.reduce((sum, a, index) => { const b = points[(index + 1) % points.length]; return sum + a.x * b.y - b.x * a.y; }, 0);
+	return points.slice(0, closed ? points.length : -1).map((a, index) => {
+		const b = points[(index + 1) % points.length], length = distance(a, b), sign = winding < 0 ? -1 : 1;
+		return { a, b, index, length, normal: { x: sign * (b.y - a.y) / length, y: sign * (a.x - b.x) / length } };
+	}).filter(edge => Number.isFinite(edge.length) && edge.length > 0).toSorted((a, b) => b.length - a.length);
+}
+/** Bounded edge affordances share the exact unobstructed rectangles used by hit testing. */
+export function layoutRotationControls(shape: Shape, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): readonly RotationControlGeometry[] {
 	const hostWall = shape.wall !== undefined && shape.id !== shape.wall.id;
-	const widthPx = hostWall ? ROTATION_HOST_CONTROL_WIDTH_PX : ROTATION_CONTROL_WIDTH_PX;
+	const widthPx = ROTATION_CONTROL_WIDTH_PX;
 	const margin = ROTATION_VIEW_MARGIN_PX * scale;
-	if (visible && (visible.max.x - visible.min.x < widthPx * scale + 2 * margin || visible.max.y - visible.min.y < (ROTATION_CONTROL_TOP_PX + ROTATION_CONTROL_BOTTOM_PX) * scale + 2 * margin)) return null;
-	const { minX, maxX, minY, maxY } = extentOf(shape.points), midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
+	if (visible && (visible.max.x - visible.min.x < widthPx * scale + 2 * margin || visible.max.y - visible.min.y < (ROTATION_CONTROL_TOP_PX + ROTATION_CONTROL_BOTTOM_PX) * scale + 2 * margin)) return [];
 	const offset = ROTATION_HANDLE_OFFSET_PX * scale, gap = ROTATION_HANDLE_CLEARANCE_PX * scale;
-	const vertices = ['room', 'area', 'wall'].includes(shape.kind) ? shape.points.map(point => pointBox(point, VERTEX_GRAB_RADIUS_PX * scale)) : [];
+	const vertices = shape.points.map(point => pointBox(point, VERTEX_GRAB_RADIUS_PX * scale));
 	const excluded = [...obstacles, ...vertices, pointBox(pivot, ROTATION_PIVOT_DEADZONE_PX * scale)];
-	const candidates = [
-		{ anchor: { x: midX, y: minY }, handle: { x: midX, y: minY - offset } },
-		{ anchor: { x: midX, y: minY }, handle: { x: midX, y: minY - 2 * offset } },
-		{ anchor: { x: maxX, y: midY }, handle: { x: maxX + offset, y: midY } },
-		{ anchor: { x: minX, y: midY }, handle: { x: minX - offset, y: midY } },
-		{ anchor: { x: midX, y: maxY }, handle: { x: midX, y: maxY + offset } },
-	];
-	for (const candidate of candidates) {
-		const handle = clampControl(candidate.handle, widthPx, scale, visible), bounds = rotationControlBounds(handle, widthPx, scale);
-		if (excluded.every(box => !overlaps(bounds, box, gap))) return { ...candidate, handle, bounds, pivot, widthPx, hostWall };
+	const controls: RotationControlGeometry[] = [];
+	for (const edge of edgesOf(shape)) {
+		for (const [fraction, side, multiplier] of EDGE_POSITIONS) {
+			const anchor = { x: edge.a.x + (edge.b.x - edge.a.x) * fraction, y: edge.a.y + (edge.b.y - edge.a.y) * fraction };
+			const handle = clampControl({ x: anchor.x + edge.normal.x * offset * side * multiplier, y: anchor.y + edge.normal.y * offset * side * multiplier }, widthPx, scale, visible), bounds = rotationControlBounds(handle, widthPx, scale);
+			if (distance(handle, anchor) > 2 * offset || excluded.some(box => overlaps(bounds, box, gap))) continue;
+			controls.push({ handle, anchor, bounds, pivot, widthPx, hostWall, edgeIndex: edge.index }); excluded.push(bounds); break;
+		}
+		if (controls.length === 4) break;
 	}
-	// Dense edge selections can block a midpoint; move along the chosen side, retaining its anchor.
-	for (const candidate of candidates) for (const [dx, dy] of [[-offset, 0], [offset, 0], [0, -offset], [0, offset]]) {
-		const handle = clampControl({ x: candidate.handle.x + dx, y: candidate.handle.y + dy }, widthPx, scale, visible), bounds = rotationControlBounds(handle, widthPx, scale);
-		if (excluded.every(box => !overlaps(bounds, box, gap))) return { ...candidate, handle, bounds, pivot, widthPx, hostWall };
-	}
-	return null;
+	return controls;
+}
+export function layoutRotationControl(shape: Shape, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): RotationControlGeometry | null {
+	return layoutRotationControls(shape, pivot, scale, visible, obstacles)[0] ?? null;
 }

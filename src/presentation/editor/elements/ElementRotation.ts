@@ -6,12 +6,14 @@ import { rotationChanged, rotationPivot, rotationPoints, type RotationShape } fr
 import { rotationControlContains, type RotationControlGeometry } from './rotationControl';
 
 export interface RotationGestureDeps {
-	canRotateShape?: () => boolean;
+	canRotateShape?: (id?: string) => boolean;
 	previewRotation?: (id: string | null, points?: readonly Point[]) => void;
 	commitRotation?: (id: string, points: readonly Point[], original: RotationShape) => void;
 	requestRotation?: (id: string) => void;
 	rotationTarget?: () => RotationShape | null;
 	rotationControl?: () => RotationControlGeometry | null;
+	rotationDisplayTarget?: () => RotationShape | null;
+	rotationControls?: () => readonly RotationControlGeometry[];
 }
 interface Gesture {
 	shape: RotationShape;
@@ -89,6 +91,7 @@ export class ElementRotation {
 			this.gesture.context.renderState.rotationInteraction = null;
 			this.gesture.context.renderState.hoveredTargetKind = null;
 			this.gesture.context.renderState.hoveredObjectId = null;
+			this.gesture.context.renderState.rotationHoverId = null;
 		}
 		this.gesture = null; this.deps.previewRotation?.(null);
 	}

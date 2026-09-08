@@ -39,6 +39,14 @@ export interface Structure {
 }
 export const EMPTY_STRUCTURE: Structure = { walls: [], openings: [], boundaries: [] };
 export const wallLength = (wall: Wall): number => arcLength({ start: wall.start, end: wall.end, bulge: wall.bulge ?? 0 });
+
+/** A length edit scales the chord with the same bend, preserving heading and start anchor. */
+export function endForWallLength(wall: Wall, length: number): Point {
+	const original = wallLength(wall);
+	if (length === original) return wall.end;
+	const factor = length / original;
+	return { x: wall.start.x + (wall.end.x - wall.start.x) * factor, y: wall.start.y + (wall.end.y - wall.start.y) * factor };
+}
 export const samePoint = (a: Point, b: Point): boolean => a.x === b.x && a.y === b.y;
 export function alongWall(wall: Wall, offset: number): Point {
 	return arcPoint({ start: wall.start, end: wall.end, bulge: wall.bulge ?? 0 }, offset / wallLength(wall));

@@ -5,8 +5,8 @@ import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { formatMetres, parseMetres, type LengthRefusal } from '../shell/formatLength';
 
 /** Exact axis alignment, four distinct boundary corners, implicit closure. No polygon repair. */
-export function roomDimensions(points: readonly Point[]): BoundingBox | null {
-	if (points.length !== 4) return null;
+export function roomDimensions(points: readonly Point[], bulges?: readonly number[]): BoundingBox | null {
+	if (points.length !== 4 || bulges?.some(value => value !== 0)) return null;
 	for (let i = 0; i < points.length; i++) {
 		const a = points[i], b = points[(i + 1) % points.length], c = points[(i + 2) % points.length];
 		if ((a.x === b.x) === (a.y === b.y)) return null;

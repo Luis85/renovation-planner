@@ -16,7 +16,9 @@ import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { useDimensionObstacles, type DimensionObstacleLayout } from './useDimensionObstacles';
+import type { PlanGeometryDocument } from '../../../application/ports/PlanGeometrySidecar';
 
+const props = defineProps<{ preview?: PlanGeometryDocument | null }>();
 const emit = defineEmits<{ obstacles: [layout: DimensionObstacleLayout]; rotationObstacles: [bounds: readonly BoundingBox[]] }>();
 const runtime = useEditorRuntime(), editor = useEditorStore(), project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession();
 const root = ref<HTMLElement | null>(null), axes = ['width', 'depth'] as const;
@@ -28,7 +30,7 @@ useDimensionObstacles(root, () => editor.viewport, bounds => emit('obstacles', b
 const selected = computed(() => selection.selectedIds.length === 1 ? project.zones.get(selection.selectedIds[0]) : undefined);
 const room = computed(() => selected.value?.zoneType === 'Room' ? selected.value : null);
 const draft = runtime.roomDimension.draft;
-const box = computed(() => draft.value ? roomDimensions(runtime.renderState.previewPolygon ?? []) ?? draft.value.box : room.value ? roomDimensions(room.value.points) : null);
+const box = computed(() => draft.value ? roomDimensions(runtime.renderState.previewPolygon ?? []) ?? draft.value.box : room.value ? roomDimensions(room.value.points, room.value.bulges) : null);
 const visible = computed(() => box.value !== null && (draft.value !== null || runtime.renderState.previewPolygon === null) && session.perspective !== 'review' && (workspace.layerVisibility.zone || draft.value !== null)
 	&& (runtime.activeToolId.value === 'select' || runtime.activeToolId.value === 'edit-room-dimension'));
 const measured = computed(() => {
@@ -36,9 +38,15 @@ const measured = computed(() => {
 	if (tool === 'draw-room') return { points: runtime.roomDraft.geometry?.points ?? [], closed: true, omitAxisControls: true };
 	if (tool === 'draw-polygon') return { points: roomSketchPoints(runtime.renderState.polygonSketch), closed: false, omitAxisControls: false };
 	const measuring = room.value ?? (draft.value ? project.zones.get(draft.value.id) : undefined);
-	if (!measuring || !workspace.layerVisibility.zone || !['select', 'edit-room-dimension'].includes(tool ?? '')) return null;
-	return { points: runtime.renderState.previewPolygon ?? measuring.points, closed: true, omitAxisControls: visible.value };
+	if (!measuring || !workspace.layerVisibility.zone || !['select', 'edit-room-dimension', 'edit-curves'].includes(tool ?? '')) return null;
+	const geometry = props.preview?.objects.find(item => item.id === measuring.id) ?? measuring;
+	return { points: runtime.renderState.previewPolygon ?? geometry.points, bulges: geometry.bulges, closed: true, omitAxisControls: visible.value };
 });
+const groupMeasurements = computed(() => selection.selectedIds.length < 2 || !workspace.layerVisibility.zone ? [] : selection.selectedIds.flatMap(id => {
+	const zone = project.zones.get(id);
+	if (zone?.zoneType !== 'Room') return [];
+	return [props.preview?.objects.find(item => item.id === id) ?? zone];
+}));
 function anchor(axis: keyof DimensionsText, bounds: BoundingBox) {
 	const point = worldToScreen({ x: axis === 'width' ? (bounds.min.x + bounds.max.x) / 2 : bounds.min.x,
 		y: axis === 'width' ? bounds.min.y : (bounds.min.y + bounds.max.y) / 2 }, editor.viewport, STAGE_PIXELS);
@@ -80,6 +88,14 @@ watch(draft, (next, previous) => {
 		<RoomEdgeMeasurements
 			v-if="measured"
 			v-bind="measured"
+		/>
+		<RoomEdgeMeasurements
+			v-for="geometry in groupMeasurements"
+			:key="geometry.id"
+			:points="geometry.points"
+			:bulges="geometry.bulges"
+			:closed="true"
+			:omit-axis-controls="false"
 		/>
 		<template v-if="visible && box">
 			<template v-if="draft === null">

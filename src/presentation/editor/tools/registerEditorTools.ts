@@ -86,7 +86,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			previewWall: deps.previewWall,
 			editWall: deps.editWall,
 			spatialObjects: () =>
-				[...[...projectStore.zones.values()].map((zone) => ({ id: zone.id, points: zone.points })), ...structureCandidates(projectStore.structure)],
+				[...[...projectStore.zones.values()].map((zone) => ({ id: zone.id, points: zone.points, bulges: zone.bulges })), ...structureCandidates(projectStore.structure)],
 			// Body drags AND vertex drags produce the same command: a vertex drag is a
 			// whole-geometry replacement in which one point differs, so there is one adapter
 			// and only forward/inverse change.

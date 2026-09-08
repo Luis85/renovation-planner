@@ -16,7 +16,7 @@ import type { NamedRotationShape } from './objectRotation';
 type Project = ReturnType<typeof useProjectStore>;
 export function projectedRotationTarget(project: Project, id: string, walls: boolean): NamedRotationShape | null {
 	const zone = project.zones.get(id);
-	if (zone) return { id, name: zone.name, kind: zone.zoneType === 'Room' ? 'room' : 'area', points: zone.points };
+	if (zone) return { id, name: zone.name, kind: zone.zoneType === 'Room' ? 'room' : 'area', points: zone.points, bulges: zone.bulges };
 	const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
 	if (element && name) return { ...element, name };
 	if (!walls) return null;
@@ -34,8 +34,8 @@ async function readZoneBaseline(context: PlanEditorContext, shape: NamedRotation
 		if (!loaded.ok) return loaded;
 		if (!loaded.value || loaded.value.entity.planId !== context.planId) return err(staleWriteRefusal());
 		const { entity, version } = loaded.value;
-		if (entity.name !== shape.name || JSON.stringify(entity.geometry.points) !== JSON.stringify(shape.points)) return err(staleWriteRefusal());
-		return ok<RotationBaseline>({ shape: { ...shape, points: entity.geometry.points }, command: points => new ReversibleMoveZoneCommand({ execute: input => context.commands.moveObject.execute({ ...input, expected: input.expected ?? version }) }, ledger, entity.id, { points }, entity.geometry) });
+		if (entity.name !== shape.name || JSON.stringify(entity.geometry.points) !== JSON.stringify(shape.points) || JSON.stringify(entity.geometry.bulges) !== JSON.stringify(shape.bulges)) return err(staleWriteRefusal());
+		return ok<RotationBaseline>({ shape: { ...shape, ...entity.geometry }, command: points => new ReversibleMoveZoneCommand({ execute: input => context.commands.moveObject.execute({ ...input, expected: input.expected ?? version }) }, ledger, entity.id, { ...entity.geometry, points }, entity.geometry) });
 	}
 async function readElementBaseline(context: PlanEditorContext, project: Project, shape: NamedRotationShape, ledger: SessionWriteLedger) {
 	const service = context.commands.renovation;
@@ -52,4 +52,3 @@ async function readElementBaseline(context: PlanEditorContext, project: Project,
 export function readRotationBaseline(context: PlanEditorContext, project: Project, shape: NamedRotationShape, ledger: SessionWriteLedger) {
 	return shape.kind === 'room' || shape.kind === 'area' ? readZoneBaseline(context, shape, ledger) : readElementBaseline(context, project, shape, ledger);
 }
-

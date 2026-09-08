@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import type { ThemeTokens } from '../theme/themeTokens';
 import type { NodeTransform } from '../viewport/Viewport';
 import type { Point } from '../../../core/geometry/Point';
+import { arcPolyline } from '../../../core/geometry/curvePolyline';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
@@ -28,13 +29,14 @@ const draftPreview = computed(() => {
 	if (!proposed || runtime.activeToolId.value === 'draw-wall') return proposed;
 	return validateStructure(proposed, project.structure.boundaries.map(boundary => boundary.roomId)).ok ? proposed : null;
 });
-const structure = computed(() => runtime.structureActions.preview.value ?? draftPreview.value ?? project.structure);
+const structure = computed(() => runtime.curveTask.preview.value?.structure ?? runtime.structureActions.preview.value ?? draftPreview.value ?? project.structure);
 const points = (value: readonly Point[]): number[] => value.flatMap(p => [p.x, p.y]);
+const wallPoints = (wall: Wall): number[] => points(arcPolyline({ ...wall, bulge: wall.bulge ?? 0 }, 0.25 / props.zoom));
 const selected = (id: string): boolean => selection.selectedIds.some(candidate => candidate === id);
 const previewPoints = computed(() => task.draft.points.length && task.draft.cursor ? points([task.draft.points[task.draft.points.length - 1], task.draft.cursor]) : []);
 const noDraftPoints: readonly Point[] = [];
 const wallDraftPoints = computed(() => runtime.activeToolId.value === 'draw-wall' ? task.draft.points : noDraftPoints);
-function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
+function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
 const elements = computed(() => (structure.value.elements ?? []).map(element => runtime.rotationActions.preview.value?.id === element.id ? { ...element, name: runtime.rotationActions.preview.value.name, points: runtime.rotationActions.preview.value.points } : runtime.elementActions.preview.value?.id === element.id ? runtime.elementActions.preview.value : ({ ...element, name: elementNames.value.get(element.id) ?? element.id })));
 const elementDraft = computed(() => {
@@ -63,10 +65,10 @@ const elementDraft = computed(() => {
 			:key="wall.id"
 			:config="{ name: wall.id }"
 		>
-			<VLine :config="{ points: points([wall.start, wall.end]), stroke: tokens.zoneStroke, strokeWidth: wall.thickness, opacity: 0.65 }" />
+			<VLine :config="{ points: wallPoints(wall), stroke: tokens.zoneStroke, strokeWidth: wall.thickness, opacity: 0.65 }" />
 			<VLine
 				v-if="selected(wall.id)"
-				:config="{ points: points([wall.start, wall.end]), stroke: tokens.accent, strokeWidth: 2 / zoom, dash: [7 / zoom, 4 / zoom] }"
+				:config="{ points: wallPoints(wall), stroke: tokens.accent, strokeWidth: 2 / zoom, dash: [7 / zoom, 4 / zoom] }"
 			/>
 			<VCircle
 				v-for="(point, index) in handles(wall)"

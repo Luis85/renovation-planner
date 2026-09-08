@@ -8,6 +8,7 @@ import { formatMetres } from '../shell/formatLength';
 import { wallLength } from '../../../domain/spatial/Structure';
 import StructureRenovationEntry from './StructureRenovationEntry.vue';
 import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
+import CurveAction from '../curves/CurveAction.vue';
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const id = computed(() => String(selection.selectedIds[0]));
 const wall = computed(() => project.structure.walls.find(candidate => candidate.id === id.value));
@@ -58,6 +59,10 @@ async function act(event: Event, remove: boolean): Promise<void> {
 		<details>
 			<summary>{{ tr('editor.structure.more') }}</summary>
 			<ObjectRotationControls :id="id" />
+			<CurveAction
+				v-if="wall"
+				:id="id"
+			/>
 			<StructureRenovationEntry />
 			<button
 				type="button"

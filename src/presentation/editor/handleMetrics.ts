@@ -97,3 +97,12 @@ export const POLYGON_CLOSE_GRAB_RADIUS_PX = 12;
 export const CLICK_EPSILON_PX = 4;
 /** Constant screen size shared by M11 badge drawing and hit testing. */
 export const SELECTION_BADGE_RADIUS_PX = 12;
+
+/** Single-shape rotation uses a visible 28px control and a 44px pointer target. */
+export const ROTATION_HANDLE_RADIUS_PX = 14;
+export const ROTATION_GRAB_RADIUS_PX = 22;
+export const ROTATION_HANDLE_OFFSET_PX = 40;
+export const ROTATION_VIEW_MARGIN_PX = 28;
+export const ROTATION_VIEW_TOP_MARGIN_PX = 60;
+
+export const ROTATION_HANDLE_CLEARANCE_PX = 4;

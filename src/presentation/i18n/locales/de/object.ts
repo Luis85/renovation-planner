@@ -1,5 +1,16 @@
 import type { objectEn } from '../en/object';
 export const objectDe: Record<keyof typeof objectEn, string> = {
+	'editor.rotation.title': '{name} drehen',
+	'editor.rotation.by': 'Drehen um…',
+	'editor.rotation.left-quarter': '90° links',
+	'editor.rotation.right-quarter': '90° rechts',
+	'editor.rotation.host-wall-hint': 'Diese Öffnung dreht sich zusammen mit ihrer Wand und den anderen Öffnungen in dieser Wand.',
+	'editor.rotation.degrees': 'Drehen um (Grad)',
+	'editor.rotation.clockwise': '90 Grad im Uhrzeigersinn drehen',
+	'editor.rotation.counterclockwise': '90 Grad gegen den Uhrzeigersinn drehen',
+	'editor.rotation.hint': 'Die Form dreht sich um einen festen Mittelpunkt. Positive Winkel drehen im Uhrzeigersinn. Für 15-Grad-Schritte beim Ziehen Umschalt gedrückt halten.',
+	'editor.rotation.invalid': 'Einen endlichen Winkel in Grad eingeben.',
+
 	'editor.element.list': 'Elemente im Plan',
 	'editor.element.delete-action': 'Löschen',
 	'editor.element.point-repeated': 'Einen anderen Punkt als den vorherigen wählen.',

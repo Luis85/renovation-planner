@@ -1,4 +1,9 @@
 export const structureEn = {
+	'editor.rotation.host-wall': 'Rotate host wall…',
+	'editor.rotation.wall-title': 'Rotate {name}',
+	'editor.rotation.host-title': 'Rotate host wall: {name}',
+	'editor.rotation.wall-hint': 'Rotate around this wall’s midpoint. The ends of connected walls move with this wall. Openings keep their wall and measurements. Room outlines stay unchanged. Positive angles turn clockwise.',
+	'editor.rotation.wall-apply': 'Apply wall rotation',
 	'editor.add.opening.label': 'Opening',
 	'editor.add.opening.description': 'An open passage through a wall',
 	'editor.structure.draw-wall': 'Draw connected walls',

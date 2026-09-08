@@ -1,6 +1,6 @@
 import { createDraftRetry } from '../forms/createDraftRetry';
 import { createSpatialRemoval } from './spatialRemoval';
-import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
+import { computed, markRaw, onBeforeUnmount, ref, watch } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { NamedSpatialElement, SpatialElement } from '../../../domain/spatial/SpatialElement';
@@ -34,7 +34,8 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 	const removal = createSpatialRemoval(context, runtime);
 	const active = ref(false), preview = ref<NamedSpatialElement | null>(null);
 	const blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective !== 'plan' || runtime.activeToolId.value !== 'select');
-	let alive = true;
+	let alive = true, rotationEpoch = 0;
+	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { rotationEpoch += 1; preview.value = null; }, { flush: 'sync' });
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
 	function matchesProjection(baseline: RenovationBaseline, id: string): boolean {
@@ -89,7 +90,9 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		});
 	}
 	function move(id: string, points: readonly Point[], original: SpatialElement): Promise<void> {
+		const epoch = rotationEpoch;
 		return operate(id, async ({ baseline, element }) => {
+			if (epoch !== rotationEpoch) return;
 			if (element.kind !== original.kind || JSON.stringify(element.points) !== JSON.stringify(original.points)) { notifyOperationFailure(staleWriteRefusal()); return; }
 			if (!context.commands.renovation) return;
 			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, points }), runtime.structureTask.ledger));

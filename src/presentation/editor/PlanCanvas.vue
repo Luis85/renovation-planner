@@ -154,9 +154,10 @@ const framedBounds = usePlanFrame();
 			</VStage>
 		</template>
 		<template #overlay>
-			<RoomDimensionLabels @obstacles="layout => dimensionLayout = layout" />
+			<RoomDimensionLabels @obstacles="layout => { dimensionLayout = layout; runtime.rotationActions.setObstacles(layout.bounds); }" />
 			<DirectActionPopover />
 			<slot />
 		</template>
 	</EditorSurface>
 </template>
+

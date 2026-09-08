@@ -47,6 +47,16 @@ describe('connected structure repository transactions', () => {
 		for (let index = 0; index < 3; index++) expectOk(await history.redo());
 		expect(expectOk(await geometry.read(plan.id)).document.structure).toEqual(WALL_LOOP);
 	});
+	it('reloads an opening with its host and placement through a fresh stack', async () => {
+		const { stack, plan, services, ledger, baseline } = await structureStack();
+		const opening = { id: 'opening-a', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 900, height: 2100, sill: 0 };
+		expectOk(await services.command({ planId: plan.id, baseline, structure: { ...WALL_LOOP, openings: [opening] }, ledger }).execute());
+		const fresh = createRepositoryStack();
+		for (const [path, content] of stack.vault.entries) fresh.vault.entries.set(path, content);
+		fresh.rebuildIndex();
+		const reloaded = expectOk(await new ObsidianPlanGeometrySidecar(fresh.store).read(plan.id)).document.structure;
+		expect(reloaded).toEqual({ ...WALL_LOOP, openings: [opening] });
+	});
 	it('refuses stale initial projection and peer writes without replacing either document', async () => {
 		const { plan, geometry, services, ledger, baseline } = await structureStack();
 		const command = services.command({ planId: plan.id, baseline, structure: WALL_LOOP, ledger });

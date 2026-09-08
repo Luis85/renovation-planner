@@ -190,6 +190,7 @@ const cursorClass = computed(() =>
 		activeToolId: activeToolId.value,
 		hoveredObjectId: renderState.hoveredObjectId,
 		hoveredTargetKind: renderState.hoveredTargetKind,
+		rotationActive: renderState.rotationDegrees !== null,
 	}),
 );
 

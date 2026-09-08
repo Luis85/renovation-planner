@@ -34,7 +34,7 @@ function openingLines(opening: Opening) {
 }
 const openings = computed(() => structure.value.openings.map(opening => ({ id: opening.id, ...openingLines(opening) })));
 const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
-const elements = computed(() => (structure.value.elements ?? []).map(element => runtime.elementActions.preview.value?.id === element.id ? runtime.elementActions.preview.value : ({ ...element, name: elementNames.value.get(element.id) ?? element.id })));
+const elements = computed(() => (structure.value.elements ?? []).map(element => runtime.rotationActions.preview.value?.id === element.id ? { ...element, name: runtime.rotationActions.preview.value.name, points: runtime.rotationActions.preview.value.points } : runtime.elementActions.preview.value?.id === element.id ? runtime.elementActions.preview.value : ({ ...element, name: elementNames.value.get(element.id) ?? element.id })));
 const elementDraft = computed(() => {
 	const draft = runtime.elementTask.draft;
 	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];
@@ -59,6 +59,7 @@ const elementDraft = computed(() => {
 		<VGroup
 			v-for="wall in structure.walls"
 			:key="wall.id"
+			:config="{ name: wall.id }"
 		>
 			<VLine :config="{ points: points([wall.start, wall.end]), stroke: tokens.zoneStroke, strokeWidth: wall.thickness, opacity: 0.65 }" />
 			<VLine
@@ -89,3 +90,5 @@ const elementDraft = computed(() => {
 		/>
 	</VLayer>
 </template>
+
+

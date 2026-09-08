@@ -1,0 +1,16 @@
+export const editorShellEn = {
+	'editor.shell.property': 'Property',
+	'editor.shell.elements': 'Elements',
+	'editor.shell.reference-options': 'Reference options',
+	'editor.shell.locked': 'Locked',
+	'editor.shell.unlocked': 'Unlocked',
+	'editor.shell.planned-layer': 'Planned changes and markers',
+	'editor.shell.legend': 'Change legend',
+	'editor.shell.existing-wall': 'Existing wall',
+	'editor.shell.removed-wall': 'Wall to remove',
+	'editor.shell.new-wall': 'New wall or opening',
+	'editor.shell.stale-heading': 'The plan may be out of date',
+	'editor.shell.details': '{name} details',
+	'editor.shell.perspectives': 'Editor perspective',
+	'editor.shell.add-close': 'Esc to close',
+} as const;

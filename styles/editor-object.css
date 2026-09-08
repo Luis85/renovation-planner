@@ -53,6 +53,31 @@
 	white-space: normal;
 }
 
+.renovation-plan-editor .rp-stair-fields,
+.rp-dialog .rp-stair-fields {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--size-4-2);
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.renovation-plan-editor .rp-stair-fields legend,
+.rp-dialog .rp-stair-fields legend {
+	margin-block-end: var(--size-4-2);
+	padding: 0;
+}
+
+.renovation-plan-editor .rp-stair-fields input,
+.renovation-plan-editor .rp-stair-fields select,
+.rp-dialog .rp-stair-fields input,
+.rp-dialog .rp-stair-fields select {
+	width: 100%;
+	min-width: 0;
+}
+
 .renovation-plan-editor .rp-object-rotation-actions {
 	display: grid;
 	grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));

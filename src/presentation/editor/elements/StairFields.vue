@@ -3,12 +3,12 @@ import FieldError from '../../components/FieldError.vue';
 import { tr } from '../../i18n/strings';
 import type { StairText } from './stairInput';
 const props = defineProps<{ modelValue: StairText; readonly: boolean; errors: ReadonlySet<keyof StairText> }>();
-const emit = defineEmits<{ 'update:modelValue': [value: StairText] }>();
+const emit = defineEmits<{ 'update:modelValue': [value: StairText, field: keyof StairText] }>();
 const dimensions = ['width', 'run', 'treads'] as const;
 function update(field: keyof StairText, event: Event): void {
 	const input = event.target as HTMLInputElement | HTMLSelectElement;
 	if (props.readonly || (field === 'direction' && input.value !== 'up' && input.value !== 'down')) { input.value = props.modelValue[field]; return; }
-	emit('update:modelValue', { ...props.modelValue, [field]: input.value });
+	emit('update:modelValue', { ...props.modelValue, [field]: input.value }, field);
 }
 </script>
 <template>

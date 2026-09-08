@@ -222,12 +222,13 @@ function activate(entry: CreationEntry): void {
 	if (runtime.writesBlocked.value || spatialUnavailable(entry)) return;
 	emit('close');
 	activateCreationEntry(entry.id, creation);
-	if (isElementEntry(entry)) {
+	if (isElementEntry(entry) && !['stair', 'arrow'].includes(entry.id)) {
 		const root = (menuRoot.value as HTMLElement).closest('.renovation-plan-editor');
 		if (workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
 		void nextTick(() => root?.querySelector<HTMLInputElement>('[name="element-name"]')?.focus());
 	}
-	if (['area', 'wall', 'door', 'window', 'opening'].includes(entry.id)) {
+	if (['area', 'wall', 'door', 'window', 'opening', 'stair', 'arrow'].includes(entry.id)) {
+		if (['stair', 'arrow'].includes(entry.id) && workspace.layoutMode === 'constrained') workspace.closeOverlay();
 		const canvas = (menuRoot.value as HTMLElement).closest<HTMLElement>('.rp-plan-canvas');
 		void nextTick(() => canvas?.focus());
 	}

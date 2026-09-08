@@ -57,3 +57,18 @@ it('treats width, tread count and direction as geometry facts and refuses invali
 	expect([...rig.stack.vault.entries]).toEqual(before);
 	expect(expectDefined(PLAN_GEOMETRY_MIGRATIONS.at(-1), 'schema8 step').migrate({ schemaVersion: 7, revision: 3 })).toEqual({ schemaVersion: 8, revision: 3 });
 });
+
+it('refuses malformed persisted stair options without stripping or rewriting the sidecar', async () => {
+	const rig = await structureStack();
+	expectOk(await rig.geometry.write(rig.plan.id, { ...rig.baseline.document, structure: { ...WALL_LOOP, elements: [stair] } }, rig.baseline.version));
+	const saved = expectOk(await rig.stack.store.read(rig.plan.id));
+	const original = expectDefined(rig.stack.vault.entries.get(saved.path), 'saved sidecar');
+	for (const options of [undefined, { ...DEFAULT_STAIR, width: 0 }, { ...DEFAULT_STAIR, treads: 2.5 }, { ...DEFAULT_STAIR, direction: 'sideways' }]) {
+		const invalid = JSON.stringify({ ...saved.dto, structure: { ...saved.dto.structure, elements: [{ ...stair, stair: options }] } });
+		rig.stack.vault.entries.set(saved.path, invalid);
+		expect((await rig.geometry.read(rig.plan.id)).ok).toBe(false);
+		expect(rig.stack.vault.entries.get(saved.path)).toBe(invalid);
+	}
+	rig.stack.vault.entries.set(saved.path, original);
+	expect(expectOk(await rig.geometry.read(rig.plan.id)).document.structure?.elements).toEqual([stair]);
+});

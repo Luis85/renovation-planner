@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, watchEffect, type Ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, watchEffect, type Ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { StairOptions } from '../../../domain/spatial/stairGeometry';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
@@ -24,20 +24,25 @@ const props = defineProps<{ points: readonly Point[]; options: StairOptions; nam
 	dispatch: (value: StairEdit) => Promise<DispatchResult>; preview: (value: StairEdit | null) => void }>();
 const emit = defineEmits<{ submit: [] }>();
 const { formEl, focusFirstInvalidControl } = useInvalidFieldFocus();
+const touched = reactive({ width: false, run: false });
 let alive = true;
 function proposalFor(value: StairText & { name: string }): StairEdit | null {
-	const parsed = parseStairInput(props.points, value, props.options);
+	const parsed = parseStairInput(props.points, value, props.options, touched);
 	return parsed.points && value.name.trim() ? { name: value.name.trim(), points: parsed.points, stair: parsed.options } : null;
 }
 const form = useFormCommit({ initial: { name: props.name, ...stairText(props.points, props.options) }, logger: props.logger, errorMap: {}, toUserMessage: trError,
 	dispatch: (value: StairText & { name: string }) => { const proposal = proposalFor(value); return proposal ? props.dispatch(proposal) : Promise.resolve(err(spatialError('element-invalid'))); } });
 const refuseInput = useDialogFormBusy(form.submitting, props.busy);
-const parsed = computed(() => parseStairInput(props.points, form.values.value, props.options));
+const parsed = computed(() => parseStairInput(props.points, form.values.value, props.options, touched));
 const paused = computed(() => props.inputBlocked.value || form.submitting.value);
 const proposal = computed(() => proposalFor(form.values.value));
 const unchanged = computed(() => proposal.value !== null && JSON.stringify(proposal.value) === JSON.stringify({ name: props.name, points: props.points, stair: props.options }));
 const disabled = computed(() => props.blocked.value || paused.value || props.latest.value !== null || !proposal.value || unchanged.value);
-function update(value: StairText): void { if (paused.value) return; for (const field of ['width', 'run', 'treads', 'direction'] as const) form.setField(field, value[field]); }
+function update(value: StairText, field: keyof StairText): void {
+	if (paused.value) return;
+	if (field === 'width' || field === 'run') touched[field] = true;
+	form.setField(field, value[field]);
+}
 function nameInput(event: Event): void { commitTextInput(event, form.values.value.name, refuseInput, value => form.setField('name', value)); }
 watchEffect(() => props.preview(proposal.value));
 onBeforeUnmount(() => { alive = false; props.preview(null); });

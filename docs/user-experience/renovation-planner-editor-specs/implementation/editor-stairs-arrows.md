@@ -67,3 +67,29 @@ found an unsupported harness HMR type; the harness keeps its explicit page-unloa
 Existing element lifecycle, selection/framing, line constraints and stylesheet regressions
 remain queued. This checkpoint does not establish the full joined gate, fresh visual
 comparisons or actual-host acceptance.
+
+## Verified follow-up — 2026-09-09
+
+Stair and Arrow activation keeps constrained drawing on the canvas, closing an already-open
+Inspector overlay; Details remains the explicit numeric route. Stair parameter fields use
+the same compact two-column layout in creation and editing.
+
+Selected-stair dimensions track input intent: changing only treads or direction preserves
+the exact stored width and centreline, while explicitly retyping a rounded width/run applies
+that displayed number. Text equality is not evidence that a field was untouched. Creation
+dimension application parses literal values. Parser and real-form regressions exercise both
+paths, alongside malformed persisted-option refusal, Arrow-only version emission, full
+footprint context/rotation behavior and constrained activation.
+
+The follow-up was checked on joined source `af7583b0`, including the production curve scene
+repairs. TypeScript and scoped ESLint passed after separating field validation from geometry
+construction to retain the existing complexity limit. The 17-file batch passed 404 cases,
+covering the follow-up, existing element editing/creation lifecycles, selection/marquee,
+the Add catalogue/menu, exact shared Zone line constraints, and stylesheet/button/encoding
+checks. Final Oxlint found two conditional test expectations; both became unconditional
+assertions retaining the expected state for each tool. The final Oxlint check and complete
+eight-case Stair UI rerun passed.
+
+Full joined coverage/Fallow and fresh visual/native acceptance remain parent-owned release
+gates. Publication belongs to the clean concern-stack reconstruction; this integration
+ancestry must not be opened as an unrelated multi-feature PR against main.

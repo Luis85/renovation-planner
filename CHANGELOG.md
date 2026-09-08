@@ -156,6 +156,10 @@ entries are added by the pull request that earns them, never invented at release
   asks oxlint which files it lints so a narrowed `ignorePatterns` fails the build instead of
   quietly shrinking the gate.
 
+### Fixed
+
+- Existing and Planned detail rows and canvas markers show their saved surface or element kind, so identical descriptions remain distinguishable.
+
 ### Changed
 
 - Spatial rotation uses a recognizable circular-arrow handle with a larger grab area, pivot and angle feedback, and localized numeric and quarter-turn controls in each eligible Inspector. Openings explicitly rotate with their host wall.

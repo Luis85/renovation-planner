@@ -1,0 +1,13 @@
+{
+  "source": "2f1b32b07a30aaafcc680ee74a8383cf792b54b8",
+  "command": "node scripts/editor-subject-kind-check.mjs",
+  "result": "Four scenarios passed; every manifest file hash verified before copying",
+  "observation": "Visible saved Floor/Wall kind differentiates duplicate descriptions in rows and canvas markers; German controls fit460px. Long marker text retains existing ellipsis with full Inspector alternative.",
+  "inspected": [
+    "light-M08-identical-descriptions.png",
+    "dark-M09-identical-descriptions.png",
+    "custom-accent-M08-identical-descriptions.png",
+    "german-constrained-M09-identical-descriptions.png"
+  ],
+  "browser": "Microsoft Edge 152.0.4191.62 via explicit override"
+}

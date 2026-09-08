@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import { runAreaBrowserMatrix, activate, tabTo } from './editor-area-browser.mjs';
+import { recordRoom, recordText, recordApply, recordShot } from './editor-record-browser.mjs';
+import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
+
+const phase = process.argv.includes('--before') ? 'before' : 'after';
+const form = '[data-rp-form="renovation"]';
+async function journey(page, scenario, out) {
+	const theme = await recordRoom(page, scenario, out, { drawWalls, panel, preserveTheme });
+	await activate(page, '[data-rp-mode="existing"]');
+	const german = scenario.name === 'german-constrained';
+	for (const kind of ['floor', 'wall']) {
+		await activate(page, '[data-rp-action="new-record"]');
+		await tabTo(page, `${form} select:first-of-type`);
+		await page.keyboard.press('Home');
+		if (kind === 'wall') await page.keyboard.press('ArrowDown');
+		await page.keyboard.press('Tab');
+		assert.equal(await page.locator(`${form} select`).first().inputValue(), kind, 'the native kind choice is explicit');
+		await recordText(page, form, 'description', german ? 'Weiße Fliesen' : 'White tile');
+		await recordApply(page, form, true);
+	}
+	await panel(page, 'details');
+	await recordShot(page, scenario, out, 'M08-identical-descriptions');
+	const expected = german ? ['Bodenbelag', 'Wandoberfläche'] : ['Floor finish', 'Wall finish'];
+	const rows = await page.locator('.rp-subject-row .rp-record-title').allTextContents();
+	if (phase === 'after') expected.forEach((label, index) => assert.ok(rows[index].includes(label), `Existing row identifies ${label}`));
+	for (let index = 0; index < 2; index++) {
+		await activate(page, `.rp-subject-row:nth-child(${index + 1}) [data-rp-action="plan-record"]`);
+		await recordText(page, form, 'description', german ? 'Neue Fliesen' : 'New tile');
+		await recordApply(page, form, true);
+	}
+	await activate(page, '[data-rp-mode="planned"]');
+	await recordShot(page, scenario, out, 'M09-identical-descriptions');
+	const planned = await page.locator('.rp-subject-row .rp-record-title').allTextContents();
+	if (phase === 'after') expected.forEach((label, index) => assert.ok(planned[index].includes(label), `Planned row identifies ${label}`));
+	return { theme, phase, rows, planned, source: 'Two distinct surface kinds with identical descriptions created through production forms and repositories', scope: 'Browser evidence; host and screen-reader observations remain separate' };
+}
+await runAreaBrowserMatrix(`release-subject-kinds-${phase}`, '&reference&fidelity', journey, '[data-rp-empty="floor-start"]');

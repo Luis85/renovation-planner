@@ -6,6 +6,7 @@ import { settle } from '../../helpers/editor';
 import { resizeTo } from '../../helpers/layout';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
+import { pointerAt } from '../../helpers/tool-context';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -52,5 +53,25 @@ it('opens the canonical rotation form from every eligible Inspector and explains
 	await rig.runtime.renovation.perspective('review'); await settle();
 	expect(rig.wrapper.findAll('.rp-object-rotation-actions')).toHaveLength(0);
 	expect(rig.stage.find('.object-rotation-handle')).toHaveLength(0);
+	expect(new Map(rig.stack.vault.entries)).toEqual(saved);
+});
+
+it('keeps rotation feedback clear of the direct-action popover and restores actions after cancellation', async () => {
+	const rig = await renovationEditor(); mounted.push(rig);
+	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
+	const object = { id: 'element-feedback', kind: 'object' as const, name: 'Cabinet', points: [{ x: 1000, y: 500 }, { x: 1800, y: 500 }, { x: 1800, y: 1100 }, { x: 1000, y: 1100 }] };
+	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, elementInput(baseline, object), rig.runtime.structureTask.ledger)));
+	rig.selection.select([object.id as never]); await settle();
+	const saved = new Map(rig.stack.vault.entries);
+	const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'rotation handle');
+	const tool = rig.runtime.toolManager, destination = pointerAt(handle.x + 1000, handle.y + 1000);
+	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(true);
+	tool.pointerDown(pointerAt(handle.x, handle.y)); tool.pointerMove(destination); await settle();
+	expect(rig.runtime.renderState.rotationDegrees).not.toBeNull();
+	expect(rig.stage.find('.rotation-angle-label')).toHaveLength(1);
+	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(false);
+	const canvas = rig.wrapper.get('.rp-plan-canvas').element as HTMLElement;
+	canvas.focus(); canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); tool.pointerUp(destination); await settle();
+	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(true);
 	expect(new Map(rig.stack.vault.entries)).toEqual(saved);
 });

@@ -63,8 +63,11 @@ actions for M11 focus would silently collapse the user's batch scope. All three 
 - `multiSelectionInspector.test.ts`: real list/canvas/Inspector agreement and resize retention.
 - `editorContext.test.ts`: the tool facade exposes only declared selection members, no Konva.
 - Build/lint: typed query/command seams, layer imports, and infrastructure-only vault writes.
-- The first Wall/Opening/Object slice must extend candidate geometry and test the reserved
-  object → opening → wall → room priority. These types are not fabricated in today's read model.
+- The typed slice supplies Object, Opening, Wall and Room/Area candidates. The user reconfirmed
+  handle → Object → Opening → Wall → Room for this release on 2026-09-08 after the earlier
+  Opening-first closeout amendment. `selection/resolveSelectionTarget.test.ts` pins Object
+  footprints across paint orders; `structureSelection.test.ts` preserves linear-element ranks,
+  hover/click agreement and mixed-kind body/badge focus without collapsing membership.
 - Perspective transition behavior remains a future implementation obligation, not an executed
   test result. Batch renovation commands remain unavailable until their domains exist.
 

@@ -28,7 +28,7 @@ export const deAssetLibrary = {
 	'view.asset-library.search.label': 'Objekte durchsuchen',
 	'view.asset-library.search.placeholder': 'Nach Name, Lieferant oder SKU suchen',
 	'view.asset-library.search.results': '{count} passende Objekte',
-	'view.asset-library.unselected': 'Wähle ein Objekt, um seine Definition zu sehen.',
+	'view.asset-library.unselected': 'Wählen Sie ein Objekt, um seine Definition zu sehen.',
 	'view.asset-library.assets': '{count} Objekte',
 	'view.asset-library.used-in': 'Verwendet in',
 	'view.asset-library.used-in.none': 'In keinem Projekt verwendet',

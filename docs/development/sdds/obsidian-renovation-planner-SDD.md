@@ -1692,9 +1692,15 @@ Tool ids are internal. What the user meets is an intent, and the mapping is expl
 | `select` | the default and the safe home state |
 | `draw-room` | *Add → Room*: drag a rectangle or type two lengths |
 | `draw-polygon` | Legacy free-shape Room completion (not exposed by Add) |
-| `draw-area` | *Add → Area*: shared polygon gesture, Custom Zone completion, explicit repetition |
+| `draw-area` | *Add → Area*: shared pointer/numeric corner draft, Custom Zone completion, explicit repetition |
 | `calibrate` | *Set scale*, one step inside reference plan setup (§98) — never a toolbar tool |
 | pan override | Space+drag / middle button — a gesture, not a mode |
+
+Numeric Area input is a presentation adapter over `DrawPolygonTool`'s temporary buffer.
+Absolute x/y coordinates share the metre grammar/whole-millimetre conversion with room lengths,
+while permitting signed/zero positions. A corner edit does not dispatch. All Area completions
+share `areaOutline` and a gate for pending input, stale state and saving; only completion builds
+the reversible Zone command. No second geometry store, schema or persistence path is introduced.
 
 Reserved: `WallTool`, `OpeningTool` (door, window), `PlaceAssetTool`, `MeasureTool`,
 `AnnotationTool`, `PathTool`, `BooleanTool`.
@@ -2715,7 +2721,7 @@ remain underneath; what the user meets is:
   creation tool is active.
 - **One `+ Add` entry point** over a declarative catalogue grouped as Structure (Room, Wall,
   Door, Window, Opening, Stairs), Site (Area, Path, Fence, Structure) and Planning (Object,
-  Measurement, Note). An entry the build does not support is labelled so; today Room is
+  Measurement, Note). An entry the build does not support is labelled so; today Room and Area are
   available and the rest say *not yet*.
 - **Creation tools are temporary** and return to Select after one creation; a short banner
   states the gesture and its Esc/Enter hints.

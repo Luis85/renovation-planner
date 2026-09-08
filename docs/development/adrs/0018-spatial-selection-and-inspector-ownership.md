@@ -64,3 +64,14 @@ actions for M11 focus would silently collapse the user's batch scope. All three 
 
 No frontmatter field, schema version, migration, Zone ID or geometry sidecar changes. Existing
 vault content and undo behavior retain their current persistence boundaries.
+
+
+## Area numeric task extension — 2026-09-05
+
+Area coordinate input belongs to the temporary task banner, not the selected entity Inspector.
+Its per-leaf raw text state has no geometry or persistence authority. Applying or removing a
+corner delegates through `ToolManager.editActiveCorner` to `DrawPolygonTool`'s existing buffer;
+`RenderState.polygonSketch` remains the canvas projection. The task's shared completion gate
+checks outline validity, pending form input, stale state and saving before any completion door
+can dispatch. ADR-0016's Room/Area mapping and the Zone command/sidecar contracts are unchanged.
+Native fields retain Escape; the existing root route still owns Escape from task buttons.

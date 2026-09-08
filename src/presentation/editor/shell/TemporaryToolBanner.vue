@@ -37,16 +37,15 @@
  * task INSTRUCTION rather than a blocked-reason, so it says nothing that a write in flight
  * could make false, and there is nothing here to split.
  *
- * `role="status"` on the whole banner: its very appearance is the announcement, the same
- * shape `StatusBar.vue`'s save-state region already uses for `aria-label` on a `role="status"`
- * `<div>`. Deliberately not `aria-live="assertive"`, since naming a task is not an urgent
- * interruption the way a save failure is.
+ * The banner is a region, with its task title announced as status. Numeric fields and
+ * the corner list are not inside a live region: typing must not re-announce the entire form.
  */
 import { computed, nextTick, ref, useId, watch } from 'vue';
 import { tr } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
 import type { ToolId } from '../tools/editor-tool';
 import { useEditorRuntime } from '../runtime';
+import AreaCornerEditor from '../add/AreaCornerEditor.vue';
 
 const runtime = useEditorRuntime();
 
@@ -126,11 +125,12 @@ watch(task, (next) => {
 		v-if="task !== null"
 		ref="root"
 		class="rp-task-banner"
-		role="status"
+		role="region"
 		:aria-label="tr('editor.task.banner')"
 	>
-		<strong>{{ tr(task.nameKey) }}</strong>
+		<strong role="status">{{ tr(task.nameKey) }}</strong>
 		<span :id="instructionId">{{ tr(task.instructionKey) }}</span>
+		<AreaCornerEditor v-if="isArea" />
 		<label
 			v-if="isArea"
 			class="rp-task-banner__repeat"

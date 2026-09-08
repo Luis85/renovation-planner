@@ -125,7 +125,8 @@ Exit criteria:
 ### Phase 3 — Add model and temporary tool lifecycle
 
 **Delivered slice (2026-09-05):** Area creation through Add, temporary outline completion,
-explicit repetition, Escape/input ownership and reversible Zone persistence. See the
+explicit repetition, Escape/input ownership and reversible Zone persistence. The numeric
+continuation adds keyboard corner placement and correction on that same temporary outline. See the
 [M02 delivered contract](../screens/M02-add-menu.md#delivered-area-contract--phase-3--increment-a-2026-09-05)
 and [implementation status](implementation-status.md). Room and Area are available;
 the remaining creation domains and full release acceptance remain open.

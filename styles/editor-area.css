@@ -8,3 +8,61 @@
 .rp-task-banner__repeat input {
 	flex-shrink: 0;
 }
+
+.rp-area-corners {
+	flex-basis: 100%;
+	min-width: 0;
+}
+
+.rp-area-corners summary {
+	cursor: pointer;
+	padding-block: var(--size-4-2);
+}
+
+.rp-area-corners__body {
+	max-height: 32vh;
+	overflow: auto;
+	padding: var(--size-4-1);
+	border-block: 1px solid var(--background-modifier-border);
+}
+
+.rp-area-corners__fields {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--size-4-2);
+}
+
+.rp-area-corners__fields input {
+	width: 100%;
+	min-width: 0;
+}
+
+.rp-area-corners__fields label {
+	display: block;
+}
+
+.rp-area-corners__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+	margin-block: var(--size-4-2);
+}
+
+.rp-area-corners button {
+	height: auto;
+	min-height: 36px;
+	white-space: normal;
+}
+
+.rp-area-corners [aria-disabled='true'] {
+	opacity: 0.5;
+}
+
+.rp-area-corners :focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.rp-area-corners__list {
+	padding-inline-start: var(--size-4-5);
+}

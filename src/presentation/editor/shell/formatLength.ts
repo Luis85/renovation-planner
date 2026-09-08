@@ -95,14 +95,15 @@ export function formatMetres(mm: number): string {
  */
 const NUMERIC = /^(?:-?(?:\d+(?:\.\d+)?|\.\d+)|Infinity)$/;
 
-export function parseMetres(text: string): { ok: true; mm: number } | { ok: false; reason: LengthRefusal } {
+function parseMetresInput(text: string, coordinate: boolean): { ok: true; mm: number } | { ok: false; reason: LengthRefusal } {
 	const normalised = text.trim().replace(',', '.');
 	if (normalised === '' || !NUMERIC.test(normalised)) {
 		return { ok: false, reason: 'not-a-number' };
 	}
 	const metres = Number(normalised);
-	if (metres <= 0) return { ok: false, reason: 'not-positive' };
+	if (!coordinate && metres <= 0) return { ok: false, reason: 'not-positive' };
 	const mm = Math.round(metres * 1000);
+	if (coordinate) return Number.isSafeInteger(mm) ? { ok: true, mm } : { ok: false, reason: 'too-large' };
 	if (mm > MAX_ROOM_SIDE_MM) return { ok: false, reason: 'too-large' };
 	// The positivity rule is about the MILLIMETRE this returns, not the metre that was typed:
 	// anything under half a millimetre is positive as written and rounds to 0, and a zero side
@@ -113,4 +114,13 @@ export function parseMetres(text: string): { ok: true; mm: number } | { ok: fals
 	// error and Create stayed blocked with nothing naming the side.
 	if (mm <= 0) return { ok: false, reason: 'not-positive' };
 	return { ok: true, mm };
+}
+
+export function parseMetres(text: string): { ok: true; mm: number } | { ok: false; reason: LengthRefusal } {
+	return parseMetresInput(text, false);
+}
+
+/** Absolute plan coordinates allow zero and negatives; they are not room side lengths. */
+export function parseCoordinateMetres(text: string): { ok: true; mm: number } | { ok: false; reason: LengthRefusal } {
+	return parseMetresInput(text, true);
 }

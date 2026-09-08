@@ -51,6 +51,8 @@ export interface PolygonCompletion {
  * bound in `runtime.ts` beside the command it builds.
  */
 export interface DrawPolygonToolDeps {
+	/** Capability-level completion gate, shared by pointer, keyboard and form completion. */
+	readonly canFinish?: () => boolean;
 	/** A creation capability may require more than the legacy point-list contract. */
 	readonly validateOutline?: typeof createPolygon;
 	/**
@@ -95,16 +97,6 @@ export interface DrawPolygonToolDeps {
 	 * active would leave the next click placing a vertex the user did not mean.
 	 */
 	readonly onCompleted: () => void;
-	/**
-	 * Where the first-corner click goes. Unbound, it is `finish()` straight — the generic
-	 * gesture the Room and the designer's two traces want. The Area binds `runtime.finishArea`,
-	 * the SAME guarded action the banner's Finish button and the canvas Enter dispatch: unbound
-	 * there, the click skipped `canFinishArea`'s busy half and queued an Area behind a write
-	 * the button was already announcing as unavailable. A review bot read the three doors
-	 * against each other. Optional because the default is the right answer for every other
-	 * construction; `validateOutline` above is the precedent.
-	 */
-	readonly finishAtTarget?: () => void;
 }
 
 /**
@@ -190,8 +182,7 @@ export class DrawPolygonTool implements EditorTool {
 		if (context === null || event.button !== 'primary' || this.closing) return;
 		const landing = this.landingPoint(context, event);
 		if (this.canClose(context, event.worldPoint)) {
-			if (this.deps.finishAtTarget === undefined) this.finish();
-			else this.deps.finishAtTarget();
+			this.finish();
 			return;
 		}
 		// A repeated point is never a vertex. `Polygon` states it — the last→first edge is
@@ -206,8 +197,7 @@ export class DrawPolygonTool implements EditorTool {
 		// point that is exactly the origin. An exact-equality guard waves that through, and
 		// `createPolygon` accepts the sliver it makes — it validates the count and the
 		// finiteness of the coordinates, both of which a zero-length edge satisfies.
-		if (this.buffer.some((point) => coincident(point, landing))) return;
-		this.buffer.push(landing);
+		if (!this.editCorner(this.buffer.length, landing)) return;
 		// The pointer is recorded (it is genuinely there, and a third vertex placed within reach
 		// of the first should light the close target up at once rather than waiting for a
 		// twitch), but there is no loose end yet: a rubber band from the new vertex to itself is
@@ -227,14 +217,25 @@ export class DrawPolygonTool implements EditorTool {
 
 	pointerUp(): void {}
 
-	/**
-	 * One close path for the first-point target, Finish and Enter — the last two through
-	 * `ToolManager.finishActiveTool`, the first through `finishAtTarget` when bound. Refusals
-	 * keep the draft.
-	 */
+	/** Pointer placement and numeric correction mutate the same buffer and publish the same sketch. */
+	editCorner(index: number, point: Point | null): boolean {
+		const context = this.context;
+		if (context === null || this.closing || !Number.isInteger(index) || index < 0 || index > this.buffer.length) return false;
+		if (point === null) {
+			if (index === this.buffer.length) return false;
+			this.buffer.splice(index, 1);
+		} else {
+			if (this.buffer.some((other, i) => i !== index && coincident(other, point))) return false;
+			this.buffer[index] = point;
+		}
+		this.publishSketch(context, null, null);
+		return true;
+	}
+
+	/** One close path for the first-point target, Finish and Enter. Refusals keep the draft. */
 	finish(): void {
 		const context = this.context;
-		if (context === null || this.closing) return;
+		if (context === null || this.closing || this.deps.canFinish?.() === false) return;
 		this.closing = true;
 		this.publishSketch(context, null, null);
 		void this.closePolygon(context);

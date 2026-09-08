@@ -104,6 +104,41 @@ Evidence: `areaCreation.e2e.test.ts`, `add/areaOutline.test.ts`, `areaPersistenc
 in light, dark, custom accent and German constrained layouts. Its browser fixture refuses
 writes; successful persistence and Undo/Redo are exercised by the repository-backed tests.
 
-Remaining: numeric/keyboard placement of individual corners, Area name/type forms, self-crossing
+Remaining after the numeric continuation below: Area name/type forms, self-crossing
 outline validation, and the unavailable creation domains. This contribution does not close
 all M02 use cases or Increment A's domain-dependent criteria.
+
+
+## Numeric Area corner input — continuation of Phase 3 / Increment A
+
+The Area task includes a native **Enter corner coordinates / Eckpunkte numerisch eingeben**
+disclosure. It starts folded to preserve pointer workspace; opening it needs no Inspector
+navigation or modal, including at constrained widths. Add still focuses the canvas; Tab
+reaches the disclosure. The form scrolls independently and Finish/Cancel remain outside it.
+
+1. Enter x and y in metres from the plan origin `(0, 0)` (x right, y down). Zero and negative
+   values are allowed. The shared length parser accepts decimal point/comma, rejects units,
+   exponents and incomplete values, and rounds input to whole millimetres. Absolute coordinates
+   must fit safe integer millimetres; they are not bounded by the Room side-length limit.
+2. **Add corner / Eckpunkt hinzufügen** or unmodified Enter in either field applies the pair
+   to the existing temporary outline. The input clears and focus returns to x for the next
+   corner. Enter in a field never creates the Area. Untouched fields preserve the exact
+   original mouse coordinate when editing, even if its displayed metre value is rounded.
+3. The ordered list states each corner's position. **Edit / Bearbeiten** loads a corner and
+   focuses x; **Apply corner change / Eckpunkt ändern** updates it. **Remove / Entfernen**
+   removes the chosen corner and returns focus to x. There is no second geometry representation.
+4. Bad values stay in the form, explain their error through `FieldError` and focus the first
+   invalid field. Duplicate positions are refused by the same tool rule as mouse placement.
+   Pending input blocks completion and other row edits; **Discard coordinate entry /
+   Koordinateneingabe verwerfen** explicitly abandons it. Folding the form does not abandon it.
+5. Create area uses `areaOutline` and the existing command, for pointer and numeric points
+   alike. Collinear/zero-area/overflowing outlines cannot complete. Another command's saving
+   state blocks every completion door, including Enter and first-corner close (#75 review).
+   Refused writes retain the outline. Undo/Redo reverses/restores the whole created Area.
+6. Native fields keep Escape and their editing keys. From a button, Escape uses the existing
+   root route; Add/overlays retain priority. An applied draft clears before the tool exits.
+   Cancel exits directly; even an empty task retires its pending coordinate text. Success
+   restores canvas focus after one-shot creation; explicit repeat keeps the empty task active.
+
+The numeric form does not name/classify Areas or repair self-crossing outlines. It closes the
+numeric-placement gap only; the remaining M02 and Increment A criteria stay open.

@@ -1,4 +1,5 @@
 import type { EditorContext } from './editor-context';
+import type { Point } from '../../../core/geometry/Point';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 
 /**
@@ -59,6 +60,10 @@ export class ToolManager {
 
 	finishActiveTool(): void {
 		this.activeTool?.finish?.();
+	}
+
+	editActiveCorner(index: number, point: Point | null): boolean {
+		return this.activeTool?.editCorner?.(index, point) ?? false;
 	}
 
 	/**

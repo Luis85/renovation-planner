@@ -8,7 +8,7 @@ behavior on `cf536f32` from the current contribution. It does not declare the wh
 | 0 | Existing Room/Zone and Floor/Plan ADRs; ADR-0018 records selection, Inspector and refresh ownership | New-domain contracts, perspective implementation and stakeholder acceptance |
 | 1 | Responsive shell, context bar, rails and drawers already exist | Perspective controls when their domains are available; full theme/release acceptance |
 | 2 | This contribution adds ordered unique multi-selection, independent member focus, badges, overlap cycling, persistent list access and shared-property summary | Wall/Opening/Object hit priority and inspectors when those entities exist |
-| 3 | Select/Add and temporary Room tools exist; the Area continuation adds its catalogue path, validated outline, one-shot/repeated completion and keyboard routing | Unavailable creation domains, complete cross-tool/non-canvas routes and release acceptance |
+| 3 | Select/Add and temporary Room tools exist; the Area continuation adds its catalogue path, validated outline, one-shot/repeated completion and keyboard routing; the numeric continuation adds corner placement/correction | Unavailable creation domains, complete cross-tool/non-canvas routes and release acceptance |
 | 4 | Rectangular room drag/numeric creation and reversible command already exist | Existing-room naming/resizing refinements, room-kind decision and complete M03 acceptance |
 | 5 | Not delivered | Walls, hosted openings, connected creation, exact-length impact and composite undo |
 | 6 | Background display and calibration exist | Transactional prepare/scale/review setup, persistent appearance and transforms |
@@ -136,6 +136,88 @@ The visual browser fixture remains read-only: it deliberately refuses writes. Th
 in-memory repositories, and the persistence test uses the actual Obsidian repository stack
 against a fake vault. Neither is a live Obsidian acceptance run.
 
-Remaining scope: Area metadata editing and a numeric route for individual corners, robust
+Remaining scope after PR #75: Area metadata editing and a numeric route for individual corners, robust
 self-intersection/repair rules, the unavailable M02 entries, domain-dependent Phase 2 criteria,
 and the remainder of increments B–E. The implementation plan and Increment A remain open.
+
+
+## Numeric Area continuation on PR #75 — 2026-09-05
+
+Base: remote `codex/editor-area-creation` at `d91431b2ab787e54ad6105bb7fb7ebbdf01e3d19`.
+PR #75 and its base #74 were open; all CI checks on both heads passed at inspection.
+The #74 history included by #75 is inherited, including `74290e9` and the `f7aa3c5` Escape fix.
+#74's later single-selection review finding is already fixed by #75. During this work, #74
+advanced to `bb62e2f3db88c35990f34e56dad919fdccce0fd0` with that fix and five new regression
+cases; this continuation imports those tests verbatim. Its CI is green. The new native asset
+picker Escape review on #74 is already protected by #75's `isEditingField` boundary. #75's outstanding
+busy-Enter finding is fixed in this continuation at the shared drawing-tool completion gate,
+covering first-corner close as well as Enter and the button. Neither base branch is modified.
+
+Delivered scope:
+
+- Add → Area retains canvas focus; Tab reaches **Enter corner coordinates / Eckpunkte numerisch
+  eingeben**. The native disclosure opens with Enter/Space; Tab then reaches x, y, Apply and
+  Discard, followed by the ordered corner edit/remove controls and existing Finish/Cancel/repeat.
+- Positions are absolute plan coordinates: origin `(0, 0)`, x right, y down. Fields and rows use
+  metres, decimal point/comma and the existing length grammar/whole-millimetre rounding. Zero
+  and negative coordinates are valid. Room's positive-size and kilometre limits are unchanged;
+  absolute positions instead refuse values not representable as safe integer millimetres.
+- Apply (or unmodified Enter in a field) adds/changes one corner in `DrawPolygonTool`'s buffer.
+  Remove changes that same buffer. Canvas gestures and numeric entry share duplicate checks,
+  `RenderState.polygonSketch`, `areaOutline` and the existing completion/command/history path.
+  Untouched axes retain the exact mouse coordinate, including sub-millimetre values.
+- Raw uncommitted text is per-leaf task state, not a second geometry. It survives disclosure
+  folding and is explicitly applied/discarded. Pending text blocks all completion doors and
+  switching the edited row; invalid text describes the field and focuses the first invalid one.
+- Field Escape and native editing keys do not reach the canvas. Enter applies the pair only;
+  chords, composition and held Enter do not apply it. Buttons still bubble to the existing
+  Add → overlay → draft → tool → selection Escape route. Cancel/task change resets input even
+  when no corner was applied. Submitted-write generation protection remains unchanged.
+- Successful completion uses the existing `Custom` Zone, counted localized name and sidecar
+  contract. Undo/Redo, one-shot Select return and explicit repeat remain unchanged. Point
+  edits before completion are temporary and add no entries to document history.
+
+Evidence: `areaNumeric.e2e.test.ts`, `add/areaCornerInput.test.ts`, the retained Area/Room/tool/
+selection suites, `tests/harness/areaCreation.test.ts`, and
+`scripts/editor-area-numeric-check.mjs`. `?view=plan-editor&area=numeric` uses real commands
+and ephemeral in-memory repositories, and supports successful creation/Undo/Redo in the browser.
+Reloading discards this harness workspace. The original `?area` scenario remains read-only.
+
+Browser verification: Edge 152.0.4191.62 passed real keyboard journeys in light/dark, custom
+accent and German at 460 px. No page errors or horizontal editor/form overflow; screenshots
+were visually inspected. Mouse-based Room drag and Area first-corner completion also passed
+in the numeric memory workspace in all four scenarios; the original Area browser script passed too. Pinned Chromium is absent; this is explicitly Edge evidence.
+
+`npm run check` passed with `VITEST_MAX_WORKERS=2`: build, lint, all 480 test files,
+6,637 passing tests (70 skipped), coverage and Fallow. Coverage: statements 99.26%,
+branches 98.09%, functions 99.23%, lines 99.58%. No thresholds, test timeouts or dependency
+versions changed. Fallow registers the new manual browser entry, both browser journeys share
+their matrix runner, and a now-stale Room store suppression is removed.
+
+Changed production files, measured hits/total (Istanbul coverage):
+
+| File under `src/presentation/` | Statements | Functions | Branches |
+|---|---:|---:|---:|
+| `editor/add/areaTask.ts` | 17/17 | 6/6 | 11/11 |
+| `editor/add/room-draft-store.ts` | 88/88 | 26/26 | 40/40 |
+| `editor/runtime.ts` | 143/143 | 49/49 | 38/39 |
+| `editor/shell/TemporaryToolBanner.vue` | 28/28 | 8/8 | 35/35 |
+| `editor/shell/formatLength.ts` | 20/20 | 4/4 | 16/16 |
+| `editor/tools/draw-polygon-tool.ts` | 89/89 | 17/17 | 56/56 |
+| `editor/tools/editor-tool.ts` | 0/0 | 0/0 | 0/0 |
+| `editor/tools/registerEditorTools.ts` | 21/22 | 13/14 | 2/2 |
+| `editor/tools/tool-manager.ts` | 52/52 | 14/14 | 30/30 |
+| `i18n/locales/de/editor.ts` | 1/1 | 0/0 | 0/0 |
+| `i18n/locales/en/editor.ts` | 1/1 | 0/0 | 0/0 |
+| `editor/add/AreaCornerEditor.vue` | 40/40 | 15/15 | 36/36 |
+| `editor/add/areaCornerInput.ts` | 44/44 | 9/9 | 42/42 |
+
+The two inherited gaps remain outside this feature: the failed asset-list query branch in
+`runtime.ts` and the calibration command's Undo closure in `registerEditorTools.ts`.
+The new form/controller and the changed polygon, coordinate parser and tool-manager paths
+are fully covered. The busy-completion regression was also observed failing with its shared
+completion guard temporarily removed, then passing after restoration.
+
+Open acceptance: live Obsidian, assistive-technology and full release/theme acceptance.
+Area metadata forms, comprehensive self-intersection detection/repair and additional creation
+kinds remain separate work. Phase 3, Increment A and the overall implementation plan remain open.

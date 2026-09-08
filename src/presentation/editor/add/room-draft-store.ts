@@ -424,9 +424,6 @@ export const useRoomDraftStore = defineStore('editor-room-draft', () => {
 		// fallow-ignore-next-line unused-store-member
 		taskToken,
 		rect, geometry, areaMm2,
-		// Read by `createRoomCreationAction`, which binds `useRoomDraftStore()` itself since
-		// the Area increment — so fallow follows it and the suppression `taskToken` still
-		// needs is stale here.
 		complete,
 		valid, hasInput,
 		beginTask, setRect, snapshotRect, restoreRect, clearRect, reset, setName,

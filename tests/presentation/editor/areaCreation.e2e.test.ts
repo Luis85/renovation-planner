@@ -242,8 +242,9 @@ describe('M02 Area through the real catalogue, tools, commands and repositories'
 		// `canFinishArea` is false while ANOTHER command is still saving, and the Finish button
 		// says so with `aria-disabled`; the canvas Enter used to call `finishActiveTool()`
 		// straight and queue the Area behind that write, and the first-corner click reached the
-		// tool's own `finish()` the same way. One action, every input: both go through
-		// `runtime.finishArea` now, the same door the button takes.
+		// tool's own `finish()` the same way. One action, every input: the canvas Enter goes
+		// through `runtime.finishArea`, the door the button takes, and `finish()` itself asks
+		// the same `canFinish` on this branch, so the first-corner click is refused there.
 		const { harness, zonesRepo } = await rig();
 		const runtime = runtimeOf(harness);
 		const save = zonesRepo.save.bind(zonesRepo);

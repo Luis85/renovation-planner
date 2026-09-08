@@ -12,10 +12,15 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: Area corners can be entered, corrected and removed entirely by keyboard in
+  metres, including decimal comma and signed positions. Numeric input and mouse gestures
+  share one temporary outline and reversible creation. Pending coordinates and saving block
+  every completion route; existing explicit repetition and Select return are preserved.
+
 - Plan editor: ordered multi-selection with numbered canvas badges, member focus, shared type
   and area summaries, and a persistent room/area list with an option for selection without
   modifier keys. Shift-click toggles membership; Alt-click cycles overlapping areas. Escape
-  clears single or multiple selections from list, Inspector and rail controls after closing overlays.
+  clears single and multiple selections from list, Inspector and rail controls after closing overlays.
 
 - **The Asset catalogue is shared across the vault** (design slice 19, PRD §59 as amended on
   2026-08-26). An `Asset` carries no project id at all — the field, the `project:` frontmatter

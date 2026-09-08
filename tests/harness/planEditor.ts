@@ -28,6 +28,7 @@ import { FakeLeaf } from '../helpers/workspace';
 // as JavaScript. `../helpers/settle` has no import beyond `Promise`/`Date`/`setTimeout`.
 import { settleUntil } from '../helpers/settle';
 import { selectMultipleOnceReady } from './multiSelectionKnob';
+import { areaNumericWorkspace, enterNumericArea } from './areaNumericWorkspace';
 
 /**
  * The REAL Plan Editor, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -393,6 +394,8 @@ export interface MountedPlanEditor {
  * see `mountPlanEditorHarness` for why it sequences the two rather than racing them.
  */
 export interface PlanEditorHarnessOptions {
+	/** Real commands against ephemeral memory repositories, with an editable numeric outline. */
+	readonly numericArea?: boolean;
 	/** A seeded zone's id (e.g. `harness-kitchen`) to select and frame once the editor is ready. */
 	readonly select?: string;
 	/** Opens the Add menu once the editor is ready. */
@@ -635,7 +638,9 @@ export function mountPlanEditorHarness(
 	// view, and the leaf frame plus `tests/harness/theme.css` is what supplies the height
 	// Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
-	const view = new PlanEditorView(new FakeLeaf() as never, harnessDeps({ stale: options.stale }));
+	const base = harnessDeps({ stale: options.stale });
+	const deps = options.numericArea === true ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
+	const view = new PlanEditorView(new FakeLeaf() as never, deps);
 	leafEl.appendChild(view.containerEl);
 
 	// State first, then open — the restored-leaf order. `void` rather than awaited: the
@@ -657,6 +662,7 @@ export function mountPlanEditorHarness(
 	}
 	if (options.add === true) void openAddMenuOnceReady(leafEl);
 	if (options.area === true) void enterAreaTaskOnceReady(leafEl);
+	if (options.numericArea === true) void enterNumericArea(leafEl);
 	if (options.room !== undefined) void enterRoomTaskOnceReady(leafEl, options.room);
 
 	return { leafEl, view };

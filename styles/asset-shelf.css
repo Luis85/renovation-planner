@@ -157,6 +157,19 @@
 .rp-al-shelf .rp-al-row--on {
 	background-color: var(--background-modifier-active-hover);
 	box-shadow: inset 2px 0 0 0 var(--interactive-accent);
+}
+
+/*
+ * The selected row's emphasis is on the NAME alone, not on the whole row (Task A6 fix round,
+ * measured 5.22px of amount-column drift at 1440 before this split). `.rp-al-shelf .rp-al-row`'s
+ * `grid-template-columns` is expressed in `ch`, which resolves against the ELEMENT'S OWN font —
+ * so a bold `.rp-al-row--on` measured its own `11ch 4ch 5ch` tracks at very slightly different
+ * pixel widths than every regular-weight sibling row, shifting that one row's amount column out
+ * of line with the rest (the defect `.rp-al-row__amount`'s own comment below promises fixed:
+ * "the decimal points never lined up"). Keeping the row's own font-weight unchanged and bolding
+ * only the name inside it removes the row-level `ch` measurement difference entirely.
+ */
+.rp-al-shelf .rp-al-row--on .rp-al-row__name {
 	font-weight: var(--font-medium);
 }
 
@@ -297,12 +310,18 @@
 	.rp-al-row__supplier {
 		display: none;
 	}
+
+	.rp-al-columns__supplier {
+		display: none;
+	}
 }
 
-/* Headings leave WITH their cells (interaction rules §10, D02). The supplier column goes first
-   at 40rem with no heading change, because its heading is the last cell of the row and the
-   heading row still lines up over the four that remain; the waste cell and the whole heading
-   row go together at 17rem (Task A6, measured, replacing the un-measured 32.5rem this block
+/* Headings leave WITH their cells (interaction rules §10, D02) — including at 40rem: the
+   supplier heading (`.rp-al-columns__supplier`) is hidden in the same block that hides
+   `.rp-al-row__supplier`, a fix round finding, not the "no heading change" this comment used to
+   claim (the row's own column count still narrows from six to five here, so the four remaining
+   headings above it need no shift of their own). The waste cell and the whole heading row go
+   together at 17rem (Task A6, measured, replacing the un-measured 32.5rem this block
    shipped with). With the source-order bug above fixed, the merged rule's own container never
    reaches 32.5rem while the shelf pane renders at all with an asset selected — 720px viewport
    measures a 440px container and 560px measures 320px, both under 32.5rem (520px), so that

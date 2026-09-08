@@ -58,9 +58,9 @@ const shelves = computed((): readonly Shelf[] => {
 		@keydown.down="moveFocus($event, 1)"
 		@keydown.up="moveFocus($event, -1)"
 	>
-		<!-- Read once as context for the rows below. Below 32.5rem the row and the waste cell are display:none together, so nothing is announced that a sighted reader cannot see (§10). -->
+		<!-- Read once as context for the rows below. Below 17rem the row and the waste cell are display:none together, and the supplier heading leaves with its own cell below 40rem, so nothing is announced that a sighted reader cannot see (§10). -->
 		<div class="rp-al-columns">
-			<span /><span>{{ tr('form.new-asset.name') }}</span><span class="rp-al-columns__cost">{{ tr('view.asset-library.unit-cost') }}</span><span>{{ tr('view.asset-library.waste') }}</span><span>{{ tr('view.asset-library.supplier') }}</span>
+			<span /><span>{{ tr('form.new-asset.name') }}</span><span class="rp-al-columns__cost">{{ tr('view.asset-library.unit-cost') }}</span><span>{{ tr('view.asset-library.waste') }}</span><span class="rp-al-columns__supplier">{{ tr('view.asset-library.supplier') }}</span>
 		</div>
 		<template
 			v-for="shelf in shelves"

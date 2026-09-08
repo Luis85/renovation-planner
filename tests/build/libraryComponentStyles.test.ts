@@ -195,4 +195,16 @@ describe('shelf column headings and cells', () => {
 		expect(hidingHeadings).toHaveLength(1);
 		expect(hidingWaste).toEqual(hidingHeadings);
 	});
+
+	/** Same rule, over the supplier column specifically: its heading (`.rp-al-columns__supplier`)
+	 *  must leave in the SAME block as its cell (`.rp-al-row__supplier`), not a different one and
+	 *  not never (fix round finding — the heading used to stay put while its column vanished). */
+	it('hides the supplier heading together with the supplier cell', () => {
+		const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//gu, '');
+		const blocks = [...sheet.matchAll(/@container rp-al-shelves \(width < ([\d.]+rem)\)\s*\{([\s\S]*?)\n\}/gu)];
+		const hidingSupplierCell = blocks.filter(([, , body]) => /\.rp-al-row__supplier\s*\{[^}]*display:\s*none/u.test(body)).map(([, w]) => w);
+		const hidingSupplierHeading = blocks.filter(([, , body]) => /\.rp-al-columns__supplier\s*\{[^}]*display:\s*none/u.test(body)).map(([, w]) => w);
+		expect(hidingSupplierCell).toHaveLength(1);
+		expect(hidingSupplierHeading).toEqual(hidingSupplierCell);
+	});
 });

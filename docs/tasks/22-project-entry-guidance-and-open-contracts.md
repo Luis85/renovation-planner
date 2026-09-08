@@ -312,8 +312,38 @@ manual case written and unrun; asset library and real-device measurement still o
 - [x] Task 3: palette open records the target on `'opened'` only.
 - [x] Task 4: mobile notice and disabled controls, editor and designer refusal, palette guards,
       manual case written.
-- [ ] Four requirement notes extended; `npm run check` green once before the branch is finished.
+- [x] Four requirement notes extended; `npm run check` green once before the branch is finished.
 
 ## Outcome
 
-Filled in when the branch is finished.
+Landed 2026-09-08 on `codex/project-guidance`, sixteen commits over `7d4bc381`, each task
+reviewed against its own brief and the whole branch reviewed once more at the end.
+
+**What closed.** The guidance region is the three entry-path cards P01 and P02 draw, in
+`ProjectEntryGuidance.vue` (extracted after fallow measured the combined template at 28
+cognitive). A reliably missing project clears the stored Resume target. The palette's plan open
+shares the project surface's door and records the target on a confirmed leaf open. On mobile,
+the project surface disables its write controls behind one visible reason, the plan editor and
+asset designer refuse with a sentence, and five palette commands are `checkCallback`s on the
+device. Each requirement note says exactly that and no more.
+
+**What stayed open, by name.** Asynchronous editor hydration confirmation (the "opened" verdict
+is a leaf, not a loaded plan). The asset library's write controls on mobile. Per-control
+`aria-describedby` on the Work and Quotes states. Real-device measurement: `docs/tests/cases/Read
+projects on mobile.md` is written and has not been run, and neither have the six project cases
+that already existed. The `project-detail-new` capture exists and was not taken; the surface was
+checked by hand in the browser harness instead (both variants, the compact hidden row, and
+"Choose a plan" focusing the first row).
+
+**What the branch corrected outside its scope.** Three sentences in `CLAUDE.md` it had
+falsified — the picker's callback shape, which `Platform` member the suite drives, and the
+mechanism a `Platform` reset rests on — plus two docblocks saying the same. And one instrument
+note for a follow-up: `reversibleWritePathDiscovery.test.ts` matches the reversal verb as a bare
+substring, so a docblock reading "undocumented" reddened the gate and was reworded to dodge it.
+
+**Gate evidence.** `npm run check` exit 0 at `ad5e4368`. At `a0b7098d`, after two comment-only
+commits, build and lint passed and the suite reddened on three editor tests at 5.2–5.7 s against
+the 5 s default with 57 IDE processes on the box; all three pass alone, and
+`npm run test:coverage -- --testTimeout=20000` (671 files, 8181 tests, floors held) followed by
+`npm run analyze` (0 above threshold) both exited 0. No assertion, floor or configuration was
+relaxed.

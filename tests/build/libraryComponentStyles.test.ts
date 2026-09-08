@@ -184,3 +184,15 @@ describe('the classes the library, shared-component and designer surfaces emit',
 		expect(undeclared).toEqual([]);
 	});
 });
+
+describe('shelf column headings and cells', () => {
+	/** Interaction rules §10: "Remove column headings together with their cells." */
+	it('hide the heading row and the waste cell under ONE container threshold', () => {
+		const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//gu, '');
+		const blocks = [...sheet.matchAll(/@container rp-al-shelves \(width < ([\d.]+rem)\)\s*\{([\s\S]*?)\n\}/gu)];
+		const hidingHeadings = blocks.filter(([, , body]) => /\.rp-al-columns\s*\{[^}]*display:\s*none/u.test(body)).map(([, w]) => w);
+		const hidingWaste = blocks.filter(([, , body]) => /\.rp-al-row__waste\s*\{[^}]*display:\s*none/u.test(body)).map(([, w]) => w);
+		expect(hidingHeadings).toHaveLength(1);
+		expect(hidingWaste).toEqual(hidingHeadings);
+	});
+});

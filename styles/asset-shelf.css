@@ -281,12 +281,21 @@
 	}
 }
 
+/* Headings leave WITH their cells (interaction rules §10, D02). The supplier column goes first
+   at 40rem with no heading change, because its heading is the last cell of the row and the
+   heading row still lines up over the four that remain; the waste cell and the whole heading
+   row go together at 32.5rem, where a heading over "amount / unit" alone would label nothing
+   a reader cannot see. Chosen from captures at 560 and 720 (Task A6). */
 @container rp-al-shelves (width < 32.5rem) {
 	.rp-al-shelf .rp-al-row {
 		grid-template-columns: 20px minmax(0, 1fr) auto auto;
 	}
 
 	.rp-al-row__waste {
+		display: none;
+	}
+
+	.rp-al-columns {
 		display: none;
 	}
 }
@@ -298,7 +307,4 @@
 	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
-}
-@container rp-al-shelves (width < 40rem) {
-	.rp-al-columns { display: none; }
 }

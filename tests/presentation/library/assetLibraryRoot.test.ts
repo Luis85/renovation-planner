@@ -451,4 +451,10 @@ describe('AssetLibraryRoot, shelves and selection', () => {
 		// next search announces into a region that has just appeared and says nothing.
 		expect(root.get('.rp-al-results').text()).toBe('');
 	});
+
+	it('exposes the column headings to assistive technology', async () => {
+		const root = await mountRoot({ entries: [anEntry()], expanded: ref(['material']) });
+		expect(root.get('.rp-al-columns').attributes('aria-hidden')).toBeUndefined();
+		root.unmount();
+	});
 });

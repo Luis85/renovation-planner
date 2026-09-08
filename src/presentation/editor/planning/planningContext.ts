@@ -28,7 +28,7 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 	const blocked = computed(() => loading.value || runtime.writesBlocked.value || runtime.renovation.blocked.value);
 	function matches(read: PlanningBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation) && sameGeometryDocument(
-			{ calibration: project.plan?.calibration ?? null, groups: project.groups, structure: project.structure, intended: project.intended, objects: [...project.zones.values()].map(item => ({ id: item.id, points: item.points })) },
+			{ calibration: project.plan?.calibration ?? null, groups: project.groups, structure: project.structure, intended: project.intended, objects: [...project.zones.values()].map(item => ({ id: item.id, points: item.points, bulges: item.bulges })) },
 			{ ...read.geometry.document, structure: read.geometry.document.structure ?? EMPTY_STRUCTURE });
 	}
 	async function edit(kind: PlanningKind, id = ''): Promise<void> {

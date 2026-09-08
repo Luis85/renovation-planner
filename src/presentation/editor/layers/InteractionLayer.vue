@@ -43,6 +43,9 @@ import type { SpatialObjectCandidate } from '../tools/select-tool';
 import GestureSketch from './GestureSketch.vue';
 import ObjectRotationHandle from '../elements/ObjectRotationHandle.vue';
 import SnapGuides from './SnapGuides.vue';
+import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
+import { polygonPolyline } from '../../../core/geometry/curvePolyline';
+import CurveHandles from '../curves/CurveHandles.vue';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 
@@ -65,7 +68,8 @@ function toScreen(point: { x: number; y: number }) {
 const previewFlat = computed(() => {
 	const preview = runtime.renderState.previewPolygon;
 	if (preview === null || preview.length < 2) return null;
-	return preview.flatMap((point) => {
+	const selected = selectedIds.value.length === 1 ? zones.value.get(selectedIds.value[0]) : undefined;
+	return polygonPolyline({ points: preview, bulges: selected?.bulges }, 0.25 / viewportTransform(editorStore.viewport).scaleX).flatMap((point) => {
 		const at = toScreen(point);
 		return [at.x, at.y];
 	});
@@ -86,7 +90,7 @@ const hoverOutlineFlat = computed(() => {
 	if (id === null || selectedIds.value.some((selected) => String(selected) === id)) return null;
 	const zone = candidates.value.get(id);
 	if (zone === undefined) return null;
-	return zone.points.flatMap((point) => {
+	return spatialOutlinePoints(zone, 0.25 / viewportTransform(editorStore.viewport).scaleX).flatMap((point) => {
 		const at = toScreen(point);
 		return [at.x, at.y];
 	});
@@ -108,11 +112,11 @@ const selectedScreenPoints = computed(() => {
 	return zone.points.map((point) => toScreen(point));
 });
 
-const selectedFlat = computed(() =>
-	selectedScreenPoints.value === null
-		? null
-		: selectedScreenPoints.value.flatMap((at) => [at.x, at.y]),
-);
+const selectedFlat = computed(() => {
+	const zone = selectedIds.value.length === 1 ? zones.value.get(selectedIds.value[0]) : undefined;
+	const geometry = zone && (runtime.curveTask.preview.value?.objects.find(item => item.id === zone.id) ?? zone);
+	return geometry ? polygonPolyline(geometry, 0.25 / viewportTransform(editorStore.viewport).scaleX).flatMap(point => { const at = toScreen(point); return [at.x, at.y]; }) : null;
+});
 
 /** Multiple selections show all outlines, without handles suggesting a group edit. */
 const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selectedIds.value.flatMap((id) => {
@@ -124,7 +128,7 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 		anchor: zone.points.length > 0 ? toScreen(zone.points[0]) : null,
 		strokeWidth: focusedId.value === id ? 3 : 2,
 		badgeStrokeWidth: focusedId.value === id ? 3 : 1.5,
-		points: zone.points.flatMap((point) => {
+		points: spatialOutlinePoints(zone, 0.25 / viewportTransform(editorStore.viewport).scaleX).flatMap((point) => {
 			const at = toScreen(point);
 			return [at.x, at.y];
 		}),
@@ -132,7 +136,7 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 }));
 
 /** Room outlines stay editable in Plan and Renovate; Review draws no editing handles. */
-const editableVertices = computed(() => renovationSession.perspective !== 'review' ? selectedScreenPoints.value : []);
+const editableVertices = computed(() => renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' ? selectedScreenPoints.value : []);
 </script>
 
 <template>
@@ -248,6 +252,10 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 			</template>
 		</template>
 		<VGroup :config="{ name: 'rotation-handle-viewport', ...viewportTransform(editorStore.viewport) }">
+			<CurveHandles
+				:tokens="props.tokens"
+				:zoom="editorStore.viewport.zoom"
+			/>
 			<ObjectRotationHandle
 				:tokens="props.tokens"
 				:zoom="editorStore.viewport.zoom"
@@ -255,5 +263,3 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 		</VGroup>
 	</VLayer>
 </template>
-
-

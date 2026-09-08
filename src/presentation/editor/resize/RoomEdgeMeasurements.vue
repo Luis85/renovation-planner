@@ -7,11 +7,11 @@ import { formatMetres } from '../shell/formatLength';
 import { tr } from '../../i18n/strings';
 import { roomEdges } from './roomEdgeMeasurements';
 
-const props = defineProps<{ points: readonly Point[]; closed: boolean; omitAxisControls: boolean }>();
+const props = defineProps<{ points: readonly Point[]; bulges?: readonly number[]; closed: boolean; omitAxisControls: boolean }>();
 const editor = useEditorStore();
 const edges = computed(() => {
 	const placed: { x: number; y: number }[] = [];
-	return roomEdges(props.points, props.closed, props.omitAxisControls).map(edge => {
+	return roomEdges(props.points, props.closed, props.omitAxisControls, props.bulges).map(edge => {
 		const midpoint = worldToScreen(edge.midpoint, editor.viewport, STAGE_PIXELS);
 		const candidates = [28, 52, 76, 100].map(offset => ({ x: Math.max(48, Math.min(editor.stageSize.width - 48, midpoint.x + edge.normal.x * offset)), y: Math.max(16, Math.min(editor.stageSize.height - 40, midpoint.y + edge.normal.y * offset)) }));
 		const position = candidates.find(point => placed.every(other => Math.abs(point.x - other.x) > 90 || Math.abs(point.y - other.y) > 28)) ?? candidates[candidates.length - 1];

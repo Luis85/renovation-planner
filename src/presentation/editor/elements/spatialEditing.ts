@@ -4,13 +4,15 @@ import { createElementActions } from './elementActions';
 import { createRotationActions } from './rotationActions';
 import type { ElementMoveDeps } from './ElementMove';
 import type { RotationGestureDeps } from './ElementRotation';
+import { createCurveTask } from '../curves/curveTask';
 
-type Runtime = Parameters<typeof createElementTask>[1] & Parameters<typeof createElementActions>[1] & Omit<Parameters<typeof createRotationActions>[1], 'elementActions'>;
+type Runtime = Parameters<typeof createElementTask>[1] & Parameters<typeof createElementActions>[1] & Omit<Parameters<typeof createRotationActions>[1], 'elementActions'> & Parameters<typeof createCurveTask>[1];
 /** Compose the existing per-leaf element/rotation actions and their shared pointer bindings. */
 export function createSpatialEditing(context: PlanEditorContext, runtime: Runtime) {
 	const elementTask = createElementTask(context, runtime);
 	const elementActions = createElementActions(context, runtime);
 	const rotationActions = createRotationActions(context, { ...runtime, elementActions });
+	const curveTask = createCurveTask(context, runtime);
 	const toolBindings: ElementMoveDeps & RotationGestureDeps = {
 		canRotateShape: rotationActions.canRotateId,
 		rotationTarget: () => rotationActions.target.value,
@@ -22,6 +24,6 @@ export function createSpatialEditing(context: PlanEditorContext, runtime: Runtim
 		previewElement: elementActions.previewElement,
 		moveElement: (id, points, original) => { void elementActions.move(id, points, original); },
 	};
-	return { elementTask, elementActions, rotationActions, toolBindings };
+	return { elementTask, elementActions, rotationActions, curveTask, toolBindings };
 }
 export type SpatialEditing = ReturnType<typeof createSpatialEditing>;

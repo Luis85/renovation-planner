@@ -55,6 +55,7 @@ import ElementInspector from '../elements/ElementInspector.vue';
 import ElementTaskForm from '../elements/ElementTaskForm.vue';
 import { isElementTool } from '../elements/elementDraft';
 import StructureTaskForm from '../structure/StructureTaskForm.vue';
+import CurveTaskForm from '../curves/CurveTaskForm.vue';
 import { isStructureTool } from '../structure/structureDraft';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
@@ -78,6 +79,7 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 		</h2>
 		<RenovationInspector v-if="renovationSession.perspective === 'review'" />
 		<NewRoomInspector v-else-if="activeToolId === 'draw-room'" />
+		<CurveTaskForm v-else-if="activeToolId === 'edit-curves'" />
 		<StructureTaskForm v-else-if="isStructureTool(activeToolId)" />
 		<ElementTaskForm v-else-if="isElementTool(activeToolId)" />
 		<MultiSelectionInspector

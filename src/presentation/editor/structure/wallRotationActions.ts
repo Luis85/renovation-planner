@@ -25,7 +25,7 @@ function hostWall(structure: Structure, id: string): Wall | undefined {
 	return structure.walls.find(wall => wall.id === host);
 }
 function sameWall(a: Wall, b: Wall): boolean {
-	return a.id === b.id && samePoint(a.start, b.start) && samePoint(a.end, b.end) && a.height === b.height && a.thickness === b.thickness;
+	return a.id === b.id && samePoint(a.start, b.start) && samePoint(a.end, b.end) && a.height === b.height && a.thickness === b.thickness && (a.bulge ?? 0) === (b.bulge ?? 0);
 }
 
 /** Wall and opening selections share the existing reviewed StructureCommand write boundary. */

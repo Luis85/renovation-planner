@@ -7,7 +7,7 @@ import { computed, nextTick, onBeforeUnmount, ref, useId, type Ref } from 'vue';
 import { useInvalidFieldFocus } from '../../composables/use-invalid-field-focus';
 import type { Opening, Structure, Wall } from '../../../domain/spatial/Structure';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
-import { alongWall, wallLength } from '../../../domain/spatial/Structure';
+import { endForWallLength, wallLength } from '../../../domain/spatial/Structure';
 import { editWall, validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { Point } from '../../../core/geometry/Point';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
@@ -42,7 +42,7 @@ const proposal = computed(() => {
 	}
 	const parsedSwing = swing.value ? parseSwingDraft(swing.value) : undefined;
 	if (parsedSwing === null) return null;
-	if (initialWall) return editWall(props.structure, { ...initialWall, height: values.height, thickness: values.thickness, end: alongWall(initialWall, values.length) });
+	if (initialWall) return editWall(props.structure, { ...initialWall, height: values.height, thickness: values.thickness, end: endForWallLength(initialWall, values.length) });
 	return { ...props.structure, openings: props.structure.openings.map(item => item.id === props.id ? { ...item, ...values, ...(swingEdited.value && parsedSwing ? { swing: parsedSwing } : {}) } : item) };
 });
 const changed = computed(() => JSON.stringify(proposal.value) !== JSON.stringify(props.structure));

@@ -57,3 +57,39 @@ integration repairs, not changes to curve semantics.
 This checkpoint is a dependency for Stair8 and opening movement. **Curve rendering, editor
 task controls, full frontend metadata forwarding and combined browser/native acceptance remain
 in progress.** No screenshot or usable-release claim is attached to this foundation alone.
+
+## Editor checkpoint — 2026-09-09
+
+The explicit **Edit curves** task is available for a selected Room or Wall. It separates numbered
+bend handles from ordinary vertex and rotation handles; the edge arrow explains signed depth in
+the screen coordinate system. Moving more than four screen pixels starts bending. A click only
+chooses the edge, pointer interruption restores that bend's opening value, and Cancel discards
+the complete draft. The native edge picker, depth and radius fields offer the same operation.
+Untouched display text preserves the original bulge; retyping deliberately applies a new value.
+Apply uses the whole-sidecar conditional geometry command and its exact inverse/Zone receipts.
+An ordinary Room with no structure section is supported, and straightening removes its obsolete
+curve map so the task can reopen without a false conflict.
+
+Room fills and selection outlines, Wall paint and opening cuts follow the curved edges. Display
+polylines are approximations only; length, area, centroid, hit projection, thin marquee crossings
+and bounds use analytic geometry. Every Room edge label follows current curve previews and
+rigid rotation; multiple selected Rooms accept the shared group-document preview. Numeric
+rectangular scaling is unavailable for curved Rooms. Existing point editing retains edge maps,
+while ambiguous changes to the number of corners are refused. Wall length editing scales the
+chord with the original bend and heading; hosted openings use distance and local tangent along
+the host. Room-to-Wall enclosure remains explicit, not a continuous synchronization relationship.
+
+Types, scoped ESLint and scoped Oxlint 1.81 passed with the aligned repository dependencies.
+Six targeted files cover 20 unique cases. The first run passed 19/20; its only failure demanded
+exact equality between -1000 and -999.9999999999999 for an analytic midpoint. A tolerance-based
+assertion and the full three-case projection rerun passed. All five new runtime cases passed:
+native numeric preview/application and exact history, straighten/reopen, Room without walls and
+no-op bytes, interrupted pointer/cancel invariance, curve-only peer retirement, and Wall/Review
+admission. Two shadowed local variable names found by Oxlint were also corrected.
+
+The independent Group UI merge must compose `curveTask.preview ?? groupActions.preview` for
+ZoneLayer, RoomDimensionLabels and StructureLayer, preserving the group's full member geometry.
+The curve task is composed in `createSpatialEditing` alongside the existing tool actions.
+Broader scene/dimension/rotation regressions, actual EN/DE constrained rendered captures and
+native-host acceptance remain pending. This checkpoint is implementation evidence, not final
+visual acceptance of the expanded release.

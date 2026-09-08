@@ -38,7 +38,7 @@ export class ElementRotation {
 		if (!pivot || !finitePointer(event) || this.deps.canRotateShape?.() === false || context.writesBlocked() || event.modifiers.alt || !this.deps.commitRotation) return;
 		const bearing = Math.atan2(event.worldPoint.y - pivot.y, event.worldPoint.x - pivot.x);
 		const frozen = { ...control, handle: { ...control.handle }, anchor: { ...control.anchor }, pivot, bounds: { min: { ...control.bounds.min }, max: { ...control.bounds.max } } };
-		this.gesture = { context, control: frozen, shape: { ...shape, ...(shape.wall ? { wall: { ...shape.wall, start: { ...shape.wall.start }, end: { ...shape.wall.end } } } : {}), points: shape.points.map(point => ({ ...point })) },
+		this.gesture = { context, control: frozen, shape: { ...shape, ...(shape.bulges ? { bulges: [...shape.bulges] } : {}), ...(shape.wall ? { wall: { ...shape.wall, start: { ...shape.wall.start }, end: { ...shape.wall.end } } } : {}), points: shape.points.map(point => ({ ...point })) },
 			start: { x: event.screenPoint.x, y: event.screenPoint.y }, radians: 0, bearing, initialBearing: bearing, dragging: false };
 		context.renderState.rotationDegrees = 0;
 		context.renderState.rotationInteraction = { control: frozen, dragging: false, snapDegrees: null };
@@ -49,6 +49,7 @@ export class ElementRotation {
 		if (!this.deps.rotationTarget) return original.generation === undefined;
 		const current = this.deps.rotationTarget();
 		return current !== null && current.id === original.id && current.kind === original.kind && (original.generation === undefined || current.generation === original.generation)
+			&& JSON.stringify(current.bulges) === JSON.stringify(original.bulges) && current.wall?.bulge === original.wall?.bulge
 			&& current.points.length === original.points.length && current.points.every((point, index) => point.x === original.points[index].x && point.y === original.points[index].y);
 	}
 	private update(gesture: Gesture, event: EditorPointerEvent): readonly Point[] | null {

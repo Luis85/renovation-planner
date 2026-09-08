@@ -1,4 +1,5 @@
 import { openingEn } from './opening';
+import { curvesEn } from './curves';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
 import { inputEn } from './input';
@@ -30,6 +31,7 @@ import { creationEn } from './creation';
  */
 import { structureEn } from './structure';
 export const editorEn = {
+	...curvesEn,
 	...inputEn,
 	...creationEn,
 	'editor.direct.edit-shape': 'Edit shape',

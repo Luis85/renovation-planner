@@ -6,14 +6,19 @@ import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
 import HostIcon from '../../components/HostIcon.vue';
 const props = defineProps<{ id: string }>();
 const runtime = useEditorRuntime();
+const target = computed(() => runtime.rotationActions.target.value);
+const visible = computed(() => target.value?.id === props.id && runtime.activeToolId.value === 'select');
+const hostWall = computed(() => target.value?.wall !== undefined && target.value.id !== target.value.wall.id);
+const label = computed(() => tr(hostWall.value ? 'editor.rotation.host-wall' : 'editor.rotation.by'));
 const blocked = computed(() => runtime.rotationActions.blocked.value || runtime.rotationActions.active.value);
 function rotate(event: Event, degrees?: number): Promise<void> { return runInspectorAction(event, 'rotate-object', () => runtime.rotationActions.rotate(props.id, degrees)); }
 </script>
 <template>
 	<div
+		v-if="visible"
 		class="rp-object-rotation-actions"
 		role="group"
-		:aria-label="tr('editor.rotation.by')"
+		:aria-label="label"
 	>
 		<button
 			type="button"
@@ -22,7 +27,7 @@ function rotate(event: Event, degrees?: number): Promise<void> { return runInspe
 			@click="rotate($event)"
 		>
 			<HostIcon name="rotate-cw" />
-			{{ tr('editor.rotation.by') }}
+			{{ label }}
 		</button>
 		<button
 			type="button"
@@ -44,5 +49,11 @@ function rotate(event: Event, degrees?: number): Promise<void> { return runInspe
 			<HostIcon name="rotate-cw" />
 			{{ tr('editor.rotation.right-quarter') }}
 		</button>
+		<p
+			v-if="hostWall"
+			class="rp-object-rotation-hint"
+		>
+			{{ tr('editor.rotation.host-wall-hint') }}
+		</p>
 	</div>
 </template>

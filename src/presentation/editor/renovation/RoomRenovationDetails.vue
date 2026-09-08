@@ -3,6 +3,7 @@ import type { ZoneId } from '../../../domain/zone/ZoneId';
 import RoomNameAction from '../naming/RoomNameAction.vue';
 import DownstreamAction from './DownstreamAction.vue';
 import OutlineEditAction from '../resize/OutlineEditAction.vue';
+import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
 import { usePlanningContext } from '../planning/planningContext';
 import PlanningInspector from '../planning/PlanningInspector.vue';
 import { computed } from 'vue';
@@ -113,6 +114,7 @@ function remove(id: string, name: string, proposalOnly = false): void {
 		class="rp-room-more-actions"
 	>
 		<summary>{{ tr('editor.structure.more') }}</summary>
+		<ObjectRotationControls :id="room.id" />
 		<p
 			v-if="session.mode === 'existing'"
 			class="rp-record-metadata"

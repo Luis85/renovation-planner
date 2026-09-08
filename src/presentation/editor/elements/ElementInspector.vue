@@ -40,7 +40,7 @@ async function edit(event: Event): Promise<void> {
 		</p>
 		<StructureRenovationEntry />
 		<ObjectRotationControls
-			v-if="element.kind === 'object' && session.perspective === 'plan'"
+			v-if="session.perspective === 'plan'"
 			:id="element.id"
 		/>
 		<button

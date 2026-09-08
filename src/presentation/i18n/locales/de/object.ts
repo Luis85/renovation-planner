@@ -4,6 +4,8 @@ export const objectDe: Record<keyof typeof objectEn, string> = {
 	'editor.rotation.by': 'Drehen um…',
 	'editor.rotation.left-quarter': '90° links',
 	'editor.rotation.right-quarter': '90° rechts',
+	'editor.rotation.host-wall': 'Wand drehen…',
+	'editor.rotation.host-wall-hint': 'Diese Öffnung dreht sich zusammen mit ihrer Wand und den anderen Öffnungen in dieser Wand.',
 	'editor.rotation.degrees': 'Drehen um (Grad)',
 	'editor.rotation.clockwise': '90 Grad im Uhrzeigersinn drehen',
 	'editor.rotation.counterclockwise': '90 Grad gegen den Uhrzeigersinn drehen',

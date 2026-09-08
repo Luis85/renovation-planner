@@ -23,8 +23,12 @@ controls, preserving the existing shell and Inspector routes.
    final visual/host acceptance remain parent-owned and sequential.
 
 Dependency: generalized `runtime.rotationActions` and shared `handleMetrics`, then host-wall
-rotation. Source begins at `43fd968b`; it will be rebased onto the verified engine checkpoint
-before wrapper integration. No selection-priority decision is made in this UI concern.
+rotation. Source began at `43fd968b` and is now rebased onto tested wall checkpoint `d7cbaf8b`,
+which includes generalized engine `f056a1f2`. The wrapper consumes that API; the shared controls
+are wired into every Plan Inspector and the permitted Room/Area/wall/opening Renovate contexts.
+Opening controls explicitly say Rotate wall and explain that hosted openings turn together.
+The small canvas popover retains Edit/Add only. The shared placement/clearance follow-up and
+combined UI verification remain pending. No selection-priority decision is made here.
 
 The two new test-only Lucide SVG fixtures are copied unchanged from the same pinned revision
 `2bfb9bb1bae5d74f6a9f81640ddd8bccc2c71860` as the existing icon fixtures; their original license

@@ -147,7 +147,7 @@
 	text-align: end;
 }
 
-/* Compact records retain every native action and its original DOM position. */
+/* Record facts remain visible; related actions expand without leaving the Room. */
 .renovation-plan-editor .rp-renovation-list :is(.rp-subject-row, .rp-work-row) {
 	display: flex;
 	flex-wrap: wrap;
@@ -167,7 +167,7 @@
 	margin: 0;
 }
 
-.renovation-plan-editor .rp-subject-row > .rp-renovation-row-actions { display: contents; }
+
 .renovation-plan-editor .rp-record-secondary-action {
 	min-height: 28px;
 	max-width: 100%;
@@ -263,3 +263,18 @@
 .renovation-plan-editor .rp-evidence-gallery .rp-evidence-thumbnail { aspect-ratio: 4 / 3; max-height: 140px; object-fit: cover; }
 .renovation-plan-editor .rp-evidence-gallery .rp-evidence-file-metadata { font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .renovation-plan-editor .rp-evidence-gallery + .rp-renovation-list > li { padding: 8px; gap: 4px; }
+
+.renovation-plan-editor .rp-room-breadcrumb { display: flex; align-items: center; gap: 4px; min-width: 0; color: var(--text-muted); font-size: var(--font-ui-small); }
+.renovation-plan-editor .rp-room-breadcrumb button { min-width: 0; height: auto; min-height: 28px; padding: 2px 0; box-shadow: none; background: transparent; border: 1px solid transparent; white-space: normal; text-align: start; }
+.renovation-plan-editor .rp-room-detail-title { margin: 0; }
+.renovation-plan-editor .rp-room-navigation--semantic { padding: 0; gap: 0; }
+.renovation-plan-editor .rp-room-navigation--semantic .rp-room-navigation__button { justify-content: center; text-align: center; min-height: 40px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; }
+.renovation-plan-editor .rp-room-navigation--semantic .rp-room-navigation__button[aria-pressed='true'] { border-bottom-color: var(--interactive-accent); background: transparent; }
+.renovation-plan-editor .rp-related-navigation-opener { justify-self: end; display: flex; gap: 6px; padding: 2px 0; min-height: 28px; height: auto; background: transparent; box-shadow: none; border: 1px solid transparent; font-size: var(--font-ui-smaller); }
+.renovation-plan-editor .rp-related-navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.renovation-plan-editor .rp-related-navigation button { display: flex; gap: 6px; white-space: normal; height: auto; min-height: 32px; }
+.renovation-plan-editor .rp-renovation-list .rp-subject-row .rp-record-title { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(0, 1.6fr); gap: 8px; width: 100%; align-items: start; line-height: 1.5; }
+.renovation-plan-editor .rp-subject-description { font-weight: var(--font-normal); }
+.renovation-plan-editor .rp-renovation-inspector .rp-record-actions { width: 100%; padding: 0; border: 0; font-size: var(--font-ui-smaller); }
+.renovation-plan-editor .rp-record-actions > summary { min-height: 28px; align-content: center; }
+.renovation-plan-editor .rp-cost-group > .rp-cost-totals { padding: 0 10px 10px; }

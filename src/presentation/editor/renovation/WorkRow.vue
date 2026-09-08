@@ -38,39 +38,45 @@ function outcomeLabel(id: string) {
 		<p v-if="blockingWork(value, item).length">
 			{{ tr('renovation.blocked', { names: blockingWork(value, item).map(other => other.title).join(', ') }) }}
 		</p>
-		<button
-			type="button"
-			class="rp-record-secondary-action"
-			:disabled="actions.blocked.value"
-			data-rp-action="work-record"
-			@click="actions.edit('work', item.roomId, item.id)"
+		<details
+			class="rp-record-actions"
+			:open="session.focusedId === item.id || item.outcomes.includes(session.focusedId)"
 		>
-			{{ tr('renovation.edit') }}
-		</button>
-		<button
-			v-for="id in item.outcomes"
-			:key="id"
-			type="button"
-			class="rp-record-secondary-action"
-			@click="actions.focus(item.roomId, 'planned', id)"
-		>
-			{{ tr('renovation.outcomes') }}: {{ outcomeLabel(id) }}
-		</button>
-		<button
-			type="button"
-			class="rp-record-secondary-action"
-			:disabled="actions.blocked.value"
-			@click="emit('remove', item.id, item.title)"
-		>
-			{{ tr('renovation.delete') }}
-		</button>
-		<button
-			v-if="context.commands.planning"
-			type="button"
-			class="rp-record-secondary-action"
-			@click="actions.focus(item.roomId, 'materials', item.id)"
-		>
-			{{ tr('renovation.materials') }}
-		</button>
+			<summary>{{ tr('renovation.record.actions') }}</summary>
+			<button
+				type="button"
+				class="rp-record-secondary-action"
+				:disabled="actions.blocked.value"
+				data-rp-action="work-record"
+				@click="actions.edit('work', item.roomId, item.id)"
+			>
+				{{ tr('renovation.edit') }}
+			</button>
+			<button
+				v-for="id in item.outcomes"
+				:key="id"
+				type="button"
+				class="rp-record-secondary-action"
+				@click="actions.focus(item.roomId, 'planned', id)"
+			>
+				{{ tr('renovation.outcomes') }}: {{ outcomeLabel(id) }}
+			</button>
+			<button
+				type="button"
+				class="rp-record-secondary-action"
+				:disabled="actions.blocked.value"
+				@click="emit('remove', item.id, item.title)"
+			>
+				{{ tr('renovation.delete') }}
+			</button>
+			<button
+				v-if="context.commands.planning"
+				type="button"
+				class="rp-record-secondary-action"
+				@click="actions.focus(item.roomId, 'materials', item.id)"
+			>
+				{{ tr('renovation.materials') }}
+			</button>
+		</details>
 	</li>
 </template>

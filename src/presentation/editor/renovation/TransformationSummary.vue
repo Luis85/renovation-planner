@@ -25,22 +25,52 @@ function continuePlanning(): void {
 	>
 		<div class="rp-transformation-summary__stages">
 			<div>
-				<h4>{{ tr('renovation.summary.existing') }}</h4>
-				<p>{{ summary.existing.slice(0, 3).map(item => item.existing!.description).join(', ') || tr('renovation.summary.unrecorded') }}</p>
+				<h4>{{ tr('renovation.summary.existing') }}<HostIcon name="arrow-right" /></h4>
+				<ul v-if="!compact && summary.existing.length">
+					<li
+						v-for="item in summary.existing.slice(0, 3)"
+						:key="item.id"
+					>
+						{{ item.existing!.description }}
+					</li>
+				</ul>
+				<p v-else>
+					{{ summary.existing.slice(0, 3).map(item => item.existing!.description).join(', ') || tr('renovation.summary.unrecorded') }}
+				</p>
 			</div>
 			<div>
 				<h4>
-					{{ tr('renovation.summary.work') }}
+					{{ tr('renovation.summary.work') }}<HostIcon name="arrow-right" />
 					<span
 						v-if="compact"
 						class="rp-transformation-progress"
 					>{{ tr('renovation.summary.compact-progress', { done: String(summary.complete), total: String(summary.work.length) }) }}</span>
 				</h4>
-				<p>{{ summary.work.slice(0, 3).map(item => item.title).join(', ') || tr('renovation.summary.unrecorded') }}</p>
+				<ul v-if="!compact && summary.work.length">
+					<li
+						v-for="item in summary.work.slice(0, 4)"
+						:key="item.id"
+					>
+						{{ item.title }}
+					</li>
+				</ul>
+				<p v-else>
+					{{ summary.work.slice(0, 3).map(item => item.title).join(', ') || tr('renovation.summary.unrecorded') }}
+				</p>
 			</div>
 			<div>
 				<h4>{{ tr('renovation.summary.planned') }}</h4>
-				<p>{{ summary.planned.slice(0, 3).map(item => `${tr(`renovation.change.${item.planned!.change}`)}: ${item.planned!.description || item.existing?.description}`).join(', ') || tr('renovation.summary.unrecorded') }}</p>
+				<ul v-if="!compact && summary.planned.length">
+					<li
+						v-for="item in summary.planned.slice(0, 3)"
+						:key="item.id"
+					>
+						{{ item.planned!.description || item.existing?.description }}
+					</li>
+				</ul>
+				<p v-else>
+					{{ summary.planned.slice(0, 3).map(item => `${tr(`renovation.change.${item.planned!.change}`)}: ${item.planned!.description || item.existing?.description}`).join(', ') || tr('renovation.summary.unrecorded') }}
+				</p>
 			</div>
 		</div>
 		<p v-if="!compact">

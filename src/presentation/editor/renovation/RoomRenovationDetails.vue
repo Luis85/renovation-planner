@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import RoomNameAction from '../naming/RoomNameAction.vue';
+import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
 import DownstreamAction from './DownstreamAction.vue';
 import OutlineEditAction from '../resize/OutlineEditAction.vue';
 import { usePlanningContext } from '../planning/planningContext';
@@ -41,7 +42,7 @@ function remove(id: string, name: string, proposalOnly = false): void {
 </script>
 <template>
 	<p
-		v-if="!session.targetId || session.targetId === room.id"
+		v-if="session.mode === 'overview' && (!session.targetId || session.targetId === room.id)"
 		class="rp-room-metadata"
 	>
 		{{ formatArea(toSpatialRecordDto(room).areaMm2) }} · {{ tr('renovation.calculated') }}
@@ -55,16 +56,6 @@ function remove(id: string, name: string, proposalOnly = false): void {
 		:room-id="room.id"
 	/>
 	<template v-if="session.mode === 'overview'">
-		<details
-			v-if="!session.targetId || session.targetId === room.id"
-			class="rp-room-more-actions"
-		>
-			<summary>{{ tr('editor.structure.more') }}</summary>
-			<div class="rp-planning-actions">
-				<RoomNameAction :zone-id="room.id as ZoneId" />
-				<OutlineEditAction :zone-id="room.id as ZoneId" />
-			</div>
-		</details>
 		<RenovationLinkedSummary
 			v-if="planning.context.commands.planning"
 			:room-id="room.id"
@@ -78,19 +69,6 @@ function remove(id: string, name: string, proposalOnly = false): void {
 	</template>
 	<PlanningInspector v-else-if="!['existing', 'planned', 'work'].includes(session.mode)" />
 	<template v-else>
-		<DownstreamAction
-			v-if="session.mode === 'work'"
-			section="schedule"
-		/>
-		<button
-			type="button"
-			class="mod-cta"
-			:disabled="actions.blocked.value"
-			data-rp-action="new-record"
-			@click="actions.edit(session.mode as 'existing' | 'planned' | 'work', room.id)"
-		>
-			{{ tr(`renovation.edit.${session.mode as 'existing' | 'planned' | 'work'}`) }}
-		</button>
 		<p v-if="empty">
 			{{ tr('renovation.empty') }}
 		</p>
@@ -107,9 +85,40 @@ function remove(id: string, name: string, proposalOnly = false): void {
 		/>
 		<button
 			type="button"
+			class="mod-cta"
+			:disabled="actions.blocked.value"
+			data-rp-action="new-record"
+			@click="actions.edit(session.mode as 'existing' | 'planned' | 'work', room.id)"
+		>
+			{{ tr(`renovation.add.${session.mode as 'existing' | 'planned' | 'work'}`) }}
+		</button>
+		<RenovationLinkedSummary
+			v-if="planning.context.commands.planning && session.mode === 'existing'"
+			:room-id="room.id"
+			:target-id="session.targetId"
+			evidence-only
+		/>
+		<DownstreamAction
+			v-if="session.mode === 'work'"
+			section="schedule"
+		/>
+		<button
+			type="button"
 			@click="runtime.openPlanNote()"
 		>
 			{{ tr('renovation.note') }}
 		</button>
 	</template>
+	<details
+		v-if="!session.targetId || session.targetId === room.id"
+		class="rp-room-more-actions"
+	>
+		<summary>{{ tr('editor.structure.more') }}</summary>
+		<p v-if="session.mode === 'existing'" class="rp-record-metadata">{{ tr('renovation.manual') }}</p>
+		<div class="rp-planning-actions">
+			<RoomNameAction :zone-id="room.id as ZoneId" />
+			<OutlineEditAction :zone-id="room.id as ZoneId" />
+		</div>
+		<ObjectRotationControls :id="room.id" />
+	</details>
 </template>

@@ -55,3 +55,17 @@ preview and curved rendering require the curve UI continuation; stairs are a lat
 schema 8 dependency. Full integrated coverage/static analysis, final comparisons
 and actual native-host acceptance remain pending. These focused results do not
 claim those observations.
+
+### Individual member selection follow-up
+
+Group transform controls now reflect the actual selection. Selecting one member
+explicitly exposes its own editing controls; it no longer shows a group Move field
+whose captured selection would refuse. The Inspector and context menu offer Select
+focused item and Select saved group without changing persisted membership. Right
+click focuses the actual member while retaining the group, and Inspector focus is
+retained across the selection transition.
+
+The follow-up's scoped ESLint/whole Oxlint checks and 20 cases in the two grouped
+interaction/gesture files pass, including the two new selection-route regressions.
+Joined type/scene and final browser/native verification remain tracked by the
+integration branch.

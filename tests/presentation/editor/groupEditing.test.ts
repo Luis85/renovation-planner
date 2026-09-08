@@ -163,3 +163,24 @@ it('encloses and rotates a curved Room while preserving each persisted bend and 
 	expect(after.objects[0].bulges).toEqual([0.25, 0, 0, 0]); expect(after.structure?.walls[0].bulge).toBe(0.25); expect(after.objects[0].points).not.toEqual(before.objects[0].points);
 	await rig.runtime.undo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
 });
+it('selects an individual group member for editing and restores the saved group without changing membership', async () => {
+	const { rig } = await setup(), ids = [...rig.selection.selectedIds], wall = rig.project.structure.walls[0];
+	const groups = expectOk(await rig.geometry.read(rig.plan.id)).document.groups, write = vi.spyOn(rig.geometry, 'write');
+	rig.selection.focus(wall.id as never); await settle();
+	const button = rig.wrapper.get('[data-rp-group-action="inspect"]'); (button.element as HTMLButtonElement).focus();
+	await button.trigger('click'); await settle();
+	expect(rig.selection.selectedIds).toEqual([wall.id]); expect(rig.runtime.groupActions.target.value).toBeNull();
+	expect(rig.runtime.rotationActions.target.value?.kind).toBe('wall');
+	expect(document.activeElement).toBe(rig.wrapper.get('[data-rp-region="inspector"]').element);
+	expect(rig.wrapper.find('[name="group-dx"]').exists()).toBe(false);
+	await rig.wrapper.get('[data-rp-group-action="select-group"]').trigger('click'); await settle();
+	expect(rig.selection.selectedIds).toEqual(ids); expect(rig.runtime.groupActions.target.value?.kind).toBe('group');
+	expect(expectOk(await rig.geometry.read(rig.plan.id)).document.groups).toEqual(groups); expect(write).not.toHaveBeenCalled();
+});
+it('keeps a group selected on right-click while focusing the actual member offered by the context menu', async () => {
+	const { rig } = await setup(), ids = [...rig.selection.selectedIds], wall = rig.project.structure.walls[1];
+	await rig.wrapper.get(`.rp-multi-selection [data-rp-id="${wall.id}"]`).trigger('contextmenu'); await settle();
+	expect(rig.selection.selectedIds).toEqual(ids); expect(rig.selection.focusedId).toBe(wall.id);
+	await rig.wrapper.get('[data-rp-context-action="inspect"]').trigger('click'); await settle();
+	expect(rig.selection.selectedIds).toEqual([wall.id]); expect(rig.project.groups).toHaveLength(1);
+});

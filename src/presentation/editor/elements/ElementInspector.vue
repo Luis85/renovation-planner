@@ -10,6 +10,7 @@ import { area } from '../../../core/geometry/operations';
 import { formatArea } from '../shell/formatArea';
 import { formatMetres } from '../shell/formatLength';
 import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
+import ObjectRotationControls from './ObjectRotationControls.vue';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 const session = useRenovationSession();
@@ -38,6 +39,10 @@ async function edit(event: Event): Promise<void> {
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
 		<StructureRenovationEntry />
+		<ObjectRotationControls
+			v-if="element.kind === 'object' && session.perspective === 'plan'"
+			:id="element.id"
+		/>
 		<button
 			v-if="session.perspective === 'renovate'"
 			type="button"

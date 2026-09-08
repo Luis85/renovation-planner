@@ -1,4 +1,12 @@
 export const objectEn = {
+	'editor.rotation.title': 'Rotate {name}',
+	'editor.rotation.by': 'Rotate by…',
+	'editor.rotation.degrees': 'Rotate by (degrees)',
+	'editor.rotation.clockwise': 'Rotate clockwise 90 degrees',
+	'editor.rotation.counterclockwise': 'Rotate counterclockwise 90 degrees',
+	'editor.rotation.hint': 'Rotate around the shape centre. Positive angles turn clockwise. Hold Shift while dragging the rotation handle to snap to 15 degrees.',
+	'editor.rotation.invalid': 'Enter a finite angle in degrees.',
+
 	'editor.element.list': 'Plan items',
 	'editor.element.delete-action': 'Delete',
 	'editor.element.point-repeated': 'Choose a point different from the previous one.',

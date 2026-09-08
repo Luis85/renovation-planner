@@ -6,6 +6,7 @@ import type { SpatialObjectCandidate } from '../tools/select-tool';
 import { CLICK_EPSILON_PX } from '../handleMetrics';
 
 export interface ElementMoveDeps {
+	canRotateElement?: () => boolean;
 	previewElement?: (id: string | null, points?: readonly Point[]) => void;
 	moveElement?: (id: string, points: readonly Point[], original: SpatialElement) => void;
 }

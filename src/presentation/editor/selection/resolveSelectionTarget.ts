@@ -4,6 +4,7 @@ import type { SpatialObjectCandidate } from '../tools/select-tool';
 
 export type SelectionTarget =
 	| { readonly kind: 'handle'; readonly id: string; readonly vertexIndex: number }
+	| { readonly kind: 'rotation'; readonly id: string }
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
 
@@ -67,11 +68,13 @@ export function resolveSelectionTarget(input: {
 	readonly selectedIds: readonly string[];
 	readonly worldPoint: Point;
 	readonly handleToleranceWorld: number;
+	readonly rotationHandle?: { readonly id: string; readonly point: Point };
 	/** Alt selects the next overlapping body, bypassing handles. */
 	readonly cycle?: boolean;
 	readonly badgeToleranceWorld?: number;
 }): SelectionTarget {
 	if (!input.cycle) {
+		if (input.selectedIds.length === 1 && input.rotationHandle && input.selectedIds[0] === input.rotationHandle.id && distance(input.rotationHandle.point, input.worldPoint) <= input.handleToleranceWorld) return { kind: 'rotation', id: input.rotationHandle.id };
 		const decoration = input.selectedIds.length > 1 ? badgeAt(input) : handleAt(input);
 		if (decoration !== null) return decoration;
 	}

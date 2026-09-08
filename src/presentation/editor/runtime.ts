@@ -735,6 +735,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const elementTask = createElementTask(context, { toolManager, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const elementActions = createElementActions(context, { activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, structureTask, openPlanNote: () => context.openPlanNote() });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value,
+		canRotateElement: () => !elementActions.blocked.value && !elementActions.active.value,
 		previewElement: elementActions.previewElement, moveElement: (id, points, original) => { void elementActions.move(id, points, original); },
 		previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 

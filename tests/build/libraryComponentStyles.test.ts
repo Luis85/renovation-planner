@@ -82,7 +82,7 @@ const declared = new Set(
 );
 
 /**
- * `Open designer` and `Open note` (`AssetInspector.vue`'s `.rp-al-action--designer` /
+ * `Edit shape` and `Open note` (`AssetInspector.vue`'s `.rp-al-action--designer` /
  * `--note`), by name, with a reason — the same shape `tests/helpers/buttonRules.ts`'s
  * `DEFERS_TO_THE_HOST` already uses for `.rp-dialog-button` staying bare, and CLAUDE.md's own
  * "asserted by exact key set" rule for a carve-out: a drift in this set is caught at the

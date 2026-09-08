@@ -172,7 +172,7 @@ describe('AssetInspector panel-level failure', () => {
 });
 
 describe('AssetInspector actions', () => {
-	it('withdraws Open designer for a damaged sidecar and for an unusable id alike', async () => {
+	it('withdraws Edit shape for a damaged sidecar and for an unusable id alike', async () => {
 		// §3.5's table: `GetAssetDesign.execute` returns early on a sidecar refusal, so the
 		// designer hydrates through the same read and reaches the same failed state with only a
 		// Retry — the button would cost a navigation to repeat the refusal already on screen.

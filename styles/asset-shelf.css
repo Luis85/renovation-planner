@@ -231,7 +231,9 @@
    resolves per row rather than across the shelf, and the amount's right edge followed
    whichever unit symbol that one row happened to hold — measured 7.97px of spread at both
    720 and 560 before the narrow blocks below were pinned to `ch`. The unit track is `6ch`
-   everywhere: `fixed` (5 characters) plus the `/ ` prefix is the longest unit symbol shipped. */
+   everywhere: `fixed` (5 characters) plus the `/ ` prefix is the longest ENGLISH unit symbol
+   shipped; a longer localized one clips with an ellipsis rather than spilling into the waste
+   column. */
 .rp-al-row__amount {
 	text-align: end;
 	white-space: nowrap;
@@ -239,8 +241,11 @@
 }
 
 .rp-al-row__unit {
+	min-width: 0;
+	overflow: hidden;
 	color: var(--text-muted);
 	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 .rp-al-columns__cost {

@@ -22,14 +22,20 @@ const fields = Object.keys(DEFINITION_LABELS) as (keyof DefinitionDraft)[];
  * the browser picked. The option is labelled with the raw value because no locale key exists
  * for a word this build does not declare; the parser side of that PBI is separate.
  */
+function declaredOptions(key: keyof DefinitionDraft): readonly string[] {
+	return key === 'category' ? ASSET_CATEGORIES : Object.keys(UNIT_KIND);
+}
+function isDeclared(key: keyof DefinitionDraft, option: string): boolean {
+	return declaredOptions(key).includes(option);
+}
 function options(key: keyof DefinitionDraft): readonly string[] {
-	const declared: readonly string[] = key === 'category' ? ASSET_CATEGORIES : Object.keys(UNIT_KIND);
+	const declared = declaredOptions(key);
 	const own = props.entry[key === 'category' ? 'category' : 'unit'];
-	return declared.includes(own) ? declared : [own, ...declared];
+	return isDeclared(key, own) ? declared : [own, ...declared];
 }
 function optionLabel(key: keyof DefinitionDraft, option: string): string {
-	if (key === 'category') return (ASSET_CATEGORIES as readonly string[]).includes(option) ? tr(ASSET_CATEGORY_LABELS[option as AssetCategory]) : option;
-	return option in UNIT_KIND ? tr(MEASUREMENT_UNIT_LABELS[option as MeasurementUnit]) : option;
+	if (!isDeclared(key, option)) return option;
+	return key === 'category' ? tr(ASSET_CATEGORY_LABELS[option as AssetCategory]) : tr(MEASUREMENT_UNIT_LABELS[option as MeasurementUnit]);
 }
 function fieldLabel(key: keyof DefinitionDraft): string {
 	const suffix: Partial<Record<keyof DefinitionDraft, string>> = { unitCost: ` (${props.entry.currency})`, waste: ' (%)', height: ' (mm)' };

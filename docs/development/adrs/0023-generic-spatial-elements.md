@@ -1,19 +1,7 @@
 # ADR-0023 — Generic spatial elements in the floor sidecar
 
-## Single Object rotation extension — 2026-09-08
-
-One selected current `object` in Plan/Select can rotate by pointer handle, signed relative
-degree input or either quarter-turn action. The polygon centroid is frozen at draft start.
-Each preview transforms immutable baseline world-mm points; Shift uses the existing 15-degree
-angular policy, while numeric input is exact and accepts decimal point/comma. A visible angle
-reports the pointer preview. Release or Apply produces one existing guarded element command;
-Cancel/Escape/tool retirement produces none, and zero/full-turn no-ops preserve exact points.
-Undo/Redo restores the original/committed sequences through the shared ledger. IDs, Markdown
-labels, links and independently stored intended geometry are preserved. No orientation schema,
-new transform store or per-vertex snapping is introduced. Rendering and targeting share the
-screen-sized handle geometry. Other spatial kinds and group transforms keep their separate
-contracts. Verification is recorded in
-[the release ledger](../../user-experience/renovation-planner-editor-specs/implementation/release-2026-09-08.md).
+Spatial rotation uses these existing world-coordinate element facts; its expanded interaction
+and source-command contract is recorded in [ADR-0025](0025-spatial-rotation.md).
 
 Status: Implementation in progress, 2026-09-07. Final combined verification and host acceptance remain open.
 

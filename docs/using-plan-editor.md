@@ -60,7 +60,7 @@ outlines remain independent of walls.
 Rotation preserves identity, names and links; separate Planned geometry stays independent.
 The rectangular Room size form remains limited to axis-aligned rectangles: use Edit shape
 for rotated outlines. Reference plans rotate through their existing configuration workflow.
-Catalogue facing and group transforms are separate controls. If another edit changes the saved
+This action rotates one spatial item at a time. If another edit changes the saved
 baseline, the stale turn is refused. Read-back retry after a successful save only refreshes
 the view.
 

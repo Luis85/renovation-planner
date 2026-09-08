@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { structureEditor } from '../../helpers/structureEditor';
 import { settle, settleUntil, mountPlanEditorCanvas, runtimeOf } from '../../helpers/editor';
-import { expectFound, expectOk, injectedPersistenceError } from '../../helpers/domain';
+import { expectDefined, expectFound, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { WALL_LOOP } from '../../helpers/structure';
 import { rotateWallStructure, wallRotationPivot } from '../../../src/domain/spatial/rotateWall';
 import { err, ok } from '../../../src/core/result/Result';
@@ -37,6 +37,33 @@ const formSelector = '[data-rp-form="wall-rotation"]';
 async function formReady(rig: Awaited<ReturnType<typeof structureEditor>>) { await settleUntil(() => rig.wrapper.find(formSelector).exists(), 'wall rotation form'); return rig.wrapper.get(formSelector); }
 
 describe('reviewed wall rotation and hosted opening runtime', () => {
+	it('abandons the frozen wall pointer preview when a peer moves its host before the next pointer move', async () => {
+		const { rig, structure } = await setup(); rig.selection.select(['opening-a' as never]); await settle();
+		const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'host rotation handle'), pivot = wallRotationPivot(structure.walls[0]);
+		const quarter = pointerAt(pivot.x - (handle.y - pivot.y), pivot.y + (handle.x - pivot.x)), tool = rig.runtime.toolManager;
+		tool.pointerDown(pointerAt(handle.x, handle.y));
+		const baseline = expectOk(await rig.geometry.read(rig.plan.id));
+		const peer = { ...structure, walls: structure.walls.map(wall => ({ ...wall, start: { ...wall.start, x: wall.start.x + 200 }, end: { ...wall.end, x: wall.end.x + 200 } })) };
+		expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.document, structure: peer }, baseline.version));
+		await rig.runtime.refreshProjection(); const write = vi.spyOn(rig.geometry, 'write');
+		tool.pointerMove(quarter); await settle();
+		expect(tool.activeToolHasDraft()).toBe(false); expect(rig.runtime.structureActions.preview.value).toBeNull();
+		expect(rig.runtime.rotationActions.preview.value).toBeNull(); expect(rig.runtime.renderState.rotationDegrees).toBeNull();
+		tool.pointerUp(quarter); await settle();
+		expect(write).not.toHaveBeenCalled(); expect(rig.runtime.canUndo.value).toBe(false); expect(rig.dialogs.current).toBeNull();
+		expect(rig.project.structure).toEqual(peer); expect(rig.selection.selectedIds).toEqual(['opening-a']);
+	});
+	it('keeps a wall pointer draft through an identical-geometry refresh and still commits its reviewed rotation', async () => {
+		const { rig, structure } = await setup(), handle = expectDefined(rig.runtime.rotationActions.handle.value, 'wall rotation handle'), pivot = wallRotationPivot(structure.walls[0]);
+		const quarter = pointerAt(pivot.x - (handle.y - pivot.y), pivot.y + (handle.x - pivot.x)), tool = rig.runtime.toolManager;
+		tool.pointerDown(pointerAt(handle.x, handle.y)); await rig.runtime.refreshProjection();
+		const write = vi.spyOn(rig.geometry, 'write'); tool.pointerMove(quarter); await settle();
+		expect(tool.activeToolHasDraft()).toBe(true); expect(rig.runtime.structureActions.preview.value).not.toBeNull();
+		tool.pointerUp(quarter); const form = await formReady(rig), preview = rig.runtime.structureActions.preview.value;
+		expect(write).not.toHaveBeenCalled(); await form.trigger('submit'); await settleUntil(() => !rig.wrapper.find(formSelector).exists(), 'unchanged-refresh rotation saved');
+		expect(write).toHaveBeenCalledTimes(1); expect(rig.project.structure).toEqual(preview);
+		await rig.runtime.undo(); expect(rig.project.structure).toEqual(structure); expect(rig.runtime.canUndo.value).toBe(false);
+	});
 	it.each(['wall-a', 'opening-a'])('routes a %s pointer handle through host impact review and one reversible write', async id => {
 		const { rig, structure } = await setup(); rig.selection.select([id as never]); await settle();
 		const shape = rig.runtime.rotationActions.target.value, handle = rig.runtime.rotationActions.handle.value;

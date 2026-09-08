@@ -82,3 +82,15 @@ tests/presentation/editor/wallRotationRuntime.test.ts --maxWorkers=1` passed who
 TypeScript and **24 tests in 2 files** (123.41 s). The inherited checkpoint lint stop is therefore
 resolved by the generalized dependency. Shared visual controls/host highlight, final unchanged
 full gate and browser/native acceptance remain integration-owned.
+
+## Peer-preview follow-up staged for integrated verification
+
+The wall branch now depends on engine checkpoint `42176cf2c2914421bf7eaffc17d3ca7e3bfc8c57`.
+Its existing composition is retained through `createSpatialEditing`, with the same
+`wall: structureActions` adapter. A pair of wall-specific regressions requires a peer-moved host
+to cancel the next pointer preview, while a geometry-identical refresh must keep the draft and
+allow a reviewed commit. This detects reusing the refreshed host's midpoint inside a gesture
+whose original midpoint was frozen. The engine's matching geometry guard was verified separately;
+this pair awaits the coordinated wall/UI run on the integrated source. No old-revision failing
+test run is claimed: that extra cold run was explicitly omitted by the coordinating parent.
+The Unreleased changelog now records wall/host rotation in the PR that implements it.

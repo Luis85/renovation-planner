@@ -7,7 +7,7 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchema, PlanGeometrySchemaV6 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV7 } from '../../persistence/dto/planGeometry';
 import { validateSpatialGroups } from '../../../domain/spatial/SpatialGroup';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
@@ -17,19 +17,22 @@ import { KeyedQueues } from './KeyedQueues';
 import type { EchoWindow } from '../../persistence/index/EchoWindow';
 import { observeSidecar } from './digest';
 import { guardRenovationGeometry } from './renovationGeometryGuard';
+import { createCurvedPolygon, hasCurves, validateBulges } from '../../../core/geometry/CurvedPolygon';
 
 /** Key order follows construction order, which the schema fixes — deterministic writes. */
 function canonicalJson(dto: PlanGeometryDTO): string {
 	return JSON.stringify(dto, null, '\t');
 }
 
-function writtenSchema(dto: Pick<PlanGeometryDTO, 'structure' | 'intended' | 'groups'>): 1 | 2 | 3 | 4 | 5 | 6 {
+function writtenSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended' | 'groups'>): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
+	if (dto.objects.some(object => object.bulges !== undefined) || [dto.structure, dto.intended].some(structure => structure?.walls.some(wall => wall.bulge !== undefined))) return 7;
 	if (dto.groups?.length) return 6;
 	if ([dto.structure, dto.intended].some(structure => structure?.openings.some(opening => opening.swing !== undefined))) return 5;
 	return dto.structure?.elements?.length || dto.intended?.elements?.length ? 4 : dto.intended ? 3 : dto.structure ? 2 : 1;
 }
 
 function validateSidecarContent(dto: PlanGeometryDTO): Result<void, ValidationError> {
+	const curves = validateCurveEntries(dto); if (!curves.ok) return curves;
 	const zoneIds = dto.objects.map(object => object.id);
 	for (const structure of [dto.structure, dto.intended]) {
 		if (!structure) continue;
@@ -37,6 +40,14 @@ function validateSidecarContent(dto: PlanGeometryDTO): Result<void, ValidationEr
 		if (!checked.ok) return checked;
 	}
 	return validateSpatialGroups(dto.groups ?? [], { zoneIds, structure: dto.structure ?? EMPTY_STRUCTURE });
+}
+function validateCurveEntries(dto: PlanGeometryDTO): Result<void, ValidationError> {
+	for (const object of dto.objects) {
+		const shape = { points: object.points.map(([x, y]) => ({ x, y })), bulges: object.bulges };
+		const result = hasCurves(shape) ? createCurvedPolygon(shape) : validateBulges(shape);
+		if (!result.ok) return err({ category: 'Validation', code: 'plan-geometry.curve-invalid', message: result.error.message });
+	}
+	return ok(undefined);
 }
 
 function schemaVersionOf(parsed: unknown): number {
@@ -161,6 +172,7 @@ export class PlanGeometryStore {
 			if (conflict) return err(conflict);
 
 			const nextDto = change(current.value.dto);
+			const curves = validateCurveEntries(nextDto); if (!curves.ok) return curves;
 			const groups = validateSpatialGroups(nextDto.groups ?? [], { zoneIds: nextDto.objects.map(object => object.id), structure: nextDto.structure ?? EMPTY_STRUCTURE });
 			if (!groups.ok) return groups;
 			if (nextDto.structure) {
@@ -258,7 +270,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV6.safeParse(migrated);
+		const validated = PlanGeometrySchemaV7.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',

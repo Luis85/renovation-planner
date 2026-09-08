@@ -13,6 +13,7 @@ import type { SpatialGroup } from '../../domain/spatial/SpatialGroup';
  * The id is the owning spatial object's (today: always a Zone note's id).
  */
 export interface SpatialObjectGeometry {
+	readonly bulges?: readonly number[];
 	readonly id: string;
 	readonly points: readonly Point[];
 }

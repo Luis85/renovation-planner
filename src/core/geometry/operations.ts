@@ -8,6 +8,10 @@ import type { Polygon } from './Polygon';
 import type { Polyline } from './Polyline';
 import type { Transform } from './Transform';
 import type { Vector } from './Vector';
+import { hasCurves, validateBulges, type CurvedPolygon } from './CurvedPolygon';
+import { arcExtrema, arcLength } from './circularArc';
+import { curvedCentroid, curveMoments } from './curveMeasures';
+import { curvedContains } from './curveContains';
 
 /**
  * Pure functions over the geometry value objects (§22). No operation mutates its input;
@@ -220,12 +224,13 @@ export function length(shape: LineSegment | Polyline): number {
  * cannot be represented is refused rather than reported, which is the rule `dimensionsOf`
  * already keeps one axis over.
  */
-export function area(polygon: Polygon): Result<number, GeometryError> {
+export function area(polygon: CurvedPolygon): Result<number, GeometryError> {
 	const checked = validatePolygonPoints(polygon.points);
 	if (!checked.ok) {
 		return checked;
 	}
-	const sum = signedAreaSum(polygon.points);
+	const curves = validateBulges(polygon); if (!curves.ok) return curves;
+	const sum = signedAreaSum(polygon.points) + 2 * curveMoments(polygon).area;
 	if (!Number.isFinite(sum)) {
 		return geometryErr(
 			'polygon-area-overflow',
@@ -281,22 +286,21 @@ export function area(polygon: Polygon): Result<number, GeometryError> {
  * lets `NaN` through by making it incomparable rather than by making it large, which is the
  * quieter of the two ways to pass.
  */
-export function enclosesArea(polygon: Polygon): boolean {
-	const sum = signedAreaSum(polygon.points);
+export function enclosesArea(polygon: CurvedPolygon): boolean {
+	if (!validateBulges(polygon).ok) return false;
+	const sum = signedAreaSum(polygon.points) + 2 * curveMoments(polygon).area;
 	return Number.isFinite(sum) && Math.abs(sum) / 2 > 0;
 }
 
-export function perimeter(polygon: Polygon): Result<number, GeometryError> {
+export function perimeter(polygon: CurvedPolygon): Result<number, GeometryError> {
 	const checked = validatePolygonPoints(polygon.points);
 	if (!checked.ok) {
 		return checked;
 	}
 	let total = 0;
+	const curves = validateBulges(polygon); if (!curves.ok) return curves;
 	for (let i = 0; i < polygon.points.length; i++) {
-		total += distance(
-			polygon.points[i],
-			polygon.points[(i + 1) % polygon.points.length],
-		);
+		total += arcLength({ start: polygon.points[i], end: polygon.points[(i + 1) % polygon.points.length], bulge: polygon.bulges?.[i] ?? 0 });
 	}
 	// The same finiteness question `area` already asks: every vertex can be finite while
 	// the accumulated distance is not, for a polygon spanning the double range (C5).
@@ -314,12 +318,13 @@ export function perimeter(polygon: Polygon): Result<number, GeometryError> {
  * any non-regular polygon. Undefined for a zero-area (collinear) vertex set, where the
  * weighting divides by nothing.
  */
-export function centroid(polygon: Polygon): Result<Point, GeometryError> {
+export function centroid(polygon: CurvedPolygon): Result<Point, GeometryError> {
 	const checked = validatePolygonPoints(polygon.points);
 	if (!checked.ok) {
 		return checked;
 	}
-	const cross = signedAreaSum(polygon.points);
+	const curves = validateBulges(polygon); if (!curves.ok) return curves;
+	const cross = signedAreaSum(polygon.points) + 2 * curveMoments(polygon).area;
 	if (cross === 0) {
 		return geometryErr('polygon-zero-area', 'Cannot weight a centroid by a zero area.');
 	}
@@ -332,6 +337,10 @@ export function centroid(polygon: Polygon): Result<Point, GeometryError> {
 			'polygon-area-overflow',
 			'Cannot weight a centroid by an area that is not representable.',
 		);
+	}
+	if (hasCurves(polygon)) {
+		const point = curvedCentroid(polygon);
+		return Number.isFinite(point.x) && Number.isFinite(point.y) ? ok(point) : geometryErr('polygon-centroid-overflow', 'This boundary has no representable centroid.');
 	}
 	// Accumulated relative to the bounding box's midpoint for the reason `signedAreaSum` gives,
 	// and the SAME origin as the `cross` above so the weights and their divisor are terms of one
@@ -411,7 +420,7 @@ export function centroid(polygon: Polygon): Result<Point, GeometryError> {
 }
 
 /** Undefined on an empty or non-finite point set — a min/max over nothing answers nothing. */
-export function boundingBoxOf(shape: Polyline | Polygon): Result<BoundingBox, GeometryError> {
+export function boundingBoxOf(shape: CurvedPolygon): Result<BoundingBox, GeometryError> {
 	if (shape.points.length === 0) {
 		return geometryErr('points-empty', 'A bounding box needs at least one point.');
 	}
@@ -419,11 +428,13 @@ export function boundingBoxOf(shape: Polyline | Polygon): Result<BoundingBox, Ge
 	if (!finite.ok) {
 		return finite;
 	}
+	const curves = validateBulges(shape); if (!curves.ok) return curves;
+	const points = hasCurves(shape) ? shape.points.flatMap((start, index) => arcExtrema({ start, end: shape.points[(index + 1) % shape.points.length], bulge: shape.bulges?.[index] ?? 0 })) : shape.points;
 	let minX = shape.points[0].x;
 	let minY = shape.points[0].y;
 	let maxX = minX;
 	let maxY = minY;
-	for (const p of shape.points) {
+	for (const p of points) {
 		minX = Math.min(minX, p.x);
 		minY = Math.min(minY, p.y);
 		maxX = Math.max(maxX, p.x);
@@ -438,7 +449,7 @@ export function boundingBoxOf(shape: Polyline | Polygon): Result<BoundingBox, Ge
  * function does not pretend otherwise — callers needing edge-exact semantics decide them
  * at a boundary that owns snapping (slice 6).
  */
-export function contains(polygon: Polygon, point: Point): Result<boolean, GeometryError> {
+export function contains(polygon: CurvedPolygon, point: Point): Result<boolean, GeometryError> {
 	const checked = validatePolygonPoints(polygon.points);
 	if (!checked.ok) {
 		return checked;
@@ -447,6 +458,8 @@ export function contains(polygon: Polygon, point: Point): Result<boolean, Geomet
 	if (!probe.ok) {
 		return probe;
 	}
+	const curves = validateBulges(polygon); if (!curves.ok) return curves;
+	if (hasCurves(polygon)) return ok(curvedContains(polygon, point));
 	let inside = false;
 	const n = polygon.points.length;
 	for (let i = 0, j = n - 1; i < n; j = i++) {
@@ -561,4 +574,3 @@ export function applyTransform<T extends Shape>(shape: T, transform: Transform):
 	const rotated = rotate(scaled, transform.rotationRadians, ORIGIN);
 	return translate(rotated, transform.translation);
 }
-

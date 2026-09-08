@@ -94,3 +94,27 @@ whose original midpoint was frozen. The engine's matching geometry guard was ver
 this pair awaits the coordinated wall/UI run on the integrated source. No old-revision failing
 test run is claimed: that extra cold run was explicitly omitted by the coordinating parent.
 The Unreleased changelog now records wall/host rotation in the PR that implements it.
+
+## PR #96 CI follow-up
+
+CI run `34259393431`, Ubuntu job `102173247095`, found a Vue name collision between
+the initial `degrees` prop and the parsed computed value, an over-complex `rotateWall`
+function, and a detached `openPlanNote` callback. The follow-up retains published history.
+
+The form now names its parsed value `parsedDegrees`. Rotation admission, captured-operation
+retirement and baseline matching are separate predicates, preserving the original active,
+selection, tool, perspective, document and pointer-baseline checks. Preview and dispatch
+share the captured-operation guard. Source-note recovery calls its owning context directly.
+Impact review, guarded dispatch, readback recovery and exact history behavior are unchanged.
+
+Verification on the existing PR branch passed:
+
+- `npm run lint` (whole-tree Oxlint and ESLint, zero warnings).
+- `vue-tsc --noEmit`.
+- `vitest run tests/domain/spatial/rotateWall.test.ts tests/presentation/editor/wallRotationRuntime.test.ts --maxWorkers 1`: **26/26 tests**, two files, 85.41 s.
+- `git diff --check`.
+
+The cases preserve reviewed impact, pending-save input/Cancel refusal, stale pointer baselines,
+peer changes, exact Undo/Redo, fresh repository/runtime reload and readback recovery without
+replaying successful writes. No lint thresholds or exclusions changed. Full integrated
+coverage, screenshot and native-host acceptance remain the coordinating parent's work.

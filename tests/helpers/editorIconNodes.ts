@@ -42,4 +42,6 @@ export const editorIconNodes: Readonly<Record<string, readonly { tag: string; at
   "circle-minus": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"path","attributes":{"d":"M8 12h8"}}],
   "circle-plus": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"path","attributes":{"d":"M8 12h8"}},{"tag":"path","attributes":{"d":"M12 8v8"}}],
   "magnet": [{"tag":"path","attributes":{"d":"m12 15 4 4"}},{"tag":"path","attributes":{"d":"M2.352 10.648a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.029-6.029a1 1 0 1 1 3 3l-6.029 6.029a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.365-6.367A1 1 0 0 0 8.716 4.282z"}},{"tag":"path","attributes":{"d":"m5 8 4 4"}}],
+  "rotate-cw": [{"tag":"path","attributes":{"d":"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"}},{"tag":"path","attributes":{"d":"M21 3v5h-5"}}],
+  "rotate-ccw": [{"tag":"path","attributes":{"d":"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"}},{"tag":"path","attributes":{"d":"M3 3v5h5"}}],
 };

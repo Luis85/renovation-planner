@@ -11,7 +11,7 @@ const draft = useRoomDraftStore();
 const corners = computed(() => {
  const rect = draft.rect;
  return rect ? [{ x: rect.x, y: rect.y }, { x: rect.x + rect.width, y: rect.y },
-  { x: rect.x + rect.width, y: rect.y + rect.depth }, { x: rect.x, y: rect.y + rect.depth }].map(props.toScreen) : [];
+  { x: rect.x + rect.width, y: rect.y + rect.depth }, { x: rect.x, y: rect.y + rect.depth }].map(point => props.toScreen(point)) : [];
 });
 </script>
 <template>

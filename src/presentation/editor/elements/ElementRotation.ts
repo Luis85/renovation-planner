@@ -33,8 +33,13 @@ export class ElementRotation {
 		return rotationPoints(gesture.shape, degrees, gesture.pivot);
 	}
 	private canContinue(): boolean {
-		const captured = this.gesture?.shape.generation;
-		return this.deps.canRotateShape?.() !== false && (captured === undefined || captured === this.deps.rotationTarget?.()?.generation);
+		if (this.deps.canRotateShape?.() === false) return false;
+		const original = this.gesture?.shape;
+		if (!original) return true;
+		if (!this.deps.rotationTarget) return original.generation === undefined;
+		const current = this.deps.rotationTarget();
+		return current !== null && current.id === original.id && current.kind === original.kind && (original.generation === undefined || current.generation === original.generation)
+			&& current.points.length === original.points.length && current.points.every((point, index) => point.x === original.points[index].x && point.y === original.points[index].y);
 	}
 	move(context: EditorContext, event: EditorPointerEvent): void {
 		if (!this.canContinue()) { this.cancel(); return; }
@@ -51,3 +56,4 @@ export class ElementRotation {
 	}
 	cancel(): void { if (this.gesture) this.gesture.context.renderState.rotationDegrees = null; this.gesture = null; this.deps.previewRotation?.(null); }
 }
+

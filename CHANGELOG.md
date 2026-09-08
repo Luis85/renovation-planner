@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: rotate a single Room, Area, Object, Path, Fence or Measurement through guarded pointer and numeric angle actions, preserving saved identities, metadata, item order and exact Undo/Redo. Quarter turns retain axis-aligned Room sizing.
+
 - Evidence supports explicit capture/document dates without inferring file timestamps, stable gallery/pin date order during recovery, and navigation to its separately linked Work. Dated Plans use schema 8 so older writers cannot discard the field.
 - Evidence pins show host type symbols beside their numbers, and Room captions remain clear of pins. Inspector overview links preserve native focus when their source control disappears.
 
@@ -213,6 +215,8 @@ entries are added by the pull request that earns them, never invented at release
   (`tests/release/manifest.test.ts`).
 
 ### Fixed
+
+- Plan editor: Object-first overlap selection follows the confirmed interaction contract, while clicking a selected Object, Opening or Wall in a mixed selection focuses it without collapsing the set. Explicitly retyped Room dimensions apply their exact numeric value, preserving untouched coordinates and true no-op history. Fresh persisted-opening tests cover all kinds, subsequent edits, host guards and read-only recovery without write replay.
 
 - Keep Room rename/resize controls consistent with planning and unrecovered-write pauses, reload changed evidence thumbnails at the same resource path, and return keyboard focus into an already-open panel when its rail is activated again.
 

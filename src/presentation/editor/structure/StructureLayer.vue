@@ -60,6 +60,7 @@ const elementDraft = computed(() => {
 		<VGroup
 			v-for="wall in structure.walls"
 			:key="wall.id"
+			:config="{ name: wall.id }"
 		>
 			<VLine :config="{ points: points([wall.start, wall.end]), stroke: tokens.zoneStroke, strokeWidth: wall.thickness, opacity: 0.65 }" />
 			<VLine
@@ -94,3 +95,5 @@ const elementDraft = computed(() => {
 		/>
 	</VLayer>
 </template>
+
+

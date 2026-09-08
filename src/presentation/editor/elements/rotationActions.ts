@@ -1,6 +1,7 @@
-import { computed, markRaw, onBeforeUnmount, ref, watch, type Ref } from 'vue';
+import { computed, markRaw, onBeforeUnmount, ref, shallowRef, watch, type Ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
-import { extentOf } from '../../../core/geometry/operations';
+import type { BoundingBox } from '../../../core/geometry/BoundingBox';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { Wall } from '../../../domain/spatial/Structure';
 import type { SessionWriteLedger } from '../../../application/editor/WriteLedger';
 import type { EditorRuntime } from '../runtime';
@@ -18,7 +19,7 @@ import { staleWriteRefusal } from '../tools/with-stale-gate';
 import { tr } from '../../i18n/strings';
 import { screenPoint, screenToWorld, STAGE_PIXELS, worldPerScreenPixel } from '../viewport/Viewport';
 import ObjectRotationForm from './ObjectRotationForm.vue';
-import { rotationChanged, rotationDegreesBetween, rotationHandle, rotationPivot, rotationPoints, type NamedRotationShape, type RotationShape } from './objectRotation';
+import { rotationChanged, rotationDegreesBetween, rotationHandleGeometry, rotationPivot, rotationPoints, type NamedRotationShape, type RotationShape } from './objectRotation';
 import { projectedRotationTarget, readRotationBaseline, type RotationBaseline } from './rotationBaseline';
 
 export interface WallRotationActions {
@@ -26,10 +27,11 @@ export interface WallRotationActions {
 	rotateWall(id: string, degrees?: number, original?: Wall): Promise<void>;
 	previewRotation(id: string | null, degrees?: number, original?: Wall): void;
 }
-type Runtime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote' | 'elementActions'> & { ledger: SessionWriteLedger; wall?: WallRotationActions };
+type Runtime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & { elementActions: { readonly active: Readonly<Ref<boolean>> }; ledger: SessionWriteLedger; wall?: WallRotationActions };
 /** One transient rotation lifetime; persistence remains in the existing source-specific commands. */
 export function createRotationActions(context: PlanEditorContext, runtime: Runtime) {
 	const project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), saves = useSaveStateStore(), session = useRenovationSession(), dialogs = useDialogStore();
+	const workspace = useWorkspaceStore(), obstacles = shallowRef<readonly BoundingBox[]>([]);
 	const working = ref(false), generation = ref(0), preview = ref<NamedRotationShape | null>(null);
 	let alive = true;
 	const target = computed(() => {
@@ -45,10 +47,9 @@ export function createRotationActions(context: PlanEditorContext, runtime: Runti
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	const visibleBounds = computed(() => ({ min: screenToWorld(screenPoint(0, 0), editor.viewport, STAGE_PIXELS), max: screenToWorld(screenPoint(editor.stageSize.width, editor.stageSize.height), editor.viewport, STAGE_PIXELS) }));
 	const handleGeometry = computed(() => {
-		const shape = target.value; if (!shape) return null;
+		const shape = target.value; if (!shape || !(shape.kind === 'room' || shape.kind === 'area' ? workspace.layerVisibility.zone : workspace.layerVisibility.architecture)) return null;
 		const scale = worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visible = visibleBounds.value;
-		const handle = rotationHandle(shape, scale, visible), pivot = rotationPivot(shape), bounds = extentOf(shape.points);
-		return handle && pivot ? { handle, pivot, anchor: { x: bounds.maxX, y: bounds.minY } } : null;
+		return rotationHandleGeometry(shape, scale, visible, obstacles.value);
 	});
 	function previewShape(id: string | null, points?: readonly Point[]): void {
 		if (id === null) { clear(); return; }
@@ -97,5 +98,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Runti
 			} });
 		});
 	}
-	return { target, active, blocked, preview, previewShape, handleGeometry, visibleBounds, handle: computed(() => handleGeometry.value?.handle ?? null), available: computed(() => target.value !== null), rotate, move };
+	return { setObstacles: (bounds: readonly BoundingBox[]) => { obstacles.value = bounds; }, target, active, blocked, preview, previewShape, handleGeometry, visibleBounds, handle: computed(() => handleGeometry.value?.handle ?? null), available: computed(() => target.value !== null), rotate, move };
 }
+
+

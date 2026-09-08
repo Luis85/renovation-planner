@@ -4,7 +4,7 @@ export const objectEn = {
 	'editor.rotation.degrees': 'Rotate by (degrees)',
 	'editor.rotation.clockwise': 'Rotate clockwise 90 degrees',
 	'editor.rotation.counterclockwise': 'Rotate counterclockwise 90 degrees',
-	'editor.rotation.hint': 'Rotate around the shape centre. Positive angles turn clockwise. Hold Shift while dragging the rotation handle to snap to 15 degrees.',
+	'editor.rotation.hint': 'Rotate around the shape centre. Positive angles turn clockwise. Hold the shift key while dragging the rotation handle to snap to 15 degrees.',
 	'editor.rotation.invalid': 'Enter a finite angle in degrees.',
 
 	'editor.element.list': 'Plan items',
@@ -25,3 +25,4 @@ export const objectEn = {
 	'editor.object.position-too-large': 'The rectangle must fit within supported plan coordinates.',
 	'editor.object.size-too-large': 'Enter a size no greater than 1000 m.',
 };
+

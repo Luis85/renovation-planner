@@ -1,5 +1,5 @@
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
-import { translate } from '../../../core/geometry/operations';
+import { distance, translate } from '../../../core/geometry/operations';
 import { ElementRotation, type RotationGestureDeps } from '../elements/ElementRotation';
 import { ElementMove, type ElementMoveDeps } from '../elements/ElementMove';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
@@ -155,10 +155,7 @@ export class SelectTool implements EditorTool {
 		}
 		const hit = candidates.find((candidate) => candidate.id === target.id);
 		if (hit === undefined) return;
-		if (!event.modifiers.shift && !event.modifiers.alt && context.selection.selectedIds.length > 1 && context.selection.isSelected(hit.id as EntityId<string>)) {
-			context.selection.focus(hit.id as EntityId<string>);
-			return;
-		}
+		if (this.focusSelectedMember(context, event, hit.id)) return;
 		if (target.kind === 'rotation') { const shape = this.deps.rotationTarget?.(); if (shape?.id === target.id) this.elementRotation.start(context, event, shape); return; }
 		if (hit.kind) { this.selectStructure(context, event, hit, target); return; }
 		if (target.kind === 'handle') {
@@ -192,6 +189,10 @@ export class SelectTool implements EditorTool {
 		context.renderState.previewPolygon = null;
 	}
 
+	private focusSelectedMember(context: EditorContext, event: EditorPointerEvent, id: string): boolean {
+		if (event.modifiers.shift || event.modifiers.alt || context.selection.selectedIds.length < 2 || !context.selection.isSelected(id as EntityId<string>)) return false;
+		context.selection.focus(id as EntityId<string>); return true;
+	}
 	private selectStructure(context: EditorContext, event: EditorPointerEvent, hit: SpatialObjectCandidate, target: Exclude<SelectionTarget, null>): void {
 		selectSpatial(context.selection, hit.id, event.modifiers.shift);
 		if (hit.kind !== 'wall' && hit.kind !== 'opening') this.elementMove.start(context, event, hit);
@@ -322,17 +323,22 @@ export class SelectTool implements EditorTool {
 	 * `.find` afterwards, and re-calling `spatialObjects()` there would be the two-calls-per-
 	 * gesture cost this method already exists to avoid.
 	 */
+	private rotationAt(context: EditorContext, event: EditorPointerEvent) {
+		const selected = this.deps.rotationTarget?.(), point = this.deps.rotationHandle?.();
+		const decoration = point && selected && this.deps.canRotateShape?.() !== false && !context.writesBlocked() ? { id: selected.id, point } : undefined;
+		return { decoration, hit: decoration !== undefined && !event.modifiers.alt && distance(decoration.point, event.worldPoint) <= ROTATION_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel() };
+	}
 	private targetAt(
 		context: EditorContext,
 		event: EditorPointerEvent,
 	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget } {
 		const candidates = this.deps.spatialObjects();
-		const selected = this.deps.rotationTarget?.(), handle = this.deps.rotationHandle?.();
+		const rotation = this.rotationAt(context, event);
 		const target = resolveSelectionTarget({
 			rotationToleranceWorld: ROTATION_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
-			rotationHandle: handle && selected && this.deps.canRotateShape?.() !== false && !context.writesBlocked() ? { id: selected.id, point: handle } : undefined,
+			rotationHandle: rotation.decoration,
 			candidates,
-			selectedIds: event.modifiers.shift && !handle ? [] : context.selection.selectedIds.map(String),
+			selectedIds: event.modifiers.shift && !rotation.hit ? [] : context.selection.selectedIds.map(String),
 			worldPoint: event.worldPoint,
 			handleToleranceWorld: VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
 			cycle: event.modifiers.alt,
@@ -362,3 +368,6 @@ export class SelectTool implements EditorTool {
 		if (!result.ok) this.deps.reportRejected(result.error);
 	}
 }
+
+
+

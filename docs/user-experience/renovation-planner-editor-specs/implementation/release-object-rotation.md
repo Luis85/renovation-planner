@@ -1,46 +1,60 @@
-# Free spatial item rotation — scope amendment
+# Free spatial item rotation — implementation and verification
 
-The user expanded the scope on 2026-09-08 after the initial Object implementation. This amendment supersedes the Object-only supported-type boundary below; the initial phase remains as evidence history. The user's original Object → Opening → Wall → Room body priority remains authoritative, separately owned by the selection work package.
+## Current contract
 
-Current supported free targets: one Room, Area, Object, Path, Fence or Measurement. Rooms/Areas/Objects use a frozen polygon area centroid; Paths/Fences use a frozen length-weighted line centroid; Measurements use their segment midpoint. The wall work package adds reviewed wall rotation about its midpoint, carrying hosted openings and connected junctions; an Opening routes to “Rotate host wall” and keeps its selection identity. Group transforms and catalogue/reference schemas are unchanged.
+The user's 2026-09-08 scope amendment supersedes the initial Object-only increment. One selected Room, Area, Object, Path, Fence or Measurement can rotate independently. Wall rotation is a dependent work package: it carries hosted openings and connected junctions through a reviewed wall impact form; selecting an Opening routes to its host wall without replacing the selected ID. Group transforms, catalogue facing and reference-plan schemas are outside this change. The user's original Object → Opening → Wall → Room body priority remains authoritative; PR #93 is independently owned and is not modified here.
 
-Existing edit permissions remain: Plan permits all supported current targets; Renovate permits current Rooms/Areas/walls and preserves the existing Plan-only current-fact boundary for generic elements; Review permits none. `runtime.rotationActions` owns the shared active state, blocked state, cancellation generation, selected target, preview and numeric/pointer routing. Room/Area writes use the existing `MoveSpatialObject` command and reversible adapter with an explicit initial expected version. Generic element writes use the existing conditional `RenovationCommand`/`elementInput`. The duplicate Object-specific numeric implementation was removed from `elementActions`.
-
-The shared handle uses a 28px visible circle, a 44px grab target and a 40px diagonal offset from the shape's upper-right extent. One helper clamps paint and hit coordinates into the visible camera bounds (28px sides/bottom; 60px top HUD clearance). Fidelity owns the arrow glyph and control presentation. Pointer bearings unwrap across atan2's seam, while every preview still rotates immutable original vertices; rotation never accumulates geometry from a previous preview. Generation checks cancel previews and pending baseline reads when tools, perspectives, selection or editor lifetime change.
-
-Acceptance additions: all six free types retain rigid distances and their chosen pivots; all four generic kinds reopen in a reconstructed repository/index/runtime; Room/Area writes preserve wall/current/intended associations, reject peer-modified baselines and restore exact points through history. The supplemental browser journey uses native mouse coordinates observed from the actual painted handle after native zoom and pan, compares rendered preview with persisted points, checks Undo/Redo and Escape, and retains the original nine final journeys. The wall work package supplies a separate reviewed impact form through the facade's optional wall adapter.
-
-Generalized source follows Object checkpoint 43fd968b and selection dependency 4bfea540. Generalized verification and integrated visual/host acceptance are pending; the earlier Object test results below do not establish acceptance of the expanded scope.
-
-## Initial Object phase (superseded scope; retained evidence)
-
-
-Evidence baseline: main 7d4bc381, inspected 2026-09-08. Owner: rotation work package.
-Dependency: shared resolver body-order correction is owned by selection work package; parent owns integrated verification and documentation reconciliation. PR #93 files are untouched.
-
-## Interaction contract
-
-One selected free Object in the Plan perspective supports rotation. Rooms/Areas, walls, hosted openings, reference plans, Asset catalogue facing, linear elements and groups do not. Planned/intended geometry remains an independent fact: this edits the current Object points only, preserving intended geometry, IDs, names and relationships under ADR-0023.
-
-The polygon area centroid is frozen when the draft starts. Positive degrees rotate clockwise in the canvas world coordinate system (y points down). Pointer rotation is the change in bearing from pointer-down around that pivot; Shift constrains the relative angle through the existing SnapService 15-degree policy. Shift may be held before grabbing the handle. Numeric Rotate by accepts signed degrees with decimal point or decimal comma and preserves the exact requested angle without vertex snapping. Quarter-turn actions use ±90 degrees.
-
-Each preview is calculated from immutable original points. Pointer-up recalculates from its final location and dispatches once via the existing guarded element action, RenovationCommand, write ledger and history. Zero/full-turn or coincident results produce no writes/history. Escape, cancellation, tool switching and disposal discard previews. Invalid/degenerate/unrepresentable shapes and invalid numbers are refused. No orientation schema is introduced.
-
-The visible rotation handle is above the selected object's bounds by a fixed screen-pixel offset. Rendering and shared hover/click hit testing use the same geometry helper and camera scale; Alt overlap cycling bypasses it. A connector stem and live relative-degree label identify the handle. Pointer targeting and paint both honor the root action busy/save gate. A Rotate by dialog and ±90-degree actions in the Inspector and direct canvas actions remain keyboard accessible after list selection and preserve draft/recovery behavior.
-
-## Actionable traceability
-
-| Requirement | Baseline finding / source | Action and acceptance |
+| Shape | Frozen pivot | Existing write path |
 |---|---|---|
-| Rigid rotation | Core operations.rotate and centroid implemented; Object rotation missing | Add shared proposal helper; verify distances, area, centroid, arbitrary angles, quarter turns and immutable preview |
-| Pointer lifecycle | ElementMove and SelectTool guarded translation exists | Add rotation gesture using existing preview/commit callback; final pointer, no-op, cancellation, blocked and zoom handle tests |
-| Numeric/quarter turn | elementActions edit/move exists; rotation missing | Add locale-aware form and accessible actions, one command path, conflict/readback recovery checks |
-| Persistence/history | world-point sidecar and RenovationCommand exist | Exercise actual persisted geometry with reconstructed repository/index/runtime, exact Undo/Redo and independent intended preservation |
-| Visual fidelity | shared StructureLayer and DirectActionPopover | Draw handle and compact translated actions; parent inspects final stable screenshots |
+| Room / Area | Polygon area centroid | MoveSpatialObject and ReversibleMoveZoneCommand, including an explicit initial expected version |
+| Object | Polygon area centroid | Conditional RenovationCommand / elementInput |
+| Path / Fence | Length-weighted line centroid | Conditional RenovationCommand / elementInput |
+| Measurement | Segment midpoint | Conditional RenovationCommand / elementInput |
+| Wall / selected Opening's host | Wall midpoint | Dependent wall adapter and reviewed Structure command; owned by the wall work package |
 
-## Verification record
+Plan permits every supported current target. Renovate retains existing permission to edit current Rooms, Areas and walls; generic elements keep their existing Plan-only current-fact boundary. Review permits no rotation. Current geometry rotates independently of intended geometry; IDs, canonical names, other metadata, relationships and item order remain unchanged. No orientation field or schema version is added.
 
-Initial targeted run passed 12 geometry/gesture cases and 6 runtime cases (numeric preview/commit, locale input, invalid/cancel, conflict, readback recovery, reconstructed runtime and pointer history). Two authored camera-switch tests used an unregistered Pan tool ID; corrected to the existing null camera mode. Subsequent busy, perspective, Escape and exact painted-handle cases await the final targeted run. Scoped Vue ESLint passed. Supplemental scripts/editor-object-rotation-check.mjs covers four browser theme/locale scenarios independently of the original nine journeys. Parent serializes unchanged full gate and final visual evidence after commits. Browser tests do not establish native Obsidian/device/screen-reader acceptance.
+`runtime.rotationActions` owns the free-item rotation lifecycle: the selected target, busy/blocked state, cancellation generation, preview, handle geometry and numeric/pointer routing. `spatialEditing.ts` composes the existing element actions and these bindings; it creates no persistence service. The previous duplicate Object-specific `elementActions.rotate` implementation has been removed.
 
+Positive degree values turn clockwise in the canvas's downward-positive world coordinates. Numeric Rotate by accepts signed decimal-point and decimal-comma degrees exactly; quarter-turn controls use ±90 degrees. Pointer Shift constrains the relative angle through the existing 15-degree snap service, including when Shift is held before grabbing the handle. Bearings unwrap across atan2's seam; every preview still transforms the immutable original points, never the previous preview. Exact cardinal coefficients are shared in Core.rotate so Rooms retain axis-aligned sizing after quarter turns and wall/free-item math agrees.
 
-Generalized checkpoint verification: npm run check:fast -- tests/presentation/editor/objectRotation.test.ts tests/presentation/editor/objectRotationRuntime.test.ts --maxWorkers=1 --no-file-parallelism passed full Oxlint, vue-tsc and 41 tests across two files (2026-09-08). Browser pointer helper has not yet been executed. Parent review identified a viewport-clamp/Room-vertex overlap case; a bounded shared-placement follow-up is required before final handle acceptance.
+Pointer-up recalculates from its final position and commits through one existing history command. Invalid angles, zero/full turns, coincident geometry, cancellation, Escape, tool/perspective/selection changes, retired baselines and disposal produce no write/history. A geometry-identical refresh can continue the gesture; a peer geometry change cancels it before another preview. Numeric conflicts retain the entered angle and use read-only recovery; successful writes are never repeated to recover failed read-back.
+
+## Shared handle and input behavior
+
+The shared metrics are a 28px visible control, 44px grab target and preferred 40px diagonal offset from the upper-right extent. One placement helper returns the matched handle, attachment anchor and pivot for paint and hit testing. It clamps to 28px viewport side/bottom margins and 60px top clearance, tries alternative corners and edge positions, and reserves at least 34px around Room/Area/wall vertex handles. Existing measured native dimension rectangles are reused as obstacles; no new observer is added. A viewport with no clear target retains the numeric route.
+
+The handle renders in the existing top Interaction layer through the same world transform; the seven-layer architecture remains unchanged. Source-layer visibility controls pointer-handle visibility while the selected record's numeric action remains usable. Ordinary Shift-click body/corner behavior remains selection toggling; selected IDs are retained under Shift only when the point actually hits the rotation target. Alt continues to bypass decorations. Fidelity owns the final arrow glyph, control layout and Inspector placement.
+
+## Traceability
+
+| Requirement / status | Source entry point | Owner and acceptance |
+|---|---|---|
+| Implemented, targeted verified: rigid geometry and pivots | src/presentation/editor/elements/objectRotation.ts; src/core/geometry/operations.ts | Rotation: arbitrary/cardinal angles, area/distance/pivot invariants and exact Room quarter-turn dimensions |
+| Implemented, targeted verified: guarded commands and history | rotationActions.ts; rotationBaseline.ts; spatialEditing.ts; elementInput.ts | Rotation: immutable baseline, one command, no-op/cancel/disposal guards, peer conflicts, exact Undo/Redo, in-place item/metadata updates |
+| Implemented, targeted verified: pointer lifecycle and targeting | ElementRotation.ts; tools/select-tool.ts; selection/resolveSelectionTarget.ts; handleMetrics.ts | Rotation: final pointer position, continuous angle feedback, Shift corner preservation, busy/source visibility, zoom/pan geometry, vertex/native-control clearance |
+| Implemented, targeted verified: persisted reopen | tests/presentation/editor/objectRotationRuntime.test.ts | Rotation: all four generic kinds reconstruct index/repositories/runtime from persisted FakeVault bytes; Room/Area rotation reloads through fresh repositories; current/intended and metadata remain independent |
+| Implemented, targeted verified: numeric entry/recovery | ObjectRotationForm.vue; rotationActions.ts | Rotation: decimal comma/point, invalid input, cancellation, late reads, successful-write/failed-readback without another write |
+| Implemented helper; browser observation pending | tests/harness/editorRotationProbe.ts; scripts/editor-object-rotation-browser.mjs; scripts/editor-object-rotation-check.mjs | Rotation supplies read-only actual-renderer probes and native input journey; parent runs on final integrated source. Room screen-space previews are normalized through the actual renderer transform |
+| Dependent implementation / integration pending here | structureActions.rotateWall / previewRotation | Wall work package: reviewed connected-wall impact, carried Opening fields, fresh persistence and wall-specific peer-preview regressions |
+| Dependent visual acceptance pending here | ObjectRotationHandle.vue / ObjectRotationControls.vue and Inspector placements | Fidelity: arrow glyph, enlarged controls, signed angle display and constrained EN/DE layouts |
+
+## Verified source and receipt
+
+Production source: **42176cf2c2914421bf7eaffc17d3ca7e3bfc8c57**, on `codex/editor-release-rotation`, based on selection documentation tip `26723bee`. The tested pre-rebase source was `bbc4bd4e`; the rebase changed only its documentation ancestry. Git confirmed identical source and test trees before/after:
+
+- src: `26ae80d02e43d3c7bd13542e5e6093ee3438982b`
+- tests: `8ed8e1317024cf968d863224d775454f66a23db7`
+
+On 2026-09-08:
+
+- `node node_modules/vue-tsc/bin/vue-tsc.js -noEmit` passed.
+- Scoped ESLint passed for all rotation-changed/new `.ts` and `.vue` files, with unchanged complexity and line limits. Repository configuration excludes these browser `.mjs` drivers from ESLint; global Oxlint includes them.
+- Global `oxlint --deny-warnings` passed.
+- `vitest run tests/core/geometry tests/presentation/editor/objectRotation.test.ts tests/presentation/editor/objectRotationRuntime.test.ts tests/presentation/editor/tools/selectTool.test.ts tests/application/commands/spatialElements.test.ts --maxWorkers=1 --no-file-parallelism` passed: **8 files, 172 tests**. Vitest elapsed 75.20s; test bodies 9.86s. This is a targeted development run, not a performance acceptance claim.
+
+The unchanged `npm run check`, integrated wall/UX regression reruns, supplemental native-browser rotation journey, final nine original journeys and all eighteen reference comparisons remain parent-owned pending checks. Native Obsidian, physical-device and screen-reader acceptance are separate observations and are not established by FakeVault, jsdom, browser automation or axe.
+
+## Historical checkpoints
+
+The initial Object implementation was `43fd968b` (rebased as `9f44c959`); its partial checks do not establish the expanded scope. The first generalized engine checkpoint was `f056a1f2` (rebased as `643a0c00`), with full Oxlint/types and 41 targeted tests. Subsequent review established and corrected viewport-clamp/vertex overlap, Shift-corner selection, item-order preservation, peer-preview retirement, cardinal Room sizing and existing lint-budget issues. The 172-test receipt above supersedes those partial verification counts.

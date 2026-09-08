@@ -158,6 +158,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Changed
 
+- Spatial rotation uses a recognizable circular-arrow handle with a larger grab area, pivot and angle feedback, and localized numeric and quarter-turn controls in each eligible Inspector. Openings explicitly rotate with their host wall.
+
 - Build with Vite instead of esbuild, per the SDD's stack: single CJS bundle into `dist/`,
   a dev-server browser harness, and `@vitejs/plugin-vue` one line away when the first Vue
   component arrives.

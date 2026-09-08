@@ -72,3 +72,9 @@
 	white-space: normal;
 }
 .renovation-plan-editor .rp-object-rotation-actions .rp-host-icon { flex-shrink: 0; }
+.renovation-plan-editor .rp-object-rotation-hint {
+	grid-column: 1 / -1;
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}

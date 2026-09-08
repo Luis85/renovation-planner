@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SpatialInspectorActions from './SpatialInspectorActions.vue';
+import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
 /**
  * The Inspector's ROOM state (component library §8's `RoomInspector`) — the BODY the frame
  * (`EntityInspector.vue`, Task 15) routes to once exactly one entity is selected. Through
@@ -187,6 +188,7 @@ const unavailableNavigation = computed(() => overview.value && !runtime.renovati
 			<dd>{{ formatArea(overview.record.areaMm2) }}</dd>
 		</dl>
 
+		<ObjectRotationControls :id="dto.id" />
 		<SpatialInspectorActions
 			:zone-id="dto.id"
 			:record="overview?.record"

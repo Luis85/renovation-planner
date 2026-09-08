@@ -34,7 +34,7 @@ export async function verifyObjectRotationPointer(page, scenario, out, id) {
 	await page.keyboard.down('Shift'); await page.mouse.move(moved.handle.x, moved.handle.y); await page.mouse.down();
 	const intermediate = turn(moved, 37), final = turn(moved, 58);
 	await page.mouse.move(intermediate.x, intermediate.y, { steps: 3 }); await page.mouse.move(final.x, final.y);
-	const preview = await scene(page, id); assert.equal(preview.angle, '60°'); assert.deepEqual(await notes(page), originalNotes, 'pointer preview writes no files');
+	const preview = await scene(page, id); assert.equal(preview.angle, '+60°'); assert.deepEqual(await notes(page), originalNotes, 'pointer preview writes no files');
 	await recordShot(page, scenario, out, 'pointer-preview');
 	await page.mouse.up(); await page.keyboard.up('Shift');
 	const expected = Array.from({ length: preview.points.length / 2 }, (_, index) => ({ x: preview.points[index * 2], y: preview.points[index * 2 + 1] }));

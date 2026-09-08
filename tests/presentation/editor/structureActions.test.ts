@@ -113,6 +113,10 @@ describe('wall/opening actions and impact forms', () => {
 		await value.wrapper.find('.rp-dialog form').trigger('submit'); await value.wrapper.find('.rp-dialog form').trigger('submit'); expect(run).toHaveBeenCalledOnce();
 		value.unmount(); release(ok('wrote')); await pending; expect(value.runtime.structureActions.preview.value).toBeNull();
 	});
+	it('does nothing for an empty batch, not even a read', async () => {
+		const value = await rig(), read = vi.spyOn(value.services, 'read');
+		await value.runtime.structureActions.remove([]); expect(read).not.toHaveBeenCalled(); expect(value.dialogs.current).toBeNull();
+	});
 	it('previews host deletion, cancels, then deletes its openings and undoes the entire relationship', async () => {
 		const value = await rig();
 		let pending = value.runtime.structureActions.remove('wall-a'); await settle();

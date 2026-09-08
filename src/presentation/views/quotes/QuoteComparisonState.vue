@@ -27,7 +27,7 @@ const partial = computed(() => {
  const current = read.data.value;
  return !!current && !!(current.unreadable || current.work.unreadablePlans || current.work.roomsIncomplete);
 });
-const originRoom = computed(() => context.origin?.roomId ? read.data.value?.work.rooms.find(room => room.id === context.origin?.roomId)?.name ?? tr('quote.unresolved', { id: context.origin.roomId }) : '');
+function roomName(roomId: string): string { return read.data.value?.work.rooms.find(room => room.id === roomId)?.name ?? tr('quote.unresolved', { id: roomId }); }
 const today = ref('');
 function updateDate(): void { const date = new Date(); today.value = [String(date.getFullYear()).padStart(4, '0'), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-'); }
 updateDate();
@@ -97,7 +97,7 @@ async function supplier(): Promise<void> {
 		<div class="rp-project-detail__body">
 			<p>{{ tr('quote.comparison-policy') }}</p>
 			<p v-if="context.origin?.roomId">
-				{{ tr('quote.from-room', { name: originRoom }) }}
+				{{ tr('quote.from-room', { name: roomName(context.origin.roomId) }) }}
 			</p>
 			<p
 				v-if="read.loading.value"

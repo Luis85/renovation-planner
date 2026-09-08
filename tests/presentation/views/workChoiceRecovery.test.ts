@@ -10,6 +10,7 @@ import { createTrade, type TradeId } from '../../../src/domain/trade/Trade';
 import { err } from '../../../src/core/result/Result';
 import { tr } from '../../../src/presentation/i18n/strings';
 import WorkResponsibilityFields from '../../../src/presentation/catalogue/WorkResponsibilityFields.vue';
+import * as notices from '../../../src/presentation/notices/notify';
 installObsidianDom();
 afterEach(() => { vi.restoreAllMocks(); document.body.replaceChildren(); });
 
@@ -96,6 +97,38 @@ describe('Work choices retain intent across native edits and catalogue failures'
    expect(responsibility.text()).not.toContain(tr('trade.unavailable')); expect(field.element.value).toBe('trade:' + trade.id);
    expect([...rig.stack.vault.entries]).toEqual(before);
   } finally { view.dispose(); }
+ });
+
+ it('refuses a different Trade while the catalogue is unavailable, keeping the one already chosen', async () => {
+  const rig = await downstreamStack();
+  for (const [id, name] of [['trade-a', 'Floor finishing'], ['trade-b', 'Tiling']]) expectOk(await rig.persistence.trades.save(expectOk(createTrade(id as TradeId, name)), 'absent'));
+  const view = await downstreamView(rig, 'schedule');
+  try {
+   const form = await editWork(view), field = form.get<HTMLSelectElement>('select[name="responsibility"]');
+   await field.setValue('trade:trade-a');
+   vi.spyOn(rig.persistence.trades, 'listAll').mockResolvedValue(err({ category: 'Persistence', code: 'trade.read-failed', message: 'Offline' }));
+   await rig.root.eventBus.publish({ type: 'ProjectIndexRebuilt' }); await flushPromises();
+   await field.setValue('trade:trade-b'); await flushPromises();
+   expect(field.element.value).toBe('trade:trade-a');
+   expect(view.wrapper.getComponent(WorkResponsibilityFields).props('modelValue')).toMatchObject({ responsibility: 'trade', tradeId: 'trade-a' });
+  } finally { view.dispose(); }
+ });
+
+ it('marks the catalogue failed and reports once when the listing itself faults, and ignores a late fault after close', async () => {
+  const rig = await downstreamStack(), view = await downstreamView(rig, 'schedule');
+  const report = vi.spyOn(notices, 'notifyFault').mockImplementation(() => undefined), fault = new Error('Listing crashed');
+  try {
+   await editWork(view);
+   const listing = vi.spyOn(view.work.trades, 'list').mockRejectedValueOnce(fault);
+   await rig.root.eventBus.publish({ type: 'ProjectIndexRebuilt' }); await flushPromises();
+   expect(report).toHaveBeenCalledExactlyOnceWith(fault, view.context.commands.logger, 'trade.list-failed');
+   const responsibility = view.wrapper.getComponent(WorkResponsibilityFields);
+   expect(responsibility.text()).toContain(tr('trade.unavailable'));
+   const held = defer<void>(); listing.mockImplementationOnce(async () => { await held.promise; throw new Error('Late listing failure'); });
+   await responsibility.get('button').trigger('click');
+   view.dispose(); held.resolve(); await flushPromises();
+   expect(report).toHaveBeenCalledOnce();
+  } finally { if (view.wrapper.exists()) view.dispose(); }
  });
 
  it('keeps a failed catalogue readable after an unexpected listing fault and ignores a late fault after close', async () => {

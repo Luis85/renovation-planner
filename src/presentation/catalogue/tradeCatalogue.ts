@@ -28,7 +28,7 @@ export function provideTradeCatalogue(services: NamedCatalogueServices<Trade> | 
   if (!alive || !reader) return;
   status.value = 'loading';
   try { await reader.refresh(); }
-  catch (cause) { if (alive) { status.value = 'failed'; notifyFault(cause, logger, 'trade.list-failed'); } }
+  catch (cause) { status.value = 'failed'; notifyFault(cause, logger, 'trade.list-failed'); }
  }
  const unsubscribe = services?.onChanged(() => { void refresh(); });
  onMounted(() => { void refresh(); });

@@ -10,6 +10,7 @@ import { defer } from '../../helpers/async';
 import { err } from '../../../src/core/result/Result';
 import { tr } from '../../../src/presentation/i18n/strings';
 import * as notices from '../../../src/presentation/notices/notify';
+import RenovationForm from '../../../src/presentation/editor/renovation/RenovationForm.vue';
 installObsidianDom();
 afterEach(() => { vi.restoreAllMocks(); document.body.replaceChildren(); });
 async function peerEdit(rig: Awaited<ReturnType<typeof downstreamStack>>) {
@@ -57,6 +58,23 @@ it('opens the owning floor and Work identity and refuses Undo after an independe
   await view.button(tr('editor.context.undo')).trigger('click'); await flushPromises();
   expect(notify).toHaveBeenCalledOnce(); expect([...rig.stack.vault.entries]).toEqual(bytes); expect(view.wrapper.text()).toContain('Peer renamed Work');
  } finally { view.dispose(); }
+});
+it('refuses a dispatch that arrives after the view is gone, and lets a paused form open its source on a host that cannot', async () => {
+ const rig = await downstreamStack(), view = await downstreamView(rig, 'schedule');
+ try {
+  await view.button(tr('renovation.edit.work')).trigger('click'); await flushPromises();
+  const form = view.wrapper.get('[data-rp-form="renovation"]'), dispatch = view.wrapper.getComponent(RenovationForm).props('dispatch');
+  const read = vi.spyOn(view.work, 'read').mockResolvedValue(err({ category: 'Persistence', code: 'test.offline', message: 'Offline' }));
+  await rig.root.eventBus.publish({ type: 'ProjectIndexRebuilt' }); await flushPromises();
+  expect(view.context.openRecord).toBeUndefined();
+  await expectDefined(form.findAll('button').find(button => button.text() === tr('editor.warning.open-source-note')), 'open source').trigger('click'); await flushPromises();
+  expect(view.wrapper.find('[data-rp-form="renovation"]').exists()).toBe(true);
+  read.mockRestore();
+  const baseline = expectOk(await view.work.renovation.read(rig.plan.id)), bytes = [...rig.stack.vault.entries];
+  view.dispose();
+  expect(await dispatch({ renovation: expectDefined(baseline.plan.entity.renovation, 'renovation'), intended: undefined })).toMatchObject({ ok: false, error: { code: 'undo.superseded' } });
+  expect([...rig.stack.vault.entries]).toEqual(bytes);
+ } finally { if (view.wrapper.exists()) view.dispose(); }
 });
 it('keeps disabled Undo and Redo inert before any Work edit', async () => {
  const rig = await downstreamStack(), view = await downstreamView(rig, 'schedule');

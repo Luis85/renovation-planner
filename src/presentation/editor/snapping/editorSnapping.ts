@@ -68,6 +68,12 @@ export function createEditorSnapService(enabled: () => boolean): SnapService {
 const CONSTRAINING_TOOLS: readonly ToolId[] = [
 	'draw-polygon',
 	'draw-area',
+	'draw-wall',
+	'draw-path',
+	'draw-fence',
+	'measure',
+	'place-stair',
+	'draw-arrow',
 	'calibrate',
 	'trace-footprint',
 	'trace-clearance',

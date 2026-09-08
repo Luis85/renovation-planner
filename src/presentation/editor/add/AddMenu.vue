@@ -68,10 +68,11 @@ const runtime = useEditorRuntime();
 const project = useProjectStore(), workspace = useWorkspaceStore();
 const note = useNoteCreation();
 const creation: CreationRuntime = { setTool: id => runtime.setTool(id), createNote: note.activate };
+const isElementEntry = (entry: CreationEntry): boolean => ['item', 'path', 'fence', 'measurement', 'stair', 'arrow'].includes(entry.id);
 const spatialReason = computed(() => tr(runtime.structureTask.available ? 'editor.structure.error.host-missing' : 'editor.structure.error.unavailable'));
 function spatialUnavailable(entry: CreationEntry): boolean {
 	if (entry.id === 'note') return !note.available.value;
-	if (['item', 'path', 'fence', 'measurement'].includes(entry.id)) return !runtime.elementTask.available;
+	if (isElementEntry(entry)) return !runtime.elementTask.available;
 	if (!['wall', 'door', 'window', 'opening'].includes(entry.id)) return false;
 	return !runtime.structureTask.available || (entry.id !== 'wall' && project.structure.walls.length === 0);
 }
@@ -148,7 +149,7 @@ function describedBy(entry: CreationEntry): string | undefined {
 }
 function unavailableReason(entry: CreationEntry): string {
 	if (entry.id === 'note') return tr('editor.add.note.context-required');
-	if (['item', 'path', 'fence', 'measurement'].includes(entry.id)) return tr('editor.add.element.unavailable', { name: tr(entry.labelKey) });
+	if (isElementEntry(entry)) return tr('editor.add.element.unavailable', { name: tr(entry.labelKey) });
 	return spatialReason.value;
 }
 
@@ -221,7 +222,7 @@ function activate(entry: CreationEntry): void {
 	if (runtime.writesBlocked.value || spatialUnavailable(entry)) return;
 	emit('close');
 	activateCreationEntry(entry.id, creation);
-	if (['item', 'path', 'fence', 'measurement'].includes(entry.id)) {
+	if (isElementEntry(entry)) {
 		const root = (menuRoot.value as HTMLElement).closest('.renovation-plan-editor');
 		if (workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
 		void nextTick(() => root?.querySelector<HTMLInputElement>('[name="element-name"]')?.focus());

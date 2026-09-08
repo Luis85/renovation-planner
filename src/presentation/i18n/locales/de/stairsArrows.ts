@@ -1,0 +1,22 @@
+import type { stairsArrowsEn } from '../en/stairsArrows';
+export const stairsArrowsDe: Record<keyof typeof stairsArrowsEn, string> = {
+	'editor.stair.apply': 'Treppenänderungen übernehmen',
+	'editor.stair.apply-dimensions': 'Treppenmaße übernehmen',
+	'editor.stair.banner': 'Anfang und Ende wählen oder Treppenmaße eingeben. Zum Speichern fertigstellen.',
+	'editor.arrow.banner': 'Pfeilpunkte durch Klicken setzen und zum Speichern fertigstellen.',
+	'editor.stair.summary': '{width} m breit · {run} m Lauflänge · {treads} Stufen · {direction}',
+	'editor.add.stair.label': 'Treppe',
+	'editor.add.stair.description': 'Eine gerade Treppe platzieren',
+	'editor.add.arrow.label': 'Richtungspfeil',
+	'editor.add.arrow.description': 'Eine Richtung oder einen Weg zeigen',
+	'editor.stair.dimensions': 'Treppenmaße',
+	'editor.stair.width': 'Breite (m)',
+	'editor.stair.run': 'Lauflänge (m)',
+	'editor.stair.treads': 'Anzahl der Stufen',
+	'editor.stair.direction': 'Richtung',
+	'editor.stair.up': 'Nach oben',
+	'editor.stair.down': 'Nach unten',
+	'editor.stair.width-invalid': 'Geben Sie eine Breite zwischen 0,001 und 1000 m ein.',
+	'editor.stair.run-invalid': 'Geben Sie eine Lauflänge zwischen 0,001 und 1000 m ein.',
+	'editor.stair.treads-invalid': 'Geben Sie eine ganze Zahl von 1 bis 200 ein.',
+};

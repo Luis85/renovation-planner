@@ -2,6 +2,7 @@ import type { Point } from '../../core/geometry/Point';
 import type { Structure } from './Structure';
 import { groupRoots } from './SpatialGroup';
 import { arcExtrema } from '../../core/geometry/circularArc';
+import { spatialElementFootprint } from './stairGeometry';
 
 export interface GroupGeometryObject { readonly id: string; readonly points: readonly Point[]; readonly bulges?: readonly number[] }
 export interface GroupGeometry { readonly objects: readonly GroupGeometryObject[]; readonly structure: Structure }
@@ -29,7 +30,7 @@ export function groupPoints(geometry: GroupGeometry, ids: readonly string[]): Po
 	return [...geometry.objects.filter(item => members.has(item.id)).flatMap(item => item.bulges?.some(value => value !== 0)
 		? item.points.flatMap((start, index) => arcExtrema({ start, end: item.points[(index + 1) % item.points.length], bulge: item.bulges?.[index] ?? 0 })) : item.points),
 		...geometry.structure.walls.filter(item => members.has(item.id)).flatMap(item => arcExtrema({ start: item.start, end: item.end, bulge: item.bulge ?? 0 })),
-		...geometry.structure.elements?.filter(item => members.has(item.id)).flatMap(item => item.points) ?? []];
+		...geometry.structure.elements?.filter(item => members.has(item.id)).flatMap(item => spatialElementFootprint(item)) ?? []];
 }
 /** A frozen bounding-box centre is predictable for a heterogeneous selection. */
 export function groupPivot(points: readonly Point[]): Point | null {

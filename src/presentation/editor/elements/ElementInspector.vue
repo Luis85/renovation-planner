@@ -35,6 +35,9 @@ async function edit(event: Event): Promise<void> {
 		<p v-if="element.kind === 'object' && measuredArea?.ok">
 			{{ formatArea(measuredArea.value) }}
 		</p>
+		<p v-else-if="element.kind === 'stair' && element.stair">
+			{{ tr('editor.stair.summary', { width: formatMetres(element.stair.width), run: formatMetres(elementLength(element)), treads: String(element.stair.treads), direction: tr(element.stair.direction === 'up' ? 'editor.stair.up' : 'editor.stair.down') }) }}
+		</p>
 		<p v-else>
 			{{ formatMetres(elementLength(element)) }} m
 		</p>

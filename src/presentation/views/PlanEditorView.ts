@@ -1,5 +1,5 @@
 import { projectOriginFrom, type ProjectOrigin } from '../../application/navigation/ProjectDestination';
-import { ItemView, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
+import { ItemView, Platform, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { createApp, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
@@ -12,6 +12,7 @@ import type { BackgroundVault } from '../editor/layers/background/BackgroundRend
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from './app-id-prefix';
+import { drawMobileRefusal } from './mobileRefusal';
 import { notifyFault, notifyWarning } from '../notices/notify';
 import type { ProjectOpenOutcome } from './RenovationProjectContext';
 
@@ -237,6 +238,15 @@ export class PlanEditorView extends ItemView {
 	private mountedPlanId: string | null = null;
 
 	private sync(): void {
+		// The ONE place that decides what is mounted is the one place that can decide NOT to
+		// (requirement extension 2a). Here rather than in `onOpen`, because `setState` reaches
+		// `sync` too and Obsidian's order between the two is not a plugin's to assume — a guard in
+		// `onOpen` alone would refuse and then mount the canvas anyway on the restore path.
+		if (Platform.isMobile) {
+			this.unmount();
+			drawMobileRefusal(this.contentEl);
+			return;
+		}
 		if (this.planId === null || this.planId === this.mountedPlanId) return;
 		this.unmount();
 		this.mount(this.planId);

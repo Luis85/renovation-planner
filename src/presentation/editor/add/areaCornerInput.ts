@@ -6,6 +6,8 @@ import { formatMetres, parseCoordinateMetres, type LengthRefusal } from '../shel
 /** Form text is not geometry. Only Apply edits the drawing tool's existing temporary buffer. */
 export function createAreaCornerInput(renderState: RenderState, tools: ToolManager, editable: Readonly<Ref<boolean>>) {
 	const text = reactive({ x: '', y: '' });
+	const edited = reactive({ x: false, y: false });
+	for (const axis of ['x', 'y'] as const) watch(() => text[axis], () => { edited[axis] = true; }, { flush: 'sync' });
 	const errors = reactive<{ x: LengthRefusal | null; y: LengthRefusal | null }>({ x: null, y: null });
 	const duplicate = ref(false);
 	const editing = ref<number | null>(null);
@@ -13,6 +15,7 @@ export function createAreaCornerInput(renderState: RenderState, tools: ToolManag
 	const pending = computed(() => text.x !== '' || text.y !== '' || editing.value !== null || errors.x !== null || errors.y !== null);
 	function reset(): void {
 		text.x = ''; text.y = '';
+		edited.x = false; edited.y = false;
 		errors.x = null; errors.y = null;
 		duplicate.value = false;
 		editing.value = null;
@@ -30,8 +33,8 @@ export function createAreaCornerInput(renderState: RenderState, tools: ToolManag
 		const previous = editing.value === null ? undefined : points.value[editing.value];
 		// Untouched axes retain exact mouse geometry, including sub-millimetre coordinates.
 		const point = {
-			x: previous !== undefined && text.x === formatMetres(previous.x) ? previous.x : x.mm,
-			y: previous !== undefined && text.y === formatMetres(previous.y) ? previous.y : y.mm,
+			x: previous !== undefined && !edited.x ? previous.x : x.mm,
+			y: previous !== undefined && !edited.y ? previous.y : y.mm,
 		};
 		if (!tools.editActiveCorner(editing.value ?? points.value.length, point)) {
 			duplicate.value = true;
@@ -46,10 +49,11 @@ export function createAreaCornerInput(renderState: RenderState, tools: ToolManag
 		editing.value = index;
 		text.x = formatMetres(point.x);
 		text.y = formatMetres(point.y);
+		edited.x = false; edited.y = false;
 	}
 	function remove(index: number): boolean {
 		if (!editable.value || pending.value) return false;
 		return tools.editActiveCorner(index, null);
 	}
-	return { text, errors, duplicate, editing, points, pending, editable, reset, apply, edit, remove };
+	return { text, edited, errors, duplicate, editing, points, pending, editable, reset, apply, edit, remove };
 }

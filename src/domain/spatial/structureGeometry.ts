@@ -3,6 +3,7 @@ import type { ValidationError } from '../../core/errors/AppError';
 import { err, ok, type Result } from '../../core/result/Result';
 import { samePoint, wallLength, type Opening, type Structure, type Wall } from './Structure';
 import { validSpatialElement } from './SpatialElement';
+import { validOpeningSwing } from './openingSwing';
 
 export function spatialError(detail: string): ValidationError {
 	return { category: 'Validation', code: `spatial.${detail}`, message: `Invalid spatial structure: ${detail}.` };
@@ -29,6 +30,7 @@ export const validSpatialPoint = (point: Point): boolean => [point.x, point.y].e
 const dimension = (n: number): boolean => Number.isFinite(n) && n >= 1 && n <= 1e6;
 
 function openingError(opening: Opening, structure: Structure): ValidationError | null {
+	if (!validOpeningSwing(opening)) return spatialError('opening-swing');
 	const host = structure.walls.find(wall => wall.id === opening.hostId);
 	if (!host) return spatialError('host-missing');
 	const numbers = [opening.width, opening.height, opening.offset, opening.sill];

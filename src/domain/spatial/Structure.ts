@@ -17,6 +17,13 @@ export interface Opening {
 	readonly width: number;
 	readonly height: number;
 	readonly sill: number;
+	readonly swing?: OpeningSwing;
+}
+/** Hinge follows the host's directed endpoints; side is viewed along start → end. */
+export interface OpeningSwing {
+	readonly hinge: 'start' | 'end';
+	readonly side: 'left' | 'right';
+	readonly angle: number;
 }
 export interface RoomBoundary {
 	readonly roomId: string;

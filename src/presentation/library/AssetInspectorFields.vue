@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import type { CatalogueEntryDto } from '../../application/queries/ListCatalogueEntries';
 import { ASSET_CATEGORY_LABELS, MEASUREMENT_UNIT_LABELS } from '../views/assetLabels';
 import type { AssetCategory } from '../../domain/asset/AssetCategory';
@@ -34,10 +35,16 @@ function fieldLabel(key: keyof DefinitionDraft): string {
 	const suffix: Partial<Record<keyof DefinitionDraft, string>> = { unitCost: ` (${props.entry.currency})`, waste: ' (%)', height: ' (mm)' };
 	return tr(DEFINITION_LABELS[key]) + (suffix[key] ?? '');
 }
+const formEl = ref<HTMLFormElement | null>(null);
+form.onKeep(() => {
+	const key = form.lastEdited.value ?? fields[0];
+	formEl.value?.querySelector<HTMLElement>(`[data-field="${key}"]`)?.focus();
+});
 </script>
 
 <template>
 	<form
+		ref="formEl"
 		class="rp-al-definition"
 		@submit.prevent="form.save()"
 	>
@@ -87,6 +94,7 @@ function fieldLabel(key: keyof DefinitionDraft): string {
 							:data-field="key"
 							:aria-label="fieldLabel(key)"
 							:disabled="form.locked.value"
+							@change="form.markEdited(key)"
 						>
 							<option
 								v-for="option in options(key)"
@@ -105,6 +113,7 @@ function fieldLabel(key: keyof DefinitionDraft): string {
 							:data-field="key"
 							:aria-label="fieldLabel(key)"
 							:readonly="form.locked.value"
+							@input="form.markEdited(key)"
 						>
 					</FieldError>
 				</dd>

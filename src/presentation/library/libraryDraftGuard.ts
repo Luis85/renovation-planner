@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 
-/** Per leaf; the form owns its values and registers its abandonment action and baseline asset name. */
+/** Per leaf; the form owns its values and registers its abandonment action, its baseline asset
+ *  name and a refocus callback for a cancelled leave. */
 export const useLibraryDraftGuard = defineStore('library-draft-guard', () => {
 	const dirty = ref(false);
 	const busy = ref(false);
-	let draft: { discard: () => void; name: () => string } | null = null;
+	let draft: { discard: () => void; name: () => string; keep: () => void } | null = null;
 	function register(registration: typeof draft): void {
 		draft = registration;
 		if (registration === null) { dirty.value = false; busy.value = false; }
@@ -23,7 +24,14 @@ export const useLibraryDraftGuard = defineStore('library-draft-guard', () => {
 				confirmLabel: tr('view.asset-library.draft.discard-continue'),
 				cancelLabel: tr('view.asset-library.draft.keep'),
 			});
-			if (answer !== 'confirm') return;
+			if (answer !== 'confirm') {
+				// AL05: "Keep editing returns to the triggering field." DialogHost has already
+				// restored focus to the control that opened the dialog (the row); the form's own
+				// refocus runs after it, on the next tick, and wins.
+				await nextTick();
+				pendingDraft.keep();
+				return;
+			}
 			pendingDraft.discard();
 		}
 		await action();

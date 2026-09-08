@@ -12,6 +12,7 @@ export class StructureTool implements EditorTool {
 		if (event.button !== 'primary' || !this.context || this.deps.blocked()) return;
 		this.pointerMove(event);
 		if (this.id === 'draw-wall' && this.deps.draft.cursor) addWallPoint(this.deps.draft, this.deps.draft.cursor, this.deps.structure());
+		else if (this.id !== 'draw-wall' && this.deps.draft.snapped) this.deps.finish();
 	}
 	pointerMove(event: EditorPointerEvent): void {
 		if (!this.context || this.deps.blocked()) return;

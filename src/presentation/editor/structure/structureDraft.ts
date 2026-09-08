@@ -1,3 +1,5 @@
+import { openingOffsetAt } from '../../../domain/spatial/openingGeometry';
+import { parseSwingDraft, type OpeningSwingDraft } from './openingSwingDraft';
 import { reactive } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import { createEntityId } from '../../../core/identity/generateId';
@@ -10,7 +12,9 @@ import { formatMetres, parseCoordinateMetres, parseMetres } from '../shell/forma
 export type StructureToolId = 'draw-wall' | 'place-door' | 'place-window' | 'place-opening';
 export const isStructureTool = (id: string | null): id is StructureToolId => id === 'draw-wall' || id === 'place-door' || id === 'place-window' || id === 'place-opening';
 export function createStructureDraft() {
+	const swing: OpeningSwingDraft = { hinge: 'start', side: 'left', angle: '90' };
 	return reactive({ kind: 'draw-wall', points: [] as Point[], cursor: null as Point | null, snapped: false,
+		swing,
 		busy: false, loading: false, conflict: false, error: null as AppError | null, room: false, roomName: '',
 		text: { x: '0', y: '0', length: '', angle: '0', height: '2.4', thickness: '0.15', hostId: '', offset: '0', width: '0.9', openingHeight: '2.1', sill: '0' },
 	});
@@ -27,7 +31,9 @@ export function openingFromDraft(draft: StructureDraft): Opening | null {
 	const width = parseMetres(draft.text.width), height = parseMetres(draft.text.openingHeight);
 	const offset = parseCoordinateMetres(draft.text.offset), sill = parseCoordinateMetres(draft.text.sill);
 	if (!width.ok || !height.ok || !offset.ok || !sill.ok) return null;
-	return { id: 'opening-draft', kind: draft.kind === 'place-door' ? 'door' : draft.kind === 'place-window' ? 'window' : 'opening', hostId: draft.text.hostId, width: width.mm, height: height.mm, offset: offset.mm, sill: sill.mm };
+	const swing = draft.kind === 'place-opening' ? undefined : parseSwingDraft(draft.swing);
+	if (swing === null) return null;
+	return { id: 'opening-draft', kind: draft.kind === 'place-door' ? 'door' : draft.kind === 'place-window' ? 'window' : 'opening', ...(swing ? { swing } : {}), hostId: draft.text.hostId, width: width.mm, height: height.mm, offset: offset.mm, sill: sill.mm };
 }
 
 export function draftStructure(draft: StructureDraft, existing: Structure = EMPTY_STRUCTURE): Structure | null {
@@ -40,6 +46,7 @@ export function draftStructure(draft: StructureDraft, existing: Structure = EMPT
 }
 
 export function validateDraftStructure(draft: StructureDraft, existing: Structure, roomIds: readonly string[]) {
+	if (draft.kind !== 'draw-wall' && draft.kind !== 'place-opening' && !parseSwingDraft(draft.swing)) return err(spatialError('opening-swing'));
 	if (draft.kind === 'draw-wall' && draft.text.length !== '') return err(spatialError('pending'));
 	const proposed = draftStructure(draft, existing);
 	if (!proposed) return err(spatialError('wall-dimensions'));
@@ -95,5 +102,11 @@ export function pickHost(draft: StructureDraft, point: Point, walls: readonly Wa
 	}).filter(hit => hit.offset >= 0 && hit.offset <= hit.length && hit.distance <= tolerance);
 	const hit = hits.reduce<(typeof hits)[number] | undefined>((best, candidate) => !best || candidate.distance < best.distance ? candidate : best, undefined);
 	draft.snapped = hit !== undefined;
-	if (hit) { draft.text.hostId = hit.wall.id; draft.text.offset = formatMetres(hit.offset); }
+	if (hit) {
+		const width = parseMetres(draft.text.width);
+		if (!width.ok) { draft.snapped = false; draft.error = spatialError('opening-containment'); return; }
+		const offset = openingOffsetAt(hit.wall, point, width.mm);
+		if (offset === null) { draft.snapped = false; draft.error = spatialError('opening-containment'); return; }
+		draft.text.hostId = hit.wall.id; draft.text.offset = formatMetres(Math.min(Math.round(offset), Math.floor(hit.length - width.mm))); draft.error = null;
+	}
 }

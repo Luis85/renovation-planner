@@ -42,7 +42,7 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 		const ticket = ++generation;
 		Object.assign(draft, createStructureDraft()); draft.kind = kind; draft.loading = true;
 		draft.roomName = tr('editor.room.default-name', { n: String(project.zones.size + 1) });
-		if (kind === 'place-window') { draft.text.openingHeight = '1.2'; draft.text.sill = '0.9'; }
+		if (kind === 'place-window') { draft.text.openingHeight = '1.2'; draft.text.sill = '0.9'; draft.swing.angle = '0'; }
 		try {
 			const read = await context.commands.structure?.read(context.planId as PlanId);
 			if (!alive || ticket !== generation) return;

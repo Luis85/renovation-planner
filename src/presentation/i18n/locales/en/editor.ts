@@ -1,3 +1,4 @@
+import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
 /**
  * The Plan Editor's own vocabulary — the shell (context bar, rail, status bar),
@@ -37,6 +38,7 @@ export const editorEn = {
 	'editor.dimension.task': 'Edit room dimension',
 	'editor.dimension.instruction': 'Enter a length in metres. Apply saves the change. Escape cancels.',
 	...objectEn,
+	...editorShellEn,
 	"editor.element.name-required": "Enter a name.",
 	"editor.element.edit": "Edit {name}",
 	"editor.element.edit-action": "Edit name and coordinates",

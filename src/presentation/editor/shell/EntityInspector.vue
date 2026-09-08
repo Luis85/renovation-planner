@@ -71,7 +71,7 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 		data-rp-region="inspector"
 		:aria-label="tr('editor.inspector')"
 	>
-		<h2 class="rp-editor-panel-title">
+		<h2 class="rp-editor-panel-title rp-visually-hidden">
 			{{ tr('editor.inspector') }}
 		</h2>
 		<RenovationInspector v-if="renovationSession.perspective === 'review'" />

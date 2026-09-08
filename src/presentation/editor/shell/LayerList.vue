@@ -9,13 +9,15 @@
  * wants keyboard-accessible controls and semantic labels, and the platform control already is
  * both.
  */
+import HostIcon from '../../components/HostIcon.vue';
+import type { PlanDto } from '../../read-models/PlanDto';
 import { useId } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { LayerEntry } from '../layers/layerCatalogue';
 
-defineProps<{ entries: readonly LayerEntry[] }>();
+defineProps<{ entries: readonly LayerEntry[]; plan?: PlanDto | null }>();
 const emit = defineEmits<{ activateTool: [toolId: 'calibrate'] }>();
 
 const workspace = useWorkspaceStore();
@@ -79,12 +81,27 @@ function actionReasonId(entry: LayerEntry): string | undefined {
 			<input
 				:id="ids[entry.id].checkbox"
 				type="checkbox"
+				class="rp-visually-hidden"
 				:checked="layerVisibility[entry.konvaLayer]"
 				:disabled="entry.state === 'supported-empty'"
 				:aria-describedby="entry.reasonKey !== null ? ids[entry.id].reason : undefined"
 				@change="workspace.toggleLayer(entry.konvaLayer)"
 			>
-			<label :for="ids[entry.id].checkbox">{{ tr(entry.labelKey) }}</label>
+			<label
+				:for="ids[entry.id].checkbox"
+				class="rp-layer-toggle"
+			>
+				<HostIcon :name="layerVisibility[entry.konvaLayer] ? 'eye' : 'eye-off'" />
+				<span>{{ tr(entry.labelKey) }}</span>
+				<template v-if="entry.id === 'reference' && plan?.background">
+					<HostIcon
+						:name="plan.background.appearance?.locked === false ? 'lock-open' : 'lock'"
+						:title="tr(plan.background.appearance?.locked === false ? 'editor.shell.unlocked' : 'editor.shell.locked')"
+					/>
+					<span class="rp-visually-hidden">{{ tr(plan.background.appearance?.locked === false ? 'editor.shell.unlocked' : 'editor.shell.locked') }}</span>
+					<span class="rp-layer-opacity">{{ Math.round((plan.background.appearance?.opacity ?? 1) * 100) }}%</span>
+				</template>
+			</label>
 			<span
 				v-if="entry.reasonKey !== null"
 				:id="ids[entry.id].reason"

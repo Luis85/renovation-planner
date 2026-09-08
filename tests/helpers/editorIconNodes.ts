@@ -35,4 +35,11 @@ export const editorIconNodes: Readonly<Record<string, readonly { tag: string; at
   "triangle-alert": [{"tag":"path","attributes":{"d":"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"}},{"tag":"path","attributes":{"d":"M12 9v4"}},{"tag":"path","attributes":{"d":"M12 17h.01"}}],
   "circle-alert": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"line","attributes":{"x1":"12","x2":"12","y1":"8","y2":"12"}},{"tag":"line","attributes":{"x1":"12","x2":"12.01","y1":"16","y2":"16"}}],
   "circle-check": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"path","attributes":{"d":"m16 9-5.5 5.5L8 12"}}],
+  "eye": [{"tag":"path","attributes":{"d":"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"}},{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"3"}}],
+  "eye-off": [{"tag":"path","attributes":{"d":"M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"}},{"tag":"path","attributes":{"d":"M14.084 14.158a3 3 0 0 1-4.242-4.242"}},{"tag":"path","attributes":{"d":"M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"}},{"tag":"path","attributes":{"d":"m2 2 20 20"}}],
+  "lock": [{"tag":"rect","attributes":{"width":"18","height":"11","x":"3","y":"11","rx":"2","ry":"2"}},{"tag":"path","attributes":{"d":"M7 11V7a5 5 0 0 1 10 0v4"}}],
+  "lock-open": [{"tag":"rect","attributes":{"width":"18","height":"11","x":"3","y":"11","rx":"2","ry":"2"}},{"tag":"path","attributes":{"d":"M7 11V7a5 5 0 0 1 9.9-1"}}],
+  "circle-minus": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"path","attributes":{"d":"M8 12h8"}}],
+  "circle-plus": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"path","attributes":{"d":"M8 12h8"}},{"tag":"path","attributes":{"d":"M12 8v8"}}],
+  "magnet": [{"tag":"path","attributes":{"d":"m12 15 4 4"}},{"tag":"path","attributes":{"d":"M2.352 10.648a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.029-6.029a1 1 0 1 1 3 3l-6.029 6.029a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.365-6.367A1 1 0 0 0 8.716 4.282z"}},{"tag":"path","attributes":{"d":"m5 8 4 4"}}],
 };

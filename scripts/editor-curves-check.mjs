@@ -50,6 +50,8 @@ async function journey(page, scenario, out) {
 	const saved = await page.evaluate(value => window.editorFidelity.groups().rooms.find(room => room.id === value), id);
 	assert.ok(Math.abs(saved.bulges[0] - 0.5) < 1e-12); assert.equal(await page.locator('[data-rp-room-edge]').count(), 4);
 	await recordShot(page, scenario, out, 'saved-curved-room');
+	await page.waitForFunction(() => document.activeElement?.matches('.rp-plan-canvas'));
+	await page.keyboard.press('Shift+2'); await frame(page); await recordShot(page, scenario, out, 'fit-curved-room-bounds');
 	await activate(page, '[data-rp-action="undo"]'); await page.waitForFunction(value => !window.editorFidelity.groups().rooms.find(room => room.id === value).bulges, id);
 	await activate(page, '[data-rp-action="redo"]'); await page.waitForFunction(value => window.editorFidelity.groups().rooms.find(room => room.id === value).bulges?.[0] > 0, id);
 	await panel(page, 'details'); await openCurves(page); await closeDetails(page, scenario); await frame(page);

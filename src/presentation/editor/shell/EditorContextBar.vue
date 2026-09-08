@@ -78,26 +78,29 @@ async function switchPerspective(event: KeyboardEvent, current: Perspective): Pr
 			</button>
 		</div>
 		<span class="rp-context-bar__spacer" />
-		<button
-			v-if="session.perspective !== 'review'"
-			type="button"
-			class="rp-context-bar__button"
-			data-rp-action="undo"
-			:disabled="!runtime.canUndo.value"
-			@click="runtime.undo()"
+		<div
+			class="rp-context-history"
+			:aria-hidden="session.perspective === 'review' ? true : undefined"
 		>
-			<HostIcon name="undo-2" />{{ tr('editor.context.undo') }}
-		</button>
-		<button
-			v-if="session.perspective !== 'review'"
-			type="button"
-			class="rp-context-bar__button"
-			data-rp-action="redo"
-			:disabled="!runtime.canRedo.value"
-			@click="runtime.redo()"
-		>
-			<HostIcon name="redo-2" />{{ tr('editor.context.redo') }}
-		</button>
+			<button
+				type="button"
+				class="rp-context-bar__button"
+				data-rp-action="undo"
+				:disabled="session.perspective === 'review' || !runtime.canUndo.value"
+				@click="runtime.undo()"
+			>
+				<HostIcon name="undo-2" />{{ tr('editor.context.undo') }}
+			</button>
+			<button
+				type="button"
+				class="rp-context-bar__button"
+				data-rp-action="redo"
+				:disabled="session.perspective === 'review' || !runtime.canRedo.value"
+				@click="runtime.redo()"
+			>
+				<HostIcon name="redo-2" />{{ tr('editor.context.redo') }}
+			</button>
+		</div>
 		<EditorViewMenu />
 		<button
 			type="button"

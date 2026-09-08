@@ -81,3 +81,8 @@
 	.renovation-plan-editor .rp-editor-status { white-space: normal; }
 	.renovation-plan-editor .rp-editor-hint, .renovation-plan-editor .rp-editor-paused-hint { white-space: normal; }
 }
+
+/* Reserve the same history width in Review so perspective tabs never jump. */
+.renovation-plan-editor .rp-context-history { display: flex; align-items: center; gap: 16px; }
+.renovation-plan-editor .rp-context-history[aria-hidden='true'] { visibility: hidden; pointer-events: none; }
+@container (max-width: 899px) { .renovation-plan-editor .rp-context-history { gap: 8px; } }

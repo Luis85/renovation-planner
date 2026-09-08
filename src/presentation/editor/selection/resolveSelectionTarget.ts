@@ -76,7 +76,8 @@ export function resolveSelectionTarget(input: {
 	readonly badgeToleranceWorld?: number;
 }): SelectionTarget {
 	if (!input.cycle) {
-		if (input.selectedIds.length === 1 && input.rotationHandle && input.selectedIds[0] === input.rotationHandle.id && rotationControlContains(input.rotationHandle.bounds, input.worldPoint)) return { kind: 'rotation', id: input.rotationHandle.id };
+		// The facade supplies only a visible, permitted hover handle; pressing it owns selection.
+		if (input.rotationHandle && rotationControlContains(input.rotationHandle.bounds, input.worldPoint)) return { kind: 'rotation', id: input.rotationHandle.id };
 		const decoration = input.selectedIds.length > 1 ? badgeAt(input) : handleAt(input);
 		if (decoration !== null) return decoration;
 	}

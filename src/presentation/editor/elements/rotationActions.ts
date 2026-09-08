@@ -21,6 +21,7 @@ import { screenPoint, screenToWorld, STAGE_PIXELS, worldPerScreenPixel } from '.
 import ObjectRotationForm from './ObjectRotationForm.vue';
 import { rotationChanged, rotationDegreesBetween, rotationHandleGeometry, rotationPivot, rotationPoints, type NamedRotationShape, type RotationShape } from './objectRotation';
 import { projectedRotationTarget, readRotationBaseline, type RotationBaseline } from './rotationBaseline';
+import { layoutRotationControls } from './rotationControl';
 
 export type RotationRuntime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & {
 	elementActions: { readonly active: Readonly<Ref<boolean>> };
@@ -30,6 +31,7 @@ export type RotationRuntime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' 
 		rotateWall(id: string, degrees?: number, original?: Wall): Promise<void>;
 		previewRotation(id: string | null, degrees?: number, original?: Wall): void;
 	};
+	groupRotationTarget?: (memberId: string) => NamedRotationShape | null;
 };
 /** One transient rotation lifetime; persistence remains in the existing source-specific commands. */
 export function createRotationActions(context: PlanEditorContext, runtime: RotationRuntime) {
@@ -38,21 +40,44 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 	const working = ref(false), generation = ref(0), preview = ref<NamedRotationShape | null>(null);
 	let alive = true;
 	const target = computed(() => {
-		if (selection.selectedIds.length !== 1) return null;
+		if (selection.selectedIds.length !== 1) return selection.selectedIds.length > 1 ? runtime.groupRotationTarget?.(selection.selectedIds[0]) ?? null : null;
 		const shape = projectedRotationTarget(project, selection.selectedIds[0], Boolean(runtime.wall));
 		return shape && rotationPivot(shape) ? { ...shape, generation: generation.value } : null;
 	});
 	const active = computed(() => working.value || (runtime.wall?.active.value ?? false));
-	const blocked = computed(() => !target.value || runtime.writesBlocked.value || saves.state === 'saving' || runtime.activeToolId.value !== 'select' || session.perspective === 'review' || runtime.elementActions.active.value || (session.perspective !== 'plan' && !['room', 'area', 'wall'].includes(target.value.kind)));
-	function clear(): void { preview.value = null; runtime.renderState.previewPolygon = null; runtime.renderState.rotationDegrees = null; runtime.renderState.rotationInteraction = null; runtime.wall?.previewRotation(null); }
+	function permitted(shape: NamedRotationShape | null): boolean {
+		return alive && shape !== null && !runtime.writesBlocked.value && saves.state !== 'saving' && runtime.activeToolId.value === 'select' && session.perspective !== 'review' && !runtime.elementActions.active.value
+			&& (session.perspective === 'plan' || ['room', 'area', 'wall'].includes(shape.kind));
+	}
+	const blocked = computed(() => !permitted(target.value));
+	const displayTarget = computed(() => {
+		const id = runtime.renderState.rotationHoverId;
+		if (!id || editor.pointerWorld === null || runtime.renderState.rotationHoverSuppressed) return null;
+		if (selection.selectedIds.length > 1 && selection.selectedIds.some(selectedId => selectedId === id)) return runtime.groupRotationTarget?.(id) ?? null;
+		if (target.value?.id === id) return target.value;
+		const group = runtime.groupRotationTarget?.(id); if (group) return group;
+		const shape = projectedRotationTarget(project, id, Boolean(runtime.wall));
+		return shape && rotationPivot(shape) ? { ...shape, generation: generation.value } : null;
+	});
+	function clear(): void { preview.value = null; runtime.renderState.previewPolygon = null; runtime.renderState.rotationDegrees = null; runtime.renderState.rotationInteraction = null; runtime.renderState.rotationHoverId = null; runtime.wall?.previewRotation(null); }
 	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { generation.value++; clear(); }, { flush: 'sync' });
 	onBeforeUnmount(() => { alive = false; generation.value++; clear(); });
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	const visibleBounds = computed(() => ({ min: screenToWorld(screenPoint(0, 0), editor.viewport, STAGE_PIXELS), max: screenToWorld(screenPoint(editor.stageSize.width, editor.stageSize.height), editor.viewport, STAGE_PIXELS) }));
+	function sourceVisible(shape: NamedRotationShape): boolean {
+		if (shape.kind === 'group') return shape.visible === true;
+		return shape.kind === 'room' || shape.kind === 'area' ? workspace.layerVisibility.zone : workspace.layerVisibility.architecture;
+	}
 	const handleGeometry = computed(() => {
-		const shape = target.value; if (!shape || !(shape.kind === 'room' || shape.kind === 'area' ? workspace.layerVisibility.zone : workspace.layerVisibility.architecture)) return null;
+		const shape = target.value; if (!shape || !sourceVisible(shape)) return null;
 		const scale = worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visible = visibleBounds.value;
 		return rotationHandleGeometry(shape, scale, visible, obstacles.value);
+	});
+	const displayControls = computed(() => {
+		const shape = displayTarget.value;
+		if (!permitted(shape) || !shape || active.value || !sourceVisible(shape)) return [];
+		const pivot = rotationPivot(shape);
+		return pivot ? layoutRotationControls(shape, pivot, worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visibleBounds.value, obstacles.value) : [];
 	});
 	function previewShape(id: string | null, points?: readonly Point[]): void {
 		if (id === null) { clear(); return; }
@@ -101,5 +126,10 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 			} });
 		});
 	}
-	return { setObstacles: (bounds: readonly BoundingBox[]) => { obstacles.value = bounds; }, obstacles: computed(() => obstacles.value), target, active, blocked, preview, previewShape, handleGeometry, visibleBounds, handle: computed(() => handleGeometry.value?.handle ?? null), available: computed(() => target.value !== null), rotate, move };
+	function canRotateId(id?: string): boolean {
+		const shape = id !== undefined && target.value?.id !== id ? displayTarget.value : target.value;
+		return (id === undefined || shape?.id === id) && !active.value && permitted(shape);
+	}
+	return { setObstacles: (bounds: readonly BoundingBox[]) => { obstacles.value = bounds; }, obstacles: computed(() => obstacles.value), target, displayTarget, displayControls, canRotateId,
+		active, blocked, preview, previewShape, handleGeometry, visibleBounds, handle: computed(() => handleGeometry.value?.handle ?? null), available: computed(() => target.value !== null), rotate, move };
 }

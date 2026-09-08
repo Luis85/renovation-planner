@@ -134,7 +134,7 @@
  */
 .rp-al-shelf .rp-al-row {
 	display: grid;
-	grid-template-columns: 20px minmax(0, 1fr) 11ch 4ch 5ch minmax(0, 16ch);
+	grid-template-columns: 20px minmax(0, 1fr) 11ch 6ch 5ch minmax(0, 16ch);
 	align-items: center;
 	gap: var(--size-4-2);
 	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
@@ -225,7 +225,13 @@
 
 /* The amount alone is right-aligned with tabular numerals, in its OWN track: with the unit
    word in the same cell the amount's right edge followed the unit's width (measured 22.3px
-   of spread over eight rows, browse case step 2), so the decimal points never lined up. */
+   of spread over eight rows, browse case step 2), so the decimal points never lined up. Its
+   track and the unit track after it are fixed `ch` widths at EVERY container width, never
+   `auto` (Task A6 fix round 2): each `.rp-al-row` is an independent grid, so an `auto` track
+   resolves per row rather than across the shelf, and the amount's right edge followed
+   whichever unit symbol that one row happened to hold — measured 7.97px of spread at both
+   720 and 560 before the narrow blocks below were pinned to `ch`. The unit track is `6ch`
+   everywhere: `fixed` (5 characters) plus the `/ ` prefix is the longest unit symbol shipped. */
 .rp-al-row__amount {
 	text-align: end;
 	white-space: nowrap;
@@ -270,7 +276,7 @@
 
 .rp-al-columns {
 	display: grid;
-	grid-template-columns: 20px minmax(0, 1fr) 11ch 4ch 5ch minmax(0, 16ch);
+	grid-template-columns: 20px minmax(0, 1fr) 11ch 6ch 5ch minmax(0, 16ch);
 	gap: var(--size-4-2);
 	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
 	color: var(--text-muted);
@@ -301,10 +307,20 @@
  * never renders a container query, so nothing here could have seen it; the capture at 720
  * (`shelvesWidth` 440px, under the 32.5rem/520px threshold) still showed the full heading row,
  * which is what exposed it.
+ *
+ * **`.rp-al-columns` narrows its own tracks here too, a fix round finding beside the amount/unit
+ * `ch` pinning below.** Only the row used to lose its supplier track at 40rem; the heading kept
+ * its unconditional six-track template with the sixth column simply empty once the supplier
+ * `<span>` left, which happened to look right but meant the header and the row it labels were no
+ * longer sized off the same template — a coincidence, not a guarantee.
  */
 @container rp-al-shelves (width < 40rem) {
 	.rp-al-shelf .rp-al-row {
-		grid-template-columns: 20px minmax(0, 1fr) auto auto 5ch;
+		grid-template-columns: 20px minmax(0, 1fr) 11ch 6ch 5ch;
+	}
+
+	.rp-al-columns {
+		grid-template-columns: 20px minmax(0, 1fr) 11ch 6ch 5ch;
 	}
 
 	.rp-al-row__supplier {
@@ -321,19 +337,23 @@
    `.rp-al-row__supplier`, a fix round finding, not the "no heading change" this comment used to
    claim (the row's own column count still narrows from six to five here, so the four remaining
    headings above it need no shift of their own). The waste cell and the whole heading row go
-   together at 17rem (Task A6, measured, replacing the un-measured 32.5rem this block
-   shipped with). With the source-order bug above fixed, the merged rule's own container never
-   reaches 32.5rem while the shelf pane renders at all with an asset selected — 720px viewport
-   measures a 440px container and 560px measures 320px, both under 32.5rem (520px), so that
-   value hid the heading row and the waste cell at BOTH of Task A6's own capture widths,
-   contradicting the "present at 720" requirement it was chosen to satisfy. 17rem (272px) is
-   measured instead: the heading's own "Unit cost" label — the row's one span too long to
-   shrink — first overflows its track under 260px (`scrollWidth` 263px against a forced 260px
-   `clientWidth`) and does not at 280px, so 17rem sits in that margin, comfortably under both
-   AL10-720 and AL10-560's measured containers. */
-@container rp-al-shelves (width < 17rem) {
+   together at 19rem (Task A6, measured twice: once to 17rem, replacing the un-measured 32.5rem
+   this block shipped with, then again to 19rem once the amount and unit tracks below stopped
+   being `auto`). With the source-order bug once here fixed, the merged rule's own container
+   never reaches 32.5rem while the shelf pane renders at all with an asset selected — 720px
+   viewport measures a 440px container and 560px measures 320px, both under 32.5rem (520px), so
+   that value hid the heading row and the waste cell at BOTH of Task A6's own capture widths,
+   contradicting the "present at 720" requirement it was chosen to satisfy. 17rem (272px) was
+   measured next against overflow alone: the heading's own "Unit cost" label — the row's one
+   span too long to shrink — first overflows its track under 260px and does not at 280px. That
+   number stopped being enough once the row's amount/unit tracks below were pinned to fixed `ch`
+   widths (widening `4ch` to `6ch`): at 272px the name column left over is under 8ch — measured
+   37.8px, about 5.4ch in this font — unusably narrow even though nothing overflows. 19rem
+   (304px) is measured against THAT bar instead: the name column there is 69.8px, about 10ch,
+   and 304px still sits comfortably under both AL10-720's and AL10-560's measured containers. */
+@container rp-al-shelves (width < 19rem) {
 	.rp-al-shelf .rp-al-row {
-		grid-template-columns: 20px minmax(0, 1fr) auto auto;
+		grid-template-columns: 20px minmax(0, 1fr) 11ch 6ch;
 	}
 
 	.rp-al-row__waste {

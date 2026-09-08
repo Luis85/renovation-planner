@@ -472,9 +472,13 @@ describe('the shipped stylesheet\'s container queries', () => {
  *
  * TWO LADDERS, TWO CONTAINERS, and this is what proves neither collapsed into the other.
  * `rp-al-shelves` (`styles/asset-shelf.css`) drops the row's own supplier slot below 40rem and
- * its waste slot below 17rem, the second number moved by Task A6's fix round after measuring
- * that the SHELVES REGION never actually reaches the spec's own 520px figure while an asset is
- * selected (440px at a 720px viewport, 320px at 560px — both already under it). `rp-al`
+ * its waste slot below 19rem, the second number moved twice by Task A6's fix rounds: first
+ * after measuring that the SHELVES REGION never actually reaches the spec's own 520px figure
+ * while an asset is selected (440px at a 720px viewport, 320px at 560px — both already under
+ * it), then again from 17rem to 19rem once the amount and unit tracks were pinned to fixed
+ * `ch` widths (a third fix round) — at 272px (17rem) the name column measured under 8ch,
+ * unusably narrow, so the threshold moved out to 304px (19rem) where it measures about 10ch.
+ * `rp-al`
  * (`styles/asset-library-inspector.css`,
  * `styles/asset-library.css`) narrows the inspector rail below 45rem and collapses it to a
  * single pane below 35rem, measuring the PANE per §7's own table (720px / 560px). A regression
@@ -509,9 +513,9 @@ describe('§7 and §3.3\'s two width ladders', () => {
 		expect(sheet).toMatch(/@container\s+rp-al\s*\(width\s*<\s*35rem\)/);
 	});
 
-	it('drops the supplier slot at 40rem (640px) and the waste slot at 17rem (272px), on the SHELVES container', () => {
+	it('drops the supplier slot at 40rem (640px) and the waste slot at 19rem (304px), on the SHELVES container', () => {
 		expect(sheet).toMatch(/@container\s+rp-al-shelves\s*\(width\s*<\s*40rem\)/);
-		expect(sheet).toMatch(/@container\s+rp-al-shelves\s*\(width\s*<\s*17rem\)/);
+		expect(sheet).toMatch(/@container\s+rp-al-shelves\s*\(width\s*<\s*19rem\)/);
 	});
 
 	/**

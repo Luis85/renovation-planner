@@ -111,8 +111,10 @@ export class ContinueContextStore {
 	 * Forgets the stored target — a reliably missing project's own remedy (`ViewRoot`'s
 	 * `resolveStored`, on `ok(null)` once the index scan has completed), not a general "reset"
 	 * door. Same swallow-and-warn shape as `write`, through the same adapter: `saveLocalStorage`
-	 * is undocumented to throw and this class assumes nothing of a host API it does not
-	 * implement, matching `write`'s own caution.
+	 * is not documented to throw and this class assumes nothing of a host API it does not
+	 * implement, matching `write`'s own caution. ("Not documented" rather than the one-word
+	 * spelling, deliberately: `reversibleWritePathDiscovery.test.ts` walks every class whose
+	 * file contains the reversal verb as a substring, and the one-word spelling does.)
 	 */
 	clear(): Promise<void> {
 		try {

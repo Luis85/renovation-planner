@@ -22,14 +22,17 @@ import ObjectRotationForm from './ObjectRotationForm.vue';
 import { rotationChanged, rotationDegreesBetween, rotationHandleGeometry, rotationPivot, rotationPoints, type NamedRotationShape, type RotationShape } from './objectRotation';
 import { projectedRotationTarget, readRotationBaseline, type RotationBaseline } from './rotationBaseline';
 
-export interface WallRotationActions {
-	readonly active: Readonly<Ref<boolean>>;
-	rotateWall(id: string, degrees?: number, original?: Wall): Promise<void>;
-	previewRotation(id: string | null, degrees?: number, original?: Wall): void;
-}
-type Runtime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & { elementActions: { readonly active: Readonly<Ref<boolean>> }; ledger: SessionWriteLedger; wall?: WallRotationActions };
+export type RotationRuntime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & {
+	elementActions: { readonly active: Readonly<Ref<boolean>> };
+	ledger: SessionWriteLedger;
+	wall?: {
+		readonly active: Readonly<Ref<boolean>>;
+		rotateWall(id: string, degrees?: number, original?: Wall): Promise<void>;
+		previewRotation(id: string | null, degrees?: number, original?: Wall): void;
+	};
+};
 /** One transient rotation lifetime; persistence remains in the existing source-specific commands. */
-export function createRotationActions(context: PlanEditorContext, runtime: Runtime) {
+export function createRotationActions(context: PlanEditorContext, runtime: RotationRuntime) {
 	const project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), saves = useSaveStateStore(), session = useRenovationSession(), dialogs = useDialogStore();
 	const workspace = useWorkspaceStore(), obstacles = shallowRef<readonly BoundingBox[]>([]);
 	const working = ref(false), generation = ref(0), preview = ref<NamedRotationShape | null>(null);
@@ -100,5 +103,4 @@ export function createRotationActions(context: PlanEditorContext, runtime: Runti
 	}
 	return { setObstacles: (bounds: readonly BoundingBox[]) => { obstacles.value = bounds; }, target, active, blocked, preview, previewShape, handleGeometry, visibleBounds, handle: computed(() => handleGeometry.value?.handle ?? null), available: computed(() => target.value !== null), rotate, move };
 }
-
 

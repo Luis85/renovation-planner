@@ -86,3 +86,35 @@ branches exercised. Their arithmetic union with that recorded CI baseline would 
 12,908 / 13,165 (98.0479%). This is a projection, not a fresh full-suite coverage result;
 CI on the pushed follow-up remains the global acceptance gate. The local comparison
 receipt is `harness-shots/pr95-admission-coverage/ci-branch-comparison.json`.
+
+### CI static-analysis follow-up
+
+The full CI run `34277407661` on `50e5b33c` confirmed the projected coverage result:
+673 files / 8,237 tests passed, with branch coverage 12,908 / 13,165 (98.04%). Its
+remaining verification failure was Fallow, reached after the now-passing coverage gate.
+
+The cleanup declares the documented rotation smoke driver as an actual CLI entry, with
+its browser helper reached by its real import. The rotation runtime port is publicly
+named and consumed by spatial composition; internal aliases no longer leak through
+public signatures. SelectTool shares transient gesture disposal while keeping idle hover
+on Cancel and clearing it on deactivation. Body hit resolution retains the same priority,
+Alt cycling and selected-only rotation admission; the contextual detail choice is derived
+once for the template. No thresholds, exclusions or suppressions were added.
+
+Existing selection, rotation and direct-action regressions cover the refactor, with an
+additional Cancel lifecycle assertion and mutually exclusive Room/Wall detail assertions.
+On 2026-09-09, whole Oxlint 1.81.0, scoped ESLint and TypeScript passed, and six focused
+selection/direct-action/rotation files passed 111 tests. Fallow 3.22.0 reports zero
+structural issues and duplicate groups; the original template/resolver complexity findings
+are gone. No current full-suite coverage was generated locally. Fallow requires a coverage
+file even for this diagnostic, so the archived complete CI artifact from `50e5b33c` was
+copied locally with only its absolute Linux path prefixes normalized to this Windows
+worktree. All 757 files match; three changed-function CRAP estimates remain because those
+functions moved relative to the archived coverage positions. The command exits zero, but
+this is not current-source coverage-weighted health acceptance. Fresh pushed CI retains
+the unchanged full coverage/health gate. Receipts are under
+`harness-shots/pr95-admission-coverage/`, including the archived-input provenance.
+
+The main checkout's borrowed Fallow binary was 3.19.0; the final diagnostic above uses this
+PR worktree's existing 3.22.0 dependency. Likewise whole Oxlint was rerun with its local
+1.81.0 dependency. No dependency installation or lockfile change was needed.

@@ -51,6 +51,7 @@ describe('selected spatial canvas actions', () => {
 	});
 	it('opens the canonical Room outline form and all eight detail routes without changing selection', async () => {
 		const value = await setup(), bytes = [...value.stack.vault.entries];
+		expect(value.wrapper.find('[data-rp-canvas-change]').exists()).toBe(false);
 		await value.wrapper.get('[data-rp-canvas-edit]').trigger('click'); await settle();
 		expect(value.wrapper.find('[data-rp-form="outline-points"]').exists()).toBe(true);
 		value.dialogs.resolve('cancel'); await settle();
@@ -76,6 +77,7 @@ describe('selected spatial canvas actions', () => {
 		const value = await setup();
 		value.selection.select(['wall-a' as never]); await settle();
 		value.session.roomId = value.room.id; value.session.targetId = 'wall-a'; await settle();
+		expect(value.wrapper.find('[data-rp-canvas-detail]').exists()).toBe(false);
 		const before = expectOk(await value.geometry.read(value.plan.id)), room = expectFound(await value.stack.zones.getById(value.room.id));
 		await value.wrapper.get('[data-rp-wall-length]').trigger('click'); await settle();
 		expect(value.wrapper.get('input[name="length"]').element).toHaveProperty('value', '4');

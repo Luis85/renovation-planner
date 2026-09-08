@@ -5,8 +5,8 @@ import { tr } from '../../i18n/strings';
 import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
 const props = defineProps<{ id: string }>();
 const runtime = useEditorRuntime();
-const blocked = computed(() => runtime.elementActions.blocked.value || runtime.elementActions.active.value);
-function rotate(event: Event, degrees?: number): Promise<void> { return runInspectorAction(event, 'rotate-object', () => runtime.elementActions.rotate(props.id, degrees)); }
+const blocked = computed(() => runtime.rotationActions.blocked.value || runtime.rotationActions.active.value);
+function rotate(event: Event, degrees?: number): Promise<void> { return runInspectorAction(event, 'rotate-object', () => runtime.rotationActions.rotate(props.id, degrees)); }
 </script>
 <template>
 	<div class="rp-object-rotation-actions">

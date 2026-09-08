@@ -1,5 +1,3 @@
-import ObjectRotationForm from './ObjectRotationForm.vue';
-import { rotationChanged, rotationPivot, rotationPoints } from './objectRotation';
 import { createDraftRetry } from '../forms/createDraftRetry';
 import { createSpatialRemoval } from './spatialRemoval';
 import { computed, markRaw, onBeforeUnmount, ref, watch } from 'vue';
@@ -79,30 +77,6 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 			} });
 		});
 	}
-	function rotate(id: string, degrees?: number): Promise<void> {
-		const epoch = rotationEpoch, selected = selection.selectedIds.join('|');
-		return operate(id, async ({ baseline, element }) => {
-			const pivot = rotationPivot(element);
-			if (!pivot || epoch !== rotationEpoch || selection.selectedIds.length !== 1 || selection.selectedIds[0] !== id || selection.selectedIds.join('|') !== selected) return;
-			const latest = ref<string | null>(null);
-			const dispatch = async (points: readonly Point[]) => {
-				if (!alive || epoch !== rotationEpoch || blocked.value || latest.value || !context.commands.renovation || selection.selectedIds.join('|') !== selected) return err(staleWriteRefusal());
-				const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, points }), runtime.structureTask.ledger));
-				if (alive && !result.ok && (result.error.code.includes('conflict') || result.error.code === 'undo.superseded')) { latest.value = tr('editor.element.changed'); await runtime.refreshProjection(); }
-				return result;
-			};
-			if (degrees !== undefined) {
-				const points = rotationPoints(element, degrees, pivot);
-				if (points && rotationChanged(element.points, points)) { const result = await dispatch(points); if (alive && !result.ok) notifyOperationFailure(result.error); }
-				return;
-			}
-			const busy = ref(false);
-			await dialogs.openDialog({ kind: 'form', title: tr('editor.rotation.title', { name: element.name }), component: markRaw(ObjectRotationForm), busy, props: {
-				element, pivot, busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || save.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger, dispatch,
-				preview: (points: readonly Point[] | null) => { preview.value = alive && epoch === rotationEpoch && !blocked.value && points ? { ...element, points } : null; },
-			} });
-		});
-	}
 	function remove(id: string): Promise<void> {
 		return operate(id, async ({ baseline, element }) => {
 			const materials = await removalSources(context, [id]); if (!alive) return;
@@ -129,5 +103,5 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
 		preview.value = alive && !blocked.value && element && name && points ? { ...element, name, points } : null;
 	}
-	return { edit, rotate, remove, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
+	return { edit, remove, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
 }

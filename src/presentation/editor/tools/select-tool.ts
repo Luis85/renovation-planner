@@ -1,7 +1,6 @@
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import { translate } from '../../../core/geometry/operations';
-import { ElementRotation } from '../elements/ElementRotation';
-import { rotationHandle } from '../elements/objectRotation';
+import { ElementRotation, type RotationGestureDeps } from '../elements/ElementRotation';
 import { ElementMove, type ElementMoveDeps } from '../elements/ElementMove';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
@@ -10,7 +9,7 @@ import type { Vector } from '../../../core/geometry/Vector';
 import { selectSpatial } from '../selection/selectSpatial';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
-import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX } from '../handleMetrics';
+import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, ROTATION_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX } from '../handleMetrics';
 import { resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
@@ -33,7 +32,7 @@ export interface SpatialObjectCandidate {
  * like every adapter in this slice, one instance carries one transaction's forward/inverse
  * pair.
  */
-export interface SelectToolDeps extends ElementMoveDeps {
+export interface SelectToolDeps extends ElementMoveDeps, RotationGestureDeps {
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly spatialObjects: () => readonly SpatialObjectCandidate[];
@@ -160,7 +159,7 @@ export class SelectTool implements EditorTool {
 			context.selection.focus(hit.id as EntityId<string>);
 			return;
 		}
-		if (target.kind === 'rotation' && hit.kind === 'object') { this.elementRotation.start(context, event, { ...hit, kind: 'object' }); return; }
+		if (target.kind === 'rotation') { const shape = this.deps.rotationTarget?.(); if (shape?.id === target.id) this.elementRotation.start(context, event, shape); return; }
 		if (hit.kind) { this.selectStructure(context, event, hit, target); return; }
 		if (target.kind === 'handle') {
 			// While the canvas is stale the gate would refuse the commit anyway; a ghost the
@@ -328,10 +327,10 @@ export class SelectTool implements EditorTool {
 		event: EditorPointerEvent,
 	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget } {
 		const candidates = this.deps.spatialObjects();
-		const selected = context.selection.selectedIds.length === 1 ? candidates.find(candidate => candidate.id === context.selection.selectedIds[0] && candidate.kind === 'object') : undefined;
-		const handle = selected ? rotationHandle({ ...selected, kind: 'object' }, context.viewport.worldPerScreenPixel()) : null;
+		const selected = this.deps.rotationTarget?.(), handle = this.deps.rotationHandle?.();
 		const target = resolveSelectionTarget({
-			rotationHandle: handle && selected && this.deps.canRotateElement?.() !== false && !context.writesBlocked() ? { id: selected.id, point: handle } : undefined,
+			rotationToleranceWorld: ROTATION_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
+			rotationHandle: handle && selected && this.deps.canRotateShape?.() !== false && !context.writesBlocked() ? { id: selected.id, point: handle } : undefined,
 			candidates,
 			selectedIds: event.modifiers.shift && !handle ? [] : context.selection.selectedIds.map(String),
 			worldPoint: event.worldPoint,

@@ -23,6 +23,7 @@ import { reportDispatchFailure } from '../report-failure';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import { structureCandidates } from '../structure/structureCandidates';
 import type { Point } from '../../../core/geometry/Point';
+import type { RotationGestureDeps } from '../elements/ElementRotation';
 import type { ElementMoveDeps } from '../elements/ElementMove';
 
 /**
@@ -48,7 +49,7 @@ export function moveGesture(
  * so the one cast that turns Obsidian's opaque per-leaf string into a branded id stays a
  * single site — see `subject` below, which is built from the same value.
  */
-export interface EditorToolDeps extends ElementMoveDeps {
+export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps {
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly canFinishArea: () => boolean;
@@ -75,7 +76,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
 	toolManager.register(
 		new SelectTool({
-			canRotateElement: deps.canRotateElement,
+			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationHandle: deps.rotationHandle, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
 			previewElement: deps.previewElement,
 			moveElement: deps.moveElement,
 			previewWall: deps.previewWall,

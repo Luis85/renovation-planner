@@ -214,6 +214,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Fixed
 
+- Plan editor: Object-first overlap selection follows the confirmed interaction contract, while clicking a selected Object, Opening or Wall in a mixed selection focuses it without collapsing the set. Explicitly retyped Room dimensions apply their exact numeric value, preserving untouched coordinates and true no-op history. Fresh persisted-opening tests cover all kinds, subsequent edits, host guards and read-only recovery without write replay.
+
 - Keep Room rename/resize controls consistent with planning and unrecovered-write pauses, reload changed evidence thumbnails at the same resource path, and return keyboard focus into an already-open panel when its rail is activated again.
 
 - Restore Room and reviewed wall selection handles and Select/Add in Renovate, using the existing geometry history while retaining read-only Review.

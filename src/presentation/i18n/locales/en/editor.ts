@@ -1,8 +1,10 @@
 import { openingEn } from './opening';
 import { curvesEn } from './curves';
+import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
 import { inputEn } from './input';
+import { groupsEn } from './groups';
 import { creationEn } from './creation';
 /**
  * The Plan Editor's own vocabulary — the shell (context bar, rail, status bar),
@@ -32,6 +34,7 @@ import { creationEn } from './creation';
 import { structureEn } from './structure';
 export const editorEn = {
 	...curvesEn,
+	...groupsEn,
 	...inputEn,
 	...creationEn,
 	'editor.direct.edit-shape': 'Edit shape',
@@ -46,6 +49,7 @@ export const editorEn = {
 	'editor.dimension.instruction': 'Enter a length in metres. Apply saves the change. Escape cancels.',
 	...objectEn,
 	...openingEn,
+	...referenceViewportEn,
 	...editorShellEn,
 	"editor.element.name-required": "Enter a name.",
 	"editor.element.edit": "Edit {name}",

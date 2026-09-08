@@ -1,8 +1,10 @@
 import { openingDe } from './opening';
 import { curvesDe } from './curves';
+import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
 import { inputDe } from './input';
+import { groupsDe } from './groups';
 import { creationDe } from './creation';
 import type {
  editorEn } from '../en/editor';
@@ -20,6 +22,7 @@ import type {
 import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
 	...curvesDe,
+	...groupsDe,
 	...inputDe,
 	...creationDe,
 	'editor.direct.edit-shape': 'Form bearbeiten',
@@ -34,6 +37,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.dimension.instruction': 'Länge in Metern eingeben. Anwenden oder Eingabe speichert; Escape bricht ab.',
 	...objectDe,
 	...openingDe,
+	...referenceViewportDe,
 	...editorShellDe,
 	"editor.element.name-required": "Geben Sie einen Namen ein.",
 	"editor.element.edit": "{name} bearbeiten",

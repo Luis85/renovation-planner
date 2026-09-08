@@ -28,6 +28,7 @@ async function clearSelection(): Promise<void> {
 		class="rp-multi-selection"
 	>
 		<p>{{ tr('editor.inspector.multiple') }}</p>
+		<slot name="actions" />
 		<dl class="rp-editor-inspector-fields">
 			<dt>{{ tr('editor.selection.count') }}</dt>
 			<dd>{{ selection.ids.length }}</dd>

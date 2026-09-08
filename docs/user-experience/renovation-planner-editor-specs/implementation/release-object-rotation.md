@@ -64,3 +64,57 @@ The initial Object implementation was `43fd968b` (rebased as `9f44c959`); its pa
 The full CI suite exposed five stale assertions that counted every interaction-layer Circle/Line as a legacy selection affordance. The corrected suites still require exactly four direct screen-space vertex handles and one named selection outline, assert the nested rotation group separately, and require its removal on deselection/Review. The idle scene now explicitly reserves four empty groups. No production code or verification threshold changed; the source tree remains `26ae80d02e43d3c7bd13542e5e6093ee3438982b`.
 
 `npm run check:fast -- tests/presentation/editor/renovateRoomManipulation.test.ts tests/presentation/editor/scene.test.ts tests/presentation/editor/zoneEditing.test.ts tests/presentation/editor/objectRotation.test.ts tests/presentation/editor/objectRotationRuntime.test.ts --maxWorkers=1 --no-file-parallelism` passed global Oxlint, type checking and **5 files / 89 tests** on 2026-09-08. Full-suite coverage and the unchanged integrated gate remain parent-owned verification; this follow-up does not claim they have passed.
+
+### CI admission and retirement follow-up (test-only)
+
+CI run `34259386627` passed 672 files / 8,225 tests at `c6577dc1`, but its branch
+coverage was 12,894 / 13,165 (97.9415%), below the unchanged 98% floor.
+`rotationAdmission.test.ts` adds twelve behavioral cases: Room read error, absence and
+cross-plan ownership; peer name/geometry changes; unexpected read-fault cleanup; element
+read/peer metadata failures; retired/no-op pointer proposals; refreshed peer geometry;
+a retired numeric callback; and refusal by the real stale gate at dispatch. Assertions
+check no unintended command/repository writes, retained peer facts and operation cleanup.
+
+The three rotation/admission suites passed 67 tests, both normally and under targeted
+coverage. Whole Oxlint, TypeScript and scoped test ESLint passed. Targeted coverage of
+`rotationBaseline.ts` and `rotationActions.ts` reports 138 / 161 branches (85.71%) and
+correctly exits nonzero against the unchanged global thresholds: that diagnostic covers
+two source files, not the full repository. No thresholds or exclusions were modified.
+
+Comparing identical branch maps with the CI artifact shows fourteen previously missed
+branches exercised. Their arithmetic union with that recorded CI baseline would be
+12,908 / 13,165 (98.0479%). This is a projection, not a fresh full-suite coverage result;
+CI on the pushed follow-up remains the global acceptance gate. The local comparison
+receipt is `harness-shots/pr95-admission-coverage/ci-branch-comparison.json`.
+
+### CI static-analysis follow-up
+
+The full CI run `34277407661` on `50e5b33c` confirmed the projected coverage result:
+673 files / 8,237 tests passed, with branch coverage 12,908 / 13,165 (98.04%). Its
+remaining verification failure was Fallow, reached after the now-passing coverage gate.
+
+The cleanup declares the documented rotation smoke driver as an actual CLI entry, with
+its browser helper reached by its real import. The rotation runtime port is publicly
+named and consumed by spatial composition; internal aliases no longer leak through
+public signatures. SelectTool shares transient gesture disposal while keeping idle hover
+on Cancel and clearing it on deactivation. Body hit resolution retains the same priority,
+Alt cycling and selected-only rotation admission; the contextual detail choice is derived
+once for the template. No thresholds, exclusions or suppressions were added.
+
+Existing selection, rotation and direct-action regressions cover the refactor, with an
+additional Cancel lifecycle assertion and mutually exclusive Room/Wall detail assertions.
+On 2026-09-09, whole Oxlint 1.81.0, scoped ESLint and TypeScript passed, and six focused
+selection/direct-action/rotation files passed 111 tests. Fallow 3.22.0 reports zero
+structural issues and duplicate groups; the original template/resolver complexity findings
+are gone. No current full-suite coverage was generated locally. Fallow requires a coverage
+file even for this diagnostic, so the archived complete CI artifact from `50e5b33c` was
+copied locally with only its absolute Linux path prefixes normalized to this Windows
+worktree. All 757 files match; three changed-function CRAP estimates remain because those
+functions moved relative to the archived coverage positions. The command exits zero, but
+this is not current-source coverage-weighted health acceptance. Fresh pushed CI retains
+the unchanged full coverage/health gate. Receipts are under
+`harness-shots/pr95-admission-coverage/`, including the archived-input provenance.
+
+The main checkout's borrowed Fallow binary was 3.19.0; the final diagnostic above uses this
+PR worktree's existing 3.22.0 dependency. Likewise whole Oxlint was rerun with its local
+1.81.0 dependency. No dependency installation or lockfile change was needed.

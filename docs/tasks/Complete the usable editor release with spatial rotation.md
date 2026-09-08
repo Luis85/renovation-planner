@@ -7,7 +7,7 @@ release: "[[MVP]]"
 
 # Complete the usable editor release with spatial rotation
 
-The 2026-09-08 implementation request covers the landed M00–M17 experience. The user expanded rotation to all free spatial items and walls with their hosted openings, and requested a clearer, easier-to-grab handle. The active [execution and acceptance ledger](../user-experience/renovation-planner-editor-specs/implementation/release-2026-09-08.md) records branches, evidence and dependencies. Main was revalidated at `7d4bc381`; independently owned PR #93 must remain untouched. After its selection amendment, the user explicitly reconfirmed Object → Opening → Wall → Room.
+The 2026-09-08 implementation request covers the landed M00–M17 experience. The user expanded rotation to all free spatial items and walls with their hosted openings, and requested a clearer, easier-to-grab handle. The active [execution and acceptance ledger](../user-experience/renovation-planner-editor-specs/implementation/release-2026-09-08.md) records branches, evidence and dependencies. Independently owned PR #93 was merged externally; main was fast-forwarded to `ec342370`. This task did not modify or merge that PR. After its selection amendment, the user explicitly reconfirmed Object → Opening → Wall → Room.
 
 ## Acceptance
 
@@ -23,4 +23,6 @@ The 2026-09-08 implementation request covers the landed M00–M17 experience. Th
 
 ## Outcome
 
-Active implementation. This task does not close or rewrite PR #93's historical task records. Its new evidence can be reconciled there by that PR's owner after review.
+Active implementation. The [release expansion](../user-experience/renovation-planner-editor-specs/implementation/release-expansion-2026-09-08.md) additionally requires saved groups, left-drag selection and Pan, automatic Room enclosure, contextual actions, visible edge measurements and curved/free-form Rooms, opening swing geometry and click placement, stairs and arrows, shared Shift constraints, Undo/Redo shortcuts, stable Review navigation, a bounded image-only photo picker, and a large reference calibration viewport with pan/zoom. These additions remain part of completion; the earlier visual checkpoint does not verify them.
+
+As of 2026-09-09, PR #95 head `ba57db14` passes every CI leg and the unchanged full check: 8,238 passing tests, 98.04% branches, and static analysis. Photo addition `cc6c90a9`, reference viewport `d2d5d165`, Review alignment `251dc7c3`, saved-group schema 6 `587f0266`, curved-boundary schema 7 foundation `3192c463`, and group interaction UI `f8028295` are integrated with their focused verification. Curved rendering/editing, opening Move mode, stairs/arrows, full combined checks and final native/browser acceptance remain in progress. This task remains open.

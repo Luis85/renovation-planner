@@ -131,15 +131,8 @@ export class SelectTool implements EditorTool {
 	}
 
 	deactivate(): void {
-		this.deps.selectionMove?.cancel();
-		this.elementMove.cancel(); this.elementRotation.cancel();
-		this.wallGesture = null;
-		this.deps.previewWall?.(null);
-		const context = this.context;
-		this.gesture = null;
+		const context = this.discardGesture();
 		if (context !== null) {
-			this.marquee.cancel(context);
-			context.renderState.previewPolygon = null;
 			context.renderState.hoveredObjectId = null;
 			context.renderState.hoveredTargetKind = null;
 			context.renderState.rotationHoverId = null;
@@ -260,7 +253,10 @@ export class SelectTool implements EditorTool {
 
 	private finishSelectionGesture(event: EditorPointerEvent): boolean {
 		if (this.deps.selectionMove?.active) { if (event.button === 'primary') this.deps.selectionMove.finish(event); return true; }
-		if (this.marquee.active && this.context) { this.marquee.finish(this.context, event, this.deps.spatialObjects()); return true; }
+		if (this.marquee.active && this.context) {
+			this.marquee.finish(this.context, event, this.deps.spatialObjects(), this.deps.expandSelection ? (id, deep) => this.deps.expandSelection?.(id, deep) ?? [] : undefined);
+			return true;
+		}
 		return false;
 	}
 	pointerUp(event: EditorPointerEvent): void {
@@ -322,7 +318,7 @@ export class SelectTool implements EditorTool {
 		void this.commit(context, gesture.zoneId, gesture.original, forwardPoints);
 	}
 
-	cancel(): void {
+	private discardGesture(): EditorContext | null {
 		this.deps.selectionMove?.cancel();
 		this.elementMove.cancel(); this.elementRotation.cancel();
 		this.wallGesture = null;
@@ -330,6 +326,11 @@ export class SelectTool implements EditorTool {
 		const context = this.context;
 		this.gesture = null;
 		if (context !== null) { this.marquee.cancel(context); context.renderState.previewPolygon = null; }
+		return context;
+	}
+
+	cancel(): void {
+		this.discardGesture();
 		// Deliberately clears neither hover field, unlike `activate`/`deactivate`/`pointerDown`
 		// above: a cancelled drag leaves the pointer still resting over its target, so the
 		// prediction (`hoveredObjectId`/`hoveredTargetKind`) is still true. R8's "cleared

@@ -4,6 +4,7 @@ import { tr } from '../../i18n/strings';
 import type { EntityId } from '../../../core/identity/EntityId';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorStore } from '../../stores/EditorStore';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { useEditorRuntime } from '../runtime';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import { useSelectionStore } from './selection-store';
@@ -12,10 +13,12 @@ import { structureCandidates } from '../structure/structureCandidates';
 import { screenPoint, screenToWorld, STAGE_PIXELS } from '../viewport/Viewport';
 import { useCanvasGroupActions } from './canvasGroupActions';
 import { useCanvasMenuActions, type CanvasMenuAction } from './useCanvasMenuActions';
+import { canvasCandidates } from './canvasCandidates';
 const emit = defineEmits<{ openAdd: [] }>();
 const anchor = ref<HTMLElement | null>(null), menu = ref<HTMLElement | null>(null), open = ref(false), position = ref({ left: '0px', top: '0px' });
 const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), dialogs = useDialogStore(), groups = useCanvasGroupActions();
 const actions = useCanvasMenuActions(() => emit('openAdd'));
+const workspace = useWorkspaceStore();
 let menuIds: readonly string[] = [];
 let root: HTMLElement | null = null, canvas: HTMLElement | null = null, opener: HTMLElement | null = null;
 function editing(target: EventTarget | null): boolean { return target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') !== null; }
@@ -26,9 +29,9 @@ function unavailable(event: MouseEvent | KeyboardEvent): boolean {
 function contextTarget(event: MouseEvent | KeyboardEvent, x: number, y: number): string | undefined {
 	const target = event.target as HTMLElement, keyboard = event instanceof KeyboardEvent;
 	const rowId = target.closest<HTMLElement>('[data-rp-id]')?.dataset.rpId;
-	const candidates = [...project.zones.values(), ...structureCandidates(project.structure)];
-	if (rowId && candidates.some(item => item.id === rowId)) return rowId;
+	if (rowId && (project.zones.has(rowId) || structureCandidates(project.structure).some(item => item.id === rowId))) return rowId;
 	if (keyboard) return undefined;
+	const candidates = canvasCandidates(project.zones.values(), project.structure, workspace.layerVisibility);
 	return resolveSelectionTarget({ candidates, selectedIds: selection.selectedIds, worldPoint: screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS), handleToleranceWorld: 0, cycle: event.altKey })?.id;
 }
 function selectContext(hit: string | undefined, keyboard: boolean, event: MouseEvent | KeyboardEvent): void {

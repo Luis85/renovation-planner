@@ -22,15 +22,26 @@ import ObjectRotationForm from './ObjectRotationForm.vue';
 import { rotationChanged, rotationDegreesBetween, rotationHandleGeometry, rotationPivot, rotationPoints, type NamedRotationShape, type RotationShape } from './objectRotation';
 import { projectedRotationTarget, readRotationBaseline, type RotationBaseline } from './rotationBaseline';
 import { layoutRotationControls } from './rotationControl';
+import type { createGroupActions } from '../groups/groupActions';
 
-export interface WallRotationActions {
-	readonly active: Readonly<Ref<boolean>>;
-	rotateWall(id: string, degrees?: number, original?: Wall): Promise<void>;
-	previewRotation(id: string | null, degrees?: number, original?: Wall): void;
+export type RotationRuntime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & {
+	elementActions: { readonly active: Readonly<Ref<boolean>> };
+	ledger: SessionWriteLedger;
+	groupRotationTarget?: (memberId: string) => NamedRotationShape | null;
+	groups?: ReturnType<typeof createGroupActions>;
+	wall?: {
+		readonly active: Readonly<Ref<boolean>>;
+		rotateWall(id: string, degrees?: number, original?: Wall): Promise<void>;
+		previewRotation(id: string | null, degrees?: number, original?: Wall): void;
+	};
+};
+/** Group controls use aggregate member visibility; singleton controls follow their source layer. */
+function sourceVisible(shape: NamedRotationShape, layers: { readonly zone: boolean; readonly architecture: boolean }): boolean {
+	if (shape.kind === 'group') return shape.visible === true;
+	return shape.kind === 'room' || shape.kind === 'area' ? layers.zone : layers.architecture;
 }
-type Runtime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & { elementActions: { readonly active: Readonly<Ref<boolean>> }; ledger: SessionWriteLedger; wall?: WallRotationActions; groupRotationTarget?: (memberId: string) => NamedRotationShape | null };
 /** One transient rotation lifetime; persistence remains in the existing source-specific commands. */
-export function createRotationActions(context: PlanEditorContext, runtime: Runtime) {
+export function createRotationActions(context: PlanEditorContext, runtime: RotationRuntime) {
 	const project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), saves = useSaveStateStore(), session = useRenovationSession(), dialogs = useDialogStore();
 	const workspace = useWorkspaceStore(), obstacles = shallowRef<readonly BoundingBox[]>([]);
 	const working = ref(false), generation = ref(0), preview = ref<NamedRotationShape | null>(null);
@@ -40,10 +51,11 @@ export function createRotationActions(context: PlanEditorContext, runtime: Runti
 		const shape = projectedRotationTarget(project, selection.selectedIds[0], Boolean(runtime.wall));
 		return shape && rotationPivot(shape) ? { ...shape, generation: generation.value } : null;
 	});
-	const active = computed(() => working.value || (runtime.wall?.active.value ?? false));
+	const active = computed(() => working.value || (runtime.wall?.active.value ?? false) || (runtime.groups?.active.value ?? false));
 	function permitted(shape: NamedRotationShape | null): boolean {
 		return alive && shape !== null && !runtime.writesBlocked.value && saves.state !== 'saving' && runtime.activeToolId.value === 'select' && session.perspective !== 'review' && !runtime.elementActions.active.value
-			&& (session.perspective === 'plan' || ['room', 'area', 'wall'].includes(shape.kind));
+			&& (session.perspective === 'plan' || ['room', 'area', 'wall', 'group'].includes(shape.kind))
+			&& (shape.kind !== 'group' || runtime.groups?.canRotateShape(shape) === true);
 	}
 	const blocked = computed(() => !permitted(target.value));
 	const displayTarget = computed(() => {
@@ -55,23 +67,19 @@ export function createRotationActions(context: PlanEditorContext, runtime: Runti
 		const shape = projectedRotationTarget(project, id, Boolean(runtime.wall));
 		return shape && rotationPivot(shape) ? { ...shape, generation: generation.value } : null;
 	});
-	function clear(): void { preview.value = null; runtime.renderState.previewPolygon = null; runtime.renderState.rotationDegrees = null; runtime.renderState.rotationInteraction = null; runtime.renderState.rotationHoverId = null; runtime.wall?.previewRotation(null); }
+	function clear(): void { preview.value = null; runtime.renderState.previewPolygon = null; runtime.renderState.rotationDegrees = null; runtime.renderState.rotationInteraction = null; runtime.renderState.rotationHoverId = null; runtime.wall?.previewRotation(null); runtime.groups?.previewRotation(null); }
 	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { generation.value++; clear(); }, { flush: 'sync' });
 	onBeforeUnmount(() => { alive = false; generation.value++; clear(); });
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	const visibleBounds = computed(() => ({ min: screenToWorld(screenPoint(0, 0), editor.viewport, STAGE_PIXELS), max: screenToWorld(screenPoint(editor.stageSize.width, editor.stageSize.height), editor.viewport, STAGE_PIXELS) }));
-	function sourceVisible(shape: NamedRotationShape): boolean {
-		if (shape.kind === 'group') return shape.visible === true;
-		return shape.kind === 'room' || shape.kind === 'area' ? workspace.layerVisibility.zone : workspace.layerVisibility.architecture;
-	}
 	const handleGeometry = computed(() => {
-		const shape = target.value; if (!shape || !sourceVisible(shape)) return null;
+		const shape = target.value; if (!shape || !sourceVisible(shape, workspace.layerVisibility)) return null;
 		const scale = worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visible = visibleBounds.value;
 		return rotationHandleGeometry(shape, scale, visible, obstacles.value);
 	});
 	const displayControls = computed(() => {
 		const shape = displayTarget.value;
-		if (!permitted(shape) || !shape || active.value || !sourceVisible(shape)) return [];
+		if (!permitted(shape) || !shape || active.value || !sourceVisible(shape, workspace.layerVisibility)) return [];
 		const pivot = rotationPivot(shape);
 		return pivot ? layoutRotationControls(shape, pivot, worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visibleBounds.value, obstacles.value) : [];
 	});
@@ -82,6 +90,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Runti
 		preview.value = { ...shape, points };
 		if (shape.kind === 'room' || shape.kind === 'area') runtime.renderState.previewPolygon = points;
 		if (shape.kind === 'wall') runtime.wall?.previewRotation(id, rotationDegreesBetween(shape.points, points), shape.wall);
+		if (shape.kind === 'group') runtime.groups?.previewRotation(id, points);
 	}
 	async function operate(id: string, action: (baseline: RotationBaseline, epoch: number) => Promise<void>): Promise<void> {
 		const shape = target.value;
@@ -96,6 +105,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Runti
 		finally { working.value = false; clear(); }
 	}
 	async function move(id: string, points: readonly Point[], original: RotationShape): Promise<void> {
+		if (original.kind === 'group') { if (!blocked.value && !active.value) await runtime.groups?.moveRotation(points, original); return; }
 		if (original.generation !== undefined && original.generation !== generation.value) return;
 		if (!rotationChanged(original.points, points)) return;
 		if (original.kind === 'wall') { if (!blocked.value && !active.value) await runtime.wall?.rotateWall(id, rotationDegreesBetween(original.points, points), original.wall); return; }
@@ -106,6 +116,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Runti
 	}
 	async function rotate(id: string, degrees?: number): Promise<void> {
 		if (target.value?.id !== id) return;
+		if (target.value.kind === 'group') { if (!blocked.value && !active.value) await runtime.groups?.rotate(id, degrees); return; }
 		if (target.value?.kind === 'wall') { if (!blocked.value && !active.value) await runtime.wall?.rotateWall(id, degrees); return; }
 		await operate(id, async (baseline, epoch) => {
 			const element = baseline.shape, pivot = rotationPivot(element); if (!pivot) return;

@@ -29,7 +29,7 @@ const draftPreview = computed(() => {
 	if (!proposed || runtime.activeToolId.value === 'draw-wall') return proposed;
 	return validateStructure(proposed, project.structure.boundaries.map(boundary => boundary.roomId)).ok ? proposed : null;
 });
-const structure = computed(() => runtime.curveTask.preview.value?.structure ?? runtime.structureActions.preview.value ?? draftPreview.value ?? project.structure);
+const structure = computed(() => runtime.curveTask.preview.value?.structure ?? runtime.groupActions?.preview.value?.structure ?? runtime.structureActions.preview.value ?? draftPreview.value ?? project.structure);
 const points = (value: readonly Point[]): number[] => value.flatMap(p => [p.x, p.y]);
 const wallPoints = (wall: Wall): number[] => points(arcPolyline({ ...wall, bulge: wall.bulge ?? 0 }, 0.25 / props.zoom));
 const selected = (id: string): boolean => selection.selectedIds.some(candidate => candidate === id);

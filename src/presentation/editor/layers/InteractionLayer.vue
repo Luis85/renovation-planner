@@ -52,9 +52,13 @@ const props = defineProps<{ tokens: ThemeTokens }>();
 const editorStore = useEditorStore();
 const projectStore = useProjectStore();
 const { zones } = storeToRefs(projectStore);
-const candidates = computed(() => new Map<string, SpatialObjectCandidate>([...zones.value, ...structureCandidates(projectStore.structure).map(item => [item.id, item] as const)]));
-const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 const runtime = useEditorRuntime();
+const candidates = computed(() => {
+	const preview = runtime.curveTask.preview.value ?? runtime.groupActions?.preview.value, objects = new Map(preview?.objects.map(object => [object.id, object]));
+	return new Map<string, SpatialObjectCandidate>([...[...zones.value].map(([id, zone]) => [id, { ...zone, ...objects.get(id) }] as const),
+		...structureCandidates(preview?.structure ?? projectStore.structure).map(item => [item.id, item] as const)]);
+});
+const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 
 function toScreen(point: { x: number; y: number }) {
 	return worldToScreen(point, editorStore.viewport, STAGE_PIXELS);

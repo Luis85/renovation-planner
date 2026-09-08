@@ -39,7 +39,7 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 		const draft = planningDraft(kind, shown, session.roomId, id, { focusedId: session.focusedId, targetId: session.targetId || session.roomId });
         if (kind === 'evidence' && !id) draft.type = session.mode === 'photos' ? 'photo' : session.mode === 'notes' ? 'note' : 'document';
 		const busy = ref(false);
-		await dialogs.openDialog({ kind: 'form', title: tr(`planning.edit.${kind}`), component: markRaw(PlanningForm), busy,
+		await dialogs.openDialog({ kind: 'form', title: tr(kind === 'evidence' && draft.type === 'photo' && !id ? 'planning.add.photo' : `planning.edit.${kind}`), component: markRaw(PlanningForm), busy,
 			props: { draft, baseline: shown, busy, paused: runtime.writesBlocked, retry: refresh, openSource: runtime.openPlanNote, files: context.commands.evidenceFiles,
 				dispatch: (input: Parameters<NonNullable<typeof context.commands.planning>['material']>[1] | RenovationInput) => {
 					if (!alive) return Promise.resolve(err(undoSuperseded(context.planId as PlanId)));

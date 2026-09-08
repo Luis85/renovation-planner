@@ -56,3 +56,17 @@ Integrated screenshot and native-host acceptance are still pending. Screenshot a
 states, including Add over an empty Floor and persistent stale content. Browser helpers
 must expand Elements before interacting with its entity rows; perspective state is now
 `aria-checked` on radios. Live Obsidian acceptance is separate from component verification.
+
+## Follow-up: stable Review navigation
+
+The user reproduced the perspective bar shifting when Review hid Undo/Redo. The
+history controls now retain their layout footprint while hidden and disabled in
+Review. The Review browser journey now measures the tab group's position before/after
+the switch. Its browser assertion remains unrun until the integrated release capture.
+
+Follow-up verification on 2026-09-09: scoped Oxlint and ESLint passed for
+EditorContextBar and shellFidelity; the Review journey script passed Node syntax;
+vue-tsc passed; all 295 tests across shellFidelity, styles, button specificity and
+button focus-ring suites passed. The regression checks the retained DOM controls,
+disabled/hidden Review semantics, and absence of saved-data changes. It does not claim
+to measure layout in jsdom. Earlier verification above applies to the prior shell commit.

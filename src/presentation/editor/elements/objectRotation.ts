@@ -3,6 +3,7 @@ import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { boundingBoxOf, centroid, coincident, distance, rotate } from '../../../core/geometry/operations';
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import type { Wall } from '../../../domain/spatial/Structure';
+import type { GroupSnapshot } from '../groups/groupSnapshot';
 import { layoutRotationControl, type RotationControlGeometry } from './rotationControl';
 
 export interface RotationShape {
@@ -15,6 +16,7 @@ export interface RotationShape {
 	readonly bulges?: readonly number[];
 	/** A hosted-opening selection rotates this captured host, without changing selection identity. */
 	readonly wall?: Wall;
+	readonly group?: GroupSnapshot;
 }
 export interface NamedRotationShape extends RotationShape { readonly name: string }
 function polygon(shape: RotationShape): boolean { return shape.kind === 'object' || shape.kind === 'room' || shape.kind === 'area'; }

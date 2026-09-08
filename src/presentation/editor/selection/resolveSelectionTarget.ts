@@ -83,6 +83,10 @@ export function resolveSelectionTarget(input: {
 		const decoration = input.selectedIds.length > 1 ? badgeAt(input) : handleAt(input);
 		if (decoration !== null) return decoration;
 	}
+	return bodyAt(input);
+}
+
+function bodyAt(input: Parameters<typeof resolveSelectionTarget>[0]): SelectionTarget {
 	const hits: string[] = [];
 	const candidates = input.candidates.toSorted((a, b) => priority(a) - priority(b));
 	for (let index = candidates.length - 1; index >= 0; index -= 1) {

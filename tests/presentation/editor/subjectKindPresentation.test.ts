@@ -33,6 +33,8 @@ it('distinguishes identical descriptions by saved kind in Existing/Planned rows 
 			: ['1. Floor finish · Modify (~) New tile', '2. Wall finish · Modify (~) New tile']);
 		await rows[0].trigger('click'); await settle(); expect(rig.session.focusedId).toBe('detail-floor');
 		expect(rig.wrapper.get<HTMLDetailsElement>('[data-rp-record="detail-floor"] .rp-record-actions').element.open).toBe(true);
+		expect(rig.wrapper.get('[data-rp-record="detail-floor"] [data-rp-subject-area]').text()).toContain('12 m²');
+		expect(rig.wrapper.find('[data-rp-record="detail-wall"] [data-rp-subject-area]').exists()).toBe(false);
 		markers[1].fire('click'); await settle(); expect(rig.session.focusedId).toBe('detail-wall');
 		expect(rig.selection.selectedIds).toEqual([roomId]);
 	}

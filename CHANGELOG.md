@@ -162,6 +162,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Changed
 
+- Existing room details show saved photos in a contextual strip and expose calculated floor area when expanded. Photo navigation preserves spatial context and camera; a peer removal restores owned keyboard focus.
+
 - Plan editor: keep renovation state and evidence type switches visible, show contextual room headings and compact expandable records, and place creation and continuation actions after the relevant content. Expanded cost groups retain all reconciled stages.
 
 - Build with Vite instead of esbuild, per the SDD's stack: single CJS bundle into `dist/`,

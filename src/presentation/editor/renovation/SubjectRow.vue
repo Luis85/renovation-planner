@@ -5,7 +5,13 @@ import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
 import { subjectLabel, type RenovationSubject } from '../../../domain/renovation/Renovation';
 import { tr } from '../../i18n/strings';
-defineProps<{ item: RenovationSubject }>();
+import { computed } from 'vue';
+import { useProjectStore } from '../../stores/ProjectStore';
+import { toSpatialRecordDto } from '../../read-models/spatialRecords';
+import { formatArea } from '../shell/formatArea';
+const props = defineProps<{ item: RenovationSubject }>();
+const project = useProjectStore();
+const floor = computed(() => props.item.kind === 'floor' ? project.zones.get(props.item.targetId) : undefined);
 const emit = defineEmits<{ remove: [id: string, name: string, proposalOnly?: boolean] }>();
 const actions = useEditorRuntime().renovation, session = useRenovationSession();
 </script>
@@ -40,6 +46,13 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 			:open="session.focusedId === item.id"
 		>
 			<summary>{{ tr('renovation.record.actions') }}</summary>
+			<p
+				v-if="floor"
+				class="rp-record-metadata"
+				data-rp-subject-area
+			>
+				{{ formatArea(toSpatialRecordDto(floor).areaMm2) }} · {{ tr('renovation.calculated') }}
+			</p>
 			<div class="rp-renovation-row-actions">
 				<button
 					type="button"

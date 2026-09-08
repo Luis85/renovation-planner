@@ -457,4 +457,13 @@ describe('AssetLibraryRoot, shelves and selection', () => {
 		expect(root.get('.rp-al-columns').attributes('aria-hidden')).toBeUndefined();
 		root.unmount();
 	});
+
+	it('uses the specification wording for the neutral state and the empty-state action', async () => {
+		const root = await mountRoot({ entries: [] });
+		expect(root.text()).toContain('Create first asset');
+		root.unmount();
+		const selected = await mountRoot({ entries: [anEntry()] });
+		expect(selected.text()).toContain('Select an asset to view its definition.');
+		selected.unmount();
+	});
 });

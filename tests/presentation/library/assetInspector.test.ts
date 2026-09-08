@@ -31,7 +31,7 @@ describe('AssetInspector resting', () => {
 	it('draws the resting line and no sections with nothing selected', async () => {
 		const inspector = await mountInspector({ entries: [anEntry()], assetId: null });
 
-		expect(inspector.panel.get('.rp-al-inspector__rest').text()).toBe('Nothing selected.');
+		expect(inspector.panel.get('.rp-al-inspector__rest').text()).toBe('Select an asset to view its definition.');
 		expect(inspector.panel.classes()).toContain('rp-al-inspector--rest');
 		expect(inspector.panel.text()).not.toContain('Shape');
 	});

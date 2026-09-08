@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Selection]]"
 order: 20
-status: Done
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -39,6 +39,16 @@ Users can predict and recover which overlapping part will be selected.
 
 ## Amendments
 
+**2026-09-08 (closeout review)** — this task was moved to Done in the closeout pull request and
+moved back the same day, on a review finding measured against the code: `priority()` in
+`src/presentation/editor/selection/resolveSelectionTarget.ts` ranks `opening` 3, `wall` 2, any
+other typed candidate 1 and an untyped one 0, and the resolver walks that order from the top, so
+an opening overlapping a generic object is selected first — the implementation plan's locked
+order is handle → **object → opening** → wall → room → background, the other way round for that
+pair. The evidence below stands for the ranks a test holds (handle over body, opening → wall →
+room, Alt cycling); the object rank has neither a test nor the right value. Stays Active until
+the rank is corrected and `structureSelection.test.ts` holds an object-over-opening fixture.
+
 **2026-09-03** — `src/presentation/editor/selection/resolveSelectionTarget.ts` is one function
 that `SelectTool.pointerDown` and `SelectTool.pointerMove` both ask; the tool's private
 `hitTest`/`vertexAt` were deleted rather than left beside it, which is what stops two derivations
@@ -68,7 +78,7 @@ first, and the resolver deliberately scans it in reverse so the last-drawn body 
 
 Alt-click now reaches lower overlapping bodies and wraps in render order; hover uses the same alternate resolution. spatialSelection.test.ts covers cycling, wrap, modifier-only selection and badge focus. Priority among Wall/Opening/Object candidates still belongs to the slice introducing those types.
 
-## Closing evidence
+## Closing evidence (partial; see the 2026-09-08 amendment)
 
 **2026-09-08**, the plan-editor stack — criterion 3 landed in dfe9b2a6 (#74) and its typed half
 in 3d08d22a (#86).

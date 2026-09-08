@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Walls and hosted openings]]"
 order: 20
-status: Done
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 dependsOn: "[[Persist a wall as one spatial identity]]"
@@ -41,16 +41,27 @@ selected by the accepted wall/opening contract.
 
 Not started.
 
-## Closing evidence
+## Amendments
+
+**2026-09-08 (closeout review)** — moved to Done in the closeout pull request and set to Active
+the same day: criterion 3 is not held. The one fresh-stack reload in
+`tests/application/commands/structureCommand.test.ts` ('creates walls plus the Room as one history
+item; reloads the same IDs through a fresh stack') writes `WALL_LOOP`, which carries no opening,
+and the opening case beside it ('composes opening placement, edit, deletion and reverse order
+history…') adds `opening-a`, deletes it again and ends on `WALL_LOOP` without ever constructing a
+second stack — so no assertion reads an opening's host ID and placement back through a fresh
+repository. Criteria 1, 2 and 4 below stand. Stays Active until a fresh-stack case persists an
+opening and reads its `hostId`, `offset`, `width`, `height` and `sill` back.
+
+## Closing evidence (partial; see the amendment above)
 
 **2026-09-08**, the plan-editor stack — landed in 3d08d22a (#86, ADR-0020).
 
-Criterion 1 — **a valid opening persists with its own ID and one host wall ID** — and criterion 3
-— **reload restores the same host and placement** — are
+Criterion 1 — **a valid opening persists with its own ID and one host wall ID** — is
 `tests/application/commands/structureCommand.test.ts`'s 'composes opening placement, edit,
 deletion and reverse order history with shared versions' (`opening-a` on `hostId: 'wall-a'`; three
-undos back to the baseline document, three redos back to the loop) over the fresh-stack reload of
-'creates walls plus the Room as one history item; reloads the same IDs through a fresh stack'.
+undos back to the baseline document, three redos back to the loop). Criterion 3 — **reload
+restores the same host and placement** — is NOT held; see the amendment.
 
 Criterion 2 — **invalid host placement writes nothing** — is decided in the domain and checked
 again at the write: `tests/domain/spatial/structure.test.ts`'s 'refuses missing hosts, duplicate

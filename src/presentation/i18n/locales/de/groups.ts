@@ -8,6 +8,8 @@ export const groupsDe = {
 	'editor.group.ungroup': 'Gruppierung aufheben',
 	'editor.group.enclose': 'Mit Wänden umschließen und gruppieren',
 	'editor.group.saved': 'Gespeicherte Gruppe',
+	'editor.group.select-member': 'Fokussiertes Element auswählen',
+	'editor.group.select-saved': 'Gespeicherte Gruppe auswählen',
 	'editor.group.transform': 'Gemeinsam verschieben oder drehen',
 	'editor.group.transform-hint': 'Alle Mitglieder werden gemeinsam bewegt, auch ausgeblendete Elemente und zugehörige Türen und Fenster. Verbundene Wandendpunkte folgen der Gruppe.',
 	'editor.group.left': '90° nach links drehen',

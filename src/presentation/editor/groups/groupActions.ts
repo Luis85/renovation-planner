@@ -42,7 +42,7 @@ export function createGroupActions(context: PlanEditorContext, runtime: GroupOpe
 		const visible = snapshot.memberIds.some(id => project.zones.has(id) ? workspace.layerVisibility.zone : workspace.layerVisibility.architecture);
 		return groupRotationTarget(snapshot, visible);
 	}
-	const currentTarget = computed(() => selection.selectedIds.length ? target(selection.selectedIds[0]) : null);
+	const currentTarget = computed(() => selection.selectedIds.length > 1 || saved.value ? target(selection.selectedIds[0]) : null);
 	const disabled = computed(() => operations.blocked.value || operations.working.value || (currentTarget.value !== null && !operations.current(currentTarget.value.group)));
 	function choose(ids: readonly string[]): void { selection.select(ids.map(id => id as EntityId<string>)); }
 	function defaultName(id: string): string {
@@ -72,6 +72,9 @@ export function createGroupActions(context: PlanEditorContext, runtime: GroupOpe
 	}
 	function actions(ids: readonly string[]): readonly CanvasGroupAction[] {
 		const result: CanvasGroupAction[] = [], existing = selectedGroup(project.groups, ids, project.structure);
+		const focused = selection.focusedId;
+		if (ids.length > 1 && focused && ids.includes(focused)) result.push({ id: 'inspect', label: 'editor.group.select-member', run: () => choose([focused]) });
+		if (ids.length === 1 && !existing && expandSelection(ids[0]).length > 1) result.push({ id: 'select-group', label: 'editor.group.select-saved', run: () => choose(expandSelection(ids[0])) });
 		if (existing) result.push({ id: 'ungroup', label: 'editor.group.ungroup', disabled: disabled.value, run: () => ungroup(ids) });
 		else if (groupRoots(ids, project.structure).length > 1) result.push({ id: 'group', label: 'editor.group.group', disabled: disabled.value, run: () => group(ids) });
 		if (ids.length === 1 && project.zones.get(ids[0])?.zoneType === 'Room') result.push({ id: 'enclose', label: 'editor.group.enclose', disabled: disabled.value, run: () => enclose(ids[0]) });

@@ -2,7 +2,7 @@ import { inject, provide, type InjectionKey } from 'vue';
 import type { StringKey } from '../../i18n/locales/en';
 
 export interface CanvasGroupAction {
-	readonly id: 'group' | 'ungroup' | 'enclose';
+	readonly id: 'group' | 'ungroup' | 'enclose' | 'inspect' | 'select-group';
 	readonly label: StringKey;
 	readonly disabled?: boolean;
 	run(): void | Promise<void>;

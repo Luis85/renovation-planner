@@ -37,6 +37,7 @@ function contextTarget(event: MouseEvent | KeyboardEvent, x: number, y: number):
 function selectContext(hit: string | undefined, keyboard: boolean, event: MouseEvent | KeyboardEvent): void {
 	if (hit && (event.altKey || !selection.selectedIds.some(id => id === hit))) selection.select((groups.expandSelection?.(hit, event.altKey) ?? [hit]).map(id => id as EntityId<string>));
 	else if (!keyboard && !hit) selection.clear();
+	if (hit) selection.focus(hit as EntityId<string>);
 	menuIds = [...selection.selectedIds];
 }
 function allowedTarget(target: HTMLElement, keyboard: boolean, surface: HTMLElement): boolean {

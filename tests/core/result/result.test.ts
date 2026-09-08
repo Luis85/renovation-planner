@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { err, isErr, isOk, ok, type Result } from '../../../src/core/result/Result';
+import { err, isErr, isOk, ok, unwrap, type Result } from '../../../src/core/result/Result';
 import type { ValidationError } from '../../../src/core/errors/AppError';
 
 function expectOk<T, E>(result: Result<T, E>): T {
@@ -44,5 +44,20 @@ describe('Result', () => {
 		const narrowed = expectErr(result);
 		expect(narrowed.category).toBe('Validation');
 		expect(narrowed.code).toBe('x-too-small');
+	});
+});
+
+describe('unwrap', () => {
+	it('hands back the value of a success the caller has already ruled failure out for', () => {
+		expect(unwrap(ok('sum'))).toBe('sum');
+	});
+
+	it('throws a failure as the programmer-error door, carrying the error as the cause', () => {
+		const error: ValidationError = { category: 'Validation', code: 'money.currency-mismatch', message: 'Currencies cannot be mixed.' };
+		let thrown: unknown;
+		try { unwrap(err(error)); } catch (cause) { thrown = cause; }
+		expect(thrown).toBeInstanceOf(Error);
+		expect((thrown as Error).message).toBe(error.message);
+		expect((thrown as Error & { cause: unknown }).cause).toBe(error);
 	});
 });

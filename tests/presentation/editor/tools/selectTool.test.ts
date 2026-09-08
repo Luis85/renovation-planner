@@ -222,6 +222,19 @@ describe('SelectTool', () => {
 		expect(h.context.renderState.hoveredTargetKind).toBeNull();
 	});
 
+	it('cancel preserves an idle hover prediction and keeps the tool available for the next click', () => {
+		const h = harness(), tool = build(h, [{ id: 'zone-a', points: squarePoints(0, 0) }]);
+		tool.activate(h.context);
+		tool.pointerMove(eventAt(50, 50));
+		tool.cancel();
+		expect(h.context.renderState.hoveredObjectId).toBe('zone-a');
+		expect(h.context.renderState.hoveredTargetKind).toBe('body');
+		tool.pointerDown(eventAt(50, 50));
+		tool.pointerUp(eventAt(50, 50));
+		expect(h.context.selection.selectedIds).toEqual(['zone-a']);
+		expect(h.gestures).toHaveLength(0);
+	});
+
 	/**
 	 * [[The hover-click agreement test never clicks]]: the case this replaces only invoked
 	 * `pointerMove`, twice, and never compared a predicted hover against a click's own

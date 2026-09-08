@@ -23,14 +23,18 @@ import { rotationChanged, rotationDegreesBetween, rotationHandleGeometry, rotati
 import { projectedRotationTarget, readRotationBaseline, type RotationBaseline } from './rotationBaseline';
 import { layoutRotationControls } from './rotationControl';
 
-export interface WallRotationActions {
-	readonly active: Readonly<Ref<boolean>>;
-	rotateWall(id: string, degrees?: number, original?: Wall): Promise<void>;
-	previewRotation(id: string | null, degrees?: number, original?: Wall): void;
-}
-type Runtime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & { elementActions: { readonly active: Readonly<Ref<boolean>> }; ledger: SessionWriteLedger; wall?: WallRotationActions; groupRotationTarget?: (memberId: string) => NamedRotationShape | null };
+export type RotationRuntime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & {
+	elementActions: { readonly active: Readonly<Ref<boolean>> };
+	ledger: SessionWriteLedger;
+	groupRotationTarget?: (memberId: string) => NamedRotationShape | null;
+	wall?: {
+		readonly active: Readonly<Ref<boolean>>;
+		rotateWall(id: string, degrees?: number, original?: Wall): Promise<void>;
+		previewRotation(id: string | null, degrees?: number, original?: Wall): void;
+	};
+};
 /** One transient rotation lifetime; persistence remains in the existing source-specific commands. */
-export function createRotationActions(context: PlanEditorContext, runtime: Runtime) {
+export function createRotationActions(context: PlanEditorContext, runtime: RotationRuntime) {
 	const project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), saves = useSaveStateStore(), session = useRenovationSession(), dialogs = useDialogStore();
 	const workspace = useWorkspaceStore(), obstacles = shallowRef<readonly BoundingBox[]>([]);
 	const working = ref(false), generation = ref(0), preview = ref<NamedRotationShape | null>(null);

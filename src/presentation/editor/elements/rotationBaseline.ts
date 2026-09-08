@@ -13,8 +13,7 @@ import { elementInput } from './elementInput';
 import { tr } from '../../i18n/strings';
 import type { NamedRotationShape } from './objectRotation';
 
-type Project = ReturnType<typeof useProjectStore>;
-export function projectedRotationTarget(project: Project, id: string, walls: boolean): NamedRotationShape | null {
+export function projectedRotationTarget(project: ReturnType<typeof useProjectStore>, id: string, walls: boolean): NamedRotationShape | null {
 	const zone = project.zones.get(id);
 	if (zone) return { id, name: zone.name, kind: zone.zoneType === 'Room' ? 'room' : 'area', points: zone.points };
 	const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
@@ -37,7 +36,7 @@ async function readZoneBaseline(context: PlanEditorContext, shape: NamedRotation
 		if (entity.name !== shape.name || JSON.stringify(entity.geometry.points) !== JSON.stringify(shape.points)) return err(staleWriteRefusal());
 		return ok<RotationBaseline>({ shape: { ...shape, points: entity.geometry.points }, command: points => new ReversibleMoveZoneCommand({ execute: input => context.commands.moveObject.execute({ ...input, expected: input.expected ?? version }) }, ledger, entity.id, { points }, entity.geometry) });
 	}
-async function readElementBaseline(context: PlanEditorContext, project: Project, shape: NamedRotationShape, ledger: SessionWriteLedger) {
+async function readElementBaseline(context: PlanEditorContext, project: ReturnType<typeof useProjectStore>, shape: NamedRotationShape, ledger: SessionWriteLedger) {
 	const service = context.commands.renovation;
 	if (!service) return err(staleWriteRefusal());
 	const result = await service.read(context.planId as PlanId);
@@ -49,7 +48,6 @@ async function readElementBaseline(context: PlanEditorContext, project: Project,
 	return ok<RotationBaseline>({ shape: { ...element, name }, command: points => service.command(baseline, elementInput(baseline, { ...element, name, points }), ledger) });
 }
 
-export function readRotationBaseline(context: PlanEditorContext, project: Project, shape: NamedRotationShape, ledger: SessionWriteLedger) {
+export function readRotationBaseline(context: PlanEditorContext, project: ReturnType<typeof useProjectStore>, shape: NamedRotationShape, ledger: SessionWriteLedger) {
 	return shape.kind === 'room' || shape.kind === 'area' ? readZoneBaseline(context, shape, ledger) : readElementBaseline(context, project, shape, ledger);
 }
-

@@ -30,7 +30,7 @@ function rig(over: Partial<RenovationProjectDeps> = {}) {
 	const base = defaultRenovationProjectDeps();
 	const pinia = createPinia();
 	const context: RenovationProjectDeps = {
-		...base, session: session(), navigate: vi.fn<RenovationProjectDeps['navigate']>(), rememberContinue: vi.fn<RenovationProjectDeps['rememberContinue']>(), openPlan: vi.fn<RenovationProjectDeps['openPlan']>(() => Promise.resolve('opened' as const)),
+		...base, session: session(), navigate: vi.fn<RenovationProjectDeps['navigate']>(), rememberContinue: vi.fn<RenovationProjectDeps['rememberContinue']>(), forgetContinue: vi.fn<RenovationProjectDeps['forgetContinue']>(), openPlan: vi.fn<RenovationProjectDeps['openPlan']>(() => Promise.resolve('opened' as const)),
 		queries: { ...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })), getProject: () => Promise.resolve(ok(project)), listPlansByProject: () => Promise.resolve(ok({ plans: [plan], unreadable: 0 })) },
 		...over,
 	};

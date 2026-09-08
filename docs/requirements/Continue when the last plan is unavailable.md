@@ -101,7 +101,7 @@ Extension 2d is now closed on the project surface: `ViewRoot`'s `resolveStored()
 `RenovationProjectContext.forgetContinue()` on a reliably missing project — the index scan
 completed and `getProject` answered `ok(null)` — before drawing the gone state, and
 `ContinueContextStore.clear()` writes the stored target's removal through the same
-`loadLocalStorage`/`saveLocalStorage` adapter `write` uses. Indexing, a read failure, a missing
+`saveLocalStorage` adapter `write` uses. Indexing, a read failure, a missing
 plan and a failed opening still leave the stored target untouched, matching extensions 2a, 2b,
 2c and 4a. Real-vault acceptance of the clearing behaviour is still open.
 

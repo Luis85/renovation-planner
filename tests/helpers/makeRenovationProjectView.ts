@@ -41,7 +41,6 @@
  * import that reaches `src/presentation/` so the next node-environment consumer of
  * `FakeWorkspace` cannot reopen this by accident.
  */
-import { vi } from 'vitest';
 import { TFile } from 'obsidian';
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { CreatePlanCommand } from '../../src/application/commands/plan/CreatePlan';
@@ -372,12 +371,11 @@ export const defaultRenovationProjectDeps = (
 		// above — this harness has no store of its own to remember into.
 		continueContext: () => Promise.resolve(null),
 		rememberContinue: () => undefined,
-		// Task 2 (design slice 22). `vi.fn()` rather than the inert no-op its siblings above
-		// take: every case about it asserts a CALL, and `defaultRenovationProjectDeps` is where
-		// `rig`/`mountList` source the spy those assertions read, exactly as `navigate` and
-		// `rememberContinue` are already spied on where a case needs one — a case not about it
-		// never looks, so an inert default would read identically.
-		forgetContinue: vi.fn<RenovationProjectDeps['forgetContinue']>(),
+		// Task 2 (design slice 22). Inert like `rememberContinue` above, for the same reason —
+		// this file must stay free of `vitest` (see this file's own header on the harness/jsdom
+		// split), so it cannot hand out a `vi.fn()`. A case that asserts a call spies its own,
+		// exactly as `navigate`/`rememberContinue`/`openPlan` already do in `rig()`.
+		forgetContinue: () => undefined,
 	};
 	return defaults;
 };

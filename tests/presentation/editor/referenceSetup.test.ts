@@ -16,6 +16,16 @@ describe('explicit raster → crop → rotation → current-world → calibratio
 		const again = expectDefined(setupMeasurement([{ x: 20, y: 30 }, { x: 120, y: 30 }], '2.5', appearance, worldScale, next.calibration), 'scale');
 		expect(again.scaleCorrection).toBeCloseTo(1);
 	});
+	it.each([15, 45, -15, -45])('keeps an unchanged rotated calibration exact (%s degrees)', rotation => {
+		const rotated = { ...appearance, rotation };
+		const previous = { pointA: { x: 0, y: 200 }, pointB: { x: 500 * Math.cos(rotation * Math.PI / 180), y: 200 + 500 * Math.sin(rotation * Math.PI / 180) }, knownDistance: 500, pixelsPerWorldUnit: 0.2 };
+		const angle = -rotation * Math.PI / 180, scale = 1 / previous.pixelsPerWorldUnit;
+		const invert = (p: { x: number; y: number }) => ({ x: (p.x * Math.cos(angle) - p.y * Math.sin(angle)) / scale + rotated.crop.x,
+			y: (p.x * Math.sin(angle) + p.y * Math.cos(angle)) / scale + rotated.crop.y });
+		const next = expectDefined(setupMeasurement([invert(previous.pointA), invert(previous.pointB)], '0.5', rotated, 1, previous), 'scale');
+		expect(next.scaleCorrection).toBe(1);
+		expect(next.calibration.pixelsPerWorldUnit).toBe(previous.pixelsPerWorldUnit);
+	});
 	it.each(['', '0', '-1', 'Infinity', '1e309', 'bad'])('rejects a nonrepresentable known distance %s', text => {
 		expect(setupMeasurement([{ x: 20, y: 30 }, { x: 120, y: 30 }], text, appearance, 1, null)).toBeNull();
 	});

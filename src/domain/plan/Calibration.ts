@@ -127,7 +127,10 @@ export function deriveCalibration(
 	if (!(measuredDistance > 0)) {
 		return err(coincidentPointsError());
 	}
-	const scaleCorrection = knownDistance / measuredDistance;
+	const ratio = knownDistance / measuredDistance;
+	// Inverse/forward rotation may drift by a few ulps. Preserve an unchanged scale in
+	// both the consent preview and the command that uses this same derivation.
+	const scaleCorrection = Math.abs(ratio - 1) <= Number.EPSILON * 8 ? 1 : ratio;
 	const pixelsPerWorldUnit = (previous?.pixelsPerWorldUnit ?? 1) / scaleCorrection;
 	if (!Number.isFinite(pixelsPerWorldUnit) || pixelsPerWorldUnit <= 0) {
 		return err(calibrationError('calibration.degenerate-scale', 'The derived scale collapsed; the inputs are pathological.'));

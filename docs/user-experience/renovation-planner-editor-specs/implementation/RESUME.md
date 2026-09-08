@@ -2,6 +2,13 @@
 
 ## Aktueller Auftrag — 2026-09-08
 
+Neuere Nutzerentscheidung: alle freien räumlichen Elemente einzeln drehen; Wände zusammen mit
+ihren gehosteten Öffnungen. Ein größerer, klarerer Drehgriff und die numerischen Inspector-Routen
+gehören dazu. Nach Prüfung von PR #93 auf `56b4b906` bestätigte der Nutzer ausdrücklich weiterhin
+Object → Opening → Wall → Room. #93 bleibt fremdverwaltet und unverändert. Der neue Release-Plan
+enthält den aktuellen 172-Test-Checkpoint, weitere Wall-/Handle-Branches und die noch offenen
+gemeinsamen Gate-/Bild-/Hostprüfungen; alte Prozess-/Ownerangaben unten sind historisch.
+
 Der neue [Release-Ausführungsplan](release-2026-09-08.md) ist der aktuelle Einstieg. Main/origin/main sind nach Fetch sauber auf `7d4bc381`. Der frühere Stack ist gemergt; PR #93 ist OPEN, docs-only auf `c1362732` und gehört weiterhin dem anderen Rechner. Die neuen Worktrees heißen `editor-release-selection`, `editor-release-rotation`, `editor-release-fidelity` und `editor-release-verification`; alle Branches tragen das Präfix `codex/`. Der Parent besitzt Integration, gemeinsame Dokumentation und serielle Gesamt-/Capture-/Hostprüfung. Die nachfolgenden früheren Owner, Prozesse und offenen PR-Zustände sind historische Snapshots, keine aktuelle Arbeitsanweisung. Die vollständigen M00–M17 plus Object-Rotation bleiben im Scope. Kein Merge ist autorisiert.
 
 Stand: 2026-09-07T21:54:19.460Z (UTC). Dieses Dokument ist der zentrale Wiedereinstieg bei App-Neustart, Kontext- oder Nutzungslimit. Git und laufende Tasks beim Fortsetzen erneut prüfen. Die frühere Nutzerpause ist aufgehoben.

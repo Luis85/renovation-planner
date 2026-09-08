@@ -46,16 +46,18 @@ describe('the scene structure', () => {
 	});
 
 	/** Structural groups reserve stable Vue/Konva positions but draw nothing until a gesture begins. */
-	it('mounts the interaction layer present, drawing nothing inside its three reserved groups', async () => {
+	it('mounts the interaction layer present, drawing nothing inside its four reserved groups', async () => {
 		const harness = await mount();
 
 		const interaction = harness.stage.findOne<Konva.Layer>('.interaction');
 
 		expect(interaction).toBeDefined();
-		expect(interaction?.getChildren().map((node) => node.name())).toEqual(['snap-guides', 'gesture-sketch', 'room-draft-group']);
+		expect(interaction?.getChildren().map((node) => node.name())).toEqual(['snap-guides', 'gesture-sketch', 'room-draft-group', 'rotation-handle-viewport']);
 		expect(interaction?.findOne<Konva.Group>('.snap-guides')?.getChildren()).toHaveLength(0);
 		expect(interaction?.findOne<Konva.Group>('.gesture-sketch')?.getChildren()).toHaveLength(0);
 		expect(interaction?.findOne<Konva.Group>('.room-draft-group')?.getChildren()).toHaveLength(0);
+		// Nothing is selected yet, so ObjectRotationHandle's own v-if draws nothing inside it.
+		expect(interaction?.findOne<Konva.Group>('.rotation-handle-viewport')?.getChildren()).toHaveLength(0);
 	});
 
 	/**

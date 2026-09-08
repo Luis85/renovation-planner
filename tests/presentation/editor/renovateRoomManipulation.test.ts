@@ -15,7 +15,8 @@ async function setup() {
 it('edits a Room corner in Renovate through one reversible geometry command', async () => {
  const rig = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id));
  const points = expectDefined(rig.project.zones.get(rig.room.id), 'Room').points;
- expect(rig.stage.findOne<Konva.Layer>('.interaction')?.find('Circle')).toHaveLength(points.length);
+ // Excludes the rotation handle's own circle, which a selected room also draws here.
+ expect(rig.stage.findOne<Konva.Layer>('.interaction')?.find('Circle').filter(node => node.getParent()?.name() !== 'object-rotation-handle')).toHaveLength(points.length);
  const tool = rig.runtime.toolManager;
  tool.pointerDown(pointerAt(points[0].x, points[0].y)); tool.pointerMove(pointerAt(-200, -200)); await settle();
  expect(rig.runtime.renderState.previewPolygon?.[0]).toEqual({ x: -200, y: -200 });

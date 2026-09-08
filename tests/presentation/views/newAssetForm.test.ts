@@ -283,7 +283,7 @@ describe('NewAssetForm', () => {
 
 		const wrapper = await mountAndSubmit(
 			{ createAsset, setFootprintFromDimensions: footprintOk() },
-			{ unitCostAmount: '4,50' },
+			{ unitCostAmount: '1,2,3' },
 		);
 
 		expect(createAsset).not.toHaveBeenCalled();
@@ -647,5 +647,18 @@ describe('NewAssetForm', () => {
 
 		expect(createAsset).toHaveBeenCalledTimes(1);
 		expect(wrapper.emitted('submit')).toHaveLength(1);
+	});
+
+	it('reads a comma decimal price and dispatches a dot decimal', async () => {
+		const createAsset = vi.fn<CreateAsset>(() => Promise.resolve(ok(makeAsset())));
+		const wrapper = mount(NewAssetForm, {
+			props: { createAsset, setFootprintFromDimensions: footprintOk(), logger: recorder, defaultCurrency: 'EUR' },
+		});
+		await wrapper.get('[data-field="name"]').setValue('Tile adhesive');
+		await wrapper.get('[data-field="unitCostAmount"]').setValue('4,50');
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+		expect(createAsset).toHaveBeenCalledTimes(1);
+		expect(createAsset.mock.calls[0]?.[0].unitCostAmount).toBe('4.50');
 	});
 });

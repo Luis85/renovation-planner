@@ -52,6 +52,7 @@ import type { FieldErrorMap } from '../errors/route-error';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { AppError, ValidationError } from '../../core/errors/AppError';
 import { createMoney } from '../../core/money/Money';
+import { normalizeDecimalInput } from '../library/decimalInput';
 import { shapeFromDimensions } from '../../domain/asset/AssetShape';
 import type { Asset } from '../../domain/asset/Asset';
 import type { AssetId } from '../../domain/asset/AssetId';
@@ -272,7 +273,8 @@ async function createAssetAndFootprint(
 ): Promise<Result<{ readonly assetId: AssetId }, AppError>> {
 	const dimensions = parseDimensions(values);
 	if (isErr(dimensions)) return dimensions;
-	const money = createMoney(values.unitCostAmount, values.currency);
+	const unitCostAmount = normalizeDecimalInput(values.unitCostAmount);
+	const money = createMoney(unitCostAmount, values.currency);
 	if (isErr(money)) return money;
 	// The pure half of the footprint, run for its REFUSAL rather than for its shape: the
 	// command re-derives the rectangle itself from the same two numbers, so what is thrown
@@ -296,7 +298,7 @@ async function createAssetAndFootprint(
 			name: values.name,
 			category: values.category,
 			unit: values.unit,
-			unitCostAmount: values.unitCostAmount,
+			unitCostAmount,
 			currency: values.currency,
 		});
 		if (isErr(created)) return created;

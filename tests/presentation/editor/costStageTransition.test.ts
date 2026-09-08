@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import { planningStack } from '../../helpers/planning';
 import { expectOk } from '../../helpers/domain';
 import CostFields from '../../../src/presentation/editor/planning/CostFields.vue';
@@ -21,6 +22,8 @@ it('clears the hidden settlement link atomically when an actual fact becomes com
 		await wrapper.findAll('select[name="stage"]')[1].setValue('actual'); expect(wrapper.find('select[name="settles"]').exists()).toBe(true);
 		const stage = wrapper.findAll<HTMLSelectElement>('select[name="stage"]')[1];
 		stage.element.value = ''; await stage.trigger('change'); expect(draft.facts[1].stage).toBe('actual');
-		await wrapper.setProps({ paused: true }); stage.element.value = 'committed'; await stage.trigger('change'); expect(draft.facts[1].stage).toBe('actual');
+		// `dispatchEvent` rather than `trigger`: test-utils skips a DISABLED element, so the
+		// paused select would never reach `changeStage` and the guard would pass unexercised.
+		await wrapper.setProps({ paused: true }); stage.element.value = 'committed'; stage.element.dispatchEvent(new Event('change')); await nextTick(); expect(draft.facts[1].stage).toBe('actual');
 	} finally { wrapper.unmount(); }
 });

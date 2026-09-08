@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { useId } from 'vue';
+import { computed, useId } from 'vue';
 import { tr } from '../../i18n/strings';
-defineProps<{ sources: readonly string[]; pdf: boolean; paused: boolean; loading: boolean; hasRaster: boolean }>();
+const props = defineProps<{ sources: readonly string[]; pdf: boolean; paused: boolean; loading: boolean; hasRaster: boolean }>();
 const path = defineModel<string>('path', { required: true });
 const page = defineModel<number>('page', { required: true });
 const rotation = defineModel<number>('rotation', { required: true });
 const crop = defineModel<{ x: number; y: number; width: number; height: number }>('crop', { required: true });
 const emit = defineEmits<{ load: [] }>();
 const sourceList = useId();
+const matches = computed(() => {
+	const query = path.value.trim().toLowerCase(), choices: string[] = [];
+	for (const source of props.sources) {
+		if (!source.toLowerCase().includes(query)) continue;
+		choices.push(source);
+		if (choices.length === 20) break;
+	}
+	return choices;
+});
 </script>
 <template>
 	<section>
@@ -20,7 +29,7 @@ const sourceList = useId();
 		></label>
 		<datalist :id="sourceList">
 			<option
-				v-for="candidate in sources"
+				v-for="candidate in matches"
 				:key="candidate"
 				:value="candidate"
 			/>

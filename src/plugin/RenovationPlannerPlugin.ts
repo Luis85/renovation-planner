@@ -949,8 +949,8 @@ export default class RenovationPlannerPlugin extends Plugin {
 			this.registerEvent(this.app.vault.on('modify', onNoteFile(adapterOf, 'onModify')));
 			this.registerEvent(this.app.vault.on('delete', onNoteFile(adapterOf, 'onDelete')));
 			this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
-                void evidenceRenamed(this.root, oldPath, file.path);
 				if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
+				void evidenceRenamed(this.root, oldPath, file.path);
 			}));
 		} catch (cause) {
 			// G4: the scan READS the vault and can throw — `libraryMigration.ts` already wraps

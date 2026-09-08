@@ -156,6 +156,10 @@ entries are added by the pull request that earns them, never invented at release
   asks oxlint which files it lints so a narrowed `ignorePatterns` fails the build instead of
   quietly shrinking the gate.
 
+### Fixed
+
+- Existing and Planned detail rows and canvas markers show their saved surface or element kind, so identical descriptions remain distinguishable.
+
 ### Changed
 
 - Build with Vite instead of esbuild, per the SDD's stack: single CJS bundle into `dist/`,

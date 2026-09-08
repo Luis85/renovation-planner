@@ -133,9 +133,28 @@ describe('the three entry paths', () => {
 		const { wrapper, context } = rig();
 		await flushPromises();
 
-		await actions(wrapper).find((button) => button.text() === 'Choose a plan')?.trigger('click');
+		const choose = actions(wrapper).find((button) => button.text() === 'Choose a plan');
+		expect(choose?.element.disabled).toBe(false);
+		await choose?.trigger('click');
 
 		expect(document.activeElement).toBe(wrapper.get('.rp-plan-list__row').element);
+		expect(context.openPlan).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * A failed plan read draws the active heading (a project this build cannot read is never
+	 * "new") but renders no `PlanList` for "Choose a plan" to focus — `v-else-if="!plansFailure"`
+	 * withholds it in favour of the retry notice. The button stays visible with its label rather
+	 * than disappearing, and is disabled rather than a silent no-op.
+	 */
+	it('disables "Choose a plan" when a failed plan read leaves no list to focus', async () => {
+		const { wrapper, context } = rig({}, Promise.resolve(failure));
+		await flushPromises();
+
+		expect(wrapper.text()).toContain('What would you like to do next?');
+		const choose = actions(wrapper).find((button) => button.text() === 'Choose a plan');
+		expect(choose?.element.disabled).toBe(true);
+		await choose?.trigger('click');
 		expect(context.openPlan).not.toHaveBeenCalled();
 	});
 

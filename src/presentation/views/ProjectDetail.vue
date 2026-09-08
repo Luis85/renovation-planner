@@ -100,7 +100,11 @@ const planEntry = computed<Entry>(() => {
 				? tr('view.project.entry-plan-choose')
 				: tr('view.project.entry-plan-open', { planName: last.name }),
 		// The only entry a read-only surface withholds (P12): the other two navigate and read.
-		disabled: props.readOnly === true,
+		// Also disabled on the active variant when no `PlanList` will render to focus — a failed
+		// or unreadable-empty read draws its own notice or empty state instead (see `planEmpty`
+		// and the `v-else-if="!plansFailure"` guard below `PlanList`), so "Choose a plan" would
+		// otherwise be a button with nothing for it to do.
+		disabled: props.readOnly === true || (!isNew.value && ((props.plansFailure ?? null) !== null || planEmpty.value !== null)),
 		act: isNew.value
 			? () => emit('createPlan')
 			: last === null

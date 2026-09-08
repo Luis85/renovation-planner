@@ -270,6 +270,7 @@
  */
 .rp-project-detail__entry-row {
 	display: flex;
+	flex-direction: row;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--size-4-2);

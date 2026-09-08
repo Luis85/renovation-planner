@@ -108,6 +108,11 @@ Tasks:
 - Make Select the explicit safe default after hydration and tool completion.
 - Define typed `SpatialSelection` for Room/Area/Wall/Opening/Object and multi-selection.
 - Implement deterministic selection priority: handle → object → opening → wall → room → background.
+  - The user explicitly reconfirmed Object-first selection for this release after reviewing
+    the 2026-09-08 closeout's Opening-first amendment. Object footprints have discriminating
+    overlap/hover tests; Path, Fence and Measurement retain their prior linear rank below Wall
+    and above Room. All kinds retain stable paint order and Alt cycling. See
+    [release selection evidence](release-selection-persistence.md).
 - Add hover preview and overlap cycling/alternate selection route.
 - Refactor Inspector into shared `EntityInspector` frame with routed content.
 - Implement Floor summary, Room overview, Wall overview, and Multi-selection overview.

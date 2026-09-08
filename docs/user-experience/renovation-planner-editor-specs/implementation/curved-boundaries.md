@@ -93,3 +93,50 @@ The curve task is composed in `createSpatialEditing` alongside the existing tool
 Broader scene/dimension/rotation regressions, actual EN/DE constrained rendered captures and
 native-host acceptance remain pending. This checkpoint is implementation evidence, not final
 visual acceptance of the expanded release.
+
+### Curved evidence-pin bounds
+
+Evidence pins retain their existing normalized **world-axis-aligned Room bounds** contract.
+Numeric pin fields already persist fractions. Decoding now uses analytic arc extrema, so a pin
+can reach the part of a Room that bulges beyond its corner-only bounds. For the 4 × 3 m fixture
+with a 1 m outward top bend, fractions `(0.5, 0.125)` decode to `(2 m, -0.5 m)` in that curved
+region; the former corner-only calculation incorrectly placed it at `(2 m, 0.375 m)`.
+
+Translation preserves a pin's relative world position exactly. Rotation recomputes the Room's
+world-aligned bounds, so an off-centre pin generally does **not** follow the rigidly rotated
+material point. This existing normalization limitation is preserved: introducing a local frame
+only for curved Rooms would reinterpret saved fractions when an edge is straightened. The new
+focused tests verify numeric fraction round trips, rendered position, translation and undo in
+the joined checkpoint below.
+
+`scripts/editor-curves-check.mjs` and its read-only canvas probe prepare four EN/DE/theme/width
+scenarios for native keyboard inputs, arc paint, all-edge labels, pointer preview, cancellation
+and undo/redo. The driver has passed syntax checking; its actual matrix is still pending.
+
+The joined follow-up also carries curved edge maps into automatic Room snapping: projection
+uses the arc and retains vertex precedence, so a chord through empty space is not offered as
+an alignment target. Requirement quantities use the same analytic Room area/perimeter and Wall
+length as the editor, including intended Wall net area and its hosted-opening deduction.
+
+## Joined source verification — 2026-09-09
+
+The editor checkpoint `6dcb8942` was integrated with Group previews/visible candidate filtering
+in `33a603a3`, then fast-forwarded to combined `7c72d61b` with Stair8 and opening movement.
+The curve follow-up retains all of those interfaces and adds analytic snapping, quantity and pin
+adapters, pending-read selection retirement, and deferred task cancellation guarded by the current
+tool/epoch. Switching tools while a bend is held cannot recursively re-enter ToolManager or
+later overwrite the newly chosen tool.
+
+Scoped Oxlint 1.81, ESLint and production types passed. The joined batch ran **19 existing test
+paths and 183 cases**. Its first result was 181 passing and two strict scene failures: an empty
+bend-control group was mounted while idle, and reading zoom unconditionally rebuilt a straight
+Room's point array during a camera change. Production fixes mount bend controls only for an active
+target and read zoom only when approximating a nonzero curve. The unchanged scene assertions and
+the complete curve task/projection suites then passed **25/25 cases across three files**, covering
+all 183 cases from the original batch. Renderer-scoped ESLint and capture-driver syntax passed.
+
+The batch includes Room dimensions/edges, scene structure and geometry identity, Object rotation,
+Group interaction/geometry, Stairs/Arrows, opening movement, evidence pin symbols, material-source
+guards and existing quantity rules, alongside the curve-specific cases. It does not replace the
+parent's final all-suite, analysis/build or native-host gates. The four-scenario curve browser
+driver is authored and syntax checked; screenshots and final visual acceptance remain pending.

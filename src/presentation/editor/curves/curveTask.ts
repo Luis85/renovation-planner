@@ -34,7 +34,13 @@ export function createCurveTask(context: PlanEditorContext, runtime: Runtime) {
 	const preview = computed(() => target.value && baseline.value && !state.conflict ? curveDocument(baseline.value.document, target.value) : null);
 	const validation = computed(() => target.value && baseline.value ? curveError(baseline.value.document, target.value) : null);
 	function stop(): void { epoch++; target.value = null; baseline.value = null; Object.assign(state, { loading: false, busy: false, conflict: false, invalidField: null, error: null }); }
-	function cancel(): void { if (!state.busy) runtime.returnToSelect(); }
+	function cancel(): void {
+		if (state.busy || runtime.activeToolId.value !== 'edit-curves') return;
+		stop(); const ticket = epoch;
+		// ToolManager may be cancelling an outgoing pointer gesture. Let that switch finish first.
+		void nextTick(() => { if (alive && ticket === epoch && runtime.activeToolId.value === 'edit-curves') runtime.returnToSelect(); });
+	}
+	function ownsSelection(id: string): boolean { return permitted.value && runtime.activeToolId.value === 'edit-curves' && selection.selectedIds.length === 1 && selection.selectedIds[0] === id; }
 	function choose(index: number): void {
 		const edge = edges.value[index]; if (!edge || blocked.value) return;
 		state.edge = index; state.text = curveText(edge); state.invalidField = null;
@@ -61,6 +67,7 @@ export function createCurveTask(context: PlanEditorContext, runtime: Runtime) {
 		try {
 			const result = await service.read(context.planId as PlanId);
 			if (!alive || ticket !== epoch) return;
+			if (!ownsSelection(displayed.id)) { cancel(); return; }
 			if (!result.ok) { state.error = result.error; return; }
 			if (!accept(result.value, displayed)) { state.conflict = true; state.error = staleWriteRefusal(); await runtime.refreshProjection(); }
 		} catch (cause) { if (alive && ticket === epoch) notifyFault(cause, context.commands.logger, 'editor.curves.read-failed'); }

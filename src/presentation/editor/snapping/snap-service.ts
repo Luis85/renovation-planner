@@ -2,6 +2,7 @@ import { distance, project } from '../../../core/geometry/operations';
 import { isOk } from '../../../core/result/Result';
 import type { LineSegment } from '../../../core/geometry/LineSegment';
 import type { Point } from '../../../core/geometry/Point';
+import { arcProjection } from '../../../core/geometry/circularArc';
 
 /**
  * Editor preferences (SDD §15 — settings, not persistent domain data) that parameterize
@@ -39,7 +40,7 @@ function requirePositiveFinite(value: number, field: string): void {
  */
 export interface SnapCandidates {
 	readonly vertices?: readonly Point[];
-	readonly edges?: readonly LineSegment[];
+	readonly edges?: readonly (LineSegment & { readonly bulge?: number })[];
 }
 
 function roundToStep(value: number, step: number): number {
@@ -147,12 +148,13 @@ export class SnapService {
 	 * by a zero squared-length is — this reuses that answer instead of re-deriving a
 	 * second zero-length check here.
 	 */
-	snapToEdge(point: Point, candidates: readonly LineSegment[], toleranceMm = this.config.toleranceMm): Point | null {
+	snapToEdge(point: Point, candidates: readonly (LineSegment & { readonly bulge?: number })[], toleranceMm = this.config.toleranceMm): Point | null {
 		if (!this.enabled) return null;
 		return nearestWithinTolerance(
 			point,
 			candidates,
 			(segment) => {
+				if (segment.bulge) return distance(segment.start, segment.end) === 0 ? null : arcProjection({ ...segment, bulge: segment.bulge }, point).point;
 				const projected = project(point, segment);
 				return isOk(projected) ? projected.value : null;
 			},

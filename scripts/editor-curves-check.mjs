@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import { runAreaBrowserMatrix, activate } from './editor-area-browser.mjs';
+import { recordRoom, recordText, recordShot } from './editor-record-browser.mjs';
+import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
+import { editorAccessibility } from './editor-accessibility.mjs';
+const notes = page => page.evaluate(() => window.editorFidelity.savedNotes());
+const frame = page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+async function closeDetails(page, scenario) { if (scenario.width === 460) await page.keyboard.press('Escape'); }
+async function openCurves(page) {
+	await activate(page, '[data-rp-action="edit-curves"]');
+	await page.waitForFunction(() => document.querySelector('[data-rp-form="edit-curves"] input[name="depth"]')?.readOnly === false);
+}
+async function journey(page, scenario, out) {
+	await recordRoom(page, scenario, out, { drawWalls, panel, preserveTheme });
+	const id = await page.evaluate(() => window.editorFidelity.selection().ids[0]), before = await notes(page);
+	await openCurves(page);
+	await recordText(page, '[data-rp-form="edit-curves"]', 'depth', '0.5'); await frame(page);
+	assert.equal(await page.locator('[data-rp-room-edge]').count(), 4); assert.deepEqual(await notes(page), before);
+	await recordShot(page, scenario, out, 'precise-curve-preview');
+	const accessibility = [await editorAccessibility(page, scenario, out, 'precise-curve-preview')];
+	await closeDetails(page, scenario); await frame(page);
+	const scene = await page.evaluate(value => window.editorFidelity.curves(value), id);
+	assert.equal(scene.handles.length, 4); assert.ok(scene.points.length > 8, 'Room paint follows the curve');
+	await recordShot(page, scenario, out, 'all-curved-edge-labels');
+	await activate(page, '.rp-task-banner__cancel'); await page.locator('.rp-task-banner').waitFor({ state: 'hidden' }); assert.deepEqual(await notes(page), before);
+	await panel(page, 'details'); await openCurves(page);
+	await recordText(page, '[data-rp-form="edit-curves"]', 'radius', '2.5'); await closeDetails(page, scenario);
+	await activate(page, '.rp-task-banner__finish'); await page.locator('.rp-task-banner').waitFor({ state: 'hidden' });
+	const saved = await page.evaluate(value => window.editorFidelity.groups().rooms.find(room => room.id === value), id);
+	assert.ok(Math.abs(saved.bulges[0] - 0.5) < 1e-12); assert.equal(await page.locator('[data-rp-room-edge]').count(), 4);
+	await recordShot(page, scenario, out, 'saved-curved-room');
+	await activate(page, '[data-rp-action="undo"]'); await page.waitForFunction(value => !window.editorFidelity.groups().rooms.find(room => room.id === value).bulges, id);
+	await activate(page, '[data-rp-action="redo"]'); await page.waitForFunction(value => window.editorFidelity.groups().rooms.find(room => room.id === value).bulges?.[0] > 0, id);
+	await panel(page, 'details'); await openCurves(page); await closeDetails(page, scenario); await frame(page);
+	const handle = (await page.evaluate(value => window.editorFidelity.curves(value), id)).handles[1], persisted = await notes(page);
+	await page.mouse.move(handle.x, handle.y); await page.mouse.down(); await page.mouse.move(handle.x + 35, handle.y, { steps: 6 });
+	assert.deepEqual(await notes(page), persisted); await recordShot(page, scenario, out, 'pointer-bend-preview'); await page.mouse.up();
+	await activate(page, '.rp-task-banner__cancel'); await page.locator('.rp-task-banner').waitFor({ state: 'hidden' }); assert.deepEqual(await notes(page), persisted);
+	return { accessibility, edgeLabels: 4, numericCurve: true, radiusPreserved: true, cancelNoWrite: true, pointerPreviewNoWrite: true, undoRedo: true, storage: 'Production commands over FakeVault; no native-host claim' };
+}
+await runAreaBrowserMatrix('editor-curves', '&reference&planning&fidelity', journey, '[data-rp-empty="floor-start"]');

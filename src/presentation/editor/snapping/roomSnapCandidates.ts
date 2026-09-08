@@ -4,14 +4,14 @@ import type { Structure } from '../../../domain/spatial/Structure';
 import { openingPoints } from '../../../domain/spatial/Structure';
 import type { SnapCandidates } from './snap-service';
 /** Existing zone boundaries and wall centre lines; this projection never changes ownership. */
-export function roomSnapCandidates(zones: Iterable<{ readonly points: readonly Point[] }>, structure: Structure): SnapCandidates {
- const vertices: Point[] = [], edges: LineSegment[] = [];
+export function roomSnapCandidates(zones: Iterable<{ readonly points: readonly Point[]; readonly bulges?: readonly number[] }>, structure: Structure): SnapCandidates {
+ const vertices: Point[] = [], edges: (LineSegment & { readonly bulge?: number })[] = [];
  for (const zone of zones) {
   vertices.push(...zone.points);
   if (zone.points.length < 2) continue;
-  zone.points.forEach((point, index) => edges.push({ start: point, end: zone.points[(index + 1) % zone.points.length] }));
+  zone.points.forEach((point, index) => edges.push({ start: point, end: zone.points[(index + 1) % zone.points.length], ...(zone.bulges?.[index] ? { bulge: zone.bulges[index] } : {}) }));
  }
- for (const wall of structure.walls) { vertices.push(wall.start, wall.end); edges.push({ start: wall.start, end: wall.end }); }
+ for (const wall of structure.walls) { vertices.push(wall.start, wall.end); edges.push({ start: wall.start, end: wall.end, ...(wall.bulge ? { bulge: wall.bulge } : {}) }); }
  for (const opening of structure.openings) vertices.push(...openingPoints(opening, structure.walls));
  for (const element of structure.elements ?? []) {
   vertices.push(...element.points);

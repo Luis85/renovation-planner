@@ -1,3 +1,4 @@
+import { recordRelatedWrite } from '../../../application/editor/recordRelatedWrite';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type {
 	GeometryError,
@@ -114,6 +115,7 @@ export class ReversibleMoveZoneCommand implements UndoableCommand {
 		// performs the read; what that costs is written into the class header.
 		this.generation = this.ledger.observe(this.zoneId, result.value.before);
 		this.hasWritten = true;
+		recordRelatedWrite(this.ledger, result.value.zone);
 		this.ledger.record(this.zoneId, result.value.zone.version);
 		return ok('wrote');
 	}

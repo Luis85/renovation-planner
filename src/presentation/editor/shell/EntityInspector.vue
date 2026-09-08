@@ -48,11 +48,14 @@ import { useSpatialRecords } from './useSpatialRecords';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { spatialSelection } from '../selection/spatialSelection';
 import StructureInspector from '../structure/StructureInspector.vue';
+import RenovationInspector from '../renovation/RenovationInspector.vue';
+import { useRenovationSession } from '../renovation/renovationSession';
 import { structureRecords } from '../structure/structureRecords';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
 const project = useProjectStore();
+const renovationSession = useRenovationSession();
 const zoneRecords = useSpatialRecords();
 const records = computed(() => [...zoneRecords.value, ...structureRecords(project.structure, project.plan?.id ?? '')]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
@@ -68,7 +71,8 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 		<h2 class="rp-editor-panel-title">
 			{{ tr('editor.inspector') }}
 		</h2>
-		<NewRoomInspector v-if="activeToolId === 'draw-room'" />
+		<RenovationInspector v-if="renovationSession.perspective !== 'plan'" />
+		<NewRoomInspector v-else-if="activeToolId === 'draw-room'" />
 		<FloorInspector v-else-if="selectedIds.length === 0" />
 		<MultiSelectionInspector
 			v-else-if="selection.kind === 'multiple'"

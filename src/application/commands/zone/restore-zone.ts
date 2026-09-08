@@ -1,3 +1,4 @@
+import { recordRelatedWrite } from '../../editor/recordRelatedWrite';
 import { isErr, ok, type Result } from '../../../core/result/Result';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
@@ -34,6 +35,7 @@ export async function restoreZone(
 ): Promise<Result<Loaded<Zone>, RepositoryError>> {
 	const written = await zones.save(snapshot.entity, 'absent');
 	if (isErr(written)) return written;
-	ledger.record(written.value.entity.id, written.value.version);
+	recordRelatedWrite(ledger, written.value);
+		ledger.record(written.value.entity.id, written.value.version);
 	return ok(written.value);
 }

@@ -5,4 +5,7 @@ export const PLAN_MIGRATIONS: Migration[] = [{
 	fromVersion: 1, toVersion: 2,
 	migrate: input => typeof input === 'object' && input !== null
 		? { ...input, 'schema-version': 2 } : input,
+}, {
+	fromVersion: 2, toVersion: 3,
+	migrate: input => typeof input === 'object' && input !== null ? { ...input, 'schema-version': 3 } : input,
 }];

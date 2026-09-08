@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useRenovationSession } from './renovation/renovationSession';
+const renovationSession = useRenovationSession();
 /**
  * The Plan Editor's Vue root — §60's five regions, and the one component that hydrates.
  *
@@ -319,6 +321,9 @@ onMounted(() => {
 // The SAME routine on both occasions — open, and this plan changing underneath the view.
 // A second "refresh" path would be a second answer to what the canvas is showing.
 onBeforeUnmount(context.onPlanChanged(hydrate));
+const visibleOverlay = computed(() => renovationSession.perspective === 'plan' ? overlay.value : null);
+const showFloorStart = computed(() => visibleOverlay.value !== null && emptyStateKey.value === 'noBackground');
+const showAddMenu = computed(() => renovationSession.perspective === 'plan' && addMenuOpen.value);
 </script>
 
 <template>
@@ -356,12 +361,12 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					@vue:unmounted="retireAddMenu"
 				>
 					<FloorStart
-						v-if="overlay !== null && emptyStateKey === 'noBackground'"
+						v-if="showFloorStart"
 						@dismiss="startDismissed = true"
 					/>
 					<EmptyState
-						v-else-if="overlay !== null"
-						v-bind="overlay"
+						v-else-if="visibleOverlay !== null"
+						v-bind="visibleOverlay"
 						overlay
 						:action-disabled="runtime.writesBlocked.value"
 						:action-described-by="runtime.writesBlocked.value ? runtime.pausedReasonId : undefined"
@@ -369,11 +374,12 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					/>
 					<TemporaryToolBanner />
 					<FloatingPrimaryActions
+						v-if="renovationSession.perspective === 'plan'"
 						:add-open="addMenuOpen"
 						@open-add="onOpenAdd"
 					/>
 					<AddMenu
-						v-if="addMenuOpen"
+						v-if="showAddMenu"
 						:anchor="addButton"
 						@close="addMenuOpen = false"
 					/>

@@ -18,6 +18,7 @@ export interface SpatialObjectGeometry {
 
 /** The whole editable content of one plan's sidecar, calibration included. */
 export interface PlanGeometryDocument {
+	readonly intended?: Structure;
 	readonly structure?: Structure;
 	readonly calibration: Calibration | null;
 	readonly objects: readonly SpatialObjectGeometry[];

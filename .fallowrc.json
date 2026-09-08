@@ -88,6 +88,7 @@
 		"scripts/editor-room-naming-check.mjs",
 		"scripts/editor-reference-check.mjs",
 		"scripts/editor-structure-check.mjs",
+		"scripts/editor-renovation-check.mjs",
 		"scripts/asset-library-shots.mjs",
 		"scripts/concept-shots.mjs",
 		"scripts/background-fixture.mjs",

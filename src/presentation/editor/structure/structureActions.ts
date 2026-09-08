@@ -1,3 +1,8 @@
+import type { PlanGeometryDocument } from '../../../application/ports/PlanGeometrySidecar';
+import { sameGeometryDocument } from '../../../application/commands/spatial/sameGeometryDocument';
+import { renovationReferents } from '../../../domain/renovation/renovationTargets';
+import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
+import { useRenovationSession } from '../renovation/renovationSession';
 import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { Structure } from '../../../domain/spatial/Structure';
@@ -19,9 +24,13 @@ import { editWall } from '../../../domain/spatial/structureGeometry';
 export function createStructureActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'refreshProjection'>, ledger: WriteLedger) {
 	const dialogs = useDialogStore(), project = useProjectStore(), selection = useSelectionStore();
 	const preview = ref<Structure | null>(null), active = ref(false);
-	const save = useSaveStateStore(), blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving');
+	const session = useRenovationSession(), save = useSaveStateStore(), blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
 	let alive = true;
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
+	function matchesProjection(document: PlanGeometryDocument): boolean {
+		return sameGeometryDocument({ objects: [], structure: project.structure, calibration: project.plan?.calibration ?? null },
+			{ objects: [], structure: document.structure, calibration: document.calibration });
+	}
 	async function edit(id: string, end?: Point): Promise<void> {
 		if (!alive || active.value || blocked.value || dialogs.current || !context.commands.structure) return;
 		active.value = true;
@@ -32,6 +41,9 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 			if (!baseline.ok) { notifyOperationFailure(baseline.error); return; }
 			const structure = baseline.value.document.structure;
 			if (!structure || ![...structure.walls, ...structure.openings].some(item => item.id === id)) return;
+			if (!matchesProjection(baseline.value.document)) {
+				notifyOperationFailure(staleWriteRefusal()); await runtime.refreshProjection(); return;
+			}
 			const busy = ref(false), services = context.commands.structure;
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.structure.edit'), component: markRaw(StructureEditForm), busy, props: {
 				structure, id, end, busy, blocked,
@@ -53,6 +65,8 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 			if (!structure) return;
 			const removedOpenings = structure.openings.filter(item => item.id === id || item.hostId === id);
 			const removedBoundaries = structure.boundaries.filter(boundary => boundary.wallIds.includes(id));
+			const references = [id, ...removedOpenings.map(item => item.id)].flatMap(target => renovationReferents(project.plan?.renovation ?? EMPTY_RENOVATION, target));
+			if (references.length) { await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), message: tr('renovation.links', { names: references.join(', ') }) }); return; }
 			const answer = await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), danger: true,
 				message: tr('editor.structure.delete-impact', { openings: String(removedOpenings.length), rooms: String(removedBoundaries.length) }) });
 			if (!alive || answer !== 'confirm') return;

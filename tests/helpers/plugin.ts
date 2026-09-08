@@ -29,6 +29,7 @@ export interface VaultSurface {
 		| 'cachedRead'
 		| 'create'
 		| 'modify'
+		| 'process'
 		| 'delete'
 		// NOT `on`. `loadedPlugin` does not delegate it through the surface — it defines its
 		// own handler-recording stub (`on`, below), so no member of the passed surface is ever
@@ -177,6 +178,7 @@ export async function loadedPlugin(
 		cachedRead: (file: TFile): Promise<string> => mustHaveSurface().cachedRead(file),
 		create: (path: string, data: string): Promise<TFile> => mustHaveSurface().create(path, data),
 		modify: (file: TFile, data: string): Promise<void> => mustHaveSurface().modify(file, data),
+		process: (file: TFile, update: (data: string) => string): Promise<string> => mustHaveSurface().process(file, update),
 		delete: (file: TFile): Promise<void> => mustHaveSurface().delete(file),
 		createFolder: (path: string): Promise<unknown> => mustHaveSurface().createFolder(path),
 		// **`offref`, and it was missing** — which made this stub thin in exactly the member a new

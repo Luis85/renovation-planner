@@ -1,3 +1,4 @@
+import { recordRelatedWrite } from '../../editor/recordRelatedWrite';
 import { err, ok } from '../../../core/result/Result';
 import { undoSuperseded, type WriteLedger } from '../../editor/WriteLedger';
 import type { DispatchResult } from '../DispatchOutcome';
@@ -24,7 +25,8 @@ export class ReversibleRenameZoneCommand {
 		if (!result.ok) return result;
 		if (result.value.outcome === 'wrote') {
 			this.generation = this.ledger.observe(zoneId, result.value.before);
-			this.ledger.record(zoneId, result.value.zone.version);
+			recordRelatedWrite(this.ledger, result.value.zone);
+		this.ledger.record(zoneId, result.value.zone.version);
 		}
 		return ok(result.value.outcome);
 	}

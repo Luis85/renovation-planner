@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useRenovationSession } from '../renovation/renovationSession';
+const renovationSession = useRenovationSession();
 /**
  * §19's transient layer, filled by design slice 8: the in-progress polygon a drawing tool
  * broadcasts through `RenderState`, the calibration segment's ruler marks, and the selected
@@ -121,6 +123,8 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 	}];
 }));
 
+/** Selected vertices are editable in the plan perspective alone; review and renovate draw none. */
+const editableVertices = computed(() => renovationSession.perspective === 'plan' ? selectedScreenPoints.value : []);
 </script>
 
 <template>
@@ -173,7 +177,7 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 				}"
 			/>
 			<VCircle
-				v-for="(vertex, index) in selectedScreenPoints"
+				v-for="(vertex, index) in editableVertices"
 				:key="index"
 				:config="{
 					x: vertex.x,

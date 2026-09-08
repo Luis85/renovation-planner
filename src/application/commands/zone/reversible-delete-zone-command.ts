@@ -3,11 +3,11 @@ import type { DispatchOutcome } from '../DispatchOutcome';
 import type { ReferenceError } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { Command } from '../Command';
-import type { DeleteZoneInput } from './DeleteZone';
+import type { DeleteZoneInput, DeletedZone } from './DeleteZone';
+import { recordRelatedWrite } from '../../editor/recordRelatedWrite';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
 import type { Loaded } from '../../ports/versioning';
 import type { Zone } from '../../../domain/zone/Zone';
-import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { EventBus } from '../../../core/events/EventBus';
 import { zoneCreated } from '../../../domain/zone/Zone.events';
 import { referenceError } from '../../errors';
@@ -23,7 +23,7 @@ import { markUncompensated } from '../DispatchOutcome';
 
 export type DeleteCommand = Command<
 	DeleteZoneInput,
-	Result<ResolvedSequence & { zoneId: ZoneId }, ReferenceError | RepositoryError>
+	Result<DeletedZone, ReferenceError | RepositoryError>
 >;
 
 /**
@@ -158,6 +158,7 @@ export class ReversibleDeleteZoneCommand {
 			expected === null ? this.input : { ...this.input, expected };
 		const result = await this.deleteCommand.execute(input);
 		if (isErr(result)) return result;
+		recordRelatedWrite(this.ledger, result.value);
 		this.snapshot = snapshot;
 		// Taken from the RESULT, never re-read: `affectedAfter` holds the versions this
 		// command's own writes produced, which a read after the fact could only guess at.
@@ -193,6 +194,7 @@ export class ReversibleDeleteZoneCommand {
 						const removed = await this.removeAgain(written.value.version)();
 						return removed.ok ? boundary : err(markUncompensated(removed.error));
 					}
+					if (boundary?.ok) recordRelatedWrite(this.ledger, boundary.value);
 					restored.value = written.value;
 					return ok(this.removeAgain(written.value.version));
 				},
@@ -226,6 +228,7 @@ export class ReversibleDeleteZoneCommand {
 		return async () => {
 			const removed = await this.zones.delete(this.input.zoneId, version);
 			if (isErr(removed)) return removed;
+			recordRelatedWrite(this.ledger, removed.value);
 			this.ledger.forget(this.input.zoneId);
 			return ok(undefined);
 		};

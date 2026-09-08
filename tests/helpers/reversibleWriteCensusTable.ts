@@ -56,6 +56,8 @@ export interface CensusRow {
 }
 
 export const CENSUS_TABLE: readonly CensusRow[] = [
+	{ module: 'RenovationCommand', direction: 'execute', mustPublish: 'PlanRenovationChanged after composite write; renovationCommand.test.ts' },
+	{ module: 'RenovationCommand', direction: 'undo', mustPublish: 'PlanRenovationChanged after composite restore; renovationCommand.test.ts' },
 	{ module: 'StructureCommand', direction: 'execute', mustPublish: 'PlanStructureChanged after successful composite write; structureCommand.test.ts' },
 	{ module: 'StructureCommand', direction: 'undo', mustPublish: 'PlanStructureChanged after successful composite restore; structureCommand.test.ts' },
 	{ module: 'ConfigurePlanReference', direction: 'execute', mustPublish: 'PlanBackgroundChanged, PlanCalibrated and ZoneGeometryChanged per object after the composite write; tested in configurePlanReference.test.ts' },

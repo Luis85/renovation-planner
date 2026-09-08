@@ -38,4 +38,13 @@ describe('PR86 mixed Room and whole-structure history regressions', () => {
 		expect(restored.document.objects.find(object => object.id === first.id)?.points).toEqual(first.geometry.points);
 		expectOk(await history.redo()); expectOk(await history.redo());
 	});
+	it('does not let local move/undo conceal a peer sidecar write from earlier wall history', async () => {
+		const rig = await structureStack(), history = new CommandHistory();
+		expectOk(await history.run(rig.services.command({ planId: rig.plan.id, baseline: rig.baseline, structure: WALL_LOOP, room: rig.room, ledger: rig.ledger })));
+		const id = expectDefined(rig.room.createdZoneId, 'Room'), loaded = expectDefined(expectOk(await rig.stack.zones.getById(id)), 'Room note');
+		const before = expectOk(await rig.geometry.read(rig.plan.id)); expectOk(await rig.geometry.write(rig.plan.id, before.document, before.version));
+		const move = new ReversibleMoveZoneCommand(new MoveSpatialObjectCommand(rig.stack.zones, rig.stack.events), rig.ledger, id, { points: loaded.entity.geometry.points.map(p => ({ x: p.x + 100, y: p.y })) }, loaded.entity.geometry);
+		expectOk(await history.run(move)); expectOk(await history.undo());
+		const bytes = [...rig.stack.vault.entries]; expect(await history.undo()).toMatchObject({ ok: false, error: { code: 'undo.superseded' } }); expect([...rig.stack.vault.entries]).toEqual(bytes);
+	});
 });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RenovationSchema } from './renovation';
 import { PLAN_BACKGROUND_KINDS } from '../../../domain/plan/PlanBackgroundRef';
 
 export const PLAN_TYPE = 'renovation-plan';
@@ -35,7 +36,7 @@ export const PlanFrontmatterSchemaV1 = z.object({
 });
 
 /** V2 prevents older builds silently dropping prepared-reference transforms on write. */
-export const PlanFrontmatterSchemaV2 = PlanFrontmatterSchemaV1.extend({
+const PlanFrontmatterSchemaV2 = PlanFrontmatterSchemaV1.extend({
 	'schema-version': z.literal(2),
 	'reference-appearance': z.object({
 		crop: z.object({ x: z.number().nonnegative(), y: z.number().nonnegative(), width: z.number().positive(), height: z.number().positive() }),
@@ -43,5 +44,8 @@ export const PlanFrontmatterSchemaV2 = PlanFrontmatterSchemaV1.extend({
 		visible: z.boolean(), locked: z.boolean(),
 	}).optional(),
 });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV2>;
+export const PlanFrontmatterSchemaV3 = PlanFrontmatterSchemaV2.extend({
+	'schema-version': z.literal(3), renovation: RenovationSchema.optional(),
+});
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV3>;

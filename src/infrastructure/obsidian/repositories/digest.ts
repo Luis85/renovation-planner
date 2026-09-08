@@ -1,7 +1,7 @@
 import type { ObservationToken } from '../../../application/ports/versioning';
 import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../persistence/dto/assetFrontmatter';
 import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../../persistence/dto/assetPriceFrontmatter';
-import { PLAN_TYPE, PlanFrontmatterSchemaV2 } from '../../persistence/dto/planFrontmatter';
+import { PLAN_TYPE, PlanFrontmatterSchemaV3 } from '../../persistence/dto/planFrontmatter';
 import { SpatialObjectGeometrySchemaV1, type SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../persistence/dto/projectFrontmatter';
 import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV1 } from '../../persistence/dto/requirementFrontmatter';
@@ -51,10 +51,10 @@ import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFr
 const SCHEMAS: readonly (readonly [string, { readonly shape: Readonly<Record<string, unknown>> }])[] = [
 	[PROJECT_TYPE, ProjectFrontmatterSchemaV1],
 	// The NEWEST schema of each kind, because a superseded one is a SHORTER list of what the
-	// plugin owns: `reference-appearance` is V2's key, and derived from V1 an external edit of
-	// it never moved the token, so `plans.save` overwrote a hand-edited crop with its stale
-	// baseline (a Codex P1 on pull request #85). V2 extends V1, so its shape is the union.
-	[PLAN_TYPE, PlanFrontmatterSchemaV2],
+	// plugin owns: `reference-appearance` is V2's key and the renovation is V3's, and derived
+	// from V1 an external edit never moved the token, so `plans.save` overwrote a hand-edited crop with its stale
+	// baseline (a Codex P1 on pull request #85). Each version extends the last, so the newest shape is the union.
+	[PLAN_TYPE, PlanFrontmatterSchemaV3],
 	[ZONE_TYPE, ZoneFrontmatterSchemaV1],
 	[ASSET_TYPE, AssetFrontmatterSchemaV1],
 	[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV1],

@@ -6,7 +6,7 @@ import type {
 	CalculationError,
 	GeometryError,
 	PersistenceError,
-	ReferenceError,
+	ReferenceError,AppError
 } from '../../core/errors/AppError';
 import type { Command } from '../../application/commands/Command';
 import type { DispatchOutcome } from '../../application/commands/DispatchOutcome';
@@ -60,6 +60,8 @@ export interface CalibratePlanTransaction {
  * boundary is exactly what has no per-transaction state.
  */
 export interface PlanEditorCommandServices {
+	readonly reviewNote?: (planId: PlanId, body: string) => Promise<Result<void, AppError>>;
+	readonly renovation?: RenovationServices;
 	readonly structure?: StructureServices;
 	readonly referencePlan: ReferencePlanServices;
 	readonly createZone: Command<
@@ -260,3 +262,5 @@ export function unavailablePlanEditorCommands(): PlanEditorCommandServices {
 		logger: { debug: noop, info: noop, warn: noop, error: noop },
 	};
 }
+import type { PlanId } from '../../domain/plan/PlanId';
+import type { RenovationServices } from '../../application/commands/renovation/RenovationCommand';

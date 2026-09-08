@@ -363,6 +363,12 @@ class FakeVault extends VaultEventBus {
 		}
 	}
 
+	async process(file: TFile, update: (data: string) => string): Promise<string> {
+		const next = update(await this.read(file));
+		await this.modify(file, next);
+		return next;
+	}
+
 	/**
 	 * A file OR a folder, because Obsidian's own `trashFile` takes any `TAbstractFile` and this
 	 * fake modelled only half of that. The folder arm is DESTRUCTIVE on purpose — Obsidian

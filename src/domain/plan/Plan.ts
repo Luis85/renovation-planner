@@ -1,4 +1,5 @@
 import { validReferenceAppearance } from './ReferenceAppearance';
+import { validateRenovation, type Renovation } from '../renovation/Renovation';
 import { err, ok, type Result } from '../../core/result/Result';
 import type { CalculationError, ValidationError } from '../../core/errors/AppError';
 import type { ProjectId } from '../project/ProjectId';
@@ -43,6 +44,7 @@ function validateBackground(background: PlanBackgroundRef | null): Result<void, 
 }
 
 export interface CreatePlanProps {
+	readonly renovation?: Renovation;
 	readonly id: PlanId;
 	readonly projectId: ProjectId;
 	readonly name: string;
@@ -51,6 +53,7 @@ export interface CreatePlanProps {
 }
 
 interface PlanFields {
+	readonly renovation?: Renovation;
 	readonly id: PlanId;
 	readonly projectId: ProjectId;
 	readonly name: string;
@@ -66,6 +69,7 @@ interface PlanFields {
  * writes it there, never through this entity.
  */
 export class Plan {
+	readonly renovation?: Renovation;
 	readonly id: PlanId;
 	readonly projectId: ProjectId;
 	readonly name: string;
@@ -74,6 +78,7 @@ export class Plan {
 	readonly layers: readonly string[];
 
 	private constructor(fields: PlanFields) {
+		this.renovation = fields.renovation;
 		this.id = fields.id;
 		this.projectId = fields.projectId;
 		this.name = fields.name;
@@ -83,6 +88,10 @@ export class Plan {
 	}
 
 	static create(props: CreatePlanProps): Result<Plan, ValidationError> {
+		if (props.renovation) {
+			const valid = validateRenovation(props.renovation);
+			if (!valid.ok) return valid;
+		}
 		const name = props.name.trim();
 		if (!name) {
 			return err(planError('empty-name', 'A plan needs a non-empty name.'));
@@ -98,6 +107,7 @@ export class Plan {
 		}
 		return ok(
 			new Plan({
+				renovation: props.renovation,
 				id: props.id,
 				projectId: props.projectId,
 				name,
@@ -152,6 +162,7 @@ export class Plan {
 
 	private fields(): PlanFields {
 		return {
+			renovation: this.renovation,
 			id: this.id,
 			projectId: this.projectId,
 			name: this.name,
@@ -160,4 +171,8 @@ export class Plan {
 			layers: this.layers,
 		};
 	}
+}
+
+export function withPlanRenovation(plan: Plan, renovation: Renovation | undefined): Result<Plan, ValidationError> {
+	return Plan.create({ ...plan, renovation });
 }

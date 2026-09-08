@@ -17,7 +17,6 @@ import {
 	persistenceError,
 	restoreNoteText,
 	serializeFrontmatter,
-	writeOwnedFrontmatter,
 } from './noteIo';
 import { observeFrontmatter } from './digest';
 import { versionOfFrontmatter } from './versionCheck';
@@ -178,7 +177,7 @@ export class ObsidianPlanRepository {
 		const nextRevision = (currentVersion?.revision ?? 0) + 1;
 		const dto: Record<string, unknown> = { ...planToPersistence(plan, nextRevision) };
 
-		if (existing) return this.updateExisting(plan, existing, dto, nextRevision, cacheReading(this.deps, existing));
+		if (existing) return this.updateExisting(plan, existing, dto, { nextRevision, supersedes: cacheReading(this.deps, existing), expected });
 
 		// The derived folder, for the INSERT alone — where the note and its sidecar are
 		// created. `undefined` is a refusal rather than a fallback: writing to a defaulted
@@ -243,12 +242,17 @@ export class ObsidianPlanRepository {
 		plan: Plan,
 		note: TFile,
 		dto: Record<string, unknown>,
-		nextRevision: number,
-		// What the cache answered before this write — see `frontmatterOf`.
-		supersedes: ObservationToken | undefined,
+		write: { nextRevision: number; supersedes: ObservationToken | undefined; expected: Expected },
 	): Promise<Result<Loaded<Plan>, RepositoryError>> {
 		try {
-			await writeOwnedFrontmatter(this.deps.fileManager, note, dto, 'reference-appearance' in dto ? [] : ['reference-appearance']);
+			let conflict: ReturnType<typeof checkExpectedVersion> = null;
+			await this.deps.fileManager.processFrontMatter(note, (frontmatter: Record<string, unknown>) => {
+				conflict = checkExpectedVersion('plan', plan.id, versionOfFrontmatter(frontmatter), write.expected);
+				if (conflict) return;
+				for (const key of ['reference-appearance', 'renovation']) if (!(key in dto)) delete frontmatter[key];
+				Object.assign(frontmatter, dto);
+			});
+			if (conflict) return err(conflict);
 		} catch (cause) {
 			return err(persistenceError('plan.write-failed', `Could not write the note for plan ${plan.id}.`, cause));
 		}
@@ -263,9 +267,9 @@ export class ObsidianPlanRepository {
 			// a location behind the index's back (ADR-011) — the rebuild is the repair.
 			geometrySidecarPath: this.deps.index.getGeometrySidecarPath(plan.id),
 		});
-		this.deps.echo.markFrontmatter(note.path, dto, { reading: supersedes, stat: fileStatAt(this.deps.vault, note.path) });
+		this.deps.echo.markFrontmatter(note.path, dto, { reading: write.supersedes, stat: fileStatAt(this.deps.vault, note.path) });
 
-		return ok({ entity: plan, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
+		return ok({ entity: plan, version: { revision: write.nextRevision, observed: observeFrontmatter(dto) } });
 	}
 
 	delete(id: PlanId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {

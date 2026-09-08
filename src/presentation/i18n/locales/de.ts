@@ -20,8 +20,10 @@
 import type { StringKey } from './en';
 import { deAssetLibrary } from './de-assetLibrary';
 import { editorDe } from './de/editor';
+import { renovationDe } from './de/renovation';
 
 export const de: Partial<Record<StringKey, string>> = {
+	...renovationDe,
 	...editorDe,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
@@ -423,8 +425,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'asset.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Datenblatt.',
 	'plan.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Plandokument.',
 	'plan-geometry.write-failed': 'Der Referenzmaßstab konnte nicht gespeichert werden. Ihr Entwurf bleibt erhalten; versuchen Sie es erneut.',
-	'reference.compensation-failed':
-		'Die Referenz konnte nicht gespeichert und das Geschoss nicht wiederhergestellt werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.',
+	'reference.compensation-failed': 'Die Referenz konnte nicht gespeichert und das Geschoss nicht wiederhergestellt werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.',
 	'asset.dimensions-incomplete': 'Ein Rechteck braucht Breite und Tiefe.',
 	'money.invalid-amount': 'Geben Sie einen Betrag als einfache Dezimalzahl ein, zum Beispiel 45.00.',
 	'money.invalid-currency': 'Geben Sie einen dreibuchstabigen Währungscode in Großbuchstaben ein.',

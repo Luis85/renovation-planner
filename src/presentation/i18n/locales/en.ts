@@ -1,5 +1,6 @@
 import { enAssetLibrary } from './en-assetLibrary';
 import { editorEn } from './en/editor';
+import { renovationEn } from './en/renovation';
 
 /**
  * The English table is the COMPLETE one: a key exists because this file answers it, and
@@ -29,6 +30,7 @@ import { editorEn } from './en/editor';
  * typeof en` stays exact and no consumer of a key changes.
  */
 export const en = {
+	...renovationEn,
 	...editorEn,
 	'command.open-project': 'Open renovation project',
 	'command.open-project-detail': 'Go to renovation project',

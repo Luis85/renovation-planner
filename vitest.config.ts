@@ -229,6 +229,8 @@ export default defineConfig({
 			},
 		],
 		coverage: {
+			// Keep diagnostic coverage available when an integration assertion fails.
+			reportOnFailure: true,
 			provider: 'v8',
 			// `.vue` as well as `.ts`: the floors are ratcheted and they are one of the four
 			// gates, so an SFC outside this include is a file whose untested branches cost

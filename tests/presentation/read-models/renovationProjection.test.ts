@@ -1,0 +1,32 @@
+import { expect, it, vi } from 'vitest';
+import { renovationStack } from '../../helpers/renovation';
+import { expectOk } from '../../helpers/domain';
+import { createPlanEditorQueries } from '../../../src/presentation/read-models/planEditorQueries';
+import { GetPlan } from '../../../src/application/queries/GetPlan';
+import { GetProject } from '../../../src/application/queries/GetProject';
+import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
+import { err } from '../../../src/core/result/Result';
+import { sameGeometryDocument } from '../../../src/application/commands/spatial/sameGeometryDocument';
+import { calibrateDocument } from '../../../src/application/commands/plan/ReversibleCalibratePlan';
+it('projects independently persisted structures through the production query boundary and preserves read failures', async () => {
+ const rig = await renovationStack(), baseline = expectOk(await rig.read());
+ expectOk(await rig.renovation.command(baseline, { renovation: rig.value, intended: baseline.geometry.document.structure }, rig.ledger).execute());
+ const queries = createPlanEditorQueries({ getPlan: new GetPlan(rig.stack.plans), getProject: new GetProject(rig.stack.projects), findZonesByPlan: new FindZonesByPlan(rig.stack.zones), geometry: rig.geometry });
+ const scene = expectOk(await queries.findZonesByPlan(rig.plan.id)); expect(scene.intended).toEqual(scene.structure); expect(scene.zones[0].id).toBe(rig.roomId);
+ const fault = { category: 'Persistence' as const, code: 'plan-geometry.read-failed', message: 'Unavailable' };
+ vi.spyOn(rig.geometry, 'read').mockResolvedValueOnce(err(fault)); expect(await queries.findZonesByPlan(rig.plan.id)).toEqual(err(fault));
+});
+it('refuses invalid metadata, missing semantic targets and invalid calibrated intended hosts before writing', async () => {
+ const rig = await renovationStack(), baseline = expectOk(await rig.read()), bytes = [...rig.stack.vault.entries];
+ const invalid = { ...rig.value, subjects: [] };
+ expect((await rig.renovation.command(baseline, { renovation: invalid, intended: undefined }, rig.ledger).execute()).ok).toBe(false);
+ const missing = { ...rig.value, subjects: [{ ...rig.value.subjects[0], targetId: 'wall-missing' }] };
+ expect((await rig.renovation.command(baseline, { renovation: missing, intended: undefined }, rig.ledger).execute()).ok).toBe(false);
+ expect([...rig.stack.vault.entries]).toEqual(bytes);
+ const intended = { walls: [], boundaries: [], openings: [{ id: 'opening-bad', kind: 'door' as const, hostId: 'missing', offset: 0, width: 900, height: 2000, sill: 0 }] };
+ expect((await rig.geometry.write(rig.plan.id, { ...baseline.geometry.document, intended }, baseline.geometry.version)).ok).toBe(false);
+ expect(calibrateDocument({ ...baseline.geometry.document, intended }, { pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 }).ok).toBe(false);
+ const doc = { ...baseline.geometry.document, objects: [{ id: 'b', points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] }, { id: 'a', points: [] }] };
+ expect(sameGeometryDocument(doc, { ...doc, objects: doc.objects.toReversed() })).toBe(true);
+ expect(sameGeometryDocument(doc, { ...doc, objects: [{ ...doc.objects[0], points: doc.objects[0].points.toReversed() }, doc.objects[1]] })).toBe(false);
+});

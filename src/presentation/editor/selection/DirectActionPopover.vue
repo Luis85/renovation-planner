@@ -106,7 +106,7 @@ function escape(event: KeyboardEvent): void {
 				:aria-disabled="detailBlocked"
 				@click="!detailBlocked && (expanded = !expanded)"
 			>
-				<HostIcon name="grid-2x2" />{{ tr('editor.direct.add-detail') }}
+				<HostIcon name="grid-2x-2" />{{ tr('editor.direct.add-detail') }}
 			</button>
 		</div>
 		<div

@@ -12,3 +12,10 @@ ISC notice and the MIT notice for Feather-derived icons. No user data is involve
 
 The harness records unknown requests with `data-icon-missing`; it never substitutes an
 unrelated icon. Actual-host acceptance must still verify the installed host catalogue.
+
+Obsidian 1.13.7's canonical key for upstream `grid-2x2.svg` is `grid-2x-2`; the generated node
+map uses the host key while the original upstream filename and SVG bytes remain unchanged.
+The adapter removes the explicit `lucide-` family prefix for fixture lookup and the `data-icon`
+attribute, and retains the complete requested name in `data-icon-request`. This reproduces the
+production component's explicit Lucide choice without silently accepting the unsupported
+`grid-2x2` host key. These attributes describe the harness, not native-host acceptance.

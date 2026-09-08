@@ -24,7 +24,9 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 	runtime.renovation.focus(props.roomId, mode);
 	expanded.value = false;
 	await nextTick();
-	if (inspector?.isConnected) (opener.value ?? inspector).focus();
+	if (!inspector?.isConnected) return;
+	if (button.isConnected && button.classList.contains('rp-room-navigation__button')) button.focus();
+	else (opener.value ?? inspector).focus();
 }
 </script>
 <template>
@@ -77,6 +79,7 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 	</nav>
 	<template v-if="runtime.renovation.available && session.mode !== 'overview'">
 		<button
+			v-if="context.commands.planning"
 			ref="opener"
 			type="button"
 			class="rp-related-navigation-opener"

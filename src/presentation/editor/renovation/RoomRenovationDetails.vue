@@ -114,7 +114,12 @@ function remove(id: string, name: string, proposalOnly = false): void {
 		class="rp-room-more-actions"
 	>
 		<summary>{{ tr('editor.structure.more') }}</summary>
-		<p v-if="session.mode === 'existing'" class="rp-record-metadata">{{ tr('renovation.manual') }}</p>
+		<p
+			v-if="session.mode === 'existing'"
+			class="rp-record-metadata"
+		>
+			{{ tr('renovation.manual') }}
+		</p>
 		<div class="rp-planning-actions">
 			<RoomNameAction :zone-id="room.id as ZoneId" />
 			<OutlineEditAction :zone-id="room.id as ZoneId" />

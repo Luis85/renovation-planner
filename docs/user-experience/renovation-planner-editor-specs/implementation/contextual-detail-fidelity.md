@@ -25,7 +25,11 @@ ADR-0022 financial reconciliation, repository commands and file ownership.
   focusing the corresponding canvas record expands its actions.
 - Put record creation below the records. Distinguish Add planned detail from marking
   an Existing item for change. Hide an empty Decision heading.
-- Existing details expose contextual evidence counts. Put external library/schedule/
+- Existing details expose contextual evidence counts, and the selected floor detail
+  exposes its geometry-derived area. The M08 photo strip reuses the existing gallery,
+  retained evidence projection and date ordering; selecting a photo opens its canonical
+  metadata route with the spatial context retained. It replaces the shape popover while
+  visible, preserving geometry actions in More actions. Put external library/schedule/
   quotes actions after the contextual content. Expanded work-cost groups expose all
   reconciled totals through the existing financial projection.
 - Render overview transformations as short lists. Keep the continuation before
@@ -35,10 +39,21 @@ ADR-0022 financial reconciliation, repository commands and file ownership.
 
 ## Verification
 
-Types passed after the initial implementation. The five targeted presentation files
-passed 41 tests after correcting a kind/description whitespace regression (40 initial
-passes plus the one corrected test rerun). The first scoped formatter pass found no
-TS/Vue findings; its command exited 1 solely because a listed .mjs is intentionally
-outside ESLint scope. Final scoped lint, the added disclosure assertion, committed-source
-browser captures and integrated final checks still follow.
-No final design, native-host or full-release acceptance is claimed by this note.
+Scoped ESLint and TypeScript pass. The initial five presentation files passed 41 tests
+after correcting the text space between the kind and description columns. The later
+seven-file run covered 129 tests: 128 passed initially and the corrected photo fixture
+passed its exact rerun. That fixture's unassociated wall now uses the existing native
+Room-context selector before opening its wall-scoped details; no production authority
+was changed to satisfy it.
+
+The later run includes Existing photo navigation/scope/peer-removal focus, section
+focus and unsupported-planning behavior, kind/area presentation, planning workflow,
+financial boundaries, evidence phase selection and stylesheet checks. The evidence
+strip retains camera and vault bytes on navigation, and restores owned keyboard focus
+when a peer deletion removes its last thumbnail. The shared keyboard helper leaves a
+target summary's own disclosure to the requested activation, preventing double toggles.
+
+`node --check scripts/editor-area-browser.mjs` passes. Native disclosure routes still
+require the upcoming committed-source browser journeys. The unchanged integrated gate,
+all final screen comparisons and native-host acceptance remain pending. This note does
+not certify full design or release acceptance.

@@ -65,7 +65,7 @@ function continuePlanning(): void {
 						v-for="item in summary.planned.slice(0, 3)"
 						:key="item.id"
 					>
-						{{ item.planned!.description || item.existing?.description }}
+						{{ tr(`renovation.change.${item.planned!.change}`) }}: {{ item.planned!.description || item.existing?.description }}
 					</li>
 				</ul>
 				<p v-else>

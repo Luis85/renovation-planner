@@ -1,3 +1,4 @@
+import { useOpeningMoveAction } from '../structure/useOpeningMoveAction';
 import { computed } from 'vue';
 import type { StringKey } from '../../i18n/locales/en';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
@@ -12,6 +13,7 @@ import { useRenovationSession } from '../renovation/renovationSession';
 export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly disabled?: boolean; run(): void | Promise<void> }
 export function useCanvasMenuActions(add: () => void) {
 	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore();
+	const moveOpening = useOpeningMoveAction();
 	const frame = usePlanFrame(), groups = useCanvasGroupActions(), session = useRenovationSession();
 	function fit(all: boolean): void { const bounds = frame(all); if (bounds) editor.fitTo(bounds, editor.stageSize); }
 	function singleActions(id: string, blocked: boolean): CanvasMenuAction[] {
@@ -25,6 +27,7 @@ export function useCanvasMenuActions(add: () => void) {
 			} else if (structure || element) {
 				const actions = structure ? runtime.structureActions : runtime.elementActions;
 				result.push({ id: 'edit', label: 'editor.input.edit', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
+				if (project.structure.openings.some(item => item.id === id)) result.push({ id: 'move-opening', label: 'editor.opening-move.action', disabled: !runtime.openingMove.available.value, run: () => moveOpening(id) });
 				if (element) result.push({ id: 'rename', label: 'editor.input.rename', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
 				result.push({ id: 'delete', label: 'editor.input.delete', disabled: blocked || actions.active.value, run: () => actions.remove(id) });
 			}

@@ -68,7 +68,7 @@ const elementDraft = computed(() => {
 		>
 			<VLine :config="{ points: wallPoints(wall), stroke: tokens.zoneStroke, strokeWidth: wall.thickness, opacity: 0.65 }" />
 			<VLine
-				v-if="selected(wall.id)"
+				v-if="selected(wall.id) || runtime.openingMove.hostId.value === wall.id"
 				:config="{ points: wallPoints(wall), stroke: tokens.accent, strokeWidth: 2 / zoom, dash: [7 / zoom, 4 / zoom] }"
 			/>
 			<VCircle

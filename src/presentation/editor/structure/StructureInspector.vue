@@ -7,9 +7,11 @@ import { tr } from '../../i18n/strings';
 import { formatMetres } from '../shell/formatLength';
 import { wallLength } from '../../../domain/spatial/Structure';
 import StructureRenovationEntry from './StructureRenovationEntry.vue';
+import { useOpeningMoveAction } from './useOpeningMoveAction';
 import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
 import CurveAction from '../curves/CurveAction.vue';
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
+const moveOpening = useOpeningMoveAction();
 const id = computed(() => String(selection.selectedIds[0]));
 const wall = computed(() => project.structure.walls.find(candidate => candidate.id === id.value));
 const opening = computed(() => project.structure.openings.find(candidate => candidate.id === id.value));
@@ -56,6 +58,15 @@ async function act(event: Event, remove: boolean): Promise<void> {
 		>
 			{{ tr('editor.structure.edit') }}
 		</button>
+		<button
+			v-if="opening"
+			type="button"
+			:aria-disabled="!runtime.openingMove.available.value"
+			data-rp-action="move-opening"
+			@click="moveOpening(id, $event.currentTarget as HTMLElement)"
+		>
+			{{ tr('editor.opening-move.action') }}
+		</button>
 		<details>
 			<summary>{{ tr('editor.structure.more') }}</summary>
 			<ObjectRotationControls :id="id" />
@@ -67,6 +78,7 @@ async function act(event: Event, remove: boolean): Promise<void> {
 			<button
 				type="button"
 				:aria-disabled="paused"
+				data-rp-action="delete-structure"
 				@click="act($event, true)"
 			>
 				{{ tr('editor.structure.delete') }}

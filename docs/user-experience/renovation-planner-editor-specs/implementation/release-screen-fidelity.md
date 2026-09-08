@@ -47,6 +47,27 @@ the same invocation could not start the new test's fork worker and exited 1. The
 unchanged `subjectKindPresentation` retry then passed 1 test (99.91 s; test body 1.88 s).
 That resource failure is retained as a failed attempt, not recast as a product assertion failure.
 
+F1 is **implemented and verified** on `2f1b32b0` within the browser/component scope. The
+four-scenario after pilot passed and every copied artifact hash was verified. Light M08,
+dark M09, custom-accent M08 and German constrained M09 were inspected: both rows and markers
+now identify Floor/Wall kinds, retaining readable wrapped actions. Long marker text keeps the
+existing ellipsis and full Inspector alternative. [After provenance](evidence/release-subject-kinds/after/provenance.json)
+records the clean source and inspected images. Scoped ESLint and script syntax pass. Final
+joined-source verification and actual host/screen-reader observations remain separate.
+
+![M08 after: saved kind distinguishes each row and marker](evidence/release-subject-kinds/after/light-M08-identical-descriptions.png)
+
+![M09 after: German kinds and actions at 460 px](evidence/release-subject-kinds/after/german-constrained-M09-identical-descriptions.png)
+
+The unchanged overview `--design` journey also passed all four scenarios on `2f1b32b0`.
+Inspected matching views: M00 identity/summary/questions/continuation, M01 totals and Room
+change cues, M02 all eleven Add entries with contextual Note reason, M04 distinct closed draft,
+M07 identity/measurements/direct actions, and M16 closed German 460 px canvas. The original
+journey retains selection, viewport, vault bytes and native control routes; supplemental views
+retain their separate attribution. [Overview receipt](evidence/release-screen-overview/provenance.json)
+and every manifest-listed artifact are preserved. No additional production defect was established
+by this targeted subset. This does not close the complete M00–M17 or host acceptance.
+
 ## M00 — Kitchen Selected Overview
 
 Production entry points: `src/presentation/editor/shell/RoomInspector.vue`; `src/presentation/editor/renovation/RoomRenovationDetails.vue`; `src/presentation/editor/layers/InteractionLayer.vue`. Evidence/source revision: `7d4bc381`. Owner: fidelity for presentation; parent for final integrated/host acceptance. Dependencies: existing production commands plus selection/rotation integration where applicable.

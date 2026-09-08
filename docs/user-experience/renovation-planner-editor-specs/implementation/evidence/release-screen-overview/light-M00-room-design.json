@@ -1,0 +1,50 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "bounds": {
+    ".rp-renovation-inspector > h3": {
+      "x": 1097,
+      "y": 102.59375,
+      "width": 312,
+      "height": 25
+    },
+    ".rp-transformation-summary": {
+      "x": 1097,
+      "y": 176.984375,
+      "width": 312,
+      "height": 131.203125
+    },
+    ".rp-linked-counts": {
+      "x": 1097,
+      "y": 592.78125,
+      "width": 312,
+      "height": 186
+    },
+    "[data-rp-action=\"continue-renovation\"]": {
+      "x": 1097,
+      "y": 867.765625,
+      "width": 312,
+      "height": 44
+    }
+  },
+  "sample": {
+    "roomId": "zone-01M20MM2101NG3H6QJX0C770P7",
+    "role": "selected-room"
+  },
+  "selection": {
+    "ids": [
+      "zone-01M20MM2101NG3H6QJX0C770P7"
+    ],
+    "focusedId": "zone-01M20MM2101NG3H6QJX0C770P7"
+  },
+  "input": "Only viewport height changes; no scroll/focus reset",
+  "camera": {
+    "x": 47.999999999999986,
+    "y": 125.12195121951217,
+    "zoom": 0.09012195121951219
+  },
+  "constrained": false,
+  "vaultAndSelectionUnchanged": true
+}

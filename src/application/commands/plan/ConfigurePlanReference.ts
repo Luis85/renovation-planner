@@ -92,7 +92,8 @@ class ConfigurePlanReference {
 		const payload = { planId: plan.id, projectId: plan.projectId };
 		await this.deps.events.publish(planBackgroundChanged(payload));
 		await this.deps.events.publish(planCalibrated(payload));
-		await Promise.all(document.objects.map(object => this.deps.events.publish(zoneGeometryChanged({ ...payload, zoneId: object.id as ZoneId }))));
+		// Each event already owns a bounded requirement cascade; do not multiply its concurrency.
+		for (const object of document.objects) await this.deps.events.publish(zoneGeometryChanged({ ...payload, zoneId: object.id as ZoneId }));
 		return ok('wrote');
 	}
 }

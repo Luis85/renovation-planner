@@ -47,6 +47,19 @@ describe('reference configuration through real Markdown and sidecar repositories
 		expect(expectOk(await r.geometry.read(r.plan.id)).document).toEqual(changed.document);
 		expect(publish.mock.calls.map(([event]) => event.type)).toEqual(Array.from({ length: 3 }, () => ['PlanBackgroundChanged', 'PlanCalibrated', 'ZoneGeometryChanged']).flat());
 	});
+	it('bounds Zone recalculation cascades in execute, Undo and Redo', async () => {
+		const r = await setup();
+		for (let index = 0; index < 2; index++) expectOk(await r.stack.zones.save(makeZone({ projectId: r.plan.projectId, planId: r.plan.id }), 'absent'));
+		let active = 0, peak = 0, count = 0;
+		r.stack.events.subscribe('ZoneGeometryChanged', async () => {
+			active++; peak = Math.max(peak, active); count++;
+			await new Promise(resolve => { setTimeout(resolve, 0); });
+			active--;
+		});
+		const command = r.services.command(expectOk(await r.services.read(r.plan.id)), input);
+		expectOk(await command.execute()); expectOk(await command.undo()); expectOk(await command.execute());
+		expect(peak).toBe(1); expect(count).toBe(9); expect(active).toBe(0);
+	});
 	it('does not write before confirmation and makes repeated execute/undo no-ops', async () => {
 		const r = await setup(), before = new Map(r.stack.vault.entries);
 		expect(new Map(r.stack.vault.entries)).toEqual(before);

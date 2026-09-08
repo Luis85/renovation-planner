@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Walls and hosted openings]]"
 order: 30
-status: Active
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 dependsOn: "[[Host and restore an opening on its wall]]"
@@ -38,9 +38,16 @@ than guessing the renovator's intent.
 
 ## Outcome
 
-Not started.
+A wall change, deletion or undo/reload keeps hosted-opening identity, placement and boundary
+associations coherent, refusing an invalidating change rather than guessing an intent.
 
 ## Amendments
+
+**2026-09-08 (closed)** — closes with its prerequisite [[Host and restore an opening on its wall]]:
+`tests/application/commands/structureCommand.test.ts`'s 'reloads an opening with its host and
+placement through a fresh stack' (0fd81e5d) copies an opening-bearing sidecar into a second
+repository stack and reads the host ID and placement back, which is the RELOAD half of
+criterion 4 the amendment below found missing. The UNDO half and criteria 1–3 already stood.
 
 **2026-09-08 (closeout review)** — moved to Done in the closeout pull request and set to Active
 the same day, with its prerequisite [[Host and restore an opening on its wall]]: criterion 4's
@@ -52,7 +59,7 @@ sidecar into a second stack and reads the host ID and placement back. The undo h
 and criteria 1–3 stand as written. Stays Active until the prerequisite's fresh-stack opening case
 exists; this task closes with it.
 
-## Closing evidence (partial; see the amendment above)
+## Closing evidence
 
 **2026-09-08**, the plan-editor stack — landed in 3d08d22a (#86), with the mixed-selection half
 in 59977120 (#91).
@@ -78,8 +85,8 @@ once, including hosted openings, and restores exact labels/shapes with Undo/Redo
 
 Criterion 4 — **undo and reload restore one coherent state** — is, for its UNDO half,
 `tests/application/commands/structureCommand.test.ts`'s 'composes opening placement, edit,
-deletion and reverse order history with shared versions'; the reload half is not held (see the
-amendment). Two review findings on #86 were about
+deletion and reverse order history with shared versions'; the reload half is 'reloads an opening
+with its host and placement through a fresh stack' (0fd81e5d). Two review findings on #86 were about
 exactly this criterion's reverse-order history and are fixed on the branch: a45cca65 lets the
 whole-document comparison decide a structure undo when a sibling Zone write and its undo advanced
 the sidecar revision (the ledger generation alone had refused it), and 9208b831 compares sidecar

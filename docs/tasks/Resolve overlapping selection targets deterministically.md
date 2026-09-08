@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Selection]]"
 order: 20
-status: Active
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -11,7 +11,7 @@ release: "[[MVP]]"
 
 ## Evidence
 
-The [implementation plan Phase 2](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md) locks priority as handle → object → opening → wall → room → background and requires overlap cycling.
+The [implementation plan Phase 2](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md) locks priority as handle → opening → wall → object → room → background and requires overlap cycling.
 
 ## Why it matters
 
@@ -38,6 +38,17 @@ Future entity types can bypass the rule if hit testing is distributed among shap
 Users can predict and recover which overlapping part will be selected.
 
 ## Amendments
+
+**2026-09-08 (closed)** — the user decided the plan is amended to the order the code has
+(handle → opening → wall → object → room → background) rather than the code being changed to
+match the plan: an opening sits on a wall and a wall bounds a room, so the most precise thing
+under the pointer wins, and a free-standing element drawn over a wall is reached by Alt-cycling
+rather than by outranking it. The rank was PINNED, not changed —
+`tests/presentation/editor/structureSelection.test.ts`'s 'ranks a generic element below opening
+and wall and above the room, and cycles all four' (8ee62b4e) passed on its first run against the
+existing `resolveSelectionTarget` priority, no `src/` change. The implementation plan, the SDD,
+`docs/requirements/Selection.md` extension 2a and ADR-0018 were amended to the new order in the
+same pass (92ffe624).
 
 **2026-09-08 (closeout review)** — this task was moved to Done in the closeout pull request and
 moved back the same day, on a review finding measured against the code: `priority()` in
@@ -78,7 +89,7 @@ first, and the resolver deliberately scans it in reverse so the last-drawn body 
 
 Alt-click now reaches lower overlapping bodies and wraps in render order; hover uses the same alternate resolution. spatialSelection.test.ts covers cycling, wrap, modifier-only selection and badge focus. Priority among Wall/Opening/Object candidates still belongs to the slice introducing those types.
 
-## Closing evidence (partial; see the 2026-09-08 amendment)
+## Closing evidence
 
 **2026-09-08**, the plan-editor stack — criterion 3 landed in dfe9b2a6 (#74) and its typed half
 in 3d08d22a (#86).
@@ -97,5 +108,6 @@ Criterion 4 — **priority cases with overlapping fixtures** — gained the type
 2026-09-03 amendment said belonged to the slice introducing them:
 `tests/presentation/editor/structureSelection.test.ts`'s 'prioritizes opening, wall, then room
 regardless of paint order and cycles all three' (#86, ADR-0020). Read the plan's six-rank list
-narrowly against that: handle-over-body and opening → wall → room are the ranks a test holds; where
-#91's generic elements (ADR-0023) sit in that order is not cited here.
+narrowly against that: handle-over-body and opening → wall → room are the ranks a test holds; the
+same file's 'ranks a generic element below opening and wall and above the room, and cycles all
+four' (8ee62b4e) holds all four ranks, handle through room.

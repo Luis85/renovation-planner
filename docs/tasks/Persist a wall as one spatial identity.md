@@ -38,7 +38,9 @@ the task must implement the accepted representation, not invent one.
 
 ## Outcome
 
-Not started.
+A wall persists as a straight centre-line segment with a stable identity in the `.rpgeo`
+sidecar's v2 structure, reloads to the same wall, is queryable without a canvas, and never
+appears as a saved wall from an invalid or partial write.
 
 ## Closing evidence
 

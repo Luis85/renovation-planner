@@ -881,8 +881,10 @@ amendment in `implementation-plan.md` Phase 2.)
 
 ADR-0018 assigns selection and Inspector ownership. Room/Area selection now uses ordered unique
 IDs, Shift toggling and Alt overlap cycling. M11 badges and rows focus a member independently of
-membership; a missing member is explicitly unavailable in aggregates. Wall/Opening/Object
-priority remains reserved until those types exist. The property panel keeps the non-canvas list
+membership; a missing member is explicitly unavailable in aggregates. (2026-09-08 — the typed
+ranks landed with the wall/opening slice (#86, ADR-0020) and the generic elements (#91,
+ADR-0023), and are pinned by `structureSelection.test.ts`'s 'ranks a generic element below
+opening and wall and above the room, and cycles all four'.) The property panel keeps the non-canvas list
 reachable while an Inspector subject is selected, including a modifier-free multiple-selection
 option. Selected geometry is not covered by reference-plan onboarding.
 

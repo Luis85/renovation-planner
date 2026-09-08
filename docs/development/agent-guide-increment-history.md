@@ -5309,10 +5309,15 @@ landed, because the shape of it is the reason the upward merges stayed clean:
   first, and the two `settleUntil` timeouts in `tests/harness/harnessSurfaces.test.ts` (on #87
   and #88) passed alone too. No assertion, floor or config was changed; the raised timeout is a
   fact about that machine on that day and is not in the repository.
-- **#89 was closed as superseded by #91** (absorbed at b569dd22). **#90 stays open**: its last
-  two commits, 37da445f and 471cfc57, are not ancestors of #91, although #91 re-implemented their
-  content (all four of its test files and `evidenceThumbnail.ts` exist on #91) — the brief's
-  STOP rule was not to close a PR whose commits `main` does not contain.
+- **#89 was closed as superseded by #91** (absorbed at b569dd22). **#90 stayed open at merge
+  time**: its last two commits, 37da445f and 471cfc57, were not ancestors of #91, although #91
+  re-implemented their content (all four of its test files and `evidenceThumbnail.ts` exist on
+  #91) — the brief's STOP rule was not to close a PR whose commits `main` does not contain, and
+  that was true then. **#90 was closed on 2026-09-08 (11:44 UTC), superseded by #91**, once the
+  re-implementation was measured rather than merely observed: four identical test files, plus
+  `evidenceThumbnail.ts`'s content as the retry guard in `createDraftRetry.ts` and the pause in
+  `roomEditLifecycle.ts` — all present on `main` under different names, which is what the STOP
+  rule needed confirmed before closing a PR whose own commits `main` still does not contain.
 
 **Spatial multi-selection has landed: the editor selects several rooms and areas at once and
 inspects them as a set.** #74, `codex/editor-implementation`, head 2f1fce9b, merged as dfe9b2a6.
@@ -5552,3 +5557,21 @@ scoped as +6 branch hits and +2 statement hits on identical source blobs. Its tw
 were add/add on evidence JSON receipts, where #92's files were byte-equal subsets of #91's (#91's
 carried `rootIntegration` too), so #91's were kept. Gate on the merged head: identical to #91's —
 668 / 8143, same four figures, fallow 0 — which is the number `main` stands at as of 7d4bc381.
+
+**A Codex review round on the closeout pull request reopened three of the tasks this section had
+ticked, and both later threads on it are answered here too.** The object rank against the plan's
+locked handle → object → opening → wall → room → background order (`Resolve overlapping
+selection targets deterministically`), the opening-reload criterion with no fresh-stack case
+(`Host and restore an opening on its wall`), and its dependent reference-safety task (`Keep wall
+and opening references safe through change`) were each moved back to Active against the merged
+code. The user decided on 2026-09-08 that the plan is amended to the rank the code has rather
+than the code being changed to match the plan, and the rank was PINNED rather than changed:
+`tests/presentation/editor/structureSelection.test.ts`'s 'ranks a generic element below opening
+and wall and above the room, and cycles all four' (8ee62b4e) passed on its first run against the
+existing `resolveSelectionTarget` priority, no `src/` change. The missing reload instrument was
+added the same day: `tests/application/commands/structureCommand.test.ts`'s 'reloads an opening
+with its host and placement through a fresh stack' (0fd81e5d), also green on first run with no
+`src/` change. Both tasks close, and the reference-safety task closes with its prerequisite. The
+same pass fixed the two later threads above: the `#90 stays open` bullet is now the closed record,
+and `Persist a wall as one spatial identity`'s `## Outcome` reads its achieved outcome instead of
+"Not started."

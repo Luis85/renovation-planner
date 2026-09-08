@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Walls and hosted openings]]"
 order: 20
-status: Active
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 dependsOn: "[[Persist a wall as one spatial identity]]"
@@ -39,9 +39,17 @@ selected by the accepted wall/opening contract.
 
 ## Outcome
 
-Not started.
+An opening persists with its own ID, one host wall and host-relative placement, and reloads with
+them.
 
 ## Amendments
+
+**2026-09-08 (closed)** — `tests/application/commands/structureCommand.test.ts`'s 'reloads an
+opening with its host and placement through a fresh stack' (0fd81e5d) writes `opening-a` on
+`hostId: 'wall-a'` with offset, width, height and sill, copies the vault entries into a second
+`createRepositoryStack()`, rebuilds its index, and reads the whole structure back through a new
+`ObsidianPlanGeometrySidecar`, asserting whole-structure equality. Criterion 3 is held; this task
+closes.
 
 **2026-09-08 (closeout review)** — moved to Done in the closeout pull request and set to Active
 the same day: criterion 3 is not held. The one fresh-stack reload in
@@ -53,7 +61,7 @@ second stack — so no assertion reads an opening's host ID and placement back t
 repository. Criteria 1, 2 and 4 below stand. Stays Active until a fresh-stack case persists an
 opening and reads its `hostId`, `offset`, `width`, `height` and `sill` back.
 
-## Closing evidence (partial; see the amendment above)
+## Closing evidence
 
 **2026-09-08**, the plan-editor stack — landed in 3d08d22a (#86, ADR-0020).
 
@@ -61,7 +69,8 @@ Criterion 1 — **a valid opening persists with its own ID and one host wall ID*
 `tests/application/commands/structureCommand.test.ts`'s 'composes opening placement, edit,
 deletion and reverse order history with shared versions' (`opening-a` on `hostId: 'wall-a'`; three
 undos back to the baseline document, three redos back to the loop). Criterion 3 — **reload
-restores the same host and placement** — is NOT held; see the amendment.
+restores the same host and placement** — is 'reloads an opening with its host and placement
+through a fresh stack' (0fd81e5d).
 
 Criterion 2 — **invalid host placement writes nothing** — is decided in the domain and checked
 again at the write: `tests/domain/spatial/structure.test.ts`'s 'refuses missing hosts, duplicate

@@ -1,3 +1,4 @@
+import { createRoomResizeAction } from './resize/roomResizeAction';
 import {
 	computed,
 	inject,
@@ -72,6 +73,8 @@ import { createNudgeSelectionAction } from './nudge';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly resizeRoom: (id: ZoneId) => Promise<void>;
+	readonly resizeRoomBlocked: Readonly<Ref<boolean>>;
 	readonly areaCorners: ReturnType<typeof createAreaTask>['areaCorners'];
 	readonly keepAddingAreas: Ref<boolean>;
 	readonly canFinishArea: Readonly<Ref<boolean>>;
@@ -591,7 +594,7 @@ function buildDispatcherChain(
 	return { wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
 }
 
-function buildRuntime(context: PlanEditorContext): EditorRuntime {
+function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRoom' | 'resizeRoomBlocked'> {
 	const editor = useEditorStore();
 	const projectStore = useProjectStore();
 	const selection = useSelectionStore();
@@ -826,7 +829,8 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 export const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-planner:editor-runtime');
 
 export function provideEditorRuntime(context: PlanEditorContext): EditorRuntime {
-	const runtime = buildRuntime(context);
+	const base = buildRuntime(context);
+	const runtime = { ...base, ...createRoomResizeAction(context, base) };
 	provide(EDITOR_RUNTIME, runtime);
 	return runtime;
 }

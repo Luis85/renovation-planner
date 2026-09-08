@@ -1,3 +1,4 @@
+import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
 import type { PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
@@ -18,7 +19,7 @@ import { expectOk } from '../helpers/domain';
 import { dispatchingEventBus, makeDeleteZoneCommand } from '../helpers/slice10';
 import { settleUntil } from '../helpers/settle';
 
-/** Explicitly ephemeral browser workspace: real Area commands/history, no files or vault. */
+/** Explicitly ephemeral browser workspace: real creation/resize commands/history, no files or vault. */
 export function areaNumericWorkspace(base: PlanEditorDeps, planDto: PlanDto, zoneDtos: readonly ZoneDto[]): PlanEditorDeps {
 	const plans = new InMemoryPlanRepository();
 	const zones = new InMemoryZoneRepository();
@@ -47,6 +48,7 @@ export function areaNumericWorkspace(base: PlanEditorDeps, planDto: PlanDto, zon
 		},
 		commands: {
 			...base.commands,
+			moveObject: new MoveSpatialObjectCommand(zones, events),
 			createZone: new CreateZoneCommand(zones, plans, events),
 			deleteZone: makeDeleteZoneCommand(zones, events, requirements),
 			zoneInspector: new GetZoneInspector(zones),

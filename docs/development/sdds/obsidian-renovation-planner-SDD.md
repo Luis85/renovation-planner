@@ -862,6 +862,16 @@ Command
 
 Do not persist `scaleX`/`scaleY` as true dimensions.
 
+Existing-room numeric resizing is a bounded presentation operation: only four distinct finite
+corners on alternating world-axis edges. It preserves the minimum x/y corner and vertex order,
+with width along x and depth along y. Other rotated or non-rectangular outlines are not converted
+to bounds; their existing point editing remains available. The Inspector opens an explicit
+`FormDialog` with a versioned baseline, shared metre parser and temporary InteractionLayer preview.
+Apply uses `ReversibleMoveZoneCommand` / `MoveSpatialObject`, conditioning the first write on that
+baseline; Undo/Redo keep their shared-ledger expectations. There is no new persisted dimension,
+orientation, entity type or resize repository. M03 and ADR-0018 specify this limited contract.
+
+
 Selection is by stable entity id, shared by the canvas, the non-canvas room list and the
 Inspector, so the three never disagree about what is selected (spec INV-01). When entities
 overlap, selection priority is predictable — handle → object → opening → wall → room →

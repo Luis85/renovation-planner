@@ -1,3 +1,5 @@
+import type { Polygon } from '../../../core/geometry/Polygon';
+import type { EntityVersion } from '../../../application/ports/versioning';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { isErr, ok, type Result } from '../../../core/result/Result';
@@ -48,6 +50,7 @@ export type InspectorDto =
  * the code that produces it").
  */
 export type InspectorEdit =
+	| { readonly kind: 'geometry'; readonly zoneId: ZoneId; readonly forward: Polygon; readonly inverse: Polygon; readonly expected: EntityVersion }
 	/**
 	 * Slice 10's three reference-resolution fields ride along, all optional: a Zone with no
 	 * referents is deleted with none of them, which is the form the command refuses if

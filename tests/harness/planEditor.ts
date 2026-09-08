@@ -396,6 +396,7 @@ export interface MountedPlanEditor {
 export interface PlanEditorHarnessOptions {
 	/** Real commands against ephemeral memory repositories, with an editable numeric outline. */
 	readonly numericArea?: boolean;
+	readonly roomResize?: boolean;
 	/** A seeded zone's id (e.g. `harness-kitchen`) to select and frame once the editor is ready. */
 	readonly select?: string;
 	/** Opens the Add menu once the editor is ready. */
@@ -639,7 +640,7 @@ export function mountPlanEditorHarness(
 	// Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
 	const base = harnessDeps({ stale: options.stale });
-	const deps = options.numericArea === true ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
+	const deps = (options.numericArea === true || options.roomResize === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
 	const view = new PlanEditorView(new FakeLeaf() as never, deps);
 	leafEl.appendChild(view.containerEl);
 

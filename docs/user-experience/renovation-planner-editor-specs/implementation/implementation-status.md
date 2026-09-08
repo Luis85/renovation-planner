@@ -1,4 +1,4 @@
-# Editor implementation status — 2026-09-05
+# Editor implementation status — 2026-09-06
 
 The implementation plan is a multi-release roadmap. This ledger distinguishes shipped baseline
 behavior on `cf536f32` from the current contribution. It does not declare the whole roadmap done.
@@ -9,7 +9,7 @@ behavior on `cf536f32` from the current contribution. It does not declare the wh
 | 1 | Responsive shell, context bar, rails and drawers already exist | Perspective controls when their domains are available; full theme/release acceptance |
 | 2 | This contribution adds ordered unique multi-selection, independent member focus, badges, overlap cycling, persistent list access and shared-property summary | Wall/Opening/Object hit priority and inspectors when those entities exist |
 | 3 | Select/Add and temporary Room tools exist; the Area continuation adds its catalogue path, validated outline, one-shot/repeated completion and keyboard routing; the numeric continuation adds corner placement/correction | Unavailable creation domains, complete cross-tool/non-canvas routes and release acceptance |
-| 4 | Rectangular room drag/numeric creation and reversible command already exist | Existing-room naming/resizing refinements, room-kind decision and complete M03 acceptance |
+| 4 | Rectangular room creation exists; the current continuation adds keyboard resizing of existing axis-aligned four-corner Rooms | Existing-room naming, broader resizing, room-kind decision and complete M03/live acceptance |
 | 5 | Not delivered | Walls, hosted openings, connected creation, exact-length impact and composite undo |
 | 6 | Background display and calibration exist | Transactional prepare/scale/review setup, persistent appearance and transforms |
 | 7 | Not delivered | Separate Existing/Planned state and change relationships |
@@ -221,3 +221,86 @@ completion guard temporarily removed, then passing after restoration.
 Open acceptance: live Obsidian, assistive-technology and full release/theme acceptance.
 Area metadata forms, comprehensive self-intersection detection/repair and additional creation
 kinds remain separate work. Phase 3, Increment A and the overall implementation plan remain open.
+
+
+## Existing-room dimensions continuation on PR #76 — 2026-09-06
+
+Base: remote `codex/editor-area-numeric`, `29eb0a07053cbedb4050fa71c922bc41c69da872`.
+#76, #75 and #74 remain OPEN. At inspection all CI checks on their current heads passed.
+The actual chain includes #75 `d91431b2` and #74's selection work and `f7aa3c5` fix.
+#74's later `bb62e2f3` is not an ancestor; its single-selection behavior and five regressions
+are already present in #76. #74's unresolved native-picker comment is protected by #75;
+#75's unresolved busy-completion comment is protected by #76. #76's unresolved corner-row
+Escape focus finding remains a base-PR issue; this contribution does not modify those branches.
+
+This independently deliverable slice fills the existing-room precision gap only. The Inspector
+opens an explicit two-field modal form, with preserved selection, a baseline-size summary, numeric
+area and the existing dashed canvas preview. The supported shape/anchor/unit rules are in M03.
+Arbitrary/rotated outlines are not replaced by bounding boxes. The form uses one versioned baseline,
+shared parser, geometry normalization, Inspector dispatch, reversible move adapter, write ledger,
+refresh and recalculation. No persisted fields or formats change. Pure layout changes preserve the
+root-owned modal; Cancel/Escape discard without writes. The existing dialog owns focus and busy state;
+if a layout change replaces the opener, the Inspector action restores focus to the replacement
+action or Details rail.
+
+Evidence:
+
+- `tests/presentation/editor/resize/roomDimensions.test.ts`: geometry eligibility, winding/order,
+  anchor, rounding, untouched precision, invalid lengths and numeric representability.
+- `tests/presentation/editor/roomResize.e2e.test.ts`: real list/canvas selection, preview isolation,
+  conditional Apply, Undo/Redo, dependent quantities/costs, conflicts, errors, stale/busy, native
+  keys and delayed/retired responses, with actual commands and in-memory repositories.
+- `tests/presentation/editor/roomResizePersistence.test.ts`: actual Obsidian repository stack
+  over a fake vault, Markdown metadata and sidecar readback, identity and reversible geometry.
+- `tests/harness/roomResize.test.ts`: real-command harness, scoped axe at 1280/460 px, and dirty-form
+  reflow in both directions with focus recovery.
+- `scripts/editor-room-resize-check.mjs`: real Edge keyboard input in light/dark, custom accent
+  and German at 460 px; Tab from persistent list through both dimensions, validation, focus trap,
+  Escape, Apply, Undo/Redo and dirty-form reflow between full/constrained layouts. Screenshots under `harness-shots/room-resize/` visually inspected;
+  no page errors or dialog overflow. These are Edge evidence, not pinned-Chromium or Obsidian runs.
+
+Reproduce: `npm run harness`, then `?view=plan-editor&resize=room`. Select Kitchen from the list
+(or canvas), then Change room size; at narrow widths use Layers and Details. This workspace uses
+real creation/move commands with ephemeral in-memory repositories and resets on page reload.
+`RP_CHROMIUM_EXECUTABLE` can select an installed browser for the verification script.
+
+`npm run check` passed with `VITEST_MAX_WORKERS=2`: build, lint, all 484 test files,
+6,681 passing tests (70 skipped), coverage and Fallow. Global coverage: statements 99.24%,
+branches 98.03%, functions 99.24%, lines 99.59%. The final three browser scripts each passed
+all four scenarios. No quality floors, timeouts, dependency versions or skips were changed.
+
+Changed production files, measured hits/total (Istanbul coverage):
+
+| File under `src/presentation/` | Statements | Functions | Branches |
+|---|---:|---:|---:|
+| `editor/inspector-wiring.ts` | 23/23 | 13/13 | 11/11 |
+| `editor/runtime.ts` | 144/144 | 49/49 | 38/39 |
+| `editor/inspector/inspector-store.ts` | 42/42 | 7/7 | 26/26 |
+| `editor/resize/RoomDimensionsForm.vue` | 54/55 | 16/16 | 46/47 |
+| `editor/resize/RoomSizeAction.vue` | 11/11 | 2/2 | 9/10 |
+| `editor/resize/roomDimensions.ts` | 34/35 | 4/4 | 32/33 |
+| `editor/resize/roomResizeAction.ts` | 52/53 | 11/11 | 42/45 |
+| `editor/selection/normalize-transform.ts` | 6/6 | 2/2 | 0/0 |
+| `editor/shell/RoomInspector.vue` | 35/35 | 10/10 | 26/27 |
+| `i18n/locales/de/editor.ts` | 1/1 | 0/0 | 0/0 |
+| `i18n/locales/en/editor.ts` | 1/1 | 0/0 | 0/0 |
+
+Every function in the new resize files is covered. The six uncovered new branch alternatives
+are recorded explicitly: the form's defensive null-preview text, the geometry helper's final
+area-representability refusal, the action's last dispatch guard, a current non-Room after conflict,
+a rejected baseline read after disposal, and focus fallback to the Inspector when both the action
+and Details rail are absent. The ordinary invalid, stale/busy, conflict, disposed-success and
+both responsive-focus paths are exercised. The runtime asset-list failure and RoomInspector's
+missing-plan summary alternative are inherited gaps. No assertion claims full branch coverage.
+Fallow reports zero dead-code issues, duplicate groups and above-threshold complexity findings;
+the browser journeys share actual keyboard pair/navigation and Undo/Redo helpers.
+
+The peer-write regression was also exercised with the first-write expectation removed temporarily:
+it failed by overwriting the peer geometry, then the expectation was restored. Two collinear-outline
+regressions also failed before the alternating-edge check was added, then passed. On conflict, the existing projection refresh reads the latest
+size for the form; its baseline and text remain unchanged and Apply is paused until the user
+cancels and reopens. No quality floors, test timeouts or dependency versions change.
+
+Live Obsidian, screenreader announcement/focus, host leaf resize/rebind, vault reload/restart and
+full theme/release acceptance remain open in `Resize a room.md`. The existing Area corner-row
+Escape finding remains open on #76. No claim closes Phase 4, Increment A/B or the full plan.

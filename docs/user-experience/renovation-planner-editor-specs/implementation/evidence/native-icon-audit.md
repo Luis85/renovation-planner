@@ -63,11 +63,47 @@ files, and `git diff --check` passed. The commands used the main checkout's exis
 from this worktree; the two package lockfiles had equal SHA-256 hashes. No dependency install
 or ordinary-vault deployment was performed.
 
-The attempt to inspect the newly installed debug build stopped **before reload**: native
+The first attempt to inspect the newly installed debug build stopped **before reload**: native
 capture returned `window is minimized`; the permitted activation/refresh recovery reported
 `user input was detected in this window`, and the fresh capture again returned
-`window is minimized`. No new native icon result is claimed. Full `npm run check` is deferred
-to the parent's serialized integrated-source gate; these scoped checks do not replace it.
+`window is minimized`. The resumed native check below supersedes that initial block.
+Full `npm run check` is deferred to the parent's serialized integrated-source gate; these
+scoped checks do not replace it.
+
+## Resumed native debug check — 2026-09-08
+
+After the user confirmed the vault was idle, a fresh window inventory uniquely selected
+`Plan editor - renovation-planner-finalization-vault - Obsidian 1.13.7`. The installed JS/CSS
+hashes were rechecked and matched the table above. The production source is the icon
+checkpoint `518a1af447ead93806d0c4d6bee1d7b92d14cdbe`; this receipt update changes no code.
+
+The editor reported **Saved**. The command palette's **Reload app without saving** loaded
+the installed debug build into that isolated window. Its native appearance then changed
+from text-only controls to visible icons:
+
+| Observed native surface, default dark theme | Result | Screenshot |
+| --- | --- | --- |
+| Prior loaded preliminary build | Perspective, start and primary actions show text only | [Before reload](native-icons/before-reload-dark.jpg) |
+| Plan / Renovate / Review, disabled Undo / Redo, Add rooms / Upload / Start empty, Select / Add | All requested icons visible; both grid controls render | [After reload](native-icons/after-reload-dark.jpg) |
+| Add: Room, Wall, Door, Window, Opening, Area, Path, Fence | All eight icons visible, including disabled opening actions | [Structure and property](native-icons/add-structure-property-dark.jpg) |
+| Add: Item, Measurement, Note | All three icons visible, including the disabled Note action | [Planning](native-icons/add-planning-dark.jpg) |
+
+These are screenshots of the native Obsidian window via the computer-use API, not browser
+harness SVG fixtures. The Add menu was inspected without choosing a creation action.
+Start empty dismissed the welcome card; no plan entities or geometry were created or changed.
+
+A separate native layout problem was observed: opening **Add** while the empty-plan start
+card remains visible places its menu **behind that card**. See [overlap evidence](native-icons/add-behind-start-dark.jpg).
+This was reported to the broader UI work; it is not an icon catalogue failure and is not
+fixed in this icon checkpoint.
+
+Light-theme inspection was attempted through the isolated vault's own Appearance settings.
+The uniquely returned secondary settings window produced `coordinate input geometry is
+unavailable` for its Appearance item, then returned an unrelated image on the required fresh
+capture. Input stopped immediately; no unrelated-window action and no appearance or security
+setting change was performed. Light-theme, selection-action and rotation-icon acceptance
+remain pending. The broader UI is still changing, so this receipt proves only the listed
+surfaces in this debug build, not final release acceptance.
 
 Record its source commit and installed JS/CSS hashes after deployment, then inspect native
 Plan, Renovate, Review, start actions, Add menu, selection actions, and rotation controls.

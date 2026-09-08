@@ -66,3 +66,21 @@ and no enforceable boundary among them names its check.
 ## Implementation update — 2026-09-05
 
 ADR-0018 records selection, Inspector, adapter/refresh and future perspective ownership with concrete existing checks and explicit future obligations. EPW/SO/RL and future perspective transition checks remain open; this amendment does not mark criteria for unimplemented domains complete.
+
+**2026-09-08** — three of the five deferred records are ACCEPTED now, by the plan-editor stack,
+and each names the label it answers in its own title. ADR-SO is
+`docs/development/adrs/0020-connected-walls-and-hosted-openings.md` (#86, 3d08d22a): a `structure`
+section in sidecar schema v2 beside the unchanged polygon `objects`, held by
+`tests/infrastructure/obsidian/repositories/structurePersistence.test.ts`'s 'migrates v1
+idempotently in memory and never rewrites legacy notes or polygons on read'. ADR-EPW and ADR-RL
+are `docs/development/adrs/0021-existing-planned-work-and-record-links.md` (#87, a897ce4a): the
+Plan note owns the renovation register, v3 sidecars carry current and intended facts under the
+same spatial IDs, and `tests/application/commands/renovationCommand.test.ts`'s 'preserves
+independent facts, relationships and IDs through fresh reload and repeated undo/redo' is the
+check. So criteria 2, 3 and 4 are met. Criterion 5 is NOT: ADR-0021 says it "triggers ADR-SV"
+and answers the instance (a v3 bump for new owned content, pure in-memory migration, refusal of
+unsupported versions), which with ADR-0019's v2 for `reference-appearance` is a precedent, not the
+rule the criterion asks for. Criterion 1 (ADR-HI) is still deferred, per the completion matrix's
+Source reconciliation. Criteria 6 and 7 are not re-examined here: #87 introduced Plan, Renovate and
+Review perspectives, and whether an accepted record assigns perspective state to one layer is a
+reading of ADR-0018/0021 this amendment does not make.

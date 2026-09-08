@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Walls and hosted openings]]"
 order: 10
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -39,3 +39,35 @@ the task must implement the accepted representation, not invent one.
 ## Outcome
 
 Not started.
+
+## Closing evidence
+
+**2026-09-08**, the plan-editor stack — landed in 3d08d22a (#86, `codex/connected-walls`,
+ADR-0020).
+
+A wall is a straight centre-line segment in the `.rpgeo` sidecar's v2 `structure`, written by
+`StructureCommand` under the plan lock; no note is created for it.
+
+Criterion 1 — **one command creates one stable identity** — and criterion 2 — **metadata and
+geometry reload to the same wall** — are `tests/application/commands/structureCommand.test.ts`'s
+'creates walls plus the Room as one history item; reloads the same IDs through a fresh stack'.
+`tests/infrastructure/obsidian/repositories/structurePersistence.test.ts`'s 'migrates v1
+idempotently in memory and never rewrites legacy notes or polygons on read' is the other
+direction: a v1 sidecar with no structure loads without being rewritten.
+
+Criterion 3 — **invalid or partial writes never appear as a saved wall** — is 'validates before
+writing and preserves a draft command after a recoverable failure', 'compensates Room creation
+when the structure write fails (%s)' and 'refuses missing sidecar reads and catches thrown reads
+without writing' in the same file, with `structurePersistence.test.ts`'s 'rejects malformed
+spatial schema and valid-shaped dangling hosts before mutation' and 'refuses a future schema %i
+without writes' at the repository.
+
+Criterion 4 — **queryable without a canvas** — is `tests/domain/spatial/structure.test.ts` (a
+document read with no Konva anywhere in the environment) and, on the surface, the persistent
+keyboard list that `tests/presentation/editor/structureLifecycle.test.ts`'s 'traces a temporary
+loop, operates every numeric field, creates its Room and uses list selection and deletion focus'
+selects from.
+
+Not in this slice, by its own PR body and not by a defect: curves, implicit crossing or T-junction
+splitting, door swing, and automatic Room-outline synchronisation after a wall edit — Room outlines
+stay manually maintained (ADR-0020's independent-outline rule, completion-matrix row G05).

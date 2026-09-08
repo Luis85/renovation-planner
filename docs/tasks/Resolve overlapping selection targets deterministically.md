@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Selection]]"
 order: 20
-status: Active
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -67,3 +67,25 @@ first, and the resolver deliberately scans it in reverse so the last-drawn body 
 ## Implementation update — 2026-09-05
 
 Alt-click now reaches lower overlapping bodies and wraps in render order; hover uses the same alternate resolution. spatialSelection.test.ts covers cycling, wrap, modifier-only selection and badge focus. Priority among Wall/Opening/Object candidates still belongs to the slice introducing those types.
+
+## Closing evidence
+
+**2026-09-08**, the plan-editor stack — criterion 3 landed in dfe9b2a6 (#74) and its typed half
+in 3d08d22a (#86).
+
+Criterion 3 — **alternate selection reaches lower-priority candidates** — is Alt-click cycling
+through `resolveSelectionTarget`'s `cycle` input:
+`tests/presentation/editor/selection/spatialSelection.test.ts`'s 'cycles top to bottom, wraps, and
+starts at the top for an unrelated selection'. The hover half of criterion 2 had a hole the review
+found: with the pointer stationary, pressing Alt changed what a click would pick while the hover
+still predicted the top body, since only Shift re-issued a pointer move. 48febd87 re-issues it on
+Alt press and release too; `tests/presentation/editor/canvasKeyboardGestures.test.ts`'s
+'re-issues the hover on the press and on the release, so the prediction agrees with the click'
+was red before it.
+
+Criterion 4 — **priority cases with overlapping fixtures** — gained the typed candidates the
+2026-09-03 amendment said belonged to the slice introducing them:
+`tests/presentation/editor/structureSelection.test.ts`'s 'prioritizes opening, wall, then room
+regardless of paint order and cycles all three' (#86, ADR-0020). Read the plan's six-rank list
+narrowly against that: handle-over-body and opening → wall → room are the ranks a test holds; where
+#91's generic elements (ADR-0023) sit in that order is not cited here.

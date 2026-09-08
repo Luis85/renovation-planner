@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Walls and hosted openings]]"
 order: 30
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 dependsOn: "[[Host and restore an opening on its wall]]"
@@ -39,3 +39,37 @@ than guessing the renovator's intent.
 ## Outcome
 
 Not started.
+
+## Closing evidence
+
+**2026-09-08**, the plan-editor stack — landed in 3d08d22a (#86), with the mixed-selection half
+in 59977120 (#91).
+
+Criterion 1 — **a valid wall change preserves hosted-opening identity and placement** — is
+`tests/presentation/editor/structureActions.test.ts`'s 'previews and applies an exact connected
+length, refuses containment and numeric errors, and preserves unchanged precision', over
+`tests/domain/spatial/structure.test.ts`'s 'derives hosted positions and scales every normalized
+measurement exactly once' (an opening's offset is host-relative, so a calibration scales it once
+with its host).
+
+Criterion 2 — **an invalidating change is refused or requires an explicit resolution** — is the
+containment refusal in that same action case and the domain's 'accepts touching openings and
+separate hosts, refuses horizontal overlap even at different heights'. Refused is what shipped;
+no resolution dialog exists, and none is claimed.
+
+Criterion 3 — **wall deletion cannot leave a dangling hosted opening** — is 'previews host
+deletion, cancels, then deletes its openings and undoes the entire relationship' in
+`structureActions.test.ts` (#86: host deletion removes hosted openings and boundary associations
+while keeping Rooms), and for a mixed selection
+`tests/presentation/editor/spatialBatchRemoval.test.ts`'s 'deletes a mixed wall/element selection
+once, including hosted openings, and restores exact labels/shapes with Undo/Redo' (#91).
+
+Criterion 4 — **undo and reload restore one coherent state** — is
+`tests/application/commands/structureCommand.test.ts`'s 'composes opening placement, edit,
+deletion and reverse order history with shared versions'. Two review findings on #86 were about
+exactly this criterion's reverse-order history and are fixed on the branch: a45cca65 lets the
+whole-document comparison decide a structure undo when a sibling Zone write and its undo advanced
+the sidecar revision (the ledger generation alone had refused it), and 9208b831 compares sidecar
+objects by id rather than array position, because `ObsidianZoneRepository.saveQueued` removes and
+appends — `tests/application/commands/structureMixedHistory.test.ts`'s 'undoes wall history after
+moving and restoring the first of two sidecar objects' read `undo.superseded` before it.

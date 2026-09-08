@@ -5283,3 +5283,272 @@ events for real (`FakeVault`/`FixtureVaultAdapter` extending `VaultEventBus`) an
 `NewAssetForm.vue`'s unreachable joined arm, both branch-shaped changes; Tasks 18 and 19 were
 documents only.
 
+## The plan-editor stack: #74–#92, landed 2026-09-08
+
+Eleven pull requests, written as one dependency chain (#74 → #75 → #76 → #82 → #83 → #85 → #86
+→ #87 → #88 → #91 → #92) over four days of a parallel programme, merged into `main` bottom-up
+with plain merge commits on 2026-09-08. The landing table — PR, head, merge commit, CI run — is
+in the closeout pull request's body and is reproduced per entry below. How it was
+landed, because the shape of it is the reason the upward merges stayed clean:
+
+- **Every open review thread was answered on its own PR's head**, not on the integration branch.
+  Thirty-six threads across nine PRs, thirty-one of them unresolved when this pass began:
+  eighteen had been fixed on-branch by the author and answered with the commit, one was declined
+  with a measurement, and the twelve answered only by "addressed in #91 / #90 / #89, commit …"
+  were **ported byte-for-byte from those heads downward** — `git apply` of the upstream hunk
+  against the predecessor, red assertion watched first, then the fix — so that when #88 merged
+  into #91 the port and the original were the same bytes and the conflict list held nothing
+  surprising. Twelve replies were posted open-with-reply (their ids are in the ledger);
+  resolving was blocked by the permission classifier, so every thread is still marked unresolved
+  on GitHub with its fix commit named in the last reply.
+- **Each PR ran the full gate on its own head before its merge**, and that gate was
+  `build + lint + vitest run --coverage --testTimeout=20000 + analyze` rather than `npm run
+  check` verbatim: this session's diagnostics type server (a tsserver over six worktrees, 1300
+  CPU-seconds, not killable from inside the session) held the box at about 45% load and pushed
+  the walk-based cases past vitest's 5-second default. Every file that timed out passed alone
+  first, and the two `settleUntil` timeouts in `tests/harness/harnessSurfaces.test.ts` (on #87
+  and #88) passed alone too. No assertion, floor or config was changed; the raised timeout is a
+  fact about that machine on that day and is not in the repository.
+- **#89 was closed as superseded by #91** (absorbed at b569dd22). **#90 stays open**: its last
+  two commits, 37da445f and 471cfc57, are not ancestors of #91, although #91 re-implemented their
+  content (all four of its test files and `evidenceThumbnail.ts` exist on #91) — the brief's
+  STOP rule was not to close a PR whose commits `main` does not contain.
+
+**Spatial multi-selection has landed: the editor selects several rooms and areas at once and
+inspects them as a set.** #74, `codex/editor-implementation`, head 2f1fce9b, merged as dfe9b2a6.
+Shift-click or a per-leaf `multiple-selection` checkbox adds and removes; Alt-click cycles
+overlapping bodies; numbered canvas badges and the M11 Inspector's rows share one insertion order
+and one `focus(id)`, so inspecting a member never collapses the set. The Inspector reports mixed
+types, a sum of individual areas and unreadable members explicitly and offers no batch edit.
+Selection is presentation state — no schema, migration or write path moved. The three review
+threads: **Escape on an open native `<select>` — DECLINED, with the measurement in the docblock
+(2f1fce9b)**: in Chromium, which is what Obsidian runs, Escape on an OPEN popup closes it and
+dispatches no keydown to the page at all, so the finding describes Firefox, which this plugin
+does not run on, and excluding the control would take the keyboard user's way out of the room
+away in the runtime that matters. Alt changing the cycling mode with the pointer stationary left
+the hover predicting one body while the click would pick another — 48febd87 re-issues the pointer
+move on Alt press and release exactly as it did for Shift
+(`canvasKeyboardGestures.test.ts`, red before). And the multi-selection flag lived in a component
+that the constrained Layers overlay unmounts, so reopening it dropped the mode — 381bcdc4 moves
+it to `EditorRuntime.multiSelectionMode`, per-leaf like the active tool
+(`multiSelectionInspector.test.ts`). Left open by its own body: live Obsidian, accessibility and
+release acceptance; browser evidence was installed Edge 152 because the pinned Chromium's cache
+was locked.
+
+**Temporary Area creation has landed: Area is a real Add entry.** #75, `codex/editor-area-creation`,
+head 4046d6aa, merged as 438e1f03. Area draws through the existing polygon tool and the reversible
+Zone command as the existing Custom type with a localized counted name; first-corner close, Enter
+and the Create button share one completion; success returns to Select unless Keep adding areas is
+checked. Both review threads were the same finding at two doors — a completion path that bypassed
+the busy guard the button honoured, so pressing Enter or clicking the first corner while another
+command was saving queued a second write behind it. afe89b2c hands `EditorSurface` a `finishArea`
+prop (the guarded action from `PlanCanvas`, a no-op from the asset designer) and 4046d6aa gives
+`DrawPolygonTool` an optional `finishAtTarget` bound to `areaTask.finishArea` for `draw-area`
+only; **`toolManager.finishActiveTool()` has exactly one caller, `areaTask.ts`**, which is the
+sentence both fixes exist to make true. `areaCreation.e2e.test.ts` holds a move's save open,
+outlines an Area, and expects ONE write for Enter and for the first-corner click; both wrote twice
+before. Numeric corners, Area metadata and self-intersection repair were left to later slices by
+name; self-intersection detection stays deferred by SDD §26.
+
+**Keyboard corner entry for Areas has landed.** #76, `codex/editor-area-numeric`, head 341ad973,
+fixed to 226dcc7f, merged as e7eee13a. A native disclosure in the task banner edits the drawing
+tool's temporary outline in metres, mouse points appear in the same list, and unapplied or
+invalid input blocks every completion door. Two threads. Escape on a Remove button cleared the
+row under focus, so focus fell to `<body>` and the NEXT Escape never reached `PlanEditorRoot` —
+0a17601c measures focus across the component's own patch and moves it to Apply (not the X input,
+because a native field keeps Escape for itself). And a mouse-placed coordinate keeps
+sub-millimetre precision, so a corner at `1234.4` mm displays `1.234` and retyping `1.234` was
+read as "untouched" and kept `1234.4`: the port of #91's d9e7afbc (226dcc7f) tracks whether each
+axis was EDITED rather than comparing text to the initial formatting;
+`areaCornerInput.test.ts` read `Expected "x": 1234 / Received "x": 1234.12345` before it. Gate on
+the fixed head: 488 files, 6732 tests, floors held, fallow 0.
+
+**Keyboard dimensions for existing rectangular rooms have landed.** #82,
+`codex/editor-room-dimensions`, head 38ec673b, fixed to d407bef7, merged as ec267544. The
+single-Room Inspector opens a width/depth form with preview, Apply and Cancel; one Apply goes
+through the shared move command, history, projection refresh and the recalculation cascade.
+Rectangles only — rotated, irregular and degenerate outlines are refused rather than converted to
+bounds; untouched axes keep their original precision. **The P1 is the design decision of the
+slice**: the form's `expected: version` came from the note's frontmatter alone, so a sync
+rewriting this room's `.rpgeo` entry without touching its note was invisible and Apply overwrote
+the peer's geometry. f9b56d54 fixes it at the REPOSITORY, not in the dialog, because every
+geometry writer presents the same version from the same reader: a zone's version digests the
+note's owned keys AND its own sidecar entry (`observeZone` in `digest.ts`), and `saveQueued` and
+`delete` re-read both before any write. The ENTRY, deliberately, not the sidecar's plan-grained
+version — a neighbour's move would otherwise refuse an unrelated save, and `consistency.test.ts`
+pins both directions (`Expected error, got ok` before). The P2 (resize announced enabled while
+another tool was active, though `open()` refused it) is the d9e7afbc port as 04923ab8, on this
+branch's `roomResizeAction.ts`. Gate: 492 / 6780, floors, fallow 0.
+
+**Keyboard renaming for existing rooms has landed.** #83, `codex/editor-room-naming`, head
+5326e14a, merged as 4fe71631 (ffd4d740 after the merge-down of #82's fix). Rename room in the
+Inspector; edits stay local until Apply; `ZoneRenamed` refreshes other leaves without a geometry
+event. **The design decision is a generalisation**: #82's `roomResizeAction.ts` became
+`roomEditAction.ts`, one `createRoomEditAction` that both the size and the name form share for
+their versioned baseline, retirement, busy and conflict-refresh lifecycle — which is where the
+merge-down met its one conflict, resolved by keeping #83's shape and applying #82's active-tool
+condition on `createRoomEditAction`'s `blocked` (the line #91 has), with the test gaining the
+rename half of the assertion. The one thread: a peer leaf's rename reached `ProjectStore` but the
+Inspector heading cached `inspectorDto` and re-read it only on a `selectedIds` change. 976ab733
+calls `inspector.refresh()` at the end of `registerSelectionRetirement`'s callback — the watch
+that fires exactly when a hydrate lands — rather than adding a second `onPlanChanged` listener,
+which `planEditorView.test.ts` pins at one. Gate: 496 / 6815.
+
+**Floor start and reference plan setup have landed.** #85, `codex/reference-plan-workflow`, head
+f58f1f14, fixed to a65cdc92, merged as 0c51dcc3. ADR-0019. An empty floor offers Add rooms,
+Upload a floor plan and Start empty; setup carries one draft through source, page, crop, rotation,
+known-distance scale and review, then writes appearance and calibration through one compensated
+conditional command; plan schema v2 with a read-only v1 migration. Six threads, the most of any
+PR, four fixed by the author and two ported. The P1: `digest.ts` derived the plan's owned keys
+from the v1 schema, so a sync editing the new `reference-appearance` field was invisible to
+external-modification detection — 6670aa27 derives from `PlanFrontmatterSchemaV2`, and
+`digest.test.ts` derives its expectation from V2 too so the generated case was red first. The
+calibration baseline was read twice (once by `loadPlan`, once from the sidecar), so a calibration
+written between the awaits persisted a scale that did not match the picked points — 38ae64f7
+reads one; and its own reply's claim that "no command removes a calibration" was FALSE, since
+`ReversibleCalibratePlan.undo` writes back a document that can carry `calibration: null`, so
+6521d79d makes `Plan.withCalibration(null)` clear and corrects the sentence. b2f2e558 normalizes
+a typed vault path once, so a canonical `TFile.path` in a change event matches what was persisted.
+The two ports from d9e7afbc: 63673ab7 publishes the rescale's `ZoneGeometryChanged` sequentially
+instead of `Promise.all` (forty rooms × four writes per recalculation was about 160 concurrent
+writes; peak in-flight subscribers 3 → 1, measured), and 8c864153 snaps a `scaleCorrection`
+within eight machine epsilons of one to exactly one so a reopened 15° reference does not demand
+rescale consent for an unchanged calibration (`1.0000000000000002` at 15°; the other three
+rotations happened to round exactly and passed either way). **Not ported, deliberately**: #91's
+two-line widening of `needsConsent` over `document.structure`/`intended`, fields this branch's
+document does not have — it would not compile here and merges up untouched. Gate: 502 / 6886.
+The compensated two-file edit is not a durable crash journal, by the body's own sentence.
+
+**Connected walls and hosted openings have landed.** #86, `codex/connected-walls`, head be55cba7,
+fixed to b10d88fe, merged as 3d08d22a. ADR-0020 resolves ADR-SO: straight centre-line walls,
+explicit opening hosts and Room-boundary provenance in `.rpgeo` v2, beside the unchanged polygon
+`objects`; legacy notes and polygons keep their IDs and are never rewritten on read. Whole chains
+stay temporary until Finish; an optional Room rides the existing compensated Zone transaction in
+one history entry; host deletion removes hosted openings while keeping Rooms; whole-plan
+calibration scales every wall and opening measurement and asks consent on a populated plan. Five
+threads, all about reverse-order history and validation, four fixed on-branch: the optional Room
+recorded in a PRIVATE ledger so a rename-and-undo stranded the loop undo (a31a6c14 — the
+editor-wide ledger from `buildRuntime`); the ledger generation alone refusing a structure undo
+after a sibling Zone write and its undo advanced the sidecar revision (a45cca65 — the
+whole-document comparison decides); drafts validated against readable `project.zones` rather than
+the sidecar's object ids, so one unreadable Room note blocked every wall (4a4eebc7); and six
+command-level `spatial.*` codes with no locale row, falling through to the Persistence category
+sentence (6ee91bc0 + f0bdc1be — `spatialMessage.test.ts` DERIVES the codes from their raise
+sites, refuses to pass on fewer than four, and went red with one sentence removed). The fifth is
+the port: `sameGeometryDocument` compared `objects` by array position, and
+`ObsidianZoneRepository.saveQueued` removes-and-appends, so a Room move and its undo superseded
+wall history — 9208b831 sorts by id (from #91's 8ba7e290, not a0e91241, which the brief named;
+a0e91241 is the later `elements` sort). **Not ported, and a design divergence worth knowing**:
+#91's third `structureMixedHistory` case ('does not let local move/undo conceal a peer sidecar
+write from earlier wall history') was red on this branch for a DIFFERENT reason — it asserts the
+ledger-generation check that #91's `StructureCommand.undo` adds back
+(`generation !== this.generation || !sameGeometryDocument(...)`), which a45cca65's
+whole-document rule does not have. #86 says a matching document is never superseded; #91 says a
+peer write concealed by a local move-and-undo still is. #91's rule is what `main` holds; the
+merge-down at #87 took #87's `sameGeometryDocument.ts` (8ba7e290, which already carried the fix
+and `intended`) and #91's three-case test file over the add/add conflict. Gate: 515 / 7011.
+Browser evidence was a Chromium 148 named through `RP_CHROMIUM_EXECUTABLE`, not the pinned build.
+
+**Existing, Planned, Work and Review are connected.** #87, `codex/renovation-workflow`, head
+7877e473, fixed to ade0bc73, merged as a897ce4a. ADR-0021 resolves ADR-EPW and ADR-RL: the Plan
+note owns the renovation register, v3 sidecars carry independent current and intended
+straight-wall and opening facts under the same spatial IDs, Review is scoped to Decisions, missing
+Work/outcome links and incomplete dependencies, and a regenerated review note is guarded by owner
+and digest. It also carried #74's 48febd87 and 381bcdc4 up with their tests, and cached import
+edges inside the test-environment guard after repeated filesystem walks crossed its budget. Four
+threads. `applyPlannedGeometry` assigned a draft's id on Preview, which hid the geometry-kind
+selector before Apply — 873c0448 allocates per call and passes `{ ...draft, id }` on. Marker
+offsets used the floor-wide record index, so the first marker in a later room sat below every
+earlier room's markers — 018a9309 ranks within the room. **The P1 is the design decision**: a
+metadata-only renovation short-circuited on `sameGeometryDocument` and wrote no sidecar, so a peer
+Room deletion between `check()` and the Plan save left the record pointing at deleted geometry with
+both writes succeeding. d485c8c3 removes the short-circuit — the sidecar is written as a
+compare-and-swap NO-OP against the version `check()` observed, under the store's plan lock, the
+mechanism `StructureCommand` already used — at the cost of one sidecar revision per metadata-only
+renovation, which the round-trip case now asserts rather than tolerates. The fourth is the port:
+`ObsidianZoneRepository.delete()` advanced the sidecar and returned no receipt, so undoing a Room
+deletion after a structure edit read the post-delete version as foreign — eaeb55bd (d9e7afbc)
+threads `RelatedWriteReceipt` through `DeletedZone`, the reversible delete command and
+`RoomBoundaryHistory.restore`; `zoneDeletionMixedHistory.test.ts`'s first case read revision 5
+against 6 before it, and its second case is green on the UNFIXED code by construction (which
+refuses every such undo) and guards the fix's `observe` half instead — proven by mutating that
+line out. Gate: 528 / 7137, 99.12 / 98.11 / 99.08 / 99.42, fallow 0.
+
+**Materials, costs and vault evidence are connected.** #88, `codex/materials-costs-evidence`,
+head 3c1c737a, fixed to 915ae5dc, merged as 05fde238. ADR-0022 and SDD §102. Materials reuse the
+Asset catalogue, the quantity engine, project pricing and the Money pipeline, with current and
+intended sources explaining area, length, count and manual calculations; costs reconcile planned
+estimates, commitments and linked actuals on one obligation — Remaining is planned minus actual
+minus open commitments, negative allowed; purchased and reserved are disjoint allocations that
+never imply payment; documents, photos and notes are ordinary vault files with rename repair and
+missing-file feedback. Nine threads, six unresolved when this pass began, every one fixed by a
+byte-identical port from #90 (26b693bd) or #89 (5824f92c) or #91 (d9e7afbc), each with its red
+watched first. cdd8aeb6: the vault rename handler relocated evidence links BEFORE `onRename`
+repointed the index, so a renamed Plan note was read as missing and its own self-links kept the old
+path (`evidenceRenameLifecycle.test.ts`, driven through the registered host listener). 660d08e1:
+`EvidencePreview`'s `failed` was set for the component's life, so a corrected source was never
+retried — a `watch(file)` resets it; the `revision` prop and the lazy-decoding attributes in the
+same upstream hunk were NOT ported (they depend on `evidenceRevision`, absent here, and are not
+the thread). bb708caf, **the P1**: the shopping projection filtered to positive `outstanding`
+BEFORE the stale check, so a fully procured material whose source geometry then grew was dropped
+silently — `planningReviewRegressions.test.ts` read `""` where it expected `null`. 9e896f47 clears
+`commitmentId` when a fact's stage becomes committed, and **d8d66449 is the finding inside the
+fix**: #91's case triggered `change` on a DISABLED `<select>`, which `@vue/test-utils` silently
+skips, so the `if (props.paused) return` arm measured 0 in `coverage-final.json` while the case
+passed — it dispatches a real `Event('change')` now. bca0c854 routes an existing-only evidence
+subject to the Existing view rather than a Planned view that filters it out. bfcfc6e9 builds every
+review-note finding from ONE fresh `PlanningBaseline` rather than half from a possibly older Pinia
+projection; the `runtime.writesBlocked` swaps and the widened clear guard in the same upstream
+hunk stay unported (they depend on `planningContext` changes not on this branch). Gate: 538 /
+7249, 99.12 / 98.02 / 99.09 / 99.43 — branches ONE unit above the floor (9412/9603 in the
+worktree's own run), fallow 0. Not claimed by its body: complete Increment D, multi-target
+evidence identity, cross-Room material transfer, quote comparison, durable crash recovery.
+
+**The connected editor is finalized.** #91, `codex/editor-plan-finalization`, head d1b425a4,
+fixed to 280eecf5, merged as 59977120. The integration candidate for everything above plus what
+ran beside it: #89's visual-fidelity UI (absorbed at b569dd22), #90's recovery work
+(re-implemented), the persistent shell, generic spatial elements (ADR-0023), Trades, manual
+schedules and quote comparison (ADR-0024), evidence dates at schema 8, Review markers that select
+a Room while staying in Review, and the pan regression (~33 ms per pan at 16.7 ms idle, traced to
+six Konva configurations re-set when world viewport movement left a Room's visible properties
+unchanged — 16.6–16.7 ms medians after). Its own CI on 07bc094a passed 663 files / 8121 tests on
+every leg and failed exactly one thing: **branches at 97.89% (12543/12813), fourteen arms short**.
+**The coverage closure is the design decision of this PR**, and it is a closure by ARGUMENT, not
+by tests alone: 41 arms, **20 driven and 21 removed as guards nothing could drive**, each removal
+with its reason written where the guard was. The unreachable families: (1) nine
+currency-mismatch arms behind operands already validated to one currency (`reconcileCosts` ×6,
+`costPipeline` ×2, `compareQuotes` ×1) — replaced by a `Result.unwrap` programmer-error door,
+SDD §65, same shape as `Money.of`; (2) three `|| item.id` fallbacks after `validSubject` had
+already guaranteed a description on one side (`recordChoices`, `useReviewPresentation`,
+`SubjectRow.vue`) — folded into one `subjectLabel` in the domain, driven once there; (3) two
+re-lookups of a record found one call earlier (`planningDraft`'s material, `planningSelectionContext`'s
+Decision through `flatMap`); (4) three in `DownstreamAction.vue` — `destination()` re-read the plan
+`open()` had already refused, and both mount sites are Room-scoped so `session.roomId` is always
+set where the button draws (a test that cleared it unmounted the button, measured); (5) four
+single guards each behind an earlier mechanism — `WorkResponsibilityFields`' frozen-change arm
+behind a capture-phase `stopImmediatePropagation`, `tradeCatalogue`'s alive-after-dispose arm
+behind `latest-read` resolving every waiter first, `structureActions`' snapshot-without-structure
+arm folded into the stale guard, `QuoteComparisonState`'s empty-origin arm under a `v-if` on the
+same id. The twenty driven arms are named per test in the closure report; the sharpest is
+`tradeCatalogue.ts`'s listing-fault catch, which the existing rejection test never reached because
+the repository wrapper converts the rejection — measured 0/0 under that file alone. 700b5248 is a
+FOLD that exists only because fallow scores CRAP by function line from the on-disk
+`coverage-final.json`: moving `subjectLabel` above `reviewRenovation` shifted the latter's line,
+the match missed, the static estimate flagged it at 37.1, and putting it back cleared it.
+280eecf5 drops one dead export in `scripts/editor-matching-views.mjs` that fallow would have
+reddened on. Merging #88 up produced eight conflicts (`CostFields.vue`, `EvidencePreview.vue`,
+`ReviewInspector.vue`, `roomEditAction.ts`, four planning tests) and #91's side was kept in every
+one, being the superset the lower ports were taken from. Gate on the merged head: **668 files /
+8143 tests, 99.27 / 98.24 / 99.31 / 99.56, fallow 0**. Left open, in its own words: the final
+M00–M17 visual acceptance and live-host acceptance (H1–H6 in the completion matrix).
+
+**Editor coverage boundaries have landed: five behavioural cases and no production code.** #92,
+`codex/editor-coverage-finalization`, head 256a9384, merged as 7d4bc381 (aea4abff after the
+merge-down). An invalid persisted Quote with a matching raw version; Asset and Trade list snapshots
+overtaken by real index reconciliation; an invalid material blocking a valid geometry change; a
+real material deletion during a geometry-guard snapshot; and the approved Requirement cleanups
+that remove impossible date and origin alternatives without weakening validation. Measured
+scoped as +6 branch hits and +2 statement hits on identical source blobs. Its two merge conflicts
+were add/add on evidence JSON receipts, where #92's files were byte-equal subsets of #91's (#91's
+carried `rootIntegration` too), so #91's were kept. Gate on the merged head: identical to #91's —
+668 / 8143, same four figures, fallow 0 — which is the number `main` stands at as of 7d4bc381.

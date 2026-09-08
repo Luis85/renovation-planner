@@ -233,16 +233,7 @@ export class SelectTool implements EditorTool {
 		if (this.elementMove.active) { this.elementMove.move(event); return; }
 		if (this.wallGesture) { this.deps.previewWall?.(this.wallGesture.id, event.worldPoint); return; }
 		if (this.gesture === null) {
-			// No drag in flight: this move is a HOVER, so it predicts rather than acts —
-			// `resolveSelectionTarget` is the same question `pointerDown` asks, which is what
-			// keeps the cursor's promise and the click's outcome unable to disagree. Both halves
-			// of the resolver's answer are kept: WHICH record, and WHAT of it — a body or one of
-			// its vertex handles — because §6.2 asks the cursor to distinguish the two.
-			context.renderState.rotationHoverSuppressed = event.modifiers.alt;
-			const { target } = this.targetAt(context, event);
-			context.renderState.rotationHoverId = target?.kind === 'rotation' ? target.id : this.approachingRotation(context, event) ?? target?.id ?? null;
-			context.renderState.hoveredObjectId = target === null ? null : target.id;
-			context.renderState.hoveredTargetKind = target === null ? null : target.kind;
+			this.updateHover(context, event);
 			return;
 		}
 		if (this.gesture.kind === 'body') {
@@ -256,6 +247,14 @@ export class SelectTool implements EditorTool {
 		const preview = [...this.gesture.original.points];
 		preview[this.gesture.index] = event.worldPoint;
 		context.renderState.previewPolygon = preview;
+	}
+	private updateHover(context: EditorContext, event: EditorPointerEvent): void {
+		// Ordinary hover predicts the same body/handle as a click; affordance approach stays separate.
+		context.renderState.rotationHoverSuppressed = event.modifiers.alt;
+		const { target } = this.targetAt(context, event);
+		context.renderState.rotationHoverId = target?.kind === 'rotation' ? target.id : this.approachingRotation(context, event) ?? target?.id ?? null;
+		context.renderState.hoveredObjectId = target === null ? null : target.id;
+		context.renderState.hoveredTargetKind = target === null ? null : target.kind;
 	}
 
 	private finishSelectionGesture(event: EditorPointerEvent): boolean {

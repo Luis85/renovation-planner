@@ -3,7 +3,7 @@ import type {
 	GeometryError,
 	ReferenceError,
 } from '../../../core/errors/AppError';
-import type { Polygon } from '../../../core/geometry/Polygon';
+import { preservePointCurves, type CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { zoneGeometryChanged } from '../../../domain/zone/Zone.events';
@@ -16,8 +16,8 @@ import { loadZone } from './loadZone';
 
 export interface MoveSpatialObjectInput {
 	readonly zoneId: ZoneId;
-	/** Full replacement — "move" vs "resize" is a UI/tool-level distinction. */
-	readonly geometry: Polygon;
+	/** Full point replacement; an omitted curve map retains existing edge parameters. */
+	readonly geometry: CurvedPolygon;
 	/**
 	 * Absent in this slice: a fresh gesture is last-writer-wins, so the handler saves
 	 * with the version its own load returned. Slice 6's undo/redo supplies it.
@@ -79,7 +79,8 @@ export class MoveSpatialObjectCommand
 			return loaded;
 		}
 		const zone: Zone = loaded.value.entity;
-		const updated = zone.withGeometry(input.geometry);
+		const geometry = preservePointCurves(zone.geometry, input.geometry); if (!geometry.ok) return geometry;
+		const updated = zone.withGeometry(geometry.value);
 		if (isErr(updated)) {
 			return updated;
 		}

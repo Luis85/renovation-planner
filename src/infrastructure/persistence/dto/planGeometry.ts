@@ -21,7 +21,6 @@ export const SpatialObjectGeometrySchemaV1 = z.object({
 	points: z.array(z.tuple([z.number(), z.number()])),
 });
 
-export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV1>;
 
 /** Declared now so the sidecar has one schema, versioned once; slice 7 writes it. */
 export const CalibrationSchemaV1 = z.object({
@@ -64,5 +63,11 @@ export const PlanGeometrySchemaV5 = PlanGeometrySchemaV4.extend({ schemaVersion:
 export const PlanGeometrySchemaV6 = PlanGeometrySchemaV5.extend({ schemaVersion: z.literal(6), groups: z.array(z.object({
 	id: z.string().startsWith('group-'), name: z.string().trim().min(1).max(100), memberIds: z.array(z.string().min(1)).min(1),
 })).optional() });
-export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6]);
-export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV6>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 };
+const BulgeSchema = z.number().min(-1).max(1);
+export const SpatialObjectGeometrySchemaV7 = SpatialObjectGeometrySchemaV1.extend({ bulges: z.array(BulgeSchema).optional() })
+	.refine(value => value.bulges === undefined || value.bulges.length === value.points.length, { message: 'A closed boundary needs one bulge per edge.' });
+export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV7>;
+const StructureSchemaV7 = StructureSchemaV5.extend({ walls: z.array(StructureSchema.shape.walls.element.extend({ bulge: BulgeSchema.optional() })) });
+export const PlanGeometrySchemaV7 = PlanGeometrySchemaV6.extend({ schemaVersion: z.literal(7), objects: z.array(SpatialObjectGeometrySchemaV7), structure: StructureSchemaV7.optional(), intended: StructureSchemaV7.optional() });
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7]);
+export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV7>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 };

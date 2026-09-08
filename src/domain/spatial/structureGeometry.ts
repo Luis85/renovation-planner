@@ -4,6 +4,8 @@ import { err, ok, type Result } from '../../core/result/Result';
 import { samePoint, wallLength, type Opening, type Structure, type Wall } from './Structure';
 import { validSpatialElement } from './SpatialElement';
 import { validOpeningSwing } from './openingSwing';
+import { arcExtrema, arcRadius } from '../../core/geometry/circularArc';
+import { circularEdgeIntersections, curveTolerance } from '../../core/geometry/circularIntersections';
 
 export function spatialError(detail: string): ValidationError {
 	return { category: 'Validation', code: `spatial.${detail}`, message: `Invalid spatial structure: ${detail}.` };
@@ -12,8 +14,12 @@ const cross = (a: Point, b: Point, c: Point): number => (b.x - a.x) * (c.y - a.y
 const on = (a: Point, b: Point, p: Point): boolean => cross(a, b, p) === 0 && p.x >= Math.min(a.x, b.x) && p.x <= Math.max(a.x, b.x) && p.y >= Math.min(a.y, b.y) && p.y <= Math.max(a.y, b.y);
 
 /** End-to-end junctions only. Crossings, T junctions and collinear overlap require splitting. */
-export function wallsConflict(a: Pick<Wall, 'start' | 'end'>, b: Pick<Wall, 'start' | 'end'>): boolean {
+export function wallsConflict(a: Pick<Wall, 'start' | 'end' | 'bulge'>, b: Pick<Wall, 'start' | 'end' | 'bulge'>): boolean {
 	const shared = [a.start, a.end].filter(p => samePoint(p, b.start) || samePoint(p, b.end));
+	if (a.bulge || b.bulge) {
+		const result = circularEdgeIntersections({ ...a, bulge: a.bulge ?? 0 }, { ...b, bulge: b.bulge ?? 0 }), epsilon = curveTolerance([a.start, a.end, b.start, b.end]);
+		return result.overlap || result.points.some(point => !shared.some(junction => Math.hypot(point.x - junction.x, point.y - junction.y) <= epsilon));
+	}
 	if (shared.length === 2) return true;
 	if (shared.length === 1) {
 		const otherA = samePoint(a.start, shared[0]) ? a.end : a.start;
@@ -40,8 +46,15 @@ function openingError(opening: Opening, structure: Structure): ValidationError |
 	return structure.openings.some(other => other !== opening && other.hostId === opening.hostId && opening.offset < other.offset + other.width && other.offset < opening.offset + opening.width) ? spatialError('opening-overlap') : null;
 }
 
+function validWallCurve(wall: Wall): boolean {
+	const bulge = wall.bulge ?? 0;
+	if (!Number.isFinite(bulge) || Math.abs(bulge) > 1) return false;
+	if (bulge === 0) return true;
+	const edge = { start: wall.start, end: wall.end, bulge }, radius = arcRadius(edge);
+	return radius !== null && Number.isFinite(radius) && radius > 0 && arcExtrema(edge).every(point => validSpatialPoint(point));
+}
 function validWall(wall: Wall): boolean {
-	return wall.id.startsWith('wall-') && validSpatialPoint(wall.start) && validSpatialPoint(wall.end) && [wallLength(wall), wall.height, wall.thickness].every(n => dimension(n));
+	return wall.id.startsWith('wall-') && validSpatialPoint(wall.start) && validSpatialPoint(wall.end) && validWallCurve(wall) && [wallLength(wall), wall.height, wall.thickness].every(n => dimension(n));
 }
 
 export function validateStructure(structure: Structure, roomIds: readonly string[]): Result<Structure, ValidationError> {

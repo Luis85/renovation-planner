@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { refuseInoperativeEvent, restoreInoperativeChoice } from '../forms/inoperativeControl';
+import { refuseInoperativeEvent } from '../forms/inoperativeControl';
 import { computed, onBeforeUnmount, ref, toRaw, type Ref } from 'vue';
 import type { EvidenceFiles } from '../../../application/ports/EvidenceFiles';
 import { prepareMaterial, type PlanningBaseline, type MaterialInput } from '../../../application/commands/renovation/PlanningServices';
@@ -17,16 +17,19 @@ import DraftRecovery from '../forms/DraftRecovery.vue';
 import MaterialFields from './MaterialFields.vue';
 import CostFields from './CostFields.vue';
 import EvidenceFields from './EvidenceFields.vue';
-import { hasRoomContext } from '../../../domain/renovation/SharedLinks';
+import PlanningContextFields from './PlanningContextFields.vue';
 const props = defineProps<{ draft: PlanningDraft; baseline: PlanningBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; files?: EvidenceFiles; retry?: () => Promise<void>; openSource?: () => Promise<void>; dispatch: (input: MaterialInput | RenovationInput) => Promise<DispatchResult> }>();
 const emit = defineEmits<{ submit: [] }>();
 const draft = ref(structuredClone(toRaw(props.draft))), submitting = ref(false), error = ref(''), preview = ref('');
 useDialogFormBusy(submitting, props.busy);
+const filesWorking = ref(false);
+const photo = computed(() => draft.value.kind === 'evidence' && draft.value.type === 'photo');
+const newPhoto = computed(() => photo.value && !props.baseline.plan.entity.renovation?.depth?.evidence.some(item => item.id === draft.value.id));
 const frozen = computed(() => props.busy.value);
-const applyBlocked = computed(() => frozen.value || props.paused.value);
+const applyBlocked = computed(() => frozen.value || props.paused.value || filesWorking.value);
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
-const targets = computed(() => [...new Set([draft.value.roomId, ...props.baseline.geometry.document.structure?.elements?.map(item => item.id) ?? [], ...props.baseline.geometry.document.intended?.elements?.map(item => item.id) ?? [], ...props.baseline.geometry.document.structure?.walls.map(item => item.id) ?? [], ...props.baseline.geometry.document.structure?.openings.map(item => item.id) ?? [], ...props.baseline.geometry.document.intended?.walls.map(item => item.id) ?? [], ...props.baseline.geometry.document.intended?.openings.map(item => item.id) ?? []])]);
+
 function input(): MaterialInput | RenovationInput | null {
 	if (draft.value.kind === 'material') {
 		const next = materialInput(draft.value), result = prepareMaterial(props.baseline, next);
@@ -37,6 +40,7 @@ function input(): MaterialInput | RenovationInput | null {
 	if (draft.value.kind === 'evidence') {
 		const file = props.files?.resolve(draft.value.path + draft.value.subpath, props.baseline.plan.entity.id);
 		if (!file?.ok) return null;
+		if (draft.value.type === 'photo' && file.value.image === null) { error.value = tr('planning.photo.image-required'); return null; }
 		draft.value.path = file.value.path; draft.value.subpath = file.value.subpath;
 	}
 	const next = planningInput(draft.value, props.baseline);
@@ -48,7 +52,7 @@ async function submit(): Promise<void> {
 	error.value = '';
 	try {
 		const next = input();
-		if (!next) { error.value = tr('planning.invalid'); return; }
+		if (!next) { error.value ||= tr('planning.invalid'); return; }
 		submitting.value = true;
 		const result = await props.dispatch(next);
 		if (!alive) return;
@@ -79,31 +83,17 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 		>
 			{{ error }}
 		</p>
-		<label v-if="draft.kind === 'cost' || draft.kind === 'evidence'">{{ tr('planning.description') }}<input
+		<label v-if="draft.kind === 'cost' || (draft.kind === 'evidence' && !photo)">{{ tr('planning.description') }}<input
 			v-model="draft.title"
 			:readonly="frozen"
 			name="title"
 		></label>
-		<label>{{ tr('planning.target') }}<select
-			v-model="draft.targetId"
-			:aria-disabled="frozen"
-			name="target"
-			@change.capture="restoreInoperativeChoice($event, draft.targetId)"
-		><option
-			v-for="target in targets"
-			:key="target"
-			:value="target"
-		>{{ target === draft.roomId ? tr('renovation.room-target') : target }}</option></select></label>
-		<label>{{ tr('renovation.work') }}<select
-			v-model="draft.workId"
-			:aria-disabled="frozen"
-			name="work"
-			@change.capture="restoreInoperativeChoice($event, draft.workId)"
-		><option value="">{{ tr('planning.unassigned') }}</option><option
-			v-for="work in baseline.plan.entity.renovation?.work.filter(item => hasRoomContext(item, draft.roomId))"
-			:key="work.id"
-			:value="work.id"
-		>{{ work.title }}</option></select></label>
+		<PlanningContextFields
+			v-if="!photo"
+			:draft="draft"
+			:baseline="baseline"
+			:frozen="frozen"
+		/>
 		<MaterialFields
 			v-if="draft.kind === 'material'"
 			:draft="draft"
@@ -138,7 +128,16 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 			:paused="frozen"
 			:files="files"
 			:write-blocked="applyBlocked"
-		/>
+			@busy="filesWorking = $event"
+		>
+			<template #context>
+				<PlanningContextFields
+					:draft="draft"
+					:baseline="baseline"
+					:frozen="frozen || filesWorking"
+				/>
+			</template>
+		</EvidenceFields>
 		<template v-if="draft.kind === 'material'">
 			<button
 				type="button"
@@ -155,9 +154,10 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 			type="submit"
 			:aria-disabled="applyBlocked"
 			data-rp-planning-apply
+			:class="{ 'mod-cta': newPhoto }"
 			@click.capture="refuseInoperativeEvent"
 		>
-			{{ tr('planning.apply') }}
+			{{ tr(newPhoto ? 'planning.add.photo' : 'planning.apply') }}
 		</button>
 	</form>
 </template>

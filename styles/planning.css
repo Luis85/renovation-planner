@@ -7,3 +7,6 @@
 .rp-draft-recovery { display: flex; flex-wrap: wrap; gap: var(--size-4-2); border: var(--border-width) solid var(--background-modifier-border); padding: var(--size-4-2); }
 .rp-draft-recovery p { flex-basis: 100%; margin: 0; }
 .rp-draft-recovery button { min-height: 24px; white-space: normal; }
+
+.renovation-plan-editor .rp-photo-details > summary { min-height: 32px; cursor: pointer; }
+.renovation-plan-editor .rp-photo-details__content { display: grid; gap: var(--size-4-3); padding-block-start: var(--size-4-2); }

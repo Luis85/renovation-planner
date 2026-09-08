@@ -89,6 +89,7 @@ function onKey(event: KeyboardEvent): void {
 							inputmode="decimal"
 							:readonly="!input.editable.value"
 							:aria-describedby="[cornerId, hintId, aria['aria-describedby']].filter(Boolean).join(' ')"
+							@input="input.edited[axis] = true"
 							@keydown="onKey"
 						>
 					</FieldError>

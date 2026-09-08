@@ -20,7 +20,6 @@ const groups = computed(() => [...new Set(rows.value.map(row => row.record.workI
 })));
 </script>
 <template>
-	<DownstreamAction section="quotes" />
 	<CostTotals
 		v-if="totals"
 		:totals="totals"
@@ -56,4 +55,5 @@ const groups = computed(() => [...new Set(rows.value.map(row => row.record.workI
 	>
 		{{ tr('planning.add-cost') }}
 	</button>
+	<DownstreamAction section="quotes" />
 </template>

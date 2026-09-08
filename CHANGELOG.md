@@ -162,6 +162,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Changed
 
+- Plan editor: keep renovation state and evidence type switches visible, show contextual room headings and compact expandable records, and place creation and continuation actions after the relevant content. Expanded cost groups retain all reconciled stages.
+
 - Build with Vite instead of esbuild, per the SDD's stack: single CJS bundle into `dist/`,
   a dev-server browser harness, and `@vitejs/plugin-vue` one line away when the first Vue
   component arrives.

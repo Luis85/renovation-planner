@@ -46,7 +46,6 @@ async function act(event: Event, remove: boolean): Promise<void> {
 				</template>
 			</template>
 		</dl>
-		<StructureRenovationEntry />
 		<button
 			type="button"
 			:aria-disabled="paused"
@@ -56,7 +55,9 @@ async function act(event: Event, remove: boolean): Promise<void> {
 			{{ tr('editor.structure.edit') }}
 		</button>
 		<details>
-			<summary>{{ tr('editor.structure.more') }}</summary><button
+			<summary>{{ tr('editor.structure.more') }}</summary>
+			<StructureRenovationEntry />
+			<button
 				type="button"
 				:aria-disabled="paused"
 				@click="act($event, true)"

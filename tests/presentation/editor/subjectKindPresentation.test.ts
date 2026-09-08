@@ -25,18 +25,19 @@ it('distinguishes identical descriptions by saved kind in Existing/Planned rows 
 		rig.runtime.renovation.focus(roomId, mode); await settle();
 		const rows = rig.wrapper.findAll('.rp-subject-row .rp-record-title');
 		expect(rows.map(row => row.text())).toEqual(mode === 'existing'
-			? ['Floor finish · White tile', 'Wall finish · White tile']
-			: ['Floor finish · New tile', 'Wall finish · New tile']);
+			? ['Floor finish White tile', 'Wall finish White tile']
+			: ['Floor finish New tile', 'Wall finish New tile']);
 		const markers = rig.stage.find<Konva.Group>('.renovation-marker');
 		expect(markers.map(marker => marker.findOne('Text')?.getAttr('text'))).toEqual(mode === 'existing'
 			? ['1. Floor finish · White tile', '2. Wall finish · White tile']
 			: ['1. Floor finish · Modify (~) New tile', '2. Wall finish · Modify (~) New tile']);
 		await rows[0].trigger('click'); await settle(); expect(rig.session.focusedId).toBe('detail-floor');
+		expect(rig.wrapper.get<HTMLDetailsElement>('[data-rp-record="detail-floor"] .rp-record-actions').element.open).toBe(true);
 		markers[1].fire('click'); await settle(); expect(rig.session.focusedId).toBe('detail-wall');
 		expect(rig.selection.selectedIds).toEqual([roomId]);
 	}
 	resizeTo(rig.rootEl, 460, 900); await settle();
 	useWorkspaceStore(rig.pinia).openOverlay('inspector'); await settle();
-	expect(rig.wrapper.get('[data-rp-record="detail-wall"] .rp-record-title').text()).toBe('Wall finish · New tile');
+	expect(rig.wrapper.get('[data-rp-record="detail-wall"] .rp-record-title').text()).toBe('Wall finish New tile');
 	expect(new Map(rig.stack.vault.entries)).toEqual(saved);
 });

@@ -7,22 +7,36 @@ import { makeCaptureManifest, recordScreenshots } from './editor-capture-files.m
 
 /** Real keyboard navigation; no locator focus/fill shortcuts. */
 export async function tabTo(page, selector) {
+	const target = typeof selector === 'string' ? page.locator(selector) : selector;
 	for (let count = 0; count < 150; count++) {
-		if (await page.locator(selector).evaluateAll(els => els.includes(document.activeElement))) return;
+		if (await target.evaluateAll(els => els.includes(document.activeElement))) return;
 		await page.keyboard.press('Tab');
 	}
 	throw new Error(`Tab did not reach ${selector}`);
 }
-export async function activate(page, selector) {
-	if (['[data-rp-action="rename-room"]', '[data-rp-action="edit-outline"]'].includes(selector)
-		&& await page.locator('.rp-room-more-actions:not([open]) > summary').isVisible()) {
-		await tabTo(page, '.rp-room-more-actions > summary');
+/** Reveal the actual action through native disclosure controls, using only the keyboard. */
+async function revealAction(page, selector) {
+	for (let depth = 0; depth < 8; depth++) {
+		const closedIndex = await page.locator(selector).first().evaluate(el => {
+			let parent = el.parentElement, closed = null;
+			while (parent) {
+				if (parent instanceof HTMLDetailsElement && !parent.open) closed = parent;
+				parent = parent.parentElement;
+			}
+			return closed ? [...document.querySelectorAll('details')].indexOf(closed) : -1;
+		});
+		if (closedIndex < 0) return;
+		await tabTo(page, page.locator('details').nth(closedIndex).locator(':scope > summary'));
 		await page.keyboard.press('Enter');
 	}
+	throw new Error(`Nested disclosures did not reveal ${selector}`);
+}
+export async function activate(page, selector) {
 	if (selector.startsWith('[data-rp-mode=') && !await page.locator(selector).isVisible()) {
 		await tabTo(page, '[data-rp-room-navigation]');
 		await page.keyboard.press('Enter');
 	}
+	await revealAction(page, selector);
 	await tabTo(page, selector);
 	await page.keyboard.press('Enter');
 }

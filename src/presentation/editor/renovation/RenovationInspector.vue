@@ -50,7 +50,7 @@ watch(() => [session.focusedId, session.mode], async () => {
 	>
 		<ElementInspector v-if="generic" />
 		<StructureInspector v-else-if="element" />
-		<h3 v-else>
+		<h3 v-else-if="session.mode === 'overview' || !room">
 			{{ room?.name || tr('renovation.select-room') }}
 		</h3>
 		<RoomRenovationDetails

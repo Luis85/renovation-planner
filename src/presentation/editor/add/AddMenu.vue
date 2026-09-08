@@ -436,5 +436,8 @@ onBeforeUnmount(() => {
 				</button>
 			</div>
 		</div>
+		<p class="rp-add-menu__footer">
+			{{ tr('editor.shell.add-close') }}
+		</p>
 	</div>
 </template>

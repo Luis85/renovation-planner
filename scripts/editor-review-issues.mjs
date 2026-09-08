@@ -60,7 +60,7 @@ async function verifyRoomMarker(page, roomId, narrow, beforeReview) {
 	const notes = await page.evaluate(() => window.editorFidelity.savedNotes());
 	await page.mouse.click(scene.origin.x + marker.bounds.x + marker.bounds.width / 2, scene.origin.y + marker.bounds.y + marker.bounds.height / 2);
 	await page.locator(`[data-rp-review-summary-room="${roomId}"]`).waitFor();
-	assert.equal(await page.locator('[data-rp-perspective="review"]').getAttribute('aria-pressed'), 'true');
+	assert.equal(await page.locator('[data-rp-perspective="review"]').getAttribute('aria-checked'), 'true');
 	assert.equal(await page.locator('.rp-dialog').count(), 0, 'Room marker selection opens the summary, not a source dialog');
 	assert.equal(await page.locator(selectedReviewRoom).getAttribute('data-rp-review-room'), roomId);
 	assert.equal(await page.locator(selectedReviewRoom).getAttribute('data-rp-review-number'), String(marker.number));

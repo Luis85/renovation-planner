@@ -27,6 +27,7 @@
  * each says why". Read directly from `ProjectStore` rather than from the runtime's
  * `writesBlocked`, so this bar stays mountable standalone in the harness index.
  */
+import HostIcon from '../../components/HostIcon.vue';
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
@@ -109,11 +110,35 @@ const pointerText = computed(() => {
 	-->
 	<footer class="rp-editor-status-bar">
 		<div
+			class="rp-editor-measurements"
+			role="group"
+			:aria-label="tr('editor.measurements')"
+		>
+			<span>{{ tr('editor.zoom') }} {{ zoomPercent }}</span>
+			<span v-if="layoutMode !== 'constrained'"><HostIcon name="grid-2x-2" />{{ tr(gridVisible ? 'editor.status.grid-on' : 'editor.status.grid-off') }}</span>
+			<span><HostIcon name="magnet" />{{ tr(snappingEnabled ? 'editor.status.snap-on' : 'editor.status.snap-off') }}</span>
+			<span
+				v-if="scaleText !== null"
+				class="rp-editor-scale"
+			>{{ scaleText }}</span>
+			<span
+				v-if="layoutMode !== 'constrained'"
+				class="rp-editor-pointer rp-visually-hidden"
+			>{{ pointerText }}</span>
+		</div>
+		<div
+			class="rp-editor-save-state"
+			role="status"
+			:aria-label="tr('editor.save-state')"
+		>
+			<SaveStateIndicator />
+		</div>
+		<div
 			class="rp-editor-status"
 			role="group"
 			:aria-label="tr('editor.status')"
 		>
-			<span class="rp-editor-plan-name">{{ plan?.name ?? '' }}</span>
+			<span class="rp-editor-plan-name rp-visually-hidden">{{ plan?.name ?? '' }}</span>
 			<span
 				v-if="showsConstraintHint"
 				class="rp-editor-hint"
@@ -126,30 +151,6 @@ const pointerText = computed(() => {
 				v-if="stale"
 				class="rp-editor-paused-hint"
 			>{{ tr('editor.hint.paused') }}</span>
-		</div>
-		<div
-			class="rp-editor-measurements"
-			role="group"
-			:aria-label="tr('editor.measurements')"
-		>
-			<span
-				v-if="scaleText !== null"
-				class="rp-editor-scale"
-			>{{ scaleText }}</span>
-			<span>{{ tr('editor.zoom') }} {{ zoomPercent }}</span>
-			<span v-if="layoutMode !== 'constrained'">{{ tr(gridVisible ? 'editor.status.grid-on' : 'editor.status.grid-off') }}</span>
-			<span>{{ tr(snappingEnabled ? 'editor.status.snap-on' : 'editor.status.snap-off') }}</span>
-			<span
-				v-if="layoutMode !== 'constrained'"
-				class="rp-editor-pointer"
-			>{{ pointerText }}</span>
-		</div>
-		<div
-			class="rp-editor-save-state"
-			role="status"
-			:aria-label="tr('editor.save-state')"
-		>
-			<SaveStateIndicator />
 		</div>
 	</footer>
 </template>

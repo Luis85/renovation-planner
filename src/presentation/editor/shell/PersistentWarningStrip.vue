@@ -99,7 +99,11 @@ onUpdated(() => {
 		>
 			<HostIcon :name="w.severity === 'warning' ? 'triangle-alert' : 'circle-alert'" />
 			<span class="rp-warning-strip__content">
-				<span class="rp-warning-strip__severity">{{ tr(SEVERITY_LABEL[w.severity]) + ' ' }}</span>
+				<span
+					class="rp-warning-strip__severity"
+					:class="{ 'rp-visually-hidden': w.id === 'stale' }"
+				>{{ tr(SEVERITY_LABEL[w.severity]) + ' ' }}</span>
+				<strong v-if="w.id === 'stale'">{{ tr('editor.shell.stale-heading') }}</strong>
 				<span>{{ tr(w.messageKey, w.params) }}</span>
 			</span>
 			<span

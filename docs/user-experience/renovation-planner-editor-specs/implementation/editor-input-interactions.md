@@ -37,7 +37,7 @@ current guards; no placeholder controls or inferred stored relationships are cre
 
 ## Verification
 
-Whole Oxlint, scoped ESLint and TypeScript checks passed. Ten focused files passed 171
+At input checkpoint `2f2e99c3`, whole Oxlint, scoped ESLint and TypeScript checks passed. Ten focused files passed 171
 cases covering input interactions, marquee/group delegation, shared drawing constraints,
 Select/Polygon behavior, camera navigation/ownership, structure/element tools and scene
 ordering. Four stylesheet/button/encoding files passed 294 checks.
@@ -52,3 +52,19 @@ Zone tool's actual constrained preview and verify release of Shift and placed po
 The group command facade is supplied by its separate contribution. This optional input
 seam does not claim grouped persistence or transformations have been verified here.
 Combined full repository gates, browser captures and live Obsidian acceptance remain pending.
+
+## Visible canvas admission follow-up
+
+The prior candidate factory included hidden sources, allowing an invisible Object to win
+hover/click priority over a visible Room. `canvasCandidates` now applies the same per-leaf
+Zone/architecture visibility consumed by the renderer before canvas hover, body selection,
+Alt cycling and marquee admission. Canvas context hit testing uses that projection too.
+Explicit sidebar identities still resolve from all readable records, so hiding a layer does
+not remove its non-canvas Inspector/context access or stored data. Group expansion and the
+owning group's complete transform membership are unchanged.
+
+Three new regressions cover hidden hover/Alt, marquee selection without data changes, and
+canvas context filtering with continued sidebar access. Scoped ESLint, whole Oxlint and
+TypeScript checks passed. Five focused files passed all 53 cases, covering these regressions,
+input interactions, marquee selection, SelectTool behavior and scene composition. This
+follow-up does not claim browser or native visual acceptance.

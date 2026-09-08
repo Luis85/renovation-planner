@@ -23,7 +23,8 @@ import { tr } from '../../i18n/strings';
 import { notifyOperationFailure } from '../../notices/notify';
 import { reportDispatchFailure } from '../report-failure';
 import type { PlanEditorContext } from '../PlanEditorContext';
-import { structureCandidates } from '../structure/structureCandidates';
+import { canvasCandidates } from '../selection/canvasCandidates';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { Point } from '../../../core/geometry/Point';
 import type { RotationGestureDeps } from '../elements/ElementRotation';
 import type { ElementMoveDeps } from '../elements/ElementMove';
@@ -75,6 +76,7 @@ export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps, Se
 
 /** The concrete tools of this slice, registered against one shared context factory. */
 export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
+	const workspace = useWorkspaceStore();
 	toolManager.register(new PanTool());
 	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
 	toolManager.register(
@@ -85,8 +87,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			moveElement: deps.moveElement,
 			previewWall: deps.previewWall,
 			editWall: deps.editWall,
-			spatialObjects: () =>
-				[...[...projectStore.zones.values()].map((zone) => ({ id: zone.id, points: zone.points })), ...structureCandidates(projectStore.structure)],
+			spatialObjects: () => canvasCandidates(projectStore.zones.values(), projectStore.structure, workspace.layerVisibility),
 			// Body drags AND vertex drags produce the same command: a vertex drag is a
 			// whole-geometry replacement in which one point differs, so there is one adapter
 			// and only forward/inverse change.

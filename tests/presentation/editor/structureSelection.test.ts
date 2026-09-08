@@ -5,11 +5,33 @@ import { structureCandidates } from '../../../src/presentation/editor/structure/
 import { WALL_LOOP } from '../../helpers/structure';
 import { toolContext, pointerAt } from '../../helpers/tool-context';
 import { ok } from '../../../src/core/result/Result';
+import { selectSpatial } from '../../../src/presentation/editor/selection/selectSpatial';
 
 const structure = { ...WALL_LOOP, openings: [{ id: 'opening-a', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 900, height: 2000, sill: 0 }] };
 const room = { id: 'room-a', points: WALL_LOOP.walls.map(wall => wall.start) };
 const candidates = [...structureCandidates(structure), room];
 describe('typed wall and opening selection', () => {
+	it('shares Object-first hover and click while Alt, list identity and Shift retain the same selection set', () => {
+		const object = { id: 'object-a', kind: 'object' as const, points: [{ x: 600, y: -100 }, { x: 1000, y: -100 }, { x: 1000, y: 100 }, { x: 600, y: 100 }] };
+		const { context, dispatched } = toolContext();
+		const tool = new SelectTool({ spatialObjects: () => [object, ...candidates],
+			createMoveGesture: () => { throw new Error('Selection must not write'); }, reportRejected: () => undefined, reportInvalidInput: () => undefined });
+		tool.activate(context);
+		const at = pointerAt(800, 0);
+		tool.pointerMove(at); expect(context.renderState.hoveredObjectId).toBe('object-a');
+		tool.pointerDown(at); tool.pointerUp(at); expect(context.selection.selectedIds).toEqual(['object-a']);
+		const alt = { ...at, modifiers: { shift: false, ctrl: false, alt: true } };
+		tool.pointerMove(alt); expect(context.renderState.hoveredObjectId).toBe('opening-a');
+		tool.pointerDown(alt); tool.pointerUp(alt); expect(context.selection.selectedIds).toEqual(['opening-a']);
+		// The non-canvas list invokes the same ID-based action, independently of hit priority.
+		selectSpatial(context.selection, 'room-a', true);
+		const shift = { ...at, modifiers: { shift: true, ctrl: false, alt: false } };
+		tool.pointerDown(shift); tool.pointerUp(shift);
+		expect(context.selection.selectedIds).toEqual(['opening-a', 'room-a', 'object-a']);
+		tool.pointerDown(shift); tool.pointerUp(shift);
+		expect(context.selection.selectedIds).toEqual(['opening-a', 'room-a']);
+		expect(dispatched).toEqual([]); tool.deactivate();
+	});
 	it('prioritizes opening, wall, then room regardless of paint order and cycles all three', () => {
 		const base = { candidates, selectedIds: [], worldPoint: { x: 800, y: 0 }, handleToleranceWorld: 10 };
 		expect(resolveSelectionTarget(base)).toEqual({ kind: 'body', id: 'opening-a' });

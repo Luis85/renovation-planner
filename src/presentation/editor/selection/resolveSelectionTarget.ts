@@ -7,7 +7,7 @@ export type SelectionTarget =
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
 
-const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
+const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'object' ? 4 : candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
 
 function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
 	return candidate.points.slice(1).some((b, index) => {
@@ -58,8 +58,9 @@ function badgeAt(input: {
  * The ONE answer to "what would a click here select" (design spec §6.1). Hover asks it to
  * predict, the click asks it to act, so the two cannot disagree. Priority: a single selection's
  * vertex handle or a multi-selection badge, then the topmost containing body, then nothing.
- * Candidates arrive bottom-first (the order `ZoneLayer` stacks them); the body scan walks them
- * top-first. Alt bypasses handles and cycles bodies from the current selection, wrapping.
+ * Bodies rank Object → Opening → Wall → other elements → Room/Area. Candidates arrive
+ * bottom-first; stable sorting preserves paint order within a kind, scanned top-first.
+ * Alt bypasses handles and cycles bodies from the current selection, wrapping.
  */
 export function resolveSelectionTarget(input: {
 	readonly candidates: readonly SpatialObjectCandidate[];

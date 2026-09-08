@@ -28,7 +28,7 @@ export class RoomBoundaryHistory {
 			const valid = validateStructure(structure, read.value.document.objects.map(item => item.id));
 			if (!valid.ok) return err(persistenceError('spatial.boundary-invalid', 'The Room relationship cannot be restored safely.', valid.error));
 			const written = await this.geometry.write(zone.planId, { ...read.value.document, structure }, read.value.version);
-			return written.ok ? ok(undefined) : written;
+			return written.ok ? ok({ relatedWrite: { id: zone.planId, before: read.value.version, after: written.value } }) : written;
 		} catch (cause) { return err(persistenceError('spatial.write-failed', 'Could not restore the Room boundary.', cause)); }
 	}
 }

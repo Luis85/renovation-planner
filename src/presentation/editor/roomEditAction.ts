@@ -65,5 +65,5 @@ export function createRoomEditAction(context: PlanEditorContext, runtime: RoomEd
 			if (alive) notifyFault(cause, context.commands.logger, definition.faultEvent);
 		} finally { loading.value = false; }
 	}
-	return { open, blocked: computed(() => loading.value || blocked.value) };
+	return { open, blocked: computed(() => loading.value || blocked.value || runtime.activeToolId.value !== 'select') };
 }

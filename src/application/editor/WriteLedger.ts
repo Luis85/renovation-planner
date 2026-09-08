@@ -70,7 +70,9 @@ import { sameVersion, type EntityVersion } from '../ports/versioning';
  * that id is a restore, which writes with an `'absent'` expectation and consults no ledger
  * entry. So the rule is "every write, never a delete" — narrower than the "every
  * successful half" the adapters' own comments used to state, two of whose four halves are
- * deletes. Deletes additionally FORGET the id (`forget` below), so a stale entry cannot
+ * deletes. A Zone deletion still writes the surviving Plan sidecar; its related receipt must
+ * be observed and recorded even while the deleted Zone ID is forgotten. Boundary restoration
+ * has the same obligation. Deletes additionally FORGET the id (`forget` below), so a stale entry cannot
  * outlive the note it described and be presented as an expectation by whatever touches
  * that id next.
  */

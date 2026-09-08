@@ -68,6 +68,14 @@ it('keeps the closed wall draft visibly distinct, screen-sized and uncommitted u
 	expect(outline.points()).toEqual(task.draft.points.flatMap(point => [point.x, point.y]));
 	expect(stage.find('.wall-draft-corner')).toHaveLength(4);
 	const editor = useEditorStore(rig.pinia);
+	editor.viewport = { pan: { x: -100, y: -400 }, zoom: 0.1 }; await settle();
+	for (const label of stage.find<Konva.Text>('.wall-draft-length')) {
+		const box = expectDefined(label.getParent(), 'caption group').getClientRect();
+		expect(box.x).toBeGreaterThanOrEqual(0);
+		expect(box.x + box.width).toBeLessThanOrEqual(editor.stageSize.width);
+		expect(box.y).toBeGreaterThanOrEqual(0);
+		expect(box.y + box.height).toBeLessThanOrEqual(editor.stageSize.height);
+	}
 	editor.viewport = { ...editor.viewport, zoom: editor.viewport.zoom * 2 }; await settle();
 	expect(outline.strokeWidth() * editor.viewport.zoom).toBeCloseTo(2);
 	for (const corner of stage.find<Konva.Rect>('.wall-draft-corner')) expect(corner.width() * corner.getAbsoluteScale().x).toBeCloseTo(10);

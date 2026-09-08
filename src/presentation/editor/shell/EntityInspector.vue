@@ -36,7 +36,7 @@
  * task ends by returning to Select, which unmounts the very control the user pressed.
  */
 import { storeToRefs } from 'pinia';
-import { computed, watch } from 'vue';
+import { computed } from 'vue';
 import { tr } from '../../i18n/strings';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useSelectionStore } from '../selection/selection-store';
@@ -56,7 +56,6 @@ import ElementTaskForm from '../elements/ElementTaskForm.vue';
 import { isElementTool } from '../elements/elementDraft';
 import StructureTaskForm from '../structure/StructureTaskForm.vue';
 import { isStructureTool } from '../structure/structureDraft';
-import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
@@ -65,10 +64,6 @@ const rooms = useSpatialRecords();
 const renovationSession = useRenovationSession();
 const records = computed(() => [...rooms.value, ...structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements)]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
-const workspace = useWorkspaceStore();
-watch(activeToolId, tool => {
-	if (isStructureTool(tool) && workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
-});
 </script>
 
 <template>

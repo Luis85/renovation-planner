@@ -47,6 +47,7 @@ import { useEditorRuntime } from '../runtime';
 import AreaCornerEditor from '../add/AreaCornerEditor.vue';
 import { isStructureTool } from '../structure/structureDraft';
 import { isElementTool } from '../elements/elementDraft';
+import { useTaskbarClearance } from './useTaskbarClearance';
 
 const runtime = useEditorRuntime();
 const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
@@ -81,10 +82,13 @@ const task = computed(() => {
 });
 
 const root = ref<HTMLElement | null>(null);
+const taskbarClearance = useTaskbarClearance(root);
 const instructionId = useId();
 const isArea = computed(() => runtime.activeToolId.value === 'draw-area');
 const isOutline = computed(() => isArea.value || runtime.activeToolId.value === 'draw-polygon');
-const finishLabel = computed(() => tr(isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
+const finishLabel = computed(() => tr(isStructure.value
+	? runtime.activeToolId.value === 'draw-wall' ? 'editor.creation.finish-walls' : 'editor.creation.finish-opening'
+	: isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
 const canFinish = computed(() => isStructure.value ? !runtime.structureTask.blocked.value : isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
 const showSnapHint = computed(() => runtime.activeToolId.value === 'draw-room' && runtime.renderState.snapGuides.length > 0);
 const isFreeRoom = computed(() => runtime.activeToolId.value === 'draw-polygon');
@@ -153,6 +157,7 @@ watch(task, (next) => {
 		ref="root"
 		class="rp-task-banner"
 		:class="{ 'rp-task-banner--structure': isStructure }"
+		:style="{ '--rp-taskbar-clearance': `${taskbarClearance}px` }"
 		role="region"
 		:aria-label="tr('editor.task.banner')"
 	>

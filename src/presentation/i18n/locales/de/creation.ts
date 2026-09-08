@@ -1,5 +1,7 @@
 import type { creationEn } from '../en/creation';
 export const creationDe: Record<keyof typeof creationEn, string> = {
+	'editor.creation.finish-walls': 'Wände fertigstellen',
+	'editor.creation.finish-opening': 'Öffnung fertigstellen',
 	'editor.creation.set-up-floor': '{name} einrichten',
 	'editor.creation.new-walls': 'Neue Wände',
 	'editor.creation.start-help': 'Beginnen Sie mit dem, was Sie haben. Maße können Sie später verfeinern.',

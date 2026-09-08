@@ -45,3 +45,20 @@ it('keeps the accessible element list in a disclosure and layer visibility separ
 	expect(rig.session.visible).toBe(false);
 	expect([...rig.stack.vault.entries]).toEqual(saved);
 });
+
+it('retains the history footprint in Review while withdrawing its controls from interaction', async () => {
+	rig = await renovationEditor();
+	const undo = rig.wrapper.get('[data-rp-action="undo"]').element;
+	const redo = rig.wrapper.get('[data-rp-action="redo"]').element;
+	const saved = [...rig.stack.vault.entries];
+	await rig.runtime.renovation.perspective('review'); await settle();
+	expect(rig.wrapper.get('.rp-context-history').attributes('aria-hidden')).toBe('true');
+	expect(rig.wrapper.get('[data-rp-action="undo"]').element).toBe(undo);
+	expect(rig.wrapper.get('[data-rp-action="redo"]').element).toBe(redo);
+	expect(undo).toHaveProperty('disabled', true);
+	expect(redo).toHaveProperty('disabled', true);
+	await rig.runtime.renovation.perspective('plan'); await settle();
+	expect(rig.wrapper.get('.rp-context-history').attributes('aria-hidden')).toBeUndefined();
+	expect(rig.wrapper.get('[data-rp-action="undo"]').element).toBe(undo);
+	expect([...rig.stack.vault.entries]).toEqual(saved);
+});

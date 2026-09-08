@@ -40,3 +40,30 @@ These checks cover draft-corner resize/cancellation, measurement focus in full/c
 panels, scene ordering, and real wall creation, history and numeric form routing. Full
 repository verification, screenshots of this source and native acceptance remain pending
 the integrated release pass. Passing these targeted checks is not visual acceptance.
+
+## Follow-up from integrated smoke at `736ca7c1`
+
+The fresh `light-closed-loop.png` showed the New walls Inspector and annotated draft, but
+also a clipped left measurement, a taskbar overlapping Select/Add, and an incorrect
+Create room label on the wall completion button. The follow-up clamps measurement labels
+inside the canvas, retains their screen size, measures Select/Add clearance as host layout
+changes, and uses explicit Finish walls/Finish opening labels.
+
+Constrained Add → Wall now keeps the canvas exposed, consistently with Add → Room and M16.
+Opening the numeric Inspector is an explicit Details action. The browser journey makes
+that choice before entering coordinates; the panel helper checks `aria-expanded` so it
+does not re-activate an already open panel. Draft, focus, reflow and persistence assertions
+remain.
+
+Follow-up verification passed: scoped ESLint/types; 16 cases in `structureLifecycle` and
+`finalOverviewPresentation`; 292 stylesheet/button checks; and syntax validation of the
+updated browser helper. The new cases verify closed Details and canvas focus after the
+production Add Wall control, explicit numeric access, clearance updates when Select/Add
+changes size, observer cleanup, and fixed-screen caption bounds after panning/zooming.
+New integrated screenshots and native acceptance remain pending.
+
+The subsequent whole-Oxlint pass found two non-null assertions in draft dimension layout
+and a directly passed method callback in the draft corner projection. The layout helpers
+now receive the template's narrowed RoomRect, and the callback explicitly invokes the prop.
+This correction is separate from the previously reported ESLint/type checks; its verification
+is delegated to the ongoing whole-gate pass rather than reported as already passed here.

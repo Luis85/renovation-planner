@@ -159,7 +159,7 @@ function submit(): void { if (wall.value) add(); else void task.finish(); }
 			:aria-disabled="task.blocked.value"
 			@click="task.finish()"
 		>
-			{{ tr('editor.structure.finish') }}
+			{{ tr(wall ? 'editor.creation.finish-walls' : 'editor.creation.finish-opening') }}
 		</button>
 	</form>
 </template>

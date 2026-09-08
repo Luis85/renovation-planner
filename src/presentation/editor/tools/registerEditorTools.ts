@@ -13,6 +13,8 @@ import { DrawPolygonTool } from './draw-polygon-tool';
 import { areaOutline } from '../add/areaOutline';
 import { DrawRoomTool } from './draw-room-tool';
 import { SelectTool } from './select-tool';
+import { PanTool } from './pan-tool';
+import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { ReversibleMoveZoneCommand } from './reversible-move-zone-command';
 import type { UndoableCommand } from './undoable-command';
 import type { RoomDraftStore } from '../add/room-draft-store';
@@ -49,7 +51,7 @@ export function moveGesture(
  * so the one cast that turns Obsidian's opaque per-leaf string into a branded id stays a
  * single site — see `subject` below, which is built from the same value.
  */
-export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps {
+export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps, SelectionInteractions {
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly canFinishArea: () => boolean;
@@ -73,9 +75,11 @@ export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps {
 
 /** The concrete tools of this slice, registered against one shared context factory. */
 export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
+	toolManager.register(new PanTool());
 	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
 	toolManager.register(
 		new SelectTool({
+			expandSelection: deps.expandSelection, selectionMove: deps.selectionMove,
 			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationControl: deps.rotationControl, requestRotation: deps.requestRotation, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
 			previewElement: deps.previewElement,
 			moveElement: deps.moveElement,

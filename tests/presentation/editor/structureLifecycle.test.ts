@@ -9,6 +9,8 @@ import { WALL_LOOP } from '../../helpers/structure';
 import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import { pointerAt } from '../../helpers/tool-context';
+import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
+import { connectedObservers, placeAt, resizeTo } from '../../helpers/layout';
 
 const mounted: Awaited<ReturnType<typeof structureEditor>>[] = [];
 async function rig() { const value = await structureEditor(); mounted.push(value); return value; }
@@ -23,6 +25,37 @@ async function seeded(value: Awaited<ReturnType<typeof rig>>) {
 	expectOk(await value.runtime.dispatcher.run(value.services.command({ planId: value.plan.id, baseline, structure: WALL_LOOP, ledger: value.runtime.structureTask.ledger })));
 }
 describe('spatial task failure, busy and leaf lifetime', () => {
+	it('keeps the taskbar above Select/Add as its actual bounds change and disconnects on exit', async () => {
+		const value = await rig(), before = connectedObservers();
+		const primary = value.wrapper.get('.rp-primary-actions').element as HTMLElement;
+		placeAt(value.canvasEl, 0, 0, 800, 600); placeAt(primary, 300, 520, 200, 48);
+		await start(value);
+		const banner = value.wrapper.get('.rp-task-banner--structure').element as HTMLElement;
+		expect(banner.style.getPropertyValue('--rp-taskbar-clearance')).toBe('96px');
+		placeAt(primary, 280, 480, 240, 88); resizeTo(primary, 240, 88); await settle();
+		expect(banner.style.getPropertyValue('--rp-taskbar-clearance')).toBe('136px');
+		expect(value.wrapper.get('.rp-task-banner__finish').text()).toBe('Finish walls');
+		value.runtime.returnToSelect(); await settle();
+		expect(connectedObservers()).toBe(before);
+	});
+	it('starts Add Wall with the constrained canvas exposed, and reveals numeric fields only on request', async () => {
+		const value = await rig(), workspace = useWorkspaceStore(value.pinia);
+		workspace.setLayoutMode('constrained'); await settle();
+		await value.wrapper.get('[data-rp-action="add"]').trigger('click');
+		await value.wrapper.get('[data-rp-entry="wall"]').trigger('click');
+		await settleUntil(() => !value.runtime.structureTask.draft.loading, 'wall baseline');
+		expect(value.runtime.activeToolId.value).toBe('draw-wall');
+		expect(workspace.overlay).toBe('none');
+		expect(value.wrapper.get('.rp-task-banner--structure').isVisible()).toBe(true);
+		expect(value.wrapper.get('.rp-structure-task').isVisible()).toBe(false);
+		expect(document.activeElement).toBe(value.canvasEl);
+		value.runtime.toolManager.pointerDown(pointerAt(0, 0));
+		value.runtime.toolManager.pointerDown(pointerAt(4000, 0)); await settle();
+		expect(value.runtime.structureTask.draft.points).toHaveLength(2);
+		await value.wrapper.get('[data-rp-rail="details"]').trigger('click');
+		expect(value.wrapper.get('.rp-structure-task').isVisible()).toBe(true);
+		expect(value.runtime.structureTask.draft.points).toHaveLength(2);
+	});
 	it.each(['structure', 'calibration'] as const)('refuses a fresh baseline when the displayed %s is older', async kind => {
 		const value = await rig(), before = expectOk(await value.geometry.read(value.plan.id));
 		const document = kind === 'structure' ? { ...before.document, structure: WALL_LOOP }

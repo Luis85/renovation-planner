@@ -186,7 +186,7 @@ function syncPanPhase(): void {
  */
 const cursorClass = computed(() =>
 	cursorClassFor({
-		panPhase: panPhase.value,
+		panPhase: activeToolId.value === 'pan' ? editor.dragState ? 'panning' : 'armed' : panPhase.value,
 		activeToolId: activeToolId.value,
 		hoveredObjectId: renderState.hoveredObjectId,
 		hoveredTargetKind: renderState.hoveredTargetKind,
@@ -514,7 +514,7 @@ function onPointerDown(event: PointerEvent): void {
 	// the camera keeps panning after the pointer comes back, which reads as the view being
 	// stuck to the cursor.
 	(event.target as Element).setPointerCapture?.(event.pointerId);
-	if (activeToolId.value !== null) {
+	if (activeToolId.value !== null && activeToolId.value !== 'pan') {
 		toolGesturePointer = event.pointerId;
 		toolManager.pointerDown(editorPointerEvent(event, at));
 		return;
@@ -577,7 +577,7 @@ function onPointerMove(event: PointerEvent): void {
 		editor.continuePan(at, event.pointerId);
 		return;
 	}
-	if (activeToolId.value !== null) {
+	if (activeToolId.value !== null && activeToolId.value !== 'pan') {
 		// **The third path the chord grammar reaches, and the only one where the cost is a lost
 		// edit rather than a stuck camera.** A tool drag is primary by construction, and every
 		// tool refuses a release that is not — rightly, since a middle release must not commit
@@ -651,7 +651,7 @@ function onPointerUp(event: PointerEvent): void {
 	// the active tool a release with no matching press — an event stream no device produces,
 	// and the exact grammar defect `canvasPointerRouting.test.ts` already exists for.
 	if (panOverride.phase === 'panning') return;
-	if (activeToolId.value !== null) {
+	if (activeToolId.value !== null && activeToolId.value !== 'pan') {
 		// **The last door with no ownership rule, and the one where it cost a wrong WRITE.** A
 		// release from a pointer that does not own the running gesture reached
 		// `ToolManager.pointerUp`, which commits `SelectTool` at that pointer's coordinates and
@@ -1086,7 +1086,7 @@ function onKeyDown(event: KeyboardEvent): void {
 		// tool at all, clears a selection when there is nothing left to cancel.
 		if (!event.repeat) {
 			routeEscape({
-				panning: panPhase.value === 'panning',
+				panning: panPhase.value === 'panning' || (activeToolId.value === 'pan' && editor.dragState !== null),
 				activeToolId: activeToolId.value,
 				hasDraft: () => toolManager.activeToolHasDraft(),
 				cancelGesture: () => toolManager.cancelGesture(),

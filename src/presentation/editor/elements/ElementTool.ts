@@ -4,6 +4,7 @@ import type { ElementDraft, ElementToolId } from './elementDraft';
 import { discardElementGeometry } from './elementDraft';
 import type { Point } from '../../../core/geometry/Point';
 import type { SnapCandidates } from '../snapping/snap-service';
+import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 
 /** Multi-click linear drafts share the standard tool lifecycle and require explicit Finish. */
 export class ElementTool implements EditorTool {
@@ -23,7 +24,8 @@ export class ElementTool implements EditorTool {
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.inputContext();
 		if (!context) return;
-		this.deps.draft.cursor = context.snapService.snapPoint(event.worldPoint, this.deps.candidates(), 8 * context.viewport.worldPerScreenPixel());
+		const constrained = constrainDrawingPoint(this.deps.draft.points.at(-1), event.worldPoint, event.modifiers.shift && this.id !== 'place-object', context.snapService);
+		this.deps.draft.cursor = context.snapService.snapPoint(constrained, this.deps.candidates(), 8 * context.viewport.worldPerScreenPixel());
 	}
 	pointerUp(): void { /* Completed points belong to pointer down. */ }
 	finish(): void { this.deps.finish(); }

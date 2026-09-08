@@ -37,6 +37,7 @@ import type { ThemeTokens } from '../theme/themeTokens';
 import { STAGE_PIXELS, worldToScreen, viewportTransform } from '../viewport/Viewport';
 import { SELECTION_BADGE_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
 import RoomDraftSketch from './RoomDraftSketch.vue';
+import MarqueeOverlay from './MarqueeOverlay.vue';
 import { structureCandidates } from '../structure/structureCandidates';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import GestureSketch from './GestureSketch.vue';
@@ -177,6 +178,11 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 			:tokens="props.tokens"
 			:to-screen="toScreen"
 		/>
+		<MarqueeOverlay
+			:bounds="runtime.renderState.marquee"
+			:tokens="props.tokens"
+			:to-screen="toScreen"
+		/>
 		<template v-if="selectedFlat !== null">
 			<VLine
 				:config="{
@@ -249,6 +255,5 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 		</VGroup>
 	</VLayer>
 </template>
-
 
 

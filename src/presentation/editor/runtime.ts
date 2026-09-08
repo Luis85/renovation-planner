@@ -732,7 +732,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect, roomDraft, defaultRoomName });
 	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
-	const { elementTask, elementActions, rotationActions, toolBindings } = createSpatialEditing(context, { toolManager, returnToSelect, activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, renderState, ledger, structureTask, openPlanNote: () => context.openPlanNote() });
+	const { elementTask, elementActions, rotationActions, toolBindings } = createSpatialEditing(context, { toolManager, returnToSelect, activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, renderState, ledger, structureTask, wall: structureActions, openPlanNote: () => context.openPlanNote() });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value,
 		...toolBindings,
 		previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
@@ -849,4 +849,3 @@ export function useEditorRuntime(): EditorRuntime {
 	}
 	return runtime;
 }
-

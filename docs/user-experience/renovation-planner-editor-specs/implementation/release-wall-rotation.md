@@ -67,3 +67,18 @@ the free-item rotation branch. Two test lint issues in this package were correct
 passing scoped lint. TypeScript, unchanged full gate, merged facade/render integration, final
 screenshots and native-host observations remain parent-owned pending the stacked integration.
 These tests are automated repository/runtime evidence, not native Obsidian acceptance.
+
+## Shared facade integration
+
+Rebased onto tested generalized rotation checkpoint `f056a1f204859c08c6b83e767c1db85c56a91e32`;
+the wall checkpoint is now `eb2bb65ccb4089819140c4ce1b274a7a0649a209`. The reserved runtime
+composition now supplies `wall: structureActions`. Three additional adapter cases drive Wall and
+Opening pointer handles through the real ToolManager/facade, release at a different final angle
+than the previous move, require impact review before writing, retain the selected ID and reverse
+the single write. Numeric Opening routing and generation retirement use that same facade.
+
+`npm run check:fast -- tests/domain/spatial/rotateWall.test.ts
+tests/presentation/editor/wallRotationRuntime.test.ts --maxWorkers=1` passed whole-tree oxlint,
+TypeScript and **24 tests in 2 files** (123.41 s). The inherited checkpoint lint stop is therefore
+resolved by the generalized dependency. Shared visual controls/host highlight, final unchanged
+full gate and browser/native acceptance remain integration-owned.

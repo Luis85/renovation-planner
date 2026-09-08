@@ -4,7 +4,7 @@ import { structureEditor } from '../../helpers/structureEditor';
 import { settle, settleUntil, mountPlanEditorCanvas, runtimeOf } from '../../helpers/editor';
 import { expectFound, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { WALL_LOOP } from '../../helpers/structure';
-import { rotateWallStructure } from '../../../src/domain/spatial/rotateWall';
+import { rotateWallStructure, wallRotationPivot } from '../../../src/domain/spatial/rotateWall';
 import { err, ok } from '../../../src/core/result/Result';
 import { useRenovationSession } from '../../../src/presentation/editor/renovation/renovationSession';
 import { makeZone } from '../../helpers/entities';
@@ -17,6 +17,7 @@ import { structureServices } from '../../../src/application/commands/spatial/Str
 import { toPlanDto, toZoneDto } from '../../../src/presentation/read-models/PlanDto';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
+import { pointerAt } from '../../helpers/tool-context';
 
 const mounted: { unmount(): void }[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
@@ -36,6 +37,35 @@ const formSelector = '[data-rp-form="wall-rotation"]';
 async function formReady(rig: Awaited<ReturnType<typeof structureEditor>>) { await settleUntil(() => rig.wrapper.find(formSelector).exists(), 'wall rotation form'); return rig.wrapper.get(formSelector); }
 
 describe('reviewed wall rotation and hosted opening runtime', () => {
+	it.each(['wall-a', 'opening-a'])('routes a %s pointer handle through host impact review and one reversible write', async id => {
+		const { rig, structure } = await setup(); rig.selection.select([id as never]); await settle();
+		const shape = rig.runtime.rotationActions.target.value, handle = rig.runtime.rotationActions.handle.value;
+		if (!shape || !handle) throw new Error('Wall selection must expose the integrated rotation handle');
+		expect(shape).toMatchObject({ id, kind: 'wall', wall: structure.walls[0] });
+		const pivot = wallRotationPivot(structure.walls[0]), dx = handle.x - pivot.x, dy = handle.y - pivot.y;
+		const released = pointerAt(pivot.x - dy, pivot.y + dx), tool = rig.runtime.toolManager, write = vi.spyOn(rig.geometry, 'write');
+		tool.pointerMove(pointerAt(handle.x, handle.y)); expect(rig.runtime.renderState.hoveredTargetKind).toBe('rotation');
+		tool.pointerDown(pointerAt(handle.x, handle.y));
+		tool.pointerMove(pointerAt(pivot.x + dx - 50, pivot.y + dy + 50));
+		tool.pointerUp(released);
+		const form = await formReady(rig), preview = rig.runtime.structureActions.preview.value;
+		expect(preview?.walls[0].start.x).toBeCloseTo(2000, 8); expect(preview?.walls[0].start.y).toBeCloseTo(-2000, 8);
+		expect(preview?.walls[0].end.x).toBeCloseTo(2000, 8); expect(preview?.walls[0].end.y).toBeCloseTo(2000, 8);
+		expect(rig.selection.selectedIds).toEqual([id]); expect(write).not.toHaveBeenCalled();
+		await form.trigger('submit'); await settleUntil(() => !rig.wrapper.find(formSelector).exists(), 'pointer rotation saved');
+		expect(write).toHaveBeenCalledTimes(1); expect(rig.project.structure).toEqual(preview); expect(rig.project.structure.openings).toEqual(openings);
+		await rig.runtime.undo(); expect(rig.project.structure).toEqual(structure); expect(rig.runtime.canUndo.value).toBe(false);
+	});
+	it('routes numeric opening rotation through the same host dialog and refuses a retired pointer before opening it', async () => {
+		const { rig } = await setup(); rig.selection.select(['opening-a' as never]); await settle();
+		const operation = rig.runtime.rotationActions.rotate('opening-a', 30); await formReady(rig);
+		expect(rig.wrapper.get('.rp-dialog').text()).toContain('Rotate host wall: Wall 1'); rig.dialogs.resolve('cancel'); await operation;
+		const shape = rig.runtime.rotationActions.target.value;
+		if (!shape) throw new Error('Opening host target required');
+		rig.runtime.setTool(null); rig.runtime.setTool('select');
+		await rig.runtime.rotationActions.move('opening-a', [shape.points[1], shape.points[0]], shape);
+		expect(rig.dialogs.current).toBeNull(); expect(rig.runtime.canUndo.value).toBe(false);
+	});
 	it.each(['wall-a', 'opening-a'])('reviews %s host rotation, writes once and restores exact hosted facts and independent Room geometry', async id => {
 		const { rig, room, structure } = await setup(); rig.selection.select([id as never]); await settle();
 		const operation = rig.runtime.structureActions.rotateWall(id, 90);

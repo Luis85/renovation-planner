@@ -93,11 +93,12 @@ async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TF
 /**
  * Ask which Plan, then open it.
  *
- * A plain `callback` and a picker, where this used to be a `checkCallback` requiring the
- * ACTIVE FILE to be a plan note. That precondition made the command invisible in the
- * palette for any vault without plan notes — which, with nothing in the app able to create
- * one, was every vault. One activation rule instead of two, available from anywhere, and a
- * plan note being open is a fuzzy match rather than a requirement.
+ * A picker with no ACTIVE-FILE precondition, where this used to be a `checkCallback`
+ * requiring the active note to be a plan. That precondition made the command invisible in
+ * the palette for any vault without plan notes — which, with nothing in the app able to
+ * create one, was every vault. A plan note being open is a fuzzy match rather than a
+ * requirement. The registration below is a `checkCallback` again, but its one precondition
+ * is the DEVICE (the mobile bound), never the file; this function is untouched by that.
  *
  * The command ID is unchanged on purpose: Obsidian binds a user's hotkey to it, so it is
  * DATA. What changed is behaviour behind the same name.

@@ -40,7 +40,7 @@ async function choose(choice: 'rooms' | 'empty', event: Event): Promise<void> {
 			type="button"
 			@click="choose('empty', $event)"
 		>
-			<HostIcon name="grid-2x2" />
+			<HostIcon name="grid-2x-2" />
 			<span class="rp-floor-start__title">{{ tr('editor.reference.empty') }}</span>
 			<span class="rp-floor-start__description">{{ tr('editor.reference.empty-description') }}</span>
 		</button>

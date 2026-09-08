@@ -5,14 +5,15 @@ horizon: MVP
 release: "[[MVP]]"
 ---
 
-# Complete the usable editor release with object rotation
+# Complete the usable editor release with spatial rotation
 
-The 2026-09-08 implementation request covers the landed M00–M17 experience plus rotation of a single free Object. The active [execution and acceptance ledger](../user-experience/renovation-planner-editor-specs/implementation/release-2026-09-08.md) records branches, evidence and dependencies. Main was revalidated at `7d4bc381`; the independently owned docs-only PR #93 must remain untouched.
+The 2026-09-08 implementation request covers the landed M00–M17 experience. The user expanded rotation to all free spatial items and walls with their hosted openings, and requested a clearer, easier-to-grab handle. The active [execution and acceptance ledger](../user-experience/renovation-planner-editor-specs/implementation/release-2026-09-08.md) records branches, evidence and dependencies. Main was revalidated at `7d4bc381`; independently owned PR #93 must remain untouched. After its selection amendment, the user explicitly reconfirmed Object → Opening → Wall → Room.
 
 ## Acceptance
 
 - Correct shared hover/click precedence while preserving handles, badges, stable overlap cycling, ordered multiselection and keyboard/list routes.
-- Provide a visible Object rotation handle, accessible signed degree input and clockwise/counterclockwise quarter turns with a frozen pivot and rigid baseline preview.
+- Provide a visible rotation handle for each free spatial kind, accessible signed degree input and clockwise/counterclockwise quarter turns with a frozen pivot and rigid baseline preview. Refine the glyph, 44 px grab target, dimension/corner clearance, pivot and angle feedback.
+- Rotate walls with hosted openings and connected junctions through reviewed impact/Apply; keep Room outlines independent, preserve opening identity/placement fields and refuse invalid geometry. Selected openings offer Rotate host wall.
 - Commit each valid gesture once through existing guarded commands. Cancellation and true no-ops create no history; Undo/Redo exactly restore stored points and metadata. Readback recovery must never replay a successful write.
 - Reconstruct repositories, index and runtime from an opening-bearing persisted fixture; verify every opening fact and subsequent edit/history/host guards. Add equivalent rotation round trips.
 - Reproduce and settle explicit retyping of rounded room dimensions while keeping untouched coordinates exact.

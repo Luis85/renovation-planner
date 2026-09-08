@@ -44,6 +44,7 @@ export interface PlanDto {
 }
 
 export interface ZoneDto {
+	readonly bulges?: readonly number[];
 	readonly id: string;
 	readonly planId: string;
 	readonly name: string;
@@ -137,6 +138,7 @@ export function toPlanDto(plan: Plan): PlanDto {
 
 export function toZoneDto(zone: Zone): ZoneDto {
 	return {
+		...(zone.geometry.bulges ? { bulges: [...zone.geometry.bulges] } : {}),
 		id: zone.id,
 		planId: zone.planId,
 		name: zone.name,

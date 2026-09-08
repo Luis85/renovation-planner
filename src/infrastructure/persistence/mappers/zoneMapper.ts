@@ -1,13 +1,13 @@
 import type { GeometryError, ValidationError } from '../../../core/errors/AppError';
 import type { Result } from '../../../core/result/Result';
-import type { Polygon } from '../../../core/geometry/Polygon';
+import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import { Zone } from '../../../domain/zone/Zone';
 import {
 	ZoneFrontmatterSchemaV1,
 	ZONE_TYPE,
 } from '../dto/zoneFrontmatter';
 import {
-	SpatialObjectGeometrySchemaV1,
+	SpatialObjectGeometrySchemaV7,
 	type SpatialObjectGeometryDTO,
 } from '../dto/planGeometry';
 import { toKebab } from '../dto/kebab';
@@ -39,6 +39,7 @@ export function zoneToGeometryEntry(zone: Zone): SpatialObjectGeometryDTO {
 		id: zone.id,
 		type: 'polygon',
 		points: zone.geometry.points.map((point) => [point.x, point.y]),
+		...(zone.geometry.bulges ? { bulges: [...zone.geometry.bulges] } : {}),
 	};
 }
 
@@ -54,7 +55,7 @@ export function zoneFromPersistence(
 	);
 	if (!frontmatter.ok) return frontmatter;
 	const geometry = parsePersisted(
-		SpatialObjectGeometrySchemaV1,
+		SpatialObjectGeometrySchemaV7,
 		rawGeometry,
 		'zone.geometry-invalid',
 		'Zone geometry entry',
@@ -70,6 +71,6 @@ export function zoneFromPersistence(
 		name: dto.name,
 		zoneType: dto['zone-type'],
 		status: dto.status,
-		geometry: { points: entry.points.map(([x, y]) => ({ x, y })) } satisfies Polygon,
+		geometry: { points: entry.points.map(([x, y]) => ({ x, y })), ...(entry.bulges ? { bulges: entry.bulges } : {}) } satisfies CurvedPolygon,
 	});
 }

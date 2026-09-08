@@ -143,6 +143,20 @@ describe('the project surface on mobile', () => {
 		expect(wrapper.text()).toContain('12.00 EUR');
 		refuses(wrapper, '.rp-asset-price-input');
 		refuses(wrapper, '.rp-asset-price-clear');
+
+		// `showDraftActions` is bare `dirty` and neither draft button carries `:disabled="readOnly"`,
+		// so the pair is kept off this surface by `onPriceInput` returning early on `readOnly` and by
+		// nothing else. The event is dispatched at the ELEMENT rather than through `setValue`,
+		// because vue-test-utils declines to `trigger` on a disabled element — which is faithful to a
+		// browser and is exactly why the outer guard hides the inner one: mutate the early return
+		// with `setValue` here and this case stays green, measured.
+		const field = wrapper.get('.rp-asset-price-input').element as HTMLInputElement;
+		field.value = '9.00';
+		field.dispatchEvent(new Event('input'));
+		await flushPromises();
+
+		expect(wrapper.find('.rp-asset-price-apply').exists()).toBe(false);
+		expect(wrapper.find('.rp-asset-price-cancel').exists()).toBe(false);
 	});
 });
 

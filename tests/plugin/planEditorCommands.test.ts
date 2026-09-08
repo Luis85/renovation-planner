@@ -151,8 +151,9 @@ beforeEach(() => {
 	activateNotices();
 });
 
-// `Platform` is a plain mutable object in the mock, so a case that assigns `isMobile` owes every
-// later file in this worker the reset.
+// `Platform` is a plain mutable object in the mock, so a case that assigns `isMobile` owes the
+// later cases IN THIS FILE the reset — the `suite` project takes no `isolate: false`, so it stops
+// at the file boundary (CLAUDE.md's Testing section).
 afterEach(() => {
 	Platform.isMobile = false;
 });

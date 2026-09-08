@@ -147,7 +147,8 @@ beforeEach(() => {
 
 /**
  * `Platform` is a plain mutable object in the `obsidian` mock, so the mobile case below assigns
- * `isMobile` and every later file in this worker is owed the reset.
+ * `isMobile` and the later cases IN THIS FILE are owed the reset — the `suite` project takes no
+ * `isolate: false`, so it stops at the file boundary (CLAUDE.md's Testing section).
  */
 afterEach(() => {
 	Platform.isMobile = false;

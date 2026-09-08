@@ -115,7 +115,6 @@ function openPlanPicker(host: PluginCommandHost, rememberContinue: (context: Con
 		notify(tr('plan.none'));
 		return;
 	}
-	const openPlan = renovationProjectOpenPlan(host.app.workspace, host.root.logger);
 	const picker = new PlanSuggestModal(host.app, plans, (plan) => {
 		// A modal callback returns nothing, so this activation has no awaiter — and a fault in
 		// it was reaching neither the user nor the log. It is answered inside `revealCandidate`
@@ -123,8 +122,13 @@ function openPlanPicker(host: PluginCommandHost, rememberContinue: (context: Con
 		// activation, and answering at the CALL SITE reported one failure once per pick. Awaiting
 		// the seam's own verdict adds no second fault path — `renovationProjectOpenPlan` cannot
 		// reject, only resolve `'opened'` or `'failed'`.
+		//
+		// The seam is built HERE rather than at picker-open time, so `host.root.logger` is read
+		// per pick: `saveSettings` replaces the composition root, and a picker left open across
+		// one would otherwise go on writing through a replaced logger. `RenovationPlannerPlugin`
+		// states the same convention where it binds `rememberContinue`.
 		void (async (): Promise<void> => {
-			const outcome = await openPlan(plan.id);
+			const outcome = await renovationProjectOpenPlan(host.app.workspace, host.root.logger)(plan.id);
 			if (outcome === 'opened' && plan.projectId !== undefined) {
 				rememberContinue({ projectId: plan.projectId, planId: plan.id });
 			}

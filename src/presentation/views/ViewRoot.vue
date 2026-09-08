@@ -405,6 +405,11 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 			into is described by the same element the list state was — one notice per SURFACE, which
 			is what every `aria-describedby` below resolves against. The view remounts per
 			navigation, so there is never a second one to collide with.
+
+			`rp-view-notice` carries the styling; `rp-mobile-notice` declares NO rule and is a
+			semantic test hook, deliberately. Task 1's amendment refused a rule-less class on a
+			BUTTON because `tests/helpers/buttonRules.ts` harvests `rp-*` tokens off `<button>`
+			tags and fails on one that no partial declares — a `<p>` is outside that harvest.
 		-->
 		<p
 			v-if="context.readOnly"

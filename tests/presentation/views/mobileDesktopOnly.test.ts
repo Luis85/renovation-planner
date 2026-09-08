@@ -11,8 +11,9 @@
  * the whole plugin's behaviour rests on.
  *
  * `Platform` is a plain mutable object in the `obsidian` mock, so `isMobile` is assigned here and
- * RESET in `afterEach`: it is module state shared by every later file in this worker, which is
- * the debt CLAUDE.md's Testing section records `Platform.isMacOS` already owing.
+ * RESET in `afterEach`: the debt is to the LATER CASES IN THIS FILE, not to later files — the
+ * `suite` project takes no `isolate: false`, so the reset stops at the file boundary
+ * (CLAUDE.md's Testing section).
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { Platform } from 'obsidian';

@@ -255,6 +255,15 @@
 	border: 0;
 }
 
+.rp-al-columns {
+	display: grid;
+	grid-template-columns: 20px minmax(0, 1fr) 11ch 4ch 5ch minmax(0, 16ch);
+	gap: var(--size-4-2);
+	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
 /*
  * The two droppable slots (§3.3). A CONTAINER query and never a media query: this surface's
  * width is its PANE's — the window minus both Obsidian sidebars minus whatever is split beside
@@ -270,6 +279,15 @@
  * in the harness. Recorded rather than deleted because the shape is this project's own recurring
  * one — a comment that names its trigger is a comment nothing re-reads when the trigger fires,
  * and this one went a whole commit describing the opposite of what shipped.
+ *
+ * **Both blocks below have to sit AFTER the base `.rp-al-columns` rule, not before it (Task
+ * A6, found by capturing at 720 and 560 rather than by any gate).** The base rule used to
+ * follow both container queries in this file, so its unconditional `display: grid` — same
+ * specificity as the query's nested `.rp-al-columns { display: none }` — won the cascade by
+ * SOURCE ORDER regardless of container width: the heading row never actually left. jsdom
+ * never renders a container query, so nothing here could have seen it; the capture at 720
+ * (`shelvesWidth` 440px, under the 32.5rem/520px threshold) still showed the full heading row,
+ * which is what exposed it.
  */
 @container rp-al-shelves (width < 40rem) {
 	.rp-al-shelf .rp-al-row {
@@ -284,9 +302,17 @@
 /* Headings leave WITH their cells (interaction rules §10, D02). The supplier column goes first
    at 40rem with no heading change, because its heading is the last cell of the row and the
    heading row still lines up over the four that remain; the waste cell and the whole heading
-   row go together at 32.5rem, where a heading over "amount / unit" alone would label nothing
-   a reader cannot see. Chosen from captures at 560 and 720 (Task A6). */
-@container rp-al-shelves (width < 32.5rem) {
+   row go together at 17rem (Task A6, measured, replacing the un-measured 32.5rem this block
+   shipped with). With the source-order bug above fixed, the merged rule's own container never
+   reaches 32.5rem while the shelf pane renders at all with an asset selected — 720px viewport
+   measures a 440px container and 560px measures 320px, both under 32.5rem (520px), so that
+   value hid the heading row and the waste cell at BOTH of Task A6's own capture widths,
+   contradicting the "present at 720" requirement it was chosen to satisfy. 17rem (272px) is
+   measured instead: the heading's own "Unit cost" label — the row's one span too long to
+   shrink — first overflows its track under 260px (`scrollWidth` 263px against a forced 260px
+   `clientWidth`) and does not at 280px, so 17rem sits in that margin, comfortably under both
+   AL10-720 and AL10-560's measured containers. */
+@container rp-al-shelves (width < 17rem) {
 	.rp-al-shelf .rp-al-row {
 		grid-template-columns: 20px minmax(0, 1fr) auto auto;
 	}
@@ -298,13 +324,4 @@
 	.rp-al-columns {
 		display: none;
 	}
-}
-
-.rp-al-columns {
-	display: grid;
-	grid-template-columns: 20px minmax(0, 1fr) 11ch 4ch 5ch minmax(0, 16ch);
-	gap: var(--size-4-2);
-	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
 }

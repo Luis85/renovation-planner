@@ -45,6 +45,7 @@ import type { StringKey } from '../../i18n/locales/en';
 import type { ToolId } from '../tools/editor-tool';
 import { useEditorRuntime } from '../runtime';
 import AreaCornerEditor from '../add/AreaCornerEditor.vue';
+import FreeShapeRoomAction from '../add/FreeShapeRoomAction.vue';
 import { isStructureTool } from '../structure/structureDraft';
 import { isElementTool } from '../elements/elementDraft';
 
@@ -164,6 +165,10 @@ watch(task, (next) => {
 		<span
 			:id="instructionId"
 		>{{ tr(task.instructionKey) }}</span>
+		<FreeShapeRoomAction
+			v-if="runtime.activeToolId.value === 'draw-room'"
+			canvas
+		/>
 		<label v-if="isFreeRoom">{{ tr('editor.room.name') }}
 			<input
 				name="free-room-name"

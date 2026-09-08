@@ -1,5 +1,15 @@
 # M03 — Add Room
 
+## All-edge measurements and free-form discovery — 2026-09-08
+
+The user's new requirement keeps actual edge lengths visible for rotated and irregular Rooms,
+including rotation, point editing and creation previews. The rectangular width/depth editing
+boundary below still applies; it no longer limits read-only measurement visibility. Add Room
+also exposes **Draw a free-form room** in the canvas task banner, so the route remains visible
+with Details closed. The same action in the Inspector preserves the current name and rectangle
+corners when switching to the existing free-form drawing task. See the
+[implementation and pending acceptance](../implementation/room-edge-measurements.md).
+
 ## Exact retyped dimensions — 2026-09-08
 
 Both the selected rectangular Room's modal dimensions and inline width/depth control treat

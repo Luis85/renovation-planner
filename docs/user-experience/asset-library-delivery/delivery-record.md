@@ -236,8 +236,10 @@ store and localization test files / 264 tests pass.
 
 ### Gap closure captures (2026-09-08)
 
-Regenerated with `scripts/asset-library-shots.mjs` at `aa89abb76f1273f2bdf7b817e5e38e70440ebcfb`;
-browser `151.0.7922.34` (pinned Chromium — no substitute was needed).
+Regenerated with `scripts/asset-library-shots.mjs` at `f9e879a4d473955aa0c91073e988f0336be4332c`
+(17 captures, up from 16 — `AL02-clear-search` is new: the field filled at 1440 with the clear
+control showing, spec item 11's control scanned on its own rather than only alongside another
+state); browser `151.0.7922.34` (pinned Chromium — no substitute was needed).
 Price column: amount right-edge spread `0px` at **1440, 720 AND 560** — spec item 1's "every
 price's decimal point on one vertical line" now holds at every captured width, not only the
 widest one. Was 22.3px (browse case step 2) → 5.22px/9.73px (previous fix round, font-weight
@@ -249,15 +251,23 @@ and each `.rp-al-row` is its own independent CSS grid, so an `auto` track resolv
 the amount column's right edge followed whichever unit symbol ("m", "m²", "pcs", "fixed", …)
 that one row happened to hold. Pinned both tracks to fixed `ch` widths (11ch amount, 6ch unit —
 wide enough for "fixed" plus its "/ " prefix, the longest unit shipped) at every container
-width: base, the 40rem block and the 17rem block alike, so an independent per-row grid can no
+width: base, the 40rem block and the 19rem block alike, so an independent per-row grid can no
 longer disagree with its siblings. `.rp-al-columns` (the heading row) gained the same 40rem
 override the data row already had, so the heading and the row it labels stay sized off one
 template rather than a coincidence.
-Used-in rows at 460: heights `[52.09, 50.59, 35.5]` (was 51.8px against 19.6px, step 12) —
-no longer collapsing onto one another. Read `AL10-460-dark.png` directly (fix round): rows 1
-and 2 are a project name plus a disambiguating folder-path line (two different "Flat
-renovation" projects, different folders); row 3 is a single line because "Garden studio" is
-unique and needs no path line. No word breaks mid-word or per character anywhere in the list.
+Used-in rows at the 240px rail — `AL10-560-dark.png`; at 460 the inspector owns the whole pane
+and there is no rail at all, so that capture is not the rail measurement: corrected in this
+round. `.rp-al-used__project` carries `flex: 1 1 16ch; min-width: 14ch` (was `flex: 1 1 12ch`
+with no minimum and `overflow: hidden`, which let the column shrink to about 77px beside the
+override mark and clip it) and `.rp-al-used__name` carries `overflow-wrap: normal; word-break:
+normal` unchanged — the 14ch minimum, not either of those two rules, is what forces
+`.rp-al-used__row`'s own `flex-wrap: wrap` to drop the mark onto its own line. Heights
+`[60.59, 74.19, 44]`, was `[60.59, 61.39, 44]` before the minimum (step 12) — taller because the
+mark now genuinely wraps clear of the project text instead of both being squeezed onto one
+clipped line. Read `AL10-560-dark.png` directly: rows 1 and 2 are a project name plus a
+disambiguating folder-path line (two different "Flat renovation" projects, different folders);
+row 3 is a single line because "Garden studio" is unique and needs no path line. No word breaks
+mid-word or per character anywhere in the list.
 Repair strip: reason and action in grid columns (step 15). Headings and waste cell share a
 container threshold, moved from `17rem` to **`19rem`** in this round: widening the unit track
 from 4ch to 6ch left the name column under 8ch at 272px (measured 5.4ch — unusably narrow even

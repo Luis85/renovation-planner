@@ -45,6 +45,10 @@ async function measure() {
 	});
 }
 try {
+	await open();
+	await page.locator('.rp-al-search__input').fill('oak');
+	await page.locator('.rp-al-search__clear').waitFor();
+	await capture('AL02-clear-search', 'Clear control on a non-empty search field');
 	await open(); await capture('AL06-usage', 'Usage above the definition, including project-specific price sources');
 	await page.locator('.rp-al-shape-preview').scrollIntoViewIfNeeded(); await capture('AL07-shape', 'Actual footprint and derived dimensions');
 	await page.locator('[data-field="supplier"]').fill('Northern timber supplier');

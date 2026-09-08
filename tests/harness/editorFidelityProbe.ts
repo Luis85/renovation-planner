@@ -1,3 +1,4 @@
+import { editorRotationScene } from './editorRotationProbe';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { zoneRenamed } from '../../src/domain/zone/Zone.events';
 import { expectDefined, expectOk } from '../helpers/domain';
@@ -8,7 +9,7 @@ import { useSelectionStore } from '../../src/presentation/editor/selection/selec
 /** Explicit test-data preparation, never a production control or a write performed by a query. */
 export function editorFidelityProbe(workspace: ReturnType<typeof referenceWorkspace>) {
 	let seeded = false;
-	return { captions: editorCaptionScene, selection: () => {
+	return { rotation: editorRotationScene, captions: editorCaptionScene, selection: () => {
 		const selection = useSelectionStore();
 		return { ids: [...selection.selectedIds], focusedId: selection.focusedId };
 	}, savedNotes: () => [...workspace.stack.vault.entries], async seedSurroundings(german: boolean) {

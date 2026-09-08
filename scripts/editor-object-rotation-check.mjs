@@ -1,3 +1,4 @@
+import { verifyObjectRotationPointer } from './editor-object-rotation-browser.mjs';
 import assert from 'node:assert/strict';
 import { runAreaBrowserMatrix, activate } from './editor-area-browser.mjs';
 import { recordRoom, recordText, recordShot } from './editor-record-browser.mjs';
@@ -25,6 +26,8 @@ async function journey(page, scenario, out) {
 	await panel(page, 'details');
 	const inspector = '.rp-element-inspector'; await page.locator(inspector).waitFor();
 	await recordShot(page, scenario, out, 'selected-handle');
+	const id = await page.locator(inspector).getAttribute('data-rp-id'); assert.ok(id);
+	const pointer = await verifyObjectRotationPointer(page, scenario, out, id);
 	await activate(page, `${inspector} [data-rp-action="rotate-object"]`);
 	const form = '[data-rp-form="object-rotation"]'; await page.locator(form).waitFor();
 	await recordText(page, form, 'angle', '27,25');
@@ -39,6 +42,6 @@ async function journey(page, scenario, out) {
 	assert.equal(await page.locator(`${form} [name="angle"]`).getAttribute('aria-invalid'), 'true');
 	await page.keyboard.press('Escape'); await page.locator(form).waitFor({ state: 'hidden' });
 	await recordShot(page, scenario, out, 'completed');
-	return { accessibility: [a11y], interaction: 'Keyboard numeric decimal comma, positive/negative quarter turn, Undo/Redo and invalid draft Escape', pointer: 'Covered separately by gesture/runtime tests; screenshot handle needs visual inspection', storage: 'Production commands/repositories over FakeVault; no native-host claim' };
+	return { accessibility: [a11y], interaction: 'Keyboard numeric decimal comma, positive/negative quarter turn, Undo/Redo and invalid draft Escape', pointer, storage: 'Production commands/repositories over FakeVault; no native-host claim' };
 }
-await runAreaBrowserMatrix('editor-object-rotation', '&reference&planning', journey, '[data-rp-empty="floor-start"]');
+await runAreaBrowserMatrix('editor-object-rotation', '&reference&planning&fidelity', journey, '[data-rp-empty="floor-start"]');

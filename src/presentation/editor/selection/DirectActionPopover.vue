@@ -18,8 +18,8 @@ import DirectDetailOptions from './DirectDetailOptions.vue';
 
 const runtime = useEditorRuntime(), editor = useEditorStore(), planning = usePlanningContext();
 const saves = useSaveStateStore(), project = useProjectStore();
-const objectSelected = computed(() => project.structure.elements?.some(element => element.id === target.value?.id && element.kind === 'object'));
 const { target, session } = useDirectActionContext();
+const objectSelected = computed(() => project.structure.elements?.some(element => element.id === target.value?.id && element.kind === 'object'));
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null), optionsId = useId();
 const modes = computed(() => planning.context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const);
 const visible = computed(() => target.value !== null && target.value.visible && session.perspective !== 'review' && runtime.activeToolId.value === 'select'

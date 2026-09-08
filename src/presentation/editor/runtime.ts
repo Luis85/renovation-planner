@@ -1,3 +1,4 @@
+import { createRotationActions } from './elements/rotationActions';
 import { createEditorFormActions, type EditorFormActions } from './editorFormActions';
 import { createLatestRead } from '../composables/latest-read';
 import { createPlanningRefresh } from './planning/planningRefresh';
@@ -85,6 +86,7 @@ export interface EditorRuntime {
 	readonly roomDimension: EditorFormActions['roomDimension'];
 	readonly elementTask: ReturnType<typeof createElementTask>;
 	readonly elementActions: ReturnType<typeof createElementActions>;
+	readonly rotationActions: ReturnType<typeof createRotationActions>;
 	readonly areaDetails: EditorFormActions['areaDetails'];
 	readonly outlineEdit: EditorFormActions['outlineEdit'];
 	readonly planning: ReturnType<typeof createPlanningRefresh>;
@@ -734,8 +736,10 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
 	const elementTask = createElementTask(context, { toolManager, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const elementActions = createElementActions(context, { activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, structureTask, openPlanNote: () => context.openPlanNote() });
+	const rotationActions = createRotationActions(context, { activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, renderState, ledger, elementActions, openPlanNote: () => context.openPlanNote() });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value,
-		canRotateElement: () => !elementActions.blocked.value && !elementActions.active.value,
+		canRotateShape: () => !rotationActions.blocked.value && !rotationActions.active.value, rotationTarget: () => rotationActions.target.value, rotationHandle: () => rotationActions.handle.value,
+		previewRotation: rotationActions.previewShape, commitRotation: (id, points, original) => { void rotationActions.move(id, points, original); },
 		previewElement: elementActions.previewElement, moveElement: (id, points, original) => { void elementActions.move(id, points, original); },
 		previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 
@@ -811,7 +815,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 
 	return {
 		dispatcher: wrappedDispatcher,
-		structureTask, structureActions, elementTask, elementActions,
+		structureTask, structureActions, elementTask, elementActions, rotationActions,
 		toolManager, renderState, activeToolId, setTool, returnToSelect, cancelActiveTask,
 		undo, redo, canUndo, canRedo,
 		inspectorDto: storeToRefs(inspector).dto,

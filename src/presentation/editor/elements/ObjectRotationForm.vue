@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, watchEffect, type Ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
-import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
+import type { NamedRotationShape } from './objectRotation';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { Logger } from '../../../application/ports/Logger';
 import { useFormCommit } from '../../composables/use-form-commit';
@@ -14,7 +14,7 @@ import FormBanner from '../../components/FormBanner.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { parseRotationDegrees, rotationChanged, rotationPoints } from './objectRotation';
-const props = defineProps<{ element: NamedSpatialElement; pivot: Point; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; latest: Readonly<Ref<string | null>>;
+const props = defineProps<{ element: NamedRotationShape; pivot: Point; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; latest: Readonly<Ref<string | null>>;
 	inputBlocked: Readonly<Ref<boolean>>; retry: () => Promise<void>; openSource: () => Promise<void>; logger: Logger;
 	dispatch: (points: readonly Point[]) => Promise<DispatchResult>; preview: (points: readonly Point[] | null) => void }>();
 const emit = defineEmits<{ submit: [] }>();

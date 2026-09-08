@@ -5,6 +5,7 @@ import { renovationEditor } from '../../helpers/renovationEditor';
 import { expectDefined, expectFound, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { settle, mountPlanEditorCanvas, runtimeOf } from '../../helpers/editor';
 import { stackFoundation } from '../../helpers/repositoryStack';
+import { ObsidianZoneRepository } from '../../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { ObsidianPlanRepository } from '../../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianPlanGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { renovationServices } from '../../../src/application/commands/renovation/RenovationCommand';
@@ -12,28 +13,27 @@ import { toPlanDto } from '../../../src/presentation/read-models/PlanDto';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
-import { rotationPivot, rotationPoints, rotationHandle } from '../../../src/presentation/editor/elements/objectRotation';
+import { rotationPivot, rotationPoints } from '../../../src/presentation/editor/elements/objectRotation';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
-import { worldPerScreenPixel, STAGE_PIXELS } from '../../../src/presentation/editor/viewport/Viewport';
 import { pointerAt } from '../../helpers/tool-context';
 import { err, ok } from '../../../src/core/result/Result';
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
 const mounted: { unmount(): void }[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
 const element: NamedSpatialElement = { id: 'element-object', kind: 'object', name: 'Desk', points: [{ x: 500, y: 500 }, { x: 2500, y: 500 }, { x: 2500, y: 1500 }, { x: 500, y: 1500 }] };
-async function setup() {
+async function setup(source: NamedSpatialElement = element) {
 	const rig = await renovationEditor(); mounted.push(rig); rig.changePlan(); await settle();
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
-	const input = elementInput(baseline, element);
-	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { ...input, intended: { walls: [], openings: [], boundaries: [], elements: [{ id: element.id, kind: element.kind, points: element.points.map(p => ({ ...p, x: p.x + 300 })) }] } }, rig.runtime.structureTask.ledger)));
+	const input = elementInput(baseline, source);
+	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { ...input, intended: { walls: [], openings: [], boundaries: [], elements: [{ id: source.id, kind: source.kind, points: source.points.map(p => ({ ...p, x: p.x + 300 })) }] } }, rig.runtime.structureTask.ledger)));
 	rig.selection.select([element.id as never]); await settle(); return rig;
 }
 it('commits numeric decimal comma once, matches preview, preserves intended metadata, and restores exact Undo/Redo', async () => {
 	const rig = await setup(), before = expectOk(await rig.renovation.read(rig.plan.id));
-	const operation = rig.runtime.elementActions.rotate(element.id); await settle();
+	const operation = rig.runtime.rotationActions.rotate(element.id); await settle();
 	const form = rig.wrapper.get('[data-rp-form="object-rotation"]');
 	await form.get('input[name="angle"]').setValue('27,25'); await settle();
-	const preview = rig.runtime.elementActions.preview.value?.points;
+	const preview = rig.runtime.rotationActions.preview.value?.points;
 	expect(preview).toEqual(rotationPoints(element, 27.25, expectDefined(rotationPivot(element), 'pivot')));
 	expect(rig.project.structure.elements?.[0].points).toEqual(element.points);
 	const write = vi.spyOn(rig.geometry, 'write'); await form.trigger('submit'); await operation; await settle();
@@ -44,14 +44,14 @@ it('commits numeric decimal comma once, matches preview, preserves intended meta
 });
 it('refuses invalid/no-op input and discards numeric cancellation without a write', async () => {
 	const rig = await setup(), write = vi.spyOn(rig.geometry, 'write');
-	await rig.runtime.elementActions.rotate(element.id, 360); await rig.runtime.elementActions.rotate(element.id, NaN); expect(write).not.toHaveBeenCalled();
-	const operation = rig.runtime.elementActions.rotate(element.id); await settle(); const form = rig.wrapper.get('[data-rp-form="object-rotation"]');
+	await rig.runtime.rotationActions.rotate(element.id, 360); await rig.runtime.rotationActions.rotate(element.id, NaN); expect(write).not.toHaveBeenCalled();
+	const operation = rig.runtime.rotationActions.rotate(element.id); await settle(); const form = rig.wrapper.get('[data-rp-form="object-rotation"]');
 	for (const value of ['invalid', '', '360', '0']) { await form.get('input[name="angle"]').setValue(value); await form.trigger('submit'); }
 	expect(write).not.toHaveBeenCalled();
-	await form.get('input[name="angle"]').setValue('-45'); rig.dialogs.resolve('cancel'); await operation; await settle(); expect(rig.runtime.elementActions.preview.value).toBeNull(); expect(write).not.toHaveBeenCalled();
+	await form.get('input[name="angle"]').setValue('-45'); rig.dialogs.resolve('cancel'); await operation; await settle(); expect(rig.runtime.rotationActions.preview.value).toBeNull(); expect(write).not.toHaveBeenCalled();
 });
 it('retains a conflicted numerical draft and never retries the refused write', async () => {
-	const rig = await setup(); const operation = rig.runtime.elementActions.rotate(element.id); await settle(); const form = rig.wrapper.get('[data-rp-form="object-rotation"]');
+	const rig = await setup(); const operation = rig.runtime.rotationActions.rotate(element.id); await settle(); const form = rig.wrapper.get('[data-rp-form="object-rotation"]');
 	await form.get('input[name="angle"]').setValue('35');
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
 	expectOk(await rig.renovation.command(baseline, elementInput(baseline, { ...element, name: 'Peer desk' }), rig.runtime.structureTask.ledger).execute());
@@ -59,16 +59,19 @@ it('retains a conflicted numerical draft and never retries the refused write', a
 	const write = vi.spyOn(rig.geometry, 'write'); await form.trigger('submit'); await settle(); expect(write).not.toHaveBeenCalled();
 	rig.dialogs.resolve('cancel'); await operation;
 });
-it('keeps successful-write/failed-readback recovery read-only', async () => {
+it.each(['quarter', 'numeric'] as const)('keeps successful-write/failed-readback recovery read-only for %s rotation', async mode => {
 	const rig = await setup(), getPlan = vi.spyOn(rig.deps.queries, 'getPlan').mockResolvedValue(err(injectedPersistenceError()));
-	const write = vi.spyOn(rig.geometry, 'write'); await rig.runtime.elementActions.rotate(element.id, 90); await settle();
+	const write = vi.spyOn(rig.geometry, 'write');
+	if (mode === 'quarter') await rig.runtime.rotationActions.rotate(element.id, 90);
+	else { const operation = rig.runtime.rotationActions.rotate(element.id); await settle(); const form = rig.wrapper.get('[data-rp-form="object-rotation"]'); await form.get('input[name="angle"]').setValue('90'); await form.trigger('submit'); await operation; }
+	await settle();
 	expect(write).toHaveBeenCalledOnce(); expect(rig.runtime.writesBlocked.value).toBe(true);
-	await rig.runtime.elementActions.rotate(element.id, 90); expect(write).toHaveBeenCalledOnce();
+	await rig.runtime.rotationActions.rotate(element.id, 90); expect(write).toHaveBeenCalledOnce();
 	getPlan.mockRestore(); await rig.runtime.refreshProjection(); await settle(); expect(write).toHaveBeenCalledOnce();
 	expect(rig.project.structure.elements?.[0].points).toEqual(rotationPoints(element, 90, expectDefined(rotationPivot(element), 'pivot')));
 });
-it('reconstructs the index, repositories and runtime from persisted bytes and edits/restores the rotated Object', async () => {
-	const rig = await setup(); await rig.runtime.elementActions.rotate(element.id, 90); await settle();
+it.each(['object', 'path', 'fence', 'measurement'] as const)('reconstructs index, repositories and runtime from persisted %s rotation and restores it exactly', async kind => {
+	const rig = await setup({ ...element, kind, points: kind === 'measurement' ? element.points.slice(0, 2) : element.points }); await rig.runtime.rotationActions.rotate(element.id, 90); await settle();
 	const saved = expectOk(await rig.geometry.read(rig.plan.id)).document, bytes = [...rig.stack.vault.entries];
 	rig.unmount(); mounted.splice(mounted.indexOf(rig), 1); rig.stack.metadataCache.catchUp();
 	const fresh = stackFoundation({ vault: rig.stack.vault, fileManager: rig.stack.fileManager, metadataCache: rig.stack.metadataCache }, rig.stack.projectFolder); fresh.rebuildIndex();
@@ -78,7 +81,7 @@ it('reconstructs the index, repositories and runtime from persisted bytes and ed
 	const reopened = await mountPlanEditorCanvas({ plan: toPlanDto(plan), queries, commands: { ...rig.deps.commands, renovation } }); mounted.push(reopened);
 	const runtime = runtimeOf(reopened), project = useProjectStore(reopened.pinia), selection = useSelectionStore(reopened.pinia);
 	expect(project.structure).toEqual(saved.structure); expect(project.intended).toEqual(saved.intended); expect(project.plan?.spatialElements).toEqual([{ id: element.id, name: element.name }]); expect([...rig.stack.vault.entries]).toEqual(bytes);
-	selection.select([element.id as never]); await settle(); await runtime.elementActions.rotate(element.id, -90); await settle();
+	selection.select([element.id as never]); await settle(); await runtime.rotationActions.rotate(element.id, -90); await settle();
 	await runtime.undo(); await settle(); expect(project.structure).toEqual(saved.structure);
 	await runtime.redo(); await settle(); expect(project.structure.elements?.[0].points).not.toEqual(saved.structure?.elements?.[0].points);
 });
@@ -87,7 +90,7 @@ it('abandons a delayed numeric baseline after a tool switch even if Select is re
 	let resolveRead: ((value: Awaited<ReturnType<typeof rig.renovation.read>>) => void) | undefined;
 	const pending = new Promise<Awaited<ReturnType<typeof rig.renovation.read>>>(resolve => { resolveRead = resolve; });
 	vi.spyOn(rig.renovation, 'read').mockReturnValueOnce(pending);
-	const operation = rig.runtime.elementActions.rotate(element.id, 90); await settle();
+	const operation = rig.runtime.rotationActions.rotate(element.id, 90); await settle();
 	rig.runtime.setTool(null); rig.runtime.setTool('select');
 	expectDefined(resolveRead, 'pending read')(ok(baseline)); await operation;
 	expect(rig.project.structure.elements?.[0].points).toEqual(element.points); expect(rig.dialogs.current).toBeNull();
@@ -95,13 +98,13 @@ it('abandons a delayed numeric baseline after a tool switch even if Select is re
 
 it('uses the rendered handle under pan/zoom, previews final Shift bearing and makes one pointer history entry', async () => {
 	const rig = await setup(), editor = useEditorStore(rig.pinia); editor.viewport = { ...editor.viewport, zoom: 0.2, pan: { x: 70, y: 90 } }; await settle();
-	const scale = worldPerScreenPixel(editor.viewport, STAGE_PIXELS), handle = expectDefined(rotationHandle(element, scale), 'handle');
+	const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'handle');
 	const painted = expectDefined(expectDefined(rig.stage, 'stage').findOne<Konva.Group>('.object-rotation-handle'), 'painted handle');
 	const circle = expectDefined(painted.findOne<Konva.Circle>('Circle'), 'handle circle'); expect(circle.x()).toBe(handle.x); expect(circle.y()).toBe(handle.y);
 	const tool = rig.runtime.toolManager, write = vi.spyOn(rig.geometry, 'write');
 	tool.pointerDown(pointerAt(handle.x, handle.y)); tool.pointerMove(pointerAt(2000, 800)); await settle();
 	const release = pointerAt(1900, 1500), snapped = { ...release, modifiers: { ...release.modifiers, shift: true } };
-	tool.pointerMove(snapped); await settle(); const preview = rig.runtime.elementActions.preview.value?.points;
+	tool.pointerMove(snapped); await settle(); const preview = rig.runtime.rotationActions.preview.value?.points;
 	expect(rig.runtime.renderState.rotationDegrees).not.toBeNull(); tool.pointerUp(snapped); await settle();
 	expect(write).toHaveBeenCalledOnce(); expect(rig.project.structure.elements?.[0].points).toEqual(preview); expect(rig.runtime.renderState.rotationDegrees).toBeNull();
 	await rig.runtime.undo(); await settle(); expect(rig.project.structure.elements?.[0].points).toEqual(element.points);
@@ -111,7 +114,7 @@ it('abandons pointer release awaiting its baseline after tool changes', async ()
 	let resolveRead: ((value: Awaited<ReturnType<typeof rig.renovation.read>>) => void) | undefined;
 	const pending = new Promise<Awaited<ReturnType<typeof rig.renovation.read>>>(resolve => { resolveRead = resolve; });
 	vi.spyOn(rig.renovation, 'read').mockReturnValueOnce(pending);
-	const editor = useEditorStore(rig.pinia), handle = expectDefined(rotationHandle(element, worldPerScreenPixel(editor.viewport, STAGE_PIXELS)), 'handle');
+	const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'handle');
 	rig.runtime.toolManager.pointerDown(pointerAt(handle.x, handle.y)); rig.runtime.toolManager.pointerUp(pointerAt(2000, 1000)); await settle();
 	rig.runtime.setTool(null); rig.runtime.setTool('select'); expectDefined(resolveRead, 'pending read')(ok(baseline)); await settle();
 	expect(rig.project.structure.elements?.[0].points).toEqual(element.points);
@@ -119,7 +122,7 @@ it('abandons pointer release awaiting its baseline after tool changes', async ()
 
 
 it('hides and refuses the rotation handle in Renovate and Review', async () => {
-	const rig = await setup(), editor = useEditorStore(rig.pinia), handle = expectDefined(rotationHandle(element, worldPerScreenPixel(editor.viewport, STAGE_PIXELS)), 'handle');
+	const rig = await setup(), handle = expectDefined(rig.runtime.rotationActions.handle.value, 'handle');
 	for (const perspective of ['renovate', 'review'] as const) {
 		await rig.runtime.renovation.perspective(perspective); await settle();
 		rig.runtime.toolManager.pointerMove(pointerAt(handle.x, handle.y)); expect(rig.runtime.renderState.hoveredTargetKind).not.toBe('rotation');
@@ -128,10 +131,10 @@ it('hides and refuses the rotation handle in Renovate and Review', async () => {
 });
 
 it('Escape discards the pointer preview and a refreshed peer edit cannot be overwritten by its old gesture', async () => {
-	const rig = await setup(), editor = useEditorStore(rig.pinia), handle = expectDefined(rotationHandle(element, worldPerScreenPixel(editor.viewport, STAGE_PIXELS)), 'handle');
+	const rig = await setup(), handle = expectDefined(rig.runtime.rotationActions.handle.value, 'handle');
 	const tool = rig.runtime.toolManager, canvas = expectDefined(rig.canvasEl, 'canvas'), write = vi.spyOn(rig.geometry, 'write');
 	tool.pointerDown(pointerAt(handle.x, handle.y)); tool.pointerMove(pointerAt(2000, 1000)); canvas.focus(); canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); tool.pointerUp(pointerAt(2000, 1000)); await settle();
-	expect(write).not.toHaveBeenCalled(); expect(rig.runtime.elementActions.preview.value).toBeNull();
+	expect(write).not.toHaveBeenCalled(); expect(rig.runtime.rotationActions.preview.value).toBeNull();
 	rig.selection.select([element.id as never]); tool.pointerDown(pointerAt(handle.x, handle.y));
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id)), peer = { ...element, points: element.points.map(point => ({ ...point, x: point.x + 200 })) };
 	expectOk(await rig.renovation.command(baseline, elementInput(baseline, peer), rig.runtime.structureTask.ledger).execute()); await rig.runtime.refreshProjection(); const count = write.mock.calls.length;
@@ -142,10 +145,47 @@ it('suppresses rotation handle paint and targeting while a quarter-turn save is 
 	const rig = await setup(), originalWrite = rig.geometry.write.bind(rig.geometry);
 	let resumeWrite: (() => void) | undefined; const pending = new Promise<void>(resolve => { resumeWrite = resolve; });
 	vi.spyOn(rig.geometry, 'write').mockImplementationOnce(async (...args) => { await pending; return originalWrite(...args); });
-	const editor = useEditorStore(rig.pinia), handle = expectDefined(rotationHandle(element, worldPerScreenPixel(editor.viewport, STAGE_PIXELS)), 'handle');
-	const operation = rig.runtime.elementActions.rotate(element.id, 90); await settle();
-	expect(rig.runtime.elementActions.active.value).toBe(true); expect(expectDefined(rig.stage, 'stage').findOne('.object-rotation-handle')).toBeUndefined();
+	const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'handle');
+	const operation = rig.runtime.rotationActions.rotate(element.id, 90); await settle();
+	expect(rig.runtime.rotationActions.active.value).toBe(true); expect(expectDefined(rig.stage, 'stage').findOne('.object-rotation-handle')).toBeUndefined();
 	rig.runtime.toolManager.pointerMove(pointerAt(handle.x, handle.y)); expect(rig.runtime.renderState.hoveredTargetKind).not.toBe('rotation');
 	rig.runtime.toolManager.pointerDown(pointerAt(handle.x, handle.y)); rig.runtime.toolManager.pointerMove(pointerAt(2000, 1000)); expect(rig.runtime.renderState.rotationDegrees).toBeNull();
 	expectDefined(resumeWrite, 'pending save')(); await operation; await settle();
+});
+it('does not write when the editor is disposed while the rotation baseline is pending', async () => {
+	const rig = await setup(), baseline = expectOk(await rig.renovation.read(rig.plan.id)), bytes = [...rig.stack.vault.entries], write = vi.spyOn(rig.geometry, 'write');
+	let resolveRead: ((value: Awaited<ReturnType<typeof rig.renovation.read>>) => void) | undefined;
+	const pending = new Promise<Awaited<ReturnType<typeof rig.renovation.read>>>(resolve => { resolveRead = resolve; });
+	vi.spyOn(rig.renovation, 'read').mockReturnValueOnce(pending);
+	const operation = rig.runtime.rotationActions.rotate(element.id, 90); await settle(); rig.unmount(); mounted.splice(mounted.indexOf(rig), 1);
+	expectDefined(resolveRead, 'pending read')(ok(baseline)); await operation; expect(write).not.toHaveBeenCalled(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+
+
+
+
+it.each(['Room', 'Custom'] as const)('rotates %s through the guarded Zone command without changing wall/current/intended associations', async zoneType => {
+	const rig = await setup();
+	const zone = zoneType === 'Room' ? rig.room : expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Outside area', zoneType, geometry: { points: element.points.map(point => ({ ...point, x: point.x + 5000 })) } })).zone.entity;
+	await rig.runtime.refreshProjection(); rig.selection.select([zone.id]); await settle();
+	const original = zone.geometry.points, document = expectOk(await rig.geometry.read(rig.plan.id)).document, structure = document.structure, intended = document.intended;
+	const shape = expectDefined(rig.runtime.rotationActions.target.value, 'rotation target'); expect(shape.kind).toBe(zoneType === 'Room' ? 'room' : 'area');
+	await rig.runtime.rotationActions.rotate(zone.id, 27.25); await settle();
+	const rotated = rotationPoints(shape, 27.25, expectDefined(rotationPivot(shape), 'pivot'));
+	expect(rig.project.zones.get(zone.id)?.points).toEqual(rotated); expect(rig.project.structure).toEqual(structure); expect(rig.project.intended).toEqual(intended);
+	await rig.runtime.undo(); await settle(); expect(rig.project.zones.get(zone.id)?.points).toEqual(original);
+	await rig.runtime.redo(); await settle(); expect(rig.project.zones.get(zone.id)?.points).toEqual(rotated);
+	rig.stack.metadataCache.catchUp(); const fresh = stackFoundation({ vault: rig.stack.vault, fileManager: rig.stack.fileManager, metadataCache: rig.stack.metadataCache }, rig.stack.projectFolder); fresh.rebuildIndex();
+	const loaded = expectFound(await new ObsidianZoneRepository(fresh.deps, fresh.store).getById(zone.id)); expect(loaded.entity.geometry.points).toEqual(rotated); expect(loaded.entity.name).toBe(zone.name);
+	await rig.runtime.renovation.perspective('renovate'); await settle(); expect(rig.runtime.rotationActions.blocked.value).toBe(false);
+	await rig.runtime.rotationActions.rotate(zone.id, -90); await settle(); expect(rig.project.zones.get(zone.id)?.points).not.toEqual(rotated);
+});
+it('refuses a peer-modified Room baseline at numeric Apply without replacing its geometry or metadata', async () => {
+	const rig = await setup(); rig.selection.select([rig.room.id]); await settle();
+	const operation = rig.runtime.rotationActions.rotate(rig.room.id); await settle(); const form = rig.wrapper.get('[data-rp-form="object-rotation"]'); await form.get('input[name="angle"]').setValue('45');
+	const baseline = expectFound(await rig.stack.zones.getById(rig.room.id)); expectOk(await rig.stack.zones.save(expectOk(baseline.entity.withName('Peer room')), baseline.version));
+	await form.trigger('submit'); await settle(); expect(form.text()).toContain('changed');
+	const saved = expectFound(await rig.stack.zones.getById(rig.room.id)); expect(saved.entity.name).toBe('Peer room'); expect(saved.entity.geometry.points).toEqual(baseline.entity.geometry.points);
+	rig.dialogs.resolve('cancel'); await operation;
 });

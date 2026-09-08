@@ -50,6 +50,7 @@ export interface CursorInputs {
 	readonly activeToolId: ToolId | null;
 	readonly hoveredObjectId: string | null;
 	readonly hoveredTargetKind: 'body' | 'handle' | 'rotation' | null;
+	readonly rotationActive?: boolean;
 }
 
 /**
@@ -75,6 +76,7 @@ export interface CursorInputs {
  */
 export function cursorClassFor(inputs: CursorInputs): string | null {
 	if (inputs.panPhase !== 'idle') return `rp-plan-canvas-${inputs.panPhase}`;
+	if (inputs.activeToolId === 'select' && inputs.rotationActive) return 'rp-plan-canvas-grabbing';
 	if (inputs.activeToolId === 'select' && inputs.hoveredObjectId !== null) {
 		return inputs.hoveredTargetKind === 'handle' || inputs.hoveredTargetKind === 'rotation' ? 'rp-plan-canvas-grab' : 'rp-plan-canvas-target';
 	}

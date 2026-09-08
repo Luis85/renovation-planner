@@ -104,6 +104,41 @@ Partially implemented for the project surface: Platform.isMobile selects readabl
 
 Evidence and remaining limitations: [execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
 
+## Disabled with reason, and refused where nothing can be drawn (2026-09-08)
+
+Design slice 22, Task 4. The **hiding is gone**: every write control the project surface used to
+drop under `v-if="!readOnly"` — `New project`, the no-match `Create "…"`, both `New asset`
+doors, `New plan`, the price field and its `Clear` — is now drawn, `disabled`, and carrying an
+`aria-describedby` pointing at ONE notice (`.rp-view-notice.rp-mobile-notice`,
+`view.mobile.read-only`) drawn once at the top of `ViewRoot.vue`. The controls that were already
+disabled — plan rows, `Resume` for a stored plan, the plan entry card's action — gained the same
+description, and the empty states keep their action LABEL rather than dropping it, since an
+action that disappears reads as a state with nothing to do rather than as a refusal. One notice
+per SURFACE and not per control: the sentence is a fact about the device, so five copies of it is
+that sentence read aloud five times. The id is `useId()` composed with the per-leaf
+`app.config.idPrefix` (`app-id-prefix.ts`), because two leaves in one document would otherwise
+collide silently.
+
+**Extension 2a** is closed for both canvases: `PlanEditorView` and `AssetDesignerView` draw one
+`<p class="rp-view-message">` with `view.mobile.desktop-only` and mount no Vue app. The guard is
+in each view's `sync()` rather than its `onOpen()`, because `setState` reaches `sync` too and
+Obsidian's order between the two is not a plugin's to assume. **Four palette commands** —
+`open-plan-editor`, `set-plan-background`, `open-asset-designer` and `create-sample-project` —
+answer `false` to `checkCallback` on `Platform.isMobile`, the shape `new-project` already had; no
+command id changed, because a user's hotkey is bound to it.
+
+**Still open, and named rather than implied:**
+
+- **The Asset library's write controls.** Out of scope deliberately: they have their own design
+  package and their own hook, and pulling them in here would have been one task guessing at
+  another's surface.
+- **The real-device measurement this note's own *"what has to be measured first"* section
+  demands.** Everything above is enforced against `Platform.isMobile` as this repository's
+  `obsidian` mock reports it, which is a boolean the suite sets itself. No mobile vault has
+  opened this plugin. `docs/tests/cases/Read projects on mobile.md` is written, carries eleven
+  steps and an empty Runs table, and **has not been run** — so the fourth acceptance criterion
+  above is unmet and this item stays Active.
+
 ## Sources
 
 `PRODUCT.md` (Capabilities and Constraints — the confirmed device scope, and §105's resolution);

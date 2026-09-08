@@ -75,6 +75,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
 	toolManager.register(
 		new SelectTool({
+			canRotateElement: deps.canRotateElement,
 			previewElement: deps.previewElement,
 			moveElement: deps.moveElement,
 			previewWall: deps.previewWall,

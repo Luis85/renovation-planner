@@ -1,5 +1,7 @@
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import { translate } from '../../../core/geometry/operations';
+import { ElementRotation } from '../elements/ElementRotation';
+import { rotationHandle } from '../elements/objectRotation';
 import { ElementMove, type ElementMoveDeps } from '../elements/ElementMove';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
@@ -111,7 +113,8 @@ export class SelectTool implements EditorTool {
 	private gesture: Gesture | null = null;
 
 	private readonly elementMove: ElementMove;
-	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); }
+	private readonly elementRotation: ElementRotation;
+	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); this.elementRotation = new ElementRotation(deps); }
 
 	activate(context: EditorContext): void {
 		this.context = context;
@@ -122,7 +125,7 @@ export class SelectTool implements EditorTool {
 	}
 
 	deactivate(): void {
-		this.elementMove.cancel();
+		this.elementMove.cancel(); this.elementRotation.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
@@ -157,6 +160,7 @@ export class SelectTool implements EditorTool {
 			context.selection.focus(hit.id as EntityId<string>);
 			return;
 		}
+		if (target.kind === 'rotation' && hit.kind === 'object') { this.elementRotation.start(context, event, { ...hit, kind: 'object' }); return; }
 		if (hit.kind) { this.selectStructure(context, event, hit, target); return; }
 		if (target.kind === 'handle') {
 			// While the canvas is stale the gate would refuse the commit anyway; a ghost the
@@ -198,6 +202,7 @@ export class SelectTool implements EditorTool {
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null) return;
+		if (this.elementRotation.active) { this.elementRotation.move(context, event); return; }
 		if (this.elementMove.active) { this.elementMove.move(event); return; }
 		if (this.wallGesture) { this.deps.previewWall?.(this.wallGesture.id, event.worldPoint); return; }
 		if (this.gesture === null) {
@@ -225,6 +230,7 @@ export class SelectTool implements EditorTool {
 	}
 
 	pointerUp(event: EditorPointerEvent): void {
+		if (this.elementRotation.active && this.context) { this.elementRotation.finish(this.context, event); return; }
 		if (this.elementMove.active && this.context) { this.elementMove.finish(this.context, event); return; }
 		if (this.wallGesture && event.button === 'primary') {
 			const gesture = this.wallGesture; this.wallGesture = null;
@@ -282,7 +288,7 @@ export class SelectTool implements EditorTool {
 	}
 
 	cancel(): void {
-		this.elementMove.cancel();
+		this.elementMove.cancel(); this.elementRotation.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
@@ -306,7 +312,7 @@ export class SelectTool implements EditorTool {
 
 	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
 	hasDraft(): boolean {
-		return this.gesture !== null || this.wallGesture !== null || this.elementMove.active;
+		return this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active;
 	}
 
 	/**
@@ -322,9 +328,12 @@ export class SelectTool implements EditorTool {
 		event: EditorPointerEvent,
 	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget } {
 		const candidates = this.deps.spatialObjects();
+		const selected = context.selection.selectedIds.length === 1 ? candidates.find(candidate => candidate.id === context.selection.selectedIds[0] && candidate.kind === 'object') : undefined;
+		const handle = selected ? rotationHandle({ ...selected, kind: 'object' }, context.viewport.worldPerScreenPixel()) : null;
 		const target = resolveSelectionTarget({
+			rotationHandle: handle && selected && this.deps.canRotateElement?.() !== false && !context.writesBlocked() ? { id: selected.id, point: handle } : undefined,
 			candidates,
-			selectedIds: event.modifiers.shift ? [] : context.selection.selectedIds.map(String),
+			selectedIds: event.modifiers.shift && !handle ? [] : context.selection.selectedIds.map(String),
 			worldPoint: event.worldPoint,
 			handleToleranceWorld: VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
 			cycle: event.modifiers.alt,

@@ -1,6 +1,8 @@
+import ObjectRotationForm from './ObjectRotationForm.vue';
+import { rotationChanged, rotationPivot, rotationPoints } from './objectRotation';
 import { createDraftRetry } from '../forms/createDraftRetry';
 import { createSpatialRemoval } from './spatialRemoval';
-import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
+import { computed, markRaw, onBeforeUnmount, ref, watch } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { NamedSpatialElement, SpatialElement } from '../../../domain/spatial/SpatialElement';
@@ -34,7 +36,8 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 	const removal = createSpatialRemoval(context, runtime);
 	const active = ref(false), preview = ref<NamedSpatialElement | null>(null);
 	const blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective !== 'plan' || runtime.activeToolId.value !== 'select');
-	let alive = true;
+	let alive = true, rotationEpoch = 0;
+	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { rotationEpoch += 1; preview.value = null; }, { flush: 'sync' });
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
 	function matchesProjection(baseline: RenovationBaseline, id: string): boolean {
@@ -76,6 +79,30 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 			} });
 		});
 	}
+	function rotate(id: string, degrees?: number): Promise<void> {
+		const epoch = rotationEpoch, selected = selection.selectedIds.join('|');
+		return operate(id, async ({ baseline, element }) => {
+			const pivot = rotationPivot(element);
+			if (!pivot || epoch !== rotationEpoch || selection.selectedIds.length !== 1 || selection.selectedIds[0] !== id || selection.selectedIds.join('|') !== selected) return;
+			const latest = ref<string | null>(null);
+			const dispatch = async (points: readonly Point[]) => {
+				if (!alive || epoch !== rotationEpoch || blocked.value || latest.value || !context.commands.renovation || selection.selectedIds.join('|') !== selected) return err(staleWriteRefusal());
+				const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, points }), runtime.structureTask.ledger));
+				if (alive && !result.ok && (result.error.code.includes('conflict') || result.error.code === 'undo.superseded')) { latest.value = tr('editor.element.changed'); await runtime.refreshProjection(); }
+				return result;
+			};
+			if (degrees !== undefined) {
+				const points = rotationPoints(element, degrees, pivot);
+				if (points && rotationChanged(element.points, points)) { const result = await dispatch(points); if (alive && !result.ok) notifyOperationFailure(result.error); }
+				return;
+			}
+			const busy = ref(false);
+			await dialogs.openDialog({ kind: 'form', title: tr('editor.rotation.title', { name: element.name }), component: markRaw(ObjectRotationForm), busy, props: {
+				element, pivot, busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || save.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger, dispatch,
+				preview: (points: readonly Point[] | null) => { preview.value = alive && epoch === rotationEpoch && !blocked.value && points ? { ...element, points } : null; },
+			} });
+		});
+	}
 	function remove(id: string): Promise<void> {
 		return operate(id, async ({ baseline, element }) => {
 			const materials = await removalSources(context, [id]); if (!alive) return;
@@ -89,7 +116,9 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		});
 	}
 	function move(id: string, points: readonly Point[], original: SpatialElement): Promise<void> {
+		const epoch = rotationEpoch;
 		return operate(id, async ({ baseline, element }) => {
+			if (epoch !== rotationEpoch) return;
 			if (element.kind !== original.kind || JSON.stringify(element.points) !== JSON.stringify(original.points)) { notifyOperationFailure(staleWriteRefusal()); return; }
 			if (!context.commands.renovation) return;
 			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, points }), runtime.structureTask.ledger));
@@ -100,5 +129,5 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
 		preview.value = alive && !blocked.value && element && name && points ? { ...element, name, points } : null;
 	}
-	return { edit, remove, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
+	return { edit, rotate, remove, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
 }

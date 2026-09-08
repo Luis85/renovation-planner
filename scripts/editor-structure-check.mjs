@@ -101,7 +101,7 @@ async function journey(page, scenario, out) {
 	await activate(page, '[data-rp-action="edit-structure"]'); await page.locator('.rp-dialog form').waitFor();
 	await type(page, 'width', '1.2', '.rp-dialog'); await activate(page, '.rp-dialog form button[type="submit"]'); await activate(page, '.rp-dialog form button[type="submit"]');
 	await page.locator('.rp-dialog').waitFor({ state: 'hidden' });
-	await activate(page, '.rp-structure-inspector summary'); await activate(page, '.rp-structure-inspector details button');
+	await activate(page, '.rp-structure-inspector summary'); await activate(page, '[data-rp-action="delete-structure"]');
 	await page.locator('.rp-dialog').waitFor(); await capture(page, scenario, out, 'delete-impact');
 	await activate(page, '.rp-dialog [data-rp-action="confirm"]'); await page.locator('.rp-dialog').waitFor({ state: 'hidden' });
 	await activate(page, '[data-rp-action="undo"]');

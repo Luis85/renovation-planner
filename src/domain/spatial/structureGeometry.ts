@@ -35,7 +35,7 @@ export function wallsConflict(a: Pick<Wall, 'start' | 'end' | 'bulge'>, b: Pick<
 export const validSpatialPoint = (point: Point): boolean => [point.x, point.y].every(n => Number.isFinite(n) && Math.abs(n) <= 1e9);
 const dimension = (n: number): boolean => Number.isFinite(n) && n >= 1 && n <= 1e6;
 
-function openingError(opening: Opening, structure: Structure): ValidationError | null {
+export function openingValidationError(opening: Opening, structure: Structure): ValidationError | null {
 	if (!validOpeningSwing(opening)) return spatialError('opening-swing');
 	const host = structure.walls.find(wall => wall.id === opening.hostId);
 	if (!host) return spatialError('host-missing');
@@ -66,7 +66,7 @@ export function validateStructure(structure: Structure, roomIds: readonly string
 		if (structure.walls.slice(i + 1).some(other => wallsConflict(structure.walls[i], other))) return err(spatialError('intersection'));
 	}
 	for (const opening of structure.openings) {
-		const failure = openingError(opening, structure);
+		const failure = openingValidationError(opening, structure);
 		if (failure) return err(failure);
 	}
 	const wallIds = new Set(structure.walls.map(wall => wall.id));

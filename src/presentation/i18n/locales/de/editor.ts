@@ -1,4 +1,5 @@
 import { openingDe } from './opening';
+import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
 import { inputDe } from './input';
@@ -32,6 +33,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.dimension.instruction': 'Länge in Metern eingeben. Anwenden oder Eingabe speichert; Escape bricht ab.',
 	...objectDe,
 	...openingDe,
+	...referenceViewportDe,
 	...editorShellDe,
 	"editor.element.name-required": "Geben Sie einen Namen ein.",
 	"editor.element.edit": "{name} bearbeiten",

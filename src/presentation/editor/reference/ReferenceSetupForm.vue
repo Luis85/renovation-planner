@@ -19,7 +19,7 @@ import { notifyFault } from '../../notices/notify';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
 
 const props = defineProps<{ baseline: ReferenceBaseline; vault: BackgroundVault; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>;
-	logger: Logger; fileChanges: (listener: (path: string) => void) => () => void; dispatch: (input: ConfigureReferenceInput) => Promise<DispatchResult> }>();
+	logger: Logger; onThemeChange?: (listener: () => void) => () => void; fileChanges: (listener: (path: string) => void) => () => void; dispatch: (input: ConfigureReferenceInput) => Promise<DispatchResult> }>();
 const emit = defineEmits<{ submit: [] }>();
 const candidates = props.vault.getFiles?.().filter(file => backgroundKindFor(file.path) !== null).map(file => file.path) ?? [];
 const previous = props.baseline.plan.entity;
@@ -42,6 +42,10 @@ const kind = computed(() => backgroundKindFor(sourcePath.value));
 const paused = computed(() => submitting.value || props.busy.value || props.blocked.value || conflict.value);
 const points = computed(() => Object.values(coordinates).every(s => String(s).trim() !== '' && Number.isFinite(Number(s)))
 	? [{ x: Number(coordinates.ax), y: Number(coordinates.ay) }, { x: Number(coordinates.bx), y: Number(coordinates.by) }] : []);
+const previewPoints = computed(() => ([['ax', 'ay'], ['bx', 'by']] as const).map(([x, y]) => {
+	const a = coordinates[x], b = coordinates[y];
+	return String(a).trim() !== '' && String(b).trim() !== '' && Number.isFinite(Number(a)) && Number.isFinite(Number(b)) ? { x: Number(a), y: Number(b) } : null;
+}));
 const prepared = computed(() => raster.value !== null && prepareValid(appearance, raster.value.width, raster.value.height));
 const scale = computed(() => {
 	const [a, b] = points.value, c = appearance.crop;
@@ -145,77 +149,87 @@ onMounted(() => { if (path.value) void load(); });
 		>
 			{{ tr('editor.reference.paused') }}
 		</p>
-		<ReferencePrepare
-			v-if="step === 1"
-			v-model:path="path"
-			v-model:page="page"
-			v-model:rotation="appearance.rotation"
-			v-model:crop="appearance.crop"
-			:sources="candidates"
-			:pdf="kind === 'pdf'"
-			:paused="paused"
-			:loading="loading"
-			:has-raster="raster !== null"
-			@load="load"
-		/>
-		<section v-if="step === 2">
-			<p>{{ tr('editor.reference.measure-help') }}</p>
-			<div class="rp-reference-grid">
-				<label
-					v-for="key in (['ax', 'ay', 'bx', 'by'] as const)"
-					:key="key"
-					class="rp-dialog-field"
-				>{{ tr(`editor.reference.${key}`) }}<input
-					v-model="coordinates[key]"
-					:name="key"
-					type="number"
-					step="any"
-					:readonly="paused"
-				></label>
+		<div
+			class="rp-reference-workspace"
+			:class="{ 'has-preview': raster && prepared }"
+		>
+			<ReferencePreview
+				v-if="raster && prepared"
+				:raster="raster"
+				:appearance="appearance"
+				:on-theme-change="onThemeChange"
+				:points="previewPoints"
+				:measuring="step === 2 && !paused"
+				@point="pick"
+			/>
+			<div class="rp-reference-controls">
+				<ReferencePrepare
+					v-if="step === 1"
+					v-model:path="path"
+					v-model:page="page"
+					v-model:rotation="appearance.rotation"
+					v-model:crop="appearance.crop"
+					:sources="candidates"
+					:pdf="kind === 'pdf'"
+					:paused="paused"
+					:loading="loading"
+					:has-raster="raster !== null"
+					@load="load"
+				/>
+				<section v-if="step === 2">
+					<p>{{ tr('editor.reference.measure-help') }}</p>
+					<div class="rp-reference-grid">
+						<label
+							v-for="key in (['ax', 'ay', 'bx', 'by'] as const)"
+							:key="key"
+							class="rp-dialog-field"
+						>{{ tr(`editor.reference.${key}`) }}<input
+							v-model="coordinates[key]"
+							:name="key"
+							type="number"
+							step="any"
+							:readonly="paused"
+						></label>
+					</div>
+					<label class="rp-dialog-field">{{ tr('editor.reference.length') }}<input
+						v-model="length"
+						name="length"
+						type="text"
+						inputmode="decimal"
+						:readonly="paused"
+					></label>
+					<button
+						type="button"
+						:aria-disabled="paused"
+						data-rp-reference-action="another-distance"
+						@click="!paused && anotherDistance()"
+					>
+						{{ tr('editor.reference.another') }}
+					</button>
+				</section>
+				<ReferenceReview
+					v-if="step === 3"
+					v-model:opacity="appearance.opacity"
+					v-model:visible="appearance.visible"
+					v-model:locked="appearance.locked"
+					v-model:acknowledged="acknowledged"
+					:path="path"
+					:page="kind === 'pdf' ? Number(page) : null"
+					:rotation="appearance.rotation"
+					:crop="appearance.crop"
+					:scale-summary="reviewScale"
+					:factor="Number(scale?.scaleCorrection?.toPrecision(6)).toLocaleString()"
+					:needs-consent="needsConsent"
+					:paused="paused"
+				/>
 			</div>
-			<label class="rp-dialog-field">{{ tr('editor.reference.length') }}<input
-				v-model="length"
-				name="length"
-				type="text"
-				inputmode="decimal"
-				:readonly="paused"
-			></label>
-			<button
-				type="button"
-				:aria-disabled="paused"
-				@click="!paused && anotherDistance()"
-			>
-				{{ tr('editor.reference.another') }}
-			</button>
-		</section>
-		<ReferenceReview
-			v-if="step === 3"
-			v-model:opacity="appearance.opacity"
-			v-model:visible="appearance.visible"
-			v-model:locked="appearance.locked"
-			v-model:acknowledged="acknowledged"
-			:path="path"
-			:page="kind === 'pdf' ? Number(page) : null"
-			:rotation="appearance.rotation"
-			:crop="appearance.crop"
-			:scale-summary="reviewScale"
-			:factor="Number(scale?.scaleCorrection?.toPrecision(6)).toLocaleString()"
-			:needs-consent="needsConsent"
-			:paused="paused"
-		/>
-		<ReferencePreview
-			v-if="raster && prepared"
-			:raster="raster"
-			:appearance="appearance"
-			:points="points"
-			:measuring="step === 2 && !paused"
-			@point="pick"
-		/>
+		</div>
 		<div class="rp-dialog-actions">
 			<button
 				v-if="step > 1"
 				type="button"
 				:aria-disabled="paused"
+				data-rp-reference-action="back"
 				@click="go(step - 1)"
 			>
 				{{ tr('editor.reference.back') }}

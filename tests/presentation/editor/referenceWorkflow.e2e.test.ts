@@ -132,8 +132,8 @@ describe('M05 → M06 in the real editor with FakeVault repository commands', ()
 		const before = new Map(r.stack.vault.entries); await open(r); await prepare(r, 'scan.pdf'); await field(r, 'page', '2');
 		await r.harness.wrapper.get('[data-rp-action="load-reference"]').trigger('click'); await settle();
 		expect(r.load).toHaveBeenLastCalledWith({ path: 'scan.pdf', kind: 'pdf', page: 2 }, expect.anything());
-		await measure(r); await r.harness.wrapper.get(`${FORM} button[type="button"]`).trigger('click'); await settle();
-		await r.harness.wrapper.get(`${FORM} button[type="button"]`).trigger('click');
+		await measure(r); await r.harness.wrapper.get(`${FORM} [data-rp-reference-action="back"]`).trigger('click'); await settle();
+		await r.harness.wrapper.get(`${FORM} [data-rp-reference-action="another-distance"]`).trigger('click');
 		expect(r.harness.wrapper.get('input[name="length"]').element).toHaveProperty('value', '');
 		expect(r.harness.wrapper.find('canvas.rp-reference-preview').exists()).toBe(true);
 		await cancel(r); expect(new Map(r.stack.vault.entries)).toEqual(before); r.harness.unmount();
@@ -273,7 +273,7 @@ describe('M05 → M06 in the real editor with FakeVault repository commands', ()
 		const pointer = new MouseEvent('pointerdown', { bubbles: true, cancelable: true }); opacity.element.dispatchEvent(pointer); expect(pointer.defaultPrevented).toBe(true);
 		const locked = r.harness.wrapper.get('input[name="locked"]'), before = (locked.element as HTMLInputElement).checked;
 		await locked.trigger('click'); expect((locked.element as HTMLInputElement).checked).toBe(before); expect(locked.attributes('disabled')).toBeUndefined();
-		await r.harness.wrapper.get(`${FORM} button[type="button"]`).trigger('click'); expect(r.harness.wrapper.text()).toContain('Review reference');
+		await r.harness.wrapper.get(`${FORM} [data-rp-reference-action="back"]`).trigger('click'); expect(r.harness.wrapper.text()).toContain('Review reference');
 		await cancel(r); r.harness.unmount();
 	});
 	it('refuses a second source load while decoding and preview clicks outside measurement mode', async () => {

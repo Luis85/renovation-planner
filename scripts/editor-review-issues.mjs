@@ -46,7 +46,12 @@ async function assertIssues(page, roomId, questions, german) {
 }
 
 async function returnToReview(page) {
+	const tabs = page.locator('[data-rp-perspective="review"]').locator('..');
+	const before = await tabs.boundingBox();
 	await activate(page, '[data-rp-perspective="review"]');
+	await page.waitForFunction(() => document.querySelector('[data-rp-perspective="review"]')?.getAttribute('aria-checked') === 'true');
+	const after = await tabs.boundingBox();
+	assert.ok(before && after && Math.abs(before.x - after.x) < 0.5 && Math.abs(before.y - after.y) < 0.5, 'perspective tabs retain their position on entering Review');
 	await panel(page, 'details');
 }
 

@@ -153,6 +153,10 @@ export class SelectTool implements EditorTool {
 		}
 		const hit = candidates.find((candidate) => candidate.id === target.id);
 		if (hit === undefined) return;
+		if (!event.modifiers.shift && !event.modifiers.alt && context.selection.selectedIds.length > 1 && context.selection.isSelected(hit.id as EntityId<string>)) {
+			context.selection.focus(hit.id as EntityId<string>);
+			return;
+		}
 		if (hit.kind) { this.selectStructure(context, event, hit, target); return; }
 		if (target.kind === 'handle') {
 			// While the canvas is stale the gate would refuse the commit anyway; a ghost the
@@ -167,10 +171,6 @@ export class SelectTool implements EditorTool {
 				index: target.vertexIndex,
 				startWorld: event.worldPoint,
 			};
-			return;
-		}
-		if (!event.modifiers.shift && !event.modifiers.alt && context.selection.selectedIds.length > 1 && context.selection.isSelected(hit.id as EntityId<string>)) {
-			context.selection.focus(hit.id as EntityId<string>);
 			return;
 		}
 		selectSpatial(context.selection, hit.id, event.modifiers.shift);

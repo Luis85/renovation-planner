@@ -11,6 +11,25 @@ const structure = { ...WALL_LOOP, openings: [{ id: 'opening-a', kind: 'door' as 
 const room = { id: 'room-a', points: WALL_LOOP.walls.map(wall => wall.start) };
 const candidates = [...structureCandidates(structure), room];
 describe('typed wall and opening selection', () => {
+	it.each([
+		['Object body', 'object-a', 800, 0], ['Opening body', 'opening-a', 1200, 0], ['Wall body', 'wall-a', 2000, 0],
+		['Object badge', 'object-a', 600, -100], ['Opening badge', 'opening-a', 500, 0], ['Wall badge', 'wall-a', 0, 0],
+	] as const)('focuses %s without collapsing mixed membership or starting a geometry edit', (label, id, x, y) => {
+		void label;
+		const object = { id: 'object-a', kind: 'object' as const, points: [{ x: 600, y: -100 }, { x: 1000, y: -100 }, { x: 1000, y: 100 }, { x: 600, y: 100 }] };
+		const { context, dispatched } = toolContext();
+		const tool = new SelectTool({ spatialObjects: () => [object, ...candidates],
+			createMoveGesture: () => { throw new Error('Focus must not write'); }, moveElement: () => { throw new Error('Focus must not move'); },
+			reportRejected: () => undefined, reportInvalidInput: () => undefined });
+		tool.activate(context);
+		context.selection.select(['room-a', id] as never[]); context.selection.focus('room-a' as never);
+		const members = context.selection.selectedIds;
+		tool.pointerDown(pointerAt(x, y));
+		expect(context.selection.selectedIds).toBe(members); expect(context.selection.focusedId).toBe(id);
+		expect(tool.hasDraft()).toBe(false);
+		tool.pointerMove(pointerAt(x + 100, y + 100)); tool.pointerUp(pointerAt(x + 100, y + 100));
+		expect(dispatched).toEqual([]); expect(context.selection.selectedIds).toBe(members); tool.deactivate();
+	});
 	it('shares Object-first hover and click while Alt, list identity and Shift retain the same selection set', () => {
 		const object = { id: 'object-a', kind: 'object' as const, points: [{ x: 600, y: -100 }, { x: 1000, y: -100 }, { x: 1000, y: 100 }, { x: 600, y: 100 }] };
 		const { context, dispatched } = toolContext();

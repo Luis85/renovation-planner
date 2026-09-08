@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { rig, click, ZONE_A_DTO } from '../../helpers/planEditorRig';
 import { runtimeOf, settle, settleUntil } from '../../helpers/editor';
 import { makeAsset, makeZone } from '../../helpers/entities';
@@ -37,6 +37,7 @@ describe('existing Room dimensions through the real editor', () => {
 			const before = expectFound(await zones.getById('zone-a' as never));
 			expectOk(await zones.save(expectOk(before.entity.withGeometry({ points: original })), before.version));
 		});
+		onTestFinished(() => r.harness.unmount());
 		const runtime = runtimeOf(r.harness);
 		await open(r);
 		expect(r.harness.wrapper.get('input[name="width"]').element).toHaveProperty('value', '1.234');
@@ -48,7 +49,6 @@ describe('existing Room dimensions through the real editor', () => {
 		await runtime.undo(); expect((await read(r)).entity.geometry.points).toEqual(original);
 		expect(runtime.canUndo.value).toBe(false);
 		await runtime.redo(); expect((await read(r)).entity.geometry.points[2]).toEqual({ x: 2734.25, y: 3400.75 });
-		r.harness.unmount();
 	});
 	it.each([false, true])('selects through list action/canvas (%s), previews without writing, applies once and reverses', async canvas => {
 		const r = await rig(); const runtime = runtimeOf(r.harness); const before = await read(r);

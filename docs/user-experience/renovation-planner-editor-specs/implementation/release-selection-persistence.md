@@ -55,3 +55,20 @@ invocation did not match a file; the actual existing suite is under `shell/` and
 parent's integrated gate. The eight matching suites and their results are the evidence here.
 `git diff --check` passed. The unchanged full gate, final captures and native Obsidian acceptance
 remain parent-owned; these tests do not claim browser, screen-reader or native-host acceptance.
+
+## Mixed-kind focus follow-up
+
+Read-only integration review of SelectTool at `52ccecfe` identified a remaining M11 defect:
+the Room branch focused a selected member without changing membership, but the earlier typed
+Object/Opening/Wall branch replaced the set even when the shared resolver returned a numbered
+badge. The focused resolver tests alone could not establish the click contract. The focus guard
+now precedes typed routing for plain clicks; Shift and Alt retain their existing semantics.
+Six `structureSelection.test.ts` cases cover body and badge hits for Object, Opening and Wall
+in mixed Room/type selections, requiring identical membership-array identity, the focused ID,
+no draft and no write after pointer movement/release. The new precision regressions also
+register `onTestFinished` cleanup so a failing assertion cannot contaminate later dialog tests.
+
+Follow-up validation: `npx vitest run tests/presentation/editor/structureSelection.test.ts
+--maxWorkers=1` passed **9/9 tests** (5.95 s), including the six mixed-kind focus cases.
+The previously passing precision cases received teardown-only changes; the parent integrated
+gate verifies those together with the dependent rotation implementation.

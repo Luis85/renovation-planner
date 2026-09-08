@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { rig, pointer, ZONE_A_DTO } from '../../helpers/planEditorRig';
 import { runtimeOf, settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectFound, expectOk } from '../../helpers/domain';
@@ -32,6 +32,7 @@ describe('native selected Room dimension editing', () => {
 			const before = expectFound(await zones.getById('zone-a' as never));
 			expectOk(await zones.save(expectOk(before.entity.withGeometry({ points: original })), before.version));
 		});
+		onTestFinished(() => r.harness.unmount());
 		const runtime = runtimeOf(r.harness);
 		await open(r); await apply(r);
 		expect(runtime.canUndo.value).toBe(false); expect((await read(r)).entity.geometry.points).toEqual(original);
@@ -45,7 +46,7 @@ describe('native selected Room dimension editing', () => {
 		await runtime.redo();
 		await open(r); await r.harness.wrapper.get(`${selector} input`).setValue('1,2340'); await apply(r);
 		await runtime.undo(); expect((await read(r)).entity.geometry.points).toEqual(original);
-		expect(runtime.canUndo.value).toBe(false); r.harness.unmount();
+		expect(runtime.canUndo.value).toBe(false);
 	});
 	it('edits one scalar in Renovate, preserves raw comma text through viewport changes, and reverses exactly', async () => {
 		const r = await rig(), runtime = runtimeOf(r.harness), before = await read(r);

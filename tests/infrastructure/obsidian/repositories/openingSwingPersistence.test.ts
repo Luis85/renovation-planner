@@ -14,7 +14,7 @@ it('keeps legacy defaults implicit and round-trips swing through schema5 with ex
 	expectOk(await rig.geometry.write(rig.plan.id, { ...rig.baseline.document, structure }, rig.baseline.version));
 	const baseline = expectOk(await rig.geometry.read(rig.plan.id));
 	const before = [...rig.stack.vault.entries];
-	expect(openingSwing(baseline.document.structure!.openings[0])).toEqual({ hinge: 'start', side: 'left', angle: 90 });
+	expect(openingSwing(expectDefined(baseline.document.structure, 'legacy structure').openings[0])).toEqual({ hinge: 'start', side: 'left', angle: 90 });
 	expect(openingSwing({ ...door, kind: 'window' })?.angle).toBe(0);
 	expect(openingSwing({ ...door, kind: 'opening' })).toBeNull();
 	expect([...rig.stack.vault.entries]).toEqual(before);

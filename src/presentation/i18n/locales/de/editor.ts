@@ -1,3 +1,4 @@
+import { openingDe } from './opening';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
 import { inputDe } from './input';
@@ -30,6 +31,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.dimension.task': 'Raummaß bearbeiten',
 	'editor.dimension.instruction': 'Länge in Metern eingeben. Anwenden oder Eingabe speichert; Escape bricht ab.',
 	...objectDe,
+	...openingDe,
 	...editorShellDe,
 	"editor.element.name-required": "Geben Sie einen Namen ein.",
 	"editor.element.edit": "{name} bearbeiten",

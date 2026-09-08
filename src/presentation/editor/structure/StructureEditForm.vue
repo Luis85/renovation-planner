@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import OpeningSwingFields from './OpeningSwingFields.vue';
+import { parseSwingDraft, swingDraft, type OpeningSwingDraft } from './openingSwingDraft';
+import { openingOffsetAt } from '../../../domain/spatial/openingGeometry';
 import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
-import { computed, onBeforeUnmount, ref, useId, type Ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useId, type Ref } from 'vue';
 import { useInvalidFieldFocus } from '../../composables/use-invalid-field-focus';
 import type { Opening, Structure, Wall } from '../../../domain/spatial/Structure';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
@@ -14,12 +17,15 @@ import { formatMetres, parseCoordinateMetres, parseMetres } from '../shell/forma
 import { spatialMessage } from './spatialMessage';
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { persistenceError } from '../../../application/errors';
-const props = defineProps<{ structure: Structure; id: string; end?: Point; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; roomNames: readonly string[]; dispatch: (structure: Structure) => Promise<DispatchResult>; preview: (structure: Structure | null) => void }>();
+const props = defineProps<{ structure: Structure; id: string; end?: Point; openingPoint?: Point; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; roomNames: readonly string[]; dispatch: (structure: Structure) => Promise<DispatchResult>; preview: (structure: Structure | null) => void }>();
 const emit = defineEmits<{ submit: [] }>();
 const { formEl, focusFirstInvalidControl } = useInvalidFieldFocus(), errorId = useId(), numericId = useId();
 const wall = props.structure.walls.find(candidate => candidate.id === props.id), opening = props.structure.openings.find(candidate => candidate.id === props.id) as Opening;
 const initialWall: Wall | undefined = wall && props.end ? { ...wall, end: props.end } : wall;
-const initial = initialWall ? { length: wallLength(initialWall), height: initialWall.height, thickness: initialWall.thickness } : { offset: opening.offset, width: opening.width, height: opening.height, sill: opening.sill };
+const openingHost = opening && props.structure.walls.find(host => host.id === opening.hostId);
+const initialOffset = openingHost && props.openingPoint ? openingOffsetAt(openingHost, props.openingPoint, opening.width) : opening?.offset;
+const swing = ref<OpeningSwingDraft | null>(opening && opening.kind !== 'opening' ? swingDraft(opening) : null), swingEdited = ref(false);
+const initial = initialWall ? { length: wallLength(initialWall), height: initialWall.height, thickness: initialWall.thickness } : { offset: initialOffset ?? opening.offset, width: opening.width, height: opening.height, sill: opening.sill };
 const fields = Object.keys(initial) as (keyof typeof initial)[];
 const text = ref(Object.fromEntries(fields.map(field => [field, formatMetres(initial[field] as number)])));
 const error = ref<AppError | null>(null), invalid = ref(false), reviewed = ref(false), conflict = ref(false);
@@ -34,8 +40,10 @@ const proposal = computed(() => {
 		if (!parsed.ok) return null;
 		values[field] = text.value[field] === formatMetres(initial[field] as number) ? initial[field] as number : parsed.mm;
 	}
+	const parsedSwing = swing.value ? parseSwingDraft(swing.value) : undefined;
+	if (parsedSwing === null) return null;
 	if (initialWall) return editWall(props.structure, { ...initialWall, height: values.height, thickness: values.thickness, end: alongWall(initialWall, values.length) });
-	return { ...props.structure, openings: props.structure.openings.map(item => item.id === props.id ? { ...item, ...values } : item) };
+	return { ...props.structure, openings: props.structure.openings.map(item => item.id === props.id ? { ...item, ...values, ...(swingEdited.value && parsedSwing ? { swing: parsedSwing } : {}) } : item) };
 });
 const changed = computed(() => JSON.stringify(proposal.value) !== JSON.stringify(props.structure));
 const paused = computed(() => props.busy.value || props.blocked.value);
@@ -46,11 +54,23 @@ const impact = computed(() => {
 	const walls = proposal.value?.walls.filter((item, index) => JSON.stringify(item) !== JSON.stringify(props.structure.walls[index])).length ?? 0;
 	return tr('editor.structure.impact', { walls: String(walls), openings: String(props.structure.openings.filter(item => item.hostId === props.id).length) });
 });
+function changeSwing(value: OpeningSwingDraft): void {
+	if (paused.value || conflict.value) return;
+	swing.value = value; swingEdited.value = true; reviewed.value = false; props.preview(null);
+}
 function showPreview(): void { reviewed.value = true; props.preview(proposal.value); }
+async function focusInvalidInput(): Promise<void> {
+	if (swing.value && !parseSwingDraft(swing.value)) {
+		await nextTick(); formEl.value?.querySelector<HTMLInputElement>('[name="opening-angle"]')?.focus();
+	} else await focusFirstInvalidControl();
+}
 async function submit(): Promise<void> {
 	if (props.busy.value || props.blocked.value || conflict.value || !changed.value) return;
 	invalid.value = proposal.value === null;
-	if (!proposal.value) { await focusFirstInvalidControl(); return; }
+	if (!proposal.value) {
+		await focusInvalidInput();
+		return;
+	}
 	const valid = validateStructure(proposal.value, props.structure.boundaries.map(boundary => boundary.roomId));
 	if (!valid.ok) { error.value = valid.error; await focusFirstInvalidControl(); return; }
 	if (!reviewed.value) { showPreview(); return; }
@@ -114,6 +134,12 @@ async function submit(): Promise<void> {
 				@input="reviewed = false; props.preview(null)"
 			>
 		</label>
+		<OpeningSwingFields
+			v-if="swing"
+			:model-value="swing"
+			:disabled="paused || conflict"
+			@update:model-value="changeSwing"
+		/>
 		<p
 			v-if="reviewed"
 			role="status"

@@ -8,6 +8,7 @@ import { makeCaptureManifest, recordScreenshots } from './editor-capture-files.m
 /** Real keyboard navigation; no locator focus/fill shortcuts. */
 export async function tabTo(page, selector) {
 	const target = typeof selector === 'string' ? page.locator(selector) : selector;
+	await revealAction(page, target);
 	for (let count = 0; count < 150; count++) {
 		if (await target.evaluateAll(els => els.includes(document.activeElement))) return;
 		await page.keyboard.press('Tab');
@@ -16,8 +17,9 @@ export async function tabTo(page, selector) {
 }
 /** Reveal the actual action through native disclosure controls, using only the keyboard. */
 async function revealAction(page, selector) {
+	const target = typeof selector === 'string' ? page.locator(selector) : selector;
 	for (let depth = 0; depth < 8; depth++) {
-		const closedIndex = await page.locator(selector).first().evaluate(el => {
+		const closedIndex = await target.first().evaluate(el => {
 			let parent = el.parentElement, closed = null;
 			while (parent) {
 				if (parent instanceof HTMLDetailsElement && !parent.open && !parent.querySelector(':scope > summary')?.contains(el)) closed = parent;
@@ -36,7 +38,6 @@ export async function activate(page, selector) {
 		await tabTo(page, '[data-rp-room-navigation]');
 		await page.keyboard.press('Enter');
 	}
-	await revealAction(page, selector);
 	await tabTo(page, selector);
 	await page.keyboard.press('Enter');
 }

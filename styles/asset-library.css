@@ -92,6 +92,23 @@
 	width: 100%;
 }
 
+/* The clear control sits over the field's trailing edge; the `×` is decorative, the accessible
+   name is the aria-label. Obsidian's global `:focus { outline: none }` reaches it too. */
+.rp-al-search { position: relative; }
+.rp-al-search__clear {
+	position: absolute;
+	inset-inline-end: var(--size-2-2);
+	top: 50%;
+	transform: translateY(-50%);
+	padding: 0 var(--size-2-2);
+	background: none;
+	border: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+.rp-al-search__clear:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+
 /* Obsidian's global `:focus { outline: none }` reaches buttons too, so every control here
    opts its ring back in per control — `styles/asset-shelf.css`'s own rules for the shelf
    header and the row carry the identical comment. Positive offset: this button is inset in

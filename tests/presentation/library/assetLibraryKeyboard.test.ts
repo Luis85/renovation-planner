@@ -242,6 +242,20 @@ describe('searching, in the narrow composition', () => {
 	});
 });
 
+describe('the clear-search control on the field', () => {
+	it('offers a clear control while the search holds text and returns focus to the field', async () => {
+		const root = await mountLibrary();
+		expect(root.find('.rp-al-search__clear').exists()).toBe(false);
+		await root.get('.rp-al-search__input').setValue('alder');
+		const clear = root.get('.rp-al-search__clear');
+		expect(clear.attributes('aria-label')).toBe('Clear search');
+		await clear.trigger('click'); await settle();
+		expect((root.get('.rp-al-search__input').element as HTMLInputElement).value).toBe('');
+		expect(active()?.classList.contains('rp-al-search__input')).toBe(true);
+		expect(root.find('.rp-al-search__clear').exists()).toBe(false);
+	});
+});
+
 describe('§4\'s loading row, in the narrow composition', () => {
 	/**
 	 * *"The shell, with a loading line in the shelves region. **Never a spinner over an empty

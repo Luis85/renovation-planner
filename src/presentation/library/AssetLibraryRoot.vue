@@ -91,6 +91,12 @@ function onClearSearch(): void {
 	void focusAfterSwap('.rp-al-inspector__back', () => true);
 }
 
+/** AL02's "accessible clear action" on the field itself; the no-matches empty state keeps its own. */
+function clearSearchField(): void {
+	store.query = '';
+	searchEl.value?.focus();
+}
+
 function toggleShelf(category: string): void {
 	const next = new Set(expandedCategories.value);
 	if (!next.delete(category)) next.add(category);
@@ -209,6 +215,15 @@ watch(context.assetId, async (assetId) => {
 						:placeholder="tr('view.asset-library.search.placeholder')"
 						@keydown.esc="store.query = ''"
 					>
+					<button
+						v-if="store.query !== ''"
+						type="button"
+						class="rp-al-search__clear"
+						:aria-label="tr('empty.asset-library.no-matches.action')"
+						@click.prevent="clearSearchField"
+					>
+						×
+					</button>
 				</label>
 				<button
 					type="button"

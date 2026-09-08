@@ -134,10 +134,6 @@ export interface ReadinessFinding {
 	readonly recordId: string;
 	readonly causes: readonly string[];
 }
-/** How a subject is named where one line fits: what is planned, else what is there, else its id — a validated subject always has one of the first two. */
-export function subjectLabel(subject: RenovationSubject): string {
-	return subject.planned?.description || subject.existing?.description || subject.id;
-}
 /** Fixed rule order, stable record-ID order; never asserts readiness in unavailable domains. */
 export function reviewRenovation(value: Renovation): readonly ReadinessFinding[] {
 	const findings: ReadinessFinding[] = [];
@@ -149,4 +145,8 @@ export function reviewRenovation(value: Renovation): readonly ReadinessFinding[]
 		if (item.progress !== 'complete' && blocked.length) findings.push({ kind: 'blocked', roomId: item.roomId, recordId: item.id, causes: blocked.map(other => other.title) });
 	}
 	return findings.toSorted((a, b) => a.kind.localeCompare(b.kind, 'en') || a.recordId.localeCompare(b.recordId, 'en'));
+}
+/** How a subject is named where one line fits: what is planned, else what is there, else its id — a validated subject always has one of the first two. */
+export function subjectLabel(subject: RenovationSubject): string {
+	return subject.planned?.description || subject.existing?.description || subject.id;
 }

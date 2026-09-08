@@ -2,6 +2,8 @@ import type { objectEn } from '../en/object';
 export const objectDe: Record<keyof typeof objectEn, string> = {
 	'editor.rotation.title': '{name} drehen',
 	'editor.rotation.by': 'Drehen um…',
+	'editor.rotation.left-quarter': '90° links',
+	'editor.rotation.right-quarter': '90° rechts',
 	'editor.rotation.degrees': 'Drehen um (Grad)',
 	'editor.rotation.clockwise': '90 Grad im Uhrzeigersinn drehen',
 	'editor.rotation.counterclockwise': '90 Grad gegen den Uhrzeigersinn drehen',

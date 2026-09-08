@@ -1,6 +1,8 @@
 export const objectEn = {
 	'editor.rotation.title': 'Rotate {name}',
 	'editor.rotation.by': 'Rotate by…',
+	'editor.rotation.left-quarter': '90° left',
+	'editor.rotation.right-quarter': '90° right',
 	'editor.rotation.degrees': 'Rotate by (degrees)',
 	'editor.rotation.clockwise': 'Rotate clockwise 90 degrees',
 	'editor.rotation.counterclockwise': 'Rotate counterclockwise 90 degrees',

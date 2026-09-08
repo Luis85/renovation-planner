@@ -85,11 +85,7 @@ plan action alone. Held by `tests/presentation/views/projectEntryGuidance.test.t
 reaches the new-project layout through `?project=<id>&plans=0` and the `project-detail-new` capture.
 
 **Still open**, so the paragraph above is not read wider than it is: appearance is unverified — no
-capture of the new layout has been taken and no live vault has drawn it — and the German copy this
-increment adopted from the design package addresses the reader informally (`du`) while the rest of the
-locale is formal (`Sie`). That register split is recorded at its exemption in
-`tests/presentation/i18n/strings.test.ts` and is the design package's to settle for the product as a
-whole.
+capture of the new layout has been taken and no live vault has drawn it.
 
 ## Sources
 

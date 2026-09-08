@@ -168,12 +168,6 @@ paragraph under "Project-surface implementation" naming the three entries and th
    expected to update actually needed changing: the active variant still draws
    `view.project.guidance-title`, and the schedule/quotes pair is still inside
    `.rp-project-guidance`. Watched green rather than assumed.
-3. **The German copy is informal (`du`) and the rest of the locale is formal (`Sie`).** The design
-   package's `ui-copy.md` gives this surface's German in du-form and it was adopted verbatim, which
-   turned `strings.test.ts`'s "no du-form imperative anywhere in `de.ts`" red on exactly one value.
-   That case now exempts the `deProjectNavigation` TABLE, with the conflict written down at the
-   exemption; whether the product addresses the reader as `du` at all is the design package's to
-   settle and is **open**, not closed by this task.
 
 ### Task 2: Clear the stored Resume target on a reliably missing project
 

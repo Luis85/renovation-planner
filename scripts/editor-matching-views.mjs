@@ -65,7 +65,7 @@ export async function captureOverviewMatching(page, scenario, out, state) {
 		constrained: state === 'room' ? await captureConstrainedCanvas(page, scenario, out) : null };
 }
 
-export async function captureConstrainedCanvas(page, scenario, out) {
+async function captureConstrainedCanvas(page, scenario, out) {
 	const viewport = page.viewportSize(), sample = await sampleRoom(page);
 	const before = await context(page, sample.roomId);
 	const hadDetails = await page.locator('.rp-inspector-drawer:visible').count(), hadLayers = await page.locator('.rp-overlay-panel:visible').count();

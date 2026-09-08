@@ -19,7 +19,11 @@ import {
 } from '../../reference/deleteResolution';
 import { loadZone } from './loadZone';
 import type { RecalculateRequirementCommand } from '../requirement/RecalculateRequirement';
-import type { EntityVersion } from '../../ports/versioning';
+import type { EntityVersion, RelatedWriteReceipt } from '../../ports/versioning';
+
+export interface DeletedZone extends ResolvedSequence, RelatedWriteReceipt {
+	readonly zoneId: ZoneId;
+}
 
 export interface DeleteZoneInput {
 	readonly zoneId: ZoneId;
@@ -62,7 +66,7 @@ export class DeleteZoneCommand
 		Command<
 			DeleteZoneInput,
 			Result<
-				ResolvedSequence & { zoneId: ZoneId },
+				DeletedZone,
 				ReferenceError | RepositoryError
 			>
 		>
@@ -76,10 +80,11 @@ export class DeleteZoneCommand
 	async execute(
 		input: DeleteZoneInput,
 	): Promise<
-		Result<ResolvedSequence & { zoneId: ZoneId }, ReferenceError | RepositoryError>
+		Result<DeletedZone, ReferenceError | RepositoryError>
 	> {
 		const loaded = await loadZone(this.ops.zones, input.zoneId);
 		if (isErr(loaded)) return loaded;
+		const state: { receipt?: RelatedWriteReceipt } = {};
 
 		const resolved = await runDeleteResolution(
 			{
@@ -90,8 +95,12 @@ export class DeleteZoneCommand
 				events: this.ops.events,
 				listReferents: () => this.ops.requirements.listByZone(input.zoneId),
 				loadEntity: () => this.ops.zones.getById(input.zoneId),
-				deleteEntity: (snapshotVersion) =>
-					this.ops.zones.delete(input.zoneId, input.expected ?? snapshotVersion),
+				deleteEntity: async (snapshotVersion) => {
+					const deleted = await this.ops.zones.delete(input.zoneId, input.expected ?? snapshotVersion);
+					if (!deleted.ok) return deleted;
+					state.receipt = deleted.value || undefined;
+					return ok(undefined);
+				},
 				validateReassignTarget: async (target) => {
 					if (target === input.zoneId) {
 						return err({
@@ -132,6 +141,6 @@ export class DeleteZoneCommand
 		await this.ops.events.publish(
 			zoneDeleted({ zoneId: entity.id, planId: entity.planId, projectId: entity.projectId }),
 		);
-		return ok({ ...resolved.value, zoneId: entity.id });
+		return ok({ ...resolved.value, ...state.receipt, zoneId: entity.id });
 	}
 }

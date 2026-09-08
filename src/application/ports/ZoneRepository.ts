@@ -3,7 +3,7 @@ import type { ProjectId } from '../../domain/project/ProjectId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { Zone } from '../../domain/zone/Zone';
 import type { ZoneId } from '../../domain/zone/ZoneId';
-import type { Expected, EntityVersion, Loaded } from './versioning';
+import type { Expected, EntityVersion, Loaded, RelatedWriteReceipt } from './versioning';
 import type { RepositoryError } from './repositoryErrors';
 
 /**
@@ -34,7 +34,7 @@ export interface ZoneRepository {
 		zone: Zone,
 		expected: Expected,
 	): Promise<Result<Loaded<Zone>, RepositoryError>>;
-	delete(id: ZoneId, expected: EntityVersion): Promise<Result<void, RepositoryError>>;
+	delete(id: ZoneId, expected: EntityVersion): Promise<Result<RelatedWriteReceipt | void, RepositoryError>>;
 	listByProject(projectId: ProjectId): Promise<Result<ZoneListing, RepositoryError>>;
 	listByPlan(planId: PlanId): Promise<Result<ZoneListing, RepositoryError>>;
 }

@@ -11,6 +11,7 @@ import type {
 	EntityVersion,
 	Expected,
 	Loaded,
+	RelatedWriteReceipt,
 } from '../../../application/ports/versioning';
 import {
 	zoneFromPersistence,
@@ -381,7 +382,7 @@ export class ObsidianZoneRepository {
 		);
 	}
 
-	delete(id: ZoneId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
+	delete(id: ZoneId, expected: EntityVersion): Promise<Result<RelatedWriteReceipt | void, RepositoryError>> {
 		return this.queues.run(`zone:${id}`, async () => {
 			const file = this.locate(id);
 			// A vanished or unindexed note refuses exactly like a stale expectation.
@@ -438,7 +439,7 @@ export class ObsidianZoneRepository {
 
 			forgetTrashedNote(this.deps.index, id, file.path);
 			this.deps.echo.forget(file.path);
-			return ok(undefined);
+			return ok({ relatedWrite: { id: cachedPlan, before: mutated.value.beforeVersion, after: mutated.value.version } });
 		});
 	}
 

@@ -446,8 +446,16 @@ async function onSubmit(): Promise<void> {
 				>
 			</label>
 		</FieldError>
+		<!--
+			`!catalogueInoperative`, not `!catalogueFrozen` alone: the hint is a DOOR out of
+			this dialog exactly like every other control, so it follows the same gate. A press
+			while `form.submitting` is true (createAsset in flight, `catalogueFrozen` still
+			false) would resolve `submit` with `{ created: false }` immediately — which is what
+			the caller reads to decide whether to refresh — while the pending dispatch went on
+			to land a duplicate asset nobody's refresh would ever pick up.
+		-->
 		<SimilarNameHint
-			v-if="similar !== null && !catalogueFrozen"
+			v-if="similar !== null && !catalogueInoperative"
 			:existing="similar"
 			@show="showExisting"
 		/>

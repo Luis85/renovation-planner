@@ -694,6 +694,46 @@ describe('NewAssetForm', () => {
 		expect(createAsset).not.toHaveBeenCalled();
 	});
 
+	/**
+	 * The hint is a DOOR out of the dialog exactly like every other control here, so it has
+	 * to follow the same `catalogueInoperative` gate rather than only `catalogueFrozen`.
+	 * Before this case's fix, the hint stayed gated on `catalogueFrozen` alone —
+	 * `createdAssetId !== null`, true only AFTER `createAsset` resolves — so it was still
+	 * offered while a creation was in flight. Pressing it there would resolve `submit` with
+	 * `{ created: false }` immediately, which is what the caller reads to decide whether to
+	 * refresh, while the pending `createAsset` dispatch went on to land a duplicate asset
+	 * nobody's refresh would ever pick up.
+	 */
+	it('withdraws the similar-name door while a creation is in flight', async () => {
+		let release!: (value: Result<Asset, AppError>) => void;
+		const pending = new Promise<Result<Asset, AppError>>((resolve) => {
+			release = resolve;
+		});
+		const existing = { assetId: makeAsset().id, name: 'Oak plank floor' };
+		const createAsset = vi.fn<CreateAsset>(() => pending);
+		const wrapper = mount(NewAssetForm, {
+			props: {
+				createAsset,
+				setFootprintFromDimensions: footprintOk(),
+				logger: recorder,
+				defaultCurrency: 'EUR',
+				findExisting: (name: string) =>
+					name.trim().toLowerCase() === 'oak plank floor' ? existing : null,
+			},
+		});
+		await wrapper.get('[data-field="name"]').setValue('Oak plank floor');
+		await wrapper.get('[data-field="unitCostAmount"]').setValue('4.50');
+		expect(wrapper.find('.rp-similar-name').exists()).toBe(true);
+
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+		expect(wrapper.find('.rp-similar-name').exists()).toBe(false);
+
+		release(ok(makeAsset()));
+		await flushPromises();
+		expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({ created: true });
+	});
+
 	it('emits created: true after a real creation', async () => {
 		const asset = makeAsset();
 		const wrapper = mount(NewAssetForm, {

@@ -1,7 +1,7 @@
 import type { EventBus } from '../../../core/events/EventBus';
 import type { AppError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
-import { createPolygon } from '../../../core/geometry/Polygon';
+import { createCurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { zoneGeometryChanged } from '../../../domain/zone/Zone.events';
@@ -24,7 +24,7 @@ export interface GroupGeometryServices {
 }
 interface ZoneReceipt { id: ZoneId; before: EntityVersion; after: EntityVersion; source: ZoneGeometryVersions }
 function validate(document: PlanGeometryDocument): Result<void, AppError> {
-	for (const object of document.objects) { const polygon = createPolygon(object.points); if (!polygon.ok) return polygon; }
+	for (const object of document.objects) { const polygon = createCurvedPolygon(object); if (!polygon.ok) return polygon; }
 	const ids = document.objects.map(object => object.id);
 	for (const structure of [document.structure, document.intended]) { if (structure) { const checked = validateStructure(structure, ids); if (!checked.ok) return checked; } }
 	return validateSpatialGroups(document.groups ?? [], { zoneIds: ids, structure: document.structure ?? EMPTY_STRUCTURE });
@@ -33,7 +33,7 @@ async function zoneReceipts(deps: Dependencies, planId: PlanId, before: PlanGeom
 	const receipts: ZoneReceipt[] = [];
 	for (const object of before.objects) {
 		const next = after.objects.find(item => item.id === object.id);
-		if (!next || JSON.stringify(object.points) === JSON.stringify(next.points)) continue;
+		if (!next || JSON.stringify({ points: object.points, bulges: object.bulges }) === JSON.stringify({ points: next.points, bulges: next.bulges })) continue;
 		const source = await deps.zones.prepareGeometryVersions?.(object.id as ZoneId, object);
 		if (!source?.ok) return source ?? err(undoSuperseded(planId));
 		if (!source.value || source.value.zone.entity.planId !== planId) return err(undoSuperseded(planId));

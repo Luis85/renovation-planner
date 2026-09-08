@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan geometry: versioned circular Room and Wall boundaries retain curve parameters through persistence and legacy point transforms, with analytic measurements and curve-aware version observations.
+
 - Plan geometry: persist flat spatial groups in schema 6, transform their members atomically, and preserve membership through individual deletion and Undo.
 
 - Plan editor: show actual Room edge lengths during rotation, point editing and free-form creation, and expose free-form Room drawing directly in the creation task banner.

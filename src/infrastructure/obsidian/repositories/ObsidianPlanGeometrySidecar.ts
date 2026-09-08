@@ -58,6 +58,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 				calibration: dto.calibration ? calibrationFromPersistence(dto.calibration) : null,
 				objects: dto.objects.map((object) => ({
 					id: object.id,
+					...(object.bulges ? { bulges: [...object.bulges] } : {}),
 					points: object.points.map(([x, y]) => ({ x, y })),
 				})),
 			},
@@ -83,6 +84,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 				// literal becomes a rewrite of every entry and must move into the port.
 				objects: document.objects.map((object): PlanGeometryDTO['objects'][number] => ({
 					id: object.id,
+					...(object.bulges ? { bulges: [...object.bulges] } : {}),
 					type: 'polygon',
 					points: toTuples(object.points),
 				})),

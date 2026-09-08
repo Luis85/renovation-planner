@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: show actual Room edge lengths during rotation, point editing and free-form creation, and expose free-form Room drawing directly in the creation task banner.
+
 - Plan editor: show small curved-arrow controls on hovered item edges, with generous pointer targets and click-to-angle input, while preserving selected groups and ordinary overlap cycling.
 
 - Plan editor: rotate a single Room, Area, Object, Path, Fence or Measurement through guarded pointer and numeric angle actions, preserving saved identities, metadata, item order and exact Undo/Redo. Quarter turns retain axis-aligned Room sizing.

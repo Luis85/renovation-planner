@@ -1,6 +1,8 @@
 import { contains, distance } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
+import type { BoundingBox } from '../../../core/geometry/BoundingBox';
+import { rotationControlContains } from '../elements/rotationControl';
 
 export type SelectionTarget =
 	| { readonly kind: 'handle'; readonly id: string; readonly vertexIndex: number }
@@ -68,14 +70,13 @@ export function resolveSelectionTarget(input: {
 	readonly selectedIds: readonly string[];
 	readonly worldPoint: Point;
 	readonly handleToleranceWorld: number;
-	readonly rotationToleranceWorld?: number;
-	readonly rotationHandle?: { readonly id: string; readonly point: Point };
+	readonly rotationHandle?: { readonly id: string; readonly bounds: BoundingBox };
 	/** Alt selects the next overlapping body, bypassing handles. */
 	readonly cycle?: boolean;
 	readonly badgeToleranceWorld?: number;
 }): SelectionTarget {
 	if (!input.cycle) {
-		if (input.selectedIds.length === 1 && input.rotationHandle && input.selectedIds[0] === input.rotationHandle.id && distance(input.rotationHandle.point, input.worldPoint) <= (input.rotationToleranceWorld ?? input.handleToleranceWorld)) return { kind: 'rotation', id: input.rotationHandle.id };
+		if (input.selectedIds.length === 1 && input.rotationHandle && input.selectedIds[0] === input.rotationHandle.id && rotationControlContains(input.rotationHandle.bounds, input.worldPoint)) return { kind: 'rotation', id: input.rotationHandle.id };
 		const decoration = input.selectedIds.length > 1 ? badgeAt(input) : handleAt(input);
 		if (decoration !== null) return decoration;
 	}

@@ -14,14 +14,17 @@ import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { useDimensionObstacles, type DimensionObstacleLayout } from './useDimensionObstacles';
 
-const emit = defineEmits<{ obstacles: [layout: DimensionObstacleLayout] }>();
+const emit = defineEmits<{ obstacles: [layout: DimensionObstacleLayout]; rotationObstacles: [bounds: readonly BoundingBox[]] }>();
 const runtime = useEditorRuntime(), editor = useEditorStore(), project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession();
 const root = ref<HTMLElement | null>(null), axes = ['width', 'depth'] as const;
-useDimensionObstacles(root, () => editor.viewport, bounds => emit('obstacles', bounds));
+const workspace = useWorkspaceStore();
+useDimensionObstacles(root, () => editor.viewport, bounds => emit('obstacles', bounds), {
+	publish: bounds => emit('rotationObstacles', bounds),
+	invalidate: () => [editor.viewport, runtime.rotationActions.target.value, workspace.overlay, runtime.renderState.rotationInteraction !== null, session.mode],
+});
 const selected = computed(() => selection.selectedIds.length === 1 ? project.zones.get(selection.selectedIds[0]) : undefined);
 const room = computed(() => selected.value?.zoneType === 'Room' ? selected.value : null);
 const draft = runtime.roomDimension.draft;
-const workspace = useWorkspaceStore();
 const box = computed(() => draft.value?.box ?? (room.value ? roomDimensions(room.value.points) : null));
 const visible = computed(() => box.value !== null && session.perspective !== 'review' && (workspace.layerVisibility.zone || draft.value !== null)
 	&& (runtime.activeToolId.value === 'select' || runtime.activeToolId.value === 'edit-room-dimension'));

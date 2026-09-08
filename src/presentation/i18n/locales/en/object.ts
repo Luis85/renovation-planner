@@ -1,4 +1,11 @@
 export const objectEn = {
+	'editor.rotation.label': 'Rotate',
+	'editor.rotation.host-label': 'Rotate wall',
+	'editor.rotation.drag-hint': 'Drag to rotate',
+	'editor.rotation.click-hint': 'Click for a precise angle',
+	'editor.rotation.direction.clockwise': 'Clockwise',
+	'editor.rotation.direction.counterclockwise': 'Counterclockwise',
+	'editor.rotation.snap-feedback': '{step}° steps',
 	'editor.rotation.title': 'Rotate {name}',
 	'editor.rotation.by': 'Rotate by…',
 	'editor.rotation.left-quarter': '90° left',

@@ -17,7 +17,6 @@ import { resolveSelectionTarget, type SelectionTarget } from '../selection/resol
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
-import type { SelectionInteractions } from '../selection/selectionInteractions';
 
 /**
  * What SelectTool hit-tests: a generic "spatial object on the active plan" shape so

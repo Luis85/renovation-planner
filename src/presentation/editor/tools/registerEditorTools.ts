@@ -28,7 +28,6 @@ import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { Point } from '../../../core/geometry/Point';
 import type { RotationGestureDeps } from '../elements/ElementRotation';
 import type { ElementMoveDeps } from '../elements/ElementMove';
-import type { SelectionInteractions } from '../selection/selectionInteractions';
 
 /**
  * One reversible command per drag OR per keyboard nudge — `SelectTool`'s pointer gesture and

@@ -52,8 +52,10 @@ release: "[[MVP]]"
 
 ## Extensions
 
-- **2a** — Selectable targets overlap. Priority is deterministic: handle → object → opening →
-  wall → room → background, with an alternate/cycling route where supported.
+- **2a** — Selectable targets overlap. Priority is deterministic: handle → opening → wall →
+  object → room → background, with an alternate/cycling route where supported. (2026-09-08 —
+  amended from handle → object → opening → wall → room → background to the order the code has;
+  see the plan amendment in `implementation-plan.md` Phase 2.)
 - **3a** — The renovator uses only a keyboard. List selection reaches the identical action and
   Inspector result.
 - **3b** — The record becomes unreadable or disappears. The selection is retired or surfaced as

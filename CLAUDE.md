@@ -395,8 +395,9 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   `tests/harness/accessibilityAssetLibrary.test.ts` beside it — one seam, drawn where the
   file already had three top-level `describe`s, with
   `runOptions` shared through `./axeOptions` rather than copied, because the alternative to
-  sharing it is two copies of the list naming the rules this suite cannot honestly grade. Both
-  are axe-core driven in jsdom against the
+  sharing it is two copies of the list naming the rules this suite cannot honestly grade. More
+  `accessibility*.test.ts` files have taken that same seam since — `grep -l axeOptions
+  tests/harness` is the list, not this sentence — and all of them are axe-core driven in jsdom against the
   real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
   three states — never a fixture), checking
   roles, accessible names, form labels, heading order and ARIA attribute validity. It
@@ -459,12 +460,16 @@ of the four CI legs.
 `npm audit` is deliberately NOT in `check`: an advisory with no patched version is a red
 nobody can clear, and a gate people learn to ignore protects nothing. It is its own CI job.
 
-Obsidian itself cannot run here. Three commands stand in, and none replaces another:
+Obsidian itself cannot run here. Three commands stand in, and none replaces another
+(`asset-library-shots` and `concept-shots` beside them are captures of the second one's kind,
+aimed at one surface and at the concept gallery, and neither replaces it either):
 
 - `npm run harness` — a Vite dev server drawing the real view against the real stylesheet
   and **Obsidian's own app.css**, in a browser, with no Obsidian. `?view=plan-editor` draws
-  the Plan Editor instead of the project surface, `?theme=light`, `?phone`, `?index` and
-  `?entry=<id>` are the other knobs, and all of them exist so a headless capture needs a URL
+  the Plan Editor instead of the project surface (`asset-designer` and `asset-library` are the
+  other two values), `?theme=light`, `?phone`, `?lang=`, `?index` and `?entry=<id>` are the
+  oldest of the other knobs — `tests/harness/page.ts` reads the whole set, and no list of it
+  is kept here — and all of them exist so a headless capture needs a URL
   and nothing to click. Faithful about markup,
   spacing, hierarchy and Obsidian's DEFAULT colours — including the leaf chrome Obsidian
   nests around every view (`.workspace-leaf-content[data-type]` → `.view-header` +
@@ -484,11 +489,12 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   **`?index`** draws an index of every prototype and every real component, discovered from the
   tree with `import.meta.glob` so a saved file needs no registration. `?entry=<id>` opens one
   directly, and `npm run harness-shot <id>` captures it in both schemes. The index is OPT-IN
-  and the bare root still draws the project view: the three project-view captures address that
-  surface with no `view` parameter at all — two of the three carry a query string
-  (`?theme=light`, `?phone`), just never a `view` one — so making a bare root mean "index" would
-  break them while the test asserting they exist kept passing. The index has two fixed captures
-  of its OWN (`?index` in both schemes), which is a different thing from the bare root meaning
+  and the bare root still draws the project view: the project-view captures (`dark`, `light`,
+  `phone` and the `home-*` and `project-detail*` families) address that
+  surface with no `view` parameter at all — all but `dark` carry a query string,
+  just never a `view` one — so making a bare root mean "index" would
+  break them while the test asserting they exist kept passing. The index has fixed captures
+  of its OWN (`?index` in both schemes, plus its focus and failure states), which is a different thing from the bare root meaning
   index and is what lets this tool photograph its own chrome. Mocks live in `src/prototypes/` as
   SFCs — a `<template>`, optionally a `<script setup>`, optionally a `<style scoped>` — written to the
   same Vue lint rules as the rest of `src/` so that promotion is moving the file rather than
@@ -508,13 +514,15 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   prototype or fixture shipped as a separate emitted ASSET, with no module id in the chunk
   list, is outside what `chunk.modules` can see, and not cheaply checkable.
 - `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
-  binary resolved from disk rather than a hard-coded revision) and writes a PNG per colour
-  scheme plus `?phone`, both Plan Editor schemes and both harness-index schemes to a gitignored
+  binary resolved from disk rather than a hard-coded revision) and writes one PNG per fixed
+  shot — every surface the harness draws, most in both schemes and several at a sidebar's
+  width; `tests/build/harness-shot.test.ts` pins the table in both directions, so no count
+  of it is kept here — to a gitignored
   `harness-shots/`
   folder — a look at rendered layout, which jsdom cannot produce at all. Given an entry id
   (`npm run harness-shot prototype:ZonePanel` — the qualified id from `entries.ts`, not the
   basename the index displays) it captures that one prototype or component from the index
-  instead of the ten fixed shots, in both colour schemes, with the index's own sidebar
+  instead of the fixed shots, in both colour schemes, with the index's own sidebar
   dropped so the picture measures the screen. `-- --width=460` captures a narrow pane as
   well, which is the width an Obsidian sidebar leaf actually has and the one that has already
   hidden a layout defect the default 1280 could not show. The `--` is load-bearing: npm claims
@@ -818,7 +826,9 @@ WITHIN its own file, across that file's cases — not across the files in a work
 `tests/harness/platform.test.ts` is the demonstration: it sets `isMobile` through
 `applyPlatform('?phone')` and never resets it, and per-file isolation is the whole of what
 makes that harmless. `FakeLeaf`/`FakeWorkspace` RECORD asks rather
-than behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
+than behave. The DOM helpers install only `createEl`, `createSpan`, `createDiv`, `empty`,
+`setText` and `addClass` — `tests/helpers/dom.ts`'s header is the list, and this sentence
+undercounted it by two since 2026-08-29. And
 **`npm run build` type-checks `tests/**` in full** — `tsconfig.json`'s `include` is `src/**`
 plus `tests/**`, with no `paths` mapping, so a test is checked against the same types `src/`
 is. Vitest still transpiles without checking; the compiler that matters runs in `build`.

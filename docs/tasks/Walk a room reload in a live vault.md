@@ -60,3 +60,11 @@ than inferred from a spy, and its step 7 is where a duplicate note or a second s
 one id would be visible at all — the shape a reopen taking an INSERT where an update was owed would
 produce. Step 6 answers this task's own Risks paragraph directly: visual similarity is exactly what
 hides an identity change, so the comparison is on the id recorded at step 2.
+
+## Amendments
+
+**2026-09-08** — unrun against the landed plan-editor stack (7d4bc381). The completion matrix's
+H1 row records a post-restart inspection of a test vault on Obsidian 1.13.7 showing the project
+view and its controls, and says in the same row that the preliminary build must be replaced by
+the final integrated one before H1 counts; no final live-host pass is claimed. Step 5's full
+restart is still the only instrument for it.

@@ -1,9 +1,5 @@
 # Renovation Planner — Editor Implementation Plan
 
-## Current execution — 2026-09-08
-
-The landed baseline is now `7d4bc381`, not the historical open stack described below. Follow [the release execution plan](release-2026-09-08.md) for the active M00–M17 plus Object rotation work, explicit ownership and acceptance sequence. PR #93 remains independently owned. Earlier phase tables remain the requirement/history source; their implementation claims must be reconciled with this new evidence rather than treated as missing features.
-
 Current reconciliation: [completion matrix](completion-matrix.md), [integration ancestry](integration-map.md), and [status ledger](implementation-status.md). Later connected renovation/planning amendments supersede earlier implementation snapshots. Missing requirements remain open until implemented and verified; integration is active and no overall acceptance is declared.
 
 Current integrated source includes generic spatial editing, shared record actions, cross-record navigation, material markers and persistent native Inspector/Layer regions. Native dimensions, direct actions, host icons and Room captions are integrated. Shared Trade responsibility, explicit Work dates, Project Work and factual quote comparison have production source in the finalization candidate under ADR-0024; their verification and final combined quality/visual/host acceptance remain active. [User guidance](../../../using-plan-editor.md) describes the connected production journey; acceptance remains governed by the matrix.

@@ -8,13 +8,6 @@ area: presentation
 
 # ADR-0018: Spatial selection and Inspector ownership
 
-The 2026-09-08 release extension resolves the generic Object priority reserved below:
-single-selection handles precede Object, Opening, Wall and Room/Area bodies. Stable paint
-order within a kind, ordered badges, Alt bypass/cycling and list/keyboard selection stay on
-the same resolver/store. The earlier Phase 5 order below describes its pre-Object scope.
-Object rotation adds a typed handle target to that resolver, not a separate selection system;
-its geometry contract is in ADR-0023.
-
 Phase 5 extension (2026-09-06, ADR-0020): the same ordered ID store and typed projection now
 include Wall and Opening records. Body priority is Opening, Wall, then Room/Area, preserving
 paint order within a kind; Alt-click cycles the same candidates. The persistent structure list

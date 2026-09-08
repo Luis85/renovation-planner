@@ -41,6 +41,16 @@ const emit = defineEmits<{ openAdd: [] }>();
 		<button
 			type="button"
 			class="rp-primary-actions__button"
+			data-rp-action="pan"
+			:aria-pressed="runtime.activeToolId.value === 'pan'"
+			:aria-disabled="!canSwitch"
+			@click="runtime.setTool('pan')"
+		>
+			{{ tr('editor.input.pan') }}
+		</button>
+		<button
+			type="button"
+			class="rp-primary-actions__button"
 			data-rp-action="add"
 			aria-haspopup="menu"
 			:aria-expanded="props.addOpen"

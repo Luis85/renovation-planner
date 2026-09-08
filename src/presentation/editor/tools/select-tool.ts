@@ -1,4 +1,6 @@
+import type { SelectionInteractions } from '../selection/selectionInteractions';
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
+import { MarqueeSelection } from '../selection/MarqueeSelection';
 import { translate } from '../../../core/geometry/operations';
 import { ElementRotation, type RotationGestureDeps } from '../elements/ElementRotation';
 import { rotationControlApproachContains, rotationControlContains, type RotationControlGeometry } from '../elements/rotationControl';
@@ -15,7 +17,6 @@ import { resolveSelectionTarget, type SelectionTarget } from '../selection/resol
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
-import type { SelectionInteractions } from '../selection/selectionInteractions';
 
 /**
  * What SelectTool hit-tests: a generic "spatial object on the active plan" shape so
@@ -34,7 +35,7 @@ export interface SpatialObjectCandidate {
  * like every adapter in this slice, one instance carries one transaction's forward/inverse
  * pair.
  */
-export interface SelectToolDeps extends ElementMoveDeps, RotationGestureDeps, Pick<SelectionInteractions, 'expandSelection'> {
+export interface SelectToolDeps extends ElementMoveDeps, RotationGestureDeps, SelectionInteractions {
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly spatialObjects: () => readonly SpatialObjectCandidate[];
@@ -107,6 +108,7 @@ type Gesture =
  * "what you see" and "what you can grab" in a stated relationship.
  */
 export class SelectTool implements EditorTool {
+	private readonly marquee = new MarqueeSelection();
 	private wallGesture: { id: string; start: Point } | null = null;
 	readonly id: ToolId = 'select';
 
@@ -153,13 +155,14 @@ export class SelectTool implements EditorTool {
 		context.renderState.hoveredTargetKind = null;
 		context.renderState.rotationHoverId = null;
 		if (target === null) {
-			context.selection.clear();
+			this.marquee.start(context, event);
 			return;
 		}
 		if (target.kind === 'rotation') { this.startRotation(context, event, target.id, rotationControl); return; }
 		const hit = candidates.find((candidate) => candidate.id === target.id);
 		if (hit === undefined) return;
 		if (this.focusSelectedMember(context, event, hit.id)) return;
+		if (target.kind === 'body' && this.selectGroup(context, event, hit.id)) return;
 		if (hit.kind) { this.selectStructure(context, event, hit, target); return; }
 		if (target.kind === 'handle') {
 			// While the canvas is stale the gate would refuse the commit anyway; a ghost the
@@ -194,7 +197,19 @@ export class SelectTool implements EditorTool {
 
 	private focusSelectedMember(context: EditorContext, event: EditorPointerEvent, id: string): boolean {
 		if (event.modifiers.shift || event.modifiers.alt || context.selection.selectedIds.length < 2 || !context.selection.isSelected(id as EntityId<string>)) return false;
+		if (!context.writesBlocked()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
 		context.selection.focus(id as EntityId<string>); return true;
+	}
+	private selectGroup(context: EditorContext, event: EditorPointerEvent, id: string): boolean {
+		const ids = this.deps.expandSelection?.(id, event.modifiers.alt);
+		if (!ids || ids.length < 2) return false;
+		const selected = context.selection.selectedIds;
+		const result = event.modifiers.shift
+			? ids.every(member => selected.some(value => value === member)) ? selected.filter(value => !ids.includes(value)) : [...selected, ...ids]
+			: ids;
+		context.selection.select(result.map(value => value as EntityId<string>));
+		if (!event.modifiers.shift && !event.modifiers.alt && !context.writesBlocked()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
+		return true;
 	}
 	private selectStructure(context: EditorContext, event: EditorPointerEvent, hit: SpatialObjectCandidate, target: Exclude<SelectionTarget, null>): void {
 		selectSpatial(context.selection, hit.id, event.modifiers.shift);
@@ -205,6 +220,8 @@ export class SelectTool implements EditorTool {
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null) return;
+		if (this.deps.selectionMove?.active) { this.deps.selectionMove.move(event); return; }
+		if (this.marquee.active) { this.marquee.move(context, event); return; }
 		if (this.elementRotation.active) { this.elementRotation.move(context, event); return; }
 		if (this.elementMove.active) { this.elementMove.move(event); return; }
 		if (this.wallGesture) { this.deps.previewWall?.(this.wallGesture.id, event.worldPoint); return; }
@@ -234,7 +251,13 @@ export class SelectTool implements EditorTool {
 		context.renderState.previewPolygon = preview;
 	}
 
+	private finishSelectionGesture(event: EditorPointerEvent): boolean {
+		if (this.deps.selectionMove?.active) { if (event.button === 'primary') this.deps.selectionMove.finish(event); return true; }
+		if (this.marquee.active && this.context) { this.marquee.finish(this.context, event, this.deps.spatialObjects()); return true; }
+		return false;
+	}
 	pointerUp(event: EditorPointerEvent): void {
+		if (this.finishSelectionGesture(event)) return;
 		if (this.elementRotation.active && this.context) { this.elementRotation.finish(this.context, event); return; }
 		if (this.elementMove.active && this.context) { this.elementMove.finish(this.context, event); return; }
 		if (this.wallGesture && event.button === 'primary') {
@@ -293,12 +316,13 @@ export class SelectTool implements EditorTool {
 	}
 
 	private discardGesture(): EditorContext | null {
+		this.deps.selectionMove?.cancel();
 		this.elementMove.cancel(); this.elementRotation.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
 		this.gesture = null;
-		if (context !== null) context.renderState.previewPolygon = null;
+		if (context !== null) { this.marquee.cancel(context); context.renderState.previewPolygon = null; }
 		return context;
 	}
 
@@ -322,7 +346,7 @@ export class SelectTool implements EditorTool {
 
 	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
 	hasDraft(): boolean {
-		return this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active;
+		return this.deps.selectionMove?.active === true || this.marquee.active || this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active;
 	}
 
 	/**

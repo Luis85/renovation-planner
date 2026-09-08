@@ -1,6 +1,7 @@
 import { openingDe } from './opening';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
+import { inputDe } from './input';
 import { creationDe } from './creation';
 import type {
  editorEn } from '../en/editor';
@@ -17,6 +18,7 @@ import type {
  */
 import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
+	...inputDe,
 	...creationDe,
 	'editor.direct.edit-shape': 'Form bearbeiten',
 	'editor.direct.edit-length': 'Länge bearbeiten',

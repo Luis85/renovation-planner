@@ -52,7 +52,7 @@ describe('the scene structure', () => {
 		const interaction = harness.stage.findOne<Konva.Layer>('.interaction');
 
 		expect(interaction).toBeDefined();
-		expect(interaction?.getChildren().map((node) => node.name())).toEqual(['snap-guides', 'gesture-sketch', 'room-draft-group', 'rotation-handle-viewport']);
+		expect(interaction?.getChildren().map((node) => node.name())).toEqual(['snap-guides', 'gesture-sketch', 'room-draft-group', 'marquee-overlay', 'rotation-handle-viewport']);
 		expect(interaction?.findOne<Konva.Group>('.snap-guides')?.getChildren()).toHaveLength(0);
 		expect(interaction?.findOne<Konva.Group>('.gesture-sketch')?.getChildren()).toHaveLength(0);
 		expect(interaction?.findOne<Konva.Group>('.room-draft-group')?.getChildren()).toHaveLength(0);

@@ -16,7 +16,8 @@ import type { ToolId } from './editor-tool';
  *
  * **`null` is camera mode, and it CLEARS rather than activating anything.** The camera is
  * ephemeral UI (SDD §15) and never a command, so "no active tool" is what pans and zooms —
- * there is no `PanTool` on either surface for `null` to select.
+ * it does not select a tool. The Plan Editor's explicit `pan` marker names the same surface
+ * camera behavior, while Space/middle override drawing without switching tools.
  *
  * **The mirror is written AFTER the manager, which is the part two copies would lose.**
  * `setActiveTool` throws for an id nothing registered — a wiring mistake, and the one thing

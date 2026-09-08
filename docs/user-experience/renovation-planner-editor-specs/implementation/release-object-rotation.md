@@ -64,3 +64,25 @@ The initial Object implementation was `43fd968b` (rebased as `9f44c959`); its pa
 The full CI suite exposed five stale assertions that counted every interaction-layer Circle/Line as a legacy selection affordance. The corrected suites still require exactly four direct screen-space vertex handles and one named selection outline, assert the nested rotation group separately, and require its removal on deselection/Review. The idle scene now explicitly reserves four empty groups. No production code or verification threshold changed; the source tree remains `26ae80d02e43d3c7bd13542e5e6093ee3438982b`.
 
 `npm run check:fast -- tests/presentation/editor/renovateRoomManipulation.test.ts tests/presentation/editor/scene.test.ts tests/presentation/editor/zoneEditing.test.ts tests/presentation/editor/objectRotation.test.ts tests/presentation/editor/objectRotationRuntime.test.ts --maxWorkers=1 --no-file-parallelism` passed global Oxlint, type checking and **5 files / 89 tests** on 2026-09-08. Full-suite coverage and the unchanged integrated gate remain parent-owned verification; this follow-up does not claim they have passed.
+
+### CI admission and retirement follow-up (test-only)
+
+CI run `34259386627` passed 672 files / 8,225 tests at `c6577dc1`, but its branch
+coverage was 12,894 / 13,165 (97.9415%), below the unchanged 98% floor.
+`rotationAdmission.test.ts` adds twelve behavioral cases: Room read error, absence and
+cross-plan ownership; peer name/geometry changes; unexpected read-fault cleanup; element
+read/peer metadata failures; retired/no-op pointer proposals; refreshed peer geometry;
+a retired numeric callback; and refusal by the real stale gate at dispatch. Assertions
+check no unintended command/repository writes, retained peer facts and operation cleanup.
+
+The three rotation/admission suites passed 67 tests, both normally and under targeted
+coverage. Whole Oxlint, TypeScript and scoped test ESLint passed. Targeted coverage of
+`rotationBaseline.ts` and `rotationActions.ts` reports 138 / 161 branches (85.71%) and
+correctly exits nonzero against the unchanged global thresholds: that diagnostic covers
+two source files, not the full repository. No thresholds or exclusions were modified.
+
+Comparing identical branch maps with the CI artifact shows fourteen previously missed
+branches exercised. Their arithmetic union with that recorded CI baseline would be
+12,908 / 13,165 (98.0479%). This is a projection, not a fresh full-suite coverage result;
+CI on the pushed follow-up remains the global acceptance gate. The local comparison
+receipt is `harness-shots/pr95-admission-coverage/ci-branch-comparison.json`.

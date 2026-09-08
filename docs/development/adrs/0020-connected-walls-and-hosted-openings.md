@@ -56,3 +56,19 @@ versions are refused. No durable crash journal is added: abrupt host/process ter
 between a Room note write and compensation remains the existing ADR-0019 recovery limitation.
 
 Acceptance evidence and remaining gaps are recorded with Phase 5, separately from this contract.
+
+
+## Opening swing and point-placement extension — 2026-09-08
+
+The user-approved opening-usability concern adds optional host-relative `Opening.swing`
+(`hinge: start|end`, `side: left|right`, finite `angle: 0..180`) to current/intended geometry
+sidecar schema5. The migration changes the discriminator in memory; only saved swing fields
+require version5. Legacy absence remains absent and renders Door90°/Window0° defaults; plain
+Openings have no leaf. Host rotation/calibration preserve these relative facts. No Plan-note
+schema, independent opening endpoint or new repository is introduced.
+
+Pointer placement projects the clicked opening centre onto its existing host and bounds the
+complete width. Stored offset retains its leading-edge meaning. Move-to-point uses the same
+reviewed fresh-baseline structure edit and reversible command as numeric opening edits.
+[Opening-usability evidence and remaining acceptance](../../user-experience/renovation-planner-editor-specs/implementation/opening-usability.md)
+records the exact persistence, geometry and runtime checks.

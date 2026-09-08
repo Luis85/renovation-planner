@@ -1,3 +1,4 @@
+import { openingEn } from './opening';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
 import { creationEn } from './creation';
@@ -40,6 +41,7 @@ export const editorEn = {
 	'editor.dimension.task': 'Edit room dimension',
 	'editor.dimension.instruction': 'Enter a length in metres. Apply saves the change. Escape cancels.',
 	...objectEn,
+	...openingEn,
 	...editorShellEn,
 	"editor.element.name-required": "Enter a name.",
 	"editor.element.edit": "Edit {name}",

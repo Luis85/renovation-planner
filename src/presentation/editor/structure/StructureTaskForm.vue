@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import OpeningSwingFields from './OpeningSwingFields.vue';
 import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
 import { computed, useId } from 'vue';
 import { useInvalidFieldFocus } from '../../composables/use-invalid-field-focus';
@@ -90,6 +91,11 @@ function submit(): void { if (wall.value) add(); else void task.finish(); }
 				:aria-describedby="describedBy"
 			>
 		</label>
+		<OpeningSwingFields
+			v-if="!wall && draft.kind !== 'place-opening'"
+			v-model="draft.swing"
+			:disabled="task.blocked.value"
+		/>
 		<button
 			v-if="wall"
 			type="submit"

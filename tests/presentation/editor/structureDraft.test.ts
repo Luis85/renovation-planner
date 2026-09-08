@@ -69,8 +69,8 @@ describe('wall task geometry and lifecycle', () => {
 	it('picks a host within tolerance, refuses an absent host and normalizes placement fields', () => {
 		const draft = createStructureDraft(); draft.kind = 'place-window';
 		pickHost(draft, { x: 500, y: 2 }, WALL_LOOP.walls, 8);
-		expect(draft.text).toMatchObject({ hostId: 'wall-a', offset: '0.5' });
-		expect(openingFromDraft(draft)).toMatchObject({ kind: 'window', offset: 500 });
+		expect(draft.text).toMatchObject({ hostId: 'wall-a', offset: '0.05' });
+		expect(openingFromDraft(draft)).toMatchObject({ kind: 'window', offset: 50 });
 		pickHost(draft, { x: -500, y: 500 }, WALL_LOOP.walls, 8); expect(draft.snapped).toBe(false);
 		draft.kind = 'place-door'; expect(openingFromDraft(draft)?.kind).toBe('door');
 		draft.kind = 'place-opening'; expect(openingFromDraft(draft)?.kind).toBe('opening');

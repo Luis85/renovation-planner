@@ -32,7 +32,7 @@ it('opens the canonical rotation form from every eligible Inspector and explains
 		expect(controls[0].findAll('button')).toHaveLength(3);
 		expect(rig.wrapper.findAll('.rp-direct-actions .rp-object-rotation-actions')).toHaveLength(0);
 		if (id === 'opening-rotation') {
-			expect(controls[0].get('[data-rp-action="rotate-object"]').text()).toContain('Rotate wall');
+			expect(controls[0].get('[data-rp-action="rotate-object"]').text()).toContain('Rotate host wall');
 			expect(controls[0].text()).toContain('other openings in that wall');
 		}
 		await controls[0].get('[data-rp-action="rotate-object"]').trigger('click'); await settle();

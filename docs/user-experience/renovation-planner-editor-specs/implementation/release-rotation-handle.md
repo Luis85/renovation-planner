@@ -23,12 +23,14 @@ controls, preserving the existing shell and Inspector routes.
    final visual/host acceptance remain parent-owned and sequential.
 
 Dependency: generalized `runtime.rotationActions` and shared `handleMetrics`, then host-wall
-rotation. Source began at `43fd968b` and is now rebased onto tested wall checkpoint `d7cbaf8b`,
-which includes generalized engine `f056a1f2`. The wrapper consumes that API; the shared controls
+rotation. Source began at `43fd968b` and is now rebased onto wall checkpoint `dfb9e216`,
+including the final generalized engine `42176cf2` and its documentation follow-up. The wrapper consumes that API; the shared controls
 are wired into every Plan Inspector and the permitted Room/Area/wall/opening Renovate contexts.
 Opening controls explicitly say Rotate wall and explain that hosted openings turn together.
-The small canvas popover retains Edit/Add only. The shared placement/clearance follow-up and
-combined UI verification remain pending. No selection-priority decision is made here.
+The small canvas popover retains Edit/Add only. Shared placement now tries clear alternate
+anchors when viewport clamping would overlap a vertex handle or dimension control. The UI
+consumes that geometry without repeating hit-testing or placement logic. No selection-priority
+decision is made here.
 
 The two new test-only Lucide SVG fixtures are copied unchanged from the same pinned revision
 `2bfb9bb1bae5d74f6a9f81640ddd8bccc2c71860` as the existing icon fixtures; their original license
@@ -39,3 +41,17 @@ The independent actual-Konva glyph test passed on the initial UI working tree (o
 0.2×/1.7× zoom, icon bounds, animated baseline coordinates, frozen pivot, signed rounded angles,
 bounded angle labels and cancellation. This precedes generalized runtime/wall integration;
 it is not yet a combined interaction or screenshot acceptance claim.
+
+## Integrated verification
+
+Scoped ESLint and the full Vue type check pass. A single-worker joint run passed 50 tests in
+five files: `rotationHandleGlyph`, `rotationInspectorRoutes`, `objectRotationRuntime`, domain
+`rotateWall`, and `wallRotationRuntime`. This includes all 26 wall/domain cases and the newly
+added peer-preview/identical-refresh pair. The old-red fork was not run. The Inspector test
+opens and cancels each canonical form for Room, Area, Object, Path, Fence, Measurement, Wall
+and Opening; it checks explicit host-wall wording, allowed Renovate routes at 460 px, no
+geometry controls in Review, no duplicate canvas action bar and unchanged vault bytes.
+
+The actual four-scenario rotation screenshots and native browser inputs still follow this
+source gate. Final whole-repository coverage/analysis, original nine journeys/eighteen reference
+comparisons, actual Obsidian and physical-device/screen-reader observations remain separate.

@@ -66,5 +66,5 @@ export function createRoomResizeAction(context: PlanEditorContext, runtime: Pick
 			if (alive) notifyFault(cause, context.commands.logger, 'editor.resize.open.faulted');
 		} finally { loading.value = false; }
 	}
-	return { resizeRoom: open, resizeRoomBlocked: computed(() => loading.value || blocked.value) };
+	return { resizeRoom: open, resizeRoomBlocked: computed(() => loading.value || blocked.value || runtime.activeToolId.value !== 'select') };
 }

@@ -1,5 +1,12 @@
 # Release selection and persistence work package
 
+PR #93 merged as `ec342370` while this release was in progress. Its repository-only opening
+reload and linear-element rank tests are retained. After inspecting its different selection
+prose, the user explicitly reconfirmed Object → Opening → Wall → Room. This branch aligns
+the now-landed documentation with that decision; PR #93 itself remains unchanged. The existing
+85-test and nine-test evidence below precedes this integration; the combined gate will verify
+the joined source and both sets of tests.
+
 Owner: selection/persistence subagent, `codex/editor-release-selection`. Initial evidence:
 `7d4bc381` (2026-09-08). Parent revalidated origin/main and PR #93 (`c1362732`, open,
 docs-only); files owned by #93 are excluded from this branch. Rotation and integration are

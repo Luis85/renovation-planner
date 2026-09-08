@@ -61,6 +61,15 @@ describe('typed wall and opening selection', () => {
 		expect(resolveSelectionTarget({ ...base, worldPoint: { x: 1700, y: 60 } })).toEqual({ kind: 'body', id: 'wall-a' });
 		expect(resolveSelectionTarget({ ...base, candidates: [{ id: 'wall-empty', kind: 'wall', points: [] }], worldPoint: { x: 0, y: 0 } })).toBeNull();
 	});
+	it('ranks a generic element below opening and wall and above the room, and cycles all four', () => {
+		const element = { id: 'element-a', kind: 'measurement' as const, points: [{ x: 800, y: -500 }, { x: 800, y: 500 }] };
+		const base = { candidates: [...candidates, element], selectedIds: [], worldPoint: { x: 800, y: 0 }, handleToleranceWorld: 10 };
+		expect(resolveSelectionTarget(base)).toEqual({ kind: 'body', id: 'opening-a' });
+		expect(resolveSelectionTarget({ ...base, selectedIds: ['opening-a'], cycle: true })).toEqual({ kind: 'body', id: 'wall-a' });
+		expect(resolveSelectionTarget({ ...base, selectedIds: ['wall-a'], cycle: true })).toEqual({ kind: 'body', id: 'element-a' });
+		expect(resolveSelectionTarget({ ...base, selectedIds: ['element-a'], cycle: true })).toEqual({ kind: 'body', id: 'room-a' });
+		expect(resolveSelectionTarget({ ...base, selectedIds: ['room-a'], cycle: true })).toEqual({ kind: 'body', id: 'opening-a' });
+	});
 	it('keeps bodies selectable, previews only a selected wall end, and shares the reviewed edit callback', () => {
 		const editWall = vi.fn<(id: string, end: { x: number; y: number }) => void>(), previewWall = vi.fn<(id: string | null, end?: { x: number; y: number }) => void>();
 		const createMoveGesture = vi.fn<() => { execute: () => Promise<ReturnType<typeof ok<'no-write'>>>; undo: () => Promise<ReturnType<typeof ok<'no-write'>>> }>(() => ({ execute: () => Promise.resolve(ok('no-write')), undo: () => Promise.resolve(ok('no-write')) }));

@@ -12,6 +12,8 @@
  * also what lets it keep working once individual nodes start listening.
  */
 import { useEvidencePins } from './planning/evidencePins';
+import { useExistingPhotos } from './planning/existingPhotos';
+import ExistingPhotoStrip from './planning/ExistingPhotoStrip.vue';
 import type { Point } from '../../core/geometry/Point';
 import { computed, shallowRef, watch } from 'vue';
 import type { DimensionObstacleLayout } from './resize/useDimensionObstacles';
@@ -52,6 +54,7 @@ const selection = useSelectionStore();
 const runtime = useEditorRuntime();
 // Pins and caption obstacles use the same retained evidence facts as the Inspector.
 const evidencePins = useEvidencePins(() => runtime.planning.baseline.value?.plan.entity.renovation?.depth?.evidence ?? []);
+const existingPhotos = useExistingPhotos();
 const dimensionLayout = shallowRef<DimensionObstacleLayout>({ bounds: [], viewport: null });
 const context = usePlanEditorContext();
 const { viewport } = storeToRefs(editor);
@@ -155,9 +158,12 @@ const framedBounds = usePlanFrame();
 		</template>
 		<template #overlay>
 			<RoomDimensionLabels @obstacles="layout => { dimensionLayout = layout; runtime.rotationActions.setObstacles(layout.bounds); }" />
-			<DirectActionPopover />
+			<DirectActionPopover v-if="!existingPhotos.length" />
+			<ExistingPhotoStrip
+				v-else
+				:rows="existingPhotos"
+			/>
 			<slot />
 		</template>
 	</EditorSurface>
 </template>
-

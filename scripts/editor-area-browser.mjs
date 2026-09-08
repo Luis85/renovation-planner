@@ -20,7 +20,7 @@ async function revealAction(page, selector) {
 		const closedIndex = await page.locator(selector).first().evaluate(el => {
 			let parent = el.parentElement, closed = null;
 			while (parent) {
-				if (parent instanceof HTMLDetailsElement && !parent.open) closed = parent;
+				if (parent instanceof HTMLDetailsElement && !parent.open && !parent.querySelector(':scope > summary')?.contains(el)) closed = parent;
 				parent = parent.parentElement;
 			}
 			return closed ? [...document.querySelectorAll('details')].indexOf(closed) : -1;

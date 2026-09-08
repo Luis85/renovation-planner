@@ -1,3 +1,4 @@
+import { groupGeometryServices } from '../../src/application/commands/spatial/GroupGeometryCommand';
 import { renovationServices } from '../../src/application/commands/renovation/RenovationCommand';
 import { createPlanChangeSource } from '../../src/application/events/planChangeSource';
 import { createVaultFileChangeSource } from '../../src/infrastructure/obsidian/vault/vaultFileChanges';
@@ -46,9 +47,9 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
         onVaultFileChanged: createVaultFileChangeSource(stack.deps.vault),
 		queries: { ...base.queries,
 			getPlan: async () => { await ready; const result = await stack.plans.getById(plan.id); return result.ok ? ok(result.value ? toPlanDto(result.value.entity) : null) : result; },
-			findZonesByPlan: async () => { await ready; const snapshot = await geometry.read(plan.id); if (!snapshot.ok) return snapshot; const result = await stack.zones.listByPlan(plan.id); return result.ok ? ok({ zones: result.value.loaded.map(z => toZoneDto(z.entity)), unreadable: result.value.refused, structure: snapshot.value.document.structure, intended: snapshot.value.document.intended }) : result; },
+			findZonesByPlan: async () => { await ready; const snapshot = await geometry.read(plan.id); if (!snapshot.ok) return snapshot; const result = await stack.zones.listByPlan(plan.id); return result.ok ? ok({ zones: result.value.loaded.map(z => toZoneDto(z.entity)), unreadable: result.value.refused, structure: snapshot.value.document.structure, intended: snapshot.value.document.intended, groups: snapshot.value.document.groups }) : result; },
 		},
-		commands: { ...base.commands, referencePlan: services, zones: stack.zones, events: stack.events,
+		commands: { ...base.commands, groups: groupGeometryServices(geometry, stack.zones, stack.events), referencePlan: services, zones: stack.zones, events: stack.events,
 			...(planning ? planningWorkspace(stack, geometry) : { renovation: renovationServices(stack.plans, geometry, stack.events) }),
 			reviewNote: async (id, body) => { const result = await reviewNotes.generate(id, body); return result.ok ? ok(undefined) : result; },
 			structure: structureServices(geometry, stack.events), deleteZone: makeDeleteZoneCommand(stack.zones, stack.events, stack.requirements), requirementEdits: { ...base.commands.requirementEdits, requirements: stack.requirements },

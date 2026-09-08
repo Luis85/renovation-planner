@@ -7,7 +7,9 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchema, PlanGeometrySchemaV5 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV6 } from '../../persistence/dto/planGeometry';
+import { validateSpatialGroups } from '../../../domain/spatial/SpatialGroup';
+import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
@@ -21,9 +23,20 @@ function canonicalJson(dto: PlanGeometryDTO): string {
 	return JSON.stringify(dto, null, '\t');
 }
 
-function writtenSchema(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): 1 | 2 | 3 | 4 | 5 {
+function writtenSchema(dto: Pick<PlanGeometryDTO, 'structure' | 'intended' | 'groups'>): 1 | 2 | 3 | 4 | 5 | 6 {
+	if (dto.groups?.length) return 6;
 	if ([dto.structure, dto.intended].some(structure => structure?.openings.some(opening => opening.swing !== undefined))) return 5;
 	return dto.structure?.elements?.length || dto.intended?.elements?.length ? 4 : dto.intended ? 3 : dto.structure ? 2 : 1;
+}
+
+function validateSidecarContent(dto: PlanGeometryDTO): Result<void, ValidationError> {
+	const zoneIds = dto.objects.map(object => object.id);
+	for (const structure of [dto.structure, dto.intended]) {
+		if (!structure) continue;
+		const checked = validateStructure(structure, zoneIds);
+		if (!checked.ok) return checked;
+	}
+	return validateSpatialGroups(dto.groups ?? [], { zoneIds, structure: dto.structure ?? EMPTY_STRUCTURE });
 }
 
 function schemaVersionOf(parsed: unknown): number {
@@ -148,6 +161,8 @@ export class PlanGeometryStore {
 			if (conflict) return err(conflict);
 
 			const nextDto = change(current.value.dto);
+			const groups = validateSpatialGroups(nextDto.groups ?? [], { zoneIds: nextDto.objects.map(object => object.id), structure: nextDto.structure ?? EMPTY_STRUCTURE });
+			if (!groups.ok) return groups;
 			if (nextDto.structure) {
 				const valid = validateStructure(nextDto.structure, nextDto.objects.map(object => object.id));
 				if (!valid.ok) return valid;
@@ -243,7 +258,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV5.safeParse(migrated);
+		const validated = PlanGeometrySchemaV6.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',
@@ -257,11 +272,8 @@ export class PlanGeometryStore {
 		if (validated.data.planId !== planId) {
 			return err(persistenceError('plan-geometry.plan-id-mismatch', `Sidecar ${path} declares plan ${validated.data.planId}, not ${planId}.`));
 		}
-		for (const structure of [validated.data.structure, validated.data.intended]) {
-			if (!structure) continue;
-			const valid = validateStructure(structure, validated.data.objects.map(object => object.id));
-			if (!valid.ok) return valid;
-		}
+		const content = validateSidecarContent(validated.data);
+		if (!content.ok) return content;
 
 		return ok({
 			dto: { ...validated.data, schemaVersion: writtenSchema(validated.data) },

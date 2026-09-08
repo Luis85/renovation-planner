@@ -84,7 +84,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 	}
 	function matches(read: RenovationBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation)
-			&& sameGeometryDocument({ structure: project.structure, intended: project.intended, calibration: project.plan?.calibration ?? null,
+			&& sameGeometryDocument({ groups: project.groups, structure: project.structure, intended: project.intended, calibration: project.plan?.calibration ?? null,
 				objects: [...project.zones.values()].map(item => ({ id: item.id, points: item.points })) },
 			{ ...read.geometry.document, structure: read.geometry.document.structure ?? EMPTY_STRUCTURE,
 				objects: read.geometry.document.objects.filter(item => project.zones.has(item.id)) });

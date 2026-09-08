@@ -236,38 +236,36 @@ store and localization test files / 264 tests pass.
 
 ### Gap closure captures (2026-09-08)
 
-Regenerated with `scripts/asset-library-shots.mjs` at `8e954c2879f5e17e838baffc243f0e7193a9774a`;
+Regenerated with `scripts/asset-library-shots.mjs` at `aa89abb76f1273f2bdf7b817e5e38e70440ebcfb`;
 browser `151.0.7922.34` (pinned Chromium — no substitute was needed).
-Price column: amount right-edge spread `0px` at 1440 (was 22.3px, browse case step 2; 5.22px
-after the previous fix round). The `.rp-al-row--on` selected-row rule set `font-weight` on the
-whole row, and the row's fixed `ch`-unit grid tracks resolve per-element, so the bold row
-measured its own tracks a few px differently than every regular-weight sibling. Moving the
-font-weight onto `.rp-al-row__name` alone (fix round, 2026-09-08) removed that difference —
-0px is exact, not "below 1px".
-`7.97px` remains at 720 and 560, and it is a DIFFERENT defect from the one above, not a
-residue of it: at those widths the shelf pane's container is under 40rem, so
-`.rp-al-shelf .rp-al-row`'s amount and unit tracks are both `auto` rather than fixed `ch` —
-each row is its own independent grid, so each row's amount column is sized to fit that row's
-OWN content. The unit symbol ("m", "m²", "pcs", "fixed", …) varies in character count row to
-row, and the unit track sits to the amount track's right, so a longer unit symbol pushes that
-row's amount column — and therefore its right edge — left of a row with a shorter one,
-regardless of any row's selection state or font-weight (confirmed by direct measurement:
-unselected rows differ from each other by the same few px the selected row differs from them).
-Not fixed here: giving the narrow layout's amount/unit tracks a fixed width would need a
-figure sized for the longest unit string across both locales (German `pauschal`, 8 characters)
-in a breakpoint already tuned to the pixel against overflow (17rem/272px, this file's other
-recorded finding) — a design call for whoever asked for "below 1px at 720/560" to make
-deliberately, not one to fold into this fix round unannounced.
+Price column: amount right-edge spread `0px` at **1440, 720 AND 560** — spec item 1's "every
+price's decimal point on one vertical line" now holds at every captured width, not only the
+widest one. Was 22.3px (browse case step 2) → 5.22px/9.73px (previous fix round, font-weight
+alone) → 0px at 1440 but 7.97px still standing at 720/560 (second fix round, selected-row
+font-weight moved off the whole row onto `.rp-al-row__name` alone) → 0px at all three widths
+(this round). The residual 7.97px was a second, different defect: below 40rem
+`.rp-al-shelf .rp-al-row`'s amount and unit tracks were `auto` rather than a fixed `ch` width,
+and each `.rp-al-row` is its own independent CSS grid, so an `auto` track resolves per row —
+the amount column's right edge followed whichever unit symbol ("m", "m²", "pcs", "fixed", …)
+that one row happened to hold. Pinned both tracks to fixed `ch` widths (11ch amount, 6ch unit —
+wide enough for "fixed" plus its "/ " prefix, the longest unit shipped) at every container
+width: base, the 40rem block and the 17rem block alike, so an independent per-row grid can no
+longer disagree with its siblings. `.rp-al-columns` (the heading row) gained the same 40rem
+override the data row already had, so the heading and the row it labels stay sized off one
+template rather than a coincidence.
 Used-in rows at 460: heights `[52.09, 50.59, 35.5]` (was 51.8px against 19.6px, step 12) —
 no longer collapsing onto one another. Read `AL10-460-dark.png` directly (fix round): rows 1
 and 2 are a project name plus a disambiguating folder-path line (two different "Flat
 renovation" projects, different folders); row 3 is a single line because "Garden studio" is
 unique and needs no path line. No word breaks mid-word or per character anywhere in the list.
-Repair strip: reason and action in grid columns (step 15). Headings and waste cell share the
-`17rem` threshold, and the supplier heading now leaves WITH its cell at 40rem (fix round,
-2026-09-08) — the heading span gained its own class (`rp-al-columns__supplier`) and is hidden
-in the same container-query block that hides `.rp-al-row__supplier`, closing a gap where the
-heading used to keep printing over a column the row itself had already dropped.
+Repair strip: reason and action in grid columns (step 15). Headings and waste cell share a
+container threshold, moved from `17rem` to **`19rem`** in this round: widening the unit track
+from 4ch to 6ch left the name column under 8ch at 272px (measured 5.4ch — unusably narrow even
+though nothing overflowed), so the threshold moved out to 304px, where the name column measures
+about 10ch and both AL10-720's and AL10-560's real container widths (440px, 320px) still sit
+comfortably above it. The supplier heading leaves WITH its cell at 40rem (earlier fix round) —
+the heading span carries its own class (`rp-al-columns__supplier`) and is hidden in the same
+container-query block that hides `.rp-al-row__supplier`.
 
 **Found while regenerating, not while looking for it**: the merged heading/waste block's own
 `.rp-al-columns { display: none }` rule never actually fired, at any container width, because
@@ -285,3 +283,5 @@ hidden the heading row at every capture width once the ordering bug was fixed, f
 label is the row's one span that cannot shrink, and it first overflows its track under 260px
 (measured `scrollWidth` 263px against a forced 260px `clientWidth`) while staying clean at
 280px — 17rem sits in that margin, under both AL10-720's and AL10-560's measured containers.
+That number moved again, to 19rem, in the round above — 17rem stopped overflowing but left the
+name column unusably narrow once the amount/unit tracks were pinned to fixed `ch` widths.

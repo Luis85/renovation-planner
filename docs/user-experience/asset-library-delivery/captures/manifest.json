@@ -1,12 +1,12 @@
 {
-  "commit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+  "commit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
   "dirtyWorktree": true,
   "browser": "151.0.7922.34",
   "records": [
     {
       "name": "AL06-usage",
       "state": "Usage above the definition, including project-specific price sources",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,
@@ -20,7 +20,7 @@
     {
       "name": "AL07-shape",
       "state": "Actual footprint and derived dimensions",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,
@@ -34,7 +34,7 @@
     {
       "name": "AL04-draft",
       "state": "Unsaved definition draft",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,
@@ -48,7 +48,7 @@
     {
       "name": "AL05-protection",
       "state": "Discard and continue / Keep editing",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,
@@ -62,7 +62,7 @@
     {
       "name": "AL09-write-refusal",
       "state": "Composed settings refusal retains input",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,
@@ -76,7 +76,7 @@
     {
       "name": "AL03-create",
       "state": "Deliberate price required; no automatic zero",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,
@@ -90,7 +90,7 @@
     {
       "name": "AL11-delete",
       "state": "Existing reference resolution, before any mutation",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,
@@ -104,7 +104,7 @@
     {
       "name": "AL08-empty",
       "state": "Empty fixture, not a failed read",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,
@@ -118,7 +118,7 @@
     {
       "name": "AL10-1440-dark",
       "state": "Selected asset, limited height",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,
@@ -138,7 +138,7 @@
     {
       "name": "AL10-720-dark",
       "state": "Selected asset, limited height",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 720,
@@ -147,7 +147,7 @@
       "metrics": {
         "width": 720,
         "scrollWidth": 720,
-        "amountRightEdgeSpread": 7.96875,
+        "amountRightEdgeSpread": 0,
         "usedInRowHeights": [
           60.59375,
           50.59375,
@@ -158,7 +158,7 @@
     {
       "name": "AL10-560-dark",
       "state": "Selected asset, limited height",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 560,
@@ -167,7 +167,7 @@
       "metrics": {
         "width": 560,
         "scrollWidth": 560,
-        "amountRightEdgeSpread": 7.96875,
+        "amountRightEdgeSpread": 0,
         "usedInRowHeights": [
           60.59375,
           61.390625,
@@ -178,7 +178,7 @@
     {
       "name": "AL10-460-dark",
       "state": "Selected asset, limited height",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 460,
@@ -198,7 +198,7 @@
     {
       "name": "AL10-460-light-de",
       "state": "German in a narrow light leaf",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 460,
@@ -212,7 +212,7 @@
     {
       "name": "AL10-460-return",
       "state": "Return path preserves selection",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 460,
@@ -226,7 +226,7 @@
     {
       "name": "AL10-1440-light",
       "state": "English light theme",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,
@@ -240,7 +240,7 @@
     {
       "name": "AL10-custom-palette",
       "state": "Custom CSS-variable palette; not an installed third-party theme",
-      "baselineCommit": "8e954c2879f5e17e838baffc243f0e7193a9774a",
+      "baselineCommit": "aa89abb76f1273f2bdf7b817e5e38e70440ebcfb",
       "fixture": "tests/harness/assetLibrary.ts",
       "viewport": {
         "width": 1440,

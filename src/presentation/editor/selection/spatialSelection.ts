@@ -10,6 +10,7 @@ export type SpatialSelection =
 		readonly records: readonly SpatialRecordDto[];
 		readonly unavailable: number;
 		readonly areaMm2: number | null;
+		readonly lengthMm: number | null;
 		readonly sharedType: string | null;
 	};
 
@@ -30,6 +31,7 @@ export function spatialSelection(ids: readonly string[], records: readonly Spati
 		unavailable: uniqueIds.length - chosen.length,
 		// Sum of individual areas, explicitly not a union of overlapping geometry.
 		areaMm2: chosen.some(record => record.kind === 'room' || record.kind === 'area') ? chosen.reduce((sum, record) => sum + record.areaMm2, 0) : null,
+		lengthMm: chosen.some(record => record.kind === 'wall' || record.kind === 'opening') ? chosen.filter(record => record.kind === 'wall' || record.kind === 'opening').reduce((sum, record) => sum + (record.points.length === 2 ? Math.hypot(record.points[1].x - record.points[0].x, record.points[1].y - record.points[0].y) : 0), 0) : null,
 		sharedType: chosen.length === uniqueIds.length && chosen.every((record) => record.zoneType === chosen[0].zoneType) ? chosen[0].zoneType : null,
 	};
 }

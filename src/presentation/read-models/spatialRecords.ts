@@ -1,4 +1,5 @@
 import type { Point } from '../../core/geometry/Point';
+import type { SpatialElementKind } from '../../domain/spatial/SpatialElement';
 import { area } from '../../core/geometry/operations';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from './PlanDto';
 
@@ -7,7 +8,7 @@ import type { PlanDto, ProjectSummaryDto, ZoneDto } from './PlanDto';
  * every other type is an Area, and the id is the `ZoneId` unchanged. Area is DERIVED here
  * from the geometry the DTO already carries; it is never stored and never copied from a note.
  */
-export type SpatialKind = 'room' | 'area' | 'wall' | 'opening';
+export type SpatialKind = 'room' | 'area' | 'wall' | 'opening' | SpatialElementKind;
 
 export interface SpatialRecordDto {
 	readonly kind: SpatialKind;
@@ -62,9 +63,9 @@ export interface FloorSummaryDto {
 	readonly roomCount: Aggregate<number>;
 	readonly areaCount: Aggregate<number>;
 	readonly totalAreaMm2: Aggregate<number>;
-	/** Always `unavailable` here: no Planned record exists (ADR-EPW deferred). */
+	/** Changes are sourced from the owning Plan's accepted renovation register. */
 	readonly plannedChanges: Aggregate<number>;
-	/** Always `unavailable` here: no floor-level cost query exists, and the Inspector may not sum one. */
+	/** Capability fallback; connected cost summaries use the planning reconciliation projection. */
 	readonly estimatedCost: Aggregate<never>;
 	readonly rooms: readonly SpatialRecordDto[];
 	readonly areas: readonly SpatialRecordDto[];
@@ -89,7 +90,7 @@ export function buildFloorSummary(input: {
 		roomCount: counted(rooms.length, input.unreadable),
 		areaCount: counted(areas.length, input.unreadable),
 		totalAreaMm2: counted(total, input.unreadable),
-		plannedChanges: { state: 'unavailable' },
+		plannedChanges: counted(input.plan.renovation?.subjects.filter(item => item.planned && item.planned.change !== 'unchanged').length ?? 0, input.unreadable),
 		estimatedCost: { state: 'unavailable' },
 		rooms,
 		areas,

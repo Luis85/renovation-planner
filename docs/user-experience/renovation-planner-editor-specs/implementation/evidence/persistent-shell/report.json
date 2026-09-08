@@ -1,0 +1,174 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "widths": [
+      460,
+      1440,
+      720,
+      1000,
+      460
+    ],
+    "reflow": [
+      {
+        "region": "rp-inspector-drawer",
+        "width": 367,
+        "scroll": 367,
+        "scrollLeft": 0,
+        "left": 92,
+        "overflow": "auto"
+      },
+      {
+        "region": "rp-editor-inspector",
+        "width": 367,
+        "scroll": 367,
+        "scrollLeft": 0,
+        "left": 93,
+        "overflow": "visible"
+      }
+    ],
+    "inputIdentity": "preserved",
+    "pendingText": "-",
+    "caretSelection": [
+      0,
+      1
+    ],
+    "focusedRegionAutoOpen": [
+      "inspector",
+      "layers"
+    ],
+    "focusReturn": "Escape, Close and disappearing chrome passed",
+    "canvasWidth": 835.203125,
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "widths": [
+      460,
+      1440,
+      720,
+      1000,
+      460
+    ],
+    "reflow": [
+      {
+        "region": "rp-inspector-drawer",
+        "width": 367,
+        "scroll": 367,
+        "scrollLeft": 0,
+        "left": 92,
+        "overflow": "auto"
+      },
+      {
+        "region": "rp-editor-inspector",
+        "width": 367,
+        "scroll": 367,
+        "scrollLeft": 0,
+        "left": 93,
+        "overflow": "visible"
+      }
+    ],
+    "inputIdentity": "preserved",
+    "pendingText": "-",
+    "caretSelection": [
+      0,
+      1
+    ],
+    "focusedRegionAutoOpen": [
+      "inspector",
+      "layers"
+    ],
+    "focusReturn": "Escape, Close and disappearing chrome passed",
+    "canvasWidth": 835.203125,
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "widths": [
+      460,
+      1440,
+      720,
+      1000,
+      460
+    ],
+    "reflow": [
+      {
+        "region": "rp-inspector-drawer",
+        "width": 367,
+        "scroll": 367,
+        "scrollLeft": 0,
+        "left": 92,
+        "overflow": "auto"
+      },
+      {
+        "region": "rp-editor-inspector",
+        "width": 367,
+        "scroll": 367,
+        "scrollLeft": 0,
+        "left": 93,
+        "overflow": "visible"
+      }
+    ],
+    "inputIdentity": "preserved",
+    "pendingText": "-",
+    "caretSelection": [
+      0,
+      1
+    ],
+    "focusedRegionAutoOpen": [
+      "inspector",
+      "layers"
+    ],
+    "focusReturn": "Escape, Close and disappearing chrome passed",
+    "canvasWidth": 835.203125,
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "widths": [
+      460,
+      1440,
+      720,
+      1000,
+      460
+    ],
+    "reflow": [
+      {
+        "region": "rp-inspector-drawer",
+        "width": 367,
+        "scroll": 367,
+        "scrollLeft": 0,
+        "left": 92,
+        "overflow": "auto"
+      },
+      {
+        "region": "rp-editor-inspector",
+        "width": 367,
+        "scroll": 367,
+        "scrollLeft": 0,
+        "left": 93,
+        "overflow": "visible"
+      }
+    ],
+    "inputIdentity": "preserved",
+    "pendingText": "-",
+    "caretSelection": [
+      0,
+      1
+    ],
+    "focusedRegionAutoOpen": [
+      "inspector",
+      "layers"
+    ],
+    "focusReturn": "Escape, Close and disappearing chrome passed",
+    "canvasWidth": 835.203125,
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

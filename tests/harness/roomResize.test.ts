@@ -26,7 +26,7 @@ describe('Room resizing harness', () => {
 		expect(leafEl.querySelector('.rp-room-inspector')?.textContent).toContain('14.7');
 		await view.onClose();
 	});
-	it.each([1280, 460])('retains the draft through reflow from %i px and recovers a removed opener', async width => {
+	it.each([1280, 460])('retains native controls through reflow from %i px and returns focus to a visible control', async width => {
 		installCanvas(); installResizeObserver();
 		const { leafEl, view } = mountPlanEditorHarness(document.body, { roomResize: true, select: 'harness-kitchen' });
 		resizeTo(sizedShellRoot(leafEl), width, 700);
@@ -39,12 +39,16 @@ describe('Room resizing harness', () => {
 		const field = expectDefined(leafEl.querySelector<HTMLInputElement>('input[name="width"]'), 'width');
 		field.value = '5,1'; field.dispatchEvent(new Event('input', { bubbles: true }));
 		resizeTo(sizedShellRoot(leafEl), width === 460 ? 1280 : 460, 700);
-		await settleUntil(() => !opener.isConnected, 'opener remounted');
+		await settleUntil(() => leafEl.querySelector('.rp-editor-shell')?.getAttribute('data-layout') === (width === 460 ? 'full' : 'constrained'), 'reflow');
+		expect(leafEl.querySelector('[data-rp-action="resize-room"]')).toBe(opener);
+		expect(leafEl.querySelector('input[name="width"]')).toBe(field);
+		expect(document.activeElement).toBe(field);
 		expect(leafEl.querySelector('input[name="width"]')).toHaveProperty('value', '5,1');
 		leafEl.querySelector<HTMLButtonElement>('.rp-dialog [data-rp-action="cancel"]')?.click();
 		await settleUntil(() => leafEl.querySelector('.rp-room-dimensions') === null, 'cancel');
-		await settleUntil(() => leafEl.contains(document.activeElement), 'restored focus');
-		expect(document.activeElement?.matches('[data-rp-action="resize-room"], [data-rp-rail="details"]')).toBe(true);
+		const target = width === 460 ? opener : leafEl.querySelector('[data-rp-rail="details"]');
+		await settleUntil(() => document.activeElement === target, 'visible restored focus');
+		expect(document.activeElement?.closest<HTMLElement>('[data-rp-shell-region]')?.style.display).not.toBe('none');
 		await view.onClose();
 	});
 

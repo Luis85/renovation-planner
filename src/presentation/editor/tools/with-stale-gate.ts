@@ -21,15 +21,15 @@ export function staleWriteRefusal(): ValidationError {
 
 /**
  * The trust path's gate (design spec §2.2), one decorator on the one dispatcher. `run` is
- * refused while `isStale()`; `undo` and `redo` pass — their inverse is the ledger's snapshot,
- * presented with the version the history recorded and refused by the repository on a
- * conflict, none of which reads the stale projection. A function rather than the store so a
- * node test drives both arms with a flag.
+ * refused while `isStale()`. Spatial-only stale history can use versioned ledger snapshots;
+ * `unsafeHistory()` separately refuses Undo/Redo after a planning read failure or unrecovered
+ * operation. Both predicates are supplied by the owning runtime, so the legacy spatial-only
+ * callers retain their existing version-checked history behavior.
  */
-export function withStaleGate(dispatcher: RefreshedHistory, isStale: () => boolean): RefreshedHistory {
+export function withStaleGate(dispatcher: RefreshedHistory, isStale: () => boolean, unsafeHistory: () => boolean = () => false): RefreshedHistory {
 	return {
 		run: (command) => (isStale() ? Promise.resolve(err(staleWriteRefusal())) : dispatcher.run(command)),
-		undo: () => dispatcher.undo(),
-		redo: () => dispatcher.redo(),
+		undo: () => unsafeHistory() ? Promise.resolve(err(staleWriteRefusal())) : dispatcher.undo(),
+		redo: () => unsafeHistory() ? Promise.resolve(err(staleWriteRefusal())) : dispatcher.redo(),
 	};
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { inRenovationScope } from '../renovation/renovationSummary';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import MaterialRow from './MaterialRow.vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
@@ -11,7 +12,7 @@ import { materialReferents } from '../../../application/commands/renovation/plan
 const props = defineProps<{ baseline: PlanningBaseline }>();
 const planning = usePlanningContext(), session = useRenovationSession(), dialogs = useDialogStore(), error = ref(''), generating = ref(false);
 let alive = true; onBeforeUnmount(() => { alive = false; });
-const rows = computed(() => materialRows(props.baseline).filter(item => item.entity.origin.zoneId === session.roomId));
+const rows = computed(() => materialRows(props.baseline).filter(item => inRenovationScope({ roomId: item.entity.origin.zoneId, targetId: item.source.targetId }, session.roomId, session.targetId)).map((item, index) => ({ ...item, number: index + 1 })));
 const groups = computed(() => [...new Set(rows.value.map(item => item.source.workId))].map(id => ({ id, name: props.baseline.plan.entity.renovation?.work.find(item => item.id === id)?.title ?? tr('planning.unassigned'), rows: rows.value.filter(item => item.source.workId === id) })));
 async function remove(id: string): Promise<void> {
 	const baseline = props.baseline;
@@ -20,7 +21,7 @@ async function remove(id: string): Promise<void> {
 	if (links.length) { error.value = `${tr('planning.resolve-links')} ${links.join(', ')}`; return; }
 	if (await dialogs.openDialog({ kind: 'confirm', title: tr('renovation.delete'), message: id }) !== 'confirm' || !alive) return;
 	const command = planning.context.commands.planning?.material(baseline, { deleteId: id }, planning.runtime.structureTask.ledger);
-	if (command) { const result = await planning.runtime.dispatcher.run(command); if (alive && !result.ok) error.value = tr('planning.write-failed'); await planning.refresh(); }
+	if (command) { const result = await planning.runtime.dispatcher.run(command); if (alive && !result.ok) error.value = tr('planning.write-failed'); }
 }
 async function shopping(): Promise<void> {
 	if (generating.value || planning.blocked.value) return;
@@ -33,32 +34,56 @@ async function shopping(): Promise<void> {
 </script>
 <template>
 	<button
+		v-if="planning.context.navigation"
 		type="button"
-		:disabled="planning.blocked.value"
-		data-rp-new-material
-		@click="planning.edit('material')"
+		data-rp-open-library
+		@click="planning.context.navigation.library()"
 	>
-		{{ tr('planning.edit.material') }}
+		{{ tr('planning.open-library') }}
 	</button>
-	<p>{{ tr('planning.procurement-policy') }}</p>
+	<details>
+		<summary>{{ tr('planning.procurement') }}</summary>
+		<p>{{ tr('planning.procurement-policy') }}</p>
+	</details>
 	<section
 		v-for="group in groups"
 		:key="group.id"
 		class="rp-planning-group"
 	>
-		<h4>{{ group.name }}</h4>
-		<ol class="rp-renovation-list">
+		<table class="rp-material-table">
+			<caption>{{ group.name }}</caption>
+			<thead>
+				<tr>
+					<th scope="col">
+						{{ tr('planning.material') }}
+					</th><th scope="col">
+						{{ tr('planning.needed') }}
+					</th><th scope="col">
+						{{ tr('planning.purchased') }}
+					</th>
+				</tr>
+			</thead>
 			<MaterialRow
 				v-for="row in group.rows"
 				:key="row.entity.id"
 				:row="row"
+				:number="row.number"
 				@remove="remove"
 			/>
-		</ol>
+		</table>
 	</section>
 	<p v-if="!rows.length">
 		{{ tr('renovation.empty') }}
 	</p>
+	<button
+		type="button"
+		class="mod-cta"
+		:disabled="planning.blocked.value"
+		data-rp-new-material
+		@click="planning.edit('material')"
+	>
+		{{ tr('planning.add-material') }}
+	</button>
 	<button
 		v-if="planning.context.commands.shoppingNote"
 		type="button"

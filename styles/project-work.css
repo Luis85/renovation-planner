@@ -1,0 +1,29 @@
+.rp-project-work__controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--size-4-2); }
+.rp-project-work__controls label { display: flex; flex-direction: column; gap: var(--size-4-1); min-width: 0; }
+.rp-project-work__rows { display: flex; flex-direction: column; gap: var(--size-4-3); padding: 0; list-style: none; }
+.rp-project-work__rows > li { padding: var(--size-4-3); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); overflow-wrap: anywhere; }
+.rp-project-work__rows > li.is-selected { border-color: var(--interactive-accent); }
+.rp-project-work__rows h3 { margin-top: 0; }
+.rp-project-work button { white-space: normal; max-width: 100%; }
+.rp-project-work__rows button { margin-inline-end: var(--size-4-2); }
+.rp-quote-comparison { overflow-x: auto; max-width: 100%; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); }
+.rp-quote-comparison table { border-collapse: collapse; min-width: 100%; }
+.rp-quote-comparison th, .rp-quote-comparison td { min-width: 12em; max-width: 22em; padding: var(--size-4-3); vertical-align: top; text-align: start; border: 1px solid var(--background-modifier-border); overflow-wrap: anywhere; }
+.rp-quote-comparison caption { padding: var(--size-4-3); text-align: start; }
+.rp-quote-form fieldset { min-width: 0; display: flex; flex-direction: column; gap: var(--size-4-2); }
+.rp-quote-form details label { display: flex; gap: var(--size-4-2); align-items: start; margin-block: var(--size-4-2); }
+.rp-quote-form details { max-height: 16em; overflow: auto; }
+.rp-quote-comparison tr.is-selected { background: var(--background-modifier-active-hover); }
+
+.rp-project-downstream .rp-project-detail__header { grid-template-columns: minmax(0, 1fr) auto auto; }
+.rp-project-downstream .rp-project-detail__name { white-space: normal; overflow-wrap: anywhere; }
+.rp-project-downstream .rp-project-detail__body { padding: var(--size-4-3); gap: var(--size-4-2); }
+.rp-project-downstream__retry { align-self: start; }
+@container (max-width: 640px) {
+ .rp-project-downstream .rp-project-detail__header { grid-template-columns: minmax(0, 1fr) auto; }
+ .rp-project-downstream .rp-project-detail__open-note { justify-self: start; }
+}
+
+.rp-quote-form > label, .rp-quote-form fieldset > label { display: flex; flex-direction: column; gap: var(--size-4-1); min-width: 0; }
+.rp-quote-form > label input, .rp-quote-form > label select, .rp-quote-form fieldset > label input, .rp-quote-form fieldset > label select { width: 100%; min-width: 0; }
+.rp-quote-form > label { margin-block: var(--size-4-2); }

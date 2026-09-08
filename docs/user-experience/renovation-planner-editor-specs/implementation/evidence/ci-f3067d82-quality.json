@@ -1,0 +1,84 @@
+{
+  "date": "2026-09-07T15:34:30.879Z",
+  "sourceHead": "f3067d82f413de6c67f9d4598608ce1e1a059cb3",
+  "testedMerge": "ad1d23d0853ce20a7cbb5c6dab06013849c08835",
+  "identicalGitTree": "4a36652288df6c9c07fc868d1e93583211bf3502",
+  "run": 34136358483,
+  "jobs": [
+    101788161803,
+    101788161863,
+    101788161915,
+    101788161921
+  ],
+  "allLegs": {
+    "passedFiles": 648,
+    "passedTests": 8068,
+    "skipped": 69,
+    "statements": [
+      17872,
+      18049,
+      99.01
+    ],
+    "branches": [
+      12387,
+      12692,
+      97.59
+    ],
+    "functions": [
+      5118,
+      5160,
+      99.18
+    ],
+    "lines": [
+      13981,
+      14053,
+      99.48
+    ]
+  },
+  "artifact": {
+    "id": 10024427142,
+    "name": "coverage-ubuntu-latest-node-24-ad1d23d0853ce20a7cbb5c6dab06013849c08835-1",
+    "sha256": "86aef8bd3a8ce0e33f8d013f6f0c44a71a200fb837a9b105c585c6143107748a"
+  },
+  "health": {
+    "exit": 0,
+    "findings": [],
+    "matchedFiles": 742,
+    "totalFiles": 742,
+    "command": "fallow health --coverage <original downloaded coverage-final.json> --coverage-root /home/runner/work/renovation-planner/renovation-planner --format json",
+    "limitsUnchanged": true,
+    "countersUnmodified": true
+  },
+  "newCases": {
+    "projectEntry": {
+      "passed": 4,
+      "run": "planning-project-boundaries-native.log"
+    },
+    "planning": {
+      "passed": 5,
+      "seconds": 13.5,
+      "run": "planning-boundaries-green.log"
+    },
+    "types": 0,
+    "oxlint": 0,
+    "scopedEslint": 0,
+    "staticIssues": 0,
+    "clones": 0,
+    "coverageContribution": "Not yet measured for these nine cases",
+    "spatialRemoval": {
+      "passed": 2,
+      "seconds": 37.08,
+      "types": 0,
+      "oxlint": 0,
+      "scopedEslint": 0,
+      "static": 0,
+      "coverageContribution": "Not measured yet"
+    },
+    "testFileHashes": {
+      "tests/presentation/editor/planningBoundaryChoices.test.ts": "3068f617972aef22e75b80146d5a1d504da4f9fa60588d672b58fc27649fccbe",
+      "tests/presentation/editor/spatialRemovalLegacy.test.ts": "967f246ccc868844c09c1455835d664970dc24af784dd09b8dfa76b5b437753d",
+      "tests/presentation/views/projectEntryBoundaries.test.ts": "d4943e309d8574ae83f3328be77f8d14f5e05712a1ad6966330469675a6e19c7"
+    }
+  },
+  "remaining": "Branch floor, UI integration/full9+18 verification, performance and live-host acceptance"
+}

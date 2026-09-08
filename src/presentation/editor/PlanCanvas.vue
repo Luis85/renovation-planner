@@ -11,8 +11,10 @@
  * therefore listens on `EditorSurface`'s DOM container rather than on the Stage, which is
  * also what lets it keep working once individual nodes start listening.
  */
+import { useEvidencePins } from './planning/evidencePins';
 import type { Point } from '../../core/geometry/Point';
-import { computed, ref, watch } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
+import type { DimensionObstacleLayout } from './resize/useDimensionObstacles';
 import { storeToRefs } from 'pinia';
 import { useEditorStore } from '../stores/EditorStore';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
@@ -32,7 +34,10 @@ import InteractionLayer from './layers/InteractionLayer.vue';
 import ZoneLayer from './layers/zone/ZoneLayer.vue';
 import StructureLayer from './structure/StructureLayer.vue';
 import RenovationLayer from './renovation/RenovationLayer.vue';
-import { structureCandidates } from './structure/structureCandidates';
+import { usePlanFrame } from './viewport/usePlanFrame';
+import CanvasGrid from './layers/CanvasGrid.vue';
+import RoomDimensionLabels from './resize/RoomDimensionLabels.vue';
+import DirectActionPopover from './selection/DirectActionPopover.vue';
 
 /** This surface's own subject, which `EditorSurface` requires rather than assuming. */
 const CANVAS_LABEL: StringKey = 'editor.canvas';
@@ -45,6 +50,9 @@ const workspace = useWorkspaceStore();
 const project = useProjectStore();
 const selection = useSelectionStore();
 const runtime = useEditorRuntime();
+// Pins and caption obstacles use the same retained evidence facts as the Inspector.
+const evidencePins = useEvidencePins(() => runtime.planning.baseline.value?.plan.entity.renovation?.depth?.evidence ?? []);
+const dimensionLayout = shallowRef<DimensionObstacleLayout>({ bounds: [], viewport: null });
 const context = usePlanEditorContext();
 const { viewport } = storeToRefs(editor);
 const { layerVisibility } = storeToRefs(workspace);
@@ -71,20 +79,13 @@ const transform = computed(() => viewportTransform(viewport.value));
  * than defaulting: a jump to nowhere costs the user the view they had and tells them nothing
  * about why.
  */
-const referencePoints = ref<readonly Point[]>([]);
+const { referencePoints } = storeToRefs(editor);
 function onReferencePoints(points: readonly Point[]): void { referencePoints.value = points; }
 watch([referencePoints, () => editor.stageSize, () => layerVisibility.value.background], ([points]) => {
  const bounds = boundsOfZones([{ points }]);
- if (bounds !== null && project.zones.size === 0 && project.structure.walls.length === 0 && layerVisibility.value.background && runtime.activeToolId.value === 'select') editor.fitTo(bounds, editor.stageSize);
+ if (bounds !== null && project.zones.size === 0 && project.structure.walls.length === 0 && !project.structure.elements?.length && layerVisibility.value.background && runtime.activeToolId.value === 'select') editor.fitTo(bounds, editor.stageSize);
 }, { flush: 'post' });
-function framedBounds(all: boolean) {
-	const zones = [...project.zones.values(), ...structureCandidates(project.structure)];
-	const framed = all
-		? zones
-		: zones.filter((zone) => selection.selectedIds.some((id) => String(id) === zone.id));
-
-	return boundsOfZones(all && layerVisibility.value.background ? [...framed, { points: referencePoints.value }] : framed);
-}
+const framedBounds = usePlanFrame();
 </script>
 
 <template>
@@ -102,6 +103,7 @@ function framedBounds(all: boolean) {
 		:finish-area="runtime.finishArea"
 	>
 		<template #default="{ size }">
+			<CanvasGrid />
 			<VStage :config="size">
 				<BackgroundLayer
 					name="background"
@@ -121,6 +123,9 @@ function framedBounds(all: boolean) {
 					:visible="layerVisibility.architecture"
 				/>
 				<ZoneLayer
+					:pins="evidencePins"
+					:dimension-obstacles="dimensionLayout.bounds"
+					:caption-viewport="dimensionLayout.viewport"
 					:transform="transform"
 					:tokens="props.tokens"
 					:visible="layerVisibility.zone"
@@ -137,6 +142,7 @@ function framedBounds(all: boolean) {
 					:visible="layerVisibility.asset"
 				/>
 				<RenovationLayer
+					:pins="evidencePins"
 					:tokens="props.tokens"
 					:transform="transform"
 					:zoom="viewport.zoom"
@@ -148,6 +154,8 @@ function framedBounds(all: boolean) {
 			</VStage>
 		</template>
 		<template #overlay>
+			<RoomDimensionLabels @obstacles="layout => dimensionLayout = layout" />
+			<DirectActionPopover />
 			<slot />
 		</template>
 	</EditorSurface>

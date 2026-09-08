@@ -1,0 +1,84 @@
+# Editor integration review audit
+
+## Fresh sweep — 2026-09-07
+
+Current Root45c58609 was checked against all affected predecessor reviews. For
+#74/#75/#76/#82/#83/#85/#86/#87, all thread/comment/review/general-comment pages
+were exhausted:27threads,25unresolved, unchanged heads and no new finding or reply
+since the recorded audit. Latest unresolved-thread reply remains00:45:42UTC.
+Their fixes remain present in current source and corresponding regressions.
+Two older replies name implementations since replaced equivalently: Area completion
+now uses canFinish; peer rename now reaches ordered refreshProjection.
+
+#88 still has six unresolved findings. Root source confirms index-before-evidence
+rename ordering, thumbnail reset on changed source, staleness before shopping
+filtering, atomic settlement-link clearing, Existing-only evidence routing, and
+one fresh baseline for both Review finding families. Existing owner replies already
+identify their pushed continuation fixes. #89/#90/#91 have no unresolved threads.
+
+The unresolved predecessor state is a branch/integration dependency, not a newly
+found Root defect. No review reply or resolve was sent merely for this audit;
+unchanged older branches must not be presented as repaired. Current Root code and
+tests are the completion-candidate evidence, with merge order still requiring the
+human decision. This sweep itself reran no tests; full Root CI is recorded separately.
+
+## Historical initial audit
+
+Initial snapshot: 2026-09-06, #88 at `3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a`. A reply or outdated diff is not evidence of closure. No thread is resolved by this audit alone.
+
+| Review | File | Assessment queue | GitHub state |
+|---|---|---|---|
+| [#74 / 3941930056](https://github.com/Luis85/renovation-planner/pull/74#discussion_r3941930056) | `src/presentation/editor/PlanEditorRoot.vue` | Owner response exists; verify against incorporated code | Current diff |
+| [#74 / 3944190828](https://github.com/Luis85/renovation-planner/pull/74#discussion_r3944190828) | `src/presentation/editor/tools/select-tool.ts` | Owner response exists; verify against incorporated code | Current diff |
+| [#74 / 3944190836](https://github.com/Luis85/renovation-planner/pull/74#discussion_r3944190836) | `src/presentation/editor/shell/PropertyLayerPanel.vue` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#75 / 3941885495](https://github.com/Luis85/renovation-planner/pull/75#discussion_r3941885495) | `src/presentation/editor/surface/EditorSurface.vue` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#75 / 3944391411](https://github.com/Luis85/renovation-planner/pull/75#discussion_r3944391411) | `src/presentation/editor/tools/draw-polygon-tool.ts` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#76 / 3942047113](https://github.com/Luis85/renovation-planner/pull/76#discussion_r3942047113) | `src/presentation/editor/add/AreaCornerEditor.vue` | Owner response exists; verify against incorporated code | Current diff |
+| [#76 / 3945053531](https://github.com/Luis85/renovation-planner/pull/76#discussion_r3945053531) | `src/presentation/editor/add/areaCornerInput.ts` | New unanswered finding | Current diff |
+| [#82 / 3944446294](https://github.com/Luis85/renovation-planner/pull/82#discussion_r3944446294) | `src/presentation/editor/resize/roomResizeAction.ts` | Owner response exists; verify against incorporated code | Current diff |
+| [#82 / 3945094472](https://github.com/Luis85/renovation-planner/pull/82#discussion_r3945094472) | `src/presentation/editor/resize/RoomSizeAction.vue` | New unanswered finding | Current diff |
+| [#83 / 3944463687](https://github.com/Luis85/renovation-planner/pull/83#discussion_r3944463687) | `src/application/events/planChangeSource.ts` | Owner response exists; verify against incorporated code | Current diff |
+| [#85 / 3943671961](https://github.com/Luis85/renovation-planner/pull/85#discussion_r3943671961) | `src/infrastructure/persistence/dto/planFrontmatter.ts` | Owner response exists; verify against incorporated code | Current diff |
+| [#85 / 3943671962](https://github.com/Luis85/renovation-planner/pull/85#discussion_r3943671962) | `src/application/commands/plan/ConfigurePlanReference.ts` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#85 / 3943671966](https://github.com/Luis85/renovation-planner/pull/85#discussion_r3943671966) | `src/presentation/editor/reference/ReferenceSetupForm.vue` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#85 / 3944535084](https://github.com/Luis85/renovation-planner/pull/85#discussion_r3944535084) | `src/application/commands/plan/ConfigurePlanReference.ts` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#85 / 3945142680](https://github.com/Luis85/renovation-planner/pull/85#discussion_r3945142680) | `src/application/commands/plan/ConfigurePlanReference.ts` | New unanswered finding | Current diff |
+| [#85 / 3945142681](https://github.com/Luis85/renovation-planner/pull/85#discussion_r3945142681) | `src/presentation/editor/reference/ReferenceSetupForm.vue` | New unanswered finding | Current diff |
+| [#86 / 3943964691](https://github.com/Luis85/renovation-planner/pull/86#discussion_r3943964691) | `src/presentation/editor/structure/structureTask.ts` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#86 / 3943964696](https://github.com/Luis85/renovation-planner/pull/86#discussion_r3943964696) | `src/application/commands/spatial/StructureCommand.ts` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#86 / 3943964699](https://github.com/Luis85/renovation-planner/pull/86#discussion_r3943964699) | `src/presentation/editor/structure/structureTask.ts` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#86 / 3944614377](https://github.com/Luis85/renovation-planner/pull/86#discussion_r3944614377) | `src/presentation/editor/structure/spatialMessage.ts` | Owner response exists; verify against incorporated code | Current diff |
+| [#86 / 3945161185](https://github.com/Luis85/renovation-planner/pull/86#discussion_r3945161185) | `src/application/commands/spatial/sameGeometryDocument.ts` | New unanswered finding | Current diff |
+| [#87 / 3944535706](https://github.com/Luis85/renovation-planner/pull/87#discussion_r3944535706) | `src/presentation/editor/renovation/plannedGeometry.ts` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#87 / 3944535710](https://github.com/Luis85/renovation-planner/pull/87#discussion_r3944535710) | `src/presentation/editor/renovation/RenovationLayer.vue` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#87 / 3944781853](https://github.com/Luis85/renovation-planner/pull/87#discussion_r3944781853) | `src/application/commands/renovation/RenovationCommand.ts` | Owner response exists; verify against incorporated code | Diff outdated; requirement still assessed |
+| [#87 / 3945187814](https://github.com/Luis85/renovation-planner/pull/87#discussion_r3945187814) | `src/application/commands/spatial/StructureCommand.ts` | New unanswered finding | Current diff |
+| [#88 / 3945203165](https://github.com/Luis85/renovation-planner/pull/88#discussion_r3945203165) | `src/plugin/RenovationPlannerPlugin.ts` | New unanswered finding | Current diff |
+| [#88 / 3945203166](https://github.com/Luis85/renovation-planner/pull/88#discussion_r3945203166) | `src/presentation/editor/planning/EvidencePreview.vue` | New unanswered finding | Current diff |
+| [#88 / 3945276866](https://github.com/Luis85/renovation-planner/pull/88#discussion_r3945276866) | `src/presentation/editor/planning/planningProjection.ts` | New unanswered finding | Current diff |
+| [#88 / 3945276869](https://github.com/Luis85/renovation-planner/pull/88#discussion_r3945276869) | `src/presentation/editor/planning/CostFields.vue` | New unanswered finding | Current diff |
+| [#88 / 3945276870](https://github.com/Luis85/renovation-planner/pull/88#discussion_r3945276870) | `src/presentation/editor/planning/EvidenceInspector.vue` | New unanswered finding | Current diff |
+| [#88 / 3945276873](https://github.com/Luis85/renovation-planner/pull/88#discussion_r3945276873) | `src/presentation/editor/renovation/ReviewInspector.vue` | New unanswered finding | Current diff |
+
+Current ownership: finalization handles #76 edited-axis precision, #82 availability, #85 bounded events/calibration stability, #87 delete receipts and #88 existing-subject evidence routing. Hardening is requested to handle #88 shopping staleness and one-baseline Review generation, alongside its rename/thumbnail fixes. UI is requested to handle the cost-stage settlement transition. #86 object order is already normalized in `8ba7e2902` by `sameGeometryDocument`; `structureRecovery.test.ts` is the existing verification entry and the final gate must retain it.
+
+Resolved-before-integration comments and GitHub CI must be rechecked on the final pushed head. See [integration map](integration-map.md) for ancestry and [completion matrix](completion-matrix.md) for acceptance.
+
+
+Latest fetch (2026-09-07): all nine predecessor heads are unchanged and all review-thread/comment pages were exhausted. No new review findings appeared since this audit. The order-independent geometry comparison is already incorporated through predecessor ancestry; an additional two-Zone real-sidecar mixed-history regression now passes (`structureMixedHistory.test.ts`, 4 cases). No remote review thread was replied to or resolved from this unpushed finalization tree.
+
+
+## Integration review update — 2026-09-07
+
+PR #91 is open as a draft over #88 at foundation `a0e91241`. The latest fetch exhausted all thread/comment pages for #74–#91 (the affected stack and siblings). Seven root-owned findings now have replies linking pushed fixes and their targeted verification: #76 axis precision, #82 resize availability, #85 serialized cascades/calibration stability, #86 order-independent geometry history, #87 deletion receipts, and #88 Existing-only evidence routing. They remain unresolved on predecessor branches until the chosen integration path actually carries those changes there. No original branch was rewritten by this task.
+
+Two new #90 findings are owned by the recovery task: [editable evidence paths](https://github.com/Luis85/renovation-planner/pull/90#discussion_r3945749013) and [readable Room names in generated Review notes](https://github.com/Luis85/renovation-planner/pull/90#discussion_r3945749016). Both fixes are pushed on the original #90 branch at `7ba5937d127d596a0705f634638cb13df1940038`, integrated via `bf8eb4be`. The owner recorded both regressions failing at 66b and 14 tests passing after the fix, plus types/oxlint/scoped ESLint; replies `r3945866534` and `r3945866578` link the fix, and the threads were resolved after push. No #89 or #91 actionable review thread existed at this fetch. Final combined CI and a final review refresh remain required.
+
+A subsequent exhausted fetch at integration `88b9ee3d` found one new #90 P2: [linked-record Evidence selected announcements](https://github.com/Luis85/renovation-planner/pull/90#discussion_r3945879365). The recovery owner aligned visual and accessible selected predicates, including the empty-focus case, on the original branch at `b63c338d6d08e0fa58a57f4cafaa1170b4a2f13a`; finalization incorporates it through `2d912f33`. The owner verified 37 workflow/recovery/Review tests, types and lint, then replied with the fix and evidence (`r3945978744`) and resolved the thread after push. #89 and #91 have no actionable review threads at this fetch.
+
+A later refresh confirms #90 at `b63c338d` has four successful verification legs plus audit. Its only new finding is [unrecovered-write retry guidance](https://github.com/Luis85/renovation-planner/pull/90#discussion_r3945997046), fixed by the recovery owner in pushed `2c353329c92c4e93b753afbab7649ad7964b37d8` and incorporated through `149ec0bd`. The shared DraftRecovery panel and repository-backed regressions passed 65 tests, types and lint; the owner replied and resolved the finding after push. #89/#91 still have no actionable review threads at this refresh.
+
+
+## Post-restart review refresh — 2026-09-07
+
+Fetched all review-thread and nested-comment pages for #74, #75, #76, #82, #83, #85, #86, #87, #88, #89, #90 and #91. No pagination remains, no new comments appeared compared with the c1091086 audit, and every predecessor/sibling head is unchanged. #91 is still an open draft on `5557385f` over `codex/materials-costs-evidence`, with no reviews or review threads. No merge, thread resolution or predecessor rewrite was performed. CI555 has completed on all four legs: all tests pass, statement/branch coverage fails; its successful audit is separate.

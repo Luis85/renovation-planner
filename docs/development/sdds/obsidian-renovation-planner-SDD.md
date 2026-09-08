@@ -3025,3 +3025,36 @@ separate subpaths. Host rename events and generated-note owner/digest guards pre
 The ADR defines dimensional conversions, cancellation, stale refusal, pin coordinates, schema
 migrations, conditional history and acceptance exclusions. No parallel material repository,
 second runtime, shared inventory or durable transaction journal is introduced.
+
+### Increment E: retained planning reads and recovery
+
+The Plan editor owns one per-leaf planning read state alongside the existing ProjectStore.
+Initial hydration, write read-back and explicit retry share the runtime refresh boundary.
+A failed read retains the last published projection and qualifies a confirmed save as needing
+refresh. A planning read failure or uncompensated operation blocks unsafe history as well as
+new writes. The existing versioned spatial-only history behavior is preserved. Read success
+clears read failure, never an uncompensated operation. The latter flag remains mount-local;
+settings rebind or closing the view loses that flag and is not crash recovery.
+
+Invalidations coalesce into one active read and a latest follow-up. Obsolete planning results
+do not publish, and disposal retires subscriptions, pending waiters and hydration tickets.
+Entity events refresh planning; linked file events only invalidate evidence resolution and
+thumbnail state. Stored and resolved paths, including folder prefixes, identify relevant files.
+Financial findings prepare materials once per published baseline, with no global cache.
+
+Open forms retain their captured target, baseline and editable draft through a read failure.
+Apply pauses; modal retry only reads and restores focus when its warning disappears. The
+existing guarded command boundary still refuses a conflicting captured baseline after recovery.
+Presentation-only EN/DE number formatting leaves Decimal/Money arithmetic and persisted schemas
+unchanged. See the [recovery evidence](../../user-experience/renovation-planner-editor-specs/implementation/planning-recovery-evidence.md)
+and [user recovery guidance](../../using-planning-recovery.md) for measured acceptance and limits.
+
+
+## Editor completion amendment — generic floor elements (2026-09-07)
+
+[ADR-0023](../adrs/0023-generic-spatial-elements.md) extends the existing floor sidecar current/intended Structure with generic Object, Path, Fence and Measurement identities and world-millimetre points. Their editable names remain Plan Markdown metadata joined by ID; no second persistence authority or catalogue is introduced. Non-empty element payloads use geometry v4 and Plan metadata v6 after shared-context v5. Explicit element-length/object-area Requirement sources use v3 and the existing quantity engine; older payloads retain their prior written versions. §26 readability and its self-intersection/winding deferrals remain unchanged. Implementation and host acceptance status are recorded in the editor completion matrix; this amendment is not a verification pass.
+
+
+### Editor completion amendment — evidence dates (2026-09-07)
+
+M14's explicit capture/document date remains optional metadata on the existing Plan Evidence relationship. ADR-0022 defines the calendar-date validation, unknown-date semantics, stable date order shared by gallery/list/pins, and retained-snapshot consistency during failed read-back. No date is inferred from a file timestamp. Plans that contain this capability write schema8; pure read migration adds no date or filesystem write, and older-capability payloads retain their appropriate written discriminator. Existing guarded writes, date-aware owned-fact comparison and conditional history remain authoritative. Final verification is recorded in the editor completion matrix.

@@ -1,0 +1,50 @@
+{
+  "viewport": {
+    "width": 460,
+    "height": 1000
+  },
+  "bounds": {
+    ".rp-renovation-inspector > h3": {
+      "x": 109,
+      "y": 209.59375,
+      "width": 335,
+      "height": 25
+    },
+    ".rp-renovation-inspector > .rp-cost-totals": {
+      "x": 109,
+      "y": 374.984375,
+      "width": 335,
+      "height": 115.375
+    },
+    ".rp-cost-groups": {
+      "x": 109,
+      "y": 553.75,
+      "width": 335,
+      "height": 363.96875
+    },
+    "[data-rp-new-cost]": {
+      "x": 109,
+      "y": 929.71875,
+      "width": 335,
+      "height": 30
+    }
+  },
+  "sample": {
+    "roomId": "zone-01M1YZJVRJEMZNJXVVMY5V0NMV",
+    "role": "selected-room"
+  },
+  "selection": {
+    "ids": [
+      "zone-01M1YZJVRJEMZNJXVVMY5V0NMV"
+    ],
+    "focusedId": "zone-01M1YZJVRJEMZNJXVVMY5V0NMV"
+  },
+  "input": "Native Tab to [data-rp-room-navigation], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
+  "camera": {
+    "x": 48.000000000000014,
+    "y": 245.24999999999997,
+    "zoom": 0.0735
+  },
+  "constrained": true,
+  "vaultAndSelectionUnchanged": true
+}

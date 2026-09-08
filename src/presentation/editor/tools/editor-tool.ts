@@ -30,12 +30,16 @@ export type ToolId =
 	| 'pan'
 	| 'draw-polygon'
 	| 'draw-room'
+	| 'edit-room-dimension'
 	| 'draw-area'
 	| 'draw-wall'
 	| 'place-door'
 	| 'place-window'
 	| 'place-opening'
 	| 'place-asset'
+	| 'place-object'
+	| 'draw-path'
+	| 'draw-fence'
 	| 'measure'
 	| 'annotation'
 	| 'calibrate'
@@ -91,6 +95,8 @@ export interface EditorPointerEvent {
  * the method is REQUIRED rather than optional so that a tool which grows one has to say so.
  */
 export interface EditorTool {
+	/** A pending command may retain its native controls until its outcome is known. */
+	canDeactivate?(): boolean;
 	/** An exact corner edit of the active temporary outline; null removes a corner. */
 	editCorner?(index: number, point: Point | null): boolean;
 	/** Optional explicit completion; pointer and keyboard share the same tool action. */

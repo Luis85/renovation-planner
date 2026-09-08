@@ -1,0 +1,13 @@
+{
+  "source": "43041936a7f86d31058f6d21a16c3a596e1bacc6",
+  "originalScript": "scripts/editor-recovery-check.mjs",
+  "originalScriptSha256": "fc2ab27c74a38357c204782ca5b23ba10d0da79d727d8c6bf8f751bd30cef0da",
+  "diagnosticScriptSha256": "5dced7fc6f0695348d06008442a5ce4a50b60cfafdb6abdafd132eba2eebf36a",
+  "changes": [
+    "Only run existing largeFloor with same fixture/input/latency/resource assertions.",
+    "Add60RAF idle samples before each original pan, retaining raw intervals.",
+    "Retain original panFrames procedure and add raw interval output.",
+    "Resolve existing imports by absolute file URLs; isolate output directory."
+  ],
+  "status": "prepared, not yet executed"
+}

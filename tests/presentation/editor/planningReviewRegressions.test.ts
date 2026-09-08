@@ -16,16 +16,30 @@ async function setup() {
  return rig;
 }
 describe('planning review regressions', () => {
+ it('ignores repeated Generate and a failed fresh read after the editor closes', async () => {
+  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');
+  await rig.runtime.renovation.perspective('review'); await settle();
+  const pending = defer<Awaited<ReturnType<typeof services.read>>>(), read = vi.spyOn(services, 'read').mockReturnValueOnce(pending.promise);
+  const write = vi.spyOn(rig.deps.commands, 'reviewNote'), button = rig.wrapper.get('[data-rp-action="review-note"]');
+  const first = button.trigger('click'), second = button.trigger('click'); await Promise.all([first, second]); await settle();
+  expect(read).toHaveBeenCalledOnce(); expect(write).not.toHaveBeenCalled();
+  rig.unmount(); pending.resolve(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); await settle();
+  expect(write).not.toHaveBeenCalled();
+ });
  it('generates renovation and planning findings from one fresh baseline before a peer notification arrives', async () => {
   const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');
   await rig.runtime.renovation.perspective('review'); await settle();
   const read = expectOk(await services.read(rig.plan.id));
   const subject = { id: 'peer-proposal', roomId: rig.room.id, targetId: rig.room.id, kind: 'floor' as const, existing: null, planned: { change: 'add' as const, description: 'Peer floor proposal' } };
-  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(read.plan.entity, { subjects: [subject], work: [], decisions: [] })), read.plan.version));
+  const missingRoom = { ...subject, id: 'missing-room-proposal', roomId: 'missing-room', targetId: 'missing-room' };
+  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(read.plan.entity, { subjects: [subject, missingRoom], work: [], decisions: [] })), read.plan.version));
   expect(rig.wrapper.text()).toContain('No gaps found');
   const write = vi.spyOn(rig.deps.commands, 'reviewNote');
   await rig.wrapper.get('[data-rp-action="review-note"]').trigger('click'); await settle();
   expect(write.mock.calls[0][1]).toContain('Peer floor proposal'); expect(write.mock.calls[0][1]).not.toContain('No gaps found');
+  expect(write.mock.calls[0][1]).toContain(`- ${rig.room.name}:`);
+  expect(write.mock.calls[0][1]).not.toContain(`- ${rig.room.id}:`);
+  expect(write.mock.calls[0][1]).toContain('- missing-room:');
  });
  it('refuses a shopping list when a fully procured source becomes stale', async () => {
   const rig = await planningStack();
@@ -67,10 +81,12 @@ describe('planning review regressions', () => {
   const reads = vi.spyOn(services, 'read');
   for (let index = 0; index < 30; index++) rig.changeFile(`Journal/${index}.md`);
   rig.changeFile('Evidence/invoice.pdf.bak'); await settle(); expect(reads).not.toHaveBeenCalled();
-  rig.changeFile('Evidence/invoice.pdf'); await settle(); expect(reads).toHaveBeenCalledTimes(1);
-  rig.changeFile('Evidence'); await settle(); expect(reads).toHaveBeenCalledTimes(2);
-  rig.changePlan(); await settle(); expect(reads).toHaveBeenCalledTimes(3);
-  rig.changeCatalogue(); await settle(); expect(reads).toHaveBeenCalledTimes(4);
+  const revision = rig.runtime.planning.evidenceRevision.value;
+  rig.changeFile('Evidence/invoice.pdf'); await settle(); expect(reads).not.toHaveBeenCalled();
+  rig.changeFile('Evidence'); await settle(); expect(reads).not.toHaveBeenCalled();
+  expect(rig.runtime.planning.evidenceRevision.value).toBe(revision + 2);
+  rig.changePlan(); await settle(); expect(reads).toHaveBeenCalledTimes(1);
+  rig.changeCatalogue(); await settle(); expect(reads).toHaveBeenCalledTimes(2);
  });
  it('detects changed source measurements even when packaging leaves quantity and cost unchanged', async () => {
   const rig = await planningStack(), input = { ...rig.input, source: { ...rig.input.source, lot: '100' } };

@@ -1,0 +1,118 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "existing": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "floor",
+      "busyEscapeAndTab": true
+    },
+    "material": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "asset-01M1YP96F24EXW5HPHE5GDYFNY",
+      "busyEscapeAndTab": true
+    },
+    "counts": {
+      "reads": 7,
+      "planWrites": 2,
+      "materialWrites": 1,
+      "zoneWrites": 80,
+      "spatialReads": 6,
+      "waitingWrites": 0,
+      "listeners": 8,
+      "stages": 1,
+      "images": 0,
+      "objectUrls": 0
+    },
+    "scope": "Native Chromium keyboard with production repositories held at the pending write boundary; no live Obsidian acceptance.",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "existing": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "floor",
+      "busyEscapeAndTab": true
+    },
+    "material": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "asset-01M1YP9H6CW6WNMN46PJ1CF2ZQ",
+      "busyEscapeAndTab": true
+    },
+    "counts": {
+      "reads": 7,
+      "planWrites": 2,
+      "materialWrites": 1,
+      "zoneWrites": 80,
+      "spatialReads": 6,
+      "waitingWrites": 0,
+      "listeners": 8,
+      "stages": 1,
+      "images": 0,
+      "objectUrls": 0
+    },
+    "scope": "Native Chromium keyboard with production repositories held at the pending write boundary; no live Obsidian acceptance.",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "existing": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "floor",
+      "busyEscapeAndTab": true
+    },
+    "material": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "asset-01M1YP9RM1TEYERFEDDZBNTDVW",
+      "busyEscapeAndTab": true
+    },
+    "counts": {
+      "reads": 7,
+      "planWrites": 2,
+      "materialWrites": 1,
+      "zoneWrites": 80,
+      "spatialReads": 6,
+      "waitingWrites": 0,
+      "listeners": 8,
+      "stages": 1,
+      "images": 0,
+      "objectUrls": 0
+    },
+    "scope": "Native Chromium keyboard with production repositories held at the pending write boundary; no live Obsidian acceptance.",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "existing": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "floor",
+      "busyEscapeAndTab": true
+    },
+    "material": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "asset-01M1YPA0K5YG9PEA8801SSQ87P",
+      "busyEscapeAndTab": true
+    },
+    "counts": {
+      "reads": 7,
+      "planWrites": 2,
+      "materialWrites": 1,
+      "zoneWrites": 80,
+      "spatialReads": 6,
+      "waitingWrites": 0,
+      "listeners": 8,
+      "stages": 1,
+      "images": 0,
+      "objectUrls": 0
+    },
+    "scope": "Native Chromium keyboard with production repositories held at the pending write boundary; no live Obsidian acceptance.",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

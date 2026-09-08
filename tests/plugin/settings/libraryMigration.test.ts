@@ -448,6 +448,10 @@ describe('libraryDestinations', () => {
 it('moves the catalogue and leaves a project filed under the library where it is', async () => {
 	const files = [
 		noteAt('Renovation/Library/Assets/Tiles.md'),
+		noteAt('Renovation/Library/Trades/Electrician.md'),
+		noteAt('Renovation/Library/Suppliers/Shop.md'),
+		noteAt('Elsewhere/Trade.md'),
+		noteAt('Renovation/Library/Kitchen/Quotes/Offer.md'),
 		noteAt('Renovation/Library/Kitchen/Project.md'),
 		noteAt('Renovation/Library/Kitchen/Zones/Kitchen.md'),
 		// Not an index ENTRY of its own — a plan's sidecar path rides on the plan's entry — so
@@ -456,6 +460,10 @@ it('moves the catalogue and leaves a project filed under the library where it is
 	];
 	const persistence = stackOver([
 		entry('a1', 'renovation-asset', 'Renovation/Library/Assets/Tiles.md'),
+		entry('t1', 'renovation-trade', 'Renovation/Library/Trades/Electrician.md'),
+		entry('s1', 'renovation-supplier', 'Renovation/Library/Suppliers/Shop.md'),
+		entry('t2', 'renovation-trade', 'Elsewhere/Trade.md'),
+		entry('q1', 'renovation-quote', 'Renovation/Library/Kitchen/Quotes/Offer.md'),
 		entry('p1', 'renovation-project', 'Renovation/Library/Kitchen/Project.md'),
 		entry('z1', 'renovation-zone', 'Renovation/Library/Kitchen/Zones/Kitchen.md'),
 	]);
@@ -469,6 +477,8 @@ it('moves the catalogue and leaves a project filed under the library where it is
 	expect(isOk(result)).toBe(true);
 	expect(rig.renamed).toEqual([
 		{ from: 'Renovation/Library/Assets/Tiles.md', to: 'Shared/Catalogue/Assets/Tiles.md' },
+		{ from: 'Renovation/Library/Trades/Electrician.md', to: 'Shared/Catalogue/Trades/Electrician.md' },
+		{ from: 'Renovation/Library/Suppliers/Shop.md', to: 'Shared/Catalogue/Suppliers/Shop.md' },
 	]);
 });
 
@@ -816,75 +826,5 @@ describe('libraryGeometryIn', () => {
 		const files = [noteAt(`${SOURCE}/Geometry/asset-01JABC.rpgeo`)];
 
 		expect(libraryGeometryIn(null, files, SOURCE)).toEqual([]);
-	});
-});
-
-describe('catalogueNotesIn', () => {
-	/**
-	 * Every file here is an indexed ASSET, so the index half admits all three and only the
-	 * source intersection separates them — which is what keeps the segment boundary a
-	 * property of this function rather than an accident of the fixture. The prefix trap:
-	 * `Renovation/LibraryOld` is not inside `Renovation/Library`.
-	 */
-	it('takes the files under the folder, at the segment boundary', () => {
-		const files = [
-			noteAt('Renovation/Library/Assets/Tiles.md'),
-			noteAt('Renovation/Library.md'),
-			noteAt('Renovation/LibraryOld/Assets/Paint.md'),
-		];
-		const persistence = stackOver(files.map((file, index) => entry(`a${index}`, 'renovation-asset', file.path)));
-
-		expect(catalogueNotesIn(persistence, files, SOURCE).map((file) => file.path)).toEqual([
-			'Renovation/Library/Assets/Tiles.md',
-		]);
-	});
-
-	/**
-	 * CASE-SENSITIVE, deliberately, and the opposite of what `foldersOverlap` does three
-	 * imports away. Obsidian's paths are case-sensitive and a Linux vault really can hold
-	 * both spellings, so folding here would relocate an asset filed in the other one.
-	 */
-	it('takes them case-sensitively', () => {
-		const files = [
-			noteAt('Renovation/Library/Assets/Tiles.md'),
-			noteAt('Renovation/library/Assets/Paint.md'),
-		];
-		const persistence = stackOver(files.map((file, index) => entry(`a${index}`, 'renovation-asset', file.path)));
-
-		expect(catalogueNotesIn(persistence, files, SOURCE).map((file) => file.path)).toEqual([
-			'Renovation/Library/Assets/Tiles.md',
-		]);
-	});
-
-	/**
-	 * A file under the library that the index does not know as an asset is not the catalogue,
-	 * whatever it is — a project note, a zone, a geometry sidecar, or a note the user simply
-	 * filed there. This is the half that makes the §83 violation dissolve instead of needing
-	 * a refusal.
-	 */
-	it('takes only what the index knows as an asset', () => {
-		const files = [
-			noteAt('Renovation/Library/Assets/Tiles.md'),
-			noteAt('Renovation/Library/Kitchen/Project.md'),
-			noteAt('Renovation/Library/Notes.md'),
-		];
-		const persistence = stackOver([
-			entry('a1', 'renovation-asset', 'Renovation/Library/Assets/Tiles.md'),
-			entry('p1', 'renovation-project', 'Renovation/Library/Kitchen/Project.md'),
-		]);
-
-		expect(catalogueNotesIn(persistence, files, SOURCE).map((file) => file.path)).toEqual([
-			'Renovation/Library/Assets/Tiles.md',
-		]);
-	});
-
-	/**
-	 * With settings unrecovered there is no persistence stack and therefore no index to ask.
-	 * The same arm `projectFolderPaths` carries, asked here rather than spelled as an `?.` at
-	 * the one call site — and unreachable from the pane, which declares no action row in that
-	 * state.
-	 */
-	it('answers nothing when there is no index to ask', () => {
-		expect(catalogueNotesIn(null, [noteAt('Renovation/Library/Assets/Tiles.md')], SOURCE)).toEqual([]);
 	});
 });

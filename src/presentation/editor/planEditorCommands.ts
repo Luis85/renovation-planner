@@ -1,3 +1,5 @@
+import type { Trade } from '../../domain/trade/Trade';
+import type { NamedCatalogueServices } from '../../application/commands/catalogue/NamedCatalogueServices';
 import type { PlanningServices } from '../../application/commands/renovation/PlanningServices';
 import type { EvidenceFiles } from '../../application/ports/EvidenceFiles';
 import { referencePlanServices, type ReferencePlanServices } from '../../application/commands/plan/ConfigurePlanReference';
@@ -62,6 +64,7 @@ export interface CalibratePlanTransaction {
  * boundary is exactly what has no per-transaction state.
  */
 export interface PlanEditorCommandServices {
+	readonly tradeCatalogue?: NamedCatalogueServices<Trade>;
 	readonly planning?: PlanningServices;
 	readonly evidenceFiles?: EvidenceFiles;
 	readonly shoppingNote?: (planId: PlanId, body: string) => Promise<Result<void, AppError>>;

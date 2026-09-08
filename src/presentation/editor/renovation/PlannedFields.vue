@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { restoreInoperativeChoice } from '../forms/inoperativeControl';
 import { computed } from 'vue';
 import { tr } from '../../i18n/strings';
 import { CHANGES } from '../../../domain/renovation/Renovation';
@@ -20,7 +21,8 @@ const planned = computed(() => draft.value.subject.planned);
 			<select
 				v-model="planned.change"
 				name="classification"
-				:disabled="frozen"
+				:aria-disabled="frozen"
+				@change.capture="restoreInoperativeChoice($event, planned.change)"
 			>
 				<option
 					v-for="change in CHANGES.filter(item => (item === 'add') === !draft.subject.existing)"
@@ -35,7 +37,7 @@ const planned = computed(() => draft.value.subject.planned);
 			:readonly="frozen"
 		/></label>
 		<PlannedGeometryFields
-			v-model:draft="geometry"
+			:draft="geometry"
 			:addition="planned.change === 'add'"
 			:structure="structure"
 			:paused="frozen"

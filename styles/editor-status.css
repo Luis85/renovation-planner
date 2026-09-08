@@ -75,7 +75,7 @@
 .rp-editor-pan-hint,
 .rp-editor-paused-hint {
 	flex: 0 0 auto;
-	color: var(--text-faint);
+	color: var(--text-muted);
 	white-space: nowrap;
 }
 
@@ -256,4 +256,28 @@
 	.rp-save-state-saving .rp-save-state-mark {
 		animation: none;
 	}
+}
+
+/* M15 adds hierarchy inside the retained live region without moving its actions. */
+.renovation-plan-editor .rp-warning-strip__item {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+}
+.renovation-plan-editor .rp-warning-strip__content {
+	display: grid;
+	gap: var(--size-4-1);
+	flex: 1 1 18rem;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+.renovation-plan-editor .rp-warning-strip__content .rp-warning-strip__severity { margin: 0; }
+.renovation-plan-editor .rp-warning-strip__item > .rp-host-icon {
+	--icon-size: 20px;
+	color: var(--text-warning);
+}
+.renovation-plan-editor .rp-warning-strip__item--error > .rp-host-icon { color: var(--text-error); }
+.renovation-plan-editor .rp-warning-strip__item .rp-warning-strip__actions {
+	flex-wrap: wrap;
+	margin-inline-start: 0;
 }

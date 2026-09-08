@@ -1,13 +1,13 @@
 <script setup lang="ts">
+import { refuseInoperativeEvent, restoreInoperativeChoice } from '../forms/inoperativeControl';
 import type { PlanningDraft } from './planningDraft';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import { createEntityId } from '../../../core/identity/generateId';
 import { tr } from '../../i18n/strings';
 const draft = defineModel<PlanningDraft>('draft', { required: true });
-const props = defineProps<{ baseline: PlanningBaseline; paused: boolean }>();
+defineProps<{ baseline: PlanningBaseline; paused: boolean }>();
 function add(): void { draft.value.facts.push({ id: createEntityId('fact'), stage: 'committed', amount: '', description: '', commitmentId: '', cancelled: false }); }
 function changeStage(index: number, event: Event): void {
-	if (props.paused) return;
 	const stage = (event.target as HTMLSelectElement).value;
 	if (stage !== 'actual' && stage !== 'committed') return;
 	const fact = draft.value.facts[index];
@@ -17,8 +17,9 @@ function changeStage(index: number, event: Event): void {
 <template>
 	<label>{{ tr('planning.category') }}<select
 		v-model="draft.category"
-		:disabled="paused"
+		:aria-disabled="paused"
 		name="category"
+		@change.capture="restoreInoperativeChoice($event, draft.category)"
 	><option
 		v-for="category in ['material', 'labor', 'other'] as const"
 		:key="category"
@@ -26,8 +27,9 @@ function changeStage(index: number, event: Event): void {
 	>{{ tr(`planning.${category}`) }}</option></select></label>
 	<label>{{ tr('planning.requirement') }}<select
 		v-model="draft.requirementId"
-		:disabled="paused"
+		:aria-disabled="paused"
 		name="requirement"
+		@change.capture="restoreInoperativeChoice($event, draft.requirementId)"
 	><option value="">{{ tr('planning.unassigned') }}</option><option
 		v-for="item in baseline.materials.filter(item => item.entity.origin.zoneId === draft.roomId)"
 		:key="item.entity.id"
@@ -48,8 +50,9 @@ function changeStage(index: number, event: Event): void {
 		<legend>{{ tr('planning.fact') }} {{ index + 1 }}</legend>
 		<label>{{ tr('planning.stage') }}<select
 			:value="fact.stage"
-			:disabled="paused"
+			:aria-disabled="paused"
 			name="stage"
+			@change.capture="restoreInoperativeChoice($event, fact.stage)"
 			@change="changeStage(index, $event)"
 		><option value="committed">{{ tr('planning.committed') }}</option><option value="actual">{{ tr('planning.actual') }}</option></select></label>
 		<label>{{ tr('planning.amount') }} ({{ baseline.currency }})<input
@@ -65,8 +68,9 @@ function changeStage(index: number, event: Event): void {
 		></label>
 		<label v-if="fact.stage === 'actual'">{{ tr('planning.settles') }}<select
 			v-model="fact.commitmentId"
-			:disabled="paused"
+			:aria-disabled="paused"
 			name="settles"
+			@change.capture="restoreInoperativeChoice($event, fact.commitmentId)"
 		><option value="">{{ tr('planning.unassigned') }}</option><option
 			v-for="commitment in draft.facts.filter(item => item.stage === 'committed' && !item.cancelled)"
 			:key="commitment.id"
@@ -74,22 +78,25 @@ function changeStage(index: number, event: Event): void {
 		>{{ commitment.description }} · {{ commitment.amount }}</option></select></label>
 		<label><input
 			v-model="fact.cancelled"
-			:disabled="paused"
+			:aria-disabled="paused"
 			type="checkbox"
+			@change.capture="restoreInoperativeChoice($event, fact.cancelled)"
 		>{{ tr('planning.cancelled') }}</label>
 	</fieldset>
 	<button
 		type="button"
-		:disabled="paused"
+		:aria-disabled="paused"
 		data-rp-add-fact
+		@click.capture="refuseInoperativeEvent"
 		@click="add"
 	>
 		{{ tr('planning.add-fact') }}
 	</button>
 	<label><input
 		v-model="draft.cancelled"
-		:disabled="paused"
+		:aria-disabled="paused"
 		type="checkbox"
+		@change.capture="restoreInoperativeChoice($event, draft.cancelled)"
 	>{{ tr('planning.cancel-obligation') }}</label>
 	<p>{{ tr('planning.reconciliation-policy') }}</p>
 </template>

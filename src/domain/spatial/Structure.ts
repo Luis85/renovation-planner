@@ -1,4 +1,5 @@
 import type { Point } from '../../core/geometry/Point';
+import type { SpatialElement } from './SpatialElement';
 
 /** ADR-0020: straight centre-line walls; all measurements are world millimetres. */
 export interface Wall {
@@ -22,6 +23,7 @@ export interface RoomBoundary {
 	readonly wallIds: readonly string[];
 }
 export interface Structure {
+	readonly elements?: readonly SpatialElement[];
 	readonly walls: readonly Wall[];
 	readonly openings: readonly Opening[];
 	readonly boundaries: readonly RoomBoundary[];

@@ -1,13 +1,15 @@
+import { createEditorFormActions, type EditorFormActions } from './editorFormActions';
+import { createLatestRead } from '../composables/latest-read';
+import { createPlanningRefresh } from './planning/planningRefresh';
+import { createElementTask } from './elements/elementTask';
+import { createElementActions } from './elements/elementActions';
 import { selectAndFrameOn } from './selection/selectAndFrame';
 import { createRenovationDeletionGuard } from './renovation/renovationDeleteGuard';
 import { createHistoryActions } from './tools/historyActions';
 import { createRenovationActions } from './renovation/renovationActions';
 import { useRenovationSession } from './renovation/renovationSession';
-import { createReferenceAction } from './reference/referenceAction';
 import { createStructureTask } from './structure/structureTask';
 import { createStructureActions } from './structure/structureActions';
-import { createRoomResizeAction } from './resize/roomResizeAction';
-import { createRoomNamingAction } from './naming/roomNamingAction';
 import {
 	computed,
 	inject,
@@ -51,7 +53,7 @@ import { useSaveStateStore } from './save-state/save-state-store';
 import { singleFlight } from '../composables/single-flight';
 import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
-import { EDITOR_SNAP_SERVICE } from './snapping/editorSnapping';
+import { createEditorSnapService } from './snapping/editorSnapping';
 import { editorViewportAdapter } from './viewport/editorViewportAdapter';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
@@ -80,6 +82,12 @@ import { createNudgeSelectionAction } from './nudge';
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
+	readonly roomDimension: EditorFormActions['roomDimension'];
+	readonly elementTask: ReturnType<typeof createElementTask>;
+	readonly elementActions: ReturnType<typeof createElementActions>;
+	readonly areaDetails: EditorFormActions['areaDetails'];
+	readonly outlineEdit: EditorFormActions['outlineEdit'];
+	readonly planning: ReturnType<typeof createPlanningRefresh>;
 	readonly renovation: ReturnType<typeof createRenovationActions>;
 	readonly structureTask: ReturnType<typeof createStructureTask>;
 	readonly structureActions: ReturnType<typeof createStructureActions>;
@@ -444,35 +452,22 @@ function createDeleteZoneAction(
  * move happened to overwrite the stale id. Clearing the id here is what makes the cursor's
  * withdrawal a fact rather than a race, and the KIND goes with it because the two are one fact
  * in two fields (see `RenderState.hoveredTargetKind`).
- *
- * **The Inspector's cached DTO is re-read here too, for the same reason and off the same
- * watch.** `InspectorStore.dto` is what the query answered when the selection last changed, and
- * the post-command funnel (`createProjectionRefresh`) was the only thing that invalidated it — so
- * a rename or resize landing through `onPlanChanged` (a second Plan Editor leaf on the same
- * plan, a synced note) re-hydrated the canvas and the room list and left the heading showing the
- * old name indefinitely. A hydrate landing is the one moment both facts move, and hanging the
- * refresh off it rather than off a second `onPlanChanged` subscription keeps the order the
- * funnel's own docblock requires (map first, DTO second) and keeps the plan door at ONE
- * listener, which `planEditorView.test.ts` counts. The dispatching leaf pays one redundant
- * Inspector read per command for it — the same cost `PLAN_CHANGE_EVENTS` already accepts for the
- * canvas — and `refresh` is a no-op for anything but a single selection, so the mount's own
- * first hydrate costs nothing.
  */
 function registerSelectionRetirement(
-	projectStore: ReturnType<typeof useProjectStore>, selection: ReturnType<typeof useSelectionStore>,
-	renderState: RenderState, inspector: { refresh(): Promise<void> },
+	projectStore: ReturnType<typeof useProjectStore>,
+	selection: ReturnType<typeof useSelectionStore>,
+	renderState: RenderState,
 ): void {
 	watch(
 		() => [projectStore.zones, projectStore.structure] as const,
 		([zones, structure]) => {
-			const exists = (id: string): boolean => zones.has(id) || [...structure.walls, ...structure.openings].some(item => item.id === id);
+			const exists = (id: string): boolean => zones.has(id) || [...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === id);
 			const survivors = selection.selectedIds.filter((id) => exists(String(id)));
 			if (survivors.length !== selection.selectedIds.length) selection.select(survivors);
 			if (renderState.hoveredObjectId !== null && !exists(renderState.hoveredObjectId)) {
 				renderState.hoveredObjectId = null;
 				renderState.hoveredTargetKind = null;
 			}
-			void inspector.refresh();
 		},
 	);
 }
@@ -574,42 +569,52 @@ function createCancelActiveTask(
 function buildDispatcherChain(
 	context: PlanEditorContext,
 ): {
+	readonly planning: ReturnType<typeof createPlanningRefresh>;
 	readonly wrappedDispatcher: RefreshedHistory;
 	readonly canUndo: Ref<boolean>;
 	readonly canRedo: Ref<boolean>;
 	readonly refreshProjection: () => Promise<void>;
 	readonly writesBlocked: Readonly<Ref<boolean>>;
 	readonly pausedReasonId: string;
-	readonly inspectorRef: { current: { refresh(): Promise<void> } | null };
+	readonly inspectorRef: { current: { refresh(): Promise<void>; invalidate(): void } | null };
 } {
 	const projectStore = useProjectStore(), session = useRenovationSession();
 	const history = new CommandHistory();
-	const inspectorRef: { current: { refresh(): Promise<void> } | null } = { current: null };
-	const refreshProjection = createProjectionRefresh({
+	const inspectorRef: { current: { refresh(): Promise<void>; invalidate(): void } | null } = { current: null };
+	const planning = createPlanningRefresh(context);
+	const refreshSpatial = createProjectionRefresh({
 		projectStore,
-		// `inspectorRef.current` is always set by the time anything calls this: the mutable
-		// cell exists only to break the construction-order cycle below (the dispatcher chain
-		// is built before the Inspector store that needs it, and nothing dispatches before
-		// `buildRuntime` finishes assigning `inspectorRef.current`). `?? Promise.resolve()`
-		// read as "inspector not yet created" and was never taken in production — v8's own
-		// branch count on that operator's right-hand side was 0 across the whole suite,
-		// which is the unreachable-guard shape this repository restructures rather than
-		// leaves uncovered. `async`/`await` still tolerates the type-level nullability
-		// `EditorContextDeps` and this cell both carry, with no second branch left to cover.
-		inspectorStore: { refresh: async () => { await inspectorRef.current?.refresh(); } },
+		// The cell breaks construction order and is retired on disposal. A late hydration
+		// must not start another Inspector query after the editor has closed.
+		// A superseded hydration leaves refreshing set for its queued replacement. Its
+		// Inspector query must wait for that replacement's scene instead of reading now.
+		inspectorStore: { refresh: async () => { if (!projectStore.refreshing) await inspectorRef.current?.refresh(); } },
 		queries: context.queries,
 		planId: context.planId,
 	});
+	const spatialReads = createLatestRead(refreshSpatial, () => {});
+	let active = true;
+	const refreshProjection = async (): Promise<void> => {
+		if (!active) return;
+		projectStore.invalidateHydration(); inspectorRef.current?.invalidate();
+		await Promise.all([spatialReads.refresh(), planning.refresh()]);
+	};
+	onBeforeUnmount(() => { active = false; inspectorRef.current?.invalidate(); inspectorRef.current = null; spatialReads.dispose(); projectStore.cancelHydration(); });
 	const dispatcher = withStateRefresh(history, refreshProjection);
-	const tracked = withSaveStateTracking(dispatcher, useSaveStateStore());
-	const gated = withStaleGate(tracked, () => projectStore.stale || session.perspective === 'review');
-	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, gated);
-	const writesBlocked = computed(() => projectStore.stale);
+	const save = useSaveStateStore();
+	const tracked = withSaveStateTracking(dispatcher, save);
+	const unsafeHistory = (): boolean => planning.failed.value || save.unrecoveredWrite;
+	const writesBlocked = computed(() => projectStore.stale || unsafeHistory());
+	const gated = withStaleGate(tracked, () => writesBlocked.value || session.perspective === 'review', unsafeHistory);
+	const historyState = wrapDispatcher(history, gated);
+	const wrappedDispatcher = historyState.dispatcher;
+	const canUndo = computed(() => !unsafeHistory() && historyState.canUndo.value);
+	const canRedo = computed(() => !unsafeHistory() && historyState.canRedo.value);
 	const pausedReasonId = useId();
-	return { wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
+	return { planning, wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
 }
 
-function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovation' | 'resizeRoom' | 'resizeRoomBlocked' | 'renameRoom' | 'renameRoomBlocked' | 'openReference' | 'referenceActive' | 'referenceBlocked'> {
+function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovation' | keyof EditorFormActions> {
 	const editor = useEditorStore(), session = useRenovationSession();
 	const projectStore = useProjectStore();
 	const selection = useSelectionStore();
@@ -618,6 +623,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const ledger = new SessionWriteLedger();
 
 	const {
+		planning,
 		wrappedDispatcher,
 		canUndo,
 		canRedo,
@@ -690,7 +696,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 		createEditorContext({
 			bindViewport: () => viewportAdapter,
 			selection,
-			snapService: EDITOR_SNAP_SERVICE,
+			snapService: createEditorSnapService(() => editor.snappingEnabled),
 			commandDispatcher: toolDispatcher,
 			writeLedger: ledger,
 			renderState,
@@ -698,7 +704,9 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 			// The trust path (design spec §2.2, §2.9): threaded from the SAME computed
 			// `writesBlocked` above rather than re-read from the store, to the one tool
 			// (`SelectTool`) that is not itself inside the Vue tree.
-			writesBlocked: () => writesBlocked.value || session.perspective !== 'plan',
+			// Room/Area outlines and reviewed wall measurements remain editable in Renovate.
+			// Generic current-element gestures stay in Plan; proposals use Planned commands.
+			writesBlocked: () => writesBlocked.value || session.perspective === 'review' || (session.perspective === 'renovate' && selection.selectedIds.some(id => projectStore.structure.elements?.some(element => element.id === id))),
 		}),
 	);
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather
@@ -721,10 +729,14 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const { createRoom, canCreateRoom, roomDraftIncomplete, roomDraft, defaultRoomName } = createRoomCreationAction({
 		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
 	});
-	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect });
+	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect, roomDraft, defaultRoomName });
 	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
-	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value, previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
+	const elementTask = createElementTask(context, { toolManager, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
+	const elementActions = createElementActions(context, { activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, structureTask, openPlanNote: () => context.openPlanNote() });
+	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value,
+		previewElement: elementActions.previewElement, moveElement: (id, points, original) => { void elementActions.move(id, points, original); },
+		previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
 	// BECOMES `'ready'` — and a `previous !== 'ready'` guard would be dead code here, not a
@@ -745,7 +757,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	);
 
 	const selectAndFrame = (id: string, toggle = false): void => selectAndFrameOn(projectStore, selection, editor, { id, toggle });
-	registerSelectionRetirement(projectStore, selection, renderState, inspector);
+	registerSelectionRetirement(projectStore, selection, renderState);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
 	// refusal — bound straight to the context bar's Undo/Redo clicks.
@@ -786,7 +798,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	}
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
-	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore });
+	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore, moveElement: elementActions.move });
 
 	// The assign picker's options and the Inspector's rows, hydrated at mount and re-read on the
 	// three doors that carry what they draw — the catalogue's, the price's and the recalculation
@@ -798,18 +810,18 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 
 	return {
 		dispatcher: wrappedDispatcher,
-		structureTask, structureActions,
+		structureTask, structureActions, elementTask, elementActions,
 		toolManager, renderState, activeToolId, setTool, returnToSelect, cancelActiveTask,
 		undo, redo, canUndo, canRedo,
 		inspectorDto: storeToRefs(inspector).dto,
 		inspectorRequirements: storeToRefs(inspector).requirements,
 		assetOptions: assetOptionsRef,
 		hydrateInspector: (ids) => inspector.hydrateFrom(ids),
-		deleteZone, commitEdit, commitField, selectAndFrame,
+		deleteZone: (id, name) => projectStore.structure.elements?.some(item => item.id === id) ? elementActions.remove(id) : deleteZone(id, name), commitEdit, commitField, selectAndFrame,
 		multiSelectionMode: ref(false),
 		createRoom, canCreateRoom, roomDraftIncomplete, roomDraft,
 		...areaTask,
-		refreshProjection, writesBlocked, pausedReasonId,
+		planning, refreshProjection, writesBlocked, pausedReasonId,
 		openPlanNote: () => context.openPlanNote(),
 		nudgeSelection,
 	};
@@ -826,7 +838,7 @@ export const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-pl
 
 export function provideEditorRuntime(context: PlanEditorContext): EditorRuntime {
 	const base = buildRuntime(context);
-	const runtime = { ...base, renovation: createRenovationActions(context, base), ...createRoomResizeAction(context, base), ...createRoomNamingAction(context, base), ...createReferenceAction(context, base) };
+	const runtime = { ...base, ...createEditorFormActions(context, base), renovation: createRenovationActions(context, base) };
 	provide(EDITOR_RUNTIME, runtime);
 	return runtime;
 }

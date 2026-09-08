@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Understand room costs and follow them to their authority]]"
 order: 40
-status: New
+status: In Progress
 horizon: "V1"
 release: ""
 ---
@@ -41,3 +41,7 @@ in the Inspector.
 ## Outcome
 
 Room costs lead to authoritative quote comparison without turning the Inspector into one.
+
+## Finalization candidate — 2026-09-07
+
+Production source is implemented in the editor finalization worktree under [ADR-0024](../development/adrs/0024-trades-manual-schedules-and-quote-comparison.md). Canonical repositories, guarded commands and contextual Project routes are reused. Targeted tests and the unchanged combined gates are in progress; final browser and live-host acceptance remain open. See the [completion matrix](../user-experience/renovation-planner-editor-specs/implementation/completion-matrix.md).

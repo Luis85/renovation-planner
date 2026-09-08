@@ -1,0 +1,51 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-object-ui
+
+stderr | tests/presentation/editor/finalOverviewPresentation.test.ts > shows actual shared Room change cues and preserves partial/stale summary behavior
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/finalOverviewPresentation.test.ts > keeps the closed wall draft visibly distinct, screen-sized and uncommitted until Finish
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/finalOverviewPresentation.test.ts (2 tests | 2 failed) 527ms
+   × shows actual shared Room change cues and preserves partial/stale summary behavior 421ms
+   × keeps the closed wall draft visibly distinct, screen-sized and uncommitted until Finish 105ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/presentation/editor/finalOverviewPresentation.test.ts > shows actual shared Room change cues and preserves partial/stale summary behavior
+AssertionError: expected '0 planned changes' to be '1 planned changes' // Object.is equality
+
+Expected: "1 planned changes"
+Received: "0 planned changes"
+
+ ❯ tests/presentation/editor/finalOverviewPresentation.test.ts:30:4
+     28|  expect(floor.get('.rp-floor-inspector__guidance').text()).toBe(tr('ed…
+     29|  for (const id of [rig.room.id, rooms[0].id]) expect(floor.get(`[data-…
+     30|   .toBe(tr('renovation.summary.change-count', { count: '1' }));
+       |    ^
+     31|  expect(floor.get(`[data-rp-id="${rooms[1].id}"] .rp-room-list__annota…
+     32|  const bytes = [...rig.stack.vault.entries];
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |suite| tests/presentation/editor/finalOverviewPresentation.test.ts > keeps the closed wall draft visibly distinct, screen-sized and uncommitted until Finish
+AssertionError: expected 'rgb(0, 0, 0)' not to be 'rgb(0, 0, 0)' // Object.is equality
+ ❯ tests/presentation/editor/finalOverviewPresentation.test.ts:55:31
+     53|  const architecture = expectDefined(stage.findOne<Konva.Layer>('.archi…
+     54|  const wall = expectDefined(architecture.find<Konva.Line>('Line').find…
+     55|  expect(outline.stroke()).not.toBe(wall.stroke()); expect(outline.dash…
+       |                               ^
+     56|  expect(outline.points()).toEqual(task.draft.points.flatMap(point => […
+     57|  expect(stage.find('.wall-draft-corner')).toHaveLength(4);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 5 passed (6)
+      Tests  2 failed | 120 passed (122)
+   Start at  22:38:43
+   Duration  63.02s (transform 8.54s, setup 0ms, import 22.19s, tests 5.32s, environment 33.62s)
+

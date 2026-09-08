@@ -1,4 +1,6 @@
+import { validWorkSchedule, type WorkSchedule } from '../schedule/WorkSchedule';
 import { validatePlanningDepth } from './validatePlanningDepth';
+import { hasRoomContext, validSharedLinks, type SpatialLink } from './SharedLinks';
 import type { PlanningDepth } from './PlanningDepth';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, ok, type Result } from '../../core/result/Result';
@@ -25,6 +27,7 @@ export interface RenovationSubject {
 	readonly planned: PlannedFacts | null;
 }
 export interface WorkPackage {
+	readonly links?: readonly SpatialLink[];
 	readonly id: string;
 	readonly roomId: string;
 	readonly targetId: string;
@@ -32,7 +35,9 @@ export interface WorkPackage {
 	readonly description: string;
 	readonly order: number;
 	readonly progress: typeof WORK_PROGRESS[number];
-	readonly responsibility: 'unassigned' | 'diy';
+	readonly responsibility: 'unassigned' | 'diy' | 'trade';
+	readonly tradeId?: string;
+	readonly schedule?: WorkSchedule;
 	readonly outcomes: readonly string[];
 	readonly dependencies: readonly string[];
 }
@@ -85,7 +90,9 @@ function hasCycle(work: readonly WorkPackage[]): boolean {
 
 function validWork(item: WorkPackage): boolean {
 	return !!item.title.trim() && !!item.targetId.trim() && Number.isSafeInteger(item.order) && item.order >= 0
-		&& WORK_PROGRESS.includes(item.progress) && ['unassigned', 'diy'].includes(item.responsibility);
+		&& WORK_PROGRESS.includes(item.progress) && ['unassigned', 'diy', 'trade'].includes(item.responsibility)
+		&& (item.responsibility === 'trade' ? !!item.tradeId?.trim() : item.tradeId === undefined)
+		&& validWorkSchedule(item.schedule);
 }
 export function validateRenovation(value: Renovation): Result<void, ValidationError> {
 	const depth = validatePlanningDepth(value.depth ?? { costs: [], procurement: [], evidence: [] }, value);
@@ -96,14 +103,21 @@ function validateRecords(value: Renovation): Result<void, ValidationError> {
 	if (all.some(item => !item.id.trim() || !item.roomId.trim()) || new Set(all.map(item => item.id)).size !== all.length) return err(renovationError('identity'));
 	if (value.subjects.some(item => !item.targetId.trim() || !validSubject(item))) return err(renovationError('state'));
 	const subjects = new Map(value.subjects.map(item => [item.id, item]));
-	const workIds = new Set(value.work.map(item => item.id));
-	for (const item of value.work) {
-		if (!validWork(item)) return err(renovationError('work'));
-		if (new Set(item.dependencies).size !== item.dependencies.length || item.dependencies.some(id => !workIds.has(id))) return err(renovationError('dependency'));
-		if (new Set(item.outcomes).size !== item.outcomes.length || item.outcomes.some(id => !subjects.get(id)?.planned || subjects.get(id)?.roomId !== item.roomId)) return err(renovationError('outcome'));
-	}
+	const work = validateWorkRecords(value.work, subjects);
+	if (!work.ok) return work;
 	if (hasCycle(value.work)) return err(renovationError('cycle'));
 	if (value.decisions.some(item => !item.question.trim() || (item.resolved && !item.resolution.trim()) || subjects.get(item.subjectId)?.roomId !== item.roomId)) return err(renovationError('decision'));
+	return ok(undefined);
+}
+
+function validateWorkRecords(work: readonly WorkPackage[], subjects: ReadonlyMap<string, RenovationSubject>): Result<void, ValidationError> {
+	const workIds = new Set(work.map(item => item.id));
+	for (const item of work) {
+		if (!validSharedLinks(item)) return err(renovationError('target-missing'));
+		if (!validWork(item)) return err(renovationError('work'));
+		if (new Set(item.dependencies).size !== item.dependencies.length || item.dependencies.some(id => !workIds.has(id))) return err(renovationError('dependency'));
+		if (new Set(item.outcomes).size !== item.outcomes.length || item.outcomes.some(id => !subjects.get(id)?.planned || !hasRoomContext(item, subjects.get(id)?.roomId))) return err(renovationError('outcome'));
+	}
 	return ok(undefined);
 }
 
@@ -124,11 +138,15 @@ export interface ReadinessFinding {
 export function reviewRenovation(value: Renovation): readonly ReadinessFinding[] {
 	const findings: ReadinessFinding[] = [];
 	for (const item of value.decisions) if (!item.resolved) findings.push({ kind: 'decision', roomId: item.roomId, recordId: item.id, causes: [item.question] });
-	for (const item of value.subjects) if (item.planned && item.planned.change !== 'unchanged' && !value.work.some(work => work.outcomes.includes(item.id))) findings.push({ kind: 'missing-work', roomId: item.roomId, recordId: item.id, causes: [item.planned.description || item.existing?.description || item.id] });
+	for (const item of value.subjects) if (item.planned && item.planned.change !== 'unchanged' && !value.work.some(work => work.outcomes.includes(item.id))) findings.push({ kind: 'missing-work', roomId: item.roomId, recordId: item.id, causes: [subjectLabel(item)] });
 	for (const item of value.work) {
 		if (item.outcomes.length === 0) findings.push({ kind: 'missing-outcome', roomId: item.roomId, recordId: item.id, causes: [item.title] });
 		const blocked = blockingWork(value, item);
 		if (item.progress !== 'complete' && blocked.length) findings.push({ kind: 'blocked', roomId: item.roomId, recordId: item.id, causes: blocked.map(other => other.title) });
 	}
 	return findings.toSorted((a, b) => a.kind.localeCompare(b.kind, 'en') || a.recordId.localeCompare(b.recordId, 'en'));
+}
+/** How a subject is named where one line fits: what is planned, else what is there, else its id — a validated subject always has one of the first two. */
+export function subjectLabel(subject: RenovationSubject): string {
+	return subject.planned?.description || subject.existing?.description || subject.id;
 }

@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-coverage-finalization
+
+
+ Test Files  8 passed (8)
+      Tests  56 passed (56)
+   Start at  21:20:50
+   Duration  14.85s (transform 16.15s, setup 0ms, import 21.94s, tests 2.12s, environment 2.71s)
+

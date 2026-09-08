@@ -1,0 +1,28 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-object-ui
+
+ ❯ |suite| tests/helpers/canvasArc.test.ts (3 tests | 2 failed) 21ms
+   × matches browser arc direction conversion for clockwise numeric flag while drawing real pixels 7ms
+   × matches browser arc direction conversion for counterclockwise numeric flag while drawing real pixels 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/helpers/canvasArc.test.ts > matches browser arc direction conversion for clockwise numeric flag while drawing real pixels
+ FAIL  |suite| tests/helpers/canvasArc.test.ts > matches browser arc direction conversion for counterclockwise numeric flag while drawing real pixels
+Error: Failed to convert napi value into rust type `bool`
+ ❯ tests/helpers/canvasArc.test.ts:17:48
+     15|  context.beginPath(); context.lineWidth = 2;
+     16|  // Konva's SVG Path renderer calls arc with numeric 0/1 rather than a…
+     17|  (context.arc as (...args: unknown[]) => void).call(context, 16, 16, 1…
+       |                                                ^
+     18|  context.stroke();
+     19|  const reference = createCanvas(32, 32).getContext('2d'); reference.be…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  13:57:55
+   Duration  1.79s (transform 64ms, setup 0ms, import 411ms, tests 21ms, environment 1.12s)
+

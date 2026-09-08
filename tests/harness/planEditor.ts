@@ -1,4 +1,7 @@
+import { planningRecoveryProbe } from './planningRecoveryProbe';
+import { editorFidelityProbe } from './editorFidelityProbe';
 import { referenceWorkspace } from './referenceWorkspace';
+import { downstreamWorkspace } from './downstreamWorkspace';
 import { err, ok } from '../../src/core/result/Result';
 import type { PersistenceError } from '../../src/core/errors/AppError';
 import { Zone } from '../../src/domain/zone/Zone';
@@ -424,9 +427,9 @@ export interface PlanEditorHarnessOptions {
 
 /**
  * Drives the `?select=<zoneId>` knob: waits for the floor summary's room list to exist at all
- * — it renders only once the plan has hydrated — then clicks the row whose TEXT matches the
- * zone's name. `RoomSummaryList` renders `record.name`, never `record.id`, so the id has to be
- * turned back into a name first; there is nothing in the DOM to match the id itself against.
+ * — it renders only once the plan has hydrated — then clicks its stable `data-rp-id` row.
+ * Matching identity lets the visible row include area metadata or a renamed label without
+ * changing which record the knob selects.
  *
  * The click goes through `RoomSummaryList`'s own `@click="runtime.selectAndFrame(record.id)"`
  * — the real door a user's own click takes — rather than reaching into the runtime or the
@@ -463,9 +466,8 @@ async function selectZoneOnceReady(root: HTMLElement, zoneId: string): Promise<v
 		);
 	}
 
-	const name = HARNESS_ZONES.find((zone) => zone.id === zoneId)?.name;
 	const row = [...root.querySelectorAll<HTMLButtonElement>('.rp-room-list__row')].find(
-		(candidate) => candidate.textContent?.trim() === name,
+		(candidate) => candidate.dataset.rpId === zoneId,
 	);
 	row?.click();
 }
@@ -597,7 +599,7 @@ async function enterRoomTaskOnceReady(
 		() => root.querySelector('.rp-new-room, [data-rp-rail="details"]') !== null,
 		"the ?room knob's New room form, or the rail that holds it",
 	);
-	const inDrawer = root.querySelector('.rp-new-room') === null;
+	const inDrawer = root.querySelector('.rp-editor-shell')?.getAttribute('data-layout') === 'constrained';
 	if (inDrawer) {
 		root.querySelector<HTMLButtonElement>('[data-rp-rail="details"]')?.click();
 		await settleUntil(
@@ -643,14 +645,21 @@ export function mountPlanEditorHarness(
 	// Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
 	const base = harnessDeps({ stale: options.stale });
-	const deps = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN, new URLSearchParams(location.search).has('planning')).deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base;
-	const view = new PlanEditorView(new FakeLeaf() as never, deps);
+	const workspace = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN, new URLSearchParams(location.search).has('planning')) : null;
+	const downstream = workspace && new URLSearchParams(location.search).has('downstream') ? downstreamWorkspace(workspace, leafEl) : null;
+	const deps = downstream?.deps ?? (workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base);
+	const view = new PlanEditorView((downstream?.leaf ?? new FakeLeaf()) as never, deps);
+	downstream?.attach(view);
 	leafEl.appendChild(view.containerEl);
+	if (workspace && new URLSearchParams(location.search).has('recovery')) Object.assign(window, { planningRecovery: planningRecoveryProbe(workspace, view) });
+	if (workspace && new URLSearchParams(location.search).has('fidelity')) Object.assign(window, { editorFidelity: editorFidelityProbe(workspace) });
 
 	// State first, then open — the restored-leaf order. `void` rather than awaited: the
 	// page entry cannot await, and both do their work synchronously before resolving.
-	void view.setState({ planId: HARNESS_PLAN.id }, {} as never);
-	void view.onOpen();
+	const open = () => { void view.setState({ planId: HARNESS_PLAN.id }, {} as never); return view.onOpen(); };
+	// The opt-in shared root must finish fixture seeding/index scan before any mounted read.
+	if (downstream) void downstream.ready.then(open);
+	else void open();
 
 	// Every knob runs against `leafEl`, never `document`, so a jsdom case mounting more than
 	// one editor in a suite cannot have one's knob reach into another's DOM.

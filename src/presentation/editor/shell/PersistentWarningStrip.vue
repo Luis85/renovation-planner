@@ -46,6 +46,7 @@ import { onBeforeUpdate, onUpdated, ref } from 'vue';
 import { tr } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
 import type { EditorWarning, WarningSeverity } from './warnings';
+import HostIcon from '../../components/HostIcon.vue';
 
 defineProps<{ warnings: readonly EditorWarning[] }>();
 
@@ -96,8 +97,11 @@ onUpdated(() => {
 			:data-rp-severity="w.severity"
 			:aria-busy="w.actions?.some((a) => a.busy) ? 'true' : undefined"
 		>
-			<span class="rp-warning-strip__severity">{{ tr(SEVERITY_LABEL[w.severity]) }}</span>
-			{{ tr(w.messageKey, w.params) }}
+			<HostIcon :name="w.severity === 'warning' ? 'triangle-alert' : 'circle-alert'" />
+			<span class="rp-warning-strip__content">
+				<span class="rp-warning-strip__severity">{{ tr(SEVERITY_LABEL[w.severity]) + ' ' }}</span>
+				<span>{{ tr(w.messageKey, w.params) }}</span>
+			</span>
 			<span
 				v-if="w.actions !== undefined"
 				class="rp-warning-strip__actions"

@@ -22,6 +22,7 @@ function toTuples(points: readonly { x: number; y: number }[]): [number, number]
 }
 function toStructure(structure: Structure | undefined): PlanGeometryDTO['structure'] {
 	return structure ? {
+		...(structure.elements?.length ? { elements: structure.elements.map(element => ({ ...element, points: element.points.map(point => ({ ...point })) })) } : {}),
 		walls: structure.walls.map(wall => ({ ...wall, start: { ...wall.start }, end: { ...wall.end } })),
 		openings: structure.openings.map(opening => ({ ...opening })),
 		boundaries: structure.boundaries.map(boundary => ({ ...boundary, wallIds: [...boundary.wallIds] })),

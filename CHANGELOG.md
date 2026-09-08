@@ -12,6 +12,52 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Evidence supports explicit capture/document dates without inferring file timestamps, stable gallery/pin date order during recovery, and navigation to its separately linked Work. Dated Plans use schema 8 so older writers cannot discard the field.
+- Evidence pins show host type symbols beside their numbers, and Room captions remain clear of pins. Inspector overview links preserve native focus when their source control disappears.
+
+- Work and Quote recovery opens the actual saved source after failed read-back, including a newly created Quote and Undo across floors. Successful Retry restores keyboard focus when its warning disappears; source opening and retry never replay the write.
+
+- Work and Quote dialogs return keyboard focus to the Project control when a refreshed row removes their opener, including a Quote becoming received or a peer deleting the edited record.
+
+- Reference dialogs return keyboard focus to the originating Layers/Details control or width-recovery action when reflow hides their opener; cancellation preserves the saved reference.
+
+- Recovery regression coverage: native cancellation after peer-deleted element edits, corrected Object geometry and Undo, retired leaf callbacks, and composed downstream repository fault boundaries. Structural edit/removal share one fresh-baseline recovery decision.
+
+- Project Work: assign shared Trades and explicit start/end dates through the existing Work form, inspect floor and Room context, and return to the source Work with conditional Undo/Redo.
+- Project quote comparison: shared Suppliers, precise decimal offer lines with explicit Work/catalogue scope, immutable received offers, separate revisions, and contextual return from Costs. Failed refreshes preserve draft text and successful writes; retries do not replay saved offers.
+
+- Plan editor: canvas Enter finishes named element drafts and Backspace removes their last point through the existing guarded tool lifecycle; native form input and pending numeric drafts retain their own behavior.
+
+- Plan editor: compact material rows, expandable cost groups that highlight their linked Work geometry, a photo gallery with selected metadata and phase controls, and persistent contextual navigation. Entering renovation details now uses the selected Room instead of restoring a previous wall.
+
+- Plan editor: Add → Item creates a named Object from a numeric rectangle or outline, with native input validation, persistent draft text, precise editing and guarded history. All eleven Add entries now reach supported production tasks or contextual forms.
+
+- Linked material documents reveal their spatial context; several targets within one Room use its aggregate view. Explicit marker navigation reopens Details in constrained layouts. Paused Area type controls retain keyboard focus and refuse changes.
+
+- Plan editor: numbered material markers highlight source geometry and navigate to the same Inspector record. Explicit Work, cost, material, Decision and evidence links reveal their target while preserving a valid shared Room context.
+
+- Plan editor: deleting a mixed wall/opening/Object/Path/Fence/Measurement selection uses one guarded transaction with impact confirmation and Undo/Redo; hosted openings and boundary references are handled together while independent Room outlines remain intact.
+
+- Plan editor: Path, Fence and Measurement creation with numeric coordinates, snapping, selection, precise editing, movement and guarded Undo/Redo. Generic element geometry and canonical names participate in existing/intended renovation, material quantities and explicit Room contexts. Failed baseline reads preserve drafts for read-only retry; compensated retries retain the same creation identity.
+
+- Align dragged Room rectangles to saved geometry with visible snap feedback; exact numeric edits remain available.
+
+- Plan editor: Add → Note opens the selected Room’s Notes form. Notes remain ordinary vault files; Undo/Redo removes/restores the evidence link without deleting the note file.
+
+- Plan editor: explicit Area name/type editing and numeric corner editing for existing Room/Area outlines, with conditional writes, previews and Undo/Redo. Add → Room offers a free-shape outline with native name and corner controls; switching from a completed rectangle preserves its outline and name.
+
+- Plan editor: Project breadcrumb and Materials library actions reuse the existing workspace navigation paths. Contextual planning drafts preserve the selected source target and related record.
+
+- Plan editor: planning read-back recovery retains the last valid projection, qualifies saved
+  status, pauses unsafe writes/history and offers read-only retry from warnings and open drafts.
+  Renovation Apply exposes its paused state to assistive technology while draft fields stay editable.
+  EN/DE planning numbers preserve decimal precision and accept decimal comma or point.
+  Relevant event bursts coalesce; linked evidence refreshes without recalculating the floor.
+
+- Planning reliability: generated Review findings use one fresh planning baseline, and stale
+  fully procured materials block generated shopping content. Evidence follows Plan-note renames
+  after its index updates, and failed thumbnails recover when their linked resource changes.
+
 - Plan editor: start an empty floor with rooms, a reference plan or an empty canvas. Prepare a
   vault image/PDF with page, crop and rotation, set scale by pointer or keyboard, then review
   opacity and locking. One compensated, version-checked command persists the reference and
@@ -167,6 +213,29 @@ entries are added by the pull request that earns them, never invented at release
   (`tests/release/manifest.test.ts`).
 
 ### Fixed
+
+- Keep Room rename/resize controls consistent with planning and unrecovered-write pauses, reload changed evidence thumbnails at the same resource path, and return keyboard focus into an already-open panel when its rail is activated again.
+
+- Restore Room and reviewed wall selection handles and Select/Add in Renovate, using the existing geometry history while retaining read-only Review.
+- Plan editor: editing or removing a wall that a peer has already deleted refreshes the displayed structure and refuses the obsolete action without writing.
+
+- Discarding an added generic element removes its intended geometry and canonical label together; Undo restores both, and a peer revision refuses stale history without overwriting it.
+
+- Planning and renovation dialogs keep busy native choices and actions focusable, refuse changes while saving, and retain the original draft values. Late save completion after closing a leaf does not reopen its form or move focus.
+
+- Room naming, dimensions, outline and Area details dialogs return keyboard focus to a visible control after responsive reflow, including when the persistent Inspector opener becomes hidden.
+
+- Preserve native Inspector/Layer controls, pending text, caret selection and focus while resizing the editor. A focused region opens automatically at constrained widths; close and Escape still return focus to the rail.
+
+- Report unexpected query failures from planning, renovation and spatial draft retries while retaining the draft and keeping retry read-only; suppress late reports after the editor closes.
+
+- Plan editor recovery retires obsolete spatial and Inspector reads when a newer refresh is queued, continues after obsolete read failures, reports detached refresh faults, and offers only Close when the Plan is missing.
+
+- Open drafts distinguish an incomplete write from a failed refresh: source inspection and Cancel remain available, without offering a read retry that cannot repair partial writes.
+
+- Evidence opened from a material or cost announces the same selected state it highlights; unlinked evidence stays unselected until explicitly focused.
+
+- Keep the evidence-path draft editable during refresh recovery while blocking file writes and Apply; retain readable Room names in freshly generated Review notes, with ID fallback for missing Rooms.
 
 - The stylesheet assembler now accepts hyphenated partial names and CRLF-saved entry
   files (both failed the build with a false "does not import" message), counts the

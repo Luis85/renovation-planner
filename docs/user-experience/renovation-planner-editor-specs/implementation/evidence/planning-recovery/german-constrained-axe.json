@@ -1,0 +1,16 @@
+{
+  "violations": [],
+  "incomplete": [
+    {
+      "id": "color-contrast",
+      "nodes": [
+        {
+          "target": [
+            "button[data-rp-rail=\"details\"]"
+          ],
+          "summary": "Fix any of the following:\n  Could not parse color string oklch(0.999994 0.0000497986 none / 0.067)"
+        }
+      ]
+    }
+  ]
+}

@@ -62,6 +62,8 @@ export interface NoteWriteSpec<TEntity> {
 	 * `writeOwnedFrontmatter`.
 	 */
 	readonly retiredKeys?: readonly string[];
+	/** Evaluated on the host callback content after the expected-version check. */
+	readonly validateCurrent?: (raw: Record<string, unknown>) => RepositoryError | null;
 	/** The fresh-note file name base — an Asset's name, a Requirement's composed name. */
 	readonly entryName: (entity: TEntity) => string;
 	readonly toPersistence: (entity: TEntity, revision: number) => Record<string, unknown>;
@@ -104,10 +106,14 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 	}
 
 	let notePath: string;
+	let mutationRefusal: RepositoryError | null = null;
 	try {
 		if (existing) {
 			notePath = existing.path;
-			await writeOwnedFrontmatter(deps.fileManager, existing, dto, spec.retiredKeys);
+			await writeOwnedFrontmatter(deps.fileManager, existing, dto, spec.retiredKeys, raw => {
+    mutationRefusal = checkExpectedVersion(spec.kind, entity.id, versionOfFrontmatter(raw), expected) ?? spec.validateCurrent?.(raw) ?? null;
+    if (mutationRefusal) throw new Error(mutationRefusal.message);
+   });
 		} else {
 			// The insert path is the only one that has to choose a location, so it is the
 			// only one an unresolvable project folder can refuse. Nothing has been written
@@ -126,6 +132,7 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 			await deps.vault.create(notePath, serializeFrontmatter(dto));
 		}
 	} catch (cause) {
+		if (mutationRefusal) return err(mutationRefusal);
 		return err(persistenceError(spec.writeFailedCode, `Could not write ${spec.kind} ${entity.id}.`, cause));
 	}
 

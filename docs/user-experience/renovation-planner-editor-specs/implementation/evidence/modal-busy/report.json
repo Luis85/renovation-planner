@@ -1,0 +1,114 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "existing": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "floor",
+      "busyEscapeAndTab": true
+    },
+    "material": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "asset-01M1WZY1JEFGJE9DH3FZZN13XD",
+      "busyEscapeAndTab": true
+    },
+    "counts": {
+      "reads": 7,
+      "planWrites": 2,
+      "materialWrites": 1,
+      "spatialReads": 6,
+      "waitingWrites": 0,
+      "listeners": 8,
+      "stages": 1,
+      "images": 0,
+      "objectUrls": 0
+    },
+    "scope": "Native Chromium keyboard with production repositories held at the pending write boundary; no live Obsidian acceptance.",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "existing": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "floor",
+      "busyEscapeAndTab": true
+    },
+    "material": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "asset-01M1WZYEVD8KS1NWRTX7P7W7CG",
+      "busyEscapeAndTab": true
+    },
+    "counts": {
+      "reads": 7,
+      "planWrites": 2,
+      "materialWrites": 1,
+      "spatialReads": 6,
+      "waitingWrites": 0,
+      "listeners": 8,
+      "stages": 1,
+      "images": 0,
+      "objectUrls": 0
+    },
+    "scope": "Native Chromium keyboard with production repositories held at the pending write boundary; no live Obsidian acceptance.",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "existing": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "floor",
+      "busyEscapeAndTab": true
+    },
+    "material": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "asset-01M1WZYTV7Z5RCX1K7ZWEH15MH",
+      "busyEscapeAndTab": true
+    },
+    "counts": {
+      "reads": 7,
+      "planWrites": 2,
+      "materialWrites": 1,
+      "spatialReads": 6,
+      "waitingWrites": 0,
+      "listeners": 8,
+      "stages": 1,
+      "images": 0,
+      "objectUrls": 0
+    },
+    "scope": "Native Chromium keyboard with production repositories held at the pending write boundary; no live Obsidian acceptance.",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "existing": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "floor",
+      "busyEscapeAndTab": true
+    },
+    "material": {
+      "retainedApplyFocus": true,
+      "choiceRestored": "asset-01M1WZZ7C3T916DSPWJ8367FR1",
+      "busyEscapeAndTab": true
+    },
+    "counts": {
+      "reads": 7,
+      "planWrites": 2,
+      "materialWrites": 1,
+      "spatialReads": 6,
+      "waitingWrites": 0,
+      "listeners": 8,
+      "stages": 1,
+      "images": 0,
+      "objectUrls": 0
+    },
+    "scope": "Native Chromium keyboard with production repositories held at the pending write boundary; no live Obsidian acceptance.",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

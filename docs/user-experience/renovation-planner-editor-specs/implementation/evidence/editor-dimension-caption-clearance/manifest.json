@@ -1,0 +1,27 @@
+{
+  "greenSource": "5154504f",
+  "redRendererSource": "242bfa33",
+  "redTestSource": "5154504f",
+  "red": "3 expected overlap/clip failures",
+  "green": "25 passed in five files",
+  "types": "passed",
+  "oxlint": "failed pure nested helper scoping, corrected afterward",
+  "files": [
+    {
+      "file": "dimension-caption-green.txt",
+      "sha256": "a6649f6227b1e1ebdb01a1992e89469757af95bf9d3f0e5a7335141d60d1eceb"
+    },
+    {
+      "file": "dimension-caption-red.txt",
+      "sha256": "70968cad647826d4f2649e831d5dc667ee168049a851d101eb20a49a0b0d438e"
+    },
+    {
+      "file": "ox-dimension-caption.txt",
+      "sha256": "74107b18cf82b09968ef74d2754048f7087321c8d252c0693c74f40e0481126a"
+    },
+    {
+      "file": "types-dimension-caption.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

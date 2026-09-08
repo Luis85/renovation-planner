@@ -40,6 +40,6 @@ export function createToolSwitch(
 		} else {
 			toolManager.setActiveTool(id);
 		}
-		activeToolId.value = id;
+		activeToolId.value = toolManager.activeToolId;
 	};
 }

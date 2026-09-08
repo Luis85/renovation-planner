@@ -590,10 +590,12 @@ export async function writeOwnedFrontmatter(
 	file: TFile,
 	owned: Record<string, unknown>,
 	retired: readonly string[] = [],
+	beforeMutation?: (frontmatter: Record<string, unknown>) => void,
 ): Promise<void> {
 	// `processFrontMatter`'s callback is typed `any` by Obsidian; narrowed here at the one
 	// place that reads it by KEY, so the deletion below is a checked member access.
 	await fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
+		beforeMutation?.(frontmatter);
 		for (const key of retired) delete frontmatter[key];
 		Object.assign(frontmatter, owned);
 	});

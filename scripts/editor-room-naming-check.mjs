@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { checkModalReflow } from './editor-modal-reflow.mjs';
 import { runAreaBrowserMatrix, activate, selectRoomForEditing, assertDialogFocusWrap, checkDialogLayout, tabTo } from './editor-area-browser.mjs';
 
 const form = '[data-rp-form="room-name"]';
@@ -43,7 +44,7 @@ async function verifyHistory(page, narrow, before) {
 	await inspectUndo(page, narrow, before);
 	await activate(page, '[data-rp-action="redo"]');
 	await page.waitForFunction(() => !document.querySelector('[data-rp-action="undo"]').disabled);
-	if (narrow) await activate(page, '[data-rp-rail="details"]');
+	await selectRoomForEditing(page);
 }
 async function inspectUndo(page, narrow, before) {
 	if (narrow) await activate(page, '[data-rp-rail="details"]');
@@ -52,11 +53,6 @@ async function inspectUndo(page, narrow, before) {
 }
 async function reflow(page, narrow) {
 	await enterName(page, 'Unsaved draft');
-	await page.setViewportSize({ width: narrow ? 1280 : 460, height: 900 });
-	await page.waitForFunction(expected => !!document.querySelector('[data-rp-rail="details"]') === expected, !narrow);
-	assert.equal(await page.locator(field).inputValue(), 'Unsaved draft');
-	assert.equal(await page.locator(field).evaluate(el => el === document.activeElement), true, 'reflow preserves input focus');
-	await page.keyboard.press('Escape'); await page.locator(form).waitFor({ state: 'hidden' });
-	assert.equal(await page.locator('.renovation-plan-editor').evaluate(root => root.contains(document.activeElement)), true, 'reflow restores editor focus');
+	await checkModalReflow(page, { action, form, field, narrow });
 }
 await runAreaBrowserMatrix('room-naming', '&rename=room', journey, '.rp-plan-canvas');

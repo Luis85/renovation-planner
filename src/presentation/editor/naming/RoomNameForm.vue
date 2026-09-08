@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { commitTextInput } from '../forms/commitTextInput';
 import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
 import { computed, onBeforeUnmount, useId, type Ref } from 'vue';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
@@ -7,8 +8,8 @@ import { zoneName } from '../../../domain/zone/ZoneName';
 import { useFormCommit } from '../../composables/use-form-commit';
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { useInvalidFieldFocus } from '../../composables/use-invalid-field-focus';
-import FieldError from '../../components/FieldError.vue';
-import FormBanner from '../../components/FormBanner.vue';
+import FormFeedback from '../forms/FormFeedback.vue';
+import NameInputField from '../forms/NameInputField.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 
@@ -32,10 +33,7 @@ const changed = computed(() => {
 });
 const paused = computed(() => props.blocked.value || form.submitting.value);
 const unavailable = computed(() => paused.value || props.latest.value !== null || !changed.value);
-function input(event: Event): void {
-	const control = event.target as HTMLInputElement;
-	if (!refuseInput(control, form.values.value.name)) form.setField('name', control.value);
-}
+function input(event: Event): void { commitTextInput(event, form.values.value.name, refuseInput, value => form.setField('name', value)); }
 async function submit(): Promise<void> {
 	if (unavailable.value) return;
 	if (await form.submit()) { if (alive) emit('submit'); }
@@ -56,35 +54,18 @@ async function submit(): Promise<void> {
 		<p :id="hintId">
 			{{ tr('editor.rename.hint') }}
 		</p>
-		<FormBanner :message="form.banner.value" />
-		<p
-			v-if="latest.value !== null"
-			role="status"
-		>
-			{{ latest.value }}
-		</p>
-		<FieldError
-			v-slot="{ inputId, aria }"
+		<FormFeedback
+			:message="form.banner.value"
+			:latest="latest.value"
+		/>
+		<NameInputField
+			:value="form.values.value.name"
+			:label="tr('editor.rename.name')"
 			:message="form.fieldErrors.value.get('name') ?? null"
-		>
-			<label
-				:for="inputId"
-				class="rp-dialog-field"
-			>
-				{{ tr('editor.rename.name') }}
-				<input
-					:id="inputId"
-					v-bind="aria"
-					name="name"
-					data-field="name"
-					type="text"
-					:value="form.values.value.name"
-					:readonly="paused"
-					:aria-describedby="[hintId, aria['aria-describedby']].filter(Boolean).join(' ')"
-					@input="input"
-				>
-			</label>
-		</FieldError>
+			:paused="paused"
+			:hint-id="hintId"
+			@input="input"
+		/>
 		<p
 			v-if="paused"
 			role="status"

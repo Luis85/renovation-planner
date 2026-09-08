@@ -1,10 +1,12 @@
+import { TradeFrontmatterSchemaV1, SupplierFrontmatterSchemaV1 } from '../../persistence/dto/namedCatalogueFrontmatter';
+import { QuoteFrontmatterSchemaV1 } from '../../persistence/dto/quoteFrontmatter';
 import type { ObservationToken } from '../../../application/ports/versioning';
 import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../persistence/dto/assetFrontmatter';
 import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../../persistence/dto/assetPriceFrontmatter';
-import { PLAN_TYPE, PlanFrontmatterSchemaV4 } from '../../persistence/dto/planFrontmatter';
+import { PLAN_TYPE, PlanFrontmatterSchemaV8 } from '../../persistence/dto/planFrontmatter';
 import { SpatialObjectGeometrySchemaV1, type SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../persistence/dto/projectFrontmatter';
-import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV2 } from '../../persistence/dto/requirementFrontmatter';
+import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV3 } from '../../persistence/dto/requirementFrontmatter';
 import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFrontmatter';
 
 /**
@@ -50,11 +52,14 @@ import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFr
  */
 const SCHEMAS: readonly (readonly [string, { readonly shape: Readonly<Record<string, unknown>> }])[] = [
 	[PROJECT_TYPE, ProjectFrontmatterSchemaV1],
-	[PLAN_TYPE, PlanFrontmatterSchemaV4],
+	[PLAN_TYPE, PlanFrontmatterSchemaV8],
 	[ZONE_TYPE, ZoneFrontmatterSchemaV1],
 	[ASSET_TYPE, AssetFrontmatterSchemaV1],
-	[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV2],
+	[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV3],
 	[ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1],
+	['renovation-trade', TradeFrontmatterSchemaV1],
+	['renovation-supplier', SupplierFrontmatterSchemaV1],
+	['renovation-quote', QuoteFrontmatterSchemaV1],
 ];
 
 const OWNED_KEYS_BY_TYPE: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
@@ -62,7 +67,7 @@ const OWNED_KEYS_BY_TYPE: Readonly<Record<string, readonly string[]>> = Object.f
 );
 
 /**
- * The fallback for a note whose `type` is none of the six: every key any schema declares.
+ * The fallback for a note whose `type` is not recognized: every key any schema declares.
  *
  * Deliberately the WIDER answer rather than the empty one. A token over no keys at all
  * would move for nothing, so a note this plugin somehow wrote without a recognisable type

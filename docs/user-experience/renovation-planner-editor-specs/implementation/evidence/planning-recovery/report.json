@@ -1,0 +1,442 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "normal": {
+      "theme": {
+        "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+        "--text-accent": "hsl(258, 88%, 66%)",
+        "--background-primary": "#ffffff",
+        "--background-secondary": "#f6f6f6"
+      },
+      "storage": "production application services and repositories over FakeVault",
+      "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+      "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+      "reflow": "material draft and native focus preserved",
+      "history": "evidence undo/redo",
+      "scope": "browser host file open is recorded, not a live Obsidian leaf"
+    },
+    "recovery": {
+      "successfulMaterialWrites": 1,
+      "failedRetries": 2,
+      "replayedWrites": 0,
+      "unrelatedEvents": 100,
+      "unrelatedReads": 0,
+      "linkedImageReads": 0,
+      "burstEvents": 100,
+      "burstReads": 1,
+      "warningAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      },
+      "draftAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      }
+    },
+    "accessibility": {
+      "violations": 0,
+      "incompleteChecks": 0,
+      "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+    },
+    "reflow": {
+      "layout": {
+        "width": 446,
+        "scroll": 446
+      },
+      "method": "200% CSS layout zoom with retained draft/focus and keyboard Cancel; native Obsidian zoom acceptance remains separate"
+    },
+    "performance": {
+      "fixture": {
+        "rooms": 80,
+        "materials": 240,
+        "catalogue": 24,
+        "photos": 40,
+        "imageDimensions": "1600 × 1200",
+        "firstRoom": "zone-01M1WGEM5QATF1MTND7Z9SV4QP"
+      },
+      "usableMs": 667.5,
+      "selectionMs": 52.3999999910593,
+      "inspectorMs": 65.8999999910593,
+      "pan": {
+        "samples": 59,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 17,
+        "method": "requestAnimationFrame cadence during middle-button pan and wheel zoom, headless browser"
+      },
+      "resources": [
+        {
+          "reads": 3,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 3,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 4,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 4,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 5,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 5,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        }
+      ],
+      "targets": {
+        "usableMs": 1500,
+        "selectionMs": 100,
+        "inspectorMs": 200,
+        "fps": "target60/min30"
+      },
+      "limitation": "warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements"
+    },
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "normal": {
+      "theme": {
+        "--interactive-accent": "hsl(258, 88%, 66%)",
+        "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+        "--background-primary": "#1C1C1C",
+        "--background-secondary": "#282828"
+      },
+      "storage": "production application services and repositories over FakeVault",
+      "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+      "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+      "reflow": "material draft and native focus preserved",
+      "history": "evidence undo/redo",
+      "scope": "browser host file open is recorded, not a live Obsidian leaf"
+    },
+    "recovery": {
+      "successfulMaterialWrites": 1,
+      "failedRetries": 2,
+      "replayedWrites": 0,
+      "unrelatedEvents": 100,
+      "unrelatedReads": 0,
+      "linkedImageReads": 0,
+      "burstEvents": 100,
+      "burstReads": 1,
+      "warningAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      },
+      "draftAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      }
+    },
+    "accessibility": {
+      "violations": 0,
+      "incompleteChecks": 0,
+      "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+    },
+    "reflow": {
+      "layout": {
+        "width": 446,
+        "scroll": 446
+      },
+      "method": "200% CSS layout zoom with retained draft/focus and keyboard Cancel; native Obsidian zoom acceptance remains separate"
+    },
+    "performance": {
+      "fixture": {
+        "rooms": 80,
+        "materials": 240,
+        "catalogue": 24,
+        "photos": 40,
+        "imageDimensions": "1600 × 1200",
+        "firstRoom": "zone-01M1WGF5RAP0MWJRE9EQKSBJ31"
+      },
+      "usableMs": 693.0999999940395,
+      "selectionMs": 49.400000005960464,
+      "inspectorMs": 67.5,
+      "pan": {
+        "samples": 59,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 16.900000000000546,
+        "method": "requestAnimationFrame cadence during middle-button pan and wheel zoom, headless browser"
+      },
+      "resources": [
+        {
+          "reads": 3,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 3,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 4,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 4,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 5,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 5,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        }
+      ],
+      "targets": {
+        "usableMs": 1500,
+        "selectionMs": 100,
+        "inspectorMs": 200,
+        "fps": "target60/min30"
+      },
+      "limitation": "warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements"
+    },
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "normal": {
+      "theme": {
+        "--interactive-accent": "#7c246b",
+        "--text-accent": "#7c246b",
+        "--background-primary": "#fff8ed",
+        "--background-secondary": "#efe3d3"
+      },
+      "storage": "production application services and repositories over FakeVault",
+      "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+      "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+      "reflow": "material draft and native focus preserved",
+      "history": "evidence undo/redo",
+      "scope": "browser host file open is recorded, not a live Obsidian leaf"
+    },
+    "recovery": {
+      "successfulMaterialWrites": 1,
+      "failedRetries": 2,
+      "replayedWrites": 0,
+      "unrelatedEvents": 100,
+      "unrelatedReads": 0,
+      "linkedImageReads": 0,
+      "burstEvents": 100,
+      "burstReads": 1,
+      "warningAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      },
+      "draftAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      }
+    },
+    "accessibility": {
+      "violations": 0,
+      "incompleteChecks": 0,
+      "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+    },
+    "reflow": {
+      "layout": {
+        "width": 446,
+        "scroll": 446
+      },
+      "method": "200% CSS layout zoom with retained draft/focus and keyboard Cancel; native Obsidian zoom acceptance remains separate"
+    },
+    "performance": {
+      "fixture": {
+        "rooms": 80,
+        "materials": 240,
+        "catalogue": 24,
+        "photos": 40,
+        "imageDimensions": "1600 × 1200",
+        "firstRoom": "zone-01M1WGFQPD6EX1H34JY8E1920F"
+      },
+      "usableMs": 676.0999999940395,
+      "selectionMs": 46.900000005960464,
+      "inspectorMs": 63.1000000089407,
+      "pan": {
+        "samples": 59,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 16.899999999999636,
+        "method": "requestAnimationFrame cadence during middle-button pan and wheel zoom, headless browser"
+      },
+      "resources": [
+        {
+          "reads": 3,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 3,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 4,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 4,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 5,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 5,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        }
+      ],
+      "targets": {
+        "usableMs": 1500,
+        "selectionMs": 100,
+        "inspectorMs": 200,
+        "fps": "target60/min30"
+      },
+      "limitation": "warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements"
+    },
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "normal": {
+      "theme": {
+        "--interactive-accent": "hsl(258, 88%, 66%)",
+        "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+        "--background-primary": "#1C1C1C",
+        "--background-secondary": "#282828"
+      },
+      "storage": "production application services and repositories over FakeVault",
+      "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+      "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+      "reflow": "material draft and native focus preserved",
+      "history": "evidence undo/redo",
+      "scope": "browser host file open is recorded, not a live Obsidian leaf"
+    },
+    "recovery": {
+      "successfulMaterialWrites": 1,
+      "failedRetries": 2,
+      "replayedWrites": 0,
+      "unrelatedEvents": 100,
+      "unrelatedReads": 0,
+      "linkedImageReads": 0,
+      "burstEvents": 100,
+      "burstReads": 1,
+      "warningAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 1,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      },
+      "draftAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      }
+    },
+    "accessibility": {
+      "violations": 0,
+      "incompleteChecks": 1,
+      "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+    },
+    "reflow": {
+      "layout": {
+        "width": 426,
+        "scroll": 426
+      },
+      "method": "200% CSS layout zoom with retained draft/focus and keyboard Cancel; native Obsidian zoom acceptance remains separate"
+    },
+    "performance": {
+      "fixture": {
+        "rooms": 80,
+        "materials": 240,
+        "catalogue": 24,
+        "photos": 40,
+        "imageDimensions": "1600 × 1200",
+        "firstRoom": "zone-01M1WGG8HG006A10XPD01APNGC"
+      },
+      "usableMs": 691.1000000089407,
+      "selectionMs": 79.29999999701977,
+      "inspectorMs": 59.30000001192093,
+      "pan": {
+        "samples": 59,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 17.100000000000364,
+        "method": "requestAnimationFrame cadence during middle-button pan and wheel zoom, headless browser"
+      },
+      "resources": [
+        {
+          "reads": 3,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 3,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 4,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 4,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 5,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "spatialReads": 5,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        }
+      ],
+      "targets": {
+        "usableMs": 1500,
+        "selectionMs": 100,
+        "inspectorMs": 200,
+        "fps": "target60/min30"
+      },
+      "limitation": "warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements"
+    },
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

@@ -11,26 +11,13 @@ import type { ToolId } from '../tools/editor-tool';
  * to what "constrained" means: two 15 degree steps that could drift into 15 and 22.5 with
  * nothing failing, because each surface's own tests would go on passing about its own number.
  *
- * Stateless (config-only), so one instance serves every leaf of every surface.
+ * The designer retains the shared config-only instance. Each Plan Editor uses the same
+ * configuration with its own live automatic-snapping preference.
  */
 
-/**
- * What the snap service currently buys: **nothing yet, for `snapPoint`.** It ranks the
- * candidate vertices and edges it is handed and never consults the grid, and every tool in
- * both surfaces passes an EMPTY candidate set — so `snapPoint` is provably the identity
- * function today and `SNAP_GRID_MM` reaches no arithmetic. The service is wired at the seam it
- * will be used from, which is worth having; the grid it is configured with is not reachable
- * until a caller supplies candidates (the neighbouring zones' vertices and edges). `snapToGrid`
- * and `snapResize`, which never had a caller in `src/` at all, were deleted rather than left
- * waiting (finding E7, ruling R5) — `snapRotation`, `snapPoint` and `snapDirection` are the
- * members with a caller today, `snapDirection` reaching `snapRotation` via four drawing tools'
- * Shift constraint.
- *
- * Said here because three comments in the tools used to describe grid snapping as something
- * that happens. The manual case had it right all along —
- * `docs/tests/cases/Zone Editing Walkthrough.md`: "SnapService is wired but this slice hands it
- * no candidate geometry, so nothing visibly snaps yet."
- */
+/** Room creation supplies existing zone boundaries, wall centre lines and opening endpoints,
+ * with an eight-screen-pixel tolerance. Other tools retain their existing candidate contract.
+ * The grid spacing is reserved; snapping does not imply a visible or active grid. */
 const SNAP_GRID_MM = 100;
 const SNAP_TOLERANCE_MM = 8;
 
@@ -48,11 +35,18 @@ const SNAP_TOLERANCE_MM = 8;
  */
 export const ANGLE_STEP_RADIANS = Math.PI / 12;
 
-export const EDITOR_SNAP_SERVICE = new SnapService({
+const EDITOR_SNAP_CONFIG = {
 	gridSpacingMm: SNAP_GRID_MM,
 	toleranceMm: SNAP_TOLERANCE_MM,
 	angleStepRadians: ANGLE_STEP_RADIANS,
-});
+};
+
+export const EDITOR_SNAP_SERVICE = new SnapService(EDITOR_SNAP_CONFIG);
+
+/** The Plan Editor owns its preference per leaf; the designer retains its existing defaults. */
+export function createEditorSnapService(enabled: () => boolean): SnapService {
+	return new SnapService(EDITOR_SNAP_CONFIG, enabled);
+}
 
 /**
  * Which tools take the Shift angle constraint, and therefore the ones whose hint is worth

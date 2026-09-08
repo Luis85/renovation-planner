@@ -6,6 +6,7 @@ import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 import { formatMetres } from '../shell/formatLength';
 import { wallLength } from '../../../domain/spatial/Structure';
+import StructureRenovationEntry from './StructureRenovationEntry.vue';
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const id = computed(() => String(selection.selectedIds[0]));
 const wall = computed(() => project.structure.walls.find(candidate => candidate.id === id.value));
@@ -45,6 +46,7 @@ async function act(event: Event, remove: boolean): Promise<void> {
 				</template>
 			</template>
 		</dl>
+		<StructureRenovationEntry />
 		<button
 			type="button"
 			:aria-disabled="paused"

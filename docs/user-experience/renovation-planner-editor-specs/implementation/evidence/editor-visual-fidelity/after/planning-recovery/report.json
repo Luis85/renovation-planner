@@ -1,0 +1,682 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "normal": {
+      "theme": {
+        "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+        "--text-accent": "hsl(258, 88%, 66%)",
+        "--background-primary": "#ffffff",
+        "--background-secondary": "#f6f6f6"
+      },
+      "storage": "production application services and repositories over FakeVault",
+      "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+      "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+      "reflow": "material draft and native focus preserved",
+      "history": "evidence undo/redo",
+      "scope": "browser host file open is recorded, not a live Obsidian leaf"
+    },
+    "recovery": {
+      "successfulMaterialWrites": 1,
+      "failedRetries": 2,
+      "replayedWrites": 0,
+      "unrelatedEvents": 100,
+      "unrelatedReads": 0,
+      "linkedImageReads": 0,
+      "burstEvents": 100,
+      "burstReads": 1,
+      "warningAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 1,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      },
+      "draftAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      }
+    },
+    "accessibility": {
+      "violations": 0,
+      "incompleteChecks": 1,
+      "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+    },
+    "reflow": {
+      "layout": {
+        "width": 446,
+        "scroll": 446
+      },
+      "method": "200% CSS layout zoom with retained draft/focus and keyboard Cancel; native Obsidian zoom acceptance remains separate"
+    },
+    "performance": {
+      "fixture": {
+        "rooms": 80,
+        "materials": 240,
+        "catalogue": 24,
+        "photos": 40,
+        "imageDimensions": "1600 × 1200",
+        "firstRoom": "zone-01M1YP6MGPGYET1F4F59F4SCG4"
+      },
+      "usableMs": 622.7999999821186,
+      "selectionMs": 94.2000000178814,
+      "inspectorMs": 177.2999999821186,
+      "pan": {
+        "samples": 59,
+        "medianMs": 33.19999999999982,
+        "p95Ms": 83.19999999999982,
+        "sceneBefore": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 127.375,
+            "zoom": 0.18475
+          }
+        },
+        "sceneAfterPan": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 105.99999999999999,
+            "y": 156.375,
+            "zoom": 0.18475
+          }
+        },
+        "sceneAfter": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 41.93924420835175,
+            "y": 108.3775553118905,
+            "zoom": 0.21680613341573696
+          }
+        },
+        "method": "requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser"
+      },
+      "materialPan": {
+        "samples": 59,
+        "medianMs": 33.19999999999982,
+        "p95Ms": 50.100000000000364,
+        "sceneBefore": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 41.93924420835175,
+            "y": 108.3775553118905,
+            "zoom": 0.21680613341573696
+          }
+        },
+        "sceneAfterPan": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 99.93924420835175,
+            "y": 137.3775553118905,
+            "zoom": 0.21680613341573696
+          }
+        },
+        "sceneAfter": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 34.82688140042597,
+            "y": 86.08384744932833,
+            "zoom": 0.2544243544610681
+          }
+        },
+        "method": "requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser"
+      },
+      "resources": [
+        {
+          "reads": 3,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 3,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 4,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 4,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 5,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 5,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        }
+      ],
+      "targets": {
+        "usableMs": 1500,
+        "selectionMs": 100,
+        "inspectorMs": 200,
+        "fps": "target60/min30"
+      },
+      "limitation": "warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements"
+    },
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "normal": {
+      "theme": {
+        "--interactive-accent": "hsl(258, 88%, 66%)",
+        "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+        "--background-primary": "#1C1C1C",
+        "--background-secondary": "#282828"
+      },
+      "storage": "production application services and repositories over FakeVault",
+      "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+      "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+      "reflow": "material draft and native focus preserved",
+      "history": "evidence undo/redo",
+      "scope": "browser host file open is recorded, not a live Obsidian leaf"
+    },
+    "recovery": {
+      "successfulMaterialWrites": 1,
+      "failedRetries": 2,
+      "replayedWrites": 0,
+      "unrelatedEvents": 100,
+      "unrelatedReads": 0,
+      "linkedImageReads": 0,
+      "burstEvents": 100,
+      "burstReads": 1,
+      "warningAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 1,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      },
+      "draftAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      }
+    },
+    "accessibility": {
+      "violations": 0,
+      "incompleteChecks": 1,
+      "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+    },
+    "reflow": {
+      "layout": {
+        "width": 446,
+        "scroll": 446
+      },
+      "method": "200% CSS layout zoom with retained draft/focus and keyboard Cancel; native Obsidian zoom acceptance remains separate"
+    },
+    "performance": {
+      "fixture": {
+        "rooms": 80,
+        "materials": 240,
+        "catalogue": 24,
+        "photos": 40,
+        "imageDimensions": "1600 × 1200",
+        "firstRoom": "zone-01M1YP7B6M8VF1WPMX5WT67101"
+      },
+      "usableMs": 602.9000000059605,
+      "selectionMs": 98.30000001192093,
+      "inspectorMs": 103.69999998807907,
+      "pan": {
+        "samples": 59,
+        "medianMs": 33.19999999999982,
+        "p95Ms": 50,
+        "sceneBefore": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 127.375,
+            "zoom": 0.18475
+          }
+        },
+        "sceneAfterPan": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 105.99999999999999,
+            "y": 156.375,
+            "zoom": 0.18475
+          }
+        },
+        "sceneAfter": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 41.93924420835175,
+            "y": 108.3775553118905,
+            "zoom": 0.21680613341573696
+          }
+        },
+        "method": "requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser"
+      },
+      "materialPan": {
+        "samples": 59,
+        "medianMs": 33.19999999999982,
+        "p95Ms": 50.100000000000364,
+        "sceneBefore": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 41.93924420835175,
+            "y": 108.3775553118905,
+            "zoom": 0.21680613341573696
+          }
+        },
+        "sceneAfterPan": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 99.93924420835175,
+            "y": 137.3775553118905,
+            "zoom": 0.21680613341573696
+          }
+        },
+        "sceneAfter": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 34.82688140042597,
+            "y": 86.08384744932833,
+            "zoom": 0.2544243544610681
+          }
+        },
+        "method": "requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser"
+      },
+      "resources": [
+        {
+          "reads": 3,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 3,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 4,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 4,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 5,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 5,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        }
+      ],
+      "targets": {
+        "usableMs": 1500,
+        "selectionMs": 100,
+        "inspectorMs": 200,
+        "fps": "target60/min30"
+      },
+      "limitation": "warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements"
+    },
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "normal": {
+      "theme": {
+        "--interactive-accent": "#7c246b",
+        "--text-accent": "#7c246b",
+        "--background-primary": "#fff8ed",
+        "--background-secondary": "#efe3d3"
+      },
+      "storage": "production application services and repositories over FakeVault",
+      "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+      "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+      "reflow": "material draft and native focus preserved",
+      "history": "evidence undo/redo",
+      "scope": "browser host file open is recorded, not a live Obsidian leaf"
+    },
+    "recovery": {
+      "successfulMaterialWrites": 1,
+      "failedRetries": 2,
+      "replayedWrites": 0,
+      "unrelatedEvents": 100,
+      "unrelatedReads": 0,
+      "linkedImageReads": 0,
+      "burstEvents": 100,
+      "burstReads": 1,
+      "warningAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 1,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      },
+      "draftAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      }
+    },
+    "accessibility": {
+      "violations": 0,
+      "incompleteChecks": 1,
+      "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+    },
+    "reflow": {
+      "layout": {
+        "width": 446,
+        "scroll": 446
+      },
+      "method": "200% CSS layout zoom with retained draft/focus and keyboard Cancel; native Obsidian zoom acceptance remains separate"
+    },
+    "performance": {
+      "fixture": {
+        "rooms": 80,
+        "materials": 240,
+        "catalogue": 24,
+        "photos": 40,
+        "imageDimensions": "1600 × 1200",
+        "firstRoom": "zone-01M1YP823MZNT2XTS5AQP0Z1TC"
+      },
+      "usableMs": 610.2000000178814,
+      "selectionMs": 87.90000000596046,
+      "inspectorMs": 155.60000002384186,
+      "pan": {
+        "samples": 59,
+        "medianMs": 33.100000000000364,
+        "p95Ms": 50,
+        "sceneBefore": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 48.000000000000036,
+            "y": 251.5,
+            "zoom": 0.102
+          }
+        },
+        "sceneAfterPan": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 106.00000000000001,
+            "y": 280.5,
+            "zoom": 0.102
+          }
+        },
+        "sceneAfter": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 70.60378231767073,
+            "y": 254.039592173749,
+            "zoom": 0.11969810884116464
+          }
+        },
+        "method": "requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser"
+      },
+      "materialPan": {
+        "samples": 59,
+        "medianMs": 17,
+        "p95Ms": 50.100000000000364,
+        "sceneBefore": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 70.60378231767073,
+            "y": 254.039592173749,
+            "zoom": 0.11969810884116464
+          }
+        },
+        "sceneAfterPan": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 128.60378231767072,
+            "y": 283.03959217374904,
+            "zoom": 0.11969810884116464
+          }
+        },
+        "sceneAfter": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 97.12956659298976,
+            "y": 257.01983119752913,
+            "zoom": 0.14046703196226762
+          }
+        },
+        "method": "requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser"
+      },
+      "resources": [
+        {
+          "reads": 3,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 3,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 4,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 4,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 5,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 5,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        }
+      ],
+      "targets": {
+        "usableMs": 1500,
+        "selectionMs": 100,
+        "inspectorMs": 200,
+        "fps": "target60/min30"
+      },
+      "limitation": "warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements"
+    },
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "normal": {
+      "theme": {
+        "--interactive-accent": "hsl(258, 88%, 66%)",
+        "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+        "--background-primary": "#1C1C1C",
+        "--background-secondary": "#282828"
+      },
+      "storage": "production application services and repositories over FakeVault",
+      "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+      "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+      "reflow": "material draft and native focus preserved",
+      "history": "evidence undo/redo",
+      "scope": "browser host file open is recorded, not a live Obsidian leaf"
+    },
+    "recovery": {
+      "successfulMaterialWrites": 1,
+      "failedRetries": 2,
+      "replayedWrites": 0,
+      "unrelatedEvents": 100,
+      "unrelatedReads": 0,
+      "linkedImageReads": 0,
+      "burstEvents": 100,
+      "burstReads": 1,
+      "warningAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 1,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      },
+      "draftAccessibility": {
+        "violations": 0,
+        "incompleteChecks": 0,
+        "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+      }
+    },
+    "accessibility": {
+      "violations": 0,
+      "incompleteChecks": 1,
+      "scope": "real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate"
+    },
+    "reflow": {
+      "layout": {
+        "width": 426,
+        "scroll": 426
+      },
+      "method": "200% CSS layout zoom with retained draft/focus and keyboard Cancel; native Obsidian zoom acceptance remains separate"
+    },
+    "performance": {
+      "fixture": {
+        "rooms": 80,
+        "materials": 240,
+        "catalogue": 24,
+        "photos": 40,
+        "imageDimensions": "1600 × 1200",
+        "firstRoom": "zone-01M1YP8Q0Y79G72ZP5CZXDFQK5"
+      },
+      "usableMs": 537.6999999880791,
+      "selectionMs": 87.59999999403954,
+      "inspectorMs": 72.5,
+      "pan": {
+        "samples": 59,
+        "medianMs": 33.29999999999973,
+        "p95Ms": 50.09999999999991,
+        "sceneBefore": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 48.000000000000014,
+            "y": 250.75,
+            "zoom": 0.0735
+          }
+        },
+        "sceneAfterPan": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 106.00000000000003,
+            "y": 279.75,
+            "zoom": 0.0735
+          }
+        },
+        "sceneAfter": {
+          "materialMarkers": 0,
+          "camera": {
+            "x": 80.5860796144183,
+            "y": 260.5933153995604,
+            "zoom": 0.08625304901789806
+          }
+        },
+        "method": "requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser"
+      },
+      "materialPan": {
+        "samples": 59,
+        "medianMs": 17.199999999999818,
+        "p95Ms": 50.100000000000364,
+        "sceneBefore": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 80.5860796144183,
+            "y": 260.5933153995604,
+            "zoom": 0.08625304901789806
+          }
+        },
+        "sceneAfterPan": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 138.58607961441828,
+            "y": 289.5933153995604,
+            "zoom": 0.08625304901789806
+          }
+        },
+        "sceneAfter": {
+          "materialMarkers": 3,
+          "camera": {
+            "x": 118.82619828494276,
+            "y": 272.1445530275457,
+            "zoom": 0.10121889067869286
+          }
+        },
+        "method": "requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser"
+      },
+      "resources": [
+        {
+          "reads": 3,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 3,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 4,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 4,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        },
+        {
+          "reads": 5,
+          "planWrites": 1,
+          "materialWrites": 0,
+          "zoneWrites": 80,
+          "spatialReads": 5,
+          "waitingWrites": 0,
+          "listeners": 0,
+          "stages": 0,
+          "images": 0,
+          "objectUrls": 0
+        }
+      ],
+      "targets": {
+        "usableMs": 1500,
+        "selectionMs": 100,
+        "inspectorMs": 200,
+        "fps": "target60/min30"
+      },
+      "limitation": "warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements"
+    },
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

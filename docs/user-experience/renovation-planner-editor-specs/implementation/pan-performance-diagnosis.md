@@ -1,0 +1,17 @@
+# Pan performance diagnosis on43041936
+
+The full unchanged9/18 runner passed its functional assertions, but its80-Room/240-material/24-asset/40-photo report had ordinary pan medians33.1–33.3ms and p95 intervals50–83.2ms. These measurements do not establish the60fps target/30fps minimum from the implementation plan. Twelve close/reopen cycles retained zero tracked stages/listeners/images/URLs; that is a separate result.
+
+Root reran only the existing largeFloor/panFrames procedures in four scenarios with no production change, adding60RAF idle observations before each pan and retaining raw intervals. UI archive/largeI/O work was explicitly finished before the run; session92959 exited0. Idle medians16.6–16.7ms and p95 roughly17ms show that the page can sustain about60RAF callbacks per second. Ordinary pan still had33ms medians in three scenarios (Light17ms), with p95 roughly50–66.5ms. Material pan medians ranged17.1–33.1ms and p95 around50–66.7ms. Light selection was107ms against100ms, while other selections were83–90.1ms; this exception is retained, not relabelled as a pass. No full performance acceptance is claimed.
+
+A separate single Dark CPU profile (88423,exit0) identifies repeated vue-konva config diff/application and reactive assignments among the largest self-sample costs. Actual installed vue-konva source was inspected: its config deep watcher and updated hook compare attributes and copy the merged values into a reactive config object. This supports investigating unnecessary ZoneShape work when world captionViewport changes on pan. It does not alone prove a particular optimization correct or identify every frame cost.
+
+UI owns a bounded follow-up that must preserve real changes to geometry, room labels, selection, theme, zoom, numbered pins and measured caption/control/clamping behavior. The fixture size, fonts, all status lines, provider contracts and performance/coverage limits remain unchanged. The same quiet procedure and existing native caption/geometry/order regressions must verify any correction.
+
+Original reports, scratch drivers, raw CPU profiles and exact hashes are in [the evidence folder](evidence/pan-diagnostic-430/manifest.json). Scratch drivers include absolute imports from the observed workspace; for another checkout regenerate those import paths from the named original repository script. The original CI/full9/18 evidence remains separate and unchanged. Profiling adds overhead, so CPU-profile timings are not acceptance measurements. The unprofiled four-scenario diagnostic is the comparison baseline.
+
+## Verified follow-up on dba43e5f
+
+The UI correction caches the six actual Konva configurations and memoizes the existing Group; a primitive caption displacement prevents unchanged layouts from being recreated for every world-viewport update. An actual predecessor RED and24+47 native batches, types and lint passed. The same unprofiled four-scenario driver now measures Pan/materialPan medians16.6–16.7ms and p95≤17.1ms; all usable/selection/Inspector latency budgets pass and twelve resource-cleanup cycles remain clear. Root verified exact driver equality after only worktree/output/source-metadata substitutions. Fixture size, image dimensions, stimulus and assertions are unchanged.
+
+Evidence is in [editor-canvas-pan-stability](editor-canvas-pan-stability.md), integrated with eefc7c15. This closes the reproduced browser pan regression for that source and measurement scope. Original430 failures stay above; later source and native-device acceptance remain separate.

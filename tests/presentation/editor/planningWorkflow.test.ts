@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
+import { tr } from '../../../src/presentation/i18n/strings';
 import { withPlanRenovation } from '../../../src/domain/plan/Plan';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle } from '../../helpers/editor';
@@ -24,7 +26,48 @@ async function material(rig: Awaited<ReturnType<typeof setup>>) {
 async function action(rig: Awaited<ReturnType<typeof setup>>, text: string, scope = '.rp-renovation-inspector') {
  const button = rig.wrapper.findAll(`${scope} button`).find(candidate => candidate.text() === text); await expectDefined(button, text).trigger('click'); await settle();
 }
+async function followEvidenceRelation(rig: Awaited<ReturnType<typeof setup>>, id: string): Promise<void> {
+ const row = rig.wrapper.get('[data-rp-record="' + id + '"]');
+ const button = row.findAll('button').find(candidate => candidate.text().startsWith(tr('planning.linked-record') + ':'));
+ await expectDefined(button, 'related record link').trigger('click'); await settle();
+}
+function evidenceSelected(rig: Awaited<ReturnType<typeof setup>>, id: string, selected: boolean): void {
+ const row = rig.wrapper.get(`[data-rp-record="${id}"]`), title = row.get('button');
+ expect(row.classes('is-selected')).toBe(selected);
+ expect(title.attributes('aria-current')).toBe(selected ? 'true' : undefined);
+ expect(title.text().includes('Selected')).toBe(selected);
+}
 describe('connected planning editor', () => {
+ it('groups scoped cost obligations by Work and reveals a collapsed exact source before returning focus', async () => {
+ const rig = await setup(), requirement = await material(rig), before = expectDefined(expectOk(await rig.stack.plans.getById(rig.plan.id)), 'Plan');
+ const roomId = rig.room.id;
+ const work = { id: 'cost-group-work', roomId, targetId: roomId, links: [{ roomId, targetId: 'wall-a' }], title: 'Prepare walls', description: '', order: 0, progress: 'pending' as const, responsibility: 'diy' as const, outcomes: [], dependencies: [] };
+ const common = { roomId, targetId: roomId, workId: work.id, category: 'labor' as const, requirementId: '', facts: [], cancelled: false };
+ const costs = [{ ...common, id: 'labor-first', title: 'Preparation', planned: of('25', 'EUR') }, { ...common, id: 'labor-second', title: 'Painting', planned: of('50', 'EUR') }];
+ expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(before.entity, { subjects: [], work: [work], decisions: [], depth: { costs, procurement: [], evidence: [] } })), before.version)); rig.changePlan(); await settle();
+ rig.runtime.renovation.focus(roomId, 'costs'); await settle();
+ const groups = rig.wrapper.findAll<HTMLDetailsElement>('.rp-cost-group'); expect(groups).toHaveLength(2);
+ const workGroup = expectDefined(groups.find(group => group.get('summary').text().includes(work.title)), 'Work group');
+ expect(workGroup.get('summary').text()).toContain('75.00 EUR'); expect(workGroup.findAll('.rp-cost-row')).toHaveLength(2);
+ const editor = useEditorStore(rig.pinia), selection = [...rig.selection.selectedIds], viewport = { ...editor.viewport }, totals = rig.wrapper.get('.rp-cost-totals').text();
+ expect(rig.session.focusedId).toBe(''); expect(rig.stage?.find('.cost-work-source')).toHaveLength(0);
+ workGroup.element.open = true; await workGroup.trigger('toggle'); expect(rig.session.focusedId).toBe('');
+ workGroup.element.open = false; await workGroup.get('summary').trigger('click'); await settle();
+ expect(rig.session.focusedId).toBe(work.id); expect(workGroup.get('summary').attributes('aria-current')).toBe('true');
+ expect(rig.selection.selectedIds).toEqual(selection); expect(editor.viewport).toEqual(viewport); expect(rig.wrapper.get('.rp-cost-totals').text()).toBe(totals);
+ const outlines = rig.stage?.find('.cost-work-source'); expect(outlines).toHaveLength(2);
+ expect(outlines?.map(outline => outline.getAttr('closed'))).toEqual([true, false]);
+ expect(outlines?.[0].getAttr('points')).toEqual(rig.room.geometry.points.flatMap(point => [point.x, point.y]));
+ workGroup.element.open = true; await workGroup.get('summary').trigger('click'); expect(rig.session.focusedId).toBe(work.id);
+ workGroup.element.open = false;
+ rig.runtime.renovation.focus(roomId, 'costs', 'labor-second'); await settle();
+ expect(workGroup.element.open).toBe(true); expect(rig.wrapper.get('[data-rp-record="labor-second"]').element.contains(document.activeElement)).toBe(true);
+ expect(rig.stage?.find('.cost-work-source')).toHaveLength(0);
+ const unassigned = expectDefined(groups.find(group => group !== workGroup && group.get('summary').text().includes('Unassigned')), 'Unassigned group');
+ unassigned.element.open = false; await unassigned.get('summary').trigger('click'); expect(rig.session.focusedId).toBe('labor-second');
+ rig.runtime.renovation.focus(roomId, 'costs', requirement.id); await settle();
+ expect(rig.wrapper.get(`[data-rp-record="estimate:${requirement.id}"]`).element.contains(document.activeElement)).toBe(true);
+ });
  it('adds material, updates allocations, records a partial payment, links evidence, and follows Review back', async () => {
  const rig = await setup(), requirement = await material(rig);
  expect(rig.wrapper.text()).toContain('13.2'); await action(rig, 'Purchase quantities');
@@ -38,10 +81,29 @@ describe('connected planning editor', () => {
  const cost = expectDefined(rig.project.plan?.renovation?.depth?.costs[0], 'cost'); rig.runtime.renovation.focus(rig.room.id, 'documents', cost.id); await settle(); await rig.wrapper.get('[data-rp-new-evidence]').trigger('click'); await settle();
  await rig.wrapper.get('input[name="title"]').setValue('Invoice'); await rig.wrapper.get('input[name="path"]').setValue('scan.pdf'); await rig.wrapper.get('select[name="phase"]').setValue('during'); await apply(rig);
  const evidence = expectDefined(rig.project.plan?.renovation?.depth?.evidence[0], 'evidence'); expect(evidence.recordId).toBe(cost.id); expect(evidence.path).toBe('scan.pdf');
+ rig.runtime.renovation.focus(rig.room.id, 'costs', cost.id); await settle();
+ await action(rig, 'Documents', `[data-rp-record="${cost.id}"]`);
+ expect(rig.session.focusedId).toBe(cost.id); evidenceSelected(rig, evidence.id, true);
  await action(rig, 'Open in vault'); await action(rig, 'Unlink'); rig.dialogs.resolve('confirm'); await settle(); expect(rig.stack.vault.entries.has('scan.pdf')).toBe(true);
  await rig.runtime.dispatcher.undo(); rig.changePlan(); await settle(); expect(rig.project.plan?.renovation?.depth?.evidence[0].id).toBe(evidence.id);
  rig.stack.vault.entries.delete('scan.pdf'); rig.changeFile('scan.pdf'); await settle(); expect(rig.wrapper.text()).toContain('missing'); await rig.runtime.renovation.perspective('review'); await settle(); expect(rig.wrapper.text()).toContain('Invoice');
  const finding = rig.wrapper.findAll('button').find(button => button.text().includes('Invoice')); await expectDefined(finding, 'missing-file route').trigger('click'); await settle(); expect(rig.session.focusedId).toBe(evidence.id);
+ });
+ it('keeps idle evidence unselected and announces direct and material-linked selection consistently', async () => {
+ const rig = await setup(), requirement = await material(rig), before = expectDefined(expectOk(await rig.stack.plans.getById(rig.plan.id)), 'Plan');
+ const common = { roomId: rig.room.id, targetId: rig.room.id, workId: '', path: 'scan.pdf', subpath: '', type: 'document' as const, phase: 'before' as const, pin: null };
+ const evidence = [{ ...common, id: 'product-sheet', recordId: requirement.id, description: 'Product sheet' }, { ...common, id: 'site-document', recordId: '', description: 'Site document' }];
+ expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(before.entity, { subjects: [], work: [], decisions: [], depth: { costs: [], procurement: [], evidence } })), before.version)); rig.changePlan(); await settle();
+ rig.runtime.renovation.focus(rig.room.id, 'documents'); await settle();
+ evidenceSelected(rig, 'product-sheet', false); evidenceSelected(rig, 'site-document', false);
+ rig.runtime.renovation.focus(rig.room.id, 'materials', requirement.id); await settle();
+ await action(rig, 'Documents', `[data-rp-record="${requirement.id}"]`);
+ expect(rig.session.focusedId).toBe(requirement.id);
+ evidenceSelected(rig, 'product-sheet', true); evidenceSelected(rig, 'site-document', false);
+ await rig.wrapper.get('[data-rp-record="site-document"] > button').trigger('click'); await settle();
+ evidenceSelected(rig, 'product-sheet', false); evidenceSelected(rig, 'site-document', true);
+ await rig.wrapper.get('[data-rp-record="product-sheet"] > button').trigger('click'); await settle();
+ evidenceSelected(rig, 'product-sheet', true); evidenceSelected(rig, 'site-document', false);
  });
  it('keeps explicit drafts across reflow and cancels without writes', async () => {
  const rig = await setup(), bytes = [...rig.stack.vault.entries]; await rig.wrapper.get('[data-rp-new-material]').trigger('click'); await settle();
@@ -59,11 +121,15 @@ describe('connected planning editor', () => {
  await rig.wrapper.get('select[name="phase"]').setValue('hidden-services'); await rig.wrapper.get('.rp-dialog input[type="checkbox"]').setValue(true); await apply(rig);
  expect(rig.stage?.find('.evidence-pin')).toHaveLength(1); rig.stage?.findOne('.evidence-pin')?.fire('click'); rig.stage?.findOne('.evidence-pin')?.fire('tap'); await settle(); expect(rig.session.focusedId).toBe(rig.project.plan?.renovation?.depth?.evidence[0].id);
  rig.session.evidencePhase = 'after'; await settle(); expect(rig.stage?.find('.evidence-pin')).toHaveLength(0); rig.session.evidencePhase = ''; await settle();
- rig.runtime.renovation.focus(rig.room.id, 'photos'); await settle(); await rig.wrapper.get('[data-rp-new-evidence]').trigger('click'); await settle(); await rig.wrapper.get('input[name="title"]').setValue('Floor before'); await rig.wrapper.get('input[name="path"]').setValue('scan.png'); await apply(rig); expect(rig.wrapper.text()).toContain('Thumbnail unavailable'); expect(rig.stack.vault.entries.has(path)).toBe(true);
+ rig.runtime.renovation.focus(rig.room.id, 'photos'); await settle(); await rig.wrapper.get('[data-rp-new-evidence]').trigger('click'); await settle(); await rig.wrapper.get('input[name="title"]').setValue('Floor before'); await rig.wrapper.get('input[name="path"]').setValue('scan.png'); await apply(rig);
+ await rig.wrapper.get('.rp-evidence-gallery img').trigger('error'); expect(rig.wrapper.text()).toContain('Thumbnail unavailable'); expect(rig.stack.vault.entries.has(path)).toBe(true);
+ const photo = rig.wrapper.get('[data-rp-evidence-photo]'), photoId = photo.attributes('data-rp-evidence-photo');
+ rig.session.focusedId = ''; await settle(); expect(photo.attributes('aria-current')).toBeUndefined(); expect(rig.wrapper.get(`[data-rp-record="${photoId}"]`).isVisible()).toBe(false);
+ await photo.trigger('click'); await settle(); expect(photo.attributes('aria-current')).toBe('true'); expect(rig.session.focusedId).toBe(photoId); expect(rig.wrapper.get(`[data-rp-record="${photoId}"]`).isVisible()).toBe(true);
  });
  it('surfaces read/write failures, retries, and refuses a late peer edit while retaining the draft', async () => {
  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');
- vi.spyOn(services, 'read').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); rig.changePlan(); await settle(); expect(rig.wrapper.text()).toContain('could not'); await action(rig, 'Retry');
+ vi.spyOn(services, 'read').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); rig.changePlan(); await settle(); expect(rig.wrapper.text()).toContain('could not'); await rig.wrapper.get('[data-rp-warning="stale"] [data-rp-action="retry"] ').trigger('click'); await settle();
  await rig.wrapper.get('[data-rp-new-material]').trigger('click'); await settle(); const asset = expectOk(await rig.stack.assets.listAll()).loaded[0].entity; await rig.wrapper.get('select[name="asset"]').setValue(asset.id);
  vi.spyOn(rig.stack.requirements, 'save').mockRejectedValueOnce(new Error('disk')); await apply(rig); expect(rig.wrapper.find('[data-rp-form="planning"]').exists()).toBe(true); await apply(rig); expect(rig.wrapper.find('[data-rp-form="planning"]').exists()).toBe(false);
  });
@@ -79,10 +145,12 @@ describe('connected planning editor', () => {
  it('edits evidence, follows linked material and cost records, and filters without replacing spatial selection', async () => {
  const rig = await setup(), requirement = await material(rig), selection = [...rig.selection.selectedIds]; await action(rig, 'Documents', '.rp-planning-actions'); await rig.wrapper.get('[data-rp-new-evidence]').trigger('click'); await settle();
  await rig.wrapper.get('input[name="title"]').setValue('Receipt'); await rig.wrapper.get('input[name="path"]').setValue('scan.pdf'); await apply(rig);
- await action(rig, '1. Receipt'); await action(rig, 'Edit'); await rig.wrapper.get('input[name="title"]').setValue('Paid receipt'); await apply(rig); expect(rig.wrapper.text()).toContain('Paid receipt');
+ const receipt = rig.wrapper.get('.rp-renovation-list > [data-rp-record] > button'); expect(receipt.text()).toContain('Receipt'); expect(receipt.attributes('aria-current')).toBe('true'); await receipt.trigger('click'); await settle();
+ await action(rig, 'Edit'); await rig.wrapper.get('input[name="title"]').setValue('Paid receipt'); await apply(rig); expect(rig.wrapper.text()).toContain('Paid receipt');
  const linked = rig.wrapper.findAll('.rp-renovation-inspector button').find(button => button.text().startsWith('Related record')); await expectDefined(linked, 'source link').trigger('click'); await settle(); expect(rig.session.mode).toBe('materials'); expect(rig.session.focusedId).toBe(requirement.id); expect(rig.selection.selectedIds).toEqual(selection);
  await action(rig, 'Costs', '.rp-planning-actions'); await rig.wrapper.get('[data-rp-new-cost]').trigger('click'); await settle(); await rig.wrapper.get('input[name="title"]').setValue('Labor'); await rig.wrapper.get('select[name="category"]').setValue('labor'); await rig.wrapper.get('input[name="planned"]').setValue('100'); await apply(rig);
- await action(rig, 'Documents', '.rp-planning-actions'); const phase = rig.wrapper.get('.rp-renovation-inspector select'); await phase.setValue('after'); expect(rig.wrapper.text()).not.toContain('Paid receipt'); expect(rig.selection.selectedIds).toEqual(selection); await phase.setValue('');
+ rig.session.focusedId = ''; await settle(); expect(rig.wrapper.find('.rp-renovation-list > [aria-current="true"]').exists()).toBe(false);
+ await action(rig, 'Documents', '.rp-planning-actions'); const phase = rig.wrapper.get('[data-rp-evidence-phase="after"]'); await phase.trigger('click'); expect(phase.attributes('aria-pressed')).toBe('true'); expect(rig.wrapper.text()).not.toContain('Paid receipt'); expect(rig.selection.selectedIds).toEqual(selection); await rig.wrapper.get('[data-rp-evidence-phase=""]').trigger('click'); expect(phase.attributes('aria-pressed')).toBe('false');
  const files = expectDefined(rig.deps.commands.evidenceFiles, 'files'); vi.spyOn(files, 'open').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.open', message: 'offline' })); await action(rig, 'Open in vault'); expect(rig.wrapper.text()).toContain('file action failed');
  });
  it('shows failed shopping writes and stale quantity findings with a route back from Review', async () => {
@@ -131,9 +199,9 @@ describe('connected planning editor', () => {
  const cost = { id: 'source-cost', roomId, targetId: roomId, workId: work.id, title: 'Manual labor', category: 'labor' as const, requirementId: '', planned: of('100', 'EUR'), facts: [], cancelled: true };
  const evidence = [work.id, decision.id, cost.id, subject.id].map((recordId, index) => ({ id: `file-${index}`, roomId, targetId: roomId, workId: work.id, recordId, description: `Evidence ${index}`, path: 'scan.pdf', subpath: '', type: 'document' as const, phase: 'during' as const, pin: null }));
  expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: { subjects: [subject], work: [work], decisions: [decision], depth: { procurement: [], costs: [cost], evidence } }, intended: undefined }, rig.runtime.structureTask.ledger))); rig.changePlan(); await settle();
- for (const [index, mode] of ['work', 'planned', 'costs'].entries()) { rig.runtime.renovation.focus(roomId, 'documents'); await settle(); await rig.wrapper.get(`[data-rp-record="file-${index}"] > p > button`).trigger('click'); await settle(); expect(rig.session.mode).toBe(mode); }
+ for (const [index, mode] of ['work', 'planned', 'costs'].entries()) { rig.runtime.renovation.focus(roomId, 'documents'); await settle(); await followEvidenceRelation(rig, `file-${index}`); expect(rig.session.mode).toBe(mode); }
  expect(rig.wrapper.text()).toContain('Cancelled'); expect(rig.wrapper.text()).toContain('Finish');
- rig.runtime.renovation.focus(roomId, 'documents'); await settle(); await rig.wrapper.get('[data-rp-record="file-3"] > p > button').trigger('click'); await settle();
+ rig.runtime.renovation.focus(roomId, 'documents'); await settle(); await followEvidenceRelation(rig, 'file-3');
  expect(rig.session.mode).toBe('existing'); expect(rig.wrapper.get('[data-rp-record="source-subject"]').text()).toContain('Timber');
  rig.runtime.renovation.focus(roomId, 'work', work.id); await settle(); const remove = rig.wrapper.findAll('[data-rp-record="source-work"] button').find(button => button.text() === 'Delete record'); await expectDefined(remove, 'remove Work').trigger('click'); await settle(); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Manual labor'); expect(rig.wrapper.get('.rp-dialog').text()).toContain('Evidence 0'); rig.dialogs.resolve('cancel');
  });
@@ -190,16 +258,18 @@ describe('connected planning editor', () => {
  expect(write.mock.calls[0][1]).toContain('Lost receipt'); expect(write.mock.calls[0][1]).not.toContain('No gaps');
  });
 
- it('re-reads planning for a linked evidence file, by path or by resolved link, and never for an unrelated vault note', async () => {
+ it('refreshes linked evidence by stored or resolved path without re-reading planning and coalesces entity events', async () => {
  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning'), baseline = expectOk(await rig.renovation.read(rig.plan.id)), roomId = rig.room.id;
  const folder = expectDefined(rig.stack.index.getPath(rig.plan.id), 'plan note').replace(/[^/]*$/, ''); rig.stack.vault.entries.set(`${folder}receipt.pdf`, 'PDF fixture');
  const link = (id: string, path: string) => ({ id, roomId, targetId: roomId, workId: '', recordId: 'removed-record', path, subpath: '', description: id, type: 'document' as const, phase: 'before' as const, pin: null });
  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(baseline.plan.entity, { subjects: [], work: [], decisions: [], depth: { costs: [], procurement: [], evidence: [link('scan', 'scan.pdf'), link('receipt', 'receipt.pdf')] } })), baseline.plan.version)); rig.changePlan(); await settle();
  const read = vi.spyOn(services, 'read');
  rig.changeFile('Notes/Unrelated.md'); rig.changeFile(`${folder}scan.pdf`); await settle(); expect(read).not.toHaveBeenCalled();
- rig.changeFile('scan.pdf'); await settle(); expect(read).toHaveBeenCalledTimes(1);
- rig.changeFile(`${folder}receipt.pdf`); await settle(); expect(read).toHaveBeenCalledTimes(2);
- rig.changeRequirementFigures('any'); rig.changeCatalogue(); rig.changeProjectPrices(); await settle(); expect(read).toHaveBeenCalledTimes(5);
+ const revision = rig.runtime.planning.evidenceRevision.value;
+ rig.changeFile('scan.pdf'); await settle(); expect(read).not.toHaveBeenCalled();
+ rig.changeFile(`${folder}receipt.pdf`); await settle(); expect(read).not.toHaveBeenCalled();
+ expect(rig.runtime.planning.evidenceRevision.value).toBe(revision + 2);
+ rig.changeRequirementFigures('any'); rig.changeCatalogue(); rig.changeProjectPrices(); await settle(); expect(read).toHaveBeenCalledTimes(1);
  });
 
  it('shows unavailable estimates and readable fallback links after externally removed records', async () => {

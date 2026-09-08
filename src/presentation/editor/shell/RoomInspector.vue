@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import RoomSizeAction from '../resize/RoomSizeAction.vue';
-import RenovationEntry from '../renovation/RenovationEntry.vue';
-import RoomNameAction from '../naming/RoomNameAction.vue';
+import SpatialInspectorActions from './SpatialInspectorActions.vue';
 /**
  * The Inspector's ROOM state (component library §8's `RoomInspector`) — the BODY the frame
  * (`EntityInspector.vue`, Task 15) routes to once exactly one entity is selected. Through
@@ -76,7 +74,7 @@ const projectStore = useProjectStore();
  * budget that pushed `commitField` out into its own module — and passed down as a PROP rather
  * than injected in the row, so the row stays mountable with a spy in a jsdom case.
  */
-const { logger } = usePlanEditorContext().commands;
+const { logger, planning } = usePlanEditorContext().commands;
 const { selectedIds } = storeToRefs(useSelectionStore());
 
 // Selection changed → re-run the query for whatever is selected now. The same call the
@@ -189,14 +187,10 @@ const unavailableNavigation = computed(() => overview.value && !runtime.renovati
 			<dd>{{ formatArea(overview.record.areaMm2) }}</dd>
 		</dl>
 
-		<template v-if="overview?.record.kind === 'room'">
-			<RenovationEntry :room-id="dto.id" />
-			<RoomNameAction :zone-id="dto.id" />
-			<RoomSizeAction
-				:zone-id="dto.id"
-				:points="overview.record.points"
-			/>
-		</template>
+		<SpatialInspectorActions
+			:zone-id="dto.id"
+			:record="overview?.record"
+		/>
 
 		<section
 			class="rp-editor-inspector-requirements"
@@ -252,7 +246,7 @@ const unavailableNavigation = computed(() => overview.value && !runtime.renovati
 			:unavailable="unavailableNavigation.unavailableSections"
 		/>
 		<LinkedContentList
-			v-if="overview !== null"
+			v-if="overview !== null && (!runtime.renovation.available || !planning)"
 			:unavailable="overview.unavailableSections"
 		/>
 

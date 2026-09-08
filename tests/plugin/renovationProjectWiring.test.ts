@@ -551,7 +551,7 @@ describe('the renovation project dependencies', () => {
 	 * `vi.mock` the MODULE rather than the export, since the composition root imports the
 	 * binding directly.
 	 */
-	it('binds openPlan to the real revealPlanEditor', async () => {
+	it.each([undefined, { planId: 'plan-01JXXX', roomId: 'room-origin', workId: 'work-origin' }])('binds openPlan to the real revealPlanEditor with origin %j', async origin => {
 		const { root, workspace, vault } = composedRoot();
 		const deps = renovationProjectDeps(root, workspace as never, vault, {
 			projectId: null,
@@ -561,9 +561,9 @@ describe('the renovation project dependencies', () => {
 			rememberContinue: () => undefined,
 		});
 
-		await deps.openPlan('plan-01JXXX');
+		await deps.openPlan('plan-01JXXX', origin);
 
-		expect(revealPlanEditorSpy).toHaveBeenCalledWith(expect.objectContaining({ workspace }), PLAN_EDITOR_VIEW, 'plan-01JXXX');
+		expect(revealPlanEditorSpy).toHaveBeenCalledWith(expect.objectContaining({ workspace }), PLAN_EDITOR_VIEW, 'plan-01JXXX', origin);
 	});
 
 	/**

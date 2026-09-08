@@ -446,12 +446,9 @@ export function libraryDestinations(
  *   The §83 violation then DISSOLVES rather than being refused: the project stays where it
  *   is, only the catalogue moves, and the user is asked for nothing.
  *
- *   **`'renovation-asset'` IS the definition of the catalogue, and it is a literal, so it does
- *   not grow on its own.** The comment above about `Suppliers/` and `Trades/` beside `Assets/`
- *   is this migration's own anticipation of more library-resident kinds — and the day one is
- *   added to `ENTITY_TYPES`, its notes are silently left behind by every library move with
- *   nothing failing anywhere, because a move that relocates too FEW notes raises nothing. So:
- *   whoever adds a library-resident entity type owes this line, in the same edit.
+ *   Assets, Trades and Suppliers are the library-resident entity types. This explicit
+ *   enumeration must grow with each new shared catalogue kind; otherwise a library move
+ *   silently leaves its notes at the former location. Quotes remain project-owned.
  * - **The source intersection** preserves Task 5's documented behaviour that an asset filed
  *   outside the library is NOT relocated — updates write where the note already sits, and
  *   only inserts go to the library (its open question 3). Enumerating by type alone would
@@ -484,7 +481,7 @@ export function catalogueNotesIn(
 	const catalogue = new Set(
 		persistence.index
 			.entries()
-			.filter((entry) => entry.type === 'renovation-asset')
+			.filter((entry) => ['renovation-asset', 'renovation-trade', 'renovation-supplier'].includes(entry.type))
 			.map((entry) => entry.path),
 	);
 	const root = `${normalizeFolder(folder)}/`;

@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { provideTradeCatalogue } from '../catalogue/tradeCatalogue';
+import { provideNoteCreation } from './add/noteCreation';
 import { providePlanningContext } from './planning/planningContext';
+import { provideReviewPresentation } from './renovation/useReviewPresentation';
+import { notifyFault } from '../notices/notify';
 import { useRenovationSession } from './renovation/renovationSession';
 const renovationSession = useRenovationSession();
 /**
@@ -17,6 +21,7 @@ import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import { usePlanEditorContext } from './PlanEditorContext';
 import { provideEditorRuntime } from './runtime';
+import { useEditorArrival } from './renovation/editorArrival';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSaveStateStore } from './save-state/save-state-store';
@@ -44,16 +49,22 @@ import { useSelectionStore } from './selection/selection-store';
 import { routeEscape } from './escapeRouting';
 
 const context = usePlanEditorContext();
+provideTradeCatalogue(context.commands.tradeCatalogue, context.commands.logger);
 // The return value is USED now, not discarded: `activeToolId` is what displaces the empty
 // state and `setTool` is what the noZones action calls, and this is the same runtime object
 // every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
-providePlanningContext(context, runtime);
+const navigateToRecord = useEditorArrival(context, runtime);
+defineExpose({ navigateToRecord });
+const planning = providePlanningContext(context, runtime);
+provideReviewPresentation(context, runtime);
+provideNoteCreation(runtime, planning);
 const projectStore = useProjectStore();
 const selection = useSelectionStore();
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
 const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
+const pausedReason = computed(() => tr(unrecoveredWrite.value ? 'editor.unrecovered' : 'editor.paused.reason'));
 
 /**
  * The overlay's props, or `null` for no overlay.
@@ -147,12 +158,12 @@ const backgroundStatus = ref<BackgroundStatus>('none');
 const warnings = computed(() =>
 	editorWarnings({
 		unrecoveredWrite: unrecoveredWrite.value,
-		stale: staleAfterRefresh.value,
-		refreshing: refreshing.value,
-		retriesFailed: retriesFailed.value,
+		stale: staleAfterRefresh.value || (status.value === 'ready' && runtime.planning.failed.value),
+		refreshing: refreshing.value || runtime.planning.loading.value,
+		retriesFailed: Math.max(retriesFailed.value, runtime.planning.retriesFailed.value),
 		unreadableZones: unreadableZones.value,
 		backgroundStatus: backgroundStatus.value,
-		retry: () => void runtime.refreshProjection(),
+		retry: hydrate,
 		openSourceNote: () => void runtime.openPlanNote(),
 	}),
 );
@@ -247,7 +258,7 @@ function retireAddMenu(): void {
 }
 
 function hydrate(): void {
-	void projectStore.hydrate(context.queries, context.planId);
+	void runtime.refreshProjection().catch(cause => { if (root.value) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); });
 }
 
 /**
@@ -325,7 +336,7 @@ onMounted(() => {
 onBeforeUnmount(context.onPlanChanged(hydrate));
 const visibleOverlay = computed(() => renovationSession.perspective === 'plan' ? overlay.value : null);
 const showFloorStart = computed(() => visibleOverlay.value !== null && emptyStateKey.value === 'noBackground');
-const showAddMenu = computed(() => renovationSession.perspective === 'plan' && addMenuOpen.value);
+const showAddMenu = computed(() => renovationSession.perspective !== 'review' && addMenuOpen.value);
 </script>
 
 <template>
@@ -376,7 +387,7 @@ const showAddMenu = computed(() => renovationSession.perspective === 'plan' && a
 					/>
 					<TemporaryToolBanner />
 					<FloatingPrimaryActions
-						v-if="renovationSession.perspective === 'plan'"
+						v-if="renovationSession.perspective !== 'review'"
 						:add-open="addMenuOpen"
 						@open-add="onOpenAdd"
 					/>
@@ -439,7 +450,7 @@ const showAddMenu = computed(() => renovationSession.perspective === 'plan' && a
 					:id="runtime.pausedReasonId"
 					class="rp-visually-hidden"
 				>
-					{{ tr('editor.paused.reason') }}
+					{{ pausedReason }}
 				</p>
 				<SelectionGuidance />
 				<PersistentWarningStrip :warnings="warnings" />

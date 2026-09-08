@@ -8,6 +8,7 @@ import { err, ok } from '../../../src/core/result/Result';
 import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
 import { removeRenovationRecord } from '../../../src/presentation/editor/renovation/renovationRemoval';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
+import { defer } from '../../helpers/async';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 const fault = { category: 'Persistence' as const, code: 'renovation.write-failed', message: 'Disk unavailable' };
@@ -19,6 +20,22 @@ async function draft(rig: Awaited<ReturnType<typeof setup>>) {
 	await rig.wrapper.get('textarea[name="description"]').setValue('Timber'); await form.trigger('submit'); return { pending, form };
 }
 describe('renovation UI failure boundaries', () => {
+	it('finishes an authorized save after leaf disposal without reopening the form or stealing focus', async () => {
+		const rig = await setup(), { pending, form } = await draft(rig), saving = defer<void>(), entered = defer<void>();
+		const save = rig.stack.plans.save.bind(rig.stack.plans);
+		vi.spyOn(rig.stack.plans, 'save').mockImplementationOnce(async (...args) => { entered.resolve(undefined); await saving.promise; return save(...args); });
+		const run = vi.spyOn(rig.runtime.dispatcher, 'run');
+		await form.trigger('submit'); await entered.promise;
+		expect(rig.wrapper.get('button[type="submit"]').attributes('aria-disabled')).toBe('true');
+		rig.unmount(); await pending;
+		const outside = document.createElement('button'); outside.textContent = 'Another leaf'; document.body.append(outside); outside.focus();
+		try {
+			saving.resolve(undefined); expectOk(await run.mock.results[0].value as DispatchResult); await settle();
+			expect(expectOk(await rig.renovation.read(rig.plan.id)).plan.entity.renovation?.subjects[0].existing?.description).toBe('Timber');
+			expect(rig.project.plan?.renovation).toBeUndefined(); expect(rig.dialogs.current).toBeNull();
+			expect(document.activeElement).toBe(outside); expect(document.querySelector('[data-rp-form="renovation"]')).toBeNull();
+		} finally { outside.remove(); }
+	});
 	it('keeps invalid and failed drafts, gates duplicate submission and retries a recoverable failure', async () => {
 		const rig = await setup(), { pending, form } = await draft(rig);
 		const run = vi.spyOn(rig.runtime.dispatcher, 'run').mockRejectedValueOnce(new Error('disk'));

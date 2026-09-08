@@ -1,0 +1,8 @@
+{
+  "fixture": { "rooms": 80, "materials": 240, "catalogue": 24, "photos": 40 },
+  "platform": "Windows, Node 24.20.0, 8 GB RAM",
+  "method": "Repository baseline projected through planningFindings; uninstrumented Vitest samples. The before run intentionally fails the 240-call regression assertion; the after sample comes from the passing focused run. No timing threshold was changed.",
+  "before": { "materialPreparations": 19440, "elapsedMs": 658.8782000000001 },
+  "after": { "materialPreparations": 240, "elapsedMs": 36.802599999999984 },
+  "limitation": "Single host-sensitive elapsed-time samples, not live Obsidian timings; deterministic calculation counts are the stronger regression evidence. Coverage-instrumented timings are excluded from this comparison."
+}

@@ -7,14 +7,20 @@ export type SelectionTarget =
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
 
-const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'opening' ? 2 : candidate.kind === 'wall' ? 1 : 0;
+const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
 
 function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
-	const [a, b] = candidate.points;
-	if (!a || !b) return false;
-	const dx = b.x - a.x, dy = b.y - a.y;
-	const ratio = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy)));
-	return Math.hypot(point.x - a.x - ratio * dx, point.y - a.y - ratio * dy) <= Math.max(tolerance, (candidate.width ?? 0) / 2);
+	return candidate.points.slice(1).some((b, index) => {
+		const a = candidate.points[index], dx = b.x - a.x, dy = b.y - a.y, squared = dx * dx + dy * dy;
+		const ratio = squared === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / squared));
+		return Math.hypot(point.x - a.x - ratio * dx, point.y - a.y - ratio * dy) <= Math.max(tolerance, (candidate.width ?? 0) / 2);
+	});
+}
+
+function containsCandidate(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
+	if (candidate.kind && candidate.kind !== 'object') return nearLine(candidate, point, tolerance);
+	const inside = contains({ points: candidate.points }, point);
+	return inside.ok && inside.value;
 }
 
 function handleAt(input: {
@@ -26,7 +32,7 @@ function handleAt(input: {
 	if (input.selectedIds.length !== 1) return null;
 	const id = input.selectedIds[0];
 	const selected = input.candidates.find((candidate) => candidate.id === id);
-	if (selected === undefined || selected.kind === 'opening') return null;
+	if (selected === undefined || (selected.kind !== undefined && selected.kind !== 'wall')) return null;
 	const vertexIndex = selected.points.findIndex((point) => distance(point, input.worldPoint) <= input.handleToleranceWorld);
 	return vertexIndex < 0 ? null : { kind: 'handle', id, vertexIndex };
 }
@@ -72,8 +78,7 @@ export function resolveSelectionTarget(input: {
 	const candidates = input.candidates.toSorted((a, b) => priority(a) - priority(b));
 	for (let index = candidates.length - 1; index >= 0; index -= 1) {
 		const candidate = candidates[index];
-		const inside = candidate.kind ? { ok: true, value: nearLine(candidate, input.worldPoint, input.handleToleranceWorld) } : contains({ points: candidate.points }, input.worldPoint);
-		if (inside.ok && inside.value) {
+		if (containsCandidate(candidate, input.worldPoint, input.handleToleranceWorld)) {
 			if (!input.cycle) return { kind: 'body', id: candidate.id };
 			hits.push(candidate.id);
 		}

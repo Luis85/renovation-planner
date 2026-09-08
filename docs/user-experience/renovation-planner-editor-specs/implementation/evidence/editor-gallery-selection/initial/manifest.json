@@ -1,0 +1,31 @@
+{
+  "source": "a59a0ec3c0ea9011016d755dc8fc55b972bed0a2",
+  "journeys": "4 passed",
+  "visual": "blocked: phase reset after selection and header above viewport",
+  "files": [
+    {
+      "file": "custom-accent-photos-gallery.png",
+      "sha256": "33d42fdeface1ddf9ebd3047ec8370092035ab2d4ad7e1051cca141dcb2b622d"
+    },
+    {
+      "file": "dark-photos-gallery.png",
+      "sha256": "8396d3c1d5a4171d27c1fbdecb6e9dd49a005cace8280ad9f5babf0a0c59d2ae"
+    },
+    {
+      "file": "german-constrained-photos-gallery.png",
+      "sha256": "6b2fc627c0185b46c99bbbb9d49ad3182d56ad3556ded77f871f6ea4c1817e3d"
+    },
+    {
+      "file": "light-photos-gallery.png",
+      "sha256": "e87136353a9e8fa474fb8fae7d239ff6787a57f5dcfbe38e19e768e17e4210ef"
+    },
+    {
+      "file": "report.json",
+      "sha256": "5037ffa06496e9ee2f11f6ddd77d0b04fc3cff36e34369eb8361296d1453cb8a"
+    },
+    {
+      "file": "runner.txt",
+      "sha256": "f948032163210efc475aa4dc49897f23f6eaa85ff8ff10173b0f6448d77d2286"
+    }
+  ]
+}

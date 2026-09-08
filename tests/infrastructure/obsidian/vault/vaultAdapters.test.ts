@@ -214,7 +214,7 @@ describe('subscribing to vault file changes', () => {
 	 * A FOLDER has no bytes to draw, and `getAbstractFileByPath`'s own case above is the same
 	 * narrowing asked at the other door. Obsidian hands `TAbstractFile` to every one of these.
 	 */
-	it('says nothing about a folder', () => {
+	it('ignores folder byte events but reports both prefixes when the folder moves', () => {
 		const { vault, fire } = eventVault();
 		const paths: string[] = [];
 		createVaultFileChangeSource(vault as never)((path) => paths.push(path));
@@ -226,7 +226,7 @@ describe('subscribing to vault file changes', () => {
 		fire('delete', folder);
 		fire('rename', folder, 'Sheets');
 
-		expect(paths).toEqual([]);
+		expect(paths).toEqual(['Sheets', 'Specs']);
 	});
 
 	/**

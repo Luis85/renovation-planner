@@ -1,0 +1,53 @@
+{
+  "source": "545ad7b6d7886557517c3fe78bfd9cc496dfea82",
+  "testedMerge": "571e28bf285d1879bef0ff34e1b8cd8c565e433b",
+  "sourceAndMergeTree": "0e76fb3394a343a39ca6782fe3529fac319ad742",
+  "run": 34159212022,
+  "linux24Job": 101857339464,
+  "linux24Artifact": 10032202903,
+  "matrix": {
+    "legs": [
+      "ubuntu22",
+      "ubuntu24",
+      "ubuntu26",
+      "windows22"
+    ],
+    "filesPerLeg": 662,
+    "testsPassedPerLeg": 8116,
+    "testsFailedPerLeg": 0,
+    "skippedPerLeg": 69,
+    "verdict": "Build, lint and native tests pass; unchanged branch coverage fails."
+  },
+  "coverage": {
+    "statements": [
+      18076,
+      18237
+    ],
+    "branches": [
+      12538,
+      12813
+    ],
+    "functions": [
+      5182,
+      5219
+    ],
+    "lines": [
+      14110,
+      14174
+    ],
+    "additionalCoveredArmsAtThisDenominator": 19
+  },
+  "health": "Current full health not run while UI owns the local heavy slot; predecessor9cb matched health remains historical.",
+  "rawFiles": [
+    {
+      "file": "coverage-final.json",
+      "bytes": 5092778,
+      "sha256": "b2ade6798eb6b2700467327d8860456ec382ae4e3cc26d59859cb7aa6d28b594"
+    },
+    {
+      "file": "lcov.info",
+      "bytes": 642303,
+      "sha256": "d5fbb84b5c04ab765855517fa175f3064a838249d35eb302764924b79679290b"
+    }
+  ]
+}

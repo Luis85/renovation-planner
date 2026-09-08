@@ -48,5 +48,12 @@ const PlanFrontmatterSchemaV3 = PlanFrontmatterSchemaV2.extend({
 	'schema-version': z.literal(3), renovation: RenovationSchema.optional(),
 });
 export const PlanFrontmatterSchemaV4 = PlanFrontmatterSchemaV3.extend({ 'schema-version': z.literal(4) });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV4>;
+/** Shared contexts must be refused by v4 writers, which otherwise strip those links. */
+const PlanFrontmatterSchemaV5 = PlanFrontmatterSchemaV4.extend({ 'schema-version': z.literal(5) });
+const SpatialElementMetadataSchema = z.array(z.object({ id: z.string().startsWith('element-'), name: z.string().min(1) }));
+const PlanFrontmatterSchemaV6 = PlanFrontmatterSchemaV5.extend({ 'schema-version': z.literal(6), 'spatial-elements': SpatialElementMetadataSchema.optional() });
+const PlanFrontmatterSchemaV7 = PlanFrontmatterSchemaV6.extend({ 'schema-version': z.literal(7) });
+/** Explicit evidence dates must be refused by older writers that would strip them. */
+export const PlanFrontmatterSchemaV8 = PlanFrontmatterSchemaV7.extend({ 'schema-version': z.literal(8) });
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV8>;

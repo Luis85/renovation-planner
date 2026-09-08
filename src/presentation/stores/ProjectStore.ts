@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { persistenceError } from '../../application/errors';
 import { EMPTY_STRUCTURE, type Structure } from '../../domain/spatial/Structure';
 import { computed, ref, type Ref } from 'vue';
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
@@ -336,8 +337,16 @@ export const useProjectStore = defineStore('project', () => {
 		// rather than a third condition on this one.
 		error.value = null;
 
-		await runHydrationReads(queries, planId, ticket, refs, fail);
+		try { await runHydrationReads(queries, planId, ticket, refs, fail); }
+		catch (cause) {
+			if (superseded()) return;
+			handleFailedRead(persistenceError('editor.read-failed', 'The plan could not be read.', cause), ticket.keepOnFailure, refs, fail);
+			done();
+		}
 	}
+	/** Retire an active read immediately when its replacement is queued, retaining the scene. */
+	function invalidateHydration(): void { latestHydration++; refreshing.value = true; }
+	function cancelHydration(): void { latestHydration++; refreshing.value = false; }
 
 	/**
 	 * Which empty state this Plan Editor is in, or `null` for a normal render (design slice
@@ -369,7 +378,7 @@ export const useProjectStore = defineStore('project', () => {
 	 * guarantee this store does not keep in the one case that actually needs stating.
 	 */
 	const emptyStateKey = computed(() =>
-		structure.value.walls.length ? null : selectPlanEditorEmptyState(plan.value, [...zones.value.values()], unreadableZones.value),
+		structure.value.walls.length || structure.value.elements?.length ? null : selectPlanEditorEmptyState(plan.value, [...zones.value.values()], unreadableZones.value),
 	);
 
 	/**
@@ -418,6 +427,8 @@ export const useProjectStore = defineStore('project', () => {
 		retriesFailed,
 		emptyStateKey,
 		hydrate,
+		cancelHydration,
+		invalidateHydration,
 		reset,
 	};
 });

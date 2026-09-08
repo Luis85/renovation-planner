@@ -20,6 +20,7 @@ import { notifyWarning } from '../presentation/notices/notify';
 import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from './guardedServices';
 import { planEditorOpenNote } from './renovationProjectOpenSeams';
 import type { CompositionRoot } from './composition-root';
+import { editorWorkspaceNavigation } from './editorWorkspaceNavigation';
 
 /**
  * Moved out of `composition-root.ts` at the merge with the Renovation Planner Home branch, for
@@ -54,6 +55,7 @@ export function planEditorDeps(
 ): PlanEditorDeps {
 	const persistence = root.persistence;
 	return {
+		navigation: editorWorkspaceNavigation(workspace, root.logger),
 		// TOTAL rather than nullable, and that is the point: with settings unrecovered there
 		// is no query service to hand over, so the view is handed one that REFUSES and shows
 		// the same failed state it shows for any unreadable plan. The alternatives were a

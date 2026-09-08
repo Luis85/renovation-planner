@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import { nextTick } from 'vue';
+import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
 import { useEditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { tr } from '../../i18n/strings';
 const runtime = useEditorRuntime(), project = useProjectStore();
-async function open(event: Event): Promise<void> {
-	const opener = event.currentTarget as HTMLElement, root = opener.closest<HTMLElement>('.renovation-plan-editor');
-	await runtime.openReference(); await nextTick();
-	if (!opener.isConnected && root?.isConnected) root.querySelector<HTMLElement>('[data-rp-action="reference"], [data-rp-rail="layers"]')?.focus();
-}
+const open = (event: Event) => runInspectorAction(event, 'reference', () => runtime.openReference(), 'layers');
 </script>
 <template>
 	<button
@@ -17,6 +13,6 @@ async function open(event: Event): Promise<void> {
 		:aria-disabled="runtime.referenceBlocked.value"
 		@click="open"
 	>
-		{{ tr(project.plan?.background ? 'editor.reference.action' : 'editor.reference.upload') }}
+		<slot>{{ tr(project.plan?.background ? 'editor.reference.action' : 'editor.reference.upload') }}</slot>
 	</button>
 </template>

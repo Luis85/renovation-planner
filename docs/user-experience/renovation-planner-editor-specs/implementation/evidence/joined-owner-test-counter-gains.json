@@ -1,0 +1,452 @@
+{
+  "scope": "Verified owner tests on the common Root/UI source",
+  "source": "57144c81bffaf618681a62ea73a88bcaa1804684",
+  "ownerHead": "fdabbf8d",
+  "reviewAndOutline": {
+    "tests": 8,
+    "result": "PASS",
+    "seconds": 33.46
+  },
+  "publicValidation": {
+    "tests": 3,
+    "result": "PASS",
+    "seconds": 10.16
+  },
+  "scopedCoverage": {
+    "tests": 11,
+    "result": "Tests PASS; unchanged global thresholds fail as expected for scoped execution",
+    "seconds": 38.82
+  },
+  "types": "PASS",
+  "wholeOxlint": "PASS",
+  "scopedEslint": "PASS",
+  "staticFallow": "PASS: zero issues, zero clones",
+  "gains": [
+    {
+      "path": "src/application/commands/asset/CalibrateAsset.ts",
+      "kind": "branch",
+      "id": "5",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 82,
+            "column": 1
+          },
+          "end": {
+            "line": 82,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 82,
+              "column": 1
+            },
+            "end": {
+              "line": 82,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 82
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/application/commands/asset/CalibrateAsset.ts",
+      "kind": "statement",
+      "id": "5",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 82,
+          "column": 62
+        },
+        "end": {
+          "line": 82,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/application/commands/quote/QuoteServices.ts",
+      "kind": "branch",
+      "id": "13",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 68,
+            "column": 1
+          },
+          "end": {
+            "line": 68,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 68,
+              "column": 1
+            },
+            "end": {
+              "line": 68,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 68
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/application/commands/quote/QuoteServices.ts",
+      "kind": "statement",
+      "id": "46",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 68,
+          "column": 16
+        },
+        "end": {
+          "line": 68,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/application/commands/renovation/RenovationCommand.ts",
+      "kind": "branch",
+      "id": "15",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 99,
+            "column": 3
+          },
+          "end": {
+            "line": 99,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 99,
+              "column": 3
+            },
+            "end": {
+              "line": 99,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 99
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/application/commands/renovation/RenovationCommand.ts",
+      "kind": "statement",
+      "id": "56",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 99,
+          "column": 17
+        },
+        "end": {
+          "line": 99,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/editor/renovation/ReviewRoomMarkers.vue",
+      "kind": "statement",
+      "id": "22",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 28,
+          "column": 167
+        },
+        "end": {
+          "line": 28,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/editor/renovation/ReviewRoomMarkers.vue",
+      "kind": "function",
+      "id": "10",
+      "arm": 0,
+      "location": {
+        "name": "(anonymous_10)",
+        "decl": {
+          "start": {
+            "line": 28,
+            "column": 151
+          },
+          "end": {
+            "line": 28,
+            "column": 167
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 28,
+            "column": 167
+          },
+          "end": {
+            "line": 28,
+            "column": null
+          }
+        },
+        "line": 28
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/editor/renovation/useReviewPresentation.ts",
+      "kind": "branch",
+      "id": "1",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 21,
+            "column": 48
+          },
+          "end": {
+            "line": 21,
+            "column": 114
+          }
+        },
+        "type": "binary-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 21,
+              "column": 48
+            },
+            "end": {
+              "line": 21,
+              "column": 77
+            }
+          },
+          {
+            "start": {
+              "line": 21,
+              "column": 77
+            },
+            "end": {
+              "line": 21,
+              "column": 107
+            }
+          },
+          {
+            "start": {
+              "line": 21,
+              "column": 107
+            },
+            "end": {
+              "line": 21,
+              "column": 114
+            }
+          }
+        ],
+        "line": 21
+      },
+      "before": 0,
+      "after": 5
+    },
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "branch",
+      "id": "0",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 11,
+            "column": 21
+          },
+          "end": {
+            "line": 11,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 11,
+              "column": 31
+            },
+            "end": {
+              "line": 11,
+              "column": 85
+            }
+          },
+          {
+            "start": {
+              "line": 11,
+              "column": 85
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          }
+        ],
+        "line": 11
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "branch",
+      "id": "0",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 11,
+            "column": 21
+          },
+          "end": {
+            "line": 11,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 11,
+              "column": 31
+            },
+            "end": {
+              "line": 11,
+              "column": 85
+            }
+          },
+          {
+            "start": {
+              "line": 11,
+              "column": 85
+            },
+            "end": {
+              "line": 11,
+              "column": null
+            }
+          }
+        ],
+        "line": 11
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "statement",
+      "id": "2",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 11,
+          "column": 21
+        },
+        "end": {
+          "line": 11,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 2
+    },
+    {
+      "path": "src/presentation/editor/resize/outlineEditAction.ts",
+      "kind": "function",
+      "id": "2",
+      "arm": 0,
+      "location": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 11,
+            "column": 2
+          },
+          "end": {
+            "line": 11,
+            "column": 10
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 11,
+            "column": 21
+          },
+          "end": {
+            "line": 11,
+            "column": null
+          }
+        },
+        "line": 11
+      },
+      "before": 0,
+      "after": 2
+    }
+  ],
+  "comparisonLimit": "Compared only identical source and maps to full Root571 CI with 10 known UI failures. Other scoped maps are incomparable; no full coverage union is inferred.",
+  "health": {
+    "owner": "Root/UI",
+    "policy": "No suppression or threshold change",
+    "totalFiles": 747,
+    "finding": {
+      "name": "<template>",
+      "cognitive": 17,
+      "path": "src/presentation/editor/renovation/ReviewSummary.vue",
+      "line": 29,
+      "limit": 15
+    },
+    "coverageSource": "Original full Root571 CI",
+    "matchedFiles": 747,
+    "result": "FAIL"
+  }
+}

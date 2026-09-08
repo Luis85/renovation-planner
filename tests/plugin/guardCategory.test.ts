@@ -608,6 +608,10 @@ describe('every service leaving the composition root is guarded', () => {
 			'editorDeps.commands.renovation',
 			// Argument-taking spatial factory: read/execute/undo checked in guardedStructure.test.ts.
 			'editorDeps.commands.structure',
+			// Actual composed Trade list/create exceptions and retry are driven by downstreamGuardBoundaries.test.ts.
+			'editorDeps.commands.tradeCatalogue',
+			// Workspace navigation returns no service; fault paths are covered by editorWorkspaceNavigation.test.ts.
+			'editorDeps.navigation',
 			'editorDeps.queries',
 			'libraryDeps',
 			'libraryDeps.logger',

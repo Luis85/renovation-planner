@@ -1,0 +1,40 @@
+.rp-view-menu { position: relative; flex: 0 0 auto; }
+.rp-view-menu > summary { list-style: none; }
+.rp-view-menu > summary::after { content: '⌄'; margin-left: var(--size-4-1); }
+.rp-view-menu__content {
+	box-sizing: border-box;
+	position: absolute;
+	right: 0;
+	top: calc(100% + var(--size-4-1));
+	z-index: 20;
+	display: grid;
+	gap: var(--size-4-2);
+	width: min(280px, calc(100vw - 32px));
+	max-height: min(60vh, calc(100vh - 180px));
+	overflow: auto;
+	padding: var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	box-shadow: var(--shadow-s);
+	font-size: var(--font-ui-small);
+}
+.rp-view-menu__content > button { display: flex; justify-content: space-between; gap: var(--size-4-2); }
+.rp-view-menu__content label { display: flex; align-items: center; gap: var(--size-4-2); }
+.rp-view-menu__content p { margin: 0; color: var(--text-muted); }
+.rp-view-menu__zoom { display: flex; align-items: center; justify-content: space-between; gap: var(--size-4-2); }
+.rp-view-menu__content button:focus-visible, .rp-view-menu__content input:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.rp-canvas-grid {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: linear-gradient(to right, var(--background-modifier-border) 1px, transparent 1px), linear-gradient(to bottom, var(--background-modifier-border) 1px, transparent 1px);
+	opacity: 0.5;
+}
+
+@container (max-width: 899px) {
+	.renovation-plan-editor .rp-context-bar { position: relative; }
+	.rp-view-menu { position: static; }
+	.rp-view-menu__content { right: 8px; width: min(280px, calc(100% - 16px)); }
+}

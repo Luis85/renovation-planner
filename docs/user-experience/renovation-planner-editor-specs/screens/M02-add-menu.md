@@ -104,9 +104,7 @@ Evidence: `areaCreation.e2e.test.ts`, `add/areaOutline.test.ts`, `areaPersistenc
 in light, dark, custom accent and German constrained layouts. Its browser fixture refuses
 writes; successful persistence and Undo/Redo are exercised by the repository-backed tests.
 
-Remaining after the numeric continuation below: Area name/type forms, self-crossing
-outline validation, and the unavailable creation domains. This contribution does not close
-all M02 use cases or Increment A's domain-dependent criteria.
+Current reconciliation: Area name/type forms are implemented in finalization. Self-intersection detection is explicitly deferred by SDD §26 and the Spatial object entity contract. All eleven Add routes are now implemented; final integrated acceptance remains open.
 
 
 ## Numeric Area corner input — continuation of Phase 3 / Increment A
@@ -142,3 +140,19 @@ reaches the disclosure. The form scrolls independently and Finish/Cancel remain 
 
 The numeric form does not name/classify Areas or repair self-crossing outlines. It closes the
 numeric-placement gap only; the remaining M02 and Increment A criteria stay open.
+
+
+## Finalization continuation — Area details and free-shape Room (2026-09-07)
+
+Selecting an Area exposes an explicit name/type form. Apply writes both fields as one conditional reversible Zone update, preserving its geometry, note body, requirements and Room/Area identity. A peer revision retains the draft and reports the latest metadata; Cancel writes nothing.
+
+Add → Room includes a free-shape choice. A completed rectangle and chosen name survive this transition; native corner controls then edit the same temporary polygon used by pointer input. The free-shape task has a name field and explicit Create room action, uses the same completion gate for button, Enter and first-corner closure, and returns to Select after one creation. A missing name, invalid outline or pending corner text blocks completion. Undo/Redo preserves the created Room identity.
+
+Evidence: `areaDetails.e2e.test.ts`, `editZoneDetails.test.ts`, `freeShapeRoom.e2e.test.ts`. These focused component/repository checks do not replace combined-tree theme or live-host acceptance.
+
+
+## Add Note continuation (2026-09-07)
+
+With one Room selected, Add → Note opens the same contextual Notes form as the Room Inspector. It starts with note type and the current Room/source context. Creating a contextual note writes an ordinary Markdown file through the existing evidence file service; applying the form attaches one evidence record. Undo removes that link and preserves the file. Redo restores the same evidence identity. Cancel before file creation writes nothing; an already-created file remains an ordinary vault note when the form is cancelled.
+
+The menu explains that a Room must be selected and its planning data available. `addNote.e2e.test.ts` passes the unavailable, creation/history and cancellation paths against real commands and FakeVault-backed repositories. Element-context and shared-record integration is still pending the UI checkpoint.

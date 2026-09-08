@@ -10,6 +10,9 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import { openingPoints, type Opening, type Wall } from '../../../domain/spatial/Structure';
 import { draftStructure, isStructureTool } from './structureDraft';
+import ElementShapes from '../elements/ElementShapes.vue';
+import { isElementTool } from '../elements/elementDraft';
+import WallDraftOverlay from './WallDraftOverlay.vue';
 const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visible: boolean; zoom: number }>();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const task = runtime.structureTask;
@@ -17,7 +20,9 @@ const structure = computed(() => runtime.structureActions.preview.value ?? (isSt
 const points = (value: readonly Point[]): number[] => value.flatMap(p => [p.x, p.y]);
 const selected = (id: string): boolean => selection.selectedIds.some(candidate => candidate === id);
 const previewPoints = computed(() => task.draft.points.length && task.draft.cursor ? points([task.draft.points[task.draft.points.length - 1], task.draft.cursor]) : []);
-function handles(wall: Wall): readonly Point[] { return renovationSession.perspective === 'plan' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
+const noDraftPoints: readonly Point[] = [];
+const wallDraftPoints = computed(() => runtime.activeToolId.value === 'draw-wall' ? task.draft.points : noDraftPoints);
+function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 function openingLines(opening: Opening) {
 	const { tokens, zoom } = props, linePoints = points(openingPoints(opening, structure.value.walls));
 	const thickness = structure.value.walls.find(wall => wall.id === opening.hostId)?.thickness ?? 100;
@@ -28,9 +33,29 @@ function openingLines(opening: Opening) {
 	};
 }
 const openings = computed(() => structure.value.openings.map(opening => ({ id: opening.id, ...openingLines(opening) })));
+const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
+const elements = computed(() => (structure.value.elements ?? []).map(element => runtime.elementActions.preview.value?.id === element.id ? runtime.elementActions.preview.value : ({ ...element, name: elementNames.value.get(element.id) ?? element.id })));
+const elementDraft = computed(() => {
+	const draft = runtime.elementTask.draft;
+	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];
+	const cursor = draft.cursor && (draft.kind !== 'measurement' || draft.points.length < 2) ? [draft.cursor] : [];
+	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...cursor] }];
+});
 </script>
 <template>
 	<VLayer :config="{ name: 'architecture', listening: false, visible, ...transform }">
+		<ElementShapes
+			:elements="elements"
+			:selected-ids="selection.selectedIds"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
+		<ElementShapes
+			:elements="elementDraft"
+			:selected-ids="['element-preview']"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
 		<VGroup
 			v-for="wall in structure.walls"
 			:key="wall.id"
@@ -56,6 +81,11 @@ const openings = computed(() => structure.value.openings.map(opening => ({ id: o
 		<VLine
 			v-if="previewPoints.length"
 			:config="{ points: previewPoints, stroke: tokens.accent, strokeWidth: 2 / zoom, dash: [7 / zoom, 4 / zoom] }"
+		/>
+		<WallDraftOverlay
+			:points="wallDraftPoints"
+			:tokens="tokens"
+			:zoom="zoom"
 		/>
 	</VLayer>
 </template>

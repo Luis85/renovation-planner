@@ -1,0 +1,110 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+      "--text-accent": "hsl(258, 88%, 66%)",
+      "--background-primary": "#ffffff",
+      "--background-secondary": "#f6f6f6"
+    },
+    "gallery": {
+      "images": 6,
+      "phase": "during",
+      "selectedId": "record-01M1Y5HCBWVA3WBZ2HD5RMCGCC",
+      "selectedDate": "2026-08-28",
+      "work": "Floor finish",
+      "viewport": "1440 × 1000",
+      "inputs": "six explicit synthetic PNG files linked through native production forms"
+    },
+    "storage": "production application services and repositories over FakeVault",
+    "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+    "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+    "reflow": "material draft and native focus preserved",
+    "history": "evidence undo/redo",
+    "scope": "browser host file open is recorded, not a live Obsidian leaf",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "gallery": {
+      "images": 6,
+      "phase": "during",
+      "selectedId": "record-01M1Y5HQH3AD9TQTHNYAJJDBYJ",
+      "selectedDate": "2026-08-28",
+      "work": "Floor finish",
+      "viewport": "1440 × 1000",
+      "inputs": "six explicit synthetic PNG files linked through native production forms"
+    },
+    "storage": "production application services and repositories over FakeVault",
+    "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+    "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+    "reflow": "material draft and native focus preserved",
+    "history": "evidence undo/redo",
+    "scope": "browser host file open is recorded, not a live Obsidian leaf",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "#7c246b",
+      "--text-accent": "#7c246b",
+      "--background-primary": "#fff8ed",
+      "--background-secondary": "#efe3d3"
+    },
+    "gallery": {
+      "images": 6,
+      "phase": "during",
+      "selectedId": "record-01M1Y5J2BJZ00Q1DPP50724RJ2",
+      "selectedDate": "2026-08-28",
+      "work": "Floor finish",
+      "viewport": "1000 × 1000",
+      "inputs": "six explicit synthetic PNG files linked through native production forms"
+    },
+    "storage": "production application services and repositories over FakeVault",
+    "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+    "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+    "reflow": "material draft and native focus preserved",
+    "history": "evidence undo/redo",
+    "scope": "browser host file open is recorded, not a live Obsidian leaf",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "gallery": {
+      "images": 6,
+      "phase": "during",
+      "selectedId": "record-01M1Y5JCKB7XY9R366NZ55Q8VD",
+      "selectedDate": "2026-08-28",
+      "work": "Floor finish",
+      "viewport": "460 × 1000",
+      "inputs": "six explicit synthetic PNG files linked through native production forms"
+    },
+    "storage": "production application services and repositories over FakeVault",
+    "journey": "Room → Existing → Planned → Work → Materials → allocations → Costs → partial payment → Evidence → Review",
+    "input": "Tab, native select arrows, typing, Enter, Escape; no fill/focus shortcuts",
+    "reflow": "material draft and native focus preserved",
+    "history": "evidence undo/redo",
+    "scope": "browser host file open is recorded, not a live Obsidian leaf",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

@@ -1,0 +1,60 @@
+{
+  "sourceBase": "dc563c77e4fe5f563101203f52481de88719c91f",
+  "productionBase": "5557385f3780c85e83b0a8338173c0378c358ea1",
+  "scope": "Bounded M14 correction and original planning journey; final nine-journey/eighteen-reference gate remains open",
+  "command": "node scripts/editor-planning-check.mjs --design",
+  "browser": "Edge 152.0.4191.62 explicit RP_CHROMIUM_EXECUTABLE override",
+  "sourceFiles": [
+    {
+      "path": "src/presentation/editor/layers/zone/ZoneLayer.vue",
+      "sha256": "7f10bddf2a7ceac77fccc610a4867cac3c9bae74fee4f6b7394ddf880e8a6879",
+      "gitBlob": "eb8fee0ef4802f4ca6e7445ef9e0abec91c02ad8"
+    },
+    {
+      "path": "src/presentation/editor/layers/zone/ZoneShape.vue",
+      "sha256": "4abd10d530b346424cab9aa61190af8ffc0d422011d53fe0a9d98a2a713a6189",
+      "gitBlob": "7bbf918e96e00c9a0a7cde523875ecf8741a71ca"
+    },
+    {
+      "path": "src/presentation/editor/layers/zone/captionPlacement.ts",
+      "sha256": "ab71442cec909eb16b5eefe7c0ea9cf31eaf3d0363bdce5c6ebf47f4c63c7e43",
+      "gitBlob": "3d7caf953850ed23f7fb68c4bd587c293347f945"
+    },
+    {
+      "path": "src/presentation/editor/planning/EvidencePins.vue",
+      "sha256": "1558cb3d9824333f35aab680b7169e5011950dbd12cdf2096ad8b7997a691d2a",
+      "gitBlob": "403bd15b332d45dd5d1e0bcdc535c14be3d8dbf7"
+    },
+    {
+      "path": "src/presentation/editor/planning/evidencePins.ts",
+      "sha256": "cb033d327d703b911a73e44982eb672a54377d27b3bb9ff984b66dfb22e846b4",
+      "gitBlob": "ffec161a0fce9b44cdd966a62a17168f19119c98"
+    }
+  ],
+  "images": [
+    {
+      "file": "after-custom-accent.png",
+      "sha256": "bd00fed9db6e949d40fe815c8586dac0e9e26a0597a3963c041cbab9418d473e"
+    },
+    {
+      "file": "after-dark.png",
+      "sha256": "a701ce29a2c5691320b9a4c3f370c01ff26beaeb6c6f01263e33cc1f300067cc"
+    },
+    {
+      "file": "after-german-constrained.png",
+      "sha256": "094110de9954b817c9cdab9367db672f50df61f98ccd5e44b74de78f8c4c4761"
+    },
+    {
+      "file": "after-light.png",
+      "sha256": "366dc69629e52a6ec090f725df5b7733dbbb9173a812523cceb534342957084f"
+    },
+    {
+      "file": "before-dark.png",
+      "sha256": "8a1840f950f888d88f7b11f429fa557083524251fd3c1ba71a04cb03a32fdb93"
+    },
+    {
+      "file": "before-light.png",
+      "sha256": "70e091b4fb812463956b4b67aee732b10c61f3b2167f04f54623da069c6e5bae"
+    }
+  ]
+}

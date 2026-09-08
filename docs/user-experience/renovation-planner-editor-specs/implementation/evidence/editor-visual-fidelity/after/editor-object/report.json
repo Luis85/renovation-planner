@@ -1,0 +1,118 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+      "--text-accent": "hsl(258, 88%, 66%)",
+      "--background-primary": "#ffffff",
+      "--background-secondary": "#f6f6f6"
+    },
+    "accessibility": [
+      {
+        "state": "invalid-rectangle",
+        "violations": 0,
+        "incompleteChecks": 1
+      },
+      {
+        "state": "saved-item",
+        "violations": 0,
+        "incompleteChecks": 0
+      }
+    ],
+    "storage": "production commands and repositories over FakeVault",
+    "itemId": "element-01M1YP4XCS52X4NT6548F1YJ3H",
+    "rectangle": "invalid input, focus and reflow retained; Enter applied four corners",
+    "lifecycle": "save, named outline edit, undo/redo, confirmed removal and undo",
+    "zoom": "viewport reflow only; not browser zoom",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "accessibility": [
+      {
+        "state": "invalid-rectangle",
+        "violations": 0,
+        "incompleteChecks": 1
+      },
+      {
+        "state": "saved-item",
+        "violations": 0,
+        "incompleteChecks": 0
+      }
+    ],
+    "storage": "production commands and repositories over FakeVault",
+    "itemId": "element-01M1YP5768DYVFXB9Z5VYAAK86",
+    "rectangle": "invalid input, focus and reflow retained; Enter applied four corners",
+    "lifecycle": "save, named outline edit, undo/redo, confirmed removal and undo",
+    "zoom": "viewport reflow only; not browser zoom",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "#7c246b",
+      "--text-accent": "#7c246b",
+      "--background-primary": "#fff8ed",
+      "--background-secondary": "#efe3d3"
+    },
+    "accessibility": [
+      {
+        "state": "invalid-rectangle",
+        "violations": 0,
+        "incompleteChecks": 1
+      },
+      {
+        "state": "saved-item",
+        "violations": 0,
+        "incompleteChecks": 0
+      }
+    ],
+    "storage": "production commands and repositories over FakeVault",
+    "itemId": "element-01M1YP5GD7D5H64148F7EV1XFX",
+    "rectangle": "invalid input, focus and reflow retained; Enter applied four corners",
+    "lifecycle": "save, named outline edit, undo/redo, confirmed removal and undo",
+    "zoom": "viewport reflow only; not browser zoom",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "accessibility": [
+      {
+        "state": "invalid-rectangle",
+        "violations": 0,
+        "incompleteChecks": 1
+      },
+      {
+        "state": "saved-item",
+        "violations": 0,
+        "incompleteChecks": 1
+      }
+    ],
+    "storage": "production commands and repositories over FakeVault",
+    "itemId": "element-01M1YP5SWB77CJRQ5CFX45EXJQ",
+    "rectangle": "invalid input, focus and reflow retained; Enter applied four corners",
+    "lifecycle": "save, named outline edit, undo/redo, confirmed removal and undo",
+    "zoom": "viewport reflow only; not browser zoom",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

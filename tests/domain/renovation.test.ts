@@ -63,6 +63,8 @@ describe('independent renovation states and readiness', () => {
 		expect(reviewRenovation({ ...base, work: [] }).map(item => item.kind)).toEqual(['decision', 'missing-work']);
 		for (const planned of [null, { change: 'unchanged' as const, description: 'Worn timber' }]) expect(reviewRenovation({ ...EMPTY_RENOVATION, subjects: [{ ...subject, planned }] })).toEqual([]);
 		expect(reviewRenovation({ ...EMPTY_RENOVATION, subjects: [{ ...subject, planned: { change: 'remove', description: '' } }] })[0].causes).toEqual(['Worn timber']);
+		// A subject described nowhere is still named in the finding, by the one stable thing it has.
+		expect(reviewRenovation({ ...EMPTY_RENOVATION, subjects: [{ ...subject, existing: null, planned: { change: 'add', description: '' } }] })[0].causes).toEqual([subject.id]);
 	});
 	it('validates stable targets separately from labels and lists referential impact', () => {
 		expect(validateRenovationTargets(base, { roomIds: ['room-a'] }).ok).toBe(true);

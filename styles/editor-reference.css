@@ -26,3 +26,19 @@
 .rp-reference-setup input[type="range"],
 .rp-reference-setup input[type="checkbox"] { accent-color: var(--interactive-accent); }
 .rp-reference-setup label:has(input[type="checkbox"]) { display: flex; align-items: baseline; gap: var(--size-4-2); }
+
+/* M05 keeps each complete starting choice inside its existing native button. */
+.renovation-plan-editor .rp-floor-start > button {
+	display: grid;
+	justify-items: center;
+	align-content: start;
+	gap: var(--size-4-2);
+}
+.renovation-plan-editor .rp-floor-start > button > .rp-host-icon { --icon-size: 28px; }
+.rp-floor-start__title { font-weight: var(--font-semibold); }
+.rp-floor-start__description {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-normal);
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}

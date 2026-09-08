@@ -1,0 +1,74 @@
+/* M07/M11 spacing retains native action order, measurements and focus targets. */
+.renovation-plan-editor .rp-structure-inspector > .rp-editor-inspector-fields {
+	gap: 4px 12px;
+	margin: 8px 0;
+}
+
+.renovation-plan-editor .rp-structure-inspector > .rp-structure-renovation-entry {
+	gap: 6px;
+	margin-block: 8px;
+}
+
+.renovation-plan-editor .rp-structure-inspector .rp-structure-renovation-entry > label {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	align-items: center;
+	gap: 8px;
+}
+
+.renovation-plan-editor .rp-structure-inspector .rp-structure-renovation-entry select {
+	width: 100%;
+	min-width: 0;
+}
+
+.renovation-plan-editor .rp-structure-inspector > details {
+	margin-block: 6px 0;
+	padding-block: 6px;
+}
+
+.renovation-plan-editor .rp-structure-inspector > details > summary { margin-bottom: 0; }
+.renovation-plan-editor .rp-structure-inspector > details[open] > summary { margin-bottom: 6px; }
+
+.renovation-plan-editor .rp-multi-selection {
+	display: grid;
+	gap: 10px;
+}
+
+.renovation-plan-editor .rp-multi-selection > p { margin-block: 0; }
+.renovation-plan-editor .rp-multi-selection > .rp-editor-inspector-fields {
+	gap: 5px 12px;
+	margin: 0;
+}
+
+.renovation-plan-editor .rp-multi-selection > .rp-batch-actions { gap: 8px; margin-block: 0; }
+.renovation-plan-editor .rp-multi-selection > .rp-batch-actions > h3 { margin: 0; font-size: var(--font-ui-medium); }
+.renovation-plan-editor .rp-multi-selection .rp-batch-actions > .rp-renovation-actions {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 6px;
+}
+
+.renovation-plan-editor .rp-multi-selection .rp-batch-actions > .rp-renovation-actions > .rp-batch-action {
+	width: 100%;
+	min-height: 36px;
+	height: auto;
+	padding: 7px 10px;
+	white-space: normal;
+	text-align: start;
+	justify-content: flex-start;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	box-shadow: none;
+}
+
+.renovation-plan-editor .rp-multi-selection .rp-batch-actions > .rp-renovation-actions > .rp-batch-action:not(:disabled):hover {
+	background: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-multi-selection .rp-batch-actions > .rp-renovation-actions > .rp-batch-action:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.renovation-plan-editor .rp-multi-selection > .rp-editor-panel-subtitle { margin: 0; }
+.renovation-plan-editor .rp-multi-selection > .rp-room-list { margin: 0; }
+.renovation-plan-editor .rp-multi-selection > button { justify-self: start; }

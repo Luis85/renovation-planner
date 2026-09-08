@@ -1,0 +1,58 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 446,
+      "scroll": 446
+    },
+    "before": "Kitchen",
+    "after": "Dining room",
+    "reflow": "draft and focus preserved",
+    "storage": "ephemeral in-memory repositories",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 446,
+      "scroll": 446
+    },
+    "before": "Kitchen",
+    "after": "Dining room",
+    "reflow": "draft and focus preserved",
+    "storage": "ephemeral in-memory repositories",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 446,
+      "scroll": 446
+    },
+    "before": "Kitchen",
+    "after": "Dining room",
+    "reflow": "draft and focus preserved",
+    "storage": "ephemeral in-memory repositories",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 426,
+      "scroll": 426
+    },
+    "before": "Kitchen",
+    "after": "Dining room",
+    "reflow": "draft and focus preserved",
+    "storage": "ephemeral in-memory repositories",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

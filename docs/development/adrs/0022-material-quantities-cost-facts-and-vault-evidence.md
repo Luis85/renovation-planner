@@ -137,3 +137,12 @@ that operation cannot revise its spatial, Work and outcome source together. With
 dependants and recreating the Requirement in the destination; in-place transfer is deferred.
 Same-Room catalogue replacement retains the
 source and enters the existing stale recalculation path.
+
+
+### Editor completion amendment: explicit evidence dates — 2026-09-07
+
+M14's metadata contract, the V1 spatial-evidence flow and the canonical Photo/Document descriptions require a date. The existing Plan-owned Evidence relationship therefore gains optional `date` metadata, entered explicitly as an ISO calendar date. For a photo this is the capture date; for a document it is the document date. An unknown date remains absent. File creation/modification times, import time and today's date are never substituted. This does not introduce an execution timeline, site log or another metadata authority.
+
+The form preserves raw date input through read failure, validates actual calendar dates before writing and permits explicitly clearing a date. Metadata exposes recorded dates using a semantic `time` element. Dated records sort chronologically, with stable source order for equal dates and undated records following. Gallery, list and numbered pins must share that ordering and the retained planning snapshot during read-back failure; derived pin numbers remain unpersisted. Date-only changes must participate in owned-fact comparison and conditional history.
+
+A Plan containing a date writes schema8 so schema7-and-earlier writers refuse it instead of discarding the field. The pure 7→8 read migration only advances its discriminator and invents no date. Payloads without dates retain the version required by their other actual capabilities; clearing the last date can therefore restore the prior written schema, and Undo restores the dated payload and schema8. Existing expected-version checks, sidecar confirmation and compensation govern date edits. The native/date compatibility regressions and final integrated gates remain required; this amendment is not an acceptance pass.

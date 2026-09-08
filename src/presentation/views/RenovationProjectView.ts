@@ -2,6 +2,7 @@ import { Platform, ItemView, type ViewStateResult, type WorkspaceLeaf } from 'ob
 import { createApp, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import ViewRoot from './ViewRoot.vue';
+import { projectRouteFrom, projectDestinationState, type ProjectRoute } from '../../application/navigation/ProjectDestination';
 import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps, type ProjectSession } from './RenovationProjectContext';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from './app-id-prefix';
@@ -150,7 +151,7 @@ export class RenovationProjectView extends ItemView {
 	 * carries meaning — `''` IS the list.
 	 */
 	getState(): Record<string, unknown> {
-		return { projectId: this.projectId ?? '', ...(this.section === 'prices' ? { section: 'prices' } : {}) };
+		return { projectId: this.projectId ?? '', ...projectDestinationState(this.route) };
 	}
 
 	/**
@@ -167,8 +168,8 @@ export class RenovationProjectView extends ItemView {
 	 */
 	async setState(state: unknown, result: ViewStateResult): Promise<void> {
 		const parsed = projectIdFrom(state);
-		const section = parsed?.projectId && (state as Record<string, unknown>)['section'] === 'prices' ? 'prices' : 'details';
-		const changed = parsed !== null && (parsed.projectId !== this.projectId || section !== this.section);
+		const route = projectRouteFrom(parsed?.projectId ? state : undefined);
+		const changed = parsed !== null && (parsed.projectId !== this.projectId || JSON.stringify(route) !== JSON.stringify(this.route));
 		// Only an ACCEPTED, CHANGED state is a navigation. `ViewStateResult.history` is
 		// documented as "there is a state change which should be recorded in the navigation
 		// history", and an unconditional assignment claims one where there is none: a refused
@@ -195,7 +196,7 @@ export class RenovationProjectView extends ItemView {
 		// to observe on Stay.
 		result.history = changed;
 		if (changed && this.session.canLeave && !(await this.session.canLeave())) { result.history = false; return; }
-		if (parsed !== null) { this.projectId = parsed.projectId; this.section = section; }
+		if (parsed !== null) { this.projectId = parsed.projectId; this.route = route; }
 		// Only once the view is OPEN. A `setState` arriving BEFORE `onOpen` — one of the two
 		// orderings this class's docblock refuses to assume between — used to mount a Vue tree
 		// into a leaf Obsidian had not opened yet, which the `onOpen` that followed then
@@ -223,8 +224,8 @@ export class RenovationProjectView extends ItemView {
 
 	/** Which state this view is showing: `null` is the LIST, a string is that project. */
 	private projectId: string | null = null;
-	private section: 'details' | 'prices' = 'details';
-	private mountedSection: 'details' | 'prices' = 'details';
+	private route: ProjectRoute = { section: 'details' };
+	private mountedRoute = '';
 	private readonly session: ProjectSession = {
 		query: '', completedOpen: false, focusedProjectId: null, scrollTop: 0, guidanceHidden: false,
 	};
@@ -322,7 +323,7 @@ export class RenovationProjectView extends ItemView {
 	 * mounts exactly once.
 	 */
 	private sync(): void {
-		if (this.mounted && this.projectId === this.mountedProjectId && this.section === this.mountedSection) return;
+		if (this.mounted && this.projectId === this.mountedProjectId && JSON.stringify(this.route) === this.mountedRoute) return;
 		this.unmount();
 		this.mount(this.projectId);
 	}
@@ -344,7 +345,7 @@ export class RenovationProjectView extends ItemView {
 		// builds its context locally rather than asking the root for a per-mount one. Nothing
 		// in `plugin/` changes, and `projectId` stays the VIEW's field, which is the property
 		// that mattered.
-		app.provide(RENOVATION_PROJECT_CONTEXT, { ...this.deps, projectId, section: this.section, session: this.session, readOnly: Platform.isMobile });
+		app.provide(RENOVATION_PROJECT_CONTEXT, { ...this.deps, projectId, ...this.route, session: this.session, readOnly: Platform.isMobile });
 		// Onto `contentEl` itself, with no wrapper — see the class docblock's height chain.
 		// Vue types `app.mount(...)`'s return as the generic `ComponentPublicInstance`, and
 		// `<script setup>`'s own exposed shape is not recoverable from that type — one cast,
@@ -352,7 +353,7 @@ export class RenovationProjectView extends ItemView {
 		this.root = app.mount(this.contentEl) as unknown as ViewRootProxy;
 		this.vueApp = app;
 		this.mountedProjectId = projectId;
-		this.mountedSection = this.section;
+		this.mountedRoute = JSON.stringify(this.route);
 		this.mounted = true;
 	}
 

@@ -1,0 +1,85 @@
+{
+  "source": "9cb87b1b215345fb7db0d4bbc6aea828b537b15a",
+  "testedMerge": "e3f22791563526646bc1380365f699f8963857ef",
+  "sourceAndMergeTree": "bf2382e0cb968c43c3152bf0a614e9cd18da393d",
+  "run": 34154814793,
+  "job": 101844333831,
+  "artifact": 10030720775,
+  "platform": "ubuntu-latest",
+  "node": "24",
+  "tests": {
+    "files": 661,
+    "passed": 8114,
+    "failed": 0,
+    "skipped": 69
+  },
+  "coverage": {
+    "statements": {
+      "covered": 18059,
+      "total": 18224
+    },
+    "branches": {
+      "covered": 12537,
+      "total": 12817,
+      "threshold": 98,
+      "additionalCoveredArmsAtThisDenominator": 24
+    },
+    "functions": {
+      "covered": 5174,
+      "total": 5211
+    },
+    "lines": {
+      "covered": 14103,
+      "total": 14168
+    }
+  },
+  "verdict": "Build, lint and all native tests pass on all four matrix legs; unchanged branch threshold fails. Separate full health on identical source and original CI counters passes.",
+  "rawFiles": [
+    {
+      "file": "coverage-final.json",
+      "sha256": "a1466424ffabde6318518ec23d16bb32d8db198d5f269097c8caf6ab00778e6e",
+      "bytes": 5090324
+    },
+    {
+      "file": "lcov.info",
+      "sha256": "d3695ae4798b1d34f76e4d4b95b6dbc3bc6a01b3aba756fc729773620b636eba",
+      "bytes": 641920
+    }
+  ],
+  "matrix": {
+    "legs": [
+      "ubuntu22",
+      "ubuntu24",
+      "ubuntu26",
+      "windows22"
+    ],
+    "testsPerLeg": 8114,
+    "filesPerLeg": 661,
+    "skippedPerLeg": 69,
+    "remainingFailure": "branches97.81%<98%"
+  },
+  "health": {
+    "exitCode": 0,
+    "findings": [],
+    "summary": {
+      "files_analyzed": 813,
+      "functions_analyzed": 4716,
+      "functions_above_threshold": 0,
+      "max_cyclomatic_threshold": 20,
+      "max_cognitive_threshold": 15,
+      "max_crap_threshold": 32,
+      "max_unit_size_threshold": 60,
+      "files_scored": 669,
+      "average_maintainability": 87.9,
+      "coverage_model": "istanbul",
+      "istanbul_matched": 4494,
+      "istanbul_total": 19119,
+      "istanbul_files_matched": 748,
+      "istanbul_files_total": 748,
+      "severity_critical_count": 0,
+      "severity_high_count": 0,
+      "severity_moderate_count": 0
+    },
+    "rawReportSha256": "56210c3e1340872c8e5df5e94d082e65add5835264aef3a38e935e0e1152b84c"
+  }
+}

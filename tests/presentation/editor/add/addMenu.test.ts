@@ -20,6 +20,7 @@ import { useSelectionStore } from '../../../../src/presentation/editor/selection
 import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
 import AddMenu from '../../../../src/presentation/editor/add/AddMenu.vue';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../../src/presentation/editor/runtime';
+import { NOTE_CREATION } from '../../../../src/presentation/editor/add/noteCreation';
 import type { ToolId } from '../../../../src/presentation/editor/tools/editor-tool';
 import { click } from '../../../helpers/planEditorRig';
 
@@ -61,6 +62,16 @@ async function press(target: Element): Promise<void> {
 }
 
 describe('the Add menu', () => {
+	it.each(['item', 'path', 'fence', 'measurement'])('explains a missing save capability for %s and keeps activation paused', async id => {
+		const harness = await mountPlanEditorCanvas(); await openAdd(harness); await settle();
+		const entry = harness.wrapper.get(`[data-rp-entry="${id}"]`);
+		expect(entry.attributes('aria-disabled')).toBe('true');
+		const reasonId = entry.attributes('aria-describedby'); expect(reasonId).toBeDefined();
+		expect(harness.wrapper.get(`#${reasonId}`).text()).toContain('editing is unavailable in this view');
+		await entry.trigger('click'); expect(runtimeOf(harness).activeToolId.value).toBe('select');
+		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(true);
+	});
+
 	it('opens from Add, focuses Room, and closes on Escape with focus back on Add and nothing dispatched', async () => {
 		const harness = await mountPlanEditorCanvas();
 		await openAdd(harness);
@@ -504,6 +515,7 @@ function stubRuntime(setTool: (id: ToolId | null) => void): EditorRuntime {
 	return {
 		setTool,
 		structureTask: { available: false },
+		elementTask: { available: false },
 		writesBlocked: computed(() => false),
 		pausedReasonId: 'stub-paused-reason',
 	} as unknown as EditorRuntime;
@@ -521,7 +533,7 @@ describe('the Add menu, mounted standalone', () => {
 		const wrapper = mount(AddMenu, {
 			props: { anchor: null },
 			attachTo: document.body,
-			global: { provide: { [EDITOR_RUNTIME as symbol]: runtime } },
+			global: { provide: { [EDITOR_RUNTIME as symbol]: runtime, [NOTE_CREATION as symbol]: { available: computed(() => false), activate: vi.fn<() => void>() } } },
 		});
 		await nextTick();
 
@@ -550,7 +562,7 @@ describe('the Add menu, mounted standalone', () => {
 			attrs: { onClose: () => order.push('close') },
 			attachTo: document.body,
 			global: {
-				provide: { [EDITOR_RUNTIME as symbol]: runtime },
+				provide: { [EDITOR_RUNTIME as symbol]: runtime, [NOTE_CREATION as symbol]: { available: computed(() => false), activate: vi.fn<() => void>() } },
 				config: { errorHandler: () => undefined }, // the throw is the fixture, not the finding
 			},
 		});

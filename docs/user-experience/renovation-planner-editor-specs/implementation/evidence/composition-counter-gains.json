@@ -1,0 +1,101 @@
+[
+  {
+    "file": "src/plugin/planningEditorServices.ts",
+    "branches": [
+      {
+        "id": "2",
+        "arm": 1,
+        "line": 36
+      },
+      {
+        "id": "3",
+        "arm": 1,
+        "line": 36
+      },
+      {
+        "id": "5",
+        "arm": 1,
+        "line": 38
+      }
+    ],
+    "statements": []
+  },
+  {
+    "file": "src/application/commands/renovation/tradeAssignments.ts",
+    "branches": [
+      {
+        "id": "3",
+        "arm": 0,
+        "line": 14
+      }
+    ],
+    "statements": [
+      {
+        "id": "9",
+        "line": 14
+      }
+    ]
+  },
+  {
+    "file": "src/application/commands/catalogue/NamedCatalogueServices.ts",
+    "branches": [
+      {
+        "id": "5",
+        "arm": 0,
+        "line": 31
+      }
+    ],
+    "statements": [
+      {
+        "id": "13",
+        "line": 31
+      }
+    ]
+  },
+  {
+    "file": "src/application/commands/quote/QuoteServices.ts",
+    "branches": [
+      {
+        "id": "0",
+        "arm": 0,
+        "line": 36
+      }
+    ],
+    "statements": [
+      {
+        "id": "2",
+        "line": 36
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/projectWorkServices.ts",
+    "branches": [
+      {
+        "id": "3",
+        "arm": 0,
+        "line": 21
+      }
+    ],
+    "statements": [
+      {
+        "id": "12",
+        "line": 21
+      }
+    ]
+  },
+  {
+    "file": "src/plugin/editorWorkspaceNavigation.ts",
+    "branches": [],
+    "statements": [
+      {
+        "id": "3",
+        "line": 15
+      },
+      {
+        "id": "4",
+        "line": 15
+      }
+    ]
+  }
+]

@@ -4,8 +4,9 @@
 task supports exact first-point x/y and segment length/angle fields, point/axis snapping, Undo
 point, Close walls to start, Finish and Cancel. Height/thickness live in a disclosure. A closed
 simple chain offers a checkbox and existing Room name field; the whole operation is reversible.
-Existing/New state, project defaults, implicit intersection splitting and automatic room detection
-remain later work. [Acceptance evidence](../../../tests/cases/Draw%20connected%20walls%20and%20openings.md).
+Existing and Planned facts now use the independent states and explicit geometry routes in ADR-0021.
+Project defaults, implicit intersection splitting and automatic room detection retain their accepted
+separate boundaries. [Acceptance evidence](../../../tests/cases/Draw%20connected%20walls%20and%20openings.md).
 
 Native inputs retain Space, Backspace, Delete and Escape. Enter submits the focused form action;
 on the canvas it finishes. Canvas Escape clears a draft first, then exits an empty task, following

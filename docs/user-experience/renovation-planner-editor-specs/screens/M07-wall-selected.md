@@ -1,5 +1,7 @@
 # M07 — Wall Selected
 
+**Current implementation checkpoint:** Wall/Opening Inspector retains measurements and adjacent-room context while connecting its own Existing/Planned/Work records, overview and linked planning routes. Standalone elements have an explicit Room context selector. New drafts target the selected element; an existing subject is reused when marking a change. This supersedes the spatial-only capability boundary below. Final integrated visual and host acceptance remain open in [implementation evidence](../implementation/editor-visual-fidelity.md).
+
 **Spatial subset, 2026-09-06:** Wall/Opening selection, persistent list access, measurements,
 associated Room names, exact numeric edits with impact preview, end-junction dragging and
 confirmed deletion are implemented under ADR-0020. `Edit measurements` opens the root-owned
@@ -80,12 +82,14 @@ This screen applies the same selection-first model to a wall. The wall remains s
 - Inspector content is wall-specific and retains adjacent-room context.
 
 
-## Implemented Increment C boundary — 2026-09-06
+## Historical Increment C checkpoint — 2026-09-06
 
 The connected implementation uses ADR-0021: independent Existing/Planned facts in the owning
 Plan register, project-owned Work/outcome links, minimal Decisions, separate intended
 straight-wall/opening geometry and scoped Review. All records have Inspector list routes;
 Room selection remains spatial. See [evidence and traceability](../implementation/connected-renovation-evidence.md).
-Evidence, financial reconciliation, materials purchasing, Trade catalogue and scheduling remain
-later work. These screens are not declared fully accepted; live Obsidian and screenreader
-acceptance remain unperformed.
+At that checkpoint, Evidence, financial reconciliation, materials purchasing, Trade catalogue
+and scheduling were still outstanding. They are implemented in the current integration through
+the existing planning repositories and the [downstream Work/Quote routes](../implementation/downstream-planning-evidence.md).
+This supersedes the earlier implementation boundary; final integrated gates, visual, live Obsidian
+and screen-reader acceptance remain open.

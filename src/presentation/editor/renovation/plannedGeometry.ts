@@ -5,9 +5,14 @@ import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structu
 import { editWall, spatialError } from '../../../domain/spatial/structureGeometry';
 import { formatMetres, parseCoordinateMetres } from '../shell/formatLength';
 import type { RenovationSubject } from '../../../domain/renovation/Renovation';
+import type { SpatialElement } from '../../../domain/spatial/SpatialElement';
+import type { CoordinateEdits } from '../resize/outlineProposal';
+import { plannedElementGeometry } from '../elements/plannedElementGeometry';
 
 export interface PlannedGeometryDraft {
-	kind: 'none' | 'wall' | 'opening';
+	kind: 'none' | 'wall' | 'opening' | 'element';
+	element?: SpatialElement;
+	elementEdits?: CoordinateEdits;
 	id: string;
 	hostId: string;
 	openingKind: 'door' | 'window' | 'opening';
@@ -21,12 +26,16 @@ function geometryText(wall: Structure['walls'][number] | undefined, opening: Str
 		width: opening?.width ?? 900, offset: opening?.offset ?? 0, sill: opening?.sill ?? 0,
 	}).map(([key, value]) => [key, formatMetres(value)]));
 }
+function geometryIdentity(wall: Structure['walls'][number] | undefined, opening: Structure['openings'][number] | undefined, element: SpatialElement | undefined): Pick<PlannedGeometryDraft, 'kind' | 'id' | 'element' | 'elementEdits'> {
+ return { kind: wall ? 'wall' : opening ? 'opening' : element ? 'element' : 'none', id: wall?.id ?? opening?.id ?? element?.id ?? '', ...(element ? { element, elementEdits: element.points.map(() => ({})) } : {}) };
+}
 export function plannedGeometryDraft(baseline: RenovationBaseline, subject: RenovationSubject): PlannedGeometryDraft {
 	const current = baseline.geometry.document.structure ?? EMPTY_STRUCTURE;
 	const structure = baseline.geometry.document.intended ?? current;
 	const wall = [...structure.walls, ...current.walls].find(item => item.id === subject.targetId);
 	const opening = [...structure.openings, ...current.openings].find(item => item.id === subject.targetId);
-	return { kind: wall ? 'wall' : opening ? 'opening' : 'none', id: wall?.id ?? opening?.id ?? '',
+	const element = [...structure.elements ?? [], ...current.elements ?? []].find(item => item.id === subject.targetId);
+	return { ...geometryIdentity(wall, opening, element),
 		hostId: opening?.hostId ?? structure.walls[0]?.id ?? '', openingKind: opening?.kind ?? 'opening', text: geometryText(wall, opening) };
 }
 export function geometryFields(draft: PlannedGeometryDraft): readonly ('x' | 'y' | 'endX' | 'endY' | 'height' | 'thickness' | 'offset' | 'width' | 'sill')[] {
@@ -55,6 +64,10 @@ export function applyPlannedGeometry(baseline: RenovationBaseline, input: Renova
 	const before = input.intended ?? current;
 	const change = subject.planned?.change;
 	if (!change) return ok(input);
+	if (draft.kind === 'element') {
+		const proposed = plannedElementGeometry(current, before, { id: draft.id, element: draft.element, edits: draft.elementEdits, change });
+		return proposed.ok ? ok({ ...input, intended: proposed.value }) : proposed;
+	}
 	// An addition's id is allocated per call and never written INTO the draft: Preview and
 	// Apply both come through here, and `PlannedGeometryFields` keeps its kind selector only
 	// while `draft.id` is empty — so a preview of the wrong kind used to lock the choice

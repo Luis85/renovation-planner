@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import WorkResponsibilityFields from '../../catalogue/WorkResponsibilityFields.vue';
+import WorkScheduleFields from './WorkScheduleFields.vue';
+import { restoreInoperativeChoice } from '../forms/inoperativeControl';
 import { tr } from '../../i18n/strings';
 import type { EditableRenovationDraft } from './renovationDraft';
 import { WORK_PROGRESS, type Renovation } from '../../../domain/renovation/Renovation';
+import { hasRoomContext } from '../../../domain/renovation/SharedLinks';
 const draft = defineModel<EditableRenovationDraft>('draft', { required: true });
 defineProps<{ value: Renovation; frozen: boolean }>();
 </script>
@@ -25,30 +29,33 @@ defineProps<{ value: Renovation; frozen: boolean }>();
 	<label>{{ tr('renovation.progress') }}
 		<select
 			v-model="draft.work.progress"
-			:disabled="frozen"
+			:aria-disabled="frozen"
+			@change.capture="restoreInoperativeChoice($event, draft.work.progress)"
 		><option
 			v-for="progress in WORK_PROGRESS"
 			:key="progress"
 			:value="progress"
 		>{{ tr(`renovation.progress.${progress}`) }}</option></select>
 	</label>
-	<label>{{ tr('renovation.responsibility') }}
-		<select
-			v-model="draft.work.responsibility"
-			:disabled="frozen"
-		><option value="unassigned">{{ tr('renovation.unassigned') }}</option><option value="diy">{{ tr('renovation.diy') }}</option></select>
-	</label>
-	<p>{{ tr('renovation.trade-scope') }}</p>
+	<WorkResponsibilityFields
+		v-model="draft.work"
+		:frozen="frozen"
+	/>
+	<WorkScheduleFields
+		v-model="draft.work"
+		:frozen="frozen"
+	/>
 	<fieldset>
 		<legend>{{ tr('renovation.outcomes') }}</legend>
 		<label
-			v-for="item in value.subjects.filter(subject => subject.roomId === draft.work.roomId && subject.planned)"
+			v-for="item in value.subjects.filter(subject => hasRoomContext(draft.work, subject.roomId) && subject.planned)"
 			:key="item.id"
 		><input
 			v-model="draft.work.outcomes"
 			type="checkbox"
 			:value="item.id"
-			:disabled="frozen"
+			:aria-disabled="frozen"
+			@change.capture="restoreInoperativeChoice($event, draft.work.outcomes)"
 		>{{ item.planned?.description || item.existing?.description }}</label>
 	</fieldset>
 	<fieldset>
@@ -60,7 +67,8 @@ defineProps<{ value: Renovation; frozen: boolean }>();
 			v-model="draft.work.dependencies"
 			type="checkbox"
 			:value="item.id"
-			:disabled="frozen"
+			:aria-disabled="frozen"
+			@change.capture="restoreInoperativeChoice($event, draft.work.dependencies)"
 		>{{ item.title }}</label>
 	</fieldset>
 </template>

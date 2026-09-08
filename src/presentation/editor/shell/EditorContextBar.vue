@@ -1,23 +1,19 @@
 <script setup lang="ts">
-/**
- * M00's context bar: where the user is (`Project › Floor`, text — ADR-0017 gives it two
- * segments and no tree) and the two history actions. No perspective switch: only Plan has
- * content, and a switch with two dead options is the control-that-does-nothing slice 14
- * refuses; the `<slot name="perspective" />` is where one lands when a second perspective has
- * something to show. Undo/redo dispatch through the same decorated dispatcher every other
- * dispatch in the leaf uses (`runtime.undo`/`redo`).
- */
-import { computed } from 'vue';
+/** Project return, floor context, perspectives, and the shared history controls. */
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useRenovationSession } from '../renovation/renovationSession';
+import { usePlanEditorContext } from '../PlanEditorContext';
+import HostIcon from '../../components/HostIcon.vue';
+import { EDITOR_PERSPECTIVE_ICONS } from '../editorIcons';
+import EditorViewMenu from './EditorViewMenu.vue';
 
 const runtime = useEditorRuntime();
 const session = useRenovationSession();
+const context = usePlanEditorContext();
 const { project, plan } = storeToRefs(useProjectStore());
-const crumbs = computed(() => [project.value?.name ?? '', plan.value?.name ?? ''].filter((c) => c !== ''));
 </script>
 
 <template>
@@ -26,11 +22,23 @@ const crumbs = computed(() => [project.value?.name ?? '', plan.value?.name ?? ''
 		:aria-label="tr('editor.context-bar')"
 	>
 		<div class="rp-context-bar__crumbs">
+			<button
+				v-if="project?.name && context.navigation"
+				type="button"
+				class="rp-context-bar__crumb rp-context-bar__button"
+				data-rp-open-project
+				@click="context.navigation.project(project.id)"
+			>
+				{{ project.name }}
+			</button>
 			<span
-				v-for="(crumb, index) in crumbs"
-				:key="index"
+				v-else-if="project?.name"
 				class="rp-context-bar__crumb"
-			>{{ crumb }}</span>
+			>{{ project.name }}</span>
+			<span
+				v-if="plan?.name"
+				class="rp-context-bar__crumb"
+			>{{ plan.name }}</span>
 		</div>
 		<slot name="perspective" />
 		<nav
@@ -41,12 +49,13 @@ const crumbs = computed(() => [project.value?.name ?? '', plan.value?.name ?? ''
 			<button
 				v-for="perspective in ['plan', 'renovate', 'review'] as const"
 				:key="perspective"
+				class="rp-perspective-button"
 				:data-rp-perspective="perspective"
 				type="button"
 				:aria-pressed="session.perspective === perspective"
 				@click="runtime.renovation.perspective(perspective)"
 			>
-				{{ tr(`renovation.${perspective}`) }}
+				<HostIcon :name="EDITOR_PERSPECTIVE_ICONS[perspective]" />{{ tr(`renovation.${perspective}`) }}
 			</button>
 		</nav>
 		<span class="rp-context-bar__spacer" />
@@ -58,7 +67,7 @@ const crumbs = computed(() => [project.value?.name ?? '', plan.value?.name ?? ''
 			:disabled="!runtime.canUndo.value"
 			@click="runtime.undo()"
 		>
-			{{ tr('editor.context.undo') }}
+			<HostIcon name="undo-2" />{{ tr('editor.context.undo') }}
 		</button>
 		<button
 			v-if="session.perspective !== 'review'"
@@ -68,7 +77,8 @@ const crumbs = computed(() => [project.value?.name ?? '', plan.value?.name ?? ''
 			:disabled="!runtime.canRedo.value"
 			@click="runtime.redo()"
 		>
-			{{ tr('editor.context.redo') }}
+			<HostIcon name="redo-2" />{{ tr('editor.context.redo') }}
 		</button>
+		<EditorViewMenu />
 	</header>
 </template>

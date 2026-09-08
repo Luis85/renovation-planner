@@ -119,3 +119,10 @@ renaming does not pretend geometry changed. Names are non-empty after the existi
 duplicates remain valid because identity and references use IDs. No filenames, links, schema keys
 or geometry are renamed/redefined. M03 records the exact draft/conflict/persistence contract.
 This bounded modal task does not settle SDD §101's wider field-commit policy.
+
+
+## Area details and numeric outline extension — 2026-09-07
+
+The same root-owned modal lifecycle now serves Area metadata and explicit corner coordinates. `editorFormActions` composes the existing Room name/dimension/reference actions with these new actions; it does not introduce another runtime or dialog owner. `AreaDetailsForm` captures one Zone version and applies name/type together through `EditZoneDetailsCommand`. `ZoneDetailsChanged` refreshes peer projections without pretending the geometry changed. Room/Area identity cannot be exchanged through metadata editing, preserving Room-owned renovation records and boundaries.
+
+`OutlinePointsForm` edits any existing Room/Area outline through the original `MoveSpatialObject` history path. Only axes explicitly edited are parsed and rounded; untouched coordinates retain their stored precision. Valid form drafts update transient preview geometry, and disposal clears it. Apply remains conditioned on the captured baseline and shared session ledger. Existing walls remain independently owned; this form does not infer wall or boundary rewrites. Focus/reflow and history are covered by the focused finalization cases; integrated and live-host acceptance remain pending.

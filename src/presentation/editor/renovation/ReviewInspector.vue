@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import PlanningReview from '../planning/PlanningReview.vue';
-import { usePlanningContext } from '../planning/planningContext';
-import { planningFindings, type PlanningFinding } from '../planning/planningProjection';
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { planningFindings } from '../planning/planningProjection';
+import { onBeforeUnmount, ref } from 'vue';
 import { EMPTY_RENOVATION, reviewRenovation, type ReadinessFinding, type Renovation } from '../../../domain/renovation/Renovation';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
@@ -11,18 +10,18 @@ import { usePlanEditorContext } from '../PlanEditorContext';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { persistenceError } from '../../../application/errors';
 import { renovationMessage } from './renovationMessage';
+import ReviewSummary from './ReviewSummary.vue';
+import { useReviewPresentation } from './useReviewPresentation';
+import ReviewScope from './ReviewScope.vue';
 const project = useProjectStore(), runtime = useEditorRuntime();
 const context = usePlanEditorContext(), busy = ref(false), error = ref('');
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
-const findings = computed(() => reviewRenovation(project.plan?.renovation ?? EMPTY_RENOVATION));
-const planning = usePlanningContext();
-const depth = computed<PlanningFinding[]>(() => planning.baseline.value ? planningFindings(planning.baseline.value, planning.files) : []);
+const { findings, depth, clear } = useReviewPresentation();
 // The all-clear is one claim over BOTH lists, and none at all until the planning read has
 // settled: while it loads there is nothing to be clear about, and after it fails the refusal
 // beside it would be contradicted. A plan without planning services needs no guard of its own —
 // its context never reads, so `baseline` stays null and `loading`/`failed` stay false.
-const clear = computed(() => !findings.value.length && !depth.value.length && !planning.loading.value && !planning.failed.value);
 function open(item: ReadinessFinding): void {
 	runtime.renovation.focus(item.roomId, item.kind === 'blocked' || item.kind === 'missing-outcome' ? 'work' : 'planned', item.recordId);
 	if (item.kind === 'decision') void runtime.renovation.edit('decision', item.roomId, item.recordId);
@@ -30,7 +29,7 @@ function open(item: ReadinessFinding): void {
 const plain = (text: string): string => text.replace(/[\r\n]/g, ' ').replace(/[\\[\]<>*_`]/g, '\\$&');
 // A fresh read rather than the panel's baseline, so the note records what is on disk now.
 function renovationLines(value: Renovation): string[] {
- return reviewRenovation(value).map(item => `- ${plain(item.roomId)}: ${tr(`renovation.finding.${item.kind}`)} — ${item.causes.map(plain).join(', ')} (${item.recordId})`);
+ return reviewRenovation(value).map(item => `- ${plain(project.zones.get(item.roomId)?.name ?? item.roomId)}: ${tr(`renovation.finding.${item.kind}`)} — ${item.causes.map(plain).join(', ')} (${item.recordId})`);
 }
 async function noteSnapshot(): Promise<{ name: string; lines: string[] } | null> {
  if (!context.commands.planning) return { name: project.plan?.name ?? '', lines: renovationLines(project.plan?.renovation ?? EMPTY_RENOVATION) };
@@ -40,7 +39,7 @@ async function noteSnapshot(): Promise<{ name: string; lines: string[] } | null>
  return { name: read.value.plan.entity.name, lines: [...renovationLines(read.value.plan.entity.renovation ?? EMPTY_RENOVATION), ...lines] };
 }
 async function generate(): Promise<void> {
-	if (busy.value || project.stale || !context.commands.reviewNote) return;
+	if (busy.value || runtime.writesBlocked.value || !context.commands.reviewNote) return;
 	busy.value = true;
 	try {
 		const snapshot = await noteSnapshot();
@@ -52,11 +51,10 @@ async function generate(): Promise<void> {
 }
 </script>
 <template>
-	<section class="rp-renovation-inspector">
-		<h3>{{ tr('renovation.review') }}</h3>
-		<p v-if="!context.commands.planning">
-			{{ tr('renovation.scope') }}
-		</p>
+	<section class="rp-renovation-inspector rp-review-inspector">
+		<h3>{{ tr('renovation.review') }} {{ project.plan?.name }}</h3>
+		<ReviewSummary />
+		<ReviewScope v-if="!context.commands.planning" />
 		<PlanningReview
 			v-if="context.commands.planning"
 			:findings="depth"
@@ -64,18 +62,24 @@ async function generate(): Promise<void> {
 		<p v-if="clear">
 			{{ tr('renovation.no-findings') }}
 		</p>
-		<ol class="rp-renovation-list">
+		<ol
+			v-if="findings.length"
+			class="rp-renovation-list rp-review-findings"
+		>
 			<li
 				v-for="item in findings"
 				:key="`${item.kind}:${item.recordId}`"
 			>
 				<button
 					type="button"
+					class="rp-review-finding"
+					:data-rp-review-issue="item.recordId"
+					:aria-label="`${item.roomLabel} · ${tr(`renovation.finding.${item.kind}`)}: ${item.detailLabel}`"
 					@click="open(item)"
 				>
-					{{ project.zones.get(item.roomId)?.name }} · {{ tr(`renovation.finding.${item.kind}`) }}
+					<span class="rp-review-finding__context">{{ item.roomLabel }} · {{ tr(`renovation.finding.${item.kind}`) }}</span>
+					<span data-rp-review-cause>{{ item.detailLabel }}</span>
 				</button>
-				<p>{{ item.causes.join(', ') }}</p>
 			</li>
 		</ol>
 		<button
@@ -87,7 +91,7 @@ async function generate(): Promise<void> {
 		<button
 			v-if="context.commands.reviewNote"
 			type="button"
-			:disabled="busy || project.stale"
+			:disabled="busy || runtime.writesBlocked.value"
 			data-rp-action="review-note"
 			@click="generate"
 		>

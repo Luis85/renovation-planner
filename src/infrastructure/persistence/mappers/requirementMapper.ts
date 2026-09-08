@@ -2,7 +2,7 @@ import { Decimal } from 'decimal.js';
 import type { ValidationError } from '../../../core/errors/AppError';
 import type { Money } from '../../../core/money/Money';
 import { of as moneyOf } from '../../../core/money/Money';
-import { err, ok, type Result } from '../../../core/result/Result';
+import { ok, type Result } from '../../../core/result/Result';
 import type { DerivedValue } from '../../../core/derived/DerivedValue';
 import type { Quantity } from '../../../core/units/MeasurementUnit';
 import { toKebab } from '../dto/kebab';
@@ -67,15 +67,14 @@ export function requirementToPersistence(
 	const currency = requirement.calculatedFrom.unitCost.currency;
 	return {
 		type: REQUIREMENT_TYPE,
-		'schema-version': requirement.source ? 2 : 1,
+		'schema-version': requirement.source?.rule === 'element-length' || requirement.source?.rule === 'object-area' ? 3 : requirement.source ? 2 : 1,
 		...(requirement.source ? { source: requirement.source } : {}),
 		id: requirement.id,
 		revision,
 		project: requirement.projectId,
 		asset: requirement.assetId,
 		'origin-kind': toKebab(requirement.origin.kind),
-		'origin-zone':
-			requirement.origin.kind === 'zone' ? String(requirement.origin.zoneId) : null,
+		'origin-zone': String(requirement.origin.zoneId),
 
 		unit: requirement.unit,
 		'waste-factor': requirement.wasteFactor.toString(),
@@ -110,14 +109,6 @@ export function requirementFromPersistence(rawFrontmatter: unknown): Result<Requ
 	);
 	if (!frontmatter.ok) return frontmatter;
 	const dto = frontmatter.value;
-
-	if (dto['origin-kind'] !== 'zone') {
-		return err({
-			category: 'Validation',
-			code: 'requirement.frontmatter-invalid',
-			message: `"${String(dto['origin-kind'])}" is not an origin kind this version reads.`,
-		});
-	}
 
 	const created = Requirement.create({
 		source: 'source' in dto ? dto.source : undefined,

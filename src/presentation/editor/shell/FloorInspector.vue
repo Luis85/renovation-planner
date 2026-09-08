@@ -19,6 +19,16 @@ import { type Aggregate } from '../../read-models/spatialRecords';
 import { formatArea } from './formatArea';
 import { useFloorSummary } from './useFloorSummary';
 import RoomSummaryList from './RoomSummaryList.vue';
+import { usePlanEditorContext } from '../PlanEditorContext';
+import RenovationLinkedSummary from '../renovation/RenovationLinkedSummary.vue';
+import { computed } from 'vue';
+import { useProjectStore } from '../../stores/ProjectStore';
+import { renovationSummary } from '../renovation/renovationSummary';
+import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
+import HostIcon from '../../components/HostIcon.vue';
+import { useEditorRuntime } from '../runtime';
+const context = usePlanEditorContext();
+const runtime = useEditorRuntime();
 
 /**
  * `null` before the first successful hydrate — and this component may well be mounted
@@ -34,6 +44,12 @@ import RoomSummaryList from './RoomSummaryList.vue';
  * its second reader; this component's decision about what `null` DRAWS is still its own.
  */
 const summary = useFloorSummary();
+const project = useProjectStore();
+const roomAnnotations = computed(() => new Map(summary.value?.rooms.map(room => [room.id,
+	project.stale || project.unreadableZones > 0
+		? tr('editor.selection.unknown')
+		: tr('renovation.summary.change-count', { count: String(renovationSummary(project.plan?.renovation ?? EMPTY_RENOVATION, room.id).changes) }),
+]) ?? []));
 
 /** The modifier class an `Aggregate` renders under, or `''` for the plain `available` case. */
 function classFor(aggregate: Aggregate<unknown>): string {
@@ -63,6 +79,7 @@ const count = (value: number): string => String(value);
 		v-if="summary !== null"
 		class="rp-floor-inspector"
 	>
+		<h3>{{ summary.floor.name }}</h3>
 		<ReferenceAction />
 		<dl class="rp-editor-inspector-fields">
 			<dt>{{ tr('editor.inspector.floor.rooms') }}</dt>
@@ -91,30 +108,45 @@ const count = (value: number): string => String(value);
 			>
 				{{ textFor(summary.totalAreaMm2, formatArea) }}
 			</dd>
-
-			<dt>{{ tr('editor.inspector.floor.planned-changes') }}</dt>
-			<dd
-				data-rp-stat="planned-changes"
-				class="rp-floor-inspector__stat"
-				:class="classFor(summary.plannedChanges)"
-			>
-				{{ textFor(summary.plannedChanges, count) }}
-			</dd>
-
-			<dt>{{ tr('editor.inspector.floor.estimated-cost') }}</dt>
-			<dd
-				data-rp-stat="estimated-cost"
-				class="rp-floor-inspector__stat"
-				:class="classFor(summary.estimatedCost)"
-			>
-				{{ textFor(summary.estimatedCost, count) }}
-			</dd>
 		</dl>
+		<div class="rp-floor-planning-summary">
+			<dl class="rp-floor-planning-metric">
+				<dt>{{ tr('editor.inspector.floor.planned-changes') }}</dt>
+				<dd
+					data-rp-stat="planned-changes"
+					class="rp-floor-inspector__stat"
+					:class="classFor(summary.plannedChanges)"
+				>
+					{{ textFor(summary.plannedChanges, count) }}
+				</dd>
+			</dl>
+			<RenovationLinkedSummary v-if="context.commands.planning" />
+			<dl
+				v-else
+				class="rp-floor-planning-metric"
+			>
+				<dt>{{ tr('editor.inspector.floor.estimated-cost') }}</dt>
+				<dd
+					data-rp-stat="estimated-cost"
+					class="rp-floor-inspector__stat"
+					:class="classFor(summary.estimatedCost)"
+				>
+					{{ textFor(summary.estimatedCost, count) }}
+				</dd>
+			</dl>
+		</div>
+		<p
+			v-if="summary.rooms.length > 0 && runtime.activeToolId.value === 'select'"
+			class="rp-floor-inspector__guidance"
+		>
+			<HostIcon name="info" /><span>{{ tr('editor.inspector.floor.guidance') }}</span>
+		</p>
 
 		<RoomSummaryList
 			v-if="summary.rooms.length > 0"
 			:records="summary.rooms"
 			:heading="tr('editor.inspector.floor.rooms')"
+			:annotations="roomAnnotations"
 		/>
 		<p
 			v-else

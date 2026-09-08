@@ -1,21 +1,29 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { formatPlanningMoney } from '../../i18n/planningFormat';
 import CostTotals from './CostTotals.vue';
 import type { costRows } from './planningProjection';
 import { usePlanningContext } from './planningContext';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { tr } from '../../i18n/strings';
-defineProps<{ row: ReturnType<typeof costRows>[number] }>();
+const props = defineProps<{ row: ReturnType<typeof costRows>[number] }>();
 const planning = usePlanningContext(), session = useRenovationSession();
+const selected = computed(() => !!session.focusedId && [props.row.record.id, props.row.record.requirementId].includes(session.focusedId));
 </script>
 <template>
 	<li
-
-
+		class="rp-cost-row"
 		:data-rp-record="row.record.id"
-		:class="{ 'is-selected': [row.record.id, row.record.requirementId].includes(session.focusedId) }"
+		:aria-current="selected ? 'true' : undefined"
+		:class="{ 'is-selected': selected }"
 	>
 		<h4>{{ row.record.title }} · {{ tr(`planning.${row.record.category}`) }}</h4>
-		<p>{{ planning.baseline.value?.plan.entity.renovation?.work.find(work => work.id === row.record.workId)?.title || tr('planning.unassigned') }}</p>
+		<p v-if="selected">
+			{{ tr('planning.selected') }}
+		</p>
+		<p class="rp-cost-work-name">
+			{{ planning.baseline.value?.plan.entity.renovation?.work.find(work => work.id === row.record.workId)?.title || tr('planning.unassigned') }}
+		</p>
 		<p v-if="row.record.cancelled">
 			{{ tr('planning.cancelled') }}
 		</p><p v-if="row.stale">
@@ -31,8 +39,9 @@ const planning = usePlanningContext(), session = useRenovationSession();
 		<p
 			v-for="fact in row.record.facts"
 			:key="fact.id"
+			class="rp-record-metadata"
 		>
-			{{ tr(`planning.${fact.stage}`) }}: {{ fact.amount.amount }} {{ fact.amount.currency }} · {{ fact.description }} · {{ row.record.facts.find(item => item.id === fact.commitmentId)?.description }} {{ fact.cancelled ? tr('planning.cancelled') : '' }}
+			{{ tr(`planning.${fact.stage}`) }}: {{ formatPlanningMoney(fact.amount) }} · {{ fact.description }} · {{ row.record.facts.find(item => item.id === fact.commitmentId)?.description }} {{ fact.cancelled ? tr('planning.cancelled') : '' }}
 		</p>
 		<div class="rp-planning-actions">
 			<button

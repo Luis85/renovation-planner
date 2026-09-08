@@ -175,6 +175,7 @@ function mountStandalone(dto: InspectorDto) {
 	setActivePinia(createPinia());
 	const runtime = {
 		inspectorDto: ref(dto),
+		outlineEdit: { blocked: ref(false), editOutline: () => Promise.resolve() },
 		inspectorRequirements: ref([]),
 		assetOptions: ref([]),
 		hydrateInspector: () => Promise.resolve(),

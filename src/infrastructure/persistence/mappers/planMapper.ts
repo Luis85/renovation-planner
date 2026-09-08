@@ -1,9 +1,19 @@
+import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
+import { EMPTY_DEPTH } from '../../../domain/renovation/PlanningDepth';
 import type { CalculationError, ValidationError } from '../../../core/errors/AppError';
 import type { Result } from '../../../core/result/Result';
 import { Plan } from '../../../domain/plan/Plan';
 import { PlanFrontmatterSchema, PLAN_TYPE, type PlanFrontmatterDTO } from '../dto/planFrontmatter';
 import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
+function planSchemaVersion(plan: Plan): number {
+	const { work, depth = EMPTY_DEPTH } = plan.renovation ?? EMPTY_RENOVATION;
+	if (depth.evidence.some(item => item.date !== undefined)) return 8;
+	if (work.some(item => item.responsibility === 'trade' || item.schedule !== undefined)) return 7;
+	if (plan.spatialElements?.length) return 6;
+	const shared = [...work, ...depth.evidence].some(item => (item.links?.length ?? 0) > 0);
+	return shared ? 5 : plan.renovation?.depth ? 4 : plan.renovation ? 3 : plan.background?.appearance ? 2 : 1;
+}
 
 /**
  * The Plan mapper: frontmatter DTO ↔ domain entity, never partial (SDD §37). The
@@ -18,7 +28,8 @@ export function planToPersistence(plan: Plan, revision: number): Record<string, 
 	const background = plan.background;
 	return {
 		type: PLAN_TYPE,
-		'schema-version': plan.renovation?.depth ? 4 : plan.renovation ? 3 : background?.appearance ? 2 : 1,
+		'schema-version': planSchemaVersion(plan),
+		...(plan.spatialElements?.length ? { 'spatial-elements': plan.spatialElements } : {}),
 		...(plan.renovation ? { renovation: plan.renovation } : {}),
 		id: plan.id,
 		revision,
@@ -38,6 +49,7 @@ function fromDto(
 ): Result<Plan, ValidationError | CalculationError> {
 	const path = dto['background-path'];
 	const constructed = Plan.create({
+		spatialElements: dto['spatial-elements'],
 		renovation: dto.renovation,
 		id: dto.id as Plan['id'],
 		projectId: dto.project as Plan['projectId'],

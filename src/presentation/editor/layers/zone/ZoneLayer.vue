@@ -15,8 +15,16 @@ import type { ThemeTokens } from '../../theme/themeTokens';
 import type { NodeTransform } from '../../viewport/Viewport';
 import { toZoneRenderModel } from './ZoneRenderModel';
 import ZoneShape from './ZoneShape.vue';
+import { useSelectionStore } from '../../selection/selection-store';
+import type { EvidencePin } from '../../planning/evidencePins';
+import { useRenovationSession } from '../../renovation/renovationSession';
+import { useWorkspaceStore } from '../../../stores/WorkspaceStore';
+import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
 
 const props = defineProps<{
+	pins: readonly EvidencePin[];
+	dimensionObstacles: readonly BoundingBox[];
+	captionViewport: BoundingBox | null;
 	transform: NodeTransform;
 	tokens: ThemeTokens;
 	visible: boolean;
@@ -24,6 +32,10 @@ const props = defineProps<{
 }>();
 
 const { zones } = storeToRefs(useProjectStore());
+const selection = useSelectionStore();
+const session = useRenovationSession(), workspace = useWorkspaceStore();
+const captionObstacles = computed(() => session.visible && workspace.layerVisibility.annotation ? props.pins : []);
+const selected = computed(() => new Set<string>(selection.selectedIds));
 
 const models = computed(() => [...zones.value.values()].map((zone) => toZoneRenderModel(zone)));
 </script>
@@ -43,6 +55,10 @@ const models = computed(() => [...zones.value.values()].map((zone) => toZoneRend
 			:model="model"
 			:tokens="props.tokens"
 			:zoom="props.zoom"
+			:selected="selected.has(model.id)"
+			:pins="captionObstacles"
+			:dimension-obstacles="dimensionObstacles"
+			:caption-viewport="captionViewport"
 		/>
 	</VLayer>
 </template>

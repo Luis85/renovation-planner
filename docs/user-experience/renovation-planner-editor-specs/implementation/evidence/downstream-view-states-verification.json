@@ -1,0 +1,36 @@
+{
+  "date": "2026-09-07",
+  "source": "46dd866138d49d0283849b3b59a130cb9f3a9ed3",
+  "branch": "codex/downstream-view-states",
+  "native": {
+    "files": 7,
+    "elapsedSeconds": 47.96,
+    "failed": 0,
+    "passed": 34
+  },
+  "static": {
+    "cloneGroups": 0,
+    "issues": 0,
+    "exit": 0
+  },
+  "health": {
+    "limitation": "Preserved coverage has foreign worktree paths; estimated CRAP findings do not establish current coverage or a full health pass.",
+    "istanbulTotal": 18807,
+    "cognitiveFindings": [
+      {
+        "path": "src/presentation/editor/planning/EvidenceInspector.vue",
+        "name": "<template>",
+        "cognitive": 16
+      }
+    ],
+    "istanbulMatched": 0,
+    "cognitiveCeiling": 15,
+    "exit": 1
+  },
+  "checks": {
+    "scopedEslint": "passed",
+    "diff": "passed",
+    "types": "passed",
+    "wholeOxlint": "passed"
+  }
+}

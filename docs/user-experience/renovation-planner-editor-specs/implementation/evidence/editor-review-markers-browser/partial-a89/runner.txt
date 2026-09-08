@@ -1,0 +1,34 @@
+RP_CHROMIUM_EXECUTABLE is set: capturing with C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe, which is not the Chromium playwright-core pins.
+Read the pictures as approximate — a different build renders text and layout slightly differently.
+20:18:06 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:06 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:07 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:07 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:24 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:24 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:25 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:25 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:39 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:39 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:40 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+20:18:40 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: [data-rp-action="review-note"] stays inside the visible Inspector: {"content":{"x":713,"y":938.390625,"width":256,"height":34},"inspector":{"x":696,"y":55,"width":304,"height":909}}
+    at inspectorVisibility (file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-inspector-visibility.mjs:10:28)
+    at async captureReviewIssues (file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-review-issues.mjs:104:21)
+    at async evidence (file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-planning-check.mjs:65:26)
+    at async journey (file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-planning-check.mjs:79:108)
+    at async runAreaBrowserMatrix (file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-area-browser.mjs:100:15)
+    at async file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-planning-check.mjs:82:81 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.20.0

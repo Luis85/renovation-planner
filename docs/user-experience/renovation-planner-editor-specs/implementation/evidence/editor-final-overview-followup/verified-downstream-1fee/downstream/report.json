@@ -1,0 +1,310 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+      "--text-accent": "hsl(258, 88%, 66%)",
+      "--background-primary": "#ffffff",
+      "--background-secondary": "#f6f6f6"
+    },
+    "scheduleAccessibility": {
+      "state": "project-schedule",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "quoteAccessibility": {
+      "state": "quote-comparison",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "matchingViews": {
+      "costs": {
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "bounds": {
+          ".rp-renovation-inspector > h3": {
+            "x": 1097,
+            "y": 102.59375,
+            "width": 312,
+            "height": 25
+          },
+          ".rp-renovation-inspector > .rp-cost-totals": {
+            "x": 1097,
+            "y": 267.984375,
+            "width": 312,
+            "height": 134.21875
+          },
+          ".rp-cost-groups": {
+            "x": 1097,
+            "y": 465.59375,
+            "width": 312,
+            "height": 363.96875
+          },
+          "[data-rp-new-cost]": {
+            "x": 1097,
+            "y": 841.5625,
+            "width": 312,
+            "height": 30
+          }
+        },
+        "sample": {
+          "roomId": "zone-01M1YZHYTMED5WS005CRRQAQJJ",
+          "role": "selected-room"
+        },
+        "selection": {
+          "ids": [
+            "zone-01M1YZHYTMED5WS005CRRQAQJJ"
+          ],
+          "focusedId": "zone-01M1YZHYTMED5WS005CRRQAQJJ"
+        },
+        "input": "Native Tab to [data-rp-room-navigation], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
+        "camera": {
+          "x": 47.999999999999986,
+          "y": 127.375,
+          "zoom": 0.18475
+        },
+        "constrained": false,
+        "vaultAndSelectionUnchanged": true
+      }
+    },
+    "storage": "production Work/Trade/Supplier/Quote services over the connected reference workspace vault",
+    "navigation": "native editor and Project view-state paths; retained editor Room projection and selection",
+    "hostBoundary": "browser workspace adapter; real Obsidian leaf/history/MetadataCache observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "scheduleAccessibility": {
+      "state": "project-schedule",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "quoteAccessibility": {
+      "state": "quote-comparison",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "matchingViews": {
+      "costs": {
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "bounds": {
+          ".rp-renovation-inspector > h3": {
+            "x": 1097,
+            "y": 102.59375,
+            "width": 312,
+            "height": 25
+          },
+          ".rp-renovation-inspector > .rp-cost-totals": {
+            "x": 1097,
+            "y": 267.984375,
+            "width": 312,
+            "height": 134.21875
+          },
+          ".rp-cost-groups": {
+            "x": 1097,
+            "y": 465.59375,
+            "width": 312,
+            "height": 363.96875
+          },
+          "[data-rp-new-cost]": {
+            "x": 1097,
+            "y": 841.5625,
+            "width": 312,
+            "height": 30
+          }
+        },
+        "sample": {
+          "roomId": "zone-01M1YZJACTD3H511GFNA2PMNB2",
+          "role": "selected-room"
+        },
+        "selection": {
+          "ids": [
+            "zone-01M1YZJACTD3H511GFNA2PMNB2"
+          ],
+          "focusedId": "zone-01M1YZJACTD3H511GFNA2PMNB2"
+        },
+        "input": "Native Tab to [data-rp-room-navigation], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
+        "camera": {
+          "x": 47.999999999999986,
+          "y": 127.375,
+          "zoom": 0.18475
+        },
+        "constrained": false,
+        "vaultAndSelectionUnchanged": true
+      }
+    },
+    "storage": "production Work/Trade/Supplier/Quote services over the connected reference workspace vault",
+    "navigation": "native editor and Project view-state paths; retained editor Room projection and selection",
+    "hostBoundary": "browser workspace adapter; real Obsidian leaf/history/MetadataCache observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "#7c246b",
+      "--text-accent": "#7c246b",
+      "--background-primary": "#fff8ed",
+      "--background-secondary": "#efe3d3"
+    },
+    "scheduleAccessibility": {
+      "state": "project-schedule",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "quoteAccessibility": {
+      "state": "quote-comparison",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "matchingViews": {
+      "costs": {
+        "viewport": {
+          "width": 1000,
+          "height": 1000
+        },
+        "bounds": {
+          ".rp-renovation-inspector > h3": {
+            "x": 713,
+            "y": 102.59375,
+            "width": 256,
+            "height": 25
+          },
+          ".rp-renovation-inspector > .rp-cost-totals": {
+            "x": 713,
+            "y": 267.984375,
+            "width": 256,
+            "height": 194.90625
+          },
+          ".rp-cost-groups": {
+            "x": 713,
+            "y": 526.28125,
+            "width": 256,
+            "height": 381.359375
+          },
+          "[data-rp-new-cost]": {
+            "x": 713,
+            "y": 919.640625,
+            "width": 256,
+            "height": 30
+          }
+        },
+        "sample": {
+          "roomId": "zone-01M1YZJKE7ZP8P0BHTZSH7AJG8",
+          "role": "selected-room"
+        },
+        "selection": {
+          "ids": [
+            "zone-01M1YZJKE7ZP8P0BHTZSH7AJG8"
+          ],
+          "focusedId": "zone-01M1YZJKE7ZP8P0BHTZSH7AJG8"
+        },
+        "input": "Native Tab to [data-rp-room-navigation], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
+        "camera": {
+          "x": 48.000000000000036,
+          "y": 251.5,
+          "zoom": 0.102
+        },
+        "constrained": false,
+        "vaultAndSelectionUnchanged": true
+      }
+    },
+    "storage": "production Work/Trade/Supplier/Quote services over the connected reference workspace vault",
+    "navigation": "native editor and Project view-state paths; retained editor Room projection and selection",
+    "hostBoundary": "browser workspace adapter; real Obsidian leaf/history/MetadataCache observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "scheduleAccessibility": {
+      "state": "project-schedule",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "quoteAccessibility": {
+      "state": "quote-comparison",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "matchingViews": {
+      "costs": {
+        "viewport": {
+          "width": 460,
+          "height": 1000
+        },
+        "bounds": {
+          ".rp-renovation-inspector > h3": {
+            "x": 109,
+            "y": 209.59375,
+            "width": 335,
+            "height": 25
+          },
+          ".rp-renovation-inspector > .rp-cost-totals": {
+            "x": 109,
+            "y": 374.984375,
+            "width": 335,
+            "height": 115.375
+          },
+          ".rp-cost-groups": {
+            "x": 109,
+            "y": 553.75,
+            "width": 335,
+            "height": 363.96875
+          },
+          "[data-rp-new-cost]": {
+            "x": 109,
+            "y": 929.71875,
+            "width": 335,
+            "height": 30
+          }
+        },
+        "sample": {
+          "roomId": "zone-01M1YZJVRJEMZNJXVVMY5V0NMV",
+          "role": "selected-room"
+        },
+        "selection": {
+          "ids": [
+            "zone-01M1YZJVRJEMZNJXVVMY5V0NMV"
+          ],
+          "focusedId": "zone-01M1YZJVRJEMZNJXVVMY5V0NMV"
+        },
+        "input": "Native Tab to [data-rp-room-navigation], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
+        "camera": {
+          "x": 48.000000000000014,
+          "y": 245.24999999999997,
+          "zoom": 0.0735
+        },
+        "constrained": true,
+        "vaultAndSelectionUnchanged": true
+      }
+    },
+    "storage": "production Work/Trade/Supplier/Quote services over the connected reference workspace vault",
+    "navigation": "native editor and Project view-state paths; retained editor Room projection and selection",
+    "hostBoundary": "browser workspace adapter; real Obsidian leaf/history/MetadataCache observations remain separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Turn a planned outcome into actionable work]]"
 order: 80
-status: New
+status: In Progress
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -48,3 +48,7 @@ responsibility.
 
 The renovator assigns room work to themselves or a canonical Trade without creating a second
 responsibility model.
+
+## Finalization candidate — 2026-09-07
+
+Production source is implemented in the editor finalization worktree under [ADR-0024](../development/adrs/0024-trades-manual-schedules-and-quote-comparison.md). Canonical repositories, guarded commands and contextual Project routes are reused. Targeted tests and the unchanged combined gates are in progress; final browser and live-host acceptance remain open. See the [completion matrix](../user-experience/renovation-planner-editor-specs/implementation/completion-matrix.md).

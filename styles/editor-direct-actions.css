@@ -1,0 +1,35 @@
+/* Native canvas controls share the editor's host tokens and remain screen-sized on zoom. */
+.rp-dimension-labels { --rp-dimension-max-height: 240px; position: absolute; inset: 0; pointer-events: none; }
+.rp-dimension-anchor { position: absolute; transform: translateX(-50%); }
+.rp-dimension-anchor:has(.rp-inline-dimension) { z-index: 2; }
+.rp-dimension-label, .rp-inline-dimension, .rp-direct-actions { pointer-events: auto; }
+.renovation-plan-editor .rp-dimension-label { min-height: 28px; padding: 3px 9px; border: 1px solid var(--interactive-accent); border-radius: 5px; color: var(--text-normal); background: var(--background-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rp-inline-dimension { width: 240px; max-width: calc(100vw - 32px); padding: 10px; border: 1px solid var(--interactive-accent); border-radius: 7px; background: var(--background-primary); color: var(--text-normal); box-shadow: var(--shadow-s); }
+.rp-inline-dimension label { display: block; margin-bottom: 4px; }
+.rp-inline-dimension input { width: 100%; min-height: 32px; font-variant-numeric: tabular-nums; }
+.rp-inline-dimension p { margin: 7px 0; font-size: var(--font-ui-small); }
+.rp-inline-dimension__actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.rp-direct-actions { position: absolute; width: 172px; color: var(--text-normal); }
+.rp-direct-actions__buttons, .rp-direct-actions__details { display: flex; flex-direction: column; padding: 5px; border: 1px solid var(--background-modifier-border); border-radius: 7px; background: var(--background-primary); box-shadow: var(--shadow-s); }
+.rp-direct-actions__buttons button, .rp-direct-actions__details button { justify-content: flex-start; white-space: normal; height: auto; min-height: 34px; text-align: start; box-shadow: none; border: 0; background: transparent; }
+.rp-direct-actions__buttons button:hover, .rp-direct-actions__details button:hover { background: var(--background-modifier-hover); }
+.rp-direct-actions__details { margin-top: 5px; max-height: 240px; overflow-y: auto; }
+.rp-wall-dimension { margin-bottom: 8px; }
+.rp-direct-actions__buttons button:focus-visible, .rp-direct-actions__details button:focus-visible, .renovation-plan-editor .rp-dimension-label:focus-visible, .rp-dimension-anchor button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.rp-inline-dimension { box-sizing: border-box; max-height: var(--rp-dimension-max-height); overflow-y: auto; }
+.rp-editor-shell[data-layout="constrained"] .rp-dimension-label { min-height: 44px; }
+.rp-inline-dimension .rp-inline-dimension__subject { margin-top: 0; font-weight: var(--font-semibold); overflow-wrap: anywhere; }
+.rp-direct-actions--zone .rp-direct-actions__buttons { flex-direction: row; }
+.rp-direct-actions--zone .rp-direct-actions__buttons button { flex: 1 1 0; min-height: 54px; justify-content: center; text-align: center; font-size: var(--font-ui-smaller); }
+.rp-direct-actions--zone .rp-direct-actions__buttons button + button { border-inline-start: 1px solid var(--background-modifier-border); border-radius: 0; }
+.rp-direct-actions__details { position: absolute; inset-inline: 0; bottom: calc(100% + 6px); }
+.rp-dimension-guide { position: absolute; color: var(--interactive-accent); pointer-events: none; }
+.rp-dimension-guide--width { border-top: 1px solid currentColor; }
+.rp-dimension-guide--depth { border-left: 1px solid currentColor; }
+.rp-dimension-guide::before, .rp-dimension-guide::after { content: ""; position: absolute; width: 5px; height: 5px; border-left: 1px solid currentColor; border-bottom: 1px solid currentColor; }
+.rp-dimension-guide--width::before { left: 0; top: -3px; transform: rotate(45deg); }
+.rp-dimension-guide--width::after { right: 0; top: -3px; transform: rotate(225deg); }
+.rp-dimension-guide--depth::before { left: -3px; top: 0; transform: rotate(135deg); }
+.rp-dimension-guide--depth::after { left: -3px; bottom: 0; transform: rotate(-45deg); }
+.rp-direct-actions__buttons { position: relative; }
+.rp-direct-actions__buttons::before { content: ""; position: absolute; top: -5px; left: calc(50% - 5px); width: 8px; height: 8px; background: var(--background-primary); border-top: 1px solid var(--background-modifier-border); border-left: 1px solid var(--background-modifier-border); transform: rotate(45deg); }

@@ -1,3 +1,4 @@
+import { EditZoneDetailsCommand } from '../../application/commands/zone/EditZoneDetails';
 import { ReversibleMoveZoneCommand } from './tools/reversible-move-zone-command';
 import { RenameZoneCommand } from '../../application/commands/zone/RenameZone';
 import { ReversibleRenameZoneCommand } from '../../application/commands/zone/reversible-rename-zone-command';
@@ -94,6 +95,8 @@ export function createInspector(
 		// the property this `switch` actually rests on and cannot.
 		toCommand: (edit: InspectorEdit) => {
 			switch (edit.kind) {
+				case 'details':
+					return new EditZoneDetailsCommand(context.commands.zones, context.commands.events, ledger, edit);
 				case 'name':
 					return new ReversibleRenameZoneCommand(new RenameZoneCommand(context.commands.zones, context.commands.events), ledger, edit);
 				case 'geometry':

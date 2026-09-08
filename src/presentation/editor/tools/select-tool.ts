@@ -1,4 +1,6 @@
+import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import { translate } from '../../../core/geometry/operations';
+import { ElementMove, type ElementMoveDeps } from '../elements/ElementMove';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
@@ -18,7 +20,7 @@ import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
  * Array order IS z-order — last drawn on top — matching how the ZoneLayer stacks them.
  */
 export interface SpatialObjectCandidate {
-	readonly kind?: 'wall' | 'opening';
+	readonly kind?: 'wall' | 'opening' | SpatialElementKind;
 	readonly width?: number;
 	readonly id: string;
 	readonly points: readonly Point[];
@@ -29,7 +31,7 @@ export interface SpatialObjectCandidate {
  * like every adapter in this slice, one instance carries one transaction's forward/inverse
  * pair.
  */
-export interface SelectToolDeps {
+export interface SelectToolDeps extends ElementMoveDeps {
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly spatialObjects: () => readonly SpatialObjectCandidate[];
@@ -108,7 +110,8 @@ export class SelectTool implements EditorTool {
 	private context: EditorContext | null = null;
 	private gesture: Gesture | null = null;
 
-	constructor(private readonly deps: SelectToolDeps) {}
+	private readonly elementMove: ElementMove;
+	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); }
 
 	activate(context: EditorContext): void {
 		this.context = context;
@@ -119,6 +122,7 @@ export class SelectTool implements EditorTool {
 	}
 
 	deactivate(): void {
+		this.elementMove.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
@@ -187,12 +191,14 @@ export class SelectTool implements EditorTool {
 
 	private selectStructure(context: EditorContext, event: EditorPointerEvent, hit: SpatialObjectCandidate, target: Exclude<SelectionTarget, null>): void {
 		selectSpatial(context.selection, hit.id, event.modifiers.shift);
+		if (hit.kind !== 'wall' && hit.kind !== 'opening') this.elementMove.start(context, event, hit);
 		if (hit.kind === 'wall' && target.kind === 'handle' && target.vertexIndex === 1 && !context.writesBlocked()) this.wallGesture = { id: hit.id, start: event.worldPoint };
 	}
 
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null) return;
+		if (this.elementMove.active) { this.elementMove.move(event); return; }
 		if (this.wallGesture) { this.deps.previewWall?.(this.wallGesture.id, event.worldPoint); return; }
 		if (this.gesture === null) {
 			// No drag in flight: this move is a HOVER, so it predicts rather than acts —
@@ -219,6 +225,7 @@ export class SelectTool implements EditorTool {
 	}
 
 	pointerUp(event: EditorPointerEvent): void {
+		if (this.elementMove.active && this.context) { this.elementMove.finish(this.context, event); return; }
 		if (this.wallGesture && event.button === 'primary') {
 			const gesture = this.wallGesture; this.wallGesture = null;
 			this.deps.previewWall?.(null);
@@ -275,6 +282,7 @@ export class SelectTool implements EditorTool {
 	}
 
 	cancel(): void {
+		this.elementMove.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
@@ -298,7 +306,7 @@ export class SelectTool implements EditorTool {
 
 	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
 	hasDraft(): boolean {
-		return this.gesture !== null || this.wallGesture !== null;
+		return this.gesture !== null || this.wallGesture !== null || this.elementMove.active;
 	}
 
 	/**

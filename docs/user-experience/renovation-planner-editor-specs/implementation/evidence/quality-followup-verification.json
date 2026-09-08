@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-07T14:31:04.523Z",
+  "rootBase": "00034c5e0844cc78c9869d148fc23327de6510c3",
+  "ownerIntegration": [
+    "60629492",
+    "1201656e"
+  ],
+  "native": {
+    "files": 7,
+    "passed": 54,
+    "seconds": 72.49,
+    "exit": 0
+  },
+  "types": 0,
+  "oxlint": 0,
+  "scopedEslint": 0,
+  "static": {
+    "issues": 0,
+    "clones": 0,
+    "exit": 0
+  },
+  "health": {
+    "findings": [],
+    "exit": 0,
+    "coverageInput": "Preserved full73b0 report; no new post-refactor coverage claim",
+    "matchedFiles": 742,
+    "totalFiles": 742
+  },
+  "remoteArtifactDownload": "pending"
+}

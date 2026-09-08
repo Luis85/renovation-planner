@@ -124,13 +124,17 @@ function nearestWithinTolerance<T>(
  * argument on every call.
  */
 export class SnapService {
-	constructor(private readonly config: SnapServiceConfig) {
+	constructor(private readonly config: SnapServiceConfig, private readonly isEnabled: () => boolean = () => true) {
 		requirePositiveFinite(config.gridSpacingMm, 'gridSpacingMm');
 		requirePositiveFinite(config.angleStepRadians, 'angleStepRadians');
 	}
 
-	snapToVertex(point: Point, candidates: readonly Point[]): Point | null {
-		return nearestWithinTolerance(point, candidates, (candidate) => candidate, this.config.toleranceMm);
+	/** Per-surface automatic object alignment; explicit Shift constraints remain available. */
+	get enabled(): boolean { return this.isEnabled(); }
+
+	snapToVertex(point: Point, candidates: readonly Point[], toleranceMm = this.config.toleranceMm): Point | null {
+		if (!this.enabled) return null;
+		return nearestWithinTolerance(point, candidates, (candidate) => candidate, toleranceMm);
 	}
 
 	/**
@@ -143,7 +147,8 @@ export class SnapService {
 	 * by a zero squared-length is — this reuses that answer instead of re-deriving a
 	 * second zero-length check here.
 	 */
-	snapToEdge(point: Point, candidates: readonly LineSegment[]): Point | null {
+	snapToEdge(point: Point, candidates: readonly LineSegment[], toleranceMm = this.config.toleranceMm): Point | null {
+		if (!this.enabled) return null;
 		return nearestWithinTolerance(
 			point,
 			candidates,
@@ -151,7 +156,7 @@ export class SnapService {
 				const projected = project(point, segment);
 				return isOk(projected) ? projected.value : null;
 			},
-			this.config.toleranceMm,
+			toleranceMm,
 		);
 	}
 
@@ -163,12 +168,12 @@ export class SnapService {
 	 * wrong, and a test pins the precedence case where the edge is nearer and still
 	 * loses.
 	 */
-	snapPoint(point: Point, candidates: SnapCandidates): Point {
-		const vertex = this.snapToVertex(point, candidates.vertices ?? []);
+	snapPoint(point: Point, candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): Point {
+		const vertex = this.snapToVertex(point, candidates.vertices ?? [], toleranceMm);
 		if (vertex !== null) {
 			return vertex;
 		}
-		const edge = this.snapToEdge(point, candidates.edges ?? []);
+		const edge = this.snapToEdge(point, candidates.edges ?? [], toleranceMm);
 		return edge ?? point;
 	}
 

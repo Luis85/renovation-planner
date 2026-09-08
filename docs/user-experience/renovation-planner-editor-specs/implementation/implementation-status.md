@@ -1,7 +1,42 @@
-# Editor implementation status — 2026-09-06
+# Editor implementation status — 2026-09-07
 
-The implementation plan is a multi-release roadmap. This ledger distinguishes shipped baseline
-behavior on `cf536f32` from the current contribution. It does not declare the whole roadmap done.
+Operational continuation: [RESUME.md](RESUME.md) is the central handoff for a later session or usage-limit interruption. It distinguishes pushed code, unverified WIPs, current processes and remaining acceptance.
+
+Full CI07bc094a passes **663files/8121tests on every Linux22/24/26 and Windows22 leg**,69skipped. Build/lint pass; unchanged branch coverage97.89%(12543/12813) leaves14arms. The five repository lifecycle gains are now confirmed in the complete run. **Fresh matched Health on07 also passes:0findings,748/748file paths mapped.** [Run34160382401](https://github.com/Luis85/renovation-planner/actions/runs/34160382401), [CI/Health receipt](evidence/ci-07bc094a-quality.json). UI9f7e882d is now integrated as Root6569a9e7, including the verified4-scenario overview and hardened capture provenance. The following commit adds Coverage256a9384:5verified cases,+6branches/+2statements on matched source/maps. Root checked98UI artifact hashes. Count-copy/idle-guidance,M13pilot,final combined9/18/newCI/Health and nativeH1–H6remain. [Joined receipt](joined-overview-snapshot-evidence.md).
+
+The complete unchanged final browser runner on430 passed9journeys×4scenarios and produced all18reference comparisons. Archive d58 is integrated; Root verified340PNG hashes. All18 were inspected by UI. Remaining visual work is concrete: M01floor-summary/Room cues, M04closed-draft contrast, and correctly attributed M00/M07/M13/M16 supplemental views. Original captures/assertions remain.
+
+The reproduced Pan regression is corrected in integratedUIdba/eef: same unprofiled4-scenario stimulus now has16.6–16.7ms Pan/materialPan medians,p95≤17.1ms, all latency budgets passed and12cleanup cycles clear. Native24+47 batches/types/lint passed; Root confirmed identical drivers after only path/metadata substitutions. [Fix/evidence](editor-canvas-pan-stability.md), [retained predecessor diagnosis](pan-performance-diagnosis.md). The five public repository cases are verified and integrated; UI now owns the M01/M04 native/capture slot. Further UI integration needs its own complete CI/Health; native-host H1–H6 remain open. No final acceptance is claimed.
+
+Fresh review sweep across #74–#91 found no new outstanding Root code defect. Predecessor threads remain open where fixes live in the integration continuations rather than the unchanged older branches; no thread is falsely resolved. [Review audit](review-audit.md).
+
+Historical previous full measurement:
+
+Latest completed full CI on `73b0c205`: all four Linux/Windows verify jobs report 8053 passed tests, three failures in two test files, and unchanged coverage floors missed: statements 98.96% (17842/18028), branches 97.51% (12371/12686); functions 99.08% and lines 99.47% pass. Audit passes. [CI run](https://github.com/Luis85/renovation-planner/actions/runs/34126554088). Local full coverage matches; it additionally encountered one 5-second temporaryToolBanner timeout. Fresh full Fallow reports three template complexity findings: QuoteComparisonState 18, ProjectWorkState 19, EvidenceInspector 16 (limit 15), with zero dead-code issues and zero clones.
+
+Current checkpoint corrects the stale schema-7 migration expectations for schema 8 and selects the Related-record action by label after the independent Work link was added. All route/deletion assertions remain. Targeted rerun passed 49 tests in five files (86.04 seconds), including the unchanged timeout case, date and Work-link regressions. Full follow-up gates, coverage closure, owner UI WIP verification and final visual/host acceptance remain open. See RESUME.md for current owners and saved full diagnostics.
+
+The current integrated continuation builds on c1091086 with hardening 89f498f9 (integrated as 0d115e38), UI 51aaac72 (integrated as 9acb6e29), and root saved-source/Retry recovery. Earlier root correction 80437fa0, UI through b5c57a68 and hardening Reference correction 00852947 (integrated as 66438ff3) remain included. Native Reference focus across reflow and the protected Node query boundary pass. Final acceptance is still open.
+
+The following earlier checkpoint measurements remain historical evidence.
+
+Historical cd362dd0: The joined full run failed with five reproducible contract/behavior failures, two additional local lint-test timeouts, and coverage below the unchanged floors; separate Fallow also failed. Root corrections restore editable read-paused element drafts, fix missing translations and contract expectations, refresh Quote catalogue/Room context, and simplify downstream rendering. Explicit browser environments restore the prior Vue coverage transform, but the historical 9e2b89f8 CI run exposed a protected application test in the wrong environment; its plugin integration and pure Node query cases are now separated and the unchanged guard passes. All four Linux/Windows CI legs on that checkpoint passed 7,946 tests with that one failure; statement/function/branch coverage still fails. The final browser capture also stopped at Reference focus after reflow. See [current correction evidence](downstream-planning-evidence.md); no final gate or host acceptance is claimed.
+
+The pre-downstream finalization checkpoint is `2c2c1d71e0147819c6c597172b0b5f57f0f5b918`, incorporating UI `6654cfbf7d023199af49c6aaec50a770e44f1578` and hardening `0673226c86e8cdb7f514e4fd7c9f567faa839ed7` over PR #88 `3c1c737a`. All eleven Add routes, generic spatial objects, Room/Area precision, contextual planning, guarded drafts and conditional history are integrated. M00/M07 include native Room dimensions, direct Room/wall controls, host icons, centered Room labels, quieter Room fills and the documented View controls. CI on that checkpoint passed all 605 files/7,631 tests (69 skipped); branch coverage 97.70% remains below 98%. Final matching-state acceptance remains open.
+
+Historical exact source `63173897d97567542761926c4fc56540b4b54ec2`, Node 24.20.0, VITEST_MAX_WORKERS=2: production build/types and complete Oxlint/ESLint pass. All 594 test files pass: 7,562 passed, 70 skipped, 975.45 s. Coverage is 99.05% statements (16413/16569), 97.54% branches (11176/11457), 99.15% functions (4677/4717), and 99.50% lines (13024/13089). Only the unchanged 98% branch floor fails, so npm run check exits 1 before analysis. A separate fresh complete Fallow run against that full coverage exits 0: zero dead-code issues, zero clone groups, zero health findings (including cognitive complexity and CRAP). The full JSON/lcov artifacts are preserved before scoped runs. No gates, exclusions or thresholds changed. Owner and preliminary browser evidence remains historical/partial; final joined M00/M07 and all-18 acceptance are pending.
+
+M10 Trade assignment/manual dates/Project Work and M13 Supplier/Quote persistence, comparison and contextual return now have production source in the finalization worktree. ADR-0024 records their canonical entity and authority boundaries. Targeted verification passed 134 cases; the broader shared-repository/native run passed 980 with two missing contract-census failures, then the corrected contract/element files passed all 76 cases. See [downstream-planning-evidence.md](downstream-planning-evidence.md) for the actual defects, corrections and limits. Production build/types and static checks passed; the final combined gate remains open. Automatic calendars, inferred scope/tax/unit normalization and quote selection remain outside this route contract.
+
+The isolated Obsidian test vault is accessible with a preliminary build; the earlier plugin-trust blocker is cleared. Final integrated build installation and acceptance are still pending. H1–H6 remain explicitly open where browser/FakeVault evidence cannot establish actual host, device or screen-reader behavior.
+
+Use the [completion matrix](completion-matrix.md) for current requirement ownership and open work, and the [integration map](integration-map.md) for exact ancestry. Finalization adds canonical Project/Asset Library navigation, contextual planning drafts and sidecar receipts for mixed Room history. Targeted evidence exists. The initial full gate passed build/lint, then was stopped after test failures under excessive worker contention; it did not pass coverage or analysis. Repeated verification uses supported worker limits without changing thresholds or timeouts.
+
+The current finalization changes also add Area name/type editing and explicit numeric corner editing for existing Room/Area outlines (17 focused tests passed), plus an Add → Room → free-shape route with a native name field and shared numeric corner controls. Add → Note reuses the existing Room Notes form and passes three production-path tests for context availability, ordinary-file creation/link history and cancellation. Combined visual, accessibility, coverage and host acceptance remain open.
+
+## Historical phase snapshot (before the connected planning continuation)
+
+The following table records the earlier `cf536f32` contribution; its “not delivered” entries are historical, not the current implementation status.
 
 | Phase | Baseline and current contribution | Remaining work |
 |---|---|---|
@@ -19,7 +54,7 @@ behavior on `cf536f32` from the current contribution. It does not declare the wh
 | 11 | Not delivered | Common evidence links, files, pins and contextual creation |
 | 12 | Existing stale-write protection and accessibility/theme harness | Complete end-to-end release, performance, migration/recovery and live Obsidian verification |
 
-## Current selection contribution
+## Historical selection contribution (before connected batch actions)
 
 - Shift-click adds/removes a room or area; Alt-click cycles overlapping bodies.
 - The property panel keeps every readable room/area reachable after selection. Its multiple
@@ -47,7 +82,7 @@ Harness: `?view=plan-editor&select=harness-terrace,harness-kitchen`, with `&them
 `&lang=de` as needed. `npm run harness-shot` includes light, dark and German 460 px M11 captures.
 These are visual inspection fixtures, not a claim of WCAG or live-vault acceptance.
 
-## Verification of this contribution
+## Verification of the historical selection contribution
 
 `npm run check` passed with `VITEST_MAX_WORKERS=2`: build, lint, 473 test files,
 6,577 passing tests (70 skipped), coverage and Fallow. Coverage: statements 99.25%,
@@ -819,3 +854,21 @@ suppliers, shared inventory, full quote comparison and live acceptance remain op
 See [connected planning evidence and traceability](connected-planning-evidence.md),
 [changed-file coverage](connected-planning-coverage.md) and ADR-0022. Only that demonstrated
 subset is complete. Global Increment D and full M12–M17 acceptance are not complete.
+
+The four remaining Add routes—generic Object, Path, Fence and Measurement—remain in the full-plan scope. Finalization owns shared sidecar/domain/selection support and linear routes; the existing UI task owns Object creation/presentation after its current verified checkpoint. This records implementation ownership, not completion or an accepted deferral.
+
+Finalization checkpoint verification (2026-09-07): `npx oxlint --deny-warnings`, `npx vue-tsc -noEmit`, full `npx eslint . --max-warnings 0`, and `git diff --check` passed after the Room/free-shape/Area/Note/navigation/history changes. The earlier full coverage run was aborted and is not a passing gate; final combined coverage/build/analyze remain required. The synthetic host vault was moved outside the worktree to `C:/Users/lum/.codex/tmp/renovation-planner-finalization-vault` so its generated plugin does not enter source checks. It must receive the final build before host acceptance.
+## Increment E recovery and connected hardening — 2026-09-07
+
+The continuation of #88 implements retained planning read-back, read-only retry, unsafe-history
+gating, recoverable modal drafts, locale-safe planning numbers, filtered/coalesced invalidation
+and resource lifecycle checks. It also closes the original #88 Review/source measurement/event
+findings and subsequent generated-note/evidence recovery defects. The exact automated and browser
+scope is recorded in [recovery evidence](planning-recovery-evidence.md) and its
+[coverage ledger](planning-recovery-coverage.md). This is a bounded Phase 12 slice; it does not
+close global M00–M17 acceptance, live assistive technology or release readiness.
+
+The persistent-shell follow-up corrects visible focus return from Room naming, dimensions,
+outline and Area details dialogs after reflow hides their mounted opener. Native-control,
+draft and focus evidence is tracked in [persistent shell evidence](persistent-shell-evidence.md#modal-focus-follow-up);
+its focused verification does not replace the final combined gate.

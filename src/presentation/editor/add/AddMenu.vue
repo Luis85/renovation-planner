@@ -47,13 +47,17 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } fro
 import { tr, currentLanguage } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
 import { useEditorRuntime } from '../runtime';
+import { useNoteCreation } from './noteCreation';
+import HostIcon from '../../components/HostIcon.vue';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import {
 	activateCreationEntry,
 	CREATION_CATALOGUE,
 	matchesQuery,
 	type CreationEntry,
 	type CreationEntryId,
+	type CreationRuntime,
 	type CreationGroup,
 } from './creationCatalogue';
 
@@ -61,13 +65,17 @@ const props = defineProps<{ anchor: HTMLElement | null }>();
 const emit = defineEmits<{ close: [] }>();
 
 const runtime = useEditorRuntime();
-const project = useProjectStore();
+const project = useProjectStore(), workspace = useWorkspaceStore();
+const note = useNoteCreation();
+const creation: CreationRuntime = { setTool: id => runtime.setTool(id), createNote: note.activate };
 const spatialReason = computed(() => tr(runtime.structureTask.available ? 'editor.structure.error.host-missing' : 'editor.structure.error.unavailable'));
 function spatialUnavailable(entry: CreationEntry): boolean {
+	if (entry.id === 'note') return !note.available.value;
+	if (['item', 'path', 'fence', 'measurement'].includes(entry.id)) return !runtime.elementTask.available;
 	if (!['wall', 'door', 'window', 'opening'].includes(entry.id)) return false;
 	return !runtime.structureTask.available || (entry.id !== 'wall' && project.structure.walls.length === 0);
 }
-function unavailable(entry: CreationEntry): boolean { return entry.availability.kind === 'unsupported' || runtime.writesBlocked.value || spatialUnavailable(entry); }
+function unavailable(entry: CreationEntry): boolean { return runtime.writesBlocked.value || spatialUnavailable(entry); }
 
 /** The locked group order (design spec §7.1) and the heading each one draws. */
 const GROUP_ORDER: readonly CreationGroup[] = ['structure', 'property', 'planning'];
@@ -89,7 +97,7 @@ const groupHeadingIds: Record<CreationGroup, string> = {
 	planning: useId(),
 };
 
-/** Same reasoning, one id per catalogue entry, for the `aria-describedby` an unsupported item carries. */
+/** One stable ID per entry for its current view's unavailable-capability explanation. */
 const reasonIds: Record<CreationEntryId, string> = Object.fromEntries(
 	CREATION_CATALOGUE.map((entry) => [entry.id, useId()]),
 ) as Record<CreationEntryId, string>;
@@ -134,21 +142,14 @@ function entriesFor(group: CreationGroup): readonly CreationEntry[] {
 	return filteredEntries.value.filter((entry) => entry.group === group);
 }
 
-function reasonIdFor(entry: CreationEntry): string | undefined {
-	return entry.availability.kind === 'unsupported' ? reasonIds[entry.id] : undefined;
-}
-
-/**
- * The one reason an item's `aria-describedby` names — never both. An UNSUPPORTED entry
- * already has its own reason (`reasonIdFor` above); a supported entry paused by
- * `runtime.writesBlocked` (design spec §2.9) is described by the shared paused-reason
- * sentence instead, and a live entry names nothing.
- */
 function describedBy(entry: CreationEntry): string | undefined {
-	const unsupported = reasonIdFor(entry);
-	if (unsupported !== undefined) return unsupported;
 	if (spatialUnavailable(entry)) return reasonIds[entry.id];
 	return runtime.writesBlocked.value ? runtime.pausedReasonId : undefined;
+}
+function unavailableReason(entry: CreationEntry): string {
+	if (entry.id === 'note') return tr('editor.add.note.context-required');
+	if (['item', 'path', 'fence', 'measurement'].includes(entry.id)) return tr('editor.add.element.unavailable', { name: tr(entry.labelKey) });
+	return spatialReason.value;
 }
 
 /**
@@ -202,8 +203,8 @@ function moveFocus(delta: 1 | -1): void {
 }
 
 /**
- * Available closes and then activates; unsupported does nothing — the only two outcomes a
- * press has. Close first, then activate — §7.2's order, so a faulting activation never
+ * An available action closes and then activates; a paused action does nothing. A
+ * press closes first, then activates — §7.2's order, so a faulting activation never
  * leaves the menu as the top surface.
  *
  * Routed through `activateCreationEntry` (Task 10's one door onto a catalogue entry's own
@@ -217,9 +218,14 @@ function moveFocus(delta: 1 | -1): void {
  * attribute alone.
  */
 function activate(entry: CreationEntry): void {
-	if (entry.availability.kind !== 'available' || runtime.writesBlocked.value || spatialUnavailable(entry)) return;
+	if (runtime.writesBlocked.value || spatialUnavailable(entry)) return;
 	emit('close');
-	activateCreationEntry(entry.id, runtime);
+	activateCreationEntry(entry.id, creation);
+	if (['item', 'path', 'fence', 'measurement'].includes(entry.id)) {
+		const root = (menuRoot.value as HTMLElement).closest('.renovation-plan-editor');
+		if (workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
+		void nextTick(() => root?.querySelector<HTMLInputElement>('[name="element-name"]')?.focus());
+	}
 	if (['area', 'wall', 'door', 'window', 'opening'].includes(entry.id)) {
 		const canvas = (menuRoot.value as HTMLElement).closest<HTMLElement>('.rp-plan-canvas');
 		void nextTick(() => canvas?.focus());
@@ -343,7 +349,7 @@ function onFocusOut(event: FocusEvent): void {
 
 onMounted(() => {
 	// The catalogue always has an available entry; Room remains the first recommendation.
-	const first = CREATION_CATALOGUE.find((entry) => entry.availability.kind === 'available') as CreationEntry;
+	const first = CREATION_CATALOGUE[0];
 	focusEntry(first.id);
 	document.addEventListener('pointerdown', onDocumentPointerDown, { capture: true });
 });
@@ -367,12 +373,16 @@ onBeforeUnmount(() => {
 		@keydown.stop="onKeydown"
 		@focusout="onFocusOut"
 	>
+		<p class="rp-add-menu__title">
+			{{ tr('editor.add.menu') }}
+		</p>
 		<input
 			ref="searchInputEl"
 			v-model="query"
 			type="search"
 			class="rp-add-menu__search"
 			:aria-label="tr('editor.add.search')"
+			:placeholder="tr('editor.add.search')"
 		>
 		<div
 			role="menu"
@@ -408,7 +418,6 @@ onBeforeUnmount(() => {
 					type="button"
 					role="menuitem"
 					class="rp-add-menu__item"
-					:class="{ 'rp-add-menu__item--unsupported': entry.availability.kind === 'unsupported' }"
 					:data-rp-entry="entry.id"
 					:tabindex="focusedId === entry.id ? 0 : -1"
 					:aria-disabled="unavailable(entry)"
@@ -416,18 +425,14 @@ onBeforeUnmount(() => {
 					@click="onItemClick(entry)"
 					@focus="focusedId = entry.id"
 				>
+					<HostIcon :name="entry.icon" />
 					<span class="rp-add-menu__item-label">{{ tr(entry.labelKey) }}</span>
 					<span class="rp-add-menu__item-description">{{ tr(entry.descriptionKey) }}</span>
 					<span
 						v-if="spatialUnavailable(entry)"
 						:id="reasonIds[entry.id]"
 						class="rp-add-menu__reason"
-					>{{ spatialReason }}</span>
-					<span
-						v-if="entry.availability.kind === 'unsupported'"
-						:id="reasonIds[entry.id]"
-						class="rp-add-menu__reason"
-					>{{ tr(entry.availability.reasonKey) }}</span>
+					>{{ unavailableReason(entry) }}</span>
 				</button>
 			</div>
 		</div>

@@ -21,6 +21,7 @@ import {
 } from '../../helpers/editor';
 import { FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { connectedObservers } from '../../helpers/layout';
+import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 
 /** What `afterEach` unmounts; every case reads its harness from the local const `mount` hands back. */
 let open: EditorHarness | null = null;
@@ -44,28 +45,15 @@ describe('the scene structure', () => {
 		expect(layerNames(harness.stage)).toEqual([...KONVA_LAYER_IDS]);
 	});
 
-	/**
-	 * The contract slice 6 builds against. "Present and mounted" is what makes it a place to
-	 * put a `Transformer`; "draws nothing" is what says nothing here has claimed it yet.
-	 *
-	 * **It asserted a child count of ZERO until `RoomDraftSketch` had to reserve its
-	 * position, and now TWO structural groups reserve one each** — `GestureSketch` joined it
-	 * at finding E9. vue-konva reindexes a layer's children on that LAYER's own update, and a
-	 * child component that creates its nodes later is appended after the reindex has already
-	 * run — so both groups are mounted unconditionally and are empty until there is a sketch
-	 * or a rectangle to draw (each component's own docblock carries the whole account, and
-	 * `roomDraftSketch.test.ts`/`layers.test.ts` hold the ordering they buy). The contract is
-	 * unchanged in the only sense that matters and the assertion says so differently: two
-	 * structural nodes, named, with nothing inside either, so anything that starts DRAWING
-	 * here still fails.
-	 */
-	it('mounts the interaction layer present, drawing nothing but the two empty gesture groups', async () => {
+	/** Structural groups reserve stable Vue/Konva positions but draw nothing until a gesture begins. */
+	it('mounts the interaction layer present, drawing nothing inside its three reserved groups', async () => {
 		const harness = await mount();
 
 		const interaction = harness.stage.findOne<Konva.Layer>('.interaction');
 
 		expect(interaction).toBeDefined();
-		expect(interaction?.getChildren().map((node) => node.name())).toEqual(['gesture-sketch', 'room-draft-group']);
+		expect(interaction?.getChildren().map((node) => node.name())).toEqual(['snap-guides', 'gesture-sketch', 'room-draft-group']);
+		expect(interaction?.findOne<Konva.Group>('.snap-guides')?.getChildren()).toHaveLength(0);
 		expect(interaction?.findOne<Konva.Group>('.gesture-sketch')?.getChildren()).toHaveLength(0);
 		expect(interaction?.findOne<Konva.Group>('.room-draft-group')?.getChildren()).toHaveLength(0);
 	});
@@ -235,6 +223,16 @@ describe('theme and accessibility of a zone', () => {
 		expect(texts).toContain(t('en', 'zone.status.planned'));
 		expect(texts).toContain(t('en', 'zone.status.complete'));
 		expect(texts).toContain('Kitchen');
+	});
+	it('emphasizes only selected room fill without rebuilding stored geometry', async () => {
+		const harness = await mount(), fills = zoneLines(harness.stage).filter(line => line.fill());
+		const points = fills.map(line => line.points());
+		expect(fills.map(line => line.opacity())).toEqual([0.025, 0.025]);
+		useSelectionStore(harness.pinia).select(['zone-kitchen' as never]); await settle();
+		expect(fills.map(line => line.opacity())).toEqual([0.12, 0.025]);
+		for (const [index, line] of fills.entries()) expect(line.points()).toBe(points[index]);
+		useSelectionStore(harness.pinia).clear(); await settle();
+		expect(fills.map(line => line.opacity())).toEqual([0.025, 0.025]);
 	});
 });
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { restoreInoperativeChoice } from '../forms/inoperativeControl';
 import { tr } from '../../i18n/strings';
 import { CONDITIONS, type Renovation } from '../../../domain/renovation/Renovation';
 import type { EditableRenovationDraft } from './renovationDraft';
@@ -9,7 +10,8 @@ defineProps<{ value: Renovation; targets: readonly { id: string; label: string }
 	<label v-if="!value.subjects.some(item => item.id === draft.subject.id)">{{ tr('renovation.target') }}
 		<select
 			v-model="draft.subject.targetId"
-			:disabled="frozen"
+			:aria-disabled="frozen"
+			@change.capture="restoreInoperativeChoice($event, draft.subject.targetId)"
 		>
 			<option
 				v-for="target in targets"
@@ -27,7 +29,8 @@ defineProps<{ value: Renovation; targets: readonly { id: string; label: string }
 		<label>{{ tr('renovation.condition') }}
 			<select
 				v-model="draft.subject.existing.condition"
-				:disabled="frozen"
+				:aria-disabled="frozen"
+				@change.capture="restoreInoperativeChoice($event, draft.subject.existing.condition)"
 			>
 				<option
 					v-for="condition in CONDITIONS"

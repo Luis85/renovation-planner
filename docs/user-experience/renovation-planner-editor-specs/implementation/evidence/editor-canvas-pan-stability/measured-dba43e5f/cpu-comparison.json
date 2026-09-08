@@ -1,0 +1,34 @@
+[
+  {
+    "Directory": "C:/Users/lum/AppData/Local/Temp/rp-finalization-20260907-88b9ee3d/pan-profile-430",
+    "Profile": 1,
+    "MatchedNodes": 12,
+    "TotalMs": 2046.06,
+    "ConfigSelfMs": 344.3,
+    "ConfigPercent": 16.83
+  },
+  {
+    "Directory": "C:/Users/lum/AppData/Local/Temp/rp-finalization-20260907-88b9ee3d/pan-profile-430",
+    "Profile": 2,
+    "MatchedNodes": 15,
+    "TotalMs": 2098.14,
+    "ConfigSelfMs": 475.91,
+    "ConfigPercent": 22.68
+  },
+  {
+    "Directory": "C:/Users/lum/AppData/Local/Temp/rp-ui-pan-stable-config-20260907",
+    "Profile": 1,
+    "MatchedNodes": 10,
+    "TotalMs": 1617.33,
+    "ConfigSelfMs": 27.09,
+    "ConfigPercent": 1.67
+  },
+  {
+    "Directory": "C:/Users/lum/AppData/Local/Temp/rp-ui-pan-stable-config-20260907",
+    "Profile": 2,
+    "MatchedNodes": 14,
+    "TotalMs": 1499.69,
+    "ConfigSelfMs": 42.8,
+    "ConfigPercent": 2.85
+  }
+]

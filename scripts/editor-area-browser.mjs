@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
 import { resolveChromiumExecutable } from './chromium.mjs';
+import { makeCaptureManifest, recordScreenshots } from './editor-capture-files.mjs';
 
 /** Real keyboard navigation; no locator focus/fill shortcuts. */
 export async function tabTo(page, selector) {
@@ -13,6 +14,15 @@ export async function tabTo(page, selector) {
 	throw new Error(`Tab did not reach ${selector}`);
 }
 export async function activate(page, selector) {
+	if (['[data-rp-action="rename-room"]', '[data-rp-action="edit-outline"]'].includes(selector)
+		&& await page.locator('.rp-room-more-actions:not([open]) > summary').isVisible()) {
+		await tabTo(page, '.rp-room-more-actions > summary');
+		await page.keyboard.press('Enter');
+	}
+	if (selector.startsWith('[data-rp-mode=') && !await page.locator(selector).isVisible()) {
+		await tabTo(page, '[data-rp-room-navigation]');
+		await page.keyboard.press('Enter');
+	}
 	await tabTo(page, selector);
 	await page.keyboard.press('Enter');
 }
@@ -63,6 +73,7 @@ export async function escapeAreaTool(page) {
 
 /** The editor journeys share browser, theme, viewport and error checks. */
 export async function runAreaBrowserMatrix(directory, query, journey, ready = '.rp-task-banner') {
+	const started = Date.now(), images = new Set();
 	const out = `harness-shots/${directory}`;
 	await mkdir(out, { recursive: true });
 	const server = await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0 } });
@@ -78,20 +89,38 @@ export async function runAreaBrowserMatrix(directory, query, journey, ready = '.
 			{ name: 'german-constrained', query: '&lang=de', width: 460 },
 		]) {
 			const page = await browser.newPage({ viewport: { width: scenario.width, height: 900 } });
+			recordScreenshots(page, out, images);
 			const errors = [];
 			page.on('pageerror', (error) => errors.push(error.message));
-			await page.goto(`${server.resolvedUrls.local[0]}?view=plan-editor${query}${scenario.query}`);
+			let evidence;
+			try {
+			await page.goto(`${server.resolvedUrls.local[0]}?view=plan-editor&bare${query}${scenario.query}`);
 			await page.locator(ready).waitFor();
 			if (scenario.accent) {
 				await page.addStyleTag({ content: 'body { --interactive-accent: #7c246b; --text-accent: #7c246b; --background-primary: #fff8ed; --background-secondary: #efe3d3; }' });
 				await page.evaluate(() => window.dispatchEvent(new Event('rp-harness-theme')));
 			}
-			const evidence = await journey(page, scenario, out);
+			evidence = await journey(page, scenario, out);
 			assert.deepEqual(errors, []);
+			}
+			catch (cause) {
+				await page.screenshot({ path: `${out}/${scenario.name}-failed.png` });
+				await writeFile(`${out}/${scenario.name}-failed.txt`, await page.locator('body').innerText());
+				await writeFile(`${out}/${scenario.name}-failed-errors.json`, JSON.stringify(errors, null, 2));
+				await writeFile(`${out}/${scenario.name}-failed-focus.json`, JSON.stringify(await page.evaluate(() => ({
+					activeElement: document.activeElement?.outerHTML,
+					viewport: { width: innerWidth, height: innerHeight },
+					referenceTargets: [...document.querySelectorAll('[data-rp-action="reference"], [data-rp-rail]')].map(element => ({
+						html: element.outerHTML, visible: element.checkVisibility(),
+					})),
+				})), null, 2));
+				throw cause;
+			}
 			results.push({ scenario: scenario.name, browser: browser.version(), ...evidence, keyboard: 'passed', pageErrors: errors });
 			await page.close();
 		}
 		await writeFile(`${out}/report.json`, JSON.stringify(results, null, 2));
+		await writeFile(`${out}/capture-files.json`, JSON.stringify(await makeCaptureManifest(out, started, images), null, 2));
 		console.log(`Editor browser checks passed (${results.length} scenarios). Artifacts: ${out}`);
 	} finally {
 		await browser?.close();

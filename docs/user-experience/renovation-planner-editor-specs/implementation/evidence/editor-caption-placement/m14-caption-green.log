@@ -1,0 +1,18 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-object-ui
+      Coverage enabled with v8
+
+
+ Test Files  4 passed (4)
+      Tests  24 passed (24)
+   Start at  13:25:32
+   Duration  29.72s (transform 8.65s, setup 0ms, import 16.49s, tests 5.92s, environment 4.40s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 71/71 )
+Branches     : 100% ( 30/30 )
+Functions    : 100% ( 29/29 )
+Lines        : 100% ( 43/43 )
+================================================================================

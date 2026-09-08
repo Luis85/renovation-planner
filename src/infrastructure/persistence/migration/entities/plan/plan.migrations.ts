@@ -1,11 +1,4 @@
-import type { Migration } from '../../MigrationRunner';
+import { discriminatorMigration } from '../../discriminatorMigration';
 
-/** Read-only upgrade: absent appearance keeps the legacy full image, opacity 1 and origin. */
-export const PLAN_MIGRATIONS: Migration[] = [{
-	fromVersion: 1, toVersion: 2,
-	migrate: input => typeof input === 'object' && input !== null
-		? { ...input, 'schema-version': 2 } : input,
-}, {
-	fromVersion: 2, toVersion: 3,
-	migrate: input => typeof input === 'object' && input !== null ? { ...input, 'schema-version': 3 } : input,
-}, { fromVersion: 3, toVersion: 4, migrate: input => typeof input === 'object' && input !== null ? { ...input, 'schema-version': 4 } : input }];
+/** Read-only upgrades retain legacy defaults and never invent optional renovation facts. */
+export const PLAN_MIGRATIONS = [1, 2, 3, 4, 5, 6, 7].map(version => discriminatorMigration(version, version + 1));

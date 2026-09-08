@@ -11,10 +11,14 @@
 	gap: var(--size-4-2);
 	max-height: 48vh;
 	overflow: auto;
+	/* Keep focused controls above the sticky Finish action and its separating gap. */
+	scroll-padding-block-end: calc(32px + var(--size-4-3));
 	min-width: 0;
 }
+.rp-structure-task > * { flex-shrink: 0; }
 .rp-structure-task p { margin: 0; }
 .rp-structure-task .rp-dialog-field { display: flex; flex-direction: column; gap: var(--size-4-1); }
+.rp-structure-task__room { display: flex; align-items: center; }
 .rp-structure-task input, .rp-structure-task select { width: 100%; min-width: 0; }
 .rp-structure-task input[type='checkbox'] { width: auto; }
 .rp-structure-task button, .rp-structure-list button, .rp-structure-inspector button {

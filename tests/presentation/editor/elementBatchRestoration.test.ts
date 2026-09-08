@@ -1,0 +1,34 @@
+// @vitest-environment jsdom
+import { afterEach, expect, it } from 'vitest';
+import { renovationEditor } from '../../helpers/renovationEditor';
+import { expectDefined, expectOk } from '../../helpers/domain';
+import { settle } from '../../helpers/editor';
+import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
+const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
+afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
+it('restores removed named elements and a hosted opening once, together with their complete Room boundary', async () => {
+ const rig = await renovationEditor(true); mounted.push(rig);
+ const element = { id: 'element-path', kind: 'path' as const, name: 'Garden path', points: [{ x: 500, y: 500 }, { x: 3000, y: 500 }] };
+ const seed = expectOk(await rig.renovation.read(rig.plan.id));
+ expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(seed, elementInput(seed, element), rig.runtime.structureTask.ledger)));
+ const geometry = expectOk(await rig.geometry.read(rig.plan.id)), structure = expectDefined(geometry.document.structure, 'structure');
+ const opening = { id: 'opening-a', hostId: 'wall-a', kind: 'door' as const, offset: 100, width: 800, height: 2000, sill: 0 };
+ const current = { ...structure, openings: [opening], boundaries: [{ roomId: rig.room.id, wallIds: structure.walls.map(wall => wall.id) }] };
+ expectOk(await rig.geometry.write(rig.plan.id, { ...geometry.document, structure: current }, geometry.version));
+ await rig.runtime.refreshProjection(); rig.selection.select(['element-path', 'wall-a', opening.id] as never[]); await settle();
+ await rig.wrapper.get('.rp-batch-actions select').setValue(rig.room.id);
+ await rig.wrapper.get('[data-rp-batch="remove"]').trigger('click'); await settle();
+ const removing = rig.wrapper.get('[data-rp-form="renovation-batch"]');
+ await removing.trigger('submit'); await removing.trigger('submit'); await settle();
+ expect(rig.project.structure).toEqual(current); expect(rig.project.intended).toBeDefined(); expect(rig.project.intended?.elements ?? []).toEqual([]); expect(rig.project.intended?.openings).toEqual([]); expect(rig.project.intended?.boundaries).toEqual([]);
+ const removed = expectOk(await rig.geometry.read(rig.plan.id)).document;
+ await rig.wrapper.get('[data-rp-batch="modify"]').trigger('click'); await settle();
+ await rig.wrapper.get('input[name="batch-title"]').setValue('Restore and refinish');
+ const modifying = rig.wrapper.get('[data-rp-form="renovation-batch"]');
+ await modifying.trigger('submit'); await modifying.trigger('submit'); await settle();
+ expect(rig.project.structure).toEqual(current); expect({ ...rig.project.intended, walls: rig.project.intended?.walls.toSorted((a, b) => a.id.localeCompare(b.id)) }).toEqual(current);
+ expect(rig.project.plan?.renovation?.subjects.map(subject => subject.planned?.change)).toEqual(['modify', 'modify', 'modify']);
+ expect(rig.project.plan?.spatialElements).toEqual([{ id: element.id, name: element.name }]);
+ expectOk(await rig.runtime.dispatcher.undo()); await settle(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(removed);
+ expectOk(await rig.runtime.dispatcher.redo()); await settle(); expect({ ...rig.project.intended, walls: rig.project.intended?.walls.toSorted((a, b) => a.id.localeCompare(b.id)) }).toEqual(current); expect(rig.project.zones.get(rig.room.id)?.points).toEqual(rig.room.geometry.points);
+});

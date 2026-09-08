@@ -1,9 +1,10 @@
+import { projectOriginFrom, type ProjectOrigin } from '../../application/navigation/ProjectDestination';
 import { ItemView, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { createApp, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import PlanEditorRoot from '../editor/PlanEditorRoot.vue';
-import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../editor/PlanEditorContext';
+import { PLAN_EDITOR_CONTEXT, type PlanEditorContext, type EditorNavigation } from '../editor/PlanEditorContext';
 import type {
 	PlanEditorCommandServices,
 } from '../editor/planEditorCommands';
@@ -30,6 +31,7 @@ export const PLAN_EDITOR_ICON = 'map';
 
 interface PlanEditorViewState {
 	readonly planId: string;
+	readonly origin?: ProjectOrigin;
 }
 
 /**
@@ -38,6 +40,7 @@ interface PlanEditorViewState {
  * in `plugin/`.
  */
 export interface PlanEditorDeps {
+	readonly navigation?: EditorNavigation;
 	readonly queries: PlanEditorQueryServices;
 	/** The write side the editor's tools dispatch through — see `planEditorCommands.ts`. */
 	readonly commands: PlanEditorCommandServices;
@@ -111,7 +114,8 @@ export interface PlanEditorDeps {
 function planIdFrom(state: unknown): PlanEditorViewState | null {
 	if (typeof state !== 'object' || state === null) return null;
 	const planId = (state as Record<string, unknown>)['planId'];
-	return typeof planId === 'string' && planId.length > 0 ? { planId } : null;
+	const origin = projectOriginFrom((state as Record<string, unknown>)['origin']);
+	return typeof planId === 'string' && planId.length > 0 ? { planId, ...(origin?.planId === planId ? { origin } : {}) } : null;
 }
 
 export class PlanEditorView extends ItemView {
@@ -180,7 +184,7 @@ export class PlanEditorView extends ItemView {
 	 * sometimes absent makes that a different shape to reason about.
 	 */
 	getState(): Record<string, unknown> {
-		return { planId: this.planId ?? '' };
+		return { planId: this.planId ?? '', ...(this.origin ? { origin: this.origin } : {}) };
 	}
 
 	/**
@@ -190,9 +194,10 @@ export class PlanEditorView extends ItemView {
 	 * there is a plan to mount and does nothing when the plan has not changed. Deciding it
 	 * in one place is what keeps a restore from mounting twice.
 	 */
-	setState(state: unknown, _result: ViewStateResult): Promise<void> {
+	async setState(state: unknown, result: ViewStateResult): Promise<void> {
 		const parsed = planIdFrom(state);
-		if (parsed !== null) this.planId = parsed.planId;
+		if (parsed?.origin && parsed.planId === this.mountedPlanId && this.root && !(await this.root.navigateToRecord(parsed.origin))) { result.history = false; return; }
+		if (parsed !== null) { this.planId = parsed.planId; this.origin = parsed.origin; }
 		this.sync();
 		return Promise.resolve();
 	}
@@ -215,6 +220,8 @@ export class PlanEditorView extends ItemView {
 	}
 
 	private planId: string | null = null;
+	private origin: ProjectOrigin | undefined;
+	private root: { navigateToRecord: (origin: ProjectOrigin) => Promise<boolean> } | null = null;
 
 	/**
 	 * The Vue app this view mounted, held only so `onClose` can unmount the same one.
@@ -240,6 +247,8 @@ export class PlanEditorView extends ItemView {
 		const host = this.contentEl.createDiv('renovation-plan-editor-view');
 		const context: PlanEditorContext = {
 			planId,
+			initialNavigation: this.origin,
+			navigation: this.deps.navigation,
 			queries: this.deps.queries,
 			commands: this.deps.commands,
 			vault: this.deps.vault,
@@ -291,7 +300,7 @@ export class PlanEditorView extends ItemView {
 		// registration into every future view whether it draws a canvas or not.
 		app.use(VueKonva);
 		app.provide(PLAN_EDITOR_CONTEXT, context);
-		app.mount(host);
+		this.root = app.mount(host) as unknown as { navigateToRecord: (origin: ProjectOrigin) => Promise<boolean> };
 
 		this.vueApp = app;
 		this.mountedPlanId = planId;
@@ -300,6 +309,7 @@ export class PlanEditorView extends ItemView {
 	private unmount(): void {
 		this.vueApp?.unmount();
 		this.vueApp = null;
+		this.root = null;
 		this.mountedPlanId = null;
 	}
 }

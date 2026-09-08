@@ -1,4 +1,7 @@
+import type { QuoteServices } from '../../application/commands/quote/QuoteServices';
+import type { ProjectWorkServices } from '../../application/queries/schedule/ProjectWork';
 import { inject, type InjectionKey } from 'vue';
+import type { ProjectDestination, ProjectSection, ProjectOrigin } from '../../application/navigation/ProjectDestination';
 import type { RenovationProjectQueryServices } from '../read-models/renovationProjectQueries';
 import type { RenovationProjectCommandServices } from './renovationProjectCommands';
 import type { ContinueContext } from '../../application/continueContext';
@@ -45,7 +48,10 @@ export interface ProjectSession {
 
 export interface RenovationProjectDeps {
 	readonly session?: ProjectSession;
-	readonly section?: 'details' | 'prices';
+	readonly work?: ProjectWorkServices;
+	readonly quotes?: QuoteServices;
+	readonly section?: ProjectSection;
+	readonly origin?: ProjectOrigin;
 	readonly readOnly?: boolean;
 	readonly queries: RenovationProjectQueryServices;
 	/** Design slice 16's write side — guarded at the root, refusing when settings are unrecovered. */
@@ -121,13 +127,14 @@ export interface RenovationProjectDeps {
 	 * `ViewStateResult.history`, so each navigation is an entry in Obsidian's own leaf
 	 * navigation history. A `showList()` method on the view would be a second decider.
 	 */
-	readonly navigate: (projectId: string | null, section?: 'details' | 'prices') => void;
+	readonly navigate: (projectId: string | null, section?: ProjectDestination) => void;
 	/**
 	 * Open a plan in the Plan Editor — bound to `revealPlanEditor` at the root, the same shape
 	 * and for the same reason as `openProject`: `presentation/` may not reach Obsidian's
 	 * workspace, and a `PlanSummaryDto` carries no path.
 	 */
-	readonly openPlan: (planId: string) => Promise<'opened' | 'failed'>;
+	readonly openPlan: (planId: string, origin?: ProjectOrigin) => Promise<'opened' | 'failed'>;
+	readonly openRecord?: (id: string) => Promise<ProjectOpenOutcome>;
 	/**
 	 * Open the Asset Designer on ONE asset — bound to `revealAssetDesigner` at the root
 	 * (`renovationProjectOpenAsset`), `openPlan`'s exact shape and for the same reason:

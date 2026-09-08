@@ -1,0 +1,68 @@
+{
+  "date": "2026-09-07T14:58:43.951Z",
+  "run": 34134549702,
+  "job": 101782305736,
+  "head": "95e7510bbc86db3be0cfc92054608a35e09630cd",
+  "testedPullRequestMerge": "f707a66a65c00863086cc0c99f40b9209332f598",
+  "artifact": {
+    "id": 10023722129,
+    "name": "coverage-ubuntu-latest-node-24-f707a66a65c00863086cc0c99f40b9209332f598-1",
+    "downloadVerified": true,
+    "files": [
+      {
+        "name": "coverage-final.json",
+        "bytes": 5039400,
+        "sha256": "d06cded85e0b7b1ea48c0da3f99e2d8b47718397f5aeb691d24d561feac8d9fa"
+      },
+      {
+        "name": "lcov.info",
+        "bytes": 635155,
+        "sha256": "329436e808afeabb7eff114323769f8705eaf7ce41d20dccb8a14701c5694aa5"
+      }
+    ]
+  },
+  "tests": {
+    "files": 647,
+    "passed": 8058,
+    "skipped": 69,
+    "seconds": 450.39
+  },
+  "coverage": {
+    "statements": {
+      "covered": 17861,
+      "total": 18044,
+      "percent": 98.98,
+      "floor": 99
+    },
+    "branches": {
+      "covered": 12378,
+      "total": 12690,
+      "percent": 97.54,
+      "floor": 98
+    },
+    "functions": {
+      "covered": 5114,
+      "total": 5158,
+      "percent": 99.14
+    },
+    "lines": {
+      "covered": 13977,
+      "total": 14050,
+      "percent": 99.48
+    }
+  },
+  "verdict": "All tests pass; statement and branch floors fail; no current-head final acceptance claim",
+  "allMatrixLegs": {
+    "passedTests": 8058,
+    "passedFiles": 647,
+    "skippedTests": 69,
+    "coverageIdentical": true,
+    "jobs": [
+      101782305752,
+      101782305736,
+      101782305529,
+      101782305547
+    ],
+    "allArtifactsUploaded": true
+  }
+}

@@ -874,13 +874,17 @@ orientation, entity type or resize repository. M03 and ADR-0018 specify this lim
 
 Selection is by stable entity id, shared by the canvas, the non-canvas room list and the
 Inspector, so the three never disagree about what is selected (spec INV-01). When entities
-overlap, selection priority is predictable — handle → object → opening → wall → room →
-background — and hover previews what a click would select.
+overlap, selection priority is predictable — handle → opening → wall → object → room →
+background — and hover previews what a click would select. (2026-09-08 — amended from
+handle → object → opening → wall → room → background to the order the code has; see the plan
+amendment in `implementation-plan.md` Phase 2.)
 
 ADR-0018 assigns selection and Inspector ownership. Room/Area selection now uses ordered unique
 IDs, Shift toggling and Alt overlap cycling. M11 badges and rows focus a member independently of
-membership; a missing member is explicitly unavailable in aggregates. Wall/Opening/Object
-priority remains reserved until those types exist. The property panel keeps the non-canvas list
+membership; a missing member is explicitly unavailable in aggregates. (2026-09-08 — the typed
+ranks landed with the wall/opening slice (#86, ADR-0020) and the generic elements (#91,
+ADR-0023), and are pinned by `tests/presentation/editor/structureSelection.test.ts`'s 'ranks a generic element below
+opening and wall and above the room, and cycles all four'.) The property panel keeps the non-canvas list
 reachable while an Inspector subject is selected, including a modifier-free multiple-selection
 option. Selected geometry is not covered by reference-plan onboarding.
 

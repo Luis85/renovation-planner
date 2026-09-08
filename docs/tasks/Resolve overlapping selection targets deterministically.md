@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Selection]]"
 order: 20
-status: Active
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -11,7 +11,7 @@ release: "[[MVP]]"
 
 ## Evidence
 
-The [implementation plan Phase 2](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md) locks priority as handle → object → opening → wall → room → background and requires overlap cycling.
+The [implementation plan Phase 2](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md) locks priority as handle → opening → wall → object → room → background and requires overlap cycling.
 
 ## Why it matters
 
@@ -38,6 +38,27 @@ Future entity types can bypass the rule if hit testing is distributed among shap
 Users can predict and recover which overlapping part will be selected.
 
 ## Amendments
+
+**2026-09-08 (closed)** — the user decided the plan is amended to the order the code has
+(handle → opening → wall → object → room → background) rather than the code being changed to
+match the plan: an opening sits on a wall and a wall bounds a room, so the most precise thing
+under the pointer wins, and a free-standing element drawn over a wall is reached by Alt-cycling
+rather than by outranking it. The rank was PINNED, not changed —
+`tests/presentation/editor/structureSelection.test.ts`'s 'ranks a generic element below opening
+and wall and above the room, and cycles all four' (8ee62b4e) passed on its first run against the
+existing `resolveSelectionTarget` priority, no `src/` change. The implementation plan, the SDD,
+`docs/requirements/Selection.md` extension 2a and ADR-0018 were amended to the new order in the
+same pass (92ffe624).
+
+**2026-09-08 (closeout review)** — this task was moved to Done in the closeout pull request and
+moved back the same day, on a review finding measured against the code: `priority()` in
+`src/presentation/editor/selection/resolveSelectionTarget.ts` ranks `opening` 3, `wall` 2, any
+other typed candidate 1 and an untyped one 0, and the resolver walks that order from the top, so
+an opening overlapping a generic object is selected first — the implementation plan's locked
+order is handle → **object → opening** → wall → room → background, the other way round for that
+pair. The evidence below stands for the ranks a test holds (handle over body, opening → wall →
+room, Alt cycling); the object rank has neither a test nor the right value. Stays Active until
+the rank is corrected and `structureSelection.test.ts` holds an object-over-opening fixture.
 
 **2026-09-03** — `src/presentation/editor/selection/resolveSelectionTarget.ts` is one function
 that `SelectTool.pointerDown` and `SelectTool.pointerMove` both ask; the tool's private
@@ -67,3 +88,26 @@ first, and the resolver deliberately scans it in reverse so the last-drawn body 
 ## Implementation update — 2026-09-05
 
 Alt-click now reaches lower overlapping bodies and wraps in render order; hover uses the same alternate resolution. spatialSelection.test.ts covers cycling, wrap, modifier-only selection and badge focus. Priority among Wall/Opening/Object candidates still belongs to the slice introducing those types.
+
+## Closing evidence
+
+**2026-09-08**, the plan-editor stack — criterion 3 landed in dfe9b2a6 (#74) and its typed half
+in 3d08d22a (#86).
+
+Criterion 3 — **alternate selection reaches lower-priority candidates** — is Alt-click cycling
+through `resolveSelectionTarget`'s `cycle` input:
+`tests/presentation/editor/selection/spatialSelection.test.ts`'s 'cycles top to bottom, wraps, and
+starts at the top for an unrelated selection'. The hover half of criterion 2 had a hole the review
+found: with the pointer stationary, pressing Alt changed what a click would pick while the hover
+still predicted the top body, since only Shift re-issued a pointer move. 48febd87 re-issues it on
+Alt press and release too; `tests/presentation/editor/canvasKeyboardGestures.test.ts`'s
+'re-issues the hover on the press and on the release, so the prediction agrees with the click'
+was red before it.
+
+Criterion 4 — **priority cases with overlapping fixtures** — gained the typed candidates the
+2026-09-03 amendment said belonged to the slice introducing them:
+`tests/presentation/editor/structureSelection.test.ts`'s 'prioritizes opening, wall, then room
+regardless of paint order and cycles all three' (#86, ADR-0020). Read the plan's six-rank list
+narrowly against that: handle-over-body and opening → wall → room are the ranks a test holds; the
+same file's 'ranks a generic element below opening and wall and above the room, and cycles all
+four' (8ee62b4e) holds all four body ranks, opening through room.

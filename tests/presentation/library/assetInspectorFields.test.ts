@@ -161,3 +161,18 @@ describe('write-boundary conflict recovery', () => {
 		panel.unmount();
 	});
 });
+
+describe('an undeclared vocabulary member', () => {
+	it('keeps an undeclared category visible and never submits it unchanged (D04)', async () => {
+		const entry = { ...anEntry(), category: 'stone' as CatalogueEntryDto['category'] };
+		const execute = vi.fn<Update>(() => Promise.resolve(ok(makeAsset({ id: entry.assetId }))));
+		const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry], commands: { updateAsset: { execute } } });
+		const select = panel.get('[data-field="category"]').element as HTMLSelectElement;
+		expect(select.value).toBe('stone');
+		expect([...select.options].map((o) => o.text)).toContain('stone');
+		await panel.get('[data-field="supplier"]').setValue('Quarry');
+		await panel.get('.rp-al-definition').trigger('submit'); await settle();
+		expect(execute.mock.calls[0]?.[0].changes).toEqual({ supplier: 'Quarry' });
+		panel.unmount();
+	});
+});

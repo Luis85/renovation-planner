@@ -14,11 +14,21 @@ const props = defineProps<{ entry: CatalogueEntryDto }>();
 const form = useDefinitionDraft(() => props.entry);
 const selectFields = new Set<keyof DefinitionDraft>(['category', 'unit']);
 const fields = Object.keys(DEFINITION_LABELS) as (keyof DefinitionDraft)[];
+/**
+ * The declared vocabulary, plus the baseline's OWN value when it is outside it (D04: an
+ * unknown category is shown, never coerced). Without that option a `<select>` bound to an
+ * undeclared value renders EMPTY, and the first save of any other field would carry whatever
+ * the browser picked. The option is labelled with the raw value because no locale key exists
+ * for a word this build does not declare; the parser side of that PBI is separate.
+ */
 function options(key: keyof DefinitionDraft): readonly string[] {
-	return key === 'category' ? ASSET_CATEGORIES : Object.keys(UNIT_KIND);
+	const declared: readonly string[] = key === 'category' ? ASSET_CATEGORIES : Object.keys(UNIT_KIND);
+	const own = props.entry[key === 'category' ? 'category' : 'unit'];
+	return declared.includes(own) ? declared : [own, ...declared];
 }
 function optionLabel(key: keyof DefinitionDraft, option: string): string {
-	return tr(key === 'category' ? ASSET_CATEGORY_LABELS[option as AssetCategory] : MEASUREMENT_UNIT_LABELS[option as MeasurementUnit]);
+	if (key === 'category') return (ASSET_CATEGORIES as readonly string[]).includes(option) ? tr(ASSET_CATEGORY_LABELS[option as AssetCategory]) : option;
+	return option in UNIT_KIND ? tr(MEASUREMENT_UNIT_LABELS[option as MeasurementUnit]) : option;
 }
 function fieldLabel(key: keyof DefinitionDraft): string {
 	const suffix: Partial<Record<keyof DefinitionDraft, string>> = { unitCost: ` (${props.entry.currency})`, waste: ' (%)', height: ' (mm)' };

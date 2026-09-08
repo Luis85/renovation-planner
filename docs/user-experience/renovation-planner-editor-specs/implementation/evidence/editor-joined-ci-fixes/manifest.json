@@ -1,0 +1,36 @@
+{
+  "source": "ecbf7e27f5538225bd613310228f5a0a56a4037f",
+  "warnings": "32 passed",
+  "editorFocus": "no editor offenders; two old asset-shelf findings remain",
+  "health": "no threshold findings, original571 coverage input is not current full coverage",
+  "files": [
+    {
+      "file": "ci-presentation-fixes-native.txt",
+      "sha256": "620942e7e6172bf8cdf705062c1dffa921b77fe65bebd22dcc951d9e624b4c70"
+    },
+    {
+      "file": "eslint-warning-extraction-final.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "health-original571-input.json",
+      "sha256": "76b4eae85f533de96c0016a0fa7e62a5ffc9222ddfa7e8c45ec0a8029b1d7e20"
+    },
+    {
+      "file": "health-review-extraction.txt",
+      "sha256": "9cd5fa907b961b5c5883c846e0d7b51440cff3e70f682e39f6af47c256769001"
+    },
+    {
+      "file": "ox-ci-presentation-fixes.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "types-ci-presentation-fixes.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "warning-separator-green.txt",
+      "sha256": "d967b5ece2072c071032931d47b430ddba48370cfbcc6c33e5dec8c1385269d5"
+    }
+  ]
+}

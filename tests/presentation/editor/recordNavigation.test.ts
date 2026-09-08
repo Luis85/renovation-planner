@@ -54,6 +54,12 @@ it('resolves canonical material and Decision contexts and leaves an unknown reco
  expect(recordNavigationContext(records, 'estimate:' + rig.input.id, rig.roomId, null)).toEqual({ roomId: rig.roomId, targetId: rig.input.source.targetId });
  expect(recordNavigationContext(records, 'decision-finish', 'different-room', null)).toMatchObject({ roomId: rig.roomId });
  expect(recordNavigationContext(records, 'missing', rig.roomId, null)).toBeNull();
+ // Several linked notes, none in the requested Room: the Room of the first is the aggregate revealed.
+ const note = { ...rig.evidence, type: 'note' as const, recordId: rig.cost.id, workId: '' };
+ const notes = [{ ...note, id: 'note-a', roomId: 'room-x', targetId: 'wall-x' }, { ...note, id: 'note-b', roomId: 'room-y', targetId: 'wall-y' }];
+ const linked = { ...records, renovation: { ...rig.value, depth: { ...rig.depth, evidence: notes } } };
+ expect(recordNavigationContext(linked, rig.cost.id, 'room-elsewhere', null, 'notes')).toEqual({ roomId: 'room-x', targetId: 'room-x' });
+ expect(recordNavigationContext(linked, rig.cost.id, 'room-y', null, 'notes')).toEqual({ roomId: 'room-y', targetId: 'room-y' });
 });
 
 it('opens linked documents on another spatial target and reveals multiple targets through their Room', async () => {

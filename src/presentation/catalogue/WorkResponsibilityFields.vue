@@ -5,13 +5,12 @@ import { restoreInoperativeChoice } from '../editor/forms/inoperativeControl';
 import type { EditableRenovationDraft } from '../editor/renovation/renovationDraft';
 import { tr } from '../i18n/strings';
 const work = defineModel<EditableRenovationDraft['work']>({ required: true });
-const props = defineProps<{ frozen: boolean }>();
+defineProps<{ frozen: boolean }>();
 const catalogue = useTradeCatalogue();
 const selected = computed(() => work.value.responsibility === 'trade' ? 'trade:' + work.value.tradeId : work.value.responsibility);
 const missing = computed(() => work.value.responsibility === 'trade' && !catalogue.entries.value.some(item => item.id === work.value.tradeId));
 function change(event: Event): void {
  const control = event.target as HTMLSelectElement, value = control.value;
- if (props.frozen) { control.value = selected.value; return; }
  if (value.startsWith('trade:')) {
   const id = value.slice(6);
   if (!catalogue.available.value || !catalogue.entries.value.some(item => item.id === id)) { control.value = selected.value; return; }

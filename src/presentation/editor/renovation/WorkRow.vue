@@ -40,6 +40,7 @@ function outcomeLabel(id: string) {
 		</p>
 		<button
 			type="button"
+			class="rp-record-secondary-action"
 			:disabled="actions.blocked.value"
 			data-rp-action="work-record"
 			@click="actions.edit('work', item.roomId, item.id)"
@@ -50,12 +51,14 @@ function outcomeLabel(id: string) {
 			v-for="id in item.outcomes"
 			:key="id"
 			type="button"
+			class="rp-record-secondary-action"
 			@click="actions.focus(item.roomId, 'planned', id)"
 		>
 			{{ tr('renovation.outcomes') }}: {{ outcomeLabel(id) }}
 		</button>
 		<button
 			type="button"
+			class="rp-record-secondary-action"
 			:disabled="actions.blocked.value"
 			@click="emit('remove', item.id, item.title)"
 		>
@@ -64,6 +67,7 @@ function outcomeLabel(id: string) {
 		<button
 			v-if="context.commands.planning"
 			type="button"
+			class="rp-record-secondary-action"
 			@click="actions.focus(item.roomId, 'materials', item.id)"
 		>
 			{{ tr('renovation.materials') }}

@@ -7,6 +7,54 @@ is claimed. Main remains untouched; work is on `codex/editor-object-ui` in
 
 ## Source anchors and saved work
 
+Latest: count-copy and idle/available-Room guidance fixes verified and pushed1fee1286. M13
+downstream --design92676 exited0, all4 scenarios; source/hash-attributed archive is
+`editor-final-overview-followup/verified-downstream-1fee`. No UI process remains. All bounded
+pilots now pass. Root must integrate the final copy/guide/evidence checkpoint and supply the
+shared freeze SHA; then run the full nine-journey/18-reference matrix with no deletion and
+fresh named input manifests. No further UI production change is planned unless that run or
+its image review reveals a concrete defect. Full CI/coverage/host remain Root-owned.
+
+Current verified overview: 97353663, session73294 terminal0, all4 scenarios including original
+900px flow, matching1000px views and closed M16 at880/460DE.60 screenshots, no failed files in
+recorded manifest; copied only after source hash/time verification. See verified-973 evidence
+and `editor-final-overview-followup.md`. UI released the heavy slot for Coverage's next five
+cases; no UI process is running. Next: downstream --design pilot, then shared-source freeze
+and complete final runner. Final runner now uses positive run boundaries and recorded file
+manifests without deletion, refuses dirty prior evidence and records its prior archive commit.
+
+Latest prepared UI follow-up: M01 grouped original metrics/guidance and Room change cues;
+M04 read-only dashed wall draft/corners; explicit 1000px/top and 880px/460px closed-canvas
+supplements. Native120 unchanged checks plus corrected2 new cases, types/Oxlint/scoped lint
+and script syntax passed. See `editor-final-overview-followup.md`. The next step is actual
+overview/downstream design capture, then the complete final matrix on the shared source.
+UI owns the current heavy slot and will report the exact capture handle. Pan is verified
+at dba43e5f/eefc7c15; preserve those measured configs. No all-screen final acceptance yet.
+
+Pan follow-up: Root's quiet/profile diagnosis confirmed avoidable vue-konva config work.
+ZoneShape now uses a primitive caption displacement, cached configs and a memoized existing
+Group. Genuine old-source RED and 24-test/47-test native GREEN batches are recorded in
+`editor-canvas-pan-stability.md`. The next checkpoint must be measured with the same quiet
+four-scenario and dark CPU drivers before claiming frame-rate improvement. UI owns that slot;
+Root is only archiving/reading. No M01/M04 source change has been made yet.
+
+Current complete browser checkpoint: the unchanged final runner passed at shared source
+`43041936a7f86d31058f6d21a16c3a596e1bacc6` (session 29535, exit 0, 2026-09-07 19:44:25 UTC).
+All nine journeys passed four scenarios each; static shots and all eighteen comparisons were
+generated and inspected. `editor-final-visual-run.md` records the remaining matching-view and
+source/visual assessments. Original reports and all 340 image hashes are archived. Pan medians
+miss the 60-fps target despite successful latency and resource checks; Root owns the next quiet
+diagnostic slot. UI has no running process. No complete visual/performance/host acceptance yet.
+
+Latest continuation (2026-09-07): source `df7100b4` completed all four extended planning browser
+scenarios, including six-photo selection, caption/inline clearance and issue-rich M17 marker
+and source routes. Evidence is archived in `editor-review-markers-browser/verified-df7100b4`.
+The next source checkpoint replaces anonymous editor button shadow resets with explicit local
+action classes. The unchanged focus gate passes 96/96 and five affected native suites pass
+54/54; asset CSS and the checker remain untouched. Root must integrate this pushed checkpoint
+and confirm a shared source freeze before the original nine journeys and all eighteen reference
+comparisons. UI owns the current heavy slot through verification/push; no full acceptance yet.
+
 - Shared production checkpoint: `73b0c205d8abaf1ab5869ee8cffead8654061f00`, integrated locally
   through merge `9d7f7e8baa258761042e45b9ecaa69a736484d09`. Preserve its date, retained-pin
   projection, required-pin props and focus fixes during future merges.
@@ -193,6 +241,29 @@ Root approved shared Room review markers and compact actionable findings per M17
 The source-only correction is described in `editor-review-markers.md`; no native/browser pass
 is claimed yet. The coverage task owns its separate reviewMarkerNavigation test file.
 Coverage currently has the heavy slot; UI source preparation continues with no running process.
+
+Review checkpoint `f576d13c`: current types, whole Oxlint, scoped lint and 45 native tests in
+five files passed (66.38s). Both finding families/shared Room numbers/source labels and normal
+overview/route regressions are covered. Logs are archived under `evidence/editor-review-markers-native`.
+The new actual mouse-marker/issue-rich browser step remains unrun against this corrected source.
+UI released heavy at session 87001's terminal result; Coverage has the brief Outline batch.
+Next after explicit release: extended planning browser, inspect/fix actual failures, then overview
+and final nine-journey/eighteen-screen matrix. No overall completion or full visual pass yet.
+
+After the clean Root571 merge (`a89ab791`), the extended browser completed Light and Dark,
+including actual caption pan/inline/clamp and mouse Room-marker/issue-source/Back routes.
+Custom stopped at only 8.39 pixels of last-button overflow. `92bc6a45` preserves those partial
+images/logs and makes a small spacing correction; validation is pending. Work source labels
+are now visibly and accessibly distinct even with a shared dependency explanation.
+The M02 Floor Add capture also moves its already-existing Renovate activation before capture
+to match the locked perspective; the original M01 Plan capture and all route assertions remain.
+Coverage has the current short Review validation slot; UI has no running process.
+
+Joined full CI additionally found nine warning text-separator regressions and new editor focus
+selector mismatches. Source corrections preserve the existing severity/message whitespace contract
+and add exact matching focus-visible selectors; unchanged tests and all asset-shelf styles remain
+intact. See `editor-joined-ci-fixes.md`. These corrections await the next UI heavy slot for the
+three warning suites, buttonFocusRing and current small Review follow-ups before browser recapture.
 
 - M00/M01: compare matching viewports, then correct continuation/cost visibility and excessive
   vertical cost-summary spacing if confirmed on the integrated source.

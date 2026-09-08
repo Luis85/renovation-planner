@@ -1,0 +1,1 @@
+   0.195411000s  WARN fallow: skipped 1 hidden directory that contains source files (.claude). Hidden directories are not traversed and no config field adds one: analyze it with fallow --root .claude if it holds first-party source, or add '.claude/**' to ignorePatterns to silence this.

@@ -28,7 +28,7 @@ it('shows shared Work and missing Evidence findings in both linked Review rooms'
 	expect(markers).toHaveLength(2);
 	for (const id of [roomId, other.id]) {
 		const row = rig.wrapper.get(`[data-rp-review-room="${id}"]`);
-		expect(row.text()).toContain('2 items need attention'); expect(row.text()).not.toContain('No findings');
+		expect(row.text()).toContain('Items needing attention: 2'); expect(row.text()).not.toContain('No findings');
 		const marker = expectDefined(markers.find(item => item.getAttr('roomId') === id), 'shared Room marker');
 		expect(String(marker.getAttr('number'))).toBe(row.attributes('data-rp-review-number'));
 	}
@@ -44,6 +44,8 @@ it('distinguishes blocked Work sources that share the same dependency explanatio
 	rig.changePlan(); await settle(); await rig.runtime.renovation.perspective('review'); await settle();
 	expect(rig.wrapper.get('[data-rp-review-issue="work-1"]').attributes('aria-label')).toContain('Paint walls');
 	expect(rig.wrapper.get('[data-rp-review-issue="work-2"]').attributes('aria-label')).toContain('Install tiles');
+	expect(rig.wrapper.get('[data-rp-review-issue="work-1"]').text()).toContain('Paint walls');
+	expect(rig.wrapper.get('[data-rp-review-issue="work-2"]').text()).toContain('Install tiles');
 	for (const id of ['work-1', 'work-2']) expect(rig.wrapper.get(`[data-rp-review-issue="${id}"]`).text()).toContain('Base preparation');
 });
 

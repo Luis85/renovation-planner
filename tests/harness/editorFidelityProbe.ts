@@ -3,11 +3,15 @@ import { zoneRenamed } from '../../src/domain/zone/Zone.events';
 import { expectDefined, expectOk } from '../helpers/domain';
 import type { referenceWorkspace } from './referenceWorkspace';
 import { editorCaptionScene } from './editorCaptionProbe';
+import { useSelectionStore } from '../../src/presentation/editor/selection/selection-store';
 
 /** Explicit test-data preparation, never a production control or a write performed by a query. */
 export function editorFidelityProbe(workspace: ReturnType<typeof referenceWorkspace>) {
 	let seeded = false;
-	return { captions: editorCaptionScene, savedNotes: () => [...workspace.stack.vault.entries], async seedSurroundings(german: boolean) {
+	return { captions: editorCaptionScene, selection: () => {
+		const selection = useSelectionStore();
+		return { ids: [...selection.selectedIds], focusedId: selection.focusedId };
+	}, savedNotes: () => [...workspace.stack.vault.entries], async seedSurroundings(german: boolean) {
 		if (seeded) return;
 		seeded = true;
 		const { stack, plan } = workspace;

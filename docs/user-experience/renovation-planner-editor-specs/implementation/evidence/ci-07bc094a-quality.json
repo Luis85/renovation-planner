@@ -1,0 +1,77 @@
+{
+  "source": "07bc094aabcf68e68e94f368c11f35fecdc56ef7",
+  "testedMerge": "a7f5ff7ea652773d1f14fb4ee0f2869a19156f6c",
+  "sourceAndMergeTree": "009ffd1622554dc0119a595d7b2f8ffdb2a46f6c",
+  "run": 34160382401,
+  "linux24Job": 101860791807,
+  "linux24Artifact": 10032537778,
+  "matrix": {
+    "legs": [
+      "ubuntu22",
+      "ubuntu24",
+      "ubuntu26",
+      "windows22"
+    ],
+    "filesPerLeg": 663,
+    "testsPassedPerLeg": 8121,
+    "testsFailedPerLeg": 0,
+    "skippedPerLeg": 69,
+    "verdict": "Build, lint and native tests pass; unchanged branch coverage fails."
+  },
+  "coverage": {
+    "statements": [
+      18076,
+      18237
+    ],
+    "branches": [
+      12543,
+      12813
+    ],
+    "functions": [
+      5182,
+      5219
+    ],
+    "lines": [
+      14110,
+      14174
+    ],
+    "additionalCoveredArmsAtThisDenominator": 14
+  },
+  "health": {
+    "exitCode": 0,
+    "session": 63863,
+    "findings": [],
+    "summary": {
+      "files_analyzed": 813,
+      "functions_analyzed": 4722,
+      "functions_above_threshold": 0,
+      "max_cyclomatic_threshold": 20,
+      "max_cognitive_threshold": 15,
+      "max_crap_threshold": 32,
+      "max_unit_size_threshold": 60,
+      "files_scored": 669,
+      "average_maintainability": 87.9,
+      "coverage_model": "istanbul",
+      "istanbul_matched": 4501,
+      "istanbul_total": 19147,
+      "istanbul_files_matched": 748,
+      "istanbul_files_total": 748,
+      "severity_critical_count": 0,
+      "severity_high_count": 0,
+      "severity_moderate_count": 0
+    },
+    "rawSha256": "3adbb70d89d9f5d3e4922231c91ae7d3450ab9df5e292c545be37e11b4dffd13"
+  },
+  "rawFiles": [
+    {
+      "file": "coverage-final.json",
+      "bytes": 5092799,
+      "sha256": "00d24f4e3edba78f69d9d7ba265391e72621e52095825595f65f31acb545e7b4"
+    },
+    {
+      "file": "lcov.info",
+      "bytes": 642324,
+      "sha256": "cc670c3ae568486e14dd0deaec4ece22fc8921b1382dca4a65bfb81abb9fdc21"
+    }
+  ]
+}

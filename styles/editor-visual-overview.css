@@ -7,6 +7,56 @@
 	background: var(--background-secondary);
 }
 
+.renovation-plan-editor .rp-floor-planning-summary {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	padding: 14px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+.renovation-plan-editor .rp-floor-planning-metric,
+.renovation-plan-editor .rp-floor-planning-summary .rp-renovation-linked-summary {
+	display: grid;
+	align-content: start;
+	gap: 8px;
+	margin: 0;
+}
+.renovation-plan-editor .rp-floor-planning-metric dt { color: var(--text-muted); font-size: var(--font-ui-small); }
+.renovation-plan-editor .rp-floor-planning-metric dd { margin: 0; overflow-wrap: anywhere; }
+.renovation-plan-editor .rp-floor-planning-metric dd:not(.rp-floor-inspector__stat--unavailable):not(.rp-floor-inspector__stat--partial),
+.renovation-plan-editor .rp-floor-planning-summary .rp-renovation-estimate { font-size: 22px; font-weight: var(--font-semibold); }
+.renovation-plan-editor .rp-floor-planning-summary p { margin: 0; overflow-wrap: anywhere; }
+.renovation-plan-editor .rp-floor-inspector__guidance {
+	display: flex;
+	align-items: start;
+	gap: 8px;
+	margin: 8px 0;
+	padding: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+}
+.renovation-plan-editor .rp-floor-inspector__guidance .rp-host-icon { flex-shrink: 0; color: var(--interactive-accent); }
+.renovation-plan-editor .rp-room-list .rp-room-list__row--annotated {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 16px;
+	gap: 4px 8px;
+	align-items: center;
+	min-height: 58px;
+	height: auto;
+	padding: 10px 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	border-radius: 0;
+	white-space: normal;
+	text-align: start;
+}
+.renovation-plan-editor .rp-room-list__row--annotated > span:first-child { grid-column: 1; font-weight: var(--font-semibold); }
+.renovation-plan-editor .rp-room-list__row--annotated .rp-room-list__area { grid-column: 1; grid-row: 2; justify-self: start; }
+.renovation-plan-editor .rp-room-list__annotation { grid-column: 2; grid-row: 1 / 3; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.renovation-plan-editor .rp-room-list__row--annotated > .rp-host-icon { grid-column: 3; grid-row: 1 / 3; }
+
 .renovation-plan-editor .rp-transformation-summary__stages {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));

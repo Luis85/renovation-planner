@@ -111,6 +111,22 @@ describe('Project quote comparison through native forms and repositories', () =>
    expect(writes).toHaveBeenCalledOnce(); expect(view.wrapper.text()).toContain('Updated offer'); expect(expectOk(await rig.persistence.quotes.getById(saved.entity.id))?.entity.title).toBe('Updated offer');
   } finally { view.dispose(); }
  });
+ it('keeps the form open with an alert when the save itself faults, refuses to leave meanwhile, and ignores a late fault after close', async () => {
+  const { view } = await setup();
+  try {
+   await view.button(tr('quote.edit')).trigger('click'); await flushPromises();
+   expect(await view.context.session?.canLeave?.()).toBe(false);
+   const form = view.wrapper.get('.rp-quote-form'), title = form.get<HTMLInputElement>('input[name="title"]');
+   await title.setValue('Faulted offer'); await form.trigger('submit'); await flushPromises();
+   const writes = vi.spyOn(view.quotes, 'save').mockRejectedValueOnce(new Error('Vault write crashed'));
+   await form.trigger('submit'); await flushPromises();
+   expect(form.find('[role="alert"]').exists()).toBe(true); expect(title.element.readOnly).toBe(false); expect(title.element.value).toBe('Faulted offer');
+   const held = defer<void>(); writes.mockImplementationOnce(async () => { await held.promise; throw new Error('Late write crash'); });
+   await form.trigger('submit'); await flushPromises(); await form.trigger('submit'); await flushPromises();
+   view.dispose(); held.resolve(); await flushPromises();
+   expect(writes).toHaveBeenCalledTimes(2);
+  } finally { if (view.wrapper.exists()) view.dispose(); }
+ });
  it('keeps a conflicting draft as a new quote only after an explicit action and new preview', async () => {
   const { rig, view, saved } = await setup();
   try {

@@ -1,0 +1,44 @@
+{
+  "ownerCommit": "1debce64bab97686e1bc3ba8241b53331da9fc1b",
+  "session": 56240,
+  "exitCode": 0,
+  "scope": "56 native tests in8files, vue-tsc, whole Oxlint, scoped ESLint, Fallow static. Counter run deferred.",
+  "files": [
+    {
+      "file": "native-green.log",
+      "sha256": "7fc5c4068c193f4d3ed09ae26cf0898b22ea69240d33094955d7eb9dd2e7fd8e"
+    },
+    {
+      "file": "types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "oxlint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "eslint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "static.json",
+      "sha256": "df21cc80818721b503ddb2bbb3b246ed4f5d35a948ed81b943fce4b44dfb09b3"
+    },
+    {
+      "file": "static.err",
+      "sha256": "144f403eb68a8d8cb574880b593486d07a189c85591d57f6d9e68c606723fcb9"
+    },
+    {
+      "file": "root-joined-native.log",
+      "sha256": "d8ccd39bc463987fb18ba78151be52f1d448aa4561315340941784375a012730"
+    }
+  ],
+  "rootIntegration": {
+    "base": "9cb87b1b215345fb7db0d4bbc6aea828b537b15a",
+    "session": 11676,
+    "tests": 10,
+    "files": 2,
+    "seconds": 33.14,
+    "exitCode": 0
+  }
+}

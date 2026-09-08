@@ -3,6 +3,7 @@ import { activate, runAreaBrowserMatrix } from './editor-area-browser.mjs';
 import { recordRoom, recordText, recordApply, recordShot } from './editor-record-browser.mjs';
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 import { editorAccessibility } from './editor-accessibility.mjs';
+import { captureInspectorDesign } from './editor-matching-views.mjs';
 import { activateReady, assertEditorContext, chooseNative, createNamedCatalogueEntry, createQuote, createRoomCost, editorContextSnapshot, reviseReceivedQuote } from './editor-downstream-forms.mjs';
 
 async function prepareWork(page, german) {
@@ -49,10 +50,12 @@ async function schedule(page, scenario, out) {
 	return accessibility;
 }
 
-async function quotes(page, scenario, out) {
+async function quotes(page, scenario, out, matchingViews) {
 	await activate(page, '[data-rp-mode="costs"]');
 	await createRoomCost(page);
 	await recordShot(page, scenario, out, 'room-costs');
+	if (process.argv.includes('--design')) matchingViews.costs = await captureInspectorDesign(page, scenario, out, 'room-costs-design',
+		{ selectors: ['.rp-renovation-inspector > h3', '.rp-renovation-inspector > .rp-cost-totals', '.rp-cost-groups', '[data-rp-new-cost]'], topControl: '[data-rp-room-navigation]' });
 	await editorAccessibility(page, scenario, out, 'room-costs');
 	const before = await editorContextSnapshot(page);
 	const costs = await page.locator('.rp-cost-totals').first().innerText();
@@ -82,11 +85,12 @@ async function quotes(page, scenario, out) {
 }
 
 async function journey(page, scenario, out) {
+	const matchingViews = {};
 	const theme = await recordRoom(page, scenario, out, { drawWalls, panel, preserveTheme });
 	await prepareWork(page, scenario.name === 'german-constrained');
 	const scheduleAccessibility = await schedule(page, scenario, out);
-	const quoteAccessibility = await quotes(page, scenario, out);
-	return { theme, scheduleAccessibility, quoteAccessibility,
+	const quoteAccessibility = await quotes(page, scenario, out, matchingViews);
+	return { theme, scheduleAccessibility, quoteAccessibility, matchingViews,
 		storage: 'production Work/Trade/Supplier/Quote services over the connected reference workspace vault',
 		navigation: 'native editor and Project view-state paths; retained editor Room projection and selection',
 		hostBoundary: 'browser workspace adapter; real Obsidian leaf/history/MetadataCache observations remain separate' };

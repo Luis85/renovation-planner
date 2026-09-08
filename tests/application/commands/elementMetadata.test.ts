@@ -73,4 +73,12 @@ describe('element labels and geometry commit together through the existing trans
 		expect(await r.renovation.command(baseline, elementInput(baseline, { ...element, points: [] }), r.ledger).execute()).toMatchObject({ ok: false, error: { code: 'spatial.element-invalid' } });
 		expect(save).not.toHaveBeenCalled();
 	});
+	it('removes the element from the intended structure too, leaving its neighbours there', async () => {
+		const r = await renovationStack(), baseline = expectOk(await r.read());
+		const { name: _name, ...geometry } = element, other = { ...geometry, id: 'element-other' };
+		const intended = { ...expectDefined(baseline.geometry.document.structure, 'structure'), elements: [geometry, other] };
+		const read = { ...baseline, geometry: { ...baseline.geometry, document: { ...baseline.geometry.document, intended } } };
+		expect(elementInput(read, element, true).intended?.elements).toEqual([other]);
+		expect(elementInput(read, element).intended).toBe(intended);
+	});
 });

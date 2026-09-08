@@ -1,27 +1,26 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
-import { resolve as resolvePath, sep } from 'node:path';
+import { readFile, stat, writeFile } from 'node:fs/promises';
+import { verifyCaptureFile } from './editor-capture-files.mjs';
 
 const root = 'docs/user-experience/renovation-planner-editor-specs/implementation/evidence/editor-visual-fidelity';
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 const sourceStatus = () => git('status', '--porcelain', '--untracked-files=normal', '--', 'src', 'styles', 'tests', 'scripts', 'package.json', 'package-lock.json', 'vite.config.ts', 'vite.harness.config.ts', 'tsconfig.json');
 assert.equal(sourceStatus(), '', 'Commit the production source and harness before final capture.');
+assert.equal(git('status', '--porcelain', '--untracked-files=all', '--', `${root}/after`, `${root}/comparisons`, `${root}/capture-provenance.json`), '',
+	'Commit or separately archive prior evidence before reusing generated output names.');
+const priorEvidenceCommit = git('log', '-1', '--format=%H', '--', `${root}/capture-provenance.json`);
 const commit = git('rev-parse', 'HEAD'), started = Date.now(), steps = [];
 const journeys = ['materials-costs-evidence', 'renovation-workflow', 'reference-plan', 'editor-visual-resilience', 'editor-visual-overview', 'editor-object', 'planning-recovery', 'modal-busy-focus', 'editor-downstream'];
-// Retire only this runner's generated outputs so a failed earlier capture cannot enter the inventory.
-for (const directory of [...journeys.map(name => `harness-shots/${name}`), `${root}/after`, `${root}/comparisons`, `${root}/capture-provenance.json`]) {
-	const target = resolvePath(directory);
-	assert.ok(target.startsWith(`${resolvePath('.')}${sep}`), 'Generated output must stay inside the current worktree.');
-	await rm(target, { recursive: true, force: true });
-}
+// Keep previous artifacts. Only recorded, freshly generated inputs may enter the new inventory.
+process.env.RP_CAPTURE_STARTED_AT = String(started);
 const commands = [
 	['editor-planning-check.mjs', '--design'], ['editor-renovation-check.mjs', '--design'], ['editor-reference-check.mjs'],
 	['editor-visual-resilience.mjs'], ['editor-visual-overview.mjs', '--design'], ['editor-object-check.mjs'],
 	['editor-recovery-check.mjs'],
 	['editor-modal-busy-check.mjs'],
-	['editor-downstream-check.mjs'],
+	['editor-downstream-check.mjs', '--design'],
 	['editor-visual-fidelity-shots.mjs', 'after'], ['editor-visual-comparisons.mjs'],
 ];
 for (const [script, ...args] of commands) {
@@ -40,13 +39,21 @@ for (const directory of journeys) {
 	assert.ok((await stat(report)).mtimeMs >= started, `${report} was not regenerated in this run`);
 }
 const images = [];
-async function inventory(directory) {
-	for (const file of await readdir(directory, { withFileTypes: true })) {
-		const path = `${directory}/${file.name}`;
-		if (file.isDirectory()) await inventory(path);
-		else if (file.name.endsWith('.png')) images.push({ path: path.slice(root.length + 1), sha256: createHash('sha256').update(await readFile(path)).digest('hex') });
+const after = JSON.parse(await readFile(`${root}/after/capture-files.json`, 'utf8'));
+assert.equal(after.source, commit); assert.equal(after.staticImages.length, 16);
+for (const file of after.files) {
+	await verifyCaptureFile(`${root}/after`, file, started);
+	if (file.kind === 'image') images.push({ path: `after/${file.name}`, sha256: file.sha256 });
+}
+const comparisons = JSON.parse(await readFile(`${root}/comparisons/manifest.json`, 'utf8'));
+assert.equal(comparisons.screens.length, 18);
+for (const { screen, finalCapture } of comparisons.screens) {
+	assert.ok(after.files.some(file => file.kind === 'image' && file.name === finalCapture), `${screen} has a current source image`);
+	for (const kind of ['full', 'detail']) {
+		const path = `comparisons/${screen}-${kind}.png`;
+		assert.ok((await stat(`${root}/${path}`)).mtimeMs >= started, `${path} was regenerated`);
+		images.push({ path, sha256: createHash('sha256').update(await readFile(`${root}/${path}`)).digest('hex') });
 	}
 }
-await inventory(`${root}/after`); await inventory(`${root}/comparisons`);
-await writeFile(`${root}/capture-provenance.json`, JSON.stringify({ commit, startedAt: new Date(started).toISOString(), completedAt: new Date().toISOString(), steps, images }, null, 2));
+await writeFile(`${root}/capture-provenance.json`, JSON.stringify({ commit, priorEvidenceCommit, priorEvidencePolicy: 'Previously committed artifacts remain in Git history; same output names are refreshed.', startedAt: new Date(started).toISOString(), completedAt: new Date().toISOString(), steps, images }, null, 2));
 console.log(`Final visual matrix passed at ${commit}; manual comparison acceptance remains a separate review.`);

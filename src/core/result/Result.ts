@@ -24,3 +24,14 @@ export function isOk<T, E>(result: Result<T, E>): result is Readonly<{ ok: true;
 export function isErr<T, E>(result: Result<T, E>): result is Readonly<{ ok: false; error: E }> {
 	return !result.ok;
 }
+
+/**
+ * For a Result whose failure the caller has already ruled out — an arithmetic step over
+ * operands validated to one currency, say. The throw is the programmer-error door (§65),
+ * the same one `Money.of` takes: a failure here is a bug, not a business outcome, and a
+ * `return err` arm on it would be one nothing can drive.
+ */
+export function unwrap<T>(result: Result<T, { readonly message: string }>): T {
+	if (result.ok) return result.value;
+	throw Object.assign(new Error(result.error.message), { cause: result.error });
+}

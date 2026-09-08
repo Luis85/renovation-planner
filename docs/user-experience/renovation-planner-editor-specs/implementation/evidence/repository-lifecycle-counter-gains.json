@@ -241,5 +241,56 @@
   ],
   "comparisonLimit": "Only identical source and maps compared. Other source/scoped maps differ; no full coverage union or aggregate pass is inferred.",
   "originalBaseline": "C:/Users/lum/AppData/Local/Temp/rp-finalization-20260907-88b9ee3d/ci-43041936-linux24/coverage-final.json",
-  "scopedData": "C:/Users/lum/AppData/Local/Temp/rp-coverage-finalization-lifecycle-scoped/coverage-final.json"
+  "scopedData": "C:/Users/lum/AppData/Local/Temp/rp-coverage-finalization-lifecycle-scoped/coverage-final.json",
+  "rootIntegration": {
+    "baseline": "545ad7b6d7886557517c3fe78bfd9cc496dfea82",
+    "matchedGains": [
+      {
+        "path": "src/infrastructure/obsidian/repositories/AssetGeometryStore.ts",
+        "baselineId": "0",
+        "scopeId": "0",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "0585d23a1d0d2cc2506650d879c1f7e9da0f3dc5"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/ObsidianEvidenceFiles.ts",
+        "baselineId": "1",
+        "scopeId": "1",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "01d04ead159cc87b92a76bdf7b7185f537699811"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/ObsidianQuoteRepository.ts",
+        "baselineId": "3",
+        "scopeId": "3",
+        "arm": 0,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "4f02301253e1f8e03dd3d34f0569cc7222626a82"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/noteIo.ts",
+        "baselineId": "6",
+        "scopeId": "6",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "bceb54247eec81be9e8749978c31ec1babadd381"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/noteIo.ts",
+        "baselineId": "16",
+        "scopeId": "16",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "bceb54247eec81be9e8749978c31ec1babadd381"
+      }
+    ],
+    "scope": "Same source blobs and exact branch descriptors; no aggregate coverage union."
+  }
 }

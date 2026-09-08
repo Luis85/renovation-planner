@@ -99,9 +99,8 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 			const baseline = await context.commands.structure.read(context.planId as PlanId);
 			if (!alive) return;
 			const { snapshot, recovery } = prepareBaseline(baseline);
-			if (!snapshot) { await recovery; return; }
-			const structure = snapshot.document.structure;
-			if (!structure) return;
+			const structure = snapshot?.document.structure;
+			if (!structure) { await recovery; return; }
 			const removedOpenings = structure.openings.filter(item => selected.includes(item.id) || selected.includes(item.hostId));
 			const removedBoundaries = structure.boundaries.filter(boundary => boundary.wallIds.some(wallId => selected.includes(wallId)));
 			const ids = [...selected, ...removedOpenings.map(item => item.id)];

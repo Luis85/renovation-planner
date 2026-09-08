@@ -335,5 +335,84 @@
   "originalBaseline": "C:\\Users\\lum\\AppData\\Local\\Temp\\rp-finalization-20260907-88b9ee3d\\ci-07bc094a-linux24\\coverage-final.json",
   "originalScoped": "C:\\Users\\lum\\AppData\\Local\\Temp\\rp-coverage-bc3a5445-scoped\\coverage-final.json",
   "comparisonMethod": "Only zero-to-positive hits in identical counter maps and identical git source blobs are reported. Scoped absent hits are not regressions. Changed source/maps are excluded; no full aggregate or synthetic union is claimed.",
-  "allProcessHandlesTerminal": true
+  "allProcessHandlesTerminal": true,
+  "rootIntegration": {
+    "baseline": "07bc094aabcf68e68e94f368c11f35fecdc56ef7",
+    "reviewedAgainst": "UI9f7e882d integration index",
+    "matchedGains": [
+      {
+        "path": "src/infrastructure/obsidian/repositories/ObsidianAssetRepository.ts",
+        "kind": "branch",
+        "id": "1",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "06206f762947cf02e7942f7dd955a5ab7beb4b06"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/ObsidianNamedCatalogueRepository.ts",
+        "kind": "branch",
+        "id": "1",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "f65de55d2359a0fcdbe4a9f3536bb940e520a804"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/ObsidianQuoteRepository.ts",
+        "kind": "branch",
+        "id": "0",
+        "arm": 0,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "4f02301253e1f8e03dd3d34f0569cc7222626a82"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/ObsidianQuoteRepository.ts",
+        "kind": "statement",
+        "id": "2",
+        "arm": 0,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "4f02301253e1f8e03dd3d34f0569cc7222626a82"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/planningReferentialGuard.ts",
+        "kind": "branch",
+        "id": "0",
+        "arm": 1,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "bd6d97dd43b6347cc115dd1638b36128fd3ad289"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/planningReferentialGuard.ts",
+        "kind": "branch",
+        "id": "6",
+        "arm": 0,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "bd6d97dd43b6347cc115dd1638b36128fd3ad289"
+      },
+      {
+        "path": "src/infrastructure/obsidian/repositories/planningReferentialGuard.ts",
+        "kind": "statement",
+        "id": "16",
+        "arm": 0,
+        "before": 0,
+        "after": 1,
+        "sourceBlob": "bd6d97dd43b6347cc115dd1638b36128fd3ad289"
+      },
+      {
+        "path": "src/infrastructure/persistence/mappers/quoteMapper.ts",
+        "kind": "branch",
+        "id": "3",
+        "arm": 1,
+        "before": 0,
+        "after": 2,
+        "sourceBlob": "b3719da6c703a3bcef6ad268c4a148b438ed98d3"
+      }
+    ],
+    "limit": "No aggregate union or current full pass inferred."
+  }
 }

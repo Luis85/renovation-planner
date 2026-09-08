@@ -1,5 +1,5 @@
 import { computed, inject, provide, type InjectionKey } from 'vue';
-import { EMPTY_RENOVATION, reviewRenovation } from '../../../domain/renovation/Renovation';
+import { EMPTY_RENOVATION, reviewRenovation, subjectLabel } from '../../../domain/renovation/Renovation';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useFloorSummary } from '../shell/useFloorSummary';
 import type { PlanEditorContext } from '../PlanEditorContext';
@@ -18,14 +18,15 @@ export function provideReviewPresentation(context: PlanEditorContext, runtime: E
 	const project = useProjectStore(), floor = useFloorSummary(), planning = runtime.planning;
 	const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
 	const labels = computed(() => new Map([
-		...value.value.subjects.map(item => [item.id, item.planned?.description || item.existing?.description || item.id] as const),
+		...value.value.subjects.map(item => [item.id, subjectLabel(item)] as const),
 		...value.value.work.map(item => [item.id, item.title] as const),
 		...value.value.decisions.map(item => [item.id, item.question] as const),
 	]));
-	const findings = computed(() => reviewRenovation(value.value).map(item => ({ ...item,
-		roomLabel: project.zones.get(item.roomId)?.name ?? item.roomId,
-		sourceLabel: labels.value.get(item.recordId) || item.recordId,
-	})));
+	const findings = computed(() => reviewRenovation(value.value).map(item => {
+		const sourceLabel = labels.value.get(item.recordId) || item.recordId;
+		return { ...item, roomLabel: project.zones.get(item.roomId)?.name ?? item.roomId, sourceLabel,
+			detailLabel: [...new Set([sourceLabel, ...item.causes])].join(' — ') };
+	}));
 	const depth = computed<ReviewPlanningFinding[]>(() => planning.findings.value.map(item => ({ ...item,
 		roomLabel: project.zones.get(item.roomId)?.name ?? item.roomId, sourceLabel: item.description || item.id,
 	})));

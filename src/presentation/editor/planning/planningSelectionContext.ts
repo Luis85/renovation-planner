@@ -10,7 +10,8 @@ export function planningSelectionContext(baseline: PlanningBaseline, roomId: str
 		...baseline.materials.map(({ entity }) => ({ ...empty, id: entity.id, roomId: entity.origin.zoneId, ...entity.source, requirementId: entity.id, recordId: entity.id })),
 		...renovation.work.map(item => ({ ...empty, ...item, workId: item.id, recordId: item.id })),
 		...renovation.subjects.map(item => ({ ...empty, ...item, outcomeId: item.planned ? item.id : '', recordId: item.id })),
-		...renovation.decisions.map(item => ({ ...empty, ...item, targetId: renovation.subjects.find(subject => subject.id === item.subjectId)?.targetId ?? item.roomId, recordId: item.id })),
+		// A Decision is located through its subject; a validated renovation has one for every Decision.
+		...renovation.decisions.flatMap(item => renovation.subjects.filter(subject => subject.id === item.subjectId).map(subject => ({ ...empty, ...item, targetId: subject.targetId, recordId: item.id }))),
 		...(renovation.depth?.costs ?? []).map(item => ({ ...empty, ...item, requirementId: '', recordId: item.id })),
 		...(renovation.depth?.evidence ?? []).map(item => ({ ...empty, ...item })),
 	];

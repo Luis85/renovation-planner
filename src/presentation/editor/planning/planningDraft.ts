@@ -23,7 +23,7 @@ function materialDraft(baseline: PlanningBaseline, roomId: string, id: string, f
  const material = baseline.materials.find(item => item.entity.id === id && inRenovationScope({ roomId: item.entity.origin.zoneId, targetId: item.entity.source?.targetId ?? item.entity.origin.zoneId }, roomId, targetId))?.entity;
  const context = planningSelectionContext(baseline, roomId, focusedId, targetId);
  const source: RequirementSource = material?.source ?? { planId: baseline.plan.entity.id, targetId: context.targetId, workId: context.workId, outcomeId: context.outcomeId, state: 'current', rule: 'room-area', manual: '0', coverage: '1', lot: '', minimum: '' };
- return { source, ...materialValues(material) };
+ return { source, ...materialValues(material), ...(material ? { roomId: material.origin.zoneId } : {}) };
 }
 function materialValues(material: Requirement | undefined) {
  return { assetId: material?.assetId ?? '', requirementId: material?.id ?? '', waste: material?.wasteFactor.mul(100).toString() ?? '10', override: material?.quantity.override?.value.toString() ?? '' };
@@ -50,8 +50,7 @@ export function planningDraft(kind: PlanningKind, baseline: PlanningBaseline, ro
  const procurement = depth.procurement.find(item => item.requirementId === id);
  const existing = kind === 'material' ? material.requirementId : kind === 'procurement' ? procurement?.id : '';
  return { kind, id: existing || (kind === 'material' ? createRequirementId() : createEntityId('record')), roomId, targetId: material.source.targetId, workId: material.source.workId,
- recordId: context.recordId, title: '', ...material, requirementId: material.requirementId || (kind === 'cost' ? context.requirementId : ''), ...procurementDraft(procurement), ...costDraft(cost), ...evidenceDraft(evidence),
- ...(material.requirementId ? { roomId: baseline.materials.find(item => item.entity.id === material.requirementId)?.entity.origin.zoneId ?? roomId } : {}), ...recordDraft(cost, evidence) };
+ recordId: context.recordId, title: '', ...material, requirementId: material.requirementId || (kind === 'cost' ? context.requirementId : ''), ...procurementDraft(procurement), ...costDraft(cost), ...evidenceDraft(evidence), ...recordDraft(cost, evidence) };
 }
 function recordDraft(cost: CostRecord | undefined, evidence: Evidence | undefined): Partial<PlanningDraft> {
  if (cost) return { id: cost.id, roomId: cost.roomId, targetId: cost.targetId, workId: cost.workId, title: cost.title, requirementId: cost.requirementId };

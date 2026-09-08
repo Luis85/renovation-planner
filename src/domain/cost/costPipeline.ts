@@ -1,5 +1,5 @@
 import { Decimal } from 'decimal.js';
-import { err, ok, type Result } from '../../core/result/Result';
+import { err, ok, unwrap, type Result } from '../../core/result/Result';
 import type { CalculationError } from '../../core/errors/AppError';
 import type { DerivedValue } from '../../core/derived/DerivedValue';
 import {
@@ -234,19 +234,18 @@ export function computeEstimatedCost(
 	if (invalid) return err(invalid);
 	const currency = input.unitPrice.currency;
 	const subtotal = scale(input.unitPrice, input.quantity.value);
-	const afterDiscount = subtract(
+	// `percentageOf` keeps its operand's currency, so the two same-currency steps cannot mismatch.
+	const afterDiscount = unwrap(subtract(
 		subtotal,
 		percentageOf(subtotal, input.discount?.percent ?? NO_PERCENT),
-	);
-	if (!afterDiscount.ok) return afterDiscount;
-	const afterShipping = add(afterDiscount.value, optionalMoney(input.shipping, currency));
+	));
+	const afterShipping = add(afterDiscount, optionalMoney(input.shipping, currency));
 	if (!afterShipping.ok) return afterShipping;
 	const afterSurcharge = add(afterShipping.value, optionalMoney(input.surcharge, currency));
 	if (!afterSurcharge.ok) return afterSurcharge;
-	const taxed = add(
+	const taxed = unwrap(add(
 		afterSurcharge.value,
 		percentageOf(afterSurcharge.value, input.taxRate ?? NO_PERCENT),
-	);
-	if (!taxed.ok) return taxed;
-	return ok({ calculated: round(taxed.value) });
+	));
+	return ok({ calculated: round(taxed) });
 }

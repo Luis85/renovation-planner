@@ -14,13 +14,11 @@ const opening = ref(false);
 const disabled = computed(() => opening.value || save.state === 'saving' || !context.navigation?.downstream || !project.plan);
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
-function destination() {
- const plan = project.plan;
- if (!plan) return null;
+function destination(plan: NonNullable<typeof project.plan>) {
   const cost = plan.renovation?.depth?.costs.find(item => item.id === (props.costId ?? session.focusedId));
   const workId = props.workId ?? cost?.workId ?? plan.renovation?.work.find(item => item.id === session.focusedId)?.id;
   return { projectId: plan.projectId, route: { section: props.section, origin: { planId: context.planId,
-   ...(session.roomId ? { roomId: session.roomId } : {}), ...(workId ? { workId } : {}), ...(cost ? { costId: cost.id } : {}) } } };
+   roomId: session.roomId, ...(workId ? { workId } : {}), ...(cost ? { costId: cost.id } : {}) } } };
 }
 async function open(): Promise<void> {
  if (disabled.value || dialogs.current) return;
@@ -33,8 +31,8 @@ async function open(): Promise<void> {
   }
   const plan = project.plan;
   if (!alive || !plan || !context.navigation?.downstream) return;
-  const target = destination();
-  if (target) await context.navigation.downstream(target.projectId, target.route);
+  const target = destination(plan);
+  await context.navigation.downstream(target.projectId, target.route);
  } catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.navigation.failed'); } finally { opening.value = false; }
 }
 </script>

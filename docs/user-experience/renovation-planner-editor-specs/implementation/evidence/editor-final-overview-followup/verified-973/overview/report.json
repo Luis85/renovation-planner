@@ -1,0 +1,854 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
+      "--text-accent": "hsl(258, 88%, 66%)",
+      "--background-primary": "#ffffff",
+      "--background-secondary": "#f6f6f6"
+    },
+    "dimension": {
+      "input": "native decimal entry; invalid value announced",
+      "reflow": "same focused input and visible Apply/Cancel at 720 × 450",
+      "pending": "Escape, editing and Select retain one pending write",
+      "history": "Apply then exact displayed dimension restored by Undo",
+      "accessibility": [
+        {
+          "state": "inline-invalid",
+          "violations": 0,
+          "incompleteChecks": 0
+        },
+        {
+          "state": "inline-pending",
+          "violations": 0,
+          "incompleteChecks": 0
+        }
+      ]
+    },
+    "directActionsAccessibility": {
+      "state": "direct-actions",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "matchingViews": {
+      "room": {
+        "inspector": {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-renovation-inspector > h3": {
+              "x": 1097,
+              "y": 102.59375,
+              "width": 312,
+              "height": 25
+            },
+            ".rp-transformation-summary": {
+              "x": 1097,
+              "y": 176.984375,
+              "width": 312,
+              "height": 131.203125
+            },
+            ".rp-linked-counts": {
+              "x": 1097,
+              "y": 592.78125,
+              "width": 312,
+              "height": 186
+            },
+            "[data-rp-action=\"continue-renovation\"]": {
+              "x": 1097,
+              "y": 867.765625,
+              "width": 312,
+              "height": 44
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY1FNRKXDTJXMPX5VZPPE8",
+            "role": "selected-room"
+          },
+          "selection": {
+            "ids": [
+              "zone-01M1YY1FNRKXDTJXMPX5VZPPE8"
+            ],
+            "focusedId": "zone-01M1YY1FNRKXDTJXMPX5VZPPE8"
+          },
+          "input": "Only viewport height changes; no scroll/focus reset",
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "constrained": false,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": {
+          "viewport": {
+            "width": 880,
+            "height": 1000
+          },
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "sample": {
+            "roomId": "zone-01M1YY1FNRKXDTJXMPX5VZPPE8",
+            "role": "selected-room"
+          },
+          "selection": {
+            "ids": [
+              "zone-01M1YY1FNRKXDTJXMPX5VZPPE8"
+            ],
+            "focusedId": "zone-01M1YY1FNRKXDTJXMPX5VZPPE8"
+          },
+          "input": "Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change",
+          "vaultAndSelectionUnchanged": true
+        }
+      },
+      "floor": {
+        "inspector": {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-floor-inspector > h3:first-of-type": {
+              "x": 1097,
+              "y": 102.59375,
+              "width": 312,
+              "height": 25
+            },
+            ".rp-floor-planning-summary": {
+              "x": 1097,
+              "y": 294.125,
+              "width": 312,
+              "height": 88.734375
+            },
+            ".rp-floor-inspector__guidance": {
+              "x": 1097,
+              "y": 398.859375,
+              "width": 312,
+              "height": 63.6875
+            },
+            ".rp-floor-inspector .rp-room-list:has(.rp-room-list__row--annotated)": {
+              "x": 1097,
+              "y": 531.4375,
+              "width": 312,
+              "height": 232
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY1FZNQYMSQTNDV5GP876Q",
+            "role": "floor/element viewport sample; selected entity IDs are recorded separately"
+          },
+          "selection": {
+            "ids": [],
+            "focusedId": null
+          },
+          "input": "Only viewport height changes; no scroll/focus reset",
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "constrained": false,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": null
+      },
+      "wall": {
+        "inspector": {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-structure-inspector > h3": {
+              "x": 1097,
+              "y": 102.59375,
+              "width": 312,
+              "height": 25
+            },
+            ".rp-structure-inspector > .rp-editor-inspector-fields": {
+              "x": 1097,
+              "y": 135.59375,
+              "width": 312,
+              "height": 87.375
+            },
+            "[data-rp-action=\"edit-structure\"]": {
+              "x": 1097,
+              "y": 270.96875,
+              "width": 133.421875,
+              "height": 32
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY1FZNQYMSQTNDV5GP876Q",
+            "role": "floor/element viewport sample; selected entity IDs are recorded separately"
+          },
+          "selection": {
+            "ids": [
+              "wall-01M1YY1FNQCVZ77NS3WHJ0TP0Q"
+            ],
+            "focusedId": "wall-01M1YY1FNQCVZ77NS3WHJ0TP0Q"
+          },
+          "input": "Native Tab to [data-rp-action=\"edit-structure\"], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "constrained": false,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": null
+      }
+    },
+    "storage": "production commands and repositories over FakeVault",
+    "state": "committed reference, wall loop, Room, Existing/Planned/Work; overview, Floor and shared Work preview/apply",
+    "selection": "keyboard additive wall membership retained after one shared command",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "dimension": {
+      "input": "native decimal entry; invalid value announced",
+      "reflow": "same focused input and visible Apply/Cancel at 720 × 450",
+      "pending": "Escape, editing and Select retain one pending write",
+      "history": "Apply then exact displayed dimension restored by Undo",
+      "accessibility": [
+        {
+          "state": "inline-invalid",
+          "violations": 0,
+          "incompleteChecks": 0
+        },
+        {
+          "state": "inline-pending",
+          "violations": 0,
+          "incompleteChecks": 0
+        }
+      ]
+    },
+    "directActionsAccessibility": {
+      "state": "direct-actions",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "matchingViews": {
+      "room": {
+        "inspector": {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-renovation-inspector > h3": {
+              "x": 1097,
+              "y": 102.59375,
+              "width": 312,
+              "height": 25
+            },
+            ".rp-transformation-summary": {
+              "x": 1097,
+              "y": 176.984375,
+              "width": 312,
+              "height": 131.203125
+            },
+            ".rp-linked-counts": {
+              "x": 1097,
+              "y": 592.78125,
+              "width": 312,
+              "height": 186
+            },
+            "[data-rp-action=\"continue-renovation\"]": {
+              "x": 1097,
+              "y": 867.765625,
+              "width": 312,
+              "height": 44
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY1SFC54PTPGBXYNRT5KMJ",
+            "role": "selected-room"
+          },
+          "selection": {
+            "ids": [
+              "zone-01M1YY1SFC54PTPGBXYNRT5KMJ"
+            ],
+            "focusedId": "zone-01M1YY1SFC54PTPGBXYNRT5KMJ"
+          },
+          "input": "Only viewport height changes; no scroll/focus reset",
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "constrained": false,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": {
+          "viewport": {
+            "width": 880,
+            "height": 1000
+          },
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "sample": {
+            "roomId": "zone-01M1YY1SFC54PTPGBXYNRT5KMJ",
+            "role": "selected-room"
+          },
+          "selection": {
+            "ids": [
+              "zone-01M1YY1SFC54PTPGBXYNRT5KMJ"
+            ],
+            "focusedId": "zone-01M1YY1SFC54PTPGBXYNRT5KMJ"
+          },
+          "input": "Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change",
+          "vaultAndSelectionUnchanged": true
+        }
+      },
+      "floor": {
+        "inspector": {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-floor-inspector > h3:first-of-type": {
+              "x": 1097,
+              "y": 102.59375,
+              "width": 312,
+              "height": 25
+            },
+            ".rp-floor-planning-summary": {
+              "x": 1097,
+              "y": 294.125,
+              "width": 312,
+              "height": 88.734375
+            },
+            ".rp-floor-inspector__guidance": {
+              "x": 1097,
+              "y": 398.859375,
+              "width": 312,
+              "height": 63.6875
+            },
+            ".rp-floor-inspector .rp-room-list:has(.rp-room-list__row--annotated)": {
+              "x": 1097,
+              "y": 531.4375,
+              "width": 312,
+              "height": 232
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY1SQ217CE0GWM5X39CZNN",
+            "role": "floor/element viewport sample; selected entity IDs are recorded separately"
+          },
+          "selection": {
+            "ids": [],
+            "focusedId": null
+          },
+          "input": "Only viewport height changes; no scroll/focus reset",
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "constrained": false,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": null
+      },
+      "wall": {
+        "inspector": {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-structure-inspector > h3": {
+              "x": 1097,
+              "y": 102.59375,
+              "width": 312,
+              "height": 25
+            },
+            ".rp-structure-inspector > .rp-editor-inspector-fields": {
+              "x": 1097,
+              "y": 135.59375,
+              "width": 312,
+              "height": 87.375
+            },
+            "[data-rp-action=\"edit-structure\"]": {
+              "x": 1097,
+              "y": 270.96875,
+              "width": 133.421875,
+              "height": 32
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY1SQ217CE0GWM5X39CZNN",
+            "role": "floor/element viewport sample; selected entity IDs are recorded separately"
+          },
+          "selection": {
+            "ids": [
+              "wall-01M1YY1SFAG3WD95S086HJDVJM"
+            ],
+            "focusedId": "wall-01M1YY1SFAG3WD95S086HJDVJM"
+          },
+          "input": "Native Tab to [data-rp-action=\"edit-structure\"], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
+          "camera": {
+            "x": 47.999999999999986,
+            "y": 125.12195121951217,
+            "zoom": 0.09012195121951219
+          },
+          "constrained": false,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": null
+      }
+    },
+    "storage": "production commands and repositories over FakeVault",
+    "state": "committed reference, wall loop, Room, Existing/Planned/Work; overview, Floor and shared Work preview/apply",
+    "selection": "keyboard additive wall membership retained after one shared command",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "#7c246b",
+      "--text-accent": "#7c246b",
+      "--background-primary": "#fff8ed",
+      "--background-secondary": "#efe3d3"
+    },
+    "dimension": {
+      "input": "native decimal entry; invalid value announced",
+      "reflow": "same focused input and visible Apply/Cancel at 720 × 450",
+      "pending": "Escape, editing and Select retain one pending write",
+      "history": "Apply then exact displayed dimension restored by Undo",
+      "accessibility": [
+        {
+          "state": "inline-invalid",
+          "violations": 0,
+          "incompleteChecks": 0
+        },
+        {
+          "state": "inline-pending",
+          "violations": 0,
+          "incompleteChecks": 0
+        }
+      ]
+    },
+    "directActionsAccessibility": {
+      "state": "direct-actions",
+      "violations": 0,
+      "incompleteChecks": 0
+    },
+    "matchingViews": {
+      "room": {
+        "inspector": {
+          "viewport": {
+            "width": 1000,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-renovation-inspector > h3": {
+              "x": 713,
+              "y": 102.59375,
+              "width": 256,
+              "height": 25
+            },
+            ".rp-transformation-summary": {
+              "x": 713,
+              "y": 176.984375,
+              "width": 256,
+              "height": 167.4375
+            },
+            ".rp-linked-counts": {
+              "x": 713,
+              "y": 629.015625,
+              "width": 256,
+              "height": 186
+            },
+            "[data-rp-action=\"continue-renovation\"]": {
+              "x": 713,
+              "y": 904,
+              "width": 256,
+              "height": 44
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY23BCQ45K5AF1MA2V5121",
+            "role": "selected-room"
+          },
+          "selection": {
+            "ids": [
+              "zone-01M1YY23BCQ45K5AF1MA2V5121"
+            ],
+            "focusedId": "zone-01M1YY23BCQ45K5AF1MA2V5121"
+          },
+          "input": "Only viewport height changes; no scroll/focus reset",
+          "camera": {
+            "x": 47.99999999999997,
+            "y": 250.2560975609756,
+            "zoom": 0.04975609756097561
+          },
+          "constrained": false,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": {
+          "viewport": {
+            "width": 880,
+            "height": 1000
+          },
+          "camera": {
+            "x": 47.99999999999997,
+            "y": 250.2560975609756,
+            "zoom": 0.04975609756097561
+          },
+          "sample": {
+            "roomId": "zone-01M1YY23BCQ45K5AF1MA2V5121",
+            "role": "selected-room"
+          },
+          "selection": {
+            "ids": [
+              "zone-01M1YY23BCQ45K5AF1MA2V5121"
+            ],
+            "focusedId": "zone-01M1YY23BCQ45K5AF1MA2V5121"
+          },
+          "input": "Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change",
+          "vaultAndSelectionUnchanged": true
+        }
+      },
+      "floor": {
+        "inspector": {
+          "viewport": {
+            "width": 1000,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-floor-inspector > h3:first-of-type": {
+              "x": 713,
+              "y": 102.59375,
+              "width": 256,
+              "height": 25
+            },
+            ".rp-floor-planning-summary": {
+              "x": 713,
+              "y": 294.125,
+              "width": 256,
+              "height": 88.734375
+            },
+            ".rp-floor-inspector__guidance": {
+              "x": 713,
+              "y": 398.859375,
+              "width": 256,
+              "height": 63.6875
+            },
+            ".rp-floor-inspector .rp-room-list:has(.rp-room-list__row--annotated)": {
+              "x": 713,
+              "y": 531.4375,
+              "width": 256,
+              "height": 232
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY23JBN9S6RD9MY8NRSCZT",
+            "role": "floor/element viewport sample; selected entity IDs are recorded separately"
+          },
+          "selection": {
+            "ids": [],
+            "focusedId": null
+          },
+          "input": "Only viewport height changes; no scroll/focus reset",
+          "camera": {
+            "x": 47.99999999999997,
+            "y": 250.2560975609756,
+            "zoom": 0.04975609756097561
+          },
+          "constrained": false,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": null
+      },
+      "wall": {
+        "inspector": {
+          "viewport": {
+            "width": 1000,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-structure-inspector > h3": {
+              "x": 713,
+              "y": 102.59375,
+              "width": 256,
+              "height": 25
+            },
+            ".rp-structure-inspector > .rp-editor-inspector-fields": {
+              "x": 713,
+              "y": 135.59375,
+              "width": 256,
+              "height": 87.375
+            },
+            "[data-rp-action=\"edit-structure\"]": {
+              "x": 713,
+              "y": 270.96875,
+              "width": 133.421875,
+              "height": 32
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY23JBN9S6RD9MY8NRSCZT",
+            "role": "floor/element viewport sample; selected entity IDs are recorded separately"
+          },
+          "selection": {
+            "ids": [
+              "wall-01M1YY23BB8SS6G4SSS5YBYQ1B"
+            ],
+            "focusedId": "wall-01M1YY23BB8SS6G4SSS5YBYQ1B"
+          },
+          "input": "Native Tab to [data-rp-action=\"edit-structure\"], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
+          "camera": {
+            "x": 47.99999999999997,
+            "y": 250.2560975609756,
+            "zoom": 0.04975609756097561
+          },
+          "constrained": false,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": null
+      }
+    },
+    "storage": "production commands and repositories over FakeVault",
+    "state": "committed reference, wall loop, Room, Existing/Planned/Work; overview, Floor and shared Work preview/apply",
+    "selection": "keyboard additive wall membership retained after one shared command",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "theme": {
+      "--interactive-accent": "hsl(258, 88%, 66%)",
+      "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
+      "--background-primary": "#1C1C1C",
+      "--background-secondary": "#282828"
+    },
+    "dimension": {
+      "input": "native decimal entry; invalid value announced",
+      "reflow": "same focused input and visible Apply/Cancel at 720 × 450",
+      "pending": "Escape, editing and Select retain one pending write",
+      "history": "Apply then exact displayed dimension restored by Undo",
+      "accessibility": [
+        {
+          "state": "inline-invalid",
+          "violations": 0,
+          "incompleteChecks": 0
+        },
+        {
+          "state": "inline-pending",
+          "violations": 0,
+          "incompleteChecks": 0
+        }
+      ]
+    },
+    "directActionsAccessibility": {
+      "state": "direct-actions",
+      "violations": 0,
+      "incompleteChecks": 1
+    },
+    "matchingViews": {
+      "room": {
+        "inspector": {
+          "viewport": {
+            "width": 460,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-renovation-inspector > h3": {
+              "x": 109,
+              "y": 167.4375,
+              "width": 335,
+              "height": 25
+            },
+            ".rp-transformation-summary": {
+              "x": 109,
+              "y": 241.828125,
+              "width": 335,
+              "height": 167.4375
+            },
+            ".rp-linked-counts": {
+              "x": 109,
+              "y": 693.859375,
+              "width": 335,
+              "height": 186
+            },
+            "[data-rp-action=\"continue-renovation\"]": {
+              "x": 109,
+              "y": 968.84375,
+              "width": 335,
+              "height": 44
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY2CXSZ48EFH12D946EWFZ",
+            "role": "selected-room"
+          },
+          "selection": {
+            "ids": [
+              "zone-01M1YY2CXSZ48EFH12D946EWFZ"
+            ],
+            "focusedId": "zone-01M1YY2CXSZ48EFH12D946EWFZ"
+          },
+          "input": "Only viewport height changes; no scroll/focus reset",
+          "camera": {
+            "x": 48.00000000000001,
+            "y": 249.8536585365854,
+            "zoom": 0.03585365853658536
+          },
+          "constrained": true,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": {
+          "viewport": {
+            "width": 460,
+            "height": 1000
+          },
+          "camera": {
+            "x": 48.00000000000001,
+            "y": 249.8536585365854,
+            "zoom": 0.03585365853658536
+          },
+          "sample": {
+            "roomId": "zone-01M1YY2CXSZ48EFH12D946EWFZ",
+            "role": "selected-room"
+          },
+          "selection": {
+            "ids": [
+              "zone-01M1YY2CXSZ48EFH12D946EWFZ"
+            ],
+            "focusedId": "zone-01M1YY2CXSZ48EFH12D946EWFZ"
+          },
+          "input": "Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change",
+          "vaultAndSelectionUnchanged": true
+        }
+      },
+      "floor": {
+        "inspector": {
+          "viewport": {
+            "width": 460,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-floor-inspector > h3:first-of-type": {
+              "x": 109,
+              "y": 201.4375,
+              "width": 335,
+              "height": 25
+            },
+            ".rp-floor-planning-summary": {
+              "x": 109,
+              "y": 392.96875,
+              "width": 335,
+              "height": 88.734375
+            },
+            ".rp-floor-inspector__guidance": {
+              "x": 109,
+              "y": 497.703125,
+              "width": 335,
+              "height": 63.6875
+            },
+            ".rp-floor-inspector .rp-room-list:has(.rp-room-list__row--annotated)": {
+              "x": 109,
+              "y": 630.28125,
+              "width": 335,
+              "height": 232
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY2D6TQX2A098RY0M6YVKM",
+            "role": "floor/element viewport sample; selected entity IDs are recorded separately"
+          },
+          "selection": {
+            "ids": [],
+            "focusedId": null
+          },
+          "input": "Only viewport height changes; no scroll/focus reset",
+          "camera": {
+            "x": 48.00000000000001,
+            "y": 249.8536585365854,
+            "zoom": 0.03585365853658536
+          },
+          "constrained": true,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": null
+      },
+      "wall": {
+        "inspector": {
+          "viewport": {
+            "width": 460,
+            "height": 1000
+          },
+          "bounds": {
+            ".rp-structure-inspector > h3": {
+              "x": 109,
+              "y": 198.4375,
+              "width": 335,
+              "height": 25
+            },
+            ".rp-structure-inspector > .rp-editor-inspector-fields": {
+              "x": 109,
+              "y": 231.4375,
+              "width": 335,
+              "height": 87.375
+            },
+            "[data-rp-action=\"edit-structure\"]": {
+              "x": 109,
+              "y": 366.8125,
+              "width": 121.453125,
+              "height": 32
+            }
+          },
+          "sample": {
+            "roomId": "zone-01M1YY2D6TQX2A098RY0M6YVKM",
+            "role": "floor/element viewport sample; selected entity IDs are recorded separately"
+          },
+          "selection": {
+            "ids": [
+              "wall-01M1YY2CXR8WQGYHJSB8H5VDEK"
+            ],
+            "focusedId": "wall-01M1YY2CXR8WQGYHJSB8H5VDEK"
+          },
+          "input": "Native Tab to [data-rp-action=\"edit-structure\"], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
+          "camera": {
+            "x": 48.00000000000001,
+            "y": 249.8536585365854,
+            "zoom": 0.03585365853658536
+          },
+          "constrained": true,
+          "vaultAndSelectionUnchanged": true
+        },
+        "constrained": null
+      }
+    },
+    "storage": "production commands and repositories over FakeVault",
+    "state": "committed reference, wall loop, Room, Existing/Planned/Work; overview, Floor and shared Work preview/apply",
+    "selection": "keyboard additive wall membership retained after one shared command",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

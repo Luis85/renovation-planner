@@ -74,11 +74,11 @@ async function generate(): Promise<void> {
 					type="button"
 					class="rp-review-finding"
 					:data-rp-review-issue="item.recordId"
-					:aria-label="`${item.roomLabel} · ${tr(`renovation.finding.${item.kind}`)}: ${item.sourceLabel}; ${item.causes.join(', ')}`"
+					:aria-label="`${item.roomLabel} · ${tr(`renovation.finding.${item.kind}`)}: ${item.detailLabel}`"
 					@click="open(item)"
 				>
 					<span class="rp-review-finding__context">{{ item.roomLabel }} · {{ tr(`renovation.finding.${item.kind}`) }}</span>
-					<span data-rp-review-cause>{{ item.causes.length ? item.causes.join(', ') : item.sourceLabel }}</span>
+					<span data-rp-review-cause>{{ item.detailLabel }}</span>
 				</button>
 			</li>
 		</ol>

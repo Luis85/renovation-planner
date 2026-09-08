@@ -10,6 +10,8 @@ import * as notices from '../../../src/presentation/notices/notify';
 import { planningDraft, materialInput } from '../../../src/presentation/editor/planning/planningDraft';
 import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 import { spatialRemovalInput } from '../../../src/presentation/editor/elements/spatialRemovalInput';
+import { removalSources } from '../../../src/presentation/editor/planning/removalSources';
+import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
@@ -72,6 +74,18 @@ it('includes intended-only hosted openings in the same referential removal scope
  const intended = { ...structure, openings: [{ id: 'opening-future', hostId: 'wall-a', kind: 'window' as const, offset: 100, width: 800, height: 1200, sill: 800 }] };
  const proposal = spatialRemovalInput({ ...baseline, geometry: { ...baseline.geometry, document: { ...baseline.geometry.document, intended } } }, ['wall-a', 'element-path']);
  expect(proposal.ids).toContain('opening-future'); expect(proposal.input.intended?.openings).toEqual([]);
+ // A legacy plan with no current structure proposes over the empty one rather than refusing.
+ const legacy = spatialRemovalInput({ ...baseline, geometry: { ...baseline.geometry, document: { ...baseline.geometry.document, structure: undefined } } }, ['element-path']);
+ expect(legacy).toMatchObject({ ids: ['element-path'], openings: 0, rooms: 0, input: { spatial: { structure: EMPTY_STRUCTURE } } });
+});
+it('names a referring material by its id once its asset is gone from the catalogue', async () => {
+ const rig = await setup(), planning = expectDefined(rig.deps.commands.planning, 'planning');
+ const baseline = expectOk(await planning.read(rig.plan.id)), draft = planningDraft('material', baseline, rig.room.id);
+ draft.assetId = expectDefined(baseline.catalogue.find(item => item.asset.unit === 'm2'), 'area asset').asset.id;
+ expectOk(await rig.runtime.dispatcher.run(planning.material(baseline, materialInput(draft), rig.runtime.structureTask.ledger)));
+ const saved = expectOk(await planning.read(rig.plan.id));
+ vi.spyOn(planning, 'read').mockResolvedValueOnce(ok({ ...saved, catalogue: [] }));
+ expect(await removalSources({ ...rig.deps, planId: rig.plan.id }, [rig.room.id])).toEqual(ok([draft.id]));
 });
 
 it.each(['Work', 'material'] as const)('refuses the whole selected deletion when a current %s refers to one member', async kind => {

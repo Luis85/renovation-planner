@@ -2,13 +2,15 @@ import { withPlanRenovation } from '../../../src/domain/plan/Plan';
 import { describe, expect, it } from 'vitest';
 import { renovationStack } from '../../helpers/renovation';
 import { expectOk } from '../../helpers/domain';
-import { applyRenovationDraft, renovationDraft } from '../../../src/presentation/editor/renovation/renovationDraft';
+import { applyRenovationDraft, renovationDraft, renovationTargetDraft } from '../../../src/presentation/editor/renovation/renovationDraft';
 import { applyPlannedGeometry, geometryFields, plannedGeometryDraft } from '../../../src/presentation/editor/renovation/plannedGeometry';
 import { removeRenovationRecord } from '../../../src/presentation/editor/renovation/renovationRemoval';
 import { validateRenovationInput } from '../../../src/application/commands/renovation/RenovationCommand';
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
 import { sameRenovation } from '../../../src/domain/renovation/sameRenovation';
 import { renovationMessage } from '../../../src/presentation/editor/renovation/renovationMessage';
+import { tr } from '../../../src/presentation/i18n/strings';
+import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 
 describe('renovation draft semantics and spatial proposals', () => {
 	it.each(['existing', 'planned', 'work', 'decision'] as const)('creates and updates %s without aliasing its Existing source', async kind => {
@@ -66,6 +68,19 @@ describe('renovation draft semantics and spatial proposals', () => {
 	});
 	it.each(['spatial.numeric', 'renovation.cycle', 'undo.superseded', 'plan.revision-conflict', 'renovation.state', 'renovation.write-failed'])('explains %s without leaking internal error text', code => {
 		expect(renovationMessage({ category: code.endsWith('write-failed') ? 'Persistence' : 'Validation', code, message: 'private internal detail' })).not.toContain('private internal');
+	});
+	it('tells the user the chosen trade is gone rather than describing a failed write', () => {
+		expect(renovationMessage({ category: 'Validation', code: 'renovation.trade-missing', message: 'private internal detail' })).toBe(tr('trade.missing'));
+	});
+	it('opens a Planned edit on a bare subject as a modification with nothing to copy, and labels an unlabelled element target by its id', async () => {
+		const rig = await renovationStack(), baseline = expectOk(await rig.read());
+		const bare = { ...rig.value.subjects[0], id: 'detail-bare', existing: null, planned: null };
+		expect(renovationDraft('planned', rig.roomId, bare.id, { ...EMPTY_RENOVATION, subjects: [bare] }).subject.planned).toEqual({ change: 'modify', description: '' });
+		const element = { id: 'element-unlabelled', kind: 'path' as const, points: [{ x: 0, y: 500 }, { x: 3000, y: 500 }] };
+		const structure = { ...baseline.geometry.document.structure ?? EMPTY_STRUCTURE, elements: [element] };
+		const read = { ...baseline, geometry: { ...baseline.geometry, document: { ...baseline.geometry.document, structure } } };
+		expect(read.plan.entity.spatialElements?.some(item => item.id === element.id)).toBeFalsy();
+		expect(renovationTargetDraft('planned', rig.roomId, '', read, element.id).subject).toMatchObject({ targetId: element.id, kind: 'other', existing: { description: element.id } });
 	});
 });
 

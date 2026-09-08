@@ -1,0 +1,30 @@
+RP_CHROMIUM_EXECUTABLE is set: capturing with C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe, which is not the Chromium playwright-core pins.
+Read the pictures as approximate — a different build renders text and layout slightly differently.
+23:53:40 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+23:53:40 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+23:53:41 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+23:53:41 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+23:53:52 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+23:53:52 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+23:53:53 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+23:53:53 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: .rp-structure-inspector > h3 stays inside the visible Inspector: {"content":{"x":1097,"y":47.59375,"width":312,"height":25},"inspector":{"x":1080,"y":55,"width":360,"height":909}}
+    at inspectorVisibility (file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-inspector-visibility.mjs:10:28)
+    at async captureInspectorDesign (file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-matching-views.mjs:42:17)
+    at async captureOverviewMatching (file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-matching-views.mjs:62:22)
+    at async journey (file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-visual-overview.mjs:70:23)
+    at async runAreaBrowserMatrix (file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-area-browser.mjs:103:15)
+    at async file:///D:/Projects/renovation-planner/.worktrees/editor-object-ui/scripts/editor-visual-overview.mjs:86:1 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.20.0

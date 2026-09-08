@@ -19,7 +19,7 @@ import { isErr, ok } from '../../core/result/Result';
 import { singleFlight } from '../composables/single-flight';
 import type { AssetPriceCommitResult, AssetPriceEdit } from './assetPriceEdit';
 
-const props = defineProps<{ projectId: string }>();
+const props = defineProps<{ projectId: string; readOnlyReasonId?: string }>();
 
 const context = useRenovationProjectContext();
 const detail = useProjectDetailStore();
@@ -338,6 +338,7 @@ if (section === 'prices') {
 		:draft-reset="draftReset"
 		:section="section"
 		:read-only="context.readOnly"
+		:read-only-reason-id="readOnlyReasonId"
 		:guidance-hidden="guidanceHidden"
 		:plans-failure="plansError === null ? null : trError(plansError)"
 		:prices-loading="pricesLoading"

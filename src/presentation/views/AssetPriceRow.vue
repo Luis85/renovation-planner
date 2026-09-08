@@ -17,6 +17,7 @@ import type { AssetPriceCommitResult, AssetPriceEdit } from './assetPriceEdit';
 
 const props = defineProps<{
 	readOnly?: boolean;
+	readOnlyReasonId?: string;
 	draftReset?: number;
 	refreshBlocked?: boolean;
 	row: AssetPriceRowDto;
@@ -139,8 +140,9 @@ const pausedAria = computed(() => (pricePaused.value ? 'true' : undefined));
 watch(() => [dirty.value, price.pending.value] as const, ([draft, pending]) => emit('editState', draft, pending), { flush: 'sync' });
 onBeforeUnmount(() => emit('editState', false, false));
 const candidate = computed(() => props.row.override ?? props.row.catalogue);
-const showClear = computed(() => !props.readOnly && overridden.value);
-const showDraftActions = computed(() => !props.readOnly && dirty.value);
+const showClear = computed(() => overridden.value);
+const showDraftActions = computed(() => dirty.value);
+const readOnlyReason = computed(() => (props.readOnly === true ? props.readOnlyReasonId : undefined));
 const foreign = computed(() => candidate.value !== null && candidate.value.currency !== props.currency);
 
 </script>
@@ -172,7 +174,6 @@ const foreign = computed(() => candidate.value !== null && candidate.value.curre
 			{{ tr('view.project.price-yours') }}: {{ row.override.amount }} {{ row.override.currency }}
 		</span>
 		<FieldError
-			v-if="!readOnly"
 			v-slot="{ inputId, aria }"
 			:message="price.error.value"
 		>
@@ -183,10 +184,11 @@ const foreign = computed(() => candidate.value !== null && candidate.value.curre
 			</label>
 			<input
 				:id="inputId"
+				:aria-describedby="readOnlyReason"
 				v-bind="aria"
 				type="text"
 				class="rp-asset-price-input"
-				:disabled="priceUnavailable"
+				:disabled="priceUnavailable || readOnly"
 				:readonly="pricePaused"
 				:aria-disabled="pausedAria"
 				:aria-busy="price.pending.value"
@@ -199,6 +201,8 @@ const foreign = computed(() => candidate.value !== null && candidate.value.curre
 
 		<button
 			v-if="showClear"
+			:disabled="readOnly"
+			:aria-describedby="readOnlyReason"
 			:aria-disabled="pausedAria"
 			type="button"
 			class="rp-asset-price-clear"

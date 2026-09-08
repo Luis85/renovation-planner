@@ -121,7 +121,7 @@ describe('Project and Library dependencies of editor navigation', () => {
    const root = new DOMWrapper(view.contentEl), bytes = [...rig.stack.vault.entries];
    await root.get('.rp-project-filter__input').setValue('No matching renovation'); await flushPromises();
    expect(root.get('.rp-project-list__no-match').text()).toContain('No matching renovation');
-   expect(root.find('.rp-project-list__create-named').exists()).toBe(false); expect(root.find('.rp-project-list__create').exists()).toBe(false);
+   expect(root.get<HTMLButtonElement>('.rp-project-list__create-named').element.disabled).toBe(true); expect(root.get<HTMLButtonElement>('.rp-project-list__create').element.disabled).toBe(true);
    root.get<HTMLButtonElement>('.rp-project-list__clear-filter').element.click(); await flushPromises();
    expect(root.get<HTMLInputElement>('.rp-project-filter__input').element.value).toBe('');
    root.get<HTMLButtonElement>(`[data-project-id="${rig.plan.projectId}"]`).element.click(); await flushPromises();

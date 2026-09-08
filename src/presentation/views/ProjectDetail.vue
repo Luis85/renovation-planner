@@ -16,6 +16,12 @@ const props = defineProps<{
 	section?: 'details' | 'prices';
 	guidanceHidden?: boolean;
 	readOnly?: boolean;
+	/**
+	 * The id of `ViewRoot`'s ONE mobile notice, or absent on desktop. Every control this
+	 * component refuses points at it with `aria-describedby`, so the reason travels with the
+	 * refusal rather than being discovered by pressing a dead button (requirement 4a).
+	 */
+	readOnlyReasonId?: string;
 	draftReset?: number;
 	plansFailure?: string | null;
 	pricesLoading?: boolean;
@@ -57,6 +63,8 @@ interface Entry {
 	/** Resolved rather than a key, because the plan entry's label interpolates a plan's name. */
 	readonly label: string;
 	readonly disabled: boolean;
+	/** Set only where `disabled` is a consequence of the READ-ONLY surface, never of a failed read. */
+	readonly describedBy: string | undefined;
 	readonly act: () => void;
 }
 
@@ -79,6 +87,7 @@ const noteEntry = computed<Entry>(() => ({
 	body: 'view.project.entry-note-body',
 	label: tr('view.project.entry-note-action'),
 	disabled: false,
+	describedBy: undefined,
 	act: () => emit('openNote'),
 }));
 
@@ -105,6 +114,7 @@ const planEntry = computed<Entry>(() => {
 		// and the `v-else-if="!plansFailure"` guard below `PlanList`), so "Choose a plan" would
 		// otherwise be a button with nothing for it to do.
 		disabled: props.readOnly === true || (!isNew.value && ((props.plansFailure ?? null) !== null || planEmpty.value !== null)),
+		describedBy: props.readOnly === true ? props.readOnlyReasonId : undefined,
 		act: isNew.value
 			? () => emit('createPlan')
 			: last === null
@@ -119,6 +129,7 @@ const pricesEntry = computed<Entry>(() => ({
 	body: 'view.project.entry-prices-body',
 	label: tr('view.project.prices-open'),
 	disabled: false,
+	describedBy: undefined,
 	act: () => emit('prices'),
 }));
 
@@ -132,11 +143,6 @@ const entries = computed<readonly Entry[]>(() =>
 		? [noteEntry.value, planEntry.value, pricesEntry.value]
 		: [planEntry.value, noteEntry.value, pricesEntry.value],
 );
-// `ViewRoot.vue:314`'s own `emptyActionLabel` is the model: keep the empty state on a
-// read-only surface (mobile), drop only the action it cannot dispatch. A dedicated computed
-// rather than the ternary inline in the template, which pushed the template's own cognitive
-// complexity over `fallow`'s threshold for one more branch.
-const planEmptyActionLabel = computed(() => (props.readOnly ? undefined : planEmpty.value?.actionLabel));
 </script>
 
 <template>
@@ -217,6 +223,7 @@ const planEmptyActionLabel = computed(() => (props.readOnly ? undefined : planEm
 								class="rp-project-detail__entry-action"
 								:class="{ 'rp-project-prices-open': entry.key === 'prices', 'mod-cta': at === 0 }"
 								:disabled="entry.disabled"
+								:aria-describedby="entry.describedBy"
 								@click="entry.act()"
 							>
 								{{ entry.label }}
@@ -264,13 +271,15 @@ const planEmptyActionLabel = computed(() => (props.readOnly ? undefined : planEm
 					v-if="planEmpty !== null"
 					v-bind="planEmpty"
 					:heading-level="3"
-					:action-label="planEmptyActionLabel"
+					:action-disabled="readOnly"
+					:action-described-by="readOnly ? readOnlyReasonId : undefined"
 					@action="$emit('createPlan')"
 				/>
 				<PlanList
 					v-else-if="!plansFailure"
 					ref="planList"
 					:read-only="readOnly"
+					:read-only-reason-id="readOnlyReasonId"
 					:plans="plans"
 					@open="(planId) => $emit('openPlan', planId)"
 					@create="$emit('createPlan')"
@@ -282,6 +291,7 @@ const planEmptyActionLabel = computed(() => (props.readOnly ? undefined : planEm
 				:asset-prices-failure="assetPricesFailure"
 				:prices-loading="pricesLoading"
 				:read-only="readOnly"
+				:read-only-reason-id="readOnlyReasonId"
 				:draft-reset="draftReset"
 				:currency="project.currency"
 				:commit-asset-price="commitAssetPrice"

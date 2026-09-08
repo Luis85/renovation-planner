@@ -39,7 +39,7 @@
  * own dialog. The split is a seam rather than a file boundary — the list state instantiates
  * none of them — and its own docblock carries the two measurements that produced it.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue';
 import { storeToRefs } from 'pinia';
 import DialogHost from '../dialogs/DialogHost.vue';
 import EmptyState from '../components/EmptyState.vue';
@@ -289,6 +289,24 @@ const empty = computed(() => {
 });
 
 /**
+ * THE ONE NOTICE, and the id every control this surface refuses points at with
+ * `aria-describedby` — extension 4a of `docs/requirements/Bound the mobile surface to what it can
+ * actually do.md`: disabled with its reason visible, never hidden.
+ *
+ * ONE per surface rather than one per control: the sentence is a fact about the DEVICE, so
+ * repeating it beside each button would be the same sentence five times, read aloud five times.
+ *
+ * `useId()` rather than a constant, because two leaves of this view can share one document and an
+ * `aria-describedby` resolves to whichever element carries the id FIRST — `app-id-prefix.ts` is
+ * the whole account of that collision, and `app.config.idPrefix` is what this composes with.
+ *
+ * Undefined on desktop rather than an id pointing at an element that is not drawn: an
+ * `aria-describedby` naming a missing id is a correct-looking attribute that announces nothing.
+ */
+const noticeId = useId();
+const readOnlyReasonId = computed(() => context.readOnly ? noticeId : undefined);
+
+/**
  * The whole in-place failure state, or `null` when there is nothing to fail about — design
  * slice 17's answer to the case slice 14 deferred here.
  *
@@ -313,8 +331,6 @@ const empty = computed(() => {
  * answers to one question and splitting them would let a later edit give a session failure a
  * retry while its headline still said it could not start.
  */
-const emptyActionLabel = computed(() => context.readOnly ? undefined : empty.value?.actionLabel);
-
 const failure = computed(() => {
 	if (error.value === null) return null;
 	const session =
@@ -384,6 +400,19 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 
 <template>
 	<div class="renovation-planner-view">
+		<!--
+			ABOVE both states rather than inside either, so the detail state a project row navigates
+			into is described by the same element the list state was — one notice per SURFACE, which
+			is what every `aria-describedby` below resolves against. The view remounts per
+			navigation, so there is never a second one to collide with.
+		-->
+		<p
+			v-if="context.readOnly"
+			:id="noticeId"
+			class="rp-view-notice rp-mobile-notice"
+		>
+			{{ tr('view.mobile.read-only') }}
+		</p>
 		<div
 			v-if="openProjectId === null"
 			class="rp-project-overview"
@@ -398,7 +427,8 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 				<template v-if="empty !== null">
 					<EmptyState
 						v-bind="empty"
-						:action-label="emptyActionLabel"
+						:action-disabled="context.readOnly"
+						:action-described-by="readOnlyReasonId"
 						@action="onCreateProject"
 					/>
 					<!--
@@ -424,9 +454,10 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 					-->
 					<p class="rp-project-list__foot rp-view-aside">
 						<button
-							v-if="!context.readOnly"
 							type="button"
 							class="rp-view-aside__create-asset"
+							:disabled="context.readOnly"
+							:aria-describedby="readOnlyReasonId"
 							@click="onCreateAsset"
 						>
 							{{ tr('view.asset.create') }}
@@ -470,6 +501,7 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 					:initial-query="context.initialQuery"
 					:session="context.session"
 					:read-only="context.readOnly"
+					:read-only-reason-id="readOnlyReasonId"
 					@update-session="updateSession"
 					@open="onOpenProject"
 					@open-note="onOpenNote"
@@ -502,6 +534,7 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 			v-else
 			:project-id="openProjectId"
 			:section="context.section"
+			:read-only-reason-id="readOnlyReasonId"
 		/>
 		<DialogHost />
 	</div>

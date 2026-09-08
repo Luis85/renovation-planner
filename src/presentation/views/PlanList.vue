@@ -16,7 +16,7 @@ import { ref } from 'vue';
 import type { PlanSummaryDto } from '../read-models/PlanDto';
 import { tr } from '../i18n/strings';
 
-defineProps<{ readOnly?: boolean; plans: readonly PlanSummaryDto[] }>();
+defineProps<{ readOnly?: boolean; readOnlyReasonId?: string; plans: readonly PlanSummaryDto[] }>();
 defineEmits<{ open: [planId: string]; create: [] }>();
 
 const list = ref<HTMLUListElement | null>(null);
@@ -52,9 +52,10 @@ defineExpose({ focusFirst });
 			{{ tr('view.project.plans-title') }}
 		</h3>
 		<button
-			v-if="!readOnly"
 			type="button"
 			class="rp-plan-list__create"
+			:disabled="readOnly"
+			:aria-describedby="readOnly ? readOnlyReasonId : undefined"
 			@click="$emit('create')"
 		>
 			{{ tr('view.project.create-plan') }}
@@ -72,6 +73,7 @@ defineExpose({ focusFirst });
 				type="button"
 				class="rp-plan-list__row"
 				:disabled="readOnly"
+				:aria-describedby="readOnly ? readOnlyReasonId : undefined"
 				@click="$emit('open', plan.id)"
 			>
 				<span class="rp-plan-list__name">{{ plan.name }}</span>

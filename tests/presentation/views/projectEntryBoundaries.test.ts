@@ -38,9 +38,13 @@ it('keeps the actual empty mobile launcher readable with only the available Libr
 	Platform.isMobile = true;
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
 	expect(rig.wrapper.get('.rp-empty-state').text()).toContain(tr('empty.project.no-projects.headline'));
-	expect(rig.wrapper.find('.rp-empty-state button').exists()).toBe(false);
-	expect(rig.wrapper.find('.rp-view-aside__create-asset').exists()).toBe(false);
+	// Present and REFUSED since the mobile task, never absent (requirement extension 4a). The
+	// empty state's own action is `aria-disabled` rather than `disabled`, which is the mechanism
+	// `EmptyState.actionDisabled` already had; the aside button is a plain `<button>`.
+	expect(rig.wrapper.get('.rp-empty-state button').attributes('aria-disabled')).toBe('true');
+	expect(rig.wrapper.get<HTMLButtonElement>('.rp-view-aside__create-asset').element.disabled).toBe(true);
 	expect(rig.wrapper.find('.rp-project-list__create').exists()).toBe(false);
+	expect(rig.wrapper.get('.rp-mobile-notice').text()).toBe(tr('view.mobile.read-only'));
 	const library = rig.wrapper.get<HTMLButtonElement>('.rp-view-aside__open-library');
 	library.element.focus(); library.element.click(); await flushPromises();
 	expect(rig.workspace.leaves.map(leaf => leaf.state?.type)).toEqual([ASSET_LIBRARY_VIEW]);

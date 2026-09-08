@@ -146,7 +146,7 @@ describe('project experience', () => {
 		const base = defaultRenovationProjectDeps();
 		const { wrapper, context } = rig({ projectId: project.id, section: 'prices', readOnly: true, queries: { ...base.queries, getProject: () => Promise.resolve(ok(project)), listAssetPrices: () => Promise.resolve(ok([priceRow()])) } });
 		await flushPromises();
-		expect(wrapper.find('input').exists()).toBe(false);
+		expect(wrapper.get<HTMLInputElement>('.rp-asset-price-input').element.disabled).toBe(true);
 		expect(wrapper.text()).toContain('12.00 EUR');
 		await wrapper.get('.rp-project-detail__back').trigger('click');
 		expect(context.navigate).toHaveBeenCalledWith(project.id);
@@ -267,7 +267,7 @@ describe('project experience', () => {
 		const { wrapper, context } = rig({ readOnly: true, continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }) });
 		await flushPromises();
 		expect(wrapper.get('.rp-continue__resume').attributes('disabled')).toBeDefined();
-		expect(wrapper.find('.rp-project-list__create').exists()).toBe(false);
+		expect(wrapper.get('.rp-project-list__create').attributes('disabled')).toBeDefined();
 		wrapper.getComponent(ContinueRow).vm.$emit('resume');
 		wrapper.getComponent(ProjectList).vm.$emit('create', 'New');
 		wrapper.getComponent(ProjectList).vm.$emit('createAsset');

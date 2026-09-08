@@ -1,5 +1,12 @@
 import type { objectEn } from '../en/object';
 export const objectDe: Record<keyof typeof objectEn, string> = {
+	'editor.rotation.label': 'Drehen',
+	'editor.rotation.host-label': 'Wand drehen',
+	'editor.rotation.drag-hint': 'Zum Drehen ziehen',
+	'editor.rotation.click-hint': 'Für genauen Winkel anklicken',
+	'editor.rotation.direction.clockwise': 'Im Uhrzeigersinn',
+	'editor.rotation.direction.counterclockwise': 'Gegen den Uhrzeigersinn',
+	'editor.rotation.snap-feedback': '{step}°-Schritte',
 	'editor.rotation.title': '{name} drehen',
 	'editor.rotation.by': 'Drehen um…',
 	'editor.rotation.left-quarter': '90° links',

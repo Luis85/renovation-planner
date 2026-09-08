@@ -24,6 +24,16 @@ async function waitPoints(page, id, points) {
 export async function verifyObjectRotationPointer(page, scenario, out, id) {
 	if (scenario.width === 460) await page.keyboard.press('Escape');
 	const before = await scene(page, id), originalNotes = await notes(page), original = persisted(originalNotes, id);
+	assert.ok(before.control.width >= 44 && before.control.height >= 44, 'painted control contains a 44px rectangular target');
+	assert.equal(before.label, scenario.query.includes('lang=de') ? 'Drehen' : 'Rotate');
+	await page.mouse.move(before.labelPoint.x, before.labelPoint.y);
+	const hovered = await scene(page, id); assert.match(hovered.instructions, scenario.query.includes('lang=de') ? /genauen Winkel/ : /precise angle/);
+	await recordShot(page, scenario, out, 'label-hover');
+	await page.mouse.down(); await page.mouse.move(before.labelPoint.x + 3, before.labelPoint.y); await page.mouse.up();
+	const precise = '[data-rp-form="object-rotation"]'; await page.locator(precise).waitFor();
+	assert.deepEqual(await notes(page), originalNotes, 'short label click opens precision without writes');
+	await recordShot(page, scenario, out, 'label-click-precision');
+	await page.keyboard.press('Escape'); await page.locator(precise).waitFor({ state: 'hidden' });
 	await activate(page, '.rp-view-menu > summary'); await activate(page, '[data-rp-view="zoom-in"]'); await page.keyboard.press('Escape');
 	const zoomed = await scene(page, id);
 	const box = await page.locator('.rp-plan-canvas').boundingBox(); assert.ok(box);
@@ -34,7 +44,7 @@ export async function verifyObjectRotationPointer(page, scenario, out, id) {
 	await page.keyboard.down('Shift'); await page.mouse.move(moved.handle.x, moved.handle.y); await page.mouse.down();
 	const intermediate = turn(moved, 37), final = turn(moved, 58);
 	await page.mouse.move(intermediate.x, intermediate.y, { steps: 3 }); await page.mouse.move(final.x, final.y);
-	const preview = await scene(page, id); assert.equal(preview.angle, '+60°'); assert.deepEqual(await notes(page), originalNotes, 'pointer preview writes no files');
+	const preview = await scene(page, id); assert.equal(preview.angle, '+60°'); assert.match(preview.instructions, /15°/); assert.deepEqual(await notes(page), originalNotes, 'pointer preview writes no files');
 	assert.equal(await page.locator('.rp-direct-actions').count(), 0, 'the direct-action popover does not cover rotation feedback');
 	await recordShot(page, scenario, out, 'pointer-preview');
 	await page.mouse.up(); await page.keyboard.up('Shift');
@@ -50,5 +60,5 @@ export async function verifyObjectRotationPointer(page, scenario, out, id) {
 	await page.locator('.rp-direct-actions').waitFor({ state: 'visible' });
 	await recordShot(page, scenario, out, 'pointer-restored');
 	if (scenario.width === 460) await panel(page, 'details');
-	return { cameraBefore: before.camera, cameraAfter: moved.camera, snappedDegrees: 60, persistedMatchesPreview: true, undoRedoExact: true, escapeNoWrite: true };
+	return { cameraBefore: before.camera, cameraAfter: moved.camera, labelledTarget: before.control, labelClickPrecisionNoWrite: true, snappedDegrees: 60, persistedMatchesPreview: true, undoRedoExact: true, escapeNoWrite: true };
 }

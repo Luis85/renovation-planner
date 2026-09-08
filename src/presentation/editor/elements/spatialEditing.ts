@@ -14,7 +14,8 @@ export function createSpatialEditing(context: PlanEditorContext, runtime: Runtim
 	const toolBindings: ElementMoveDeps & RotationGestureDeps = {
 		canRotateShape: () => !rotationActions.blocked.value && !rotationActions.active.value,
 		rotationTarget: () => rotationActions.target.value,
-		rotationHandle: () => rotationActions.handle.value,
+		rotationControl: () => rotationActions.handleGeometry.value,
+		requestRotation: id => { void rotationActions.rotate(id); },
 		previewRotation: rotationActions.previewShape,
 		commitRotation: (id, points, original) => { void rotationActions.move(id, points, original); },
 		previewElement: elementActions.previewElement,

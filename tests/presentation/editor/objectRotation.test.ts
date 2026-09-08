@@ -10,6 +10,7 @@ import { expectDefined, expectOk } from '../../helpers/domain';
 import type { SpatialElement } from '../../../src/domain/spatial/SpatialElement';
 const element: SpatialElement = { id: 'element-object', kind: 'object', points: [{ x: 100, y: 100 }, { x: 500, y: 100 }, { x: 500, y: 300 }, { x: 100, y: 300 }] };
 const pivot = expectDefined(rotationPivot(element), 'centroid');
+const control = expectDefined(rotationHandleGeometry(element, 1), 'control');
 function shiftedPointer(x: number, y: number) { const event = pointerAt(x, y); return { ...event, modifiers: { ...event.modifiers, shift: true } }; }
 describe('rigid Object rotation', () => {
 	it.each([15.25, 90, -90, 179, 360, -720])('preserves centroid, area and all pair distances for %s degrees', degrees => {
@@ -36,7 +37,7 @@ describe('rigid Object rotation', () => {
 	it('previews without drift and commits the final release position exactly once with Shift snapping', () => {
 		const context = toolContext().context, previewRotation = vi.fn<NonNullable<RotationGestureDeps['previewRotation']>>(), commitRotation = vi.fn<NonNullable<RotationGestureDeps['commitRotation']>>(), gesture = new ElementRotation({ previewRotation, commitRotation });
 		gesture.move(context, pointerAt(0, 0)); gesture.finish(context, pointerAt(0, 0));
-		gesture.start(context, pointerAt(400, 200), element);
+		gesture.start(context, pointerAt(400, 200), element, control);
 		for (let n = 0; n < 100; n++) gesture.move(context, pointerAt(350, 286.602540378));
 		const expected = rotationPoints(element, 60, pivot); const preview = expectDefined(previewRotation.mock.calls.at(-1)?.[1], 'preview');
 		expect(preview[0].x).toBeCloseTo(expected?.[0].x ?? 0, 6);
@@ -45,31 +46,31 @@ describe('rigid Object rotation', () => {
 		gesture.move(context, snapped); const finalPreview = previewRotation.mock.calls.at(-1)?.[1];
 		gesture.finish(context, snapped); gesture.finish(context, snapped);
 		expect(commitRotation).toHaveBeenCalledExactlyOnceWith(element.id, finalPreview, element); expect(gesture.active).toBe(false); expect(previewRotation).toHaveBeenLastCalledWith(null);
-		commitRotation.mockClear(); gesture.start(context, pointerAt(400, 200), element); gesture.move(context, pointerAt(350, 250)); gesture.finish(context, pointerAt(300, 300));
+		commitRotation.mockClear(); gesture.start(context, pointerAt(400, 200), element, control); gesture.move(context, pointerAt(350, 250)); gesture.finish(context, pointerAt(300, 300));
 		expect(commitRotation).toHaveBeenCalledExactlyOnceWith(element.id, rotationPoints(element, 90, pivot), element);
 	});
 	it('drops blocked, cancelled, zero-angle and pivot releases without committing', () => {
 		const context = toolContext().context, commitRotation = vi.fn<NonNullable<RotationGestureDeps['commitRotation']>>(), gesture = new ElementRotation({ commitRotation });
-		const unavailable = new ElementRotation({ commitRotation, canRotateShape: () => false }); unavailable.start(context, pointerAt(400, 200), element); expect(unavailable.active).toBe(false);
-		new ElementRotation({}).start(context, pointerAt(400, 200), element);
-		gesture.start(context, pointerAt(400, 200), { ...element, kind: 'measurement' }); expect(gesture.active).toBe(false);
-		gesture.start(toolContext({ writesBlocked: true }).context, pointerAt(400, 200), element); expect(gesture.active).toBe(false);
-		for (const modifier of ['alt'] as const) { const event = pointerAt(400, 200); gesture.start(context, { ...event, modifiers: { ...event.modifiers, [modifier]: true } }, element); expect(gesture.active).toBe(false); }
-		gesture.start(context, pointerAt(400, 200), element); gesture.finish(context, pointerAt(400, 200));
-		gesture.start(context, pointerAt(400, 200), element); gesture.move(context, pointerAt(300, 200)); gesture.finish(context, pointerAt(300, 200));
-		gesture.start(context, pointerAt(400, 200), element); gesture.cancel(); gesture.finish(context, pointerAt(300, 300));
-		gesture.start(context, pointerAt(400, 200), element); gesture.finish(toolContext({ writesBlocked: true }).context, pointerAt(300, 300)); expect(commitRotation).not.toHaveBeenCalled();
+		const unavailable = new ElementRotation({ commitRotation, canRotateShape: () => false }); unavailable.start(context, pointerAt(400, 200), element, control); expect(unavailable.active).toBe(false);
+		new ElementRotation({}).start(context, pointerAt(400, 200), element, control);
+		gesture.start(context, pointerAt(400, 200), { ...element, kind: 'measurement' }, control); expect(gesture.active).toBe(false);
+		gesture.start(toolContext({ writesBlocked: true }).context, pointerAt(400, 200), element, control); expect(gesture.active).toBe(false);
+		for (const modifier of ['alt'] as const) { const event = pointerAt(400, 200); gesture.start(context, { ...event, modifiers: { ...event.modifiers, [modifier]: true } }, element, control); expect(gesture.active).toBe(false); }
+		gesture.start(context, pointerAt(400, 200), element, control); gesture.finish(context, pointerAt(400, 200));
+		gesture.start(context, pointerAt(400, 200), element, control); gesture.move(context, pointerAt(300, 200)); gesture.finish(context, pointerAt(300, 200));
+		gesture.start(context, pointerAt(400, 200), element, control); gesture.cancel(); gesture.finish(context, pointerAt(300, 300));
+		gesture.start(context, pointerAt(400, 200), element, control); gesture.finish(toolContext({ writesBlocked: true }).context, pointerAt(300, 300)); expect(commitRotation).not.toHaveBeenCalled();
 	});
 	it.each([0.1, 2, 50])('shares hover/click handle targeting at %s world units per pixel and cancels tool disposal', scale => {
 		const r = toolContext({ worldPerScreenPixel: scale }), commitRotation = vi.fn<NonNullable<RotationGestureDeps['commitRotation']>>();
 		r.context.selection.select([element.id as never]);
-		const tool = new SelectTool({ spatialObjects: () => [element], rotationTarget: () => element, rotationHandle: () => rotationHandleGeometry(element, scale)?.handle ?? null, commitRotation, createMoveGesture: vi.fn<SelectToolDeps['createMoveGesture']>(), reportRejected: vi.fn<SelectToolDeps['reportRejected']>(), reportInvalidInput: vi.fn<SelectToolDeps['reportInvalidInput']>() }); tool.activate(r.context);
+		const tool = new SelectTool({ spatialObjects: () => [element], rotationTarget: () => element, rotationControl: () => rotationHandleGeometry(element, scale), commitRotation, createMoveGesture: vi.fn<SelectToolDeps['createMoveGesture']>(), reportRejected: vi.fn<SelectToolDeps['reportRejected']>(), reportInvalidInput: vi.fn<SelectToolDeps['reportInvalidInput']>() }); tool.activate(r.context);
 		const handle = expectDefined(rotationHandleGeometry(element, scale), 'handle geometry').handle;
 		tool.pointerMove(pointerAt(handle.x, handle.y)); expect(r.context.renderState.hoveredTargetKind).toBe('rotation');
 		const start = pointerAt(handle.x, handle.y); tool.pointerDown({ ...start, modifiers: { ...start.modifiers, shift: true } }); expect(tool.hasDraft()).toBe(true);
 		tool.pointerMove(pointerAt(500, 200)); tool.deactivate(); tool.pointerUp(pointerAt(500, 200)); expect(commitRotation).not.toHaveBeenCalled();
 		tool.activate(r.context); tool.pointerDown(pointerAt(handle.x, handle.y)); tool.cancel(); tool.pointerUp(pointerAt(500, 200)); expect(commitRotation).not.toHaveBeenCalled();
-		tool.pointerDown(pointerAt(handle.x, handle.y)); tool.pointerUp(pointerAt(500, 200)); expect(commitRotation).toHaveBeenCalledOnce();
+		tool.pointerDown(pointerAt(handle.x, handle.y)); tool.pointerUp(pointerAt(pivot.x + 100 * scale, pivot.y)); expect(commitRotation).toHaveBeenCalledOnce();
 	});
 });
 
@@ -84,15 +85,17 @@ it.each(['room', 'area', 'object', 'path', 'fence', 'measurement', 'wall'] as co
 		for (let index = 1; index < points.length; index++) expect(distance(points[index - 1], points[index])).toBeCloseTo(distance(shape.points[index - 1], shape.points[index]), 8);
 	}
 });
-it('weights an open path by segment length and clamps the diagonal handle into visible camera bounds', () => {
+it('weights an open path by segment length and keeps the labelled control inside visible camera bounds', () => {
 	const shape = { id: 'path', kind: 'path' as const, points: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 100 }] };
 	expect(rotationPivot(shape)).toEqual({ x: 187.5, y: 12.5 });
-	expect(rotationHandleGeometry(shape, 2, { min: { x: 0, y: 0 }, max: { x: 400, y: 400 } })?.handle).toEqual({ x: 344, y: 120 });
+	const placed = expectDefined(rotationHandleGeometry(shape, 2, { min: { x: 0, y: 0 }, max: { x: 400, y: 400 } }), 'placed control');
+	expect(placed.bounds.min.x).toBeGreaterThanOrEqual(0); expect(placed.bounds.max.x).toBeLessThanOrEqual(400);
+	expect((placed.bounds.max.x - placed.bounds.min.x) / 2).toBeGreaterThanOrEqual(44);
 });
 it('unwraps the atan2 seam without a spurious reverse turn while keeping previews rigid', () => {
 	const context = toolContext().context, commitRotation = vi.fn<NonNullable<RotationGestureDeps['commitRotation']>>(), gesture = new ElementRotation({ commitRotation });
 	const at = (degrees: number) => pointerAt(pivot.x + Math.cos(degrees * Math.PI / 180) * 100, pivot.y + Math.sin(degrees * Math.PI / 180) * 100);
-	gesture.start(context, at(170), element); gesture.move(context, at(-170)); expect(context.renderState.rotationDegrees).toBeCloseTo(20, 8);
+	gesture.start(context, at(170), element, control); gesture.move(context, at(-170)); expect(context.renderState.rotationDegrees).toBeCloseTo(20, 8);
 	gesture.move(context, at(-100)); expect(context.renderState.rotationDegrees).toBeCloseTo(90, 8); gesture.finish(context, at(-100));
 	const points = expectDefined(commitRotation.mock.calls[0]?.[1], 'committed'); expect(points[0].x).toBeCloseTo(400, 8); expect(points[0].y).toBeCloseTo(0, 8);
 });
@@ -102,15 +105,15 @@ it.each([0.2, 1, 4])('keeps a clamped rotation target clear of Room vertex handl
 	const point = (x: number, y: number) => ({ x: 1000 + x * scale, y: -500 + y * scale });
 	const shape = { id: 'room-clamped', kind: 'room' as const, points: [point(100, 60), point(472, 60), point(472, 300), point(100, 300)] };
 	const placement = expectDefined(rotationHandleGeometry(shape, scale, { min: point(0, 0), max: point(500, 400) }), 'clear placement');
-	expect(placement.handle).toEqual(point(472, 340)); expect(placement.anchor).toEqual(point(472, 300));
+	expect(placement.handle).toEqual(point(286, 26)); expect(placement.anchor).toEqual(point(286, 60));
 	for (const vertex of shape.points) expect(distance(placement.handle, vertex) / scale).toBeGreaterThanOrEqual(34);
-	expect(resolveSelectionTarget({ candidates: [{ id: shape.id, points: shape.points }], selectedIds: [shape.id], worldPoint: shape.points[1], handleToleranceWorld: 8 * scale, rotationToleranceWorld: 22 * scale, rotationHandle: { id: shape.id, point: placement.handle } })).toEqual({ id: shape.id, kind: 'handle', vertexIndex: 1 });
+	expect(resolveSelectionTarget({ candidates: [{ id: shape.id, points: shape.points }], selectedIds: [shape.id], worldPoint: shape.points[1], handleToleranceWorld: 8 * scale, rotationHandle: { id: shape.id, bounds: placement.bounds } })).toEqual({ id: shape.id, kind: 'handle', vertexIndex: 1 });
 });
 it('slides a viewport-filling Room handle away from clipped corners and avoids measured native controls', () => {
 	const visible = { min: { x: 0, y: 0 }, max: { x: 500, y: 400 } };
 	const shape = { id: 'room-full', kind: 'room' as const, points: [{ x: 28, y: 60 }, { x: 472, y: 60 }, { x: 472, y: 372 }, { x: 28, y: 372 }] };
-	const placement = expectDefined(rotationHandleGeometry(shape, 1, visible), 'slid placement'); expect(placement.handle).toEqual({ x: 432, y: 60 });
-	const obstruction = { min: { x: 405, y: 35 }, max: { x: 459, y: 90 } };
+	const placement = expectDefined(rotationHandleGeometry(shape, 1, visible), 'slid placement'); expect(placement.handle).toEqual({ x: 250, y: 26 });
+	const obstruction = { min: { x: 215, y: 10 }, max: { x: 285, y: 55 } };
 	const shifted = expectDefined(rotationHandleGeometry(shape, 1, visible, [obstruction]), 'native-control clearance'); expect(shifted.handle).not.toEqual(placement.handle);
 	for (const vertex of shape.points) expect(distance(shifted.handle, vertex)).toBeGreaterThanOrEqual(34);
 	expect(rotationHandleGeometry(shape, 1, visible, [visible])).toBeNull();
@@ -121,7 +124,7 @@ it('slides a viewport-filling Room handle away from clipped corners and avoids m
 it('keeps Shift-click Room corners as selection toggles while Shift-grabbing rotation still edits', () => {
 	const shape = { id: 'room-shift', kind: 'room' as const, points: element.points }, r = toolContext(); r.context.selection.select([shape.id as never]);
 	const handle = expectDefined(rotationHandleGeometry(shape, 1), 'handle').handle, createMoveGesture = vi.fn<SelectToolDeps['createMoveGesture']>(), commitRotation = vi.fn<NonNullable<RotationGestureDeps['commitRotation']>>();
-	const tool = new SelectTool({ spatialObjects: () => [{ id: shape.id, points: shape.points }], rotationTarget: () => shape, rotationHandle: () => handle, commitRotation, createMoveGesture, reportRejected: vi.fn<SelectToolDeps['reportRejected']>(), reportInvalidInput: vi.fn<SelectToolDeps['reportInvalidInput']>() }); tool.activate(r.context);
+	const tool = new SelectTool({ spatialObjects: () => [{ id: shape.id, points: shape.points }], rotationTarget: () => shape, rotationControl: () => rotationHandleGeometry(shape, 1), commitRotation, createMoveGesture, reportRejected: vi.fn<SelectToolDeps['reportRejected']>(), reportInvalidInput: vi.fn<SelectToolDeps['reportInvalidInput']>() }); tool.activate(r.context);
 	tool.pointerDown(shiftedPointer(101, 101)); expect(tool.hasDraft()).toBe(false); expect(r.context.selection.selectedIds).toEqual([]); expect(createMoveGesture).not.toHaveBeenCalled();
 	r.context.selection.select([shape.id as never]); tool.pointerDown(shiftedPointer(handle.x, handle.y)); expect(tool.hasDraft()).toBe(true);
 	tool.pointerUp(shiftedPointer(pivot.x, pivot.y + 200)); expect(commitRotation).toHaveBeenCalledOnce(); expect(createMoveGesture).not.toHaveBeenCalled();

@@ -44,14 +44,12 @@ import FloorInspector from './FloorInspector.vue';
 import NewRoomInspector from './NewRoomInspector.vue';
 import RoomInspector from './RoomInspector.vue';
 import MultiSelectionInspector from './MultiSelectionInspector.vue';
-import { useProjectStore } from '../../stores/ProjectStore';
-import { toSpatialRecordDto } from '../../read-models/spatialRecords';
+import { useSpatialRecords } from './useSpatialRecords';
 import { spatialSelection } from '../selection/spatialSelection';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
-const project = useProjectStore();
-const records = computed(() => [...project.zones.values()].map((zone) => toSpatialRecordDto(zone)));
+const records = useSpatialRecords();
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
 </script>
 

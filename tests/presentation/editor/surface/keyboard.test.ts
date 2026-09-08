@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrowVector } from '../../../../src/presentation/editor/surface/keyboard';
+import { arrowVector, plainPress } from '../../../../src/presentation/editor/surface/keyboard';
 
 /**
  * Pure logic, no DOM: `arrowVector` takes only `{ key, shiftKey }`, so this is a node test
@@ -21,5 +21,15 @@ describe('arrowVector', () => {
 
 	it('answers null for a key that is not an arrow', () => {
 		expect(arrowVector({ key: 'a', shiftKey: false })).toBeNull();
+	});
+});
+
+describe('plainPress', () => {
+	const bare = { repeat: false, ctrlKey: false, metaKey: false, altKey: false, isComposing: false };
+	it('is true for one deliberate press of the bare key', () => {
+		expect(plainPress(bare)).toBe(true);
+	});
+	it.each(['repeat', 'ctrlKey', 'metaKey', 'altKey', 'isComposing'] as const)('is false with %s set', (flag) => {
+		expect(plainPress({ ...bare, [flag]: true })).toBe(false);
 	});
 });

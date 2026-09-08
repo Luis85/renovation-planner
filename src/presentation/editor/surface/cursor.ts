@@ -36,6 +36,7 @@ import type { ToolId } from '../tools/editor-tool';
 const PRECISE_TOOLS: readonly ToolId[] = [
 	'draw-polygon',
 	'draw-room',
+	'draw-area',
 	'calibrate',
 	'trace-footprint',
 	'trace-clearance',

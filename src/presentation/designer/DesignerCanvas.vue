@@ -111,6 +111,8 @@ const selection = useSelectionStore();
  * in the template reads `Promise` off the render context instead of the module scope.
  */
 const nudgeSelection = (): Promise<void> => Promise.resolve();
+/** No area task exists in this surface, so Enter on its canvas finishes nothing. */
+const noArea = (): void => undefined;
 
 /**
  * `routeEscape`'s `returned-to-select` arm always asks for the Plan Editor's neutral tool,
@@ -184,6 +186,7 @@ function framedBounds(all: boolean): BoundingBox | null {
 		:has-selection="() => selection.selectedIds.length > 0"
 		:clear-selection="() => selection.clear()"
 		:nudge-selection="nudgeSelection"
+		:finish-area="noArea"
 	>
 		<template #default="{ size }">
 			<VStage :config="size">

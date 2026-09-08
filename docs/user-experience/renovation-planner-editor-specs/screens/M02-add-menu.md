@@ -36,7 +36,7 @@ Room carries the hint `Fastest way to start`; Wall carries `For precise layouts`
 | Select Room | Close menu and enter M03 |
 | Select Wall | Close menu and enter M04 |
 | Select context-dependent item | Start its temporary creation state, optionally pre-linked to current selection |
-| Click outside / Esc | Close menu and return to Select |
+| Click outside / Esc | Close menu and restore Add focus; preserve an existing draft/tool until the next cancel action |
 
 Creation tools are temporary. After one successful creation, the editor returns to Select unless the user explicitly enables repeated creation.
 
@@ -70,3 +70,40 @@ Creation tools are temporary. After one successful creation, the editor returns 
 - Esc always closes it without changing data.
 - Choosing an item invokes exactly one creation path.
 - The catalog remains usable by keyboard and in both themes.
+
+## Delivered Area contract — Phase 3 / Increment A, 2026-09-05
+
+Room and Area are available. Area uses `activateCreationEntry('area', runtime)` and a
+separate `draw-area` instance of the existing drawing tool; the legacy free-shape Room
+completion still creates a Room. Unsupported catalogue entries retain their reasons.
+
+- Activation closes Add, focuses the canvas, and writes nothing.
+- Place corners; close on the first corner, press Enter with canvas focus, or activate
+  **Create area / Fläche erstellen**. All three doors use the same validated completion.
+- Fewer than three points, non-finite coordinates, zero area and area overflow refuse
+  completion. The outline survives a refused write; the save/error policy is unchanged.
+- Success dispatches one `ReversibleCreateZoneCommand`, selects the created entity and returns
+  to Select. Undo/Redo removes/restores the same Zone ID and geometry through existing ports.
+- **Keep adding areas / Weitere Flächen hinzufügen** is off by default. When checked, success
+  clears the outline and keeps the tool active. Unchecking restores one-shot behavior; leaving
+  the tool resets the preference. It is not persisted or shared with Room repetition.
+- Escape closes Add or an overlay first, then discards a draft, then leaves an empty tool,
+  then clears an idle selection. Held repeats cannot cascade across these steps. Cancel leaves
+  the task directly and preserves selection. A submitted write may still finish after Cancel;
+  its late response cannot overwrite a replacement task or selection. Undo reverses that write.
+- Enter belongs to the canvas only when the canvas has focus, no gesture is running and no
+  Ctrl/Meta/Alt chord, composition or repeat is present. Shift remains the drawing constraint.
+  Native form inputs do not trigger canvas actions.
+- The default name is `Area {n}` / `Fläche {n}`, counted from hydrated spatial records; the
+  persisted type is the existing `Custom` (`zone-type: custom`, displayed as Other / Sonstiges).
+  This does not introduce an Area schema, migrate notes, or reinterpret non-Room types.
+
+Evidence: `areaCreation.e2e.test.ts`, `add/areaOutline.test.ts`, `areaPersistence.test.ts`,
+`tools/polygonFinish.test.ts` and `tests/harness/areaCreation.test.ts`. The browser scenario is
+`?view=plan-editor&area`; `node scripts/editor-area-check.mjs` verifies keyboard/layout states
+in light, dark, custom accent and German constrained layouts. Its browser fixture refuses
+writes; successful persistence and Undo/Redo are exercised by the repository-backed tests.
+
+Remaining: numeric/keyboard placement of individual corners, Area name/type forms, self-crossing
+outline validation, and the unavailable creation domains. This contribution does not close
+all M02 use cases or Increment A's domain-dependent criteria.

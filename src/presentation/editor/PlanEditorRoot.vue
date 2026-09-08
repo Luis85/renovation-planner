@@ -184,7 +184,7 @@ function onOpenAdd(): void {
  * Plan Editor leaf a document-global handler would also close.
  *
  * With the menu closed, descendants handle their own Escape first. The root's bubbling
- * handler supplies the selection fallback for controls outside the canvas.
+ * handler routes temporary tasks and selection from controls outside the canvas.
  */
 function onRootKeydown(event: KeyboardEvent): void {
 	if (!addMenuOpen.value || event.key !== 'Escape') return;
@@ -193,23 +193,24 @@ function onRootKeydown(event: KeyboardEvent): void {
 	addMenuOpen.value = false;
 }
 
+/** Native fields own their editing keys. Buttons and non-editable list controls bubble. */
+function isEditingField(target: EventTarget | null): boolean {
+	return target instanceof HTMLElement && target.closest('input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]:not([contenteditable="false"])') !== null;
+}
+
 /**
  * Overlays and the canvas consume Escape first; list and rail controls bubble here.
  *
- * The Inspector's native asset `<select>` is deliberately NOT excluded, against a review
- * bot's finding that Escape on its OPEN popup would reach this handler before the popup
- * closed and clear the selection under it. Measured in Chromium, which is what Obsidian
- * runs: with the popup open, Escape closes it and dispatches NO keydown to the page — only
- * a keyup, once it is shut — because the popup is its own widget and consumes the press;
- * with the popup closed, the same press dispatches a keydown here, which is the keyboard
- * user's "leave this room" and must keep working. Excluding the control would trade a
- * defect Chromium does not have for one it would. Firefox does dispatch that keydown, and
- * is not a runtime this plugin has.
+ * `isEditingField` keeps a native field's Escape as that field's own editing key (ADR-0018),
+ * and for the Inspector's asset `<select>` that exclusion acts only on a CLOSED one. Measured
+ * in Chromium, which is what Obsidian runs: with the popup open, Escape closes it and
+ * dispatches no keydown to the page at all — only a keyup, once it is shut — because the
+ * popup is its own widget and consumes the press. So a review bot's finding that this handler
+ * would clear the selection under an open popup describes Firefox, which does dispatch that
+ * keydown and is not a runtime this plugin has.
  */
 function onSelectionKeydown(event: KeyboardEvent): void {
-	if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || selection.selectedIds.length === 0) return;
-	event.stopPropagation();
-	event.preventDefault();
+	if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || isEditingField(event.target)) return;
 	const inspector = (event.target as HTMLElement).closest<HTMLElement>('[data-rp-region="inspector"]');
 	const outcome = routeEscape({
 		panning: false, // The canvas consumes its camera/gesture keys before bubbling.
@@ -217,10 +218,13 @@ function onSelectionKeydown(event: KeyboardEvent): void {
 		hasDraft: () => runtime.toolManager.activeToolHasDraft(),
 		cancelGesture: () => runtime.toolManager.cancelGesture(),
 		setTool: runtime.setTool,
-		hasSelection: true,
+		hasSelection: selection.selectedIds.length > 0,
 		clearSelection: () => selection.clear(),
 	});
-	// Selected-entity controls unmount on clear; persistent list/rail controls keep their focus.
+	if (outcome === 'nothing') return;
+	event.stopPropagation();
+	event.preventDefault();
+	// M11 controls unmount on clear; persistent list/rail controls keep their own focus.
 	if (outcome === 'cleared-selection' && inspector !== null) void nextTick(() => inspector.focus());
 }
 

@@ -6,7 +6,7 @@
  * back one interaction at a time through `routeEscape`. Mounted in `PlanEditorRoot`'s canvas
  * overlay slot, over the top edge.
  *
- * `TASKS` covers `draw-polygon`, `draw-room` and `calibrate`: Select, camera mode (`null`)
+ * `TASKS` covers `draw-polygon`, `draw-room`, `draw-area` and `calibrate`: Select, camera mode (`null`)
  * and every designer tool id share no entry, and the `v-if` below is "the active tool has
  * one" rather than "the active tool is not Select" — a table lookup, so a designer tool
  * added to `ToolId` later is silently excluded rather than requiring an edit here to stay
@@ -24,6 +24,10 @@
  * instruction `<span>` unconditionally: unlike the form's own hint (rendered only while the
  * draft is INCOMPLETE), the instruction here is always in the DOM while the banner is, so the
  * reference can never dangle.
+ *
+ * Area adds its own localized completion label and repeat checkbox. Its Finish facade and
+ * the canvas Enter/first-corner routes reach the same drawing-tool action. Availability
+ * uses the Area outline validator and save state; Room keeps its existing draft action.
  *
  * **Finish stays keyed on `canCreateRoom` where the form's HINT moved to
  * `roomDraftIncomplete`, and the asymmetry is the point.** `canCreateRoom` is false for the
@@ -49,6 +53,7 @@ const runtime = useEditorRuntime();
 const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKey: StringKey; finish?: true }>>> = {
 	'draw-polygon': { nameKey: 'editor.task.draw-room.name', instructionKey: 'editor.task.draw-room.instruction' },
 	'draw-room': { nameKey: 'editor.task.add-room.name', instructionKey: 'editor.task.add-room.instruction', finish: true },
+	'draw-area': { nameKey: 'editor.task.add-area.name', instructionKey: 'editor.task.add-area.instruction', finish: true },
 	calibrate: { nameKey: 'editor.task.calibrate.name', instructionKey: 'editor.task.calibrate.instruction' },
 };
 
@@ -59,6 +64,8 @@ const task = computed(() => {
 
 const root = ref<HTMLElement | null>(null);
 const instructionId = useId();
+const isArea = computed(() => runtime.activeToolId.value === 'draw-area');
+const canFinish = computed(() => isArea.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
 
 /**
  * The `aria-disabled` promise kept at the control, not only at the action — the same shape
@@ -68,8 +75,9 @@ const instructionId = useId();
  * second half of that same promise.
  */
 function onFinish(): void {
-	if (!runtime.canCreateRoom.value || runtime.writesBlocked.value) return;
-	void runtime.createRoom();
+	if (!canFinish.value || runtime.writesBlocked.value) return;
+	if (isArea.value) runtime.finishArea();
+	else void runtime.createRoom();
 }
 
 /**
@@ -123,15 +131,25 @@ watch(task, (next) => {
 	>
 		<strong>{{ tr(task.nameKey) }}</strong>
 		<span :id="instructionId">{{ tr(task.instructionKey) }}</span>
+		<label
+			v-if="isArea"
+			class="rp-task-banner__repeat"
+		>
+			<input
+				v-model="runtime.keepAddingAreas.value"
+				type="checkbox"
+			>
+			{{ tr('editor.area.keep-adding') }}
+		</label>
 		<button
 			v-if="task.finish"
 			type="button"
 			class="rp-task-banner__finish"
-			:aria-disabled="!runtime.canCreateRoom.value || runtime.writesBlocked.value"
+			:aria-disabled="!canFinish || runtime.writesBlocked.value"
 			:aria-describedby="[instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' ')"
 			@click="onFinish"
 		>
-			{{ tr('editor.task.finish') }}
+			{{ tr(isArea ? 'editor.area.finish' : 'editor.task.finish') }}
 		</button>
 		<button
 			type="button"

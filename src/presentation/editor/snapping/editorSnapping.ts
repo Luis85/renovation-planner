@@ -73,6 +73,7 @@ export const EDITOR_SNAP_SERVICE = new SnapService({
  */
 const CONSTRAINING_TOOLS: readonly ToolId[] = [
 	'draw-polygon',
+	'draw-area',
 	'calibrate',
 	'trace-footprint',
 	'trace-clearance',

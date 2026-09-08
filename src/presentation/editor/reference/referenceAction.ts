@@ -32,6 +32,7 @@ export function createReferenceAction(context: PlanEditorContext, runtime: Pick<
 			const busy = ref(false);
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.reference.title'), component: markRaw(ReferenceSetupForm), busy,
 				props: { baseline: baseline.value, vault: context.vault, fileChanges: (listener: (path: string) => void) => context.onVaultFileChanged(listener), busy,
+					onThemeChange: (listener: () => void) => context.onThemeChange(listener),
 					blocked: runtime.writesBlocked, logger: context.commands.logger,
 					dispatch: (input: ConfigureReferenceInput) => {
 						if (!alive || generation !== started || runtime.writesBlocked.value) return Promise.resolve(err(staleWriteRefusal()));

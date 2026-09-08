@@ -6,7 +6,8 @@ import type { Structure } from '../../../domain/spatial/Structure';
 const point = (p: Point): readonly number[] => [p.x, p.y];
 function structureContent(s: Structure | undefined): unknown {
 	return s ? [s.walls.map(wall => [wall.id, point(wall.start), point(wall.end), wall.height, wall.thickness]),
-			s.openings.map(opening => [opening.id, opening.kind, opening.hostId, opening.offset, opening.width, opening.height, opening.sill]),
+			s.openings.map(opening => [opening.id, opening.kind, opening.hostId, opening.offset, opening.width, opening.height, opening.sill,
+				opening.swing ? [opening.swing.hinge, opening.swing.side, opening.swing.angle] : null]),
 			s.boundaries.map(boundary => [boundary.roomId, boundary.wallIds]),
 			(s.elements ?? []).toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(element => [element.id, element.kind, element.points.map(point)])] : null;
 }

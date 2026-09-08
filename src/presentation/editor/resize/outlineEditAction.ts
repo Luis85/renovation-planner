@@ -1,5 +1,7 @@
 import { markRaw } from 'vue';
 import type { Polygon } from '../../../core/geometry/Polygon';
+import { createCurvedPolygon, hasCurves } from '../../../core/geometry/CurvedPolygon';
+import type { Point } from '../../../core/geometry/Point';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
 import { createRoomEditAction, type RoomEditRuntime } from '../roomEditAction';
@@ -12,6 +14,7 @@ export function createOutlineEditAction(context: PlanEditorContext, runtime: Roo
 		form: ({ entity, version }, { busy, blocked, latest, commit }) => ({
 			kind: 'form', title: tr('editor.outline.title', { name: entity.name }), component: markRaw(OutlinePointsForm), busy,
 			props: { points: entity.geometry.points, busy, blocked, latest, logger: context.commands.logger,
+				...(hasCurves(entity.geometry) ? { accepts: (points: readonly Point[]) => createCurvedPolygon({ points, bulges: entity.geometry.bulges }).ok } : {}),
 				dispatch: (forward: Polygon) => commit({ kind: 'geometry', zoneId: entity.id, forward, inverse: entity.geometry, expected: version }),
 				preview: (polygon: Polygon | null) => { runtime.renderState.previewPolygon = polygon?.points ?? null; },
 			},

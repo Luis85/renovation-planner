@@ -3,7 +3,7 @@ import { parseSwingDraft, type OpeningSwingDraft } from './openingSwingDraft';
 import { reactive } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import { createEntityId } from '../../../core/identity/generateId';
-import { EMPTY_STRUCTURE, samePoint, type Opening, type Structure, type Wall } from '../../../domain/spatial/Structure';
+import { EMPTY_STRUCTURE, projectOntoWall, samePoint, wallLength, type Opening, type Structure, type Wall } from '../../../domain/spatial/Structure';
 import { closedChain, spatialError, validateStructure, validSpatialPoint } from '../../../domain/spatial/structureGeometry';
 import type { AppError } from '../../../core/errors/AppError';
 import { err } from '../../../core/result/Result';
@@ -94,12 +94,7 @@ export function snapWallPoint(point: Point, points: readonly Point[], walls: rea
 }
 
 export function pickHost(draft: StructureDraft, point: Point, walls: readonly Wall[], tolerance: number): void {
-	const hits = walls.map(wall => {
-		const dx = wall.end.x - wall.start.x, dy = wall.end.y - wall.start.y, length = Math.hypot(dx, dy);
-		const offset = ((point.x - wall.start.x) * dx + (point.y - wall.start.y) * dy) / length;
-		const distance = Math.hypot(point.x - wall.start.x - dx * offset / length, point.y - wall.start.y - dy * offset / length);
-		return { wall, offset, distance, length };
-	}).filter(hit => hit.offset >= 0 && hit.offset <= hit.length && hit.distance <= tolerance);
+	const hits = walls.map(wall => ({ wall, ...projectOntoWall(wall, point), length: wallLength(wall) })).filter(hit => hit.distance <= tolerance);
 	const hit = hits.reduce<(typeof hits)[number] | undefined>((best, candidate) => !best || candidate.distance < best.distance ? candidate : best, undefined);
 	draft.snapped = hit !== undefined;
 	if (hit) {

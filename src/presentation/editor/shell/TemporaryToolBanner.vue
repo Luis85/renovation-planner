@@ -49,8 +49,16 @@ import FreeShapeRoomAction from '../add/FreeShapeRoomAction.vue';
 import { isStructureTool } from '../structure/structureDraft';
 import { isElementTool } from '../elements/elementDraft';
 import { useTaskbarClearance } from './useTaskbarClearance';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 
 const runtime = useEditorRuntime();
+const workspace = useWorkspaceStore();
+const isCurves = computed(() => runtime.activeToolId.value === 'edit-curves');
+async function curvePrecision(event: Event): Promise<void> {
+	const root = (event.currentTarget as HTMLElement).closest('.renovation-plan-editor');
+	workspace.openOverlay('inspector'); await nextTick();
+	root?.querySelector<HTMLElement>('[data-rp-form="edit-curves"] select')?.focus();
+}
 const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
 const isElement = computed(() => isElementTool(runtime.activeToolId.value));
 const cancelBlocked = computed(() => !runtime.toolManager.canDeactivateActiveTool() || (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
@@ -62,6 +70,7 @@ function freeRoomName(event: Event): void {
 }
 
 const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKey: StringKey; finish?: true }>>> = {
+	'edit-curves': { nameKey: 'editor.curves.action', instructionKey: 'editor.curves.instruction', finish: true },
 	'edit-room-dimension': { nameKey: 'editor.dimension.task', instructionKey: 'editor.dimension.instruction' },
 	'place-object': { nameKey: 'editor.add.item.label', instructionKey: 'editor.element.banner.object', finish: true },
 	'draw-path': { nameKey: 'editor.add.path.label', instructionKey: 'editor.element.banner.path', finish: true },
@@ -87,10 +96,10 @@ const taskbarClearance = useTaskbarClearance(root);
 const instructionId = useId();
 const isArea = computed(() => runtime.activeToolId.value === 'draw-area');
 const isOutline = computed(() => isArea.value || runtime.activeToolId.value === 'draw-polygon');
-const finishLabel = computed(() => tr(isStructure.value
+const finishLabel = computed(() => tr(isCurves.value ? 'editor.curves.save' : isStructure.value
 	? runtime.activeToolId.value === 'draw-wall' ? 'editor.creation.finish-walls' : 'editor.creation.finish-opening'
 	: isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
-const canFinish = computed(() => isStructure.value ? !runtime.structureTask.blocked.value : isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
+const canFinish = computed(() => isCurves.value ? !runtime.curveTask.blocked.value && runtime.curveTask.target.value !== null && runtime.curveTask.validation.value === null && runtime.curveTask.state.invalidField === null : isStructure.value ? !runtime.structureTask.blocked.value : isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
 const showSnapHint = computed(() => runtime.activeToolId.value === 'draw-room' && runtime.renderState.snapGuides.length > 0);
 const isFreeRoom = computed(() => runtime.activeToolId.value === 'draw-polygon');
 const finishBlocked = computed(() => !canFinish.value || runtime.writesBlocked.value);
@@ -105,7 +114,8 @@ const finishDescription = computed(() => [instructionId, runtime.writesBlocked.v
  */
 function onFinish(): void {
 	if (!canFinish.value || runtime.writesBlocked.value) return;
-	if (isStructure.value) void runtime.structureTask.finish();
+	if (isCurves.value) void runtime.curveTask.finish();
+	else if (isStructure.value) void runtime.structureTask.finish();
 	else if (isElement.value) void runtime.elementTask.finish();
 	else if (isOutline.value) runtime.finishArea();
 	else void runtime.createRoom();
@@ -184,6 +194,13 @@ watch(task, (next) => {
 			>
 		</label>
 		<AreaCornerEditor v-if="isOutline" />
+		<button
+			v-if="isCurves"
+			type="button"
+			@click="curvePrecision"
+		>
+			{{ tr('editor.curves.precision') }}
+		</button>
 		<button
 			v-if="runtime.activeToolId.value === 'draw-wall'"
 			type="button"

@@ -1,0 +1,15 @@
+export const curvesEn = {
+	'editor.curves.action': 'Edit curves',
+	'editor.curves.instruction': 'Drag a numbered bend handle, or enter a bend depth or radius in the details panel.',
+	'editor.curves.precision': 'Bend depth and radius',
+	'editor.curves.edge': 'Edge {n} · {length} m',
+	'editor.curves.depth': 'Bend depth (m)',
+	'editor.curves.radius': 'Radius (m)',
+	'editor.curves.direction': 'Follow the edge arrow: positive depth bends left, negative bends right. Zero makes the edge straight.',
+	'editor.curves.limit': 'A bend can be at most a semicircle. Radius must be at least half the distance between the corners.',
+	'editor.curves.straighten': 'Straighten this edge',
+	'editor.curves.save': 'Apply curves',
+	'editor.curves.invalid': 'This curve crosses another boundary or no longer fits its hosted openings. Adjust the bend before applying.',
+	'editor.curves.conflict': 'The source changed. Cancel and reopen the curve task to use the latest geometry.',
+	'editor.curves.wall-note': 'Hosted openings follow the curved wall by distance along it. Connected rooms keep their own outlines.',
+} as const;

@@ -6,10 +6,12 @@ import AreaDetailsAction from '../metadata/AreaDetailsAction.vue';
 import RoomSizeAction from '../resize/RoomSizeAction.vue';
 import RenovationEntry from '../renovation/RenovationEntry.vue';
 import RoomNameAction from '../naming/RoomNameAction.vue';
+import CurveAction from '../curves/CurveAction.vue';
 defineProps<{ zoneId: ZoneId; record?: SpatialRecordDto }>();
 </script>
 <template>
 	<template v-if="record?.kind === 'room'">
+		<CurveAction :id="zoneId" />
 		<RenovationEntry :room-id="zoneId" />
 		<RoomNameAction :zone-id="zoneId" />
 		<RoomSizeAction

@@ -4,7 +4,7 @@ import type { SpatialObjectCandidate } from '../tools/select-tool';
 import { structureCandidates } from '../structure/structureCandidates';
 
 /** Visibility limits pointer admission, not persistent identity or the owning group's members. */
-export function canvasCandidates(zones: Iterable<{ readonly id: string; readonly points: readonly Point[] }>, structure: Structure, visible: { readonly zone: boolean; readonly architecture: boolean }): SpatialObjectCandidate[] {
-	const rooms = visible.zone ? [...zones].map(zone => ({ id: zone.id, points: zone.points })) : [];
+export function canvasCandidates(zones: Iterable<{ readonly id: string; readonly points: readonly Point[]; readonly bulges?: readonly number[] }>, structure: Structure, visible: { readonly zone: boolean; readonly architecture: boolean }): SpatialObjectCandidate[] {
+	const rooms = visible.zone ? [...zones].map(zone => ({ id: zone.id, points: zone.points, bulges: zone.bulges })) : [];
 	return visible.architecture ? [...rooms, ...structureCandidates(structure)] : rooms;
 }

@@ -3,6 +3,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { rotationControlContains } from '../elements/rotationControl';
+import { arcProjection } from '../../../core/geometry/circularArc';
 
 export type SelectionTarget =
 	| { readonly kind: 'handle'; readonly id: string; readonly vertexIndex: number }
@@ -14,6 +15,7 @@ const priority = (candidate: SpatialObjectCandidate): number => candidate.kind =
 
 function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
 	return candidate.points.slice(1).some((b, index) => {
+		if (candidate.bulges?.[index]) return arcProjection({ start: candidate.points[index], end: b, bulge: candidate.bulges[index] }, point).distance <= Math.max(tolerance, (candidate.width ?? 0) / 2);
 		const a = candidate.points[index], dx = b.x - a.x, dy = b.y - a.y, squared = dx * dx + dy * dy;
 		const ratio = squared === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / squared));
 		return Math.hypot(point.x - a.x - ratio * dx, point.y - a.y - ratio * dy) <= Math.max(tolerance, (candidate.width ?? 0) / 2);
@@ -22,7 +24,7 @@ function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: nu
 
 function containsCandidate(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
 	if (candidate.kind && candidate.kind !== 'object') return nearLine(candidate, point, tolerance);
-	const inside = contains({ points: candidate.points }, point);
+	const inside = contains(candidate, point);
 	return inside.ok && inside.value;
 }
 

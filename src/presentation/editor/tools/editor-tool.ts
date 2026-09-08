@@ -31,6 +31,7 @@ export type ToolId =
 	| 'draw-polygon'
 	| 'draw-room'
 	| 'edit-room-dimension'
+	| 'edit-curves'
 	| 'draw-area'
 	| 'draw-wall'
 	| 'place-door'

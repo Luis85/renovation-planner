@@ -1,6 +1,7 @@
 import { openingDe } from './opening';
 import { groupsDe } from './groups';
 import { referenceViewportDe } from './referenceViewport';
+import { curvesDe } from './curves';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
 import { inputDe } from './input';
@@ -21,6 +22,7 @@ import type {
 import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
 	...groupsDe,
+	...curvesDe,
 	...inputDe,
 	...creationDe,
 	'editor.direct.edit-shape': 'Form bearbeiten',

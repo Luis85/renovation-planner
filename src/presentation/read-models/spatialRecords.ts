@@ -18,11 +18,12 @@ export interface SpatialRecordDto {
 	readonly zoneType: string;
 	/** World millimetres, straight from the `ZoneDto`. */
 	readonly points: readonly Point[];
+	readonly bulges?: readonly number[];
 	readonly areaMm2: number;
 }
 
 export function toSpatialRecordDto(zone: ZoneDto): SpatialRecordDto {
-	const measured = area({ points: zone.points });
+	const measured = area(zone);
 	return {
 		kind: zone.zoneType === 'Room' ? 'room' : 'area',
 		id: zone.id,
@@ -30,6 +31,7 @@ export function toSpatialRecordDto(zone: ZoneDto): SpatialRecordDto {
 		name: zone.name,
 		zoneType: zone.zoneType,
 		points: zone.points,
+		bulges: zone.bulges,
 		// A polygon Core refuses has no area; 0 is the honest figure and the canvas still draws
 		// whatever points it has, which is `boundsOfZones`'s own rule for a degenerate zone.
 		areaMm2: measured.ok ? measured.value : 0,

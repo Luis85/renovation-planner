@@ -6,6 +6,7 @@ import type { EditorContext } from '../tools/editor-context';
 import type { EditorPointerEvent } from '../tools/editor-tool';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import { CLICK_EPSILON_PX } from '../handleMetrics';
+import { curvedCandidateIntersection } from './curvedCandidateIntersection';
 
 function intersects(a: Point, b: Point, box: BoundingBox): boolean {
 	let near = 0, far = 1;
@@ -19,6 +20,7 @@ function intersects(a: Point, b: Point, box: BoundingBox): boolean {
 	return true;
 }
 function hit(candidate: SpatialObjectCandidate, box: BoundingBox): boolean {
+	if (candidate.bulges?.some(value => value !== 0)) return curvedCandidateIntersection(candidate, box);
 	const points = candidate.points;
 	if (!points.length) return false;
 	const closed = !candidate.kind || candidate.kind === 'object';

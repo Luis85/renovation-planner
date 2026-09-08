@@ -1,12 +1,31 @@
 import { expect, it } from 'vitest';
 import { openingOffsetAt, openingSymbol } from '../../../src/domain/spatial/openingGeometry';
-import type { Opening, Wall } from '../../../src/domain/spatial/Structure';
+import { alongWall, endForWallLength, wallLength, wallTangent, type Opening, type Wall } from '../../../src/domain/spatial/Structure';
 import { rotateWallStructure } from '../../../src/domain/spatial/rotateWall';
 import { scaleStructure } from '../../../src/domain/spatial/structureGeometry';
 import { expectOk } from '../../helpers/domain';
 
 const wall: Wall = { id: 'wall-a', start: { x: 0, y: 0 }, end: { x: 4000, y: 0 }, height: 2400, thickness: 150 };
 const door: Opening = { id: 'opening-a', kind: 'door', hostId: wall.id, offset: 800, width: 900, height: 2100, sill: 0 };
+
+it('places and renders openings along curved hosts with local jamb and hinge tangents', () => {
+	const host = { ...wall, bulge: 0.5 }, middle = wallLength(host) / 2;
+	expect(endForWallLength(host, wallLength(host))).toBe(host.end);
+	const resized = { ...host, end: endForWallLength(host, wallLength(host) * 1.5) };
+	expect(wallLength(resized)).toBeCloseTo(wallLength(host) * 1.5); expect(resized.end.y).toBe(host.end.y);
+	const point = alongWall(host, middle);
+	expect(openingOffsetAt(host, point, door.width)).toBeCloseTo(middle - door.width / 2);
+	const opening = { ...door, offset: middle - door.width / 2 }, symbol = openingSymbol(opening, host);
+	expect(symbol.cut.length).toBeGreaterThan(2);
+	expect(symbol.cut[0]).toEqual(alongWall(host, opening.offset));
+	expect(symbol.cut.at(-1)).toEqual(alongWall(host, opening.offset + opening.width));
+	const tangent = wallTangent(host, opening.offset);
+	expect(symbol.leaf[1].x - symbol.leaf[0].x).toBeCloseTo(door.width * tangent.y);
+	expect(symbol.leaf[1].y - symbol.leaf[0].y).toBeCloseTo(-door.width * tangent.x);
+	const closedWindow = openingSymbol({ ...opening, kind: 'window' }, host);
+	expect(closedWindow.leaf).toEqual(closedWindow.cut);
+	expect(closedWindow.frame[2]).toHaveLength(closedWindow.cut.length);
+});
 
 it('centres click placement on horizontal and reversed vertical hosts and clamps complete width', () => {
 	expect(openingOffsetAt(wall, { x: 2000, y: 50 }, 900)).toBe(1550);

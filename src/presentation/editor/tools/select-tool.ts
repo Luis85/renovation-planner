@@ -28,6 +28,7 @@ export interface SpatialObjectCandidate {
 	readonly width?: number;
 	readonly id: string;
 	readonly points: readonly Point[];
+	readonly bulges?: readonly number[];
 }
 
 /**

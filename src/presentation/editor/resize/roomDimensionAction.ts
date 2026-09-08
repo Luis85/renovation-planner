@@ -29,11 +29,11 @@ export function createRoomDimensionAction(context: PlanEditorContext,
 	const lifecycle = createRoomEditLifecycle(context, runtime, {
 		tool: 'edit-room-dimension', faultEvent: 'editor.dimension.open.faulted',
 		latest: current => {
-			const box = current?.zoneType === 'Room' ? roomDimensions(current.points) : null;
+			const box = current?.zoneType === 'Room' ? roomDimensions(current.points, current.bulges) : null;
 			return box ? tr('editor.resize.latest', dimensionTexts(box)) : tr('editor.resize.latest-unavailable');
 		},
 	}, (baseline, controls) => {
-		const box = roomDimensions(baseline.entity.geometry.points);
+		const box = roomDimensions(baseline.entity.geometry.points, baseline.entity.geometry.bulges);
 		if (box === null) return Promise.resolve();
 		return new Promise<void>(resolve => {
 			resolvePresentation = resolve;

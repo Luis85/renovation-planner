@@ -104,7 +104,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 		if (!rotationChanged(original.points, points)) return;
 		if (original.kind === 'wall') { if (!blocked.value && !active.value) await runtime.wall?.rotateWall(id, rotationDegreesBetween(original.points, points), original.wall); return; }
 		await operate(id, async baseline => {
-			if (baseline.shape.kind !== original.kind || JSON.stringify(baseline.shape.points) !== JSON.stringify(original.points)) { notifyOperationFailure(staleWriteRefusal()); return; }
+			if (baseline.shape.kind !== original.kind || JSON.stringify(baseline.shape.points) !== JSON.stringify(original.points) || JSON.stringify(baseline.shape.bulges) !== JSON.stringify(original.bulges)) { notifyOperationFailure(staleWriteRefusal()); return; }
 			const result = await runtime.dispatcher.run(baseline.command(points)); if (alive && !result.ok) notifyOperationFailure(result.error);
 		});
 	}

@@ -91,6 +91,14 @@ async function mountOnOneProject(outcome: ProjectOpenOutcome) {
 					// read that merely raced the index scan — which is the state this file's
 					// first case is about.
 					indexScanCompleted: () => true,
+					// `ProjectDetailState.hydrate` asks this beside the plan list (design slice 22),
+					// to decide whether the entry region can name a plan. `null` is the honest
+					// answer for a fixture with no stored context, and it is STATED for the reason
+					// every other key here is stated: a `provide` value is `unknown`, so an omitted
+					// member is not a type error but a `TypeError` inside a promise nothing awaits —
+					// which is exactly what it was, four unhandled rejections with every case in
+					// this file still green.
+					continueContext: () => Promise.resolve(null),
 				},
 			},
 		},

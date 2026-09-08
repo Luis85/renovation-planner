@@ -12,6 +12,7 @@ import { cancelResultFor, useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import type { CreatePlanInput } from '../../application/commands/plan/CreatePlan';
+import type { PlanSummaryDto } from '../read-models/PlanDto';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { AssetId } from '../../domain/asset/AssetId';
 import { isErr, ok } from '../../core/result/Result';
@@ -71,8 +72,42 @@ function toggleGuidance(): void {
 }
 function back(): void { context.navigate(section === 'prices' ? props.projectId : null); }
 
-function hydrate(): Promise<void> {
-	return detail.hydrate(context.queries, props.projectId, context.indexScanCompleted());
+/**
+ * The plan the entry region names by name, or `null`.
+ *
+ * Resolved HERE rather than in `ProjectDetail`, because it is a READ: `context.continueContext()`
+ * is the same door `ViewRoot.resolveStored` uses, and the design spec's §7 rule for it is
+ * "validation is a read, not a subscription" — so it is asked on every hydrate, beside the plan
+ * list it has to be resolved against, and never subscribed to.
+ */
+const lastPlan = ref<PlanSummaryDto | null>(null);
+
+let hydrateTicket = 0;
+
+/**
+ * The plan read and the stored-context read, as ONE hydrate.
+ *
+ * Together rather than in sequence because the second is only meaningful against the first: a
+ * stored plan is `lastPlan` when it belongs to THIS project and is in the readable list, so a
+ * context resolved against a stale list would name a plan this pane cannot open, and one resolved
+ * before the list would have nothing to check against.
+ *
+ * The ticket is what a `Promise.all` costs: `onProjectsChanged` and `onPlansChanged` both call
+ * this and either can land while an earlier one is still in flight, so the LAST caller's answer
+ * has to be the one that writes. `disposed` says the same thing about a pane that has gone — the
+ * pair `hydratePrices` already states, for the same reason.
+ */
+async function hydrate(): Promise<void> {
+	const ticket = ++hydrateTicket;
+	const [, stored] = await Promise.all([
+		detail.hydrate(context.queries, props.projectId, context.indexScanCompleted()),
+		context.continueContext(),
+	]);
+	if (disposed || ticket !== hydrateTicket) return;
+	lastPlan.value =
+		stored === null || stored.projectId !== props.projectId
+			? null
+			: plans.value.find((plan) => plan.id === stored.planId) ?? null;
 }
 
 /**
@@ -307,6 +342,7 @@ if (section === 'prices') {
 		:plans-failure="plansError === null ? null : trError(plansError)"
 		:prices-loading="pricesLoading"
 		:plans="plans"
+		:last-plan="lastPlan"
 		:unreadable-plans="unreadablePlans"
 		:empty-state="emptyState"
 		:asset-prices="assetPrices"

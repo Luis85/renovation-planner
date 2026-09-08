@@ -321,6 +321,13 @@ const SHOTS = [
 	// ENTRY id, and refuses `--width` with no entry beside it because "the fixed shots carry
 	// their own". Every other shot with a query string lives here for the same reason.
 	{ name: 'project-detail', query: '?project=project-1', selector: PROJECT_VIEW },
+	// The START variant (design slice 22): the same detail state on a project with NO plans, which
+	// is the screen every just-created project lands on and the one no capture could reach — every
+	// shot of this surface seeds 26 plans, so the active variant was the only one ever
+	// photographed. `&plans=0` is the whole difference; without it this is a second copy of the
+	// shot above under a name promising the other layout, which is the silent wrong-picture
+	// outcome every refusal in `resolveShots` exists to prevent.
+	{ name: 'project-detail-new', query: '?project=project-1&plans=0', selector: PROJECT_VIEW },
 	// The project's own PRICE SECTION, which no resting shot of this surface can reach: it sits
 	// below 26 plan rows inside `.rp-project-detail__body`, the pane's one scroller, so
 	// `project-detail` above photographs plans and nothing else. Measured, not predicted — that

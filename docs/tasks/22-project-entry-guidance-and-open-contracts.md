@@ -153,6 +153,28 @@ new file `tests/presentation/views/projectEntryGuidance.test.ts` rather than gro
 **Docs:** in `docs/requirements/Choose the next step from a project's details.md`, add a dated
 paragraph under "Project-surface implementation" naming the three entries and the variant rule.
 
+#### Amendments (2026-09-08, as built)
+
+1. **`rp-project-detail__entry--primary` was NOT emitted.** Priority is carried by `mod-cta` on the
+   first entry's action, which is what `ProjectEntryAction`'s own `priority` prop means in the
+   component library — and a wrapper class with no rule fails
+   `projectDetail.test.ts`'s "declares a rule for every class it actually emits", while a rule
+   invented to satisfy it would be visual design this task was not asked to make. The four other
+   `__entry*` classes are emitted and styled.
+2. **`view.project.prices-open`'s button keeps `.rp-project-prices-open` beside
+   `.rp-project-detail__entry-action`.** That selector is older than the entry it now sits in and
+   two checks key on it, so the entries carry an optional extra class rather than a rename
+   rippling through tests this task is not about. Neither of the two existing cases the brief
+   expected to update actually needed changing: the active variant still draws
+   `view.project.guidance-title`, and the schedule/quotes pair is still inside
+   `.rp-project-guidance`. Watched green rather than assumed.
+3. **The German copy is informal (`du`) and the rest of the locale is formal (`Sie`).** The design
+   package's `ui-copy.md` gives this surface's German in du-form and it was adopted verbatim, which
+   turned `strings.test.ts`'s "no du-form imperative anywhere in `de.ts`" red on exactly one value.
+   That case now exempts the `deProjectNavigation` TABLE, with the conflict written down at the
+   exemption; whether the product addresses the reader as `du` at all is the design package's to
+   settle and is **open**, not closed by this task.
+
 ### Task 2: Clear the stored Resume target on a reliably missing project
 
 **Spec:** `states-and-navigation.md` "Resume resolution" step 5; requirement note
@@ -290,7 +312,7 @@ manual case written and unrun; asset library and real-device measurement still o
 
 ## Acceptance criteria
 
-- [ ] Task 1: entry cards, variants, last-plan naming, choose-a-plan focus, hide/show, `?plans=`
+- [x] Task 1: entry cards, variants, last-plan naming, choose-a-plan focus, hide/show, `?plans=`
       knob and `project-detail-new` capture.
 - [ ] Task 2: `forgetContinue` fires exactly on a reliably missing project.
 - [ ] Task 3: palette open records the target on `'opened'` only.

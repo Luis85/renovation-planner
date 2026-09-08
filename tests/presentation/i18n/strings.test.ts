@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { t, tr } from '../../../src/presentation/i18n/strings';
 import { de } from '../../../src/presentation/i18n/locales/de';
+import { deProjectNavigation } from '../../../src/presentation/i18n/locales/de/projectNavigation';
 import { en } from '../../../src/presentation/i18n/locales/en';
 import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import { createMoney } from '../../../src/core/money/Money';
@@ -265,11 +266,37 @@ describe('the German locale', () => {
 	const INFORMAL_IMPERATIVE =
 		/(?<!\p{L})(Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Öffne|Überprüfe)(?!\p{L})/u;
 
-	it('addresses the user formally throughout: no du-form imperative anywhere in de.ts', () => {
+	/**
+	 * **THE ONE TABLE THAT IS INFORMAL BY DESIGN, and it is exempted whole rather than by key.**
+	 *
+	 * `docs/user-experience/renovation-planner-project-specs/ui-copy.md` gives the project
+	 * surface's guidance and entry copy in du-form — *"Womit möchtest du beginnen?"*, *"Zeichne
+	 * einen Grundriss…"* — and design slice 22 implemented that table verbatim, so this locale now
+	 * holds two registers and this case can no longer be true of all of it. The exemption is the
+	 * TABLE, because that is the unit the design package decides: exempting the single value that
+	 * happens to trip the ten verbs above would claim the rest of the table is formal, and it is
+	 * not — `Halte fest`, `Mach dort weiter` and `Hinterlege` are all du-forms this pattern
+	 * simply cannot see, which the paragraph above already says it does not.
+	 *
+	 * So what is left of this check is narrower than its name and is stated rather than implied:
+	 * every OTHER table stays formal, and whether the app should address the reader as `du` at all
+	 * is the design package's to settle for the whole product rather than one region's to decide.
+	 * Recorded here, at the exemption, because that is where the next reader stands.
+	 */
+	const INFORMAL_BY_DESIGN = new Set(Object.keys(deProjectNavigation));
+
+	it('addresses the user formally outside the design package’s own du-form table', () => {
 		const offenders = Object.entries(de)
-			.filter(([, german]) => INFORMAL_IMPERATIVE.test(german))
+			.filter(([key, german]) => !INFORMAL_BY_DESIGN.has(key) && INFORMAL_IMPERATIVE.test(german))
 			.map(([key]) => key);
 		expect(offenders).toEqual([]);
+	});
+
+	// The instrument before the measurement: an exemption that stopped naming the table it is
+	// about — a rename, a split — would silently re-cover it and read exactly like a clean locale.
+	it('exempts a table that is actually part of the locale, and only that table', () => {
+		expect(INFORMAL_BY_DESIGN.size).toBeGreaterThan(0);
+		for (const key of INFORMAL_BY_DESIGN) expect(de).toHaveProperty([key]);
 	});
 
 	it('calls a footprint an Umriss everywhere, including the toolbar', () => {

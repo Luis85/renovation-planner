@@ -85,10 +85,10 @@ const elementDraft = computed(() => {
 		/>
 		<WallDraftOverlay
 			:points="wallDraftPoints"
+			:cursor="runtime.activeToolId.value === 'draw-wall' ? task.draft.cursor : null"
 			:tokens="tokens"
 			:zoom="zoom"
 		/>
 	</VLayer>
 </template>
-
 

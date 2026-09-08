@@ -9,6 +9,7 @@ import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
 import { dimensionTexts, roomDimensions, type DimensionsText } from './roomDimensions';
 import { tr } from '../../i18n/strings';
 import InlineRoomDimension from './InlineRoomDimension.vue';
+import DraftRoomDimensions from './DraftRoomDimensions.vue';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
@@ -62,6 +63,7 @@ watch(draft, (next, previous) => {
 		ref="root"
 		class="rp-dimension-labels"
 	>
+		<DraftRoomDimensions />
 		<template v-if="visible && box">
 			<template v-if="draft === null">
 				<span

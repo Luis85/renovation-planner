@@ -36,7 +36,7 @@
  * task ends by returning to Select, which unmounts the very control the user pressed.
  */
 import { storeToRefs } from 'pinia';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { tr } from '../../i18n/strings';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useSelectionStore } from '../selection/selection-store';
@@ -54,6 +54,9 @@ import { structureRecords } from '../structure/structureRecords';
 import ElementInspector from '../elements/ElementInspector.vue';
 import ElementTaskForm from '../elements/ElementTaskForm.vue';
 import { isElementTool } from '../elements/elementDraft';
+import StructureTaskForm from '../structure/StructureTaskForm.vue';
+import { isStructureTool } from '../structure/structureDraft';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
@@ -62,6 +65,10 @@ const rooms = useSpatialRecords();
 const renovationSession = useRenovationSession();
 const records = computed(() => [...rooms.value, ...structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements)]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
+const workspace = useWorkspaceStore();
+watch(activeToolId, tool => {
+	if (isStructureTool(tool) && workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
+});
 </script>
 
 <template>
@@ -76,6 +83,7 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 		</h2>
 		<RenovationInspector v-if="renovationSession.perspective === 'review'" />
 		<NewRoomInspector v-else-if="activeToolId === 'draw-room'" />
+		<StructureTaskForm v-else-if="isStructureTool(activeToolId)" />
 		<ElementTaskForm v-else-if="isElementTool(activeToolId)" />
 		<MultiSelectionInspector
 			v-else-if="selection.kind === 'multiple'"

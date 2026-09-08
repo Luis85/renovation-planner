@@ -17,6 +17,7 @@ function rotate(event: Event, degrees?: number): Promise<void> { return runInspe
 	<div
 		v-if="visible"
 		class="rp-object-rotation-actions"
+		:class="{ 'rp-object-rotation-actions--host': hostWall }"
 		role="group"
 		:aria-label="label"
 	>

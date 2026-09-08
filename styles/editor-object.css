@@ -72,6 +72,8 @@
 	white-space: normal;
 }
 .renovation-plan-editor .rp-object-rotation-actions .rp-host-icon { flex-shrink: 0; }
+.renovation-plan-editor .rp-object-rotation-actions--host { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.renovation-plan-editor .rp-object-rotation-actions--host > button:first-child { grid-column: 1 / -1; }
 .renovation-plan-editor .rp-object-rotation-hint {
 	grid-column: 1 / -1;
 	margin: 0;

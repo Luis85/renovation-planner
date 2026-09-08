@@ -49,6 +49,15 @@ describe('explicit asset definition draft', () => {
 		panel.unmount();
 	});
 
+	it('enables Save once a field is dirty and no other state blocks it', async () => {
+		const entry = anEntry();
+		const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry] });
+		expect(panel.get('button[type="submit"]').attributes('disabled')).toBeDefined();
+		await panel.get('[data-field="supplier"]').setValue('Northern timber supplier');
+		expect(panel.get('button[type="submit"]').attributes('disabled')).toBeUndefined();
+		panel.unmount();
+	});
+
 	it('clears nullable metadata and height in one definition change', async () => {
 		const entry = { ...anEntry(), height: 190, notes: 'old notes', sku: 'old sku' };
 		const execute = vi.fn<Update>(() => Promise.resolve(refused()));
@@ -162,6 +171,39 @@ describe('write-boundary conflict recovery', () => {
 	});
 });
 
+/**
+ * `save()`'s own `catch`, as opposed to `execute` answering a rejected `Result` (asserted
+ * above): here the command's promise itself REJECTS, which is a fault rather than a business
+ * refusal. Two sites throw inside the try, and the `catch` reads `status.value` to tell them
+ * apart — thrown before the write is confirmed (status still `saving`) against thrown during
+ * the post-write read-back (status already `refresh`, set the line before the read).
+ */
+describe('a thrown fault inside save, as opposed to a rejected Result', () => {
+	it('reports the write outcome as unknown when the command itself throws', async () => {
+		const entry = anEntry();
+		const execute = vi.fn<Update>(() => Promise.reject(new Error('vault exploded')));
+		const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry], commands: { updateAsset: { execute } } });
+		await panel.get('[data-field="supplier"]').setValue('draft');
+		await panel.get('.rp-al-definition').trigger('submit'); await settle();
+		expect(panel.text()).toContain('outcome could not be confirmed');
+		expect(panel.get('button[type="submit"]').attributes('disabled')).toBeDefined();
+		panel.unmount();
+	});
+	it('keeps the refresh banner when the post-write read itself throws', async () => {
+		const entry = anEntry();
+		let throwOnRead = false;
+		const execute = vi.fn<Update>(() => { throwOnRead = true; return Promise.resolve(ok(makeAsset({ id: entry.assetId }))); });
+		const listCatalogue = (): Promise<Result<{ entries: readonly CatalogueEntryDto[]; unreadable: [] }, never>> =>
+			throwOnRead ? Promise.reject(new Error('read exploded')) : Promise.resolve(ok({ entries: [entry], unreadable: [] }));
+		const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry], queries: { listCatalogue }, commands: { updateAsset: { execute } } });
+		await panel.get('[data-field="supplier"]').setValue('draft');
+		await panel.get('.rp-al-definition').trigger('submit'); await settle();
+		expect(panel.text()).toContain('Refresh needed');
+		expect(panel.get('button[type="submit"]').attributes('disabled')).toBeDefined();
+		panel.unmount();
+	});
+});
+
 describe('an undeclared vocabulary member', () => {
 	it('keeps an undeclared category visible and never submits it unchanged (D04)', async () => {
 		const entry = { ...anEntry(), category: 'stone' as CatalogueEntryDto['category'] };
@@ -173,6 +215,14 @@ describe('an undeclared vocabulary member', () => {
 		await panel.get('[data-field="supplier"]').setValue('Quarry');
 		await panel.get('.rp-al-definition').trigger('submit'); await settle();
 		expect(execute.mock.calls[0]?.[0].changes).toEqual({ supplier: 'Quarry' });
+		panel.unmount();
+	});
+	it('keeps an undeclared unit visible, labelled with its raw value', async () => {
+		const entry = { ...anEntry(), unit: 'gallons' as CatalogueEntryDto['unit'] };
+		const { panel } = await mountInspector({ assetId: entry.assetId, entries: [entry] });
+		const select = panel.get('[data-field="unit"]').element as HTMLSelectElement;
+		expect(select.value).toBe('gallons');
+		expect([...select.options].map((o) => o.text)).toContain('gallons');
 		panel.unmount();
 	});
 });

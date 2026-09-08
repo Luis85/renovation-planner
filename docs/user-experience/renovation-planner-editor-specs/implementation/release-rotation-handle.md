@@ -44,13 +44,18 @@ it is not yet a combined interaction or screenshot acceptance claim.
 
 ## Integrated verification
 
-Scoped ESLint and the full Vue type check pass. A single-worker joint run passed 50 tests in
+Scoped ESLint, the full Vue type check and whole-repository Oxlint pass. A single-worker joint run passed 50 tests in
 five files: `rotationHandleGlyph`, `rotationInspectorRoutes`, `objectRotationRuntime`, domain
 `rotateWall`, and `wallRotationRuntime`. This includes all 26 wall/domain cases and the newly
 added peer-preview/identical-refresh pair. The old-red fork was not run. The Inspector test
 opens and cancels each canonical form for Room, Area, Object, Path, Fence, Measurement, Wall
 and Opening; it checks explicit host-wall wording, allowed Renovate routes at 460 px, no
 geometry controls in Review, no duplicate canvas action bar and unchanged vault bytes.
+
+Oxlint initially rejected two conditional assertions in the new Inspector test. They now run
+unconditionally and also check that the opening-specific hint is absent for other targets.
+The final two UI tests pass after that correction and removal of an unreachable empty-angle
+fallback; scoped lint, types and Oxlint were repeated on those final source bytes.
 
 The actual four-scenario rotation screenshots and native browser inputs still follow this
 source gate. Final whole-repository coverage/analysis, original nine journeys/eighteen reference

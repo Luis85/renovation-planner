@@ -242,6 +242,19 @@ describe('searching, in the narrow composition', () => {
 	});
 });
 
+describe('the narrow composition\'s scroll restore', () => {
+	it('restores the shelves scroll position on Back at a narrow width (AL10)', async () => {
+		narrow();
+		const root = await mountLibrary();
+		const shelves = root.get('.rp-al-shelves').element;
+		shelves.scrollTop = 120;
+		await root.get(`[data-asset-id="${ALDER.assetId}"]`).trigger('click'); await settle();
+		shelves.scrollTop = 0;
+		await root.get('.rp-al-inspector__back').trigger('click'); await settle();
+		expect(root.get('.rp-al-shelves').element.scrollTop).toBe(120);
+	});
+});
+
 describe('the clear-search control on the field', () => {
 	it('offers a clear control while the search holds text and returns focus to the field', async () => {
 		const root = await mountLibrary();

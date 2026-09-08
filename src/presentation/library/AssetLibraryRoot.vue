@@ -24,6 +24,8 @@ const draftGuard = useLibraryDraftGuard();
 
 const shellEl = ref<HTMLElement | null>(null);
 const searchEl = ref<HTMLInputElement | null>(null);
+const bodyRef = ref<InstanceType<typeof AssetLibraryBody> | null>(null);
+let savedScrollTop = 0;
 
 function hydrate(): Promise<void> {
 	return store.hydrate(context.queries, context.indexScanCompleted);
@@ -75,6 +77,26 @@ watch(
 );
 
 const paneAssetId = computed(() => (showingSelection.value ? (selectedId.value ?? '') : ''));
+
+/**
+ * AL10: "Back restores the list with the same search, groups, and scroll position." Below
+ * 35rem `.rp-al-body` is `display: none` while the inspector owns the pane, and a hidden
+ * element's scroll offset is lost, so it is read before the swap and written back after it.
+ *
+ * Watches `paneAssetId` rather than `showingSelection` itself: `showingSelection` defaults to
+ * `true` (it is meaningless until a selection exists), so the FIRST ever selection from a fresh
+ * mount sets it to `true` again — a no-op Vue never re-fires a watcher for — and the shelves'
+ * scroll offset would never be captured. `paneAssetId` is the same value the narrow-composition
+ * CSS itself keys on (`data-selected-asset-id`), so it changes on exactly the transitions that
+ * actually hide or reveal `.rp-al-shelves`.
+ */
+watch(paneAssetId, async (assetId) => {
+	const shelves = bodyRef.value?.shelvesElement() ?? null;
+	if (shelves === null) return;
+	if (assetId !== '') { savedScrollTop = shelves.scrollTop; return; }
+	await nextTick();
+	shelves.scrollTop = savedScrollTop;
+}, { flush: 'sync' });
 
 function publish(assetId: AssetId | null, expanded: ReadonlySet<string>): void {
 	context.publishViewState(assetId ?? '', [...expanded]);
@@ -242,6 +264,7 @@ watch(context.assetId, async (assetId) => {
 				</div>
 				<template v-else>
 					<AssetLibraryBody
+						ref="bodyRef"
 						:expanded="expandedCategories"
 						:selected-id="selectedId"
 						@toggle="toggleShelf"

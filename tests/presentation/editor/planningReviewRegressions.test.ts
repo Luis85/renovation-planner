@@ -16,6 +16,17 @@ async function setup() {
  return rig;
 }
 describe('planning review regressions', () => {
+ it('generates renovation and planning findings from one fresh baseline before a peer notification arrives', async () => {
+  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');
+  await rig.runtime.renovation.perspective('review'); await settle();
+  const read = expectOk(await services.read(rig.plan.id));
+  const subject = { id: 'peer-proposal', roomId: rig.room.id, targetId: rig.room.id, kind: 'floor' as const, existing: null, planned: { change: 'add' as const, description: 'Peer floor proposal' } };
+  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(read.plan.entity, { subjects: [subject], work: [], decisions: [] })), read.plan.version));
+  expect(rig.wrapper.text()).toContain('No gaps found');
+  const write = vi.spyOn(rig.deps.commands, 'reviewNote');
+  await rig.wrapper.get('[data-rp-action="review-note"]').trigger('click'); await settle();
+  expect(write.mock.calls[0][1]).toContain('Peer floor proposal'); expect(write.mock.calls[0][1]).not.toContain('No gaps found');
+ });
  it('refuses a shopping list when a fully procured source becomes stale', async () => {
   const rig = await planningStack();
   expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute());

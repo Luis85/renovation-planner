@@ -58,3 +58,9 @@ The unchanged `npm run check`, integrated wall/UX regression reruns, supplementa
 ## Historical checkpoints
 
 The initial Object implementation was `43fd968b` (rebased as `9f44c959`); its partial checks do not establish the expanded scope. The first generalized engine checkpoint was `f056a1f2` (rebased as `643a0c00`), with full Oxlint/types and 41 targeted tests. Subsequent review established and corrected viewport-clamp/vertex overlap, Shift-corner selection, item-order preservation, peer-preview retirement, cardinal Room sizing and existing lint-budget issues. The 172-test receipt above supersedes those partial verification counts.
+
+### CI scene regression follow-up (test-only)
+
+The full CI suite exposed five stale assertions that counted every interaction-layer Circle/Line as a legacy selection affordance. The corrected suites still require exactly four direct screen-space vertex handles and one named selection outline, assert the nested rotation group separately, and require its removal on deselection/Review. The idle scene now explicitly reserves four empty groups. No production code or verification threshold changed; the source tree remains `26ae80d02e43d3c7bd13542e5e6093ee3438982b`.
+
+`npm run check:fast -- tests/presentation/editor/renovateRoomManipulation.test.ts tests/presentation/editor/scene.test.ts tests/presentation/editor/zoneEditing.test.ts tests/presentation/editor/objectRotation.test.ts tests/presentation/editor/objectRotationRuntime.test.ts --maxWorkers=1 --no-file-parallelism` passed global Oxlint, type checking and **5 files / 89 tests** on 2026-09-08. Full-suite coverage and the unchanged integrated gate remain parent-owned verification; this follow-up does not claim they have passed.

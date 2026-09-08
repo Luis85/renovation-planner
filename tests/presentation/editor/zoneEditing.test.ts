@@ -174,9 +174,10 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		await settle();
 
 		// DoD 5's second half: the selection SHOWS — one handle circle per vertex, in the
-		// interaction layer.
+		// interaction layer, separate from the nested rotation affordance.
 		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
-		expect(interaction?.find('Circle').length).toBe(ZONE_A_DTO.points.length);
+		expect(interaction?.getChildren().filter(node => node.getClassName() === 'Circle')).toHaveLength(ZONE_A_DTO.points.length);
+		expect(interaction?.findOne('.object-rotation-handle')).toBeDefined();
 
 		// The panel shows the pre-drag area: 2900 × 1900 mm. Waited for, not assumed — the
 		// selection query crosses an awaited repository read before the DTO lands.
@@ -523,7 +524,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
 		// The handles were already asserted elsewhere; this is the shape drawn BESIDE them,
 		// and an outline that stopped being drawn would leave that count untouched.
-		const outlines = interaction?.find<Konva.Line>('Line') ?? [];
+		const outlines = interaction?.find<Konva.Line>('.selection-outline') ?? [];
 		expect(outlines).toHaveLength(1);
 		expect(outlines[0]?.closed()).toBe(true);
 		// The fixture rect (1500..4400)² through the default camera: world = 10 × screen − 480.
@@ -550,8 +551,9 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		await settle();
 
 		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
-		expect(interaction?.find('Circle')).toHaveLength(ZONE_A_DTO.points.length);
-		expect(interaction?.find('Line')).toHaveLength(1);
+		expect(interaction?.getChildren().filter(node => node.getClassName() === 'Circle')).toHaveLength(ZONE_A_DTO.points.length);
+		expect(interaction?.findOne('.object-rotation-handle')).toBeDefined();
+		expect(interaction?.find('.selection-outline')).toHaveLength(1);
 
 		// (700,500) is world (6520,4520) — outside the fixture rect, so this is empty canvas.
 		click(canvas, 700, 500);
@@ -562,6 +564,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		// would satisfy both and go on being drawn over a zone the user no longer has selected.
 		expect(interaction?.find('Circle')).toHaveLength(0);
 		expect(interaction?.find('Line')).toHaveLength(0);
+		expect(interaction?.findOne('.object-rotation-handle')).toBeUndefined();
 
 		harness.unmount();
 	});

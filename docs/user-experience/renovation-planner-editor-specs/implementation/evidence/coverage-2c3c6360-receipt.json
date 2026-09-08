@@ -1,0 +1,392 @@
+{
+  "scope": "Complete Linux 24 CI coverage; not final combined UI acceptance",
+  "run": 34145575098,
+  "head": "2c3c63604c87c4f0adf254b3462734aa70e4e645",
+  "merge": "f9f2f70a7bc755d7d0869a658540a70a04399bb3",
+  "tree": "fd1d3c33497c9587eb8ba6ed38df48e736bea69f",
+  "artifactId": 10027745786,
+  "filesPassed": 653,
+  "testsPassed": 8087,
+  "testsSkipped": 69,
+  "jsonSha256": "2f166c8dadedd9ba0d5bf5fbc2ca066ef61047aa49b8a41d751cb8f5b7f87623",
+  "lcovSha256": "f995bb3491b96064e2c8f2b0858c15f94f99b1a592196b6fd32562eff90951f4",
+  "baselineRef": "45c58609596734f17570a22074d05f3e2f81fafb",
+  "before": {
+    "statements": {
+      "hit": 17876,
+      "total": 18049
+    },
+    "functions": {
+      "hit": 5122,
+      "total": 5160
+    },
+    "lines": {
+      "hit": 13985,
+      "total": 14053
+    },
+    "branches": {
+      "hit": 12400,
+      "total": 12692
+    }
+  },
+  "after": {
+    "statements": {
+      "hit": 17881,
+      "total": 18049
+    },
+    "functions": {
+      "hit": 5122,
+      "total": 5160
+    },
+    "lines": {
+      "hit": 13987,
+      "total": 14053
+    },
+    "branches": {
+      "hit": 12406,
+      "total": 12692
+    }
+  },
+  "gains": [
+    {
+      "path": "src/presentation/editor/planning/CostRow.vue",
+      "kind": "branch",
+      "id": "13",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 59,
+            "column": 75
+          },
+          "end": {
+            "line": 59,
+            "column": 155
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 59,
+              "column": 115
+            },
+            "end": {
+              "line": 59,
+              "column": 142
+            }
+          },
+          {
+            "start": {
+              "line": 59,
+              "column": 142
+            },
+            "end": {
+              "line": 59,
+              "column": 155
+            }
+          }
+        ],
+        "line": 59
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/editor/planning/planningSelectionContext.ts",
+      "kind": "branch",
+      "id": "2",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 12,
+            "column": 70
+          },
+          "end": {
+            "line": 12,
+            "column": 99
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 12,
+              "column": 85
+            },
+            "end": {
+              "line": 12,
+              "column": 95
+            }
+          },
+          {
+            "start": {
+              "line": 12,
+              "column": 95
+            },
+            "end": {
+              "line": 12,
+              "column": 99
+            }
+          }
+        ],
+        "line": 12
+      },
+      "before": 0,
+      "after": 2
+    },
+    {
+      "path": "src/presentation/library/AssetLibraryRoot.vue",
+      "kind": "branch",
+      "id": "20",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 162,
+            "column": 1
+          },
+          "end": {
+            "line": 165,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 162,
+              "column": 1
+            },
+            "end": {
+              "line": 165,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 162
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/library/AssetLibraryRoot.vue",
+      "kind": "branch",
+      "id": "21",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 172,
+            "column": 1
+          },
+          "end": {
+            "line": 172,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 172,
+              "column": 1
+            },
+            "end": {
+              "line": 172,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 172
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/library/AssetLibraryRoot.vue",
+      "kind": "statement",
+      "id": "90",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 163,
+          "column": 2
+        },
+        "end": {
+          "line": 163,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/library/AssetLibraryRoot.vue",
+      "kind": "statement",
+      "id": "91",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 164,
+          "column": 2
+        },
+        "end": {
+          "line": 164,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/library/AssetLibraryRoot.vue",
+      "kind": "statement",
+      "id": "95",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 172,
+          "column": 37
+        },
+        "end": {
+          "line": 172,
+          "column": 68
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/library/AssetLibraryRoot.vue",
+      "kind": "statement",
+      "id": "96",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 172,
+          "column": 68
+        },
+        "end": {
+          "line": 172,
+          "column": 76
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/library/useDefinitionDraft.ts",
+      "kind": "branch",
+      "id": "13",
+      "arm": 0,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 58,
+            "column": 2
+          },
+          "end": {
+            "line": 58,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 58,
+              "column": 2
+            },
+            "end": {
+              "line": 58,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 58
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/library/useDefinitionDraft.ts",
+      "kind": "statement",
+      "id": "54",
+      "arm": 0,
+      "location": {
+        "start": {
+          "line": 58,
+          "column": 18
+        },
+        "end": {
+          "line": 58,
+          "column": null
+        }
+      },
+      "before": 0,
+      "after": 1
+    },
+    {
+      "path": "src/presentation/views/ProjectList.vue",
+      "kind": "branch",
+      "id": "51",
+      "arm": 1,
+      "location": {
+        "loc": {
+          "start": {
+            "line": 517,
+            "column": 10
+          },
+          "end": {
+            "line": 522,
+            "column": null
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 516,
+              "column": 2
+            },
+            "end": {
+              "line": 522,
+              "column": null
+            }
+          },
+          {
+            "start": {
+              "line": 522,
+              "column": 57
+            },
+            "end": {
+              "line": 522,
+              "column": null
+            }
+          }
+        ],
+        "line": 517
+      },
+      "before": 0,
+      "after": 1
+    }
+  ],
+  "losses": [],
+  "incomparable": [],
+  "branchDeficit": 33,
+  "gate": "npm run check failed only the 98 percent branch threshold; analyze was not reached"
+}

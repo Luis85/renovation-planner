@@ -42,6 +42,6 @@ and one was the covered preservation fallback. All 39 statements remain.
 
 Root imported the exact production change and counter receipt from owner
 83ca2f751894f7e7081c30b76edaf2a8b3304e54. The Root command/domain integration
-run passed16/16tests in6.04seconds. Only the private update field type and date
+run passed 16/16 tests in 6.04 seconds. Only the private update field type and date
 preservation expression changed; public constructors/validation remain intact.
 Root log: requirement-date-integrated.log in the finalization scratch.

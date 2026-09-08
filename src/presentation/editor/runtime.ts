@@ -7,8 +7,7 @@ import { createRenovationDeletionGuard } from './renovation/renovationDeleteGuar
 import { createHistoryActions } from './tools/historyActions';
 import { createRenovationActions } from './renovation/renovationActions';
 import { useRenovationSession } from './renovation/renovationSession';
-import { createStructureTask } from './structure/structureTask';
-import { createStructureActions } from './structure/structureActions';
+import { createStructureEditing, type StructureEditing } from './structure/structureEditing';
 import {
 	computed,
 	inject,
@@ -90,8 +89,9 @@ export interface EditorRuntime {
 	readonly outlineEdit: EditorFormActions['outlineEdit'];
 	readonly planning: ReturnType<typeof createPlanningRefresh>;
 	readonly renovation: ReturnType<typeof createRenovationActions>;
-	readonly structureTask: ReturnType<typeof createStructureTask>;
-	readonly structureActions: ReturnType<typeof createStructureActions>;
+	readonly structureTask: StructureEditing['structureTask'];
+	readonly openingMove: StructureEditing['openingMove'];
+	readonly structureActions: StructureEditing['structureActions'];
 	readonly openReference: () => Promise<void>;
 	readonly referenceActive: Readonly<Ref<boolean>>;
 	readonly referenceBlocked: Readonly<Ref<boolean>>;
@@ -731,8 +731,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
 	});
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect, roomDraft, defaultRoomName });
-	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
-	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
+	const { structureTask, structureActions, openingMove } = createStructureEditing(context, { toolManager, activeToolId, setTool, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const { elementTask, elementActions, rotationActions, curveTask, toolBindings } = createSpatialEditing(context, { toolManager, setTool, returnToSelect, activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, renderState, ledger, structureTask, wall: structureActions, openPlanNote: () => context.openPlanNote() });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value,
 		...toolBindings,
@@ -810,7 +809,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 
 	return {
 		dispatcher: wrappedDispatcher,
-		structureTask, structureActions, elementTask, elementActions, rotationActions, curveTask,
+		openingMove, structureTask, structureActions, elementTask, elementActions, rotationActions, curveTask,
 		toolManager, renderState, activeToolId, setTool, returnToSelect, cancelActiveTask,
 		undo, redo, canUndo, canRedo,
 		inspectorDto: storeToRefs(inspector).dto,

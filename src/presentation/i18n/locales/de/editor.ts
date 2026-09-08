@@ -1,3 +1,4 @@
+import { openingMoveDe } from './openingMove';
 import { openingDe } from './opening';
 import { referenceViewportDe } from './referenceViewport';
 import { curvesDe } from './curves';
@@ -35,6 +36,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.dimension.instruction': 'Länge in Metern eingeben. Anwenden oder Eingabe speichert; Escape bricht ab.',
 	...objectDe,
 	...openingDe,
+	...openingMoveDe,
 	...referenceViewportDe,
 	...editorShellDe,
 	"editor.element.name-required": "Geben Sie einen Namen ein.",

@@ -1,3 +1,4 @@
+import { openingMoveEn } from './openingMove';
 import { openingEn } from './opening';
 import { referenceViewportEn } from './referenceViewport';
 import { curvesEn } from './curves';
@@ -47,6 +48,7 @@ export const editorEn = {
 	'editor.dimension.instruction': 'Enter a length in metres. Apply saves the change. Escape cancels.',
 	...objectEn,
 	...openingEn,
+	...openingMoveEn,
 	...referenceViewportEn,
 	...editorShellEn,
 	"editor.element.name-required": "Enter a name.",

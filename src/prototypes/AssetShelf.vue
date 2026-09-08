@@ -169,10 +169,8 @@ const markId = useId();
 						v-if="showCategory"
 						class="rp-al-row__category"
 					>{{ asset.category }}</span>
-					<span class="rp-al-row__cost">
-						<span class="rp-al-row__amount">{{ priceOf(asset) }}</span>
-						<span class="rp-al-row__unit"> / {{ asset.unit }}</span>
-					</span>
+					<span class="rp-al-row__amount">{{ priceOf(asset) }}</span>
+					<span class="rp-al-row__unit"> / {{ asset.unit }}</span>
 					<span class="rp-al-row__waste">{{ asset.waste ?? '' }}</span>
 					<span class="rp-al-row__supplier">{{ asset.supplier ?? '' }}</span>
 				</button>

@@ -233,3 +233,34 @@ and confirmation of the original asset after clearing its draft name.
 
 Verification: build, lint, whole-project analysis and diff check pass; 18 library,
 store and localization test files / 264 tests pass.
+
+### Gap closure captures (2026-09-08)
+
+Regenerated with `scripts/asset-library-shots.mjs` at `4e6e941c85a57e14c0d1daec4caa77874deea27f`;
+browser `151.0.7922.34` (pinned Chromium — no substitute was needed).
+Price column: amount right-edge spread `5.22px` at 1440 (was 22.3px, browse case step 2).
+The residual 5.22px (9.73px at 720/560) is not the unit-in-cell defect the price-column task
+fixed: it comes from the selected row's own bolder `font-weight` changing what its `ch`-unit
+grid tracks resolve to in pixels, so only the selected row's amount lands a few px off the
+rest. Real, small, and out of this task's scope.
+Used-in rows at 460: heights `[52.09, 50.59, 35.5]` (was 51.8px against 19.6px, step 12) —
+no longer collapsing onto one another.
+Repair strip: reason and action in grid columns (step 15). Headings and waste cell share the
+`17rem` threshold.
+
+**Found while regenerating, not while looking for it**: the merged heading/waste block's own
+`.rp-al-columns { display: none }` rule never actually fired, at any container width, because
+the plain `.rp-al-columns { display: grid; … }` rule was declared AFTER both `@container`
+blocks in `styles/asset-shelf.css` — same specificity, later source order, so the base rule
+always won the cascade regardless of the container query's condition. jsdom cannot render a
+container query, so nothing before this task's real-browser capture could have caught it; the
+AL10-720 capture (container width 440px, under the 32.5rem/520px threshold the block shipped
+with) still showed the full heading row, which is what exposed it. Moved the base rule before
+both `@container` blocks (source order now matches the intended override) and re-measured the
+threshold from scratch, since 32.5rem never actually applied within the widths a selected asset
+renders at (440px at 720, 320px at 560 — both already under 32.5rem, so that value would have
+hidden the heading row at every capture width once the ordering bug was fixed, failing the
+"present at 720" requirement). 17rem (272px) is the real number: the heading's own "Unit cost"
+label is the row's one span that cannot shrink, and it first overflows its track under 260px
+(measured `scrollWidth` 263px against a forced 260px `clientWidth`) while staying clean at
+280px — 17rem sits in that margin, under both AL10-720's and AL10-560's measured containers.

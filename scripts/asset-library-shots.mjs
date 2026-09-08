@@ -25,10 +25,24 @@ async function open(width = 1440, height = 900, extra = '', language = 'en') {
 	await page.goto(`http://localhost:5197/?view=asset-library&asset=base-cabinet-600&lang=${language}&chromeless${extra}`);
 	await page.locator('.rp-al-definition, .rp-empty-state').first().waitFor();
 }
-async function capture(name, state) {
+async function capture(name, state, extra = {}) {
 	await page.screenshot({ path: `${output}/${name}.png`, fullPage: true });
 	const metrics = await page.locator('.renovation-asset-library').evaluate((el) => ({ width: el.clientWidth, scrollWidth: el.scrollWidth }));
-	records.push({ name, state, baselineCommit: commit, fixture: 'tests/harness/assetLibrary.ts', viewport: page.viewportSize(), metrics });
+	records.push({ name, state, baselineCommit: commit, fixture: 'tests/harness/assetLibrary.ts', viewport: page.viewportSize(), metrics: { ...metrics, ...extra } });
+}
+async function measure() {
+	return await page.evaluate(() => {
+		// Collapsed shelf categories keep their rows in the DOM (`display: none`), so an
+		// unfiltered query mixes real amounts with (0,0,0,0) rects from hidden ones — filtered
+		// to rows a reader can actually see (Task A6 review, browser-only finding).
+		const edges = [...document.querySelectorAll('.rp-al-row__amount')]
+			.map((el) => el.getBoundingClientRect())
+			.filter((rect) => rect.width > 0)
+			.map((rect) => rect.right);
+		const spread = edges.length ? Math.max(...edges) - Math.min(...edges) : null;
+		const used = [...document.querySelectorAll('.rp-al-used__row')].map((el) => el.getBoundingClientRect().height);
+		return { amountRightEdgeSpread: spread, usedInRowHeights: used };
+	});
 }
 try {
 	await open(); await capture('AL06-usage', 'Usage above the definition, including project-specific price sources');
@@ -49,7 +63,7 @@ try {
 	await page.locator('.rp-al-create').waitFor(); await page.getByText('No assets yet', { exact: true }).waitFor();
 	await capture('AL08-empty', 'Empty fixture, not a failed read');
 	for (const width of [1440, 720, 560, 460]) {
-		await open(width, 650); await capture(`AL10-${width}-dark`, 'Selected asset, limited height');
+		await open(width, 650); await capture(`AL10-${width}-dark`, 'Selected asset, limited height', await measure());
 	}
 	await open(460, 650, '&theme=light', 'de'); await capture('AL10-460-light-de', 'German in a narrow light leaf');
 	await page.locator('.rp-al-inspector__back').click(); await capture('AL10-460-return', 'Return path preserves selection');

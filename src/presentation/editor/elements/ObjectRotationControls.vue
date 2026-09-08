@@ -4,7 +4,7 @@ import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
 import HostIcon from '../../components/HostIcon.vue';
-const props = defineProps<{ id: string; compact?: boolean }>();
+const props = defineProps<{ id: string }>();
 const runtime = useEditorRuntime();
 const blocked = computed(() => runtime.rotationActions.blocked.value || runtime.rotationActions.active.value);
 function rotate(event: Event, degrees?: number): Promise<void> { return runInspectorAction(event, 'rotate-object', () => runtime.rotationActions.rotate(props.id, degrees)); }
@@ -12,7 +12,6 @@ function rotate(event: Event, degrees?: number): Promise<void> { return runInspe
 <template>
 	<div
 		class="rp-object-rotation-actions"
-		:class="{ 'rp-object-rotation-actions--compact': compact }"
 		role="group"
 		:aria-label="tr('editor.rotation.by')"
 	>
@@ -26,7 +25,6 @@ function rotate(event: Event, degrees?: number): Promise<void> { return runInspe
 			{{ tr('editor.rotation.by') }}
 		</button>
 		<button
-			v-if="!compact"
 			type="button"
 			data-rp-action="rotate-object-left"
 			:aria-label="tr('editor.rotation.counterclockwise')"
@@ -37,7 +35,6 @@ function rotate(event: Event, degrees?: number): Promise<void> { return runInspe
 			{{ tr('editor.rotation.left-quarter') }}
 		</button>
 		<button
-			v-if="!compact"
 			type="button"
 			data-rp-action="rotate-object-right"
 			:aria-label="tr('editor.rotation.clockwise')"

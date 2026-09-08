@@ -15,8 +15,9 @@ controls, preserving the existing shell and Inspector routes.
    host-icon-to-Konva approach. Preserve a visible stem, show the frozen pivot and signed angle
    during dragging, and rotate the baseline handle/stem about that pivot without accumulated drift.
 3. Offer Rotate by and clockwise/counterclockwise quarter turns through shared native Inspector
-   controls for every eligible selected item. Direct canvas actions use a compact numeric entry.
-   Keep EN/DE text and visible directions, wrapping controls at constrained widths.
+   controls for every eligible selected item. The recognizable glyph is the canvas affordance;
+   keep Edit shape/Add detail in the existing small direct-action popover. Keep EN/DE text and
+   visible directions, wrapping controls at constrained widths.
 4. Verify rendered geometry at multiple zooms and viewport edges, angle feedback, native icons,
    keyboard/modal routes, canceled/busy/Review states and all supported targets. Integration and
    final visual/host acceptance remain parent-owned and sequential.

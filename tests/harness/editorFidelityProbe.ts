@@ -5,11 +5,15 @@ import { expectDefined, expectOk } from '../helpers/domain';
 import type { referenceWorkspace } from './referenceWorkspace';
 import { editorCaptionScene } from './editorCaptionProbe';
 import { useSelectionStore } from '../../src/presentation/editor/selection/selection-store';
+import { useProjectStore } from '../../src/presentation/stores/ProjectStore';
 
 /** Explicit test-data preparation, never a production control or a write performed by a query. */
 export function editorFidelityProbe(workspace: ReturnType<typeof referenceWorkspace>) {
 	let seeded = false;
-	return { rotation: editorRotationScene, rotationHoverPoint: editorRotationHoverPoint, captions: editorCaptionScene, selection: () => {
+	return { groups: () => {
+		const project = useProjectStore();
+		return JSON.parse(JSON.stringify({ groups: project.groups, structure: project.structure, rooms: [...project.zones.values()].map(zone => ({ id: zone.id, points: zone.points, ...(zone.bulges ? { bulges: zone.bulges } : {}) })) })) as unknown;
+	}, rotation: editorRotationScene, rotationHoverPoint: editorRotationHoverPoint, captions: editorCaptionScene, selection: () => {
 		const selection = useSelectionStore();
 		return { ids: [...selection.selectedIds], focusedId: selection.focusedId };
 	}, savedNotes: () => [...workspace.stack.vault.entries], async seedSurroundings(german: boolean) {

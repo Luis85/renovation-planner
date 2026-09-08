@@ -20,8 +20,10 @@ import type { EvidencePin } from '../../planning/evidencePins';
 import { useRenovationSession } from '../../renovation/renovationSession';
 import { useWorkspaceStore } from '../../../stores/WorkspaceStore';
 import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
+import type { SpatialObjectGeometry } from '../../../../application/ports/PlanGeometrySidecar';
 
 const props = defineProps<{
+	preview?: readonly SpatialObjectGeometry[];
 	pins: readonly EvidencePin[];
 	dimensionObstacles: readonly BoundingBox[];
 	captionViewport: BoundingBox | null;
@@ -37,7 +39,10 @@ const session = useRenovationSession(), workspace = useWorkspaceStore();
 const captionObstacles = computed(() => session.visible && workspace.layerVisibility.annotation ? props.pins : []);
 const selected = computed(() => new Set<string>(selection.selectedIds));
 
-const models = computed(() => [...zones.value.values()].map((zone) => toZoneRenderModel(zone)));
+const models = computed(() => {
+	const preview = new Map(props.preview?.map(object => [object.id, object]));
+	return [...zones.value.values()].map(zone => toZoneRenderModel({ ...zone, ...preview.get(zone.id) }));
+});
 </script>
 
 <template>

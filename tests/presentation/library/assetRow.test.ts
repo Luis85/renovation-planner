@@ -181,4 +181,11 @@ describe('AssetRow', () => {
 		expect(wrapper.get('.rp-al-row__unit').text()).toBe('/ m²');
 		expect(wrapper.text()).not.toContain('m2');
 	});
+
+	it('places the amount and the unit in their own grid cells so the decimals align', () => {
+		const wrapper = mountRow();
+		const cells = [...wrapper.get('button.rp-al-row').element.children].map((el) => el.className);
+		expect(cells).toEqual(expect.arrayContaining(['rp-al-row__amount', 'rp-al-row__unit']));
+		expect(wrapper.find('.rp-al-row__cost').exists()).toBe(false);
+	});
 });

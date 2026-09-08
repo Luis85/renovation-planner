@@ -135,10 +135,8 @@ const unitSymbol = computed((): string => tr(MEASUREMENT_UNIT_SYMBOLS[props.entr
 		>
 			<AssetMark :outline="outline" />
 			<span class="rp-al-row__name">{{ entry.name }}</span>
-			<span class="rp-al-row__cost">
-				<span class="rp-al-row__amount">{{ priceLabel }}</span>
-				<span class="rp-al-row__unit">/ {{ unitSymbol }}</span>
-			</span>
+			<span class="rp-al-row__amount">{{ priceLabel }}</span>
+			<span class="rp-al-row__unit">/ {{ unitSymbol }}</span>
 			<span class="rp-al-row__waste">{{ wasteLabel ?? '' }}</span>
 			<span class="rp-al-row__supplier">{{ entry.supplier ?? '' }}</span>
 		</button>

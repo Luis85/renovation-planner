@@ -62,7 +62,7 @@ const shelves = computed((): readonly Shelf[] => {
 			class="rp-al-columns"
 			aria-hidden="true"
 		>
-			<span /><span>{{ tr('form.new-asset.name') }}</span><span>{{ tr('view.asset-library.unit-cost') }}</span><span>{{ tr('view.asset-library.waste') }}</span><span>{{ tr('view.asset-library.supplier') }}</span>
+			<span /><span>{{ tr('form.new-asset.name') }}</span><span class="rp-al-columns__cost">{{ tr('view.asset-library.unit-cost') }}</span><span>{{ tr('view.asset-library.waste') }}</span><span>{{ tr('view.asset-library.supplier') }}</span>
 		</div>
 		<template
 			v-for="shelf in shelves"

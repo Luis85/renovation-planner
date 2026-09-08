@@ -110,4 +110,4 @@ Criterion 4 — **priority cases with overlapping fixtures** — gained the type
 regardless of paint order and cycles all three' (#86, ADR-0020). Read the plan's six-rank list
 narrowly against that: handle-over-body and opening → wall → room are the ranks a test holds; the
 same file's 'ranks a generic element below opening and wall and above the room, and cycles all
-four' (8ee62b4e) holds all four ranks, handle through room.
+four' (8ee62b4e) holds all four body ranks, opening through room.

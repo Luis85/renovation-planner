@@ -5314,10 +5314,11 @@ landed, because the shape of it is the reason the upward merges stayed clean:
   re-implemented their content (all four of its test files and `evidenceThumbnail.ts` exist on
   #91) — the brief's STOP rule was not to close a PR whose commits `main` does not contain, and
   that was true then. **#90 was closed on 2026-09-08 (11:44 UTC), superseded by #91**, once the
-  re-implementation was measured rather than merely observed: four identical test files, plus
-  `evidenceThumbnail.ts`'s content as the retry guard in `createDraftRetry.ts` and the pause in
-  `roomEditLifecycle.ts` — all present on `main` under different names, which is what the STOP
-  rule needed confirmed before closing a PR whose own commits `main` still does not contain.
+  re-implementation was measured rather than merely observed: the four test files and
+  `evidenceThumbnail.ts` present on `main` under their own names, plus the retry guard as
+  `createDraftRetry.ts` and the pause in `roomEditLifecycle.ts` re-implemented under different
+  names — which is what the STOP rule needed confirmed before closing a PR whose own commits
+  `main` still does not contain.
 
 **Spatial multi-selection has landed: the editor selects several rooms and areas at once and
 inspects them as a set.** #74, `codex/editor-implementation`, head 2f1fce9b, merged as dfe9b2a6.
@@ -5572,6 +5573,6 @@ existing `resolveSelectionTarget` priority, no `src/` change. The missing reload
 added the same day: `tests/application/commands/structureCommand.test.ts`'s 'reloads an opening
 with its host and placement through a fresh stack' (0fd81e5d), also green on first run with no
 `src/` change. Both tasks close, and the reference-safety task closes with its prerequisite. The
-same pass fixed the two later threads above: the `#90 stays open` bullet is now the closed record,
+same pass fixed the two later threads on the pull request: the `#90 stays open` bullet is now the closed record,
 and `Persist a wall as one spatial identity`'s `## Outcome` reads its achieved outcome instead of
 "Not started."

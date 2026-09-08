@@ -23,6 +23,7 @@ import { TFile, type Command } from 'obsidian';
 import { FuzzySuggestModal, Notice } from '../helpers/obsidian-mock';
 import { registerPlanEditorCommands } from '../../src/plugin/planEditorCommands';
 import type { PluginCommandHost } from '../../src/plugin/commandHost';
+import type { ContinueContext } from '../../src/application/continueContext';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { SetPlanBackgroundCommand } from '../../src/application/commands/plan/SetPlanBackground';
 import { ReversibleSetPlanBackgroundCommand } from '../../src/application/commands/plan/ReversibleSetPlanBackground';
@@ -50,11 +51,23 @@ interface Wired {
 	readonly commands: Command[];
 	readonly plans: InMemoryPlanRepository;
 	readonly planId: string;
+	readonly projectId: string;
 	readonly vaultFiles: TFile[];
+	/** Every context `rememberContinue` was handed, in order. */
+	readonly remembered: ContinueContext[];
 }
 
 async function wired(
-	options: { withPersistence?: boolean; files?: string[]; indexed?: boolean } = {},
+	options: {
+		withPersistence?: boolean;
+		files?: string[];
+		indexed?: boolean;
+		/** The picked entry carries no `projectId` — a project-less index row. */
+		omitProjectId?: boolean;
+		/** A workspace to reveal through instead of the default `FakeWorkspace` — how a
+		 * reveal failure is driven, the same shape `revealPlanEditor.test.ts` uses. */
+		workspace?: unknown;
+	} = {},
 ): Promise<Wired> {
 	const plans = new InMemoryPlanRepository();
 	const projectId = createProjectId();
@@ -66,10 +79,15 @@ async function wired(
 	// something: an unfiltered `entries()` would pass every assertion about the plan row.
 	index.upsert({ id: projectId, type: 'renovation-project', path: 'Renovation/Sample.md' });
 	if (options.indexed !== false) {
-		index.upsert({ id: plan.id, type: 'renovation-plan', path: PLAN_NOTE, projectId });
+		index.upsert({
+			id: plan.id,
+			type: 'renovation-plan',
+			path: PLAN_NOTE,
+			...(options.omitProjectId ? {} : { projectId }),
+		});
 	}
 
-	const workspace = new FakeWorkspace();
+	const workspace = (options.workspace as FakeWorkspace | undefined) ?? new FakeWorkspace();
 	const commands: Command[] = [];
 	const vaultFiles = (options.files ?? ['Plans/ground.png', 'Notes/readme.md']).map((path) => file(path));
 
@@ -85,6 +103,7 @@ async function wired(
 			vault: { getFiles: () => vaultFiles },
 		} as never,
 		root: {
+			logger: { error: () => undefined, warn: () => undefined, info: () => undefined, debug: () => undefined },
 			persistence:
 				options.withPersistence === false
 					? null
@@ -96,8 +115,9 @@ async function wired(
 		addCommand: (command) => commands.push(command),
 	};
 
-	registerPlanEditorCommands(host);
-	return { host, workspace, commands, plans, planId: plan.id, vaultFiles };
+	const remembered: ContinueContext[] = [];
+	registerPlanEditorCommands(host, (context) => remembered.push(context));
+	return { host, workspace: workspace as FakeWorkspace, commands, plans, planId: plan.id, projectId, vaultFiles, remembered };
 }
 
 /**
@@ -196,6 +216,56 @@ describe('open plan editor', () => {
 
 		expect(commands[0].id).toBe('open-plan-editor');
 		expect(commands[0].name).toBe(t('en', 'command.open-plan-editor'));
+	});
+
+	/**
+	 * The Resume target (design slice 22, Task 3): a palette open is one of the two main-flow
+	 * doors the requirement note names, and it routes through the same `renovationProjectOpenPlan`
+	 * seam the project surface uses, so a confirmed leaf open records the plan the way a row
+	 * click already does.
+	 */
+	it('remembers the picked plan as the Resume target once the reveal opens', async () => {
+		const { commands, planId, projectId, remembered } = await wired();
+
+		commands[0].callback?.();
+		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<unknown>;
+		picker.choose(picker.getItems()[0]);
+		await flush();
+
+		expect(remembered).toEqual([{ projectId, planId }]);
+	});
+
+	it('remembers nothing when the reveal fails', async () => {
+		// The same shape `revealPlanEditor.test.ts` uses to force a fault: a candidate whose
+		// own view state throws, caught by `revealCandidate`'s outer boundary.
+		const exploding = {
+			getLeavesOfType: () => [
+				{
+					getViewState: () => {
+						throw new Error('state exploded');
+					},
+				},
+			],
+		};
+		const { commands, remembered } = await wired({ workspace: exploding });
+
+		commands[0].callback?.();
+		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<unknown>;
+		picker.choose(picker.getItems()[0]);
+		await flush();
+
+		expect(remembered).toEqual([]);
+	});
+
+	it('remembers nothing when the picked entry carries no project id', async () => {
+		const { commands, remembered } = await wired({ omitProjectId: true });
+
+		commands[0].callback?.();
+		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<unknown>;
+		picker.choose(picker.getItems()[0]);
+		await flush();
+
+		expect(remembered).toEqual([]);
 	});
 });
 

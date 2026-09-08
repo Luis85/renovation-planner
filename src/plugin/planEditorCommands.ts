@@ -7,18 +7,18 @@ import type {
 	SetPlanBackgroundInput,
 	SetPlanBackgroundOutcome,
 } from '../application/commands/plan/SetPlanBackground';
+import type { ContinueContext } from '../application/continueContext';
 import { backgroundKindFor } from '../domain/plan/PlanBackgroundRef';
-import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
+import { renovationProjectOpenPlan } from './renovationProjectOpenSeams';
 import { PlanBackgroundSuggestModal } from '../presentation/modals/PlanBackgroundSuggestModal';
 import { PlanSuggestModal } from '../presentation/modals/PlanSuggestModal';
 import {
 	noticeOnlySinks,
 	notify,
-	notifyFault,
 	notifyWarning,
 } from '../presentation/notices/notify';
 import { surfaceError } from '../presentation/errors/surfaceError';
-import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
+import { PlanEditorView } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
 import { entriesOfType } from './indexEntries';
 import type { PluginCommandHost } from './commandHost';
@@ -101,38 +101,54 @@ async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TF
  *
  * The command ID is unchanged on purpose: Obsidian binds a user's hotkey to it, so it is
  * DATA. What changed is behaviour behind the same name.
+ *
+ * Routes through `renovationProjectOpenPlan` rather than its own `revealPlanEditor` call
+ * (design slice 22, Task 3), so the palette and the project surface share one door and one
+ * fault mapping. `rememberContinue` is called on `'opened'` only, and only when the picked
+ * entry carries a `projectId` — the requirement note's main-flow step 1 names a palette open
+ * as a Resume-recording open, and "opened" here means a confirmed leaf open, not the
+ * asynchronous hydration the note still leaves out of scope.
  */
-function openPlanPicker(host: PluginCommandHost): void {
+function openPlanPicker(host: PluginCommandHost, rememberContinue: (context: ContinueContext) => void): void {
 	const plans = entriesOfType(host.root.persistence?.index, 'renovation-plan');
 	if (plans.length === 0) {
 		notify(tr('plan.none'));
 		return;
 	}
+	const openPlan = renovationProjectOpenPlan(host.app.workspace, host.root.logger);
 	const picker = new PlanSuggestModal(host.app, plans, (plan) => {
 		// A modal callback returns nothing, so this activation has no awaiter — and a fault in
 		// it was reaching neither the user nor the log. It is answered inside `revealCandidate`
 		// now rather than here: two picks of the same plan before the first settles are one
-		// activation, and answering at the CALL SITE reported one failure once per pick.
-		void revealPlanEditor(
-			{
-				workspace: host.app.workspace,
-				reportFault: (cause: unknown): void => {
-					notifyFault(cause, host.root.logger, 'view.plan-editor.reveal-failed');
-				},
-			},
-			PLAN_EDITOR_VIEW,
-			plan.id,
-		);
+		// activation, and answering at the CALL SITE reported one failure once per pick. Awaiting
+		// the seam's own verdict adds no second fault path — `renovationProjectOpenPlan` cannot
+		// reject, only resolve `'opened'` or `'failed'`.
+		void (async (): Promise<void> => {
+			const outcome = await openPlan(plan.id);
+			if (outcome === 'opened' && plan.projectId !== undefined) {
+				rememberContinue({ projectId: plan.projectId, planId: plan.id });
+			}
+		})();
 	});
 	picker.open();
 }
 
-export function registerPlanEditorCommands(host: PluginCommandHost): void {
+/**
+ * `rememberContinue` is a parameter here rather than a member of `PluginCommandHost`
+ * (the brief's smaller-diff choice): that interface is structural and shared by
+ * `sampleProject.ts` and `assetDesignerCommands.ts`, each with its own test fixture — widening
+ * it would hand every one of those a Continue-recording capability none of them uses, and
+ * break every fixture that builds a `PluginCommandHost` literal until it grew the member too.
+ */
+export function registerPlanEditorCommands(
+	host: PluginCommandHost,
+	rememberContinue: (context: ContinueContext) => void,
+): void {
 	host.addCommand({
 		id: 'open-plan-editor',
 		name: tr('command.open-plan-editor'),
 		callback: () => {
-			openPlanPicker(host);
+			openPlanPicker(host, rememberContinue);
 		},
 	});
 

@@ -309,7 +309,7 @@ manual case written and unrun; asset library and real-device measurement still o
 - [x] Task 1: entry cards, variants, last-plan naming, choose-a-plan focus, hide/show, `?plans=`
       knob and `project-detail-new` capture.
 - [x] Task 2: `forgetContinue` fires exactly on a reliably missing project.
-- [ ] Task 3: palette open records the target on `'opened'` only.
+- [x] Task 3: palette open records the target on `'opened'` only.
 - [ ] Task 4: mobile notice and disabled controls, editor and designer refusal, palette guards,
       manual case written.
 - [ ] Four requirement notes extended; `npm run check` green once before the branch is finished.

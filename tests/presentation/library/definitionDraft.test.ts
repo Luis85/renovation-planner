@@ -49,4 +49,18 @@ describe('definitionChanges', () => {
 		const draft = { ...definitionDraft(baseline), height: ' 5 ' };
 		expect(definitionChanges(draft, baseline)).toEqual({});
 	});
+	it('accepts a comma decimal in price, waste and height and submits dot decimals', () => {
+		const baseline = anEntry();
+		const draft = { ...definitionDraft(baseline), unitCost: '4,50', waste: '12,5', height: '190,5' };
+		expect(validateDefinition(draft, baseline.currency)).toEqual({});
+		const changes = definitionChanges(draft, baseline);
+		expect(changes.unitCost?.amount.toString()).toBe('4.5');
+		expect(changes.wasteFactorDefault?.toString()).toBe('0.125');
+		expect(changes.height).toBe(190.5);
+	});
+	it('answers the same no-op diff for a unit cost that only differs by whitespace', () => {
+		const baseline = anEntry({ unitCostAmount: '12.50' });
+		const draft = { ...definitionDraft(baseline), unitCost: ' 12.50 ' };
+		expect(definitionChanges(draft, baseline)).toEqual({});
+	});
 });

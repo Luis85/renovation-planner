@@ -1,4 +1,5 @@
 import { createRoomResizeAction } from './resize/roomResizeAction';
+import { createRoomNamingAction } from './naming/roomNamingAction';
 import {
 	computed,
 	inject,
@@ -75,6 +76,8 @@ const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 export interface EditorRuntime {
 	readonly resizeRoom: (id: ZoneId) => Promise<void>;
 	readonly resizeRoomBlocked: Readonly<Ref<boolean>>;
+	readonly renameRoom: (id: ZoneId) => Promise<void>;
+	readonly renameRoomBlocked: Readonly<Ref<boolean>>;
 	readonly areaCorners: ReturnType<typeof createAreaTask>['areaCorners'];
 	readonly keepAddingAreas: Ref<boolean>;
 	readonly canFinishArea: Readonly<Ref<boolean>>;
@@ -443,11 +446,25 @@ function selectAndFrameOn(
  * move happened to overwrite the stale id. Clearing the id here is what makes the cursor's
  * withdrawal a fact rather than a race, and the KIND goes with it because the two are one fact
  * in two fields (see `RenderState.hoveredTargetKind`).
+ *
+ * **The Inspector's cached DTO is re-read here too, for the same reason and off the same
+ * watch.** `InspectorStore.dto` is what the query answered when the selection last changed, and
+ * the post-command funnel (`createProjectionRefresh`) was the only thing that invalidated it — so
+ * a rename or resize landing through `onPlanChanged` (a second Plan Editor leaf on the same
+ * plan, a synced note) re-hydrated the canvas and the room list and left the heading showing the
+ * old name indefinitely. A hydrate landing is the one moment both facts move, and hanging the
+ * refresh off it rather than off a second `onPlanChanged` subscription keeps the order the
+ * funnel's own docblock requires (map first, DTO second) and keeps the plan door at ONE
+ * listener, which `planEditorView.test.ts` counts. The dispatching leaf pays one redundant
+ * Inspector read per command for it — the same cost `PLAN_CHANGE_EVENTS` already accepts for the
+ * canvas — and `refresh` is a no-op for anything but a single selection, so the mount's own
+ * first hydrate costs nothing.
  */
 function registerSelectionRetirement(
 	projectStore: ReturnType<typeof useProjectStore>,
 	selection: ReturnType<typeof useSelectionStore>,
 	renderState: RenderState,
+	inspector: { refresh(): Promise<void> },
 ): void {
 	watch(
 		() => projectStore.zones,
@@ -458,6 +475,7 @@ function registerSelectionRetirement(
 				renderState.hoveredObjectId = null;
 				renderState.hoveredTargetKind = null;
 			}
+			void inspector.refresh();
 		},
 	);
 }
@@ -594,7 +612,7 @@ function buildDispatcherChain(
 	return { wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
 }
 
-function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRoom' | 'resizeRoomBlocked'> {
+function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRoom' | 'resizeRoomBlocked' | 'renameRoom' | 'renameRoomBlocked'> {
 	const editor = useEditorStore();
 	const projectStore = useProjectStore();
 	const selection = useSelectionStore();
@@ -727,7 +745,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'resizeRo
 	);
 
 	const selectAndFrame = (id: string, toggle = false): void => selectAndFrameOn(projectStore, selection, editor, { id, toggle });
-	registerSelectionRetirement(projectStore, selection, renderState);
+	registerSelectionRetirement(projectStore, selection, renderState, inspector);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
 	// refusal — bound straight to the context bar's Undo/Redo clicks.
@@ -830,7 +848,7 @@ export const EDITOR_RUNTIME: InjectionKey<EditorRuntime> = Symbol('renovation-pl
 
 export function provideEditorRuntime(context: PlanEditorContext): EditorRuntime {
 	const base = buildRuntime(context);
-	const runtime = { ...base, ...createRoomResizeAction(context, base) };
+	const runtime = { ...base, ...createRoomResizeAction(context, base), ...createRoomNamingAction(context, base) };
 	provide(EDITOR_RUNTIME, runtime);
 	return runtime;
 }

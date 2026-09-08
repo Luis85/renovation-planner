@@ -9,7 +9,7 @@ behavior on `cf536f32` from the current contribution. It does not declare the wh
 | 1 | Responsive shell, context bar, rails and drawers already exist | Perspective controls when their domains are available; full theme/release acceptance |
 | 2 | This contribution adds ordered unique multi-selection, independent member focus, badges, overlap cycling, persistent list access and shared-property summary | Wall/Opening/Object hit priority and inspectors when those entities exist |
 | 3 | Select/Add and temporary Room tools exist; the Area continuation adds its catalogue path, validated outline, one-shot/repeated completion and keyboard routing; the numeric continuation adds corner placement/correction | Unavailable creation domains, complete cross-tool/non-canvas routes and release acceptance |
-| 4 | Rectangular room creation exists; the current continuation adds keyboard resizing of existing axis-aligned four-corner Rooms | Existing-room naming, broader resizing, room-kind decision and complete M03/live acceptance |
+| 4 | Rectangular room creation exists; the dimensions continuation adds keyboard resizing of existing axis-aligned four-corner Rooms; the naming continuation adds explicit keyboard renaming for all Room outlines | Broader resizing, room-kind decision and complete M03/live acceptance |
 | 5 | Not delivered | Walls, hosted openings, connected creation, exact-length impact and composite undo |
 | 6 | Background display and calibration exist | Transactional prepare/scale/review setup, persistent appearance and transforms |
 | 7 | Not delivered | Separate Existing/Planned state and change relationships |
@@ -304,3 +304,108 @@ cancels and reopens. No quality floors, test timeouts or dependency versions cha
 Live Obsidian, screenreader announcement/focus, host leaf resize/rebind, vault reload/restart and
 full theme/release acceptance remain open in `Resize a room.md`. The existing Area corner-row
 Escape finding remains open on #76. No claim closes Phase 4, Increment A/B or the full plan.
+
+## Existing-room naming continuation on PR #82 — 2026-09-06
+
+Base: remote `codex/editor-room-dimensions`, `b43e76fe6e9f3676a2dca80d0e3bf6c92880715c`.
+#82 remains OPEN and its full CI matrix is green at inspection. Its current head has no review
+threads. #76 (`29eb0a07`), #75 (`d91431b2`) and #74's selection work/`f7aa3c5` are ancestors.
+#74's later `bb62e2f3` is not an ancestor; its single-selection behavior and regressions are
+already inherited through #75/#76. All three base PRs remain OPEN with green CI. Their unresolved
+native-picker (#74) and busy-completion (#75) comments are covered by the subsequent branches;
+#76's corner-row Escape focus finding is still an inherited open issue, not a naming regression.
+No existing PR branch was changed or merged. The continuation uses
+`.worktrees/room-naming`, branch `codex/editor-room-naming`, stacked against #82's branch.
+
+The initial gap analysis found `Zone.create`'s trim/non-empty rule and existing versioned
+repositories, Inspector dispatch, shared history ledger, modal form/error/busy/focus infrastructure.
+It found no `Zone.withName`, naming command or existing-room naming form. This contribution adds
+those missing pieces and reuses the persistence/dispatch contracts. It introduces no store, file
+rename, link rewrite, schema field/version, Room-kind model or Area metadata form. Naming supports
+all Room outlines, independently of the rectangular dimension form. M03 records normalization,
+duplicate-name identity, baseline/conflict and filename independence in detail.
+
+The repeated versioned baseline, busy/retirement and conflict-refresh lifecycle was extracted from
+the dimensions action into `createRoomEditAction`. Naming and dimensions configure their own form,
+edit payload and latest-value text; the geometry eligibility/preview remains specific to dimensions.
+Both editor E2E suites and both four-scenario keyboard browser matrices passed after extraction.
+Browser list selection and dialog Tab-wrap assertions also share the existing matrix helper.
+The naming adapter is recorded in the reversible-write census, with actual forward/Undo/Redo event
+assertions in the naming command suite. The German copy follows the existing formal-address rule.
+
+Delivered evidence:
+
+| Contract | Evidence |
+|---|---|
+| Shared normalization, duplicate names, stable fields, conditional writes, interleaved history and peer protection | `tests/application/commands/renameZone.test.ts` |
+| Existing plan subscription refreshes other matching leaves on name changes | `tests/application/events/planChangeSource.test.ts`, naming command suite |
+| Canvas/list selection, name projections, explicit Apply/Cancel, no-op, invalid/busy/stale/error/conflict and retired responses | `tests/presentation/editor/roomNaming.e2e.test.ts` |
+| Existing note path/body/v1 keys and geometry, fresh repository/index reload, external edit refusal and transaction compensation | `tests/presentation/editor/roomNamingPersistence.test.ts` |
+| Real-command harness, scoped axe at 1280/460 px, draft and focus across panel remounts | `tests/harness/roomNaming.test.ts` |
+| Actual keyboard navigation/text editing, Apply/Cancel/Undo/Redo, reflow, themes and German | `scripts/editor-room-naming-check.mjs` |
+
+Reproduce with `npm run harness` → `?view=plan-editor&rename=room`. The memory workspace resets on
+reload. The keyboard script passed with explicitly selected Edge **152.0.4191.62** in light, dark,
+custom accent and German at 460 px. All four screenshots under `harness-shots/room-naming/` were
+visually inspected. Dialog client/scroll widths were 446/446 px in the three wider scenarios and
+426/426 px in the constrained one; all controls were in view and no page errors were reported.
+The browser runner uses real Tab/Enter/Space/Delete/Backspace input, not programmatic field fill.
+This is Edge evidence, not pinned-Chromium or Obsidian evidence. The persistence suite exercises
+the actual Obsidian repository stack over FakeVault, including a fresh index/echo/store/repository;
+it does not claim a real host process restart or MetadataCache timing acceptance.
+
+Live Obsidian, screenreader announcements/focus, actual leaf rebind and restart remain open in
+`Rename a room.md`. Phase 4, Increment A/B and the overall plan are not closed. Broader geometry,
+room kinds, general Area metadata, Walls/Openings and Reference Plan setup remain separate work.
+
+
+### Final verification and changed-file coverage
+
+`VITEST_MAX_WORKERS=2 npm run check` passed: production build/type-check, warning-free lint,
+488 test files with 6,715 tests passed and 70 inherited skips, coverage thresholds, and Fallow.
+Global coverage is 99.25% statements, 98.04% branches, 99.25% functions and 99.59% lines.
+The targeted naming/dimensions/harness/i18n/write-census run also passed (7 files, 83 tests).
+`npm run audit` found no production vulnerabilities. No thresholds, dependency versions or skips
+were changed. The complete check exposed two non-blocking browser-script duplicate groups;
+the shared dialog-layout assertion was extracted afterwards. Lint, Fallow and both four-scenario
+browser matrices were rerun for that script-only change; Fallow then reported zero dead-code,
+duplicate groups and above-threshold health findings. The Area numeric browser matrix also passed
+its four scenarios, including the existing mouse creation journeys.
+
+The normalized-no-op guard was temporarily removed as a mutation check. The existing test failed
+because the form wrongly submitted/closed on an unchanged name; the guard was restored before
+all passing runs. This demonstrates that the no-op behavior is asserted, not only executed.
+
+Counts below are covered/total from the final complete run's Istanbul data. A line with multiple
+statements is covered when at least one statement on it runs; statement and branch columns retain
+the finer-grained gaps.
+
+| File under `src/` | Statements | Functions | Branches | Lines |
+|---|---:|---:|---:|---:|
+| `application/commands/zone/RenameZone.ts` | 19/19 | 2/2 | 10/10 | 14/14 |
+| `application/commands/zone/reversible-rename-zone-command.ts` | 19/19 | 4/4 | 12/12 | 16/16 |
+| `application/events/planChangeSource.ts` | 14/14 | 6/6 | 8/8 | 12/12 |
+| `domain/zone/Zone.events.ts` | 4/4 | 4/4 | 0/0 | 4/4 |
+| `domain/zone/Zone.ts` | 28/28 | 7/7 | 18/18 | 27/27 |
+| `domain/zone/ZoneName.ts` | 2/2 | 1/1 | 2/2 | 2/2 |
+| `presentation/editor/inspector-wiring.ts` | 24/24 | 13/13 | 12/12 | 23/23 |
+| `presentation/editor/inspector/inspector-store.ts` | 42/42 | 7/7 | 26/26 | 36/36 |
+| `presentation/editor/naming/RoomNameAction.vue` | 11/11 | 2/2 | 7/8 | 10/10 |
+| `presentation/editor/naming/RoomNameForm.vue` | 32/32 | 9/9 | 31/32 | 23/23 |
+| `presentation/editor/naming/roomNamingAction.ts` | 5/5 | 4/4 | 2/2 | 5/5 |
+| `presentation/editor/resize/roomResizeAction.ts` | 10/10 | 5/5 | 8/8 | 9/9 |
+| `presentation/editor/roomEditAction.ts` | 51/52 | 10/10 | 39/41 | 30/30 |
+| `presentation/editor/runtime.ts` | 144/144 | 49/49 | 38/39 | 121/121 |
+| `presentation/editor/shell/RoomInspector.vue` | 35/35 | 10/10 | 26/27 | 31/31 |
+| `presentation/i18n/locales/de/editor.ts` | 1/1 | 0/0 | 0/0 | 1/1 |
+| `presentation/i18n/locales/en/editor.ts` | 1/1 | 0/0 | 0/0 | 1/1 |
+
+Four new defensive branch alternatives remain uncovered: `RoomNameAction.vue:15` falls back to
+the Inspector when both the replacement action and Details rail are absent; `RoomNameForm.vue:41`
+skips error focus after disposal; `roomEditAction.ts:54` refuses at the last dispatch guard;
+`roomEditAction.ts:65` suppresses a failed baseline-read notification after disposal. The dispatch
+refusal is also the sole uncovered statement in the new files. All new functions are covered.
+Ordinary busy/stale/conflict failures, disposed success, invalid input and responsive focus are
+covered. Two existing alternatives remain uncovered: `runtime.ts:257`'s failed asset-list query
+and `RoomInspector.vue:112`'s non-Zone DTO alternative. These figures do not claim full branch
+coverage or substitute for the open host/screenreader acceptance above.

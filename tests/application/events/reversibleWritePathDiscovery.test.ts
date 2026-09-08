@@ -206,6 +206,8 @@ function notAnAdapter(reason: string): Disposition {
  * entry for a class that no longer exists fails too.
  */
 const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
+	'src/application/commands/zone/reversible-rename-zone-command.ts::ReversibleRenameZoneCommand':
+		rows(['execute', 'undo'], 'reversible-rename-zone-command'),
 	// The reversible adapters this task's census covers, and the plain commands each wraps.
 	'src/application/commands/zone/reversible-create-zone-command.ts::ReversibleCreateZoneCommand':
 		rows(['execute', 'undo'], 'reversible-create-zone-command'),

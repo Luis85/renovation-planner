@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import RoomSizeAction from '../resize/RoomSizeAction.vue';
+import RoomNameAction from '../naming/RoomNameAction.vue';
 /**
  * The Inspector's ROOM state (component library §8's `RoomInspector`) — the BODY the frame
  * (`EntityInspector.vue`, Task 15) routes to once exactly one entity is selected. Through
@@ -186,11 +187,13 @@ const paused = computed(() => runtime.writesBlocked.value);
 			<dd>{{ formatArea(overview.record.areaMm2) }}</dd>
 		</dl>
 
-		<RoomSizeAction
-			v-if="overview?.record.kind === 'room'"
-			:zone-id="dto.id"
-			:points="overview.record.points"
-		/>
+		<template v-if="overview?.record.kind === 'room'">
+			<RoomNameAction :zone-id="dto.id" />
+			<RoomSizeAction
+				:zone-id="dto.id"
+				:points="overview.record.points"
+			/>
+		</template>
 
 		<section
 			class="rp-editor-inspector-requirements"

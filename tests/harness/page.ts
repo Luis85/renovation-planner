@@ -195,6 +195,7 @@ if (wantsIndex) {
 				area: params.has('area') && params.get('area') !== 'numeric',
 				numericArea: params.get('area') === 'numeric',
 				roomResize: params.get('resize') === 'room',
+				roomNaming: params.get('rename') === 'room',
 				room,
 				stale: wantsStale,
 			}).view

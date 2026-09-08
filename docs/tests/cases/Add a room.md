@@ -93,3 +93,6 @@ Written after the first walk: which steps passed, and anything only a live vault
 
 Existing-room dimension changes have a separate bounded case: [[Resize a room]]. Its live-vault
 and screenreader rows remain open; creation/reload acceptance above is not implicitly completed.
+
+Existing-room naming has its own bounded case, [[Rename a room]]. Its checks do not complete this
+case's outstanding live-vault or assistive-technology acceptance.

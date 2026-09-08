@@ -44,3 +44,6 @@ Use `node scripts/editor-room-resize-check.mjs` for the real keyboard matrix; se
 
 Creation, repeat, selection and Area regressions retain their existing tests. The outstanding
 #76 Escape-on-removed-corner-row focus issue belongs to that base PR and remains disclosed.
+
+Existing-room naming has its own bounded case, [[Rename a room]]. Its checks do not complete this
+case's outstanding live-vault or assistive-technology acceptance.

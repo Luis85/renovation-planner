@@ -9,6 +9,7 @@ import type { ProjectId } from '../project/ProjectId';
 import type { PlanId } from '../plan/PlanId';
 import type { ZoneId } from './ZoneId';
 import { zoneError } from './Zone.errors';
+import { zoneName } from './ZoneName';
 
 export interface CreateZoneProps {
 	readonly id: ZoneId;
@@ -61,10 +62,8 @@ export class Zone {
 	}
 
 	static create(props: CreateZoneProps): Result<Zone, ValidationError | GeometryError> {
-		const name = props.name.trim();
-		if (!name) {
-			return err(zoneError('empty-name', 'A zone needs a non-empty name.'));
-		}
+		const name = zoneName(props.name);
+		if (!name.ok) return name;
 		if (!isZoneType(props.zoneType)) {
 			return err(zoneError('unknown-type', `"${String(props.zoneType)}" is not a zone type.`));
 		}
@@ -81,7 +80,7 @@ export class Zone {
 					id: props.id,
 					planId: props.planId,
 					projectId: props.projectId,
-					name,
+					name: name.value,
 					zoneType: props.zoneType,
 					status: props.status ?? 'Planned',
 					geometry: geometry.value,
@@ -90,6 +89,11 @@ export class Zone {
 			);
 		}
 		return geometry;
+	}
+
+	withName(text: string): Result<Zone, ValidationError> {
+		const name = zoneName(text);
+		return name.ok ? ok(new Zone({ ...this.fields(), name: name.value })) : name;
 	}
 
 	withGeometry(geometry: Polygon): Result<Zone, GeometryError> {

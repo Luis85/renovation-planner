@@ -1,6 +1,7 @@
 /**
  * The specification for Task 11's reversible-write-path census, shared between the
- * behavioural rows (`tests/application/events/reversibleWritePathCensus.test.ts`) and the
+ * behavioural rows (`tests/application/events/reversibleWritePathCensus.test.ts`, plus
+ * `tests/application/commands/renameZone.test.ts` for naming) and the
  * static cross-check (`reversibleWritePathDiscovery.test.ts`).
  *
  * Lives here rather than being exported from one of those two `.test.ts` files: vitest
@@ -55,6 +56,8 @@ export interface CensusRow {
 }
 
 export const CENSUS_TABLE: readonly CensusRow[] = [
+	{ module: 'reversible-rename-zone-command', direction: 'execute', mustPublish: 'ZoneRenamed on a write (first and redo); nothing on normalized no-op' },
+	{ module: 'reversible-rename-zone-command', direction: 'undo', mustPublish: 'ZoneRenamed on a write' },
 	{
 		module: 'reversible-create-zone-command',
 		direction: 'execute',

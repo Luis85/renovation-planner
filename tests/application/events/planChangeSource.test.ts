@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPlanChangeSource } from '../../../src/application/events/planChangeSource';
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { planBackgroundChanged, planCalibrated } from '../../../src/domain/plan/Plan.events';
-import { zoneCreated, zoneDeleted, zoneGeometryChanged } from '../../../src/domain/zone/Zone.events';
+import { zoneCreated, zoneDeleted, zoneGeometryChanged, zoneRenamed } from '../../../src/domain/zone/Zone.events';
 import { geometrySidecarChanged } from '../../../src/application/events/projectIndex.events';
 import type { EntityId } from '../../../src/core/identity/EntityId';
 
@@ -57,6 +57,7 @@ describe('subscribing to one plan changes', () => {
 		['ZoneCreated', zoneCreated],
 		['ZoneGeometryChanged', zoneGeometryChanged],
 		['ZoneDeleted', zoneDeleted],
+		['ZoneRenamed', zoneRenamed],
 	])('fires when a zone of that plan is %s', async (_name, makeEvent) => {
 		const events = createEventBus();
 		const listener = vi.fn<() => void>();

@@ -158,7 +158,8 @@ Exit criteria:
 
 **Bounded continuation (2026-09-06):** Existing axis-aligned rectangular Rooms have an explicit
 keyboard dimension form, shared geometry/command path and conditional Undo/Redo. See M03 and the
-implementation ledger. This advances Increment B; naming/type refinements, broader geometry and
+implementation ledger. The naming continuation adds an explicit keyboard form for all existing Room outlines.
+This advances Increment B; room-kind decisions, broader geometry and
 live acceptance remain open. It does not close Phase 4, Increment A/B or the overall roadmap.
 
 **Screens:** M03  

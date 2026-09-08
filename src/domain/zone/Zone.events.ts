@@ -32,3 +32,7 @@ export function zoneGeometryChanged(payload: ZoneEventPayload): ZoneGeometryChan
 export function zoneDeleted(payload: ZoneEventPayload): ZoneDeleted {
 	return { type: 'ZoneDeleted', payload };
 }
+
+export function zoneRenamed(payload: ZoneEventPayload): DomainEvent<'ZoneRenamed'> & { readonly payload: ZoneEventPayload } {
+	return { type: 'ZoneRenamed', payload };
+}

@@ -54,11 +54,12 @@ describe('existing Room dimensions through the real editor', () => {
 		await runtime.redo(); expect((await read(r)).entity.geometry).toEqual(after.entity.geometry);
 		r.harness.unmount();
 	});
-	it('announces resize unavailable during a temporary Area tool', async () => {
+	it('announces resize and rename unavailable during a temporary Area tool', async () => {
 		const r = await rig(), runtime = runtimeOf(r.harness);
 		await r.harness.wrapper.get('.rp-room-list__row[data-rp-id="zone-a"]').trigger('click'); await settle();
 		runtime.setTool('draw-area'); await settle();
 		expect(r.harness.wrapper.get('[data-rp-action="resize-room"]').attributes('aria-disabled')).toBe('true');
+		expect(r.harness.wrapper.get('[data-rp-action="rename-room"]').attributes('aria-disabled')).toBe('true');
 		runtime.setTool('select'); await settle();
 		expect(r.harness.wrapper.get('[data-rp-action="resize-room"]').attributes('aria-disabled')).toBe('false');
 		r.harness.unmount();

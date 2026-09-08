@@ -94,3 +94,20 @@ for this form, never reduced to bounds. See M03's bounded precision contract and
 The form is an explicit modal task: Cancel/Escape discard, while saving refuses cancellation;
 selection/creation controls behind it are inert. This does not resolve SDD §101's wider Inspector
 field-commit policy, nor promise recovery after forced leaf/process termination.
+
+## Existing-room naming extension — 2026-09-06
+
+The Room Inspector's Rename room action opens the root-owned modal through `roomNamingAction`.
+Naming and dimensions share `createRoomEditAction` for baseline acquisition, retirement, busy gating
+and conflict refresh. It captures one `GetZone` baseline/version; `RoomNameForm` holds local text only. Explicit Apply
+uses the same Inspector dispatch/history/refresh boundaries as dimension edits, with
+`RenameZoneCommand` and the shared Zone repository; Cancel/Escape discard under the existing modal
+contract. Inert background controls prevent changing selection or creation task mid-form. Responsive
+placement changes preserve the form and restore the replacement action/Details focus on closing.
+
+All Room geometries qualify. The dimension form's geometry eligibility remains specific to size
+changes. `ZoneRenamed` joins the existing plan-change event source for peer-leaf projections;
+renaming does not pretend geometry changed. Names are non-empty after the existing trim rule;
+duplicates remain valid because identity and references use IDs. No filenames, links, schema keys
+or geometry are renamed/redefined. M03 records the exact draft/conflict/persistence contract.
+This bounded modal task does not settle SDD §101's wider field-commit policy.

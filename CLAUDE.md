@@ -156,8 +156,12 @@ has paid for is written down in it.
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was
-every vault. It is a plain callback over a `FuzzySuggestModal` of the Project Index's plan
-entries now. The command ID did not change, because a user's hotkey is bound to it.
+every vault. What it opens now is a `FuzzySuggestModal` over the Project Index's plan entries.
+It is a `checkCallback` AGAIN since the mobile bound, and for the OPPOSITE reason
+(`src/plugin/planEditorCommands.ts`, whose docblock states it): its only precondition is the
+DEVICE — `Platform.isMobile` has to answer `false`, which nothing in a vault can change — and
+never the active file. The picker itself is untouched by that. The command ID did not change,
+because a user's hotkey is bound to it.
 
 **`create-sample-project` is SCAFFOLDING and says so in its name, and it is now a CONVENIENCE
 rather than the only source of anything.** One command seeds a project, a plan and five zones
@@ -802,9 +806,18 @@ that the value is now mutable across a worker, so a suite that ever calls it owe
 file in that worker the reset — the setter's own docblock is the authority and says so. (This
 sentence read "always answers `'en'`" for the whole of the branch that falsified it, in a
 paragraph the same branch edited by 179 lines: the count of a claim's readers is not the count
-of its editors.) **`Platform.isMacOS` is the second mutable member and it IS driven by the
-suite** — `platformModifier`'s cases assign it directly to reach the macOS arm — so it is the
-one that actually owes the reset in practice. `FakeLeaf`/`FakeWorkspace` RECORD asks rather
+of its editors.) **`Platform` is the mock's other mutable object, and `isMobile` is the member
+the suite drives most** — nine files under `tests/` assign it, counted by grepping
+`Platform.isMobile =` (eight test files, plus `tests/harness/theme.ts`'s `applyPlatform`, which
+`tests/harness/platform.test.ts` drives), against one file for `isMacOS`, the other one, whose
+only driver is `platformModifier`'s cases reaching the macOS arm. **The reset either owes is
+WITHIN its own file, across that file's cases — not across the files in a worker**: only
+`build-lint` and `build` take `isolate: false` in `vitest.config.ts`, so every file in the
+`suite` project gets its own module registry and its own `Platform`, and
+`tests/presentation/` and `tests/harness/` stay isolated by that comment's own statement.
+`tests/harness/platform.test.ts` is the demonstration: it sets `isMobile` through
+`applyPlatform('?phone')` and never resets it, and per-file isolation is the whole of what
+makes that harmless. `FakeLeaf`/`FakeWorkspace` RECORD asks rather
 than behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
 **`npm run build` type-checks `tests/**` in full** — `tsconfig.json`'s `include` is `src/**`
 plus `tests/**`, with no `paths` mapping, so a test is checked against the same types `src/`

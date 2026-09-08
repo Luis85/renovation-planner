@@ -132,6 +132,11 @@ command id changed, because a user's hotkey is bound to it.
 - **The Asset library's write controls.** Out of scope deliberately: they have their own design
   package and their own hook, and pulling them in here would have been one task guessing at
   another's surface.
+- **`ProjectWorkState` and `QuoteComparisonState`'s `blocked`-disabled controls carry no
+  per-control `aria-describedby`.** Those two states disable on their own `blocked` computed
+  (`readOnly` is one of its inputs in `QuoteComparisonState`), and the notice draws above them
+  from `ViewRoot.vue` — so the sentence is on the screen and the ASSOCIATION between it and each
+  refused control is missing, which is the half a screen reader reads.
 - **The real-device measurement this note's own *"what has to be measured first"* section
   demands.** Everything above is enforced against `Platform.isMobile` as this repository's
   `obsidian` mock reports it, which is a boolean the suite sets itself. No mobile vault has

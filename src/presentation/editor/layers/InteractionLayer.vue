@@ -241,7 +241,7 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 				/>
 			</template>
 		</template>
-		<VGroup :config="viewportTransform(editorStore.viewport)">
+		<VGroup :config="{ name: 'rotation-handle-viewport', ...viewportTransform(editorStore.viewport) }">
 			<ObjectRotationHandle
 				:tokens="props.tokens"
 				:zoom="editorStore.viewport.zoom"

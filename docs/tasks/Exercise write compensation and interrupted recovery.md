@@ -92,3 +92,12 @@ interrupted sequence. Both are named in
 The `DispatchOutcome.ts` docblock that counts `markUncompensated`'s producers was re-derived from
 the grep in the same edit and DATED — the previous count was already stale, and the grep quoted
 inside the docblock matches its own quoting line, so the instrument counts itself.
+
+## Amendments
+
+**2026-09-08** — the plan-editor stack's compensated two-file paths (reference setup in #85,
+`StructureCommand` in #86, `RenovationCommand` in #87, material writes in #88) each say in their
+PR body what this task's closing evidence already recorded: the compensation is a second write,
+not a durable crash journal, and an abrupt process exit between the two writes stays a recovery
+limitation. #90's "no general durable transaction journal" is the same sentence from the recovery
+branch. Recorded here so five PR bodies are not read as five different claims.

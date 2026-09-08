@@ -15,7 +15,10 @@ async function setup() {
 it('edits a Room corner in Renovate through one reversible geometry command', async () => {
  const rig = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id));
  const points = expectDefined(rig.project.zones.get(rig.room.id), 'Room').points;
- expect(rig.stage.findOne<Konva.Layer>('.interaction')?.find('Circle')).toHaveLength(points.length);
+ const interaction = rig.stage.findOne<Konva.Layer>('.interaction');
+ // Vertex handles are direct screen-space children; rotation is a separate nested world-space group.
+ expect(interaction?.getChildren().filter(node => node.getClassName() === 'Circle')).toHaveLength(points.length);
+ expect(interaction?.findOne('.object-rotation-handle')).toBeDefined();
  const tool = rig.runtime.toolManager;
  tool.pointerDown(pointerAt(points[0].x, points[0].y)); tool.pointerMove(pointerAt(-200, -200)); await settle();
  expect(rig.runtime.renderState.previewPolygon?.[0]).toEqual({ x: -200, y: -200 });
@@ -40,6 +43,7 @@ it('keeps Renovate primary Add keyboard reachable and closes it without clearing
  await rig.runtime.renovation.perspective('review'); await settle();
  expect(rig.wrapper.find('[data-rp-action="add"]').exists()).toBe(false);
  expect(rig.stage.findOne<Konva.Layer>('.interaction')?.find('Circle')).toHaveLength(0);
+ expect(rig.stage.findOne<Konva.Layer>('.interaction')?.findOne('.object-rotation-handle')).toBeUndefined();
 });
 it('refuses Room drag previews while stale and after switching to Review', async () => {
  const rig = await setup(), bytes = [...rig.stack.vault.entries], tool = rig.runtime.toolManager;

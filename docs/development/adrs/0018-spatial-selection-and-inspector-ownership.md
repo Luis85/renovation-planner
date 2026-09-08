@@ -65,6 +65,8 @@ actions for M11 focus would silently collapse the user's batch scope. All three 
 - Build/lint: typed query/command seams, layer imports, and infrastructure-only vault writes.
 - The first Wall/Opening/Object slice must extend candidate geometry and test the reserved
   object → opening → wall → room priority. These types are not fabricated in today's read model.
+  (The reserved order was amended on 2026-09-08 to the order the typed slice shipped —
+  opening → wall → object → room; see the plan amendment in `implementation-plan.md` Phase 2.)
 - Perspective transition behavior remains a future implementation obligation, not an executed
   test result. Batch renovation commands remain unavailable until their domains exist.
 

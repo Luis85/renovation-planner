@@ -1,5 +1,5 @@
 export { parse as parseYaml } from 'yaml';
-export { setIcon } from './obsidianIcons';
+export { setIcon, addIcon, removeIcon } from './obsidianIcons';
 /**
  * Runtime stand-in for the `obsidian` module, aliased in `vitest.config.ts` and in
  * `vite.harness.config.ts`. The real package is types-only, so anything a test or the

@@ -5,6 +5,8 @@ const LABELS: Readonly<Record<string, StringKey>> = {
 	path: 'editor.add.path.label',
 	fence: 'editor.add.fence.label',
 	measurement: 'editor.add.measurement.label',
+	stair: 'editor.add.stair.label',
+	arrow: 'editor.add.arrow.label',
 	Wall: 'editor.add.wall.label',
 	Opening: 'editor.add.opening.label',
 	Room: 'editor.zone-type.Room',

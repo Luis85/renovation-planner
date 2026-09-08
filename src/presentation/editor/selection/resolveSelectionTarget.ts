@@ -11,7 +11,7 @@ export type SelectionTarget =
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
 
-const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'object' ? 4 : candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
+const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'object' || candidate.kind === 'stair' ? 4 : candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
 
 function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
 	return candidate.points.slice(1).some((b, index) => {
@@ -23,6 +23,7 @@ function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: nu
 }
 
 function containsCandidate(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
+	if (candidate.hitPoints) { const inside = contains({ points: candidate.hitPoints }, point); return inside.ok && inside.value; }
 	if (candidate.kind && candidate.kind !== 'object') return nearLine(candidate, point, tolerance);
 	const inside = contains(candidate, point);
 	return inside.ok && inside.value;
@@ -37,7 +38,7 @@ function handleAt(input: {
 	if (input.selectedIds.length !== 1) return null;
 	const id = input.selectedIds[0];
 	const selected = input.candidates.find((candidate) => candidate.id === id);
-	if (selected === undefined || (selected.kind !== undefined && selected.kind !== 'wall')) return null;
+	if (selected === undefined || (selected.kind !== undefined && selected.kind !== 'wall' && selected.kind !== 'arrow')) return null;
 	const vertexIndex = selected.points.findIndex((point) => distance(point, input.worldPoint) <= input.handleToleranceWorld);
 	return vertexIndex < 0 ? null : { kind: 'handle', id, vertexIndex };
 }

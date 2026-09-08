@@ -73,6 +73,8 @@ const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKe
 	'edit-curves': { nameKey: 'editor.curves.action', instructionKey: 'editor.curves.instruction', finish: true },
 	'edit-room-dimension': { nameKey: 'editor.dimension.task', instructionKey: 'editor.dimension.instruction' },
 	'place-object': { nameKey: 'editor.add.item.label', instructionKey: 'editor.element.banner.object', finish: true },
+	'place-stair': { nameKey: 'editor.add.stair.label', instructionKey: 'editor.stair.banner', finish: true },
+	'draw-arrow': { nameKey: 'editor.add.arrow.label', instructionKey: 'editor.arrow.banner', finish: true },
 	'draw-path': { nameKey: 'editor.add.path.label', instructionKey: 'editor.element.banner.path', finish: true },
 	'draw-fence': { nameKey: 'editor.add.fence.label', instructionKey: 'editor.element.banner.fence', finish: true },
 	measure: { nameKey: 'editor.add.measurement.label', instructionKey: 'editor.element.banner.measurement', finish: true },

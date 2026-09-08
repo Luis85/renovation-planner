@@ -20,10 +20,10 @@ function intersects(a: Point, b: Point, box: BoundingBox): boolean {
 	return true;
 }
 function hit(candidate: SpatialObjectCandidate, box: BoundingBox): boolean {
-	if (candidate.bulges?.some(value => value !== 0)) return curvedCandidateIntersection(candidate, box);
-	const points = candidate.points;
+	if (!candidate.hitPoints && candidate.bulges?.some(value => value !== 0)) return curvedCandidateIntersection(candidate, box);
+	const points = candidate.hitPoints ?? candidate.points;
 	if (!points.length) return false;
-	const closed = !candidate.kind || candidate.kind === 'object';
+	const closed = !!candidate.hitPoints || !candidate.kind || candidate.kind === 'object';
 	if (points.some(point => intersects(point, point, box))) return true;
 	if (points.slice(1).some((point, index) => intersects(points[index], point, box))) return true;
 	if (!closed) return false;

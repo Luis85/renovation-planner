@@ -1,4 +1,5 @@
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
+import type { StairOptions } from '../../../domain/spatial/stairGeometry';
 import { MarqueeSelection } from '../selection/MarqueeSelection';
 import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { translate } from '../../../core/geometry/operations';
@@ -29,6 +30,9 @@ export interface SpatialObjectCandidate {
 	readonly id: string;
 	readonly points: readonly Point[];
 	readonly bulges?: readonly number[];
+	/** A derived hit/framing projection; gestures always retain the canonical points. */
+	readonly hitPoints?: readonly Point[];
+	readonly stair?: StairOptions;
 }
 
 /**
@@ -221,7 +225,7 @@ export class SelectTool implements EditorTool {
 	}
 	private selectStructure(context: EditorContext, event: EditorPointerEvent, hit: SpatialObjectCandidate, target: Exclude<SelectionTarget, null>): void {
 		selectSpatial(context.selection, hit.id, event.modifiers.shift);
-		if (hit.kind !== 'wall' && hit.kind !== 'opening') this.elementMove.start(context, event, hit);
+		if (hit.kind !== 'wall' && hit.kind !== 'opening') this.elementMove.start(context, event, hit, target.kind === 'handle' ? target.vertexIndex : undefined);
 		if (hit.kind === 'wall' && target.kind === 'handle' && target.vertexIndex === 1 && !context.writesBlocked()) this.wallGesture = { id: hit.id, start: event.worldPoint };
 	}
 

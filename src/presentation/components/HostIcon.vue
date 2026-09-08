@@ -2,11 +2,11 @@
 import { setIcon, type IconName } from 'obsidian';
 import { ref, watch } from 'vue';
 
-/** Decorative Lucide companion; an explicit namespace avoids Obsidian's legacy aliases. */
+/** Native Lucide or explicitly registered application artwork; never substitute a missing icon. */
 const props = defineProps<{ name: IconName }>();
 const root = ref<HTMLElement | null>(null);
 watch([root, () => props.name], ([element, name]) => {
-	if (element) setIcon(element, name.startsWith('lucide-') ? name : `lucide-${name}`);
+	if (element) setIcon(element, name.startsWith('lucide-') || name.startsWith('rp-') ? name : `lucide-${name}`);
 }, { immediate: true, flush: 'post' });
 </script>
 

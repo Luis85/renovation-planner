@@ -10,7 +10,8 @@ function structureContent(s: Structure | undefined): unknown {
 			s.openings.map(opening => [opening.id, opening.kind, opening.hostId, opening.offset, opening.width, opening.height, opening.sill,
 				opening.swing ? [opening.swing.hinge, opening.swing.side, opening.swing.angle] : null]),
 			s.boundaries.map(boundary => [boundary.roomId, boundary.wallIds]),
-			(s.elements ?? []).toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(element => [element.id, element.kind, element.points.map(point)])] : null;
+			(s.elements ?? []).toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(element => [element.id, element.kind, element.points.map(point),
+				element.stair ? [element.stair.width, element.stair.treads, element.stair.direction] : null])] : null;
 }
 
 function content(document: PlanGeometryDocument): unknown {

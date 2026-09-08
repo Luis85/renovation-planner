@@ -97,7 +97,7 @@ const hoverOutlineFlat = computed(() => {
 });
 const hoverClosed = computed(() => {
 	const kind = candidates.value.get(runtime.renderState.hoveredObjectId ?? '')?.kind;
-	return kind === undefined || kind === 'object';
+	return kind === undefined || kind === 'object' || kind === 'stair';
 });
 
 /**
@@ -123,7 +123,7 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 	const zone = candidates.value.get(id);
 	return zone === undefined ? [] : [{
 		id,
-		closed: zone.kind === undefined || zone.kind === 'object',
+		closed: zone.kind === undefined || zone.kind === 'object' || zone.kind === 'stair',
 		number: selectedIds.value.indexOf(id) + 1,
 		anchor: zone.points.length > 0 ? toScreen(zone.points[0]) : null,
 		strokeWidth: focusedId.value === id ? 3 : 2,

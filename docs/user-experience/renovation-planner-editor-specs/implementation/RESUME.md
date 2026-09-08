@@ -1,5 +1,9 @@
 # Wiederaufnahme der Editor-Finalisierung
 
+## Aktueller Auftrag — 2026-09-08
+
+Der neue [Release-Ausführungsplan](release-2026-09-08.md) ist der aktuelle Einstieg. Main/origin/main sind nach Fetch sauber auf `7d4bc381`. Der frühere Stack ist gemergt; PR #93 ist OPEN, docs-only auf `c1362732` und gehört weiterhin dem anderen Rechner. Die neuen Worktrees heißen `editor-release-selection`, `editor-release-rotation`, `editor-release-fidelity` und `editor-release-verification`; alle Branches tragen das Präfix `codex/`. Der Parent besitzt Integration, gemeinsame Dokumentation und serielle Gesamt-/Capture-/Hostprüfung. Die nachfolgenden früheren Owner, Prozesse und offenen PR-Zustände sind historische Snapshots, keine aktuelle Arbeitsanweisung. Die vollständigen M00–M17 plus Object-Rotation bleiben im Scope. Kein Merge ist autorisiert.
+
 Stand: 2026-09-07T21:54:19.460Z (UTC). Dieses Dokument ist der zentrale Wiedereinstieg bei App-Neustart, Kontext- oder Nutzungslimit. Git und laufende Tasks beim Fortsetzen erneut prüfen. Die frühere Nutzerpause ist aufgehoben.
 
 ## Auftrag und Abschlussmaßstab

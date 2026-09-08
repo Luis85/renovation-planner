@@ -1,5 +1,9 @@
 # Editor implementation status — 2026-09-07
 
+## Active continuation — 2026-09-08
+
+Main is clean at `7d4bc381`, fetched and verified on 2026-09-08. The old #74–#92 stack has landed. PR #93 is still an independently owned, open docs-only closeout at `c1362732`. Follow [the new release ledger](release-2026-09-08.md) for implementation, verification and outstanding acceptance on fresh branches. The dated measurements below are retained as historical evidence and are not the current repository state.
+
 Operational continuation: [RESUME.md](RESUME.md) is the central handoff for a later session or usage-limit interruption. It distinguishes pushed code, unverified WIPs, current processes and remaining acceptance.
 
 Full CI07bc094a passes **663files/8121tests on every Linux22/24/26 and Windows22 leg**,69skipped. Build/lint pass; unchanged branch coverage97.89%(12543/12813) leaves14arms. The five repository lifecycle gains are now confirmed in the complete run. **Fresh matched Health on07 also passes:0findings,748/748file paths mapped.** [Run34160382401](https://github.com/Luis85/renovation-planner/actions/runs/34160382401), [CI/Health receipt](evidence/ci-07bc094a-quality.json). UI9f7e882d is now integrated as Root6569a9e7, including the verified4-scenario overview and hardened capture provenance. The following commit adds Coverage256a9384:5verified cases,+6branches/+2statements on matched source/maps. Root checked98UI artifact hashes. Count-copy/idle-guidance,M13pilot,final combined9/18/newCI/Health and nativeH1–H6remain. [Joined receipt](joined-overview-snapshot-evidence.md).

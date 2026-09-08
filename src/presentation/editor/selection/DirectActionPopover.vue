@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue';
 import { useEditorRuntime } from '../runtime';
-import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useDirectActionContext } from './directActionContext';
 import { usePlanningContext } from '../planning/planningContext';
@@ -13,13 +12,11 @@ import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import HostIcon from '../../components/HostIcon.vue';
-import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
 import DirectDetailOptions from './DirectDetailOptions.vue';
 
 const runtime = useEditorRuntime(), editor = useEditorStore(), planning = usePlanningContext();
-const saves = useSaveStateStore(), project = useProjectStore();
+const saves = useSaveStateStore();
 const { target, session } = useDirectActionContext();
-const objectSelected = computed(() => project.structure.elements?.some(element => element.id === target.value?.id && element.kind === 'object'));
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null), optionsId = useId();
 const modes = computed(() => planning.context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const);
 const visible = computed(() => target.value !== null && target.value.visible && session.perspective !== 'review' && runtime.activeToolId.value === 'select'
@@ -113,10 +110,6 @@ function escape(event: KeyboardEvent): void {
 				<HostIcon name="grid-2x-2" />{{ tr('editor.direct.add-detail') }}
 			</button>
 		</div>
-		<ObjectRotationControls
-			v-if="objectSelected && session.perspective === 'plan'"
-			:id="target.id"
-		/>
 		<div
 			v-if="expanded"
 			:id="optionsId"

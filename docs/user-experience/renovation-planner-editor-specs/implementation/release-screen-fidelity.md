@@ -2,6 +2,13 @@
 
 Baseline: `7d4bc381` (origin/main inspected 2026-09-08). This is a new release work record, separate from PR #93's historical closeout. Earlier completion-matrix, implementation-status and RESUME entries identify evidence and accepted boundaries; their dated open-work prose is not a fresh missing-feature inventory.
 
+Repository follow-up on 2026-09-08: the parent revalidated PR #93 at `56b4b906`, still open
+and externally owned, now including fresh opening evidence and an opposite selection-priority
+statement. The user explicitly reaffirmed handles first, then Object → Opening → Wall → Room,
+with Alt cycling preserved. That current user decision governs this release; PR #93 stays
+untouched. The baseline classifications below are retained as attributed audit findings rather
+than silently rewritten as final integrated verification.
+
 ## Actionable plan
 
 1. Read README, M00–M17 prose and all eighteen source images, component library, implementation plan/matrix/status/RESUME, SDD and ADR-0019–0024 amendments. **Done:** all source images inspected with `view_image`; Product Design audit preflight found no saved user context.

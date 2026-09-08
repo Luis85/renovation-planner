@@ -2,9 +2,9 @@
 type: PBI
 parent: "[[Asset definitions and categories]]"
 order: 80
-status: Active
+status: Done
 started: "2026-09-05"
-finished: ""
+finished: "2026-09-08"
 horizon: "MVP"
 start: ""
 due: ""
@@ -78,3 +78,5 @@ row 13.
 group; screens [AL09](../user-experience/asset-library-delivery/specification/screens/AL09-loading-and-errors.md); `delivery-record.md` row 13. The
 `docs/user-experience/asset-library-delivery/pbis/` folder that held the package's own copy of this
 item was moved here on 2026-09-05; its `id` was PBI-13.
+
+Closed 2026-09-08 against the delivery record's evidence row and the gap-closure design (docs/superpowers/specs/2026-09-08-asset-library-gap-closure-design.md).

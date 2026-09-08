@@ -16,7 +16,8 @@ function content(document: PlanGeometryDocument): unknown {
 	const c = document.calibration;
 	return [c ? [point(c.pointA), point(c.pointB), c.knownDistance, c.pixelsPerWorldUnit] : null,
 		document.objects.toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(object => [object.id, object.points.map(point)]),
-		structureContent(document.structure), structureContent(document.intended)];
+		structureContent(document.structure), structureContent(document.intended),
+		(document.groups ?? []).toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(group => [group.id, group.name, group.memberIds.toSorted()])];
 }
 
 export function sameGeometryDocument(a: PlanGeometryDocument, b: PlanGeometryDocument): boolean {

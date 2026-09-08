@@ -73,6 +73,7 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 		// uniformly, so alignment between them is preserved — only what the numbers MEAN
 		// in millimetres changes.
 		const document: PlanGeometryDocument = {
+			...previous,
 			...(previous.intended ? { intended: scaleStructure(previous.intended, scaleCorrection) } : {}),
 			...(previous.structure ? { structure: scaleStructure(previous.structure, scaleCorrection) } : {}),
 			calibration: {
@@ -82,7 +83,7 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 				pixelsPerWorldUnit: calibration.pixelsPerWorldUnit,
 			},
 			objects: previous.objects.map((object) => ({
-				id: object.id,
+				...object,
 				points: scaleShape({ points: object.points }, scaleCorrection, origin).points,
 			})),
 		};

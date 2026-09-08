@@ -188,20 +188,26 @@ async function deleteSelectedAsset(assetId: AssetId): Promise<void> {
 
 async function createAsset(): Promise<void> {
 	if (dialogs.current !== null) return;
-	const createdId = await openNewAssetDialog({
+	const outcome = await openNewAssetDialog({
 		dialogs,
 		busy: newAssetBusy,
 		commands: context.commands,
 		logger: context.logger,
+		findExisting: (name) => {
+			const hit = store.findByName(name);
+			return hit === null ? null : { assetId: hit.assetId, name: hit.name };
+		},
 	});
-	if (createdId === null) return;
-	await hydrate();
-	const created = store.entryFor(createdId);
-	if (created !== null) {
-		store.query = '';
-		expandedCategories.value = new Set([...expandedCategories.value, created.category]);
+	if (outcome === null) return;
+	if (outcome.created) {
+		await hydrate();
+		const created = store.entryFor(outcome.assetId);
+		if (created !== null) {
+			store.query = '';
+			expandedCategories.value = new Set([...expandedCategories.value, created.category]);
+		}
 	}
-	performSelect(createdId);
+	performSelect(outcome.assetId);
 }
 async function onCreateAsset(): Promise<void> {
 	await draftGuard.leave(createAsset);

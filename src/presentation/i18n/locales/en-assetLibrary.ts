@@ -188,4 +188,8 @@ export const enAssetLibrary = {
 	'form.new-asset.unit-symbol.hour': 'h',
 	'form.new-asset.unit-symbol.day': 'd',
 	'form.new-asset.unit-symbol.fixed': 'fixed',
+	// AL03's similar-name hint under the name field. Housed here for the same `max-lines`
+	// reason as the rest of this file's `form.new-asset.*` rows.
+	'form.new-asset.similar.exists': 'An asset named “{name}” already exists.',
+	'form.new-asset.similar.show': 'Show it',
 } as const;

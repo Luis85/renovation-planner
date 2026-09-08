@@ -143,7 +143,7 @@ describe('NewAssetForm', () => {
 		expect(setFootprintFromDimensions).toHaveBeenCalledWith(
 			expect.objectContaining({ assetId: asset.id, width: 1200, depth: 800 }),
 		);
-		expect(wrapper.emitted('submit')).toEqual([[asset.id]]);
+		expect(wrapper.emitted('submit')?.[0]).toEqual([{ assetId: asset.id, created: true }]);
 	});
 
 	it('creates the asset with no footprint when dimensions are left empty', async () => {
@@ -333,7 +333,7 @@ describe('NewAssetForm', () => {
 		expect(createAsset).toHaveBeenCalledTimes(1);
 		expect(setFootprintFromDimensions).toHaveBeenCalledTimes(2);
 		expect(setFootprintFromDimensions.mock.calls[1][0].assetId).toBe(asset.id);
-		expect(wrapper.emitted('submit')).toEqual([[asset.id]]);
+		expect(wrapper.emitted('submit')?.[0]).toEqual([{ assetId: asset.id, created: true }]);
 	});
 
 	/**
@@ -660,5 +660,55 @@ describe('NewAssetForm', () => {
 		await flushPromises();
 		expect(createAsset).toHaveBeenCalledTimes(1);
 		expect(createAsset.mock.calls[0]?.[0].unitCostAmount).toBe('4.50');
+	});
+
+	/**
+	 * AL03: "a similar name is a hint linking to existing results, not an automatic merge." The
+	 * match itself is entirely `findExisting`'s — this form only draws whatever it answers and
+	 * offers the one door out. Typed with leading/trailing space and mixed case to prove the
+	 * comparison is the CALLER's, not a second one this form invents: `findExisting` here folds
+	 * case and trims, and the form passes the raw typed value straight through.
+	 */
+	it('hints at an existing asset with the same name and offers to show it instead', async () => {
+		const existing = { assetId: makeAsset().id, name: 'Oak plank floor' };
+		const createAsset = vi.fn<CreateAsset>(() => Promise.resolve(ok(makeAsset())));
+		const wrapper = mount(NewAssetForm, {
+			props: {
+				createAsset,
+				setFootprintFromDimensions: footprintOk(),
+				logger: recorder,
+				defaultCurrency: 'EUR',
+				findExisting: (name: string) =>
+					name.trim().toLowerCase() === 'oak plank floor' ? existing : null,
+			},
+		});
+		expect(wrapper.find('.rp-similar-name').exists()).toBe(false);
+
+		await wrapper.get('[data-field="name"]').setValue('  oak PLANK floor ');
+
+		expect(wrapper.get('.rp-similar-name').text()).toContain('“Oak plank floor” already exists');
+
+		await wrapper.get('.rp-similar-name button').trigger('click');
+
+		expect(wrapper.emitted('submit')?.[0]).toEqual([{ assetId: existing.assetId, created: false }]);
+		expect(createAsset).not.toHaveBeenCalled();
+	});
+
+	it('emits created: true after a real creation', async () => {
+		const asset = makeAsset();
+		const wrapper = mount(NewAssetForm, {
+			props: {
+				createAsset: () => Promise.resolve(ok(asset)),
+				setFootprintFromDimensions: footprintOk(),
+				logger: recorder,
+				defaultCurrency: 'EUR',
+			},
+		});
+		await wrapper.get('[data-field="name"]').setValue('Tile adhesive');
+		await wrapper.get('[data-field="unitCostAmount"]').setValue('4.50');
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(wrapper.emitted('submit')?.[0]).toEqual([{ assetId: asset.id, created: true }]);
 	});
 });

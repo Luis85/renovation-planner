@@ -128,4 +128,6 @@ export const deAssetLibrary = {
 	'form.new-asset.unit-symbol.hour': 'Std.',
 	'form.new-asset.unit-symbol.day': 'Tag',
 	'form.new-asset.unit-symbol.fixed': 'pauschal',
+	'form.new-asset.similar.exists': 'Ein Objekt namens „{name}“ gibt es bereits.',
+	'form.new-asset.similar.show': 'Anzeigen',
 } satisfies Partial<Record<StringKey, string>>;

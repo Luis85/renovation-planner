@@ -65,12 +65,19 @@ import { trError } from '../i18n/toUserMessage';
 import { tr } from '../i18n/strings';
 import FieldError from '../components/FieldError.vue';
 import FormBanner from '../components/FormBanner.vue';
+import SimilarNameHint from './SimilarNameHint.vue';
 
 const props = defineProps<{
 	createAsset: (input: CreateAssetInput) => Promise<Result<Asset, AppError>>;
 	setFootprintFromDimensions: (
 		input: SetAssetFootprintFromDimensionsInput,
 	) => Promise<DispatchResult>;
+	/**
+	 * AL03's similar-name hint. Optional and absent for the Renovation project view's own
+	 * caller, which has no catalogue reachable to search — see `newAssetDialog.ts`'s
+	 * `NewAssetDialogDeps.findExisting`.
+	 */
+	findExisting?: (name: string) => { readonly assetId: AssetId; readonly name: string } | null;
 	/**
 	 * `FormDescriptor.busy`'s other end (design slice 16). Optional so this component mounts
 	 * on its own with nothing wired to it; written FROM `submitting` below and never read
@@ -86,7 +93,9 @@ const props = defineProps<{
 	defaultCurrency: string;
 }>();
 
-const emit = defineEmits<{ submit: [assetId: AssetId] }>();
+const emit = defineEmits<{
+	submit: [outcome: { readonly assetId: AssetId; readonly created: boolean }];
+}>();
 
 /**
  * What the user types. The two dimensions are STRINGS rather than numbers because "not
@@ -335,6 +344,19 @@ const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
 const catalogueInoperative = computed(() => form.submitting.value || catalogueFrozen.value);
 
 /**
+ * AL03's hint: whatever `findExisting` answers for the name AS TYPED, re-evaluated on every
+ * keystroke. `null` when the prop is absent (the Renovation project view's caller) or when
+ * nothing matches, either of which draws no `SimilarNameHint` at all.
+ */
+const similar = computed(() => props.findExisting?.(form.values.value.name) ?? null);
+
+/** The hint's own door: resolve `submit` with the EXISTING asset rather than dispatching
+ *  `createAsset` at all — AL03's "a hint, not an automatic merge" means the user chose this. */
+function showExisting(assetId: AssetId): void {
+	emit('submit', { assetId, created: false });
+}
+
+/**
  * `:value` + `@input`, calling `setField` — never `v-model`, which would assign straight past
  * it and make the sole-write-path rule this composable exists for unenforceable.
  *
@@ -383,7 +405,7 @@ async function onSubmit(): Promise<void> {
 	if (await form.submit()) {
 		// Non-null by construction: `submit()` answers `true` only on an ok `Result`, and every
 		// ok arm of `createAssetAndFootprint` runs after `createdAssetId` has been set.
-		emit('submit', createdAssetId.value as AssetId);
+		emit('submit', { assetId: createdAssetId.value as AssetId, created: true });
 		return;
 	}
 	await focusFirstInvalidControl();
@@ -424,6 +446,11 @@ async function onSubmit(): Promise<void> {
 				>
 			</label>
 		</FieldError>
+		<SimilarNameHint
+			v-if="similar !== null && !catalogueFrozen"
+			:existing="similar"
+			@show="showExisting"
+		/>
 		<FieldError
 			v-slot="{ inputId, aria }"
 			:message="form.fieldErrors.value.get('category') ?? null"

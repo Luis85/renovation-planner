@@ -25,12 +25,36 @@ import { tr } from '../i18n/strings';
  *
  * **What it deliberately does NOT do is decide where the user goes next.** The two callers
  * differ in exactly that — the library selects what it made after refreshing its catalogue, the project view
- * opens it through `renovationProjectOpenAsset` — so this answers the created `AssetId` (or
- * `null` for a cancel) and each caller keeps its own hand-off, along with its refresh policy.
+ * opens it through `renovationProjectOpenAsset` — so this answers the created (or matched)
+ * `AssetId` (or `null` for a cancel) and each caller keeps its own hand-off, along with its
+ * refresh policy.
  */
+
+/** One row of a `findExisting` match — enough for `SimilarNameHint` to name it and for a
+ *  caller to select it, never a whole `CatalogueEntryDto`. */
+export interface ExistingAsset {
+	readonly assetId: AssetId;
+	readonly name: string;
+}
+
+/**
+ * `created: false` means the dialog resolved to an EXISTING asset through `SimilarNameHint`
+ * rather than through `createAsset` — AL03's "a hint linking to existing results, not an
+ * automatic merge". Both arms carry an `assetId` because both send the caller to the same
+ * place (the asset designer, or the library's own selection); only the refresh policy differs,
+ * which is why `created` and not the arm itself is what each caller branches on.
+ */
+export type NewAssetOutcome = { readonly assetId: AssetId; readonly created: boolean } | null;
+
 export interface NewAssetDialogDeps {
 	readonly dialogs: Pick<ReturnType<typeof useDialogStore>, 'openDialog'>;
 	readonly busy: Ref<boolean>;
+	/**
+	 * Optional: the Renovation project view has no catalogue reachable from it to search, so
+	 * only the Asset library's own `createAsset` supplies one. Absent, `NewAssetForm` draws no
+	 * hint at all — never a lookup silently answering "nothing typed yet".
+	 */
+	readonly findExisting?: (name: string) => ExistingAsset | null;
 	/**
 	 * The command bundle, STRUCTURALLY — the three members this form needs, named as a shape
 	 * rather than as either surface's own `…Commands` type, because the two callers hold
@@ -53,7 +77,7 @@ export interface NewAssetDialogDeps {
 	readonly logger: Logger;
 }
 
-export async function openNewAssetDialog(deps: NewAssetDialogDeps): Promise<AssetId | null> {
+export async function openNewAssetDialog(deps: NewAssetDialogDeps): Promise<NewAssetOutcome> {
 	const result = await deps.dialogs.openDialog({
 		kind: 'form',
 		title: tr('form.new-asset.title'),
@@ -65,9 +89,10 @@ export async function openNewAssetDialog(deps: NewAssetDialogDeps): Promise<Asse
 			busy: deps.busy,
 			logger: deps.logger,
 			defaultCurrency: deps.commands.defaultCurrency,
+			findExisting: deps.findExisting,
 		},
 		busy: deps.busy,
 	});
 	if (result === 'cancel') return null;
-	return result.values as AssetId;
+	return result.values as NewAssetOutcome;
 }

@@ -259,21 +259,24 @@ async function onCreateProject(initialName = ''): Promise<void> {
  * before the first write and why a retry must not create a second asset.
  *
  * `result.values` is the raw payload `NewAssetForm` emitted (`FormDialogResult`'s own
- * docblock: "typed by the form's own component"), which for this form is the `AssetId` it
- * created — not an object, unlike the shape a caller might expect by analogy with a DTO.
+ * docblock: "typed by the form's own component"), which since Task B6 is a
+ * `NewAssetOutcome` — `{ assetId, created }` — rather than a bare `AssetId`: this surface
+ * passes no `findExisting`, so `created` is always `true` here, but `openNewAssetDialog`
+ * answers the one shape for both callers rather than a bare id for the one that never sees
+ * the other arm.
  */
 async function onCreateAsset(): Promise<void> {
 	if (context.readOnly) return;
 	if (dialogs.current !== null) return;
 
-	const assetId = await openNewAssetDialog({
+	const outcome = await openNewAssetDialog({
 		dialogs,
 		busy: newAssetBusy,
 		commands: context.commands,
 		logger: context.commands.logger,
 	});
-	if (assetId === null) return;
-	await context.openAsset(assetId);
+	if (outcome === null) return;
+	await context.openAsset(outcome.assetId);
 }
 
 /**

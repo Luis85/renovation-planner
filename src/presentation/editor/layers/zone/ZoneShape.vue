@@ -64,7 +64,10 @@ const props = defineProps<{
  * pan must not rebuild this array. `props.model.points` does not change when the camera
  * moves, so the cache holds and `<VLine>` receives the same array it had before.
  */
-const flatPoints = computed(() => polygonPolyline(props.model, 0.25 / props.zoom).flatMap((point) => [point.x, point.y]));
+const flatPoints = computed(() => {
+	const points = props.model.bulges?.some(value => value !== 0) ? polygonPolyline(props.model, 0.25 / props.zoom) : props.model.points;
+	return points.flatMap((point) => [point.x, point.y]);
+});
 
 const appearance = computed(() => statusAppearance(props.model.status));
 const fill = computed(() => props.tokens[zoneFillToken(props.model.zoneType)]);

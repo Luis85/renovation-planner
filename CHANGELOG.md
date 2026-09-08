@@ -16,7 +16,7 @@ entries are added by the pull request that earns them, never invented at release
 - Plan editor: create native straight Stairs with editable width, run, tread count and direction, and Direction arrows with editable points. Their schema-8 geometry uses existing guarded history, full stair footprints for selection and grouping, and explicit native/application icon registration.
 
 - Plan geometry: versioned circular Room and Wall boundaries retain curve parameters through persistence and legacy point transforms, with analytic measurements and curve-aware version observations.
-- Editor: edit Room and Wall curves with numbered bend handles or precise depth/radius fields; curved edge measurements, rotation, selection, hosted openings and exact undo follow the same geometry.
+- Editor: edit Room and Wall curves with numbered bend handles or precise depth/radius fields; measurements, snapping, material quantities, photo-pin bounds, rotation, selection, hosted openings and exact undo follow the curved geometry.
 
 - Plan editor: show small curved-arrow controls on hovered item edges, with generous pointer targets and click-to-angle input, while preserving selected groups and ordinary overlap cycling.
 

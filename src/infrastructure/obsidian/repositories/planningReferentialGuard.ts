@@ -9,7 +9,7 @@ import { sourceMeasurement } from '../../../domain/requirement/RequirementSource
 import { RenovationSchema } from '../../persistence/dto/renovation';
 import { materialReferents } from '../../../application/commands/renovation/planningLinks';
 
-function sourceDocument(dto: PlanGeometryDTO) { return { ...dto, objects: dto.objects.map(item => ({ id: item.id, points: item.points.map(([x, y]) => ({ x, y })) })) }; }
+function sourceDocument(dto: PlanGeometryDTO) { return { ...dto, objects: dto.objects.map(item => ({ id: item.id, points: item.points.map(([x, y]) => ({ x, y })), bulges: item.bulges })) }; }
 
 async function frontmatter(vault: Vault, path: string | undefined): Promise<Record<string, unknown> | null> {
 	const file = path ? vault.getAbstractFileByPath(path) : null;

@@ -7,6 +7,7 @@ import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { STAGE_PIXELS, worldToScreen } from '../../../src/presentation/editor/viewport/Viewport';
 import { pointer } from '../../helpers/planEditorRig';
 import type { Point } from '../../../src/core/geometry/Point';
+import { defer } from '../../helpers/async';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
@@ -39,6 +40,18 @@ it('opens an ordinary Room with no structure sidecar section and leaves a no-op 
 	await rig.runtime.curveTask.finish(); await settle(); expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
 
+it('retires a pending curve read when the selected subject changes and preserves a later tool choice', async () => {
+	const rig = await setup(), service = expectDefined(rig.deps.commands.groups, 'geometry service');
+	const result = await service.read(rig.plan.id), pending = defer<typeof result>(), bytes = [...rig.stack.vault.entries];
+	vi.spyOn(service, 'read').mockReturnValueOnce(pending.promise);
+	const opening = rig.runtime.curveTask.open(rig.room.id); expect(rig.runtime.curveTask.state.loading).toBe(true);
+	rig.selection.select([rig.project.structure.walls[0].id as never]); await settle(); pending.resolve(result); await opening; await settle();
+	expect(rig.runtime.curveTask.target.value).toBeNull(); expect(rig.runtime.activeToolId.value).toBe('select');
+	await rig.runtime.curveTask.open(rig.project.structure.walls[0].id); await settle();
+	rig.selection.clear(); rig.runtime.setTool('draw-wall'); await settle();
+	expect(rig.runtime.activeToolId.value).toBe('draw-wall'); expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
 it('cancels pointer bend interruption and the entire task without writes or camera changes', async () => {
 	const rig = await setup(), editor = useEditorStore(rig.pinia), original = JSON.stringify(editor.viewport), bytes = [...rig.stack.vault.entries];
 	await rig.runtime.curveTask.open(rig.room.id); await settle();
@@ -50,6 +63,10 @@ it('cancels pointer bend interruption and the entire task without writes or came
 	rig.runtime.toolManager.cancelInterruptedGesture(); await settle();
 	expect(rig.runtime.curveTask.target.value?.geometry.bulges?.[0]).toBe(0);
 	rig.runtime.curveTask.set(0, 0.3); rig.runtime.curveTask.cancel(); await settle();
+	await rig.runtime.curveTask.open(rig.room.id); await settle();
+	pointer(canvas, 'pointerdown', start.x, start.y); pointer(canvas, 'pointermove', next.x, next.y);
+	rig.runtime.setTool('draw-wall'); await settle();
+	expect(rig.runtime.activeToolId.value).toBe('draw-wall'); expect(rig.runtime.curveTask.target.value).toBeNull();
 	expect([...rig.stack.vault.entries]).toEqual(bytes); expect(JSON.stringify(editor.viewport)).toBe(original);
 });
 

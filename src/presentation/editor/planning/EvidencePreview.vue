@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { Evidence } from '../../../domain/renovation/PlanningDepth';
 import type { EvidenceFiles } from '../../../application/ports/EvidenceFiles';
 import type { PlanId } from '../../../domain/plan/PlanId';
@@ -7,6 +7,7 @@ import { tr } from '../../i18n/strings';
 const props = defineProps<{ item: Evidence; files?: EvidenceFiles; planId: string }>();
 const failed = ref(false);
 const file = computed(() => props.files?.resolve(props.item.path + props.item.subpath, props.planId as PlanId));
+watch(file, () => { failed.value = false; });
 const thumbnail = computed(() => !failed.value && file.value?.ok ? file.value.value.image : null);
 </script>
 <template>

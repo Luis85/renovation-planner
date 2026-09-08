@@ -82,6 +82,7 @@ describe('explicit planning form contracts', () => {
  const rig = await setup('evidence'), item = { ...rig.evidence, type: 'photo' as const };
  const w = mount(EvidencePreview, { props: { item, files: rig.files, planId: rig.plan.id } }); mounted.push(w);
  expect(w.get('img').attributes('alt')).toBe(item.description); await w.get('img').trigger('error'); expect(w.find('img').exists()).toBe(false); expect(w.text()).toContain('Thumbnail unavailable');
+ await w.setProps({ item: { ...item, path: 'replacement.jpg' } }); expect(w.find('img').exists()).toBe(true); expect(w.text()).not.toContain('Thumbnail unavailable');
  await w.setProps({ files: undefined }); expect(w.text()).toContain('missing');
  });
 

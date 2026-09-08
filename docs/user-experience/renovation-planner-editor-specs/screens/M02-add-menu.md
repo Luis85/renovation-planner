@@ -1,17 +1,23 @@
 # M02 — Add Menu
 
-## Object rotation continuation — 2026-09-08
+## Spatial rotation continuation — 2026-09-08
 
-After saving an Object, Plan/Select exposes a rotation handle and keyboard-accessible
-**Rotate by…**, clockwise 90° and counterclockwise 90° actions. Positive relative degrees
-turn clockwise in the existing downward-y world; commas and decimal points are accepted.
-The centroid remains fixed for a draft, all vertices transform rigidly from its immutable
-baseline, and Shift snaps pointer rotation to 15° with visible angle feedback. Apply/release
-saves once; Cancel/Escape/tool exit discards, and a zero/full turn adds no history. The same
-Object stays selected, reload preserves its points and identity, and Undo/Redo restores exact
-stored geometry. Invalid input, conflicts and failed readback keep their existing guarded
-outcomes. One free Object is supported; other entity types, reference rotation, catalogue facing
-and group transforms keep separate contracts. See [release traceability](../implementation/release-2026-09-08.md).
+Every free spatial item (Room, Area, Object, Path, Fence and Measurement) has a rotation handle
+and keyboard-accessible **Rotate by…**, clockwise 90° and counterclockwise 90° actions.
+Positive relative degrees turn clockwise in the downward-y world; decimal point/comma are
+accepted. The pivot stays fixed, all points transform rigidly from the immutable baseline,
+and Shift snaps pointer turns to 15° with visible angle feedback. Free-item Apply/release
+saves once; Cancel/Escape/tool exit discards, and zero/full turns add no history. Selection,
+identity, links and separate Planned geometry remain intact across save, reload and Undo/Redo.
+
+Walls rotate about their midpoint with hosted openings attached. Connected junction endpoints
+follow, independent Room outlines do not, and impact review/Apply precedes the write. A selected
+door/window/opening offers **Rotate host wall** rather than detaching it. Invalid intersections,
+containment, conflicts and readback failure retain their guarded outcomes. The handle's visible
+circular arrow and at least 44 px grab region avoid dimension/corner controls. Reference plans
+retain setup rotation; this action does not create group transforms or catalogue orientation.
+See [ADR-0025](../../../development/adrs/0025-spatial-rotation.md) and
+[release traceability](../implementation/release-2026-09-08.md).
 
 ![M02 — Add Menu](../images/M02-add-menu.png)
 

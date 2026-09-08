@@ -16,6 +16,17 @@ async function setup() {
  return rig;
 }
 describe('planning review regressions', () => {
+ it('refuses a shopping list when a fully procured source becomes stale', async () => {
+  const rig = await planningStack();
+  expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute());
+  const before = expectOk(await rig.read()), requirement = before.materials[0].entity;
+  const renovation = { ...rig.value, depth: { ...rig.depth, procurement: [{ id: 'stock', roomId: rig.roomId, targetId: rig.roomId, workId: '', unit: requirement.unit, requirementId: requirement.id, purchased: requirement.quantity.calculated.value.toString(), reserved: '0' }] } };
+  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(before.plan.entity, renovation)), before.plan.version));
+  expect(shoppingBody(expectOk(await rig.read()))).toBe('');
+  expectOk(await rig.geometry.write(rig.plan.id, { ...before.geometry.document, objects: before.geometry.document.objects.map(room => ({ ...room, points: room.points.map(point => ({ ...point, x: point.x * 2 })) })) }, before.geometry.version));
+  const after = expectOk(await rig.read()); expect(materialRows(after)[0].outstanding.toString()).toBe('0');
+  expect(shoppingBody(after)).toBeNull();
+ });
  it('withholds the all-clear during pending/failed reads and for missing evidence, including the generated note', async () => {
   const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning');
   await rig.runtime.renovation.perspective('review'); await settle();

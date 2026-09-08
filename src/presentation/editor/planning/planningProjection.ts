@@ -60,8 +60,9 @@ export function planningFindings(baseline: PlanningBaseline, files?: EvidenceFil
  return [...stale, ...financialFindings(baseline), ...missing].toSorted((a, b) => a.kind.localeCompare(b.kind, 'en') || a.id.localeCompare(b.id, 'en'));
 }
 export function shoppingBody(baseline: PlanningBaseline): string | null {
-	const rows = materialRows(baseline).filter(item => item.outstanding.gt(0));
-	if (rows.some(item => item.stale)) return null;
+	const materials = materialRows(baseline);
+	if (materials.some(item => item.stale)) return null;
+	const rows = materials.filter(item => item.outstanding.gt(0));
 	// One row per requirement deliberately preserves pricing/source context; no unsafe name-based merge.
 	return rows.map(item => `- [ ] ${item.name.replace(/[\r\n[\]<>]/g, ' ')}: ${item.outstanding.toString()} ${item.entity.unit} · ${item.price.amount} ${item.price.currency}/${item.entity.unit}\n  [[rp-id:${item.entity.id}]] · [[rp-id:${item.entity.origin.zoneId}]] · ${item.source.state}/${item.source.rule} · waste ${item.entity.wasteFactor.mul(100).toString()}% · lot ${item.source.lot || '—'} · minimum ${item.source.minimum || '—'}`).join('\n');
 }

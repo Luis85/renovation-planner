@@ -39,7 +39,10 @@ const session = useRenovationSession(), workspace = useWorkspaceStore();
 const captionObstacles = computed(() => session.visible && workspace.layerVisibility.annotation ? props.pins : []);
 const selected = computed(() => new Set<string>(selection.selectedIds));
 
-const models = computed(() => [...zones.value.values()].map((zone) => toZoneRenderModel({ ...zone, ...props.preview?.find(item => item.id === zone.id) })));
+const models = computed(() => {
+	const preview = new Map(props.preview?.map(object => [object.id, object]));
+	return [...zones.value.values()].map(zone => toZoneRenderModel({ ...zone, ...preview.get(zone.id) }));
+});
 </script>
 
 <template>

@@ -254,7 +254,10 @@ export class SelectTool implements EditorTool {
 
 	private finishSelectionGesture(event: EditorPointerEvent): boolean {
 		if (this.deps.selectionMove?.active) { if (event.button === 'primary') this.deps.selectionMove.finish(event); return true; }
-		if (this.marquee.active && this.context) { this.marquee.finish(this.context, event, this.deps.spatialObjects()); return true; }
+		if (this.marquee.active && this.context) {
+			this.marquee.finish(this.context, event, this.deps.spatialObjects(), this.deps.expandSelection ? (id, deep) => this.deps.expandSelection?.(id, deep) ?? [] : undefined);
+			return true;
+		}
 		return false;
 	}
 	pointerUp(event: EditorPointerEvent): void {

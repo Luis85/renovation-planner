@@ -86,6 +86,7 @@ export interface EditorRuntime {
 	readonly elementTask: SpatialEditing['elementTask'];
 	readonly elementActions: SpatialEditing['elementActions'];
 	readonly rotationActions: SpatialEditing['rotationActions'];
+	readonly groupActions: SpatialEditing['groupActions'];
 	readonly areaDetails: EditorFormActions['areaDetails'];
 	readonly outlineEdit: EditorFormActions['outlineEdit'];
 	readonly planning: ReturnType<typeof createPlanningRefresh>;
@@ -733,7 +734,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect, roomDraft, defaultRoomName });
 	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
-	const { elementTask, elementActions, rotationActions, curveTask, toolBindings } = createSpatialEditing(context, { toolManager, setTool, returnToSelect, activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, renderState, ledger, structureTask, wall: structureActions, openPlanNote: () => context.openPlanNote() });
+	const { elementTask, elementActions, groupActions, rotationActions, curveTask, toolBindings } = createSpatialEditing(context, { toolManager, setTool, returnToSelect, activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, renderState, ledger, structureTask, wall: structureActions, openPlanNote: () => context.openPlanNote() });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value,
 		...toolBindings,
 		previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
@@ -810,7 +811,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 
 	return {
 		dispatcher: wrappedDispatcher,
-		structureTask, structureActions, elementTask, elementActions, rotationActions, curveTask,
+		structureTask, structureActions, elementTask, elementActions, groupActions, rotationActions, curveTask,
 		toolManager, renderState, activeToolId, setTool, returnToSelect, cancelActiveTask,
 		undo, redo, canUndo, canRedo,
 		inspectorDto: storeToRefs(inspector).dto,

@@ -285,3 +285,23 @@ label is the row's one span that cannot shrink, and it first overflows its track
 280px — 17rem sits in that margin, under both AL10-720's and AL10-560's measured containers.
 That number moved again, to 19rem, in the round above — 17rem stopped overflowing but left the
 name column unusably narrow once the amount/unit tracks were pinned to fixed `ch` widths.
+
+### Gap closure (2026-09-08)
+
+`docs/superpowers/specs/2026-09-08-asset-library-gap-closure-design.md` items 1–14, one line
+each with the task that shipped it:
+
+1. Price column alignment, and a unit SYMBOL beside it instead of the raw key or long label — Tasks A1, A2.
+2. Column headings and cells leave together under one `@container` rule — Task A3.
+3. Headings reachable by assistive technology (`aria-hidden` removed above the threshold) — Task A3.
+4. Used-in row wraps at the 240px rail instead of breaking the project name — Task A4.
+5. Repair strip lays the reason and the action out in grid columns — Task A5.
+6. Comma decimal separator accepted in unit cost, waste and height, and in the New asset price field — Tasks B1, B2, B3.
+7. The unit-cost draft comparison trims like `waste` and `height` already did — Task B2.
+8. An undeclared category or unit stays visible rather than disappearing from the select — Task B4.
+9. Keep editing returns focus to the field that was being edited — Task B5.
+10. A similar-name hint links to the existing asset instead of an automatic merge — Task B6.
+11. A clear-search control sits on the search field itself — Task C1.
+12. Back restores the shelves' scroll position — Task C2.
+13. Four labels adopt the specification's wording, in both locales — Task C3.
+14. The chevron: the specification was corrected, `Back to library` stands unchanged — Task C4.

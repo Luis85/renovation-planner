@@ -1,10 +1,10 @@
 # Asset Library — Implementation backlog
 
-Version 1.1 · 2026-09-05 · English project documentation · 18 PBIs, 2 technical enablers · Status: implementation in review
+Version 1.1 · 2026-09-05 · English project documentation · 18 PBIs, 2 technical enablers · Status: delivered; real-vault acceptance open
 
 **Adopted 2026-09-05.** After pull request #70 implemented this package, its eighteen PBIs became register notes under `docs/requirements/`; the table below links there. The package ids survive in each note's Sources footer. EN-01 and EN-02 stay here as enablers the delivery record discharged.
 
-The implementation has been reconciled against `origin/main` at `d00e9993`. The [delivery record](delivery-record.md) maps all PBIs to production code, tests and decisions. Existing functionality was retained; final real-vault acceptance remains open.
+The implementation has been reconciled against `origin/main` at `d00e9993`. The [delivery record](delivery-record.md) maps all PBIs to production code, tests and decisions. Existing functionality was retained; the gap-closure design (`docs/superpowers/specs/2026-09-08-asset-library-gap-closure-design.md`) closed the remaining style, form and navigation findings, and final real-vault acceptance remains open.
 
 The English edition preserves IDs, dependencies, scope, and acceptance intent. Existing screenshots are retained as **German-localized UI references**; they are not English-screen acceptance evidence. All document prose and executable-example wording is English.
 

@@ -1,5 +1,6 @@
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
+import { inputEn } from './input';
 import { creationEn } from './creation';
 /**
  * The Plan Editor's own vocabulary — the shell (context bar, rail, status bar),
@@ -28,6 +29,7 @@ import { creationEn } from './creation';
  */
 import { structureEn } from './structure';
 export const editorEn = {
+	...inputEn,
 	...creationEn,
 	'editor.direct.edit-shape': 'Edit shape',
 	'editor.direct.edit-length': 'Edit length',

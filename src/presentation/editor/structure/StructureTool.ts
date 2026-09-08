@@ -1,6 +1,7 @@
 import type { EditorContext } from '../tools/editor-context';
 import type { EditorPointerEvent, EditorTool } from '../tools/editor-tool';
 import type { Structure } from '../../../domain/spatial/Structure';
+import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 import { addWallPoint, pickHost, snapWallPoint, type StructureDraft, type StructureToolId } from './structureDraft';
 
 export class StructureTool implements EditorTool {
@@ -17,9 +18,10 @@ export class StructureTool implements EditorTool {
 		if (!this.context || this.deps.blocked()) return;
 		const tolerance = Math.min(100, 8 * this.context.viewport.worldPerScreenPixel());
 		if (this.id !== 'draw-wall') { pickHost(this.deps.draft, event.worldPoint, this.deps.structure().walls, tolerance); return; }
+		const constrained = constrainDrawingPoint(this.deps.draft.points.at(-1), event.worldPoint, event.modifiers.shift, this.context.snapService);
 		const snapped = this.context.snapService.enabled
-			? snapWallPoint(event.worldPoint, this.deps.draft.points, this.deps.structure().walls, tolerance)
-			: { point: event.worldPoint, snapped: false };
+			? snapWallPoint(constrained, this.deps.draft.points, this.deps.structure().walls, tolerance)
+			: { point: constrained, snapped: false };
 		this.deps.draft.cursor = snapped.point; this.deps.draft.snapped = snapped.snapped;
 	}
 	pointerUp(): void { /* Points are placed on pointer down. */ }

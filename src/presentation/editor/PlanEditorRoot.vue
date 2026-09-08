@@ -47,6 +47,10 @@ import AddMenu from './add/AddMenu.vue';
 import TemporaryToolBanner from './shell/TemporaryToolBanner.vue';
 import { useSelectionStore } from './selection/selection-store';
 import { routeEscape } from './escapeRouting';
+import { editorHistoryShortcut } from './surface/historyShortcut';
+import { useDialogStore } from '../dialogs/dialog-store';
+import { useEditorStore } from '../stores/EditorStore';
+import CanvasContextMenu from './selection/CanvasContextMenu.vue';
 
 const context = usePlanEditorContext();
 provideTradeCatalogue(context.commands.tradeCatalogue, context.commands.logger);
@@ -61,6 +65,7 @@ provideReviewPresentation(context, runtime);
 provideNoteCreation(runtime, planning);
 const projectStore = useProjectStore();
 const selection = useSelectionStore();
+const dialogs = useDialogStore(), editor = useEditorStore();
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
 const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
@@ -204,6 +209,7 @@ function onOpenAdd(): void {
  * handler routes temporary tasks and selection from controls outside the canvas.
  */
 function onRootKeydown(event: KeyboardEvent): void {
+	if (editorHistoryShortcut(event, runtime, { modal: dialogs.current !== null, gesture: runtime.toolManager.gestureInFlight || editor.dragState !== null })) return;
 	if (!addMenuOpen.value || event.key !== 'Escape') return;
 	event.stopPropagation();
 	event.preventDefault();
@@ -386,6 +392,7 @@ const showAddMenu = computed(() => renovationSession.perspective !== 'review' &&
 						@action="onEmptyStateAction()"
 					/>
 					<TemporaryToolBanner />
+					<CanvasContextMenu @open-add="onOpenAdd" />
 					<FloatingPrimaryActions
 						v-if="renovationSession.perspective !== 'review'"
 						:add-open="addMenuOpen"

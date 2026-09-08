@@ -33,9 +33,9 @@ import {
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
 } from './noteIo';
-import { observeZone } from './digest';
-import { versionOfFrontmatter } from './versionCheck';
-import type { SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
+import { zoneVersion } from './zoneVersion';
+import { prepareZoneGeometryVersions } from './zoneGeometryVersions';
+import type { Polygon } from '../../../core/geometry/Polygon';
 import { checkExpectedVersion, revisionConflict } from '../../../application/ports/versioning';
 import { freshNotePath, projectFolderOf, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
@@ -116,16 +116,7 @@ function sidecarUnreadable(planId: unknown, cause: unknown): PersistenceError {
 	return persistenceError('zone.sidecar-unreadable', `The geometry sidecar for plan ${String(planId)} could not be read.`, cause);
 }
 
-/**
- * A zone's version spans its two files: the note's stored revision, and a token over the
- * note's owned keys AND the sidecar entry (`observeZone`). Minted at every read and at the
- * write's own return through this one function, so the two cannot disagree about what a
- * "reading" is — a save's returned version has to satisfy the next conditional write.
- */
-function zoneVersion(frontmatter: Record<string, unknown>, entry: SpatialObjectGeometryDTO | undefined): EntityVersion {
-	return { revision: versionOfFrontmatter(frontmatter).revision, observed: observeZone(frontmatter, entry) };
-}
-
+// Zone-version calculation is shared with grouped sidecar writes in zoneVersion.ts.
 export class ObsidianZoneRepository {
 	private readonly queues = new KeyedQueues();
 
@@ -136,6 +127,9 @@ export class ObsidianZoneRepository {
 
 	getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, RepositoryError>> {
 		return this.loadOne(id, (planId) => this.geometry.read(planId));
+	}
+	prepareGeometryVersions(id: ZoneId, geometry: Polygon) {
+		return Promise.resolve(prepareZoneGeometryVersions(this.deps, id, geometry));
 	}
 
 	/**

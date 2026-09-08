@@ -52,6 +52,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 		const dto = snapshot.value.dto;
 		return ok({
 			document: {
+				...(dto.groups?.length ? { groups: dto.groups } : {}),
 				...(dto.intended ? { intended: dto.intended } : {}),
 				...(dto.structure ? { structure: dto.structure } : {}),
 				calibration: dto.calibration ? calibrationFromPersistence(dto.calibration) : null,
@@ -73,6 +74,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 			planId,
 			(dto) => ({
 				...dto,
+				groups: document.groups?.length ? document.groups.map(group => ({ ...group, memberIds: [...group.memberIds] })) : undefined,
 				intended: toStructure(document.intended),
 				structure: toStructure(document.structure),
 				calibration: document.calibration ? calibrationToPersistence(document.calibration) : null,

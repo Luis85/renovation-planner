@@ -27,7 +27,7 @@ export function createSpatialRemoval(context: PlanEditorContext, runtime: Pick<E
  function matches(baseline: RenovationBaseline): boolean {
   const document = baseline.geometry.document;
   return sameElementMetadata(project.plan?.spatialElements, baseline.plan.entity.spatialElements)
-   && sameGeometryDocument({ objects: [], structure: project.structure, intended: project.intended, calibration: project.plan?.calibration ?? null },
+   && sameGeometryDocument({ objects: [], groups: project.groups, structure: project.structure, intended: project.intended, calibration: project.plan?.calibration ?? null },
     { ...document, objects: [], structure: document.structure ?? EMPTY_STRUCTURE });
  }
  async function approve(baseline: RenovationBaseline, selected: readonly string[], proposal: ReturnType<typeof spatialRemovalInput>): Promise<boolean> {

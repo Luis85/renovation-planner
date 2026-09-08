@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import type Konva from 'konva';
 import { afterEach, expect, it, vi } from 'vitest';
+import { editorRotationScene } from '../../harness/editorRotationProbe';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { expectDefined, expectFound, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { settle, mountPlanEditorCanvas, runtimeOf } from '../../helpers/editor';
@@ -10,6 +11,7 @@ import { ObsidianPlanRepository } from '../../../src/infrastructure/obsidian/rep
 import { ObsidianPlanGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { renovationServices } from '../../../src/application/commands/renovation/RenovationCommand';
 import { toPlanDto } from '../../../src/presentation/read-models/PlanDto';
+import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
@@ -138,6 +140,7 @@ it('Escape discards the pointer preview and a refreshed peer edit cannot be over
 	rig.selection.select([element.id as never]); tool.pointerDown(pointerAt(handle.x, handle.y));
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id)), peer = { ...element, points: element.points.map(point => ({ ...point, x: point.x + 200 })) };
 	expectOk(await rig.renovation.command(baseline, elementInput(baseline, peer), rig.runtime.structureTask.ledger).execute()); await rig.runtime.refreshProjection(); const count = write.mock.calls.length;
+	tool.pointerMove(pointerAt(2000, 1000)); await settle(); expect(rig.runtime.rotationActions.preview.value).toBeNull(); expect(rig.runtime.renderState.rotationDegrees).toBeNull();
 	tool.pointerUp(pointerAt(2000, 1000)); await settle(); expect(write.mock.calls).toHaveLength(count); expect(rig.project.structure.elements?.[0].points).toEqual(peer.points);
 });
 
@@ -170,7 +173,7 @@ it.each(['Room', 'Custom'] as const)('rotates %s through the guarded Zone comman
 	const zone = zoneType === 'Room' ? rig.room : expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Outside area', zoneType, geometry: { points: element.points.map(point => ({ ...point, x: point.x + 5000 })) } })).zone.entity;
 	await rig.runtime.refreshProjection(); rig.selection.select([zone.id]); await settle();
 	const original = zone.geometry.points, document = expectOk(await rig.geometry.read(rig.plan.id)).document, structure = document.structure, intended = document.intended;
-	const shape = expectDefined(rig.runtime.rotationActions.target.value, 'rotation target'); expect(shape.kind).toBe(zoneType === 'Room' ? 'room' : 'area');
+	const shape = expectDefined(rig.runtime.rotationActions.target.value, 'rotation target'); expect(editorRotationScene(zone.id).points).toEqual(zone.geometry.points.flatMap(point => [point.x, point.y])); expect(shape.kind).toBe(zoneType === 'Room' ? 'room' : 'area');
 	await rig.runtime.rotationActions.rotate(zone.id, 27.25); await settle();
 	const rotated = rotationPoints(shape, 27.25, expectDefined(rotationPivot(shape), 'pivot'));
 	expect(rig.project.zones.get(zone.id)?.points).toEqual(rotated); expect(rig.project.structure).toEqual(structure); expect(rig.project.intended).toEqual(intended);
@@ -189,3 +192,37 @@ it('refuses a peer-modified Room baseline at numeric Apply without replacing its
 	const saved = expectFound(await rig.stack.zones.getById(rig.room.id)); expect(saved.entity.name).toBe('Peer room'); expect(saved.entity.geometry.points).toEqual(baseline.entity.geometry.points);
 	rig.dialogs.resolve('cancel'); await operation;
 });
+
+it('paints Room rotation in the top interaction layer and hides only its pointer handle with the source layer', async () => {
+	const rig = await setup(); rig.selection.select([rig.room.id]); await settle();
+	const handle = expectDefined(expectDefined(rig.stage, 'stage').findOne('.object-rotation-handle'), 'Room handle'); expect(handle.getLayer()?.name()).toBe('interaction');
+	const workspace = useWorkspaceStore(rig.pinia); workspace.toggleLayer('zone'); await settle();
+	expect(rig.runtime.rotationActions.handle.value).toBeNull(); expect(rig.runtime.rotationActions.available.value).toBe(true);
+	expect(expectDefined(rig.stage, 'stage').findOne('.object-rotation-handle')).toBeUndefined();
+	const original = rig.project.zones.get(rig.room.id)?.points; await rig.runtime.rotationActions.rotate(rig.room.id, 90); await settle(); expect(rig.project.zones.get(rig.room.id)?.points).not.toEqual(original);
+});
+
+
+
+it('preserves Object paint/list order, complete metadata and the other Object through rotation and history', async () => {
+	const rig = await setup(), second: NamedSpatialElement = { ...element, id: 'element-second', name: 'Second desk', points: element.points.map(point => ({ ...point, x: point.x + 100 })) };
+	const baseline = expectOk(await rig.renovation.read(rig.plan.id)); expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, elementInput(baseline, second), rig.runtime.structureTask.ledger))); rig.selection.select([element.id as never]); await settle();
+	const before = expectOk(await rig.renovation.read(rig.plan.id)), ids = before.geometry.document.structure?.elements?.map(item => item.id), metadata = before.plan.entity.spatialElements;
+	await rig.runtime.rotationActions.rotate(element.id, 90); await settle(); const rotated = rig.project.structure.elements?.[0].points;
+	for (const action of [null, 'undo', 'redo'] as const) {
+		if (action) { await rig.runtime[action](); await settle(); }
+		const after = expectOk(await rig.renovation.read(rig.plan.id)); expect(after.geometry.document.structure?.elements?.map(item => item.id)).toEqual(ids); expect(after.plan.entity.spatialElements).toEqual(metadata);
+		expect(after.geometry.document.structure?.elements?.[1]).toEqual(before.geometry.document.structure?.elements?.[1]);
+		expect(after.geometry.document.structure?.elements?.[0].points).toEqual(action === 'undo' ? element.points : rotated);
+	}
+});
+
+
+it('continues a frozen pointer draft through a geometry-identical projection refresh', async () => {
+	const rig = await setup(), handle = expectDefined(rig.runtime.rotationActions.handle.value, 'handle'), tool = rig.runtime.toolManager;
+	tool.pointerDown(pointerAt(handle.x, handle.y)); tool.pointerMove(pointerAt(2000, 1000)); await settle(); expect(rig.runtime.rotationActions.preview.value).not.toBeNull();
+	await rig.runtime.refreshProjection(); tool.pointerMove(pointerAt(1900, 1600)); await settle();
+	const preview = expectDefined(rig.runtime.rotationActions.preview.value, 'retained preview').points;
+	tool.pointerUp(pointerAt(1900, 1600)); await settle(); expect(rig.project.structure.elements?.[0].points).toEqual(preview);
+});
+

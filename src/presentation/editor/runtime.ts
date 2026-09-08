@@ -1,9 +1,7 @@
-import { createRotationActions } from './elements/rotationActions';
+import { createSpatialEditing, type SpatialEditing } from './elements/spatialEditing';
 import { createEditorFormActions, type EditorFormActions } from './editorFormActions';
 import { createLatestRead } from '../composables/latest-read';
 import { createPlanningRefresh } from './planning/planningRefresh';
-import { createElementTask } from './elements/elementTask';
-import { createElementActions } from './elements/elementActions';
 import { selectAndFrameOn } from './selection/selectAndFrame';
 import { createRenovationDeletionGuard } from './renovation/renovationDeleteGuard';
 import { createHistoryActions } from './tools/historyActions';
@@ -84,9 +82,9 @@ const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
 	readonly roomDimension: EditorFormActions['roomDimension'];
-	readonly elementTask: ReturnType<typeof createElementTask>;
-	readonly elementActions: ReturnType<typeof createElementActions>;
-	readonly rotationActions: ReturnType<typeof createRotationActions>;
+	readonly elementTask: SpatialEditing['elementTask'];
+	readonly elementActions: SpatialEditing['elementActions'];
+	readonly rotationActions: SpatialEditing['rotationActions'];
 	readonly areaDetails: EditorFormActions['areaDetails'];
 	readonly outlineEdit: EditorFormActions['outlineEdit'];
 	readonly planning: ReturnType<typeof createPlanningRefresh>;
@@ -734,13 +732,9 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect, roomDraft, defaultRoomName });
 	const structureTask = createStructureTask(context, { toolManager, activeToolId, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const structureActions = createStructureActions(context, { dispatcher: wrappedDispatcher, writesBlocked, refreshProjection }, structureTask.ledger);
-	const elementTask = createElementTask(context, { toolManager, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
-	const elementActions = createElementActions(context, { activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, structureTask, openPlanNote: () => context.openPlanNote() });
-	const rotationActions = createRotationActions(context, { activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, renderState, ledger, elementActions, openPlanNote: () => context.openPlanNote() });
+	const { elementTask, elementActions, rotationActions, toolBindings } = createSpatialEditing(context, { toolManager, returnToSelect, activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, renderState, ledger, structureTask, openPlanNote: () => context.openPlanNote() });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value,
-		canRotateShape: () => !rotationActions.blocked.value && !rotationActions.active.value, rotationTarget: () => rotationActions.target.value, rotationHandle: () => rotationActions.handle.value,
-		previewRotation: rotationActions.previewShape, commitRotation: (id, points, original) => { void rotationActions.move(id, points, original); },
-		previewElement: elementActions.previewElement, moveElement: (id, points, original) => { void elementActions.move(id, points, original); },
+		...toolBindings,
 		previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
@@ -855,3 +849,4 @@ export function useEditorRuntime(): EditorRuntime {
 	}
 	return runtime;
 }
+

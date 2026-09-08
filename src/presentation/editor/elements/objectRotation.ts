@@ -3,7 +3,7 @@ import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { centroid, coincident, distance, extentOf, rotate } from '../../../core/geometry/operations';
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import type { Wall } from '../../../domain/spatial/Structure';
-import { ROTATION_HANDLE_OFFSET_PX, ROTATION_VIEW_MARGIN_PX, ROTATION_VIEW_TOP_MARGIN_PX } from '../handleMetrics';
+import { ROTATION_HANDLE_OFFSET_PX, ROTATION_VIEW_MARGIN_PX, ROTATION_VIEW_TOP_MARGIN_PX, ROTATION_GRAB_RADIUS_PX, VERTEX_GRAB_RADIUS_PX, ROTATION_HANDLE_CLEARANCE_PX } from '../handleMetrics';
 
 export interface RotationShape {
 	readonly id: string;
@@ -43,16 +43,43 @@ export function parseRotationDegrees(text: string): number | null {
 	const value = Number(text.trim().replace(',', '.'));
 	return Number.isFinite(value) ? value : null;
 }
-/** Shared diagonal placement/clamping. Both paint and hit testing consume the same world point. */
-export function rotationHandle(shape: RotationShape, worldPerPixel: number, visible?: BoundingBox): Point | null {
-	if (!rotationPivot(shape)) return null;
-	const bounds = extentOf(shape.points), x = bounds.maxX + ROTATION_HANDLE_OFFSET_PX * worldPerPixel, y = bounds.minY - ROTATION_HANDLE_OFFSET_PX * worldPerPixel;
-	if (!visible) return { x, y };
+/** Paint and hit testing share clamping and clearances against vertex handles and native dimensions. */
+export function rotationHandleGeometry(shape: RotationShape, worldPerPixel: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): { handle: Point; anchor: Point; pivot: Point } | null {
+	const pivot = rotationPivot(shape); if (!pivot) return null;
+	const { minX, maxX, minY, maxY } = extentOf(shape.points), offset = ROTATION_HANDLE_OFFSET_PX * worldPerPixel;
 	const margin = ROTATION_VIEW_MARGIN_PX * worldPerPixel;
-	return { x: Math.max(visible.min.x + margin, Math.min(visible.max.x - margin, x)), y: Math.max(visible.min.y + ROTATION_VIEW_TOP_MARGIN_PX * worldPerPixel, Math.min(visible.max.y - margin, y)) };
+	if (visible && (visible.max.x - visible.min.x < 2 * margin || visible.max.y - visible.min.y < (ROTATION_VIEW_TOP_MARGIN_PX + ROTATION_VIEW_MARGIN_PX) * worldPerPixel)) return null;
+	function clamp(point: Point): Point {
+		return visible ? { x: Math.max(visible.min.x + margin, Math.min(visible.max.x - margin, point.x)), y: Math.max(visible.min.y + ROTATION_VIEW_TOP_MARGIN_PX * worldPerPixel, Math.min(visible.max.y - margin, point.y)) } : point;
+	}
+	const vertexClearance = (ROTATION_GRAB_RADIUS_PX + VERTEX_GRAB_RADIUS_PX + ROTATION_HANDLE_CLEARANCE_PX) * worldPerPixel;
+	const dimensionClearance = (ROTATION_GRAB_RADIUS_PX + ROTATION_HANDLE_CLEARANCE_PX) * worldPerPixel;
+	const vertices = shape.kind === 'room' || shape.kind === 'area' || shape.kind === 'wall' ? shape.points : [];
+	function clear(point: Point): boolean {
+		return vertices.every(vertex => distance(point, vertex) >= vertexClearance) && obstacles.every(box => Math.hypot(point.x - Math.max(box.min.x, Math.min(box.max.x, point.x)), point.y - Math.max(box.min.y, Math.min(box.max.y, point.y))) > dimensionClearance);
+	}
+	const corners = [
+		{ anchor: { x: maxX, y: minY }, handle: clamp({ x: maxX + offset, y: minY - offset }) },
+		{ anchor: { x: maxX, y: maxY }, handle: clamp({ x: maxX + offset, y: maxY + offset }) },
+		{ anchor: { x: minX, y: minY }, handle: clamp({ x: minX - offset, y: minY - offset }) },
+		{ anchor: { x: minX, y: maxY }, handle: clamp({ x: minX - offset, y: maxY + offset }) },
+	];
+	for (const candidate of corners) if (clear(candidate.handle)) return { ...candidate, pivot };
+	// A shape filling the viewport can clip every diagonal onto a corner. Slide along an edge.
+	for (const candidate of corners) for (const [dx, dy] of [[-offset, 0], [0, offset], [offset, 0], [0, -offset], [-offset, offset], [offset, offset], [-offset, -offset], [offset, -offset]]) {
+		const handle = clamp({ x: candidate.handle.x + dx, y: candidate.handle.y + dy });
+		if (clear(handle)) return { handle, anchor: candidate.anchor, pivot };
+	}
+	return null;
 }
 /** Relative heading of a rigid two-endpoint shape; wall commands retain their reviewed impact boundary. */
 export function rotationDegreesBetween(original: readonly Point[], points: readonly Point[]): number {
 	const before = Math.atan2(original[1].y - original[0].y, original[1].x - original[0].x), after = Math.atan2(points[1].y - points[0].y, points[1].x - points[0].x);
 	return Math.atan2(Math.sin(after - before), Math.cos(after - before)) * 180 / Math.PI;
 }
+
+
+
+
+
+

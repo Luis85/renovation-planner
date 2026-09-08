@@ -532,8 +532,11 @@ export function translate<T extends Shape>(shape: T, by: Vector): T {
 
 /** Rotation about `origin`, which is required — no implicit (0,0) default to forget. */
 export function rotate<T extends Shape>(shape: T, radians: number, origin: Point): T {
-	const cos = Math.cos(radians);
-	const sin = Math.sin(radians);
+	// Exact quarter angles use exact coefficients, preserving axis-aligned Room/wall facts.
+	const remainder = radians % (2 * Math.PI), angle = remainder < 0 ? remainder + 2 * Math.PI : remainder;
+	const cardinal = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2].indexOf(angle);
+	const cos = cardinal < 0 ? Math.cos(radians) : [1, 0, -1, 0][cardinal];
+	const sin = cardinal < 0 ? Math.sin(radians) : [0, 1, 0, -1][cardinal];
 	return mapPoints(shape, (p) => ({
 		x: origin.x + (p.x - origin.x) * cos - (p.y - origin.y) * sin,
 		y: origin.y + (p.x - origin.x) * sin + (p.y - origin.y) * cos,
@@ -558,3 +561,4 @@ export function applyTransform<T extends Shape>(shape: T, transform: Transform):
 	const rotated = rotate(scaled, transform.rotationRadians, ORIGIN);
 	return translate(rotated, transform.translation);
 }
+

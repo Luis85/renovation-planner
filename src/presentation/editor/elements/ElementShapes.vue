@@ -18,7 +18,7 @@ const shapes = computed(() => props.elements.map(element => {
 		<VGroup
 			v-for="shape in shapes"
 			:key="shape.id"
-			:config="{ name: shape.name }"
+			:config="{ name: shape.name + ' ' + shape.id }"
 		>
 			<VLine :config="shape.line" />
 			<VText
@@ -28,3 +28,4 @@ const shapes = computed(() => props.elements.map(element => {
 		</VGroup>
 	</VGroup>
 </template>
+

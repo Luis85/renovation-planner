@@ -28,8 +28,8 @@ export interface RotationBaseline {
 	command(points: readonly Point[]): UndoableCommand;
 }
 /** Source-specific reads/commands retain the existing guarded Zone and two-document element paths. */
-export async function readRotationBaseline(context: PlanEditorContext, project: Project, shape: NamedRotationShape, ledger: SessionWriteLedger) {
-	if (shape.kind === 'room' || shape.kind === 'area') {
+async function readZoneBaseline(context: PlanEditorContext, shape: NamedRotationShape, ledger: SessionWriteLedger) {
+
 		const loaded = await new GetZone(context.commands.zones).execute({ zoneId: shape.id as ZoneId });
 		if (!loaded.ok) return loaded;
 		if (!loaded.value || loaded.value.entity.planId !== context.planId) return err(staleWriteRefusal());
@@ -37,6 +37,7 @@ export async function readRotationBaseline(context: PlanEditorContext, project: 
 		if (entity.name !== shape.name || JSON.stringify(entity.geometry.points) !== JSON.stringify(shape.points)) return err(staleWriteRefusal());
 		return ok<RotationBaseline>({ shape: { ...shape, points: entity.geometry.points }, command: points => new ReversibleMoveZoneCommand({ execute: input => context.commands.moveObject.execute({ ...input, expected: input.expected ?? version }) }, ledger, entity.id, { points }, entity.geometry) });
 	}
+async function readElementBaseline(context: PlanEditorContext, project: Project, shape: NamedRotationShape, ledger: SessionWriteLedger) {
 	const service = context.commands.renovation;
 	if (!service) return err(staleWriteRefusal());
 	const result = await service.read(context.planId as PlanId);
@@ -47,3 +48,8 @@ export async function readRotationBaseline(context: PlanEditorContext, project: 
 	const baseline = result.value;
 	return ok<RotationBaseline>({ shape: { ...element, name }, command: points => service.command(baseline, elementInput(baseline, { ...element, name, points }), ledger) });
 }
+
+export function readRotationBaseline(context: PlanEditorContext, project: Project, shape: NamedRotationShape, ledger: SessionWriteLedger) {
+	return shape.kind === 'room' || shape.kind === 'area' ? readZoneBaseline(context, shape, ledger) : readElementBaseline(context, project, shape, ledger);
+}
+

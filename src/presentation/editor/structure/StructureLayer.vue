@@ -10,7 +10,6 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import { openingPoints, type Opening, type Wall } from '../../../domain/spatial/Structure';
 import { draftStructure, isStructureTool } from './structureDraft';
-import ObjectRotationHandle from '../elements/ObjectRotationHandle.vue';
 import ElementShapes from '../elements/ElementShapes.vue';
 import { isElementTool } from '../elements/elementDraft';
 import WallDraftOverlay from './WallDraftOverlay.vue';
@@ -60,6 +59,7 @@ const elementDraft = computed(() => {
 		<VGroup
 			v-for="wall in structure.walls"
 			:key="wall.id"
+			:config="{ name: wall.id }"
 		>
 			<VLine :config="{ points: points([wall.start, wall.end]), stroke: tokens.zoneStroke, strokeWidth: wall.thickness, opacity: 0.65 }" />
 			<VLine
@@ -83,10 +83,6 @@ const elementDraft = computed(() => {
 			v-if="previewPoints.length"
 			:config="{ points: previewPoints, stroke: tokens.accent, strokeWidth: 2 / zoom, dash: [7 / zoom, 4 / zoom] }"
 		/>
-		<ObjectRotationHandle
-			:tokens="tokens"
-			:zoom="zoom"
-		/>
 		<WallDraftOverlay
 			:points="wallDraftPoints"
 			:tokens="tokens"
@@ -94,3 +90,5 @@ const elementDraft = computed(() => {
 		/>
 	</VLayer>
 </template>
+
+

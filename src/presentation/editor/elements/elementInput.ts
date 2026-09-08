@@ -3,6 +3,10 @@ import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 
+function replaceOrAppend<T extends { readonly id: string }>(items: readonly T[], replacement: T): T[] {
+	return items.some(item => item.id === replacement.id) ? items.map(item => item.id === replacement.id ? replacement : item) : [...items, replacement];
+}
+
 /** Geometry and its Markdown label travel in the existing conditional two-document command. */
 export function elementInput(baseline: RenovationBaseline, element: NamedSpatialElement, remove = false): RenovationInput {
 	const current = baseline.geometry.document.structure ?? EMPTY_STRUCTURE;
@@ -12,6 +16,7 @@ export function elementInput(baseline: RenovationBaseline, element: NamedSpatial
 	return {
 		renovation: baseline.plan.entity.renovation ?? EMPTY_RENOVATION,
 		intended: remove && baseline.geometry.document.intended ? { ...baseline.geometry.document.intended, elements: baseline.geometry.document.intended.elements?.filter(item => item.id !== element.id) } : baseline.geometry.document.intended,
-		spatial: { structure: { ...current, elements: remove ? remaining : [...remaining, geometry] }, metadata: remove ? labels : [...labels, { id: element.id, name }] },
+		spatial: { structure: { ...current, elements: remove ? remaining : replaceOrAppend(current.elements ?? [], geometry) }, metadata: remove ? labels : replaceOrAppend(baseline.plan.entity.spatialElements ?? [], { id: element.id, name }) },
 	};
 }
+

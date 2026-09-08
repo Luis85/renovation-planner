@@ -3,10 +3,18 @@ type: Test case
 sources:
   - M02-add-menu
   - ADR-0023
+  - ADR-0020
 status: Ready
 ---
 
-# Rotate an Object
+# Rotate a spatial item
+
+The expanded user contract covers Room, Area, Object, Path, Fence, Measurement and wall.
+Repeat the free-item cases for each type. A selected hosted opening offers Rotate host wall;
+it never detaches or rotates independently. Wall turns retain their impact-review/Apply step,
+move connected junction endpoints, preserve hosted opening facts and keep Room outlines
+independent. Add cases for invalid intersections, opening containment and a cancelled impact.
+The rows below retain the original Object checkpoint as a representative fixture, not a scope limit.
 
 Use the final integrated plugin in the isolated test vault named in
 [release native acceptance](../../user-experience/renovation-planner-editor-specs/implementation/release-native-acceptance.md).

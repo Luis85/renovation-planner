@@ -38,23 +38,31 @@ elements to create shared Work or Evidence, apply a planned change, or inspect t
 A shared record keeps one identity across its linked contexts. Deletion shows its impact
 and refuses unresolved references; removing walls does not reshape independent Rooms.
 
-## Rotate an Object
+## Rotate a spatial item
 
-In Plan, select one free Object. Drag its rotation handle to turn the shape around its centre.
-The pivot stays fixed for that gesture, and the angle label shows the current turn. Hold Shift
-to snap to 15-degree steps. Release to save one change; Escape cancels the preview.
+Select one Room, Area, Object, Path, Fence, Measurement or wall. In Plan, drag its rotation
+handle to turn it around the displayed centre. The pivot stays fixed for that gesture, and
+the angle label shows the current turn. Hold Shift to snap to 15-degree steps. Release saves
+a free item's turn; Escape cancels the preview. Review stays read-only.
 
-For keyboard entry, select the Object from the floor list and choose **Rotate by…**. Enter
+For keyboard entry, select the item from the floor list and choose **Rotate by…**. Enter
 degrees, using either a decimal point or comma. Positive values turn clockwise; negative
 values turn counterclockwise. **Apply** saves the preview. The clockwise and counterclockwise
 90-degree actions provide quarter turns. Cancel keeps the saved shape; zero or a full turn
 adds no history. Undo and Redo restore the saved point sequences exactly.
 
-Rotation preserves the Object's identity, name and links. Its separate Planned shape stays
-independent. This control supports one free Object: Rooms, Areas, walls, hosted openings,
-paths, fences, measurements, reference plans, catalogue facing and multi-object groups keep
-their own editing controls. If another edit changes the saved baseline, the stale turn is
-refused. A read-back retry after a successful save only refreshes the view.
+Wall turns first show their impact for review, then **Apply** saves them. Connected junctions
+move with the wall's endpoints, and hosted doors/windows stay attached with their saved
+placement and dimensions. Selecting an opening offers **Rotate host wall**. A turn that would
+create an invalid wall intersection or leave an opening outside its host is refused. Room
+outlines remain independent of walls.
+
+Rotation preserves identity, names and links; separate Planned geometry stays independent.
+The rectangular Room size form remains limited to axis-aligned rectangles: use Edit shape
+for rotated outlines. Reference plans rotate through their existing configuration workflow.
+Catalogue facing and group transforms are separate controls. If another edit changes the saved
+baseline, the stale turn is refused. Read-back retry after a successful save only refreshes
+the view.
 
 ## Connect the renovation
 

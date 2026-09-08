@@ -107,7 +107,12 @@ Tasks:
 
 - Make Select the explicit safe default after hydration and tool completion.
 - Define typed `SpatialSelection` for Room/Area/Wall/Opening/Object and multi-selection.
-- Implement deterministic selection priority: handle → object → opening → wall → room → background.
+- Implement deterministic selection priority: handle → opening → wall → object → room → background.
+  - 2026-09-08 — amended from handle → object → opening → wall → room → background to the order
+    the code has, by decision rather than by drift: an opening sits on a wall and a wall bounds a
+    room, so the thing most precisely under the pointer wins; a free-standing element (item, path,
+    fence, measurement) drawn over a wall is reached by Alt-cycling, which
+    `tests/presentation/editor/structureSelection.test.ts` holds for all four ranks.
 - Add hover preview and overlap cycling/alternate selection route.
 - Refactor Inspector into shared `EntityInspector` frame with routed content.
 - Implement Floor summary, Room overview, Wall overview, and Multi-selection overview.

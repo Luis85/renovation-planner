@@ -874,8 +874,10 @@ orientation, entity type or resize repository. M03 and ADR-0018 specify this lim
 
 Selection is by stable entity id, shared by the canvas, the non-canvas room list and the
 Inspector, so the three never disagree about what is selected (spec INV-01). When entities
-overlap, selection priority is predictable — handle → object → opening → wall → room →
-background — and hover previews what a click would select.
+overlap, selection priority is predictable — handle → opening → wall → object → room →
+background — and hover previews what a click would select. (2026-09-08 — amended from
+handle → object → opening → wall → room → background to the order the code has; see the plan
+amendment in `implementation-plan.md` Phase 2.)
 
 ADR-0018 assigns selection and Inspector ownership. Room/Area selection now uses ordered unique
 IDs, Shift toggling and Alt overlap cycling. M11 badges and rows focus a member independently of

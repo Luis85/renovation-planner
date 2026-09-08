@@ -134,11 +134,15 @@ export interface ReadinessFinding {
 	readonly recordId: string;
 	readonly causes: readonly string[];
 }
+/** How a subject is named where one line fits: what is planned, else what is there, else its id — a validated subject always has one of the first two. */
+export function subjectLabel(subject: RenovationSubject): string {
+	return subject.planned?.description || subject.existing?.description || subject.id;
+}
 /** Fixed rule order, stable record-ID order; never asserts readiness in unavailable domains. */
 export function reviewRenovation(value: Renovation): readonly ReadinessFinding[] {
 	const findings: ReadinessFinding[] = [];
 	for (const item of value.decisions) if (!item.resolved) findings.push({ kind: 'decision', roomId: item.roomId, recordId: item.id, causes: [item.question] });
-	for (const item of value.subjects) if (item.planned && item.planned.change !== 'unchanged' && !value.work.some(work => work.outcomes.includes(item.id))) findings.push({ kind: 'missing-work', roomId: item.roomId, recordId: item.id, causes: [item.planned.description || item.existing?.description || item.id] });
+	for (const item of value.subjects) if (item.planned && item.planned.change !== 'unchanged' && !value.work.some(work => work.outcomes.includes(item.id))) findings.push({ kind: 'missing-work', roomId: item.roomId, recordId: item.id, causes: [subjectLabel(item)] });
 	for (const item of value.work) {
 		if (item.outcomes.length === 0) findings.push({ kind: 'missing-outcome', roomId: item.roomId, recordId: item.id, causes: [item.title] });
 		const blocked = blockingWork(value, item);

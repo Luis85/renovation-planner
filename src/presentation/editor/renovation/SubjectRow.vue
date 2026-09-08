@@ -3,7 +3,7 @@ import { usePlanEditorContext } from '../PlanEditorContext';
 const context = usePlanEditorContext();
 import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
-import type { RenovationSubject } from '../../../domain/renovation/Renovation';
+import { subjectLabel, type RenovationSubject } from '../../../domain/renovation/Renovation';
 import { tr } from '../../i18n/strings';
 defineProps<{ item: RenovationSubject }>();
 const emit = defineEmits<{ remove: [id: string, name: string, proposalOnly?: boolean] }>();
@@ -90,7 +90,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 				type="button"
 				class="rp-record-secondary-action"
 				:disabled="actions.blocked.value"
-				@click="emit('remove', item.id, item.existing?.description || item.planned?.description || item.id, session.mode === 'planned')"
+				@click="emit('remove', item.id, item.existing?.description || subjectLabel(item), session.mode === 'planned')"
 			>
 				{{ tr(session.mode === 'planned' ? 'renovation.discard' : 'renovation.delete') }}
 			</button>

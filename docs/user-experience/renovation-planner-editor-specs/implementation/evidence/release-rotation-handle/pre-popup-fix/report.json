@@ -1,0 +1,126 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "accessibility": [
+      {
+        "state": "numeric-preview",
+        "violations": 0,
+        "incompleteChecks": 0
+      }
+    ],
+    "interaction": "Keyboard numeric decimal comma, positive/negative quarter turn, Undo/Redo and invalid draft Escape",
+    "pointer": {
+      "cameraBefore": {
+        "x": 47.999999999999986,
+        "y": 127.375,
+        "zoom": 0.18475
+      },
+      "cameraAfter": {
+        "x": -27.374999999999982,
+        "y": 45.09375,
+        "zoom": 0.2309375
+      },
+      "snappedDegrees": 60,
+      "persistedMatchesPreview": true,
+      "undoRedoExact": true,
+      "escapeNoWrite": true
+    },
+    "storage": "Production commands/repositories over FakeVault; no native-host claim",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "accessibility": [
+      {
+        "state": "numeric-preview",
+        "violations": 0,
+        "incompleteChecks": 0
+      }
+    ],
+    "interaction": "Keyboard numeric decimal comma, positive/negative quarter turn, Undo/Redo and invalid draft Escape",
+    "pointer": {
+      "cameraBefore": {
+        "x": 47.999999999999986,
+        "y": 127.375,
+        "zoom": 0.18475
+      },
+      "cameraAfter": {
+        "x": -27.374999999999982,
+        "y": 45.09375,
+        "zoom": 0.2309375
+      },
+      "snappedDegrees": 60,
+      "persistedMatchesPreview": true,
+      "undoRedoExact": true,
+      "escapeNoWrite": true
+    },
+    "storage": "Production commands/repositories over FakeVault; no native-host claim",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "accessibility": [
+      {
+        "state": "numeric-preview",
+        "violations": 0,
+        "incompleteChecks": 0
+      }
+    ],
+    "interaction": "Keyboard numeric decimal comma, positive/negative quarter turn, Undo/Redo and invalid draft Escape",
+    "pointer": {
+      "cameraBefore": {
+        "x": 48.000000000000036,
+        "y": 251.5,
+        "zoom": 0.102
+      },
+      "cameraAfter": {
+        "x": 14.000000000000005,
+        "y": 200.25,
+        "zoom": 0.1275
+      },
+      "snappedDegrees": 60,
+      "persistedMatchesPreview": true,
+      "undoRedoExact": true,
+      "escapeNoWrite": true
+    },
+    "storage": "Production commands/repositories over FakeVault; no native-host claim",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "accessibility": [
+      {
+        "state": "numeric-preview",
+        "violations": 0,
+        "incompleteChecks": 1
+      }
+    ],
+    "interaction": "Keyboard numeric decimal comma, positive/negative quarter turn, Undo/Redo and invalid draft Escape",
+    "pointer": {
+      "cameraBefore": {
+        "x": 48.000000000000014,
+        "y": 250.75,
+        "zoom": 0.0735
+      },
+      "cameraAfter": {
+        "x": 28.24999999999999,
+        "y": 210.1875,
+        "zoom": 0.091875
+      },
+      "snappedDegrees": 60,
+      "persistedMatchesPreview": true,
+      "undoRedoExact": true,
+      "escapeNoWrite": true
+    },
+    "storage": "Production commands/repositories over FakeVault; no native-host claim",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

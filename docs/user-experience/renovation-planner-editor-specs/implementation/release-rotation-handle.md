@@ -60,3 +60,24 @@ fallback; scoped lint, types and Oxlint were repeated on those final source byte
 The actual four-scenario rotation screenshots and native browser inputs still follow this
 source gate. Final whole-repository coverage/analysis, original nine journeys/eighteen reference
 comparisons, actual Obsidian and physical-device/screen-reader observations remain separate.
+
+## First current browser pass and visual correction
+
+The four-scenario Object rotation driver passed on committed source `c5e93f64` in Edge
+152.0.4191.62. Its native pointer input starts from the painted handle after real pan/zoom,
+checks Shift snapping, no preview write, preview/persistence agreement, exact Undo/Redo and
+Escape cancellation; numeric input and both quarter-turn buttons also pass. Every original
+manifest-listed artifact is retained with verified hashes in
+[predecessor evidence](evidence/release-rotation-handle/pre-popup-fix/provenance.json).
+
+Inspection of light/dark pointer previews, the custom-accent selected state and German
+460 px controls/preview found a remaining defect: the ordinary Edit shape popover covers
+the live angle badge and part of the moving handle. This behavioral pass is therefore not
+visual acceptance. The popover now hides only while a rotation gesture has an angle and
+returns after commit/cancel. A production regression and new browser assertions require
+that feedback stays unobscured and actions return; the corrected capture remains pending.
+
+The popover correction is committed as a handoff candidate before the user's additional
+rotation-interaction research is applied. Its focused regression and recapture have not yet
+run; the next verification must cover the resulting interaction brief, rather than claim
+the predecessor's browser pass for these new source bytes.

@@ -1,0 +1,15 @@
+{
+  "browser": "Microsoft Edge 152.0.4191.62 via explicit override",
+  "scope": "Targeted overview journey; not final nine journeys/eighteen comparisons or actual Obsidian",
+  "source": "2f1b32b07a30aaafcc680ee74a8383cf792b54b8",
+  "result": "Four scenarios passed; all manifest hashes verified before copying",
+  "command": "node scripts/editor-visual-overview.mjs --design",
+  "inspected": [
+    "light-M00-room-design.png",
+    "dark-M01-floor-design.png",
+    "light-M07-wall-design.png",
+    "german-constrained-M16-closed-constrained.png",
+    "light-M02-floor-add.png",
+    "dark-closed-loop.png"
+  ]
+}

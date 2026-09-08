@@ -61,3 +61,9 @@ updated browser helper. The new cases verify closed Details and canvas focus aft
 production Add Wall control, explicit numeric access, clearance updates when Select/Add
 changes size, observer cleanup, and fixed-screen caption bounds after panning/zooming.
 New integrated screenshots and native acceptance remain pending.
+
+The subsequent whole-Oxlint pass found two non-null assertions in draft dimension layout
+and a directly passed method callback in the draft corner projection. The layout helpers
+now receive the template's narrowed RoomRect, and the callback explicitly invokes the prop.
+This correction is separate from the previously reported ESLint/type checks; its verification
+is delegated to the ongoing whole-gate pass rather than reported as already passed here.

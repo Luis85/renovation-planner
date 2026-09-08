@@ -243,26 +243,28 @@ watch(context.assetId, async (assetId) => {
 		/>
 		<template v-if="failure === null || store.status === 'ready'">
 			<div class="rp-al-toolbar">
-				<label class="rp-al-search">
-					<span class="rp-al-search__label">{{ tr('view.asset-library.search.label') }}</span>
-					<input
-						ref="searchEl"
-						v-model="store.query"
-						type="search"
-						class="rp-al-search__input"
-						:placeholder="tr('view.asset-library.search.placeholder')"
-						@keydown.esc="store.query = ''"
-					>
+				<div class="rp-al-search">
+					<label class="rp-al-search__field">
+						<span class="rp-al-search__label">{{ tr('view.asset-library.search.label') }}</span>
+						<input
+							ref="searchEl"
+							v-model="store.query"
+							type="search"
+							class="rp-al-search__input"
+							:placeholder="tr('view.asset-library.search.placeholder')"
+							@keydown.esc="clearSearchField"
+						>
+					</label>
 					<button
 						v-if="store.query !== ''"
 						type="button"
 						class="rp-al-search__clear"
 						:aria-label="tr('empty.asset-library.no-matches.action')"
-						@click.prevent="clearSearchField"
+						@click="clearSearchField"
 					>
 						×
 					</button>
-				</label>
+				</div>
 				<button
 					type="button"
 					class="rp-al-create"

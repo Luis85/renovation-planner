@@ -78,6 +78,14 @@
 	max-width: 22rem;
 }
 
+/* The label wraps only the field, so the clear button beside it (a sibling, not a second
+   labelable descendant of one `<label>`) is reachable by keyboard on its own. `display:
+   contents` drops the label's own box: its children lay out directly against `.rp-al-search`,
+   the same as when this element WAS the label, so nothing else on this rail has to change. */
+.rp-al-search__field {
+	display: contents;
+}
+
 /* Visually hidden rather than absent: a placeholder is a hint and never a label. */
 .rp-al-search__label {
 	position: absolute;

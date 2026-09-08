@@ -21,6 +21,10 @@ For a selected rectangular Room, activate its width or depth label to enter an e
 length in metres. Commas and decimal points are accepted. Apply or Enter saves one
 geometry change; Escape cancels. The other dimension and the Room’s identity stay intact,
 and Undo restores the original outline. An invalid or conflicted entry stays visible.
+Retyping a displayed dimension makes it an exact numeric input: for example, a pointer-made
+1234.4 mm width displays as 1.234 m, and retyping 1.234 sets it to 1234 mm. A field you leave
+untouched retains its original precision. Applying a value that already matches the geometry
+does not add history.
 While saving, Select, Add and Cancel retain the pending edit. Switching tools deliberately
 abandons an unsaved entry; changing perspective first asks about the draft.
 
@@ -33,6 +37,24 @@ Use the floor list to select an element with the keyboard. Select several compat
 elements to create shared Work or Evidence, apply a planned change, or inspect their totals.
 A shared record keeps one identity across its linked contexts. Deletion shows its impact
 and refuses unresolved references; removing walls does not reshape independent Rooms.
+
+## Rotate an Object
+
+In Plan, select one free Object. Drag its rotation handle to turn the shape around its centre.
+The pivot stays fixed for that gesture, and the angle label shows the current turn. Hold Shift
+to snap to 15-degree steps. Release to save one change; Escape cancels the preview.
+
+For keyboard entry, select the Object from the floor list and choose **Rotate by…**. Enter
+degrees, using either a decimal point or comma. Positive values turn clockwise; negative
+values turn counterclockwise. **Apply** saves the preview. The clockwise and counterclockwise
+90-degree actions provide quarter turns. Cancel keeps the saved shape; zero or a full turn
+adds no history. Undo and Redo restore the saved point sequences exactly.
+
+Rotation preserves the Object's identity, name and links. Its separate Planned shape stays
+independent. This control supports one free Object: Rooms, Areas, walls, hosted openings,
+paths, fences, measurements, reference plans, catalogue facing and multi-object groups keep
+their own editing controls. If another edit changes the saved baseline, the stale turn is
+refused. A read-back retry after a successful save only refreshes the view.
 
 ## Connect the renovation
 

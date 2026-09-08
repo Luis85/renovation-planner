@@ -6,6 +6,7 @@ import type { EditorContext } from '../tools/editor-context';
 import type { EditorPointerEvent } from '../tools/editor-tool';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import { CLICK_EPSILON_PX } from '../handleMetrics';
+import type { SelectionInteractions } from './selectionInteractions';
 
 function intersects(a: Point, b: Point, box: BoundingBox): boolean {
 	let near = 0, far = 1;
@@ -31,10 +32,10 @@ function hit(candidate: SpatialObjectCandidate, box: BoundingBox): boolean {
 
 /** Empty-canvas drag changes selection only; cancellation restores its opening snapshot. */
 export class MarqueeSelection {
-	private draft: { start: Point; initial: readonly EntityId<string>[]; additive: boolean } | null = null;
+	private draft: { start: Point; initial: readonly EntityId<string>[]; additive: boolean; deep: boolean } | null = null;
 	get active(): boolean { return this.draft !== null; }
 	start(context: EditorContext, event: EditorPointerEvent): void {
-		this.draft = { start: event.worldPoint, initial: [...context.selection.selectedIds], additive: event.modifiers.shift };
+		this.draft = { start: event.worldPoint, initial: [...context.selection.selectedIds], additive: event.modifiers.shift, deep: event.modifiers.alt };
 		if (!event.modifiers.shift) context.selection.clear();
 	}
 	move(context: EditorContext, event: EditorPointerEvent): void {
@@ -42,14 +43,16 @@ export class MarqueeSelection {
 		const a = this.draft.start, b = event.worldPoint;
 		context.renderState.marquee = { min: { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y) }, max: { x: Math.max(a.x, b.x), y: Math.max(a.y, b.y) } };
 	}
-	finish(context: EditorContext, event: EditorPointerEvent, candidates: readonly SpatialObjectCandidate[]): void {
+	finish(context: EditorContext, event: EditorPointerEvent, candidates: readonly SpatialObjectCandidate[], expand?: SelectionInteractions['expandSelection']): void {
 		const draft = this.draft;
 		if (!draft || event.button !== 'primary') return;
 		this.move(context, event);
 		const box = context.renderState.marquee;
 		if (box && Math.hypot(event.worldPoint.x - draft.start.x, event.worldPoint.y - draft.start.y) > CLICK_EPSILON_PX * context.viewport.worldPerScreenPixel()) {
-			const initial = draft.additive ? draft.initial.filter(id => candidates.some(candidate => candidate.id === id)) : [];
-			context.selection.select([...new Set([...initial, ...candidates.filter(candidate => hit(candidate, box)).map(candidate => candidate.id as EntityId<string>)])]);
+			const retained = expand ? draft.initial.flatMap(id => expand(id, true)) : draft.initial.filter(id => candidates.some(candidate => candidate.id === id));
+			const initial = draft.additive ? retained : [];
+			const hits = candidates.filter(candidate => hit(candidate, box)).flatMap(candidate => expand?.(candidate.id, draft.deep) ?? [candidate.id]);
+			context.selection.select([...new Set([...initial, ...hits])].map(id => id as EntityId<string>));
 		}
 		this.draft = null; context.renderState.marquee = null;
 	}

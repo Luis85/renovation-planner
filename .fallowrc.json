@@ -100,6 +100,7 @@
 		"scripts/editor-visual-final-check.mjs",
 		"scripts/editor-object-check.mjs",
 		"scripts/editor-object-rotation-check.mjs",
+		"scripts/editor-group-check.mjs",
 		"scripts/editor-downstream-check.mjs",
 		"scripts/asset-library-shots.mjs",
 		"scripts/concept-shots.mjs",

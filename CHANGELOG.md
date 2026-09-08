@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: save groups, select and move their members together, rotate assemblies, and enclose a Room with walls in one undoable operation. Hosted openings and hidden group members follow their walls and group.
+
 - Plan geometry: versioned circular Room and Wall boundaries retain curve parameters through persistence and legacy point transforms, with analytic measurements and curve-aware version observations.
 
 - Plan editor: show small curved-arrow controls on hovered item edges, with generous pointer targets and click-to-angle input, while preserving selected groups and ordinary overlap cycling.

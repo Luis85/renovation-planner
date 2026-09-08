@@ -1,0 +1,17 @@
+export const groupsDe = {
+	'editor.group.selection': 'Ausgewählte Elemente',
+	'editor.group.number': 'Gruppe {n}',
+	'editor.group.group': 'Ausgewählte Elemente gruppieren',
+	'editor.group.ungroup': 'Gruppierung aufheben',
+	'editor.group.enclose': 'Mit Wänden umschließen und gruppieren',
+	'editor.group.saved': 'Gespeicherte Gruppe',
+	'editor.group.transform': 'Gemeinsam verschieben oder drehen',
+	'editor.group.transform-hint': 'Alle Mitglieder werden gemeinsam bewegt, auch ausgeblendete Elemente und zugehörige Türen und Fenster. Verbundene Wandendpunkte folgen der Gruppe.',
+	'editor.group.left': '90° nach links drehen',
+	'editor.group.right': '90° nach rechts drehen',
+	'editor.group.move-x': 'Horizontal verschieben (m)',
+	'editor.group.move-y': 'Vertikal verschieben (m)',
+	'editor.group.move': 'Ausgewählte Elemente verschieben',
+	'editor.group.connected-title': 'Verbundene Wände werden verändert',
+	'editor.group.connected-hint': 'Diese Bewegung verändert auch die gemeinsamen Endpunkte von {count} Wänden außerhalb der Auswahl. Vorschau anwenden?',
+} as const;

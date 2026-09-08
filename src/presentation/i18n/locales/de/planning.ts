@@ -1,4 +1,11 @@
 export const planningDe = {
+	'planning.photo.image': 'Bild',
+	'planning.photo.import': 'Bild importieren',
+	'planning.photo.caption': 'Bildunterschrift (optional)',
+	'planning.photo.details': 'Details',
+	'planning.photo.importing': 'Bild wird importiert…',
+	'planning.photo.image-required': 'Ein PNG-, JPEG-, GIF- oder WebP-Bild wählen.',
+	'planning.file-search': 'Vault-Dateien nach Namen oder Pfad suchen',
 	'planning.add.photo': 'Foto hinzufügen',
 	'planning.add.document': 'Dokument hinzufügen',
 	'planning.add.note': 'Notiz hinzufügen',

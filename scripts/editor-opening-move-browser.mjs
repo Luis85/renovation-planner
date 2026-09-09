@@ -3,7 +3,7 @@ import { activate, tabTo } from './editor-area-browser.mjs';
 import { recordText, recordShot } from './editor-record-browser.mjs';
 import { panel } from './editor-structure-check.mjs';
 
-const frame = page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+const frame = page => page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); }));
 const structure = page => page.evaluate(() => window.editorFidelity.groups().structure);
 const notes = page => page.evaluate(() => window.editorFidelity.savedNotes());
 const scene = (page, id) => page.evaluate(value => window.editorFidelity.curves(value), id);

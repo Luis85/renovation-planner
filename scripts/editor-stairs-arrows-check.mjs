@@ -5,7 +5,7 @@ import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 import { editorAccessibility } from './editor-accessibility.mjs';
 
 const notes = page => page.evaluate(() => window.editorFidelity.savedNotes());
-const frame = page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+const frame = page => page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); }));
 async function scene(page, id = null) { await frame(page); return page.evaluate(value => window.editorFidelity.elements(value), id); }
 const points = flat => Array.from({ length: flat.length / 2 }, (_, index) => ({ x: flat[index * 2], y: flat[index * 2 + 1] }));
 const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });

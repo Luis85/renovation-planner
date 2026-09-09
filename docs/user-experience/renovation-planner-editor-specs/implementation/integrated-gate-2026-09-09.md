@@ -19,3 +19,5 @@ Raw output and coverage were preserved locally in ignored `harness-shots/full-ch
 - `f3b40149`: group move inputs restore their value when saving blocks input; fourteen rendered Inspector/runtime cases passed alongside five command-boundary cases. Further census/receipt cases are pending.
 
 Supplemental stair/arrow and reference/photo/opening browser drivers are integrated. They add acceptance coverage without replacing the original nine journeys or eighteen reference comparisons. Their actual capture runs remain pending, as do the full combined gate, final visual inspection, isolated Obsidian acceptance and concern PR publication.
+
+Their animation-frame Promise executors were also made explicitly void, consistent with the curve-driver repair that the first combined lint run required. `node --check` passes for the four new driver modules; this is syntax validation only. Root, input, shell and curve behavioral additions are being combined for one focused run before the next unchanged full gate.

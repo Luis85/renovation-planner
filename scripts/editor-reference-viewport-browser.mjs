@@ -4,7 +4,7 @@ import { activate, tabTo } from './editor-area-browser.mjs';
 import { recordText, recordShot } from './editor-record-browser.mjs';
 
 const form = '[data-rp-form="reference"]', canvas = '.rp-reference-preview';
-const frame = page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+const frame = page => page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); }));
 const notes = page => page.evaluate(() => window.editorFidelity.savedNotes());
 const coordinates = page => page.locator(`${form} input`).evaluateAll(inputs => Object.fromEntries(inputs.filter(input => ['ax', 'ay', 'bx', 'by'].includes(input.name)).map(input => [input.name, input.value])));
 async function digest(page) { return createHash('sha256').update(await page.locator(canvas).evaluate(element => element.toDataURL())).digest('hex'); }

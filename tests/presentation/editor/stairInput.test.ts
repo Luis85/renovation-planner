@@ -19,3 +19,13 @@ it('treats explicit retyping of displayed rounded dimensions as intent and keeps
 	const creation = parseStairInput(points, text, original);
 	expect(creation.options.width).toBe(900); expect(creation.points).toEqual(run.points);
 });
+
+it('offers the default Stair run for a centreline that is not two points and names a bad direction', () => {
+	// A run is only measurable across exactly two points; anything else falls back to the default.
+	const two = stairText([{ x: 0, y: 0 }, { x: 2000, y: 0 }], DEFAULT_STAIR);
+	expect(stairText([{ x: 0, y: 0 }], DEFAULT_STAIR).run).toBe(stairText([], DEFAULT_STAIR).run);
+	expect(two.run).not.toBe(stairText([], DEFAULT_STAIR).run);
+	// A direction outside the two the profile supports is named as its own error.
+	const text = { ...two, direction: 'sideways' as unknown as 'up' };
+	expect([...parseStairInput([{ x: 0, y: 0 }, { x: 2000, y: 0 }], text).errors]).toEqual(['direction']);
+});

@@ -55,14 +55,41 @@ async function returnToReview(page) {
 	await panel(page, 'details');
 }
 
+/**
+ * The marker's own bounds are stage-relative, so the click point is `origin + bounds` and
+ * `origin` is the canvas rect — which the reflow behind leaving the Room summary still moves
+ * after `[data-rp-review-summary-room]` has gone. Measured over three runs of the dark
+ * scenario: in one of them that rect's top read 80.39 and was 55 a single round trip later
+ * (the stage growing 784 -> 809 after it), while the marker's stage-relative bounds were
+ * byte-identical in all three. The pointer therefore landed 25px low — inside the Room, so the
+ * Room still selected, the summary still opened and the row still reported the right number,
+ * and `Konva.Stage#getIntersection` at that point answered null. Selecting a Room from the
+ * canvas frames nothing (only `ReviewRoomMarkers`' own handler calls `selectAndFrame`), so the
+ * camera assertion below was the one instrument that could see the miss. Measure from a rect
+ * two consecutive frames agree on, and click on the very next round trip.
+ */
+async function settledScene(page, roomId) {
+	await page.waitForFunction(() => new Promise(resolve => {
+		const read = () => {
+			const stage = window.Konva.stages.find(candidate => candidate.findOne('.zone'));
+			if (!stage) return null;
+			const box = stage.container().getBoundingClientRect();
+			return [box.left, box.top, box.width, box.height, stage.width(), stage.height()].join();
+		};
+		const first = read();
+		requestAnimationFrame(() => { requestAnimationFrame(() => { resolve(first !== null && first === read()); }); });
+	}));
+	return page.evaluate(id => window.editorFidelity.captions(id), roomId);
+}
+
 async function verifyRoomMarker(page, roomId, narrow, beforeReview) {
 	if (narrow) await page.keyboard.press('Escape');
 	await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Escape');
 	await page.locator('[data-rp-review-summary-room]').waitFor({ state: 'hidden' });
-	const scene = await page.evaluate(id => window.editorFidelity.captions(id), roomId);
+	const notes = await page.evaluate(() => window.editorFidelity.savedNotes());
+	const scene = await settledScene(page, roomId);
 	assert.equal(scene.reviewMarkers.length, 1, 'two Decisions share one marked Room');
 	const marker = scene.reviewMarkers[0]; assert.equal(marker.roomId, roomId);
-	const notes = await page.evaluate(() => window.editorFidelity.savedNotes());
 	await page.mouse.click(scene.origin.x + marker.bounds.x + marker.bounds.width / 2, scene.origin.y + marker.bounds.y + marker.bounds.height / 2);
 	await page.locator(`[data-rp-review-summary-room="${roomId}"]`).waitFor();
 	assert.equal(await page.locator('[data-rp-perspective="review"]').getAttribute('aria-checked'), 'true');

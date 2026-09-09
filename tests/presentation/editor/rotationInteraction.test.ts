@@ -95,7 +95,7 @@ describe('edge rotation click and deliberate drag', () => {
 		const move = r.pointer(pivot.x + 80, pivot.y + 60);
 		r.gesture.move(r.context, { ...move, modifiers: { ...move.modifiers, shift: true } });
 		const angle = r.context.renderState.rotationDegrees;
-		expect(r.context.renderState.rotationInteraction?.snapDegrees).toBe(r.context.snapService.rotationStepDegrees);
+		expect(r.context.renderState.rotationInteraction?.snapDegrees).toBe(r.context.snapService.rotationStepDegrees());
 		r.gesture.move(r.context, { ...r.pointer(pivot.x + 1, pivot.y - 1), modifiers: { ...move.modifiers, shift: true } });
 		expect(r.context.renderState.rotationDegrees).toBe(angle);
 		r.gesture.cancel(); expect(r.requestRotation).not.toHaveBeenCalled(); expect(r.commitRotation).not.toHaveBeenCalled();

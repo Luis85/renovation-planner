@@ -15,6 +15,7 @@ import { undoSuperseded, type WriteLedger } from '../../editor/WriteLedger';
 import { markUncompensated, type DispatchResult } from '../DispatchOutcome';
 import { persistenceError } from '../../errors';
 import { sameGeometryDocument } from './sameGeometryDocument';
+import { runSpatialCommand, type SpatialCommandState } from './runSpatialCommand';
 
 interface Dependencies { geometry: PlanGeometrySidecar; zones: ZoneRepository; events: EventBus }
 export interface GroupGeometryInput { planId: PlanId; baseline: PlanGeometrySnapshot; document: PlanGeometryDocument; ledger: WriteLedger }
@@ -50,9 +51,7 @@ class GroupGeometryCommand {
 	private readonly baseline: PlanGeometrySnapshot;
 	private readonly proposed: PlanGeometryDocument;
 	private generation: number | null = null;
-	private applied = false;
-	private busy = false;
-	private retired = false;
+	private readonly state: SpatialCommandState = { applied: false, busy: false, retired: false };
 	constructor(private readonly deps: Dependencies, private readonly input: GroupGeometryInput) {
 		this.baseline = structuredClone(input.baseline); this.current = this.baseline; this.proposed = structuredClone(input.document);
 	}
@@ -68,15 +67,14 @@ class GroupGeometryCommand {
 		} else if (ledger.observe(planId, read.value.version) !== this.generation || !sameGeometryDocument(read.value.document, this.current.document)) return err(undoSuperseded(planId));
 		this.current = read.value; return ok('no-write');
 	}
-	private async run(forward: boolean): Promise<DispatchResult> {
-		if (this.retired) return err(markUncompensated(persistenceError('spatial-group.recovery-required', 'Reopen the floor before editing.')));
-		if (this.busy || this.applied === forward) return ok('no-write');
-		this.busy = true;
-		try {
+	private run(forward: boolean): Promise<DispatchResult> {
+		return runSpatialCommand(this.state, forward, async () => {
 			const checked = await this.check(); if (!checked.ok) return checked;
 			return await this.write(forward);
-		} catch (cause) { return err(persistenceError('spatial-group.write-failed', 'The grouped operation failed.', cause)); }
-		finally { this.busy = false; }
+		}, {
+			recovery: () => persistenceError('spatial-group.recovery-required', 'Reopen the floor before editing.'),
+			unexpected: cause => persistenceError('spatial-group.write-failed', 'The grouped operation failed.', cause),
+		});
 	}
 	private async write(forward: boolean): Promise<DispatchResult> {
 		const { planId, ledger } = this.input, document = forward ? this.proposed : this.baseline.document;
@@ -84,12 +82,12 @@ class GroupGeometryCommand {
 		const valid = validate(document); if (!valid.ok) return valid;
 		const receipts = await zoneReceipts(this.deps, planId, this.current.document, document); if (!receipts.ok) return receipts;
 		const written = await this.deps.geometry.write(planId, document, this.current.version); if (!written.ok) return written;
-		this.current = { document, version: written.value }; this.applied = forward; ledger.record(planId, written.value);
+		this.current = { document, version: written.value }; this.state.applied = forward; ledger.record(planId, written.value);
 		for (const receipt of receipts.value) { ledger.observe(receipt.id, receipt.before); ledger.record(receipt.id, receipt.after); }
 		try {
 			for (const receipt of receipts.value) await this.deps.events.publish(zoneGeometryChanged({ zoneId: receipt.id, planId, projectId: receipt.source.zone.entity.projectId }));
 			await this.deps.events.publish({ type: 'PlanStructureChanged', payload: { planId } });
-		} catch (cause) { this.retired = true; return err(markUncompensated(persistenceError('spatial-group.publish-failed', 'The group was saved, but the editor must be reopened.', cause))); }
+		} catch (cause) { this.state.retired = true; return err(markUncompensated(persistenceError('spatial-group.publish-failed', 'The group was saved, but the editor must be reopened.', cause))); }
 		return ok('wrote');
 	}
 }

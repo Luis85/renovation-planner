@@ -65,7 +65,7 @@ export class ElementRotation {
 		}
 		const degrees = (event.modifiers.shift ? context.snapService.snapRotation(gesture.radians) : gesture.radians) * 180 / Math.PI;
 		context.renderState.rotationDegrees = degrees;
-		context.renderState.rotationInteraction = { control: gesture.control, dragging: true, snapDegrees: event.modifiers.shift ? context.snapService.rotationStepDegrees : null };
+		context.renderState.rotationInteraction = { control: gesture.control, dragging: true, snapDegrees: event.modifiers.shift ? context.snapService.rotationStepDegrees() : null };
 		return rotationPoints(gesture.shape, degrees, gesture.control.pivot);
 	}
 	move(context: EditorContext, event: EditorPointerEvent): void {

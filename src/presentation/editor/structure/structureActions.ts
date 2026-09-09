@@ -5,7 +5,7 @@ import { sameGeometryDocument } from '../../../application/commands/spatial/same
 import { renovationReferents } from '../../../domain/renovation/renovationTargets';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { useRenovationSession } from '../renovation/renovationSession';
-import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
+import { computed, markRaw, onBeforeUnmount, ref, watch } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { Structure } from '../../../domain/spatial/Structure';
 import type { PlanId } from '../../../domain/plan/PlanId';
@@ -40,7 +40,10 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	const session = useRenovationSession(), save = useSaveStateStore(), blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
 	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked });
 	let alive = true;
-	onBeforeUnmount(() => { alive = false; preview.value = null; });
+	const epoch = ref(0);
+	watch(() => JSON.stringify([editor.activeToolId, session.perspective, selection.selectedIds, project.structure, project.plan?.calibration]), () => { epoch.value++; preview.value = null; }, { flush: 'sync' });
+	onBeforeUnmount(() => { alive = false; epoch.value++; preview.value = null; });
+	function current(captured: number): boolean { return alive && epoch.value === captured && !blocked.value; }
 	function matchesProjection(document: PlanGeometryDocument): boolean {
 		return sameGeometryDocument({ objects: [], structure: project.structure, calibration: project.plan?.calibration ?? null },
 			{ objects: [], structure: document.structure, calibration: document.calibration });
@@ -55,26 +58,32 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		return { snapshot: null, recovery: runtime.refreshProjection() };
 	}
 	function unavailable(): boolean { return !alive || active.value || blocked.value || !!dialogs.current; }
-	async function edit(id: string, end?: Point, openingPoint?: Point): Promise<void> {
-		if (unavailable() || !context.commands.structure) return;
+	async function operate(action: (snapshot: PlanGeometrySnapshot, captured: number, services: NonNullable<PlanEditorContext['commands']['structure']>) => Promise<void>, event: string): Promise<void> {
+		const services = context.commands.structure;
+		if (unavailable() || !services) return;
 		active.value = true;
-		const selected = selection.selectedIds.join();
+		const captured = epoch.value;
 		try {
-			const baseline = await context.commands.structure.read(context.planId as PlanId);
-			if (!alive || selection.selectedIds.join() !== selected || runtime.writesBlocked.value) return;
+			const baseline = await services.read(context.planId as PlanId);
+			if (!current(captured)) return;
 			const { snapshot, recovery } = prepareBaseline(baseline);
 			if (!snapshot) { await recovery; return; }
+			await action(snapshot, captured, services);
+		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, event); }
+		finally { epoch.value++; active.value = false; preview.value = null; }
+	}
+	function edit(id: string, end?: Point, openingPoint?: Point): Promise<void> {
+		return operate(async (snapshot, captured, services) => {
 			const structure = snapshot.document.structure;
 			if (!structure || ![...structure.walls, ...structure.openings].some(item => item.id === id)) return;
-			const busy = ref(false), services = context.commands.structure;
+			const busy = ref(false), formBlocked = computed(() => !current(captured));
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.structure.edit'), component: markRaw(StructureEditForm), busy, props: {
-				structure, id, end, openingPoint, busy, blocked,
+				structure, id, end, openingPoint, busy, blocked: formBlocked,
 				roomNames: structure.boundaries.filter(boundary => boundary.wallIds.includes(id)).map(boundary => project.zones.get(boundary.roomId)?.name ?? boundary.roomId),
-				preview: (value: Structure | null) => { preview.value = value; },
-				dispatch: (next: Structure) => !alive ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger })),
+				preview: (value: Structure | null) => { if (captured === epoch.value) preview.value = current(captured) ? value : null; },
+				dispatch: (next: Structure) => !current(captured) ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger })),
 			} });
-		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.structure.edit-failed'); }
-		finally { active.value = false; preview.value = null; }
+		}, 'editor.structure.edit-failed');
 	}
 	function moveOpeningToPoint(id: string, point: Point): Promise<void> {
 		if (editor.activeToolId !== 'select' || !validSpatialPoint(point) || selection.selectedIds.length !== 1 || selection.selectedIds[0] !== id || !project.structure.openings.some(opening => opening.id === id)) return Promise.resolve();
@@ -99,26 +108,20 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	}
 
 	async function remove(id: string | readonly string[]): Promise<void> {
-		if (unavailable() || !context.commands.structure) return;
 		const selected = removalIds(id);
 		if (!selected.length) return;
-		active.value = true;
-		try {
-			const baseline = await context.commands.structure.read(context.planId as PlanId);
-			if (!alive) return;
-			const { snapshot, recovery } = prepareBaseline(baseline);
-			const structure = snapshot?.document.structure;
-			if (!structure) { await recovery; return; }
+		await operate(async (snapshot, captured, services) => {
+			const structure = snapshot.document.structure;
+			if (!structure) return;
 			const removedOpenings = structure.openings.filter(item => selected.includes(item.id) || selected.includes(item.hostId));
 			const removedBoundaries = structure.boundaries.filter(boundary => boundary.wallIds.some(wallId => selected.includes(wallId)));
 			const ids = [...selected, ...removedOpenings.map(item => item.id)];
 			const approved = await approveRemoval(structure, selected, ids, removedOpenings.length, removedBoundaries.length);
-			if (!alive || !approved) return;
-			const result = await runtime.dispatcher.run(context.commands.structure.command({ planId: context.planId as PlanId, baseline: snapshot, ledger,
+			if (!current(captured) || !approved) return;
+			const result = await runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, ledger,
 				structure: { ...structure, walls: structure.walls.filter(item => !selected.includes(item.id)), openings: structure.openings.filter(item => !removedOpenings.includes(item)), boundaries: structure.boundaries.filter(item => !removedBoundaries.includes(item)) } }));
 			if (alive && !result.ok) notifyOperationFailure(result.error);
-		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.structure.delete-failed'); }
-		finally { active.value = false; }
+		}, 'editor.structure.delete-failed');
 	}
 	function previewWall(id: string | null, end?: Point): void {
 		const wall = project.structure.walls.find(item => item.id === id);

@@ -1,5 +1,7 @@
 # Integrated quality delivery
 
+Current PR #115 follow-up: [integrated quality completion](../integrated-quality-completion.md). The reconstruction receipts below are historical; the follow-up incorporates updated PR #114 and records its own automated verification. Manual acceptance remains user-owned and pending.
+
 Base: `codex/editor-deliver-stairs` at `8abc8956`. This concern reconciles shared component, command and interface quality after the feature stack. It does not import the original integration branch's ancestry.
 
 | Original | Reconstructed |

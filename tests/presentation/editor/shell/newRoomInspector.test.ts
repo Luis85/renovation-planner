@@ -172,7 +172,7 @@ describe('NewRoomInspector', () => {
 		await settle();
 		expect(create.attributes('aria-disabled')).toBe('false');
 		expect(create.attributes('aria-describedby')).toBeUndefined();
-		expect(harness.wrapper.find('.rp-new-room__hint').exists()).toBe(false);
+		expect(harness.wrapper.find(`#${hintId}`).exists()).toBe(false);
 		harness.unmount();
 	});
 
@@ -194,13 +194,15 @@ describe('NewRoomInspector', () => {
 		const runtime = runtimeOf(harness);
 		runtime.setTool('draw-room');
 		await settle();
+		const hintId = harness.wrapper.get('button.rp-new-room__create').attributes('aria-describedby');
+		expect(harness.wrapper.get(`#${hintId}`).text()).toBe(t('en', 'editor.task.finish.blocked'));
 		runtime.roomDraft.setName('Kitchen');
 		runtime.roomDraft.setRect({ x: 0, y: 0, width: 4200, depth: 3800 });
 		runtime.roomDraft.setSubmitting(true);
 		await settle();
 		const create = harness.wrapper.find('button.rp-new-room__create');
 		expect(create.attributes('aria-disabled')).toBe('true');
-		expect(harness.wrapper.find('.rp-new-room__hint').exists()).toBe(false);
+		expect(harness.wrapper.find(`#${hintId}`).exists()).toBe(false);
 		expect(create.attributes('aria-describedby')).toBeUndefined();
 		harness.unmount();
 	});

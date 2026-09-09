@@ -43,7 +43,7 @@ class StructureCommand {
 			const checked = await this.check();
 			if (!checked.ok) return checked;
 			const result = forward ? await this.apply() : await this.revert();
-			if (!result.ok) return result;
+			if (!result.ok || result.value === 'no-write') return result;
 			this.state.applied = forward;
 			await this.deps.events.publish({ type: 'PlanStructureChanged', payload: { planId: this.input.planId } });
 			return result;
@@ -76,6 +76,7 @@ class StructureCommand {
 	}
 
 	private async write(document: PlanGeometryDocument): Promise<DispatchResult> {
+		if (sameGeometryDocument(document, this.current.document)) return ok('no-write');
 		const valid = document.structure ? validateStructure(document.structure, document.objects.map(object => object.id)) : ok(undefined);
 		if (!valid.ok) return valid;
 		const written = await this.deps.geometry.write(this.input.planId, document, this.current.version);

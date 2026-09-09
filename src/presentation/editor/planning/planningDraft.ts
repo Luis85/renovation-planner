@@ -64,6 +64,9 @@ export function materialInput(draft: PlanningDraft): MaterialInput {
 		source: { ...draft.source, manual: decimalInput(draft.source.manual), coverage: decimalInput(draft.source.coverage), lot: decimalInput(draft.source.lot), minimum: decimalInput(draft.source.minimum), targetId: draft.targetId, workId: draft.workId } };
 }
 function replace<T extends { id: string }>(values: readonly T[], record: T): T[] { return [...values.filter(item => item.id !== record.id), record]; }
+function evidenceDescription(draft: PlanningDraft): string {
+	return draft.type === 'photo' && !draft.title.trim() ? draft.path.split('/').at(-1) ?? draft.path : draft.title;
+}
 export function planningInput(draft: PlanningDraft, baseline: PlanningBaseline): RenovationInput {
 	const renovation = baseline.plan.entity.renovation ?? EMPTY_RENOVATION, depth = renovation.depth ?? EMPTY_DEPTH;
 	const link = { id: draft.id, roomId: draft.roomId, targetId: draft.targetId, workId: draft.workId };
@@ -79,7 +82,7 @@ export function planningInput(draft: PlanningDraft, baseline: PlanningBaseline):
 		return { renovation: { ...renovation, depth: { ...depth, costs: replace(depth.costs, record) } }, intended: baseline.geometry.document.intended };
 	}
 	const original = depth.evidence.find(item => item.id === draft.id);
-	const record: Evidence = { ...original, ...link, description: draft.title, date: draft.date?.trim() || undefined, type: draft.type, phase: draft.phase, path: draft.path, subpath: draft.subpath,
+	const record: Evidence = { ...original, ...link, description: evidenceDescription(draft), date: draft.date?.trim() || undefined, type: draft.type, phase: draft.phase, path: draft.path, subpath: draft.subpath,
 		recordId: draft.recordId, pin: draft.pin ? { x: Number(decimalInput(draft.pinX)), y: Number(decimalInput(draft.pinY)) } : null };
 	return { renovation: { ...renovation, depth: { ...depth, evidence: replace(depth.evidence, record) } }, intended: baseline.geometry.document.intended };
 }

@@ -19,11 +19,11 @@ export function setupMeasurement([a, b]: readonly [Point, Point], length: string
 	return derived.ok ? { measurement, ...derived.value, millimetresPerSourcePixel: worldScale / derived.value.calibration.pixelsPerWorldUnit } : null;
 }
 
-/** Fit rotated crop bounds into a 400 × 220 preview; source pixels remain the editing space. */
-export function previewTransform(appearance: ReferenceAppearance) {
+/** Fit rotated crop bounds into the measured preview; source pixels remain the editing space. */
+export function previewTransform(appearance: ReferenceAppearance, size = { width: 400, height: 220 }) {
 	const corners = referenceCorners(appearance, 1);
 	const minX = Math.min(...corners.map(p => p.x)), minY = Math.min(...corners.map(p => p.y));
 	const width = Math.max(...corners.map(p => p.x)) - minX, height = Math.max(...corners.map(p => p.y)) - minY;
-	const scale = Math.min(380 / width, 200 / height);
-	return { scale, x: (400 - width * scale) / 2 - minX * scale, y: (220 - height * scale) / 2 - minY * scale };
+	const scale = Math.min(Math.max(1, size.width - 20) / width, Math.max(1, size.height - 20) / height);
+	return { scale, x: (size.width - width * scale) / 2 - minX * scale, y: (size.height - height * scale) / 2 - minY * scale };
 }

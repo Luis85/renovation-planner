@@ -7,16 +7,18 @@ import { tr } from '../../i18n/strings';
 import { computed, nextTick, ref } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import HostIcon from '../../components/HostIcon.vue';
+import RoomNavigation from './RoomNavigation.vue';
 import { EDITOR_MODE_ICONS } from '../editorIcons';
 const props = defineProps<{ roomId: string }>();
 const runtime = useEditorRuntime(), session = useRenovationSession(), project = useProjectStore();
 const roomName = computed(() => project.zones.get(props.roomId)?.name ?? tr('renovation.select-room'));
 const semantic = computed(() => ['existing', 'work', 'planned'].includes(session.mode));
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null);
-const modes = computed(() => session.mode === 'overview' && session.perspective === 'plan'
-	? context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const
-	: session.mode === 'overview' ? ['existing', 'planned', 'work'] as const
-	: semantic.value ? ['existing', 'work', 'planned'] as const : ['documents', 'photos', 'notes'].includes(session.mode) ? ['documents', 'photos', 'notes'] as const : [] as const);
+/** The breadcrumb, the title and the linked navigation all belong to a mode other than the overview. */
+const detail = computed(() => runtime.renovation.available && session.mode !== 'overview');
+const planning = computed(() => context.commands.planning);
+const chevron = computed(() => expanded.value ? 'chevron-up' : 'chevron-down');
+const title = computed(() => semantic.value ? tr(`renovation.title.${session.mode as 'existing' | 'planned' | 'work'}`, { name: roomName.value }) : tr(`renovation.${session.mode}`));
 const relatedModes = computed(() => ['documents', 'photos', 'notes'].includes(session.mode) ? ['materials', 'costs'] as const : ['materials', 'costs', 'documents', 'photos', 'notes'] as const);
 async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 	const button = event.currentTarget as HTMLElement;
@@ -30,7 +32,7 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 }
 </script>
 <template>
-	<template v-if="runtime.renovation.available && session.mode !== 'overview'">
+	<template v-if="detail">
 		<div class="rp-room-breadcrumb">
 			<button
 				type="button"
@@ -43,43 +45,16 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 			<span>{{ tr(`renovation.${session.mode}`) }}</span>
 		</div>
 		<h3 class="rp-room-detail-title">
-			{{ semantic ? tr(`renovation.title.${session.mode as 'existing' | 'planned' | 'work'}`, { name: roomName }) : tr(`renovation.${session.mode}`) }}
+			{{ title }}
 		</h3>
 	</template>
-	<nav
+	<RoomNavigation
 		v-if="runtime.renovation.available"
-		v-show="session.mode === 'overview' || semantic || ['documents', 'photos', 'notes'].includes(session.mode)"
-		class="rp-renovation-switch rp-room-navigation"
-		:class="{ 'rp-room-navigation--semantic': session.mode !== 'overview' }"
-		:aria-label="tr('renovation.renovate')"
-	>
+		@navigate="navigate"
+	/>
+	<template v-if="detail">
 		<button
-			v-for="mode in modes"
-			:key="mode"
-			class="rp-room-navigation__button"
-			:data-rp-mode="mode"
-			:aria-pressed="session.mode === mode"
-			type="button"
-			@click="navigate(mode, $event)"
-		>
-			<HostIcon
-				v-if="session.mode === 'overview'"
-				:name="EDITOR_MODE_ICONS[mode]"
-			/>
-			<span class="rp-room-navigation__text">
-				<span>{{ session.mode !== 'overview' && (mode === 'existing' || mode === 'planned' || mode === 'work') ? tr(`renovation.summary.${mode}`) : tr(`renovation.${mode}`) }}</span>
-				<small v-if="session.mode === 'overview' && (mode === 'existing' || mode === 'planned' || mode === 'work')">{{ tr(`renovation.summary.${mode}`) }}</small>
-			</span>
-			<HostIcon
-				v-if="session.mode === 'overview'"
-				name="chevron-right"
-				class="rp-room-navigation__arrow"
-			/>
-		</button>
-	</nav>
-	<template v-if="runtime.renovation.available && session.mode !== 'overview'">
-		<button
-			v-if="context.commands.planning"
+			v-if="planning"
 			ref="opener"
 			type="button"
 			class="rp-related-navigation-opener"
@@ -87,10 +62,10 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 			:aria-expanded="expanded"
 			@click="expanded = !expanded"
 		>
-			{{ tr('renovation.summary.linked') }}<HostIcon :name="expanded ? 'chevron-up' : 'chevron-down'" />
+			{{ tr('renovation.summary.linked') }}<HostIcon :name="chevron" />
 		</button>
 		<nav
-			v-if="context.commands.planning"
+			v-if="planning"
 			v-show="expanded"
 			class="rp-related-navigation"
 			:aria-label="tr('renovation.summary.linked')"

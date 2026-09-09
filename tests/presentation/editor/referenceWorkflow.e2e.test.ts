@@ -1,6 +1,7 @@
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import axe from 'axe-core';
 import { runOptions } from '../../harness/axeOptions';
+import ReferencePreview from '../../../src/presentation/editor/reference/ReferencePreview.vue';
 import { previewTransform } from '../../../src/presentation/editor/reference/referenceSetup';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
@@ -319,6 +320,23 @@ describe('M05 → M06 in the real editor with FakeVault repository commands', ()
 	it('does not move focus to a disposed canvas after a start choice', async () => {
 		const r = await rig(); const pending = r.harness.wrapper.get('.rp-floor-start button:last-child').trigger('click'); r.harness.unmount(); await pending;
 		expect(document.activeElement).not.toBe(r.harness.canvasEl);
+	});
+	it('refuses a late preview point when the floor becomes stale before child props update', async () => {
+		const r = await rig(); await open(r); await prepare(r); await submit(r);
+		await field(r, 'ax', '100'); await field(r, 'ay', '100'); await field(r, 'bx', '300'); await field(r, 'by', '100');
+		const before = [...r.stack.vault.entries], store = useProjectStore(r.harness.pinia), preview = r.harness.wrapper.getComponent(ReferencePreview);
+		store.stale = true; preview.vm.$emit('point', { x: 500, y: 500 }); await settle();
+		expect(r.harness.wrapper.get('[name="ax"]').element).toHaveProperty('value', '100');
+		expect(r.harness.wrapper.get('[name="ay"]').element).toHaveProperty('value', '100');
+		store.stale = false; await settle(); preview.vm.$emit('point', { x: 500, y: 500 }); await settle();
+		expect(r.harness.wrapper.get('[name="ax"]').element).toHaveProperty('value', '500'); expect([...r.stack.vault.entries]).toEqual(before);
+		await cancel(r);
+	});
+	it('does not focus a retired heading when the modal is disposed during a setup-step transition', async () => {
+		const r = await rig(); await open(r); await prepare(r); const before = [...r.stack.vault.entries];
+		const transition = r.harness.wrapper.get(FORM).trigger('submit'); r.harness.unmount(); await transition;
+		expect(r.harness.fileListeners()).toBe(0); expect(r.harness.canvasEl?.isConnected).toBe(false);
+		expect([...r.stack.vault.entries]).toEqual(before);
 	});
 
 });

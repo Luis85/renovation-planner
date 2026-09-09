@@ -220,8 +220,12 @@ describe('reviewed wall rotation and hosted opening runtime', () => {
 		const write = vi.spyOn(rig.geometry, 'write'); expect(rig.runtime.structureActions.preview.value).not.toBeNull();
 		rig.selection.select(['wall-b' as never]); await settle();
 		expect(rig.runtime.structureActions.rotationHostId.value).toBeNull(); expect(rig.runtime.structureActions.preview.value).toBeNull();
+		expect(form.get('input').element).toHaveProperty('readOnly', true);
+		expect(form.get('button[type="submit"]').attributes('aria-disabled')).toBe('true');
+		expect(form.find('.rp-draft-recovery').exists()).toBe(false);
 		expect(await dispatch(expectOk(rotateWallStructure(structure, 'wall-a', 90)))).toMatchObject({ ok: false });
-		expect(form.get('input').element).toHaveProperty('readOnly', true); expect(write).not.toHaveBeenCalled();
+		await form.trigger('submit'); await settle();
+		expect(rig.runtime.structureActions.preview.value).toBeNull(); expect(write).not.toHaveBeenCalled();
 		rig.dialogs.resolve('cancel'); await operation; expect(rig.runtime.canUndo.value).toBe(false);
 	});
 	it('offers source-note and failed-read retry for a paused wall review without replaying the write', async () => {

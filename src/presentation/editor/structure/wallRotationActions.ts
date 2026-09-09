@@ -35,9 +35,10 @@ export function createWallRotationActions(context: PlanEditorContext,
 	const project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), session = useRenovationSession(), dialogs = useDialogStore();
 	const rotationBlocked = computed(() => state.blocked.value || editor.activeToolId !== 'select');
 	const rotationHostId = ref<string | null>(null);
-	let alive = true, epoch = 0;
+	let alive = true;
+	const epoch = ref(0);
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
-	watch(() => [editor.activeToolId, session.perspective, selection.selectedIds.join('|')], () => { epoch += 1; if (rotationHostId.value !== null) { state.preview.value = null; rotationHostId.value = null; } }, { flush: 'sync' });
+	watch(() => [editor.activeToolId, session.perspective, selection.selectedIds.join('|')], () => { epoch.value += 1; if (rotationHostId.value !== null) { state.preview.value = null; rotationHostId.value = null; } }, { flush: 'sync' });
 	onBeforeUnmount(() => { alive = false; state.preview.value = null; rotationHostId.value = null; });
 	/** Admission is distinct from a captured operation's lifetime: active is set after this gate. */
 	function canStart(id: string): boolean {
@@ -45,7 +46,7 @@ export function createWallRotationActions(context: PlanEditorContext,
 			&& selection.selectedIds.length === 1 && selection.selectedIds[0] === id;
 	}
 	function retired(captured: number): boolean {
-		return !alive || epoch !== captured || rotationBlocked.value;
+		return !alive || epoch.value !== captured || rotationBlocked.value;
 	}
 	/** Preserve both the displayed document check and a pointer gesture's original wall check. */
 	function matchesBaseline(baseline: PlanGeometrySnapshot, wall: Wall, original?: Wall): boolean {
@@ -53,7 +54,7 @@ export function createWallRotationActions(context: PlanEditorContext,
 			&& (!original || sameWall(original, wall));
 	}
 	async function rotateWall(id: string, degrees = 0, original?: Wall): Promise<void> {
-		const services = context.commands.structure, captured = epoch;
+		const services = context.commands.structure, captured = epoch.value;
 		if (!services || !canStart(id)) return;
 		state.active.value = true;
 		try {
@@ -66,11 +67,11 @@ export function createWallRotationActions(context: PlanEditorContext,
 			if (!matchesBaseline(baseline, wall, original)) {
 				notifyOperationFailure(staleWriteRefusal()); await runtime.refreshProjection(); return;
 			}
-			const formBlocked = computed(() => rotationBlocked.value || epoch !== captured), busy = ref(false);
+			const formBlocked = computed(() => rotationBlocked.value || epoch.value !== captured), busy = ref(false);
 			rotationHostId.value = wall.id;
 			const name = tr('editor.structure.wall-number', { n: String(structure.walls.findIndex(candidate => candidate.id === wall.id) + 1) });
 			await dialogs.openDialog({ kind: 'form', title: tr(id === wall.id ? 'editor.rotation.wall-title' : 'editor.rotation.host-title', { name }), component: markRaw(WallRotationForm), busy, props: {
-				structure, wallId: wall.id, degrees, busy, blocked: formBlocked, retired: computed(() => epoch !== captured), retry, openSource: () => context.openPlanNote(),
+				structure, wallId: wall.id, degrees, busy, blocked: formBlocked, retired: computed(() => epoch.value !== captured), retry, openSource: () => context.openPlanNote(),
 				roomNames: Object.fromEntries(structure.boundaries.map(boundary => [boundary.roomId, project.zones.get(boundary.roomId)?.name ?? boundary.roomId])),
 				preview: (value: Structure | null) => { state.preview.value = !retired(captured) ? value : null; },
 				dispatch: (next: Structure) => retired(captured) ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline, structure: next, ledger })),

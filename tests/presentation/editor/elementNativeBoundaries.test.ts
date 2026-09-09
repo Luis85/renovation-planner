@@ -2,7 +2,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle, settleUntil } from '../../helpers/editor';
-import { expectOk, injectedPersistenceError } from '../../helpers/domain';
+import { expectDefined, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { defer } from '../../helpers/async';
 import { err } from '../../../src/core/result/Result';
@@ -52,9 +52,17 @@ it('moves from an unchanged geometry baseline after a metadata-only rename and r
 	const moved = element.points.map(point => ({ x: point.x + 250, y: point.y + 100 }));
 	await rig.runtime.elementActions.move(element.id, moved, element); await settle();
 	expect(rig.project.structure.elements?.[0].points).toEqual(moved); expect(rig.project.plan?.spatialElements?.[0].name).toBe('Renamed path');
-	const bytes = [...rig.stack.vault.entries]; vi.spyOn(rig.geometry, 'write').mockResolvedValueOnce(err(injectedPersistenceError()));
+	const before = expectOk(await rig.renovation.read(rig.plan.id)), planPath = expectDefined(rig.stack.index.getPath(rig.plan.id), 'Plan path');
+	const unrelatedBytes = [...rig.stack.vault.entries].filter(([path]) => path !== planPath);
+	const write = vi.spyOn(rig.geometry, 'write').mockResolvedValueOnce(err(injectedPersistenceError())), savePlan = vi.spyOn(rig.stack.plans, 'save');
 	await rig.runtime.elementActions.move(element.id, element.points, { ...element, points: moved }); await settle();
-	expect(rig.runtime.elementActions.active.value).toBe(false); expect([...rig.stack.vault.entries]).toEqual(bytes);
+	expect(write).toHaveBeenCalledExactlyOnceWith(rig.plan.id, expect.objectContaining({ structure: expect.objectContaining({ elements: [expect.objectContaining({ id: element.id, points: element.points })] }) }), before.geometry.version);
+	expect(savePlan).toHaveBeenCalledTimes(2); expect(savePlan.mock.calls[0][1]).toEqual(before.plan.version);
+	expect(savePlan.mock.calls[1][1]).toEqual(expect.objectContaining({ revision: before.plan.version.revision + 1 }));
+	const after = expectOk(await rig.renovation.read(rig.plan.id));
+	expect(after.plan.entity).toEqual(before.plan.entity); expect(after.plan.version.revision).toBe(before.plan.version.revision + 2);
+	expect(after.geometry).toEqual(before.geometry); expect([...rig.stack.vault.entries].filter(([path]) => path !== planPath)).toEqual(unrelatedBytes);
+	expect(rig.runtime.elementActions.active.value).toBe(false);
 	expect(rig.project.structure.elements?.[0].points).toEqual(moved); expect(rig.project.plan?.spatialElements?.[0].name).toBe('Renamed path');
 });
 

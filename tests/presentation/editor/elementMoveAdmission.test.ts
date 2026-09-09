@@ -2,6 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { ElementMove } from '../../../src/presentation/editor/elements/ElementMove';
 import type { ElementMoveDeps } from '../../../src/presentation/editor/elements/ElementMove';
 import { pointerAt, shiftPointerAt, toolContext } from '../../helpers/tool-context';
+import { expectDefined } from '../../helpers/domain';
 
 it('declines unsupported move and vertex targets, then translates a Stair while retaining its geometry options', () => {
 	const moveElement = vi.fn<NonNullable<ElementMoveDeps['moveElement']>>(), previewElement = vi.fn<NonNullable<ElementMoveDeps['previewElement']>>();
@@ -23,7 +24,10 @@ it('anchors an Arrow first-endpoint constraint at its next point and rejects col
 	const moveElement = vi.fn<NonNullable<ElementMoveDeps['moveElement']>>(), move = new ElementMove({ moveElement });
 	const { context } = toolContext(), arrow = { id: 'element-arrow', kind: 'arrow' as const, points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }] };
 	move.start(context, pointerAt(0, 0), arrow, 0); move.move(shiftPointerAt(400, -600)); move.finish(context, shiftPointerAt(400, -600));
-	expect(moveElement).toHaveBeenCalledWith(arrow.id, [{ x: 400, y: -600 }, arrow.points[1]], arrow);
+	expect(moveElement).toHaveBeenCalledTimes(1);
+	const [id, points, original] = expectDefined(moveElement.mock.calls[0], 'accepted endpoint move');
+	expect(id).toBe(arrow.id); expect(original).toEqual(arrow); expect(points).toHaveLength(2);
+	expect(points[0].x).toBe(400); expect(points[0].y).toBeCloseTo(-600, 9); expect(points[1]).toBe(arrow.points[1]);
 	moveElement.mockClear(); move.start(context, pointerAt(0, 0), arrow, 0); move.finish(context, pointerAt(1000, 0));
 	expect(moveElement).not.toHaveBeenCalled(); expect(move.active).toBe(false); expect(arrow.points[0]).toEqual({ x: 0, y: 0 });
 });

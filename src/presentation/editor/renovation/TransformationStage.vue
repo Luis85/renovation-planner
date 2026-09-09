@@ -6,19 +6,23 @@ function description(): string { return props.items.slice(0, 3).map(item => item
 </script>
 <template>
 	<div>
-		<h4>{{ tr(`renovation.summary.${kind}`) }}<HostIcon
-			v-if="kind !== 'planned'"
-			name="arrow-right"
-		/><span
-			v-if="compact && kind === 'work'"
-			class="rp-transformation-progress"
-		>{{ progress }}</span></h4>
+		<h4>
+			{{ tr(`renovation.summary.${kind}`) }}<HostIcon
+				v-if="kind !== 'planned'"
+				name="arrow-right"
+			/><span
+				v-if="compact && kind === 'work'"
+				class="rp-transformation-progress"
+			>{{ progress }}</span>
+		</h4>
 		<ul v-if="!compact && items.length">
 			<li
 				v-for="item in items"
 				:key="item.id"
 			>
-				<template v-if="item.change">{{ item.change }}: </template>{{ item.text }}
+				<template v-if="item.change">
+					{{ item.change }}:
+				</template>{{ item.text }}
 			</li>
 		</ul>
 		<p v-else>

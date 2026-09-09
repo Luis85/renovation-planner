@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toDisplayString } from 'vue';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
@@ -42,7 +42,12 @@ const stages = computed(() => {
 		},
 		planned: {
 			label: tr('renovation.summary.planned'),
-			items: list(value.planned, value.planned.slice(0, 3).map(item => ({ id: item.id, text: `${change(item)}: ${(item.planned.description || item.existing?.description) ?? ''}` }))),
+			// `toDisplayString` rather than `?? ''`: this line moved out of a `{{ }}` interpolation,
+			// which coerces nullish to '' by calling exactly this function. Spelling it as a
+			// fallback would add a branch no valid subject reaches — `validSubject` refuses an
+			// 'add' with an empty `planned.description` and lets only a 'remove' empty it, while a
+			// 'remove' always carries an `existing` whose description is itself validated non-empty.
+			items: list(value.planned, value.planned.slice(0, 3).map(item => ({ id: item.id, text: `${change(item)}: ${toDisplayString(item.planned.description || item.existing?.description)}` }))),
 			text: joined(value.planned.slice(0, 3).map(item => `${change(item)}: ${item.planned.description || item.existing?.description}`)),
 		},
 	};

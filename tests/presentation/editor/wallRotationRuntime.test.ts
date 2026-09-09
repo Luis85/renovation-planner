@@ -196,9 +196,9 @@ describe('reviewed wall rotation and hosted opening runtime', () => {
 	});
 	it.each(['refused', 'threw'] as const)('releases wall rotation after a baseline read %s and admits a new review', async outcome => {
 		const { rig, structure } = await setup(), before = [...rig.stack.vault.entries];
-		vi.spyOn(rig.services, 'read').mockImplementationOnce(async () => {
+		vi.spyOn(rig.services, 'read').mockImplementationOnce(() => {
 			if (outcome === 'threw') throw new Error('baseline transport failed');
-			return err(injectedPersistenceError());
+			return Promise.resolve(err(injectedPersistenceError()));
 		});
 		await rig.runtime.structureActions.rotateWall('wall-a', 90);
 		expect(rig.dialogs.current).toBeNull(); expect(rig.runtime.structureActions.active.value).toBe(false);

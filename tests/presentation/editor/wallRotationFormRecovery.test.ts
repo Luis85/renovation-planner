@@ -16,8 +16,8 @@ afterEach(() => { wrapper?.unmount(); wrapper = undefined; vi.restoreAllMocks();
 function setup(degrees = 90) {
 	const busy = ref(false), blocked = ref(false), retired = ref(false);
 	const dispatch = vi.fn<() => Promise<DispatchResult>>().mockResolvedValue(ok('wrote'));
-	const retry = vi.fn<() => Promise<void>>().mockImplementation(async () => { blocked.value = false; });
-	const openSource = vi.fn<() => Promise<void>>().mockResolvedValue(undefined), preview = vi.fn();
+	const retry = vi.fn<() => Promise<void>>().mockImplementation(() => { blocked.value = false; return Promise.resolve(); });
+	const openSource = vi.fn<() => Promise<void>>().mockResolvedValue(undefined), preview = vi.fn<InstanceType<typeof WallRotationForm>['$props']['preview']>();
 	wrapper = mount(WallRotationForm, { attachTo: document.body, global: { plugins: [createPinia()] }, props: {
 		structure: { ...WALL_LOOP, boundaries: [{ roomId: 'unreadable-room', wallIds: ['wall-a'] }] },
 		wallId: 'wall-a', degrees, busy, blocked, retired, roomNames: {}, dispatch, retry, openSource, preview,

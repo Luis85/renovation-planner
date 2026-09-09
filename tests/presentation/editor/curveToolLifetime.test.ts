@@ -8,7 +8,7 @@ function setup(bulge = 0) {
 		geometry: { points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }], bulges: [bulge, 0] } } as CurveTarget | null };
 	const actions = { target: () => state.target, blocked: () => state.blocked, busy: () => state.busy,
 		choose: vi.fn<(index: number) => void>(), stop: vi.fn<() => void>(), cancel: vi.fn<() => void>(), finish: vi.fn<() => void>(),
-		set: vi.fn((index: number, value: number) => { if (state.target) state.target = withCurve(state.target, index, value); }) };
+		set: vi.fn<(index: number, value: number) => void>((index, value) => { if (state.target) state.target = withCurve(state.target, index, value); }) };
 	const tool = new CurveTool(actions), { context } = toolContext();
 	return { state, actions, tool, context };
 }

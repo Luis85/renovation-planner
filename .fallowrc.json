@@ -89,6 +89,7 @@
 		"scripts/editor-reference-check.mjs",
 		"scripts/editor-structure-check.mjs",
 		"scripts/editor-renovation-check.mjs",
+		"scripts/editor-subject-kind-check.mjs",
 		"scripts/editor-planning-check.mjs",
 		"scripts/editor-visual-fidelity-shots.mjs",
 		"scripts/editor-visual-comparisons.mjs",

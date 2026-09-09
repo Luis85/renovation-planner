@@ -34,7 +34,7 @@ async function revealAction(page, selector) {
 	throw new Error(`Nested disclosures did not reveal ${selector}`);
 }
 export async function activate(page, selector) {
-	if (selector.startsWith('[data-rp-perspective=')) {
+	if (selector.startsWith('[data-rp-perspective=') && await page.locator('[data-rp-perspective][tabindex="0"]').count()) {
 		const destination = await page.locator(selector).getAttribute('data-rp-perspective');
 		await tabTo(page, '[data-rp-perspective][tabindex="0"]');
 		const current = await page.locator('[data-rp-perspective][tabindex="0"]').getAttribute('data-rp-perspective');

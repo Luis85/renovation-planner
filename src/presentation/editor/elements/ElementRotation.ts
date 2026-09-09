@@ -1,6 +1,7 @@
 import type { Point } from '../../../core/geometry/Point';
 import type { EditorContext } from '../tools/editor-context';
 import type { EditorPointerEvent } from '../tools/editor-tool';
+import type { SnapService } from '../snapping/snap-service';
 import { CLICK_EPSILON_PX, ROTATION_PIVOT_DEADZONE_PX } from '../handleMetrics';
 import { rotationChanged, rotationPivot, rotationPoints, type RotationShape } from './objectRotation';
 import { rotationControlContains, type RotationControlGeometry } from './rotationControl';
@@ -54,6 +55,7 @@ export class ElementRotation {
 	}
 	private update(gesture: Gesture, event: EditorPointerEvent): readonly Point[] | null {
 		const context = gesture.context;
+		const snapping: SnapService = context.snapService;
 		if (Math.hypot(event.screenPoint.x - gesture.start.x, event.screenPoint.y - gesture.start.y) > CLICK_EPSILON_PX) gesture.dragging = true;
 		if (!gesture.dragging) return gesture.shape.points;
 		const dx = event.worldPoint.x - gesture.control.pivot.x, dy = event.worldPoint.y - gesture.control.pivot.y;
@@ -63,9 +65,9 @@ export class ElementRotation {
 			gesture.radians += Math.atan2(Math.sin(delta), Math.cos(delta)); gesture.bearing = bearing;
 			if (bearing === gesture.initialBearing) gesture.radians = Math.round(gesture.radians / (2 * Math.PI)) * 2 * Math.PI;
 		}
-		const degrees = (event.modifiers.shift ? context.snapService.snapRotation(gesture.radians) : gesture.radians) * 180 / Math.PI;
+		const degrees = (event.modifiers.shift ? snapping.snapRotation(gesture.radians) : gesture.radians) * 180 / Math.PI;
 		context.renderState.rotationDegrees = degrees;
-		context.renderState.rotationInteraction = { control: gesture.control, dragging: true, snapDegrees: event.modifiers.shift ? context.snapService.rotationStepDegrees() : null };
+		context.renderState.rotationInteraction = { control: gesture.control, dragging: true, snapDegrees: event.modifiers.shift ? snapping.rotationStepDegrees() : null };
 		return rotationPoints(gesture.shape, degrees, gesture.control.pivot);
 	}
 	move(context: EditorContext, event: EditorPointerEvent): void {

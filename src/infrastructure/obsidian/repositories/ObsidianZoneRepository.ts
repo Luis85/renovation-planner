@@ -1,3 +1,4 @@
+import { removeGroupMembers } from '../../../domain/spatial/groupMembership';
 import { TFile } from 'obsidian';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
@@ -416,6 +417,7 @@ export class ObsidianZoneRepository {
 				await this.geometry.mutate(cachedPlan, (sidecarDto) => ({
 					...sidecarDto,
 					objects: sidecarDto.objects.filter((object) => object.id !== id),
+					...(sidecarDto.groups ? { groups: removeGroupMembers(sidecarDto.groups, new Set([id])).map(group => ({ ...group, memberIds: [...group.memberIds] })) } : {}),
 					...(sidecarDto.structure ? { structure: { ...sidecarDto.structure, boundaries: sidecarDto.structure.boundaries.filter(boundary => boundary.roomId !== id) } } : {}),
 				}));
 

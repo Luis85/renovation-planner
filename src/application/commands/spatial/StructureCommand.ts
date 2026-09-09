@@ -11,6 +11,7 @@ import { markUncompensated, type DispatchResult } from '../DispatchOutcome';
 import { persistenceError } from '../../errors';
 import { sameGeometryDocument } from './sameGeometryDocument';
 import { RoomBoundaryHistory } from './RoomBoundaryHistory';
+import { groupsAfterStructureChange } from '../../../domain/spatial/groupMembership';
 
 export interface SpatialRoomCommand {
 	execute(): Promise<DispatchResult>;
@@ -127,7 +128,8 @@ class StructureCommand {
 			}
 		}
 		const structure = this.withRoomBoundary(before);
-		const result = await this.safe(() => this.write({ ...this.current.document, structure }));
+		const groups = groupsAfterStructureChange(this.current.document.groups, before.structure, structure);
+		const result = await this.safe(() => this.write({ ...this.current.document, structure, ...(groups ? { groups } : {}) }));
 		if (!result.ok && room) {
 			if (!(await this.restoreRoom(before, room))) return this.recovery();
 		}
@@ -136,7 +138,7 @@ class StructureCommand {
 
 	private async revert(): Promise<DispatchResult> {
 		const before = this.current.document;
-		const document = { ...before, structure: this.input.baseline.document.structure };
+		const document = { ...before, structure: this.input.baseline.document.structure, groups: this.input.baseline.document.groups };
 		const result = await this.safe(() => this.write(document));
 		if (!result.ok || !this.input.room) return result;
 		const room = this.input.room;

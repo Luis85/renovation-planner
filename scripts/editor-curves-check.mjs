@@ -4,7 +4,7 @@ import { recordRoom, recordText, recordShot } from './editor-record-browser.mjs'
 import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 import { editorAccessibility } from './editor-accessibility.mjs';
 const notes = page => page.evaluate(() => window.editorFidelity.savedNotes());
-const frame = page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+const frame = page => page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => { requestAnimationFrame(resolve); }); }));
 const lengths = page => page.locator('[data-rp-room-edge] > [aria-hidden="true"]').allTextContents();
 async function closeDetails(page, scenario) { if (scenario.width === 460) await page.keyboard.press('Escape'); }
 async function openCurves(page) {

@@ -18,7 +18,7 @@ import { tr } from '../../i18n/strings';
 import { type Aggregate } from '../../read-models/spatialRecords';
 import { formatArea } from './formatArea';
 import { useFloorSummary } from './useFloorSummary';
-import RoomSummaryList from './RoomSummaryList.vue';
+import FloorSpatialLists from './FloorSpatialLists.vue';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import RenovationLinkedSummary from '../renovation/RenovationLinkedSummary.vue';
 import { computed } from 'vue';
@@ -26,9 +26,7 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { renovationSummary } from '../renovation/renovationSummary';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import HostIcon from '../../components/HostIcon.vue';
-import { useEditorRuntime } from '../runtime';
 const context = usePlanEditorContext();
-const runtime = useEditorRuntime();
 
 /**
  * `null` before the first successful hydrate — and this component may well be mounted
@@ -154,30 +152,10 @@ const count = (value: number): string => String(value);
 				</dd>
 			</dl>
 		</div>
-		<p
-			v-if="summary.rooms.length > 0 && runtime.activeToolId.value === 'select'"
-			class="rp-floor-inspector__guidance"
-		>
-			<HostIcon name="info" /><span>{{ tr('editor.inspector.floor.guidance') }}</span>
-		</p>
-
-		<RoomSummaryList
-			v-if="summary.rooms.length > 0"
-			:records="summary.rooms"
-			:heading="tr('editor.inspector.floor.rooms')"
-			:annotations="roomAnnotations"
-		/>
-		<p
-			v-else-if="!starting"
-			class="rp-editor-inspector-empty"
-		>
-			{{ tr('editor.inspector.floor.no-rooms') }}
-		</p>
-
-		<RoomSummaryList
-			v-if="summary.areas.length > 0"
-			:records="summary.areas"
-			:heading="tr('editor.inspector.floor.areas')"
+		<FloorSpatialLists
+			:summary="summary"
+			:starting="starting"
+			:room-annotations="roomAnnotations"
 		/>
 	</div>
 </template>

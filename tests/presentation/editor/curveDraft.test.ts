@@ -1,8 +1,16 @@
 import { expect, it } from 'vitest';
 import { bulgeAt, curveDocument, curveEdges, curveError, curveSource, curveText, typedBulge, withCurve } from '../../../src/presentation/editor/curves/curveDraft';
 import type { CurveTarget } from '../../../src/presentation/editor/curves/curveDraft';
+import { arcRadius } from '../../../src/core/geometry/circularArc';
 
 const room: CurveTarget = { id: 'room-a', kind: 'room', name: 'Room', geometry: { points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 3000 }, { x: 0, y: 3000 }], bulges: [0.123456789, 0, 0, 0] } };
+it.each([0.25, -0.25])('keeps a representable large radius curved with the original direction %s', bulge => {
+	const edge = { ...curveEdges(room)[0], bulge }, text = `1${'0'.repeat(305)}`;
+	const parsed = typedBulge(edge, 'radius', text);
+	expect(parsed).not.toBeNull(); expect(Math.sign(parsed ?? 0)).toBe(Math.sign(bulge));
+	const radius = arcRadius({ ...edge, bulge: parsed ?? 0 });
+	expect(radius).not.toBeNull(); expect((radius ?? 0) / 1e308).toBeCloseTo(1, 14);
+});
 it('keeps untouched precision and treats retyped bend or radius as an explicit new value', () => {
 	const edge = curveEdges(room)[0], text = curveText(edge);
 	expect(room.geometry.bulges?.[0]).toBe(0.123456789);

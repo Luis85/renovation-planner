@@ -32,10 +32,16 @@ async function capture(name, state, extra = {}) {
 }
 async function measure() {
 	return await page.evaluate(() => {
+		// `.rp-al-row__number`, the DIGITS, and never `.rp-al-row__amount`, the cell around them.
+		// That cell is a fixed `11ch` GRID TRACK, so its right edge is the same in every row by
+		// construction and a spread taken from it reads 0 whatever the text does — measured on
+		// PR #98 by reverting to the one-span layout and watching this number stay 0 through a
+		// defect the picture plainly showed. An instrument that cannot go red is not evidence.
+		//
 		// Collapsed shelf categories keep their rows in the DOM (`display: none`), so an
 		// unfiltered query mixes real amounts with (0,0,0,0) rects from hidden ones — filtered
 		// to rows a reader can actually see (Task A6 review, browser-only finding).
-		const edges = [...document.querySelectorAll('.rp-al-row__amount')]
+		const edges = [...document.querySelectorAll('.rp-al-row__number')]
 			.map((el) => el.getBoundingClientRect())
 			.filter((rect) => rect.width > 0)
 			.map((rect) => rect.right);
@@ -69,6 +75,12 @@ try {
 	for (const width of [1440, 720, 560, 460]) {
 		await open(width, 650); await capture(`AL10-${width}-dark`, 'Selected asset, limited height', await measure());
 	}
+	// German at a width that DRAWS the shelf, which the 460 shot below cannot: that leaf hides
+	// the shelves entirely, so until PR #98 no capture had measured a locale that writes the
+	// currency AFTER the amount — the one arrangement where right-alignment does not align the
+	// decimals on its own. This is the instrument for `.rp-al-row__currency`'s fixed-width box.
+	await open(1440, 900, '&theme=light', 'de');
+	await capture('AL10-1440-light-de', 'German: currency after the amount, mixed currencies', await measure());
 	await open(460, 650, '&theme=light', 'de'); await capture('AL10-460-light-de', 'German in a narrow light leaf');
 	await page.locator('.rp-al-inspector__back').click(); await capture('AL10-460-return', 'Return path preserves selection');
 	await open(1440, 900, '&theme=light'); await capture('AL10-1440-light', 'English light theme');

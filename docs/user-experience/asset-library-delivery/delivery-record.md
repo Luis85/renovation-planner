@@ -315,3 +315,39 @@ each with the task that shipped it:
 12. Back restores the shelves' scroll position — Task C2.
 13. Four labels adopt the specification's wording, in both locales — Task C3.
 14. The chevron: the specification was corrected, `Back to library` stands unchanged — Task C4.
+
+### PR #98 review: the currency affix, and the instrument that could not see it
+
+Codex's review of `d52507e3` reported that right-aligning the whole formatted price aligns
+decimals only where the locale writes the currency BEFORE the number. Verified rather than
+taken: `Intl.NumberFormat` puts it first in English (`€34.95`, `PLN 34.95`) and last in German
+(`34,95 €`, `34,95 CHF`), and the catalogue is legitimately mixed (PRD §72 — the fixture's
+`tall-cabinet-400` is CHF beside sixteen EUR assets, in the same open shelf as the selected
+row). So the finding held for German and the shipped alignment was English-only.
+
+`AssetRow.vue` now reads `formatToParts` and puts the currency in its own `.rp-al-row__currency`
+element, given a fixed `4ch` box in `styles/asset-shelf.css`; the separator the formatter would
+have emitted is dropped, so nothing about the affix's width reaches the digits. The side comes
+from the formatter (`parts[0].type === 'currency'`), never from a language list.
+
+**The measurement that had been reporting `0px` could not have reported anything else, and that
+matters more than the defect.** `measure()` read `.rp-al-row__amount`'s right edge — but that
+element IS the fixed `11ch` grid track, so its edge is identical in every row by construction.
+Measured by reverting to the one-span layout and re-capturing: German still read `0px` through a
+defect the picture plainly showed. The earlier `0px` claims at 1440/720/560 were therefore
+tautologies, not evidence. `measure()` now reads `.rp-al-row__number`, the digits themselves, and
+was tested against a perturbation before being believed — with `.rp-al-row__currency`'s
+`inline-size` removed it reports **16.625px** at `AL10-1440-light-de` and `0px` in English, which
+is the defect's own shape. With the box restored every captured width reads `0px`.
+
+`AL10-1440-light-de` is new and is why any of this was visible: the only previous German capture
+was at 460, where the shelves are not drawn at all, so no capture had ever measured a
+currency-after-the-amount locale. 18 captures now; no page faults; every record's
+`scrollWidth === width`.
+
+**Newly visible in that capture and NOT fixed here** — the German column heading `Verschnitt`
+needs 57px in the 5ch (35px) waste track and overlaps `Lieferant` beside it (measured
+`scrollWidth 57 / clientWidth 35` at 1440; English `Waste` is 35/35 and fits exactly). The data
+cells below already clip; the heading cells do not. It is a heading-row defect independent of
+this round's currency work, and `styles/asset-shelf.css` is at its 400-line cap, so the clip rule
+it needs arrives with the extraction that cap now requires rather than inside this fix.

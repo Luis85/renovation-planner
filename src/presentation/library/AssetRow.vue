@@ -95,8 +95,8 @@ const spokenMark = computed((): string => {
  * carries its own currency and a project carries its own (PRD §72), so a vault-wide catalogue
  * is legitimately mixed.
  */
-const priceLabel = computed((): string =>
-	new Intl.NumberFormat(currentLanguage(), {
+const price = computed(() => {
+	const parts = new Intl.NumberFormat(currentLanguage(), {
 		style: 'currency',
 		currency: props.entry.currency,
 		minimumFractionDigits: 2,
@@ -104,7 +104,21 @@ const priceLabel = computed((): string =>
 		// The one place a monetary amount passes through `Number`, display-only, bounded to two
 		// fraction digits, exact below 2^53/100; a decimal-string formatter arrives with the
 		// first surface that needs more.
-	}).format(Number(props.entry.unitCostAmount)));
+	}).formatToParts(Number(props.entry.unitCostAmount));
+	return {
+		// `formatToParts` rather than `format`, so the currency travels in its OWN element and
+		// the fixed-width box `styles/asset-shelf.css` gives it keeps the number's edge constant
+		// across a mixed-currency shelf. The `literal` between the two is dropped with it: that
+		// separator is the affix box's padding now, so nothing about the currency's own width
+		// reaches the digits. Reported on PR #98.
+		number: parts.filter((part) => part.type !== 'currency' && part.type !== 'literal').map((part) => part.value).join(''),
+		currency: parts.find((part) => part.type === 'currency')?.value ?? '',
+		// Which side the locale writes it on, asked of the formatter rather than of a language
+		// list: English writes `€34.95` and German `34,95 €`, and the answer is per currency too
+		// (`en` gives `PLN 34.95` with a separator and `€34.95` without one).
+		leading: parts[0]?.type === 'currency',
+	};
+});
 
 /**
  * Fraction in [0, 1] (`Requirement.ts`'s own comment on the field this defaults) to a printed
@@ -135,7 +149,17 @@ const unitSymbol = computed((): string => tr(MEASUREMENT_UNIT_SYMBOLS[props.entr
 		>
 			<AssetMark :outline="outline" />
 			<span class="rp-al-row__name">{{ entry.name }}</span>
-			<span class="rp-al-row__amount">{{ priceLabel }}</span>
+			<span class="rp-al-row__amount">
+				<span
+					v-if="price.leading"
+					class="rp-al-row__currency"
+				>{{ price.currency }}</span>
+				<span class="rp-al-row__number">{{ price.number }}</span>
+				<span
+					v-if="!price.leading"
+					class="rp-al-row__currency"
+				>{{ price.currency }}</span>
+			</span>
 			<span class="rp-al-row__unit">/ {{ unitSymbol }}</span>
 			<span class="rp-al-row__waste">{{ wasteLabel ?? '' }}</span>
 			<span class="rp-al-row__supplier">{{ entry.supplier ?? '' }}</span>

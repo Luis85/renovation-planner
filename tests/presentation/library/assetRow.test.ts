@@ -13,6 +13,9 @@ import type { AssetOutline } from '../../../src/application/queries/ListAssetOut
 import type { AssetId } from '../../../src/domain/asset/AssetId';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
 import { currencyOf } from '../../../src/core/money/Money';
+// From the mock's own module, not from `obsidian`: `setLanguage` is the fake's knob and the
+// real API has no such member, so the alias's type declarations do not carry it.
+import { setLanguage } from '../../helpers/obsidian-mock';
 
 function anEntry(overrides: Partial<CatalogueEntryDto> = {}): CatalogueEntryDto {
 	return {
@@ -100,6 +103,37 @@ describe('AssetRow', () => {
 		expect(eur.get('.rp-al-row__amount').text()).toContain('€');
 		expect(gbp.get('.rp-al-row__amount').text()).toContain('£');
 		expect(gbp.get('.rp-al-row__amount').text()).not.toContain('€');
+	});
+
+	/**
+	 * PR #98's finding, as far as jsdom can carry it. Right-aligning the whole formatted string
+	 * aligns decimals only where the locale writes the currency BEFORE the number; German writes
+	 * it after, at one to three characters, so a mixed-currency shelf moved every comma. What is
+	 * checkable here is the STRUCTURE the fix rests on — the digits in an element the currency is
+	 * not in, on whichever side the formatter puts it. That the box is then a constant width is a
+	 * layout fact, and `AL10-1440-light-de`'s measured 0px spread is its only instrument.
+	 */
+	it('keeps the digits out of the currency element on both sides of the number', () => {
+		const row = mountRow({ entry: anEntry({ unitCostAmount: '34.95', currency: currencyOf('EUR') }) });
+
+		expect(row.get('.rp-al-row__number').text()).toBe('34.95');
+		expect(row.get('.rp-al-row__currency').text()).toBe('€');
+		expect(row.get('.rp-al-row__amount').text()).not.toContain('34.95 €');
+	});
+
+	it('writes the currency on the side the locale puts it', () => {
+		setLanguage('de');
+		try {
+			const row = mountRow({ entry: anEntry({ unitCostAmount: '34.95', currency: currencyOf('CHF') }) });
+			const children = [...row.get('.rp-al-row__amount').element.children].map((el) => el.className);
+
+			expect(row.get('.rp-al-row__number').text()).toBe('34,95');
+			expect(children).toEqual(['rp-al-row__number', 'rp-al-row__currency']);
+		} finally {
+			// The mock's language is a module-level `let` shared by every later file in this
+			// worker, so a suite that moves it owes the reset (`obsidian-mock.ts`'s own rule).
+			setLanguage('en');
+		}
 	});
 
 	it('prints the unit cost, right-aligned by class, with its own unit suffix', () => {

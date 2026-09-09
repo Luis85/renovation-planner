@@ -240,6 +240,34 @@
 	font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The currency travels in its own fixed-width box INSIDE that cell, because right-aligning the
+ * whole formatted string aligns decimals only where the locale writes the currency BEFORE the
+ * number. English does (`€34.95`) and every capture above was English, which is why the 0px
+ * spread held; German writes `34,95 €` against `34,95 CHF` in a catalogue that is legitimately
+ * mixed (PRD §72), and a suffix of one to three characters carried every comma with it.
+ * Reported on PR #98, and seeable by no gate here: jsdom lays nothing out and no capture drew
+ * a German shelf until `AL10-1440-light-de`. `4ch` holds a three-letter ISO code plus its
+ * separator — the one the formatter would have emitted is dropped in `AssetRow.vue` precisely
+ * so this box owns it — and a wider affix clips rather than moving the number, the same trade
+ * the unit track takes. The side comes from POSITION rather than a modifier: the cell holds
+ * exactly two elements, so the currency is `:first-child` or `:last-child` and never both.
+ */
+.rp-al-row__currency {
+	display: inline-block;
+	inline-size: 4ch;
+	overflow: hidden;
+	color: var(--text-muted);
+}
+
+.rp-al-row__currency:first-child {
+	text-align: start;
+}
+
+.rp-al-row__currency:last-child {
+	text-align: end;
+}
+
 .rp-al-row__unit {
 	min-width: 0;
 	overflow: hidden;

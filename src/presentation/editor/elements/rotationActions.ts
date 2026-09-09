@@ -47,6 +47,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 	const working = ref(false), generation = ref(0), preview = ref<NamedRotationShape | null>(null);
 	let alive = true;
 	const target = computed(() => {
+		if (runtime.groups?.target.value) return runtime.groups.target.value;
 		if (selection.selectedIds.length !== 1) return selection.selectedIds.length > 1 ? runtime.groupRotationTarget?.(selection.selectedIds[0]) ?? null : null;
 		const shape = projectedRotationTarget(project, selection.selectedIds[0], Boolean(runtime.wall));
 		return shape && rotationPivot(shape) ? { ...shape, generation: generation.value } : null;

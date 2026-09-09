@@ -1,0 +1,33 @@
+{
+  "published112": [
+    "tests/presentation/editor/referenceViewportControls.test.ts > redraws markers after host theme changes and labels only visible source points",
+    "tests/presentation/editor/renovateRoomManipulation.test.ts > edits a Room corner in Renovate through one reversible geometry command",
+    "tests/presentation/editor/renovationRoutes.test.ts > changes perspective and marker visibility through the context and layer controls without writing",
+    "tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > the Create button describes a real element while blocked, and nothing at all once valid",
+    "tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > while a Create is in flight the button is disabled and states no false reason",
+    "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > deletes from the Inspector; undo restores the exact entity; the panel follows both ways",
+    "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)",
+    "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > takes the outline and the handles down on deselection, not just the store entry"
+  ],
+  "updated111": [
+    "tests/presentation/editor/renovateRoomManipulation.test.ts > edits a Room corner in Renovate through one reversible geometry command",
+    "tests/presentation/editor/renovationRoutes.test.ts > changes perspective and marker visibility through the context and layer controls without writing",
+    "tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > the Create button describes a real element while blocked, and nothing at all once valid",
+    "tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > while a Create is in flight the button is disabled and states no false reason",
+    "tests/presentation/editor/structureLifecycle.test.ts > spatial task failure, busy and leaf lifetime > traces a temporary loop, operates every numeric field, creates its Room and uses list selection and deletion focus",
+    "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > deletes from the Inspector; undo restores the exact entity; the panel follows both ways",
+    "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)",
+    "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > takes the outline and the handles down on deselection, not just the store entry"
+  ],
+  "current112": [
+    "tests/presentation/editor/renovateRoomManipulation.test.ts > edits a Room corner in Renovate through one reversible geometry command",
+    "tests/presentation/editor/renovationRoutes.test.ts > changes perspective and marker visibility through the context and layer controls without writing",
+    "tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > the Create button describes a real element while blocked, and nothing at all once valid",
+    "tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > while a Create is in flight the button is disabled and states no false reason",
+    "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > deletes from the Inspector; undo restores the exact entity; the panel follows both ways",
+    "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)",
+    "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > takes the outline and the handles down on deselection, not just the store entry"
+  ],
+  "newVersusPublished112": [],
+  "newVersusUpdated111": []
+}

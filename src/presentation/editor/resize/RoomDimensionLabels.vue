@@ -30,7 +30,12 @@ useDimensionObstacles(root, () => editor.viewport, bounds => emit('obstacles', b
 const selected = computed(() => selection.selectedIds.length === 1 ? project.zones.get(selection.selectedIds[0]) : undefined);
 const room = computed(() => selected.value?.zoneType === 'Room' ? selected.value : null);
 const draft = runtime.roomDimension.draft;
-const box = computed(() => draft.value ? roomDimensions(runtime.renderState.previewPolygon ?? []) ?? draft.value.box : room.value ? roomDimensions(room.value.points, room.value.bulges) : null);
+const box = computed(() => {
+	if (draft.value) return roomDimensions(runtime.renderState.previewPolygon ?? []) ?? draft.value.box;
+	if (!room.value) return null;
+	const geometry = props.preview?.objects.find(item => item.id === room.value?.id) ?? room.value;
+	return roomDimensions(geometry.points, geometry.bulges);
+});
 const visible = computed(() => box.value !== null && (draft.value !== null || runtime.renderState.previewPolygon === null) && session.perspective !== 'review' && (workspace.layerVisibility.zone || draft.value !== null)
 	&& (runtime.activeToolId.value === 'select' || runtime.activeToolId.value === 'edit-room-dimension'));
 const measured = computed(() => {

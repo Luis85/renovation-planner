@@ -21,22 +21,28 @@ async function setup() {
 	const start = at(control.handle), end = at({ x: pivot.x - (control.handle.y - pivot.y), y: pivot.y + (control.handle.x - pivot.x) });
 	return { ...rig, canvas, start, end };
 }
-it.each(['release', 'escape'] as const)('previews the whole assembly from its curved edge arrow and handles %s exactly once', async finish => {
+async function previewRotation() {
 	const rig = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id)).document, ids = [...rig.selection.selectedIds], write = vi.spyOn(rig.geometry, 'write');
 	pointer(rig.canvas, 'pointerdown', rig.start.x, rig.start.y);
 	pointer(rig.canvas, 'pointermove', rig.end.x, rig.end.y); await settle();
 	expect(rig.runtime.groupActions.preview.value).not.toBeNull(); expect(write).not.toHaveBeenCalled();
 	expect(rig.selection.selectedIds).toEqual(ids);
-	if (finish === 'escape') rig.canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+	return { rig, before, ids, write };
+}
+it('cancels the whole assembly rotation without writing', async () => {
+	const { rig, before, ids, write } = await previewRotation();
+	rig.canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 	pointer(rig.canvas, 'pointerup', rig.end.x, rig.end.y); await settle();
-	if (finish === 'escape') {
-		expect(write).not.toHaveBeenCalled(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
-	} else {
-		await settleUntil(() => write.mock.calls.length === 1 && !rig.runtime.groupActions.active.value, 'group pointer rotation saved');
-		expect(rig.project.structure.walls[0].start).toEqual({ x: 3500, y: -500 });
-		const after = expectOk(await rig.geometry.read(rig.plan.id)).document;
-		await rig.runtime.undo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
-		await rig.runtime.redo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(after); expect(write).toHaveBeenCalledTimes(3);
-	}
+	expect(write).not.toHaveBeenCalled(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
+	expect(rig.runtime.groupActions.preview.value).toBeNull(); expect(rig.selection.selectedIds).toEqual(ids);
+});
+it('commits the whole assembly rotation exactly once and restores exact history', async () => {
+	const { rig, before, ids, write } = await previewRotation();
+	pointer(rig.canvas, 'pointerup', rig.end.x, rig.end.y); await settle();
+	await settleUntil(() => write.mock.calls.length === 1 && !rig.runtime.groupActions.active.value, 'group pointer rotation saved');
+	expect(rig.project.structure.walls[0].start).toEqual({ x: 3500, y: -500 });
+	const after = expectOk(await rig.geometry.read(rig.plan.id)).document;
+	await rig.runtime.undo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
+	await rig.runtime.redo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(after); expect(write).toHaveBeenCalledTimes(3);
 	expect(rig.runtime.groupActions.preview.value).toBeNull(); expect(rig.selection.selectedIds).toEqual(ids);
 });

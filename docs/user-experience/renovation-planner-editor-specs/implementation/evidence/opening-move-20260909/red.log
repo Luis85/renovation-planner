@@ -1,0 +1,133 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-deliver-opening-move
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > projects distant pointers onto the existing host and clamps both endpoints, bulge=0
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > projects distant pointers onto the existing host and clamps both endpoints, bulge=0.25
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > projects distant pointers onto the existing host and clamps both endpoints, bulge=-0.25
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > previews the latest pointer when the initial read completes without requiring another pointer event
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > preserves legacy optional fields for a curved door through exact Undo/Redo and fresh reads
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > preserves legacy optional fields for a curved window through exact Undo/Redo and fresh reads
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > preserves legacy optional fields for a curved opening through exact Undo/Redo and fresh reads
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > retires an early click and hover after escape without reactivating from the late read
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > retires an early click and hover after tool without reactivating from the late read
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > retires an early click and hover after selection without reactivating from the late read
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > retires an early click and hover after disposal without reactivating from the late read
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > refuses concurrent host changes without overwriting or recording history
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > refuses concurrent opening changes without overwriting or recording history
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > refuses concurrent write-race changes without overwriting or recording history
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > keeps one successful Move through failed refresh and read-only retries, bulge=0
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > keeps one successful Move through failed refresh and read-only retries, bulge=0.25
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > retires a failed write without history or implicit replay and accepts a fresh deliberate Move
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/openingMoveDelivery.test.ts > keeps an actual completed Move when disposed before its write receipt returns
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+xxxx··············
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/presentation/editor/openingMoveDelivery.test.ts > projects distant pointers onto the existing host and clamps both endpoints, bulge=0
+ FAIL  |suite| tests/presentation/editor/openingMoveDelivery.test.ts > projects distant pointers onto the existing host and clamps both endpoints, bulge=0.25
+ FAIL  |suite| tests/presentation/editor/openingMoveDelivery.test.ts > projects distant pointers onto the existing host and clamps both endpoints, bulge=-0.25
+Error: Expected projected preview to be present, got null.
+ ❯ expectDefined tests/helpers/domain.ts:121:9
+    119| export function expectDefined<T>(value: T | null | undefined, what: st…
+    120|  if (value === null || value === undefined) {
+    121|   throw new Error(`Expected ${what} to be present, got ${String(value)…
+       |         ^
+    122|  }
+    123|  return value;
+ ❯ tests/presentation/editor/openingMoveDelivery.test.ts:42:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  |suite| tests/presentation/editor/openingMoveDelivery.test.ts > previews the latest pointer when the initial read completes without requiring another pointer event
+AssertionError: expected undefined to deeply equal [ { id: 'opening-move', …(7) } ]
+
+- Expected:
+[
+  {
+    "height": 2100.125,
+    "hostId": "wall-a",
+    "id": "opening-move",
+    "kind": "door",
+    "offset": 2549.9382716055,
+    "sill": 123.75,
+    "swing": {
+      "angle": 37.125,
+      "hinge": "end",
+      "side": "right",
+    },
+    "width": 900.123456789,
+  },
+]
+
++ Received:
+undefined
+
+ ❯ tests/presentation/editor/openingMoveDelivery.test.ts:62:63
+     60|  rig.runtime.toolManager.pointerMove(pointerAt(2000, 0)); rig.runtime.…
+     61|  pending.resolve(result); await settleUntil(() => !rig.runtime.opening…
+     62|  expect(rig.runtime.structureActions.preview.value?.openings).toEqual(…
+       |                                                               ^
+     63|  expect(write).not.toHaveBeenCalled();
+     64| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 14 passed (18)
+   Start at  14:38:43
+   Duration  17.17s (transform 9.49s, setup 0ms, import 11.91s, tests 3.76s, environment 1.25s)

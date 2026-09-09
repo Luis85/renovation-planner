@@ -113,7 +113,8 @@ const selectedScreenPoints = computed(() => {
 	if (id === undefined) return null;
 	const zone = zones.value.get(id);
 	if (zone === undefined) return null; // e.g. deleted while selected, before refresh lands
-	return zone.points.map((point) => toScreen(point));
+	const geometry = (runtime.curveTask.preview.value ?? runtime.groupActions.preview.value)?.objects.find(item => item.id === id) ?? zone;
+	return geometry.points.map((point) => toScreen(point));
 });
 
 const selectedFlat = computed(() => {

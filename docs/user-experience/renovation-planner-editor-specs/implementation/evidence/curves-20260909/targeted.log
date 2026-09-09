@@ -1,0 +1,8 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-deliver-curves
+
+
+ Test Files  16 passed (16)
+      Tests  82 passed (82)
+   Start at  14:17:18
+   Duration  35.47s (transform 23.40s, setup 0ms, import 41.26s, tests 13.75s, environment 9.57s)

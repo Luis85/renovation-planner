@@ -1,5 +1,11 @@
 # Opening placement and plan symbols
 
+Current Move follow-up on PR #112: [delivery and automated verification](opening-move-delivery.md).
+Move now projects the pointer onto its existing host even away from the wall or beyond an
+endpoint. Older off-host refusal statements below are historical for Move; overlap and
+host-containment validation still apply. Creation and numeric editing keep their existing contracts.
+Manual acceptance of this follow-up is user-owned and pending, without blocking implementation.
+
 User-authorized extension to M01 and ADR-0020. Sidecar schema **5** reserves optional
 `Opening.swing: { hinge: 'start' | 'end', side: 'left' | 'right', angle: number }` for
 Doors and Windows, in current and intended structures. Angles are finite degrees in

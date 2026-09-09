@@ -1,0 +1,289 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-deliver-groups
+
+stderr | tests/presentation/editor/shell/multiSelectionInspector.test.ts > Editor selection across the list, canvas and Inspector > keeps the list reachable after selecting, supports multi-selection without modifiers and preserves the camera
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/shell/multiSelectionInspector.test.ts (17 tests | 1 failed) 4187ms
+     × keeps the list reachable after selecting, supports multi-selection without modifiers and preserves the camera 223ms
+stderr | tests/presentation/editor/groupDelivery.test.ts > repeating enclosure preserves catalogue and member order without a write when another group follows it
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/groupDelivery.test.ts (10 tests | 1 failed) 3991ms
+   × repeating enclosure preserves catalogue and member order without a write when another group follows it 362ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/presentation/editor/groupDelivery.test.ts > repeating enclosure preserves catalogue and member order without a write when another group follows it
+AssertionError: expected "write" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st write call:
+
+    Array [
+      "harness-plan",
+      Object {
+        "calibration": null,
+        "groups": Array [
+          Object {
+            "id": "group-elsewhere",
+            "memberIds": Array [
+              "wall-elsewhere",
+            ],
+            "name": "Elsewhere",
+          },
+          Object {
+            "id": "group-01M2378TJ0PHEDXDKTDXRPVGQ4",
+            "memberIds": Array [
+              "zone-01M2378TGEN5QG0A6VM3HRXHAP",
+              "wall-01M2378TJ0PHEDXDKTDXRPVGQ0",
+              "wall-01M2378TJ0PHEDXDKTDXRPVGQ1",
+              "wall-01M2378TJ0PHEDXDKTDXRPVGQ2",
+              "wall-01M2378TJ0PHEDXDKTDXRPVGQ3",
+            ],
+            "name": "Kitchen",
+          },
+        ],
+        "intended": Object {
+          "boundaries": Array [
+            Object {
+              "roomId": "zone-01M2378TGEN5QG0A6VM3HRXHAP",
+              "wallIds": Array [
+                "wall-01M2378TJ0PHEDXDKTDXRPVGQ0",
+                "wall-01M2378TJ0PHEDXDKTDXRPVGQ1",
+                "wall-01M2378TJ0PHEDXDKTDXRPVGQ2",
+                "wall-01M2378TJ0PHEDXDKTDXRPVGQ3",
+              ],
+            },
+          ],
+          "openings": Array [],
+          "walls": Array [
+            Object {
+              "end": Object {
+                "x": 4000,
+                "y": 0,
+              },
+              "height": 2400,
+              "id": "wall-01M2378TJ0PHEDXDKTDXRPVGQ0",
+              "start": Object {
+                "x": 0,
+                "y": 0,
+              },
+              "thickness": 150,
+            },
+            Object {
+              "end": Object {
+                "x": 4000,
+                "y": 3000,
+              },
+              "height": 2400,
+              "id": "wall-01M2378TJ0PHEDXDKTDXRPVGQ1",
+              "start": Object {
+                "x": 4000,
+                "y": 0,
+              },
+              "thickness": 150,
+            },
+            Object {
+              "end": Object {
+                "x": 0,
+                "y": 3000,
+              },
+              "height": 2400,
+              "id": "wall-01M2378TJ0PHEDXDKTDXRPVGQ2",
+              "start": Object {
+                "x": 4000,
+                "y": 3000,
+              },
+              "thickness": 150,
+            },
+            Object {
+              "end": Object {
+                "x": 0,
+                "y": 0,
+              },
+              "height": 2400,
+              "id": "wall-01M2378TJ0PHEDXDKTDXRPVGQ3",
+              "start": Object {
+                "x": 0,
+                "y": 3000,
+              },
+              "thickness": 150,
+            },
+          ],
+        },
+        "objects": Array [
+          Object {
+            "bulges": Array [
+              0.25,
+              0,
+              0,
+              0,
+            ],
+            "id": "zone-01M2378TGEN5QG0A6VM3HRXHAP",
+            "points": Array [
+              Object {
+                "x": 0,
+                "y": 0,
+              },
+              Object {
+                "x": 4000,
+                "y": 0,
+              },
+              Object {
+                "x": 4000,
+                "y": 3000,
+              },
+              Object {
+                "x": 0,
+                "y": 3000,
+              },
+            ],
+          },
+        ],
+        "structure": Object {
+          "boundaries": Array [
+            Object {
+              "roomId": "zone-01M2378TGEN5QG0A6VM3HRXHAP",
+              "wallIds": Array [
+                "wall-01M2378TJ0PHEDXDKTDXRPVGQ0",
+                "wall-01M2378TJ0PHEDXDKTDXRPVGQ1",
+                "wall-01M2378TJ0PHEDXDKTDXRPVGQ2",
+                "wall-01M2378TJ0PHEDXDKTDXRPVGQ3",
+              ],
+            },
+          ],
+          "openings": Array [
+            Object {
+              "height": 2100,
+              "hostId": "wall-01M2378TJ0PHEDXDKTDXRPVGQ0",
+              "id": "opening-group-delivery",
+              "kind": "door",
+              "offset": 500,
+              "sill": 0,
+              "swing": Object {
+                "angle": 65,
+                "hinge": "end",
+                "side": "right",
+              },
+              "width": 800,
+            },
+          ],
+          "walls": Array [
+            Object {
+              "bulge": 0.25,
+              "end": Object {
+                "x": 4000,
+                "y": 0,
+              },
+              "height": 2400,
+              "id": "wall-01M2378TJ0PHEDXDKTDXRPVGQ0",
+              "start": Object {
+                "x": 0,
+                "y": 0,
+              },
+              "thickness": 150,
+            },
+            Object {
+              "end": Object {
+                "x": 4000,
+                "y": 3000,
+              },
+              "height": 2400,
+              "id": "wall-01M2378TJ0PHEDXDKTDXRPVGQ1",
+              "start": Object {
+                "x": 4000,
+                "y": 0,
+              },
+              "thickness": 150,
+            },
+            Object {
+              "end": Object {
+                "x": 0,
+                "y": 3000,
+              },
+              "height": 2400,
+              "id": "wall-01M2378TJ0PHEDXDKTDXRPVGQ2",
+              "start": Object {
+                "x": 4000,
+                "y": 3000,
+              },
+              "thickness": 150,
+            },
+            Object {
+              "end": Object {
+                "x": 0,
+                "y": 0,
+              },
+              "height": 2400,
+              "id": "wall-01M2378TJ0PHEDXDKTDXRPVGQ3",
+              "start": Object {
+                "x": 0,
+                "y": 3000,
+              },
+              "thickness": 150,
+            },
+            Object {
+              "end": Object {
+                "x": 10000,
+                "y": 3000,
+              },
+              "height": 2400,
+              "id": "wall-elsewhere",
+              "start": Object {
+                "x": 10000,
+                "y": 0,
+              },
+              "thickness": 150,
+            },
+          ],
+        },
+      },
+      Object {
+        "observed": "ce1bfb2e5c764af9",
+        "revision": 5,
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ tests/presentation/editor/groupDelivery.test.ts:96:20
+     94|  const bytes = [...rig.stack.vault.entries], write = vi.spyOn(rig.geom…
+     95|  await rig.wrapper.get('[data-rp-group-action="enclose"]').trigger('cl…
+     96|  expect(write).not.toHaveBeenCalled(); expect([...rig.stack.vault.entr…
+       |                    ^
+     97|  expect(rig.project.groups).toEqual(groups); expect(rig.selection.sele…
+     98| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |suite| tests/presentation/editor/shell/multiSelectionInspector.test.ts > Editor selection across the list, canvas and Inspector > keeps the list reachable after selecting, supports multi-selection without modifiers and preserves the camera
+AssertionError: expected [ 'zone-kitchen' ] to deeply equal [ 'zone-kitchen', 'zone-terrace' ]
+
+- Expected
++ Received
+
+  [
+    "zone-kitchen",
+-   "zone-terrace",
+  ]
+
+ ❯ tests/presentation/editor/shell/multiSelectionInspector.test.ts:174:43
+    172|   await multiple.find('button').trigger('click');
+    173|   await settle();
+    174|   expect(useSelectionStore().selectedIds).toEqual(['zone-kitchen', 'zo…
+       |                                           ^
+    175|   expect(useSelectionStore().focusedId).toBe('zone-kitchen');
+    176|   expect(harness.stage.find('.selection-badge')).toHaveLength(2);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 25 passed (27)
+   Start at  15:55:54
+   Duration  18.29s (transform 16.23s, setup 0ms, import 22.69s, tests 8.18s, environment 3.26s)

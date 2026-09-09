@@ -3,7 +3,10 @@
 Open a floor from its Project. An empty floor offers three starting points: add a Room,
 prepare a reference plan, or keep an empty canvas. A reference image or PDF can be cropped,
 rotated and scaled before it becomes the locked background. Reopen its settings to change
-its appearance or measurements.
+its appearance or measurements. The large preview has Zoom in, Zoom out, Pan and Fit controls.
+Drag the image to pan or use the wheel to zoom around the pointer. Calibration points A and B
+stay attached to the image while the view changes. With the preview focused, arrow keys pan,
++ and − zoom, and F fits the image.
 
 Room outlines and current wall measurements can be adjusted with the same geometry history in Plan and Renovate. Wall edits retain their Preview → Apply confirmation. Renovate keeps Select and Add available; Review remains read-only. Changes to intended structure use the Planned forms and their separate geometry.
 
@@ -13,9 +16,21 @@ Use **Add** to choose a Room, Area, wall, hosted opening or another supported el
 Temporary tools show Finish and Cancel. Finish validates the draft and saves one change;
 Cancel discards it. Room creation supports a rectangle and a free-shape outline. Numeric
 controls let you enter exact dimensions or corner coordinates without drawing on the canvas.
-With canvas focus, Enter finishes an Object, Path, Fence or Measurement; Backspace removes
+With canvas focus, Enter finishes an Object, Path, Fence, Measurement, Stair or Direction arrow; Backspace removes
 its last draft point. Pending numeric input must be applied or discarded first. Enter in a
 numeric field applies that field’s form and does not finish the element.
+Hold Shift while drawing a line to use the same angle constraints as a Zone. Wall and opening
+placement keeps the canvas available; use Details when you want exact numeric entry.
+
+Drag from empty canvas to select several items; hold Shift to add to the selection. Handles
+come first, then Object → Opening → Wall → Room. Alt cycles overlaps or selects an individual
+group member. Choose **Pan** for left-button drag navigation; Space-drag and the middle button
+also pan. Right-click an item, or use the keyboard context-menu key, for its available actions.
+Outside text fields and modal forms, **Ctrl+Z** undoes and **Ctrl+Y** redoes saved edits.
+
+Use **Stairs** to draw a flight between two endpoints, then set its width, run, tread count
+and up/down direction. **Direction arrow** follows the order of its drawn points. Both tools
+remain on the canvas in narrow layouts; open Details explicitly for numeric entry.
 
 For a selected rectangular Room, activate its width or depth label to enter an exact
 length in metres. Commas and decimal points are accepted. Apply or Enter saves one
@@ -38,11 +53,40 @@ elements to create shared Work or Evidence, apply a planned change, or inspect t
 A shared record keeps one identity across its linked contexts. Deletion shows its impact
 and refuses unresolved references; removing walls does not reshape independent Rooms.
 
+## Group and enclose a room
+
+Choose **Group selected items** to save a reusable selection with the floor. A normal click
+on a member selects its group, including hosted openings. Drag the group to move it, or use
+**Move or rotate together** for numeric movement and rotation. Hidden members remain part of
+the group. **Select focused item** lets you edit one member; **Select saved group** returns to
+the assembly without changing membership. Ungroup removes membership while keeping the items.
+
+For a Room, **Enclose with walls and group** creates missing boundary walls, reuses matching
+walls and saves the assembly in one undo step. It uses the normal wall defaults; individual
+wall properties remain editable. This is an explicit action: later independent outline edits
+do not rebuild the walls automatically. Deleting a member updates the group; Undo restores
+its membership along with the deleted item, subject to the normal conflict checks.
+
+## Draw curved rooms and openings
+
+Choose the Room task’s **Free-form** action to place an arbitrary outline. Every Room edge
+shows its own length during drawing, point editing and rotation. **Edit curves** on a Room
+or wall opens numbered edge controls: drag a bend handle or enter a bend depth or radius,
+then Apply. Curved lengths and material quantities use the actual arcs. The rectangular
+width/depth form is available for straight, axis-aligned Rooms.
+
+Doors and windows show their opening leaves and angles. Edit the hinge, side and angle in
+the opening’s controls. During placement, click the wall where the opening’s centre should
+be. **Move along wall** lets you preview a new position on its existing straight or curved
+host and click to place it; Escape cancels. The opening stays within the host’s available span.
+
 ## Rotate a spatial item
 
-Select one Room, Area, Object, Path, Fence, Measurement or wall. In Plan, drag its rotation
-handle to turn it around the displayed centre. The pivot stays fixed for that gesture, and
-the angle label shows the current turn. Hold Shift to snap to 15-degree steps. Release saves
+Select a Room, Area, Object, Path, Fence, Measurement, Stair, Direction arrow, wall or group.
+Hover near its edges to reveal small curved-arrow handles. Drag one to turn the selection
+around the displayed centre, or click one for precise angle entry. Hover alone never changes
+selection. The pivot stays fixed for the gesture, and the angle label shows the current turn.
+Hold Shift to use the active angle-snap setting. Release saves
 a free item's turn; Escape cancels the preview. Review stays read-only.
 
 For keyboard entry, select the item from the floor list and choose **Rotate by…**. Enter
@@ -60,8 +104,8 @@ outlines remain independent of walls.
 Rotation preserves identity, names and links; separate Planned geometry stays independent.
 The rectangular Room size form remains limited to axis-aligned rectangles: use Edit shape
 for rotated outlines. Reference plans rotate through their existing configuration workflow.
-This action rotates one spatial item at a time. If another edit changes the saved
-baseline, the stale turn is refused. Read-back retry after a successful save only refreshes
+Saved groups and multiple selections rotate as an assembly. If another edit changes the
+saved baseline, the stale turn is refused. Read-back retry after a successful save only refreshes
 the view.
 
 ## Connect the renovation
@@ -120,6 +164,13 @@ the comparison yet; after Work Undo/Redo, the action opens the floor changed by 
 Retry reads the current data without repeating the write. If the source was deleted elsewhere,
 the action reports that it is missing and does not recreate it. When Retry removes its focused
 warning button, keyboard focus returns to the Project Back control.
+
+## Add a photo
+
+Choose an image from the vault or import one, optionally enter a caption, then Add photo.
+The search offers a bounded list of matching images instead of listing the whole vault.
+Context, dates, phase, links and pin coordinates remain available under Details when needed.
+Leaving the caption blank uses the image filename.
 
 ## Keep drafts and saved data clear
 

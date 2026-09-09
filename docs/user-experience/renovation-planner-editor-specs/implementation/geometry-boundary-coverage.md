@@ -69,3 +69,10 @@ contacts and rejection of a bend beyond a semicircle. These remain unrun.
 The diagnostic union is used only to find missing behavior; it is not a passing
 coverage result. Higher-guard-only migration/optional-field fallbacks remain untouched.
 No existing production code, gate, timeout or threshold changes accompany these tests.
+
+Two final source-only repository cases from the round-two diagnostic use actual
+external disappearance windows: an indexed Room note deleted before listing must
+not hide its surviving peer or rewrite the sidecar; a newly created note already
+removed before a failed sidecar write must count as compensated, leave no phantom
+index entry and permit retry. These exercise the remaining ObsidianZoneRepository
+absence branches without fabricating an invalid domain entity. They remain unrun.

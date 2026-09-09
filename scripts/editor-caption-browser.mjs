@@ -9,7 +9,14 @@ function separate(a, b) {
 async function inspect(page, roomId) {
 	await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); }));
 	const scene = await page.evaluate(id => window.editorFidelity.captions(id), roomId);
-	assert.equal(scene.captions.length, 3); assert.equal(scene.pins.length, 6); assert.equal(scene.controls.length, 2);
+	// `controls` is every `.rp-dimension-anchor` in the overlay, which is the SAME set
+	// `useDimensionObstacles` hands the caption placer — so the count tracks whatever the
+	// editor actually draws rather than the two axis controls this line was written for.
+	// Four here: the width and depth axis controls, plus the two edge-length labels
+	// `RoomEdgeMeasurements` draws for the edges `omitAxisControls` does not already
+	// represent. `tests/presentation/editor/roomEdgeMeasurements.e2e.test.ts` pins that
+	// 2 + 2 split for this exact state.
+	assert.equal(scene.captions.length, 3); assert.equal(scene.pins.length, 6); assert.equal(scene.controls.length, 4);
 	for (const caption of scene.captions) {
 		const box = caption.bounds;
 		assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= scene.size.width && box.y + box.height <= scene.size.height,

@@ -12,14 +12,17 @@
 import HostIcon from '../../components/HostIcon.vue';
 import ReferenceLayerAppearance from './ReferenceLayerAppearance.vue';
 import type { PlanDto } from '../../read-models/PlanDto';
-import { useId } from 'vue';
+import { computed, useId } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { LayerEntry } from '../layers/layerCatalogue';
 
-defineProps<{ entries: readonly LayerEntry[]; plan?: PlanDto | null }>();
+const props = defineProps<{ entries: readonly LayerEntry[]; plan?: PlanDto | null }>();
 const emit = defineEmits<{ activateTool: [toolId: 'calibrate'] }>();
+const rows = computed(() => props.entries.map(entry => ({ ...entry,
+	separateActionReason: entry.action !== null && !entry.action.enabled && entry.action.reasonKey !== entry.reasonKey ? entry.action.reasonKey : null,
+})));
 
 const workspace = useWorkspaceStore();
 const { layerVisibility } = storeToRefs(workspace);
@@ -75,7 +78,7 @@ function actionReasonId(entry: LayerEntry): string | undefined {
 <template>
 	<ul class="rp-layer-list">
 		<li
-			v-for="entry in entries"
+			v-for="entry in rows"
 			:key="entry.id"
 			class="rp-layer-list__row"
 		>
@@ -116,10 +119,10 @@ function actionReasonId(entry: LayerEntry): string | undefined {
 				{{ tr(entry.action.labelKey) }}
 			</button>
 			<span
-				v-if="entry.action !== null && !entry.action.enabled && entry.action.reasonKey !== entry.reasonKey"
+				v-if="entry.separateActionReason !== null"
 				:id="ids[entry.id].actionReason"
 				class="rp-layer-list__reason"
-			>{{ tr(entry.action.reasonKey) }}</span>
+			>{{ tr(entry.separateActionReason) }}</span>
 		</li>
 	</ul>
 </template>

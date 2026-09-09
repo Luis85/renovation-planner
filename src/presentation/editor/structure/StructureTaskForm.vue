@@ -19,6 +19,13 @@ const title = computed(() => tr(wall.value ? 'editor.creation.new-walls' : `edit
 const instructions = computed(() => tr(wall.value ? 'editor.structure.instructions' : 'editor.structure.host-instructions'));
 const pointAction = computed(() => tr(draft.points.length ? 'editor.structure.add-segment' : 'editor.structure.first-point'));
 const snapFeedback = computed(() => tr(draft.snapped ? 'editor.structure.snapped' : 'editor.structure.unsnapped'));
+const notices = computed(() => {
+	const entries: { key: string; role: 'status' | 'alert'; text: string; id?: string }[] = [];
+	if (draft.loading) entries.push({ key: 'loading', role: 'status', text: tr('editor.loading') });
+	if (draft.error) entries.push({ key: 'error', role: 'alert', text: spatialMessage(draft.error), id: errorId });
+	if (draft.conflict) entries.push({ key: 'conflict', role: 'status', text: tr('editor.structure.conflict') });
+	return entries;
+});
 const measurements = computed(() => {
 	const a = draft.points[draft.points.length - 1], b = draft.cursor;
 	return a && b ? `${formatMetres(Math.hypot(b.x - a.x, b.y - a.y))} m · ${Math.round(Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI)}°` : '';
@@ -41,23 +48,12 @@ function submit(): void { if (wall.value) add(); else void task.finish(); }
 		<h3>{{ title }}</h3>
 		<p>{{ instructions }}</p>
 		<p
-			v-if="draft.loading"
-			role="status"
+			v-for="notice in notices"
+			:key="notice.key"
+			:id="notice.id"
+			:role="notice.role"
 		>
-			{{ tr('editor.loading') }}
-		</p>
-		<p
-			v-if="draft.error"
-			:id="errorId"
-			role="alert"
-		>
-			{{ spatialMessage(draft.error) }}
-		</p>
-		<p
-			v-if="draft.conflict"
-			role="status"
-		>
-			{{ tr('editor.structure.conflict') }}
+			{{ notice.text }}
 		</p>
 		<label
 			v-if="!wall"

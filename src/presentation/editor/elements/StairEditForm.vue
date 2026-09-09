@@ -11,7 +11,7 @@ import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { useInvalidFieldFocus } from '../../composables/use-invalid-field-focus';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
-import FieldError from '../../components/FieldError.vue';
+import GeometryNameField from '../forms/GeometryNameField.vue';
 import FormBanner from '../../components/FormBanner.vue';
 import DraftRecovery from '../forms/DraftRecovery.vue';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
@@ -71,23 +71,12 @@ async function submit(): Promise<void> {
 		>
 			{{ latest.value }}
 		</p>
-		<FieldError
-			v-slot="{ inputId, aria }"
-			:message="form.values.value.name.trim() ? null : tr('editor.element.name-required')"
-		>
-			<label
-				:for="inputId"
-				class="rp-dialog-field"
-			>{{ tr('editor.room.name') }}<input
-				:id="inputId"
-				v-bind="aria"
-				name="name"
-				type="text"
-				:value="form.values.value.name"
-				:readonly="paused"
-				@input="nameInput"
-			></label>
-		</FieldError>
+		<GeometryNameField
+			:value="form.values.value.name"
+			:readonly="paused"
+			:invalid="!form.values.value.name.trim()"
+			@input="nameInput"
+		/>
 		<StairFields
 			:model-value="form.values.value"
 			:errors="parsed.errors"

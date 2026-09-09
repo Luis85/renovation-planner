@@ -10,7 +10,7 @@ export interface StairPlanGeometry {
 	readonly run: number;
 }
 
-export function validStairOptions(value: StairOptions): boolean {
+function validStairOptions(value: StairOptions): boolean {
 	return Number.isFinite(value.width) && value.width >= 1 && value.width <= 1e6
 		&& Number.isInteger(value.treads) && value.treads >= 1 && value.treads <= 200
 		&& (value.direction === 'up' || value.direction === 'down');

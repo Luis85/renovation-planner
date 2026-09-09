@@ -522,6 +522,22 @@ function onPointerDown(event: PointerEvent): void {
 	editor.beginPan(at, event.pointerId);
 }
 
+function movePanOverride(event: PointerEvent, at: ScreenPoint): void {
+	if (!panOverride.owns(event.pointerId)) return;
+	// **A move is where a chorded release arrives**, so the owner's own move is asked
+	// whether its button is still held before it is allowed to drive the camera. Pointer
+	// Events fires `pointerup` only when the LAST button comes up, so middle-drag, press
+	// primary, release middle, release primary sends exactly one release and it names the
+	// primary button — nothing the override can match, and the canvas stayed `panning`
+	// for the rest of the session.
+	if (panOverride.pointerMove(event.pointerId, event.buttons)) {
+		editor.endPan(event.pointerId);
+		syncPanPhase();
+		return;
+	}
+	editor.continuePan(at, event.pointerId);
+}
+
 function onPointerMove(event: PointerEvent): void {
 	// **A swallowed pointer is nothing to this canvas for the whole of its life, and the MOVE
 	// was the one door that did not ask.** `swallowedPointers` holds an id until that POINTER
@@ -561,22 +577,7 @@ function onPointerMove(event: PointerEvent): void {
 	// than two: the owning pointer drives it, and every other pointer is swallowed rather
 	// than handed to the active tool. A tool interrupted by a pan hears nothing at all, which
 	// is what leaves its half-drawn polygon intact.
-	if (panOverride.phase === 'panning') {
-		if (!panOverride.owns(event.pointerId)) return;
-		// **A move is where a chorded release arrives**, so the owner's own move is asked
-		// whether its button is still held before it is allowed to drive the camera. Pointer
-		// Events fires `pointerup` only when the LAST button comes up, so middle-drag, press
-		// primary, release middle, release primary sends exactly one release and it names the
-		// primary button — nothing the override can match, and the canvas stayed `panning`
-		// for the rest of the session.
-		if (panOverride.pointerMove(event.pointerId, event.buttons)) {
-			editor.endPan(event.pointerId);
-			syncPanPhase();
-			return;
-		}
-		editor.continuePan(at, event.pointerId);
-		return;
-	}
+	if (panOverride.phase === 'panning') { movePanOverride(event, at); return; }
 	if (activeToolId.value !== null && activeToolId.value !== 'pan') {
 		// **The third path the chord grammar reaches, and the only one where the cost is a lost
 		// edit rather than a stuck camera.** A tool drag is primary by construction, and every
@@ -1035,68 +1036,69 @@ function zoomShortcut(event: KeyboardEvent): void {
  * Select, and Select (or camera mode) with a selection clears it. The Escape branch just below
  * spells out why each rule holds, in the order it holds it.
  */
+function handleCanvasEscape(event: KeyboardEvent): void {
+	// This press belongs to the canvas; the root must not route it a second time.
+	event.stopPropagation();
+	event.preventDefault();
+	// **The fourth door to take the rule the three pointer handlers already carry**: while
+	// a pan is RUNNING the canvas belongs to the camera, and every other input is swallowed
+	// rather than handed to the active tool. Escape was the one input still routed straight
+	// past it, and it was the destructive one — `cancelGesture()` empties
+	// `DrawPolygonTool`'s vertex buffer, so a user mid-polygon who held space to pan and hit
+	// Escape lost the whole polygon while the pan carried on underneath. Measured: no zone
+	// could be closed afterwards at all. Exactly the defect `pointercancel` was corrected
+	// for, in the one door nobody re-read the argument against.
+	//
+	// SWALLOWED rather than routed to the pan, which is what the finding suggested. Ending
+	// the pan here would leave the user's button still down with the override no longer
+	// owning it, so the eventual release would reach the active tool as a release with no
+	// matching press — the event-grammar defect this file has already recorded three times.
+	// And it would buy nothing: a pan has no uncommitted state for Escape to undo, since
+	// the camera does not rewind. The user releases the button and presses Escape, which is
+	// the gesture they would make anyway.
+	//
+	// `panning`, never `armed`: space merely HELD is not a gesture, so Escape still reaches
+	// the tool then — which is the case the camera lock deliberately carved this branch out
+	// for and must keep working.
+	//
+	// **`event.repeat` because ONE PRESS IS ONE PRESS.** A phase test alone reads each
+	// autorepeat as a fresh decision, so a user holding Escape as the pan ended had the
+	// keydown swallowed and then the OS's next repeat of that same press — arriving a few
+	// tens of milliseconds later, with the phase no longer `panning` — reach
+	// `cancelGesture()` and clear the polygon anyway. Whether the buffer survived came down
+	// to whether the button was released before the next repeat, which is a race and not a
+	// rule.
+	//
+	// Filtering every repeat rather than tracking THIS press through its keyup, which is
+	// the same thing with no state to keep: a repeat is never new intent, and `cancel()` is
+	// idempotent, so the two differ only for repeats of a press that already cancelled —
+	// where the second call clears an empty buffer. Escape means cancel once. The space
+	// branch above filters repeats for its own reasons and this is the same sentence.
+	//
+	// **What Escape does once it is not a repeat is `routeEscape`'s question now, not a
+	// single unconditional `cancelGesture()`.** A pan still swallows it first, exactly for
+	// the reasons the paragraphs above give — `panning: panPhase.value === 'panning'` is
+	// that same guard, carried into the call as data rather than kept as a condition on it.
+	// Past that: a tool holding a draft — `hasDraft()` — is cancelled and stays active
+	// exactly as before; a creation tool with NOTHING drawn returns to Select instead of
+	// leaving Escape a no-op over an empty buffer; and Select itself, or camera mode with no
+	// tool at all, clears a selection when there is nothing left to cancel.
+	if (!event.repeat) {
+		routeEscape({
+			panning: panPhase.value === 'panning' || (activeToolId.value === 'pan' && editor.dragState !== null),
+			activeToolId: activeToolId.value,
+			hasDraft: () => toolManager.activeToolHasDraft(),
+			cancelGesture: () => toolManager.cancelGesture(),
+			setTool: (id) => props.setTool(id),
+			hasSelection: props.hasSelection(),
+			clearSelection: () => props.clearSelection(),
+		});
+	}
+}
+
 function onKeyDown(event: KeyboardEvent): void {
 	if (!isCanvasKey(event)) return;
-	if (event.key === 'Escape') {
-		// This press belongs to the canvas; the root must not route it a second time.
-		event.stopPropagation();
-		event.preventDefault();
-		// **The fourth door to take the rule the three pointer handlers already carry**: while
-		// a pan is RUNNING the canvas belongs to the camera, and every other input is swallowed
-		// rather than handed to the active tool. Escape was the one input still routed straight
-		// past it, and it was the destructive one — `cancelGesture()` empties
-		// `DrawPolygonTool`'s vertex buffer, so a user mid-polygon who held space to pan and hit
-		// Escape lost the whole polygon while the pan carried on underneath. Measured: no zone
-		// could be closed afterwards at all. Exactly the defect `pointercancel` was corrected
-		// for, in the one door nobody re-read the argument against.
-		//
-		// SWALLOWED rather than routed to the pan, which is what the finding suggested. Ending
-		// the pan here would leave the user's button still down with the override no longer
-		// owning it, so the eventual release would reach the active tool as a release with no
-		// matching press — the event-grammar defect this file has already recorded three times.
-		// And it would buy nothing: a pan has no uncommitted state for Escape to undo, since
-		// the camera does not rewind. The user releases the button and presses Escape, which is
-		// the gesture they would make anyway.
-		//
-		// `panning`, never `armed`: space merely HELD is not a gesture, so Escape still reaches
-		// the tool then — which is the case the camera lock deliberately carved this branch out
-		// for and must keep working.
-		//
-		// **`event.repeat` because ONE PRESS IS ONE PRESS.** A phase test alone reads each
-		// autorepeat as a fresh decision, so a user holding Escape as the pan ended had the
-		// keydown swallowed and then the OS's next repeat of that same press — arriving a few
-		// tens of milliseconds later, with the phase no longer `panning` — reach
-		// `cancelGesture()` and clear the polygon anyway. Whether the buffer survived came down
-		// to whether the button was released before the next repeat, which is a race and not a
-		// rule.
-		//
-		// Filtering every repeat rather than tracking THIS press through its keyup, which is
-		// the same thing with no state to keep: a repeat is never new intent, and `cancel()` is
-		// idempotent, so the two differ only for repeats of a press that already cancelled —
-		// where the second call clears an empty buffer. Escape means cancel once. The space
-		// branch above filters repeats for its own reasons and this is the same sentence.
-		//
-		// **What Escape does once it is not a repeat is `routeEscape`'s question now, not a
-		// single unconditional `cancelGesture()`.** A pan still swallows it first, exactly for
-		// the reasons the paragraphs above give — `panning: panPhase.value === 'panning'` is
-		// that same guard, carried into the call as data rather than kept as a condition on it.
-		// Past that: a tool holding a draft — `hasDraft()` — is cancelled and stays active
-		// exactly as before; a creation tool with NOTHING drawn returns to Select instead of
-		// leaving Escape a no-op over an empty buffer; and Select itself, or camera mode with no
-		// tool at all, clears a selection when there is nothing left to cancel.
-		if (!event.repeat) {
-			routeEscape({
-				panning: panPhase.value === 'panning' || (activeToolId.value === 'pan' && editor.dragState !== null),
-				activeToolId: activeToolId.value,
-				hasDraft: () => toolManager.activeToolHasDraft(),
-				cancelGesture: () => toolManager.cancelGesture(),
-				setTool: (id) => props.setTool(id),
-				hasSelection: props.hasSelection(),
-				clearSelection: () => props.clearSelection(),
-			});
-		}
-		return;
-	}
+	if (event.key === 'Escape') { handleCanvasEscape(event); return; }
 	if (event.key === ' ') {
 		// `preventDefault` comes FIRST, above the gesture lock, and that ordering is the whole
 		// point: space is page-down in a scrollable leaf, a held key autorepeats at the OS rate,

@@ -77,7 +77,7 @@ export function createGroupOperations(context: PlanEditorContext, runtime: Group
 			}
 			const result = await dispatch(next); saved = result.ok; if (alive && !result.ok) notifyOperationFailure(result.error);
 		});
-		return saved;
+		return saved && alive;
 	}
 	return { document, generation, working, blocked, preview, capture, current, operate, commit };
 }

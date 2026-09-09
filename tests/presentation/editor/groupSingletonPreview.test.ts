@@ -5,9 +5,33 @@ import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { STAGE_PIXELS, worldToScreen } from '../../../src/presentation/editor/viewport/Viewport';
+import { pointerAt } from '../../helpers/tool-context';
+import { rotationPivot } from '../../../src/presentation/editor/elements/objectRotation';
 
 const mounted: { unmount(): void }[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
+
+it('uses the same saved singleton target for pointer and numeric rotation after deleting its walls', async () => {
+	const rig = await groupEditor(); mounted.push(rig);
+	const original = expectOk(await rig.geometry.read(rig.plan.id)).document, group = rig.project.groups[0];
+	const removal = rig.runtime.structureActions.remove(rig.project.structure.walls.map(wall => wall.id));
+	await settleUntil(() => rig.dialogs.current?.kind === 'confirm', 'wall deletion review');
+	rig.dialogs.resolve('confirm'); await removal;
+	rig.runtime.selectAndFrame(rig.room.id, false); await settle();
+	expect(rig.project.groups).toEqual([{ ...group, memberIds: [rig.room.id] }]);
+	const target = expectDefined(rig.runtime.groupActions.target.value, 'singleton target');
+	expect.soft(rig.runtime.rotationActions.target.value).toEqual(target);
+	expect.soft(rotationPivot(expectDefined(rig.runtime.rotationActions.target.value, 'pointer target'))).toEqual(rotationPivot(target));
+	const before = expectOk(await rig.geometry.read(rig.plan.id)).document, write = vi.spyOn(rig.geometry, 'write');
+	rig.runtime.toolManager.pointerDown(pointerAt(1700, 1200));
+	rig.runtime.toolManager.pointerMove(pointerAt(1950, 1300)); await settle();
+	expect.soft(rig.runtime.groupActions.preview.value?.objects[0].points[0]).toEqual({ x: 250, y: 100 });
+	rig.runtime.toolManager.pointerUp(pointerAt(1950, 1300));
+	await settleUntil(() => write.mock.calls.length === 1 && !rig.runtime.groupActions.active.value, 'singleton movement');
+	expect(rig.selection.selectedIds).toEqual([rig.room.id]);
+	await rig.runtime.undo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
+	await rig.runtime.undo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(original);
+});
 
 it('keeps a persisted singleton Room group outline and vertex handles on the numeric rotation preview, then cancels without writes', async () => {
 	const rig = await groupEditor(); mounted.push(rig);

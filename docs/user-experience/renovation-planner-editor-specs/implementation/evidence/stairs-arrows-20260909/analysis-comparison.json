@@ -1,0 +1,291 @@
+{
+  "baseline": "00d707affcd43cb449c8b37804b6d190065f6f2e",
+  "deadCode": {
+    "current": [
+      {
+        "kind": "private_type_leaks",
+        "path": "src/presentation/editor/elements/rotationControl.ts",
+        "export": "layoutRotationControl",
+        "type": "Shape"
+      },
+      {
+        "kind": "private_type_leaks",
+        "path": "src/presentation/editor/elements/rotationControl.ts",
+        "export": "layoutRotationControls",
+        "type": "Shape"
+      },
+      {
+        "kind": "unused_class_members",
+        "path": "src/infrastructure/obsidian/repositories/ObsidianZoneRepository.ts",
+        "parent": "ObsidianZoneRepository",
+        "member": "prepareGeometryVersions"
+      },
+      {
+        "kind": "unused_class_members",
+        "path": "src/presentation/editor/snapping/snap-service.ts",
+        "parent": "SnapService",
+        "member": "rotationStepDegrees"
+      },
+      {
+        "kind": "unused_exports",
+        "path": "src/domain/spatial/stairGeometry.ts",
+        "export": "validStairOptions"
+      },
+      {
+        "kind": "unused_exports",
+        "path": "src/infrastructure/persistence/dto/planGeometry.ts",
+        "export": "PlanGeometrySchemaV5"
+      }
+    ],
+    "baseline": [
+      {
+        "kind": "private_type_leaks",
+        "path": "src/presentation/editor/elements/rotationControl.ts",
+        "export": "layoutRotationControl",
+        "type": "Shape"
+      },
+      {
+        "kind": "private_type_leaks",
+        "path": "src/presentation/editor/elements/rotationControl.ts",
+        "export": "layoutRotationControls",
+        "type": "Shape"
+      },
+      {
+        "kind": "unresolved_imports",
+        "path": "tests/helpers/obsidian-mock.ts"
+      },
+      {
+        "kind": "unused_class_members",
+        "path": "src/infrastructure/obsidian/repositories/ObsidianZoneRepository.ts",
+        "parent": "ObsidianZoneRepository",
+        "member": "prepareGeometryVersions"
+      },
+      {
+        "kind": "unused_class_members",
+        "path": "src/presentation/editor/snapping/snap-service.ts",
+        "parent": "SnapService",
+        "member": "rotationStepDegrees"
+      },
+      {
+        "kind": "unused_exports",
+        "path": "src/domain/spatial/stairGeometry.ts",
+        "export": "validStairOptions"
+      },
+      {
+        "kind": "unused_exports",
+        "path": "src/infrastructure/persistence/dto/planGeometry.ts",
+        "export": "PlanGeometrySchemaV5"
+      }
+    ],
+    "identical": false,
+    "allCurrentReproduce": true,
+    "baselineOnly": [
+      {
+        "kind": "unresolved_imports",
+        "path": "tests/helpers/obsidian-mock.ts"
+      }
+    ]
+  },
+  "clones": {
+    "current": [
+      [
+        {
+          "file": "src/application/commands/spatial/GroupGeometryCommand.ts",
+          "start": 72,
+          "end": 76,
+          "fragment": ", 'Reopen the floor before editing.')));\n\t\tif (this.busy || this.applied === forward) return ok('no-write');\n\t\tthis.busy = true;\n\t\ttry {\n\t\t\tconst checked = await this.check(); if (!checked.ok) return checked"
+        },
+        {
+          "file": "src/application/commands/spatial/StructureCommand.ts",
+          "start": 43,
+          "end": 48,
+          "fragment": ", 'Reopen the floor before editing.')));\n\t\tif (this.busy || this.applied === forward) return ok('no-write');\n\t\tthis.busy = true;\n\t\ttry {\n\t\t\tconst checked = await this.check();\n\t\t\tif (!checked.ok) return checked"
+        }
+      ],
+      [
+        {
+          "file": "src/presentation/editor/elements/StairEditForm.vue",
+          "start": 77,
+          "end": 91,
+          "fragment": ">\n\t\t\t<label\n\t\t\t\t:for=\"inputId\"\n\t\t\t\tclass=\"rp-dialog-field\"\n\t\t\t>{{ tr('editor.room.name') }}<input\n\t\t\t\t:id=\"inputId\"\n\t\t\t\tv-bind=\"aria\"\n\t\t\t\tname=\"name\"\n\t\t\t\ttype=\"text\"\n\t\t\t\t:value=\"form.values.value.name\"\n\t\t\t\t:readonly=\"paused\"\n\t\t\t\t@input=\"nameInput\"\n\t\t\t></label>\n\t\t</FieldError>\n\t\t<"
+        },
+        {
+          "file": "src/presentation/editor/resize/OutlinePointsForm.vue",
+          "start": 67,
+          "end": 83,
+          "fragment": ">\n\t\t\t<label\n\t\t\t\t:for=\"inputId\"\n\t\t\t\tclass=\"rp-dialog-field\"\n\t\t\t>{{ tr('editor.room.name') }}\n\t\t\t\t<input\n\t\t\t\t\t:id=\"inputId\"\n\t\t\t\t\tv-bind=\"aria\"\n\t\t\t\t\tname=\"name\"\n\t\t\t\t\ttype=\"text\"\n\t\t\t\t\t:value=\"form.values.value.name\"\n\t\t\t\t\t:readonly=\"paused\"\n\t\t\t\t\t@input=\"nameInput\"\n\t\t\t\t>\n\t\t\t</label>\n\t\t</FieldError>\n\t\t<"
+        }
+      ]
+    ],
+    "baseline": [
+      [
+        {
+          "file": "src/application/commands/spatial/GroupGeometryCommand.ts",
+          "start": 72,
+          "end": 76,
+          "fragment": ", 'Reopen the floor before editing.')));\n\t\tif (this.busy || this.applied === forward) return ok('no-write');\n\t\tthis.busy = true;\n\t\ttry {\n\t\t\tconst checked = await this.check(); if (!checked.ok) return checked"
+        },
+        {
+          "file": "src/application/commands/spatial/StructureCommand.ts",
+          "start": 43,
+          "end": 48,
+          "fragment": ", 'Reopen the floor before editing.')));\n\t\tif (this.busy || this.applied === forward) return ok('no-write');\n\t\tthis.busy = true;\n\t\ttry {\n\t\t\tconst checked = await this.check();\n\t\t\tif (!checked.ok) return checked"
+        }
+      ],
+      [
+        {
+          "file": "src/presentation/editor/elements/StairEditForm.vue",
+          "start": 77,
+          "end": 91,
+          "fragment": ">\n\t\t\t<label\n\t\t\t\t:for=\"inputId\"\n\t\t\t\tclass=\"rp-dialog-field\"\n\t\t\t>{{ tr('editor.room.name') }}<input\n\t\t\t\t:id=\"inputId\"\n\t\t\t\tv-bind=\"aria\"\n\t\t\t\tname=\"name\"\n\t\t\t\ttype=\"text\"\n\t\t\t\t:value=\"form.values.value.name\"\n\t\t\t\t:readonly=\"paused\"\n\t\t\t\t@input=\"nameInput\"\n\t\t\t></label>\n\t\t</FieldError>\n\t\t<"
+        },
+        {
+          "file": "src/presentation/editor/resize/OutlinePointsForm.vue",
+          "start": 67,
+          "end": 83,
+          "fragment": ">\n\t\t\t<label\n\t\t\t\t:for=\"inputId\"\n\t\t\t\tclass=\"rp-dialog-field\"\n\t\t\t>{{ tr('editor.room.name') }}\n\t\t\t\t<input\n\t\t\t\t\t:id=\"inputId\"\n\t\t\t\t\tv-bind=\"aria\"\n\t\t\t\t\tname=\"name\"\n\t\t\t\t\ttype=\"text\"\n\t\t\t\t\t:value=\"form.values.value.name\"\n\t\t\t\t\t:readonly=\"paused\"\n\t\t\t\t\t@input=\"nameInput\"\n\t\t\t\t>\n\t\t\t</label>\n\t\t</FieldError>\n\t\t<"
+        }
+      ]
+    ],
+    "identical": true
+  },
+  "health": [
+    {
+      "path": "src/presentation/editor/renovation/RenovationEntry.vue",
+      "name": "<template>",
+      "exceeded": "both",
+      "cyclomatic": 26,
+      "cognitive": 39,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "b8895d484da16ea7cb5efabea8e44057814f4c356268ced2c2e549244879539f"
+    },
+    {
+      "path": "src/presentation/editor/renovation/TransformationSummary.vue",
+      "name": "<template>",
+      "exceeded": "both",
+      "cyclomatic": 21,
+      "cognitive": 34,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "2791d8256afe284899f9d3967f0450f8673ebed763465e984c4c9a33554047ae"
+    },
+    {
+      "path": "src/presentation/editor/shell/LayerList.vue",
+      "name": "<template>",
+      "exceeded": "both",
+      "cyclomatic": 21,
+      "cognitive": 27,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "638284c7f37c658e65b1b9df640f02c8e7967049341e77afef6a38168cd681a2"
+    },
+    {
+      "path": "src/presentation/editor/structure/StructureTaskForm.vue",
+      "name": "<template>",
+      "exceeded": "cognitive",
+      "cyclomatic": 18,
+      "cognitive": 19,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "36f3aac4210ff2d7e65646e0292134c961a3748be06f1d6cd81380809dcc253c"
+    },
+    {
+      "path": "src/presentation/editor/surface/EditorSurface.vue",
+      "name": "onKeyDown",
+      "exceeded": "cognitive",
+      "cyclomatic": 16,
+      "cognitive": 17,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "71d2d6e6acacb74a8e6d6367281972e5a7efaf558b1af3417624226394945a85"
+    },
+    {
+      "path": "src/presentation/editor/elements/objectRotation.ts",
+      "name": "rotationPivot",
+      "exceeded": "cognitive",
+      "cyclomatic": 15,
+      "cognitive": 17,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "fe89bc496558da8ada2497ad1aacebbc857e4e12fcef3500b91c3270784c20de"
+    },
+    {
+      "path": "src/presentation/editor/renovation/RoomRenovationDetails.vue",
+      "name": "<template>",
+      "exceeded": "cognitive",
+      "cyclomatic": 15,
+      "cognitive": 20,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "9fdba0d99bcd5b91cc8621906e165659171f781a4c28f7d8e6bbdf7b05e7509f"
+    },
+    {
+      "path": "src/presentation/editor/planning/EvidenceFields.vue",
+      "name": "<template>",
+      "exceeded": "cognitive",
+      "cyclomatic": 14,
+      "cognitive": 16,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "50dc60cc590d9cf9717903e50ee3b3522e2fa7c09eb475228213a92fcd27c21a"
+    },
+    {
+      "path": "src/presentation/editor/renovation/RenovationInspector.vue",
+      "name": "<template>",
+      "exceeded": "cognitive",
+      "cyclomatic": 14,
+      "cognitive": 16,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "ae91eeb8e4c03a376d8b4b0832541cd0631ee31da96f7fd1ef6fa74cbf4d7407"
+    },
+    {
+      "path": "src/presentation/editor/shell/TemporaryToolBanner.vue",
+      "name": "<template>",
+      "exceeded": "cognitive",
+      "cyclomatic": 14,
+      "cognitive": 27,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "68c485d1684ad60787c96e341225cf2787251a9ea2a65534f38f0805eb090add"
+    },
+    {
+      "path": "src/presentation/editor/surface/EditorSurface.vue",
+      "name": "onPointerMove",
+      "exceeded": "cognitive",
+      "cyclomatic": 13,
+      "cognitive": 16,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "71d2d6e6acacb74a8e6d6367281972e5a7efaf558b1af3417624226394945a85"
+    },
+    {
+      "path": "src/presentation/editor/resize/RoomDimensionLabels.vue",
+      "name": "<template>",
+      "exceeded": "cognitive",
+      "cyclomatic": 11,
+      "cognitive": 16,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "d3a39196cdde768556d0eb075a4517367fd488f933474dcfc2063776640af299"
+    },
+    {
+      "path": "src/presentation/editor/shell/FloorInspector.vue",
+      "name": "<template>",
+      "exceeded": "cognitive",
+      "cyclomatic": 11,
+      "cognitive": 20,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "c610b33a1507487bcaf175c2802889950110804693dcf7be60f9996c28ca490c"
+    },
+    {
+      "path": "src/presentation/editor/shell/PersistentWarningStrip.vue",
+      "name": "<template>",
+      "exceeded": "cognitive",
+      "cyclomatic": 10,
+      "cognitive": 17,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "9a26899e35f4a307debd0535a73e3a329f7ab46af5d28336d1a9293ccbedb3ab"
+    },
+    {
+      "path": "src/presentation/editor/structure/StructureInspector.vue",
+      "name": "<template>",
+      "exceeded": "cognitive",
+      "cyclomatic": 10,
+      "cognitive": 18,
+      "sameSourceAsBaseline": true,
+      "sourceSha256": "859dc266d714ba6eba4b26e8ad3c2f6de72eb6625150fd5bc2999483ef611f77"
+    }
+  ],
+  "allHealthSourcesUnchanged": true,
+  "note": "Dead-code and duplicate analysis were run on both source trees. All 15 complexity findings exceed static cyclomatic/cognitive limits, not CRAP, and their source text is identical to the pre-fix baseline. No coverage data was copied, synthesized or combined for this comparison. The baseline uses ancestor-installed dependencies; its extra unresolved test import is retained as a baseline-only finding rather than hidden."
+}

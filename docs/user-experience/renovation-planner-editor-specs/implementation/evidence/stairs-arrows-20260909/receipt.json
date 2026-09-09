@@ -1,0 +1,112 @@
+{
+  "date": "2026-09-09",
+  "branch": "codex/editor-deliver-stairs",
+  "pr": 114,
+  "sourceParent": "00d707affcd43cb449c8b37804b6d190065f6f2e",
+  "predecessor": "0edf572ccd8303b351f43a2695edd63e12d9e134",
+  "node": "v24.20.0",
+  "sourceBlobs": {
+    "src/presentation/editor/elements/StairDraftFields.vue": "b142bde57b77ba43a495ffb961bbf625bf055f87",
+    "src/presentation/editor/elements/elementActions.ts": "aa9dc59b61b5c48f2799d1e6044056559ee811bb",
+    "src/presentation/editor/elements/rotationBaseline.ts": "6fa9f4fe72a106aa7a590230cdcdd35054ec1be0",
+    "src/presentation/editor/elements/stairInput.ts": "a3ae0d29f7e5c950aaecac5cd424fe60b9598fb5",
+    "tests/application/commands/stairArrowGeometry.test.ts": "93071c986542572160e74438c0a7235c364cfe84",
+    "tests/presentation/editor/snapping/lineDrawingConstraints.test.ts": "010da8a4ce52290093655e75dbbd4b24ed9dfc09",
+    "tests/presentation/editor/stairArrowDelivery.test.ts": "4a448f1470d38733a9f39b9025dc426f3a551cee"
+  },
+  "targeted": {
+    "distinctFiles": 14,
+    "distinctPassed": 130,
+    "addedTests": 21,
+    "batches": [
+      {
+        "files": 13,
+        "passed": 120
+      },
+      {
+        "files": 2,
+        "passed": 25,
+        "overlap": 15
+      }
+    ]
+  },
+  "redReproductions": {
+    "initialMergedBaselineFailures": 5,
+    "subsequentRotationFailures": 2,
+    "sameRevisionExternalEditFailures": 2
+  },
+  "fullCheck": {
+    "command": "npm run check",
+    "exit": 1,
+    "maxWorkers": 2,
+    "build": "passed",
+    "lint": "passed",
+    "files": 735,
+    "passed": 8676,
+    "failed": 9,
+    "skipped": 70,
+    "testDurationSeconds": 1634.61,
+    "coverage": {
+      "statements": 98.79,
+      "branches": 97.3,
+      "functions": 98.99,
+      "lines": 99.5
+    },
+    "failures": [
+      "FAIL  |build-lint| tests/build/lint-edited.test.ts > the edit-loop hook > tells the agent what ESLint found in an SFC, which oxlint cannot see at all",
+      "FAIL  |build-lint| tests/build/network-boundary.test.ts > the network boundary around diagnostics > refuses an import of electron in both directories",
+      "FAIL  |suite| tests/presentation/editor/renovateRoomManipulation.test.ts > edits a Room corner in Renovate through one reversible geometry command",
+      "FAIL  |suite| tests/presentation/editor/renovationRoutes.test.ts > changes perspective and marker visibility through the context and layer controls without writing",
+      "FAIL  |suite| tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)",
+      "FAIL  |suite| tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > deletes from the Inspector; undo restores the exact entity; the panel follows both ways",
+      "FAIL  |suite| tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > takes the outline and the handles down on deselection, not just the store entry",
+      "FAIL  |suite| tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > the Create button describes a real element while blocked, and nothing at all once valid",
+      "FAIL  |suite| tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > while a Create is in flight the button is disabled and states no false reason"
+    ],
+    "coverageClassification": "The updated PR #113 receipt already records failures of the same statement/branch/function floors (98.81/97.34/98.98%). No separate full baseline coverage run or arithmetic coverage union is claimed here."
+  },
+  "baseline": {
+    "revision": "00d707affcd43cb449c8b37804b6d190065f6f2e",
+    "files": 4,
+    "passed": 50,
+    "failed": 7,
+    "allSevenEditorFailuresReproduced": true
+  },
+  "isolatedBuild": {
+    "files": 2,
+    "passed": 44,
+    "maxWorkers": 1,
+    "timeoutsUnchanged": true,
+    "tests": [
+      "tests/build/lint-edited.test.ts",
+      "tests/build/network-boundary.test.ts"
+    ]
+  },
+  "analysis": {
+    "command": "npm run analyze",
+    "exit": 1,
+    "deadCode": 6,
+    "cloneGroups": 2,
+    "complexity": 15,
+    "newFindings": false,
+    "comparison": "analysis-comparison.json",
+    "jsonInspectionCommand": "npm run analyze -- --format json (inspection returns 0; the unchanged human-output gate above returns 1)"
+  },
+  "unchangedGateConfiguration": true,
+  "mainAndDownstreamBranchesUnchanged": true,
+  "manualAcceptance": "User-owned and pending. No desktop/Obsidian control, browser walkthrough, screenshot acceptance, vault access or manual confirmation performed or requested.",
+  "earlierFullAttempt": "Stopped during lint, after a successful build, to add the demonstrated same-revision external-edit fix. The final unchanged full run above completed against the final production/test sources.",
+  "remainingScopeIssue": "No identified remaining Stair/Arrow functional implementation gap. Existing full-suite, coverage and static-quality gaps remain open; manual acceptance is pending.",
+  "logs": "Text logs normalize CRLF and trailing whitespace; raw logs are retained in raw-logs.zip.",
+  "evidenceSha256": {
+    "analysis-comparison.json": "54be297a00ef37a82e4c0e4f5673ec829982916de5619bd2e8f0c6e0f78749b7",
+    "check.log": "537e7c9fad0d841501dc4e7e4634e972f373613225dd8e0eb715f3b50a7bd8f2",
+    "targeted.log": "aae0f5a873bd9bd40c4a12bb6f9877dd7b5232a8c44e6774d6f4bcca6fabd0a1",
+    "placement-marquee.log": "ade1e627a6499ac1ed5368ba2b318d862a23c63786d359d37094ede81f7c08f8",
+    "baseline-failures.log": "1f2707cca8abcd58e1f161253e34b2fcfbcabfa39f93f0e80d96f2a58d68b814",
+    "isolated-build.log": "733cd16165e2fd01940f136c181d0f9026a0f0193b0fedb58a4103fda9d25793",
+    "analyze.log": "b4616a8a5b664a9d300eb0ee139057656161d32b66b38ea17efdfd2ba449a6f8",
+    "red-summary.log": "550118bb22be09f8c441e899802d8b7bcf78e25605b792b610d112fc3a68b93a",
+    "raw-logs.zip": "54d3a29d9bed2e936eb9f61186558991b02154f3d62c18b9c99c044050804c42"
+  }
+}

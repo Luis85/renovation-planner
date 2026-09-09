@@ -1,0 +1,90 @@
+{
+  "date": "2026-09-09",
+  "pr": 112,
+  "branch": "codex/editor-deliver-opening-move",
+  "publishedHead": "2b81464635aad433b3e08cbebe5cff9c990d6b5a",
+  "incorporated111": "379f6a8aef24b1222d62624a5876672893fc84a2",
+  "mergeCommit": "e7b39035b7fe51a038177f3f226737dd5c6104a1",
+  "checkedSource": {
+    "sourceCommit": "6f795b01bf86963cf02fe00b3e1d328bbe2520bd",
+    "checkedFiles": 1871,
+    "sha256": "be0155b1c575f9e9cdf5ba4274a5bbb688db549cd3ab378ae56ff0c647503f7f"
+  },
+  "sourceTrees": {
+    "src": "d94968fb1f131bff38d9ac301264d17f97a6f8c8",
+    "tests": "475a27c647bb975572461cba661b2bd8a64a8617",
+    "styles": "471c0d647ed98b5871b364657117e44f19951348",
+    "scripts": "7f0fe84e8aeb8818bb285832221c262c78e3aa61"
+  },
+  "environment": {
+    "os": "Windows",
+    "node": "24.20.0",
+    "install": "npm ci --no-audit --no-fund",
+    "VITEST_MAX_WORKERS": "2"
+  },
+  "checks": {
+    "red": {
+      "failed": 4,
+      "passed": 14
+    },
+    "targeted": {
+      "exitCode": 0,
+      "files": 16,
+      "passed": 116
+    },
+    "check": {
+      "command": "npm run check",
+      "exitCode": 1,
+      "build": "passed",
+      "lint": "passed",
+      "files": 721,
+      "passed": 8570,
+      "failed": 7,
+      "skipped": 70,
+      "coverage": {
+        "statements": 98.84,
+        "branches": 97.49,
+        "functions": 98.94,
+        "lines": 99.49
+      },
+      "newFailureNamesVersusBothBaselines": []
+    },
+    "analyze": {
+      "exitCode": 1,
+      "deadCode": 6,
+      "clones": 1,
+      "complexity": 14,
+      "baselineComparison": "analysis-comparison.json"
+    }
+  },
+  "logs": {
+    "red.log": {
+      "sha256": "09b2482706b4fa298c37ee6aa8240bb1217f27b6562618cb522dea278a5c4cae",
+      "rawSha256": "ad731d055b5bac09f1739c2fa304e4da6910eb3f19e69b1ac99085b7d4d509df"
+    },
+    "targeted.log": {
+      "sha256": "00573e609d73aa983434b6662b5532c3da72475dfb0e2f681ba0de9c54615e98",
+      "rawSha256": "6bb8e49882ef7f17df09af4a922daba9af4644282b54e31d94a0861ad5b38879"
+    },
+    "check.log": {
+      "sha256": "5c939cb89446367041871c412c5abbf2e19db20bce4567d36714d614d0a3e55a",
+      "rawSha256": "4febb76ad896cbc2c45bd7b7cef929b001411b1b4db5cf1aed884d3328c39fcc"
+    },
+    "analyze.log": {
+      "sha256": "db6805034729b86240b2285f41dae854094f6101a78acf44aabaa11a791613c6",
+      "rawSha256": "edf4ccd16de790a15850bd25a7ec8ee4a8730579dd5055767b9afa2177013259"
+    },
+    "analyze-baseline.log": {
+      "sha256": "3ab38e2e8d0d8581e9cd9dda60bf2baf6418fdc0cb35167fa999d0593a446555",
+      "rawSha256": "3ab38e2e8d0d8581e9cd9dda60bf2baf6418fdc0cb35167fa999d0593a446555"
+    }
+  },
+  "manualAcceptance": {
+    "owner": "user",
+    "status": "pending",
+    "blocksImplementation": false,
+    "performedByAgent": false
+  },
+  "remaining": "No further functional Move gap demonstrated; unchanged full quality gate remains red. Overall editor plan stays open.",
+  "logNormalization": "ANSI escapes removed, line endings normalized to LF, trailing blank lines removed; raw hashes retained."
+}

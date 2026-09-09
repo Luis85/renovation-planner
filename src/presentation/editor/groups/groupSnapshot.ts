@@ -26,7 +26,7 @@ export function captureGroup(document: PlanGeometryDocument, ids: readonly strin
 	const available = new Set([...document.objects.map(object => object.id), ...structure.walls.map(wall => wall.id), ...structure.elements?.map(element => element.id) ?? []]);
 	if (!roots.length || roots.some(id => !available.has(id))) return null;
 	const saved = selectedGroup(document.groups ?? [], roots, structure);
-	if (!saved && ids.length < 2 && !single) return null;
+	if (ids.length < 2 && !single && (!saved || ids[0] !== roots[0])) return null;
 	const memberIds = groupMembers({ id: '', name: '', memberIds: roots }, structure);
 	return { id: saved?.id ?? 'selection-group', name: saved?.name ?? tr('editor.group.selection'), memberIds, selectionIds: [...ids], generation, document };
 }

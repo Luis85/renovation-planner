@@ -38,7 +38,10 @@ export function selectedGroup(groups: readonly SpatialGroup[], ids: readonly str
 }
 /** Explicit grouping flattens overlapping groups, keeping unrelated groups and source order. */
 export function regroup(groups: readonly SpatialGroup[], group: SpatialGroup, structure: Structure): SpatialGroup[] {
-	const members = new Set(groupRoots(group.memberIds, structure));
+	const existing = groups.find(previous => previous.id === group.id);
+	const members = new Set(groupRoots([...existing?.memberIds ?? [], ...group.memberIds], structure));
 	for (const previous of groups) if (previous.memberIds.some(id => members.has(id))) for (const id of previous.memberIds) members.add(id);
-	return [...groups.filter(previous => !previous.memberIds.some(id => members.has(id))), { ...group, memberIds: [...members] }];
+	const combined = { ...group, memberIds: [...members] };
+	const remaining = groups.flatMap(previous => previous.id === group.id ? [combined] : previous.memberIds.some(id => members.has(id)) ? [] : [previous]);
+	return existing ? remaining : [...remaining, combined];
 }

@@ -1,0 +1,53 @@
+{
+  "result": "All 10 data/source files byte-identical after native Escape cancellation",
+  "files": [
+    {
+      "path": "Renovation/Codex Finalization Synthetic 2026-09-07/Codex Finalization Synthetic 2026-09-07.md",
+      "sha256": "4aa17e9004cc0ed20db560722f16e8d161070bcb9646a2ec63eda36ff1206776"
+    },
+    {
+      "path": "Renovation/Codex Finalization Synthetic 2026-09-07/Geometry/plan-01M1XSVJ5CECKGQEVW6AFRZYXX.rpgeo",
+      "sha256": "ba09f1c3311b42e624b064a88fca0e365c8bb18821a6de4b27142e70c6333a99"
+    },
+    {
+      "path": "Renovation/Codex Finalization Synthetic 2026-09-07/Plans/Synthetic Ground Floor.md",
+      "sha256": "489e184a5b3c3ab16e2be73959902c71784e32015e61acbb71a72d310e139e28"
+    },
+    {
+      "path": "Renovation/Codex Finalization Synthetic 2026-09-07/Zones/Room 1.md",
+      "sha256": "4d95734000b4bea58123d6a2a046878c9274fc829a1edba6bf32b76986049dd9"
+    },
+    {
+      "path": "Renovation/Reference Scale Acceptance 2026-09-09/Geometry/plan-01M22TJPDH8XDN4R4AV5Z3BHG2.rpgeo",
+      "sha256": "66cfa68551a25ff43d0018c86e2ed96d10b4312a1763401829565008726e1ed9"
+    },
+    {
+      "path": "Renovation/Reference Scale Acceptance 2026-09-09/Plans/Reference Scale Acceptance.md",
+      "sha256": "9641eb2cb41f06206b2eceb7f264ec47449f83328eab31da4c3733949fe89e1a"
+    },
+    {
+      "path": "Renovation/Reference Scale Acceptance 2026-09-09/Reference Scale Acceptance 2026-09-09.md",
+      "sha256": "f334eebc73741e1627ffa69cfd5c49577eb6dd280c08e13f426dcd3955dcdf3e"
+    },
+    {
+      "path": "References/editor-background-pdf-test.pdf",
+      "sha256": "3269944bd4a05c368d2026f7b204330e344bffedb148b96ce2c67a62874be229"
+    },
+    {
+      "path": "References/editor-background-png-test.png",
+      "sha256": "6887d64579fd83dac04b006fa0405d23c2e4c8b29cfbd3245ac61567d5c3b18d"
+    },
+    {
+      "path": "References/reference-scale-1640x1240.png",
+      "sha256": "9ba1419accdac234f6e3f9554f70024a7bda30be1613a1b2b617a6a308af422b"
+    }
+  ],
+  "geometry": {
+    "schemaVersion": 1,
+    "planId": "plan-01M22TJPDH8XDN4R4AV5Z3BHG2",
+    "revision": 1,
+    "unit": "mm",
+    "calibration": null,
+    "objects": []
+  }
+}

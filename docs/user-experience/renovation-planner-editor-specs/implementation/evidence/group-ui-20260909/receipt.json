@@ -1,0 +1,106 @@
+{
+  "date": "2026-09-09",
+  "branch": "codex/editor-deliver-groups",
+  "checkedParent": "8bb6486972531245a47226b8d5fdb1c143259ce9",
+  "predecessor": "24719e5be6f9692b49cb25ab38cb2337222eb6a9",
+  "node": "v24.20.0",
+  "sourceBlobs": {
+    "src/domain/spatial/SpatialGroup.ts": "ce8927431af983e73c57b7f3b1bf3489662a784c",
+    "src/domain/spatial/encloseRoom.ts": "67183c2e7722c2d56722e328701139cb69dc999d",
+    "src/presentation/editor/elements/rotationActions.ts": "67e9fb828dc3dbe365c8f0f99fe7730d4077baef",
+    "src/presentation/editor/groups/groupActions.ts": "cebfb308cc22b995a4c0e9de7d16fe5ae21ade70",
+    "src/presentation/editor/groups/groupOperations.ts": "835d37eaa866f6e74df119ebe1eced2dc97badcb",
+    "src/presentation/editor/groups/groupSnapshot.ts": "627a133bfc30b45347ed8cc0e81adca8f24039e6",
+    "src/presentation/editor/layers/InteractionLayer.vue": "413471e57eec2b1495e1165c9c40fd4272f8e414",
+    "src/presentation/editor/resize/RoomDimensionLabels.vue": "8f99c5d67fd8bf91477b0c20ba8e2b6743c4141d",
+    "src/presentation/editor/tools/select-tool.ts": "b3bef0f578e2e975a88557bf8a2170dfeaa2de4e",
+    "tests/domain/spatialGroups.test.ts": "1270a53e3475d03bee4efbf988f87ff542313ac0",
+    "tests/presentation/editor/groupDelivery.test.ts": "5ed6ec13060c287ea514f62cbabd1276d8dea41b",
+    "tests/presentation/editor/groupPointerRotation.test.ts": "c02f3ac711b4032c72d88abf61dcfd54cd111f9c",
+    "tests/presentation/editor/groupSingletonPreview.test.ts": "ae36bd81c924e880400c16b27f4871e84d066fd5",
+    "tests/presentation/editor/shell/multiSelectionInspector.test.ts": "1b376e121b0d6b4575d07efb22127b7480095b1f"
+  },
+  "gateConfigUnchanged": true,
+  "otherBranchesUnchanged": true,
+  "targeted": {
+    "files": 21,
+    "passed": 162,
+    "newCases": 14
+  },
+  "fullCheck": {
+    "command": "npm run check",
+    "exit": 1,
+    "maxWorkers": 2,
+    "build": "passed",
+    "lint": "passed",
+    "testFiles": 728,
+    "passed": 8621,
+    "failed": 8,
+    "skipped": 70,
+    "coverage": {
+      "statements": 98.81,
+      "branches": 97.34,
+      "functions": 98.98,
+      "lines": 99.5
+    },
+    "failures": [
+      "tests/build/lint-edited.test.ts > the edit-loop hook > tells the agent what ESLint found in an SFC, which oxlint cannot see at all",
+      "tests/presentation/editor/renovateRoomManipulation.test.ts > edits a Room corner in Renovate through one reversible geometry command",
+      "tests/presentation/editor/renovationRoutes.test.ts > changes perspective and marker visibility through the context and layer controls without writing",
+      "tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > the Create button describes a real element while blocked, and nothing at all once valid",
+      "tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > while a Create is in flight the button is disabled and states no false reason",
+      "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > deletes from the Inspector; undo restores the exact entity; the panel follows both ways",
+      "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)",
+      "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > takes the outline and the handles down on deselection, not just the store entry"
+    ],
+    "reproducedBaselineFailures": [
+      "tests/presentation/editor/renovateRoomManipulation.test.ts > edits a Room corner in Renovate through one reversible geometry command",
+      "tests/presentation/editor/renovationRoutes.test.ts > changes perspective and marker visibility through the context and layer controls without writing",
+      "tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > the Create button describes a real element while blocked, and nothing at all once valid",
+      "tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > while a Create is in flight the button is disabled and states no false reason",
+      "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > deletes from the Inspector; undo restores the exact entity; the panel follows both ways",
+      "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)",
+      "tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > takes the outline and the handles down on deselection, not just the store entry"
+    ],
+    "additionalFailures": [
+      "tests/build/lint-edited.test.ts > the edit-loop hook > tells the agent what ESLint found in an SFC, which oxlint cannot see at all"
+    ]
+  },
+  "correctedBaselineFixture": [
+    "tests/presentation/editor/shell/multiSelectionInspector.test.ts > Editor selection across the list, canvas and Inspector > keeps the list reachable after selecting, supports multi-selection without modifiers and preserves the camera"
+  ],
+  "isolatedLintHarness": {
+    "command": "npx vitest run tests/build/lint-edited.test.ts",
+    "maxWorkers": 1,
+    "passed": 11,
+    "timeoutUnchanged": true
+  },
+  "analysis": {
+    "command": "npm run analyze",
+    "exit": 1,
+    "deadCode": 5,
+    "cloneGroups": 1,
+    "complexityFindings": 14,
+    "allCurrentFindingsReproduceOnBaseline": true
+  },
+  "manualAcceptance": "User-owned and pending; no desktop/Obsidian control, browser walkthrough, screenshots or vault access performed or requested.",
+  "logFormatting": "Text logs normalize CRLF to LF and remove trailing whitespace/blank EOF lines. raw-logs.zip preserves the original captured bytes.",
+  "evidenceSha256": {
+    "analysis-comparison.json": "5b70475e912f1d81b9e7e8e238103af2e59503a3ca3c40a28b02be26af8b75b5",
+    "analyze-baseline.log": "fd4a3d7739733db5b3c9380be669438c452fd544d320af20cb2f4cc7d3da741c",
+    "analyze.log": "4f263245fe23013454e4dcbbc1e7400b822093cd452649105d3800764fd40b32",
+    "baseline-failures.log": "008c66c1692cc377cd7fc0b3fd76a3af4866fd22b22966086bd6eec39f607790",
+    "baseline-targeted.log": "3136f2da2941dfce4aedfa392f36a6224b2528b87ad0ce3e99e55b5ebcd4d142",
+    "check.log": "2822928bb27bb502c6163077c93089f9a3301ca32b37aaf4c90c78bdf2ac42d3",
+    "disposal-red.log": "953f93f08edcd46707ca91b4c76d906aa284588ba4f0c9355682f3ac45823abe",
+    "enclosure-domain-red.log": "e4b0933fd576b9fffa24f7c2ee86d7260bb1edf3d6a68f453bf1364d736e6dc5",
+    "enclosure-red.log": "58b71b6b7e2e752305a494617cd9c14f79efdf02151f88aefeae9dcf50c26d53",
+    "lint-rerun.log": "249a1f64b4892b1e3f0013c1a94597d9212b76ee5911a54497ed151eb2d5555c",
+    "opening-focus-red.log": "3586b71926d8b98c55dddab59e63c0e7282f1ecd8c04261148d257fa39db1c3c",
+    "raw-logs.zip": "3670a243550b9d2d6476bc5eb07ca92bfb55c4351b8ef78512f5f8a76b7e506d",
+    "singleton-render-red.log": "df9da3086d766b651082b501948f21b8bf93a0f40dbd9afde9711cae2747293a",
+    "singleton-target-red.log": "aa2aa147b3ffd1925686fc50e21415571c4ac30b55f531142d52d84d32020071",
+    "targeted-final.log": "d3911a4e4aad52d3ce3c86f4160f829a136ec350411d319de5848d93370873dd",
+    "targeted.log": "5bdea6f2d727a88f10b390ba812437a4ebde1aad6adb4fed3db4e2647f2a2532"
+  }
+}

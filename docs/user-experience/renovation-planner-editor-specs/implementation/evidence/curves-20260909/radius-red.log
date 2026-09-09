@@ -1,0 +1,52 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-deliver-curves
+
+ ❯ |suite| tests/presentation/editor/curveDraft.test.ts (6 tests | 2 failed) 21ms
+   × keeps a representable large radius curved with the original direction 0.25 11ms
+   × keeps a representable large radius curved with the original direction -0.25 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/presentation/editor/curveDraft.test.ts > keeps a representable large radius curved with the original direction 0.25
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/presentation/editor/curveDraft.test.ts:10:64
+      8|  const edge = { ...curveEdges(room)[0], bulge }, text = `1${'0'.repeat…
+      9|  const parsed = typedBulge(edge, 'radius', text);
+     10|  expect(parsed).not.toBeNull(); expect(Math.sign(parsed ?? 0)).toBe(Ma…
+       |                                                                ^
+     11|  const radius = arcRadius({ ...edge, bulge: parsed ?? 0 });
+     12|  expect(radius).not.toBeNull(); expect((radius ?? 0) / 1e308).toBeClos…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |suite| tests/presentation/editor/curveDraft.test.ts > keeps a representable large radius curved with the original direction -0.25
+AssertionError: expected -0 to be -1 // Object.is equality
+
+- Expected
++ Received
+
+- -1
++ -0
+
+ ❯ tests/presentation/editor/curveDraft.test.ts:10:64
+      8|  const edge = { ...curveEdges(room)[0], bulge }, text = `1${'0'.repeat…
+      9|  const parsed = typedBulge(edge, 'radius', text);
+     10|  expect(parsed).not.toBeNull(); expect(Math.sign(parsed ?? 0)).toBe(Ma…
+       |                                                                ^
+     11|  const radius = arcRadius({ ...edge, bulge: parsed ?? 0 });
+     12|  expect(radius).not.toBeNull(); expect((radius ?? 0) / 1e308).toBeClos…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 4 passed (6)
+   Start at  13:46:21
+   Duration  658ms (transform 212ms, setup 0ms, import 301ms, tests 21ms, environment 0ms)

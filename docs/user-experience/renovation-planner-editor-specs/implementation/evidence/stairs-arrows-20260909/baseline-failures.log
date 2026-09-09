@@ -1,0 +1,153 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/pr114-verification-baseline
+
+stderr | tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > deletes from the Inspector; undo restores the exact entity; the panel follows both ways
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > takes the outline and the handles down on deselection, not just the store entry
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/zoneEditing.test.ts (15 tests | 3 failed) 5172ms
+     × drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3) 301ms
+     × deletes from the Inspector; undo restores the exact entity; the panel follows both ways 374ms
+     × takes the outline and the handles down on deselection, not just the store entry 220ms
+stderr | tests/presentation/editor/renovationRoutes.test.ts > changes perspective and marker visibility through the context and layer controls without writing
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/renovationRoutes.test.ts (17 tests | 1 failed) 9024ms
+   × changes perspective and marker visibility through the context and layer controls without writing 397ms
+stderr | tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > the Create button describes a real element while blocked, and nothing at all once valid
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+stderr | tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > while a Create is in flight the button is disabled and states no false reason
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/shell/newRoomInspector.test.ts (21 tests | 2 failed) 5968ms
+     × the Create button describes a real element while blocked, and nothing at all once valid 236ms
+     × while a Create is in flight the button is disabled and states no false reason 222ms
+stderr | tests/presentation/editor/renovateRoomManipulation.test.ts > edits a Room corner in Renovate through one reversible geometry command
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/renovateRoomManipulation.test.ts (4 tests | 1 failed) 1823ms
+   × edits a Room corner in Renovate through one reversible geometry command 700ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/presentation/editor/renovateRoomManipulation.test.ts > edits a Room corner in Renovate through one reversible geometry command
+AssertionError: expected undefined to be defined
+ ❯ tests/presentation/editor/renovateRoomManipulation.test.ts:21:58
+     19|  // Vertex handles are direct screen-space children; rotation is a sep…
+     20|  expect(interaction?.getChildren().filter(node => node.getClassName() …
+     21|  expect(interaction?.findOne('.object-rotation-handle')).toBeDefined();
+       |                                                          ^
+     22|  const tool = rig.runtime.toolManager;
+     23|  tool.pointerDown(pointerAt(points[0].x, points[0].y)); tool.pointerMo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  |suite| tests/presentation/editor/renovationRoutes.test.ts > changes perspective and marker visibility through the context and layer controls without writing
+Error: Expected visibility to be present, got undefined.
+ ❯ expectDefined tests/helpers/domain.ts:121:9
+    119| export function expectDefined<T>(value: T | null | undefined, what: st…
+    120|  if (value === null || value === undefined) {
+    121|   throw new Error(`Expected ${what} to be present, got ${String(value)…
+       |         ^
+    122|  }
+    123|  return value;
+ ❯ tests/presentation/editor/renovationRoutes.test.ts:176:8
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  |suite| tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)
+AssertionError: expected undefined to be defined
+ ❯ tests/presentation/editor/zoneEditing.test.ts:180:59
+    178|   const interaction = harness.stage?.findOne<Konva.Layer>('.interactio…
+    179|   expect(interaction?.getChildren().filter(node => node.getClassName()…
+    180|   expect(interaction?.findOne('.object-rotation-handle')).toBeDefined(…
+       |                                                           ^
+    181|
+    182|   // The panel shows the pre-drag area: 2900 × 1900 mm. Waited for, no…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  |suite| tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > deletes from the Inspector; undo restores the exact entity; the panel follows both ways
+AssertionError: expected 'Kitchen refitGround floorUndoRedoView…' to contain 'This floor has no rooms yet.'
+
+Expected: "This floor has no rooms yet."
+Received: "Kitchen refitGround floorUndoRedoViewFit floor FFit selection ⇧2 − 10% + Show gridSnap to objectsThe grid is a visual guide; hold shift to constrain drawing angles, while wall openings stay attached to their wall.Focus this tabSelect a room on the canvas or from the list to see its details.PropertyKitchen refitGround floorLayersReference planNo reference plan has been added to this floor.Set scaleRoomsReference optionsUpload a floor planElementsSet up Ground floorStart with what you have. You can refine measurements later.Add roomsQuickly draw and size your roomsRecommendedUpload a floor planUse a PDF or image as your guideStart emptyDraw walls or areas yourselfSelectPanAddInspectorGround floorUpload a floor planNothing has been added yet.Get startedReference planRoomsScaleZoom 10%Grid offSnap onScale not set—SavedGround floorSpace or the middle button pans"
+
+ ❯ tests/presentation/editor/zoneEditing.test.ts:235:34
+    233|   // floor state has no rooms left to list instead.
+    234|   expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loa…
+    235|   expect(harness.wrapper.text()).toContain('This floor has no rooms ye…
+       |                                  ^
+    236|
+    237|   actionButton(harness, 'Undo').click();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  |suite| tests/presentation/editor/zoneEditing.test.ts > the wired Plan Editor (design slice 8) > takes the outline and the handles down on deselection, not just the store entry
+AssertionError: expected undefined to be defined
+ ❯ tests/presentation/editor/zoneEditing.test.ts:555:59
+    553|   const interaction = harness.stage?.findOne<Konva.Layer>('.interactio…
+    554|   expect(interaction?.getChildren().filter(node => node.getClassName()…
+    555|   expect(interaction?.findOne('.object-rotation-handle')).toBeDefined(…
+       |                                                           ^
+    556|   expect(interaction?.find('.selection-outline')).toHaveLength(1);
+    557|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  |suite| tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > the Create button describes a real element while blocked, and nothing at all once valid
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/presentation/editor/shell/newRoomInspector.test.ts:175:63
+    173|   expect(create.attributes('aria-disabled')).toBe('false');
+    174|   expect(create.attributes('aria-describedby')).toBeUndefined();
+    175|   expect(harness.wrapper.find('.rp-new-room__hint').exists()).toBe(fal…
+       |                                                               ^
+    176|   harness.unmount();
+    177|  });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  |suite| tests/presentation/editor/shell/newRoomInspector.test.ts > NewRoomInspector > while a Create is in flight the button is disabled and states no false reason
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/presentation/editor/shell/newRoomInspector.test.ts:203:63
+    201|   const create = harness.wrapper.find('button.rp-new-room__create');
+    202|   expect(create.attributes('aria-disabled')).toBe('true');
+    203|   expect(harness.wrapper.find('.rp-new-room__hint').exists()).toBe(fal…
+       |                                                               ^
+    204|   expect(create.attributes('aria-describedby')).toBeUndefined();
+    205|   harness.unmount();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+
+ Test Files  4 failed (4)
+      Tests  7 failed | 50 passed (57)
+   Start at  17:33:55
+   Duration  58.88s (transform 22.50s, setup 0ms, import 43.75s, tests 21.99s, environment 44.21s)

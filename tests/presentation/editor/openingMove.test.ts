@@ -61,11 +61,11 @@ it('exposes the same Move action in the keyboard context menu and Escape retires
 	expect(rig.runtime.canUndo.value).toBe(false);
 });
 
-it('refuses another host and overlapping positions, then clamps a valid endpoint to the complete width', async () => {
+it('refuses overlapping projections both away from and on the host, then clamps a valid endpoint to the complete width', async () => {
 	const other = { ...door, id: 'opening-other', offset: 2300 };
 	const rig = await setup([door, other]); await arm(rig);
 	const write = vi.spyOn(rig.geometry, 'write');
-	click(rig, 4000, 1500); expect(rig.runtime.structureActions.preview.value).toBeNull();
+	click(rig, 2500, 1500); expect(rig.runtime.structureActions.preview.value).toBeNull();
 	click(rig, 2500); expect(rig.runtime.structureActions.preview.value).toBeNull();
 	expect(rig.runtime.openingMove.message.value).not.toBe(''); expect(write).not.toHaveBeenCalled();
 	click(rig, 0); await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'endpoint move');
@@ -77,7 +77,9 @@ it.each([false, true])('queues one early click and retires it on Escape=%s', asy
 	let release: () => void = unreleased;
 	vi.spyOn(rig.services, 'read').mockImplementationOnce(() => new Promise(resolve => { release = () => resolve(result); }));
 	const write = vi.spyOn(rig.geometry, 'write');
-	expect(rig.runtime.openingMove.start(door.id)).toBe(true); click(rig, 3000); click(rig, 2000);
+	expect(rig.runtime.openingMove.start(door.id)).toBe(true);
+	rig.runtime.toolManager.pointerMove(pointerAt(1500, 0)); click(rig, 3000); click(rig, 2000);
+	rig.runtime.toolManager.pointerMove(pointerAt(3500, 0));
 	if (cancel) escape(rig);
 	release(); await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'queued click outcome');
 	expect(write).toHaveBeenCalledTimes(cancel ? 0 : 1);
@@ -176,7 +178,8 @@ it('drops an interrupted early press when focus leaves before its release', asyn
 });
 
 it.each([false, true])('preserves a requested next tool while switching away from a held Move press; loading=%s', async loading => {
-	const rig = await setup(), result = await rig.services.read(rig.plan.id);
+	const openings = [door, { ...door, id: 'opening-other', offset: 1800 }];
+	const rig = await setup(openings), result = await rig.services.read(rig.plan.id);
 	let release: () => void = unreleased;
 	if (loading) vi.spyOn(rig.services, 'read').mockImplementationOnce(() => new Promise(resolve => { release = () => resolve(result); }));
 	expect(rig.runtime.openingMove.start(door.id)).toBe(true);
@@ -187,7 +190,7 @@ it.each([false, true])('preserves a requested next tool while switching away fro
 	await settle();
 	expect(rig.runtime.activeToolId.value).toBe('pan'); expect(rig.runtime.toolManager.activeToolId).toBe('pan');
 	expect(rig.runtime.structureActions.active.value).toBe(false); expect(rig.runtime.structureActions.preview.value).toBeNull();
-	expect(rig.project.structure.openings).toEqual([door]); expect(rig.runtime.canUndo.value).toBe(false);
+	expect(rig.project.structure.openings).toEqual(openings); expect(rig.runtime.canUndo.value).toBe(false);
 });
 
 it('reports a refused baseline read and allows a clean retry without changing the opening', async () => {

@@ -15,7 +15,7 @@ function stairErrors(text: StairText, width: ReturnType<typeof parseMetres>, run
 	if (text.direction !== 'up' && text.direction !== 'down') errors.add('direction');
 	return errors;
 }
-/** Creation applies literal values; edit forms explicitly identify untouched dimensions. */
+/** Explicit dimensions apply literal values; forms identify untouched dimensions separately. */
 export function parseStairInput(points: readonly Point[], text: StairText, original: StairOptions = DEFAULT_STAIR, touched: { readonly width: boolean; readonly run: boolean } = { width: true, run: true }) {
 	const width = parseMetres(text.width), run = parseMetres(text.run), treads = /^\d+$/.test(text.treads.trim()) ? Number(text.treads) : NaN;
 	const errors = stairErrors(text, width, run, treads);

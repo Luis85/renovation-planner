@@ -1,0 +1,142 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-deliver-groups
+
+stderr | tests/presentation/editor/groupSingletonPreview.test.ts > uses the same saved singleton target for pointer and numeric rotation after deleting its walls
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/groupSingletonPreview.test.ts (2 tests | 1 failed) 5213ms
+   × uses the same saved singleton target for pointer and numeric rotation after deleting its walls 4809ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/presentation/editor/groupSingletonPreview.test.ts > uses the same saved singleton target for pointer and numeric rotation after deleting its walls
+AssertionError: expected { …(6) } to deeply equal { …(7) }
+
+- Expected
++ Received
+
+@@ -1,61 +1,11 @@
+  {
+-   "generation": 9,
+-   "group": {
+-     "document": {
+-       "calibration": null,
+-       "groups": [
+-         {
+-           "id": "group-01M235RA91SFJG552BBZWJJGPK",
+-           "memberIds": [
+-             "zone-01M235RA5MS0CEAYT8ZGD31820",
+-           ],
+-           "name": "Kitchen",
+-         },
+-       ],
+-       "objects": [
+-         {
++   "bulges": undefined,
++   "generation": 4,
+    "id": "zone-01M235RA5MS0CEAYT8ZGD31820",
+-           "points": [
+-             {
+-               "x": 0,
+-               "y": 0,
+-             },
+-             {
+-               "x": 4000,
+-               "y": 0,
+-             },
+-             {
+-               "x": 4000,
+-               "y": 3000,
+-             },
+-             {
+-               "x": 0,
+-               "y": 3000,
+-             },
+-           ],
+-         },
+-       ],
+-       "structure": {
+-         "boundaries": [],
+-         "openings": [],
+-         "walls": [],
+-       },
+-     },
+-     "generation": 9,
+-     "id": "group-01M235RA91SFJG552BBZWJJGPK",
+-     "memberIds": [
+-       "zone-01M235RA5MS0CEAYT8ZGD31820",
+-     ],
++   "kind": "room",
+    "name": "Kitchen",
+-     "selectionIds": [
+-       "zone-01M235RA5MS0CEAYT8ZGD31820",
+-     ],
+-   },
+-   "id": "group-01M235RA91SFJG552BBZWJJGPK",
+-   "kind": "group",
+-   "name": "Kitchen",
+    "points": [
+      {
+        "x": 0,
+        "y": 0,
+      },
+@@ -70,7 +20,6 @@
+      {
+        "x": 0,
+        "y": 3000,
+      },
+    ],
+-   "visible": true,
+  }
+
+ ❯ tests/presentation/editor/groupSingletonPreview.test.ts:23:56
+     21|  expect(rig.project.groups).toEqual([{ ...group, memberIds: [rig.room.…
+     22|  const target = expectDefined(rig.runtime.groupActions.target.value, '…
+     23|  expect.soft(rig.runtime.rotationActions.target.value).toEqual(target);
+       |                                                        ^
+     24|  expect.soft(rotationPivot(expectDefined(rig.runtime.rotationActions.t…
+     25|  const before = expectOk(await rig.geometry.read(rig.plan.id)).documen…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |suite| tests/presentation/editor/groupSingletonPreview.test.ts > uses the same saved singleton target for pointer and numeric rotation after deleting its walls
+AssertionError: expected undefined to deeply equal { x: 250, y: 100 }
+
+- Expected:
+{
+  "x": 250,
+  "y": 100,
+}
+
++ Received:
+undefined
+
+ ❯ tests/presentation/editor/groupSingletonPreview.test.ts:28:76
+     26|  rig.runtime.toolManager.pointerDown(pointerAt(1700, 1200));
+     27|  rig.runtime.toolManager.pointerMove(pointerAt(1950, 1300)); await set…
+     28|  expect.soft(rig.runtime.groupActions.preview.value?.objects[0].points…
+       |                                                                            ^
+     29|  rig.runtime.toolManager.pointerUp(pointerAt(1950, 1300));
+     30|  await settleUntil(() => write.mock.calls.length === 1 && !rig.runtime…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |suite| tests/presentation/editor/groupSingletonPreview.test.ts > uses the same saved singleton target for pointer and numeric rotation after deleting its walls
+Error: Timed out after 4000ms waiting for: singleton movement
+ ❯ settleUntil tests/helpers/settle.ts:94:10
+     92|   if (await condition()) return;
+     93|   if (Date.now() >= deadline) {
+     94|    throw new Error(`Timed out after ${SETTLE_BUDGET_MS}ms waiting for:…
+       |          ^
+     95|   }
+     96|   await settle();
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  15:29:23
+   Duration  22.57s (transform 12.51s, setup 0ms, import 15.53s, tests 5.21s, environment 1.52s)
+
+ ❯ tests/presentation/editor/groupSingletonPreview.test.ts:30:2
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯

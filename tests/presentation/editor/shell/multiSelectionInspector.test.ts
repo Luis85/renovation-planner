@@ -169,7 +169,7 @@ describe('Editor selection across the list, canvas and Inspector', () => {
 		expect(multiple.text()).toContain('Overlapping areas are counted separately.');
 		expect(multiple.text()).toContain('Different types');
 		expect(multiple.findAll('.rp-room-list__row')).toHaveLength(2);
-		await multiple.find('button').trigger('click');
+		await multiple.get('.rp-room-list__row').trigger('click');
 		await settle();
 		expect(useSelectionStore().selectedIds).toEqual(['zone-kitchen', 'zone-terrace']);
 		expect(useSelectionStore().focusedId).toBe('zone-kitchen');

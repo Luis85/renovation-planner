@@ -20,7 +20,8 @@ import { elementInput } from './elementInput';
 import { elementEditPresentation } from './elementEditPresentation';
 import { err } from '../../../core/result/Result';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
-import type { RenovationBaseline } from '../../../application/commands/renovation/RenovationCommand';
+import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
+import type { RenovationBaseline, RenovationServices } from '../../../application/commands/renovation/RenovationCommand';
 
 function elementFrom(baseline: RenovationBaseline, id: string): NamedSpatialElement | null {
  const geometry = baseline.geometry.document.structure?.elements?.find(item => item.id === id);
@@ -62,10 +63,14 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		return operate(id, async ({ baseline, element }) => {
 			if (selection.selectedIds.join('|') !== selected) return;
 			const busy = ref(false), latest = ref<string | null>(null);
+			let attempt: { content: string; command: ReturnType<RenovationServices['command']> } | null = null;
 			const presentation = elementEditPresentation(element, async value => {
 					if (!alive || blocked.value || latest.value || !context.commands.renovation) return err(staleWriteRefusal());
-					const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, ...value }), runtime.structureTask.ledger));
-					if (alive && !result.ok && (result.error.code.includes('conflict') || result.error.code === 'undo.superseded')) { latest.value = tr('editor.element.changed'); await runtime.refreshProjection(); }
+					const content = JSON.stringify(value);
+					// A compensated attempt owns its advanced revisions; retry that command.
+					if (attempt?.content !== content) attempt = { content, command: context.commands.renovation.command(baseline, elementInput(baseline, { ...element, ...value }), runtime.structureTask.ledger) };
+					const result = await runtime.dispatcher.run(attempt.command);
+					if (alive && !result.ok && (WRITE_BOUNDARY_CODES.some(code => result.error.code.endsWith(code)) || result.error.code === 'undo.superseded')) { latest.value = tr('editor.element.changed'); await runtime.refreshProjection(); }
 					return result;
 				}, value => { preview.value = value; });
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.element.edit', { name: element.name }), component: presentation.component, busy, props: {
@@ -87,6 +92,7 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		});
 	}
 	function move(id: string, points: readonly Point[], original: SpatialElement): Promise<void> {
+		if (JSON.stringify(points) === JSON.stringify(original.points)) return Promise.resolve();
 		const epoch = rotationEpoch;
 		return operate(id, async ({ baseline, element }) => {
 			if (epoch !== rotationEpoch) return;

@@ -47,8 +47,8 @@ function submit(): void { if (wall.value) add(); else void task.finish(); }
 		<p>{{ instructions }}</p>
 		<p
 			v-for="notice in notices"
-			:key="notice.key"
 			:id="notice.id"
+			:key="notice.key"
 			:role="notice.role"
 		>
 			{{ notice.text }}

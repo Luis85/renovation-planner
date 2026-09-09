@@ -26,7 +26,7 @@ export function curveText(edge: CircularEdge): { depth: string; radius: string }
 	const radius = arcRadius(edge);
 	return { depth: formatMetres(distance(edge.start, edge.end) * edge.bulge / 2), radius: radius === null ? '' : formatMetres(radius) };
 }
-/** Signed depth is toward the right of the directed edge; a semicircle is the maximum bend. */
+/** Signed depth uses (dy, -dx), left of the edge arrow on the y-down screen; maximum is a semicircle. */
 export function bulgeAt(edge: CircularEdge, point: Point): number {
 	const dx = edge.end.x - edge.start.x, dy = edge.end.y - edge.start.y, squared = dx * dx + dy * dy;
 	return squared === 0 ? 0 : Math.max(-1, Math.min(1, 2 * ((point.x - edge.start.x) * dy - (point.y - edge.start.y) * dx) / squared));

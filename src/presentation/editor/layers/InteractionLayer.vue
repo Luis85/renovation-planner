@@ -253,6 +253,7 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 		</template>
 		<VGroup :config="{ name: 'rotation-handle-viewport', ...viewportTransform(editorStore.viewport) }">
 			<CurveHandles
+				v-if="runtime.curveTask.target.value"
 				:tokens="props.tokens"
 				:zoom="editorStore.viewport.zoom"
 			/>

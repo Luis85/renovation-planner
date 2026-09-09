@@ -10,10 +10,22 @@ import { structureCandidates } from '../../../src/presentation/editor/structure/
 import { alongWall, wallLength } from '../../../src/domain/spatial/Structure';
 import { boundsOfZones } from '../../../src/presentation/editor/viewport/zoneExtent';
 import { expectDefined } from '../../helpers/domain';
+import { roomSnapCandidates } from '../../../src/presentation/editor/snapping/roomSnapCandidates';
+import { SnapService } from '../../../src/presentation/editor/snapping/snap-service';
 
 const points = [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 3000 }, { x: 0, y: 3000 }];
 const room = { id: 'room', points, bulges: [0.5, 0, 0, 0] };
 const wall = { id: 'wall-a', start: points[0], end: points[1], bulge: 0.5, thickness: 150, height: 2400 };
+
+it('snaps Room creation to actual circular edges while leaving empty chord space unsnapped', () => {
+	const snap = new SnapService({ gridSpacingMm: 100, toleranceMm: 8, angleStepRadians: Math.PI / 12 });
+	const candidates = roomSnapCandidates([room], { walls: [wall], openings: [], boundaries: [] });
+	const projected = snap.snapPoint({ x: 2000, y: -995 }, candidates);
+	expect(projected.x).toBeCloseTo(2000); expect(projected.y).toBeCloseTo(-1000);
+	const chord = { x: 2000, y: 0 }; expect(snap.snapPoint(chord, candidates)).toBe(chord);
+	expect(snap.snapToEdge(chord, [{ start: chord, end: chord, bulge: 0.5 }])).toBeNull();
+	expect(snap.snapPoint({ x: 1, y: 1 }, candidates)).toBe(points[0]);
+});
 
 it('keeps actual curved edge lengths and centroid through rotation without offering rectangular scaling', () => {
 	const edges = roomEdges(points, true, true, room.bulges);

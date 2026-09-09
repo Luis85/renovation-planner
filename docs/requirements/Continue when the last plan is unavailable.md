@@ -95,6 +95,20 @@ still there.
 
 Indexing, read failure, missing project and missing plan now have distinct recovery states. Resume revalidates on click and rejects stale responses; a missing plan offers its project without substitution. The stored context is retained even for a missing project in this increment. The clearing requirement in extension 2d is therefore still open, as is real-vault acceptance.
 
+### 2026-09-08
+
+Extension 2d is now closed on the project surface: `ViewRoot`'s `resolveStored()` calls
+`RenovationProjectContext.forgetContinue()` on a reliably missing project — the index scan
+completed and `getProject` answered `ok(null)` — before drawing the gone state, and
+`ContinueContextStore.clear()` writes the stored target's removal through the same
+`saveLocalStorage` adapter `write` uses. It clears the target it was HANDED and only while that
+is still what is stored: the store is process-wide while the resolver's staleness guard is local
+to one `ViewRoot`, so a newer target written during the `getProject` await — the palette's plan
+open, another leaf, another pane — survives, which is the same "a failed or stale result never
+replaces a newer target" property extensions 2a-2c rest on. Indexing, a read failure, a missing
+plan and a failed opening still leave the stored target untouched, matching extensions 2a, 2b,
+2c and 4a. Real-vault acceptance of the clearing behaviour is still open.
+
 Evidence and remaining limitations: [execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
 
 ## Sources

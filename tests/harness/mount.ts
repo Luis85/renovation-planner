@@ -305,7 +305,13 @@ const seedHome = (count: number) => (
 	});
 };
 
-const seedProject = (projectId: string) => (
+/**
+ * `?plans=<n>` reads `HARNESS_PLAN_NAMES` from the front, the way `?projects=<n>` reads
+ * `HOME_PROJECTS` — so one fixture serves both ends of design slice 22's variant rule. `0` is the
+ * one that could not be photographed at all before it existed: the START variant is the detail
+ * state a just-created project lands on, and every capture of this surface held 26 plans.
+ */
+const seedProject = (projectId: string, planCount: number) => (
 	{ projects, plans, assets, overrides }: SeedRepositories,
 ): void => {
 	const id = projectId as ProjectId;
@@ -329,7 +335,7 @@ const seedProject = (projectId: string) => (
 	// mechanism that is made loud, and it is not this file's.
 	expectSeeded(projects.save(project, 'absent'));
 
-	HARNESS_PLAN_NAMES.forEach((name, index) => {
+	HARNESS_PLAN_NAMES.slice(0, planCount).forEach((name, index) => {
 		const plan = expectOk(Plan.create({ id: `plan-${index + 1}` as PlanId, projectId: id, name }));
 
 		expectSeeded(plans.save(plan, 'absent'));
@@ -381,8 +387,8 @@ const seedProject = (projectId: string) => (
  * The view is reached through a THUNK because it does not exist yet: `makeView` takes these
  * deps as its argument. Called only from a click, long after the constructor has returned.
  */
-const harnessDetailDeps = (projectId: string, view: () => RenovationProjectView): RenovationProjectDeps => ({
-	...defaultRenovationProjectDeps(seedProject(projectId)),
+const harnessDetailDeps = (projectId: string, planCount: number, view: () => RenovationProjectView): RenovationProjectDeps => ({
+	...defaultRenovationProjectDeps(seedProject(projectId, planCount)),
 	// `''` is the LIST, which is the sentinel `RenovationProjectView.getState` writes and
 	// `projectIdFrom` parses back — not a value this page invents.
 	navigate: (id, section) => {
@@ -449,6 +455,11 @@ export interface MountedHarness {
 export interface HarnessMountOptions {
 	/** `?project=<id>`: the DETAIL state on a seeded project of that id. */
 	readonly projectId?: string | null;
+	/**
+	 * `?plans=<n>`: how many of `HARNESS_PLAN_NAMES` that project holds. Absent is all of them,
+	 * which is what every capture before design slice 22 took; `0` is the START variant.
+	 */
+	readonly plans?: number;
 	readonly section?: 'details' | 'prices';
 	/** `?projects=<n>`: the LIST state over that many of `HOME_PROJECTS`. */
 	readonly projects?: number;
@@ -470,6 +481,7 @@ export function mountHarness(root: HTMLElement, options: HarnessMountOptions = {
 	// it, is what supplies the height Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
 	const { projectId, projects, initialQuery } = options;
+	const planCount = options.plans ?? HARNESS_PLAN_NAMES.length;
 	// NO ARGUMENT on the bare path, deliberately: the docblock in
 	// `makeRenovationProjectView.ts` says why the untouched default is what the harness root
 	// takes, and the empty state is what that root exists to show. `?project=` and `?projects=`
@@ -486,7 +498,7 @@ export function mountHarness(root: HTMLElement, options: HarnessMountOptions = {
 	// this whole capture tool exists against.
 	const view: RenovationProjectView =
 		projectId !== undefined && projectId !== null
-			? makeView(harnessDetailDeps(projectId, () => view))
+			? makeView(harnessDetailDeps(projectId, planCount, () => view))
 			: projects === undefined
 				? makeView()
 				: makeView(harnessHomeDeps(projects, initialQuery, () => view));

@@ -1,4 +1,4 @@
-import { ItemView, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
+import { ItemView, Platform, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { createApp, type App as VueApp } from 'vue';
 import VueKonva from 'vue-konva';
 import { createPinia } from 'pinia';
@@ -6,6 +6,7 @@ import AssetDesignerRoot from './AssetDesignerRoot.vue';
 import { ASSET_DESIGNER_CONTEXT, type AssetDesignerContext, type AssetDesignerDeps } from './AssetDesignerContext';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from '../views/app-id-prefix';
+import { drawMobileRefusal } from '../views/mobileRefusal';
 
 /**
  * The asset designer (ADR-0015), the plugin's third workspace view.
@@ -175,6 +176,14 @@ export class AssetDesignerView extends ItemView {
 	private mountedAssetId: string | null = null;
 
 	private sync(): void {
+		// `PlanEditorView.sync`'s own guard, and in the same place for the same reason: this is
+		// the ONE decider of what is mounted, and `setState` reaches it as well as `onOpen`
+		// (requirement extension 2a).
+		if (Platform.isMobile) {
+			this.unmount();
+			drawMobileRefusal(this.contentEl);
+			return;
+		}
 		// Clearing the field is half a fix, and this is the other half: with no asset this used
 		// to return early WITHOUT unmounting, so the previous tree stayed on screen and nothing a
 		// user could see had changed. `unmount` is idempotent, so the ordinary no-asset case —

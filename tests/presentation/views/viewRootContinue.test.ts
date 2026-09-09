@@ -42,6 +42,7 @@ interface Overrides {
 	navigate?: (projectId: string | null) => void;
 	openPlan?: (planId: string) => Promise<'opened' | 'failed'>;
 	rememberContinue?: (context: ContinueContext) => void;
+	forgetContinue?: () => void;
 }
 
 /**
@@ -57,6 +58,7 @@ function mountList(over: Overrides): VueWrapper {
 		navigate: over.navigate ?? base.navigate,
 		openPlan: over.openPlan ?? base.openPlan,
 		rememberContinue: over.rememberContinue ?? base.rememberContinue,
+		forgetContinue: over.forgetContinue ?? base.forgetContinue,
 		continueContext: over.continueContext ?? base.continueContext,
 		queries: {
 			...base.queries,
@@ -97,14 +99,21 @@ describe('ViewRoot, the Continue group', () => {
 	 * list, so it pins the resolution rather than merely the absence.
 	 */
 	it('is absent when the stored project is not in the list', async () => {
+		const forgetContinue = vi.fn<() => void>();
 		const wrapper = mountList({
 			projects: [PROJECT],
 			continueContext: () => Promise.resolve({ projectId: 'ghost-project', planId: null }),
+			forgetContinue,
 		});
 		await flushPromises();
 
 		expect(wrapper.find('.rp-project-list__continue').exists()).toBe(false);
 		expect(wrapper.find('.rp-project-list__row').exists()).toBe(true);
+		// Task 2 (design slice 22): a ghost id is a reliably missing project — the index scan
+		// has completed (`defaultRenovationProjectDeps`'s own default) and `getProject` answers
+		// `ok(null)` — so the stored target is forgotten rather than left to keep offering a
+		// project the list does not have.
+		expect(forgetContinue).toHaveBeenCalledOnce();
 	});
 
 	/**

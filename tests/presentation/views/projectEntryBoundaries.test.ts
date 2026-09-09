@@ -25,7 +25,7 @@ async function setup(withProject = false) {
 	const persistence = expectDefined(root.persistence, 'real persistence'), workspace = new FakeWorkspace();
 	const navigate = vi.fn<RenovationProjectDeps['navigate']>();
 	const context = renovationProjectDeps(root, workspace as never, stack.deps.vault, { projectId: null, navigate,
-		indexScanCompleted: () => true, continueContext: () => Promise.resolve(null), rememberContinue: () => undefined });
+		indexScanCompleted: () => true, continueContext: () => Promise.resolve(null), rememberContinue: () => undefined, forgetContinue: () => undefined });
 	const project = withProject ? expectOk(await context.commands.createProject.execute({ name: 'Project entry fixture' })).project.entity : null;
 	stack.metadataCache.catchUp();
 	const view = makeView(context); document.body.append(view.containerEl);
@@ -38,9 +38,13 @@ it('keeps the actual empty mobile launcher readable with only the available Libr
 	Platform.isMobile = true;
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
 	expect(rig.wrapper.get('.rp-empty-state').text()).toContain(tr('empty.project.no-projects.headline'));
-	expect(rig.wrapper.find('.rp-empty-state button').exists()).toBe(false);
-	expect(rig.wrapper.find('.rp-view-aside__create-asset').exists()).toBe(false);
+	// Present and REFUSED since the mobile task, never absent (requirement extension 4a). The
+	// empty state's own action is `aria-disabled` rather than `disabled`, which is the mechanism
+	// `EmptyState.actionDisabled` already had; the aside button is a plain `<button>`.
+	expect(rig.wrapper.get('.rp-empty-state button').attributes('aria-disabled')).toBe('true');
+	expect(rig.wrapper.get<HTMLButtonElement>('.rp-view-aside__create-asset').element.disabled).toBe(true);
 	expect(rig.wrapper.find('.rp-project-list__create').exists()).toBe(false);
+	expect(rig.wrapper.get('.rp-mobile-notice').text()).toBe(tr('view.mobile.read-only'));
 	const library = rig.wrapper.get<HTMLButtonElement>('.rp-view-aside__open-library');
 	library.element.focus(); library.element.click(); await flushPromises();
 	expect(rig.workspace.leaves.map(leaf => leaf.state?.type)).toEqual([ASSET_LIBRARY_VIEW]);

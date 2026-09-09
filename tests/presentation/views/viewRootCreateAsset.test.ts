@@ -87,6 +87,9 @@ function deps() {
 			// `renovationProjectWiring.test.ts`, `makeRenovationProjectView.ts` — the compiler
 			// holds those) or about the parser rather than the deps. There is no fifth.
 			rememberContinue: () => undefined,
+			// Task 2 (design slice 22)'s sibling of `rememberContinue`, stated for the identical
+			// reason: no case in this file drives a reliably missing project either.
+			forgetContinue: () => undefined,
 		},
 		createAsset,
 		setAssetFootprintFromDimensions,

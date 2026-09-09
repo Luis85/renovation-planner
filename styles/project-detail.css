@@ -229,6 +229,53 @@
 .rp-project-guidance h3 { margin-block: var(--size-4-2); }
 .rp-project-guidance p { color: var(--text-muted); }
 
+/*
+ * THE THREE ENTRY PATHS STACK, AT EVERY WIDTH — `interaction-concept.md` §11, "entry paths are
+ * vertical. No mandatory horizontal navigation." Not a container query and not a wrap: three
+ * cards side by side in a 460px sidebar leaf would be three columns of one word each, and the
+ * order the two variants take (note first when new, plan first when active) is only readable
+ * down the page.
+ *
+ * `align-items: flex-start` on the entry so its action sizes to its own label rather than
+ * stretching across the pane, which is the same reason `.rp-project-detail__back` states one
+ * block up — a full-width button reads as a section banner rather than as one task's control.
+ */
+.rp-project-detail__entries {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+.rp-project-detail__entry {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--size-2-2);
+}
+
+.rp-project-detail__entry-title {
+	margin: 0;
+	/* `<h4>` under the region's own `<h3>`, so one type size below `.rp-plan-list__title`. */
+	font-size: var(--font-ui-small);
+}
+
+.rp-project-detail__entry-body {
+	margin: 0;
+}
+
+/*
+ * The compact row BOTH the hidden state and the downstream pair take: guidance hidden removes the
+ * explanations and keeps the actions, and with nothing between them a column of three buttons is
+ * a menu where a row is a toolbar. It wraps, because five labels do not fit a sidebar leaf.
+ */
+.rp-project-detail__entry-row {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
 .rp-project-detail__header button, .rp-project-guidance button, .rp-resume-recovery button {
 	height: auto;
 	min-height: var(--input-height);
@@ -238,6 +285,7 @@
 
 .rp-project-detail { container-type: inline-size; font-family: var(--font-interface); }
 .rp-project-guidance__toggle:focus-visible,
+.rp-project-detail__entry-action:focus-visible,
 .rp-project-prices-open:focus-visible,
 .rp-price-refresh:focus-visible,
 .rp-resume-recovery button:focus-visible {

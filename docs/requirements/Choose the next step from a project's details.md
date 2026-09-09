@@ -72,6 +72,22 @@ Delivered by pull request #73 (`codex/project-experience`). Live-vault observati
 leaves, a forced leaf close — is still unrun, so this note is Active rather than Done. Evidence and the
 remaining limitations: [execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
 
+**Three entry paths (2026-09-08, design slice 22 task 1).** The guidance region draws P01/P02's three
+entries — the project note, the plan and the project prices — each a title, a benefit line and exactly
+one action. Which comes first and which is primary is decided by ONE fact, `plans.length === 0 &&
+unreadablePlans === 0 && plansFailure === null`: a new project offers the note first, an active one the
+plan, and a refused or partly unreadable plan read is never treated as new, so the start layout cannot
+invite a first plan onto a project that may already hold several. The plan entry names the plan the
+stored continue context points at when that plan is this project's and is in the readable list, and
+otherwise hands focus to the first plan row rather than guessing. Hiding the guidance drops the headings
+and the benefit lines only: all five actions stay, in TWO compact rows — the three entry actions
+collapse into the row the schedule/quotes pair already sits in below them, not into it. `readOnly` (mobile) disables the
+plan action alone. Held by `tests/presentation/views/projectEntryGuidance.test.ts`; the browser harness
+reaches the new-project layout through `?project=<id>&plans=0` and the `project-detail-new` capture.
+
+**Still open**, so the paragraph above is not read wider than it is: appearance is unverified — no
+capture of the new layout has been taken and no live vault has drawn it.
+
 ## Sources
 
 `docs/user-experience/renovation-planner-project-specs/implementation/repository-reconciliation-and-backlog.md`

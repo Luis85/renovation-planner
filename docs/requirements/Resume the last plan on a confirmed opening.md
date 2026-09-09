@@ -89,6 +89,15 @@ timestamp is derived from the stored context either: it records what was opened,
 
 Partially implemented: project-surface opens return an explicit host leaf/reveal result, and failed or stale opening results do not replace the target. This is deliberately narrower than this PBI’s load-success guarantee: asynchronous editor hydration and palette-originated opens are not confirmed by this increment. They remain open acceptance work. Plain Open preserves a plan on the same project and clears it when selecting another project; no per-project persisted history was added.
 
+**Update (2026-09-08):** the palette's `open-plan-editor` command now routes through the same
+`renovationProjectOpenPlan` seam the project surface uses (`src/plugin/planEditorCommands.ts`), so
+a plan picked from the palette records the Resume target too, on the identical `'opened'`
+condition — a picked entry with no `projectId` records nothing, and a `'failed'` reveal leaves the
+previous target untouched. Main flow step 1's third door ("from the palette") is covered by this.
+What is still open, unchanged from above: "opened" here means a confirmed leaf open, not a
+confirmed plan LOAD — asynchronous editor hydration is not what any door in this repository
+confirms yet, and remains open acceptance work for every one of the three doors alike.
+
 Evidence and remaining limitations: [execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
 
 ## Sources

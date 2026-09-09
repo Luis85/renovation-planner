@@ -25,6 +25,7 @@ import type { AssetPriceCommitResult, AssetPriceEdit } from './assetPriceEdit';
 
 defineProps<{
 	readOnly?: boolean;
+	readOnlyReasonId?: string;
 	draftReset?: number;
 	refreshBlocked?: boolean;
 	rows: readonly AssetPriceRowDto[];
@@ -83,6 +84,7 @@ defineEmits<{ editState: [assetId: string, dirty: boolean, pending: boolean] }>(
 			:key="row.assetId"
 			:row="row"
 			:read-only="readOnly"
+			:read-only-reason-id="readOnlyReasonId"
 			:draft-reset="draftReset"
 			:refresh-blocked="refreshBlocked"
 			:currency="currency"

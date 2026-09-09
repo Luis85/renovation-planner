@@ -107,17 +107,22 @@ describe('ProjectDetail', () => {
 	 * P12: on `readOnly` (mobile) a zero-plan project used to suppress the empty state
 	 * ENTIRELY — `planEmpty` folded `readOnly` into the same null as a failed read — so a
 	 * mobile project with no plans drew a bare `Plans` heading and an empty list instead of the
-	 * onboarding copy. `ViewRoot.vue:314`'s own `emptyActionLabel` is the model this mirrors:
-	 * keep the state, drop only the action a read-only surface cannot dispatch. Red before the
-	 * fix: `.rp-empty-state` did not exist at all under `readOnly: true`.
+	 * onboarding copy. Red before that fix: `.rp-empty-state` did not exist at all under
+	 * `readOnly: true`.
+	 *
+	 * **The ACTION then stopped being dropped too**, which is the mobile task's own extension 4a:
+	 * a label that disappears on one device reads as a state with nothing to do rather than as a
+	 * refusal, so it stays drawn, `aria-disabled`, and pointing at the surface's one notice.
 	 */
-	it('keeps the no-plans empty state on a read-only surface, without its action', () => {
+	it('keeps the no-plans empty state and its refused action on a read-only surface', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [], unreadablePlans: 0, readOnly: true, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' }, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [], unreadablePlans: 0, readOnly: true, readOnlyReasonId: 'rp-1-0', emptyState: { headline: 'h', body: 'b', actionLabel: 'a' }, ...PRICE_PROPS },
 		});
 
 		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
-		expect(wrapper.find('.rp-empty-state__action').exists()).toBe(false);
+		expect(wrapper.get('.rp-empty-state__action').text()).toBe('a');
+		expect(wrapper.get('.rp-empty-state__action').attributes('aria-disabled')).toBe('true');
+		expect(wrapper.get('.rp-empty-state__action').attributes('aria-describedby')).toBe('rp-1-0');
 	});
 
 	/**

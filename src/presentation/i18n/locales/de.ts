@@ -25,6 +25,7 @@ import type { StringKey } from './en';
 import { deAssetLibrary } from './de-assetLibrary';
 import { editorDe } from './de/editor';
 import { renovationDe } from './de/renovation';
+import { deMobile } from './de/mobile';
 
 export const de: Partial<Record<StringKey, string>> = {
 	...projectWorkDe,
@@ -32,6 +33,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	...renovationDe,
 	...planningDe,
 	...editorDe,
+	...deMobile,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.price-apply': 'Übernehmen',

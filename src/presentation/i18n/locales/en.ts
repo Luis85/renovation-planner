@@ -4,6 +4,7 @@ import { planningEn } from './en/planning';
 import { enAssetLibrary } from './en-assetLibrary';
 import { editorEn } from './en/editor';
 import { renovationEn } from './en/renovation';
+import { enMobile } from './en/mobile';
 
 /**
  * The English table is the COMPLETE one: a key exists because this file answers it, and
@@ -38,6 +39,7 @@ export const en = {
 	...renovationEn,
 	...planningEn,
 	...editorEn,
+	...enMobile,
 	'command.open-project': 'Open renovation project',
 	'command.open-project-detail': 'Go to renovation project',
 	'view.project.price-apply': 'Apply',

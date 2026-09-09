@@ -360,7 +360,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// live in one module beside this one — the sentence here used to claim the calls
 		// "still happen here", and they never did. What this file keeps is the ORDER: every
 		// registration is initiated from this one `onload`, in the sequence SDD §9 states.
-		registerPlanEditorCommands(this);
+		//
+		// The same `rememberContinue` closure `projectViewDeps` binds (Task 2), read per call
+		// through `this.root` for the same reason that binding is: `saveSettings` replaces the
+		// composition root, and a captured one would go on writing through a replaced logger.
+		registerPlanEditorCommands(this, (context) => void this.continueContextStore(this.root.logger).write(context));
 
 		// ADR-0015's designer, made reachable (Task B9): a picker over the vault's whole
 		// catalogue, the same shape `registerPlanEditorCommands` gives its own picker.
@@ -735,6 +739,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// there is no rejection here for `runDetached` or a `.catch` to have to catch.
 			continueContext: () => this.continueContextStore(this.root.logger).read(),
 			rememberContinue: (context) => void this.continueContextStore(this.root.logger).write(context),
+			// Task 2 (design slice 22). Same `void` reasoning as `rememberContinue` above:
+			// `ContinueContextStore.clear` cannot reject either.
+			forgetContinue: (validated) => void this.continueContextStore(this.root.logger).clear(validated),
 		});
 	}
 

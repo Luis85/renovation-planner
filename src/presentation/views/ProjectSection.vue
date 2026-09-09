@@ -3,7 +3,7 @@ import type { ProjectSection } from '../../application/navigation/ProjectDestina
 import ProjectDetailState from './ProjectDetailState.vue';
 import ProjectWorkState from './work/ProjectWorkState.vue';
 import QuoteComparisonState from './quotes/QuoteComparisonState.vue';
-defineProps<{ projectId: string; section?: ProjectSection }>();
+defineProps<{ projectId: string; section?: ProjectSection; readOnlyReasonId?: string }>();
 </script>
 <template>
 	<ProjectWorkState
@@ -17,5 +17,6 @@ defineProps<{ projectId: string; section?: ProjectSection }>();
 	<ProjectDetailState
 		v-else
 		:project-id="projectId"
+		:read-only-reason-id="readOnlyReasonId"
 	/>
 </template>

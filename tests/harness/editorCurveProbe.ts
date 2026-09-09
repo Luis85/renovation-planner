@@ -11,5 +11,6 @@ export function editorCurveScene(id: string) {
 		const point = circle.getAbsolutePosition();
 		return { name: circle.name(), x: origin.left + point.x, y: origin.top + point.y };
 	}) ?? [];
-	return { handles, points: expectDefined(shape.findOne<Konva.Line>('Line'), 'curve paint').points() };
+	return { handles, points: expectDefined(shape.findOne<Konva.Line>('Line'), 'curve paint').points(),
+		origin: { x: origin.left, y: origin.top }, transform: shape.getAbsoluteTransform().getMatrix() };
 }

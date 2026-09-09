@@ -5,8 +5,9 @@
  *
  * **The ten-cell tick strip is gone and this is where it went.** It was design spec §6's
  * reading of the lifecycle as an arc; the design package draws a chip instead, and the user
- * decided between the two. `projectStatusStage` survives because `src/prototypes/StatusTicks.vue`
- * still imports it — grep before deleting it, which is how that was found.
+ * decided between the two. `projectStatusStage`, `StatusTicks.vue` and the strip's own rules
+ * went with it in a follow-up — the module outlived the row by exactly one increment, because
+ * a prototype still imported it, which a grep found and the file itself could not say.
  *
  * **The dot carries ONE colour for every status (`--text-accent`), deliberately.** A
  * status-to-colour mapping is a mapping this design package does not define, and inventing one

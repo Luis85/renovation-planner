@@ -31,9 +31,9 @@ const bodyOf = (selector: string): string => {
 /**
  * A class declared as a class OF ITS OWN — the name not run on into a longer one.
  *
- * A bare `includes('.rp-project-row__tick')` is satisfied by `.rp-project-row__tick--reached`,
- * and `.rp-project-row` by any of the five `__` names beneath it, so a substring reading is a
- * no-op assertion for exactly the entries whose rules a later task is most likely to fold away.
+ * A bare `includes('.rp-project-row')` is satisfied by any of the `__` names beneath it, so a
+ * substring reading is a no-op assertion for exactly the entries whose rules a later task is
+ * most likely to fold away.
  * `[\w-]` is the negative lookahead because both `_` and `-` continue a class name here.
  */
 const declaresClass = (cls: string): boolean => new RegExp(String.raw`\.${cls}(?![\w-])`, 'u').test(sheet);
@@ -67,11 +67,7 @@ describe('project-list.css', () => {
 	 */
 	it('declares every class the row emits that this sheet owns', () => {
 		for (const cls of [
-			'rp-project-row__facts',
 			'rp-project-row__status',
-			'rp-project-row__ticks',
-			'rp-project-row__tick',
-			'rp-project-row__tick--reached',
 			'rp-project-row__match',
 		]) {
 			expect(declaresClass(cls), `.${cls} is declared as a class of its own`).toBe(true);
@@ -88,54 +84,16 @@ describe('project-list.css', () => {
 	 * sheet that documents itself looks identical to one that declares itself.
 	 */
 	it('does not read a longer class as the shorter one it starts with', () => {
-		expect(declaresClass('rp-project-row__tick')).toBe(true);
-		expect(new RegExp(String.raw`\.rp-project-row__tick(?![\w-])`, 'u').test('.rp-project-row__tick--reached {')).toBe(false);
+		// `__group` and `__group-title` are the pair this sheet still declares BOTH of, which is
+		// what the case needs: the tick pair it used to be driven with is gone, and a specimen
+		// that is not really in the sheet would assert the lookahead against nothing.
+		expect(declaresClass('rp-project-list__group')).toBe(true);
+		expect(new RegExp(String.raw`\.rp-project-list__group(?![\w-])`, 'u').test('.rp-project-list__group-title {')).toBe(false);
 	});
 
 	it('reads a class named in prose as prose, not as a declaration', () => {
 		expect(sheet).not.toContain('Task 11');
 		expect('/* mentions .rp-gone here */\n'.replace(RULES_ONLY, '')).toBe('\n');
-	});
-
-	/**
-	 * THE STRIP'S TWO STATES, at the two Obsidian tokens the design spec §6 names.
-	 *
-	 * `--text-muted` was tried for the unreached cells in Task D and measured worse: it makes an
-	 * unreached cell easy to see against the page and drops reached-against-unreached to 1.50:1
-	 * in the dark scheme, which is the distinction the strip exists to carry. The sheet's own
-	 * comment holds the whole table. This case is what stops that swap coming back as a tidy-up.
-	 *
-	 * The spec's own sentence also says `currentColor`, and the two halves cannot both hold —
-	 * `currentColor` resolves to ONE inherited colour, so it draws the strip's shape and cannot
-	 * draw a reached cell differently from an unreached one, which is the whole of what the
-	 * strip is for. So this asserts the CONTRACT rather than the mechanism, and it asserts both
-	 * ends: a build that gave the reached rule the same token as the base rule would satisfy
-	 * "the sheet declares this class" while drawing a strip that says nothing.
-	 *
-	 * `styles-assemble.mjs` already fails the build on a literal colour, so this adds nothing
-	 * about the themed-vault half and deliberately does not restate it: both a `var()` on an
-	 * Obsidian token and `currentColor` clear that gate, which is why the gate is not what
-	 * decides between them.
-	 */
-	it('draws a reached cell differently from an unreached one, at Obsidian tokens', () => {
-		expect(bodyOf('.rp-project-row__tick')).toContain('background-color: var(--text-faint)');
-		expect(bodyOf('.rp-project-row__tick--reached')).toContain('background-color: var(--text-normal)');
-	});
-
-	/**
-	 * TEN CELLS THAT CAN BE COUNTED. The strip shipped at 3px cells with 1px gaps and the first
-	 * picture of it read as one filled bar — a proportion, which is the one thing §6 argues a
-	 * strip is NOT: it is a positional map of a ten-member enum, and a reader who cannot count
-	 * the cells is not reading it.
-	 *
-	 * Asserted as a PAIR because the gap is half the mechanism: ten 4px cells at a 1px gap read
-	 * very nearly as solid, so a build that widened the cell alone would satisfy a single-value
-	 * assertion and draw the defect. Whether ten can actually be counted is a question only a
-	 * capture answers — this pins the two numbers that capture was taken against.
-	 */
-	it('draws cells wide enough, and gapped enough, to be counted', () => {
-		expect(bodyOf('.rp-project-row__tick')).toContain('width: 4px');
-		expect(bodyOf('.rp-project-row__ticks')).toContain('gap: 2px');
 	});
 
 	/**
@@ -153,17 +111,26 @@ describe('project-list.css', () => {
 	 * silently broken column, and it moved to `projectRowStyles.test.ts` where the track it
 	 * sizes now lives. Read that file before concluding this one dropped it.
 	 *
-	 * `.rp-project-row__facts` survives in this sheet with its shared half only — muted colour,
-	 * smaller size, `flex-shrink` — because `src/prototypes/StatusTicks.vue` still emits it and
-	 * `tests/build/prototype-styles.test.ts` refuses a class neither home declares.
+	 * `.rp-project-row__facts` and the strip's own rules are gone from this sheet too. Both
+	 * outlived the real row by one increment as the classes `src/prototypes/StatusTicks.vue`
+	 * still emitted, and retiring that specimen took them with it — `prototype-styles.test.ts`
+	 * refuses a class neither home declares, which is what would have made a leftover rule a red
+	 * build rather than a quietly dead one.
+	 *
+	 * Asserted as an ABSENCE, which is the direction this sheet has no other instrument for: the
+	 * list above only ever fails when a class it names stops being declared, so a rule kept for a
+	 * caller that no longer exists is invisible to it.
 	 */
-	it('keeps the facts slot’s shared half for the one caller that still emits it', () => {
-		const facts = bodyOf('.rp-project-row__facts');
-
-		expect(facts).toContain('color: var(--text-muted)');
-		// The RESERVATION is gone: a min-width here would fight the grid track the real row's
-		// facts columns now sit in, which is the whole reason it moved.
-		expect(facts).not.toContain('min-width');
+	it('declares no rule for a class no caller emits any more', () => {
+		for (const gone of [
+			'rp-project-row__facts',
+			'rp-project-row__ticks',
+			'rp-project-row__tick',
+			'rp-project-row__tick--reached',
+			'rp-project-row__status-word',
+		]) {
+			expect(declaresClass(gone), `.${gone} is not declared`).toBe(false);
+		}
 	});
 
 	/**

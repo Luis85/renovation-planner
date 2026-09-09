@@ -40,7 +40,8 @@
  * **THE THRESHOLD WAS RE-DERIVED FOR THIS PACKAGE AND THE OLD ARITHMETIC NO LONGER APPLIES.**
  * The 41rem it stood at was measured against a trailing group of facts, a reserved status word
  * and a ten-cell tick strip. All three are gone: P00 gives plans, currency, status and last
- * worked their own tracks, the strip is replaced by a pill, and a leading glyph and a trailing
+ * worked their own tracks, the strip is replaced by a pill (and has since been deleted with the
+ * specimen that outlived it), and a leading glyph and a trailing
  * chevron were added at either end. Every figure in the old sum changed, so the number is
  * derived from scratch below rather than adjusted.
  *
@@ -251,14 +252,4 @@
 		min-height: 44px;
 	}
 
-	/*
-	 * THE TICK STRIP IS DROPPED. No shipped row draws one any more — `src/prototypes/StatusTicks.vue`
-	 * is its only emitter, and it renders inside a `.rp-project-list` so this rule still reaches
-	 * it. Kept rather than deleted for that reason and for one more: the specimen exists to be
-	 * photographed at 460 as well as at 1280, and a strip in a 460px row is exactly the ceremony
-	 * this surface's own recorded risk warns about.
-	 */
-	.rp-project-list .rp-project-row__ticks {
-		display: none;
-	}
 }

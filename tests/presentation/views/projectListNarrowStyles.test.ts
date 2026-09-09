@@ -58,7 +58,6 @@ describe('project-list-narrow.css', () => {
 			'rp-project-row__currency',
 			'rp-project-row__worked',
 			'rp-project-row__status',
-			'rp-project-row__ticks',
 			'rp-project-list__overlap',
 		]) {
 			expect(declaresClass(cls), `.${cls} is addressed as a class of its own`).toBe(true);
@@ -285,10 +284,6 @@ describe('project-list-narrow.css', () => {
 	 */
 	it('drops the last-worked column', () => {
 		expect(bodyOf('.rp-project-row__worked')).toContain('display: none');
-	});
-
-	it('drops the tick strip', () => {
-		expect(bodyOf('.rp-project-list .rp-project-row__ticks')).toContain('display: none');
 	});
 
 	/**

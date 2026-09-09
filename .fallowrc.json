@@ -85,6 +85,7 @@
 		"scripts/editor-area-check.mjs",
 		"scripts/editor-area-numeric-check.mjs",
 		"scripts/editor-room-resize-check.mjs",
+		"scripts/editor-room-edge-check.mjs",
 		"scripts/editor-room-naming-check.mjs",
 		"scripts/editor-reference-check.mjs",
 		"scripts/editor-structure-check.mjs",

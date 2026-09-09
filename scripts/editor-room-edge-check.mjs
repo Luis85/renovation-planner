@@ -11,6 +11,8 @@ async function journey(page, scenario, out) {
 	const id = await page.evaluate(() => window.editorFidelity.selection().ids[0]);
 	const before = await notes(page), original = await lengths(page); assert.equal(original.length, 4);
 	await recordShot(page, scenario, out, 'rectangle-all-edges');
+	const hover = await page.evaluate(value => window.editorFidelity.rotationHoverPoint(value), id); await page.mouse.move(hover.x, hover.y);
+	await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); }));
 	const scene = await page.evaluate(value => window.editorFidelity.rotation(value), id);
 	const x = scene.handle.x - scene.pivot.x, y = scene.handle.y - scene.pivot.y, radians = 37 * Math.PI / 180;
 	await page.mouse.move(scene.handle.x, scene.handle.y); await page.mouse.down();

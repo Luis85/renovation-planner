@@ -39,6 +39,7 @@ export type ToolId =
 	| 'place-door'
 	| 'place-window'
 	| 'place-opening'
+	| 'move-opening'
 	| 'place-asset'
 	| 'place-object'
 	| 'draw-path'

@@ -71,6 +71,7 @@ function freeRoomName(event: Event): void {
 
 const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKey: StringKey; finish?: true }>>> = {
 	'edit-curves': { nameKey: 'editor.curves.action', instructionKey: 'editor.curves.instruction', finish: true },
+	'move-opening': { nameKey: 'editor.opening-move.action', instructionKey: 'editor.opening-move.instruction' },
 	'edit-room-dimension': { nameKey: 'editor.dimension.task', instructionKey: 'editor.dimension.instruction' },
 	'place-object': { nameKey: 'editor.add.item.label', instructionKey: 'editor.element.banner.object', finish: true },
 	'place-stair': { nameKey: 'editor.add.stair.label', instructionKey: 'editor.stair.banner', finish: true },
@@ -182,6 +183,10 @@ watch(task, (next) => {
 		<span
 			:id="instructionId"
 		>{{ tr(task.instructionKey) }}</span>
+		<span
+			v-if="runtime.activeToolId.value === 'move-opening'"
+			role="status"
+		>{{ runtime.openingMove.loading.value ? tr('editor.opening-move.loading') : runtime.openingMove.saving.value ? tr('editor.opening-move.saving') : runtime.openingMove.message.value }}</span>
 		<FreeShapeRoomAction
 			v-if="runtime.activeToolId.value === 'draw-room'"
 			canvas

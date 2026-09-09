@@ -46,12 +46,19 @@ it('shows small edge arrows on unselected-object hover and selects only when its
 });
 it('preserves an existing multi-selection on member hover and suppresses arrows during Alt cycling', async () => {
 	const rig = await setup(); rig.selection.select([rig.room.id, object.id as never]); await settle();
+	const bytes = [...rig.stack.vault.entries];
 	await rig.hover({ x: 1500, y: 1000 });
 	expect(rig.selection.selectedIds).toEqual([rig.room.id, object.id]);
-	expect(rig.runtime.rotationActions.displayControls.value).toEqual([]);
+	const group = expectDefined(rig.runtime.rotationActions.displayTarget.value, 'selected group hover target');
+	expect(group.kind).toBe('group'); expect(group.id).toBe('selection-group');
+	expect(group.group?.selectionIds).toEqual([rig.room.id, object.id]);
+	expect(rig.runtime.rotationActions.displayControls.value).toHaveLength(4);
+	expect(rig.stage.find('.rotation-control-target')).toHaveLength(4);
+	expect([...rig.stack.vault.entries]).toEqual(bytes);
 	rig.selection.clear(); await rig.hover({ x: 1500, y: 1000 });
 	const point = rig.at({ x: 1500, y: 1000 });
 	rig.canvas.dispatchEvent(new PointerEvent('pointermove', { clientX: point.x, clientY: point.y, button: 0, buttons: 0, pointerId: 1, altKey: true, bubbles: true })); await settle();
 	expect(rig.stage.find('.object-rotation-handle')).toHaveLength(0);
 	expect(rig.selection.selectedIds).toEqual([]);
+	expect([...rig.stack.vault.entries]).toEqual(bytes);
 });

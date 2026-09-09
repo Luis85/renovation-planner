@@ -52,9 +52,13 @@ const props = defineProps<{ tokens: ThemeTokens }>();
 const editorStore = useEditorStore();
 const projectStore = useProjectStore();
 const { zones } = storeToRefs(projectStore);
-const candidates = computed(() => new Map<string, SpatialObjectCandidate>([...zones.value, ...structureCandidates(projectStore.structure).map(item => [item.id, item] as const)]));
-const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 const runtime = useEditorRuntime();
+const candidates = computed(() => {
+	const preview = runtime.curveTask.preview.value ?? runtime.groupActions.preview.value, objects = new Map(preview?.objects.map(object => [object.id, object]));
+	return new Map<string, SpatialObjectCandidate>([...[...zones.value].map(([id, zone]) => [id, { ...zone, ...objects.get(id) }] as const),
+		...structureCandidates(preview?.structure ?? projectStore.structure).map(item => [item.id, item] as const)]);
+});
+const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 
 function toScreen(point: { x: number; y: number }) {
 	return worldToScreen(point, editorStore.viewport, STAGE_PIXELS);
@@ -114,7 +118,7 @@ const selectedScreenPoints = computed(() => {
 
 const selectedFlat = computed(() => {
 	const zone = selectedIds.value.length === 1 ? zones.value.get(selectedIds.value[0]) : undefined;
-	const geometry = zone && (runtime.curveTask.preview.value?.objects.find(item => item.id === zone.id) ?? zone);
+	const geometry = zone && ((runtime.curveTask.preview.value ?? runtime.groupActions.preview.value)?.objects.find(item => item.id === zone.id) ?? zone);
 	return geometry ? polygonPolyline(geometry, 0.25 / viewportTransform(editorStore.viewport).scaleX).flatMap(point => { const at = toScreen(point); return [at.x, at.y]; }) : null;
 });
 

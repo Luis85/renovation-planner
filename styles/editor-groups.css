@@ -1,0 +1,13 @@
+.rp-group-controls {
+	display: grid;
+	gap: var(--size-4-2);
+	margin-block-start: var(--size-4-3);
+	padding-block-start: var(--size-4-3);
+	border-block-start: 1px solid var(--background-modifier-border);
+}
+.rp-group-controls .rp-inline-actions { display: flex; flex-wrap: wrap; gap: var(--size-4-2); }
+.rp-group-controls button { min-height: 44px; height: auto; white-space: normal; }
+.rp-group-controls form { display: grid; gap: var(--size-4-2); margin-block-start: var(--size-4-3); }
+.rp-group-controls input { width: 100%; min-width: 0; }
+.rp-group-controls summary { cursor: pointer; padding-block: var(--size-4-2); }
+.rp-group-controls p { margin-block: 0 var(--size-4-2); }

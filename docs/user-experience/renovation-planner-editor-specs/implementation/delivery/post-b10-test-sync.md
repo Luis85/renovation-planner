@@ -80,3 +80,25 @@ All inherited capture evidence remains unchanged from the acceptance parent, wit
 - `tests/presentation/editor/taskBannerOperationBoundaries.test.ts`
 - `tests/presentation/editor/wallRotationFormRecovery.test.ts`
 - `tests/presentation/editor/wallRotationRuntime.test.ts`
+
+## Final buffer-test synchronization
+
+This follow-up transfers only the reviewed `1aef6f0c..15e4b0d7d6a76f3681f5695dc0af938f5e418c85` test/receipt diffs onto acceptance `689cf45b5165c129bc887027e0a9ae4e03e04512`:
+
+- `59ae7f648d6e802d5fad999c649833e4665c0507`: zoneDisappearanceBoundaries.test.ts and geometry-boundary-coverage.md.
+- `437e8325d51c4d8848e4e9582b6d069148e7864e`: nativeViewCurveBoundaries.test.ts and shell-input-coverage.md.
+
+Both original scoped test runs passed 2/2 cases, four added cases total. Their two receipts remain exact original blobs. These changes are reconstructed as the single commit containing this follow-up, whose pre-mapping staged tree is `d91d81d251e0fdb83ccf025e042c4363a0528d9d`.
+
+Exact comparison against frozen `15e4b0d7d6a76f3681f5695dc0af938f5e418c85`:
+
+| Scope | Matching Git subtree ID |
+|---|---|
+| `src/` | `ef32328ba7dfc113a6e80a3781311d6eeaae514d` |
+| `styles/` | `0ae10d132b625db91dd92c9da4a731a4eb24b7e6` |
+| `tests/` | `8d5fb21dff7c8ff86c55944f4cef4ac69f6aef34` |
+| `scripts/` | `9e09c17cf56895d0876fb1f7815dfd0e2a29b503` |
+
+The same 14 checked root build/configuration paths and `.github` also match exactly. No source, style, script, configuration or historical evidence was changed by this follow-up. Original capture source/build provenance is unchanged.
+
+The unchanged global check (root session 54808) is still running. **No full-gate pass or global coverage acceptance is claimed.** No heavy check, push/PR or root checkout edit ran during synchronization; Git source/blob comparison and diff whitespace checks only.

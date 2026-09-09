@@ -25,3 +25,19 @@ case verifies its accessible native route without claiming it covers those guard
 locally; root owns the combined verification. The earlier diagnostic union is not
 an acceptance result for these additions. No heavy process or native-host capture
 was started.
+
+## Final two native boundary cases
+
+The round-two diagnostic union identifies View-menu modified Escape and absent
+framing bounds, plus CurveTaskForm's geometry-validation message, as remaining
+uncovered outcomes. `nativeViewCurveBoundaries.test.ts` adds exactly two cases:
+keep the disclosure open for modified Escape and refuse its previously enabled Fit
+selection action after selection retires; enter two individually valid inward Room
+bends that intersect, show the geometry-specific explanation, refuse Save, then
+close the focused leaf without reclaiming outside focus. Both keep vault bytes
+unchanged. No malformed schema or impossible persisted geometry is seeded: the
+invalid curve is a normal transient user draft rejected by the real validator.
+
+These two cases are source-ready and **unrun**; only `git diff --check` passed.
+They do not establish a global coverage margin or change any production code,
+threshold, timeout or existing test. Root's fresh complete gate is the authority.

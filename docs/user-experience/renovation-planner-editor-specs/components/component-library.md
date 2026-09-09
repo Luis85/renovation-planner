@@ -133,6 +133,11 @@ All shapes receive render models and emit selection/interaction intents. They do
 
 ### `SelectionOverlay`
 
+Spatial rotation uses one shared handle geometry for paint and hit testing, a circular-arrow
+affordance, at least 44 px screen grab region, frozen-pivot/angle feedback and equivalent
+Inspector degree/quarter-turn controls. Source-specific commands and wall impact review remain
+outside the visual component; see [ADR-0025](../../../development/adrs/0025-spatial-rotation.md).
+
 **Responsibility:** Render selection outline, handles, dimensions, and focus state for one entity.
 
 **Inputs:** selected render model, handle metrics, editability, theme tokens.  
@@ -372,4 +377,3 @@ No component may require a specific blue, coral, or purple accent. Mockup colors
 - Every canvas-only affordance has an accessible non-canvas route.
 - Shared Inspector and responsive variants reuse the same content components.
 - User-facing component names and strings contain no internal geometry vocabulary.
-

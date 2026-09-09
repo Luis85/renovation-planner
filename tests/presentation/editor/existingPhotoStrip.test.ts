@@ -49,4 +49,10 @@ it('opens a saved photo from Existing details while retaining the spatial contex
 	rig.changePlan(); await settle();
 	expect(rig.wrapper.find('.rp-existing-photo-strip').exists()).toBe(false);
 	expect(document.activeElement).toBe(rig.wrapper.get('.rp-plan-canvas').element);
+	rig.selection.select([roomId]); rig.runtime.renovation.focus(roomId, 'existing'); await settle();
+	expect(rig.wrapper.find('.rp-existing-photo-strip').exists()).toBe(true);
+	const external = rig.wrapper.get<HTMLButtonElement>('[data-rp-action="select"]').element, retained = [...rig.stack.vault.entries];
+	external.focus(); workspace.layerVisibility.annotation = false; await settle();
+	expect(rig.wrapper.find('.rp-existing-photo-strip').exists()).toBe(false);
+	expect(document.activeElement).toBe(external); expect([...rig.stack.vault.entries]).toEqual(retained);
 });

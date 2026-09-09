@@ -1,0 +1,107 @@
+RP_CHROMIUM_EXECUTABLE is set: capturing with C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe, which is not the Chromium playwright-core pins.
+Read the pictures as approximate — a different build renders text and layout slightly differently.
+18:52:20 [vite] (client) [optimizer] scanning dependencies...
+18:52:25 [vite] (client) [optimizer] bundling dependencies...
+18:52:35 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:52:35 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:52:38 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:52:38 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:53:09 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:53:09 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:53:11 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:53:11 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:53:40 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:53:40 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:53:42 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:53:42 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:54:10 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:54:10 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:54:12 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:54:12 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Editor browser checks passed (4 scenarios). Artifacts: harness-shots/materials-costs-evidence
+RP_CHROMIUM_EXECUTABLE is set: capturing with C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe, which is not the Chromium playwright-core pins.
+Read the pictures as approximate — a different build renders text and layout slightly differently.
+18:55:09 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:09 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:13 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:13 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:28 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:28 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:31 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:31 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:46 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:46 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:49 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:55:49 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:56:02 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:56:02 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:56:06 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:56:06 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Editor browser checks passed (4 scenarios). Artifacts: harness-shots/renovation-workflow
+RP_CHROMIUM_EXECUTABLE is set: capturing with C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe, which is not the Chromium playwright-core pins.
+Read the pictures as approximate — a different build renders text and layout slightly differently.
+18:56:36 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:56:36 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:56:40 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:56:40 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:56:59 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:56:59 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:57:02 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:57:02 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:57:22 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:57:22 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:57:25 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:57:25 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:57:41 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:57:41 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:57:44 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:57:44 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Editor browser checks passed (4 scenarios). Artifacts: harness-shots/reference-plan
+RP_CHROMIUM_EXECUTABLE is set: capturing with C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe, which is not the Chromium playwright-core pins.
+Read the pictures as approximate — a different build renders text and layout slightly differently.
+18:58:14 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:58:14 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:58:19 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:58:19 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:58:24 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:58:24 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:58:29 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:58:29 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Editor browser checks passed (4 scenarios). Artifacts: harness-shots/editor-visual-resilience
+RP_CHROMIUM_EXECUTABLE is set: capturing with C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe, which is not the Chromium playwright-core pins.
+Read the pictures as approximate — a different build renders text and layout slightly differently.
+18:58:44 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:58:44 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:58:46 [vite] (client) [console.warn] Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+18:58:46 [vite] (client) [console.warn] Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: [data-rp-action="continue-renovation"] stays inside the visible Inspector: {"content":{"x":1097,"y":937.765625,"width":312,"height":44},"inspector":{"x":1080,"y":55,"width":360,"height":909}}
+    at inspectorVisibility (file:///D:/Projects/renovation-planner/.worktrees/editor-release-verification/scripts/editor-inspector-visibility.mjs:10:28)
+    at async captureInspectorDesign (file:///D:/Projects/renovation-planner/.worktrees/editor-release-verification/scripts/editor-matching-views.mjs:44:17)
+    at async captureOverviewMatching (file:///D:/Projects/renovation-planner/.worktrees/editor-release-verification/scripts/editor-matching-views.mjs:64:22)
+    at async journey (file:///D:/Projects/renovation-planner/.worktrees/editor-release-verification/scripts/editor-visual-overview.mjs:43:23)
+    at async runAreaBrowserMatrix (file:///D:/Projects/renovation-planner/.worktrees/editor-release-verification/scripts/editor-area-browser.mjs:103:15)
+    at async file:///D:/Projects/renovation-planner/.worktrees/editor-release-verification/scripts/editor-visual-overview.mjs:86:1 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.20.0
+file:///D:/Projects/renovation-planner/.worktrees/editor-release-verification/scripts/editor-visual-final-check.mjs:31
+		child.once('exit', code => code === 0 ? resolve() : reject(new Error(`${script} exited ${code}`)));
+		                                                           ^
+
+Error: editor-visual-overview.mjs exited 1
+    at ChildProcess.<anonymous> (file:///D:/Projects/renovation-planner/.worktrees/editor-release-verification/scripts/editor-visual-final-check.mjs:31:62)
+    at ChildProcess.wrapper (node:events:639:12)
+    at ChildProcess.emit (node:events:514:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:295:12)
+
+Node.js v24.20.0

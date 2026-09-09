@@ -1,5 +1,9 @@
 # Editor completion matrix
 
+## Current evidence reconciliation — 2026-09-08
+
+The [release execution and acceptance ledger](release-2026-09-08.md) supersedes the operational revisions and owners in the historical snapshot below. This matrix's individual M00–M17 criteria remain in scope, alongside its use cases and shared interaction contracts. The current audit begins at landed main `7d4bc381`; Object rotation, selection priority, opening fresh-stack evidence and exact retyped dimensions have named owners. No historical successful capture or gate alone establishes current acceptance.
+
 **Status: active integration audit; no screen or overall release acceptance is declared complete.**
 
 Full CI07bc094a passes **663files/8121tests on every Linux22/24/26 and Windows22 leg**,69skipped. Build/lint pass; unchanged branch coverage97.89%(12543/12813) leaves14arms. The five repository lifecycle gains are now confirmed in the complete run. **Fresh matched Health on07 also passes:0findings,748/748file paths mapped.** [Run34160382401](https://github.com/Luis85/renovation-planner/actions/runs/34160382401), [CI/Health receipt](evidence/ci-07bc094a-quality.json). UI9f7e882d is now integrated as Root6569a9e7, including the verified4-scenario overview and hardened capture provenance. The following commit adds Coverage256a9384:5verified cases,+6branches/+2statements on matched source/maps. Root checked98UI artifact hashes. Count-copy/idle-guidance,M13pilot,final combined9/18/newCI/Health and nativeH1–H6remain. [Joined receipt](joined-overview-snapshot-evidence.md).

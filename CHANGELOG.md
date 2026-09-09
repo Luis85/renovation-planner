@@ -167,6 +167,7 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Fixed
 
+- Curved Room containment treats round-off at a tangent as one contact, and failed read-back preserves a paused curve draft for retry.
 - Existing and Planned detail rows and canvas markers show their saved surface or element kind, so identical descriptions remain distinguishable.
 
 ### Changed

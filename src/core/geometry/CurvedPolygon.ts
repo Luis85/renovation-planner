@@ -2,7 +2,7 @@ import type { Polygon } from './Polygon';
 import { createPolygon } from './Polygon';
 import type { GeometryError } from '../errors/AppError';
 import { err, ok, type Result } from '../result/Result';
-import { arcRadius } from './circularArc';
+import { arcRadius, type CircularEdge } from './circularArc';
 import { circularEdgeIntersections, curveTolerance } from './circularIntersections';
 
 /** Closed boundary: bulge i describes edge i→i+1, with implicit last→first closure. */
@@ -27,15 +27,20 @@ export function createCurvedPolygon(shape: CurvedPolygon): Result<CurvedPolygon,
 	const simple = validateCurvedBoundary(shape); if (!simple.ok) return simple;
 	return ok({ ...polygon.value, ...(shape.bulges !== undefined && hasCurves(shape) ? { bulges: [...shape.bulges] } : {}) });
 }
+/** Only neighbouring edges may share their known endpoint; overlaps are never valid. */
+function invalidEdgeContact(edges: readonly CircularEdge[], first: number, second: number, epsilon: number): boolean {
+	const result = circularEdgeIntersections(edges[first], edges[second]);
+	if (result.overlap) return true;
+	const shared = second === first + 1 ? edges[first].end : first === 0 && second === edges.length - 1 ? edges[first].start : null;
+	return result.points.some(point => shared === null || Math.hypot(point.x - shared.x, point.y - shared.y) > epsilon);
+}
 /** Curved contours must be simple; legacy straight polygon validation is unchanged. */
-export function validateCurvedBoundary(shape: CurvedPolygon): Result<void, GeometryError> {
+function validateCurvedBoundary(shape: CurvedPolygon): Result<void, GeometryError> {
 	if (!hasCurves(shape)) return ok(undefined);
 	const edges = shape.points.map((start, index) => ({ start, end: shape.points[(index + 1) % shape.points.length], bulge: shape.bulges?.[index] ?? 0 }));
 	const epsilon = curveTolerance(shape.points);
 	for (let i = 0; i < edges.length; i++) for (let j = i + 1; j < edges.length; j++) {
-		const result = circularEdgeIntersections(edges[i], edges[j]);
-		const shared = j === i + 1 ? edges[i].end : i === 0 && j === edges.length - 1 ? edges[i].start : null;
-		if (result.overlap || result.points.some(point => shared === null || Math.hypot(point.x - shared.x, point.y - shared.y) > epsilon)) return err({ category: 'Geometry', code: 'curve-self-intersection', message: 'Curved boundary edges may meet only at neighbouring corners.' });
+		if (invalidEdgeContact(edges, i, j, epsilon)) return err({ category: 'Geometry', code: 'curve-self-intersection', message: 'Curved boundary edges may meet only at neighbouring corners.' });
 	}
 	return ok(undefined);
 }

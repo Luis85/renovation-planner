@@ -29,8 +29,9 @@ function roots(a: number, b: number, c: number): number[] {
 	if (a === 0) return b === 0 ? [] : [-c / b];
 	const discriminant = b * b - 4 * a * c, tolerance = 64 * Number.EPSILON * Math.max(b * b, Math.abs(4 * a * c));
 	if (discriminant < -tolerance) return [];
-	const sqrt = Math.sqrt(Math.max(0, discriminant));
-	if (sqrt === 0) return [-b / (2 * a)];
+	// Round-off on either side of zero must remain one tangency, not two phantom crossings.
+	if (discriminant <= tolerance) return [-b / (2 * a)];
+	const sqrt = Math.sqrt(discriminant);
 	const q = -0.5 * (b + (b < 0 ? -sqrt : sqrt));
 	return [q / a, c / q];
 }
@@ -48,16 +49,15 @@ function endpointDirection(edge: CircularEdge, end: boolean): number {
 }
 /** Horizontal ray from (0,0); endpoints follow the same half-open rule as straight edges. */
 export function arcRayCrossings(edge: CircularEdge, epsilon: number): number {
-	let count = 0;
-	for (const x of arcLineParameters(edge, { x: 0, y: 0 }, { x: 1, y: 0 })) {
-		const point = { x, y: 0 };
-		if (!(x > 0) || !onArc(edge, point, epsilon)) continue;
-		if (near(point, edge.start, epsilon)) { if (endpointDirection(edge, false) > 0) count++; continue; }
-		if (near(point, edge.end, epsilon)) { if (endpointDirection(edge, true) < 0) count++; continue; }
-		const q = equation(edge), dy = 2 * q.a * x + q.x;
-		if (Math.abs(dy) > 32 * Number.EPSILON * Math.hypot(dy, q.y)) count++;
-	}
-	return count;
+	return arcLineParameters(edge, { x: 0, y: 0 }, { x: 1, y: 0 }).filter(x => rayContactCrosses(edge, x, epsilon)).length;
+}
+function rayContactCrosses(edge: CircularEdge, x: number, epsilon: number): boolean {
+	const point = { x, y: 0 };
+	if (!(x > 0) || !onArc(edge, point, epsilon)) return false;
+	if (near(point, edge.start, epsilon)) return endpointDirection(edge, false) > 0;
+	if (near(point, edge.end, epsilon)) return endpointDirection(edge, true) < 0;
+	const q = equation(edge), dy = 2 * q.a * x + q.x;
+	return Math.abs(dy) > 32 * Number.EPSILON * Math.hypot(dy, q.y);
 }
 function lineArc(line: CircularEdge, arc: CircularEdge, epsilon: number): EdgeIntersections {
 	const direction = minus(line.end, line.start);

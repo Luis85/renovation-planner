@@ -4,10 +4,10 @@ import { createElementActions } from './elementActions';
 import { createRotationActions, type RotationRuntime } from './rotationActions';
 import type { ElementMoveDeps } from './ElementMove';
 import type { RotationGestureDeps } from './ElementRotation';
-import { createCurveTask } from '../curves/curveTask';
+import { createCurveTask, type CurveTaskRuntime } from '../curves/curveTask';
 
 /** Compose the existing per-leaf element/rotation actions and their shared pointer bindings. */
-export function createSpatialEditing(context: PlanEditorContext, runtime: Parameters<typeof createElementTask>[1] & Parameters<typeof createElementActions>[1] & Omit<RotationRuntime, 'elementActions'> & Parameters<typeof createCurveTask>[1]) {
+export function createSpatialEditing(context: PlanEditorContext, runtime: Parameters<typeof createElementTask>[1] & Parameters<typeof createElementActions>[1] & Omit<RotationRuntime, 'elementActions'> & CurveTaskRuntime) {
 	const elementTask = createElementTask(context, runtime);
 	const elementActions = createElementActions(context, runtime);
 	const rotationActions = createRotationActions(context, { ...runtime, elementActions });

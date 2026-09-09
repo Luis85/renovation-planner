@@ -24,6 +24,17 @@ import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialEle
 const mounted: { unmount(): void }[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
 const element: NamedSpatialElement = { id: 'element-object', kind: 'object', name: 'Desk', points: [{ x: 500, y: 500 }, { x: 2500, y: 500 }, { x: 2500, y: 1500 }, { x: 500, y: 1500 }] };
+
+it('refuses a frozen Room rotation after a peer changes only its curve metadata', async () => {
+	const rig = await setup(); rig.selection.select([rig.room.id]); await settle();
+	const original = expectDefined(rig.runtime.rotationActions.target.value, 'original target');
+	const points = expectDefined(rotationPoints(original, 90, expectDefined(rotationPivot(original), 'pivot')), 'rotation');
+	const service = expectDefined(rig.deps.commands.groups, 'geometry service'), baseline = expectOk(await service.read(rig.plan.id));
+	expectOk(await service.command({ planId: rig.plan.id, baseline, ledger: rig.runtime.structureTask.ledger, document: { ...baseline.document, objects: baseline.document.objects.map(object => object.id === rig.room.id ? { ...object, bulges: [0.25, 0, 0, 0] } : object) } }).execute());
+	await rig.runtime.refreshProjection(); const bytes = [...rig.stack.vault.entries];
+	await rig.runtime.rotationActions.move(original.id, points, original);
+	expect([...rig.stack.vault.entries]).toEqual(bytes); expect(rig.runtime.rotationActions.preview.value).toBeNull();
+});
 async function setup(source: NamedSpatialElement = element) {
 	const rig = await renovationEditor(); mounted.push(rig); rig.changePlan(); await settle();
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id));

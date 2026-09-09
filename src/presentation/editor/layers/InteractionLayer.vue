@@ -107,18 +107,18 @@ const hoverClosed = computed(() => {
 /**
  * Vertex handles belong to a single selection. Multiple selections use numbered outlines.
  */
-const selectedScreenPoints = computed(() => {
+const selectedGeometry = computed(() => {
 	const ids = selectedIds.value;
 	const id = ids.length === 1 ? ids.at(0) : undefined;
 	if (id === undefined) return null;
 	const zone = zones.value.get(id);
 	if (zone === undefined) return null; // e.g. deleted while selected, before refresh lands
-	return zone.points.map((point) => toScreen(point));
+	return candidates.value.get(id) ?? zone;
 });
+const selectedScreenPoints = computed(() => selectedGeometry.value?.points.map(point => toScreen(point)) ?? null);
 
 const selectedFlat = computed(() => {
-	const zone = selectedIds.value.length === 1 ? zones.value.get(selectedIds.value[0]) : undefined;
-	const geometry = zone && (runtime.curveTask.preview.value?.objects.find(item => item.id === zone.id) ?? zone);
+	const geometry = selectedGeometry.value;
 	return geometry ? polygonPolyline(geometry, 0.25 / viewportTransform(editorStore.viewport).scaleX).flatMap(point => { const at = toScreen(point); return [at.x, at.y]; }) : null;
 });
 

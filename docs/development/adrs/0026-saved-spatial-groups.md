@@ -28,3 +28,14 @@ Implementation and evidence are tracked in
 Foundation tests have passed; UI, curve compatibility and final release acceptance remain
 separate pending work. Schema7 is reserved for the user's curved boundaries and8 for
 Stair/Arrow elements, each based on its verified predecessor.
+
+Deleting an individual member prunes that root ID from its group and removes an empty
+group. Hosted openings remain implicit: deleting an opening does not ungroup its wall;
+deleting the wall removes its openings through the existing structure path. Zone deletion
+captures and restores group membership with Room boundary history in the existing
+compensated reference-deletion sequence. A changed affected group refuses restoration;
+unrelated groups retain peer changes. Structural commands restore their original group
+catalogue through the same version-guarded Undo/Redo path. Member order is preserved.
+This does not introduce bulk group deletion or a new transaction mechanism.
+[Implementation and verification](../../user-experience/renovation-planner-editor-specs/implementation/group-member-deletion.md)
+record the deletion and compensation coverage separately from group interaction UI.

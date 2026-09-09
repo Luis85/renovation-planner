@@ -19,3 +19,11 @@ Changed files: `styles/editor-structure.css`, `styles/editor-visual-tasks.css` a
 run was performed for this draft. It is committed only to preserve the user-requested intermediate
 and restart state, not as a verified fix. Verify the closed-loop checkbox, its keyboard focus and
 sticky-footer clearance at desktop and German constrained widths before acceptance.
+# Declared taskbar default (2026-09-09)
+
+The structural taskbar now declares `--rp-taskbar-clearance: 88px` on the selector
+that consumes it. This matches both the existing fallback and the initial measured
+clearance state; the per-element measured inline value continues to override it.
+The stylesheet-variable guard remains unchanged. Quiet verification passed all 151
+cases across cssVars, assembled styles and structureLifecycle, including measured
+taskbar clearance/reflow. This is not an additional browser/native capture claim.

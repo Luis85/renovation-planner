@@ -3,8 +3,8 @@
  * The three ENTRY PATHS a project's detail state offers (design slice 22, task 1) — screens P01
  * and P02, `interaction-concept.md` §6–§7.
  *
- * Its own file rather than more cases in `projectExperience.test.ts`, which is at 348 lines
- * against the 450 cap: the two cases there that touch this region assert that guidance is
+ * Its own file rather than more cases in `projectExperience.test.ts`, which is already well into
+ * its 450-line cap: the two cases there that touch this region assert that guidance is
  * OPTIONAL and that the core actions survive hiding it, which is a different question from what
  * the region draws and in which order.
  *
@@ -149,6 +149,24 @@ describe('the three entry paths', () => {
 	 */
 	it('disables "Choose a plan" when a failed plan read leaves no list to focus', async () => {
 		const { wrapper, context } = rig({}, Promise.resolve(failure));
+		await flushPromises();
+
+		expect(wrapper.text()).toContain('What would you like to do next?');
+		const choose = actions(wrapper).find((button) => button.text() === 'Choose a plan');
+		expect(choose?.element.disabled).toBe(true);
+		await choose?.trigger('click');
+		expect(context.openPlan).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The third way a plan ROW fails to appear, and the one the two branches above do not cover:
+	 * the read SUCCEEDED with every note unreadable, so there is no failure notice and the plan
+	 * empty state refuses on `unreadable > 0` before it reaches the length — `PlanList` renders
+	 * with zero rows. "Choose a plan" would have nothing to focus, which is the same dead button
+	 * the failed-read case above already refuses.
+	 */
+	it('disables "Choose a plan" when every plan note is unreadable and the list draws no rows', async () => {
+		const { wrapper, context } = rig({}, Promise.resolve(ok({ plans: [], unreadable: 2 })));
 		await flushPromises();
 
 		expect(wrapper.text()).toContain('What would you like to do next?');

@@ -7,7 +7,7 @@
  * this template until design slice 22 put three entry cards and the mobile `readOnly` branches
  * on it in one slice and fallow reported the template over its complexity budget — 28 cognitive
  * over 304 lines. The split is where the number came from rather than an ignore directive over
- * it; this file keeps the facts the region needs (`isNew`, `planListAbsent`) because they come
+ * it; this file keeps the facts the region needs (`isNew`, `planRowsAbsent`) because they come
  * out of the same plan read the plans region below draws from, and it keeps the `PlanList` ref,
  * because "Choose a plan" hands the caret to a list this component is the one that renders.
  */
@@ -79,7 +79,15 @@ const chooseFirstPlan = (): void => void planList.value?.focusFirst();
  */
 const isNew = computed(() => props.plans.length === 0 && props.unreadablePlans === 0 && (props.plansFailure ?? null) === null);
 
-const planListAbsent = computed(() => (props.plansFailure ?? null) !== null || planEmpty.value !== null);
+/**
+ * Whether no plan ROW will render — the fact "Choose a plan" needs, since it hands the caret to
+ * a row rather than to the list element around it. Three terms, each a different way the rows
+ * come out empty and none implying the others: a refused read draws its retry notice instead of
+ * the list, an empty state replaces the list, and an all-unreadable read draws the LIST with no
+ * rows in it — the plan empty state refuses on `unreadable > 0` before it looks at the length,
+ * so it is null and the list renders empty.
+ */
+const planRowsAbsent = computed(() => (props.plansFailure ?? null) !== null || planEmpty.value !== null || props.plans.length === 0);
 </script>
 
 <template>
@@ -115,7 +123,7 @@ const planListAbsent = computed(() => (props.plansFailure ?? null) !== null || p
 					:read-only="readOnly"
 					:read-only-reason-id="readOnlyReasonId"
 					:is-new="isNew"
-					:plan-list-absent="planListAbsent"
+					:plan-rows-absent="planRowsAbsent"
 					:last-plan="lastPlan"
 					@toggle-guidance="$emit('toggleGuidance')"
 					@open-note="$emit('openNote')"

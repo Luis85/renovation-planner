@@ -37,10 +37,11 @@ const props = defineProps<{
 	 */
 	isNew: boolean;
 	/**
-	 * Whether the detail state draws a notice or an empty state in place of the plan list — the
-	 * one fact "Choose a plan" needs, since it hands the caret to a list that would not be there.
+	 * Whether no plan ROW will render — the one fact "Choose a plan" needs, since it hands the
+	 * caret to a row rather than to the list element around it. Resolved by `ProjectDetail`,
+	 * which is where the plan read's three facts arrive.
 	 */
-	planListAbsent: boolean;
+	planRowsAbsent: boolean;
 	/**
 	 * The plan the stored continue context names, when it is one of this project's plans. `null`
 	 * is the ordinary case and the only thing this component does with it is choose between
@@ -99,11 +100,11 @@ const planEntry = computed<Entry>(() => {
 				? tr('view.project.entry-plan-choose')
 				: tr('view.project.entry-plan-open', { planName: last.name }),
 		// The only entry a read-only surface withholds (P12): the other two navigate and read.
-		// Also disabled on the active variant when no `PlanList` will render to focus — a failed
-		// or unreadable-empty read draws its own notice or empty state instead (`planListAbsent`,
-		// resolved by `ProjectDetail`), so "Choose a plan" would otherwise be a button with
-		// nothing for it to do.
-		disabled: props.readOnly === true || (!props.isNew && props.planListAbsent),
+		// Also disabled on the active variant when no plan ROW will render to focus — a failed
+		// read draws its own notice, an empty state replaces the list, and an all-unreadable read
+		// draws the list with no rows in it (`planRowsAbsent`, resolved by `ProjectDetail`), so
+		// "Choose a plan" would otherwise be a button with nothing for it to do.
+		disabled: props.readOnly === true || (!props.isNew && props.planRowsAbsent),
 		describedBy: props.readOnly === true ? props.readOnlyReasonId : undefined,
 		act: props.isNew
 			? () => emit('createPlan')

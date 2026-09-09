@@ -55,3 +55,17 @@ refusal. Exact sidecar/all-byte preservation and dangling-group checks remain.
 This test-only correction is unrun; no production validator or assertion threshold
 was changed. The target test file was identical to coordinator source `56a63e32`
 before the correction.
+
+## Remaining diagnostic boundaries
+
+After the coordinator reported all 168 combined boundary cases passing, six further
+source-only cases were selected from the diagnostic union. `priceReadBoundary.test.ts`
+checks that AssignAsset and RecalculateRequirement preserve existing quantities/costs
+and emit no write/event when the project-price read fails, then allow a clean retry.
+`geometryQuantityRefusals.test.ts` covers unavailable perimeter quantities for an
+unfinished Room, already-restored peer membership, straight-first/curved-second wall
+contacts and rejection of a bend beyond a semicircle. These remain unrun.
+
+The diagnostic union is used only to find missing behavior; it is not a passing
+coverage result. Higher-guard-only migration/optional-field fallbacks remain untouched.
+No existing production code, gate, timeout or threshold changes accompany these tests.

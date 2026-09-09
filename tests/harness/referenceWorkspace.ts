@@ -38,6 +38,14 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 		Object.assign(sources, evidenceGalleryFixtures());
 		for (const path of Object.keys(sources).filter(candidate => candidate.startsWith('gallery-'))) stack.vault.entries.set(path, '1600x1200 synthetic PNG fixture');
 	}
+	// Opt-in supplemental acceptance data. Existing journeys retain their original fixture catalogue.
+	if (new URLSearchParams(location.search).has('modal-placement-fixtures')) {
+		for (let index = 0; index < 256; index++) stack.vault.entries.set(`photo-modal-${String(index).padStart(3, '0')}.md`, '# Synthetic non-image search candidate');
+		for (let index = 0; index < 64; index++) {
+			const path = `photo-modal-${String(index).padStart(2, '0')}.png`;
+			sources[path] = sources['scan.png']; stack.vault.entries.set(path, 'Synthetic PNG alias for bounded image-search acceptance');
+		}
+	}
 	const previousResourcePath = stack.deps.vault.getResourcePath.bind(stack.deps.vault);
 	stack.deps.vault.getResourcePath = file => sources[file.path as keyof typeof sources] ?? previousResourcePath(file);
 	const services = referencePlanServices(stack.plans, geometry, stack.events, { fileExists: path => path in sources });

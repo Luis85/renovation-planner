@@ -1,0 +1,82 @@
+{
+  "checkedSource": "15e4b0d7d6a76f3681f5695dc0af938f5e418c85",
+  "equivalentPublishedAcceptance": "dc1bb3515dde752a14bd109e18b7d00a0430f623",
+  "command": "npm run check",
+  "environment": {
+    "VITEST_MAX_WORKERS": "1",
+    "node": "24.20.0",
+    "vitest": "4.1.11",
+    "platform": "Windows"
+  },
+  "exitCode": 0,
+  "passed": [
+    "build",
+    "lint",
+    "test:coverage",
+    "analyze"
+  ],
+  "tests": {
+    "filesPassed": 752,
+    "passed": 8717,
+    "skipped": 70,
+    "total": 8787
+  },
+  "coverage": {
+    "statements": {
+      "hit": 21632,
+      "total": 21812,
+      "percent": 99.17
+    },
+    "branches": {
+      "hit": 15787,
+      "total": 16103,
+      "percent": 98.03
+    },
+    "functions": {
+      "hit": 6138,
+      "total": 6190,
+      "percent": 99.15
+    },
+    "lines": {
+      "hit": 16234,
+      "total": 16307,
+      "percent": 99.55
+    }
+  },
+  "unchangedThresholds": {
+    "statements": 99,
+    "branches": 98,
+    "functions": 99,
+    "lines": 99
+  },
+  "comparedPaths": [
+    "src",
+    "styles",
+    "tests",
+    "scripts",
+    ".fallowrc.json",
+    ".github",
+    "package.json",
+    "package-lock.json",
+    "vite.config.ts",
+    "vite.harness.config.ts",
+    "vitest.config.ts",
+    "tsconfig.json",
+    "eslint.config.mjs",
+    ".oxlintrc.json",
+    "manifest.json",
+    "versions.json"
+  ],
+  "trees": {
+    "src": "ef32328ba7dfc113a6e80a3781311d6eeaae514d",
+    "styles": "0ae10d132b625db91dd92c9da4a731a4eb24b7e6",
+    "tests": "8d5fb21dff7c8ff86c55944f4cef4ac69f6aef34",
+    "scripts": "9e09c17cf56895d0876fb1f7815dfd0e2a29b503"
+  },
+  "logSha256": "b83b4c11c178f13c781274a89668bdad7b5cb35a61ae9d42d86b4961f6bcdf39",
+  "limitations": [
+    "No independent full-gate claim for intermediate PR heads.",
+    "Final nine journeys/eighteen visual comparisons and current-build Obsidian acceptance remain unperformed.",
+    "Prior failed runs and diagnostic coverage unions are not passing gate evidence."
+  ]
+}

@@ -1,5 +1,10 @@
 # Wiederaufnahme der Editor-Finalisierung
 
+## Maßgeblicher nächster Arbeitsstand — 2026-09-09
+
+Der [oberste Stack-Plan](remaining-plan.md) nennt die veröffentlichten Fach-PRs, den bestandenen vollständigen Check auf `15e4b0d7`, die noch offenen visuellen und nativen Abnahmen und die verbleibende Implementierungsreihenfolge. Ältere laufende oder fehlgeschlagene Checkpoints unten bleiben historische Nachweise und sind nicht der aktuelle Abschlussstatus.
+
+
 Aktueller Rekonstruktionsstand: [Acceptance-Delivery](delivery/acceptance.md). Der eingefrorene Stand `b10c3b24` bestand 730 Testdateien / 8.624 Tests, verfehlt aber noch die unveränderten Coverage-Grenzen. Die nachfolgenden datierten Prüfstände bleiben historische Belege. Finale Bild- und Host-Abnahme stehen weiterhin aus.
 
 ## Verbindlicher Fortsetzungsstand — 2026-09-09

@@ -1,5 +1,10 @@
 # Editor implementation status — 2026-09-07
 
+## Maßgeblicher nächster Arbeitsstand — 2026-09-09
+
+Der [oberste Stack-Plan](remaining-plan.md) nennt die veröffentlichten Fach-PRs, den bestandenen vollständigen Check auf `15e4b0d7`, die noch offenen visuellen und nativen Abnahmen und die verbleibende Implementierungsreihenfolge. Ältere laufende oder fehlgeschlagene Checkpoints unten bleiben historische Nachweise und sind nicht der aktuelle Abschlussstatus.
+
+
 Current reconstruction: [acceptance delivery](delivery/acceptance.md). Frozen `b10c3b24` passes all 730 files / 8,624 tests but remains below the unchanged coverage gate. Later coverage additions are separate; final image and native acceptance remain pending. Dated evidence below is retained historically.
 
 ## Active continuation — 2026-09-08

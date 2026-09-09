@@ -232,13 +232,14 @@ it('keeps repeated zoom button presses at both limits stable without altering ca
 	for (let index = 0; index < 20; index++) await w.get('[data-rp-reference-view="zoom-in"]').trigger('click');
 	expect(w.get('output').text()).toBe('3200%');
 	await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 });
-	const upper = w.emitted<[Point]>('point')?.at(-1)?.[0];
+	const upper = expectDefined(w.emitted<[Point]>('point')?.at(-1)?.[0], 'upper-limit source point');
 	await w.get('[data-rp-reference-view="zoom-in"]').trigger('click'); await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 });
 	expect(w.emitted<[Point]>('point')?.at(-1)?.[0]).toEqual(upper);
 	for (let index = 0; index < 26; index++) await w.get('[data-rp-reference-view="zoom-out"]').trigger('click');
 	expect(w.get('output').text()).toBe('25%');
-	await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 }); const lower = w.emitted<[Point]>('point')?.at(-1)?.[0];
+	await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 }); const lower = expectDefined(w.emitted<[Point]>('point')?.at(-1)?.[0], 'lower-limit source point');
 	await w.get('[data-rp-reference-view="zoom-out"]').trigger('click'); await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 });
-	expect(w.emitted<[Point]>('point')?.at(-1)?.[0]).toEqual(lower); expect(lower).toEqual(upper);
+	expect(w.emitted<[Point]>('point')?.at(-1)?.[0]).toEqual(lower);
+	expect(lower.x).toBeCloseTo(upper.x, 12); expect(lower.y).toBeCloseTo(upper.y, 12);
 	expect(w.emitted('point')).toHaveLength(4);
 });

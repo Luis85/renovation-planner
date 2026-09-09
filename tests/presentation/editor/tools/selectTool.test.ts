@@ -583,4 +583,14 @@ describe('SelectTool.hasDraft', () => {
 		tool.abandonGesture();
 		expect(tool.hasDraft()).toBe(false);
 	});
+
+	it('ignores pointer movement before the tool has been activated at all', () => {
+		const h = harness();
+		const tool = build(h, [{ id: 'zone-a', points: squarePoints(0, 0) }]);
+
+		// No `activate`, so the tool holds no context to hover against.
+		tool.pointerMove(eventAt(10, 10));
+		expect(h.context.renderState.hoveredObjectId).toBeNull();
+		expect(tool.hasDraft()).toBe(false);
+	});
 });

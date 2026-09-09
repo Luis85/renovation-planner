@@ -105,4 +105,32 @@ describe('resolveSelectionTarget', () => {
 			}),
 		).toEqual({ kind: 'body', id: 'below' });
 	});
+
+	it('measures a collapsed edge from its own endpoint instead of dividing by its length', () => {
+		// Two identical consecutive points give the projection no length to divide by. The
+		// distance is still the one from that endpoint, so the record stays selectable.
+		const collapsed = { id: 'marker', kind: 'path' as const, points: [{ x: 0, y: 0 }, { x: 0, y: 0 }] };
+		const at = (x: number) =>
+			resolveSelectionTarget({
+				candidates: [collapsed],
+				selectedIds: [],
+				handleToleranceWorld: 50,
+				worldPoint: { x, y: 0 },
+			});
+		expect(at(10)).toEqual({ kind: 'body', id: 'marker' });
+		expect(at(400)).toBeNull();
+	});
+
+	it('offers no multi-selection badge at all when no badge tolerance is supplied', () => {
+		const input = {
+			candidates: [below, above],
+			selectedIds: ['below', 'above'],
+			handleToleranceWorld: 50,
+			worldPoint: { x: 100, y: 100 },
+		};
+		// With a tolerance the press lands on the badge anchored at the outline's first point.
+		expect(resolveSelectionTarget({ ...input, badgeToleranceWorld: 200 })).toEqual({ kind: 'body', id: 'below' });
+		// Without one it is no badge rather than an unbounded one, so the body answers instead.
+		expect(resolveSelectionTarget(input)).toEqual({ kind: 'body', id: 'below' });
+	});
 });

@@ -1,0 +1,284 @@
+{
+  "recordedAt": "2026-09-09T10:34:47.380Z",
+  "status": "partial-native-acceptance; remaining manual checks taken over by user",
+  "sourceCommit": "7616dd9d8d98e55c740a904f651085967a87ba76",
+  "evidenceParentCommit": "c748be74726a816d9b39d971b45ad656254ddf58",
+  "vault": "C:\\Users\\lum\\.codex\\tmp\\renovation-planner-finalization-vault",
+  "fixture": {
+    "vault": "C:\\Users\\lum\\.codex\\tmp\\renovation-planner-finalization-vault",
+    "folder": "C:\\Users\\lum\\.codex\\tmp\\renovation-planner-finalization-vault\\Renovation\\Reference Scale Acceptance 2026-09-09",
+    "projectId": "project-01M22TJPDE3FPQ8VVTKSAB3BQR",
+    "planId": "plan-01M22TJPDH8XDN4R4AV5Z3BHG2",
+    "image": "C:\\Users\\lum\\.codex\\tmp\\renovation-planner-finalization-vault\\References\\reference-scale-1640x1240.png"
+  },
+  "hostVersion": "Obsidian 1.13.7",
+  "observedWindowSize": {
+    "width": 1024,
+    "height": 800
+  },
+  "backup": {
+    "path": "C:/Users/lum/.codex/tmp/reference-scale-native-backup-20260909",
+    "fileCount": 17
+  },
+  "installedBuildHashesObservedDuringRun": {
+    "main": "f1d67385638de131d03d2414eb8a838f5ce9de0226e5733f28412697cd1e778d",
+    "styles": "468e4217f3a73c16f05676bc41e0babe5cdb11704a09ca7010544308b38d7e16",
+    "manifest": "68e014814c9cf740ec8484b62b6e8740db3ee10343a4676ebde42b2fcd37d5f3"
+  },
+  "observations": {
+    "pngLoad": true,
+    "darkAndLightHostThemes": true,
+    "pointerPoints": {
+      "A": {
+        "x": 401.08,
+        "y": 402.03
+      },
+      "B": {
+        "x": 1099.28,
+        "y": 402.03
+      }
+    },
+    "zoomPercentSequence": [
+      100,
+      125,
+      161,
+      100
+    ],
+    "pointerPan": true,
+    "fitRestoredView": true,
+    "sourceCoordinatesUnchangedAfterNavigation": true,
+    "emptyCancel": {
+      "dataAndSourceFilesByteIdentical": 10
+    },
+    "applyAndBackNoWrite": true,
+    "enteredImagePoints": {
+      "A": {
+        "x": 400,
+        "y": 400
+      },
+      "B": {
+        "x": 1100,
+        "y": 400
+      }
+    },
+    "enteredMetres": "3,5",
+    "reviewMillimetresPerPixel": 5,
+    "savedCalibration": {
+      "pointA": {
+        "x": 2000,
+        "y": 2000
+      },
+      "pointB": {
+        "x": 5500,
+        "y": 2000
+      },
+      "knownDistance": 3500,
+      "pixelsPerWorldUnit": 0.2
+    },
+    "preexistingDataAndSourceFilesPreserved": [
+      {
+        "path": "References/editor-background-pdf-test.pdf",
+        "sha256": "3269944bd4a05c368d2026f7b204330e344bffedb148b96ce2c67a62874be229"
+      },
+      {
+        "path": "References/editor-background-png-test.png",
+        "sha256": "6887d64579fd83dac04b006fa0405d23c2e4c8b29cfbd3245ac61567d5c3b18d"
+      },
+      {
+        "path": "Renovation/Codex Finalization Synthetic 2026-09-07/Codex Finalization Synthetic 2026-09-07.md",
+        "sha256": "4aa17e9004cc0ed20db560722f16e8d161070bcb9646a2ec63eda36ff1206776"
+      },
+      {
+        "path": "Renovation/Codex Finalization Synthetic 2026-09-07/Geometry/plan-01M1XSVJ5CECKGQEVW6AFRZYXX.rpgeo",
+        "sha256": "ba09f1c3311b42e624b064a88fca0e365c8bb18821a6de4b27142e70c6333a99"
+      },
+      {
+        "path": "Renovation/Codex Finalization Synthetic 2026-09-07/Plans/Synthetic Ground Floor.md",
+        "sha256": "489e184a5b3c3ab16e2be73959902c71784e32015e61acbb71a72d310e139e28"
+      },
+      {
+        "path": "Renovation/Codex Finalization Synthetic 2026-09-07/Zones/Room 1.md",
+        "sha256": "4d95734000b4bea58123d6a2a046878c9274fc829a1edba6bf32b76986049dd9"
+      }
+    ],
+    "changedByFinish": [
+      "Renovation/Reference Scale Acceptance 2026-09-09/Geometry/plan-01M22TJPDH8XDN4R4AV5Z3BHG2.rpgeo",
+      "Renovation/Reference Scale Acceptance 2026-09-09/Plans/Reference Scale Acceptance.md"
+    ]
+  },
+  "manualHandoff": {
+    "owner": "user",
+    "trigger": "Computer Use was stopped with physical Escape; user subsequently took over the remaining manual checks",
+    "remaining": [
+      "Reopen the saved native reference and verify image-space A/B and 3.5 m",
+      "Change a saved-reference draft to 9 m, review and cancel; compare saved bytes",
+      "Inspect the native narrow German view and navigation"
+    ],
+    "lastObservedHostState": {
+      "theme": "Light",
+      "selectedLanguage": "Deutsch",
+      "languageRelaunchPending": true,
+      "originalTheme": "Adapt to system",
+      "originalLanguage": "English"
+    },
+    "noFurtherNativeActionsAfterStop": true
+  },
+  "captures": {
+    "firstObservedAt": "2026-09-09T10:15:41.956Z",
+    "lastSavedCaptureAt": "2026-09-09T10:28:45.014Z",
+    "viewedScreenshots": 17,
+    "setupOrTransientCaptures": [
+      "01-build-reloaded",
+      "02-isolated-reference-plan",
+      "03-native-dark-prepare"
+    ],
+    "note": "Snapshots include initialization/loading transitions; these are not separate acceptance passes. No narrow German or saved-reference reopen/cancel pass is claimed."
+  },
+  "verificationScope": "Comparisons use recorded snapshots from the interrupted native run, not a new live-vault inspection.",
+  "files": [
+    {
+      "path": "01-build-reloaded.json",
+      "sha256": "b941722736e82812bcc70ce32f6df68922819769735a3820171eefbe832dc864"
+    },
+    {
+      "path": "01-build-reloaded.png",
+      "sha256": "84646a905728e2d3ecb87ffb4f1c74e368e9919421ae1828cae43ccb552f43d2"
+    },
+    {
+      "path": "02-isolated-reference-plan.json",
+      "sha256": "5ec23b9752c59dd17fc9780cd0df8cd21bca55a7dd18c10c357c2c1e05bc44cd"
+    },
+    {
+      "path": "02-isolated-reference-plan.png",
+      "sha256": "001365749a0755143d3d1840eccd0217d5dc1efbb275c633416399724ecd5701"
+    },
+    {
+      "path": "03-native-dark-prepare.json",
+      "sha256": "4d6272dbe081fb89ce2cde5647f9c53053a64c87d209bd1a06aae4074f3f7078"
+    },
+    {
+      "path": "03-native-dark-prepare.png",
+      "sha256": "0f91129200496bcaf39dbf300fbda63bd35fcb2dc229b8b099979166e0b7abe8"
+    },
+    {
+      "path": "04-native-dark-prepare-ready.json",
+      "sha256": "a1d1c869feddd89160dfd29b01eba95aee8f43d47c1a091cd902fda785052417"
+    },
+    {
+      "path": "04-native-dark-prepare-ready.png",
+      "sha256": "489ae01123f0aad20a4254fef56a3d73344630f155d31581250658d9516ab289"
+    },
+    {
+      "path": "05-native-dark-points.json",
+      "sha256": "4163720292a574f45085bd19a814209358c4b8afe2fd2b35ed7ee10fc14447d7"
+    },
+    {
+      "path": "05-native-dark-points.png",
+      "sha256": "b6313422709bb6c4085ccf996d39033d81e1b9fdaa8864944151ec67fc69cce0"
+    },
+    {
+      "path": "06-native-picked-coordinates.json",
+      "sha256": "b27f5c7e3036f03491f2e27868f20957320f253d25d4fb1d025b180dfbcf6018"
+    },
+    {
+      "path": "06-native-picked-coordinates.png",
+      "sha256": "cb30114ad18f94cac5999333cd3222701c4c5a95ff156c1bbb948de1bfed596e"
+    },
+    {
+      "path": "07-native-zoom-125.json",
+      "sha256": "bae24d5ab3cf31e67c0d1e5e96b7e30e874e767af363e37d1a1208d2e3f5fd43"
+    },
+    {
+      "path": "07-native-zoom-125.png",
+      "sha256": "abb2a35fa49e40a3cd0383f2e48db82f2bd35c5f17b54ddcf6933604b8a451c2"
+    },
+    {
+      "path": "08-native-pan.json",
+      "sha256": "e95c638c9db4896550d44d54c9f3dbc268374414b85b8958876d5798519f3c0d"
+    },
+    {
+      "path": "08-native-pan.png",
+      "sha256": "effaf13aa19537f2f00e9b492418340af47d7d1dc309510e28da9163cefbb227"
+    },
+    {
+      "path": "09-native-wheel-zoom.json",
+      "sha256": "1ba9516a56e2406d4b01a67e16a535db4612476c9c8b81ef2a3d9efc6df24d2c"
+    },
+    {
+      "path": "09-native-wheel-zoom.png",
+      "sha256": "f7009268a9288d37d1cd8102a8041eca02cf0deab29b129a3c37fe31ffe5e744"
+    },
+    {
+      "path": "10-native-fit-restored.json",
+      "sha256": "cb9cdfca18a7ce33017dba72bbda60e7da45087f08de4c71772b738826aabd53"
+    },
+    {
+      "path": "10-native-fit-restored.png",
+      "sha256": "588da6c511f66e7ef1246654e3497d569e605d94257eef944f3d15bb28833420"
+    },
+    {
+      "path": "11-native-coordinates-after-navigation.json",
+      "sha256": "7f826d669b7c38c3386cdbfc494eef6f27ab4adf9b2440a98f99ae4ba55ba007"
+    },
+    {
+      "path": "11-native-coordinates-after-navigation.png",
+      "sha256": "4fc66a6f05721065791acc4e46afa42ef0eb281f22c47d3f26fb97763a9f562c"
+    },
+    {
+      "path": "12-native-cancel-empty.json",
+      "sha256": "16fc7bf55a227c9554f1f0e155064037dfad14738bc4878efa8593cd343944ae"
+    },
+    {
+      "path": "12-native-cancel-empty.png",
+      "sha256": "10e43f6fdeb059a62ce4ddfc8df9ab3bdfd32918e4ace936ede62c5a5e62b732"
+    },
+    {
+      "path": "13-host-light-selected.json",
+      "sha256": "8db4c826dfc6507322dd9edff3f8228990fd9f9ab4c5f4c1e836a27040d02b89"
+    },
+    {
+      "path": "13-host-light-selected.png",
+      "sha256": "4297043c31834b3fad7d4eb39d040d115eba0674e0bfe8f27650cd928c11553e"
+    },
+    {
+      "path": "14-native-light-scale.json",
+      "sha256": "ad6bd770e66ede3efa3e32778a6afb9103544e3d4ca5eaf49ebc91a9c0aac621"
+    },
+    {
+      "path": "14-native-light-scale.png",
+      "sha256": "1e94766ad723033240d2a9ab898af3f75f7c33de85838eb772532e23f2c1cdca"
+    },
+    {
+      "path": "15-native-known-distance.json",
+      "sha256": "c97e161826339753ecd432b0b6e6cf1d53acff0de02d9fa2b9ce3809deeb5d49"
+    },
+    {
+      "path": "15-native-known-distance.png",
+      "sha256": "9a0ccec905cbba05027d9bd11c49a393740c4a0f848d67f0d2179d0e51b61c5f"
+    },
+    {
+      "path": "16-native-light-review.json",
+      "sha256": "e2f317d17f6d8e7b90888a01ffaa92c048d4e2859f41fbed50f3ff61dc06291b"
+    },
+    {
+      "path": "16-native-light-review.png",
+      "sha256": "ab063af7a2b96ce072aeae236b762cb6a233671412f4d0a93f9825cf982649d4"
+    },
+    {
+      "path": "17-native-saved-reference.json",
+      "sha256": "f4a4700cd86bc0734bde5100ca20e78ba4a3cec1e25c19d4e45cffcf0ff2e80e"
+    },
+    {
+      "path": "17-native-saved-reference.png",
+      "sha256": "088d5ec0d9264c916f1641cef9bd53359eae313729fa94596160e89707ba8116"
+    },
+    {
+      "path": "committed-files.json",
+      "sha256": "1b108641417ef7d1d7e6e7027fe1aa16d0c895d68cc1c7a4d73bc0bd05b15d1b"
+    },
+    {
+      "path": "empty-cancel-files.json",
+      "sha256": "4e4fa79c97d27a4e943f514c4455966f97b0b16a42acb3532b549b2b49e6b8a2"
+    }
+  ]
+}

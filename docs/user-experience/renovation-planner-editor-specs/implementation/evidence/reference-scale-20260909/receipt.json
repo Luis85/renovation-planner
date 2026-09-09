@@ -1,0 +1,186 @@
+{
+  "date": "2026-09-09T09:57:49.896Z",
+  "concernPr": 109,
+  "basePr": 108,
+  "sourceCommit": "7616dd9d8d98e55c740a904f651085967a87ba76",
+  "checkSource": "Same production, scripts, tests and config content as sourceCommit; docs/evidence only changed during the full run",
+  "trees": {
+    "src": "29e4a283c76a775f3d02bae1c919c1fbf381e7a4",
+    "styles": "471c0d647ed98b5871b364657117e44f19951348",
+    "tests": "6f7cf713dc804e92bd2b46a6c0845d1be29260f7",
+    "scripts": "219694c6669861d0b740ea38a7ce216899138889"
+  },
+  "environment": {
+    "node": "v24.20.0",
+    "platform": "win32",
+    "playwright": "1.62.1",
+    "chromium": "151.0.7922.34",
+    "canvasRenderer": "--disable-accelerated-2d-canvas",
+    "vitestMaxWorkers": 1
+  },
+  "build": {
+    "dist/main.js": "f1d67385638de131d03d2414eb8a838f5ce9de0226e5733f28412697cd1e778d",
+    "dist/styles.css": "468e4217f3a73c16f05676bc41e0babe5cdb11704a09ca7010544308b38d7e16",
+    "manifest.json": "68e014814c9cf740ec8484b62b6e8740db3ee10343a4676ebde42b2fcd37d5f3",
+    "package-lock.json": "68a3536b843dadd44f64f2de95ed666ba7d33244d59fa254573b5028b265efb5"
+  },
+  "captures": {
+    "legacy": {
+      "source": "6c6699ea9a9fda7e9cfe1a35c5f3b010b4607e3f",
+      "images": 4,
+      "started": 1788947666372,
+      "completed": 1788947693785
+    },
+    "current": {
+      "source": "7616dd9d8d98e55c740a904f651085967a87ba76",
+      "images": 16,
+      "started": 1788947727713,
+      "completed": 1788947761235
+    }
+  },
+  "visualInspection": {
+    "currentImagesViewed": 16,
+    "legacyImagesViewed": 4,
+    "reference": "M06-reference-plan-setup.png",
+    "referenceSha256": "a04a0bf81f1d49a06a6eefc7725c338d55fb9aadad9b5c4ba6c1d1818d271aa4"
+  },
+  "checks": {
+    "build": "passed",
+    "lint": "passed",
+    "referenceTestFiles": 4,
+    "referenceTestFilesPassed": 4,
+    "totalTestFiles": 698,
+    "passedTests": 8391,
+    "failedTests": 8,
+    "skippedTests": 70,
+    "branchCoverage": 97.87,
+    "requiredBranchCoverage": 98,
+    "fullCheck": "failed: eight existing out-of-scope failures and branch coverage",
+    "fallow": "failed: four dead-code/type issues and twelve complexity findings in unchanged out-of-scope source",
+    "browserScenariosPassed": 4,
+    "legacyScenariosPassed": 4,
+    "designDetectorFindings": 0
+  },
+  "native": {
+    "status": "not-run",
+    "reason": "Requested C:/Users/lum.codex/tmp/renovation-planner-finalization-vault is absent; plan names existing C:/Users/lum/.codex/tmp/renovation-planner-finalization-vault. Clarification pending; no vault changes."
+  },
+  "files": [
+    {
+      "path": "legacy/report.json",
+      "sha256": "1adfdbc50051f8889066093961958a72a54de1f07fcb43a487d4a2584ea776a4"
+    },
+    {
+      "path": "legacy/custom-accent-reference-legacy-scale.png",
+      "sha256": "c2664b1b3c5b217f6962cc93f51a4c694a46758b020137701a471d7350c53698"
+    },
+    {
+      "path": "legacy/dark-reference-legacy-scale.png",
+      "sha256": "6c83bed0b75b7392e27a7cc8841478dc97293df0600dee3bbb59cf9b4f54997f"
+    },
+    {
+      "path": "legacy/german-constrained-reference-legacy-scale.png",
+      "sha256": "c644cce7f77d61bbdf7c561df8b7d665309e3f758a53001265d949788bcdce9f"
+    },
+    {
+      "path": "legacy/light-reference-legacy-scale.png",
+      "sha256": "34ac484d9a114e7a5bc45e74916b4e6dc837a2eb48f7c3e1b3a4c22f678feb9d"
+    },
+    {
+      "path": "legacy/capture-files.json",
+      "sha256": "cab646f02e63d627e284f31c62a49ece8c953df4fab156fd43a12c430970c78b"
+    },
+    {
+      "path": "reproduction/custom-accent-before.png",
+      "sha256": "b40cd553091cbbf15d9e794acf851940c3e75fe9eaa838d3b61bd5bbb5103701"
+    },
+    {
+      "path": "check.log",
+      "sha256": "245f840249301f113e9c6831248079f2a14cfec363021c640489a52300045988"
+    },
+    {
+      "path": "analyze.log",
+      "sha256": "e6db427d3cf08b1e90ff12c30a98ab1ed09d9293d3ec0f52b0ebda7784c97811"
+    },
+    {
+      "path": "design-detect.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "reference-test-results.json",
+      "sha256": "363f4c82402ceec292682fc97b9428e2864b8bd7eb33d94e681d5bcc59b37e62"
+    },
+    {
+      "path": "current/light-reference-large-scale.png",
+      "sha256": "9bf029ea531d265756ad4fffb0c5b9e6407ce0e8e3f7f2442de5df5b8c27a167"
+    },
+    {
+      "path": "current/light-reference-pan-zoom.png",
+      "sha256": "0b87959a3c1b1cc5ad480ebc591ee741d2e7c7d6eb3e591bd5ea3d2c734d6aeb"
+    },
+    {
+      "path": "current/light-reference-known-length.png",
+      "sha256": "7afc37140a2f2f039a241b72b9b554d89b2491454e0be42d939b1fbfa704c0de"
+    },
+    {
+      "path": "current/light-reference-scale-review.png",
+      "sha256": "d2fa34c43553fec9003593acb614a470ddff285d6b403d6eb47ca14d22a7ce93"
+    },
+    {
+      "path": "current/dark-reference-large-scale.png",
+      "sha256": "30959065344f2ff143fff7f0a7f801722e80cf629e346587fe6b6f0ff7e72393"
+    },
+    {
+      "path": "current/dark-reference-pan-zoom.png",
+      "sha256": "4ff6781525018fd0fc5198f4d19b934710b9bb41db0eaa8c269d82c99c38e515"
+    },
+    {
+      "path": "current/dark-reference-known-length.png",
+      "sha256": "b66becbb3d55283488d39d08817c86e528259983598cf24a33661ce4199c1b5b"
+    },
+    {
+      "path": "current/dark-reference-scale-review.png",
+      "sha256": "a2f769d756123824587d051eec9cccc85c2f39f94142a4ba85b7dd323c936616"
+    },
+    {
+      "path": "current/custom-accent-reference-large-scale.png",
+      "sha256": "f8a4c9fc4737c158c8e87586069d09c0b851fde4dcb8066c69fa4a80a8b9087f"
+    },
+    {
+      "path": "current/custom-accent-reference-pan-zoom.png",
+      "sha256": "621ac7d9860f3b90b330c2324d50200ea50867d4c8c4a2a38f139af9a64ca8e5"
+    },
+    {
+      "path": "current/custom-accent-reference-known-length.png",
+      "sha256": "13a6d4312e7f456bcc36efa3484ecadb32654f454326e84fc396b24074904a97"
+    },
+    {
+      "path": "current/custom-accent-reference-scale-review.png",
+      "sha256": "a58988a7e71971f20783a6e0c9e2999e0330cc9b1617be4277a7760ce5add663"
+    },
+    {
+      "path": "current/german-constrained-reference-large-scale.png",
+      "sha256": "bdb82a57bac58c287cd1de9d559c33dc337b24465079ec33dae0f49712c1d59b"
+    },
+    {
+      "path": "current/german-constrained-reference-pan-zoom.png",
+      "sha256": "b9c0f847df513194ae64997504c712e60a87806d7d4a4b8c3b2701ae152d8c03"
+    },
+    {
+      "path": "current/german-constrained-reference-known-length.png",
+      "sha256": "8f0370cd6eee4aa963e1d084ff4a9ffc8bbada9ca7c66812434c72bb4c4c8b28"
+    },
+    {
+      "path": "current/german-constrained-reference-scale-review.png",
+      "sha256": "1ebb381e3662d1c5d40b48405fa3ed57be974458b11bf40dc2c24e5723284ae6"
+    },
+    {
+      "path": "current/report.json",
+      "sha256": "7eeae7ac6f03a6a029054004e1641f36ec24cf2308d3c0a3bfc6117af15160e4"
+    },
+    {
+      "path": "current/capture-files.json",
+      "sha256": "94469a9efb78656a94dc4867669423eb40e17dfd9355454ede01cfa1cc5a19bb"
+    }
+  ]
+}

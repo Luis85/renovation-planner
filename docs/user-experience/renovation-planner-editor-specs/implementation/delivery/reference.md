@@ -1,5 +1,7 @@
 # Reference viewport delivery reconstruction
 
+Current targeted follow-up (2026-09-09): [reference-scale acceptance](../reference-scale-acceptance.md) and [concern remaining plan](../remaining-plan.md). The reconstruction record below is historical. Browser scaling evidence and a reference-only container correction are now available; native partial acceptance is documented and the user has taken over the remaining manual checks. No whole-stack acceptance is implied.
+
 Status: **validation pending**. Branch `codex/editor-deliver-reference` from Photo Add delivery `6c6699ea9a9fda7e9cfe1a35c5f3b010b4607e3f`. Source/test tip `ac02ab6f01650f34d7665105032f3482f4e09432`; this mapping is a later documentation-only commit.
 
 | Original commit | Reconstructed commit | Scope |

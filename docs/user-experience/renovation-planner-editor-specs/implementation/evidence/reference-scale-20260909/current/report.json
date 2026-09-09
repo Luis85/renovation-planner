@@ -1,0 +1,254 @@
+[
+  {
+    "scenario": "light",
+    "browser": "151.0.7922.34",
+    "reference": {
+      "canvas": {
+        "x": 66,
+        "y": 182.296875,
+        "width": 949,
+        "height": 522
+      },
+      "intrinsic": {
+        "width": 949,
+        "height": 522
+      },
+      "visible": {
+        "width": 949,
+        "height": 522
+      },
+      "painted": {
+        "width": 663,
+        "height": 502
+      },
+      "source": {
+        "width": 1640,
+        "height": 1240
+      },
+      "paintedAreaRatio": 6.2912231707317074,
+      "legacyPainted": {
+        "width": 304.569375,
+        "height": 231.54829545454547
+      },
+      "actualPaintedAreaRatio": 4.71942865557485,
+      "sourceCoordinates": {
+        "ax": "490.24",
+        "ay": "495.76",
+        "bx": "1147.29",
+        "by": "495.76"
+      },
+      "pointerToleranceInSourcePixels": 4.940239043824701,
+      "zoomAndPanChangedPaint": true,
+      "fitRestoredPaint": true,
+      "navigationAndCancelNoWrite": true,
+      "calibration": {
+        "pointA": {
+          "x": 2000,
+          "y": 2000
+        },
+        "pointB": {
+          "x": 5500,
+          "y": 2000
+        },
+        "knownDistance": 3500,
+        "pixelsPerWorldUnit": 0.2
+      },
+      "expectedPixelsPerMillimetre": 0.2,
+      "committedPath": "Renovation/Kitchen renovation/Geometry/harness-plan.rpgeo",
+      "decimalCommaAndReopen": true,
+      "savedReferenceCancelNoWrite": true
+    },
+    "scope": "Reference scaling only; native-host verification is separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "151.0.7922.34",
+    "reference": {
+      "canvas": {
+        "x": 66,
+        "y": 182.296875,
+        "width": 949,
+        "height": 522
+      },
+      "intrinsic": {
+        "width": 949,
+        "height": 522
+      },
+      "visible": {
+        "width": 949,
+        "height": 522
+      },
+      "painted": {
+        "width": 663,
+        "height": 502
+      },
+      "source": {
+        "width": 1640,
+        "height": 1240
+      },
+      "paintedAreaRatio": 6.2912231707317074,
+      "legacyPainted": {
+        "width": 304.569375,
+        "height": 231.54829545454547
+      },
+      "actualPaintedAreaRatio": 4.71942865557485,
+      "sourceCoordinates": {
+        "ax": "490.24",
+        "ay": "495.76",
+        "bx": "1147.29",
+        "by": "495.76"
+      },
+      "pointerToleranceInSourcePixels": 4.940239043824701,
+      "zoomAndPanChangedPaint": true,
+      "fitRestoredPaint": true,
+      "navigationAndCancelNoWrite": true,
+      "calibration": {
+        "pointA": {
+          "x": 2000,
+          "y": 2000
+        },
+        "pointB": {
+          "x": 5500,
+          "y": 2000
+        },
+        "knownDistance": 3500,
+        "pixelsPerWorldUnit": 0.2
+      },
+      "expectedPixelsPerMillimetre": 0.2,
+      "committedPath": "Renovation/Kitchen renovation/Geometry/harness-plan.rpgeo",
+      "decimalCommaAndReopen": true,
+      "savedReferenceCancelNoWrite": true
+    },
+    "scope": "Reference scaling only; native-host verification is separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "151.0.7922.34",
+    "reference": {
+      "canvas": {
+        "x": 34,
+        "y": 162,
+        "width": 932,
+        "height": 522
+      },
+      "intrinsic": {
+        "width": 932,
+        "height": 522
+      },
+      "visible": {
+        "width": 932,
+        "height": 522
+      },
+      "painted": {
+        "width": 664,
+        "height": 502
+      },
+      "source": {
+        "width": 1640,
+        "height": 1240
+      },
+      "paintedAreaRatio": 6.300712195121951,
+      "legacyPainted": {
+        "width": 304.569375,
+        "height": 231.54829545454547
+      },
+      "actualPaintedAreaRatio": 4.726546949173002,
+      "sourceCoordinates": {
+        "ax": "491.47",
+        "ay": "494.02",
+        "bx": "1146.06",
+        "by": "494.02"
+      },
+      "pointerToleranceInSourcePixels": 4.940239043824701,
+      "zoomAndPanChangedPaint": true,
+      "fitRestoredPaint": true,
+      "navigationAndCancelNoWrite": true,
+      "calibration": {
+        "pointA": {
+          "x": 2000,
+          "y": 2000
+        },
+        "pointB": {
+          "x": 5500,
+          "y": 2000
+        },
+        "knownDistance": 3500,
+        "pixelsPerWorldUnit": 0.2
+      },
+      "expectedPixelsPerMillimetre": 0.2,
+      "committedPath": "Renovation/Kitchen renovation/Geometry/harness-plan.rpgeo",
+      "decimalCommaAndReopen": true,
+      "savedReferenceCancelNoWrite": true
+    },
+    "scope": "Reference scaling only; native-host verification is separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "151.0.7922.34",
+    "reference": {
+      "canvas": {
+        "x": 34,
+        "y": 198,
+        "width": 392,
+        "height": 522
+      },
+      "intrinsic": {
+        "width": 392,
+        "height": 522
+      },
+      "visible": {
+        "width": 392,
+        "height": 522
+      },
+      "painted": {
+        "width": 372,
+        "height": 282
+      },
+      "source": {
+        "width": 1640,
+        "height": 1240
+      },
+      "paintedAreaRatio": 1.982941463414634,
+      "legacyPainted": {
+        "width": 260.04,
+        "height": 197.8125
+      },
+      "actualPaintedAreaRatio": 2.039380015178124,
+      "sourceCoordinates": {
+        "ax": "489.35",
+        "ay": "492.15",
+        "bx": "1146.24",
+        "by": "492.15"
+      },
+      "pointerToleranceInSourcePixels": 8.817204301075268,
+      "zoomAndPanChangedPaint": true,
+      "fitRestoredPaint": true,
+      "navigationAndCancelNoWrite": true,
+      "calibration": {
+        "pointA": {
+          "x": 2000,
+          "y": 2000
+        },
+        "pointB": {
+          "x": 5500,
+          "y": 2000
+        },
+        "knownDistance": 3500,
+        "pixelsPerWorldUnit": 0.2
+      },
+      "expectedPixelsPerMillimetre": 0.2,
+      "committedPath": "Renovation/Kitchen renovation/Geometry/harness-plan.rpgeo",
+      "decimalCommaAndReopen": true,
+      "savedReferenceCancelNoWrite": true
+    },
+    "scope": "Reference scaling only; native-host verification is separate",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

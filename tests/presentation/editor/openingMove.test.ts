@@ -2,7 +2,10 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { structureEditor } from '../../helpers/structureEditor';
 import { settle, settleUntil } from '../../helpers/editor';
-import { expectOk } from '../../helpers/domain';
+import { err, ok } from '../../../src/core/result/Result';
+import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
+import { defer } from '../../helpers/async';
+import { expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { WALL_LOOP } from '../../helpers/structure';
 import { pointerAt } from '../../helpers/tool-context';
 import { alongWall, wallLength, type Opening, type Structure } from '../../../src/domain/spatial/Structure';
@@ -185,4 +188,65 @@ it.each([false, true])('preserves a requested next tool while switching away fro
 	expect(rig.runtime.activeToolId.value).toBe('pan'); expect(rig.runtime.toolManager.activeToolId).toBe('pan');
 	expect(rig.runtime.structureActions.active.value).toBe(false); expect(rig.runtime.structureActions.preview.value).toBeNull();
 	expect(rig.project.structure.openings).toEqual([door]); expect(rig.runtime.canUndo.value).toBe(false);
+});
+
+it('reports a refused baseline read and allows a clean retry without changing the opening', async () => {
+	const rig = await setup(), before = [...rig.stack.vault.entries];
+	vi.spyOn(rig.services, 'read').mockResolvedValueOnce(err(injectedPersistenceError()));
+	expect(rig.runtime.openingMove.start(door.id)).toBe(true);
+	await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'refused Move baseline');
+	expect(rig.runtime.structureActions.active.value).toBe(false); expect([...rig.stack.vault.entries]).toEqual(before);
+	await arm(rig); escape(rig); expect(rig.runtime.canUndo.value).toBe(false);
+});
+
+it('rejects a baseline newer than the frozen display and refreshes the peer position before any Move write', async () => {
+	const rig = await setup(), baseline = expectOk(await rig.geometry.read(rig.plan.id));
+	const pending = defer<Awaited<ReturnType<typeof rig.services.read>>>();
+	vi.spyOn(rig.services, 'read').mockReturnValueOnce(pending.promise);
+	expect(rig.runtime.openingMove.start(door.id)).toBe(true); click(rig, 3000);
+	expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.document, structure: { ...WALL_LOOP, openings: [{ ...door, offset: 1000 }] } }, baseline.version));
+	const peer = await rig.geometry.read(rig.plan.id), writes = vi.spyOn(rig.geometry, 'write'); pending.resolve(peer);
+	await settleUntil(() => rig.project.structure.openings[0].offset === 1000, 'peer position refreshed');
+	expect(rig.runtime.activeToolId.value).toBe('select'); expect(writes).not.toHaveBeenCalled(); expect(rig.runtime.canUndo.value).toBe(false);
+});
+
+it('recovers from an unexpected dispatcher rejection without stranding the Move task or replaying the click', async () => {
+	const rig = await setup(), before = [...rig.stack.vault.entries]; await arm(rig);
+	vi.spyOn(rig.runtime.dispatcher, 'run').mockRejectedValueOnce(new Error('dispatcher unavailable'));
+	click(rig, 3000); await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'Move dispatcher failure');
+	expect(rig.runtime.openingMove.saving.value).toBe(false); expect(rig.runtime.structureActions.preview.value).toBeNull();
+	expect([...rig.stack.vault.entries]).toEqual(before);
+	await arm(rig); click(rig, 2500); await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'fresh Move retry');
+	expect(rig.project.structure.openings[0].offset).toBe(2050);
+});
+
+it.each(['wrote', 'refused', 'threw'] as const)('does not revive a disposed leaf after a pending Move dispatcher %s', async outcome => {
+	const rig = await setup(); await arm(rig);
+	const pending = defer<void>(), before = [...rig.stack.vault.entries];
+	vi.spyOn(rig.runtime.dispatcher, 'run').mockImplementationOnce(async (): Promise<DispatchResult> => {
+		await pending.promise;
+		if (outcome === 'threw') throw new Error('late dispatcher fault');
+		return outcome === 'wrote' ? ok('wrote') : err(injectedPersistenceError());
+	});
+	click(rig, 3000); expect(rig.runtime.openingMove.saving.value).toBe(true);
+	rigs.splice(rigs.indexOf(rig), 1); rig.unmount(); pending.resolve(); await settle();
+	expect(rig.canvasEl.isConnected).toBe(false); expect(rig.runtime.openingMove.hostId.value).toBeNull();
+	expect(rig.runtime.structureActions.preview.value).toBeNull(); expect([...rig.stack.vault.entries]).toEqual(before);
+});
+
+it('ignores a late failed baseline after cancellation and does not steal a new tool', async () => {
+	const rig = await setup(); let reject: (cause: Error) => void = unreleased;
+	vi.spyOn(rig.services, 'read').mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
+	expect(rig.runtime.openingMove.start(door.id)).toBe(true); rig.runtime.setTool('pan'); reject(new Error('retired read'));
+	await settle(); expect(rig.runtime.activeToolId.value).toBe('pan'); expect(rig.runtime.openingMove.loading.value).toBe(false);
+	expect(rig.runtime.structureActions.active.value).toBe(false); expect(rig.project.structure.openings).toEqual([door]);
+});
+
+it.each(['door', 'window', 'opening'] as const)('moves a %s on a later host without changing hosting or its saved field absence', async kind => {
+	const plain = { ...door }; delete plain.swing;
+	const opening: Opening = { ...plain, kind, hostId: 'wall-b', ...(kind === 'opening' ? {} : { swing: { hinge: 'end', side: 'right', angle: kind === 'door' ? 65 : 0 } as const }) };
+	const rig = await setup([opening]); await arm(rig); click(rig, 4000, 2200);
+	await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'later host Move');
+	expect(rig.project.structure.openings).toEqual([{ ...opening, offset: 1750 }]);
+	await rig.runtime.undo(); expect(rig.project.structure.openings).toEqual([opening]);
 });

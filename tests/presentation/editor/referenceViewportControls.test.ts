@@ -7,6 +7,7 @@ import ReferencePrepare from '../../../src/presentation/editor/reference/Referen
 import ReferencePreview from '../../../src/presentation/editor/reference/ReferencePreview.vue';
 import { previewTransform } from '../../../src/presentation/editor/reference/referenceSetup';
 import { zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
+import { expectDefined } from '../../helpers/domain';
 import { referencePoint } from '../../../src/domain/plan/ReferenceAppearance';
 import { installCanvas } from '../../helpers/canvas';
 import { connectedObservers, installResizeObserver, placeAt, resizeTo } from '../../helpers/layout';
@@ -15,14 +16,14 @@ const appearance = { crop: { x: 20, y: 30, width: 400, height: 200 }, rotation: 
 const points = [{ x: 100, y: 100 }, { x: 300, y: 100 }];
 let wrapper: VueWrapper | undefined;
 beforeEach(() => { installCanvas(); installResizeObserver(); });
-afterEach(() => { wrapper?.unmount(); wrapper = undefined; });
+afterEach(() => { wrapper?.unmount(); wrapper = undefined; vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 function setup() {
 	const image = document.createElement('canvas'); image.width = 800; image.height = 600;
 	const unsubscribe = vi.fn<() => void>(), subscribe = vi.fn<(listener: () => void) => () => void>(() => unsubscribe), observers = connectedObservers();
 	wrapper = mount(ReferencePreview, { attachTo: document.body, props: { raster: { kind: 'raster', image, width: 800, height: 600, worldOrigin: { x: 0, y: 0 }, worldScale: 1 }, appearance, points, measuring: true, onThemeChange: subscribe } });
 	const canvas = wrapper.get('canvas').element as HTMLCanvasElement;
 	placeAt(canvas, 0, 0, 400, 220);
-	return { w: wrapper, canvas, unsubscribe, observers };
+	return { w: wrapper, canvas, unsubscribe, observers, subscribe };
 }
 function pointer(canvas: HTMLCanvasElement, type: string, x: number, y: number, button = 0, id = 1): void {
 	const event = new MouseEvent(type, { clientX: x, clientY: y, button, bubbles: true });
@@ -102,4 +103,86 @@ it('uses arrow navigation without stealing modified shortcuts or the dialog Esca
 	await w.get('canvas').trigger('keydown', { key: '-' }); expect(w.get('output').text()).toBe('100%');
 	const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }); canvas.dispatchEvent(escape);
 	expect(escape.defaultPrevented).toBe(false);
+});
+
+it('zooms the wheel around its source pixel, clamps large deltas and ignores wheel input during a held gesture', async () => {
+	const { w, canvas } = setup(), fit = previewTransform(appearance), pixel = { x: 200, y: 120 };
+	const p = referencePoint(pixel, appearance, fit.scale), client = { clientX: p.x + fit.x, clientY: p.y + fit.y };
+	await w.get('canvas').trigger('wheel', { ...client, deltaY: -1000 }); expect(w.get('output').text()).toBe('128%');
+	await w.get('canvas').trigger('click', client);
+	const picked = expectDefined(w.emitted<[Point]>('point')?.at(-1)?.[0], 'wheel anchored point');
+	expect(picked.x).toBeCloseTo(pixel.x, 8); expect(picked.y).toBeCloseTo(pixel.y, 8);
+	await w.get('canvas').trigger('wheel', { ...client, deltaY: 1000 }); expect(w.get('output').text()).toBe('100%');
+	pointer(canvas, 'pointerdown', 180, 100); await w.get('canvas').trigger('wheel', { ...client, deltaY: -100 });
+	expect(w.get('output').text()).toBe('100%'); pointer(canvas, 'pointerup', 180, 100);
+	placeAt(canvas, 0, 0, 0, 0); await w.get('canvas').trigger('wheel', { ...client, deltaY: -100 });
+	expect(w.get('output').text()).toBe('100%'); expect(w.emitted('point')).toHaveLength(1);
+});
+
+it('ignores a second pointer and cancels a Space drag on blur without placing a stray calibration point', async () => {
+	const { w, canvas } = setup();
+	await w.get('canvas').trigger('keydown', { key: ' ' });
+	pointer(canvas, 'pointerdown', 180, 100); pointer(canvas, 'pointerdown', 210, 130, 0, 2);
+	pointer(canvas, 'pointermove', 260, 160, 0, 2); await nextTick(); expect(w.get('canvas').classes()).not.toContain('is-panning');
+	pointer(canvas, 'pointermove', 181, 101); await nextTick(); expect(w.get('canvas').classes()).not.toContain('is-panning');
+	pointer(canvas, 'pointermove', 200, 130); await nextTick(); expect(w.get('canvas').classes()).toContain('is-panning');
+	await w.get('canvas').trigger('blur');
+	expect(w.get('canvas').classes()).not.toContain('is-navigation'); expect(w.get('canvas').classes()).not.toContain('is-panning');
+	pointer(canvas, 'pointermove', 250, 150); pointer(canvas, 'pointerup', 250, 150);
+	await w.get('canvas').trigger('click', { clientX: 250, clientY: 150 }); expect(w.emitted('point')).toBeUndefined();
+	pointer(canvas, 'pointerdown', 180, 100, 2); pointer(canvas, 'pointerup', 180, 100, 2);
+	pointer(canvas, 'pointerdown', 180, 100); pointer(canvas, 'pointerup', 180, 100);
+	await w.get('canvas').trigger('click', { clientX: 180, clientY: 100 }); expect(w.emitted('point')).toHaveLength(1);
+});
+
+it('keeps source coordinates stable across high-DPI one-axis resizes and a temporarily collapsed viewport', async () => {
+	vi.stubGlobal('devicePixelRatio', 2);
+	const { w, canvas } = setup(); expect(canvas.width).toBe(800); expect(canvas.height).toBe(440);
+	placeAt(canvas, 10, 20, 800, 220); resizeTo(canvas, 800, 220); await nextTick(); expect(canvas.width).toBe(1600); expect(canvas.height).toBe(440);
+	placeAt(canvas, 10, 20, 800, 500); resizeTo(canvas, 800, 500); await nextTick(); expect(canvas.width).toBe(1600); expect(canvas.height).toBe(1000);
+	await w.get('[data-rp-reference-view="fit"]').trigger('click');
+	const fit = previewTransform(appearance, { width: 800, height: 500 }), p = referencePoint({ x: 200, y: 120 }, appearance, fit.scale);
+	const client = { clientX: 10 + fit.x + p.x, clientY: 20 + fit.y + p.y };
+	await w.get('canvas').trigger('click', client); expect(w.emitted('point')?.[0]?.[0]).toEqual({ x: 200, y: 120 });
+	pointer(canvas, 'pointerdown', client.clientX, client.clientY);
+	placeAt(canvas, 0, 0, 0, 0); resizeTo(canvas, 0, 0); pointer(canvas, 'pointermove', 210, 130);
+	await w.get('canvas').trigger('pointercancel'); await w.get('canvas').trigger('click', client);
+	expect(w.emitted('point')).toHaveLength(1); expect(canvas.width).toBe(1600);
+	placeAt(canvas, 10, 20, 800, 500); resizeTo(canvas, 800, 500); await nextTick();
+	pointer(canvas, 'pointerdown', client.clientX, client.clientY); pointer(canvas, 'pointerup', client.clientX, client.clientY);
+	await w.get('canvas').trigger('click', client); expect(w.emitted('point')?.[1]?.[0]).toEqual({ x: 200, y: 120 });
+});
+
+it('redraws markers after host theme changes and labels only visible source points', async () => {
+	const { w, canvas, subscribe } = setup(), context = expectDefined(canvas.getContext('2d'), 'canvas context');
+	canvas.style.color = 'rgb(17, 68, 119)'; canvas.style.fontFamily = 'Arial';
+	expectDefined(subscribe.mock.calls[0], 'theme listener')[0]();
+	const fit = previewTransform(appearance), p = referencePoint(points[0], appearance, fit.scale);
+	expect([...context.getImageData(Math.round(p.x + fit.x), Math.round(p.y + fit.y), 1, 1).data].slice(0, 3)).toEqual([17, 68, 119]);
+	const label = vi.spyOn(context, 'fillText');
+	await w.setProps({ points: [null, points[1]] }); expect(label).toHaveBeenCalledTimes(1); expect(label.mock.calls[0]?.[0]).toBe('B');
+	label.mockClear(); await w.setProps({ points: [null, { x: 5000, y: 5000 }] }); expect(label).not.toHaveBeenCalled();
+	expect(w.emitted('point')).toBeUndefined();
+});
+
+it('leaves prepare-mode navigation and resets Pan when measurement resumes', async () => {
+	const { w, canvas } = setup(); await w.setProps({ measuring: false });
+	await w.get('[data-rp-reference-view="pan"]').trigger('click');
+	pointer(canvas, 'pointerdown', 180, 100); pointer(canvas, 'pointerup', 180, 100);
+	await w.get('canvas').trigger('click', { clientX: 180, clientY: 100 }); expect(w.emitted('point')).toBeUndefined();
+	await w.setProps({ measuring: true }); expect(w.get('[data-rp-reference-view="pan"]').attributes('aria-pressed')).toBe('false');
+	await w.get('canvas').trigger('keyup', { key: 'Shift' });
+	await w.get('canvas').trigger('keydown', { key: 'ArrowLeft', shiftKey: true });
+	pointer(canvas, 'pointerdown', 180, 100); await w.get('canvas').trigger('lostpointercapture');
+	await w.get('canvas').trigger('click', { clientX: 180, clientY: 100 }); expect(w.emitted('point')).toBeUndefined();
+	pointer(canvas, 'pointerdown', 180, 100); pointer(canvas, 'pointerup', 180, 100);
+	await w.get('canvas').trigger('click', { clientX: 180, clientY: 100 }); expect(w.emitted('point')).toHaveLength(1);
+});
+
+it('keeps navigation usable through temporary 2D context loss and resumes drawing after recovery', async () => {
+	const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+	const { w, canvas } = setup();
+	await w.get('[data-rp-reference-view="zoom-in"]').trigger('click'); expect(w.get('output').text()).toBe('125%');
+	getContext.mockRestore(); await w.get('[data-rp-reference-view="fit"]').trigger('click');
+	expect(w.get('output').text()).toBe('100%'); expect(canvas.width).toBe(400); expect(w.emitted('point')).toBeUndefined();
 });

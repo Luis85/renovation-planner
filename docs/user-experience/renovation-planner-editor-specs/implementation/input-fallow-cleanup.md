@@ -32,3 +32,14 @@ shell/layer, structure task, temporary banner, canvas navigation, input and scen
 regressions remain the verification targets. Tests, types, linters and Fallow are
 unrun for this source-ready patch while the parent owns the serialized check slot.
 Only source/diff inspection and `git diff --check` were performed locally.
+
+The subsequent analyzer left LayerList and StructureTaskForm at cognitive 16.
+Their complete row/placement responsibilities now live in `LayerRow` and
+`StructurePlacementFields`. LayerList retains all six unconditional IDs and the
+native `ul`; each row retains its native `li`, checkbox/label associations and
+guarded calibration event. The placement fragment retains host selection, numeric
+coordinates/dimensions and swing fields; the parent retains the form root, invalid
+focus, notices and command actions. No wrapper changes either native structure.
+This final extraction is source-ready and unrun; analyzer values and regression
+results require the parent's cumulative checks. EditorSurface received no further
+changes after its initial helper extraction.

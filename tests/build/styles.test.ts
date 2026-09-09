@@ -421,8 +421,8 @@ describe('assembling the stylesheet', () => {
  * Every `@container <name>` query in the SHIPPED sheet names a container the shipped sheet also
  * declares.
  *
- * **This class has now shipped twice on one branch, three files apart.** `styles/asset-shelf.css`
- * lines 259-269 record `@container rp-al-shelves` rules being inert because only a PROTOTYPE's
+ * **This class has now shipped twice on one branch, three files apart.** `styles/asset-row.css`
+ * records `@container rp-al-shelves` rules being inert because only a PROTOTYPE's
  * scoped block declared that container, name the task that fixed it, and close with "a comment
  * that names its trigger is a comment nothing re-reads when the trigger fires". Task 14 then
  * ported two `@container rp-al` blocks out of a prototype whose own scoped block declared `rp-al`,
@@ -471,7 +471,7 @@ describe('the shipped stylesheet\'s container queries', () => {
  * this file, over what Task 12 and Task 14's fix round already shipped.
  *
  * TWO LADDERS, TWO CONTAINERS, and this is what proves neither collapsed into the other.
- * `rp-al-shelves` (`styles/asset-shelf.css`) drops the row's own supplier slot below 40rem and
+ * `rp-al-shelves` (`styles/asset-row.css`) drops the row's own supplier slot below 40rem and
  * its waste slot below 19rem, the second number moved twice by Task A6's fix rounds: first
  * after measuring that the SHELVES REGION never actually reaches the spec's own 520px figure
  * while an asset is selected (440px at a 720px viewport, 320px at 560px — both already under

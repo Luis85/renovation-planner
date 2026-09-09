@@ -207,6 +207,24 @@ describe('shelf column headings and cells', () => {
 		expect(hidingSupplierCell).toHaveLength(1);
 		expect(hidingSupplierHeading).toEqual(hidingSupplierCell);
 	});
+
+	/**
+	 * A heading that outgrows its track CLIPS rather than drawing across the heading beside it.
+	 * German `Verschnitt` needed 57px in the 5ch waste track and overlapped `Lieferant`; English
+	 * `Waste` measured 35/35 and fitted, so no capture in an English locale could have shown it
+	 * (PR #98, `AL10-1440-light-de`). Widening that track to 9ch is the measurement for the two
+	 * locales that ship; THIS is the category guard for the third nobody has measured, and it is
+	 * pinned here rather than only in a capture because the capture is outside `npm run check`.
+	 */
+	it('clips a column heading instead of letting it overlap the next one', () => {
+		const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//gu, '');
+		const rule = /\.rp-al-columns\s*>\s*\*\s*\{([^}]*)\}/u.exec(sheet);
+
+		expect(rule).not.toBeNull();
+		expect(rule?.[1]).toMatch(/overflow:\s*hidden/u);
+		expect(rule?.[1]).toMatch(/text-overflow:\s*ellipsis/u);
+		expect(rule?.[1]).toMatch(/min-width:\s*0/u);
+	});
 });
 
 describe('the search field\'s native cancel button', () => {

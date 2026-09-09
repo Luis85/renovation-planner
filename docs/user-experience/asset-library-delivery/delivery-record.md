@@ -345,9 +345,23 @@ was at 460, where the shelves are not drawn at all, so no capture had ever measu
 currency-after-the-amount locale. 18 captures now; no page faults; every record's
 `scrollWidth === width`.
 
-**Newly visible in that capture and NOT fixed here** — the German column heading `Verschnitt`
-needs 57px in the 5ch (35px) waste track and overlaps `Lieferant` beside it (measured
-`scrollWidth 57 / clientWidth 35` at 1440; English `Waste` is 35/35 and fits exactly). The data
-cells below already clip; the heading cells do not. It is a heading-row defect independent of
-this round's currency work, and `styles/asset-shelf.css` is at its 400-line cap, so the clip rule
-it needs arrives with the extraction that cap now requires rather than inside this fix.
+**That capture exposed a second defect, fixed in the same round.** The German column heading
+`Verschnitt` needed 57px in the 5ch (35px) waste track and drew straight across `Lieferant`
+beside it; English `Waste` measured 35/35 and fitted exactly, which is why no capture had ever
+shown it. The data cells below already clipped and the heading cells did not.
+
+Two changes, answering two different questions. The waste track is `9ch` (63px) rather than
+`5ch`, which is the MEASUREMENT: `Verschnitt` is the longest label either shipped locale puts
+over that column, and the extra 4ch comes out of a name column measuring 646px at 1440. And
+`.rp-al-columns > *` now clips with an ellipsis, which is the CATEGORY guard for the third locale
+nobody has measured — it converts two labels drawn on top of each other, which reads as neither,
+into one truncated label, which still reads as itself. `measure()` reports `headingsOverflowing`
+per capture, named rather than counted; reverting the track to `5ch` makes it print
+`Verschnitt 57/35` in German and nothing in English, and `libraryComponentStyles.test.ts` pins
+the clip rule because the captures sit outside `npm run check`.
+
+**`styles/asset-shelf.css` reached the 400-line cap doing this, so it split.** `asset-row.css`
+takes the row grid, the cells sitting in it, `.rp-al-columns` and the container queries that size
+all of them together; the shelf file keeps its disclosure header. Imported directly after it,
+which is what keeps it after `list-row.css` — the one ordering here that is load-bearing. One
+file of 399 lines became 340 and 111.

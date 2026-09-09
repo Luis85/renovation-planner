@@ -107,7 +107,7 @@ const price = computed(() => {
 	}).formatToParts(Number(props.entry.unitCostAmount));
 	return {
 		// `formatToParts` rather than `format`, so the currency travels in its OWN element and
-		// the fixed-width box `styles/asset-shelf.css` gives it keeps the number's edge constant
+		// the fixed-width box `styles/asset-row.css` gives it keeps the number's edge constant
 		// across a mixed-currency shelf. The `literal` between the two is dropped with it: that
 		// separator is the affix box's padding now, so nothing about the currency's own width
 		// reaches the digits. Reported on PR #98.

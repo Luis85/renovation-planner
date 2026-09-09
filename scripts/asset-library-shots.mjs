@@ -47,7 +47,14 @@ async function measure() {
 			.map((rect) => rect.right);
 		const spread = edges.length ? Math.max(...edges) - Math.min(...edges) : null;
 		const used = [...document.querySelectorAll('.rp-al-used__row')].map((el) => el.getBoundingClientRect().height);
-		return { amountRightEdgeSpread: spread, usedInRowHeights: used };
+		// Every column heading that wants more room than its track gives it. German `Verschnitt`
+		// needed 57px in a 35px waste track and drew across `Lieferant`; English fitted exactly, so
+		// only a German capture could ever have shown it (PR #98). Named rather than counted: a
+		// bare number would not say which label to shorten or which track to widen.
+		const headings = [...document.querySelectorAll('.rp-al-columns > *')]
+			.filter((el) => el.scrollWidth > el.clientWidth)
+			.map((el) => `${el.textContent.trim()} ${el.scrollWidth}/${el.clientWidth}`);
+		return { amountRightEdgeSpread: spread, usedInRowHeights: used, headingsOverflowing: headings };
 	});
 }
 try {

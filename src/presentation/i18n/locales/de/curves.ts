@@ -1,7 +1,7 @@
 import type { curvesEn } from '../en/curves';
 export const curvesDe: Record<keyof typeof curvesEn, string> = {
 	'editor.curves.action': 'Kurven bearbeiten',
-	'editor.curves.instruction': 'Ziehe einen nummerierten Biegegriff oder gib in Details Biegetiefe oder Radius ein.',
+	'editor.curves.instruction': 'Ziehen Sie einen nummerierten Biegegriff oder geben Sie in Details Biegetiefe oder Radius ein.',
 	'editor.curves.precision': 'Biegetiefe und Radius',
 	'editor.curves.edge': 'Kante {n} · {length} m',
 	'editor.curves.depth': 'Biegetiefe (m)',

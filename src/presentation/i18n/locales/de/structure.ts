@@ -62,6 +62,7 @@ export const structureDe: Record<keyof typeof structureEn, string> = {
 	'spatial.read-failed': 'Die Raumgrenze konnte nicht gelesen werden.',
 	'spatial.boundary-missing': 'Die Wände dieser Raumgrenze existieren nicht mehr.',
 	'spatial.boundary-invalid': 'Die Raumgrenze kann nicht sicher wiederhergestellt werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.',
+	'spatial.group-restore-conflict': 'Die frühere Gruppenzugehörigkeit kann nicht sicher wiederhergestellt werden. Öffnen Sie das Geschoss erneut und prüfen Sie die Gruppe, bevor Sie weiterarbeiten.',
 	'spatial.write-failed': 'Die Änderung an Wänden und Öffnungen konnte nicht gespeichert werden. Ihr Entwurf bleibt erhalten; versuchen Sie es erneut.',
 	'spatial.recovery-required': 'Dieser Schritt kann nicht mehr angewendet werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.',
 	'spatial.compensation-failed':

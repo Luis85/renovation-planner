@@ -58,13 +58,14 @@ export const structureEn = {
 	'editor.structure.error.room-missing': 'A room boundary refers to missing walls or a missing room. Reopen the floor after repairing the reference.',
 	'editor.structure.error.duplicate-id': 'The structure contains repeated identities. Reopen the floor before editing.',
 	'editor.structure.error.unavailable': 'Wall editing is unavailable in this view.',
-	// The connected-walls COMMANDS' six refusals (`spatial.*` codes, not draft refusals), every one of which reaches a user: the task
+	// Spatial command refusals (`spatial.*` codes, not draft refusals), every one of which reaches a user: the task
 	// form's error line falls through `spatialMessage` to `trError` for any code that is not a
 	// draft refusal, `structureActions` raises a notice, and the Room delete flow restores a
 	// boundary through `RoomBoundaryHistory`.
 	'spatial.read-failed': 'The room boundary could not be read.',
 	'spatial.boundary-missing': 'The walls of this room boundary no longer exist.',
 	'spatial.boundary-invalid': 'The room boundary cannot be restored safely. Reopen the floor before editing.',
+	'spatial.group-restore-conflict': 'The previous group membership cannot be restored safely. Reopen the floor and review the group before continuing.',
 	'spatial.write-failed': 'The change to the walls and openings could not be saved. Your draft is retained; try again.',
 	'spatial.recovery-required': 'This step can no longer be applied. Reopen the floor before editing.',
 	'spatial.compensation-failed':

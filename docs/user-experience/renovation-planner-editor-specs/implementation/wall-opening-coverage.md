@@ -29,3 +29,9 @@ The isolated correction uses all four WALL_LOOP IDs for a valid closed boundary 
 The runtime failure is a real UI defect: wall rotation's epoch was a plain variable read inside computed props, so selection-only retirement cleared the preview and blocked imperative dispatch without invalidating the form's controls. Change epoch to a reactive ref and capture its numeric value for the existing lifetime checks. The observed pre-fix readonly=false assertion is the reproduction. This source correction is limited to wall-review retirement; persistence, commands and dispatch admission semantics are unchanged.
 
 Repairs are **unverified** pending the combined retry; only source review and diff whitespace checks ran. Original failure results are preserved in `C:/Users/lum/.codex/tmp/editor-boundary-additions-20260909.log`.
+
+## Diagnostic-union follow-up
+
+The diagnostic union (not a coverage gate input) guided six further source-ready cases: repeated native zoom at both clamps; queued swing controls after busy admission; Room planning over a legacy geometry document without structure; legacy Room-origin material metadata/navigation/highlight; and failed Room-name/Area-details saves completing after their form is unmounted. These cover reachable user/data paths while retaining actual DOM events, valid repositories and focus ownership.
+
+No production change or heavy check was run. The diagnostic union is used only to find locations; only the unchanged final suite/coverage gate can establish completion.

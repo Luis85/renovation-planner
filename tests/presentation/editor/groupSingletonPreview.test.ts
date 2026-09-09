@@ -33,6 +33,10 @@ it('keeps a persisted singleton Room group outline and vertex handles on the num
 	expect(layer.findOne('.selection-outline')).toBe(outline);
 	expect.soft(outline.getAttr('points')).toEqual(projected.flatMap(point => [point.x, point.y]));
 	expect.soft(handles.map(node => node.position())).toEqual(projected);
+	const measurements = rig.wrapper.findAll('[data-rp-room-edge]');
+	expect.soft(measurements.map(item => item.attributes('data-rp-room-edge'))).toEqual(['0', '1', '2', '3']);
+	expect.soft(measurements.map(item => item.get('[aria-hidden="true"]').text())).toEqual(['4 m', '3 m', '4 m', '3 m']);
+	expect.soft(rig.wrapper.findAll('[data-rp-dimension]')).toHaveLength(0);
 	expect(write).not.toHaveBeenCalled();
 	await form.get('input').trigger('keydown', { key: 'Escape' });
 	await settleUntil(() => !rig.runtime.groupActions.active.value, 'cancelled singleton preview'); await settle();
@@ -40,4 +44,6 @@ it('keeps a persisted singleton Room group outline and vertex handles on the num
 	expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
 	expect(layer.findOne('.selection-outline')).toBe(outline); expect(outline.getAttr('points')).toEqual(originalOutline);
 	expect(handles.map(node => node.position())).toEqual(originalHandles);
+	expect(rig.wrapper.findAll('[data-rp-room-edge]')).toHaveLength(2);
+	expect(rig.wrapper.findAll('[data-rp-dimension]')).toHaveLength(2);
 });

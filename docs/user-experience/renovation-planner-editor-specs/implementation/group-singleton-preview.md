@@ -29,3 +29,24 @@ Only this narrow behavioral regression and `git diff --check` were run locally.
 Types, linters, broad strict scene/curve/input regression checks, final cumulative
 coverage and browser/native-host captures remain pending with the parent. This
 mounted native Konva test is not an installed Obsidian capture or visual acceptance.
+
+## Rectangular measurement controls follow-up
+
+The same persisted-singleton test was extended after `fa17d69b` to inspect all
+four edge records and their 4/3/4/3 metre values, absence of rectangular dimension
+buttons during the 37-degree preview, and restoration of the two ordinary edge
+labels plus two axis controls after Escape. It reproduced **two stale rectangular
+buttons**. All four actual edge measurements already passed before this correction:
+the suspected loss of two edges was not reproduced.
+
+RoomDimensionLabels now derives its ordinary rectangular box from that Room's
+document preview when present, so preview geometry governs rectangular-control
+eligibility as well as measurements. The explicit dimension-draft branch still
+has first priority and retains its existing RenderState preview/fallback handling.
+No other dimension action, geometry operation or input behavior changed.
+
+The one allowed corrected narrow rerun passed **1 file / 1 test** in 17.08 seconds,
+using Vitest 4.1.11 and `VITEST_MAX_WORKERS=1`. It retains all earlier native
+outline/handle, identity, cancellation and no-write assertions. `git diff --check`
+also passed. Broader checks and cumulative delivery verification remain pending;
+this follow-up does not claim they ran.

@@ -5,8 +5,15 @@ import { useSelectionStore } from '../selection/selection-store';
 import { tr } from '../../i18n/strings';
 import { parseCoordinateMetres } from '../shell/formatLength';
 import type { CanvasGroupAction } from '../selection/canvasGroupActions';
+import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
+import { commitTextInput } from '../forms/commitTextInput';
 const runtime = useEditorRuntime(), selection = useSelectionStore();
 const groups = runtime.groupActions, x = ref('0'), y = ref('0');
+const refuseInput = useDialogFormBusy(groups.disabled, undefined);
+function input(event: Event, axis: 'x' | 'y'): void {
+	const value = axis === 'x' ? x : y;
+	commitTextInput(event, value.value, refuseInput, next => { value.value = next; });
+}
 const root = ref<HTMLElement | null>(null);
 const actions = computed(() => groups.actions(selection.selectedIds));
 const delta = computed(() => { const dx = parseCoordinateMetres(x.value), dy = parseCoordinateMetres(y.value); return dx.ok && dy.ok ? { dx: dx.mm, dy: dy.mm } : null; });
@@ -77,16 +84,18 @@ async function run(action: CanvasGroupAction, event: Event): Promise<void> {
 			</div>
 			<form @submit.prevent="move">
 				<label class="rp-dialog-field">{{ tr('editor.group.move-x') }}<input
-					v-model="x"
+					:value="x"
 					name="group-dx"
 					inputmode="decimal"
 					:readonly="groups.disabled.value"
+					@input="input($event, 'x')"
 				></label>
 				<label class="rp-dialog-field">{{ tr('editor.group.move-y') }}<input
-					v-model="y"
+					:value="y"
 					name="group-dy"
 					inputmode="decimal"
 					:readonly="groups.disabled.value"
+					@input="input($event, 'y')"
 				></label>
 				<button
 					type="submit"

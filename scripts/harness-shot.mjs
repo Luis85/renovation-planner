@@ -560,7 +560,7 @@ const SHOTS = [
 	//     and dark is this file's default.
 	//   - Selected at 460, LIGHT: §7's THIRD rung, the one composition in this plugin where a rail
 	//     stops being a rail. `.rp-al-body` is hidden, the inspector takes the pane and
-	//     `‹ Back to library` appears — three rules that have never drawn together anywhere,
+	//     `Back to library` appears — three rules that have never drawn together anywhere,
 	//     stood in for until now by a unit test that strips the `@container` wrapper off the
 	//     shipped selector, which is a stand-in and not evidence the query fires.
 	{ name: 'asset-library-dark', query: '?view=asset-library', selector: ASSET_LIBRARY_VIEW },

@@ -73,7 +73,7 @@ export function aNoIdNote(overrides: Partial<UnreadableEntry> = {}): UnreadableE
 	};
 }
 
-function fakeQueries(
+export function fakeQueries(
 	entries: readonly CatalogueEntryDto[],
 	unreadable: readonly UnreadableEntry[],
 ): AssetLibraryQueryServices {

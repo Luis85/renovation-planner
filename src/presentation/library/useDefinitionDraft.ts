@@ -21,6 +21,10 @@ export function useDefinitionDraft(entry: () => CatalogueEntryDto) {
 	const banner = ref<string | null>(null);
 	const reading = ref(false);
 	const writeConflict = ref(false);
+	const lastEdited = ref<keyof DefinitionDraft | null>(null);
+	let keepHandler: (() => void) | null = null;
+	function markEdited(key: keyof DefinitionDraft): void { lastEdited.value = key; }
+	function onKeep(handler: () => void): void { keepHandler = handler; }
 	const dirty = computed(() => JSON.stringify(values.value) !== JSON.stringify(definitionDraft(baseline.value)));
 	const conflict = computed(() => writeConflict.value || !sameVersion(entry().version, baseline.value.version));
 	const busy = computed(() => status.value === 'saving' || reading.value);
@@ -44,9 +48,9 @@ export function useDefinitionDraft(entry: () => CatalogueEntryDto) {
 	function discard(): void {
 		baseline.value = entry();
 		values.value = definitionDraft(entry());
-		errors.value = {}; banner.value = null; status.value = 'idle';
+		errors.value = {}; banner.value = null; status.value = 'idle'; lastEdited.value = null;
 	}
-	guard.register({ discard, name: () => baseline.value.name });
+	guard.register({ discard, name: () => baseline.value.name, keep: () => keepHandler?.() });
 	watch([dirty, busy, status], () => {
 		guard.dirty = (dirty.value && status.value !== 'refresh') || status.value === 'unknown';
 		guard.busy = busy.value;
@@ -96,5 +100,5 @@ export function useDefinitionDraft(entry: () => CatalogueEntryDto) {
 			else { status.value = 'unknown'; banner.value = tr('view.asset-library.draft.unknown'); }
 		} finally { reading.value = false; }
 	}
-	return { values, errors, status, banner, dirty, conflict, busy, locked, canSave, needsRead, statusText, differences, discard, refresh, save };
+	return { values, errors, status, banner, dirty, conflict, busy, locked, canSave, needsRead, statusText, differences, discard, refresh, save, lastEdited, markEdited, onKeep };
 }

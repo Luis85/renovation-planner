@@ -52,6 +52,7 @@ import type { FieldErrorMap } from '../errors/route-error';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { AppError, ValidationError } from '../../core/errors/AppError';
 import { createMoney } from '../../core/money/Money';
+import { normalizeDecimalInput } from '../library/decimalInput';
 import { shapeFromDimensions } from '../../domain/asset/AssetShape';
 import type { Asset } from '../../domain/asset/Asset';
 import type { AssetId } from '../../domain/asset/AssetId';
@@ -64,12 +65,19 @@ import { trError } from '../i18n/toUserMessage';
 import { tr } from '../i18n/strings';
 import FieldError from '../components/FieldError.vue';
 import FormBanner from '../components/FormBanner.vue';
+import SimilarNameHint from './SimilarNameHint.vue';
 
 const props = defineProps<{
 	createAsset: (input: CreateAssetInput) => Promise<Result<Asset, AppError>>;
 	setFootprintFromDimensions: (
 		input: SetAssetFootprintFromDimensionsInput,
 	) => Promise<DispatchResult>;
+	/**
+	 * AL03's similar-name hint. Optional and absent for the Renovation project view's own
+	 * caller, which has no catalogue reachable to search — see `newAssetDialog.ts`'s
+	 * `NewAssetDialogDeps.findExisting`.
+	 */
+	findExisting?: (name: string) => { readonly assetId: AssetId; readonly name: string } | null;
 	/**
 	 * `FormDescriptor.busy`'s other end (design slice 16). Optional so this component mounts
 	 * on its own with nothing wired to it; written FROM `submitting` below and never read
@@ -85,7 +93,9 @@ const props = defineProps<{
 	defaultCurrency: string;
 }>();
 
-const emit = defineEmits<{ submit: [assetId: AssetId] }>();
+const emit = defineEmits<{
+	submit: [outcome: { readonly assetId: AssetId; readonly created: boolean }];
+}>();
 
 /**
  * What the user types. The two dimensions are STRINGS rather than numbers because "not
@@ -272,7 +282,8 @@ async function createAssetAndFootprint(
 ): Promise<Result<{ readonly assetId: AssetId }, AppError>> {
 	const dimensions = parseDimensions(values);
 	if (isErr(dimensions)) return dimensions;
-	const money = createMoney(values.unitCostAmount, values.currency);
+	const unitCostAmount = normalizeDecimalInput(values.unitCostAmount);
+	const money = createMoney(unitCostAmount, values.currency);
 	if (isErr(money)) return money;
 	// The pure half of the footprint, run for its REFUSAL rather than for its shape: the
 	// command re-derives the rectangle itself from the same two numbers, so what is thrown
@@ -296,7 +307,7 @@ async function createAssetAndFootprint(
 			name: values.name,
 			category: values.category,
 			unit: values.unit,
-			unitCostAmount: values.unitCostAmount,
+			unitCostAmount,
 			currency: values.currency,
 		});
 		if (isErr(created)) return created;
@@ -331,6 +342,19 @@ const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
  * for.
  */
 const catalogueInoperative = computed(() => form.submitting.value || catalogueFrozen.value);
+
+/**
+ * AL03's hint: whatever `findExisting` answers for the name AS TYPED, re-evaluated on every
+ * keystroke. `null` when the prop is absent (the Renovation project view's caller) or when
+ * nothing matches, either of which draws no `SimilarNameHint` at all.
+ */
+const similar = computed(() => props.findExisting?.(form.values.value.name) ?? null);
+
+/** The hint's own door: resolve `submit` with the EXISTING asset rather than dispatching
+ *  `createAsset` at all — AL03's "a hint, not an automatic merge" means the user chose this. */
+function showExisting(assetId: AssetId): void {
+	emit('submit', { assetId, created: false });
+}
 
 /**
  * `:value` + `@input`, calling `setField` — never `v-model`, which would assign straight past
@@ -381,7 +405,7 @@ async function onSubmit(): Promise<void> {
 	if (await form.submit()) {
 		// Non-null by construction: `submit()` answers `true` only on an ok `Result`, and every
 		// ok arm of `createAssetAndFootprint` runs after `createdAssetId` has been set.
-		emit('submit', createdAssetId.value as AssetId);
+		emit('submit', { assetId: createdAssetId.value as AssetId, created: true });
 		return;
 	}
 	await focusFirstInvalidControl();
@@ -422,6 +446,19 @@ async function onSubmit(): Promise<void> {
 				>
 			</label>
 		</FieldError>
+		<!--
+			`!catalogueInoperative`, not `!catalogueFrozen` alone: the hint is a DOOR out of
+			this dialog exactly like every other control, so it follows the same gate. A press
+			while `form.submitting` is true (createAsset in flight, `catalogueFrozen` still
+			false) would resolve `submit` with `{ created: false }` immediately — which is what
+			the caller reads to decide whether to refresh — while the pending dispatch went on
+			to land a duplicate asset nobody's refresh would ever pick up.
+		-->
+		<SimilarNameHint
+			v-if="similar !== null && !catalogueInoperative"
+			:existing="similar"
+			@show="showExisting"
+		/>
 		<FieldError
 			v-slot="{ inputId, aria }"
 			:message="form.fieldErrors.value.get('category') ?? null"

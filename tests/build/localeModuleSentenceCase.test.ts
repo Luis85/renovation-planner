@@ -100,6 +100,22 @@ describe('every English locale module carries the sentence-case rule', () => {
 		expect(options?.[1]).toMatchObject({ acronyms: expect.arrayContaining(['SKU']) });
 	});
 
+	/**
+	 * The `ignoreRegex` option `eslint.config.mjs` adds for the seven
+	 * `form.new-asset.unit-symbol.*` values (notation, not prose — `m²` capitalised is wrong),
+	 * pinned the same way `SKU`'s `acronyms` entry is above: the severity case stays green with
+	 * this option deleted, so nothing short of asserting the resolved config's own shape would
+	 * notice the exemption falling back out of scope.
+	 */
+	it('en-assetLibrary.ts widens the rule with the unit-symbol ignoreRegex', async () => {
+		const config = await resolveConfig(path.join(REPO, `${LOCALES_DIR}/en-assetLibrary.ts`));
+		const options = config.rules['obsidianmd/ui/sentence-case-locale-module'];
+
+		expect(options?.[1]).toMatchObject({
+			ignoreRegex: expect.arrayContaining(['^(?:pcs|m|m²|m³|h|d|fixed)$']),
+		});
+	});
+
 	// The other direction, named once rather than left implicit: no German partial in this
 	// same directory may be swept into the rule by a widened predicate — the HYPHENATED one is
 	// the closer call, since it is the one this repo's own `en-*`/`de-*` naming convention

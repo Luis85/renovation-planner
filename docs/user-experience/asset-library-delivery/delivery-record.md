@@ -233,3 +233,135 @@ and confirmation of the original asset after clearing its draft name.
 
 Verification: build, lint, whole-project analysis and diff check pass; 18 library,
 store and localization test files / 264 tests pass.
+
+### Gap closure captures (2026-09-08)
+
+Regenerated with `scripts/asset-library-shots.mjs` at `f9e879a4d473955aa0c91073e988f0336be4332c`
+(17 captures, up from 16 — `AL02-clear-search` is new: the field filled at 1440 with the clear
+control showing, spec item 11's control scanned on its own rather than only alongside another
+state); browser `151.0.7922.34` (pinned Chromium — no substitute was needed).
+Price column: amount right-edge spread `0px` at **1440, 720 AND 560** — spec item 1's "every
+price's decimal point on one vertical line" now holds at every captured width, not only the
+widest one. Was 22.3px (browse case step 2) → 5.22px/9.73px (previous fix round, font-weight
+alone) → 0px at 1440 but 7.97px still standing at 720/560 (second fix round, selected-row
+font-weight moved off the whole row onto `.rp-al-row__name` alone) → 0px at all three widths
+(this round). The residual 7.97px was a second, different defect: below 40rem
+`.rp-al-shelf .rp-al-row`'s amount and unit tracks were `auto` rather than a fixed `ch` width,
+and each `.rp-al-row` is its own independent CSS grid, so an `auto` track resolves per row —
+the amount column's right edge followed whichever unit symbol ("m", "m²", "pcs", "fixed", …)
+that one row happened to hold. Pinned both tracks to fixed `ch` widths (11ch amount, 6ch unit —
+wide enough for "fixed" plus its "/ " prefix, the longest unit shipped) at every container
+width: base, the 40rem block and the 19rem block alike, so an independent per-row grid can no
+longer disagree with its siblings. `.rp-al-columns` (the heading row) gained the same 40rem
+override the data row already had, so the heading and the row it labels stay sized off one
+template rather than a coincidence.
+Used-in rows at the 240px rail — `AL10-560-dark.png`; at 460 the inspector owns the whole pane
+and there is no rail at all, so that capture is not the rail measurement: corrected in this
+round. `.rp-al-used__project` carries `flex: 1 1 16ch; min-width: 14ch` (was `flex: 1 1 12ch`
+with no minimum and `overflow: hidden`, which let the column shrink to about 77px beside the
+override mark and clip it) and `.rp-al-used__name` carries `overflow-wrap: normal; word-break:
+normal` unchanged — the 14ch minimum, not either of those two rules, is what forces
+`.rp-al-used__row`'s own `flex-wrap: wrap` to drop the mark onto its own line. Heights
+`[60.59, 74.19, 44]`, was `[60.59, 61.39, 44]` before the minimum (step 12) — taller because the
+mark now genuinely wraps clear of the project text instead of both being squeezed onto one
+clipped line. Read `AL10-560-dark.png` directly: rows 1 and 2 are a project name plus a
+disambiguating folder-path line (two different "Flat renovation" projects, different folders);
+row 3 is a single line because "Garden studio" is unique and needs no path line. No word breaks
+mid-word or per character anywhere in the list.
+Repair strip: reason and action in grid columns (step 15). Headings and waste cell share a
+container threshold, moved from `17rem` to **`19rem`** in this round: widening the unit track
+from 4ch to 6ch left the name column under 8ch at 272px (measured 5.4ch — unusably narrow even
+though nothing overflowed), so the threshold moved out to 304px, where the name column measures
+about 10ch and both AL10-720's and AL10-560's real container widths (440px, 320px) still sit
+comfortably above it. The supplier heading leaves WITH its cell at 40rem (earlier fix round) —
+the heading span carries its own class (`rp-al-columns__supplier`) and is hidden in the same
+container-query block that hides `.rp-al-row__supplier`.
+
+**Found while regenerating, not while looking for it**: the merged heading/waste block's own
+`.rp-al-columns { display: none }` rule never actually fired, at any container width, because
+the plain `.rp-al-columns { display: grid; … }` rule was declared AFTER both `@container`
+blocks in `styles/asset-shelf.css` — same specificity, later source order, so the base rule
+always won the cascade regardless of the container query's condition. jsdom cannot render a
+container query, so nothing before this task's real-browser capture could have caught it; the
+AL10-720 capture (container width 440px, under the 32.5rem/520px threshold the block shipped
+with) still showed the full heading row, which is what exposed it. Moved the base rule before
+both `@container` blocks (source order now matches the intended override) and re-measured the
+threshold from scratch, since 32.5rem never actually applied within the widths a selected asset
+renders at (440px at 720, 320px at 560 — both already under 32.5rem, so that value would have
+hidden the heading row at every capture width once the ordering bug was fixed, failing the
+"present at 720" requirement). 17rem (272px) is the real number: the heading's own "Unit cost"
+label is the row's one span that cannot shrink, and it first overflows its track under 260px
+(measured `scrollWidth` 263px against a forced 260px `clientWidth`) while staying clean at
+280px — 17rem sits in that margin, under both AL10-720's and AL10-560's measured containers.
+That number moved again, to 19rem, in the round above — 17rem stopped overflowing but left the
+name column unusably narrow once the amount/unit tracks were pinned to fixed `ch` widths.
+
+### Gap closure (2026-09-08)
+
+`docs/superpowers/specs/2026-09-08-asset-library-gap-closure-design.md` items 1–14, one line
+each with the task that shipped it:
+
+1. Price column alignment, and a unit SYMBOL beside it instead of the raw key or long label — Tasks A1, A2.
+2. Column headings and cells leave together under one `@container` rule — Task A3.
+3. Headings reachable by assistive technology (`aria-hidden` removed above the threshold) — Task A3.
+4. Used-in row wraps at the 240px rail instead of breaking the project name — Task A4.
+5. Repair strip lays the reason and the action out in grid columns — Task A5.
+6. Comma decimal separator accepted in unit cost, waste and height, and in the New asset price field — Tasks B1, B2, B3.
+7. The unit-cost draft comparison trims like `waste` and `height` already did — Task B2.
+8. An undeclared category or unit stays visible rather than disappearing from the select — Task B4.
+9. Keep editing returns focus to the field that was being edited — Task B5.
+10. A similar-name hint links to the existing asset instead of an automatic merge — Task B6.
+11. A clear-search control sits on the search field itself — Task C1.
+12. Back restores the shelves' scroll position — Task C2.
+13. Four labels adopt the specification's wording, in both locales — Task C3.
+14. The chevron: the specification was corrected, `Back to library` stands unchanged — Task C4.
+
+### PR #98 review: the currency affix, and the instrument that could not see it
+
+Codex's review of `d52507e3` reported that right-aligning the whole formatted price aligns
+decimals only where the locale writes the currency BEFORE the number. Verified rather than
+taken: `Intl.NumberFormat` puts it first in English (`€34.95`, `PLN 34.95`) and last in German
+(`34,95 €`, `34,95 CHF`), and the catalogue is legitimately mixed (PRD §72 — the fixture's
+`tall-cabinet-400` is CHF beside sixteen EUR assets, in the same open shelf as the selected
+row). So the finding held for German and the shipped alignment was English-only.
+
+`AssetRow.vue` now reads `formatToParts` and puts the currency in its own `.rp-al-row__currency`
+element, given a fixed `4ch` box in `styles/asset-shelf.css`; the separator the formatter would
+have emitted is dropped, so nothing about the affix's width reaches the digits. The side comes
+from the formatter (`parts[0].type === 'currency'`), never from a language list.
+
+**The measurement that had been reporting `0px` could not have reported anything else, and that
+matters more than the defect.** `measure()` read `.rp-al-row__amount`'s right edge — but that
+element IS the fixed `11ch` grid track, so its edge is identical in every row by construction.
+Measured by reverting to the one-span layout and re-capturing: German still read `0px` through a
+defect the picture plainly showed. The earlier `0px` claims at 1440/720/560 were therefore
+tautologies, not evidence. `measure()` now reads `.rp-al-row__number`, the digits themselves, and
+was tested against a perturbation before being believed — with `.rp-al-row__currency`'s
+`inline-size` removed it reports **16.625px** at `AL10-1440-light-de` and `0px` in English, which
+is the defect's own shape. With the box restored every captured width reads `0px`.
+
+`AL10-1440-light-de` is new and is why any of this was visible: the only previous German capture
+was at 460, where the shelves are not drawn at all, so no capture had ever measured a
+currency-after-the-amount locale. 18 captures now; no page faults; every record's
+`scrollWidth === width`.
+
+**That capture exposed a second defect, fixed in the same round.** The German column heading
+`Verschnitt` needed 57px in the 5ch (35px) waste track and drew straight across `Lieferant`
+beside it; English `Waste` measured 35/35 and fitted exactly, which is why no capture had ever
+shown it. The data cells below already clipped and the heading cells did not.
+
+Two changes, answering two different questions. The waste track is `9ch` (63px) rather than
+`5ch`, which is the MEASUREMENT: `Verschnitt` is the longest label either shipped locale puts
+over that column, and the extra 4ch comes out of a name column measuring 646px at 1440. And
+`.rp-al-columns > *` now clips with an ellipsis, which is the CATEGORY guard for the third locale
+nobody has measured — it converts two labels drawn on top of each other, which reads as neither,
+into one truncated label, which still reads as itself. `measure()` reports `headingsOverflowing`
+per capture, named rather than counted; reverting the track to `5ch` makes it print
+`Verschnitt 57/35` in German and nothing in English, and `libraryComponentStyles.test.ts` pins
+the clip rule because the captures sit outside `npm run check`.
+
+**`styles/asset-shelf.css` reached the 400-line cap doing this, so it split.** `asset-row.css`
+takes the row grid, the cells sitting in it, `.rp-al-columns` and the container queries that size
+all of them together; the shelf file keeps its disclosure header. Imported directly after it,
+which is what keeps it after `list-row.css` — the one ordering here that is load-bearing. One
+file of 399 lines became 340 and 111.

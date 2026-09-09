@@ -87,7 +87,7 @@ describe('AssetInspectorUsedIn', () => {
 		expect(marked).toHaveLength(1);
 		// Both halves: §85 refuses a tint alone, so the mark is a CSS-drawn `aria-hidden` span
 		// beside a word rather than a colour on the row.
-		expect(marked[0]?.text()).toContain('Overrides this price');
+		expect(marked[0]?.text()).toContain('Project-specific price');
 		expect(marked[0]?.find('.rp-al-used__override-mark').attributes('aria-hidden')).toBe('true');
 	});
 

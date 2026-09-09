@@ -169,10 +169,8 @@ const markId = useId();
 						v-if="showCategory"
 						class="rp-al-row__category"
 					>{{ asset.category }}</span>
-					<span class="rp-al-row__cost">
-						<span class="rp-al-row__amount">{{ priceOf(asset) }}</span>
-						<span class="rp-al-row__unit"> / {{ asset.unit }}</span>
-					</span>
+					<span class="rp-al-row__amount">{{ priceOf(asset) }}</span>
+					<span class="rp-al-row__unit"> / {{ asset.unit }}</span>
 					<span class="rp-al-row__waste">{{ asset.waste ?? '' }}</span>
 					<span class="rp-al-row__supplier">{{ asset.supplier ?? '' }}</span>
 				</button>
@@ -209,18 +207,18 @@ const markId = useId();
 }
 
 .rp-al-row--categorised {
-	grid-template-columns: 20px minmax(0, 1fr) minmax(0, 10ch) auto 5ch minmax(0, 16ch);
+	grid-template-columns: 20px minmax(0, 1fr) minmax(0, 10ch) 11ch 6ch 5ch minmax(0, 16ch);
 }
 
 @container rp-al-shelves (width < 40rem) {
 	.rp-al-row--categorised {
-		grid-template-columns: 20px minmax(0, 1fr) minmax(0, 8ch) auto 5ch;
+		grid-template-columns: 20px minmax(0, 1fr) minmax(0, 8ch) 11ch 6ch 5ch;
 	}
 }
 
-@container rp-al-shelves (width < 32.5rem) {
+@container rp-al-shelves (width < 19rem) {
 	.rp-al-row--categorised {
-		grid-template-columns: 20px minmax(0, 1fr) minmax(0, 8ch) auto;
+		grid-template-columns: 20px minmax(0, 1fr) minmax(0, 8ch) 11ch 6ch;
 	}
 }
 </style>

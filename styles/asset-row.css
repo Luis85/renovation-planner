@@ -1,0 +1,340 @@
+/*
+ * The Asset library's ROWS (design "Asset library overview" §3.3) and the heading row that
+ * labels their columns — split out of `asset-shelf.css` when that file reached the 400-line cap
+ * exactly, the same budget seam `continue-row.css` and `project-filter.css` were each cut on.
+ * A budget rather than a new organising idea, but the line it fell on is a real one: what stays
+ * behind is the SHELF's disclosure header (its button, chevron, name and count), and what moved
+ * here is the row GRID — the track template, the cells sitting in it, `.rp-al-columns` which
+ * must share that template to label it, and the container queries that resize all of them
+ * together. Those cannot be separated from one another without the headings and the cells they
+ * name drifting apart, which is the defect interaction rules §10 exists to refuse.
+ *
+ * Imported directly AFTER `asset-shelf.css` and therefore still after `list-row.css`, which is
+ * load-bearing and unchanged by the split: `.rp-al-shelf .rp-al-row` overrides three of that
+ * file's properties at equal specificity, so it has to keep coming later. Nothing else in the
+ * sheet declares a property one of these selectors sets, so the lift is order-equivalent.
+ */
+.rp-al-rows {
+	margin: 0 0 var(--size-4-2);
+	padding: 0;
+	list-style: none;
+}
+
+/* The row item positions its own hidden description, which is absolute and outside the button. */
+.rp-al-rows__item {
+	position: relative;
+}
+
+/*
+ * The row's OWN properties only (task 12 review round 1) — `width`, `min-height`, `border`,
+ * `background-color`, `color`, `text-align`, `cursor` and the `:hover` rule now come from the
+ * shared selector list `styles/list-row.css` joins `.rp-al-shelf .rp-al-row` into, per §3.3's
+ * own "a row is a flattened `<button>` in the vocabulary `styles/list-row.css` already
+ * defines". What is left here is what genuinely differs: a GRID rather than a flex row, for
+ * the reason `project-detail.css` records paying for twice — with a flexible name beside two
+ * or three `auto` items, the slack lands wherever each name's length leaves it and the
+ * right-hand facts stop forming columns. Fixed tracks after the flexible one keep the cost,
+ * the waste and the supplier each in their own column down the whole shelf. `padding` and
+ * `border-radius` also differ (five slots need their own rhythm; a plain rectangle needs none),
+ * and this rule is loaded AFTER `list-row.css` for exactly the reason that file's own header
+ * states, so these three properties override the shared rule's values at equal specificity.
+ */
+.rp-al-shelf .rp-al-row {
+	display: grid;
+	grid-template-columns: 20px minmax(0, 1fr) 11ch 6ch 9ch minmax(0, 16ch);
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
+	border-radius: 0;
+	font-size: var(--font-ui-small);
+}
+
+.rp-al-shelf .rp-al-row:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/*
+ * Selection is a PRINTED MARK before it is a colour: a filled rule at the row's leading edge,
+ * plus `aria-current` in the markup, with the tint riding along as a third channel and never as
+ * the only one. PRODUCT.md forbids state carried by colour alone, and a list row is where that
+ * is easiest to lose. The rule is drawn with `box-shadow` rather than a border so it costs no
+ * layout and cannot shift the grid by 2px against every unselected row beside it.
+ */
+.rp-al-shelf .rp-al-row--on {
+	background-color: var(--background-modifier-active-hover);
+	box-shadow: inset 2px 0 0 0 var(--interactive-accent);
+}
+
+/*
+ * The selected row's emphasis is on the NAME alone, not on the whole row (Task A6 fix round,
+ * measured 5.22px of amount-column drift at 1440 before this split). `.rp-al-shelf .rp-al-row`'s
+ * `grid-template-columns` is expressed in `ch`, which resolves against the ELEMENT'S OWN font —
+ * so a bold `.rp-al-row--on` measured its own `11ch 4ch 5ch` tracks at very slightly different
+ * pixel widths than every regular-weight sibling row, shifting that one row's amount column out
+ * of line with the rest (the defect `.rp-al-row__amount`'s own comment below promises fixed:
+ * "the decimal points never lined up"). Keeping the row's own font-weight unchanged and bolding
+ * only the name inside it removes the row-level `ch` measurement difference entirely.
+ */
+.rp-al-shelf .rp-al-row--on .rp-al-row__name {
+	font-weight: var(--font-medium);
+}
+
+/*
+ * The selection rule above REPLACES whatever `box-shadow` a focus ring would otherwise draw —
+ * `box-shadow` is not additive across two separately-specified rules, only within one — so a
+ * selected row that is also tabbed to would lose its ring silently the moment it lost the
+ * background-only tint every unselected row's `:focus-visible` still relies on Obsidian's own
+ * `box-shadow`-drawn default for. `tests/build/buttonFocusRing.test.ts` is the category check
+ * for exactly this: a rule that suppresses `box-shadow` must carry a `:focus-visible` rule of
+ * its own. The two shadows are LAYERED, comma-separated, rather than the selection rule
+ * replaced while focused: the leading-edge selection mark is a fact about this row regardless
+ * of focus, and a ring that hid it while focused would be the same "selection is a printed
+ * mark, not a tint" rule broken from the other side.
+ *
+ * A selected AND focused row therefore draws TWO indicators at once: the base
+ * `.rp-al-row:focus-visible` rule above sets a 2px inset `outline`, and this rule's own 2px
+ * inset `box-shadow` sits at the same edge — different properties, so neither suppresses the
+ * other, and `buttonFocusRing.test.ts` only asks whether a ring survives at all (it does; a
+ * mutation deleting this rule reddens it). Whether the result reads as one ring or as a 4px
+ * band is an eye question review round 1 raised and nothing here can settle — jsdom resolves
+ * no `:focus-visible` and no `box-shadow` rendering at all.
+ */
+.rp-al-shelf .rp-al-row--on:focus-visible {
+	box-shadow:
+		inset 2px 0 0 0 var(--interactive-accent),
+		inset 0 0 0 2px var(--interactive-accent);
+}
+
+/*
+ * No `min-width: 0` here, and that is a considered gap rather than an oversight (review round
+ * 1) — §3.3 calls the property "load-bearing" on the name, and `.rp-al-shelf__name` beside it
+ * states both `flex: 1 1 auto` AND `min-width: 0` for exactly that reason. This item sits in a
+ * GRID track (`minmax(0, 1fr)`, in `.rp-al-shelf .rp-al-row`), not a flex item, and a grid track
+ * already clamps its automatic minimum size to `0` at that `minmax()` — the same effect
+ * `min-width: 0` buys a flex item — so `overflow: hidden` below is what actually does the
+ * ellipsing work here. Nothing in jsdom can measure a long name against a real 460px pane to
+ * settle this either way; stated rather than silently relied on.
+ */
+.rp-al-row__name {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.rp-al-row__supplier {
+	overflow: hidden;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* The amount alone is right-aligned with tabular numerals, in its OWN track: with the unit
+   word in the same cell the amount's right edge followed the unit's width (measured 22.3px
+   of spread over eight rows, browse case step 2), so the decimal points never lined up. Its
+   track and the unit track after it are fixed `ch` widths at EVERY container width, never
+   `auto` (Task A6 fix round 2): each `.rp-al-row` is an independent grid, so an `auto` track
+   resolves per row rather than across the shelf, and the amount's right edge followed
+   whichever unit symbol that one row happened to hold — measured 7.97px of spread at both
+   720 and 560 before the narrow blocks below were pinned to `ch`. The unit track is `6ch`
+   everywhere: `fixed` (5 characters) plus the `/ ` prefix is the longest ENGLISH unit symbol
+   shipped; a longer localized one clips with an ellipsis rather than spilling into the waste
+   column. */
+.rp-al-row__amount {
+	text-align: end;
+	white-space: nowrap;
+}
+
+/*
+ * The digits, and the reason they are an element rather than a bare text node: this is what the
+ * capture script measures. `measure()` used to read `.rp-al-row__amount`'s own right edge, which
+ * IS the fixed `11ch` grid track above and therefore identical in every row by construction — it
+ * reported a 0px spread through a defect the picture plainly showed (PR #98). An instrument that
+ * cannot go red is not evidence, so it measures this box instead.
+ *
+ * `tabular-nums` belongs HERE rather than on the cell, where it sat until the currency moved out:
+ * every glyph it governs is now inside this element, and the affix beside it is letters.
+ */
+.rp-al-row__number {
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The currency travels in its own fixed-width box INSIDE that cell, because right-aligning the
+ * whole formatted string aligns decimals only where the locale writes the currency BEFORE the
+ * number. English does (`€34.95`) and every capture above was English, which is why the 0px
+ * spread held; German writes `34,95 €` against `34,95 CHF` in a catalogue that is legitimately
+ * mixed (PRD §72), and a suffix of one to three characters carried every comma with it.
+ * Reported on PR #98, and seeable by no gate here: jsdom lays nothing out and no capture drew
+ * a German shelf until `AL10-1440-light-de`. `4ch` holds a three-letter ISO code plus its
+ * separator — the one the formatter would have emitted is dropped in `AssetRow.vue` precisely
+ * so this box owns it — and a wider affix clips rather than moving the number, the same trade
+ * the unit track takes. The side comes from POSITION rather than a modifier: the cell holds
+ * exactly two elements, so the currency is `:first-child` or `:last-child` and never both.
+ */
+.rp-al-row__currency {
+	display: inline-block;
+	inline-size: 4ch;
+	overflow: hidden;
+	color: var(--text-muted);
+}
+
+.rp-al-row__currency:first-child {
+	text-align: start;
+}
+
+.rp-al-row__currency:last-child {
+	text-align: end;
+}
+
+.rp-al-row__unit {
+	min-width: 0;
+	overflow: hidden;
+	color: var(--text-muted);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.rp-al-columns__cost {
+	grid-column: span 2;
+	text-align: end;
+}
+
+.rp-al-row__waste {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Visually hidden and still announced — the standard clip rectangle rather than `display: none`
+ * or `visibility: hidden`, both of which take the text out of the accessibility tree with the
+ * pixels. It sits OUTSIDE the row button on purpose: `aria-describedby` adds a description, it
+ * does not subtract a descendant from name-from-content, so a span still nested inside the
+ * button would keep the mangled accessible name AND gain the same sentence again as its
+ * description (§3.4).
+ */
+.rp-al-row__mark-words {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
+.rp-al-columns {
+	display: grid;
+	grid-template-columns: 20px minmax(0, 1fr) 11ch 6ch 9ch minmax(0, 16ch);
+	gap: var(--size-4-2);
+	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/*
+ * A heading CLIPS rather than overflowing its track, which the data cells beside it have always
+ * done and these had not: the German `Verschnitt` measured `scrollWidth` 57px in the 5ch (35px)
+ * waste track and drew straight across `Lieferant` in the next column, while English `Waste`
+ * measured 35/35 and fitted exactly — so this was invisible in every locale anyone had captured.
+ * Found by `AL10-1440-light-de`, added on PR #98.
+ *
+ * The waste track is `9ch` rather than `5ch` for the same finding, and the two answer different
+ * questions. Widening is the MEASUREMENT: `Verschnitt` is the longest label either shipped locale
+ * puts over that column, and 9ch (63px) clears its 57px without an ellipsis, bought from a name
+ * column that measures 646px at 1440. Clipping is the CATEGORY guard, for the third locale nobody
+ * has measured — the failure it converts is two labels drawn on top of each other, which reads as
+ * neither, into one truncated label, which still reads as itself.
+ */
+.rp-al-columns > * {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/*
+ * The two droppable slots (§3.3). A CONTAINER query and never a media query: this surface's
+ * width is its PANE's — the window minus both Obsidian sidebars minus whatever is split beside
+ * it — and `docs/user-experience/concepts/README.md` records what measuring the wrong box
+ * costs.
+ *
+ * **LIVE in the shipped app since Task 13, and this paragraph named its own trigger.** It said
+ * these rules were inert because no partial in `styles/` declared `container-name:
+ * rp-al-shelves` — only the prototype did — and that they would stay so "until whichever task
+ * composes the shelves region around `AssetShelf.vue` for real declares the container there".
+ * That task is Task 13: `styles/asset-library.css`'s `.rp-al-shelves` block declares
+ * `container: rp-al-shelves / inline-size`, so both rules below now fire in a vault as well as
+ * in the harness. Recorded rather than deleted because the shape is this project's own recurring
+ * one — a comment that names its trigger is a comment nothing re-reads when the trigger fires,
+ * and this one went a whole commit describing the opposite of what shipped.
+ *
+ * **Both blocks below have to sit AFTER the base `.rp-al-columns` rule, not before it (Task
+ * A6, found by capturing at 720 and 560 rather than by any gate).** The base rule used to
+ * follow both container queries in this file, so its unconditional `display: grid` — same
+ * specificity as the query's nested `.rp-al-columns { display: none }` — won the cascade by
+ * SOURCE ORDER regardless of container width: the heading row never actually left. jsdom
+ * never renders a container query, so nothing here could have seen it; the capture at 720
+ * (`shelvesWidth` 440px, under the 32.5rem/520px threshold) still showed the full heading row,
+ * which is what exposed it.
+ *
+ * **`.rp-al-columns` narrows its own tracks here too, a fix round finding beside the amount/unit
+ * `ch` pinning below.** Only the row used to lose its supplier track at 40rem; the heading kept
+ * its unconditional six-track template with the sixth column simply empty once the supplier
+ * `<span>` left, which happened to look right but meant the header and the row it labels were no
+ * longer sized off the same template — a coincidence, not a guarantee.
+ */
+@container rp-al-shelves (width < 40rem) {
+	.rp-al-shelf .rp-al-row {
+		grid-template-columns: 20px minmax(0, 1fr) 11ch 6ch 9ch;
+	}
+
+	.rp-al-columns {
+		grid-template-columns: 20px minmax(0, 1fr) 11ch 6ch 9ch;
+	}
+
+	.rp-al-row__supplier {
+		display: none;
+	}
+
+	.rp-al-columns__supplier {
+		display: none;
+	}
+}
+
+/* Headings leave WITH their cells (interaction rules §10, D02) — including at 40rem: the
+   supplier heading (`.rp-al-columns__supplier`) is hidden in the same block that hides
+   `.rp-al-row__supplier`, a fix round finding, not the "no heading change" this comment used to
+   claim (the row's own column count still narrows from six to five here, so the four remaining
+   headings above it need no shift of their own). The waste cell and the whole heading row go
+   together at 19rem (Task A6, measured twice: once to 17rem, replacing the un-measured 32.5rem
+   this block shipped with, then again to 19rem once the amount and unit tracks below stopped
+   being `auto`). With the source-order bug once here fixed, the merged rule's own container
+   never reaches 32.5rem while the shelf pane renders at all with an asset selected — 720px
+   viewport measures a 440px container and 560px measures 320px, both under 32.5rem (520px), so
+   that value hid the heading row and the waste cell at BOTH of Task A6's own capture widths,
+   contradicting the "present at 720" requirement it was chosen to satisfy. 17rem (272px) was
+   measured next against overflow alone: the heading's own "Unit cost" label — the row's one
+   span too long to shrink — first overflows its track under 260px and does not at 280px. That
+   number stopped being enough once the row's amount/unit tracks below were pinned to fixed `ch`
+   widths (widening `4ch` to `6ch`): at 272px the name column left over is under 8ch — measured
+   37.8px, about 5.4ch in this font — unusably narrow even though nothing overflows. 19rem
+   (304px) is measured against THAT bar instead: the name column there is 69.8px, about 10ch,
+   and 304px still sits comfortably under both AL10-720's and AL10-560's measured containers. */
+@container rp-al-shelves (width < 19rem) {
+	.rp-al-shelf .rp-al-row {
+		grid-template-columns: 20px minmax(0, 1fr) 11ch 6ch;
+	}
+
+	.rp-al-row__waste {
+		display: none;
+	}
+
+	.rp-al-columns {
+		display: none;
+	}
+}

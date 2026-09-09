@@ -31,7 +31,7 @@ describe('AssetInspector resting', () => {
 	it('draws the resting line and no sections with nothing selected', async () => {
 		const inspector = await mountInspector({ entries: [anEntry()], assetId: null });
 
-		expect(inspector.panel.get('.rp-al-inspector__rest').text()).toBe('Nothing selected.');
+		expect(inspector.panel.get('.rp-al-inspector__rest').text()).toBe('Select an asset to view its definition.');
 		expect(inspector.panel.classes()).toContain('rp-al-inspector--rest');
 		expect(inspector.panel.text()).not.toContain('Shape');
 	});
@@ -172,7 +172,7 @@ describe('AssetInspector panel-level failure', () => {
 });
 
 describe('AssetInspector actions', () => {
-	it('withdraws Open designer for a damaged sidecar and for an unusable id alike', async () => {
+	it('withdraws Edit shape for a damaged sidecar and for an unusable id alike', async () => {
 		// §3.5's table: `GetAssetDesign.execute` returns early on a sidecar refusal, so the
 		// designer hydrates through the same read and reaches the same failed state with only a
 		// Retry — the button would cost a navigation to repeat the refusal already on screen.

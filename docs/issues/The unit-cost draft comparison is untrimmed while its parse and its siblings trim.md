@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Asset library]]"
 order: 40
-status: New
+status: Done
 started: ""
-finished: ""
+finished: "2026-09-08"
 horizon: Now
 start: ""
 due: ""
@@ -59,3 +59,5 @@ first, per CLAUDE.md's mutation-check rule.
 - `src/presentation/library/definitionDraft.ts` — `definitionChanges`'s three comparisons.
 - `tests/presentation/library/definitionDraft.test.ts` — the existing `waste` whitespace case
   this note's fix would mirror.
+
+Closed by `normalizeDecimalInput` in `definitionDraft.ts`; `definitionDraft.test.ts` 'answers the same no-op diff for a unit cost that only differs by whitespace'.

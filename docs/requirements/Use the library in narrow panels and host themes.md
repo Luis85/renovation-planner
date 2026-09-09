@@ -2,9 +2,9 @@
 type: PBI
 parent: "[[Searchable asset catalog]]"
 order: 90
-status: Active
+status: Done
 started: "2026-09-05"
-finished: ""
+finished: "2026-09-08"
 horizon: "MVP"
 start: ""
 due: ""
@@ -80,3 +80,5 @@ row 15.
 group; screens [AL10](../user-experience/asset-library-delivery/specification/screens/AL10-narrow-and-theme.md); `delivery-record.md` row 15. The
 `docs/user-experience/asset-library-delivery/pbis/` folder that held the package's own copy of this
 item was moved here on 2026-09-05; its `id` was PBI-15.
+
+Closed 2026-09-08 against the delivery record's evidence row and the gap-closure design (docs/superpowers/specs/2026-09-08-asset-library-gap-closure-design.md).

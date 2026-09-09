@@ -33,7 +33,7 @@ export const enAssetLibrary = {
 	// §6.1's live region: '12 matching assets', announced so a search's effect reaches a
 	// keyboard or screen-reader user who cannot see the list it just filtered.
 	'view.asset-library.search.results': '{count} matching assets',
-	'view.asset-library.unselected': 'Nothing selected.',
+	'view.asset-library.unselected': 'Select an asset to view its definition.',
 	// The status bar (§3.6): '54 assets · Renovation/Library'. The folder half is a vault
 	// path, not copy, so it is appended as raw text beside this key rather than through a
 	// second one.
@@ -52,8 +52,8 @@ export const enAssetLibrary = {
 	// reaches every room it was used in") false by omission, directly above the field that
 	// makes the correction. §8's 61st key (amendment of 2026-09-03, Task 14): the section's
 	// other six keys shipped in Task 4 and this one had no producer until the marks did.
-	'view.asset-library.used-in.overridden': 'Overrides this price',
-	'view.asset-library.open-designer': 'Open designer',
+	'view.asset-library.used-in.overridden': 'Project-specific price',
+	'view.asset-library.open-designer': 'Edit shape',
 	'view.asset-library.open-note': 'Open note',
 	// §6.2's narrow-composition control, quoted verbatim from the spec.
 	'view.asset-library.back': 'Back to library',
@@ -157,7 +157,7 @@ export const enAssetLibrary = {
 	'empty.asset-library.no-assets.headline': 'No assets yet',
 	'empty.asset-library.no-assets.body':
 		'An asset is a material, fixture, plant or piece of furniture you price once and use across every project. Create one to start the library.',
-	'empty.asset-library.no-assets.action': 'New asset',
+	'empty.asset-library.no-assets.action': 'Create first asset',
 	'empty.asset-library.no-matches.headline': 'No matching assets',
 	'empty.asset-library.no-matches.body':
 		'No asset matches that search. Try a different name, supplier or SKU.',
@@ -177,4 +177,19 @@ export const enAssetLibrary = {
 	"view.asset-library.draft.saved": "Asset saved",
 	"view.asset-library.outside-search": "Selected asset is outside the search results.",
 	"view.asset-library.used-in.library-price": "Library price",
+	// Short symbols for a table cell, beside the long labels a form control shows. `m²` and
+	// `m³` are glyphs rather than words; the rest are the shortest reading a row can carry.
+	// Housed here rather than in `en.ts` for the same `max-lines` reason as the rest of this
+	// file — moved by the CLAUDE.md rule this file's own header cites.
+	'form.new-asset.unit-symbol.piece': 'pcs',
+	'form.new-asset.unit-symbol.m': 'm',
+	'form.new-asset.unit-symbol.m2': 'm²',
+	'form.new-asset.unit-symbol.m3': 'm³',
+	'form.new-asset.unit-symbol.hour': 'h',
+	'form.new-asset.unit-symbol.day': 'd',
+	'form.new-asset.unit-symbol.fixed': 'fixed',
+	// AL03's similar-name hint under the name field. Housed here for the same `max-lines`
+	// reason as the rest of this file's `form.new-asset.*` rows.
+	'form.new-asset.similar.exists': 'An asset named “{name}” already exists.',
+	'form.new-asset.similar.show': 'Show it',
 } as const;

@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import WallRotationForm from '../../../src/presentation/editor/structure/WallRotationForm.vue';
+import { defer } from '../../helpers/async';
 import { structureEditor } from '../../helpers/structureEditor';
 import { settle, settleUntil, mountPlanEditorCanvas, runtimeOf } from '../../helpers/editor';
 import { expectDefined, expectFound, expectOk, injectedPersistenceError } from '../../helpers/domain';
@@ -192,4 +194,64 @@ describe('reviewed wall rotation and hosted opening runtime', () => {
 		await runtime.undo(); expect(projection.structure).toEqual(saved.structure); expect(runtime.canUndo.value).toBe(false);
 		await runtime.redo(); expect(projection.structure).toEqual(rotated); expect(projection.structure.openings).toEqual(openings);
 	});
+	it.each(['refused', 'threw'] as const)('releases wall rotation after a baseline read %s and admits a new review', async outcome => {
+		const { rig, structure } = await setup(), before = [...rig.stack.vault.entries];
+		vi.spyOn(rig.services, 'read').mockImplementationOnce(() => {
+			if (outcome === 'threw') throw new Error('baseline transport failed');
+			return Promise.resolve(err(injectedPersistenceError()));
+		});
+		await rig.runtime.structureActions.rotateWall('wall-a', 90);
+		expect(rig.dialogs.current).toBeNull(); expect(rig.runtime.structureActions.active.value).toBe(false);
+		expect([...rig.stack.vault.entries]).toEqual(before); expect(rig.runtime.canUndo.value).toBe(false);
+		const retry = rig.runtime.structureActions.rotateWall('wall-a', 90); await formReady(rig);
+		rig.dialogs.resolve('cancel'); await retry; expect(rig.project.structure).toEqual(structure);
+	});
+	it('declines a host removed from the fresh baseline before opening a review', async () => {
+		const { rig } = await setup(), baseline = expectOk(await rig.geometry.read(rig.plan.id));
+		expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.document, structure: { walls: [], openings: [], boundaries: [] } }, baseline.version));
+		const before = [...rig.stack.vault.entries];
+		await rig.runtime.structureActions.rotateWall('wall-a', 90);
+		expect(rig.dialogs.current).toBeNull(); expect(rig.runtime.structureActions.active.value).toBe(false);
+		expect(rig.runtime.structureActions.rotationHostId.value).toBeNull(); expect([...rig.stack.vault.entries]).toEqual(before);
+	});
+	it('retires the reviewed host and refuses an already captured form dispatch after selection changes', async () => {
+		const { rig, structure } = await setup(), operation = rig.runtime.structureActions.rotateWall('wall-a', 90);
+		await formReady(rig); const form = rig.wrapper.getComponent(WallRotationForm), dispatch = form.props('dispatch');
+		const write = vi.spyOn(rig.geometry, 'write'); expect(rig.runtime.structureActions.preview.value).not.toBeNull();
+		rig.selection.select(['wall-b' as never]); await settle();
+		expect(rig.runtime.structureActions.rotationHostId.value).toBeNull(); expect(rig.runtime.structureActions.preview.value).toBeNull();
+		expect(form.get('input').element).toHaveProperty('readOnly', true);
+		expect(form.get('button[type="submit"]').attributes('aria-disabled')).toBe('true');
+		expect(form.find('.rp-draft-recovery').exists()).toBe(false);
+		expect(await dispatch(expectOk(rotateWallStructure(structure, 'wall-a', 90)))).toMatchObject({ ok: false });
+		await form.trigger('submit'); await settle();
+		expect(rig.runtime.structureActions.preview.value).toBeNull(); expect(write).not.toHaveBeenCalled();
+		rig.dialogs.resolve('cancel'); await operation; expect(rig.runtime.canUndo.value).toBe(false);
+	});
+	it('offers source-note and failed-read retry for a paused wall review without replaying the write', async () => {
+		const { rig, room } = await setup();
+		const projected = expectOk(await rig.deps.queries.findZonesByPlan(rig.plan.id));
+		vi.spyOn(rig.deps.queries, 'findZonesByPlan').mockResolvedValueOnce(ok({ ...projected, zones: [], unreadable: 1 }));
+		await rig.runtime.refreshProjection();
+		const operation = rig.runtime.structureActions.rotateWall('wall-a', 90), form = await formReady(rig);
+		expect(form.text()).toContain(room.id);
+		const read = vi.spyOn(rig.deps.queries, 'findZonesByPlan').mockResolvedValue(err(injectedPersistenceError()));
+		const write = vi.spyOn(rig.geometry, 'write'); await rig.runtime.refreshProjection(); await settle();
+		const recovery = form.get('.rp-draft-recovery'), opened = rig.openedNote();
+		await recovery.findAll('button')[1].trigger('click'); expect(rig.openedNote()).toBe(opened + 1);
+		await recovery.findAll('button')[0].trigger('click'); await settle();
+		expect(form.find('.rp-draft-recovery').exists()).toBe(true); expect(form.get('input').element).toHaveProperty('value', '90');
+		read.mockRestore(); await form.get('.rp-draft-recovery button').trigger('click'); await settle();
+		expect(form.find('.rp-draft-recovery').exists()).toBe(false); expect(write).not.toHaveBeenCalled();
+		rig.dialogs.resolve('cancel'); await operation;
+	});
+	it('ignores a baseline rejection after the wall leaf is disposed', async () => {
+		const { rig } = await setup(), pending = defer<void>();
+		vi.spyOn(rig.services, 'read').mockImplementationOnce(async () => { await pending.promise; throw new Error('late wall baseline'); });
+		const operation = rig.runtime.structureActions.rotateWall('wall-a', 90);
+		mounted.splice(mounted.indexOf(rig), 1); rig.unmount(); pending.resolve(); await operation;
+		expect(rig.runtime.structureActions.active.value).toBe(false); expect(rig.runtime.structureActions.preview.value).toBeNull();
+		expect(rig.runtime.structureActions.rotationHostId.value).toBeNull(); expect(rig.wrapper.element.isConnected).toBe(false);
+	});
+
 });

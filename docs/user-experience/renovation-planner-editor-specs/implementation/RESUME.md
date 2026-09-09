@@ -1,5 +1,7 @@
 # Wiederaufnahme der Editor-Finalisierung
 
+Aktueller Rekonstruktionsstand: [Acceptance-Delivery](delivery/acceptance.md). Der eingefrorene Stand `b10c3b24` bestand 730 Testdateien / 8.624 Tests, verfehlt aber noch die unveränderten Coverage-Grenzen. Die nachfolgenden datierten Prüfstände bleiben historische Belege. Finale Bild- und Host-Abnahme stehen weiterhin aus.
+
 ## Verbindlicher Fortsetzungsstand — 2026-09-09
 
 Main ist sauber auf `ec342370`; PR #93 wurde extern gemergt. Die aktuelle Arbeit liegt in `.worktrees/editor-release-verification` auf `codex/editor-release-verification`. PRs #94–#96 bleiben offen und werden nicht durch diesen Auftrag gemergt. Gruppierung, Kurven, Treppen/Pfeile, Hover-Drehgriffe, Fotoauswahl und die große Referenzansicht mit Pan/Zoom sind integriert. Der kombinierte Qualitätslauf ist noch nicht bestanden: [aktueller Prüfstand und konkrete Reparaturen](integrated-gate-2026-09-09.md). Der nächste vollständige Lauf nutzt unverändertes `npm run check` mit `VITEST_MAX_WORKERS=1`; Grenzen und Timeouts bleiben unverändert.

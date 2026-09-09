@@ -1,5 +1,7 @@
 # Editor implementation status — 2026-09-07
 
+Current reconstruction: [acceptance delivery](delivery/acceptance.md). Frozen `b10c3b24` passes all 730 files / 8,624 tests but remains below the unchanged coverage gate. Later coverage additions are separate; final image and native acceptance remain pending. Dated evidence below is retained historically.
+
 ## Active continuation — 2026-09-08
 
 Updated 2026-09-09: main is clean at `ec342370`, after PR #93 was merged externally. The current topic integration includes the expanded user requirements, including saved groups, curves, stairs/arrows, hover rotation controls, image-only photo search and the enlarged reference viewport with pan/zoom. Follow [the combined gate record](integrated-gate-2026-09-09.md) and [release ledger](release-2026-09-08.md) for outstanding verification. The full combined gate and final visual/native acceptance are not yet passed. The dated measurements below are historical evidence, not the current repository state.

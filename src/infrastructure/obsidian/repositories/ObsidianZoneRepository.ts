@@ -3,7 +3,7 @@ import { TFile } from 'obsidian';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
-import type { ZoneListing } from '../../../application/ports/ZoneRepository';
+import type { ZoneListing, ZoneRepository } from '../../../application/ports/ZoneRepository';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { Zone } from '../../../domain/zone/Zone';
@@ -118,7 +118,7 @@ function sidecarUnreadable(planId: unknown, cause: unknown): PersistenceError {
 }
 
 // Zone-version calculation is shared with grouped sidecar writes in zoneVersion.ts.
-export class ObsidianZoneRepository {
+export class ObsidianZoneRepository implements ZoneRepository {
 	private readonly queues = new KeyedQueues();
 
 	constructor(

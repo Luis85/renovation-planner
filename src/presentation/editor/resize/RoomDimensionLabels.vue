@@ -7,7 +7,7 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
 import { dimensionTexts, roomDimensions, type DimensionsText } from './roomDimensions';
-import { tr } from '../../i18n/strings';
+import RoomDimensionButton from './RoomDimensionButton.vue';
 import InlineRoomDimension from './InlineRoomDimension.vue';
 import DraftRoomDimensions from './DraftRoomDimensions.vue';
 import RoomEdgeMeasurements from './RoomEdgeMeasurements.vue';
@@ -121,17 +121,13 @@ watch(draft, (next, previous) => {
 					:draft="draft"
 					:cancel="runtime.roomDimension.cancel"
 				/>
-				<button
+				<RoomDimensionButton
 					v-else
-					type="button"
-					class="rp-dimension-label"
-					:data-rp-dimension="axis"
-					:aria-disabled="runtime.resizeRoomBlocked.value || draft !== null"
-					:aria-label="tr(axis === 'width' ? 'editor.dimension.edit-width' : 'editor.dimension.edit-depth', { value: dimensionTexts(box)[axis] })"
+					:axis="axis"
+					:text="dimensionTexts(box)[axis]"
+					:disabled="runtime.resizeRoomBlocked.value || draft !== null"
 					@click="open(axis)"
-				>
-					{{ dimensionTexts(box)[axis] }} m
-				</button>
+				/>
 			</div>
 		</template>
 	</div>

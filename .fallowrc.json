@@ -83,6 +83,7 @@
 		"scripts/harness-shot.mjs",
 		// Manual browser verification, invoked by the M02 acceptance case.
 		"scripts/editor-area-check.mjs",
+		"scripts/editor-subject-kind-check.mjs",
 		"scripts/editor-area-numeric-check.mjs",
 		"scripts/editor-room-resize-check.mjs",
 		"scripts/editor-room-edge-check.mjs",

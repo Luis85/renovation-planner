@@ -46,16 +46,23 @@ function clampControl(point: Point, width: number, scale: number, visible?: Boun
 		y: Math.max(visible.min.y + ROTATION_CONTROL_TOP_PX * scale + margin, Math.min(visible.max.y - ROTATION_CONTROL_BOTTOM_PX * scale - margin, point.y)) };
 }
 
-type Shape = { id: string; kind: string; points: readonly Point[]; bulges?: readonly number[]; wall?: { id: string; bulge?: number }; stair?: StairOptions };
+export interface RotationControlShape {
+	readonly id: string;
+	readonly kind: string;
+	readonly points: readonly Point[];
+	readonly bulges?: readonly number[];
+	readonly wall?: { readonly id: string; readonly bulge?: number };
+	readonly stair?: StairOptions;
+}
 const EDGE_POSITIONS = [1, 2].flatMap(multiplier => [[0.25, 1], [0.75, 1], [0.5, 1], [0.25, -1], [0.75, -1], [0.5, -1]].map(([fraction, side]) => [fraction, side, multiplier]));
-function edgePoints(shape: Shape): readonly Point[] {
+function edgePoints(shape: RotationControlShape): readonly Point[] {
 	if (shape.kind === 'stair') return spatialElementFootprint(shape);
 	if (shape.kind !== 'group') return shape.points;
 	const bounds = boundingBoxOf(shape); if (!bounds.ok) return [];
 	const { min, max } = bounds.value;
 	return [min, { x: max.x, y: min.y }, max, { x: min.x, y: max.y }];
 }
-function edgesOf(shape: Shape) {
+function edgesOf(shape: RotationControlShape) {
 	const points = edgePoints(shape), closed = ['room', 'area', 'object', 'group', 'stair'].includes(shape.kind);
 	const winding = points.reduce((sum, a, index) => { const b = points[(index + 1) % points.length]; return sum + a.x * b.y - b.x * a.y; }, 0);
 	return points.slice(0, closed ? points.length : -1).map((a, index) => {
@@ -64,7 +71,7 @@ function edgesOf(shape: Shape) {
 	}).filter(edge => Number.isFinite(edge.length) && edge.length > 0).toSorted((a, b) => b.length - a.length);
 }
 /** Bounded edge affordances share the exact unobstructed rectangles used by hit testing. */
-export function layoutRotationControls(shape: Shape, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): readonly RotationControlGeometry[] {
+export function layoutRotationControls(shape: RotationControlShape, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): readonly RotationControlGeometry[] {
 	const hostWall = shape.wall !== undefined && shape.id !== shape.wall.id;
 	const widthPx = ROTATION_CONTROL_WIDTH_PX;
 	const margin = ROTATION_VIEW_MARGIN_PX * scale;
@@ -84,6 +91,6 @@ export function layoutRotationControls(shape: Shape, pivot: Point, scale: number
 	}
 	return controls;
 }
-export function layoutRotationControl(shape: Shape, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): RotationControlGeometry | null {
+export function layoutRotationControl(shape: RotationControlShape, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): RotationControlGeometry | null {
 	return layoutRotationControls(shape, pivot, scale, visible, obstacles)[0] ?? null;
 }

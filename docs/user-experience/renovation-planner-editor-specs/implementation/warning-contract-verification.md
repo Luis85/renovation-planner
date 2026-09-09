@@ -27,3 +27,17 @@ Original and fixed logs are retained at `C:/Users/lum/.codex/tmp/warning-contrac
 and `C:/Users/lum/.codex/tmp/warning-contract-fixed-20260909.log`. The temporary baseline test copy
 was removed after reproduction. These four failures were test-contract drift, not lost canvas,
 lost staleness, swallowed background state or wrong-component event delivery.
+
+## Group hover and standalone Inspector contracts
+
+The additional two-file quiet run passed 11/11 cases with scoped ESLint and one worker.
+`rotationHover.e2e.test.ts` now requires the current transient group descriptor, its unchanged
+actual member selection, four painted edge-arrow targets and unchanged persisted bytes. Alt
+suppression is retained. Its former empty-control expectation predated grouped rotation.
+
+The standalone `roomInspector.test.ts` fixture supplies an explicitly unavailable/null-target
+rotation facade matching the current component contract. The name, Delete, missing-derived-field
+and missing-list checks remain; the test additionally confirms unavailable rotation controls are
+absent. Production components gained no optional guards or fallback behavior. A fixture-only
+TypeScript line-break parsing error was corrected before the passing run; no tests ran in that
+initial attempt.

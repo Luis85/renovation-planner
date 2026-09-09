@@ -13,9 +13,9 @@ const props = defineProps<{ roomId: string; targetId?: string; continuationOnly?
 const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession();
 const summary = computed(() => renovationSummary(project.plan?.renovation ?? EMPTY_RENOVATION, props.roomId, props.targetId));
 function stages() { return [
-	{ kind: 'existing' as const, items: summary.value.existing.slice(0, 3).map(item => ({ id: item.id, text: item.existing!.description })) },
+	{ kind: 'existing' as const, items: summary.value.existing.slice(0, 3).map(item => ({ id: item.id, text: item.existing.description })) },
 	{ kind: 'work' as const, items: summary.value.work.slice(0, 4).map(item => ({ id: item.id, text: item.title })) },
-	{ kind: 'planned' as const, items: summary.value.planned.slice(0, 3).map(item => ({ id: item.id, change: tr(`renovation.change.${item.planned!.change}`), text: item.planned!.description || item.existing?.description })) },
+	{ kind: 'planned' as const, items: summary.value.planned.slice(0, 3).map(item => ({ id: item.id, change: tr(`renovation.change.${item.planned.change}`), text: item.planned.description || item.existing?.description })) },
 ]; }
 function compactProgress(): string { return tr('renovation.summary.compact-progress', { done: String(summary.value.complete), total: String(summary.value.work.length) }); }
 function continuePlanning(): void {

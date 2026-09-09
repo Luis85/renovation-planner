@@ -13,11 +13,11 @@ const props = defineProps<{ roomId: string }>();
 const runtime = useEditorRuntime(), session = useRenovationSession(), project = useProjectStore();
 const roomName = computed(() => project.zones.get(props.roomId)?.name ?? tr('renovation.select-room'));
 const detailVisible = computed(() => runtime.renovation.available && session.mode !== 'overview');
+const semantic = computed(() => ['existing', 'work', 'planned'].includes(session.mode));
 const navigationVisible = computed(() => session.mode === 'overview' || semantic.value || ['documents', 'photos', 'notes'].includes(session.mode));
 function detailTitle(): string { return semantic.value ? tr(`renovation.title.${session.mode as 'existing' | 'planned' | 'work'}`, { name: roomName.value }) : tr(`renovation.${session.mode}`); }
-const semantic = computed(() => ['existing', 'work', 'planned'].includes(session.mode));
-const relatedIcon = computed(() => expanded.value ? 'chevron-up' : 'chevron-down');
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null);
+const relatedIcon = computed(() => expanded.value ? 'chevron-up' : 'chevron-down');
 const modes = computed(() => session.mode === 'overview' && session.perspective === 'plan'
 	? context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const
 	: session.mode === 'overview' ? ['existing', 'planned', 'work'] as const

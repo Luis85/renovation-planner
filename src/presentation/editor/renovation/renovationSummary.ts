@@ -1,4 +1,4 @@
-import { orderedWork, reviewRenovation, type Renovation } from '../../../domain/renovation/Renovation';
+import { orderedWork, reviewRenovation, type Renovation, type RenovationSubject, type ExistingFacts, type PlannedFacts } from '../../../domain/renovation/Renovation';
 import { spatialContexts, type SharedSpatialContext } from '../../../domain/renovation/SharedLinks';
 
 /** Room totals include its elements; an element scope includes only that target. */
@@ -9,8 +9,8 @@ export function inRenovationScope(item: SharedSpatialContext, roomId: string, ta
 export function renovationSummary(value: Renovation, roomId: string, targetId = '') {
 	const subjects = value.subjects.filter(item => inRenovationScope(item, roomId, targetId));
 	const work = orderedWork(value).filter(item => inRenovationScope(item, roomId, targetId));
-	const existing = subjects.filter(item => item.existing);
-	const planned = subjects.filter(item => item.planned);
+	const existing = subjects.filter((item): item is RenovationSubject & { readonly existing: ExistingFacts } => Boolean(item.existing));
+	const planned = subjects.filter((item): item is RenovationSubject & { readonly planned: PlannedFacts } => Boolean(item.planned));
 	const decisions = value.decisions.filter(item => targetId && targetId !== roomId ? subjects.some(subject => subject.id === item.subjectId) : item.roomId === roomId);
 	const ids = new Set([...subjects, ...work, ...decisions].map(item => item.id));
 	const findings = reviewRenovation(value).filter(item => ids.has(item.recordId));

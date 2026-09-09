@@ -1,0 +1,182 @@
+{
+  "source": "5a244a92bcea930b8294899e514e0eca1860a286",
+  "started": 1788988297021,
+  "completed": 1788988325675,
+  "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
+  "files": [
+    {
+      "name": "light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788988305528.1453,
+      "sha256": "8b1df68eb9353650e0d4546836a8f4505be3c402fd779c59a3aeafdc56dd6180"
+    },
+    {
+      "name": "light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788988305693.7957,
+      "sha256": "ef9333b1db844234e66a630e92d786d4a1c7258251ba56d6f7d827c95a7919e8"
+    },
+    {
+      "name": "light-existing.png",
+      "kind": "image",
+      "modifiedAt": 1788988306293.928,
+      "sha256": "e891d1352b0828f1ba073096169f8744a90987d1ce35d3a020ebd58f066bd048"
+    },
+    {
+      "name": "light-planned.png",
+      "kind": "image",
+      "modifiedAt": 1788988307130.681,
+      "sha256": "73f65c714664d96f78438d738243061159eee6fe03657c30c139855f260e0b86"
+    },
+    {
+      "name": "light-work.png",
+      "kind": "image",
+      "modifiedAt": 1788988307368.608,
+      "sha256": "a0bbb82fbb56321fb3baffb912479bfdd922734d85df2d55ae6732f2676fdcfc"
+    },
+    {
+      "name": "light-review.png",
+      "kind": "image",
+      "modifiedAt": 1788988307533.6753,
+      "sha256": "3b5fc70d141b15839db341fffb00e3a26d4ccceeba1375253c13394fe7d0c6e2"
+    },
+    {
+      "name": "light-resolved.png",
+      "kind": "image",
+      "modifiedAt": 1788988307925.9922,
+      "sha256": "984b206082baec3297c08e4cfc330bffff426ea11a73e8b215f57a347a67b78a"
+    },
+    {
+      "name": "dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788988311725.9792,
+      "sha256": "bcc33a23aa23e95469a2df0804aa08e789685d9adae86d0c047d2d1da8cabb19"
+    },
+    {
+      "name": "dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788988311892.7312,
+      "sha256": "55c6255d290aa5c7e95009934e4ce9d52f704e6b7deb5d4b19b480025a491758"
+    },
+    {
+      "name": "dark-existing.png",
+      "kind": "image",
+      "modifiedAt": 1788988312473.4568,
+      "sha256": "af4e39d04e771f78cca05587e8e878f7b5855ccf611df994305dc0fd81530e6a"
+    },
+    {
+      "name": "dark-planned.png",
+      "kind": "image",
+      "modifiedAt": 1788988313294.2754,
+      "sha256": "e10f29c325bc34bee0cca237bbeb9809ffb8bd78ef97187f74f29060d253b5ec"
+    },
+    {
+      "name": "dark-work.png",
+      "kind": "image",
+      "modifiedAt": 1788988313542.7085,
+      "sha256": "216bf329236490333feda94bf7d717f9f1b8f94ffd099339b84cbec482146a13"
+    },
+    {
+      "name": "dark-review.png",
+      "kind": "image",
+      "modifiedAt": 1788988313692.7065,
+      "sha256": "af40e5171f6378d8aeddabc6e437a1b53001185b8338a1e18c354f33b7fbfbf3"
+    },
+    {
+      "name": "dark-resolved.png",
+      "kind": "image",
+      "modifiedAt": 1788988314075.9524,
+      "sha256": "7c396a7649004f6abd68ff0de15d23443ad1650df16f6a4ee0e413fea7f76836"
+    },
+    {
+      "name": "custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788988317764.7302,
+      "sha256": "b352724390841ddc195a272443938a38b88467a56f21afdbdda4dc6e4be63a44"
+    },
+    {
+      "name": "custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788988317927.6575,
+      "sha256": "07eeda0ea52ff47a0eef53c5121d992268dafa5beff18d93702a6128070a77b4"
+    },
+    {
+      "name": "custom-accent-existing.png",
+      "kind": "image",
+      "modifiedAt": 1788988318483.737,
+      "sha256": "3ee9cbaefa04e68c5507f9a42255e089ec3efa2baf88f6b647fae4eb554f2ee1"
+    },
+    {
+      "name": "custom-accent-planned.png",
+      "kind": "image",
+      "modifiedAt": 1788988319278.1213,
+      "sha256": "0f58bfaf6cf19bc883dbe33f84a07acf080be180eecf0530a71e6f6c2e5118e4"
+    },
+    {
+      "name": "custom-accent-work.png",
+      "kind": "image",
+      "modifiedAt": 1788988319514.3738,
+      "sha256": "889994441ecbc6e73278ecf36ba852593cb5e53a68cb8ddbcbbca2a1a7daf525"
+    },
+    {
+      "name": "custom-accent-review.png",
+      "kind": "image",
+      "modifiedAt": 1788988319659.3582,
+      "sha256": "fe9281992a62652bb4bbda104c13e4ca42d40a9d41705aa6c313782b8136ce72"
+    },
+    {
+      "name": "custom-accent-resolved.png",
+      "kind": "image",
+      "modifiedAt": 1788988320025.9912,
+      "sha256": "7955b6c50d9c6486854724e1e29152007d3ad693e10a9d420c00e8cb1a38feeb"
+    },
+    {
+      "name": "german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788988323524.2688,
+      "sha256": "67413938aa0f23b332ba5e89232bf08b3fa15fc52f7148b44c2374f4564e07bb"
+    },
+    {
+      "name": "german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788988323684.1445,
+      "sha256": "88959d2bb78354b5e4068de4e2f210cbe49d5bc595cb2154524836f658dddf2f"
+    },
+    {
+      "name": "german-constrained-existing.png",
+      "kind": "image",
+      "modifiedAt": 1788988324250.7058,
+      "sha256": "e9fada41ac27cb090a31d7081b088312f134a3863f91d8768e6e40defd01e69a"
+    },
+    {
+      "name": "german-constrained-planned.png",
+      "kind": "image",
+      "modifiedAt": 1788988324911.365,
+      "sha256": "2a9893b698ca2157cd803210c0117172078c208e9babcc620d0073803fbdc70c"
+    },
+    {
+      "name": "german-constrained-work.png",
+      "kind": "image",
+      "modifiedAt": 1788988325097.0127,
+      "sha256": "62ea020e2f0ea2d0fe97f7cec46aa6c022919a6ba1830b368f3f656c5c1b637f"
+    },
+    {
+      "name": "german-constrained-review.png",
+      "kind": "image",
+      "modifiedAt": 1788988325260.1106,
+      "sha256": "4d0d33508f586ec8c06cf305702da314e07503c6b5d1703fafce3da3487eaeb1"
+    },
+    {
+      "name": "german-constrained-resolved.png",
+      "kind": "image",
+      "modifiedAt": 1788988325576.972,
+      "sha256": "0d633ca97c55bacd37e3505c380b136bd63ae002d64f8da7961dd893760c0636"
+    },
+    {
+      "name": "report.json",
+      "kind": "data",
+      "modifiedAt": 1788988325592.5615,
+      "sha256": "f159707716f3c375dd766155bd3d7c564f50055a40f53aa90e6e7976343c42aa"
+    }
+  ]
+}

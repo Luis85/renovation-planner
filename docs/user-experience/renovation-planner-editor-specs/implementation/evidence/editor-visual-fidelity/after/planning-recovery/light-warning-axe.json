@@ -6,6 +6,36 @@
       "nodes": [
         {
           "target": [
+            ".rp-property-context > h2"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "target": [
+            ".rp-property-context__project"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "target": [
+            ".rp-property-context__floor"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "target": [
+            "span[data-rp-room-edge=\"1\"] > span[aria-hidden=\"true\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
+            "span[data-rp-room-edge=\"2\"] > span[aria-hidden=\"true\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
             ".rp-material-disclosure > span[aria-hidden=\"true\"]"
           ],
           "summary": "Fix any of the following:\n  Element content contains only non-text characters"

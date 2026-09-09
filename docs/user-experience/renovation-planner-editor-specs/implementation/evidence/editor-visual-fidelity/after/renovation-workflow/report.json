@@ -1,7 +1,7 @@
 [
   {
     "scenario": "light",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
       "--text-accent": "hsl(258, 88%, 66%)",
@@ -18,7 +18,7 @@
   },
   {
     "scenario": "dark",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "hsl(258, 88%, 66%)",
       "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
@@ -35,7 +35,7 @@
   },
   {
     "scenario": "custom-accent",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "#7c246b",
       "--text-accent": "#7c246b",
@@ -52,7 +52,7 @@
   },
   {
     "scenario": "german-constrained",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "hsl(258, 88%, 66%)",
       "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",

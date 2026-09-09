@@ -6,13 +6,61 @@
       "nodes": [
         {
           "target": [
-            ".rp-planning-group:nth-child(6) > table > tbody > tr:nth-child(1) > th[scope=\"row\"] > .rp-material-identity > .rp-material-disclosure[data-rp-material-details=\"\"] > span[aria-hidden=\"true\"]"
+            ".rp-property-context > h2"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "target": [
+            ".rp-property-context__project"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "target": [
+            "span[data-rp-room-edge=\"1\"] > span[aria-hidden=\"true\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
+            "span[data-rp-room-edge=\"2\"] > span[aria-hidden=\"true\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
+            "button[data-rp-dimension=\"width\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
+            "button[data-rp-dimension=\"depth\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
+            "button[data-rp-canvas-edit=\"\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
+            "button[data-rp-canvas-detail=\"\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
+            ".rp-planning-group:nth-child(7) > table > tbody > tr:nth-child(1) > th[scope=\"row\"] > .rp-material-identity > .rp-material-disclosure[data-rp-material-details=\"\"] > span[aria-hidden=\"true\"]"
           ],
           "summary": "Fix any of the following:\n  Element content contains only non-text characters"
         },
         {
           "target": [
-            ".rp-planning-group:nth-child(7) > table > tbody > tr:nth-child(1) > th[scope=\"row\"] > .rp-material-identity > .rp-material-disclosure[data-rp-material-details=\"\"] > span[aria-hidden=\"true\"]"
+            ".rp-planning-group:nth-child(8) > table > tbody > tr:nth-child(1) > th[scope=\"row\"] > .rp-material-identity > .rp-material-disclosure[data-rp-material-details=\"\"] > span[aria-hidden=\"true\"]"
           ],
           "summary": "Fix any of the following:\n  Element content contains only non-text characters"
         }

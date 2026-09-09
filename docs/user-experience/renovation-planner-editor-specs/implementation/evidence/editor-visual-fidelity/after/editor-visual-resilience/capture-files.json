@@ -1,0 +1,86 @@
+{
+  "source": "5a244a92bcea930b8294899e514e0eca1860a286",
+  "started": 1788988369646,
+  "completed": 1788988383011,
+  "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
+  "files": [
+    {
+      "name": "light-reflow-draft.png",
+      "kind": "image",
+      "modifiedAt": 1788988376387.562,
+      "sha256": "34b3195c1650776804f99e8b382af8baf4496f1820a2b8e11a848f9477bfd91c"
+    },
+    {
+      "name": "light-reflow-saved.png",
+      "kind": "image",
+      "modifiedAt": 1788988376509.3906,
+      "sha256": "00bbcb345212ac9261d4c709218e7c6ba0f9863ebf3e64214761ca7b446a1663"
+    },
+    {
+      "name": "light-long-name.png",
+      "kind": "image",
+      "modifiedAt": 1788988376640.172,
+      "sha256": "9181ab779306a8f347f3a20669ce11ee177086667618c1c94eb99c3e76a94026"
+    },
+    {
+      "name": "dark-reflow-draft.png",
+      "kind": "image",
+      "modifiedAt": 1788988378607.5547,
+      "sha256": "3dc794c8b0a2f082f0613b5e547f3ec66051d5f4f9fc482aeda3dfb34d92a96e"
+    },
+    {
+      "name": "dark-reflow-saved.png",
+      "kind": "image",
+      "modifiedAt": 1788988378711.6807,
+      "sha256": "89d4d14b6f64541034d4072f01b3ca908a1b6f46aeab6c45b10f3d2903ac7d2d"
+    },
+    {
+      "name": "dark-long-name.png",
+      "kind": "image",
+      "modifiedAt": 1788988378825.353,
+      "sha256": "9e197a64e3b316f9b22618ddb875e16c55f92ae208a0b218fb39f056669f4da8"
+    },
+    {
+      "name": "custom-accent-reflow-draft.png",
+      "kind": "image",
+      "modifiedAt": 1788988380723.767,
+      "sha256": "9babda7d9d153aafa4dc24880f3c02321e95e061908d011cc832fb2c401b1885"
+    },
+    {
+      "name": "custom-accent-reflow-saved.png",
+      "kind": "image",
+      "modifiedAt": 1788988380826.8716,
+      "sha256": "559870b71992193ccc4850c0212c50104d0e35ff85778b2ac2a899417610f280"
+    },
+    {
+      "name": "custom-accent-long-name.png",
+      "kind": "image",
+      "modifiedAt": 1788988380925.2888,
+      "sha256": "2a0aef8bdb2bbf4a474c9b691c9986c4a9d31f85e126d1a7b7e10bf7fe7bd827"
+    },
+    {
+      "name": "german-constrained-reflow-draft.png",
+      "kind": "image",
+      "modifiedAt": 1788988382743.4487,
+      "sha256": "e59936f2556a5500171e8aceae71d6ea176fe2837f5fc68f72bc541dcf488aa2"
+    },
+    {
+      "name": "german-constrained-reflow-saved.png",
+      "kind": "image",
+      "modifiedAt": 1788988382826.9524,
+      "sha256": "c56bfe92c273afa4c10248df3a56223ec0162b6169e9beb7ab559ef044aea12b"
+    },
+    {
+      "name": "german-constrained-long-name.png",
+      "kind": "image",
+      "modifiedAt": 1788988382909.3608,
+      "sha256": "190c73f7f730de3aa9f3d718d405aa797176721b5936c02f44c07d53c110ae35"
+    },
+    {
+      "name": "report.json",
+      "kind": "data",
+      "modifiedAt": 1788988382930.985,
+      "sha256": "efc99f52823c9c1ab7097970f824298d4ede685a4851d8c8875d2b9b02544f4a"
+    }
+  ]
+}

@@ -69,16 +69,19 @@ async function returnToReview(page) {
  * two consecutive frames agree on, and click on the very next round trip.
  */
 async function settledScene(page, roomId) {
-	await page.waitForFunction(() => new Promise(resolve => {
-		const read = () => {
-			const stage = window.Konva.stages.find(candidate => candidate.findOne('.zone'));
-			if (!stage) return null;
-			const box = stage.container().getBoundingClientRect();
-			return [box.left, box.top, box.width, box.height, stage.width(), stage.height()].join();
-		};
-		const first = read();
-		requestAnimationFrame(() => { requestAnimationFrame(() => { resolve(first !== null && first === read()); }); });
-	}));
+	// `waitForFunction` polls on `requestAnimationFrame`, so two consecutive polls ARE two
+	// consecutive frames — the agreement this needs falls out of the poller rather than
+	// needing a reader called twice inside one frame callback. The previous signature rides
+	// on `window` because each poll is its own call with no scope between them.
+	await page.waitForFunction(() => {
+		const stage = window.Konva.stages.find(candidate => candidate.findOne('.zone'));
+		if (!stage) return false;
+		const box = stage.container().getBoundingClientRect();
+		const signature = [box.left, box.top, box.width, box.height, stage.width(), stage.height()].join();
+		const settled = window.rpStageSignature === signature;
+		window.rpStageSignature = signature;
+		return settled;
+	});
 	return page.evaluate(id => window.editorFidelity.captions(id), roomId);
 }
 

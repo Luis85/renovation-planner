@@ -53,7 +53,9 @@ async function journey(page, scenario, out) {
 	if (fidelity) {
 		await activate(page, '[data-rp-action="add"]'); await page.locator('.rp-add-menu').waitFor();
 		await recordShot(page, scenario, out, 'M02-floor-add');
-		assert.equal(await page.locator('[data-rp-entry]').count(), 11, 'the matching Floor menu retains every real route');
+		// CREATION_CATALOGUE is a fixed 13 routes and the menu draws them all unfiltered; 11 predates the stair
+		// and arrow entries. stairsArrows.test.ts and editor-stairs-arrows-check.mjs both already pin 13.
+		assert.equal(await page.locator('[data-rp-entry]').count(), 13, 'the matching Floor menu retains every real route');
 		assert.equal(await page.locator('[data-icon-missing]').count(), 0, 'all Add entries use matching host icon fixtures');
 		await editorAccessibility(page, scenario, out, 'floor-add');
 		await page.keyboard.press('Escape');

@@ -27,3 +27,21 @@ These are nine proposed test cases. No additional coverage gain or passing resul
 claimed until the combined batch runs. Existing assertions, timeouts, skips and
 coverage settings are unchanged. CircularArc and curved marquee helpers already had
 no missing entries in this summary, so their existing tests were left alone.
+
+## Group and repository continuation
+
+Ten additional proposed cases in `groupMembershipBoundaries.test.ts` and
+`groupVersionBoundaries.test.ts` cover absent structural documents, preservation of
+independent Room membership, peer reuse of a deleted singleton group identity,
+unrelated membership, missing Room notes, unsupported note versions, invalid names,
+frozen version receipts after a peer rename, rejected next geometry, legacy schemas
+5/6/7 with exact data preservation, corrupt curve maps and dangling group writes.
+These are also unrun; the combined coordinator batch owns their validation.
+
+Five uncovered migration arms are primitive/null fallbacks in the version 3–7
+migration functions. The actual repository extracts those declared versions only
+from an object, and each migration preserves object shape. Primitive JSON instead
+starts at version 0 and is refused before those stages. The nonnumber branch inside
+`schemaVersionOf` is likewise preceded by an explicit malformed-version refusal.
+No invented version/primitive pairing or threshold exemption was added to force
+those arms. The real legacy read path is exercised without changing any bytes.

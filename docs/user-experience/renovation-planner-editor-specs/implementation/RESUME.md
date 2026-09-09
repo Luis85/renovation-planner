@@ -1,5 +1,11 @@
 # Wiederaufnahme der Editor-Finalisierung
 
+## Verbindlicher Fortsetzungsstand — 2026-09-09
+
+Main ist sauber auf `ec342370`; PR #93 wurde extern gemergt. Die aktuelle Arbeit liegt in `.worktrees/editor-release-verification` auf `codex/editor-release-verification`. PRs #94–#96 bleiben offen und werden nicht durch diesen Auftrag gemergt. Gruppierung, Kurven, Treppen/Pfeile, Hover-Drehgriffe, Fotoauswahl und die große Referenzansicht mit Pan/Zoom sind integriert. Der kombinierte Qualitätslauf ist noch nicht bestanden: [aktueller Prüfstand und konkrete Reparaturen](integrated-gate-2026-09-09.md). Der nächste vollständige Lauf nutzt unverändertes `npm run check` mit `VITEST_MAX_WORKERS=1`; Grenzen und Timeouts bleiben unverändert.
+
+Weitere Pflichtarbeit: alle neun visuellen Abläufe und 18 Vergleiche auf festgeschriebenem Quellstand, zusätzliche neue Interaktionen, tatsächlich betrachtete Bilder, anwendbare isolierte Obsidian-Prüfungen und Veröffentlichung sauber abgegrenzter Concern-PRs. Kein Gesamtabschluss. Die folgenden älteren Checkpoints belegen ausschließlich ihre jeweils genannten Revisionen.
+
 ## Aktueller Auftrag — 2026-09-08
 
 Neuere Nutzerentscheidung: alle freien räumlichen Elemente einzeln drehen; Wände zusammen mit

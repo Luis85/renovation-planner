@@ -2,7 +2,7 @@
 
 ## Active continuation — 2026-09-08
 
-Main is clean at `7d4bc381`, fetched and verified on 2026-09-08. The old #74–#92 stack has landed. PR #93 is still an independently owned, open docs-only closeout at `c1362732`. Follow [the new release ledger](release-2026-09-08.md) for implementation, verification and outstanding acceptance on fresh branches. The dated measurements below are retained as historical evidence and are not the current repository state.
+Updated 2026-09-09: main is clean at `ec342370`, after PR #93 was merged externally. The current topic integration includes the expanded user requirements, including saved groups, curves, stairs/arrows, hover rotation controls, image-only photo search and the enlarged reference viewport with pan/zoom. Follow [the combined gate record](integrated-gate-2026-09-09.md) and [release ledger](release-2026-09-08.md) for outstanding verification. The full combined gate and final visual/native acceptance are not yet passed. The dated measurements below are historical evidence, not the current repository state.
 
 Operational continuation: [RESUME.md](RESUME.md) is the central handoff for a later session or usage-limit interruption. It distinguishes pushed code, unverified WIPs, current processes and remaining acceptance.
 

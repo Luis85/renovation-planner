@@ -87,6 +87,7 @@
 		"scripts/editor-room-resize-check.mjs",
 		"scripts/editor-room-edge-check.mjs",
 		"scripts/editor-curves-check.mjs",
+		"scripts/editor-stairs-arrows-check.mjs",
 		"scripts/editor-room-naming-check.mjs",
 		"scripts/editor-reference-check.mjs",
 		"scripts/editor-structure-check.mjs",

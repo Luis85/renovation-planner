@@ -61,7 +61,7 @@ function measure(): void {
 	view.value = { ...view.value, x: view.value.x + (next.width - size.value.width) / 2, y: view.value.y + (next.height - size.value.height) / 2 };
 	size.value = next; draw();
 }
-function screenPoint(event: MouseEvent): Point | null {
+function previewPointerPoint(event: MouseEvent): Point | null {
 	const rect = canvas.value?.getBoundingClientRect();
 	return rect && rect.width > 0 && rect.height > 0 ? { x: (event.clientX - rect.left) * size.value.width / rect.width, y: (event.clientY - rect.top) * size.value.height / rect.height } : null;
 }
@@ -69,20 +69,20 @@ function zoom(factor: number, anchor = { x: size.value.width / 2, y: size.value.
 	view.value = zoomReference(view.value, anchor, factor, previewTransform(props.appearance, size.value).scale);
 }
 function wheel(event: WheelEvent): void {
-	const point = screenPoint(event);
+	const point = previewPointerPoint(event);
 	if (point && !gesture) zoom(Math.exp(-Math.max(-100, Math.min(100, event.deltaY)) * 0.0025), point);
 }
 function pick(event: MouseEvent): void {
 	if (suppressClick) { suppressClick = false; return; }
 	if (!props.measuring || panMode.value || space.value) return;
-	const screen = screenPoint(event);
+	const screen = previewPointerPoint(event);
 	if (!screen || screen.x < 0 || screen.x > size.value.width || screen.y < 0 || screen.y > size.value.height) return;
 	const point = referenceSourcePoint(screen, view.value, props.appearance);
 	if (point) emit('point', point);
 }
 function start(event: PointerEvent): void {
 	if (gesture || (event.button !== 0 && event.button !== 1)) return;
-	const point = screenPoint(event);
+	const point = previewPointerPoint(event);
 	if (!point) return;
 	suppressClick = false;
 	gesture = { id: event.pointerId, start: point, view: view.value, moved: false, navigationOnly: event.button === 1 || panMode.value || space.value || !props.measuring };
@@ -91,7 +91,7 @@ function start(event: PointerEvent): void {
 }
 function move(event: PointerEvent): void {
 	if (!gesture || gesture.id !== event.pointerId) return;
-	const point = screenPoint(event);
+	const point = previewPointerPoint(event);
 	if (!point) return;
 	const dx = point.x - gesture.start.x, dy = point.y - gesture.start.y;
 	if (!gesture.moved && Math.hypot(dx, dy) < 3) return;

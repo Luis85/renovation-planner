@@ -1,5 +1,6 @@
 /* Creation stays in the existing per-leaf task; the Inspector contains precise fields. */
 .renovation-plan-editor .rp-task-banner--structure {
+	--rp-taskbar-clearance: 88px;
 	top: auto;
 	bottom: var(--rp-taskbar-clearance, 88px);
 	width: fit-content;

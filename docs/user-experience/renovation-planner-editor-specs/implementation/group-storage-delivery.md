@@ -14,6 +14,13 @@ at `858f3735dcd3954d6d39157a0fcd59629160db84`. The latest #109 head,
 remains `codex/editor-deliver-reference`, and no other PR branch was rewritten.
 Main remains clean on its integration branch.
 
+The functional fixes, tests and verification receipt were committed as
+`d029d65922365a71c8f7423c0a97799742b1e0d2`. Before pushing, #109 advanced to
+`45e114525dd79417f0981538c9b16dda788b68b3`; that documentation/evidence-only update
+was also merged without conflicts. Source, tests, styles, scripts and checked
+configuration remain identical to the verified fix commit. Its inherited reference
+acceptance evidence is not a manual test performed by this group-storage follow-up.
+
 Initial GitHub inspection found no reviews, review threads or discussion comments on
 #110. Its four verification jobs were red; audit and GitGuardian checks were green.
 The updated #109 already records eight failures in five editor test files and a

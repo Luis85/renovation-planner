@@ -1,0 +1,79 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-deliver-groups
+
+stderr | tests/presentation/editor/groupSingletonPreview.test.ts > keeps a persisted singleton Room group outline and vertex handles on the numeric rotation preview, then cancels without writes
+Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
+
+ ❯ |suite| tests/presentation/editor/groupSingletonPreview.test.ts (1 test | 1 failed) 1394ms
+   × keeps a persisted singleton Room group outline and vertex handles on the numeric rotation preview, then cancels without writes 1392ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |suite| tests/presentation/editor/groupSingletonPreview.test.ts > keeps a persisted singleton Room group outline and vertex handles on the numeric rotation preview, then cancels without writes
+AssertionError: expected [ { x: 48, y: 48 }, …(3) ] to deeply equal [ …(4) ]
+
+- Expected
++ Received
+
+  [
+    {
+-     "x": 178.54515146334867,
+-     "y": -42.158331137503595,
++     "x": 48,
++     "y": 48,
+    },
+    {
+-     "x": 497.99935548226586,
+-     "y": 198.56767812331574,
++     "x": 448,
++     "y": 48,
+    },
+    {
+-     "x": 317.45484853665135,
+-     "y": 438.15833113750364,
++     "x": 448,
++     "y": 348,
+    },
+    {
+-     "x": -1.9993554822658213,
+-     "y": 197.43232187668428,
++     "x": 48,
++     "y": 348,
+    },
+  ]
+
+ ❯ tests/presentation/editor/groupSingletonPreview.test.ts:35:52
+     33|  expect(layer.findOne('.selection-outline')).toBe(outline);
+     34|  expect.soft(outline.getAttr('points')).toEqual(projected.flatMap(poin…
+     35|  expect.soft(handles.map(node => node.position())).toEqual(projected);
+       |                                                    ^
+     36|  const measurements = rig.wrapper.findAll('[data-rp-room-edge]');
+     37|  expect.soft(measurements.map(item => item.attributes('data-rp-room-ed…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |suite| tests/presentation/editor/groupSingletonPreview.test.ts > keeps a persisted singleton Room group outline and vertex handles on the numeric rotation preview, then cancels without writes
+AssertionError: expected [ DOMWrapper{ …(3) }, …(1) ] to have a length of +0 but got 2
+
+- Expected
++ Received
+
+- 0
++ 2
+
+ ❯ tests/presentation/editor/groupSingletonPreview.test.ts:39:58
+     37|  expect.soft(measurements.map(item => item.attributes('data-rp-room-ed…
+     38|  expect.soft(measurements.map(item => item.get('[aria-hidden="true"]')…
+     39|  expect.soft(rig.wrapper.findAll('[data-rp-dimension]')).toHaveLength(…
+       |                                                          ^
+     40|  expect(write).not.toHaveBeenCalled();
+     41|  await form.get('input').trigger('keydown', { key: 'Escape' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  15:27:29
+   Duration  40.97s (transform 13.62s, setup 0ms, import 16.94s, tests 1.39s, environment 21.26s)

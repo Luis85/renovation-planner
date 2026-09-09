@@ -1,5 +1,11 @@
 # Verbleibender Plan: Referenzskalierung auf #109
 
+Fortschreibung für **Gruppeninteraktionen auf #113**: [Implementierung und automatisierte Prüfung](group-ui-delivery.md).
+Dieser Schritt integriert #112 bis `24719e5be6f9692b49cb25ab38cb2337222eb6a9` ausschließlich
+in den bestehenden #113-Branch. Nachfolgende Branches bleiben unverändert. Die manuelle
+Abnahme ist nutzerverantwortet und offen; sie blockiert diesen Implementierungsschritt nicht.
+Der maßgebliche Gesamtplan aus #117 bleibt offen; kein Merge oder Release.
+
 Fortschreibung für **Öffnungsbewegung auf #112**: [Implementierung und automatisierte Prüfung](opening-move-delivery.md).
 Dieser Schritt integriert #111 bis `379f6a8aef24b1222d62624a5876672893fc84a2` ausschließlich
 in den bestehenden #112-Branch. Nachfolgende Branches bleiben unverändert. Die manuelle

@@ -1,0 +1,8 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-deliver-groups
+
+
+ Test Files  21 passed (21)
+      Tests  162 passed (162)
+   Start at  15:59:01
+   Duration  79.84s (transform 21.91s, setup 0ms, import 60.37s, tests 46.50s, environment 42.02s)

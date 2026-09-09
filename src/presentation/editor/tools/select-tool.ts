@@ -203,14 +203,15 @@ export class SelectTool implements EditorTool {
 	}
 	private selectGroup(context: EditorContext, event: EditorPointerEvent, id: string): boolean {
 		const ids = this.deps.expandSelection?.(id, event.modifiers.alt);
-		if (!ids || ids.length < 2) return false;
+		if (!ids?.length || event.modifiers.alt) return false;
+		if (ids.length === 1 && event.modifiers.shift) return false;
 		const selected = context.selection.selectedIds;
 		const result = event.modifiers.shift
 			? ids.every(member => selected.some(value => value === member)) ? selected.filter(value => !ids.includes(value)) : [...selected, ...ids]
 			: ids;
 		context.selection.select(result.map(value => value as EntityId<string>));
-		if (!event.modifiers.shift && !event.modifiers.alt && !context.writesBlocked()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
-		return true;
+		const moving = !event.modifiers.shift && !context.writesBlocked() && this.deps.selectionMove?.start(context.selection.selectedIds, event);
+		return ids.length > 1 || moving === true;
 	}
 	private selectStructure(context: EditorContext, event: EditorPointerEvent, hit: SpatialObjectCandidate, target: Exclude<SelectionTarget, null>): void {
 		selectSpatial(context.selection, hit.id, event.modifiers.shift);

@@ -76,7 +76,8 @@ describe('spatial task failure, busy and leaf lifetime', () => {
 		await value.wrapper.find('.rp-structure-list > ul > li:nth-child(2) ul button').trigger('click'); expect(value.selection.selectedIds[0]).toBe(value.project.structure.openings[0].id);
 		await value.wrapper.find('.rp-structure-list > ul > li:first-child > button').trigger('click', { shiftKey: true }); expect(value.selection.selectedIds).toHaveLength(2);
 		await value.wrapper.find('.rp-structure-list > ul > li:first-child > button').trigger('click');
-		await value.wrapper.find('.rp-structure-inspector details button').trigger('click'); await settle(); value.dialogs.resolve('confirm');
+		await value.wrapper.find('.rp-structure-inspector details > button').trigger('click');
+		await settleUntil(() => value.dialogs.current?.kind === 'confirm', 'structural delete impact'); value.dialogs.resolve('confirm');
 		await settleUntil(() => value.project.structure.walls.length === 3, 'wall removed');
 		expect(value.project.structure.boundaries).toEqual([]); expect(value.wrapper.element.contains(document.activeElement)).toBe(true);
 	});

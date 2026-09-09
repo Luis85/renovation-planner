@@ -8,10 +8,11 @@ import { defer, settle } from '../../helpers/async';
 import { injectedPersistenceError } from '../../helpers/domain';
 import { err } from '../../../src/core/result/Result';
 import { recorder } from '../../helpers/logger';
+import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 
 it.each(['room', 'area'] as const)('does not restore focus into a retired %s metadata form after a failed save', async kind => {
 	const pending = defer<void>(), busy = ref(false);
-	const dispatch = vi.fn(async () => { await pending.promise; return err(injectedPersistenceError()); });
+	const dispatch = vi.fn<() => Promise<DispatchResult>>(async () => { await pending.promise; return err(injectedPersistenceError()); });
 	const shared = { busy, blocked: ref(false), latest: ref<string | null>(null), dispatch, logger: recorder };
 	const form = kind === 'room' ? mount(RoomNameForm, { attachTo: document.body, props: { ...shared, name: 'Original room' } })
 		: mount(AreaDetailsForm, { attachTo: document.body, props: { ...shared, value: { name: 'Original area', zoneType: 'Garden' } } });

@@ -19,3 +19,13 @@ Six further source-ready cases target the matching b10 gaps: border-box-only siz
 No MaterialMarkers case was added by injecting nonfinite geometry, removing a hydrated Plan while rendering its canvas, or manufacturing a structure-record Room kind. The reported null-bounds and room/area normalization guards appear defensive under current validated inputs. Likewise, Reference commit's repeated scale/kind guards and EvidenceFields.create's repeated busy/capability gate are behind prior admission checks. These observations are limits of this bounded test work, not coverage exemptions.
 
 The six additions and prior fourteen cases remain unrun here. No production changes or threshold/timeout changes. Fresh coverage should measure actual gains after the root's combined run.
+
+## First focused result and fixture corrections
+
+The combined additions run at 56a63e32 completed with **155 passed / 13 failed across 19 files**. Eight failures belonged to this follow-up: six wall-form tests used an invalid single-wall Room boundary, one runtime test exposed a non-reactive retirement flag leaving the angle field editable, and one font test assumed JSDOM resolves an empty font to an empty string.
+
+The isolated correction uses all four WALL_LOOP IDs for a valid closed boundary while preserving the absent Room-name lookup; dispatch/recovery assertions can now exercise their intended paths. The retired-review test retains immediate readonly and disabled-Apply assertions, checks the recovery action is unavailable for retired drafts, and verifies both captured dispatch and actual Apply cannot reactivate a preview or write. The font test controls only the computed fontFamily response for the preview canvas, retaining the real draw and real pixel buffer.
+
+The runtime failure is a real UI defect: wall rotation's epoch was a plain variable read inside computed props, so selection-only retirement cleared the preview and blocked imperative dispatch without invalidating the form's controls. Change epoch to a reactive ref and capture its numeric value for the existing lifetime checks. The observed pre-fix readonly=false assertion is the reproduction. This source correction is limited to wall-review retirement; persistence, commands and dispatch admission semantics are unchanged.
+
+Repairs are **unverified** pending the combined retry; only source review and diff whitespace checks ran. Original failure results are preserved in `C:/Users/lum/.codex/tmp/editor-boundary-additions-20260909.log`.

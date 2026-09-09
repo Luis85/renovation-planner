@@ -19,7 +19,7 @@ function setup(degrees = 90) {
 	const retry = vi.fn<() => Promise<void>>().mockImplementation(() => { blocked.value = false; return Promise.resolve(); });
 	const openSource = vi.fn<() => Promise<void>>().mockResolvedValue(undefined), preview = vi.fn<InstanceType<typeof WallRotationForm>['$props']['preview']>();
 	wrapper = mount(WallRotationForm, { attachTo: document.body, global: { plugins: [createPinia()] }, props: {
-		structure: { ...WALL_LOOP, boundaries: [{ roomId: 'unreadable-room', wallIds: ['wall-a'] }] },
+		structure: { ...WALL_LOOP, boundaries: [{ roomId: 'unreadable-room', wallIds: WALL_LOOP.walls.map(wall => wall.id) }] },
 		wallId: 'wall-a', degrees, busy, blocked, retired, roomNames: {}, dispatch, retry, openSource, preview,
 	} });
 	return { form: wrapper, busy, blocked, retired, dispatch, retry, openSource, preview };

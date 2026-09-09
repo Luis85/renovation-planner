@@ -202,7 +202,12 @@ it('uses measured border-box dimensions when layout has no client size or device
 	const { w, canvas, subscribe } = setup();
 	placeAt(canvas, 10, 20, 800, 500); resizeTo(canvas, 0, 0); await nextTick();
 	expect(canvas.width).toBe(800); expect(canvas.height).toBe(500);
-	canvas.style.fontFamily = ''; expectDefined(subscribe.mock.calls[0], 'theme listener')[0]();
+	const readStyle = getComputedStyle;
+	vi.spyOn(globalThis, 'getComputedStyle').mockImplementation((element, pseudo) => {
+		const style = readStyle(element, pseudo);
+		return element === canvas ? new Proxy(style, { get: (target, key) => key === 'fontFamily' ? '' : Reflect.get(target, key) }) : style;
+	});
+	expectDefined(subscribe.mock.calls[0], 'theme listener')[0]();
 	await w.get('[data-rp-reference-view="fit"]').trigger('click');
 	const fit = previewTransform(appearance, { width: 800, height: 500 }), p = referencePoint({ x: 200, y: 120 }, appearance, fit.scale);
 	await w.get('canvas').trigger('click', { clientX: 10 + fit.x + p.x, clientY: 20 + fit.y + p.y });

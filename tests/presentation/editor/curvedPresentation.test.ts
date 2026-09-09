@@ -56,3 +56,14 @@ it('places hover rotation anchors on actual curved edges, retaining generous hit
 	expect(top.anchor.y).toBeLessThan(0); expect(top.bounds.max.x - top.bounds.min.x).toBe(44);
 	const straight = spatialOutlinePoints({ points }, 0.1); expect(straight).toBe(points);
 });
+
+it('selects curved polygons by enclosure, interior and closing-edge crossings without selecting remote boxes', () => {
+	expect(curvedCandidateIntersection(room, { min: { x: -1, y: -1001 }, max: { x: 4001, y: 3001 } })).toBe(true);
+	expect(curvedCandidateIntersection(room, { min: { x: 1950, y: -500 }, max: { x: 2050, y: -450 } })).toBe(true);
+	expect(curvedCandidateIntersection(room, { min: { x: -10, y: 1000 }, max: { x: 10, y: 1100 } })).toBe(true);
+	expect(curvedCandidateIntersection(room, { min: { x: -100, y: 1000 }, max: { x: -50, y: 1100 } })).toBe(false);
+	expect(curvedCandidateIntersection({ id: 'empty', points: [] }, { min: { x: 0, y: 0 }, max: { x: 5, y: 5 } })).toBe(false);
+	const object = { ...room, kind: 'object' as const };
+	expect(curvedCandidateIntersection(object, { min: { x: 1000, y: 3000 }, max: { x: 1100, y: 3010 } })).toBe(true);
+	expect(curvedCandidateIntersection({ id: 'straight', points }, { min: { x: -1, y: 1000 }, max: { x: 1, y: 1100 } })).toBe(true);
+});

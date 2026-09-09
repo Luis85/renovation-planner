@@ -21,6 +21,7 @@ import { pointerAt } from '../../helpers/tool-context';
 import { hoverRotation } from '../../helpers/rotationHover';
 import { err, ok } from '../../../src/core/result/Result';
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
+import { defer } from '../../helpers/async';
 const mounted: { unmount(): void }[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
 const element: NamedSpatialElement = { id: 'element-object', kind: 'object', name: 'Desk', points: [{ x: 500, y: 500 }, { x: 2500, y: 500 }, { x: 2500, y: 1500 }, { x: 500, y: 1500 }] };
@@ -226,4 +227,39 @@ it('continues a frozen pointer draft through a geometry-identical projection ref
 	await rig.runtime.refreshProjection(); tool.pointerMove(pointerAt(1900, 1600)); await settle();
 	const preview = expectDefined(rig.runtime.rotationActions.preview.value, 'retained preview').points;
 	tool.pointerUp(pointerAt(1900, 1600)); await settle(); expect(rig.project.structure.elements?.[0].points).toEqual(preview);
+});
+
+it.each([false, true])('handles a rejected rotation baseline with disposed=%s without leaking geometry or notices', async disposed => {
+	const rig = await setup(), pending = defer<Awaited<ReturnType<typeof rig.renovation.read>>>(), cause = new Error('rotation source unavailable');
+	const bytes = [...rig.stack.vault.entries], log = vi.spyOn(rig.deps.commands.logger, 'error');
+	vi.spyOn(rig.renovation, 'read').mockReturnValueOnce(pending.promise);
+	const operation = rig.runtime.rotationActions.rotate(element.id, 90); await settle();
+	if (disposed) { rig.unmount(); mounted.splice(mounted.indexOf(rig), 1); }
+	pending.reject(cause); await operation;
+	expect(log.mock.calls.some(([event]) => event === 'editor.rotation.failed')).toBe(!disposed);
+	expect(rig.runtime.rotationActions.preview.value).toBeNull(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+it.each(['kind', 'curve'] as const)('refuses a drag snapshot after a peer changes only its %s metadata', async changed => {
+	const rig = await setup();
+	if (changed === 'curve') { rig.selection.select([rig.room.id]); await settle(); }
+	const original = expectDefined(rig.runtime.rotationActions.target.value, 'original target'), points = expectDefined(rotationPoints(original, 90, expectDefined(rotationPivot(original), 'pivot')), 'rotation');
+	if (changed === 'kind') {
+		const baseline = expectOk(await rig.renovation.read(rig.plan.id));
+		expectOk(await rig.renovation.command(baseline, elementInput(baseline, { ...element, kind: 'path' }), rig.runtime.structureTask.ledger).execute());
+	} else {
+		const service = expectDefined(rig.deps.commands.groups, 'geometry service'), baseline = expectOk(await service.read(rig.plan.id));
+		expectOk(await service.command({ planId: rig.plan.id, baseline, ledger: rig.runtime.structureTask.ledger, document: { ...baseline.document, objects: baseline.document.objects.map(object => object.id === rig.room.id ? { ...object, bulges: [0.25, 0, 0, 0] } : object) } }).execute());
+	}
+	await rig.runtime.refreshProjection(); const bytes = [...rig.stack.vault.entries];
+	await rig.runtime.rotationActions.move(original.id, points, original);
+	expect([...rig.stack.vault.entries]).toEqual(bytes); expect(rig.runtime.rotationActions.preview.value).toBeNull();
+});
+
+it('keeps geometry intact when the guarded pointer rotation write is refused', async () => {
+	const rig = await setup(), original = expectDefined(rig.runtime.rotationActions.target.value, 'target'), bytes = [...rig.stack.vault.entries];
+	const points = expectDefined(rotationPoints(original, 90, expectDefined(rotationPivot(original), 'pivot')), 'turned points');
+	vi.spyOn(rig.geometry, 'write').mockResolvedValueOnce(err(injectedPersistenceError()));
+	await rig.runtime.rotationActions.move(original.id, points, original); await settle();
+	expect([...rig.stack.vault.entries]).toEqual(bytes); expect(rig.runtime.rotationActions.active.value).toBe(false);
 });

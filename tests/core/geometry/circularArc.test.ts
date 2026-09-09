@@ -1,8 +1,14 @@
 import { expect, it } from 'vitest';
-import { arcExtrema, arcLength, arcPoint, arcRadius, arcSegmentMoments, arcTangent } from '../../../src/core/geometry/circularArc';
+import { arcExtrema, arcLength, arcPoint, arcProjection, arcRadius, arcSegmentMoments, arcTangent } from '../../../src/core/geometry/circularArc';
 import { createCurvedPolygon } from '../../../src/core/geometry/CurvedPolygon';
 import { area, boundingBoxOf, centroid, contains, perimeter, rotate, scale, translate } from '../../../src/core/geometry/operations';
 import { expectOk } from '../../helpers/domain';
+
+it('keeps a collapsed preview edge finite instead of inventing a tangent or dividing by zero', () => {
+	const point = { x: 12, y: 34 }, edge = { start: point, end: point, bulge: 0 };
+	expect(arcTangent(edge, 0.5)).toEqual({ x: 0, y: 0 });
+	expect(arcProjection(edge, { x: 15, y: 38 })).toEqual({ point, fraction: 0, distance: 5 });
+});
 
 it('measures a semicircle analytically and keeps its endpoints exact', () => {
 	const edge = { start: { x: -1000, y: 0 }, end: { x: 1000, y: 0 }, bulge: 1 };

@@ -28,8 +28,18 @@ async function inspect(page, roomId) {
 }
 async function pan(page, dx, dy) {
 	const box = await page.locator('.rp-plan-canvas').boundingBox(); assert.ok(box);
-	const x = box.x + box.width * 0.85, y = box.y + (dy > 0 ? 30 : box.height - 30);
-	assert.equal(await page.evaluate(point => !!document.elementFromPoint(point.x, point.y)?.closest('button, input, textarea, select, summary, .rp-primary-actions'), { x, y }), false, 'pan begins on canvas content rather than a floating control');
+	const x = box.x + box.width * 0.85;
+	const blocked = value => page.evaluate(point => !!document.elementFromPoint(point.x, point.y)?.closest('button, input, textarea, select, summary, .rp-primary-actions'), { x, y: value });
+	// The 30px inset this line was written for has no clearance at the constrained width: the
+	// primary-actions pill floats over the canvas bottom by design (`styles/editor-visual-shell.css`
+	// pins it 24px up, `.rp-primary-actions__button` makes it 48px tall, `styles/editor-shell.css`
+	// centres it), so it owns the band 24-72px above the canvas bottom at EVERY width, and at 460
+	// it is 329px of a 388px canvas - measured - which puts 85% of the width inside it. Step further
+	// from the edge the drag moves away from until the origin is real canvas; the assertion below
+	// is unchanged and still refuses a pan that never finds one.
+	let y = box.y + (dy > 0 ? 30 : box.height - 30);
+	for (let inset = 50; inset <= 210 && await blocked(y); inset += 20) y = box.y + (dy > 0 ? inset : box.height - inset);
+	assert.equal(await blocked(y), false, 'pan begins on canvas content rather than a floating control');
 	await page.mouse.move(x, y); await page.mouse.down({ button: 'middle' });
 	await page.mouse.move(x + dx, y + dy, { steps: 3 }); await page.mouse.up({ button: 'middle' });
 }

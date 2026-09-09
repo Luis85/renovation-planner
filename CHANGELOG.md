@@ -22,8 +22,6 @@ entries are added by the pull request that earns them, never invented at release
 
 - Plan editor: show actual Room edge lengths during rotation, point editing and free-form creation, and expose free-form Room drawing directly in the creation task banner.
 
-- Plan editor: a labelled rotation control explains drag and precise-angle actions, uses a full rectangular target, and reveals the centre, direction and active snap increment. Short clicks open the existing numeric form; deliberate drags keep their frozen geometry and cancellation behavior.
-
 - Plan editor: rotate a single Room, Area, Object, Path, Fence or Measurement through guarded pointer and numeric angle actions, preserving saved identities, metadata, item order and exact Undo/Redo. Quarter turns retain axis-aligned Room sizing.
 - Plan editor: rotate a wall around its midpoint with connected wall ends and hosted openings. Door, Window and Opening selections rotate their host through impact review, preserving opening measurements, independent Room outlines and intended geometry, with guarded Undo/Redo and read-only recovery.
 

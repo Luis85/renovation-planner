@@ -82,15 +82,38 @@ async function settledScene(page, roomId) {
 	return page.evaluate(id => window.editorFidelity.captions(id), roomId);
 }
 
+/**
+ * The constrained Inspector has exactly two doors shut: its own `.rp-inspector-drawer__close`,
+ * and Escape WHILE FOCUS IS INSIDE IT (`ResponsiveEditorShell` binds `@keydown.esc` on the
+ * drawer). `PanelRail`'s button only ever opens — `open()` calls `openOverlay`, never a toggle
+ * — and `panel()` only ever opens too. After `returnToReview` focus sits on the perspective
+ * tabs, so the Escape that stood here reached nothing and the drawer stayed over the canvas at
+ * 460px. The marker's point then belonged to the `Wohnzimmer` review row
+ * (`document.elementFromPoint` named it), whose own `@click` is `selectAndFrame` as well, so
+ * the click selected and framed the WRONG Room in silence: a summary opened, Review stayed
+ * selected, no dialog appeared, and only the room id in the awaited selector disagreed.
+ */
+async function collapseDetails(page) {
+	if (await page.locator('.rp-inspector-drawer__close').isVisible()) await activate(page, '.rp-inspector-drawer__close');
+	await page.waitForFunction(() => document.querySelector('[data-rp-rail="details"]')?.getAttribute('aria-expanded') !== 'true');
+}
+
 async function verifyRoomMarker(page, roomId, narrow, beforeReview) {
-	if (narrow) await page.keyboard.press('Escape');
+	if (narrow) await collapseDetails(page);
 	await tabTo(page, '.rp-plan-canvas'); await page.keyboard.press('Escape');
 	await page.locator('[data-rp-review-summary-room]').waitFor({ state: 'hidden' });
 	const notes = await page.evaluate(() => window.editorFidelity.savedNotes());
 	const scene = await settledScene(page, roomId);
 	assert.equal(scene.reviewMarkers.length, 1, 'two Decisions share one marked Room');
 	const marker = scene.reviewMarkers[0]; assert.equal(marker.roomId, roomId);
-	await page.mouse.click(scene.origin.x + marker.bounds.x + marker.bounds.width / 2, scene.origin.y + marker.bounds.y + marker.bounds.height / 2);
+	const point = { x: scene.origin.x + marker.bounds.x + marker.bounds.width / 2, y: scene.origin.y + marker.bounds.y + marker.bounds.height / 2 };
+	// The stage answers `getIntersection` for a point an HTML overlay owns, so a marker click can
+	// be swallowed whole with nothing on the canvas to show for it. Ask the document instead.
+	assert.equal(await page.evaluate(value => {
+		const stage = window.Konva.stages.find(candidate => candidate.findOne('.zone'));
+		return stage.container().contains(document.elementFromPoint(value.x, value.y));
+	}, point), true, 'the marker is what the pointer reaches, not an overlay above it');
+	await page.mouse.click(point.x, point.y);
 	await page.locator(`[data-rp-review-summary-room="${roomId}"]`).waitFor();
 	assert.equal(await page.locator('[data-rp-perspective="review"]').getAttribute('aria-checked'), 'true');
 	assert.equal(await page.locator('.rp-dialog').count(), 0, 'Room marker selection opens the summary, not a source dialog');

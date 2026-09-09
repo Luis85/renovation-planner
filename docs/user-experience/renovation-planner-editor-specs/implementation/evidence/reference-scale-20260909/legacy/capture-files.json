@@ -1,37 +1,37 @@
 {
   "source": "6c6699ea9a9fda7e9cfe1a35c5f3b010b4607e3f",
-  "started": 1788944675691,
-  "completed": 1788944696452,
+  "started": 1788947666372,
+  "completed": 1788947693785,
   "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
   "files": [
     {
       "name": "light-reference-legacy-scale.png",
       "kind": "image",
-      "modifiedAt": 1788944690000,
-      "sha256": "33f61d5af2c34cfd9197a3ff39c312dff31e0c65f2d5254815f9b14e5e303a7f"
+      "modifiedAt": 1788947686000,
+      "sha256": "34ac484d9a114e7a5bc45e74916b4e6dc837a2eb48f7c3e1b3a4c22f678feb9d"
     },
     {
       "name": "dark-reference-legacy-scale.png",
       "kind": "image",
-      "modifiedAt": 1788944692000,
-      "sha256": "7c86b82fbf4a6ef22043dcb36f025be4d13331d6b8a0493338ab92a3384bbfa1"
+      "modifiedAt": 1788947690000,
+      "sha256": "6c83bed0b75b7392e27a7cc8841478dc97293df0600dee3bbb59cf9b4f54997f"
     },
     {
       "name": "custom-accent-reference-legacy-scale.png",
       "kind": "image",
-      "modifiedAt": 1788944694000,
-      "sha256": "4ec03fd17dcfee31c3f26672d2960609a186e8677b4071ec984331c576844707"
+      "modifiedAt": 1788947692000,
+      "sha256": "c2664b1b3c5b217f6962cc93f51a4c694a46758b020137701a471d7350c53698"
     },
     {
       "name": "german-constrained-reference-legacy-scale.png",
       "kind": "image",
-      "modifiedAt": 1788944698000,
-      "sha256": "f1624537650d08280960654e04ce1dcd196dc94ae9a19a7c297b9ee02dd52781"
+      "modifiedAt": 1788947694000,
+      "sha256": "c644cce7f77d61bbdf7c561df8b7d665309e3f758a53001265d949788bcdce9f"
     },
     {
       "name": "report.json",
       "kind": "data",
-      "modifiedAt": 1788944698000,
+      "modifiedAt": 1788947694000,
       "sha256": "1adfdbc50051f8889066093961958a72a54de1f07fcb43a487d4a2584ea776a4"
     }
   ]

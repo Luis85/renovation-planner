@@ -9,7 +9,7 @@ import { previewTransform } from '../../../src/presentation/editor/reference/ref
 import { zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
 import { expectDefined } from '../../helpers/domain';
 import { referencePoint } from '../../../src/domain/plan/ReferenceAppearance';
-import { installCanvas } from '../../helpers/canvas';
+import { backingCanvas, installCanvas } from '../../helpers/canvas';
 import { connectedObservers, installResizeObserver, placeAt, resizeTo } from '../../helpers/layout';
 
 const appearance = { crop: { x: 20, y: 30, width: 400, height: 200 }, rotation: 0, opacity: 1, visible: true, locked: true };
@@ -108,14 +108,18 @@ it('uses arrow navigation without stealing modified shortcuts or the dialog Esca
 it('zooms the wheel around its source pixel, clamps large deltas and ignores wheel input during a held gesture', async () => {
 	const { w, canvas } = setup(), fit = previewTransform(appearance), pixel = { x: 200, y: 120 };
 	const p = referencePoint(pixel, appearance, fit.scale), client = { clientX: p.x + fit.x, clientY: p.y + fit.y };
-	await w.get('canvas').trigger('wheel', { ...client, deltaY: -1000 }); expect(w.get('output').text()).toBe('128%');
+	async function wheel(deltaY: number): Promise<void> {
+		canvas.dispatchEvent(new WheelEvent('wheel', { ...client, deltaY, bubbles: true, cancelable: true }));
+		await nextTick();
+	}
+	await wheel(-1000); expect(w.get('output').text()).toBe('128%');
 	await w.get('canvas').trigger('click', client);
 	const picked = expectDefined(w.emitted<[Point]>('point')?.at(-1)?.[0], 'wheel anchored point');
 	expect(picked.x).toBeCloseTo(pixel.x, 8); expect(picked.y).toBeCloseTo(pixel.y, 8);
-	await w.get('canvas').trigger('wheel', { ...client, deltaY: 1000 }); expect(w.get('output').text()).toBe('100%');
-	pointer(canvas, 'pointerdown', 180, 100); await w.get('canvas').trigger('wheel', { ...client, deltaY: -100 });
+	await wheel(1000); expect(w.get('output').text()).toBe('100%');
+	pointer(canvas, 'pointerdown', 180, 100); await wheel(-100);
 	expect(w.get('output').text()).toBe('100%'); pointer(canvas, 'pointerup', 180, 100);
-	placeAt(canvas, 0, 0, 0, 0); await w.get('canvas').trigger('wheel', { ...client, deltaY: -100 });
+	placeAt(canvas, 0, 0, 0, 0); await wheel(-100);
 	expect(w.get('output').text()).toBe('100%'); expect(w.emitted('point')).toHaveLength(1);
 });
 
@@ -154,7 +158,11 @@ it('keeps source coordinates stable across high-DPI one-axis resizes and a tempo
 });
 
 it('redraws markers after host theme changes and labels only visible source points', async () => {
-	const { w, canvas, subscribe } = setup(), context = expectDefined(canvas.getContext('2d'), 'canvas context');
+	const { w, canvas, subscribe } = setup();
+	// Vue writes initial dimensions as attributes; synchronize the helper's real pixel buffer.
+	const backing = expectDefined(backingCanvas(canvas), 'preview backing canvas');
+	backing.width = canvas.width; backing.height = canvas.height;
+	const context = backing.getContext('2d');
 	canvas.style.color = 'rgb(17, 68, 119)'; canvas.style.fontFamily = 'Arial';
 	expectDefined(subscribe.mock.calls[0], 'theme listener')[0]();
 	const fit = previewTransform(appearance), p = referencePoint(points[0], appearance, fit.scale);

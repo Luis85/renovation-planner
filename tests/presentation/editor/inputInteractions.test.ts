@@ -24,6 +24,13 @@ it('routes Ctrl Z/Y from editor buttons through real history and leaves text/mod
 	expect(key(button, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true);
 	await settleUntil(() => value.project.structure.walls.length === 0, 'history undo');
 	key(button, { key: 'y', ctrlKey: true }); await settleUntil(() => value.project.structure.walls.length === 4, 'history redo');
+	key(button, { key: 'z', metaKey: true }); await settleUntil(() => value.project.structure.walls.length === 0, 'platform undo');
+	key(button, { key: 'Z', metaKey: true, shiftKey: true }); await settleUntil(() => value.project.structure.walls.length === 4, 'platform redo');
+	for (const modifiers of [{ key: 'y', ctrlKey: true, shiftKey: true }, { key: 'z', ctrlKey: true, altKey: true }, { key: 'z', ctrlKey: true, isComposing: true }]) expect(key(button, modifiers).defaultPrevented).toBe(false);
+	expect(value.project.structure.walls).toHaveLength(4);
+	const undo = vi.spyOn(value.runtime, 'undo'); value.project.stale = true;
+	expect(key(button, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true); expect(undo).not.toHaveBeenCalled();
+	value.project.stale = false; expect(key(button, { key: 'z', ctrlKey: true, repeat: true }).defaultPrevented).toBe(true); expect(undo).not.toHaveBeenCalled();
 	value.runtime.setTool('draw-room'); await settle();
 	const input = value.wrapper.get('.rp-new-room input').element as HTMLElement;
 	expect(key(input, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(false); expect(value.project.structure.walls).toHaveLength(4);

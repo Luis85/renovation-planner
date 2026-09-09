@@ -15,3 +15,10 @@ action. No production code or timeout/threshold was changed.
 
 Scoped Oxlint/ESLint, vue-tsc and all 19 tests across the two files passed with
 VITEST_MAX_WORKERS=1. This is automated contract verification, not a manual/native run.
+
+The subsequent inspector contract pass keeps Create's exact description ID under test
+while allowing the unrelated persistent free-shape help. Multi-selection now clicks the
+named member-focus row, preserving both selected IDs, instead of the newly preceding
+Group Inspect action. Marker visibility targets the current planned-layer checkbox.
+All 55 cases across newRoomInspector, multiSelectionInspector and renovationRoutes passed
+quietly, along with scoped linters and vue-tsc. Production behavior was not changed.

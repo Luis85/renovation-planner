@@ -225,7 +225,10 @@ describe('reviewed wall rotation and hosted opening runtime', () => {
 		rig.dialogs.resolve('cancel'); await operation; expect(rig.runtime.canUndo.value).toBe(false);
 	});
 	it('offers source-note and failed-read retry for a paused wall review without replaying the write', async () => {
-		const { rig, room } = await setup(); rig.project.zones.delete(room.id);
+		const { rig, room } = await setup();
+		const projected = expectOk(await rig.deps.queries.findZonesByPlan(rig.plan.id));
+		vi.spyOn(rig.deps.queries, 'findZonesByPlan').mockResolvedValueOnce(ok({ ...projected, zones: [], unreadable: 1 }));
+		await rig.runtime.refreshProjection();
 		const operation = rig.runtime.structureActions.rotateWall('wall-a', 90), form = await formReady(rig);
 		expect(form.text()).toContain(room.id);
 		const read = vi.spyOn(rig.deps.queries, 'findZonesByPlan').mockResolvedValue(err(injectedPersistenceError()));

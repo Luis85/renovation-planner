@@ -1,3 +1,4 @@
+import { chooseAddEntry } from './editor-add-browser.mjs';
 import assert from 'node:assert/strict';
 import { runAreaBrowserMatrix, activate } from './editor-area-browser.mjs';
 import { recordRoom, recordText, recordShot } from './editor-record-browser.mjs';
@@ -14,12 +15,7 @@ async function openCurves(page) {
 async function curvedWall(page, scenario, out) {
 	await activate(page, '[data-rp-action="add"]');
 	await page.locator('[data-rp-entry="door"]').waitFor();
-	for (let index = 0; index < 20; index++) {
-		if (await page.locator('[data-rp-entry="door"]').evaluate(element => element === document.activeElement)) break;
-		await page.keyboard.press('ArrowDown');
-	}
-	assert.equal(await page.locator('[data-rp-entry="door"]').evaluate(element => element === document.activeElement), true);
-	await page.keyboard.press('Enter'); await panel(page, 'details'); await page.locator('.rp-structure-task').waitFor();
+	await chooseAddEntry(page, 'door'); await panel(page, 'details'); await page.locator('.rp-structure-task').waitFor();
 	await recordText(page, '.rp-structure-task', 'offset', '0.5'); await recordText(page, '.rp-structure-task', 'width', '0.8');
 	await activate(page, '.rp-structure-task > button:last-child'); await page.locator('.rp-structure-task').waitFor({ state: 'hidden' });
 	const structure = await page.evaluate(() => window.editorFidelity.groups().structure), id = structure.walls[0].id;

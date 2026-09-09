@@ -14,6 +14,11 @@ const detailsOpen = ref(false);
 const photo = computed(() => draft.value.type === 'photo');
 const error = ref<'file' | 'image' | null>(null), working = ref(false);
 const fileActionBlocked = computed(() => props.paused || props.writeBlocked || working.value);
+const fieldsPaused = computed(() => props.paused || working.value);
+const photoImportAvailable = computed(() => photo.value && props.files);
+const importingPhoto = computed(() => working.value && photo.value);
+const noteCreationBlocked = computed(() => fileActionBlocked.value || !!draft.value.path);
+function errorLabel(): string { return tr(error.value === 'image' ? 'planning.photo.image-required' : 'planning.file-failed'); }
 watch(working, value => emit('busy', value), { flush: 'sync' });
 let alive = true;
 onBeforeUnmount(() => { alive = false; emit('busy', false); });
@@ -46,9 +51,9 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 		v-model="draft.path"
 		:files="files"
 		:images-only="photo"
-		:paused="paused || working"
+		:paused="fieldsPaused"
 	/>
-	<label v-if="photo && files">{{ tr('planning.photo.import') }}<input
+	<label v-if="photoImportAvailable">{{ tr('planning.photo.import') }}<input
 		type="file"
 		accept=".png,.jpg,.jpeg,.gif,.webp"
 		:aria-disabled="fileActionBlocked"
@@ -73,7 +78,7 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 			<EvidenceMetadataFields
 				:draft="draft"
 				:baseline="baseline"
-				:paused="paused || working"
+				:paused="fieldsPaused"
 				@type-changed="keepTypeFocus"
 			/>
 			<p>{{ tr('planning.file-policy') }}</p>
@@ -83,13 +88,13 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 		<EvidenceMetadataFields
 			:draft="draft"
 			:baseline="baseline"
-			:paused="paused || working"
+			:paused="fieldsPaused"
 			@type-changed="keepTypeFocus"
 		/>
 		<template v-if="files">
 			<button
 				type="button"
-				:aria-disabled="fileActionBlocked || !!draft.path"
+				:aria-disabled="noteCreationBlocked"
 				@click.capture="refuseInoperativeEvent"
 				@click="create()"
 			>
@@ -107,7 +112,7 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 		<p>{{ tr('planning.file-policy') }}</p>
 	</template>
 	<p
-		v-if="working && photo"
+		v-if="importingPhoto"
 		role="status"
 	>
 		{{ tr('planning.photo.importing') }}
@@ -116,6 +121,6 @@ function importFile(event: Event): void { const file = (event.target as HTMLInpu
 		v-if="error"
 		role="alert"
 	>
-		{{ tr(error === 'image' ? 'planning.photo.image-required' : 'planning.file-failed') }}
+		{{ errorLabel() }}
 	</p>
 </template>

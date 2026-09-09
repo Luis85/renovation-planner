@@ -3,33 +3,36 @@ import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { boundingBoxOf, centroid, coincident, distance, rotate } from '../../../core/geometry/operations';
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import type { Wall } from '../../../domain/spatial/Structure';
-import { stairPlanGeometry, type StairOptions } from '../../../domain/spatial/stairGeometry';
 import type { GroupSnapshot } from '../groups/groupSnapshot';
-import { layoutRotationControl, type RotationControlGeometry } from './rotationControl';
+import { stairPlanGeometry } from '../../../domain/spatial/stairGeometry';
+import { layoutRotationControl, type RotationControlGeometry, type RotationControlShape } from './rotationControl';
 
-export interface RotationShape {
-	readonly id: string;
+export interface RotationShape extends RotationControlShape {
 	readonly generation?: number;
 	readonly kind: 'room' | 'area' | SpatialElementKind | 'wall' | 'group';
 	/** Groups provide aggregate visibility; hidden members remain part of their transform. */
 	readonly visible?: boolean;
-	readonly points: readonly Point[];
-	readonly bulges?: readonly number[];
-	readonly stair?: StairOptions;
 	/** A hosted-opening selection rotates this captured host, without changing selection identity. */
 	readonly wall?: Wall;
 	readonly group?: GroupSnapshot;
 }
 export interface NamedRotationShape extends RotationShape { readonly name: string }
 function polygon(shape: RotationShape): boolean { return shape.kind === 'object' || shape.kind === 'room' || shape.kind === 'area'; }
+function validRotationPoint(point: Point): boolean {
+	return Number.isFinite(point.x) && Number.isFinite(point.y) && Math.abs(point.x) <= 1e9 && Math.abs(point.y) <= 1e9;
+}
 export function rotationPivot(shape: RotationShape): Point | null {
 	if (shape.kind === 'stair' && (!shape.stair || !stairPlanGeometry(shape.points, shape.stair))) return null;
-	if (!shape.points.every(point => Number.isFinite(point.x) && Number.isFinite(point.y) && Math.abs(point.x) <= 1e9 && Math.abs(point.y) <= 1e9)) return null;
+	if (!shape.points.every(validRotationPoint)) return null;
 	if (shape.kind === 'group') {
 		const bounds = boundingBoxOf(shape);
 		return bounds.ok ? { x: (bounds.value.min.x + bounds.value.max.x) / 2, y: (bounds.value.min.y + bounds.value.max.y) / 2 } : null;
 	}
 	if (polygon(shape)) { const result = centroid(shape); return result.ok ? result.value : null; }
+	return linearPivot(shape);
+}
+/** Open paths use their length-weighted segment centres. */
+function linearPivot(shape: RotationShape): Point | null {
 	if (shape.points.length < 2 || ((shape.kind === 'measurement' || shape.kind === 'wall') && shape.points.length !== 2)) return null;
 	let length = 0, x = 0, y = 0;
 	for (let index = 1; index < shape.points.length; index++) {
@@ -65,5 +68,4 @@ export function rotationDegreesBetween(original: readonly Point[], points: reado
 	const before = Math.atan2(original[1].y - original[0].y, original[1].x - original[0].x), after = Math.atan2(points[1].y - points[0].y, points[1].x - points[0].x);
 	return Math.atan2(Math.sin(after - before), Math.cos(after - before)) * 180 / Math.PI;
 }
-
 

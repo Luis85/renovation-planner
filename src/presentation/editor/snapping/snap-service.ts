@@ -183,7 +183,7 @@ export class SnapService {
 		return roundToStep(angleRadians, this.config.angleStepRadians);
 	}
 	/** The same configured increment shown by the rotation feedback. */
-	get rotationStepDegrees(): number { return this.config.angleStepRadians * 180 / Math.PI; }
+	rotationStepDegrees(): number { return this.config.angleStepRadians * 180 / Math.PI; }
 
 	/**
 	 * `point` pulled onto the nearest ray of `angleStepRadians` leaving `anchor` — the Shift

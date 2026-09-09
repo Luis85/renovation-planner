@@ -10,6 +10,7 @@ import { useFormCommit } from '../../composables/use-form-commit';
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { useInvalidFieldFocus } from '../../composables/use-invalid-field-focus';
 import FieldError from '../../components/FieldError.vue';
+import GeometryNameField from '../forms/GeometryNameField.vue';
 import FormBanner from '../../components/FormBanner.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
@@ -60,26 +61,13 @@ async function submit(): Promise<void> {
 			:open-source="openSource"
 		/>
 		<p>{{ tr(hint ?? 'editor.outline.hint') }}</p>
-		<FieldError
+		<GeometryNameField
 			v-if="name !== undefined"
-			v-slot="{ inputId, aria }"
-			:message="invalidName ? tr('editor.element.name-required') : null"
-		>
-			<label
-				:for="inputId"
-				class="rp-dialog-field"
-			>{{ tr('editor.room.name') }}
-				<input
-					:id="inputId"
-					v-bind="aria"
-					name="name"
-					type="text"
-					:value="form.values.value.name"
-					:readonly="paused"
-					@input="nameInput"
-				>
-			</label>
-		</FieldError>
+			:value="form.values.value.name"
+			:readonly="paused"
+			:invalid="invalidName"
+			@input="nameInput"
+		/>
 		<FormBanner :message="form.banner.value" />
 		<p
 			v-if="latest.value !== null"

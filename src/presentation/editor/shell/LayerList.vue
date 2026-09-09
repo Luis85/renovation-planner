@@ -10,6 +10,7 @@
  * both.
  */
 import HostIcon from '../../components/HostIcon.vue';
+import ReferenceLayerAppearance from './ReferenceLayerAppearance.vue';
 import type { PlanDto } from '../../read-models/PlanDto';
 import { useId } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -93,14 +94,10 @@ function actionReasonId(entry: LayerEntry): string | undefined {
 			>
 				<HostIcon :name="layerVisibility[entry.konvaLayer] ? 'eye' : 'eye-off'" />
 				<span>{{ tr(entry.labelKey) }}</span>
-				<template v-if="entry.id === 'reference' && plan?.background">
-					<HostIcon
-						:name="plan.background.appearance?.locked === false ? 'lock-open' : 'lock'"
-						:title="tr(plan.background.appearance?.locked === false ? 'editor.shell.unlocked' : 'editor.shell.locked')"
-					/>
-					<span class="rp-visually-hidden">{{ tr(plan.background.appearance?.locked === false ? 'editor.shell.unlocked' : 'editor.shell.locked') }}</span>
-					<span class="rp-layer-opacity">{{ Math.round((plan.background.appearance?.opacity ?? 1) * 100) }}%</span>
-				</template>
+				<ReferenceLayerAppearance
+					v-if="entry.id === 'reference' && plan?.background"
+					:background="plan.background"
+				/>
 			</label>
 			<span
 				v-if="entry.reasonKey !== null"

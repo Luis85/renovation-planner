@@ -37,3 +37,11 @@ Verification:
 
 The checks do not claim matching screenshots or live Obsidian acceptance. Those remain with
 parent integration. No geometry schema, persisted viewport or calibration ownership changed.
+
+The 2026-09-09 integrated declaration gate found that the private DOM-coordinate helper
+reused the reserved `screenPoint` factory name. It is now `previewPointerPoint`; its four
+callers, coordinate arithmetic and behavior are otherwise unchanged. The shared branded
+factory remains unique in Viewport.ts and the declaration assertion is retained.
+Scoped Oxlint/ESLint, vue-tsc, and all 59 tests across declarations, viewport geometry,
+viewport controls and the reference workflow passed with VITEST_MAX_WORKERS=1 and
+unchanged test timeouts. These checks do not add a browser/native acceptance claim.

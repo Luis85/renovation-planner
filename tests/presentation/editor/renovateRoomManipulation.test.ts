@@ -5,6 +5,7 @@ import { renovationEditor } from '../../helpers/renovationEditor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { pointerAt } from '../../helpers/tool-context';
+import { zoneEditingHandles } from '../../helpers/zoneEditingHandles';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -15,10 +16,7 @@ async function setup() {
 it('edits a Room corner in Renovate through one reversible geometry command', async () => {
  const rig = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id));
  const points = expectDefined(rig.project.zones.get(rig.room.id), 'Room').points;
- const interaction = rig.stage.findOne<Konva.Layer>('.interaction');
- // Vertex handles are direct screen-space children; rotation is a separate nested world-space group.
- expect(interaction?.getChildren().filter(node => node.getClassName() === 'Circle')).toHaveLength(points.length);
- expect(interaction?.findOne('.object-rotation-handle')).toBeDefined();
+ await zoneEditingHandles(rig, points.length, { x: (points[0].x + points[2].x) / 2, y: (points[0].y + points[2].y) / 2 });
  const tool = rig.runtime.toolManager;
  tool.pointerDown(pointerAt(points[0].x, points[0].y)); tool.pointerMove(pointerAt(-200, -200)); await settle();
  expect(rig.runtime.renderState.previewPolygon?.[0]).toEqual({ x: -200, y: -200 });

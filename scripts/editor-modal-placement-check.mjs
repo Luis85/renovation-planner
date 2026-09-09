@@ -6,7 +6,7 @@ import { referenceViewportAcceptance } from './editor-reference-viewport-browser
 import { openingMoveAcceptance } from './editor-opening-move-browser.mjs';
 
 const form = '[data-rp-form="planning"]';
-async function suggestions(page) {
+function suggestions(page) {
 	return page.locator(`${form} [name="path"]`).evaluate(input => [...document.getElementById(input.getAttribute('list')).querySelectorAll('option')].map(option => option.value));
 }
 async function photoAcceptance(page, scenario, out) {

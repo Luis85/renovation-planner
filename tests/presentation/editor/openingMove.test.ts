@@ -235,9 +235,9 @@ it.each(['wrote', 'refused', 'threw'] as const)('does not revive a disposed leaf
 });
 
 it('ignores a late failed baseline after cancellation and does not steal a new tool', async () => {
-	const rig = await setup(); let reject: (cause: Error) => void = unreleased;
-	vi.spyOn(rig.services, 'read').mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
-	expect(rig.runtime.openingMove.start(door.id)).toBe(true); rig.runtime.setTool('pan'); reject(new Error('retired read'));
+	const rig = await setup(); let failRead: (cause: Error) => void = unreleased;
+	vi.spyOn(rig.services, 'read').mockImplementationOnce(() => new Promise((_resolve, reject) => { failRead = reject; }));
+	expect(rig.runtime.openingMove.start(door.id)).toBe(true); rig.runtime.setTool('pan'); failRead(new Error('retired read'));
 	await settle(); expect(rig.runtime.activeToolId.value).toBe('pan'); expect(rig.runtime.openingMove.loading.value).toBe(false);
 	expect(rig.runtime.structureActions.active.value).toBe(false); expect(rig.project.structure.openings).toEqual([door]);
 });

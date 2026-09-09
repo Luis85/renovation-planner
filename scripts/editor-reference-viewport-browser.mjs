@@ -10,7 +10,7 @@ const coordinates = page => page.locator(`${form} input`).evaluateAll(inputs => 
 async function digest(page) { return createHash('sha256').update(await page.locator(canvas).evaluate(element => element.toDataURL())).digest('hex'); }
 
 /** Measure painted pixels, excluding the CSS canvas background and any assumed component dimensions. */
-async function imageMetrics(page) {
+function imageMetrics(page) {
 	return page.locator(canvas).evaluate(element => {
 		const rect = element.getBoundingClientRect(), pixels = element.getContext('2d').getImageData(0, 0, element.width, element.height).data;
 		const body = element.closest('.rp-dialog-body').getBoundingClientRect();

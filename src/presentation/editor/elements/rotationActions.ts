@@ -129,7 +129,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 				return result;
 			};
 			if (degrees !== undefined) { const points = rotationPoints(element, degrees, pivot); if (points && rotationChanged(element.points, points)) { const result = await dispatch(points); if (alive && !result.ok) notifyOperationFailure(result.error); } return; }
-			await dialogs.openDialog({ kind: 'form', title: tr('editor.rotation.title', { name: element.name }), component: markRaw(ObjectRotationForm), busy, props: { element, pivot, busy, blocked: formBlocked, latest, inputBlocked: computed(() => formBlocked.value || saves.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger, dispatch,
+			await dialogs.openDialog({ kind: 'form', title: tr('editor.rotation.title', { name: element.name }), component: markRaw(ObjectRotationForm), busy, props: { element, pivot, busy, blocked: formBlocked, latest, inputBlocked: computed(() => epoch !== generation.value || saves.state === 'saving' || saves.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger, dispatch,
 				preview: (points: readonly Point[] | null) => { if (alive && epoch === generation.value) { if (points) previewShape(id, points); else clear(); } },
 			} });
 		});

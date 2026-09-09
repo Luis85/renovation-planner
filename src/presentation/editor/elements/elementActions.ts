@@ -74,7 +74,7 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 					return result;
 				}, value => { if (captured === rotationEpoch.value) preview.value = current() ? value : null; });
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.element.edit', { name: element.name }), component: presentation.component, busy, props: {
-				points: element.points, name: element.name, busy, blocked: formBlocked, latest, inputBlocked: computed(() => formBlocked.value || save.state === 'saving' || save.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
+				points: element.points, name: element.name, busy, blocked: formBlocked, latest, inputBlocked: computed(() => captured !== rotationEpoch.value || save.state === 'saving' || save.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
 				...presentation.props,
 			} });
 		});
@@ -86,7 +86,8 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 			const references = [...materials.value, ...renovationReferents(baseline.plan.entity.renovation ?? EMPTY_RENOVATION, id)];
 			if (references.length) { await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), message: tr('renovation.links', { names: references.join(', ') }) }); return; }
 			const answer = await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), danger: true, message: tr('editor.element.delete-impact', { name: element.name }) });
-			if (!current() || answer !== 'confirm' || !context.commands.renovation) return;
+			if (!alive || answer !== 'confirm' || !context.commands.renovation) return;
+			if (!current()) { notifyOperationFailure(staleWriteRefusal()); return; }
 			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, element, true), runtime.structureTask.ledger));
 			if (alive && !result.ok) notifyOperationFailure(result.error);
 		});

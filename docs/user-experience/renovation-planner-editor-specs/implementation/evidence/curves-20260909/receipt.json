@@ -1,0 +1,51 @@
+{
+  "date": "2026-09-09",
+  "pr": 111,
+  "originalHead": "0a049e270de7b0dbdd4ba88e000866fe34f8634d",
+  "dependencyHead": "5c742ffdabda910f98290997d90659ed5901c7e0",
+  "node": "24.20.0",
+  "platform": "Windows",
+  "vitestMaxWorkers": 2,
+  "targeted": {
+    "newCases": 8,
+    "passed": 82,
+    "files": 16,
+    "failed": 0
+  },
+  "check": {
+    "skipped": 70,
+    "command": "npm run check",
+    "passed": 8524,
+    "exitCode": 1,
+    "files": 719,
+    "failed": 8,
+    "failureAttribution": "All eight match the updated PR #110 receipt",
+    "coverage": {
+      "branches": 97.49,
+      "functions": 98.86,
+      "lines": 99.47,
+      "statements": 98.85
+    }
+  },
+  "analyze": {
+    "exitCode": 1,
+    "comparison": "Same findings with only the pre-fix radius expression restored; tests, coverage and source positions held constant. Not a baseline coverage pass.",
+    "complexityFindings": 14,
+    "deadCodeFindings": 6,
+    "cloneGroups": 1
+  },
+  "manualAcceptance": "User-owned and pending; not a blocker for this implementation step",
+  "sourceSha256": {
+    "src/presentation/editor/curves/curveDraft.ts": "6954a47dc90a00e29725a06e5b90280b4c753be46a39c3788c16572c5c430730",
+    "tests/presentation/editor/curveDelivery.test.ts": "8f15e92917e6b92668a090f37c981f4ccadd52ae769e5356feb1aeaa377cdb7a",
+    "tests/presentation/editor/curveDraft.test.ts": "e8a894cb7e8bb0d6ff1d544b3ac859f4a25deb8040a8299104a959deb55a49bc"
+  },
+  "logSha256": {
+    "radius-red.log": "a96939076e01b841dfb95085c34769e16470ad8306fbca5a3a01be8b3d1b5444",
+    "targeted.log": "09a2e6445a4ae608082b215d62d9cc3913552bcf3fcf11c25b50ecd124c67358",
+    "analyze.log": "bc0a575ea0fe7ecd4533827f98f0586545d88985a63b52ef14a8db0608de1ab2",
+    "analyze-baseline.log": "342acea23a4eaaac1901ad02aae88c1e357b9bbf098a7e3ff28c80680e9a0701",
+    "check.log": "485a8a446a11aaad4fe83e146f7476c0d38e44e14f5cf46ce9f18a4cec5b9e9d"
+  },
+  "logsNormalization": "Evidence logs use LF with one final newline; original command output retained in the task temporary directory."
+}

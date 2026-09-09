@@ -1,5 +1,10 @@
 # Verbleibender Plan: Referenzskalierung auf #109
 
+Fortschreibung für **Kurven auf #111**: [Implementierung und automatisierte Prüfung](curve-delivery.md).
+Dieser Schritt integriert den aktualisierten Group6-Stand aus #110. Die manuelle
+Kurvenabnahme übernimmt der Nutzer; sie bleibt offen und blockiert den Implementierungsschritt
+nicht. Der Gesamtplan aus #117 und alle anderen Concerns bleiben unverändert offen.
+
 Stand: 2026-09-09. Dies ist ausschließlich die Concern-Fortschreibung zur Referenzskalierung. Der vollständige, weiterhin maßgebliche [Restplan aus #117](https://github.com/Luis85/renovation-planner/blob/5c15006c38d01b530641ac6da1ed154ab52227c6/docs/user-experience/renovation-planner-editor-specs/implementation/remaining-plan.md) bleibt für alle anderen Arbeitspakete unverändert. #109 baut auf #108 auf; #110 ist seine unmittelbare Folgeabhängigkeit.
 
 ## Abnahme dieses Punkts

@@ -37,7 +37,8 @@ export function typedBulge(edge: CircularEdge, field: 'depth' | 'radius', text: 
 	if (!Number.isFinite(value) || chord <= 0) return null;
 	if (field === 'depth') { const bulge = 2 * value / chord; return Math.abs(bulge) <= 1 ? bulge : null; }
 	if (value < chord / 2) return null;
-	const ratio = chord / (2 * value);
+	// Halve the chord first: doubling a finite radius can overflow and silently straighten it.
+	const ratio = (chord / 2) / value;
 	return Math.sign(edge.bulge || 1) * ratio / (1 + Math.sqrt(Math.max(0, 1 - ratio * ratio)));
 }
 export function withCurve(target: CurveTarget, index: number, bulge: number): CurveTarget {

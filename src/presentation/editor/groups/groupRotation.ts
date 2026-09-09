@@ -10,7 +10,7 @@ import { err } from '../../../core/result/Result';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
 import type { createGroupOperations, GroupOperationRuntime } from './groupOperations';
 import { groupRotationTarget, type GroupSnapshot } from './groupSnapshot';
-import { rotatedGroup } from './groupTransforms';
+import { adjustedNeighbours, rotatedGroup } from './groupTransforms';
 import GroupRotationDialog from './GroupRotationDialog.vue';
 
 export function createGroupRotation(context: PlanEditorContext, runtime: GroupOperationRuntime, operations: ReturnType<typeof createGroupOperations>) {
@@ -28,6 +28,7 @@ export function createGroupRotation(context: PlanEditorContext, runtime: GroupOp
 		}
 		await operations.operate(snapshot, async (_baseline, dispatch) => {
 			const busy = ref(false), latest = ref<string | null>(null), blocked = computed(() => !operations.current(snapshot));
+			const affectedNeighbours = computed(() => operations.preview.value ? adjustedNeighbours(snapshot, operations.preview.value) : 0);
 			const send = async (points: readonly Point[]) => {
 				const next = rotatedGroup(snapshot, points); if (!next) return err(staleWriteRefusal());
 				const result = await dispatch(next);
@@ -35,7 +36,7 @@ export function createGroupRotation(context: PlanEditorContext, runtime: GroupOp
 				return result;
 			};
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.rotation.title', { name: snapshot.name }), component: markRaw(GroupRotationDialog), busy, props: {
-				summary: tr('editor.group.transform-hint'), form: { element, pivot, busy, blocked, latest, inputBlocked: blocked,
+				summary: tr('editor.group.transform-hint'), affectedNeighbours, form: { element, pivot, busy, blocked, latest, inputBlocked: blocked,
 					retry: createDraftRetry(runtime.refreshProjection, () => operations.current(snapshot), context.commands.logger), openSource: () => context.openPlanNote(), logger: context.commands.logger,
 					dispatch: send, preview: (points: readonly Point[] | null) => preview(points ? snapshot : null, points ?? undefined) },
 			} });

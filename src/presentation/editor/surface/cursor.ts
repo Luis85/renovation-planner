@@ -34,6 +34,7 @@ import type { ToolId } from '../tools/editor-tool';
  * than reasoned separately per mounter.
  */
 const PRECISE_TOOLS: readonly ToolId[] = [
+	'move-opening',
 	'draw-polygon',
 	'draw-room',
 	'draw-area',

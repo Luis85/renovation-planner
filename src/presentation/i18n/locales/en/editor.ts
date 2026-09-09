@@ -1,3 +1,4 @@
+import { openingMoveEn } from './openingMove';
 import { openingEn } from './opening';
 import { groupsEn } from './groups';
 import { referenceViewportEn } from './referenceViewport';
@@ -49,6 +50,7 @@ export const editorEn = {
 	'editor.dimension.instruction': 'Enter a length in metres. Apply saves the change. Escape cancels.',
 	...objectEn,
 	...openingEn,
+	...openingMoveEn,
 	...referenceViewportEn,
 	...editorShellEn,
 	"editor.element.name-required": "Enter a name.",

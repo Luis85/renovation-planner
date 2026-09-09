@@ -1,14 +1,14 @@
 import { expect, it, vi } from 'vitest';
-import { CurveTool } from '../../../src/presentation/editor/curves/CurveTool';
+import { CurveTool, type CurveToolActions } from '../../../src/presentation/editor/curves/CurveTool';
 import { type CurveTarget } from '../../../src/presentation/editor/curves/curveDraft';
-import { ElementMove } from '../../../src/presentation/editor/elements/ElementMove';
+import { ElementMove, type ElementMoveDeps } from '../../../src/presentation/editor/elements/ElementMove';
 import { toolContext, pointerAt } from '../../helpers/tool-context';
 import type { SpatialObjectCandidate } from '../../../src/presentation/editor/tools/select-tool';
 
 function curveRig() {
 	let target: CurveTarget | null = { id: 'room', name: 'Room', kind: 'room', geometry: { points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }] } };
 	let blocked = false, busy = false;
-	const set = vi.fn(), choose = vi.fn(), stop = vi.fn(), cancel = vi.fn(), finish = vi.fn();
+	const set = vi.fn<CurveToolActions['set']>(), choose = vi.fn<CurveToolActions['choose']>(), stop = vi.fn<CurveToolActions['stop']>(), cancel = vi.fn<CurveToolActions['cancel']>(), finish = vi.fn<CurveToolActions['finish']>();
 	const tool = new CurveTool({ target: () => target, blocked: () => blocked, busy: () => busy, set, choose, stop, cancel, finish });
 	return { tool, set, choose, stop, cancel, finish, retire: () => { target = null; }, block: () => { blocked = true; }, save: () => { busy = true; } };
 }
@@ -46,7 +46,7 @@ it('admits curve handles only in the active writable task and keeps a pending sa
 
 const arrow: SpatialObjectCandidate = { id: 'element-arrow', kind: 'arrow', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }] };
 it.each(['wall', 'opening', 'room', 'blocked', 'shift', 'alt', 'unsupported', 'missing-vertex'] as const)('refuses %s element-move admission without changing preview or history', reason => {
-	const moveElement = vi.fn(), previewElement = vi.fn(), move = new ElementMove({ moveElement, previewElement });
+	const moveElement = vi.fn<NonNullable<ElementMoveDeps['moveElement']>>(), previewElement = vi.fn<NonNullable<ElementMoveDeps['previewElement']>>(), move = new ElementMove({ moveElement, previewElement });
 	const context = toolContext({ writesBlocked: reason === 'blocked' }).context, event = pointerAt(0, 0);
 	const hit = reason === 'wall' || reason === 'opening' ? { ...arrow, kind: reason } : reason === 'room' ? { ...arrow, kind: undefined } : reason === 'unsupported' ? { ...arrow, kind: 'object' as const } : arrow;
 	move.start(context, { ...event, modifiers: { ...event.modifiers, shift: reason === 'shift', alt: reason === 'alt' } }, hit, reason === 'missing-vertex' ? 9 : reason === 'unsupported' ? 0 : undefined);
@@ -55,7 +55,7 @@ it.each(['wall', 'opening', 'room', 'blocked', 'shift', 'alt', 'unsupported', 'm
 });
 
 it('retains all untouched Arrow vertices while moving its first endpoint and refuses a collapsed endpoint', () => {
-	const moveElement = vi.fn(), previewElement = vi.fn(), move = new ElementMove({ moveElement, previewElement }), context = toolContext({ snapPoint: point => point }).context;
+	const moveElement = vi.fn<NonNullable<ElementMoveDeps['moveElement']>>(), previewElement = vi.fn<NonNullable<ElementMoveDeps['previewElement']>>(), move = new ElementMove({ moveElement, previewElement }), context = toolContext({ snapPoint: point => point }).context;
 	move.start(context, pointerAt(0, 0), arrow, 0); move.move(pointerAt(-200, 0));
 	expect(previewElement).toHaveBeenLastCalledWith('element-arrow', [{ x: -200, y: 0 }, ...arrow.points.slice(1)]);
 	move.finish(context, pointerAt(-250, 0)); expect(moveElement).toHaveBeenCalledWith('element-arrow', [{ x: -250, y: 0 }, ...arrow.points.slice(1)], expect.objectContaining({ points: arrow.points }));
@@ -64,7 +64,7 @@ it('retains all untouched Arrow vertices while moving its first endpoint and ref
 });
 
 it('cancels an element drag without a commit and refuses a release after writes become blocked', () => {
-	const moveElement = vi.fn(), previewElement = vi.fn(), move = new ElementMove({ moveElement, previewElement }), context = toolContext().context;
+	const moveElement = vi.fn<NonNullable<ElementMoveDeps['moveElement']>>(), previewElement = vi.fn<NonNullable<ElementMoveDeps['previewElement']>>(), move = new ElementMove({ moveElement, previewElement }), context = toolContext().context;
 	const unwired = new ElementMove({}); unwired.start(context, pointerAt(0, 0), arrow); expect(unwired.active).toBe(false);
 	move.start(context, pointerAt(0, 0), arrow); move.move(pointerAt(100, 200)); move.cancel(); move.finish(context, pointerAt(100, 200));
 	expect(moveElement).not.toHaveBeenCalled(); expect(previewElement).toHaveBeenLastCalledWith(null);

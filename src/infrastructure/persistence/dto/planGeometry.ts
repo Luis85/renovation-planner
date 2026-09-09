@@ -62,7 +62,7 @@ const StructureSchemaV5 = StructureSchemaV4.extend({ openings: z.array(Structure
 export const PlanGeometrySchemaV5 = PlanGeometrySchemaV4.extend({ schemaVersion: z.literal(5), structure: StructureSchemaV5.optional(), intended: StructureSchemaV5.optional() });
 /** Any persisted version, for a reader that asks only what the file DECLARES (no migration). */
 export const PlanGeometrySchemaV6 = PlanGeometrySchemaV5.extend({ schemaVersion: z.literal(6), groups: z.array(z.object({
-	id: z.string().startsWith('group-'), name: z.string().trim().min(1).max(100), memberIds: z.array(z.string().min(1)).min(1),
+	id: z.string().startsWith('group-'), name: z.string().min(1).max(100).regex(/\S/), memberIds: z.array(z.string().min(1)).min(1),
 })).optional() });
 export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6]);
 export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV6>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 };

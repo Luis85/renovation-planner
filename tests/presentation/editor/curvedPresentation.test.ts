@@ -1,7 +1,7 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { roomEdges } from '../../../src/presentation/editor/resize/roomEdgeMeasurements';
 import { roomDimensions } from '../../../src/presentation/editor/resize/roomDimensions';
-import { rotationPivot, rotationPoints } from '../../../src/presentation/editor/elements/objectRotation';
+import { rotationHandleGeometry, rotationPivot, rotationPoints } from '../../../src/presentation/editor/elements/objectRotation';
 import { layoutRotationControls } from '../../../src/presentation/editor/elements/rotationControl';
 import { resolveSelectionTarget } from '../../../src/presentation/editor/selection/resolveSelectionTarget';
 import { curvedCandidateIntersection } from '../../../src/presentation/editor/selection/curvedCandidateIntersection';
@@ -10,6 +10,8 @@ import { structureCandidates } from '../../../src/presentation/editor/structure/
 import { alongWall, wallLength } from '../../../src/domain/spatial/Structure';
 import { boundsOfZones } from '../../../src/presentation/editor/viewport/zoneExtent';
 import { expectDefined } from '../../helpers/domain';
+import { ElementRotation, type RotationGestureDeps } from '../../../src/presentation/editor/elements/ElementRotation';
+import { pointerAt, toolContext } from '../../helpers/tool-context';
 import { roomSnapCandidates } from '../../../src/presentation/editor/snapping/roomSnapCandidates';
 import { SnapService } from '../../../src/presentation/editor/snapping/snap-service';
 
@@ -66,4 +68,30 @@ it('selects curved polygons by enclosure, interior and closing-edge crossings wi
 	const object = { ...room, kind: 'object' as const };
 	expect(curvedCandidateIntersection(object, { min: { x: 1000, y: 3000 }, max: { x: 1100, y: 3010 } })).toBe(true);
 	expect(curvedCandidateIntersection({ id: 'straight', points }, { min: { x: -1, y: 1000 }, max: { x: 1, y: 1100 } })).toBe(true);
+});
+
+it('measures a curved candidate with no stated width against the bare tolerance', () => {
+	// `nearLine` widens its tolerance by half a candidate's width; an arc that states none is
+	// measured against the tolerance alone rather than against half of `undefined`.
+	const curved = { id: 'wall-curved', kind: 'wall' as const, points: [{ x: 0, y: 0 }, { x: 2000, y: 0 }], bulges: [0.5] };
+	const at = (y: number) => resolveSelectionTarget({ candidates: [curved], selectedIds: [], worldPoint: { x: 1000, y }, handleToleranceWorld: 60 });
+	// The arc bows 500 below its chord, so the chord's own midpoint is a miss and the apex a hit.
+	expect(at(-500)).toEqual({ kind: 'body', id: 'wall-curved' });
+	expect(at(0)).toBeNull();
+	expect(at(500)).toBeNull();
+});
+
+it('freezes a curved shape at the press so a later edit cannot reach the running gesture', () => {
+	const context = toolContext().context, previewRotation = vi.fn<NonNullable<RotationGestureDeps['previewRotation']>>();
+	const curved = { id: 'room-curved', kind: 'room' as const, points: [{ x: 20, y: 20 }, { x: 80, y: 20 }, { x: 80, y: 80 }, { x: 20, y: 80 }], bulges: [0.25, 0, 0, 0] };
+	const gesture = new ElementRotation({ previewRotation, commitRotation: vi.fn<NonNullable<RotationGestureDeps['commitRotation']>>() });
+	const control = expectDefined(rotationHandleGeometry(curved, 1), 'rotation control');
+	gesture.start(context, pointerAt(control.handle.x, control.handle.y), curved, control);
+	expect(gesture.active).toBe(true);
+	// The gesture copied the bulge list rather than aliasing it: the caller's array is untouched.
+	curved.bulges[0] = 0.9;
+	gesture.move(context, pointerAt(control.handle.x + 40, control.handle.y + 40));
+	expect(previewRotation).toHaveBeenCalled();
+	gesture.cancel();
+	expect(curved.bulges).toEqual([0.9, 0, 0, 0]);
 });

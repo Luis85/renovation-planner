@@ -10,6 +10,27 @@ async function openCurves(page) {
 	await activate(page, '[data-rp-action="edit-curves"]');
 	await page.waitForFunction(() => document.querySelector('[data-rp-form="edit-curves"] input[name="depth"]')?.readOnly === false);
 }
+async function curvedWall(page, scenario, out) {
+	await activate(page, '[data-rp-action="add"]');
+	await page.locator('[data-rp-entry="door"]').waitFor();
+	for (let index = 0; index < 20; index++) {
+		if (await page.locator('[data-rp-entry="door"]').evaluate(element => element === document.activeElement)) break;
+		await page.keyboard.press('ArrowDown');
+	}
+	assert.equal(await page.locator('[data-rp-entry="door"]').evaluate(element => element === document.activeElement), true);
+	await page.keyboard.press('Enter'); await panel(page, 'details'); await page.locator('.rp-structure-task').waitFor();
+	await recordText(page, '.rp-structure-task', 'offset', '0.5'); await recordText(page, '.rp-structure-task', 'width', '0.8');
+	await activate(page, '.rp-structure-task > button:last-child'); await page.locator('.rp-structure-task').waitFor({ state: 'hidden' });
+	const structure = await page.evaluate(() => window.editorFidelity.groups().structure), id = structure.walls[0].id;
+	await closeDetails(page, scenario); await panel(page, 'layers'); await activate(page, `[data-rp-id="${id}"]`);
+	await closeDetails(page, scenario); await panel(page, 'details'); await openCurves(page);
+	await recordText(page, '[data-rp-form="edit-curves"]', 'depth', '0.5'); await frame(page);
+	await recordShot(page, scenario, out, 'curved-wall-and-opening-preview');
+	await closeDetails(page, scenario); await activate(page, '.rp-task-banner__finish'); await page.locator('.rp-task-banner').waitFor({ state: 'hidden' });
+	const saved = await page.evaluate(() => window.editorFidelity.groups().structure);
+	assert.equal(saved.walls[0].bulge, 0.25); assert.deepEqual(saved.openings, structure.openings);
+	await recordShot(page, scenario, out, 'saved-curved-wall-and-opening');
+}
 async function journey(page, scenario, out) {
 	await recordRoom(page, scenario, out, { drawWalls, panel, preserveTheme });
 	const id = await page.evaluate(() => window.editorFidelity.selection().ids[0]), before = await notes(page);
@@ -29,6 +50,8 @@ async function journey(page, scenario, out) {
 	const saved = await page.evaluate(value => window.editorFidelity.groups().rooms.find(room => room.id === value), id);
 	assert.ok(Math.abs(saved.bulges[0] - 0.5) < 1e-12); assert.equal(await page.locator('[data-rp-room-edge]').count(), 4);
 	await recordShot(page, scenario, out, 'saved-curved-room');
+	await page.waitForFunction(() => document.activeElement?.matches('.rp-plan-canvas'));
+	await page.keyboard.press('Shift+2'); await frame(page); await recordShot(page, scenario, out, 'fit-curved-room-bounds');
 	await activate(page, '[data-rp-action="undo"]'); await page.waitForFunction(value => !window.editorFidelity.groups().rooms.find(room => room.id === value).bulges, id);
 	await activate(page, '[data-rp-action="redo"]'); await page.waitForFunction(value => window.editorFidelity.groups().rooms.find(room => room.id === value).bulges?.[0] > 0, id);
 	await panel(page, 'details'); await openCurves(page); await closeDetails(page, scenario); await frame(page);
@@ -36,6 +59,7 @@ async function journey(page, scenario, out) {
 	await page.mouse.move(handle.x, handle.y); await page.mouse.down(); await page.mouse.move(handle.x + 35, handle.y, { steps: 6 });
 	assert.deepEqual(await notes(page), persisted); await recordShot(page, scenario, out, 'pointer-bend-preview'); await page.mouse.up();
 	await activate(page, '.rp-task-banner__cancel'); await page.locator('.rp-task-banner').waitFor({ state: 'hidden' }); assert.deepEqual(await notes(page), persisted);
-	return { accessibility, edgeLabels: 4, numericCurve: true, radiusPreserved: true, cancelNoWrite: true, pointerPreviewNoWrite: true, undoRedo: true, storage: 'Production commands over FakeVault; no native-host claim' };
+	await curvedWall(page, scenario, out);
+	return { accessibility, edgeLabels: 4, numericCurve: true, radiusPreserved: true, cancelNoWrite: true, pointerPreviewNoWrite: true, undoRedo: true, curvedWallOpening: true, storage: 'Production commands over FakeVault; no native-host claim' };
 }
 await runAreaBrowserMatrix('editor-curves', '&reference&planning&fidelity', journey, '[data-rp-empty="floor-start"]');

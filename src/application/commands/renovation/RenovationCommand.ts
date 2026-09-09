@@ -19,6 +19,9 @@ import { markUncompensated, type DispatchResult } from '../DispatchOutcome';
 import { loadPlan } from '../plan/loadPlan';
 import { sameGeometryDocument } from '../spatial/sameGeometryDocument';
 import { persistenceError } from '../../errors';
+import { groupsAfterStructureChange, sameGroupMembership } from '../../../domain/spatial/groupMembership';
+import { validateSpatialGroups } from '../../../domain/spatial/SpatialGroup';
+import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 
 export interface RenovationBaseline {
 	readonly plan: Loaded<Plan>;
@@ -47,7 +50,7 @@ export function validateRenovationInput(renovation: Renovation, document: PlanGe
 		const structure = validateStructure(candidate, roomIds);
 		if (!structure.ok) return structure;
 	}
-	return ok(undefined);
+	return validateSpatialGroups(document.groups ?? [], { zoneIds: roomIds, structure: document.structure ?? EMPTY_STRUCTURE });
 }
 
 async function readBaseline(deps: Pick<Dependencies, 'plans' | 'geometry'>, id: PlanId): Promise<Result<RenovationBaseline, AppError>> {
@@ -112,7 +115,8 @@ class RenovationCommand {
 
 	private proposedGeometry(forward: boolean): PlanGeometryDocument {
 		return { ...this.current.geometry.document, intended: forward ? this.input.intended : this.baseline.geometry.document.intended,
-			...(this.input.spatial ? { structure: forward ? this.input.spatial.structure : this.baseline.geometry.document.structure } : {}) };
+			...(this.input.spatial ? { structure: forward ? this.input.spatial.structure : this.baseline.geometry.document.structure,
+				groups: forward ? groupsAfterStructureChange(this.current.geometry.document.groups, this.current.geometry.document.structure, this.input.spatial.structure) : this.baseline.geometry.document.groups } : {}) };
 	}
 
 	private async check(): Promise<DispatchResult> {
@@ -126,7 +130,7 @@ class RenovationCommand {
 			this.generation = this.ledger.observe(this.key, plan.version);
 		} else {
 			const generation = this.ledger.observe(this.key, plan.version);
-			if (generation !== this.generation || !sameRenovation(plan.entity.renovation, this.current.plan.entity.renovation) || !sameElementMetadata(plan.entity.spatialElements, this.current.plan.entity.spatialElements) || !sameGeometryDocument(geometry.document, this.current.geometry.document)) return err(undoSuperseded(id));
+			if (generation !== this.generation || !sameRenovation(plan.entity.renovation, this.current.plan.entity.renovation) || !sameElementMetadata(plan.entity.spatialElements, this.current.plan.entity.spatialElements) || !sameGeometryDocument(geometry.document, this.current.geometry.document) || !sameGroupMembership(geometry.document.groups, this.current.geometry.document.groups)) return err(undoSuperseded(id));
 		}
 		this.current = { plan: plan, geometry: geometry };
 		return ok('no-write');

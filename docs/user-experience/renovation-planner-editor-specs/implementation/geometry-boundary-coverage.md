@@ -45,3 +45,13 @@ starts at version 0 and is refused before those stages. The nonnumber branch ins
 `schemaVersionOf` is likewise preceded by an explicit malformed-version refusal.
 No invented version/primitive pairing or threshold exemption was added to force
 those arms. The real legacy read path is exercised without changing any bytes.
+
+The coordinator's combined 168-case batch passed 155 and failed 13. One failure was
+this continuation's curved-content fixture: a one-entry bulge map is already refused
+by the DTO's edge-count refinement, so it never reaches geometric validation. The
+test now supplies four valid DTO points and four bulges with a collapsed first curved
+edge, and explicitly asserts schema acceptance before the repository's geometric
+refusal. Exact sidecar/all-byte preservation and dangling-group checks remain.
+This test-only correction is unrun; no production validator or assertion threshold
+was changed. The target test file was identical to coordinator source `56a63e32`
+before the correction.

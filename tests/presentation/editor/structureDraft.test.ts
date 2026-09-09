@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createStructureDraft, addWallPoint, draftStructure, mintStructure, numericWallPoint, openingFromDraft, snapWallPoint, wallsFromDraft, pickHost, validateDraftStructure, isStructureTool } from '../../../src/presentation/editor/structure/structureDraft';
 import { StructureTool } from '../../../src/presentation/editor/structure/StructureTool';
-import { expectDefined } from '../../helpers/domain';
+import { expectDefined, expectErr } from '../../helpers/domain';
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
 import { WALL_LOOP } from '../../helpers/structure';
 import { toolContext, pointerAt } from '../../helpers/tool-context';
@@ -100,5 +100,14 @@ describe('wall task geometry and lifecycle', () => {
 		tool.activate(toolContext().context); tool.pointerDown(pointerAt(1000, 0)); expect(draft.text.hostId).toBe('wall-a');
 		for (const id of ['draw-wall', 'place-door', 'place-window', 'place-opening']) expect(isStructureTool(id)).toBe(true);
 		for (const id of [null, 'select', 'draw-room']) expect(isStructureTool(id)).toBe(false);
+	});
+
+	it('refuses a placement draft whose swing cannot be parsed before it builds any structure', () => {
+		const draft = createStructureDraft();
+		draft.kind = 'place-door'; draft.swing.angle = 'a quarter turn';
+		expect(expectErr(validateDraftStructure(draft, EMPTY_STRUCTURE, [])).code).toBe('spatial.opening-swing');
+		// A plain opening carries no swing to parse, so the same draft reaches the host check instead.
+		draft.kind = 'place-opening';
+		expect(expectErr(validateDraftStructure(draft, EMPTY_STRUCTURE, [])).code).not.toBe('spatial.opening-swing');
 	});
 });

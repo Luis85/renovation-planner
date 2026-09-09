@@ -1,0 +1,38 @@
+{
+  "source": "6c6699ea9a9fda7e9cfe1a35c5f3b010b4607e3f",
+  "started": 1788944675691,
+  "completed": 1788944696452,
+  "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
+  "files": [
+    {
+      "name": "light-reference-legacy-scale.png",
+      "kind": "image",
+      "modifiedAt": 1788944690000,
+      "sha256": "33f61d5af2c34cfd9197a3ff39c312dff31e0c65f2d5254815f9b14e5e303a7f"
+    },
+    {
+      "name": "dark-reference-legacy-scale.png",
+      "kind": "image",
+      "modifiedAt": 1788944692000,
+      "sha256": "7c86b82fbf4a6ef22043dcb36f025be4d13331d6b8a0493338ab92a3384bbfa1"
+    },
+    {
+      "name": "custom-accent-reference-legacy-scale.png",
+      "kind": "image",
+      "modifiedAt": 1788944694000,
+      "sha256": "4ec03fd17dcfee31c3f26672d2960609a186e8677b4071ec984331c576844707"
+    },
+    {
+      "name": "german-constrained-reference-legacy-scale.png",
+      "kind": "image",
+      "modifiedAt": 1788944698000,
+      "sha256": "f1624537650d08280960654e04ce1dcd196dc94ae9a19a7c297b9ee02dd52781"
+    },
+    {
+      "name": "report.json",
+      "kind": "data",
+      "modifiedAt": 1788944698000,
+      "sha256": "1adfdbc50051f8889066093961958a72a54de1f07fcb43a487d4a2584ea776a4"
+    }
+  ]
+}

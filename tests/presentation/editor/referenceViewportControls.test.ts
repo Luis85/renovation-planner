@@ -159,6 +159,8 @@ it('keeps source coordinates stable across high-DPI one-axis resizes and a tempo
 
 it('redraws markers after host theme changes and labels only visible source points', async () => {
 	const { w, canvas, subscribe } = setup();
+	// Finish the mounted Fit watcher before spying on this test's point redraw.
+	await nextTick();
 	// Vue writes initial dimensions as attributes; synchronize the helper's real pixel buffer.
 	const backing = expectDefined(backingCanvas(canvas), 'preview backing canvas');
 	backing.width = canvas.width; backing.height = canvas.height;

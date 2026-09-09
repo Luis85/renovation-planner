@@ -1,0 +1,9 @@
+/*
+ * The project detail's entry paths (P01/P02/P05/P07) — the three ProjectEntryAction rows, their
+ * glyphs, the three priority ranks and the guidance toggle's own line.
+ *
+ * Its own partial rather than more of `project-detail.css`: that file holds the header, the body
+ * scroller and the plan region, and this region's rules are what the design package's mockups
+ * describe. Imported directly after `project-detail.css`, whose `.rp-project-detail__entry*`
+ * declarations these override at equal specificity.
+ */

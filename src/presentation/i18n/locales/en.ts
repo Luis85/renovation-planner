@@ -43,19 +43,24 @@ export const en = {
 	'command.open-project': 'Open renovation project',
 	'command.open-project-detail': 'Go to renovation project',
 	'view.project.price-apply': 'Apply',
-	'view.project.price-cancel': 'Discard draft',
-	'view.project.price-saved-refresh-failed': 'Saved; could not refresh the display. Retry refresh before editing again.',
-	'view.project.price-refresh': 'Refresh prices',
+	'view.project.price-cancel': 'Cancel',
+	// The refresh is READ-ONLY and the display being stale is not a reason to stop editing, so
+	// this states the outcome and stops. The shipped second sentence ("Retry refresh before
+	// editing again.") read as an editing precondition the code never enforced.
+	'view.project.price-saved-refresh-failed': 'Saved; could not refresh the display.',
+	'view.project.price-refresh': 'Refresh display',
 	'view.project.price-foreign': 'Different currency; not usable in this project',
 	'view.project.price-none-usable': 'No usable price',
-	'view.project.draft-title': 'Discard price drafts?',
+	'view.project.draft-title': 'Discard unsaved changes?',
 	'view.project.draft-body': 'Your unapplied prices will be discarded when you leave this section.',
-	'view.project.draft-stay': 'Stay',
-	'view.project.draft-discard': 'Discard and leave',
+	'view.project.draft-stay': 'Keep editing',
+	'view.project.draft-discard': 'Discard and continue',
 	'view.project.price-pending': 'Saving price…',
 	'view.project.resume-indexing': 'The last target is being indexed. Try again after loading.',
 	'view.project.resume-missing-project': 'The last project is no longer available. Choose a project from the overview.',
-	'view.project.resume-missing-plan': 'The last plan is no longer available. You can still open its project.',
+	// Terse on purpose: the recovery screen (`view.project.recovery-*`) is what offers the way
+	// on, so this sentence no longer has to carry one.
+	'view.project.resume-missing-plan': 'The last plan is no longer available.',
 	'view.project.resume-unreadable': 'The last target could not be opened or read. Your saved context is retained.',
 	'view.project.resume-retry': 'Try again',
 	'view.project.resume-open-project': 'Open project',
@@ -224,12 +229,14 @@ export const en = {
 	// `asset-price.pre-write-invalid` has no user-facing door at all.
 	'asset-price.currency-mismatch': "A price has to be in the project's own currency.",
 	// OVERRIDES `error.suffix.revision-conflict`, which says "Reload and try again". There is
-	// nothing to reload on this surface, and the row's expectation is FROZEN for exactly as long
-	// as the draft is — so a refresh cannot help and the DISCARD is the gesture that unsticks the
-	// field. Say so where the entry is, or the next reader deletes it as a duplicate of the
-	// suffix.
+	// nothing to reload on this surface. Say so where the entry is, or the next reader deletes it
+	// as a duplicate of the suffix.
+	//
+	// It no longer tells the user to DISCARD. The design package's own rule is that a conflict
+	// preserves the draft for deliberate reapplication, and a sentence naming discard as the
+	// remedy pushes the user into throwing away the entry the code deliberately keeps.
 	'asset-price.revision-conflict':
-		'This price was changed elsewhere. Discard your entry to see the current one.',
+		'This price changed elsewhere. Review the current value before applying your draft again.',
 	// OVERRIDES `error.suffix.external-modification` for the same reason, one cause along: the
 	// suffix names a reload this surface does not have.
 	'asset-price.external-modification':
@@ -289,7 +296,7 @@ export const en = {
 	'notice.severity.warning': 'Warning',
 	'notice.severity.error': 'Error',
 	'notice.dismiss': 'Dismiss',
-	'empty.project.no-projects.headline': 'No renovation projects yet',
+	'empty.project.no-projects.headline': 'No projects yet',
 	'empty.project.no-projects.body': 'A renovation project holds your plans, zones, assets and costs. Create one to get started.',
 	'empty.plan.no-background.headline': 'No plan document yet',
 	'empty.plan.no-background.body': 'Set a floor plan, site plan, sketch or garden plan as this plan\u2019s background, then calibrate it so areas come out in real units.',
@@ -324,19 +331,19 @@ export const en = {
 	// diagnostics report" was an instruction the user could not follow. There is a command and
 	// a settings row now, and the two sibling strips below both end with that instruction.
 	//
-	// What keeps it off THIS key is that this sentence is count-free while both of those carry
-	// a number: it says "some projects" because `ListProjects` counted its refusals before an
-	// interpolating `t()` existed to spend the count on. Adding the report clause here without
-	// the count would point a user at a report holding rows this sentence cannot corroborate.
-	// Both halves belong to this key's own surface, and neither is this increment's to change.
-	'view.project.some-unreadable': 'Some projects could not be read from the vault.',
-	// The detail state's own strip, one level down. COUNTED where the sentence above says
-	// "some", and the difference is not an inconsistency to tidy: `ListProjects` has counted
-	// its refusals since slice 16 and this key predates the interpolating `t()` that slice 19
-	// built, so the count above is available and simply not yet spent. Widening it is a change
-	// to that sentence's own surface, not to this one.
+	// What keeps it off THIS key is that this sentence is count-free: it says "some projects"
+	// because `ListProjects` counted its refusals before an interpolating `t()` existed to spend
+	// the count on. Adding the report clause here without the count would point a user at a
+	// report holding rows this sentence cannot corroborate. Both halves belong to this key's own
+	// surface, and neither is this increment's to change.
+	'view.project.some-unreadable': 'Some projects could not be read.',
+	// The detail state's own strip, one level down. COUNT-FREE since the copy reconciliation —
+	// the design package's table states the partial-plan warning without a number, so the two
+	// strips now agree. The second sentence STAYS because it names a next action the user needs:
+	// the diagnostics report is a real command and a real settings row, and it lists the refused
+	// notes by name, which is strictly more than the count told them.
 	'view.project.some-plans-unreadable':
-		'{count} plan(s) in this project could not be read. Open the diagnostics report to see which notes refused.',
+		'Some plans could not be read. Open the diagnostics report to see which notes refused.',
 	'form.new-project.title': 'New renovation project',
 	'form.new-project.name': 'Name',
 	'form.new-project.status': 'Status',
@@ -360,15 +367,16 @@ export const en = {
 	'form.new-project.status.complete': 'Complete',
 	'form.new-project.status.as-built': 'As built',
 	'empty.project.no-projects.action': 'Create a project',
-	'view.project.list-title': 'Renovation projects',
+	'view.project.list-title': 'Projects',
 	'view.project.create': 'New project',
-	// Design slice 21's detail state. `Back to projects` names its DESTINATION rather than
-	// saying `Back`: this pane has one other state and a label that says which one it returns to
-	// is what stops the control reading as browser history. `Open note` is the secondary action —
+	// Design slice 21's detail state. `All projects` names its DESTINATION rather than saying
+	// `Back`: this pane has one other state and a label that says which one it returns to is what
+	// stops the control reading as browser history. `Open project note` is the secondary action —
 	// the row itself navigates now, and `Project.md` stays reachable because nothing else routes
-	// to a project's own metadata.
-	'view.project.back': 'Back to projects',
-	'view.project.open-note': 'Open note',
+	// to a project's own metadata; the word `project` in the label is what keeps it apart from
+	// `Open project`, which means the detail state.
+	'view.project.back': 'All projects',
+	'view.project.open-note': 'Open project note',
 	'view.project.currency': 'Priced in {currency}',
 	'view.project.plans-title': 'Plans',
 	'view.project.create-plan': 'New plan',
@@ -376,7 +384,7 @@ export const en = {
 	// `{total}`, `{query}` and `{mod}` are `t`'s interpolation holes; an unmatched one is left
 	// standing as `{name}` rather than blanked, because a visible hole is a bug report and an
 	// empty string is a silent one.
-	'view.project.filter.label': 'Filter projects',
+	'view.project.filter.label': 'Search projects',
 	// THE PLACEHOLDER IS A HINT, NEVER THE NAME. The visually-hidden `<label>` above is the
 	// input's accessible name and stays; a placeholder disappears on the first keystroke, so a
 	// field named only by one is a field with no name for exactly the user who most needs it.
@@ -402,15 +410,18 @@ export const en = {
 	// `view.project.plans-one` has the identical shape.
 	'view.project.count-one': 'One project',
 	'view.project.count-many': '{count} projects',
-	'view.project.filter.matches': '{shown} of {total}',
-	'view.project.filter.none': 'No project matches “{query}”.',
-	'view.project.filter.clear': 'Clear filter',
-	'view.project.create-named': 'New project named “{query}”',
-	'view.project.group.continue': 'Continue',
+	'view.project.filter.matches': '{matches} of {total} projects',
+	'view.project.filter.none': 'No projects match “{query}”.',
+	'view.project.filter.clear': 'Clear search',
+	'view.project.create-named': 'Create project “{query}”',
+	// `Resume` on both the group and the row action, and `Open project` beside it: the pair name
+	// the same two destinations the detail state's own controls do, so one vocabulary covers the
+	// launcher and the screen it opens.
+	'view.project.group.continue': 'Resume',
 	'view.project.group.projects': 'Projects',
-	'view.project.group.completed': 'Completed ({count})',
-	'view.project.continue.resume': 'Continue',
-	'view.project.continue.open': 'Open',
+	'view.project.group.completed': 'Completed projects ({count})',
+	'view.project.continue.resume': 'Resume',
+	'view.project.continue.open': 'Open project',
 	'view.project.plans-one': 'One plan',
 	'view.project.plans-many': '{count} plans',
 	// `{mod}` is resolved at the CALL SITE — `⌘` on macOS, `Ctrl` elsewhere — never baked into
@@ -433,10 +444,10 @@ export const en = {
 	// repeated per row it would read as a per-row consequence, which is the opposite of what it
 	// says. Nothing but the rendering case in `assetPriceList.test.ts` can see that it is
 	// rendered at all: `I18N_LITERAL_BAN` fires at a literal, never at an absent one.
-	'view.project.prices-title': 'Asset prices',
-	'view.project.price-catalogue': 'Library price',
-	'view.project.price-yours': 'This project',
-	'view.project.price-set': 'Set a price',
+	'view.project.prices-title': 'Project prices',
+	'view.project.price-catalogue': 'Catalogue price',
+	'view.project.price-yours': 'Project price',
+	'view.project.price-set': 'Set project price',
 	'view.project.price-clear': 'Remove project price',
 	'view.project.no-assets': 'The library has no assets yet',
 	// The VALIDATOR's message, and it needs a key of its own: `useFieldCommit.validate` returns a
@@ -455,10 +466,11 @@ export const en = {
 	// `assetName` and a null `catalogue`, so a component branching on nullness alone would tell a
 	// user their asset is GONE when its note merely would not parse today. One names a deletion,
 	// the other names a read that failed, and the two commit to opposite remedies.
-	'view.project.price-orphan': 'This asset is no longer in the library',
-	'view.project.price-unreadable':
-		"This asset's note could not be read, so its price can't be changed here. "
-		+ 'Fix the note to set a price again.',
+	// Both are row STATUS labels rather than instructions — the row already withholds the price
+	// control, so the sentence telling the user to fix the note said nothing the disabled row
+	// did not.
+	'view.project.price-orphan': 'Asset no longer available',
+	'view.project.price-unreadable': 'Asset could not be read',
 	// Design slice 21's creation form. One field, so one label — `background` and `layers` are
 	// both optional on `CreatePlanInput` and this form sends neither: slice 5's background is
 	// its own command, and a plan without one is a state the editor already draws.
@@ -482,7 +494,7 @@ export const en = {
 	// deleted. It was ALSO a notice on the second of those, back when that path redirected to
 	// the list and a banner had nowhere to live; the redirect is retired and the notice with
 	// it, since the two resolved this same key and would have said one sentence twice at once.
-	'view.project.gone': 'This project no longer exists.',
+	'view.project.gone': 'This project is no longer available.',
 	// The BODY beneath that headline. It exists because a `'gone'` status used to render the
 	// loading line — a false sentence with no Back and no retry, recoverable only by closing
 	// the leaf — which is what the screen replaced.

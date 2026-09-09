@@ -368,6 +368,31 @@ const SHOTS = [
 	// their own line or crush the asset's name, and no gate in this repository can measure
 	// either. LIGHT, for the same reason `project-detail-narrow` is: the muted text these rows
 	// are mostly made of measures tighter against 1.4.3's floor there.
+	// THE THREE 360px SHOTS. `states-and-navigation.md` names 1440, 1024, 768, 460 and 360 as
+	// the widths to check, and `P06`/`P07` repeat 360 on their own; 460 was the only narrow
+	// width this table captured, so the smallest one the design package asks for was the one
+	// nothing had ever looked at. 360 is not a second breakpoint — the sheets declare one
+	// container threshold each — it is the width at which the composition that threshold
+	// releases either still fits or does not, which only a picture can answer.
+	{
+		name: 'home-narrow-360',
+		query: '?projects=10&theme=light',
+		selector: PROJECT_VIEW,
+		width: 360,
+	},
+	{
+		name: 'project-detail-narrow-360',
+		query: '?project=project-1&theme=light',
+		selector: PROJECT_VIEW,
+		width: 360,
+	},
+	{
+		name: 'project-detail-prices-narrow-360',
+		query: '?project=project-1&section=prices&theme=light',
+		selector: PROJECT_VIEW,
+		width: 360,
+		scrollTo: '.rp-asset-price-header',
+	},
 	{
 		name: 'project-detail-prices-narrow',
 		query: '?project=project-1&section=prices&theme=light',

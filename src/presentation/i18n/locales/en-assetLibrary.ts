@@ -24,10 +24,12 @@
 export const enAssetLibrary = {
 	'view.asset-library.title': 'Asset library',
 	'command.open-asset-library': 'Open asset library',
-	// §2's own door label (Task 11 review amendment, §8's 59th key): §2 bolds "Assets" in the
-	// same role it bolds "New asset", which is literal copy — and reusing the tab title at
-	// both doors coupled two strings a translator will want to move apart.
-	'view.asset-library.door': 'Assets',
+	// §2's own door label (Task 11 review amendment, §8's 59th key), kept as its own key rather
+	// than reusing the tab title, because that coupled two strings a translator will want to move
+	// apart. Its WORDING now follows the project design package's table, which names the door
+	// `Asset library`: a door labelled `Assets` sat beside `Projects` reading as a peer list of
+	// this project's assets, which is not what it opens.
+	'view.asset-library.door': 'Asset library',
 	'view.asset-library.search.label': 'Search assets',
 	'view.asset-library.search.placeholder': 'Search by name, supplier or SKU',
 	// §6.1's live region: '12 matching assets', announced so a search's effect reaches a
@@ -88,9 +90,10 @@ export const enAssetLibrary = {
 	'view.asset-library.clearance.unscaled':
 		'This clearance was traced before a scale existed, so this number is not a real measurement yet.',
 	'view.asset-library.loading': 'Loading assets…',
-	// §4's "Some unreadable" strip headline, counted like `editor.some-zones-unreadable` and
-	// `view.project.some-plans-unreadable` rather than left as "some": the count is what
-	// tells a user "one bad note" from "the whole library".
+	// §4's "Some unreadable" strip headline, counted like `editor.some-zones-unreadable` rather
+	// than left as "some": the count is what tells a user "one bad note" from "the whole
+	// library". `view.project.some-plans-unreadable` used to be a third example and is not one
+	// any more — the project design package's table states that warning count-free.
 	'view.asset-library.some-unreadable':
 		'{count} asset note(s) could not be read. Open the diagnostics report to see which notes refused.',
 	'view.asset-library.some-unreadable.open-note': 'Open note',

@@ -626,6 +626,7 @@ describe('the headless harness capture script', () => {
 			'asset-library-selected',
 			'dark',
 			'home-filter-focus',
+			'home-narrow-360',
 			'home-no-match-narrow',
 			'home-stress',
 			'home-stress-de',
@@ -657,9 +658,11 @@ describe('the headless harness capture script', () => {
 			'plan-editor-unsupported',
 			'project-detail',
 			'project-detail-narrow',
+			'project-detail-narrow-360',
 			'project-detail-new',
 			'project-detail-prices',
 			'project-detail-prices-narrow',
+			'project-detail-prices-narrow-360',
 		]);
 
 		// The whole FILE, not the sliced block — see the header. A shot entry written outside

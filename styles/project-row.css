@@ -1,0 +1,12 @@
+/*
+ * The project row's P00/P06 anatomy — the leading glyph, the status pill, the trailing chevron
+ * and the wide-width column heading strip the design package's mockups draw.
+ *
+ * Its own partial rather than more of `project-list.css`, which stood at 394 lines against the
+ * 400-line cap when this work started: the cut is a budget, not a new organising idea.
+ * Imported directly after `project-list.css` and before `project-list-narrow.css`, which is the
+ * slot these rules need — the narrow sheet overrides row layout at equal specificity and must
+ * stay last.
+ *
+ * Every colour is an Obsidian variable, at every nesting depth; the build fails on a literal.
+ */

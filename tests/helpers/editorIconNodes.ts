@@ -1,6 +1,8 @@
 // Pinned Lucide SVG nodes for the test-only Obsidian renderer. See ../fixtures/editor-icons/README.md and LICENSE.
 export const editorIconNodes: Readonly<Record<string, readonly { tag: string; attributes: Readonly<Record<string, string>> }[]>> = {
   "info": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"path","attributes":{"d":"M12 16v-4"}},{"tag":"path","attributes":{"d":"M12 8h.01"}}],
+  "arrow-left": [{"tag":"path","attributes":{"d":"m12 19-7-7 7-7"}},{"tag":"path","attributes":{"d":"M19 12H5"}}],
+  "chevron-left": [{"tag":"path","attributes":{"d":"m15 18-6-6 6-6"}}],
   "arrow-right": [{"tag":"path","attributes":{"d":"M5 12h14"}},{"tag":"path","attributes":{"d":"m12 5 7 7-7 7"}}],
   "chevron-down": [{"tag":"path","attributes":{"d":"m6 9 6 6 6-6"}}],
   "chevron-right": [{"tag":"path","attributes":{"d":"m9 18 6-6-6-6"}}],

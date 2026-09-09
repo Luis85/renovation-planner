@@ -1,0 +1,8 @@
+/*
+ * P04 — the project price section: the column headings, the row's resting and editing states,
+ * the unsaved marker and the narrow labelled-value-pair composition.
+ *
+ * Its own partial rather than more of `asset-prices.css`, which holds the shared asset price row
+ * the Asset Library also draws. Imported directly after it, so a project-scoped rule overrides
+ * the shared one at equal specificity.
+ */

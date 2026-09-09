@@ -1,0 +1,8 @@
+/*
+ * P03 — the resume recovery screen: the persistent warning strip that names the missing plan,
+ * its heading, and the recovery choices that precede the remaining plans.
+ *
+ * Its own partial because it is a SCREEN rather than a region of the detail state, and because
+ * `project-detail.css` carries the detail chrome it sits inside. Imported after
+ * `project-detail.css` for that reason.
+ */

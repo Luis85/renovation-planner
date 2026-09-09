@@ -225,3 +225,20 @@ it('keeps blank preview margins and collapsed pointer starts from creating calib
 	placeAt(canvas, 0, 0, 400, 220); await w.get('[data-rp-reference-view="fit"]').trigger('click');
 	await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 }); expect(w.emitted('point')).toHaveLength(1);
 });
+
+
+it('keeps repeated zoom button presses at both limits stable without altering calibration picks', async () => {
+	const { w } = setup();
+	for (let index = 0; index < 20; index++) await w.get('[data-rp-reference-view="zoom-in"]').trigger('click');
+	expect(w.get('output').text()).toBe('3200%');
+	await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 });
+	const upper = w.emitted<[Point]>('point')?.at(-1)?.[0];
+	await w.get('[data-rp-reference-view="zoom-in"]').trigger('click'); await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 });
+	expect(w.emitted<[Point]>('point')?.at(-1)?.[0]).toEqual(upper);
+	for (let index = 0; index < 26; index++) await w.get('[data-rp-reference-view="zoom-out"]').trigger('click');
+	expect(w.get('output').text()).toBe('25%');
+	await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 }); const lower = w.emitted<[Point]>('point')?.at(-1)?.[0];
+	await w.get('[data-rp-reference-view="zoom-out"]').trigger('click'); await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 });
+	expect(w.emitted<[Point]>('point')?.at(-1)?.[0]).toEqual(lower); expect(lower).toEqual(upper);
+	expect(w.emitted('point')).toHaveLength(4);
+});

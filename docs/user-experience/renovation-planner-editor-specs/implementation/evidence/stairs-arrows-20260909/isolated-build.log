@@ -1,0 +1,8 @@
+
+ RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-deliver-stairs
+
+
+ Test Files  2 passed (2)
+      Tests  44 passed (44)
+   Start at  17:36:47
+   Duration  81.68s (transform 208ms, setup 0ms, import 4.11s, tests 75.70s, environment 1ms)

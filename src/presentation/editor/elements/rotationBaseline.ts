@@ -45,7 +45,12 @@ async function readElementBaseline(context: PlanEditorContext, project: ReturnTy
 	const current = projectedRotationTarget(project, shape.id, false);
 	if (!element || !name || JSON.stringify({ ...element, name }) !== JSON.stringify(current) || element.kind !== shape.kind || JSON.stringify(element.points) !== JSON.stringify(shape.points)) return err(staleWriteRefusal());
 	const baseline = result.value;
-	return ok<RotationBaseline>({ shape: { ...element, name }, command: points => service.command(baseline, elementInput(baseline, { ...element, name, points }), ledger) });
+	let attempt: { content: string; command: UndoableCommand } | null = null;
+	return ok<RotationBaseline>({ shape: { ...element, name }, command: points => {
+		const content = JSON.stringify(points);
+		if (attempt?.content !== content) attempt = { content, command: service.command(baseline, elementInput(baseline, { ...element, name, points }), ledger) };
+		return attempt.command;
+	} });
 }
 
 export function readRotationBaseline(context: PlanEditorContext, project: ReturnType<typeof useProjectStore>, shape: NamedRotationShape, ledger: SessionWriteLedger) {

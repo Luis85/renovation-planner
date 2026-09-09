@@ -1,5 +1,9 @@
 # Opening Move delivery reconstruction
 
+Current PR #112 follow-up: [implementation, regression evidence and verification](../opening-move-delivery.md).
+The reconstruction and validation statements below describe the historical source only.
+The current step incorporates updated #111; manual acceptance is user-owned and pending.
+
 Status: **validation pending**. Branch `codex/editor-deliver-opening-move` from Curve delivery `0a049e270de7b0dbdd4ba88e000866fe34f8634d`. Source/test tip `0118fabcdcd8a55530e29c78f641c14b1eb363e7`; this mapping is a later documentation-only commit.
 
 | Original commit/diff | Reconstructed commit |

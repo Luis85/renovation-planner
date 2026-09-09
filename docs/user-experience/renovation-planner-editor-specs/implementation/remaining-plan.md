@@ -1,5 +1,11 @@
 # Verbleibender Plan: Referenzskalierung auf #109
 
+Fortschreibung für **Öffnungsbewegung auf #112**: [Implementierung und automatisierte Prüfung](opening-move-delivery.md).
+Dieser Schritt integriert #111 bis `379f6a8aef24b1222d62624a5876672893fc84a2` ausschließlich
+in den bestehenden #112-Branch. Nachfolgende Branches bleiben unverändert. Die manuelle
+Abnahme ist nutzerverantwortet und offen; sie blockiert diesen Implementierungsschritt nicht.
+Der maßgebliche Gesamtplan aus #117 bleibt offen; kein Merge oder Release.
+
 Fortschreibung für **Kurven auf #111**: [Implementierung und automatisierte Prüfung](curve-delivery.md).
 Dieser Schritt integriert den aktualisierten Group6-Stand aus #110. Die manuelle
 Kurvenabnahme übernimmt der Nutzer; sie bleibt offen und blockiert den Implementierungsschritt

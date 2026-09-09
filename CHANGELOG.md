@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan geometry: persist flat spatial groups in schema 6, transform their members atomically, and preserve membership through individual deletion and Undo.
+
 - Plan editor: show actual Room edge lengths during rotation, point editing and free-form creation, and expose free-form Room drawing directly in the creation task banner.
 
 - Plan editor: show small curved-arrow controls on hovered item edges, with generous pointer targets and click-to-angle input, while preserving selected groups and ordinary overlap cycling.

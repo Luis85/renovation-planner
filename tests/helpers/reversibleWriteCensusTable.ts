@@ -64,6 +64,8 @@ export const CENSUS_TABLE: readonly CensusRow[] = [
 	{ module: 'RenovationCommand', direction: 'undo', mustPublish: 'PlanRenovationChanged after composite restore; renovationCommand.test.ts' },
 	{ module: 'StructureCommand', direction: 'execute', mustPublish: 'PlanStructureChanged after successful composite write; structureCommand.test.ts' },
 	{ module: 'StructureCommand', direction: 'undo', mustPublish: 'PlanStructureChanged after successful composite restore; structureCommand.test.ts' },
+	{ module: 'GroupGeometryCommand', direction: 'execute', mustPublish: 'ZoneGeometryChanged per changed Zone, then PlanStructureChanged after the conditional write, including redo; nothing on no-op/refusal; groupWriteEvents.test.ts' },
+	{ module: 'GroupGeometryCommand', direction: 'undo', mustPublish: 'The same ordered events after the conditional restore; nothing on unused/refused undo; groupWriteEvents.test.ts' },
 	{ module: 'ConfigurePlanReference', direction: 'execute', mustPublish: 'PlanBackgroundChanged, PlanCalibrated and ZoneGeometryChanged per object after the composite write; tested in configurePlanReference.test.ts' },
 	{ module: 'ConfigurePlanReference', direction: 'undo', mustPublish: 'The same events after restoring both snapshots; tested in configurePlanReference.test.ts' },
 	{ module: 'reversible-rename-zone-command', direction: 'execute', mustPublish: 'ZoneRenamed on a write (first and redo); nothing on normalized no-op' },

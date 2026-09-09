@@ -50,7 +50,7 @@ it('refuses enclosure across an existing crossing wall and retires its action wh
 it('keeps an Object-bearing assembly read-only in Renovate, including previously offered actions', async () => {
 	const rig = await setup(); rig.changePlan(); await settle();
 	const services = expectDefined(rig.deps.commands.renovation, 'renovation services'), baseline = expectOk(await services.read(rig.plan.id));
-	const object = { id: 'object-in-group', kind: 'object' as const, name: 'Desk', points: [{ x: 500, y: 500 }, { x: 1500, y: 500 }, { x: 1500, y: 1200 }, { x: 500, y: 1200 }] };
+	const object = { id: 'element-in-group', kind: 'object' as const, name: 'Desk', points: [{ x: 500, y: 500 }, { x: 1500, y: 500 }, { x: 1500, y: 1200 }, { x: 500, y: 1200 }] };
 	expectOk(await rig.runtime.dispatcher.run(services.command(baseline, elementInput(baseline, object), rig.runtime.structureTask.ledger)));
 	rig.selection.select([rig.room.id, object.id as never]); await settle(); await action(rig, 'group').run();
 	const captured = action(rig, 'ungroup'), target = expectDefined(rig.runtime.groupActions.target.value, 'object group'), bytes = [...rig.stack.vault.entries];

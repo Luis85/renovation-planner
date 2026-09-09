@@ -19,7 +19,7 @@ async function setup() {
 	return { ...rig, operation, component, form };
 }
 it('keeps typed rotation values through read-only retry, opens the source and commits once after recovery', async () => {
-	const rig = await setup(), write = vi.spyOn(rig.geometry, 'write');
+	const rig = await setup(), write = vi.spyOn(rig.deps.commands.zones, 'save');
 	const read = vi.spyOn(rig.deps.queries, 'findZonesByPlan').mockResolvedValue(err(injectedPersistenceError()));
 	await rig.runtime.refreshProjection(); await settle();
 	const buttons = rig.form.get('.rp-draft-recovery').findAll('button');
@@ -29,6 +29,7 @@ it('keeps typed rotation values through read-only retry, opens the source and co
 	read.mockRestore(); await buttons[0].trigger('click'); await settleUntil(() => !rig.project.stale, 'rotation recovered');
 	await rig.form.trigger('submit'); await rig.operation;
 	expect(write).toHaveBeenCalledTimes(1); expect(rig.dialogs.current).toBeNull();
+	expect(rig.project.zones.get(rig.room.id)?.points).not.toEqual(rig.room.geometry.points);
 });
 it.each(['plan.external-modification', 'undo.superseded'])('retires a numeric draft after %s without replaying its command', async code => {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];

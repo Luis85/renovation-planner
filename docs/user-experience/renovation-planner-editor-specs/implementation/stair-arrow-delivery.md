@@ -5,9 +5,12 @@ builds or browser journeys were executed for this delivery tree. Original verifi
 receipts describe their original source trees and do not certify this reconstruction.
 
 Base: Curve delivery `0a049e270de7b0dbdd4ba88e000866fe34f8634d`.
-Branch: `codex/editor-deliver-stairs`. Opening movement and Group UI are separate
-concerns to be incorporated by the delivery coordinator before publication. No
-integration or Group UI ancestry was imported here.
+Branch: `codex/editor-deliver-stairs`. PR base: `codex/editor-deliver-groups`.
+Cumulative Group UI parent `f39d001ad41284825732aee34a34b91ebd2221e5`, including
+Opening movement, was merged as `de561869`. No integration-branch ancestry was imported.
+The two conflicts were adjacent changelog entries and Stair/Group type imports; both
+were retained. Shared Curve/Group preview composition and both runtime factories
+were inspected alongside Stair footprints and metadata after the automatic merges.
 
 | Original | Reconstructed | Included scope |
 | --- | --- | --- |

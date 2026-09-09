@@ -27,13 +27,13 @@ import type { createGroupActions } from '../groups/groupActions';
 export type RotationRuntime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & {
 	elementActions: { readonly active: Readonly<Ref<boolean>> };
 	ledger: SessionWriteLedger;
+	groupRotationTarget?: (memberId: string) => NamedRotationShape | null;
+	groups?: ReturnType<typeof createGroupActions>;
 	wall?: {
 		readonly active: Readonly<Ref<boolean>>;
 		rotateWall(id: string, degrees?: number, original?: Wall): Promise<void>;
 		previewRotation(id: string | null, degrees?: number, original?: Wall): void;
 	};
-	groups?: ReturnType<typeof createGroupActions>;
-	groupRotationTarget?: (memberId: string) => NamedRotationShape | null;
 };
 /** Group controls use aggregate member visibility; singleton controls follow their source layer. */
 function sourceVisible(shape: NamedRotationShape, layers: { readonly zone: boolean; readonly architecture: boolean }): boolean {

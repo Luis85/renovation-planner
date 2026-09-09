@@ -1,4 +1,3 @@
-import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { computed } from 'vue';
 import { roomSnapCandidates } from '../snapping/roomSnapCandidates';
 import type { SessionWriteLedger, WriteLedger } from '../../../application/editor/WriteLedger';
@@ -15,6 +14,7 @@ import { areaOutline } from '../add/areaOutline';
 import { DrawRoomTool } from './draw-room-tool';
 import { SelectTool } from './select-tool';
 import { PanTool } from './pan-tool';
+import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { ReversibleMoveZoneCommand } from './reversible-move-zone-command';
 import type { UndoableCommand } from './undoable-command';
 import type { RoomDraftStore } from '../add/room-draft-store';

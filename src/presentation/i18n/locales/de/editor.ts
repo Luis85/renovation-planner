@@ -1,12 +1,12 @@
 import { openingMoveDe } from './openingMove';
 import { openingDe } from './opening';
-import { groupsDe } from './groups';
-import { referenceViewportDe } from './referenceViewport';
 import { curvesDe } from './curves';
+import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
 import { stairsArrowsDe } from './stairsArrows';
 import { inputDe } from './input';
+import { groupsDe } from './groups';
 import { creationDe } from './creation';
 import type {
  editorEn } from '../en/editor';
@@ -23,8 +23,8 @@ import type {
  */
 import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
-	...groupsDe,
 	...curvesDe,
+	...groupsDe,
 	...stairsArrowsDe,
 	...inputDe,
 	...creationDe,

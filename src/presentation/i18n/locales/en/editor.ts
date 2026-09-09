@@ -1,12 +1,12 @@
 import { openingMoveEn } from './openingMove';
 import { openingEn } from './opening';
-import { groupsEn } from './groups';
-import { referenceViewportEn } from './referenceViewport';
 import { curvesEn } from './curves';
+import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
 import { stairsArrowsEn } from './stairsArrows';
 import { inputEn } from './input';
+import { groupsEn } from './groups';
 import { creationEn } from './creation';
 /**
  * The Plan Editor's own vocabulary — the shell (context bar, rail, status bar),
@@ -35,8 +35,8 @@ import { creationEn } from './creation';
  */
 import { structureEn } from './structure';
 export const editorEn = {
-	...groupsEn,
 	...curvesEn,
+	...groupsEn,
 	...stairsArrowsEn,
 	...inputEn,
 	...creationEn,

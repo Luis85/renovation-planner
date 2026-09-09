@@ -126,7 +126,7 @@ const framedBounds = usePlanFrame();
 					:visible="layerVisibility.architecture"
 				/>
 				<ZoneLayer
-					:preview="runtime.curveTask.preview.value?.objects ?? runtime.groupActions.preview.value?.objects"
+					:preview="(runtime.curveTask.preview.value ?? runtime.groupActions.preview.value)?.objects"
 					:pins="evidencePins"
 					:dimension-obstacles="dimensionLayout.bounds"
 					:caption-viewport="dimensionLayout.viewport"

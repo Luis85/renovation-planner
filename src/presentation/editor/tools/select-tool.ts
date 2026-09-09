@@ -1,7 +1,7 @@
-import type { SelectionInteractions } from '../selection/selectionInteractions';
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import type { StairOptions } from '../../../domain/spatial/stairGeometry';
 import { MarqueeSelection } from '../selection/MarqueeSelection';
+import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { translate } from '../../../core/geometry/operations';
 import { ElementRotation, type RotationGestureDeps } from '../elements/ElementRotation';
 import { rotationControlApproachContains, rotationControlContains, type RotationControlGeometry } from '../elements/rotationControl';
@@ -246,7 +246,6 @@ export class SelectTool implements EditorTool {
 		preview[this.gesture.index] = event.worldPoint;
 		context.renderState.previewPolygon = preview;
 	}
-
 	private updateHover(context: EditorContext, event: EditorPointerEvent): void {
 		// Ordinary hover predicts the same body/handle as a click; affordance approach stays separate.
 		context.renderState.rotationHoverSuppressed = event.modifiers.alt;

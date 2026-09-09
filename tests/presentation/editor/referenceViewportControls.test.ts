@@ -195,3 +195,28 @@ it('keeps navigation usable through temporary 2D context loss and resumes drawin
 	getContext.mockRestore(); await w.get('[data-rp-reference-view="fit"]').trigger('click');
 	expect(w.get('output').text()).toBe('100%'); expect(canvas.width).toBe(400); expect(w.emitted('point')).toBeUndefined();
 });
+
+
+it('uses measured border-box dimensions when layout has no client size or device ratio', async () => {
+	vi.stubGlobal('devicePixelRatio', 0);
+	const { w, canvas, subscribe } = setup();
+	placeAt(canvas, 10, 20, 800, 500); resizeTo(canvas, 0, 0); await nextTick();
+	expect(canvas.width).toBe(800); expect(canvas.height).toBe(500);
+	canvas.style.fontFamily = ''; expectDefined(subscribe.mock.calls[0], 'theme listener')[0]();
+	await w.get('[data-rp-reference-view="fit"]').trigger('click');
+	const fit = previewTransform(appearance, { width: 800, height: 500 }), p = referencePoint({ x: 200, y: 120 }, appearance, fit.scale);
+	await w.get('canvas').trigger('click', { clientX: 10 + fit.x + p.x, clientY: 20 + fit.y + p.y });
+	expect(w.emitted('point')?.[0]?.[0]).toEqual({ x: 200, y: 120 });
+	expect(expectDefined(canvas.getContext('2d'), 'preview context').font).toContain('sans-serif');
+});
+
+it('keeps blank preview margins and collapsed pointer starts from creating calibration points', async () => {
+	const { w, canvas } = setup();
+	await w.get('[data-rp-reference-view="zoom-out"]').trigger('click'); expect(w.get('output').text()).toBe('80%');
+	await w.get('canvas').trigger('click', { clientX: 1, clientY: 1 }); expect(w.emitted('point')).toBeUndefined();
+	placeAt(canvas, 0, 0, 0, 0); pointer(canvas, 'pointerdown', 100, 100); pointer(canvas, 'pointermove', 200, 200);
+	await nextTick(); expect(w.get('canvas').classes()).not.toContain('is-panning');
+	await w.get('canvas').trigger('click', { clientX: 100, clientY: 100 }); expect(w.emitted('point')).toBeUndefined();
+	placeAt(canvas, 0, 0, 400, 220); await w.get('[data-rp-reference-view="fit"]').trigger('click');
+	await w.get('canvas').trigger('click', { clientX: 200, clientY: 110 }); expect(w.emitted('point')).toHaveLength(1);
+});

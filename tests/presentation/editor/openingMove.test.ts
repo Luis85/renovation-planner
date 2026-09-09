@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { watch } from 'vue';
 import { afterEach, expect, it, vi } from 'vitest';
 import { structureEditor } from '../../helpers/structureEditor';
 import { settle, settleUntil } from '../../helpers/editor';
@@ -249,4 +250,17 @@ it.each(['door', 'window', 'opening'] as const)('moves a %s on a later host with
 	await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'later host Move');
 	expect(rig.project.structure.openings).toEqual([{ ...opening, offset: 1750 }]);
 	await rig.runtime.undo(); expect(rig.project.structure.openings).toEqual([opening]);
+});
+
+
+it('does not commit when synchronous preview publication moves selection to a different entity', async () => {
+	const rig = await setup(); await arm(rig);
+	const before = [...rig.stack.vault.entries], write = vi.spyOn(rig.geometry, 'write');
+	const stopWatching = watch(rig.runtime.structureActions.preview, preview => {
+		if (preview) rig.selection.select(['wall-b' as never]);
+	}, { flush: 'sync' });
+	click(rig, 3000); stopWatching(); await settle();
+	expect(rig.selection.selectedIds).toEqual(['wall-b']); expect(rig.runtime.activeToolId.value).toBe('select');
+	expect(rig.runtime.structureActions.preview.value).toBeNull(); expect(rig.runtime.openingMove.hostId.value).toBeNull();
+	expect(write).not.toHaveBeenCalled(); expect([...rig.stack.vault.entries]).toEqual(before); expect(rig.runtime.canUndo.value).toBe(false);
 });

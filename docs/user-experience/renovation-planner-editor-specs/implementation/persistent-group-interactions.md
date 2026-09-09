@@ -21,6 +21,13 @@ walls. Group transformation controls expose exact numeric movement and rotation,
 including quarter turns. Unmodified body drag moves the whole selection. A change
 to connected wall endpoints outside the selection receives impact review.
 
+Precise numeric rotation presents the affected outside-wall count in the same
+dialog as the live angle preview. Its existing Apply button confirms that preview
+and its connected-endpoint impact; no nested confirmation replaces the numeric
+draft. Invalid or unchanged angles clear the impact message. Cancelling clears
+the preview without writing. The numeric path retains the same captured snapshot,
+conditional dispatch, retirement and one-write boundaries.
+
 Each gesture captures original geometry and a generation, then reads a fresh
 conditional sidecar version before writing. Tool, perspective, selection or member
 geometry changes retire that intent. No-op and cancelled gestures write nothing.
@@ -69,3 +76,14 @@ The follow-up's scoped ESLint/whole Oxlint checks and 20 cases in the two groupe
 interaction/gesture files pass, including the two new selection-route regressions.
 Joined type/scene and final browser/native verification remain tracked by the
 integration branch.
+
+### Numeric connected-wall impact follow-up
+
+Source prepared on 2026-09-09 from integrated `5e8e37dc`. The new native Vue form
+case in `groupRotationImpact.test.ts` selects a Room and one wall, checks the two
+outside neighbours in the live review, changes and invalidates the angle, cancels
+via Escape without writes, then reopens and applies the reviewed preview through
+the actual Apply button. It checks one write, matching preview geometry, retained
+group metadata and exact undo. This is a source-ready regression, not an executed
+browser/native-host receipt. Tests, types and linters are unrun for this follow-up;
+the parent will verify it in the serialized combined batch.

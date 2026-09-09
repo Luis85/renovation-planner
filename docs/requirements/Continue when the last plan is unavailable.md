@@ -101,7 +101,11 @@ Extension 2d is now closed on the project surface: `ViewRoot`'s `resolveStored()
 `RenovationProjectContext.forgetContinue()` on a reliably missing project — the index scan
 completed and `getProject` answered `ok(null)` — before drawing the gone state, and
 `ContinueContextStore.clear()` writes the stored target's removal through the same
-`saveLocalStorage` adapter `write` uses. Indexing, a read failure, a missing
+`saveLocalStorage` adapter `write` uses. It clears the target it was HANDED and only while that
+is still what is stored: the store is process-wide while the resolver's staleness guard is local
+to one `ViewRoot`, so a newer target written during the `getProject` await — the palette's plan
+open, another leaf, another pane — survives, which is the same "a failed or stale result never
+replaces a newer target" property extensions 2a-2c rest on. Indexing, a read failure, a missing
 plan and a failed opening still leave the stored target untouched, matching extensions 2a, 2b,
 2c and 4a. Real-vault acceptance of the clearing behaviour is still open.
 

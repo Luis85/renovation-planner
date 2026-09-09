@@ -624,9 +624,10 @@ export function renovationProjectDeps(
 		/**
 		 * Task 2 (design slice 22)'s sibling of `rememberContinue`, over the same store, the same
 		 * required-not-defaulted reason: a composition that forgot to wire it would still compile
-		 * and silently leave a reliably missing project's target stuck.
+		 * and silently leave a reliably missing project's target stuck. Takes the context the view
+		 * validated, so the store clears that one rather than whichever target is there by then.
 		 */
-		forgetContinue: () => void;
+		forgetContinue: (validated: ContinueContext) => void;
 	},
 ): RenovationProjectDeps {
 	const persistence = root.persistence;

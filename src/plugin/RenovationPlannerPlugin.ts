@@ -741,7 +741,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			rememberContinue: (context) => void this.continueContextStore(this.root.logger).write(context),
 			// Task 2 (design slice 22). Same `void` reasoning as `rememberContinue` above:
 			// `ContinueContextStore.clear` cannot reject either.
-			forgetContinue: () => void this.continueContextStore(this.root.logger).clear(),
+			forgetContinue: (validated) => void this.continueContextStore(this.root.logger).clear(validated),
 		});
 	}
 

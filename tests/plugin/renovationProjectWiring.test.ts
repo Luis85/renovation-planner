@@ -733,7 +733,8 @@ describe('the registered view factory', () => {
 	 * case here would still pass. `forgetContinue` (Task 2, design slice 22) joins the same
 	 * case rather than getting its own: it is the SAME store's `clear`, proved on the tail of
 	 * the identical round trip — a composition that wired it to a fresh store, or to nothing at
-	 * all, would still compile and this is what would catch it.
+	 * all, would still compile and this is what would catch it. It is handed the context it
+	 * validated, which `clear` compares against what is stored before removing it.
 	 */
 	it('remembers, restores and forgets a context through the real store', async () => {
 		const { loadedPlugin } = await import('../helpers/plugin');
@@ -745,7 +746,7 @@ describe('the registered view factory', () => {
 		deps.rememberContinue({ projectId: 'project-1', planId: 'plan-1' });
 		await expect(deps.continueContext()).resolves.toEqual({ projectId: 'project-1', planId: 'plan-1' });
 
-		deps.forgetContinue();
+		deps.forgetContinue({ projectId: 'project-1', planId: 'plan-1' });
 		await expect(deps.continueContext()).resolves.toBeNull();
 	});
 

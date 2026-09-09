@@ -12,6 +12,8 @@ import NewProjectForm from '../../../src/presentation/views/NewProjectForm.vue';
 import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps, type ProjectSession, type ProjectOpenOutcome } from '../../../src/presentation/views/RenovationProjectContext';
 import { installObsidianDom } from '../../helpers/dom';
 import { defaultRenovationProjectDeps, makeView } from '../../helpers/makeRenovationProjectView';
+import { recorder } from '../../helpers/logger';
+import { ContinueContextStore } from '../../../src/infrastructure/obsidian/plugin-data/continueContextStore';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { ok, err } from '../../../src/core/result/Result';
 import { createMoney } from '../../../src/core/money/Money';
@@ -242,6 +244,41 @@ describe('project experience', () => {
 		expect(wrapper.text()).toContain('last project is no longer available');
 		expect(context.forgetContinue).toHaveBeenCalledOnce();
 		expect(context.rememberContinue).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The compare-and-clear half of the same branch, asked of the STORE rather than of a spy: the
+	 * ticket guarding `resolveStored` is local to one `ViewRoot` while the store is process-wide,
+	 * so a newer target written during the `getProject` await — the palette's plan open, another
+	 * leaf, another pane — must survive the clear that the stale one earned. A spy asserting the
+	 * argument would prove nothing about what is left in the store, so the real store runs here
+	 * over an in-memory adapter.
+	 */
+	it('clears only the target it validated, so a newer one written during the read survives', async () => {
+		const entries = new Map<string, unknown>();
+		const store = new ContinueContextStore({
+			loadLocalStorage: (key) => entries.get(key) ?? null,
+			saveLocalStorage: (key, data) => { if (data === null) entries.delete(key); else entries.set(key, data); },
+		}, 'continue-context', recorder);
+		await store.write({ projectId: project.id, planId: plan.id });
+		let release!: (found: Awaited<ReturnType<RenovationProjectDeps['queries']['getProject']>>) => void;
+		const base = defaultRenovationProjectDeps();
+		rig({
+			continueContext: () => store.read(),
+			rememberContinue: (context) => void store.write(context),
+			forgetContinue: (validated) => void store.clear(validated),
+			queries: {
+				...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })),
+				getProject: () => new Promise((resolve) => { release = resolve; }),
+			},
+		});
+		await flushPromises();
+
+		await store.write({ projectId: 'p2', planId: null });
+		release(ok(null));
+		await flushPromises();
+
+		expect(await store.read()).toEqual({ projectId: 'p2', planId: null });
 	});
 
 	it('ignores a slow Resume opening after another project is selected', async () => {

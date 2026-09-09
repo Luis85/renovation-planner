@@ -148,22 +148,60 @@ describe('ContinueContextStore', () => {
 			const store = new ContinueContextStore(adapter, KEY, logger);
 			await store.write({ projectId: 'p1', planId: 'plan-1' });
 
-			await store.clear();
+			await store.clear({ projectId: 'p1', planId: 'plan-1' });
 
+			expect(await store.read()).toBeNull();
+		});
+
+		/**
+		 * The compare half, and the reason `clear` takes the context it VALIDATED rather than
+		 * clearing whatever is there: this store is process-wide while the resolver that calls it
+		 * (`ViewRoot`'s `resolveStored`) holds only a ticket local to its own instance, so another
+		 * writer — the palette's plan open, another leaf's detail state, another `ViewRoot` — can
+		 * land a newer target during the `getProject` await that decided the stale one was gone.
+		 * Both fields are compared, because a Continue on the same project in a different plan is
+		 * a different target.
+		 */
+		it.each([
+			['a different project', { projectId: 'p2', planId: 'plan-1' }],
+			['the same project in a different plan', { projectId: 'p1', planId: 'plan-2' }],
+			['the same project with no plan', { projectId: 'p1', planId: null }],
+		])('leaves a stored target alone when the validated one names %s', async (_what, expectedContext) => {
+			const { adapter } = fakeAdapter();
+			const store = new ContinueContextStore(adapter, KEY, logger);
+			await store.write({ projectId: 'p1', planId: 'plan-1' });
+
+			await store.clear(expectedContext);
+
+			expect(await store.read()).toEqual({ projectId: 'p1', planId: 'plan-1' });
+		});
+
+		it('is a no-op against an empty store rather than a failure', async () => {
+			const { adapter, entries } = fakeAdapter();
+			const store = new ContinueContextStore(adapter, KEY, logger);
+
+			await expect(store.clear({ projectId: 'p1', planId: null })).resolves.toBeUndefined();
+
+			expect(entries.has(KEY)).toBe(false);
 			expect(await store.read()).toBeNull();
 		});
 
 		it('logs rather than rejecting when the adapter throws', async () => {
 			resetRecorder();
 			const spy = vi.spyOn(logger, 'warn');
+			// Stored value MATCHES, so the compare passes and the write this case is about is
+			// actually reached: a mismatching one would never call `saveLocalStorage` at all and
+			// the case would pass without exercising the swallow.
 			const adapter: LocalStorageAdapter = {
-				loadLocalStorage: () => null,
+				loadLocalStorage: () => ({ schemaVersion: 1, context: { projectId: 'p1', planId: null } }),
 				saveLocalStorage: () => {
 					throw new Error('quota exceeded');
 				},
 			};
 
-			await expect(new ContinueContextStore(adapter, KEY, logger).clear()).resolves.toBeUndefined();
+			await expect(
+				new ContinueContextStore(adapter, KEY, logger).clear({ projectId: 'p1', planId: null }),
+			).resolves.toBeUndefined();
 
 			expect(spy).toHaveBeenCalledWith('continue-context.clear-failed', expect.objectContaining({ cause: expect.any(Error) }));
 			spy.mockRestore();

@@ -251,8 +251,13 @@ export interface RenovationProjectDeps {
 	 * each of those is a state the same context might resolve out of on a later hydrate —
 	 * `view.project.resume-unreadable`'s own copy promises exactly that. Fire-and-forget like
 	 * `rememberContinue`, for the identical reason: it answers `void`, not a promise.
+	 *
+	 * Takes the context this view VALIDATED, because the store behind it is process-wide while
+	 * the ticket guarding `resolveStored` is local to one `ViewRoot`: a newer target written
+	 * during the `getProject` await must survive this call, so the store compares before it
+	 * writes (`ContinueContextStore.clear`).
 	 */
-	readonly forgetContinue: () => void;
+	readonly forgetContinue: (validated: ContinueContext) => void;
 }
 
 export const RENOVATION_PROJECT_CONTEXT: InjectionKey<RenovationProjectDeps> = Symbol(

@@ -6,7 +6,8 @@ import PlanningForm from '../../../src/presentation/editor/planning/PlanningForm
 import EvidenceFileSearch from '../../../src/presentation/editor/planning/EvidenceFileSearch.vue';
 import { planningDraft } from '../../../src/presentation/editor/planning/planningDraft';
 import { planningStack } from '../../helpers/planning';
-import { expectOk } from '../../helpers/domain';
+import { tr } from '../../../src/presentation/i18n/strings';
+import { expectDefined, expectOk } from '../../helpers/domain';
 import { defer, settle } from '../../helpers/async';
 import { err, ok } from '../../../src/core/result/Result';
 import type { EvidenceFiles } from '../../../src/application/ports/EvidenceFiles';
@@ -89,4 +90,27 @@ it('keeps native type-control focus when switching between photo Details and oth
 	await w.get('[name="type"]').setValue('photo'); await settle();
 	expect(w.get('.rp-photo-details').element).toHaveProperty('open', true);
 	expect(document.activeElement).toBe(w.get('[name="type"]').element);
+});
+
+it('leaves a cancelled file picker inert in either evidence mode and creates an untitled vault note with its default heading', async () => {
+	const rig = await setup(), w = rig.wrapper, imported = vi.spyOn(rig.files, 'importFile'), note = vi.spyOn(rig.files, 'createNote');
+	let file = w.get('input[type="file"]'); Object.defineProperty(file.element, 'files', { value: [], configurable: true });
+	await file.trigger('click'); await file.trigger('change'); await settle();
+	expect(imported).not.toHaveBeenCalled(); expect(w.get('[name="path"]').element).toHaveProperty('value', '');
+	await w.get('.rp-photo-details summary').trigger('click'); await w.get('[name="type"]').setValue('document'); await settle();
+	file = w.get('input[type="file"]'); Object.defineProperty(file.element, 'files', { value: [], configurable: true });
+	await file.trigger('click'); await file.trigger('change'); expect(imported).not.toHaveBeenCalled();
+	const create = expectDefined(w.findAll('button').find(button => button.text() === tr('planning.create-note')), 'Create note');
+	await create.trigger('click'); await settle();
+	expect(note).toHaveBeenCalledWith(rig.plan.id, rig.draft.id, expect.stringContaining(`# ${tr('planning.note')}\n\n`));
+	expect(w.get('[name="path"]').element).toHaveProperty('value', 'note.md'); expect(w.get('[name="type"]').element).toHaveProperty('value', 'note');
+	expect(rig.dispatch).not.toHaveBeenCalled();
+});
+
+it('keeps manual file text and an empty suggestion list when no catalogue capability is available', async () => {
+	vi.useFakeTimers();
+	const w = mount(EvidenceFileSearch, { props: { modelValue: '', imagesOnly: true, paused: false } }); wrappers.push(w);
+	expect(w.findAll('option')).toHaveLength(0);
+	await w.setProps({ modelValue: 'Photos/known.png' }); await vi.advanceTimersByTimeAsync(150);
+	expect(w.get('input').element).toHaveProperty('value', 'Photos/known.png'); expect(w.findAll('option')).toHaveLength(0);
 });

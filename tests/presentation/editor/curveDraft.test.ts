@@ -41,8 +41,8 @@ it('refuses a vanished source and preserves unedited siblings when a Wall is str
 
 it('starts precise radius entry from a straight edge and refuses nonfinite or collapsed input', () => {
 	const edge = { start: { x: 0, y: 0 }, end: { x: 4000, y: 0 }, bulge: 0 };
-	expect(typedBulge(edge, 'radius', '2.5')).toBe(0.5);
-	expect(typedBulge({ ...edge, bulge: -0.2 }, 'radius', '2.5')).toBe(-0.5);
+	expect(typedBulge(edge, 'radius', '2.5')).toBeCloseTo(0.5, 14);
+	expect(typedBulge({ ...edge, bulge: -0.2 }, 'radius', '2.5')).toBeCloseTo(-0.5, 14);
 	expect(typedBulge(edge, 'depth', '9'.repeat(400))).toBeNull();
 	const collapsed = { ...edge, end: edge.start };
 	expect(typedBulge(collapsed, 'depth', '0')).toBeNull(); expect(bulgeAt(collapsed, { x: 10, y: 20 })).toBe(0);

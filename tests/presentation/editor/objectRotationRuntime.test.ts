@@ -256,10 +256,24 @@ it.each(['kind', 'curve'] as const)('refuses a drag snapshot after a peer change
 	expect([...rig.stack.vault.entries]).toEqual(bytes); expect(rig.runtime.rotationActions.preview.value).toBeNull();
 });
 
-it('keeps geometry intact when the guarded pointer rotation write is refused', async () => {
-	const rig = await setup(), original = expectDefined(rig.runtime.rotationActions.target.value, 'target'), bytes = [...rig.stack.vault.entries];
+it('restores Plan content with a new revision when the guarded pointer rotation write is refused', async () => {
+	const rig = await setup(), original = expectDefined(rig.runtime.rotationActions.target.value, 'target');
+	const before = expectOk(await rig.renovation.read(rig.plan.id)), planPath = expectDefined(rig.stack.index.getPath(rig.plan.id), 'Plan note path');
+	const unrelatedBytes = [...rig.stack.vault.entries].filter(([path]) => path !== planPath);
 	const points = expectDefined(rotationPoints(original, 90, expectDefined(rotationPivot(original), 'pivot')), 'turned points');
-	vi.spyOn(rig.geometry, 'write').mockResolvedValueOnce(err(injectedPersistenceError()));
+	const write = vi.spyOn(rig.geometry, 'write').mockResolvedValueOnce(err(injectedPersistenceError())), savePlan = vi.spyOn(rig.stack.plans, 'save');
 	await rig.runtime.rotationActions.move(original.id, points, original); await settle();
-	expect([...rig.stack.vault.entries]).toEqual(bytes); expect(rig.runtime.rotationActions.active.value).toBe(false);
+	expect(write).toHaveBeenCalledExactlyOnceWith(rig.plan.id, expect.objectContaining({ structure: expect.objectContaining({ elements: [expect.objectContaining({ id: element.id, points })] }) }), before.geometry.version);
+	expect(savePlan).toHaveBeenCalledTimes(2);
+	expect(savePlan.mock.calls[0][1]).toEqual(before.plan.version);
+	expect(savePlan.mock.calls[1][1]).toEqual(expect.objectContaining({ revision: before.plan.version.revision + 1 }));
+	const after = expectOk(await rig.renovation.read(rig.plan.id));
+	expect(after.geometry).toEqual(before.geometry); expect(after.plan.entity).toEqual(before.plan.entity);
+	expect(after.plan.version.revision).toBe(before.plan.version.revision + 2);
+	expect([...rig.stack.vault.entries].filter(([path]) => path !== planPath)).toEqual(unrelatedBytes);
+	expect(rig.runtime.rotationActions.active.value).toBe(false); expect(rig.runtime.rotationActions.preview.value).toBeNull(); expect(rig.runtime.renderState.rotationDegrees).toBeNull();
+	// The next Undo must reach the preceding successful insertion, not a phantom failed rotation.
+	await rig.runtime.undo(); await settle();
+	expect(rig.project.structure.elements?.some(item => item.id === element.id) ?? false).toBe(false);
+	expect(rig.project.zones.has(rig.room.id)).toBe(true);
 });

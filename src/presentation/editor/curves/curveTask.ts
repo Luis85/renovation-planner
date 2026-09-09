@@ -14,9 +14,9 @@ import { staleWriteRefusal } from '../tools/with-stale-gate';
 import { CurveTool } from './CurveTool';
 import { curveDocument, curveEdges, curveError, curveSource, curveText, typedBulge, withCurve, type CurveTarget } from './curveDraft';
 
-type Runtime = Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'setTool' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { readonly ledger: WriteLedger };
+export type CurveTaskRuntime = Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'setTool' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { readonly ledger: WriteLedger };
 /** One immutable versioned baseline owns an explicit, cancellable curve task. */
-export function createCurveTask(context: PlanEditorContext, runtime: Runtime) {
+export function createCurveTask(context: PlanEditorContext, runtime: CurveTaskRuntime) {
 	const project = useProjectStore(), selection = useSelectionStore(), saves = useSaveStateStore(), session = useRenovationSession();
 	const target = shallowRef<CurveTarget | null>(null), baseline = shallowRef<PlanGeometrySnapshot | null>(null);
 	const state = reactive({ edge: 0, loading: false, busy: false, conflict: false, invalidField: null as 'depth' | 'radius' | null, error: null as AppError | null, text: { depth: '', radius: '' } });
@@ -95,9 +95,9 @@ export function createCurveTask(context: PlanEditorContext, runtime: Runtime) {
 	}
 	watch(() => target.value ? JSON.stringify(current(target.value.id)?.geometry) : null, value => { if (target.value && !state.busy && value !== source) state.conflict = true; }, { flush: 'sync' });
 	watch(() => selection.selectedIds.join('|'), () => { if (target.value && !state.busy) void nextTick(cancel); });
-	watch(permitted, value => { if (!value && target.value && !state.busy) void nextTick(cancel); });
+	// Failed read-back pauses this draft; its typed values survive until retry or explicit exit.
+	watch(() => session.perspective, value => { if (value === 'review' && target.value && !state.busy) void nextTick(cancel); });
 	runtime.toolManager.register(new CurveTool({ target: () => target.value, blocked: () => blocked.value, busy: () => state.busy, set, choose, stop, cancel, finish: () => { void finish(); } }));
 	onBeforeUnmount(() => { alive = false; stop(); });
 	return { target, state, available, blocked, edges, preview, validation, open, choose, set, input, finish, cancel };
 }
-export type CurveTask = ReturnType<typeof createCurveTask>;

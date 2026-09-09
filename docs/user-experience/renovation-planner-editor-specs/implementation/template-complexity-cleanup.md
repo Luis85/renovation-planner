@@ -18,3 +18,9 @@ The gate reported template cyclomatic/cognitive complexity of 26/39 for Renovati
 Status: **source ready, validation pending**. Only source review and `git diff --check` ran. No Fallow, lint, types, tests, coverage, browser/native capture, push or PR was run in this worktree. Root owns the combined gate and final metrics.
 
 Use the existing detail navigation/overview/subject kind, planning/photo, persistent warning focus, structure lifecycle/opening/curve and host icon suites to verify preserved behavior, plus the unchanged source/style/locale gates. No suppressions, complexity limits, coverage thresholds, assertions, timeouts or stylesheet changes were introduced.
+
+## Static follow-up
+
+The combined post-cleanup Fallow run reported zero duplicated blocks. RenovationEntry remained at 11 cyclomatic / 18 cognitive template complexity, and FloorInspector was newly assigned at 11 / 20 (`editor-integrated-analyze-repaired-20260909.log`). Extract the related-mode nav into `RelatedRenovationNavigation`, retaining its opener/ref and focus restoration in RenovationEntry. Extract only the guidance/Room/Area list fragment into `FloorSpatialLists`, retaining the same order and conditional rendering without a wrapper. Floor aggregate/planning behavior stays in FloorInspector.
+
+This follow-up is source-ready and unverified beyond source review / `git diff --check`. EvidenceFields is unchanged; its CRAP metric awaits coverage matched to current source. No additional heavy check was run here.

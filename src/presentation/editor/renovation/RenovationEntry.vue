@@ -8,7 +8,7 @@ import { computed, nextTick, ref } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import RenovationNavigationButton from './RenovationNavigationButton.vue';
 import HostIcon from '../../components/HostIcon.vue';
-import { EDITOR_MODE_ICONS } from '../editorIcons';
+import RelatedRenovationNavigation from './RelatedRenovationNavigation.vue';
 const props = defineProps<{ roomId: string }>();
 const runtime = useEditorRuntime(), session = useRenovationSession(), project = useProjectStore();
 const roomName = computed(() => project.zones.get(props.roomId)?.name ?? tr('renovation.select-room'));
@@ -16,6 +16,7 @@ const detailVisible = computed(() => runtime.renovation.available && session.mod
 const navigationVisible = computed(() => session.mode === 'overview' || semantic.value || ['documents', 'photos', 'notes'].includes(session.mode));
 function detailTitle(): string { return semantic.value ? tr(`renovation.title.${session.mode as 'existing' | 'planned' | 'work'}`, { name: roomName.value }) : tr(`renovation.${session.mode}`); }
 const semantic = computed(() => ['existing', 'work', 'planned'].includes(session.mode));
+const relatedIcon = computed(() => expanded.value ? 'chevron-up' : 'chevron-down');
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null);
 const modes = computed(() => session.mode === 'overview' && session.perspective === 'plan'
 	? context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const
@@ -75,23 +76,13 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 			:aria-expanded="expanded"
 			@click="expanded = !expanded"
 		>
-			{{ tr('renovation.summary.linked') }}<HostIcon :name="expanded ? 'chevron-up' : 'chevron-down'" />
+			{{ tr('renovation.summary.linked') }}<HostIcon :name="relatedIcon" />
 		</button>
-		<nav
+		<RelatedRenovationNavigation
 			v-if="context.commands.planning"
-			v-show="expanded"
-			class="rp-related-navigation"
-			:aria-label="tr('renovation.summary.linked')"
-		>
-			<button
-				v-for="mode in relatedModes"
-				:key="mode"
-				type="button"
-				:data-rp-mode="mode"
-				@click="navigate(mode, $event)"
-			>
-				<HostIcon :name="EDITOR_MODE_ICONS[mode]" />{{ tr(`renovation.${mode}`) }}
-			</button>
-		</nav>
+			:expanded="expanded"
+			:modes="relatedModes"
+			@navigate="navigate"
+		/>
 	</template>
 </template>

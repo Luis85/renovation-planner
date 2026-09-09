@@ -42,6 +42,15 @@ export interface ProjectSession {
 	completedOpen: boolean;
 	focusedProjectId: string | null;
 	scrollTop: number;
+	/**
+	 * The DETAIL body's scroller, and its own field rather than `scrollTop` above, which the
+	 * launcher owns. One number for both surfaces means a details -> back round trip restores the
+	 * list to wherever the project's plans had been left.
+	 *
+	 * Optional because every existing construction of this object predates it and an absent
+	 * offset and a zero one are the same picture — unlike `projectId`, where they are not.
+	 */
+	detailScrollTop?: number;
 	guidanceHidden: boolean;
 	canLeave?: () => Promise<boolean>;
 }
@@ -92,6 +101,18 @@ export interface RenovationProjectDeps {
 	 * carries and a second way a Vue tree in this plugin learns its subject changed.
 	 */
 	readonly projectId: string | null;
+	/**
+	 * Whether this mount was reached by a user-triggered NAVIGATION rather than by a leaf being
+	 * opened or restored — the one fact `states-and-navigation.md`'s focus rule turns on ("no
+	 * initial autofocus when opening a view beside a note", but "user-triggered navigation moves
+	 * focus meaningfully to the new heading").
+	 *
+	 * Written per mount by `RenovationProjectView.sync`, from whether it is REPLACING a live
+	 * mount: a restore reaches `sync` with nothing mounted (its `setState` arrives before
+	 * `onOpen`, which is what the double-mount guard there is about), and a `rebind` has already
+	 * unmounted by the time it syncs. Both are therefore false, which is what they must be.
+	 */
+	readonly autoFocus?: boolean;
 	/**
 	 * What the filter starts with — absent everywhere in production, and set only by the browser
 	 * harness so that a headless capture can photograph a FILTERED list.

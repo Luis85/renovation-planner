@@ -238,9 +238,13 @@ export const en = {
 	'asset-price.revision-conflict':
 		'This price changed elsewhere. Review the current value before applying your draft again.',
 	// OVERRIDES `error.suffix.external-modification` for the same reason, one cause along: the
-	// suffix names a reload this surface does not have.
+	// suffix names a reload this surface does not have. It is the SIBLING of
+	// `asset-price.revision-conflict` above and now says the same thing about the draft: the row
+	// keeps it for deliberate reapplication, so naming discard as the remedy pushed the user into
+	// throwing away the entry the code deliberately holds (PBI-09, "preserve draft for deliberate
+	// reapplication"). Two causes, one remedy — review the current value, then reapply.
 	'asset-price.external-modification':
-		'This price was edited outside the plugin. Discard your entry to see the current one.',
+		'This price was edited outside the plugin. Review the current value before applying your draft again.',
 	'asset-price.project-not-found': 'That project is no longer there.',
 	'asset-price.asset-not-found': 'That asset is no longer there.',
 	'asset-price.write-failed': 'The price could not be saved.',
@@ -392,7 +396,7 @@ export const en = {
 	// an empty bordered box with the count beside it and nothing at all saying what typing does.
 	// It names the FIELD the filter matches, because it matches the name only and a user typing
 	// a status word into it gets nothing back.
-	'view.project.filter.placeholder': 'Filter by name',
+	'view.project.filter.placeholder': 'Search by name',
 	// TWO keys for one count, and the same again for plans below. `t` has no plural machinery;
 	// English and German are both two-form languages, so this is complete for the current
 	// locales and it is the point at which a THIRD locale forces a real plural mechanism.

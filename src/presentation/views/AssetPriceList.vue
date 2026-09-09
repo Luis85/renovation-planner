@@ -75,8 +75,33 @@ defineEmits<{ editState: [assetId: string, dirty: boolean, pending: boolean] }>(
 	>
 		{{ tr('view.project.no-assets') }}
 	</p>
+	<!--
+		P04's column strip: the mockup's Catalogue price / Project price / Used price headings.
+		Drawn ONCE, `aria-hidden`, and visible only at the width whose grid actually draws
+		columns — every row carries its own label for each figure at every width, so this repeats
+		them for the eye and would otherwise be the same words announced again on every row.
+
+		PRESENTATIONAL, and it must not become a table: `role="table"` would add a focus stop per
+		cell and grid semantics the editing rows do not have.
+
+		The first cell heads the name column. The mockup calls it `Material`, which is the wrong
+		noun here — the rows are ASSETS, and `Material` is the word this plugin's German already
+		spends on `Objekt` — so it is `view.project.column-asset`. The mockup's second column,
+		`Einheit`, is absent for the reason P04's own layout section gives: `AssetPriceRowDto`
+		carries no unit and one must not be invented.
+	-->
+	<div
+		v-if="rows.length > 0"
+		class="rp-asset-price-headings"
+		aria-hidden="true"
+	>
+		<span>{{ tr('view.project.column-asset') }}</span>
+		<span>{{ tr('view.project.price-catalogue') }}</span>
+		<span>{{ tr('view.project.price-yours') }}</span>
+		<span>{{ tr('view.project.price-used') }}</span>
+	</div>
 	<ul
-		v-else
+		v-if="rows.length > 0"
 		class="rp-asset-price-list"
 	>
 		<AssetPriceRow

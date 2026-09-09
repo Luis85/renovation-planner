@@ -39,7 +39,7 @@ describe('ProjectList filtered to nothing', () => {
 		const wrapper = await filteredToNothing();
 
 		expect(wrapper.find('.rp-project-list__no-match').text()).toContain(
-			'No project matches “Cellar conversion”.',
+			'No projects match “Cellar conversion”.',
 		);
 	});
 
@@ -62,7 +62,7 @@ describe('ProjectList filtered to nothing', () => {
 		const wrapper = await filteredToNothing();
 
 		expect(wrapper.find('.rp-project-list__create-named').text()).toBe(
-			'New project named “Cellar conversion”',
+			'Create project “Cellar conversion”',
 		);
 	});
 

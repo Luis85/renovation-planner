@@ -19,7 +19,9 @@ import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import type { PlanSummaryDto, ProjectSummaryDto } from '../read-models/PlanDto';
 import type { ProjectSession } from './RenovationProjectContext';
 import type { ContinueContext } from '../../application/continueContext';
+import HostIcon from '../components/HostIcon.vue';
 import ProjectRow from './ProjectRow.vue';
+import ProjectColumns from './ProjectColumns.vue';
 import ProjectFilter from './ProjectFilter.vue';
 import ContinueRow from './ContinueRow.vue';
 import { isCompleted, nameCollator, orderProjects } from './projectOrder';
@@ -133,8 +135,48 @@ const matching = computed(() =>
 const active = computed(() => matching.value.filter((project) => !isCompleted(project)));
 const completed = computed(() => matching.value.filter(isCompleted));
 
-/** The leaf session restores the disclosure together with the filter. */
+/**
+ * The leaf session restores the disclosure together with the filter. This ref is the stored
+ * PREFERENCE and nothing else writes it.
+ */
 const completedOpen = ref(props.session?.completedOpen ?? false);
+
+/**
+ * WHETHER A QUERY IS RUNNING, and it is asked of the TRIMMED query for the same reason
+ * `filteredToNothing` is: a field holding one space is not a search.
+ */
+const queryActive = computed(() => query.value.trim().length > 0);
+
+/**
+ * **WHAT THE DISCLOSURE ACTUALLY DRAWS, which is not the preference.** P00's layout item 5:
+ * "matching completed projects become visible during search."
+ *
+ * The defect this closes was silent and complete: `completedOpen` was seeded from the session
+ * and nothing watched the query, so a query matching only a completed project rendered a
+ * COLLAPSED group, no rows and no explanation — while the filter line beside it read `1 of 12`.
+ * The one state the pane was telling the truth about was the one the user could not see.
+ *
+ * **The preference stays unwritten by this**, which is why the reveal is a separate computed
+ * rather than an assignment into `completedOpen`: a user who searched once must not find the
+ * group expanded forever after. `onCompletedToggle` is the other half — it declines to record
+ * a toggle raised BY this reveal.
+ */
+const completedRevealed = computed(() => completedOpen.value || queryActive.value);
+
+/**
+ * The `<details>` element's own `toggle`, which fires for a user's click AND for the `:open`
+ * binding above changing under it — the two are indistinguishable at this handler, so the
+ * QUERY is what tells them apart. While a query is running the open state is the reveal's, not
+ * the user's, and recording it would write a preference the user never expressed.
+ *
+ * The cost, stated rather than discovered: while a query is running the group cannot be
+ * collapsed by hand — a click closes it and the binding reopens it on the next tick. That is
+ * the reveal doing its job, and P00 asks for the reveal.
+ */
+function onCompletedToggle(event: Event): void {
+	if (queryActive.value) return;
+	completedOpen.value = (event.target as HTMLDetailsElement).open;
+}
 
 /**
  * ONE ROVING CONTROLLER PER ROW LIST (Task 8, design spec §7), because the tab sequence names
@@ -204,7 +246,10 @@ function onListKeydown(event: KeyboardEvent, roving: RovingFocus): void {
 /**
  * Move focus to the first row the user can actually reach, and say whether there was one.
  *
- * `Projects` first, then `Completed` only while it is EXPANDED — arrowing into rows the user
+ * `Projects` first, then `Completed` only while it is REVEALED — which is the preference OR a
+ * running query, exactly as the `:open` binding is. It read the preference alone, and a query
+ * that matched only completed projects therefore left `↓` from the filter doing nothing while
+ * the rows it would have reached were on screen. Arrowing into rows the user
  * cannot see would move focus somewhere invisible, which is worse than not moving. Falling
  * through to `Completed` is not symmetry: it is the only way into a vault whose projects are
  * all finished, or into a query that matches only completed ones. `false` means there is
@@ -219,7 +264,7 @@ function focusFirstRow(): boolean {
 		activeRoving.focusFirst();
 		return true;
 	}
-	if (completedOpen.value && completed.value.length > 0) {
+	if (completedRevealed.value && completed.value.length > 0) {
 		completedRoving.focusFirst();
 		return true;
 	}
@@ -331,7 +376,9 @@ function rememberRow(event: Event): void {
 			:aria-describedby="readOnly ? readOnlyReasonId : undefined"
 			@click="$emit('create', '')"
 		>
-			{{ tr('view.project.create') }}
+			<!-- P00's `+`, decorative and `aria-hidden` at HostIcon's own root, so the button's
+			     accessible name stays the translated words beside it. -->
+			<HostIcon name="plus" />{{ tr('view.project.create') }}
 		</button>
 	</div>
 	<!--
@@ -362,12 +409,23 @@ function rememberRow(event: Event): void {
 		foot line inside, so left where it was the sentence saying some projects could not be
 		read would sit under thirty rows of the ones that could.
 	-->
+	<!--
+		**"SOME" AND "ALL" ARE TWO DIFFERENT SENTENCES, and the surface said the first about
+		both.** With `projects.length === 0` and `unreadable > 0` every project note in the
+		vault refused, so "Some projects could not be read" is a claim about a partial list
+		that does not exist — the reader is told part of what they can see is missing while
+		nothing at all is on screen. `view.project.all-unreadable` is the counterpart and P00's
+		own rule behind it: unreadable data is not zero inventory.
+
+		`projects.length` and not `matching.length`: a query that hides every readable row has
+		not made the vault unreadable.
+	-->
 	<p
 		v-if="unreadable > 0"
 		class="rp-view-notice"
 		role="status"
 	>
-		{{ tr('view.project.some-unreadable') }}
+		{{ tr(projects.length === 0 ? 'view.project.all-unreadable' : 'view.project.some-unreadable') }}
 	</p>
 	<!--
 		ZERO OR ONE ROW, and absent rather than empty when there is nothing to resume — not a
@@ -386,16 +444,13 @@ function rememberRow(event: Event): void {
 			{{ tr('view.project.group.continue') }}
 		</h3>
 		<!--
-			INSIDE a `.rp-project-list` `<ul>`, exactly like the other two groups, and that is
-			load-bearing rather than tidy: every shared row declaration in `list-row.css` and
-			`forms.css` is scoped `.rp-project-list .rp-project-list__row` — the descendant
-			selector that beats Obsidian's own `button:not(.clickable-icon)` — so a row
-			rendered outside that ancestor gets none of `display: flex`, the width, the
-			padding, the 24px minimum height or the name's truncation, and the "same armature
-			as every other row" claim would be false in the one place it is made.
-
-			It also puts the row inside the container query, so the Continue row narrows with
-			its siblings instead of being the one row that does not.
+			STILL INSIDE a `.rp-project-list` `<ul>`, and the reason has NARROWED rather than
+			gone: the card no longer wears `.rp-project-list__row`, so `list-row.css`'s shared
+			row declarations are not what it is here for. What it is still here for is the
+			CONTAINER — `project-list-narrow.css` declares `container-name: rp-project-list` on
+			this element, and the card's narrow composition (its two actions going full-width
+			and stacking, P06) is a rule inside that query. Every `continue-row.css` selector is
+			written `.rp-project-list .rp-continue` for the same ancestor.
 
 			A list of ONE is the right shape rather than a concession: the group is zero-or-one
 			by design, and `<li>` is what `<ul>` may contain.
@@ -418,9 +473,10 @@ function rememberRow(event: Event): void {
 		v-if="active.length > 0"
 		class="rp-project-list__group rp-project-list__group--projects"
 	>
-		<h3 class="rp-project-list__group-title">
-			{{ tr('view.project.group.projects') }}
-		</h3>
+		<!-- The heading and P00's wide-width column strip, in their own file because this one
+		     was AT its 400-line budget when the strip arrived. `ProjectColumns.vue` carries the
+		     whole argument, including why it is chrome rather than a table. -->
+		<ProjectColumns />
 		<ul
 			ref="activeList"
 			class="rp-project-list"
@@ -441,11 +497,12 @@ function rememberRow(event: Event): void {
 					It re-emits rather than handling: `ViewRoot` owns the one handler, which is design
 					slice 16's division and slice 21's navigation, both unchanged by the extraction.
 				-->
+				<!-- `v-bind` with an object rather than four attribute lines, and the reason is
+				     this file's 400-line budget rather than taste: the two row lists spell the
+				     identical four props, and one attribute per line is what the Vue ruleset
+				     requires of the long form. The names are unchanged. -->
 				<ProjectRow
-					:project="project"
-					:collator="collator"
-					:query="query"
-					:tabbable="index === activeRoving.activeIndex.value"
+					v-bind="{ project, collator, query, tabbable: index === activeRoving.activeIndex.value }"
 					@open="(id) => $emit('open', id)"
 					@open-note="(id) => $emit('openNote', id)"
 				/>
@@ -459,8 +516,8 @@ function rememberRow(event: Event): void {
 	<details
 		v-if="completed.length > 0"
 		class="rp-project-list__completed"
-		:open="completedOpen"
-		@toggle="completedOpen = ($event.target as HTMLDetailsElement).open"
+		:open="completedRevealed"
+		@toggle="onCompletedToggle"
 	>
 		<!--
 			An `<h3>` INSIDE the `<summary>`, which is what keeps both contracts: §11 asks for
@@ -488,10 +545,7 @@ function rememberRow(event: Event): void {
 				:key="project.id"
 			>
 				<ProjectRow
-					:project="project"
-					:collator="collator"
-					:query="query"
-					:tabbable="index === completedRoving.activeIndex.value"
+					v-bind="{ project, collator, query, tabbable: index === completedRoving.activeIndex.value }"
 					@open="(id) => $emit('open', id)"
 					@open-note="(id) => $emit('openNote', id)"
 				/>

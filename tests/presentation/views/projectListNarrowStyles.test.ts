@@ -46,12 +46,18 @@ describe('project-list-narrow.css', () => {
 	it('addresses every class its narrow composition moves', () => {
 		for (const cls of [
 			'rp-project-list',
+			'rp-project-list__group',
+			'rp-project-list__columns',
 			'rp-project-row',
 			'rp-continue',
+			'rp-continue__actions',
 			'rp-project-list__name',
-			'rp-project-row__facts',
+			'rp-project-row__glyph',
+			'rp-project-row__chevron',
+			'rp-project-row__plans',
+			'rp-project-row__currency',
+			'rp-project-row__worked',
 			'rp-project-row__status',
-			'rp-project-row__status-word',
 			'rp-project-row__ticks',
 			'rp-project-list__overlap',
 		]) {
@@ -87,8 +93,16 @@ describe('project-list-narrow.css', () => {
 	 * and every row would stay on one line at every width, silently, with this file's other
 	 * cases still green.
 	 */
-	it('establishes the container it queries by name AND by type', () => {
-		const body = bodyOf('.rp-project-list');
+	/**
+	 * BOTH CONTAINERS, and the second one is what makes P00's column heading strip narrow with
+	 * the rows it heads. That strip is a SIBLING of the `<ul>` — it has to be, or it becomes an
+	 * item in the list a screen reader counts — so it is outside the `<ul>`'s containment
+	 * entirely and resolves against the group instead. Without the group declaration the strip
+	 * would stay on screen at every width, drawing five headings over rows that are no longer
+	 * columns, and every other case in this file would still be green.
+	 */
+	it('establishes the container it queries by name AND by type, on BOTH boxes', () => {
+		const body = bodyOf('.rp-project-list,\n.rp-project-list__group');
 
 		expect(body).toContain('container-type: inline-size');
 		expect(body).toContain('container-name: rp-project-list');
@@ -150,8 +164,16 @@ describe('project-list-narrow.css', () => {
 	 *
 	 * **Scoped to this sheet**, which is the one whose header is a derivation. Measured with this
 	 * same pattern rather than assumed: it finds **0** in `project-list.css` and **0** in
-	 * `project-filter.css`, and exactly the **3** below here. Extending the scan is one more path
+	 * `project-filter.css`, and exactly the **2** below here. Extending the scan is one more path
 	 * in an array on the day a sibling grows one.
+	 *
+	 * **THE FLOOR IS 2 AND IT WAS 3.** The third derivation this sheet used to record was the
+	 * 16ch counter-example — the paragraph working through what shrinking the reserved status
+	 * slot would do — and that reservation no longer exists: the P00 grid states the armature as
+	 * tracks, so there is no `min-width` to shrink and no counter-example to record. The floor
+	 * moved with the sheet rather than being left where it was, because a floor above what the
+	 * file actually holds fails on every edit and a floor of zero is an instrument that reaches
+	 * nothing and looks identical to a clean sheet.
 	 */
 	it('balances every arithmetic derivation it records', () => {
 		const raw = readFileSync('styles/project-list-narrow.css', 'utf8');
@@ -160,10 +182,10 @@ describe('project-list-narrow.css', () => {
 		const found = [...raw.matchAll(sums)];
 
 		// A widened pattern that matches nothing passes silently and is worse than no test at
-		// all. Three derivations are recorded here today — the strip's width, the threshold, and
-		// the counter-example the 16ch paragraph works through — so a pattern that stops reaching
-		// them fails HERE rather than going quiet.
-		expect(found.length, 'the scan reaches the derivations this sheet records').toBeGreaterThanOrEqual(3);
+		// all. Two derivations are recorded here today — the threshold itself, and the measured
+		// counter-example showing what the OLD rule would now produce — so a pattern that stops
+		// reaching them fails HERE rather than going quiet.
+		expect(found.length, 'the scan reaches the derivations this sheet records').toBeGreaterThanOrEqual(2);
 
 		for (const [, expression, stated] of found) {
 			const sum = expression
@@ -187,104 +209,82 @@ describe('project-list-narrow.css', () => {
 	});
 
 	/**
-	 * **THE SAME INSTRUMENT, ONE DOCUMENT FURTHER.** The case above holds this sheet's own
-	 * derivation against this sheet's own rule; the design spec states the number a THIRD time
-	 * (§6's amendment and §13's constraint 3), and until this case existed nothing compared it
-	 * to anything. That is the count-in-two-places defect this repository keeps paying for, on
-	 * a number that has already moved three times — 34rem placeholder, 36rem measured, 42rem,
-	 * 41rem — and each move had to be transcribed by hand into a document no gate reads.
+	 * **THE CROSS-DOCUMENT PIN IS WITHDRAWN, and this paragraph is what is left of it.**
 	 *
-	 * **THIS IS THE FIRST TEST IN THIS SUITE THAT READS `docs/`, and the rule it bends is
-	 * stated rather than skirted.** CLAUDE.md's testing section says `docs/` is user land and
-	 * that the suite must not depend on paths somebody reorganises while writing notes — which
-	 * is why the walkthrough fixtures are tracked twice, in `docs/tests/fixtures/` AND in
-	 * `tests/fixtures/`. That reasoning is about FIXTURES a case needs. It does not reach a
-	 * design CONTRACT, which is already referenced by path from CLAUDE.md, from the plan, from
-	 * every task brief and from the manual case: a move that leaves those five pointers dangling
-	 * is a defect, and a red test naming the file is a better way to find out than five silent
-	 * links. Duplicating the spec into `tests/` would be the fixtures' remedy applied to a
-	 * document whose whole value is that there is one of it.
+	 * It compared the shipped threshold against two sentences in
+	 * `docs/user-experience/archive/renovation-planner-home-DESIGN-SPEC.md` — §6's derivation and
+	 * §13's constraint 3 — and it was a good instrument for exactly as long as that document was
+	 * the contract. It is now in `archive/`, and the contract is the design package's `P00` and
+	 * `P06`, which state no rem number at all: P06 names 460px as a *reference* and 360px as a
+	 * width to test, and neither is a threshold. So the archived spec still says `41rem`, which
+	 * was correct for the row it described — a name, a facts slot, a reserved status word and a
+	 * ten-cell strip — and is not a number this sheet is obliged to agree with any more.
 	 *
-	 * Guarded at both ends, because a regex over prose is the instrument this file already
-	 * records going quiet: the read fails loudly if the document has moved, and BOTH matches
-	 * must be found before either is compared. The two sentences are asserted separately rather
-	 * than by one sweep, so a build that amends one and forgets the other fails at the one it
-	 * forgot rather than passing on the one it remembered.
+	 * **What is LOST by withdrawing it is real and is stated rather than glossed**: the number
+	 * now lives in exactly one place that a gate reads (this sheet, held by the two cases above),
+	 * and if a future document states it again nothing will compare them. Restoring the pin is
+	 * one regex against whichever document becomes normative.
 	 *
-	 * **WHAT IT HOLDS IS TWO SENTENCES, NOT "everywhere the spec states the number", and the
-	 * name said the second for a review round.** Measured: `grep -n "41rem"` over that document
-	 * prints **ten** lines, of which **four** state the threshold normatively — §6's derivation
-	 * (the arithmetic this case's first regex reads), §6's own amendment sentence naming it, §13's
-	 * constraint 3 (the second regex), and the §16 amendment table row. The other six are prose
-	 * ABOUT the number — a risk note, a translation warning — which a sweep would have to tell
-	 * apart from a statement of it, and cannot. So this case pins the two that carry a
-	 * DERIVATION or a RULE, and the remaining two normative sites are held by a reader.
-	 *
-	 * **Neither regex is anchored to its SECTION**, which is the other half of the same
-	 * narrowing: the first matches an arithmetic SHAPE (`… → N.Nrem → Nrem`) and would read a
-	 * §13 arithmetic of that shape just as happily if §6's were deleted. Anchoring means
-	 * splitting the document on its headings, which is a second parser over prose — and this
-	 * file's own record is that a regex over prose goes quiet rather than loud. Stated rather
-	 * than closed, so the guarantee is not read wider than the check.
+	 * The case below is the surviving half — the sheet's own derivation against the sheet's own
+	 * rule — and it was always the half that could catch a transcription error.
 	 */
-	it('agrees with the threshold stated by the spec’s derivation and by its constraint 3', () => {
-		const path = 'docs/user-experience/archive/renovation-planner-home-DESIGN-SPEC.md';
-		const shipped = /@container rp-project-list \(max-width: (\d+)rem\)/u
-			.exec(readFileSync('styles/project-list-narrow.css', 'utf8'))?.[1];
 
-		expect(shipped, 'the container query states a whole-rem threshold').toBeDefined();
-
-		let spec: string;
-
-		try {
-			spec = readFileSync(path, 'utf8');
-		} catch {
-			throw new Error(`${path} is the contract this sheet implements and could not be read`);
-		}
-
-		// §6's amendment, which carries the arithmetic, and §13's constraint 3, which carries the
-		// rule a builder must not move the number without. Two distinct sentences, one number.
-		const stated = [
-			/→\s*[\d.]+rem\s*→\s*(\d+)rem/u.exec(spec)?.[1],
-			/it is `(\d+)rem`, and it comes from a DERIVATION/u.exec(spec)?.[1],
-		];
-
-		// "both sentences", not "both sections": the regexes match a derivation SHAPE and a
-		// constraint's wording, neither anchored to a heading, which the docblock records.
-		expect(stated.filter((value) => value !== undefined), `${path} states the threshold in both sentences`)
-			.toHaveLength(stated.length);
-		for (const value of stated) expect(value).toBe(shipped);
+	/**
+	 * P00'S COLUMN HEADING STRIP IS DROPPED (P06: "No forced five columns"). It is the one
+	 * element on this surface whose whole reason for existing is the wide composition, so a
+	 * build that kept it would draw five headings over three-line rows, and every mounted case
+	 * asserting the strip EXISTS would still be green — jsdom resolves no container query.
+	 */
+	it('drops the column heading strip, which heads nothing once the rows stack', () => {
+		expect(bodyOf('.rp-project-list__columns')).toContain('display: none');
 	});
 
 	/**
-	 * THE PAIR that makes a wrapped row readable, and either alone is the defect Task 12's first
-	 * capture found. `height: auto` releases Obsidian's fixed `--input-height` on the `<button>`,
-	 * without which the content wraps and the BOX does not — 41px of content in a 30px box, each
-	 * row's second line drawn over the next row's name. `justify-content: flex-start` makes the
-	 * second line one phrase instead of putting the status and the facts at opposite edges of
-	 * the pane, 280px apart.
+	 * THE ROW'S NARROW TRACKS. Four instead of seven, and both edge tracks are spanned rather
+	 * than repeated per line: `grid-row: 1 / span 3` is what puts the leading glyph and the
+	 * trailing chevron beside the WHOLE stack rather than beside its first line, which is the
+	 * one thing a wrapped flex row could not do and the reason this composition is a grid at
+	 * narrow at all.
 	 */
-	it('lets the wrapped row grow and packs its second line as one phrase', () => {
-		const body = bodyOf('.rp-project-list .rp-project-row');
-
-		expect(body).toContain('height: auto');
-		expect(body).toContain('justify-content: flex-start');
+	it('restacks the row into four tracks with the two glyphs spanning them', () => {
+		expect(bodyOf('.rp-project-list .rp-project-row'))
+			.toContain('grid-template-columns: auto max-content minmax(0, 1fr) auto');
+		expect(bodyOf('.rp-project-row__glyph,\n\t.rp-project-row__chevron')).toContain('grid-row: 1 / span 3');
 	});
 
 	/**
-	 * THE RESERVED COLUMNS ARE RELEASED. Task D gives the facts slot and the status word a
-	 * `min-width` in `ch` so they form columns on the wide row; at narrow the row is two lines
-	 * and a reserved column aligns nothing a reader can follow — it only pushes the phrase apart.
-	 *
-	 * `auto` rather than `0`, because `auto` is the INITIAL value for a flex item's `min-width`:
-	 * this restores exactly what those slots had before the armature existed rather than
-	 * substituting a zero of its own.
+	 * **44 CSS px, P06's stated touch-target goal**, and it is asserted on BOTH the rows and the
+	 * completed disclosure because those are the two things a thumb has to hit. `list-row.css`
+	 * floors a row at 24px (WCAG 2.5.8's minimum) and this raises it where the pointer is most
+	 * likely to be a finger — so a build that dropped this rule would still clear the WCAG floor
+	 * and would silently miss the design goal, which is exactly the kind of regression no other
+	 * gate here can see.
 	 */
-	it('releases the wide row reserved columns rather than zeroing them', () => {
-		const body = bodyOf('.rp-project-list .rp-project-row .rp-project-row__facts,\n\t.rp-project-list .rp-project-row .rp-project-row__status-word');
+	it('raises the hit target to P06’s 44px on the rows and the disclosure', () => {
+		expect(bodyOf('.rp-project-list .rp-project-row,\n\t.rp-project-list__completed > summary'))
+			.toContain('min-height: 44px');
+	});
 
-		expect(body).toContain('min-width: auto');
-		expect(body).not.toContain('min-width: 0');
+	/**
+	 * **THE EMPTY-SLOT RULE AT NARROW, and it is one selector.** The plan count is `v-if`'d away
+	 * on a project with none, so this adjacent-sibling rule matches exactly those rows and moves
+	 * the currency into the track the count would have used. Without it `EUR` sits indented
+	 * behind an empty column with no heading to explain the gap — the hole in the card the
+	 * content rule forbids. Asserted as the SELECTOR rather than as a declaration, because the
+	 * declaration alone (`grid-column: 2 / 4`) is what the name already carries.
+	 */
+	it('closes the empty plan-count column up rather than leaving a gap with no heading', () => {
+		expect(bodyOf('.rp-project-row .rp-project-list__name + .rp-project-row__currency'))
+			.toContain('grid-column: 2 / 4');
+	});
+
+	/**
+	 * THE DATE IS DROPPED, and `display: none` is the whole of it — P06 says the date MAY be
+	 * omitted and that a visually omitted date retains its value, which is one component at two
+	 * widths rather than a second narrow component that never computes it.
+	 */
+	it('drops the last-worked column', () => {
+		expect(bodyOf('.rp-project-row__worked')).toContain('display: none');
 	});
 
 	it('drops the tick strip', () => {
@@ -292,19 +292,25 @@ describe('project-list-narrow.css', () => {
 	});
 
 	/**
-	 * THE ORDER RULES ARE SCOPED TO `.rp-project-row`, and the qualifier is load-bearing rather
-	 * than tidy: `ContinueRow` reuses `.rp-project-row__facts` for its date, so an unqualified
-	 * rule would give that date `order: 2` while that row's own status and its two buttons kept
-	 * the default 0 — stranding the date after the controls.
-	 *
-	 * The WRAP rule deliberately includes `.rp-continue` and the ordering deliberately does not,
-	 * so both halves are asserted: a build that scoped the wrap too would stop that row wrapping
-	 * at all, and one that unscoped the order would rearrange it.
+	 * P06'S STACKED CARD ACTIONS. `flex-basis: 100%` is what drops the action group onto its own
+	 * line — `flex-direction: column` alone would stack two buttons beside a collapsed name
+	 * rather than under it — and `height: auto` is what lets the 44px floor bind at all, since
+	 * Obsidian pins a `<button>` at `height: var(--input-height)` and a `min-height` under a
+	 * fixed `height` is satisfied by 30px. All three, because any one missing draws a plausible
+	 * card that misses the design.
 	 */
-	it('scopes the second-line ordering to the project row and the wrapping to both rows', () => {
-		expect(sheet).toContain('.rp-project-list .rp-project-row .rp-project-row__status {');
-		expect(sheet).toContain('.rp-project-list .rp-continue {');
-		expect(sheet).not.toMatch(/^\t\.rp-project-list \.rp-project-row__facts \{/mu);
+	it('stacks the continue card’s two actions full width at P06’s hit height', () => {
+		expect(bodyOf('.rp-project-list .rp-continue')).toContain('flex-wrap: wrap');
+
+		const actions = bodyOf('.rp-project-list .rp-continue__actions');
+
+		expect(actions).toContain('flex-basis: 100%');
+		expect(actions).toContain('flex-direction: column');
+
+		const buttons = bodyOf('.rp-project-list .rp-continue__resume,\n\t.rp-project-list .rp-continue__open');
+
+		expect(buttons).toContain('height: auto');
+		expect(buttons).toContain('min-height: 44px');
 	});
 
 	it('is assembled into the shipped sheet', () => {

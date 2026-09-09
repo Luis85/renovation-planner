@@ -8,111 +8,20 @@
  * that mounted it alone would certify a component nothing composes that way.
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, it, vi } from 'vitest';
-import { mount, flushPromises } from '@vue/test-utils';
-import AssetPriceList from '../../../src/presentation/views/AssetPriceList.vue';
-import { createMoney, type Money } from '../../../src/core/money/Money';
-import { err, ok, type Result } from '../../../src/core/result/Result';
+import { describe, expect, it } from 'vitest';
+import { flushPromises } from '@vue/test-utils';
+import { err, ok } from '../../../src/core/result/Result';
 import type { ValidationError } from '../../../src/core/errors/AppError';
-import type { Logger } from '../../../src/application/ports/Logger';
-import type { AssetPriceRowDto } from '../../../src/application/queries/ListProjectAssetPrices';
 import type { AssetPriceOverrideId } from '../../../src/domain/asset-price/AssetPriceOverrideId';
-import type { EntityVersion, ObservationToken } from '../../../src/application/ports/versioning';
-import type {
-	AssetPriceCommitResult,
-	AssetPriceEdit,
-} from '../../../src/presentation/views/assetPriceEdit';
 import { t } from '../../../src/presentation/i18n/strings';
 import { trError } from '../../../src/presentation/i18n/toUserMessage';
 import { activateNotices, disposeNotices } from '../../../src/presentation/notices/notify';
 import { installObsidianDom } from '../../helpers/dom';
 import { Notice } from '../../helpers/obsidian-mock';
-
-const logger: Logger = {
-	debug: () => undefined,
-	info: () => undefined,
-	warn: () => undefined,
-	error: () => undefined,
-};
-
-/**
- * `createMoney` rather than `of`, and this is the constructor the component itself mints with —
- * a fixture built through the other door could hold an amount the component's own validator
- * refuses, which is the disagreement this whole file is partly about.
- */
-function money(amount: string, currency = 'GBP'): Money {
-	const minted: Result<Money, ValidationError> = createMoney(amount, currency);
-	if (!minted.ok) throw new Error(`unmintable fixture: ${amount} ${currency}`);
-	return minted.value;
-}
-
-const version = (revision: number): EntityVersion => ({
-	revision,
-	observed: `observed-${revision}` as ObservationToken,
-});
-
-interface RowOptions {
-	assetId?: string;
-	assetName?: string | null;
-	catalogue?: Money | null;
-	override?: Money | null;
-	overrideRevision?: number;
-	assetStatus?: AssetPriceRowDto['assetStatus'];
-}
-
-/**
- * One row, ANNOTATED as the DTO the component's prop declares, so a member the query grows is a
- * compile error here rather than an `undefined` the template reads happily.
- *
- * `overrideId`/`overrideVersion` are derived from `override` rather than taken separately: the
- * three travel together on the real DTO — an override IS a note at a version — and a fixture
- * that could spell a price with no id would be a row the query never produces.
- */
-function row(over: RowOptions = {}): AssetPriceRowDto {
-	const override = over.override ?? null;
-	return {
-		assetId: over.assetId ?? 'a1',
-		assetName: over.assetName === undefined ? 'Oak flooring' : over.assetName,
-		catalogue: over.catalogue === undefined ? money('24.00') : over.catalogue,
-		override,
-		overrideId: override === null ? null : ('op-1' as AssetPriceOverrideId),
-		overrideVersion: override === null ? null : version(over.overrideRevision ?? 1),
-		assetStatus: over.assetStatus ?? 'known',
-	};
-}
-
-/** A commit that accepts everything and reports the pair it left behind. */
-const accepts = (): AssetPriceCommitResult => ({
-	dispatch: ok('wrote'),
-	settled: { id: 'op-2' as AssetPriceOverrideId, version: version(9) },
-});
-
-function mountSection(options: {
-	rows?: readonly AssetPriceRowDto[];
-	currency?: string;
-	commit?: (edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>;
-	refreshBlocked?: boolean;
-	/** `document.activeElement` only tracks an attached element — pass a live host to assert focus. */
-	attachTo?: Element;
-} = {}) {
-	const commit = vi.fn<(edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>>(
-		options.commit ?? (() => Promise.resolve(accepts())),
-	);
-	const wrapper = mount(AssetPriceList, {
-		props: {
-			rows: options.rows ?? [row()],
-			currency: options.currency ?? 'GBP',
-			refreshBlocked: options.refreshBlocked,
-			commit,
-			logger,
-		},
-		...(options.attachTo === undefined ? {} : { attachTo: options.attachTo }),
-	});
-	return { wrapper, commit };
-}
+import { accepts, money, mountSection, openEditor, row, version } from './assetPriceFixtures';
 
 describe('AssetPriceList', () => {
-	it('renders one row per asset, with the library price and an empty field where there is no override', () => {
+	it('renders one row per asset, with the library price and an empty field where there is no override', async () => {
 		const { wrapper } = mountSection({
 			rows: [row({ assetId: 'a1', assetName: 'Oak flooring' }), row({ assetId: 'a2', assetName: 'Paint' })],
 		});
@@ -120,11 +29,19 @@ describe('AssetPriceList', () => {
 		expect(wrapper.findAll('.rp-asset-price-row')).toHaveLength(2);
 		expect(wrapper.get('.rp-asset-price-catalogue').text()).toContain('24.00');
 		expect(wrapper.get('.rp-asset-price-catalogue').text()).toContain(t('en', 'view.project.price-catalogue'));
-		expect((wrapper.get('input').element as HTMLInputElement).value).toBe('');
+		// Both rows REST: P04 draws one open editor, so the section is two read-only readings and
+		// two invitations rather than two live controls nobody asked to open.
+		expect(wrapper.findAll('input')).toHaveLength(0);
+		expect(wrapper.findAll('.rp-asset-price-edit')).toHaveLength(2);
+		expect(wrapper.get('.rp-asset-price-edit').text()).toBe(t('en', 'view.project.price-set'));
+
+		expect(((await openEditor(wrapper)).element as HTMLInputElement).value).toBe('');
+		expect(wrapper.findAll('input')).toHaveLength(1);
 	});
 
-	it('renders the project’s own price in the field where there is one', () => {
+	it('renders the project’s own price in the field where there is one', async () => {
 		const { wrapper } = mountSection({ rows: [row({ override: money('19.50') })] });
+		await openEditor(wrapper);
 
 		expect((wrapper.get('input').element as HTMLInputElement).value).toBe('19.50');
 	});
@@ -157,8 +74,9 @@ describe('AssetPriceList', () => {
 	 * On the LABEL rather than as a decoration beside the input, so it is part of the control's
 	 * accessible name rather than an adjacent string a screen reader may or may not reach.
 	 */
-	it('names the project’s currency on the field’s own label', () => {
+	it('names the project’s currency on the field’s own label', async () => {
 		const { wrapper } = mountSection({ rows: [row({ catalogue: money('24.00', 'EUR') })], currency: 'GBP' });
+		await openEditor(wrapper);
 
 		expect(wrapper.get('label').text()).toContain('GBP');
 		expect(wrapper.get('label').text()).toContain(t('en', 'view.project.price-set'));
@@ -169,9 +87,10 @@ describe('AssetPriceList', () => {
 		expect(wrapper.find('label .rp-visually-hidden').exists()).toBe(true);
 	});
 
-	it.each([['0', '0'], ['12,50', '12.50'], ['12.5', '12.5'], ['1.234', '1.234']])('applies the decimal input %s without grouping or floating-point conversion', async (draft, amount) => {
+	it.each([['0', '0'], ['12,50', '12.50'], ['12.5', '12.5'], ['1,23', '1.23']])('applies the decimal input %s without grouping or floating-point conversion', async (draft, amount) => {
 		const { wrapper, commit } = mountSection();
-		await wrapper.get('input').setValue(draft);
+		const input = await openEditor(wrapper);
+		await input.setValue(draft);
 		await wrapper.get('.rp-asset-price-apply').trigger('click'); await flushPromises();
 		expect(commit).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ kind: 'set', unitCost: expect.objectContaining({ amount, currency: 'GBP' }) }));
 		expect(wrapper.find('.rp-asset-price-apply').exists()).toBe(false);
@@ -179,6 +98,7 @@ describe('AssetPriceList', () => {
 
 	it('dispatches a set for a typed price on explicit Apply', async () => {
 		const { wrapper, commit } = mountSection();
+		await openEditor(wrapper);
 
 		await wrapper.get('input').setValue('19.50');
 		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
@@ -197,6 +117,7 @@ describe('AssetPriceList', () => {
 	 */
 	it('passes the row expectation into the command', async () => {
 		const { wrapper, commit } = mountSection({ rows: [row({ override: money('19.50'), overrideRevision: 3 })] });
+		await openEditor(wrapper);
 
 		await wrapper.get('input').setValue('21.00');
 		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
@@ -209,6 +130,7 @@ describe('AssetPriceList', () => {
 
 	it('passes an absent expectation from a row with no override', async () => {
 		const { wrapper, commit } = mountSection();
+		await openEditor(wrapper);
 
 		await wrapper.get('input').setValue('19.50');
 		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
@@ -234,6 +156,7 @@ describe('AssetPriceList', () => {
 		const { wrapper, commit } = mountSection({
 			rows: [row({ override: money('19.50'), overrideRevision: 1 })],
 		});
+		await openEditor(wrapper);
 
 		await wrapper.get('input').setValue('21.00');
 		// Another leaf's write, landing under an uncommitted draft.
@@ -257,6 +180,7 @@ describe('AssetPriceList', () => {
 			// A refusal establishes nothing, so the snapshot must not move.
 			commit: () => Promise.resolve({ dispatch: err(refusal), settled: null }),
 		});
+		await openEditor(wrapper);
 
 		await wrapper.get('input').setValue('19.50');
 		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
@@ -273,13 +197,19 @@ describe('AssetPriceList', () => {
 	 */
 	it('offers no removal for a first draft, and discards it without writing', async () => {
 		const { wrapper, commit } = mountSection();
+		await openEditor(wrapper);
 		expect(wrapper.find('.rp-asset-price-clear').exists()).toBe(false);
 		await wrapper.get('input').setValue('12,50');
 		await wrapper.get('input').trigger('blur');
 		expect(commit).not.toHaveBeenCalled();
 		await wrapper.get('.rp-asset-price-cancel').trigger('click');
-		expect((wrapper.get('input').element as HTMLInputElement).value).toBe('');
+		// Cancel discards the draft AND closes the editor, so the row is back to the invitation
+		// it started as — asserted on the absent input, because a retained draft behind a closed
+		// editor would re-appear on the next Edit and read as the user's own value.
+		expect(wrapper.findAll('input')).toHaveLength(0);
+		expect(wrapper.get('.rp-asset-price-edit').text()).toBe(t('en', 'view.project.price-set'));
 		expect(commit).not.toHaveBeenCalled();
+		expect(((await openEditor(wrapper)).element as HTMLInputElement).value).toBe('');
 	});
 
 	/**
@@ -297,12 +227,20 @@ describe('AssetPriceList', () => {
 		let release!: () => void;
 		const held = new Promise<void>((resolve) => { release = resolve; });
 		const { wrapper, commit } = mountSection({ rows: [row({ override: money('19.50') })], commit: async () => { await held; return accepts(); } });
+		await openEditor(wrapper);
 		await wrapper.get('input').setValue('12,50');
 		await wrapper.get('.rp-asset-price-apply').trigger('click');
 		expect(wrapper.get('input').attributes('readonly')).toBeDefined();
 		expect(wrapper.get('input').attributes('aria-disabled')).toBe('true');
 		expect(wrapper.get('.rp-asset-price-cancel').attributes('aria-disabled')).toBe('true');
 		expect(wrapper.get('.rp-asset-price-clear').attributes('aria-disabled')).toBe('true');
+		// `aria-disabled` ALONE left all three focusable and clickable over handlers that
+		// silently returned — the live-control-that-does-nothing shape, on the one surface whose
+		// whole promise is that a dispatched write cannot be taken back. The BUTTONS are really
+		// `disabled`; the INPUT deliberately is not, which the case below this one is about.
+		expect(wrapper.get('.rp-asset-price-apply').attributes('disabled')).toBeDefined();
+		expect(wrapper.get('.rp-asset-price-cancel').attributes('disabled')).toBeDefined();
+		expect(wrapper.get('.rp-asset-price-clear').attributes('disabled')).toBeDefined();
 		await wrapper.get('input').trigger('keydown.esc');
 		expect(commit).toHaveBeenCalledTimes(1);
 		release();
@@ -324,6 +262,7 @@ describe('AssetPriceList', () => {
 		let release!: () => void;
 		const held = new Promise<void>((resolve) => { release = resolve; });
 		const { wrapper } = mountSection({ commit: async () => { await held; return accepts(); }, attachTo: host });
+		await openEditor(wrapper);
 		const input = wrapper.get('input').element as HTMLInputElement;
 
 		input.focus();
@@ -347,13 +286,29 @@ describe('AssetPriceList', () => {
 	 * beside `aria-busy`, which must stay `false` here — it names an in-flight WRITE, not a
 	 * paused field, and a row blocked only by a refresh has made neither.
 	 */
-	it('pauses the price input while a refresh is blocked, with no commit in flight', () => {
-		const { wrapper } = mountSection({ refreshBlocked: true });
-		const input = wrapper.get('input').element as HTMLInputElement;
+	it('pauses the price input while a refresh is blocked, with no commit in flight', async () => {
+		const { wrapper } = mountSection();
+		const field = await openEditor(wrapper);
+		await wrapper.setProps({ refreshBlocked: true });
+		const input = field.element as HTMLInputElement;
 
 		expect(input.getAttribute('aria-disabled')).toBe('true');
 		expect(input.hasAttribute('readonly')).toBe(true);
 		expect(input.getAttribute('aria-busy')).toBe('false');
+	});
+
+	/**
+	 * The same pause met from the RESTING side, which is where a blocked row is found in
+	 * practice: the price read failed, so nothing here may be edited at all. The invitation is
+	 * genuinely `disabled` rather than merely styled, because a control that opens an editor
+	 * whose every action then refuses is the live-control-that-does-nothing shape.
+	 */
+	it('refuses to open an editor at all while a refresh is blocked', async () => {
+		const { wrapper } = mountSection({ refreshBlocked: true });
+
+		expect(wrapper.get('.rp-asset-price-edit').attributes('disabled')).toBeDefined();
+		await wrapper.get('.rp-asset-price-edit').trigger('click');
+		expect(wrapper.findAll('input')).toHaveLength(0);
 	});
 
 	/**
@@ -369,7 +324,7 @@ describe('AssetPriceList', () => {
 	 */
 	it('ignores Enter, Apply and Cancel on a dirty draft while a refresh is blocked', async () => {
 		const { wrapper, commit } = mountSection();
-		await wrapper.get('input').setValue('12.50');
+		await (await openEditor(wrapper)).setValue('12.50');
 		await wrapper.setProps({ refreshBlocked: true });
 
 		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
@@ -397,6 +352,7 @@ describe('AssetPriceList', () => {
 	 */
 	it('dispatches only the clear when the button is clicked on a dirty field', async () => {
 		const { wrapper, commit } = mountSection({ rows: [row({ override: money('19.50') })] });
+		await openEditor(wrapper);
 		const input = wrapper.get('input');
 		await input.setValue('25.00');
 
@@ -418,6 +374,7 @@ describe('AssetPriceList', () => {
 	 */
 	it('dispatches once on Enter', async () => {
 		const { wrapper, commit } = mountSection();
+		await openEditor(wrapper);
 
 		await wrapper.get('input').setValue('19.50');
 		await wrapper.get('input').trigger('keydown.enter');
@@ -459,6 +416,7 @@ describe('AssetPriceList', () => {
 		const { wrapper } = mountSection({
 			commit: () => Promise.resolve({ dispatch: err(refusal), settled: null }),
 		});
+		await openEditor(wrapper);
 
 		await wrapper.get('input').setValue('19.50');
 		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
@@ -508,7 +466,11 @@ describe('AssetPriceList', () => {
 		expect(wrapper.find('.rp-asset-price-catalogue').exists()).toBe(false);
 		expect(wrapper.get('.rp-asset-price-orphan').text()).toBe(t('en', 'view.project.price-orphan'));
 		expect(wrapper.find('.rp-asset-price-unreadable').exists()).toBe(false);
-		expect(wrapper.get('input').attributes('disabled')).toBeDefined();
+		// The editor never OPENS on this row, which is where the old disabled input's guarantee
+		// moved: a set on a missing asset refuses every time, so the invitation is what has to
+		// refuse rather than a control the user has already been let into.
+		expect(wrapper.get('.rp-asset-price-edit').attributes('disabled')).toBeDefined();
+		expect(wrapper.findAll('input')).toHaveLength(0);
 		expect(wrapper.get('.rp-asset-price-clear').attributes('disabled')).toBeUndefined();
 	});
 
@@ -525,7 +487,7 @@ describe('AssetPriceList', () => {
 	 * live-control-that-does-nothing slice 14's amendment refuses. Clear stays live, unaffected,
 	 * because this asset's continued existence was never in doubt.
 	 */
-	it('renders an unreadable override with its id, no library price, and a disabled price input', () => {
+	it('renders an unreadable override with its id, no library price, and no way into the editor', () => {
 		const { wrapper } = mountSection({
 			rows: [row({ assetName: null, catalogue: null, override: money('19.50'), assetStatus: 'unreadable' })],
 		});
@@ -534,7 +496,8 @@ describe('AssetPriceList', () => {
 		expect(wrapper.find('.rp-asset-price-catalogue').exists()).toBe(false);
 		expect(wrapper.get('.rp-asset-price-unreadable').text()).toBe(t('en', 'view.project.price-unreadable'));
 		expect(wrapper.find('.rp-asset-price-orphan').exists()).toBe(false);
-		expect(wrapper.get('input').attributes('disabled')).toBeDefined();
+		expect(wrapper.get('.rp-asset-price-edit').attributes('disabled')).toBeDefined();
+		expect(wrapper.findAll('input')).toHaveLength(0);
 		expect(wrapper.get('.rp-asset-price-clear').attributes('disabled')).toBeUndefined();
 	});
 
@@ -551,6 +514,7 @@ describe('AssetPriceList', () => {
 			rows: [row({ catalogue: money('24.00', 'EUR'), override: null })],
 			currency: 'GBP',
 		});
+		await openEditor(wrapper);
 
 		await wrapper.get('input').setValue('19.50');
 		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
@@ -575,6 +539,7 @@ describe('AssetPriceList', () => {
 	 */
 	it('refuses a negative price at the field, dispatching nothing', async () => {
 		const { wrapper, commit } = mountSection();
+		await openEditor(wrapper);
 
 		await wrapper.get('input').setValue('-1.00');
 		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
@@ -590,8 +555,9 @@ describe('AssetPriceList', () => {
 	 * `canBeMoney`: `+1`, `.5` and `1e3` all pass `LITERAL_PATTERN`, so the commit is reached
 	 * holding a `Result` it has no arm for. `abc` is the control that fails either way.
 	 */
-	it.each(['abc', '.5', '+1', '1e3', '1,234.50', '01', '', '-0'])('refuses %s at the field, dispatching nothing', async (draft) => {
+	it.each(['abc', '.5', '+1', '1e3', '1,234.50', '01', '', '-0', '1,234', '1.234', '1,2345'])('refuses %s at the field, dispatching nothing', async (draft) => {
 		const { wrapper, commit } = mountSection();
+		await openEditor(wrapper);
 
 		await wrapper.get('input').setValue(draft);
 		await wrapper.get('input').trigger('keydown', { key: 'Enter' });
@@ -615,13 +581,17 @@ describe('AssetPriceList', () => {
 		const { wrapper, commit } = mountSection({
 			rows: [row({ override: money('19.50'), overrideRevision: 1 })],
 		});
+		await openEditor(wrapper);
 
 		const input = wrapper.get('input');
 		await input.setValue('21.00');
 		await wrapper.setProps({ rows: [row({ override: money('30.00'), overrideRevision: 2 })] });
 		await input.trigger('keydown.esc');
-		await input.setValue('31.00');
-		await input.trigger('keydown', { key: 'Enter' });
+		// Escape closes the editor with the draft, so the second edit is a fresh one — which is
+		// the point: it freezes from the row the user is now looking at.
+		const reopened = await openEditor(wrapper);
+		await reopened.setValue('31.00');
+		await reopened.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledWith(
@@ -639,11 +609,14 @@ describe('AssetPriceList', () => {
 	 * either template fails here instead of quietly shipping an unstyled row. Both unhappy rows and
 	 * the empty state are mounted, because each draws classes the happy row does not.
 	 */
-	it('declares a rule for every class it actually emits', () => {
+	it('declares a rule for every class it actually emits', async () => {
 		// Both partials: `rp-visually-hidden` moved to its own partial (`visually-hidden.css`)
 		// at its second caller, and this harvest must keep seeing a real declaration for it
 		// rather than coincidentally matching prose in a comment.
+		// THREE partials: P04's own layout, the resting/editing states and the markers live in
+		// `project-prices.css`, which is imported straight after the shared row's partial.
 		const css = readFileSync('styles/asset-prices.css', 'utf8')
+			+ readFileSync('styles/project-prices.css', 'utf8')
 			+ readFileSync('styles/visually-hidden.css', 'utf8');
 		const emitted = new Set<string>();
 		for (const rows of [
@@ -653,6 +626,18 @@ describe('AssetPriceList', () => {
 			[],
 		]) {
 			const { wrapper } = mountSection({ rows });
+			for (const el of wrapper.findAll('[class]')) {
+				for (const name of el.element.classList) {
+					if (name.startsWith('rp-asset-price') || name === 'rp-visually-hidden') emitted.add(name);
+				}
+			}
+		}
+		// The EDITING row draws a whole second set of classes — the field, the currency, the
+		// actions and the unsaved marker — and none of them appears in a resting mount, so a
+		// harvest that never opened an editor would certify half the section.
+		{
+			const { wrapper } = mountSection({ rows: [row({ override: money('19.50') })] });
+			await (await openEditor(wrapper)).setValue('20.00');
 			for (const el of wrapper.findAll('[class]')) {
 				for (const name of el.element.classList) {
 					if (name.startsWith('rp-asset-price') || name === 'rp-visually-hidden') emitted.add(name);
@@ -711,6 +696,7 @@ describe('AssetPriceList', () => {
 					settled: { id: 'op-1' as AssetPriceOverrideId, version: version(1) },
 				}),
 		});
+		await openEditor(wrapper);
 		const input = wrapper.get('input');
 
 		await input.setValue('20.00');
@@ -720,8 +706,9 @@ describe('AssetPriceList', () => {
 		// Somebody else moves the pair while this field is clean, so the row must follow it.
 		await wrapper.setProps({ rows: [row({ override: money('30.00'), overrideRevision: 2 })] });
 
-		await input.setValue('21.00');
-		await input.trigger('keydown', { key: 'Enter' });
+		const reopened = await openEditor(wrapper);
+		await reopened.setValue('21.00');
+		await reopened.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledTimes(2);
@@ -743,6 +730,7 @@ describe('AssetPriceList', () => {
 		let release!: () => void;
 		const held = new Promise<void>((resolve) => { release = resolve; });
 		const { wrapper, commit } = mountSection({ commit: async () => { await held; return accepts(); } });
+		await openEditor(wrapper);
 		await wrapper.get('input').setValue('20.00');
 		await wrapper.get('.rp-asset-price-apply').trigger('click');
 		await wrapper.get('input').setValue('21.00');
@@ -762,17 +750,19 @@ describe('AssetPriceList', () => {
 					settled: { id: 'op-1' as AssetPriceOverrideId, version: version(1) },
 				}),
 		});
+		await openEditor(wrapper);
 		const input = wrapper.get('input');
 
-		// 1. A round that succeeds, which records the acceptance and releases the snapshot.
+		// 1. A round that succeeds, which closes the editor and settles on its own pair.
 		await input.setValue('20.00');
 		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		// 2. An INVALID draft, which mints a fresh snapshot at the version on screen.
-		await input.setValue('abc');
+		const reopened = await openEditor(wrapper);
+		await reopened.setValue('abc');
 		// 3. Blur: refused at `validate`, nothing dispatched — and `pending` still falls.
-		await input.trigger('keydown', { key: 'Enter' });
+		await reopened.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 		expect(commit).toHaveBeenCalledTimes(1);
 
@@ -780,8 +770,8 @@ describe('AssetPriceList', () => {
 		await wrapper.setProps({ rows: [row({ override: money('30.00'), overrideRevision: 2 })] });
 
 		// 5. The user corrects their value and submits it.
-		await input.setValue('21.00');
-		await input.trigger('keydown', { key: 'Enter' });
+		await reopened.setValue('21.00');
+		await reopened.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledTimes(2);
@@ -810,24 +800,39 @@ describe('AssetPriceList', () => {
 	 *   is the half that keeps the accessible name distinguishing, and without it the fixed basis
 	 *   would just be truncating a label.
 	 */
-	it('declares the type size and the fixed basis the capture asked for', () => {
+	it('declares the type size and the shared columns the capture asked for', () => {
 		const css = readFileSync('styles/asset-prices.css', 'utf8');
-		const field = css.slice(css.indexOf('.rp-asset-price-row .rp-field-error {'));
+		const layout = readFileSync('styles/project-prices.css', 'utf8');
+		const columns = layout.slice(layout.indexOf('.rp-asset-price-headings,'));
 		const label = css.slice(css.indexOf('.rp-asset-price-row .rp-field-error label {'));
 		// `.rp-visually-hidden` moved to its own partial at its second caller (this row was the
 		// first); read from there rather than from `asset-prices.css`, which no longer holds it.
 		const hiddenCss = readFileSync('styles/visually-hidden.css', 'utf8');
 		const hidden = hiddenCss.slice(hiddenCss.indexOf('.rp-visually-hidden {'));
 
-		// A basis rather than `flex-grow`: the name takes the slack, and every item after it has
-		// to keep its own size or the columns move per row.
-		expect(field.slice(0, field.indexOf('}'))).toMatch(/flex: 0 0 /);
+		// Shared GRID TRACKS rather than a basis on the editor: the heading strip and every row —
+		// resting rows included, which a basis on the editor could never reach — are laid out by
+		// one declaration, so no row's own content can move another row's columns. `minmax(0, …)`
+		// is the half that keeps a long name inside its track instead of widening the grid.
+		expect(columns.slice(0, columns.indexOf('}'))).toMatch(/grid-template-columns: minmax\(0, /);
+		// The fixed basis it replaced is GONE rather than merely overridden: left standing it is
+		// what stops the editor filling the line at narrow.
+		expect(css).not.toMatch(/flex: 0 0 /);
+		// **Apply's fill is ROW-SCOPED, and a bare class cannot carry it.** Obsidian's own
+		// app.css declares `button:not(.clickable-icon) { background-color: … }` — a functional
+		// pseudo-class taking its argument's specificity, so (0,1,1) — which outranks
+		// `.rp-asset-price-apply` and left the primary action drawing exactly like Cancel.
+		// Measured in a browser off the computed colour, because jsdom resolves no CSS and no
+		// gate here can see a colour; this is the assertion that keeps the selector from being
+		// flattened back.
+		expect(layout).toMatch(/\.rp-asset-price-row \.rp-asset-price-apply \{/);
 		expect(label.slice(0, label.indexOf('}'))).toMatch(/font-size: var\(--font-ui-smaller\);/);
 		// Clipped, never `display: none` or `visibility: hidden` — both take the text out of the
 		// accessibility tree with the picture and would leave every row labelled `Set a price`.
 		expect(hidden.slice(0, hidden.indexOf('}'))).toMatch(/clip-path: inset\(50%\);/);
 		expect(hidden.slice(0, hidden.indexOf('}'))).not.toMatch(/display: none|visibility: hidden/);
 	});
+
 
 	/**
 	 * The empty state is the LIST's, not the section's: the header and the disclosure stay drawn,

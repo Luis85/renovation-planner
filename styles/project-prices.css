@@ -5,4 +5,272 @@
  * Its own partial rather than more of `asset-prices.css`, which holds the shared asset price row
  * the Asset Library also draws. Imported directly after it, so a project-scoped rule overrides
  * the shared one at equal specificity.
+ *
+ * **Narrow-first, and the wide layout is the container query.** The spec's small width is the
+ * one with more to fit and fewer ways to fit it: at 360 CSS px every figure has to keep its own
+ * label, so the labelled value pair is what the markup says at every width and the wide layout
+ * is what hides the labels — under the column headings that then say the same thing once. The
+ * other order (columns by default, unstacked below 640) leaves an unlabelled figure standing at
+ * any width the query does not reach, which is exactly the failure the spec forbids.
+ *
+ * Every colour is an Obsidian variable (SDD §84) — the build refuses a literal, including a bare
+ * word like `red`, so a themed vault stays themed. `.rp-project-detail` is what carries
+ * `container-type: inline-size` (`project-detail.css`), so these queries measure the PANE rather
+ * than the window: an Obsidian sidebar leaf at 460px gets the narrow layout inside a maximised
+ * window, which `@media` could never see.
  */
+
+/*
+ * The Material / Catalogue price / Project price / Used price strip. PRESENTATIONAL only — no
+ * `role="columnheader"`, no focus stop and no table: every row already carries its own labels
+ * (above), so this repeats them once for the eye and is hidden from the accessibility tree
+ * rather than announced a second time per row.
+ *
+ * The mockup also draws a `Einheit` column. It is omitted deliberately: `AssetPriceRowDto` has no
+ * unit field, and P04's own layout section refuses an invented one.
+ */
+.rp-asset-price-headings {
+	display: none;
+	padding: var(--size-2-2) var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * Narrow: one labelled value pair per line, actions below. Not a wrapping horizontal flex — the
+ * measured failure at 360 was five items sharing one line, each too narrow to read — and not
+ * five squeezed columns either.
+ */
+.rp-asset-price-row {
+	display: block;
+}
+
+/* At this width the name has the whole line, so it wraps rather than truncating. */
+.rp-asset-price-name {
+	white-space: normal;
+	overflow: visible;
+	font-weight: var(--font-medium);
+}
+
+.rp-asset-price-catalogue,
+.rp-asset-price-yours,
+.rp-asset-price-used {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	min-width: 0;
+	padding-top: var(--size-2-1);
+}
+
+/*
+ * The resting stand-in for a row with no override. It occupies the project-price slot so the
+ * grid's third column is never empty at the wide width — an empty cell beside a catalogue
+ * figure is what makes "no project price" and "a project price of nothing" look the same, and
+ * P04's rule is that a missing price is not zero. Muted, because it states an absence rather
+ * than a value.
+ */
+.rp-asset-price-none {
+	padding-top: var(--size-2-1);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.rp-asset-price-label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-asset-price-value {
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+}
+
+/*
+ * The open editor is tinted, which is the mockup's own way of saying "exactly one of these is
+ * open". A background rather than a border, so the row's height does not change when it opens
+ * and the rows below it do not jump.
+ */
+.rp-asset-price-row--editing {
+	background-color: var(--background-modifier-hover);
+}
+
+/* The project-price column: the value or the editor, its actions, and the row's markers. */
+.rp-asset-price-own {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--size-2-2);
+	min-width: 0;
+	padding-top: var(--size-2-1);
+}
+
+/*
+ * `Edit` / `Set project price` and `Remove project price` read as links, as the mockup draws
+ * them, and stay `<button>`s: each performs an action in place rather than going anywhere, and
+ * an `<a>` with no `href` is not reachable by keyboard at all. Apply and Cancel keep their
+ * button chrome, which is the whole of what tells the two kinds apart — a decision beside a
+ * value against the two that resolve an open editor.
+ */
+.rp-asset-price-row .rp-asset-price-edit,
+.rp-asset-price-row .rp-asset-price-clear {
+	min-height: 0;
+	padding: 0;
+	border: none;
+	background: none;
+	box-shadow: none;
+	color: var(--text-accent);
+	font-size: var(--font-ui-small);
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.rp-asset-price-row .rp-asset-price-edit:disabled,
+.rp-asset-price-row .rp-asset-price-clear:disabled {
+	color: var(--text-muted);
+	text-decoration: none;
+	cursor: not-allowed;
+}
+
+.rp-asset-price-row .rp-asset-price-edit:focus-visible,
+.rp-asset-price-row .rp-asset-price-clear:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/*
+ * The editor block. `flex: 0 0 14rem` used to live on this wrapper in `asset-prices.css` and is
+ * gone with it: the grid above states the column, so a basis here would fight it — and at narrow
+ * a fixed basis is precisely what stopped the block from filling the line.
+ */
+.rp-asset-price-row .rp-field-error {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	width: 100%;
+	min-width: 0;
+}
+
+/* The field and its currency, drawn as one control the way the mockup pairs them. */
+.rp-asset-price-field {
+	display: flex;
+	align-items: stretch;
+	gap: var(--size-2-1);
+	min-width: 0;
+}
+
+.rp-asset-price-field .rp-asset-price-input {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.rp-asset-price-currency {
+	display: flex;
+	align-items: center;
+	padding: 0 var(--size-2-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * Apply and Cancel side by side, primary then secondary — the mockup's own order. The gap is a
+ * FULL step rather than the block's own: at rest this row holds two LINKS (`Edit` and `Remove
+ * project price`) with nothing but whitespace between them, and a tight gap read as one phrase.
+ */
+.rp-asset-price-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
+/*
+ * **Row-scoped, and that is the whole reason this rule works.** Obsidian's own app.css carries
+ * `button:not(.clickable-icon) { background-color: var(--interactive-normal) }` — a functional
+ * pseudo-class taking its argument's specificity, so (0,1,1), which OUTRANKS a bare
+ * `.rp-asset-price-apply` and left Apply drawing identically to Cancel. Found by capturing the
+ * open editor and reading the computed colour off it, which is the only instrument here that can
+ * see a colour at all.
+ */
+.rp-asset-price-row .rp-asset-price-apply {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.rp-asset-price-row .rp-asset-price-apply:disabled,
+.rp-asset-price-row .rp-asset-price-cancel:disabled {
+	cursor: not-allowed;
+	opacity: 0.5;
+}
+
+/*
+ * The unsaved and saved markers. The DOT is decorative and the word carries the meaning, so a
+ * reader who cannot resolve the colour loses nothing — `states-and-navigation.md`'s
+ * "text/icons supplement colour".
+ */
+.rp-asset-price-unsaved,
+.rp-asset-price-saved {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-asset-price-unsaved { color: var(--text-warning); }
+.rp-asset-price-saved { color: var(--text-success); }
+
+.rp-asset-price-dot {
+	width: var(--size-2-2);
+	height: var(--size-2-2);
+	border-radius: 50%;
+	background-color: var(--text-warning);
+}
+
+/*
+ * **LAST in the file, and that is load-bearing**: a container query adds no specificity, so
+ * these rules beat the narrow ones above only by coming after them. Moved up, `display: block`
+ * would win at every width and the columns would never draw.
+ *
+ * The four tracks every row and the heading strip share, declared once. `minmax(0, …)` on the
+ * name so a long asset name ellipses inside its own column instead of widening the grid and
+ * pushing the other three off their shared left edges — slice 19's `.rp-project-list__overlap`
+ * defect, which this section had previously answered with a fixed `flex-basis` on the editor
+ * block. The basis is gone: a grid states the columns directly, and it also holds the RESTING
+ * rows in the same columns, which a basis on the editor never could.
+ */
+@container (min-width: 641px) {
+	.rp-asset-price-headings,
+	.rp-asset-price-row {
+		display: grid;
+		grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+		align-items: start;
+		column-gap: var(--size-4-2);
+	}
+
+	/*
+	 * The labels go off-screen rather than out of the markup: the heading strip is decorative
+	 * (`aria-hidden`), so these are what a screen reader reads at this width too. Clipped and
+	 * never `display: none`, for the reason `visually-hidden.css` states — both of the other
+	 * spellings take the text out of the accessibility tree with the picture.
+	 */
+	.rp-asset-price-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.rp-asset-price-used { text-align: right; }
+
+	/* Ellipsis inside its own track, which is what `minmax(0, 2fr)` above makes possible. */
+	.rp-asset-price-name {
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+}

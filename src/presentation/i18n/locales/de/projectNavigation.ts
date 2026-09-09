@@ -34,6 +34,11 @@ export const deProjectNavigation = {
 	'view.project.price-saved': 'Gespeichert',
 	'view.project.price-edit': 'Bearbeiten',
 	'view.project.plans-count': 'Pläne ({count})',
+	// P04's price table: the heading over the asset NAME column, and the resting label a row
+	// with no override carries beside its `Set project price` action. Both are in the P04
+	// mockup and in no row of `ui-copy.md`, which is why they arrive here rather than there.
+	'view.project.column-asset': 'Objekt',
+	'view.project.price-none': 'Kein eigener Preis',
 	'view.project.column-project': 'Projekt',
 	'view.project.column-plans': 'Pläne',
 	'view.project.column-currency': 'Währung',

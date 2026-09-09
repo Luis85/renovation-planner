@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ProjectRow from '../../../src/presentation/views/ProjectRow.vue';
+import HostIcon from '../../../src/presentation/components/HostIcon.vue';
 import { nameCollator } from '../../../src/presentation/views/projectOrder';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
@@ -36,9 +37,82 @@ describe('ProjectRow', () => {
 		expect(wrapper.find('.rp-project-list__name').attributes('title')).toBe('House Renovation 2026');
 	});
 
-	it('states the plan count and the currency in the facts slot', () => {
-		expect(row().find('.rp-project-row__facts').text()).toContain('2 plans');
-		expect(row().find('.rp-project-row__facts').text()).toContain('EUR');
+	/**
+	 * P00 GIVES PLANS AND CURRENCY THEIR OWN COLUMNS, under their own headings, so they are two
+	 * elements rather than one joined string. The old single facts slot could not be headed: a
+	 * `Plans` and a `Currency` heading over one cell reading `2 plans · EUR` is a table
+	 * pretending to have two columns.
+	 */
+	it('states the plan count and the currency in their own columns', () => {
+		expect(row().find('.rp-project-row__plans').text()).toBe('2 plans');
+		expect(row().find('.rp-project-row__currency').text()).toBe('EUR');
+	});
+
+	/**
+	 * P00'S `Last worked` COLUMN. `ProjectSummaryDto.lastWorked` is a required index fact and
+	 * P00's data contract lists it; the row drew it nowhere. It is LAST WORKED and not "last
+	 * opened", which that contract states in so many words.
+	 *
+	 * Asserted as "contains the year" rather than against a formatted string, because
+	 * `Intl.DateTimeFormat`'s medium style is an ICU detail that moves between Node versions and
+	 * between the four CI legs — pinning the exact rendering would make this a test of the
+	 * platform's date tables. What it holds is that the row draws that date at all, from that
+	 * field, through a locale formatter.
+	 */
+	it('draws the last-worked date from the index fact P00 names', () => {
+		expect(row().find('.rp-project-row__worked').text()).toContain('2026');
+	});
+
+	/**
+	 * EMPTY rather than a dash when the index has no date, per the content rule below. The
+	 * element STAYS — unlike the plan count, nothing reads its absence, and a wide row's `Last
+	 * worked` column with one blank cell is honest where a dash would be an invented value.
+	 */
+	it('leaves the date blank rather than inventing one', () => {
+		expect(row({ lastWorked: null }).find('.rp-project-row__worked').text()).toBe('');
+	});
+
+	/**
+	 * **A DATE THIS CANNOT READ MUST NOT TAKE THE LIST DOWN WITH IT.**
+	 * `Intl.DateTimeFormat.format` THROWS a `RangeError` on an invalid date, and this row's
+	 * formatter is a computed inside a `v-for` — so an unreadable value does not blank one cell,
+	 * it kills the render of the whole list and draws an empty pane.
+	 *
+	 * Found rather than imagined: a `ViewRoot` test double supplying `{ id, name, status }` and
+	 * no `lastWorked` at all turned SEVEN unrelated cases red with `Unhandled error during
+	 * execution of render function`, in files that assert nothing about a date.
+	 *
+	 * Both arms, because they reach the guard by different routes: `undefined` is a field the
+	 * type says is always present and a fake may still omit, and a non-date STRING is a value
+	 * that is present and unparseable — which no type can rule out, since it arrives from the
+	 * vault's own file stats through the index. The cast is what lets a case ask the first
+	 * question at all, and it is the point: this is about what happens when the declared type is
+	 * not what arrived.
+	 */
+	it('survives a date it cannot read, rather than blanking the pane', () => {
+		for (const lastWorked of [undefined, 'not a date']) {
+			const wrapper = row({ lastWorked } as Partial<ProjectSummaryDto>);
+
+			expect(wrapper.find('.rp-project-row__worked').text()).toBe('');
+			// The rest of the row still drew, which is the guarantee — not merely that the cell
+			// is empty, but that nothing else was lost with it.
+			expect(wrapper.find('.rp-project-list__name').text()).toBe('House Renovation 2026');
+		}
+	});
+
+	/**
+	 * **THE SAME SHAPE ON THE PLAN COUNT, and it is why that test is `> 0` and not `!== 0`.**
+	 * The two spellings differ on exactly one input — a count that is not a number — and the
+	 * strict one draws `undefined plans` under the `Plans` heading where this one draws no
+	 * element at all. The harm is smaller than the date's (nothing throws), which is precisely
+	 * why it needs a case: an unnecessary-looking `!(x > 0)` is the kind of thing a later reader
+	 * tidies into `x !== 0`, and nothing else here would notice.
+	 */
+	it('draws no plan count for a count that is not a number', () => {
+		const wrapper = row({ planCount: undefined } as Partial<ProjectSummaryDto>);
+
+		expect(wrapper.find('.rp-project-row__plans').exists()).toBe(false);
+		expect(wrapper.find('.rp-project-row__currency').text()).toBe('EUR');
 	});
 
 	/**
@@ -53,41 +127,85 @@ describe('ProjectRow', () => {
 	 * component happened to reach.
 	 */
 	it('picks the singular plan key at one, because t has no plural machinery', () => {
-		expect(row({ planCount: 1 }).find('.rp-project-row__facts').text()).toContain('One plan');
+		expect(row({ planCount: 1 }).find('.rp-project-row__plans').text()).toBe('One plan');
 	});
 
-	it('renders nothing at all for a slot with nothing in it', () => {
-		// The governing content rule: the row must look complete today, not like a card with
-		// holes. No dash, no em-dash, no skeleton, no "not yet calculated".
-		const text = row({ planCount: 0 }).find('.rp-project-row__facts').text();
+	/**
+	 * **THE SLOT IS ABSENT, NOT EMPTY, and the difference is what the narrow sheet reads.** The
+	 * governing content rule is unchanged — the row must look complete today, not like a card
+	 * with holes, so no dash, no em-dash, no skeleton, no "not yet calculated". What changed is
+	 * that `v-if` rather than an empty string is now load-bearing beyond appearance:
+	 * `project-list-narrow.css` moves the currency into the count's track with
+	 * `.rp-project-list__name + .rp-project-row__currency`, which matches only when this element
+	 * does not exist. An empty span would draw the same picture at wide width and leave `EUR`
+	 * indented behind a blank column at narrow, where there is no heading to explain it.
+	 */
+	it('renders no plan-count element at all rather than an empty one', () => {
+		const wrapper = row({ planCount: 0 });
 
-		expect(text).not.toContain('0 plans');
-		expect(text).not.toContain('—');
-		// And the neighbours close up rather than leaving the separator behind: `· EUR` is what
-		// a slot that renders nothing but still joins would produce, and it reads as a hole.
-		expect(text).toBe('EUR');
+		expect(wrapper.find('.rp-project-row__plans').exists()).toBe(false);
+		expect(wrapper.find('.rp-project-row__currency').text()).toBe('EUR');
 	});
 
-	it('draws the status word and marks the cells up to its stage', () => {
+	/**
+	 * **THE STATUS IS A PILL AND THE WORD IS THE WHOLE ACCESSIBLE NAME.** The ten-cell tick strip
+	 * it replaces was an enhancement over a channel that was already complete; the pill is the
+	 * same arrangement — a decorative dot beside a translated word — so the guarantee SDD §85 and
+	 * PRD's accessibility section both make is unchanged: a status is never carried by colour.
+	 */
+	it('draws the status as a pill whose word is the whole accessible name', () => {
 		const wrapper = row();
 
-		expect(wrapper.find('.rp-project-row__status').text()).toContain('Design');
-		expect(wrapper.findAll('.rp-project-row__tick')).toHaveLength(10);
-		// DESIGN is stage 2, so three cells are reached — up to AND INCLUDING the current one.
-		expect(wrapper.findAll('.rp-project-row__tick--reached')).toHaveLength(3);
+		expect(wrapper.find('.rp-project-row__pill').text()).toBe('Design');
+		expect(wrapper.find('.rp-project-row__dot').attributes('aria-hidden')).toBe('true');
+		expect(wrapper.find('.rp-project-row__dot').text()).toBe('');
 	});
 
-	it('hides the strip from assistive technology, leaving the word as the whole name', () => {
-		expect(row().find('.rp-project-row__ticks').attributes('aria-hidden')).toBe('true');
-		expect(row().find('.rp-project-row__ticks').text()).toBe('');
+	/**
+	 * **ONE DOT, EVERY STATUS — the strip's ten cells are gone and nothing replaced them with a
+	 * per-status palette.** A status-to-colour mapping is a mapping this design package does not
+	 * define, so inventing one would be a claim about what each of ten stages MEANS that no
+	 * document backs. This case is what stops one arriving as a polish pass: every project draws
+	 * exactly one dot whatever its status, carrying no modifier class a palette could hang off,
+	 * so a build that added one fails here rather than in a capture nobody takes.
+	 */
+	it('gives every status the same single dot, never a per-status palette', () => {
+		const drawn = ['IDEA', 'DESIGN', 'AS_BUILT', 'PLANNING']
+			.map((status) => row({ status }).findAll('.rp-project-row__dot').map((dot) => dot.classes()));
+
+		// One dot per row, and its class list is the bare name — nothing a palette could hang a
+		// modifier off. Compared as a whole so the failure names the status that grew one.
+		expect(drawn).toEqual(Array.from({ length: 4 }, () => [['rp-project-row__dot']]));
 	});
 
-	it('draws no strip for a status this build cannot place', () => {
-		// A strip at stage 0 would say IDEA about a project nobody established a stage for.
-		const wrapper = row({ status: 'PLANNING' });
+	/**
+	 * A STATUS THIS BUILD CANNOT PLACE still gets a pill, where the strip used to draw nothing at
+	 * all. That asymmetry went with the strip: a strip at stage 0 would have said IDEA about a
+	 * project nobody established a stage for, and a pill makes no positional claim — it carries
+	 * the raw value as its word, which is what `statusLabel` already answers for one.
+	 */
+	it('draws a pill for a status this build cannot place, carrying the raw value', () => {
+		expect(row({ status: 'PLANNING' }).find('.rp-project-row__pill').text()).toBe('PLANNING');
+	});
 
-		expect(wrapper.find('.rp-project-row__status').text()).toContain('PLANNING');
-		expect(wrapper.find('.rp-project-row__ticks').exists()).toBe(false);
+	/**
+	 * P00'S TWO DECORATIVE GLYPHS, and the claim that matters about both is that they add NOTHING
+	 * to the row: the chevron in particular must not become a second focus stop, because the row
+	 * is already one `<button>` and a control inside a control is the composite §7 refuses.
+	 *
+	 * Asserted through `HostIcon` rather than by class, because a plain `<span>` wearing the same
+	 * class would draw no icon in a vault and pass a class-only assertion — `HostIcon` is what
+	 * reaches Obsidian's `setIcon`, and it is also what carries the `aria-hidden`.
+	 */
+	it('adds two decorative glyphs and no second focus stop', () => {
+		const wrapper = row();
+		const glyphs = wrapper.findAllComponents(HostIcon);
+
+		expect(glyphs.map((glyph) => glyph.props('name'))).toEqual(['house', 'chevron-right']);
+		for (const glyph of glyphs) expect(glyph.attributes('aria-hidden')).toBe('true');
+		// One button, and it is the row itself.
+		expect(wrapper.findAll('button')).toHaveLength(1);
+		expect(wrapper.findAll('[tabindex]')).toHaveLength(1);
 	});
 
 	it('keeps the §83 marker after the status', () => {

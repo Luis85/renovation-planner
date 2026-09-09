@@ -136,25 +136,28 @@ describe('the project surface on mobile', () => {
 		refuses(wrapper, '.rp-project-detail__entry-action');
 	});
 
-	it('keeps the price field drawn and refused rather than absent', async () => {
+	it('keeps the price row readable and its editor refused rather than absent', async () => {
 		const { wrapper } = rig({ readOnly: true, projectId: project.id, section: 'prices' });
 		await flushPromises();
 
+		// Every figure this row holds is TEXT now rather than the contents of a control, so the
+		// read-only surface reads better than it did: the saved price and the price actually in
+		// force are both legible without a field to be refused by.
 		expect(wrapper.text()).toContain('12.00 EUR');
-		refuses(wrapper, '.rp-asset-price-input');
+		expect(wrapper.get('.rp-asset-price-used').text()).toContain('12.00 EUR');
+		// Drawn and refused, never hidden — that is the rule this case has always been about,
+		// and P04's resting row moves it from the field onto the invitation that opens one.
+		refuses(wrapper, '.rp-asset-price-edit');
 		refuses(wrapper, '.rp-asset-price-clear');
 
-		// `showDraftActions` is bare `dirty` and neither draft button carries `:disabled="readOnly"`,
-		// so the pair is kept off this surface by `onPriceInput` returning early on `readOnly` and by
-		// nothing else. The event is dispatched at the ELEMENT rather than through `setValue`,
-		// because vue-test-utils declines to `trigger` on a disabled element — which is faithful to a
-		// browser and is exactly why the outer guard hides the inner one: mutate the early return
-		// with `setValue` here and this case stays green, measured.
-		const field = wrapper.get('.rp-asset-price-input').element as HTMLInputElement;
-		field.value = '9.00';
-		field.dispatchEvent(new Event('input'));
+		// The refusal is the OUTER guard as well as the attribute: clicking the invitation opens
+		// nothing, so no field, Apply or Cancel exists on this surface at all. Driven as a real
+		// click on the element, because vue-test-utils declines to `trigger` a disabled one —
+		// faithful to a browser, and the reason the assertion is about what the DOM holds after.
+		(wrapper.get('.rp-asset-price-edit').element as HTMLButtonElement).click();
 		await flushPromises();
 
+		expect(wrapper.findAll('.rp-asset-price-input')).toHaveLength(0);
 		expect(wrapper.find('.rp-asset-price-apply').exists()).toBe(false);
 		expect(wrapper.find('.rp-asset-price-cancel').exists()).toBe(false);
 	});

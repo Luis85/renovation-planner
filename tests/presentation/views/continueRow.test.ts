@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ContinueRow from '../../../src/presentation/views/ContinueRow.vue';
+import HostIcon from '../../../src/presentation/components/HostIcon.vue';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
 const PROJECT: ProjectSummaryDto = {
@@ -25,10 +26,67 @@ function row(planId: string | null = 'plan-1', plan = { id: 'plan-1', name: 'Kit
 }
 
 describe('ContinueRow', () => {
-	it('is drawn in the same armature as every other row', () => {
-		// Distinguished by its group heading and its second action, NEVER by being a different
-		// shape. A raised card above a flat list is the composition this direction did not lock.
-		expect(row().find('.rp-project-list__row').exists()).toBe(true);
+	/**
+	 * **IT IS A CARD NOW, and this case is the reversal of the one it replaces.** That case
+	 * asserted `.rp-project-list__row` and its comment said the row must never be "a different
+	 * shape" — a raised card above a flat list being the composition that direction had not
+	 * locked. P00 and P06 lock it: a bordered, tinted block with a leading glyph, the project on
+	 * one line and the plan muted underneath.
+	 *
+	 * The class is asserted ABSENT rather than merely not asserted present, because
+	 * `list-row.css` is keyed on it: a card still wearing it would take the flat row's padding,
+	 * its hover and its edge-to-edge width, and would draw a card-shaped thing with a row's
+	 * geometry inside it.
+	 */
+	it('is drawn as P00’s card rather than as another flat row', () => {
+		const wrapper = row();
+
+		expect(wrapper.find('.rp-continue').exists()).toBe(true);
+		expect(wrapper.find('.rp-project-list__row').exists()).toBe(false);
+	});
+
+	/**
+	 * P00'S LEADING GLYPH, through `HostIcon` so it reaches Obsidian's own `setIcon` — a plain
+	 * `<span>` with the same class would draw nothing in a vault and satisfy a class assertion.
+	 * `aria-hidden` at HostIcon's own root: a card is not a control and the glyph names nothing.
+	 */
+	it('carries P00’s leading glyph, decorative and unnamed', () => {
+		const glyph = row().findComponent(HostIcon);
+
+		expect(glyph.props('name')).toBe('house');
+		expect(glyph.attributes('aria-hidden')).toBe('true');
+	});
+
+	/**
+	 * **THE TWO ACTIONS SAY WHICH PROJECT THEY ACT ON, and before this they did not.** Both read
+	 * only `Resume` and `Open project`, with the project's name in an unassociated sibling span
+	 * under an `<h3>Resume</h3>` heading — so a screen reader heard "Resume, button" with no idea
+	 * which project, on the one surface whose whole job is picking a project.
+	 *
+	 * `aria-labelledby` lists the BUTTON ITSELF first and then the name element, so the
+	 * accessible name is the concatenation and the translated verb stays whatever the translator
+	 * wrote. Asserted as the RESOLUTION — the ids are looked up in the document and their text
+	 * joined — rather than as an attribute string, because an `aria-labelledby` pointing at an id
+	 * that does not exist is the failure mode that matters and reads identically as an
+	 * attribute.
+	 */
+	it('gives both actions an accessible name carrying the project', () => {
+		const wrapper = row();
+
+		// `wrapper.find` is given a template literal at every call site, never a variable: oxlint's
+		// `unicorn/no-array-callback-reference` reads `find(x)` as `Array#find` and refuses a
+		// bare identifier as its argument, which vue-test-utils' unrelated `find` is not.
+		function nameOf(ids: string | undefined): string {
+			const parts: string[] = [];
+
+			for (const id of (ids ?? '').split(' ')) parts.push(wrapper.find(`#${id}`).text());
+			return parts.join(' ');
+		}
+
+		expect(nameOf(wrapper.find('.rp-continue__resume').attributes('aria-labelledby')))
+			.toBe('Resume House Renovation 2026');
+		expect(nameOf(wrapper.find('.rp-continue__open').attributes('aria-labelledby')))
+			.toBe('Open project House Renovation 2026');
 	});
 
 	it('names the project AND the plan it will resume', () => {
@@ -46,19 +104,28 @@ describe('ContinueRow', () => {
 		expect(row(null).find('.rp-continue__plan').exists()).toBe(false);
 	});
 
-	it('dates itself by lastWorked', () => {
-		const text = row().text();
-
-		// An ABSOLUTE short date, not a relative time: relative needs a live ticker and makes
-		// every test time-dependent.
-		expect(text).toMatch(/2026/);
+	/**
+	 * **THE DATE AND THE STATUS WORD ARE GONE, and their absence is the assertion.** Both were
+	 * drawn beside the two actions and neither is in P00's or P06's card: the group heading
+	 * already says what this is, and the project's own row below repeats every fact this card
+	 * was restating. The formatter moved to `ProjectRow`, which is where P00's `Last worked`
+	 * column lives — a relocation, not a deletion, and `projectRow.test.ts` holds it now.
+	 *
+	 * Asserted as the card's WHOLE text rather than as two absences, because the defect this
+	 * forbids is the facts coming back under any name at all — and a `not.toMatch(/2026/)` was
+	 * the first attempt and could not work: the fixture project is literally called `House
+	 * Renovation 2026`, so the year is in the name this card must draw. An exhaustive equality
+	 * is the only reading that tells a restated fact from a legitimate one.
+	 */
+	it('restates neither the date nor the status the row below already carries', () => {
+		expect(row().text()).toBe('House Renovation 2026KitchenResumeOpen project');
 	});
 
 	it('carries two actions, both ordinary controls', () => {
 		const wrapper = row();
 
-		expect(wrapper.find('.rp-continue__resume').text()).toBe('Continue');
-		expect(wrapper.find('.rp-continue__open').text()).toBe('Open');
+		expect(wrapper.find('.rp-continue__resume').text()).toBe('Resume');
+		expect(wrapper.find('.rp-continue__open').text()).toBe('Open project');
 		// Ordinary tab stops, not members of a roving group — which is the other half of why
 		// this row sits outside the Projects list rather than at the top of it.
 		expect(wrapper.find('.rp-continue__resume').attributes('tabindex')).toBeUndefined();

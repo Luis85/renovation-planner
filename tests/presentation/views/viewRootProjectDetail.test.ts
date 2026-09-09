@@ -154,17 +154,15 @@ function mountRoot(over: Overrides): VueWrapper {
 }
 
 /**
- * Opens the New plan form through WHICHEVER `New plan` control this state actually renders and
- * submits it. `ProjectDetail` draws the empty state in place of `PlanList` for a project with no
- * plans, so a case that starts empty has `.rp-empty-state__action` and no `.rp-plan-list__create`
- * — and `wrapper.get()` on the missing one THROWS before the case reaches its assertion.
- * Hard-coding either would be wrong for half the cases this file should be able to express, and
- * both controls emit one `createPlan` intent, so this is one gesture with two entry points rather
- * than a distinction being papered over.
+ * Opens the New plan form and submits it.
+ *
+ * ONE control now, at every plan count: the plans region draws its own compact empty row rather
+ * than an `EmptyState` card carrying a second creation action, which is what P01 refuses ("no
+ * duplicate large empty card below the same creation action"). This helper used to fall back
+ * between the two, and the fallback is what went with the card.
  */
 async function openTheFormAndSubmit(wrapper: VueWrapper, name = 'Ground floor'): Promise<void> {
-	const create = wrapper.find('.rp-plan-list__create');
-	await (create.exists() ? create : wrapper.get('.rp-empty-state__action')).trigger('click');
+	await wrapper.get('.rp-plan-list__create').trigger('click');
 	await flushPromises();
 	await wrapper.get('input[data-field="name"]').setValue(name);
 	await wrapper.get('form').trigger('submit');
@@ -219,7 +217,10 @@ describe('ViewRoot in the detail state', () => {
 		const wrapper = mountRoot({ projectId: 'project-1', plans: [] });
 		await flushPromises();
 
-		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
+		// The plans region's COMPACT empty row since P01's "no duplicate large empty card below the
+		// same creation action" — the centred `EmptyState` here was that card.
+		expect(wrapper.find('.rp-plan-list__empty').exists()).toBe(true);
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(false);
 		expect(wrapper.find('.rp-project-detail__back').exists()).toBe(true);
 		expect(wrapper.find('.rp-project-detail__open-note').exists()).toBe(true);
 	});
@@ -345,7 +346,7 @@ describe('ViewRoot in the detail state', () => {
 			},
 		});
 		await flushPromises();
-		expect(wrapper.find('.rp-empty-state').exists()).toBe(false);
+		expect(wrapper.find('.rp-plan-list__empty').exists()).toBe(false);
 
 		await openTheFormAndSubmit(wrapper, 'First floor');
 
@@ -394,11 +395,7 @@ describe('ViewRoot in the detail state', () => {
 		});
 		await flushPromises();
 
-		// The default fixture has no plans, so the button is the empty state's action rather than
-		// `PlanList`'s header one — the same fallback `openTheFormAndSubmit` makes, and the
-		// reason this case's first draft failed at the SELECTOR while reading as a red that
-		// proved something.
-		await wrapper.get('.rp-empty-state__action').trigger('click');
+		await wrapper.get('.rp-plan-list__create').trigger('click');
 		await flushPromises();
 		expect(wrapper.find('.rp-dialog').exists()).toBe(true);
 
@@ -564,9 +561,10 @@ describe('ViewRoot in the detail state', () => {
 		expect(wrapper.find('.rp-view-message').exists()).toBe(false);
 		expect(wrapper.get('.rp-empty-state__headline').text()).toBe(t('en', 'view.project.gone'));
 		// `<h2>`, not `<h3>`: this state REPLACES the view, so there is no project heading above
-		// it for a subsection to belong to. The no-plans state is the embedded case and takes
-		// `3`. Asserted because the tag is the whole content of that distinction and nothing
-		// else here would notice it flipping — the first version of this screen passed `3`.
+		// it for a subsection to belong to. The no-plans case is no longer an `EmptyState` at all
+		// — it is the plan section's own compact row under its `<h3>` — so this is the surface's
+		// only `EmptyState` and the only place the level is decided. Asserted because the tag is
+		// the whole content of that distinction and nothing else here would notice it flipping.
 		expect(wrapper.get('.rp-empty-state__headline').element.tagName).toBe('H2');
 		expect(navigate).not.toHaveBeenCalled();
 
@@ -587,7 +585,7 @@ describe('ViewRoot in the detail state', () => {
 		await flushPromises();
 
 		expect(navigate).not.toHaveBeenCalled();
-		expect(wrapper.get('.rp-view-message p').text()).toBe(t('en', 'view.project.loading'));
+		expect(wrapper.get('.rp-view-message p').text()).toBe(t('en', 'view.project.detail-loading'));
 		expect(wrapper.findAll('.rp-view-message button')).toHaveLength(1);
 		await wrapper.get('.rp-view-message button').trigger('click');
 		expect(navigate).toHaveBeenCalledWith(null);
@@ -686,7 +684,7 @@ describe('ViewRoot in the detail state', () => {
 		// here is the very store `ViewRoot` is holding.
 		const openDialog = vi.spyOn(useDialogStore(), 'openDialog');
 
-		const action = wrapper.get('.rp-empty-state__action');
+		const action = wrapper.get('.rp-plan-list__create');
 		await Promise.all([action.trigger('click'), action.trigger('click')]);
 		await flushPromises();
 
@@ -706,7 +704,7 @@ describe('ViewRoot in the detail state', () => {
 		await flushPromises();
 		expect(listPlansByProject).toHaveBeenCalledTimes(1);
 
-		await wrapper.get('.rp-empty-state__action').trigger('click');
+		await wrapper.get('.rp-plan-list__create').trigger('click');
 		await flushPromises();
 		await wrapper.get('[data-rp-action="cancel"]').trigger('click');
 		await flushPromises();

@@ -102,7 +102,7 @@ async function createTrade(): Promise<void> {
 					v-if="read.data.value.unreadablePlans"
 					role="status"
 				>
-					{{ tr('view.project.some-plans-unreadable', { count: String(read.data.value.unreadablePlans) }) }}
+					{{ tr('view.project.some-plans-unreadable') }}
 				</p>
 				<p
 					v-if="read.data.value.roomsIncomplete"

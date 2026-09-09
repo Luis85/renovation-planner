@@ -6,6 +6,7 @@ import ViewRoot from '../../../src/presentation/views/ViewRoot.vue';
 import PlanList from '../../../src/presentation/views/PlanList.vue';
 import ProjectDetail from '../../../src/presentation/views/ProjectDetail.vue';
 import ContinueRow from '../../../src/presentation/views/ContinueRow.vue';
+import ResumeRecovery from '../../../src/presentation/views/ResumeRecovery.vue';
 import ProjectList from '../../../src/presentation/views/ProjectList.vue';
 import AssetPriceList from '../../../src/presentation/views/AssetPriceList.vue';
 import NewProjectForm from '../../../src/presentation/views/NewProjectForm.vue';
@@ -86,30 +87,92 @@ describe('project experience', () => {
 		expect(context.rememberContinue).toHaveBeenLastCalledWith({ projectId: 'p2', planId: null });
 	});
 
+	/**
+	 * **Indexing is LOADING, not failure, so it grows no retry** — `ViewRoot`'s own rule for its
+	 * loading line, applied to the region that used to route indexing through the same failure
+	 * treatment as the three real ones. `onProjectsChanged` re-resolves it on its own, which is
+	 * what makes the button unnecessary as well as wrong. A read/access failure is the one state
+	 * the error policy does permit a retry for, and it keeps one.
+	 */
 	it('retains Resume when indexing, on read refusal and on failed opening', async () => {
 		let indexed = false;
 		const { wrapper, context } = rig({ continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }), indexScanCompleted: () => indexed, openPlan: vi.fn<RenovationProjectDeps['openPlan']>(() => Promise.resolve('failed' as const)) });
 		await flushPromises();
 		expect(wrapper.text()).toContain('being indexed');
+		expect(wrapper.find('.rp-resume-recovery__retry').exists()).toBe(false);
 		indexed = true;
-		await wrapper.get('.rp-resume-recovery button').trigger('click');
+		wrapper.getComponent(ResumeRecovery).vm.$emit('retry');
 		await flushPromises();
 		await wrapper.get('.rp-continue__resume').trigger('click');
 		await flushPromises();
 		expect(wrapper.text()).toContain('saved context is retained');
+		expect(wrapper.find('.rp-resume-recovery__retry').exists()).toBe(true);
 		expect(context.rememberContinue).not.toHaveBeenCalled();
 		expect(context.forgetContinue).not.toHaveBeenCalled();
 	});
 
-	it('offers the project when its plan disappeared; retries without a substitute plan', async () => {
+	/**
+	 * **P03's entry, and no retry beside it.** A confirmed missing plan has nothing to re-read —
+	 * the read that confirmed it succeeded — so the region offers the project and Resume takes it
+	 * there rather than reporting the miss beside a list of other projects. No substitute plan is
+	 * opened and the stored target survives, which is what lets the detail state re-derive the
+	 * miss and draw the recovery screen.
+	 */
+	it('offers the project when its plan disappeared, with no retry and no substitute plan', async () => {
 		const base = defaultRenovationProjectDeps();
 		const { wrapper, context } = rig({ continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }), queries: { ...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })), getProject: () => Promise.resolve(ok(project)), listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })) } });
 		await flushPromises();
 		expect(wrapper.text()).toContain('last plan is no longer available');
+		expect(wrapper.find('.rp-resume-recovery__retry').exists()).toBe(false);
 		expect(context.forgetContinue).not.toHaveBeenCalled();
-		await wrapper.get('.rp-resume-recovery button:last-child').trigger('click');
+		await wrapper.get('.rp-resume-recovery__open').trigger('click');
 		expect(context.navigate).toHaveBeenCalledWith(project.id);
 		expect(context.openPlan).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The same fact from the resume INTENT rather than from the strip: a resume whose plan is
+	 * confirmed gone lands in the project, which is where P03's screen is drawn. It must not open
+	 * a plan and must not clear the target the screen is derived from. Emitted rather than
+	 * clicked, because the Continue group does not render for a plan that did not resolve — this
+	 * case is about what `onResume` does, not about which control raised it.
+	 */
+	it('navigates into the project when Resume finds its plan gone', async () => {
+		const base = defaultRenovationProjectDeps();
+		const { wrapper, context } = rig({ continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }), queries: { ...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })), getProject: () => Promise.resolve(ok(project)), listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })) } });
+		await flushPromises();
+
+		wrapper.getComponent(ProjectList).vm.$emit('resume', { projectId: project.id, planId: plan.id });
+		await flushPromises();
+
+		expect(context.navigate).toHaveBeenCalledWith(project.id);
+		expect(context.openPlan).not.toHaveBeenCalled();
+		expect(context.forgetContinue).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * **A stale resolve must not declare a NEWER target missing.** `resolveTicket` is local to one
+	 * `ViewRoot`, so a write landing during the `getProject` await — the palette's plan open,
+	 * another leaf — is invisible to it: the resolve that started against the old target went on
+	 * to report `missing-project` about the new one and to clear it. The read is repeated after
+	 * the await and compared before either terminal state is set.
+	 */
+	it('does not report a target missing when a newer one was stored during the read', async () => {
+		let target: { projectId: string; planId: string | null } | null = { projectId: 'stale', planId: null };
+		let release!: (found: Awaited<ReturnType<RenovationProjectDeps['queries']['getProject']>>) => void;
+		const base = defaultRenovationProjectDeps();
+		const { wrapper, context } = rig({
+			continueContext: () => Promise.resolve(target),
+			queries: { ...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })), getProject: () => new Promise((resolve) => { release = resolve; }) },
+		});
+		await flushPromises();
+
+		target = { projectId: project.id, planId: null };
+		release(ok(null));
+		await flushPromises();
+
+		expect(context.forgetContinue).not.toHaveBeenCalled();
+		expect(wrapper.text()).not.toContain('last project is no longer available');
 	});
 
 	it('keeps project actions when plans cannot be read and retries the region', async () => {
@@ -118,16 +181,19 @@ describe('project experience', () => {
 		const { wrapper } = rig({ projectId: project.id, queries: { ...base.queries, getProject: () => Promise.resolve(ok(project)), listPlansByProject } });
 		await flushPromises();
 		expect(wrapper.find('.rp-project-detail__open-note').exists()).toBe(true);
-		expect(wrapper.find('.rp-empty-state').exists()).toBe(false);
+		expect(wrapper.find('.rp-plan-list__empty').exists()).toBe(false);
 		await wrapper.get('.rp-view-notice button').trigger('click');
 		await flushPromises();
-		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
+		expect(wrapper.find('.rp-plan-list__empty').exists()).toBe(true);
 	});
 
 	it('guards dirty navigation with Stay/Discard, and blocks pending writes', async () => {
 		const base = defaultRenovationProjectDeps();
 		const { wrapper, context, dialogs } = rig({ projectId: project.id, section: 'prices', queries: { ...base.queries, getProject: () => Promise.resolve(ok(project)), listAssetPrices: () => Promise.resolve(ok([priceRow()])) } });
 		await flushPromises();
+		// P04's rows rest, so the draft this case is about starts with the gesture that opens
+		// the editor rather than with a control the section drew unasked.
+		await wrapper.get('.rp-asset-price-edit').trigger('click');
 		await wrapper.get('input').setValue('12,50');
 		const stay = context.session?.canLeave?.();
 		expect(dialogs.current?.kind).toBe('confirm');
@@ -137,6 +203,10 @@ describe('project experience', () => {
 		dialogs.resolve('confirm');
 		expect(await discard).toBe(true);
 		await flushPromises();
+		// Discard closes the editor with the draft, which is what makes the dialog's own sentence
+		// true: reopening it offers the saved value and not the abandoned one.
+		expect(wrapper.findAll('input')).toHaveLength(0);
+		await wrapper.get('.rp-asset-price-edit').trigger('click');
 		expect((wrapper.get('input').element as HTMLInputElement).value).toBe('');
 		wrapper.getComponent(AssetPriceList).vm.$emit('editState', 'a1', true, true);
 		expect(await context.session?.canLeave?.()).toBe(false);
@@ -148,7 +218,8 @@ describe('project experience', () => {
 		const base = defaultRenovationProjectDeps();
 		const { wrapper, context } = rig({ projectId: project.id, section: 'prices', readOnly: true, queries: { ...base.queries, getProject: () => Promise.resolve(ok(project)), listAssetPrices: () => Promise.resolve(ok([priceRow()])) } });
 		await flushPromises();
-		expect(wrapper.get<HTMLInputElement>('.rp-asset-price-input').element.disabled).toBe(true);
+		expect(wrapper.get<HTMLButtonElement>('.rp-asset-price-edit').element.disabled).toBe(true);
+		expect(wrapper.findAll('.rp-asset-price-input')).toHaveLength(0);
 		expect(wrapper.text()).toContain('12.00 EUR');
 		await wrapper.get('.rp-project-detail__back').trigger('click');
 		expect(context.navigate).toHaveBeenCalledWith(project.id);
@@ -162,6 +233,9 @@ describe('project experience', () => {
 		document.body.appendChild(view.containerEl);
 		await view.onOpen();
 		await flushPromises();
+		// The LIST state's own filter input, which is on screen from the first render — this case
+		// never reaches the price section, and the `.rp-asset-price-edit` gesture the editing
+		// split added to its price siblings has nothing to click here.
 		const input = view.contentEl.querySelector('input') as HTMLInputElement;
 		input.value = 'Long'; input.dispatchEvent(new Event('input', { bubbles: true }));
 		await flushPromises();
@@ -330,6 +404,8 @@ describe('project experience', () => {
 		document.body.appendChild(view.containerEl);
 		await view.setState({ projectId: project.id, section: 'prices' }, { history: false });
 		await view.onOpen(); await flushPromises();
+		(view.contentEl.querySelector('.rp-asset-price-edit') as HTMLButtonElement).click();
+		await flushPromises();
 		const input = view.contentEl.querySelector('input') as HTMLInputElement;
 		input.value = '18,25'; input.dispatchEvent(new Event('input', { bubbles: true }));
 		await flushPromises();
@@ -340,6 +416,9 @@ describe('project experience', () => {
 		await first; await flushPromises();
 		expect(refused.history).toBe(false);
 		expect(view.getState()).toEqual({ projectId: project.id, section: 'prices' });
+		// Stay changes nothing at all — the editor is still open over the same text, which is
+		// the whole of what "keep editing" promises.
+		expect(input.isConnected).toBe(true);
 		expect(input.value).toBe('18,25');
 		const accepted = { history: false };
 		const second = view.setState({ projectId: project.id }, accepted);
@@ -370,6 +449,8 @@ describe('project experience', () => {
 		document.body.appendChild(view.containerEl);
 		await view.setState({ projectId: project.id, section: 'prices' }, { history: false });
 		await view.onOpen(); await flushPromises();
+		(view.contentEl.querySelector('.rp-asset-price-edit') as HTMLButtonElement).click();
+		await flushPromises();
 		const input = view.contentEl.querySelector('input') as HTMLInputElement;
 		input.value = '18,25'; input.dispatchEvent(new Event('input', { bubbles: true }));
 		await flushPromises();

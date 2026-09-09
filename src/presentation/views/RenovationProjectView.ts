@@ -324,9 +324,21 @@ export class RenovationProjectView extends ItemView {
 	 */
 	private sync(): void {
 		if (this.mounted && this.projectId === this.mountedProjectId && JSON.stringify(this.route) === this.mountedRoute) return;
+		// **A mount that REPLACES a live one is a navigation, and nothing else here is.**
+		// `states-and-navigation.md` allows focus to move to the new heading for a user-triggered
+		// navigation and forbids it on view OPEN, and this is the one signal that separates them
+		// out of the lifecycle this class already owns. A restore's `setState` arrives BEFORE
+		// `onOpen` (the ordering the `opened` guard exists for), so nothing is mounted when its
+		// `sync` runs; `rebind` unmounts before calling this, so its remount is not one either.
+		// Read here rather than passed down from each caller, because a caller that forgot would
+		// silently be right most of the time.
+		this.focusOnMount = this.mounted;
 		this.unmount();
 		this.mount(this.projectId);
 	}
+
+	/** See `sync`: true only for a mount that replaced a live one. */
+	private focusOnMount = false;
 
 	private mount(projectId: string | null): void {
 		this.contentEl.empty();
@@ -345,7 +357,7 @@ export class RenovationProjectView extends ItemView {
 		// builds its context locally rather than asking the root for a per-mount one. Nothing
 		// in `plugin/` changes, and `projectId` stays the VIEW's field, which is the property
 		// that mattered.
-		app.provide(RENOVATION_PROJECT_CONTEXT, { ...this.deps, projectId, ...this.route, session: this.session, readOnly: Platform.isMobile });
+		app.provide(RENOVATION_PROJECT_CONTEXT, { ...this.deps, projectId, ...this.route, session: this.session, autoFocus: this.focusOnMount, readOnly: Platform.isMobile });
 		// Onto `contentEl` itself, with no wrapper — see the class docblock's height chain.
 		// Vue types `app.mount(...)`'s return as the generic `ComponentPublicInstance`, and
 		// `<script setup>`'s own exposed shape is not recoverable from that type — one cast,

@@ -1,8 +1,101 @@
 /*
  * P03 — the resume recovery screen: the persistent warning strip that names the missing plan,
- * its heading, and the recovery choices that precede the remaining plans.
+ * its heading, and the recovery choices that precede the remaining plans. Plus the LAUNCHER's
+ * own resume strip, which is a different surface reporting the same class of fact.
  *
  * Its own partial because it is a SCREEN rather than a region of the detail state, and because
  * `project-detail.css` carries the detail chrome it sits inside. Imported after
  * `project-detail.css` for that reason.
+ *
+ * Every colour is an Obsidian variable (SDD §84).
  */
+
+/*
+ * THE WARNING USES AN ICON AND TEXT, NOT COLOUR ALONE — P03 states it outright, and §11 states
+ * the general rule. `--text-warning` tints the glyph and the border; the sentence beside it is
+ * what carries the meaning to anyone the tint does not reach.
+ *
+ * `color-mix` against the pane's own background rather than a fixed tint, so a themed vault's
+ * warning strip stays legible in both schemes without this file naming a colour.
+ */
+.rp-recovery__warning {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-4-3);
+	margin-block: var(--size-4-3) 0;
+	padding: var(--size-4-3);
+	border: 1px solid color-mix(in oklch, var(--text-warning) 40%, transparent);
+	border-radius: var(--radius-m);
+	background-color: color-mix(in oklch, var(--text-warning) 10%, var(--background-primary));
+	color: var(--text-normal);
+}
+
+.rp-recovery__warning .rp-host-icon {
+	--icon-size: 22px;
+	color: var(--text-warning);
+}
+
+/*
+ * The region's HEADING is what focus moves to after a failed resumption — P03: "focus
+ * explanation/heading meaningfully, not an unrelated button". Before it existed, the element
+ * that had focus was unmounted by the navigation and the caret fell to `<body>`.
+ *
+ * `tabindex="-1"` is on the element rather than here; this is what makes that focus VISIBLE.
+ */
+.rp-recovery {
+	padding-block: var(--size-4-3) 0;
+}
+
+.rp-recovery__title {
+	margin: 0;
+	/* Sized to its text, so the focus ring below rings the HEADING rather than the whole pane —
+	   it still wraps at the container's width, measured in the 460px capture. */
+	width: fit-content;
+	font-size: var(--font-ui-large);
+}
+
+.rp-recovery__title:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 4px;
+}
+
+.rp-recovery__body {
+	margin: var(--size-4-1) 0 0;
+	color: var(--text-muted);
+}
+
+/*
+ * The LAUNCHER's strip, above the project list. It stays MOUNTED with an empty message rather
+ * than being toggled by a `v-if`, so its `role="status"` neither re-announces an unchanged
+ * sentence on every vault event nor arrives with its text already in it (which is not reliably
+ * announced at all). The idle modifier is what stops an empty strip drawing a border.
+ */
+.rp-resume-recovery {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * COLLAPSED, NOT REMOVED. `display: none` takes an element out of the accessibility tree, which
+ * is the same defect as the `v-if` this replaced: the region would arrive with its text already
+ * in it, and a live region inserted that way is not reliably announced. Zeroing the box leaves
+ * the empty `<p>` in the tree, so only the TEXT changes and only that is announced.
+ */
+.rp-resume-recovery--idle {
+	padding: 0;
+	border-bottom: 0;
+}
+
+.rp-resume-recovery__message {
+	margin: 0;
+	flex: 1 1 12em;
+}
+
+/* Loading is not failure: a calm line, and the template offers no retry beside it. */
+.rp-resume-recovery--loading .rp-resume-recovery__message {
+	color: var(--text-muted);
+}

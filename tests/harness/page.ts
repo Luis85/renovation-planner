@@ -7,7 +7,8 @@
  * asset library — with `&asset=<id>` seeding a selection, which is what §7's narrow composition
  * needs to draw at all — `?project=<id>` opens the Renovation Project view's DETAIL state on a
  * seeded project of that id rather than its list — with `&plans=<n>` seeding that many plans
- * instead of the default full list, which is what reaches slice 22's start variant at `0` —
+ * instead of the default full list, which is what reaches slice 22's start variant at `0`, and
+ * `&recovery` storing a last target that project does not hold, which is what reaches P03 —
  * `?projects=<n>` and `?q=<text>` (Task 12) open
  * its LIST state over a seeded vault of that size with the filter already carrying that query,
  * and `?index` (or an `?entry=`) opens the harness index. A query parameter rather than a second
@@ -219,6 +220,10 @@ if (wantsIndex) {
 						projects: Number.isFinite(asked) ? asked : undefined,
 						initialQuery: params.get('q') ?? undefined,
 						section: params.get('section') === 'prices' ? 'prices' : 'details',
+						// `?recovery` (P03): present at all, like `?phone` and `?add` — the screen
+						// either is the recovery one or is not, so a value would be a second way to
+						// say the same thing.
+						recovery: params.has('recovery'),
 					}).view;
 }
 

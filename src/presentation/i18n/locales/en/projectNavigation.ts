@@ -47,6 +47,11 @@ export const enProjectNavigation = {
 	// counted form, so the region states how many without a second line to say it.
 	'view.project.plans-count': 'Plans ({count})',
 	// P00's wide-width column headings, drawn only where the pane is wide enough for a table.
+	// P04's price table: the heading over the asset NAME column, and the resting label a row
+	// with no override carries beside its `Set project price` action. Both are in the P04
+	// mockup and in no row of `ui-copy.md`, which is why they arrive here rather than there.
+	'view.project.column-asset': 'Asset',
+	'view.project.price-none': 'No project price',
 	'view.project.column-project': 'Project',
 	'view.project.column-plans': 'Plans',
 	'view.project.column-currency': 'Currency',

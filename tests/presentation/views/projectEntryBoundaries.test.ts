@@ -79,7 +79,9 @@ it.each([
 ] as const)('opens $section through the native Project Detail entry with the actual Project identity', async ({ section, label }) => {
 	const rig = await setup(true), project = expectDefined(rig.project, 'fixture Project'), bytes = [...rig.stack.vault.entries];
 	expect(rig.wrapper.get('.rp-project-detail__name').text()).toBe(project.name);
-	const action = expectDefined(rig.wrapper.findAll<HTMLButtonElement>('.rp-project-guidance button').find(button => button.text() === tr(label)), 'native downstream entry');
+	// `.rp-project-detail__body`'s own row, not the guidance region's: P02's sequence ends at the
+	// plan list, so these two moved below it and out of the region they used to sit inside.
+	const action = expectDefined(rig.wrapper.findAll<HTMLButtonElement>('.rp-project-detail__entry-row button').find(button => button.text() === tr(label)), 'native downstream entry');
 	action.element.focus(); action.element.click(); await flushPromises();
 	expect(rig.navigate).toHaveBeenCalledExactlyOnceWith(project.id, section);
 	expect([...rig.stack.vault.entries]).toEqual(bytes);

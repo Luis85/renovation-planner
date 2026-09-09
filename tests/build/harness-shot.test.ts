@@ -663,6 +663,9 @@ describe('the headless harness capture script', () => {
 			'project-detail-prices',
 			'project-detail-prices-narrow',
 			'project-detail-prices-narrow-360',
+			'project-detail-recovery',
+			'project-detail-recovery-light',
+			'project-detail-recovery-narrow',
 		]);
 
 		// The whole FILE, not the sliced block — see the header. A shot entry written outside
@@ -874,6 +877,36 @@ describe('the headless harness capture script', () => {
 		// satisfies just as well, so a dropped parameter photographs the active layout under a
 		// name promising the new-project one and exits 0.
 		expect(source).toMatch(/name: 'project-detail-new'[^}]*query: '\?project=[^']*&plans=0'/);
+	});
+
+	/**
+	 * **P03's three, and `&recovery` is the whole of what makes any of them different.** All three
+	 * wait on `.renovation-planner-view`, which the ordinary detail state satisfies just as well,
+	 * so a dropped parameter photographs the surface `project-detail` already covers — three more
+	 * times, under names promising the recovery screen, at exit 0.
+	 *
+	 * `&plans=2` is pinned with it: the picture is the warning strip and the recovery heading
+	 * ABOVE the remaining plans, and the fixture's default 26 rows push both out of the frame the
+	 * way they push the price section out of `project-detail`'s.
+	 *
+	 * The scheme split is pinned because the strip is the one region on this surface with a colour
+	 * of its own — `--text-warning` plus a `color-mix` tint of the pane's own background, which
+	 * the two palettes resolve differently — so neither picture predicts the other; and the width
+	 * on the third, which is a sidebar leaf's real width and where the strip's icon-and-text row
+	 * either wraps or does not.
+	 */
+	it('takes the recovery screen through the parameter that reaches it, in both schemes and at a leaf width', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		const reaching = ['project-detail-recovery', 'project-detail-recovery-light', 'project-detail-recovery-narrow'].filter(
+			(name) =>
+				new RegExp(`name: '${name}'[^}]*query: '[?]project=[^']*&plans=2&recovery`).test(source),
+		);
+
+		expect(reaching).toEqual(['project-detail-recovery', 'project-detail-recovery-light', 'project-detail-recovery-narrow']);
+		expect(source).not.toMatch(/name: 'project-detail-recovery'[^}]*theme=light/);
+		expect(source).toMatch(/name: 'project-detail-recovery-light'[^}]*theme=light/);
+		expect(source).toMatch(/name: 'project-detail-recovery-narrow'[^}]*width: 460/);
 	});
 
 	/**

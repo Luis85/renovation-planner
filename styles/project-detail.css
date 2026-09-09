@@ -1,10 +1,13 @@
 /*
- * One project's detail state and its plan list (design slice 21).
+ * One project's detail state and its plan list (design slice 21; redrawn against P01/P02/P05/P07).
  *
  * The spacing, the row shape and the focus rings are LIFTED from `.rp-project-list` in
  * `styles/forms.css` rather than reinvented: the two lists are siblings on the same pane, one
  * replacing the other, and a user moving between them should not be able to tell that two
  * people wrote them. Where a rule here differs from that block, the difference is stated.
+ *
+ * The ENTRY PATHS are not here — `styles/project-entry.css` holds them, imported directly after
+ * this file. The recovery screen is in `styles/resume-recovery.css`, imported after that.
  *
  * Every colour is an Obsidian variable (SDD §84) — the build refuses a literal, including a
  * bare word like `red`, so a themed vault stays themed.
@@ -13,23 +16,19 @@
  * `flex: 1` is what makes this a SHELL rather than a block that happens to be at the top of the
  * pane. `.renovation-planner-view` is a column flexbox of `height: 100%`, and a flex item
  * defaults to `flex: 0 1 auto` — intrinsic height — so without this the detail state occupied
- * only as much of the leaf as its content needed. The visible cost was the no-plans state:
- * `.rp-empty-state` asks for `flex: 1` and there was no free height for it to claim, so the one
- * screen every just-created project lands on drew its panel jammed under the header instead of
- * centred in the pane. Reported by a review bot; jsdom lays nothing out, so no test here could
- * have seen it, and there was no capture of this state at the time either. There is one now
- * (`project-detail` and `project-detail-narrow` in `scripts/harness-shot.mjs`), and the rule was
- * MEASURED in that browser rather than eyeballed: over a SHORT list, `.rp-project-detail` is
- * the full 800px of an 800px leaf with this rule and 123px — its header alone — without it.
- * Short is the case that matters and is why the number was taken that way: over a list longer
- * than the pane the content fills the leaf on its own, and the two versions measure the same
- * 800, so a capture of the shipped 26-plan fixture says nothing about this rule either way.
+ * only as much of the leaf as its content needed. MEASURED in the browser harness rather than
+ * eyeballed: over a SHORT list, `.rp-project-detail` is the full 800px of an 800px leaf with
+ * this rule and 123px — its header alone — without it. Short is the case that matters and is why
+ * the number was taken that way: over a list longer than the pane the content fills the leaf on
+ * its own, and the two versions measure the same 800.
  */
 .rp-project-detail {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
 	min-height: 0;
+	container-type: inline-size;
+	font-family: var(--font-interface);
 }
 
 /*
@@ -37,73 +36,138 @@
  * express this at all — which a capture is what said, at the first look this state ever had.
  *
  * Back sits ABOVE the project's name, because it is a route out of this state rather than an
- * action on the project, and reading it as a peer of `Open note` would say the opposite. The
- * remaining four then share one line: the name takes the slack (`1fr`, with `min-width: 0`
- * below, so it ellipses), and the status, the currency and `Open note` each keep their own
- * size — a fourth `auto` track, added beside the other two rather than folded into either. A
- * GRID is what makes that safe: `.rp-project-list__name`'s own history (`flex-grow: 1` in
- * `forms.css`, after a third item in a `space-between` FLEX row shoved that list's status
- * label to wherever each row's name length happened to leave it) is the failure mode a fixed
- * `auto` track after the flexible one avoids here, rather than one this row already had.
- *
- * The first version did that with `flex-basis: 100%` on the back button plus `flex-grow: 0;
- * width: fit-content` to keep it from stretching, under a comment asserting that the second
- * pair was what stopped it. It does not: in a row flex container `flex-basis` IS the main
- * size, so it beats `width`, and the item's hypothetical main size is what decides where the
- * line breaks — clamping it with `max-width: fit-content` would shrink the button and take the
- * line break with it. Measured in a real browser at the first capture this state ever had:
- * `Back to projects` rendered as a full-pane bar with its label centred (Obsidian's own
- * `button { justify-content: center }`), which reads as a section banner rather than as the
- * one control that leaves. Two declarations in the same block had been written to prevent
- * exactly that and neither could.
- *
- * `grid-column: 1 / -1` claims the row and `justify-self: start` sizes the item to its
- * content — two different properties, so neither is competing with the other. A wrapper
- * element was the alternative and is what this comment used to say it had avoided; the grid
- * costs no markup at all.
- *
- * The horizontal padding matches the plan ROW's below, so the project's name, the `Plans`
- * heading and a plan's name all share one left edge.
+ * action on the project. The name then takes the slack (`1fr`, with `min-width: 0` below) with
+ * `Open project note` beside it, and the status pill and the currency share a third row —
+ * P01/P02/P05's own three-row header. A GRID is what makes the name's neighbour safe:
+ * `.rp-project-list__name`'s own history (`flex-grow: 1` in `forms.css`, after a third item in a
+ * `space-between` FLEX row shoved that list's status label around) is the failure mode a fixed
+ * `auto` track after the flexible one avoids here.
  */
 .rp-project-detail__header {
 	display: grid;
-	grid-template-columns: 1fr auto auto auto;
+	grid-template-columns: 1fr auto;
 	align-items: center;
-	gap: var(--size-4-2);
+	gap: var(--size-2-2) var(--size-4-2);
 	padding: var(--size-4-2) var(--size-4-2) var(--size-2-2);
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.rp-project-detail__back {
+/*
+ * A LINK carrying the `arrow-left` glyph, not a button chip: it is the route out of this state,
+ * and P01/P02/P03/P07 all draw it as one line of accent text above the project's name.
+ *
+ * `grid-column: 1 / -1` claims the row and `justify-self: start` sizes the item to its content —
+ * two different properties, so neither competes with the other. The first version used
+ * `flex-basis: 100%` plus `flex-grow: 0; width: fit-content` under a comment claiming the second
+ * pair stopped it stretching; it does not, because `flex-basis` IS the main size in a row flex
+ * container. Measured in a real browser: the label rendered centred in a full-pane bar.
+ *
+ * DOUBLED so the background/colour declarations score (0,2,0) and beat Obsidian's own
+ * `button:not(.clickable-icon)` at (0,1,1) — `tests/build/buttonSpecificity.test.ts`'s category.
+ */
+.rp-project-detail__header .rp-project-detail__back {
 	grid-column: 1 / -1;
 	justify-self: start;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding-inline: 0;
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-normal);
 }
 
 /*
- * A LONG NAME MUST NOT PUSH THE STATUS OR THE NOTE ACTION OFF THE ROW — the defect
- * `.rp-project-list__name` already paid for at 460px, which is an Obsidian sidebar leaf's real
- * width. `min-width: 0` is what lets the `1fr` column actually shrink: a GRID item's automatic
- * minimum size is its content, exactly as a flex item's is, so without it the name refuses to
- * ellipse and whatever can shrink is the half that loses. Confirmed by capture at 460 rather
- * than argued: the name ellipses and both of its neighbours keep their size.
+ * A LONG NAME MUST NOT PUSH THE NOTE ACTION OFF THE ROW — the defect `.rp-project-list__name`
+ * already paid for at 460px, an Obsidian sidebar leaf's real width. `min-width: 0` is what lets
+ * the `1fr` column actually shrink: a GRID item's automatic minimum size is its content, so
+ * without it the name refuses to wrap and whatever can shrink is the half that loses. The
+ * outline below is what makes the programmatic focus a navigation lands here VISIBLE.
  */
 .rp-project-detail__name {
 	min-width: 0;
+	/*
+	 * SIZED TO ITS TEXT inside the `1fr` track, so the focus ring below rings the NAME rather
+	 * than the whole pane. The track still governs how much room it has, so a long name wraps
+	 * exactly as before — measured in the 360px capture, where it takes two lines either way.
+	 */
+	justify-self: start;
 	margin: 0;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
-	font-size: var(--font-ui-large);
+	overflow-wrap: anywhere;
+	font-size: var(--h2-size, 1.7em);
+	line-height: var(--line-height-tight);
+	letter-spacing: -0.02em;
 }
 
+.rp-project-detail__name:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 4px;
+}
+
+.rp-project-detail__meta {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin: 0;
+}
+
+/*
+ * THE STATUS PILL, AND ITS DOT IS ONE COLOUR FOR EVERY STATUS. `--text-accent` rather than a
+ * per-status palette: a status -> colour mapping is a design decision this package does not make,
+ * and §11 requires status to be understandable as TEXT ("text/icons supplement colour"), so the
+ * word beside the dot carries the fact and the dot is decoration.
+ */
 .rp-project-detail__status {
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-1) var(--size-4-2);
+	border-radius: var(--radius-l);
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+}
+
+.rp-project-detail__status-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background-color: var(--text-accent);
+}
+
+.rp-project-detail__meta-rule {
+	color: var(--text-faint);
 }
 
 .rp-project-detail__currency {
 	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+	font-size: var(--font-ui-small);
+}
+
+/*
+ * The note action, top-right beside the name and in accent/link style — P01/P02 draw the header
+ * access as SECONDARY (§14, correction 4: "avoid duplicate prominent note actions; header stays
+ * secondary"), which is why it is a link rather than the filled control the guidance offers.
+ */
+.rp-project-detail__header .rp-project-detail__open-note {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding-inline: 0;
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-accent);
+	white-space: normal;
+	/*
+	 * PLACED rather than auto-flowed, and that is what keeps the header at THREE rows. It is the
+	 * last child, so auto placement puts it after `.rp-project-detail__meta` — a fourth row, which
+	 * is the crowding §11 warns about and what P02 does not draw.
+	 */
+	grid-column: 2;
+	grid-row: 2;
+	justify-self: end;
 }
 
 /*
@@ -111,8 +175,7 @@
  * `.rp-project-list__create`'s rule states at length: Obsidian's global `:focus { outline:
  * none }` reaches buttons, and the vendored app.css reduction puts nothing back that clears
  * WCAG 1.4.11's 3:1 floor. `--interactive-accent` measures 4.00:1 in dark and 3.43:1 in light
- * on the two surfaces these sit on. `outline-offset` is POSITIVE because both are inset and
- * have room, the same way that button is.
+ * on the two surfaces these sit on.
  */
 .rp-project-detail__header .rp-project-detail__back:focus-visible,
 .rp-project-detail__header .rp-project-detail__open-note:focus-visible {
@@ -121,53 +184,17 @@
 }
 
 /*
- * The plans region's own header — the same row as the project list's, one heading level down
- * (`<h3>`, since `.rp-project-detail__name` is the `<h2>` above it) and therefore one type
- * size down with it.
- */
-.rp-plan-list__header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--size-4-2);
-	padding: var(--size-4-2) var(--size-4-2) var(--size-2-2);
-}
-
-.rp-plan-list__title {
-	margin: 0;
-	font-size: var(--font-ui-medium);
-}
-
-.rp-plan-list__header .rp-plan-list__create:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
-}
-
-/*
  * **The BODY scrolls, and the header does not** — one scroll region for both of this state's
- * regions, under a pinned header.
- *
- * The scroll used to live on `.rp-plan-list` itself (`flex: 1; min-height: 0; overflow-y:
- * auto`), which was right while that list was the shell's last child: measured in a real
- * browser at 800px of leaf against the 26-plan harness fixture, the `ul` was 677px tall over a
- * 780px scroll height while the `Plans` header's top stayed at 81. It stopped being right the
- * moment the price section followed it — measured in the same browser, the shell then
- * overflowed and the last price row was drawn below the pane, clipped, with no scrollbar and
- * no gesture that reached it. That is the identical defect the old block existed to fix,
- * arriving from the other side once that list stopped being the only region.
- *
- * The scroll moved UP to a wrapper rather than DOWN to the shell, and the difference is what
- * stays pinned: `.rp-project-detail` holds the header, so giving it `overflow-y` would scroll
- * Back, the project's name and Open note away with the content. The plans header scrolls with
- * its own list now, which is the one thing given up.
- *
- * `min-height: 0` is the half that is easy to omit: a flex item's default minimum is its
+ * regions, under a pinned header. It used to live on `.rp-plan-list`, which was right while that
+ * list was the shell's last child and stopped being right the moment the price section followed
+ * it: measured in a real browser, the shell overflowed and the last price row was drawn below the
+ * pane, clipped, with no scrollbar and no gesture that reached it. It moved UP to a wrapper
+ * rather than DOWN to the shell because `.rp-project-detail` holds the header, which must stay
+ * pinned. `min-height: 0` is the half that is easy to omit: a flex item's default minimum is its
  * content, so `overflow-y` on its own would be inert.
  *
- * `.rp-project-list` has no equivalent and can still grow its own pane. That is a pre-existing
- * shape rather than something this increment introduced, and it is left alone deliberately: it
- * is a different component on a different surface, and changing how an existing pane scrolls
- * is not a change to make blind. Written down rather than fixed in passing.
+ * Its offset is saved into the leaf-local session (`ProjectSession.detailScrollTop`), so a
+ * `rebind` remount or a details/prices round trip does not drop the user to the top.
  */
 .rp-project-detail__body {
 	display: flex;
@@ -175,10 +202,96 @@
 	flex: 1;
 	min-height: 0;
 	overflow-y: auto;
+	padding-inline: var(--size-4-2);
+}
+
+/*
+ * The plans region: a native disclosure with `New plan` on its summary's line and OUTSIDE the
+ * `<summary>`, because a button inside one is a nested interactive element and P02 forbids that
+ * by name. A ONE-ROW GRID whose two children overlap that row — the disclosure spans it and the
+ * create button sits at its top-right corner. Two grid items in one cell is the only arrangement
+ * that puts a control on a `<summary>`'s line without putting it inside the element: a flex row
+ * cannot, because the `<ul>` has to be inside the `<details>` for the native open state to reach.
+ */
+.rp-plan-list__section {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: start;
+	padding-block: var(--size-4-3);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.rp-plan-list__disclosure {
+	grid-area: 1 / 1 / 2 / -1;
+	min-width: 0;
+}
+
+/*
+ * `list-style: none` takes the browser's own triangle off, which is what makes room for the
+ * `chevron-right` the template draws instead. Both spellings, because WebKit still needs its
+ * pseudo-element.
+ */
+.rp-plan-list__summary {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding-inline-end: 9em;
+	list-style: none;
+	cursor: var(--cursor);
+}
+
+.rp-plan-list__summary::-webkit-details-marker {
+	display: none;
+}
+
+.rp-plan-list__summary:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.rp-plan-list__twisty {
+	color: var(--text-muted);
+	transition: transform 120ms ease;
+}
+
+.rp-plan-list__disclosure[open] .rp-plan-list__twisty {
+	transform: rotate(90deg);
+}
+
+.rp-plan-list__title {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+}
+
+.rp-plan-list__empty {
+	margin: var(--size-4-2) 0 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/*
+ * The create action, on the summary's line and in the grid's second column. DOUBLED for the
+ * (0,1,1) threshold, like every other flattened button on this surface.
+ */
+.rp-plan-list__section .rp-plan-list__create {
+	grid-area: 1 / 2 / 2 / -1;
+	justify-self: end;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	padding-inline: 0;
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-accent);
+}
+
+.rp-plan-list__section .rp-plan-list__create:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
 }
 
 .rp-plan-list {
-	margin: 0;
+	margin: var(--size-4-2) 0 0;
 	padding: 0;
 	list-style: none;
 }
@@ -192,81 +305,56 @@
 .rp-plan-list .rp-plan-list__row {
 	/*
 	 * Obsidian's own `button` rule sets `justify-content: center`, and it is not overridden by
-	 * `text-align: left` below — that property positions INLINE content, and a flex item is
-	 * not inline content, so the declaration was inert for the one child this row has. The
-	 * first capture of this state showed twelve plan names centred in the pane, under a
-	 * left-aligned `Plans` heading and beside a rule saying `text-align: left`.
-	 *
-	 * `.rp-project-list__row` never had the defect and never stated the fix either: it carries
-	 * `justify-content: space-between` because it has TWO children to push apart, and being
-	 * left-aligned is a side effect of that. One child needs the rule said out loud.
+	 * `text-align: left` — that property positions INLINE content, and a flex item is not inline
+	 * content. The first capture of this state showed twelve plan names centred in the pane,
+	 * under a left-aligned `Plans` heading and beside a rule saying `text-align: left`.
 	 */
+	display: flex;
+	align-items: center;
 	justify-content: flex-start;
+	gap: var(--size-4-3);
+	width: 100%;
+	padding: var(--size-4-2);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-normal);
+	border-top: 1px solid var(--background-modifier-border);
 }
 
+.rp-plan-list li:first-child .rp-plan-list__row {
+	border-top: 0;
+}
 
-/* Flattening the row took Obsidian's own `button:focus-visible` box-shadow with it, so the
-   ring is stated here — `tests/build/buttonFocusRing.test.ts` is the check for exactly that.
-   The offset is NEGATIVE because the row is edge-to-edge in the pane and an outside ring
-   would be clipped. WCAG 2.4.7. */
+.rp-plan-list .rp-plan-list__row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* Flattening the row took Obsidian's own `button:focus-visible` box-shadow with it, so the ring
+   is stated here — `tests/build/buttonFocusRing.test.ts` is the check for exactly that. The
+   offset is NEGATIVE because the row is edge-to-edge and an outside ring would clip. WCAG 2.4.7. */
 .rp-plan-list .rp-plan-list__row:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: -2px;
 }
 
 .rp-plan-list__name {
+	flex: 1;
 	min-width: 0;
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
+	text-align: start;
 }
 
-/* Project journeys: host tokens and wrapping remain usable in split leaves. */
-.rp-project-guidance, .rp-resume-recovery {
-	padding: var(--size-4-3);
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-.rp-project-guidance h3 { margin-block: var(--size-4-2); }
-.rp-project-guidance p { color: var(--text-muted); }
-
-/*
- * THE THREE ENTRY PATHS STACK, AT EVERY WIDTH — `interaction-concept.md` §11, "entry paths are
- * vertical. No mandatory horizontal navigation." Not a container query and not a wrap: three
- * cards side by side in a 460px sidebar leaf would be three columns of one word each, and the
- * order the two variants take (note first when new, plan first when active) is only readable
- * down the page.
- *
- * `align-items: flex-start` on the entry so its action sizes to its own label rather than
- * stretching across the pane, which is the same reason `.rp-project-detail__back` states one
- * block up — a full-width button reads as a section banner rather than as one task's control.
- */
-.rp-project-detail__entries {
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-4-3);
-}
-
-.rp-project-detail__entry {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: var(--size-2-2);
-}
-
-.rp-project-detail__entry-title {
-	margin: 0;
-	/* `<h4>` under the region's own `<h3>`, so one type size below `.rp-plan-list__title`. */
-	font-size: var(--font-ui-small);
-}
-
-.rp-project-detail__entry-body {
-	margin: 0;
+.rp-plan-list__chevron {
+	color: var(--text-faint);
 }
 
 /*
- * The compact row BOTH the hidden state and the downstream pair take: guidance hidden removes the
- * explanations and keeps the actions, and with nothing between them a column of three buttons is
- * a menu where a row is a toolbar. It wraps, because five labels do not fit a sidebar leaf.
+ * The compact row the HIDDEN guidance state and the downstream pair both take: guidance hidden
+ * removes the explanations and keeps the actions, and with nothing between them a column of
+ * three buttons is a menu where a row is a toolbar. It wraps, because the labels do not fit a
+ * sidebar leaf.
  */
 .rp-project-detail__entry-row {
 	display: flex;
@@ -274,16 +362,18 @@
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--size-4-2);
+	padding-block: var(--size-4-3);
+	border-top: 1px solid var(--background-modifier-border);
 }
 
-.rp-project-detail__header button, .rp-project-guidance button, .rp-resume-recovery button {
+.rp-project-detail__header button,
+.rp-project-guidance button,
+.rp-resume-recovery button {
 	height: auto;
 	min-height: var(--input-height);
 	white-space: normal;
 }
-.rp-project-detail__name { overflow-wrap: anywhere; }
 
-.rp-project-detail { container-type: inline-size; font-family: var(--font-interface); }
 .rp-project-guidance__toggle:focus-visible,
 .rp-project-detail__entry-action:focus-visible,
 .rp-project-prices-open:focus-visible,
@@ -292,12 +382,19 @@
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
 }
+
+/*
+ * NARROW — P07. The name keeps its own row and the status, the currency and the note action
+ * share the one below it, which is exactly what that screen draws. THREE rows either way: a
+ * fourth is what §11 warns about ("a compact sticky header must not crowd short screens"), and
+ * a pinned header of four rows over a 360px-wide, short leaf leaves very little pane.
+ */
 @container (max-width: 640px) {
-	.rp-project-detail__header { grid-template-columns: 1fr auto; }
-	.rp-project-detail__name {
-		grid-column: 1 / -1;
-		white-space: normal;
-		overflow-wrap: anywhere;
+	.rp-project-detail__meta {
+		grid-column: 1;
 	}
-	.rp-project-detail__open-note { grid-column: 1 / -1; justify-self: start; }
+
+	.rp-project-detail__header .rp-project-detail__open-note {
+		grid-row: 3;
+	}
 }

@@ -1,7 +1,5 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { de } from '../../../src/presentation/i18n/locales/de';
-import { PROJECT_STATUS_LABELS } from '../../../src/presentation/views/projectStatusLabels';
 
 /**
  * jsdom resolves no CSS, so a class whose rule is one word off renders the base look with
@@ -71,7 +69,6 @@ describe('project-list.css', () => {
 		for (const cls of [
 			'rp-project-row__facts',
 			'rp-project-row__status',
-			'rp-project-row__status-word',
 			'rp-project-row__ticks',
 			'rp-project-row__tick',
 			'rp-project-row__tick--reached',
@@ -142,77 +139,31 @@ describe('project-list.css', () => {
 	});
 
 	/**
-	 * THE COLUMN ARMATURE (design spec §3), which is the one raise this direction was given that
-	 * shipped unmet: before Task D exactly one edge aligned across rows — the strip's right edge,
-	 * and only because it is last in a right-packed cluster.
+	 * **THE COLUMN ARMATURE MOVED OUT OF THIS SHEET, and these two cases went with it.**
 	 *
-	 * All four declarations, because each alone leaves the defect. Without a `min-width` the slot
-	 * is shrink-to-fit and there is no column at all; without `text-align: right` the reserved
-	 * slack falls inside a column instead of between two, which for the status separates the word
-	 * from the strip that is its own positional map.
+	 * Design spec §3's armature was two reserved `min-width`s in `ch` — one on the facts slot,
+	 * one on the status word — with a case here pinning each, plus a third re-deriving the
+	 * longest German stage word the second was sized from. P00 states the armature as GRID
+	 * TRACKS instead (`--rp-project-columns`, `styles/project-row.css`), which is one
+	 * declaration shared by the rows AND by the column heading strip rather than a reservation
+	 * per slot, so there is no `min-width` left here to assert.
 	 *
-	 * The UNITS are asserted, not the numbers. `ch` is the claim — the widths follow the font the
-	 * host gives us, which is the same reason the container threshold is in `rem` — and the two
-	 * integers are measurements recorded in the sheet's own prose, where a later locale can
-	 * re-derive them rather than trust them.
+	 * **The `Bestandsdokumentation` derivation is NOT lost, and that matters more than the two
+	 * width cases**: it was the one instrument standing between a German retranslation and a
+	 * silently broken column, and it moved to `projectRowStyles.test.ts` where the track it
+	 * sizes now lives. Read that file before concluding this one dropped it.
 	 *
-	 * The facts reservation is read through its SCOPED selector, which is load-bearing: the
-	 * Continue row reuses `.rp-project-row__facts` for its date, and an unqualified rule indented
-	 * that date 22px from the leading edge on the narrow row's second line. Reading the bare
-	 * selector here would go on passing against exactly that build.
+	 * `.rp-project-row__facts` survives in this sheet with its shared half only — muted colour,
+	 * smaller size, `flex-shrink` — because `src/prototypes/StatusTicks.vue` still emits it and
+	 * `tests/build/prototype-styles.test.ts` refuses a class neither home declares.
 	 */
-	it('reserves both trailing slots in ch, and puts the slack between the columns', () => {
-		const facts = bodyOf('.rp-project-row .rp-project-row__facts');
-		const word = bodyOf('.rp-project-row__status-word');
+	it('keeps the facts slot’s shared half for the one caller that still emits it', () => {
+		const facts = bodyOf('.rp-project-row__facts');
 
-		expect(facts).toMatch(/min-width: \d+ch/u);
-		expect(facts).toContain('text-align: right');
-		expect(word).toMatch(/min-width: \d+ch/u);
-		expect(word).toContain('text-align: right');
-	});
-
-	/**
-	 * **THE PREMISE UNDER THAT `20ch`, which lived only in prose and predicted its own failure.**
-	 * The status slot is sized for the longest translated stage word across `en.ts` and `de.ts`,
-	 * and the winner is `Bestandsdokumentation` (AS_BUILT). Three separate documents say so in
-	 * sentences — this sheet's own rule comment, `project-list-narrow.css`'s threshold
-	 * derivation (which multiplies this slot into the 41rem container query) and the design
-	 * spec's §6 — and until this case existed, `grep -rln Bestandsdokumentation tests/` printed
-	 * nothing. The spec's §15 amendment states the exposure in as many words: *"a status label
-	 * retranslated longer would move the 41rem threshold and nothing would show it."*
-	 *
-	 * So the derivation is re-run here rather than trusted: take the longest of the ten German
-	 * stage labels the shipped table actually holds, and require the sheet's own recorded winner
-	 * to be that word. A `de.ts` retranslation that overtakes it reddens this case on the next
-	 * run instead of waiting for somebody to take a capture and look at it.
-	 *
-	 * **What it CANNOT do, said plainly, because the reviewer's phrasing invites the wider
-	 * reading.** It compares CHARACTER COUNTS and the slot is in `ch` — the advance of `0` —
-	 * and those are different numbers: `Bestandsdokumentation` is 21 characters and 19.145ch,
-	 * because these are lowercase letters. jsdom measures no text, so no test here can derive a
-	 * `ch` width from a string. What the third assertion does instead is compare the sheet's own
-	 * RECORDED measurement against the width it actually ships, which is the same shape as
-	 * `project-list-narrow.css`'s arrow case: a slot shrunk below the figure it was sized from
-	 * fails here. A NEW winner still needs a human to measure it — this case is what tells them
-	 * to, which is the whole gap it closes.
-	 *
-	 * Guarded against matching nothing at both ends: ten labels must resolve, and the `WHAT WON`
-	 * line must parse. A regex that stops reaching either fails here rather than going quiet.
-	 */
-	it('sizes the status slot from the longest stage word the locale tables actually hold', () => {
-		const raw = readFileSync('styles/project-list.css', 'utf8');
-		const german = Object.values(PROJECT_STATUS_LABELS).map((key) => de[key]);
-
-		expect(german.filter((label) => label !== undefined)).toHaveLength(german.length);
-
-		const longest = german.reduce((winner, label) => ((label ?? '').length > (winner ?? '').length ? label : winner), '');
-		const recorded = /WHAT WON: \*\*`(\S+)` \(\w+\) at [\d.]+px = ([\d.]+)ch\*\*/u.exec(raw);
-
-		expect(recorded, 'the rule records which word it was sized from, and at what width').not.toBeNull();
-		expect(recorded?.[1], 'the recorded winner is still the longest German stage word').toBe(longest);
-		expect(Number.parseFloat(recorded?.[2] ?? 'NaN')).toBeLessThanOrEqual(
-			Number.parseFloat(/min-width: (\d+)ch/u.exec(bodyOf('.rp-project-row__status-word'))?.[1] ?? 'NaN'),
-		);
+		expect(facts).toContain('color: var(--text-muted)');
+		// The RESERVATION is gone: a min-width here would fight the grid track the real row's
+		// facts columns now sit in, which is the whole reason it moved.
+		expect(facts).not.toContain('min-width');
 	});
 
 	/**
@@ -234,9 +185,10 @@ describe('project-list.css', () => {
 	it('sets the group title inline only inside the summary it shares the line with', () => {
 		const summaryTitle = bodyOf('.rp-project-list__completed > summary .rp-project-list__group-title');
 		expect(summaryTitle).toContain('display: inline');
-		// Reset rather than inherited: an inline box cannot apply this anyway, so a left-over
-		// non-zero value here would be exactly the dead declaration this fix removes elsewhere.
-		expect(summaryTitle).toContain('padding-block-end: 0');
+		// Reset rather than inherited, and now the WHOLE padding rather than only its block end:
+		// the summary is a flex line carrying its own inline padding for P00's chevron, so the
+		// heading's own `var(--size-4-2)` would indent the words a second time.
+		expect(summaryTitle).toContain('padding: 0');
 	});
 
 	/**

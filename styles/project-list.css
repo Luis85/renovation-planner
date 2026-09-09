@@ -21,46 +21,27 @@
  */
 
 /*
- * THE FACTS SLOT. `flex-shrink: 0` because the NAME is the half that gives way, which
- * `forms.css` records finding at 460px: a flex item's `min-width` is `auto`, so anything that
- * CAN shrink is what loses, and the row's trailing facts are the ones a user is reading it for.
+ * **THE FACTS SLOT, THE TICK STRIP AND THE RESERVED STATUS-WORD COLUMN NOW SERVE ONE CALLER
+ * BETWEEN THEM, AND IT IS A PROTOTYPE.** `ProjectRow` drew all three until the design package's
+ * P00/P06 replaced them with two fact COLUMNS and a status pill (`styles/project-row.css`), so
+ * what is left below is what `src/prototypes/StatusTicks.vue` still emits — and that component
+ * is outside this task's ownership, so the rules stay rather than being deleted under it.
+ * `tests/build/prototype-styles.test.ts` refuses a class NEITHER a `styles/` partial nor the
+ * mock's own `<style scoped>` block declares, which is what turns "delete these" into a red
+ * build rather than a quietly unstyled specimen.
  *
- * **`min-width: 12ch` is HALF THE COLUMN ARMATURE (design spec §3), and it is MEASURED.** Before
- * it, exactly one edge on this surface aligned across rows — the strip's right edge, and only
- * because it is last in a right-packed cluster — so `4 plans · EUR`, `EUR` and `One plan · EUR`
- * each began and ended wherever that row's own name length left them. That is the defect §3's
- * Crouwel-grid raise names in so many words, still standing in the surface that promised to fix
- * it.
+ * The two RESERVATIONS did go: `.rp-project-row__facts`'s `min-width: 12ch` and
+ * `.rp-project-row__status-word`'s `min-width: 20ch` were half of design spec §3's column
+ * armature each, and a grid states that armature once instead — `--rp-project-columns` in
+ * `styles/project-row.css` carries both numbers forward, re-derived against the new tracks. A
+ * reservation left here would fight the grid track it now sits inside.
  *
- * WHAT WON, so the next locale is CHECKED against this rather than re-measured blind: the widest
- * facts string across `en.ts` and `de.ts`, rendered at 12px `--font-ui-smaller` in a real
- * browser, is **`One plan · EUR` at 90.31px = 11.82ch**, with `12 Pläne · EUR` second at
- * 11.54ch. 12ch is the ceiling of the larger. A THIRD locale, or a plan count past two digits,
- * is checked by rendering its own longest string against 12ch — and by nothing here, since jsdom
- * lays nothing out.
+ * `.rp-project-row__status-word` is gone entirely: the pill is the box now and no caller wraps
+ * the word. `projectListStyles.test.ts` lost it from the list of classes this sheet owns in the
+ * same edit, which is the only reason its removal is checked at all.
  *
- * `ch` rather than `px` for the reason the container threshold is in `rem`: it follows the font
- * the host gives us, and this plugin ships into somebody else's themed vault. What `ch` cannot
- * follow is the RATIO between a font's `0` advance and its lowercase, so a face where that
- * differs makes 12ch generous or tight. Tight is safe: `min-width` is a FLOOR, so an overlong
- * string widens its own slot and breaks the column for that row rather than truncating.
- *
- * `text-align: right` so the reserved slack falls BETWEEN the two columns rather than inside
- * one, which is what makes the currency line up down the list. The row's own `text-align: left`
- * (`list-row.css`) is what this overrides, and it is inert on the row itself — a flex item is
- * not inline content — while it is live here, on a span whose content IS inline.
- *
- * **SCOPED TO `.rp-project-row`, and a capture is what made that necessary rather than tidy.**
- * `ContinueRow` reuses this class for its DATE — the same reuse the narrow sheet's `order` rules
- * are scoped against — so an unqualified reservation gave that date a 91.7px box it does not
- * fill. On the wide row nothing moved (the whole cluster is right-packed and the date is
- * right-aligned inside its slot), and at 460px the second line starts with the date, so the
- * reservation indented it 22px from the leading edge every other row's second line starts at.
- * Measured off `home-stress-narrow` before and after. The Continue row is explicitly not a peer
- * of these rows — its tail is two buttons — so it has no column to be in and wants no slot.
- *
- * The shared half stays unscoped, because the muted colour, the smaller size and `flex-shrink`
- * are what that row genuinely takes from this class.
+ * The shared half of the facts rule stays — the muted colour, the smaller size and
+ * `flex-shrink` are what the specimen genuinely takes from this class.
  */
 .rp-project-row__facts {
 	flex-shrink: 0;
@@ -68,61 +49,14 @@
 	font-size: var(--font-ui-smaller);
 }
 
-.rp-project-row .rp-project-row__facts {
-	min-width: 12ch;
-	text-align: right;
-}
-
 /*
- * THE STATUS, and the strip beside it. The word and the strip are one flex line so the strip
- * sits with the word it describes rather than at the row's own edge, where a §83 marker would
- * come between them.
+ * THE STATUS BOX. On the real row this is a grid cell holding a pill; on the specimen it is a
+ * flex line holding the strip. Both want the same thing from this rule, so it is unchanged.
  */
 .rp-project-row__status {
 	display: flex;
 	align-items: center;
 	gap: var(--size-2-2);
-}
-
-/*
- * THE OTHER HALF OF THE ARMATURE, and it is on the WORD rather than on the status box — which is
- * what lets the number above it be exactly "the longest status word" instead of that plus a gap
- * plus a strip width in a `calc()`. The span exists for this rule and for nothing else.
- *
- * WHAT WON: **`Bestandsdokumentation` (AS_BUILT) at 146.28px = 19.145ch**, against
- * `Bestandsaufnahme` at 15.213ch and `Procurement` — English's longest — at 10.037ch. 20ch is
- * the ceiling. The locale gap is the whole reason this is sized across both: an English-only
- * measurement would have reserved half of what German needs, and a German row would then break
- * the column on every AS_BUILT project.
- *
- * **`text-align: right`, and this is the decision the two alignments differ on.** Right-aligning
- * keeps the word against its own strip at a constant distance and puts the reserved slack
- * between the facts column and the status column — air between columns, which is what a column
- * armature looks like. Left-aligning would align the words' first letters and put the same slack
- * INSIDE the status, between a word and the strip that is its own positional map: measured, an
- * `Idee` row would sit 128px from its strip in German. §6 makes the word and the strip one flex
- * line precisely so they are read as one thing, and air inside that pair costs more than a
- * ragged left edge.
- *
- * So what aligns: the status slot's left edge, every status word's RIGHT edge, and the strip's
- * right edge — which stays the outer rule it already was. A row carrying PRD §83's marker is
- * outside all three, because the marker takes the tail; that was already true of the strip
- * before this rule existed.
- *
- * Released at narrow (`project-list-narrow.css`), where the row is two lines and a reserved
- * column aligns nothing a reader can follow.
- *
- * **UNSCOPED, where the facts reservation three rules up is scoped to `.rp-project-row` — and the
- * asymmetry is stated because it is the exact shape of the defect that scoping fixed.** The facts
- * rule needs the qualifier because `ContinueRow` reuses `.rp-project-row__facts` for its date;
- * this class has no second emitter at all. `ContinueRow` renders its own status as a bare
- * `.rp-project-list__status` and never wraps the word, so there is nothing here for a scope to
- * exclude. If that row ever gains a `__status-word`, this rule needs the same qualifier its
- * sibling has — and it will want it, because the Continue row has no column to be in.
- */
-.rp-project-row__status-word {
-	min-width: 20ch;
-	text-align: right;
 }
 
 /*
@@ -133,9 +67,11 @@
  *
  * TEN STAYS. Five larger cells would read better and would be a lie about the arc: §6's own
  * argument for a strip over a badge is that the stages ARE an arc, so a reader counting cells is
- * reading the real thing. The width bought is 58px against 39px, spent where there is room — the
- * strip is DROPPED below the container threshold, so the extra 19px exists only on the wide row,
- * and it is one of the two figures that moved that threshold from 36rem to 41rem.
+ * reading the real thing. The width bought is 58px against 39px.
+ *
+ * That width was also one of the two figures that put the container threshold at 41rem, and it
+ * is not any more — no shipped row draws this strip, so `project-list-narrow.css`'s arithmetic
+ * is re-derived without it.
  */
 .rp-project-row__ticks {
 	display: flex;
@@ -239,15 +175,80 @@
 	font-weight: var(--font-semibold);
 }
 
+/*
+ * THE PANE'S TITLE AT P00'S DISPLAY SCALE. `forms.css` sets `--font-ui-large`, which is the
+ * size of a section heading and is what made the mockup's one display line read as another row
+ * of chrome. `--h2-size`/`--h2-weight` rather than a number, so a themed vault's own type scale
+ * decides — the same reason every colour here is a token.
+ *
+ * The fallbacks are stated because these two are THEME variables rather than the `--size-*`
+ * primitives: a theme that declares neither would otherwise leave the declaration invalid and
+ * the title back at its inherited size, silently.
+ */
+.rp-project-list__header .rp-project-list__title {
+	font-size: var(--h2-size, 1.462em);
+	font-weight: var(--h2-weight, 600);
+	line-height: var(--line-height-tight, 1.3);
+}
+
+/* P00's `+` beside `New project`, and the same for any glyph a header button gains: the icon
+   and its words are one line rather than two stacked boxes. */
+.rp-project-list__header .rp-project-list__create {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
 .rp-project-list__completed {
 	margin-block-start: var(--size-4-4);
 }
 
-/* The disclosure triangle is the host's own; the summary is given the row's hit height so it
-   clears WCAG 2.5.8's 24px floor like everything else on this surface. */
+/*
+ * THE DISCLOSURE, with P00's rotating chevron in place of the host's own triangle.
+ *
+ * The NATIVE `<details>`/`<summary>` semantics are untouched — the state is still announced by
+ * the host rather than reimplemented with ARIA. What changes is only the marker: the UA triangle
+ * is removed and a `::before` chevron drawn in its place, rotated a quarter turn when the
+ * element is open. `list-style: none` is what removes it in Firefox and the `::-webkit-details-marker`
+ * rule is what removes it in Chromium, which is the browser this plugin actually ships into;
+ * both are stated because a marker left behind beside the drawn one is two disclosure
+ * indicators disagreeing.
+ *
+ * The chevron is CSS rather than a `HostIcon`, because a `<summary>` may not contain the
+ * heading AND an icon without the icon becoming part of the summary's own announced content —
+ * and `aria-hidden` on a child of the element whose name is being computed is not reliable
+ * across screen readers. A border-drawn glyph is announced by nothing at all.
+ *
+ * The summary keeps the row's hit height so it clears WCAG 2.5.8's 24px floor like everything
+ * else on this surface; the narrow sheet raises it to 44 with the rows.
+ */
 .rp-project-list__completed > summary {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
 	min-height: var(--size-4-6);
+	padding-inline: var(--size-4-2);
+	list-style: none;
 	cursor: pointer;
+}
+
+.rp-project-list__completed > summary::-webkit-details-marker {
+	display: none;
+}
+
+.rp-project-list__completed > summary::before {
+	flex: 0 0 auto;
+	width: 6px;
+	height: 6px;
+	border-top: var(--border-width) solid var(--text-muted);
+	border-right: var(--border-width) solid var(--text-muted);
+	transform: rotate(45deg);
+	transition: transform 120ms ease;
+	content: "";
+}
+
+.rp-project-list__completed[open] > summary::before {
+	transform: rotate(135deg);
 }
 
 /*
@@ -263,7 +264,7 @@
  */
 .rp-project-list__completed > summary .rp-project-list__group-title {
 	display: inline;
-	padding-block-end: 0;
+	padding: 0;
 }
 
 .rp-project-list__completed > summary:focus-visible {

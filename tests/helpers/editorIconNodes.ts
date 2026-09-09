@@ -37,4 +37,5 @@ export const editorIconNodes: Readonly<Record<string, readonly { tag: string; at
   "triangle-alert": [{"tag":"path","attributes":{"d":"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"}},{"tag":"path","attributes":{"d":"M12 9v4"}},{"tag":"path","attributes":{"d":"M12 17h.01"}}],
   "circle-alert": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"line","attributes":{"x1":"12","x2":"12","y1":"8","y2":"12"}},{"tag":"line","attributes":{"x1":"12","x2":"12.01","y1":"16","y2":"16"}}],
   "circle-check": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"path","attributes":{"d":"m16 9-5.5 5.5L8 12"}}],
+  "search": [{"tag":"path","attributes":{"d":"m21 21-4.34-4.34"}},{"tag":"circle","attributes":{"cx":"11","cy":"11","r":"8"}}],
 };

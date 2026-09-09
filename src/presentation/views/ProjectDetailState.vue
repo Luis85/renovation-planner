@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import EmptyState from '../components/EmptyState.vue';
 import ProjectDetail from './ProjectDetail.vue';
@@ -73,6 +73,18 @@ function toggleGuidance(): void {
 function back(): void { context.navigate(section === 'prices' ? props.projectId : null); }
 
 /**
+ * The detail body's scroll offset, in the leaf-local session snapshot — its OWN field, never
+ * `scrollTop`, which is the launcher's. One number shared between two surfaces means a
+ * details→back round trip restores the list to wherever the project's plans had been left.
+ *
+ * Written on every scroll event with no throttle: it is an assignment to a plain object, and a
+ * debounce would introduce a window in which a remount reads a stale offset.
+ */
+function onScrolled(top: number): void {
+	if (context.session) context.session.detailScrollTop = top;
+}
+
+/**
  * The plan the entry region names by name, or `null`.
  *
  * Resolved HERE rather than in `ProjectDetail`, because it is a READ: `context.continueContext()`
@@ -81,6 +93,28 @@ function back(): void { context.navigate(section === 'prices' ? props.projectId 
  * list it has to be resolved against, and never subscribed to.
  */
 const lastPlan = ref<PlanSummaryDto | null>(null);
+
+/**
+ * P03, DERIVED rather than carried: the stored context names a plan of THIS project that a
+ * successful, complete plan read does not hold.
+ *
+ * The fact is re-read from the persisted continue context on every hydrate, so it survives a
+ * `rebind` remount, a back-arrow restore and an app reload — which is what the alternative, a
+ * key in Obsidian's view state, would have bought. That alternative is not available from here:
+ * `navigateToProject` builds the state object (`{ projectId, ...projectDestinationState }`) and
+ * `projectDestinationState` returns `{}` for the details section, so nothing but a project id
+ * survives the navigation. Deriving it needs no router, no second history stack and nothing in
+ * Pinia.
+ *
+ * **`unreadablePlans === 0` and no `plansError` are both required.** P03's own rule is that a
+ * validation which FAILED is a read error rather than a missing-plan claim, and a partly
+ * unreadable listing cannot confirm an absence — the plan may be one of the notes it skipped.
+ */
+const missingPlan = ref(false);
+
+/** The rendered `ProjectDetail`, held only so the first hydrate can hand it the caret. */
+const detailView = ref<InstanceType<typeof ProjectDetail> | null>(null);
+let focused = false;
 
 let hydrateTicket = 0;
 
@@ -104,10 +138,25 @@ async function hydrate(): Promise<void> {
 		context.continueContext(),
 	]);
 	if (disposed || ticket !== hydrateTicket) return;
-	lastPlan.value =
-		stored === null || stored.projectId !== props.projectId
-			? null
-			: plans.value.find((plan) => plan.id === stored.planId) ?? null;
+	const mine = stored !== null && stored.projectId === props.projectId ? stored : null;
+	lastPlan.value = mine === null ? null : plans.value.find((plan) => plan.id === mine.planId) ?? null;
+	missingPlan.value =
+		mine !== null
+		&& mine.planId !== null
+		&& lastPlan.value === null
+		&& unreadablePlans.value === 0
+		&& plansError.value === null;
+	// **Where the caret goes, decided once.** `states-and-navigation.md` states both halves and
+	// they pull opposite ways: "no initial autofocus when opening a view beside a note", but
+	// "user-triggered navigation moves focus meaningfully to the new heading". `autoFocus` is the
+	// VIEW's answer to which of the two this mount is; `focused` is what makes it the FIRST
+	// hydrate, which is the moment the facts the target depends on are settled and the last one a
+	// user asked for — a later hydrate is a background event and moves nothing.
+	if (focused) return;
+	focused = true;
+	if (context.autoFocus !== true) return;
+	await nextTick();
+	if (!disposed) detailView.value?.focusEntry();
 }
 
 /**
@@ -334,6 +383,7 @@ if (section === 'prices') {
 <template>
 	<ProjectDetail
 		v-if="status === 'ready' && project !== null"
+		ref="detailView"
 		:project="project"
 		:draft-reset="draftReset"
 		:section="section"
@@ -344,6 +394,8 @@ if (section === 'prices') {
 		:prices-loading="pricesLoading"
 		:plans="plans"
 		:last-plan="lastPlan"
+		:missing-plan="missingPlan"
+		:initial-scroll="context.session?.detailScrollTop"
 		:unreadable-plans="unreadablePlans"
 		:empty-state="emptyState"
 		:asset-prices="assetPrices"
@@ -356,6 +408,7 @@ if (section === 'prices') {
 		@quotes="context.navigate(projectId, 'quotes')"
 		@refresh="reloadPrices"
 		@retry-plans="hydrate"
+		@scrolled="onScrolled"
 		@edit-state="onEditState"
 		@back="back"
 		@open-note="() => void onOpenNote()"
@@ -377,8 +430,12 @@ if (section === 'prices') {
 		<p v-if="failureMessage !== null">
 			{{ failureMessage }}
 		</p>
+		<!--
+			`detail-loading`, not `view.project.loading` — that one is the LAUNCHER's ("Loading
+			projects…") and this pane is already inside one project, with its id in the view state.
+		-->
 		<p v-else>
-			{{ tr('view.project.loading') }}
+			{{ tr('view.project.detail-loading') }}
 		</p>
 		<button
 			v-if="failureMessage !== null"

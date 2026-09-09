@@ -6,4 +6,193 @@
  * scroller and the plan region, and this region's rules are what the design package's mockups
  * describe. Imported directly after `project-detail.css`, whose `.rp-project-detail__entry*`
  * declarations these override at equal specificity.
+ *
+ * Every colour is an Obsidian variable (SDD §84) — the build refuses a literal, including a
+ * bare word like `red`, so a themed vault stays themed. The mockups' purple is illustrative;
+ * P05 says so outright ("not arbitrary hardcoded purple").
  */
+.rp-project-guidance {
+	padding-block: var(--size-4-3);
+}
+
+.rp-project-guidance h3 {
+	margin-block: 0 var(--size-4-1);
+	font-size: var(--font-ui-large);
+}
+
+/*
+ * THE THREE ENTRY PATHS STACK, AT EVERY WIDTH — `interaction-concept.md` §11, "entry paths are
+ * vertical. No mandatory horizontal navigation." Not a container query and not a wrap: three
+ * cards side by side in a 460px sidebar leaf would be three columns of one word each, and the
+ * order the two variants take (note first when new, plan first when active) is only readable
+ * down the page.
+ *
+ * `gap: 0` with a rule between rows rather than a gap between cards, which is what P01/P02 draw:
+ * these are ROWS of one list, and separating them with whitespace alone made three floating
+ * blocks whose reading order was ambiguous at 360px.
+ */
+.rp-project-detail__entries {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+
+/*
+ * The row: glyph, text, action, chevron. A GRID rather than a flex row because the middle column
+ * is the only one that may shrink — `1fr` with `min-width: 0` below — and the action must keep
+ * its own label's width, which is the same failure `.rp-project-detail__header` states at length
+ * about a flex `space-between` row.
+ */
+.rp-project-detail__entries .rp-project-detail__entry {
+	display: grid;
+	grid-template-columns: auto 1fr auto auto;
+	align-items: center;
+	gap: var(--size-4-3);
+	padding-block: var(--size-4-3);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.rp-project-detail__entries .rp-project-detail__entry:first-child {
+	border-top: 0;
+}
+
+.rp-project-detail__entry-glyph {
+	--icon-size: 30px;
+	--icon-stroke: 1.5;
+	color: var(--text-normal);
+}
+
+.rp-project-detail__entry-text {
+	min-width: 0;
+}
+
+.rp-project-detail__entry-title {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.rp-project-detail__entry-body {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/*
+ * A DECORATIVE affordance and nothing else. `HostIcon` renders an `aria-hidden` `<span>`, so it
+ * adds no focus stop and nests no interactive element inside the entry — P02 forbids both by
+ * name, and the ROW is not clickable either: the labelled action is.
+ */
+.rp-project-detail__entry-chevron {
+	color: var(--text-faint);
+}
+
+/*
+ * §6'S THREE RANKS: primary filled, secondary outlined, understated a link. Two ranks was the
+ * defect — only the first entry was distinguished, so "secondary" and "understated" rendered
+ * identically and the ordering carried the whole meaning.
+ *
+ * Every one of these is DOUBLED (`.rp-project-detail__entry .rp-…`) so it scores (0,2,0) and
+ * outranks Obsidian's own `button:not(.clickable-icon)` at (0,1,1) — which sets
+ * `background-color`, `color` and `box-shadow`, and would otherwise repaint all three ranks
+ * identically grey. `tests/build/buttonSpecificity.test.ts` is the check for exactly that, and
+ * this is the third shape of the defect it exists to reject.
+ */
+.rp-project-detail__entry .rp-project-detail__entry-action {
+	box-shadow: none;
+	white-space: normal;
+}
+
+.rp-project-detail__entry .rp-project-detail__entry-action--primary {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-weight: var(--font-medium);
+	padding-inline: var(--size-4-4);
+}
+
+.rp-project-detail__entry .rp-project-detail__entry-action--secondary {
+	background-color: transparent;
+	color: var(--text-accent);
+	border: 1px solid var(--interactive-accent);
+	padding-inline: var(--size-4-4);
+}
+
+.rp-project-detail__entry .rp-project-detail__entry-action--understated {
+	background-color: transparent;
+	color: var(--text-accent);
+	padding-inline: 0;
+}
+
+/*
+ * A refused action stays DRAWN and readable rather than disappearing — the mobile task's
+ * extension 4a: a label that vanishes on one device reads as a state with nothing to do rather
+ * than as a refusal, and the `aria-describedby` beside it is what carries the reason.
+ */
+.rp-project-detail__entry .rp-project-detail__entry-action:disabled {
+	opacity: 0.5;
+}
+
+/*
+ * P01/P02/P07 all draw the visibility control BELOW the entries. It was above the region's own
+ * heading, so the first thing on the page was an offer to remove it.
+ *
+ * Right-aligned at width and left-aligned when the entries have stacked their actions, which is
+ * how P02 and P07 respectively draw it.
+ */
+.rp-project-guidance__toggle-line {
+	display: flex;
+	justify-content: flex-end;
+	padding-block: var(--size-4-2) 0;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.rp-project-guidance .rp-project-guidance__toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-accent);
+	padding-inline: 0;
+	text-decoration: underline;
+}
+
+.rp-project-guidance .rp-project-guidance__toggle .rp-host-icon {
+	--icon-size: 16px;
+}
+
+/*
+ * NARROW — P07: "each entry action sits below its explanation", and the chevron goes with the
+ * wide layout because there is nothing left to the right of the row to point at.
+ *
+ * Keyed on the detail state's own container query (`.rp-project-detail` declares
+ * `container-type: inline-size` in `project-detail.css`), because leaf width and not window
+ * width is what decides this — §11's rule.
+ */
+@container (max-width: 640px) {
+	.rp-project-detail__entries .rp-project-detail__entry {
+		grid-template-columns: auto 1fr;
+		gap: var(--size-4-2) var(--size-4-3);
+	}
+
+	/*
+	 * DOUBLED, and that is the cascade rather than taste: `.rp-host-icon`'s own
+	 * `display: inline-flex` in `editor-icons.css` is (0,1,0) and imported AFTER this file, so a
+	 * single class here loses on source order and the chevron kept a grid cell of its own — one
+	 * stray glyph on its own line under every action, measured in the 360px capture.
+	 */
+	.rp-project-detail__entry .rp-project-detail__entry-chevron {
+		display: none;
+	}
+
+	.rp-project-detail__entry .rp-project-detail__entry-action {
+		grid-column: 1 / -1;
+		justify-content: center;
+		width: 100%;
+	}
+
+	.rp-project-guidance__toggle-line {
+		justify-content: flex-start;
+	}
+}

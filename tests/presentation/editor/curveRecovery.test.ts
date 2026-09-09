@@ -47,11 +47,13 @@ it('keeps returned read errors visible and catches unexpected read faults withou
 });
 
 it.each(['cancel', 'close', 'late-fault'] as const)('retires an outstanding source read on %s without restoring a ghost draft', async mode => {
-	const { rig, task, service } = await setup(), baseline = await service.read(rig.plan.id), pending = defer<typeof baseline>();
-	const log = vi.spyOn(rig.deps.commands.logger, 'error'); vi.spyOn(service, 'read').mockReturnValueOnce(pending.promise);
+	const { rig, task, service } = await setup(), baseline = await service.read(rig.plan.id), pending = defer<void>();
+	const log = vi.spyOn(rig.deps.commands.logger, 'error'); vi.spyOn(service, 'read').mockImplementationOnce(async () => {
+		await pending.promise; if (mode === 'late-fault') throw new Error('late read'); return baseline;
+	});
 	const opening = task.open(rig.room.id);
 	if (mode === 'cancel') { task.cancel(); await settle(); } else retire(rig);
-	if (mode === 'late-fault') pending.reject(new Error('late read')); else pending.resolve(baseline);
+	pending.resolve(undefined);
 	await opening; expect(task.target.value).toBeNull(); expect(task.state.loading).toBe(false);
 	expect(log.mock.calls.some(([event]) => event === 'editor.curves.read-failed')).toBe(false);
 });

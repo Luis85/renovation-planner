@@ -230,12 +230,12 @@ it('continues a frozen pointer draft through a geometry-identical projection ref
 });
 
 it.each([false, true])('handles a rejected rotation baseline with disposed=%s without leaking geometry or notices', async disposed => {
-	const rig = await setup(), pending = defer<Awaited<ReturnType<typeof rig.renovation.read>>>(), cause = new Error('rotation source unavailable');
+	const rig = await setup(), pending = defer<void>(), cause = new Error('rotation source unavailable');
 	const bytes = [...rig.stack.vault.entries], log = vi.spyOn(rig.deps.commands.logger, 'error');
-	vi.spyOn(rig.renovation, 'read').mockReturnValueOnce(pending.promise);
+	vi.spyOn(rig.renovation, 'read').mockImplementationOnce(async () => { await pending.promise; throw cause; });
 	const operation = rig.runtime.rotationActions.rotate(element.id, 90); await settle();
 	if (disposed) { rig.unmount(); mounted.splice(mounted.indexOf(rig), 1); }
-	pending.reject(cause); await operation;
+	pending.resolve(undefined); await operation;
 	expect(log.mock.calls.some(([event]) => event === 'editor.rotation.failed')).toBe(!disposed);
 	expect(rig.runtime.rotationActions.preview.value).toBeNull(); expect([...rig.stack.vault.entries]).toEqual(bytes);
 });

@@ -62,6 +62,8 @@ replaces the current Project or Plan authorities with presentation state.
 ## Out of scope
 
 - Persisting new Property, Building, Site or Floor entities or migrating Plan storage.
+  [ADR-0017](../development/adrs/0017-plan-presents-as-floor.md) defers that identity until its
+  revisit trigger: a project with two buildings, or two plans aligned as floors of one building.
 - Cross-floor overlays, floor alignment and three-dimensional building navigation.
 - Portfolio navigation or aggregation across projects.
 - Remembering viewport or selection across application restarts.

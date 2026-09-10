@@ -32,6 +32,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCompositionRoot } from '../../src/plugin/composition-root';
 import { planEditorDeps } from '../../src/plugin/planEditorDeps';
+import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from '../../src/plugin/guardedServices';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { installObsidianDom } from '../helpers/dom';
@@ -143,7 +144,7 @@ describe('the calibration transaction leaves the composition root guarded', () =
 		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
 		const persistence = root.persistence;
 		if (persistence === null) throw new Error('expected a composed persistence stack');
-		const deps = planEditorDeps(root, {} as never, {} as never);
+		const deps = planEditorDeps(root, {} as never, {} as never, createEditorClipboard());
 		return { persistence, deps };
 	}
 

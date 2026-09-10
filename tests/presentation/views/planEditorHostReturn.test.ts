@@ -4,12 +4,13 @@ import { downstreamStack } from '../../helpers/downstream';
 import { FakeLeaf, FakeWorkspace } from '../../helpers/workspace';
 import { installEditorEnvironment, settle, sizedShellRoot } from '../../helpers/editor';
 import { planEditorDeps } from '../../../src/plugin/planEditorDeps';
+import { createEditorClipboard } from '../../../src/presentation/editor/clipboard/editorClipboard';
 import { PlanEditorView } from '../../../src/presentation/views/PlanEditorView';
 import * as notices from '../../../src/presentation/notices/notify';
 installEditorEnvironment();
 afterEach(() => { vi.restoreAllMocks(); document.body.replaceChildren(); });
 async function setup() {
- const rig = await downstreamStack(), workspace = new FakeWorkspace(), deps = planEditorDeps(rig.root, workspace as never, rig.stack.deps.vault);
+ const rig = await downstreamStack(), workspace = new FakeWorkspace(), deps = planEditorDeps(rig.root, workspace as never, rig.stack.deps.vault, createEditorClipboard());
  const view = new PlanEditorView(new FakeLeaf() as never, deps); document.body.append(view.containerEl);
  const origin = { planId: rig.plan.id, roomId: rig.roomId, workId: 'work-sand' };
  return { rig, view, deps, origin, dispose: async () => { await view.onClose(); rig.dispose(); } };

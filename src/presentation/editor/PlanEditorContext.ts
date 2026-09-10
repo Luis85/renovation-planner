@@ -3,6 +3,7 @@ import { inject, type InjectionKey } from 'vue';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import type { PlanEditorCommandServices } from './planEditorCommands';
 import type { BackgroundVault } from './layers/background/BackgroundRenderModel';
+import type { EditorClipboard } from './clipboard/editorClipboard';
 
 /** Open related host surfaces while retaining this editor leaf and its local context. */
 export interface EditorNavigation {
@@ -44,6 +45,8 @@ export interface PlanEditorContext {
 	 */
 	readonly commands: PlanEditorCommandServices;
 	readonly vault: BackgroundVault;
+	/** The clipboard every leaf shares — see `editorClipboard.ts`. */
+	readonly clipboard: EditorClipboard;
 	/**
 	 * Obsidian's `css-change`, as a subscription that hands back its own unsubscribe.
 	 *

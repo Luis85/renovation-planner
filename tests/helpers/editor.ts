@@ -3,6 +3,7 @@ import { createPinia, type Pinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
+import { createEditorClipboard, type EditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../src/presentation/editor/runtime';
 import {
@@ -59,6 +60,8 @@ export interface EditorHarnessOptions {
 	/** The write side; defaults to the refusal commands, for tests that dispatch nothing. */
 	readonly commands?: PlanEditorCommandServices;
 	readonly vault?: BackgroundVault;
+	/** The clipboard this leaf shares; two mounts given one holder are two floors of one plugin. */
+	readonly clipboard?: EditorClipboard;
 	/**
 	 * Skip the ordinary post-mount `resizeTo` this harness otherwise gives the shell root, so a
 	 * case can size the root a different way — `clientWidthFor` (`tests/helpers/layout.ts`) —
@@ -238,6 +241,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 			options.queries ?? fakeQueries(plan, options.zones ?? FIXTURE_ZONES, options.unreadableZones),
 		commands: options.commands ?? defaultPlanEditorCommands(options.zones ?? FIXTURE_ZONES),
 		vault: options.vault ?? emptyBackgroundVault(),
+		clipboard: options.clipboard ?? createEditorClipboard(),
 		onThemeChange: (listener) => {
 			themeListeners.add(listener);
 			return () => themeListeners.delete(listener);

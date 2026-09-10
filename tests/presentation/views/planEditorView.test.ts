@@ -18,6 +18,7 @@ import { EDITOR_RUNTIME, type EditorRuntime } from '../../../src/presentation/ed
 import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
+import { createEditorClipboard } from '../../../src/presentation/editor/clipboard/editorClipboard';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installEditorEnvironment, settle, sizedShellRoot } from '../../helpers/editor';
 import { resizeTo } from '../../helpers/layout';
@@ -60,6 +61,7 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 			getResourcePath: () => '',
 			readBinary: () => Promise.resolve(new ArrayBuffer(0)),
 		} as unknown as BackgroundVault,
+		clipboard: createEditorClipboard(),
 		onThemeChange: () => {
 			themeListeners += 1;
 			return () => {

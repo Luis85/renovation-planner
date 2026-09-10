@@ -9,6 +9,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createCompositionRoot, type VaultStack } from '../../src/plugin/composition-root';
 import { planEditorDeps } from '../../src/plugin/planEditorDeps';
+import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
 import { planBackgroundChanged } from '../../src/domain/plan/Plan.events';
@@ -74,7 +75,7 @@ describe('the plan editor dependencies', () => {
 	it('hands over the mapped query services when persistence is composed', () => {
 		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
 
-		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault);
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard());
 
 		expect(deps.queries).toBe(root.persistence?.planEditorQueries);
 		expect(deps.vault).toBeDefined();
@@ -90,7 +91,7 @@ describe('the plan editor dependencies', () => {
 		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
 		const workspace = new FakeWorkspace();
 		const stack = vaultStack();
-		const deps = planEditorDeps(root, workspace as never, stack.vault);
+		const deps = planEditorDeps(root, workspace as never, stack.vault, createEditorClipboard());
 
 		expect(await deps.openNote('no-such-id')).toBe('missing');
 	});
@@ -105,7 +106,7 @@ describe('the plan editor dependencies', () => {
 		activateNotices();
 		const before = Notice.shown.length;
 		const root = createCompositionRoot(null, recorder, vaultStack());
-		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault);
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard());
 
 		expect(await deps.openNote('any')).toBe('failed');
 		expect(Notice.shown.length).toBe(before + 1);
@@ -141,7 +142,7 @@ describe('the plan editor dependencies', () => {
 		};
 		const before = Notice.shown.length;
 
-		const deps = planEditorDeps(root, workspace as never, stack.vault as never);
+		const deps = planEditorDeps(root, workspace as never, stack.vault as never, createEditorClipboard());
 
 		await expect(deps.openNote('plan-1')).resolves.toBe('failed');
 		expect(Notice.shown.length).toBe(before + 1);
@@ -160,7 +161,7 @@ describe('the plan editor dependencies', () => {
 	it('hands over refusing query services when settings were never recovered', async () => {
 		const root = createCompositionRoot(null, recorder, vaultStack());
 
-		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault);
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard());
 		const result = await deps.queries.getPlan('plan-1');
 
 		expect(result.ok).toBe(false);
@@ -168,7 +169,7 @@ describe('the plan editor dependencies', () => {
 
 	it('wires the plan-change subscription to the root own bus', async () => {
 		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
-		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault);
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard());
 		const listener = vi.fn<() => void>();
 
 		const unsubscribe = deps.onPlanChanged('plan-1', listener);
@@ -187,7 +188,7 @@ describe('the plan editor dependencies', () => {
 		const registered: string[] = [];
 		const workspace = { on: (name: string) => registered.push(name), offref: () => undefined };
 
-		planEditorDeps(root, workspace as never, vaultStack().vault).onThemeChange(() => undefined);
+		planEditorDeps(root, workspace as never, vaultStack().vault, createEditorClipboard()).onThemeChange(() => undefined);
 
 		expect(registered).toEqual(['css-change']);
 	});
@@ -208,7 +209,7 @@ describe('the plan editor dependencies', () => {
 		const registered: string[] = [];
 		const vault = { on: (name: string) => registered.push(name), offref: () => undefined };
 
-		planEditorDeps(root, { on: () => undefined, offref: () => undefined } as never, vault as never)
+		planEditorDeps(root, { on: () => undefined, offref: () => undefined } as never, vault as never, createEditorClipboard())
 			.onVaultFileChanged(() => undefined);
 
 		expect(registered.toSorted()).toEqual(['create', 'delete', 'modify', 'rename']);

@@ -13,6 +13,7 @@ import type { ProjectIndexEntryChanged } from '../../src/application/events/proj
 import { createPlanId } from '../../src/domain/plan/PlanId';
 import { createProjectId } from '../../src/domain/project/ProjectId';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
+import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 
 installObsidianDom();
 
@@ -322,7 +323,7 @@ describe('persistence composition', () => {
 	it('hands the editor a calibrate factory that answers a fresh command each call', async () => {
 		const { planEditorDeps } = await import('../../src/plugin/planEditorDeps');
 		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS);
-		const services = planEditorDeps(plugin.root, workspace as never, {} as never).commands;
+		const services = planEditorDeps(plugin.root, workspace as never, {} as never, createEditorClipboard()).commands;
 
 		expect(services.calibratePlan()).not.toBe(services.calibratePlan());
 	});

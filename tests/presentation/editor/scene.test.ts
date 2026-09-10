@@ -212,11 +212,11 @@ describe('theme and accessibility of a zone', () => {
 
 	/**
 	 * Status does NOT draw on the canvas (decision of 2026-09-10, canvas fidelity spec): a
-	 * room is its name and its area over a thin solid outline, the way M01 draws one, and
-	 * status lives in the Inspector's room list where `RoomInspector` still reads
-	 * `statusAppearance(...).captionKey`. §85's "not by colour alone" is met by there being
-	 * no status channel on the canvas at all. Watched red against the dashed, captioned
-	 * version: two dash patterns and two status strings.
+	 * room is its name and its area over a thin solid outline, the way M01 draws one.
+	 * `captionKey` is kept as the status caption vocabulary for the Inspector's room list,
+	 * which does not show status yet — no call site in `src/` reads it today. §85's "not by
+	 * colour alone" is met by there being no status channel on the canvas at all. Watched red
+	 * against the dashed, captioned version: two dash patterns and two status strings.
 	 */
 	it('draws a room as name and area over a solid outline, with no status on the canvas', async () => {
 		const harness = await mount();

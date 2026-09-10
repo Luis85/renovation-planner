@@ -73,10 +73,11 @@ export function zoneFillToken(zoneType: string): ThemeTokenName {
 }
 
 /**
- * Status, as a caption key the INSPECTOR reads. It stopped drawing on the canvas on
- * 2026-09-10 (canvas fidelity spec): M01 draws a room as name and area over a wall, and
- * the room list beside it carries the status. §85's "status not encoded only by colour"
- * survives that by having no status channel on the canvas to encode.
+ * Status, as the caption-key vocabulary kept for the Inspector's room list — which does
+ * NOT show status yet; no call site in `src/` reads `captionKey` today. It stopped drawing
+ * on the canvas on 2026-09-10 (canvas fidelity spec): M01 draws a room as name and area
+ * over a wall. §85's "status not encoded only by colour" survives that by having no status
+ * channel on the canvas to encode.
  */
 export interface StatusAppearance {
 	readonly captionKey: StringKey;

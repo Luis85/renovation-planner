@@ -36,8 +36,9 @@ Tasks:
 One of the eight New Tasks under room costs is
 [[Amend the cost-group totals sentence to the single-row reading]], added the same day.
 
-Three notes carry `In Progress`, which `Product Backlog.base` does not configure: the Tasks
-[[Assign DIY or Trade responsibility from room work]] and
+Three notes carry `In Progress`, which `Product Backlog.base` does not configure as an item status:
+the base lists it only under `releaseStatusValues`, for releases, and not under `stateValues`. They
+are the Tasks [[Assign DIY or Trade responsibility from room work]] and
 [[Open quote comparison from a room cost]], and the Issue [[Vertex editing has no keyboard path]].
 
 ## Why it matters

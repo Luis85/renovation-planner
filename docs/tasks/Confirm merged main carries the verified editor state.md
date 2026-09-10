@@ -30,15 +30,18 @@ Measured on 2026-09-10, after pull request #119 landed:
 - `docs/user-experience/renovation-planner-editor-specs/implementation/evidence/editor-visual-fidelity/capture-provenance.json`
   on `main` names `22772267` as its `commit`.
 
-What that head carries, as the integration session reported it for `22772267`: the full
-`npm run check` passed (760 test files, 8,828 tests; coverage 99.22% statements, 98.13% branches,
-99.13% functions, 99.56% lines; fallow clean), all four CI legs passed in run 34445960897, and
+What that head carries, as the integration session reported it for `22772267`: all four CI legs
+passed in run 34445960897, the full `npm run check` passed locally (coverage 99.22% statements,
+98.13% branches, 99.13% functions, 99.56% lines; fallow clean), and
 `scripts/editor-visual-final-check.mjs` passed the full visual matrix — **the first pass on the
 current tree with the pinned Chromium**. An earlier pass on revision 430 used a substitute Edge
 browser, and the editor package's `RESUME.md` keeps its images as predecessor evidence only.
-`17097b8a` added only the refreshed matrix evidence, with its own green CI in run 34447537221. The
-CI runs and the provenance file are the parts re-read here; the local gate figures are the
-session's.
+`17097b8a` added only the refreshed matrix evidence, with its own green CI in run 34447537221.
+
+CI's own count for `22772267`, in run 34445960897, is 760 test files and 8,829 tests passed with 69
+skipped, 8,898 in all. The local gate counted 8,828 passed and 70 skipped: one test CI ran and
+passed was skipped locally. The four coverage figures are identical in both. The CI runs, CI's
+count and the provenance file are the parts re-read here; the local gate figures are the session's.
 
 ## Why it matters
 
@@ -68,8 +71,9 @@ merge commit's CI run and each pull request's state.
 
 ## Risks
 
-- The local repository is shallow. A positive ancestry answer holds there and a negative one does
-  not, so none of the checks above rests on a negative answer.
+- The local repository was shallow when these checks ran, so none of them rests on a negative
+  ancestry answer. It was unshallowed on 2026-09-10, as
+  [[A shallow clone made a stack head read as parentless]] records, and that limit no longer holds.
 - Anything committed to `main` after `5dcc1f20` is outside this confirmation.
 
 ## Outcome

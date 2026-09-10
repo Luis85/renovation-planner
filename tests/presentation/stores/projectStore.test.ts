@@ -13,6 +13,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { err, ok } from '../../../src/core/result/Result';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
+import type { PlanDto } from '../../../src/presentation/read-models/PlanDto';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_PROJECT, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { defer } from '../../helpers/async';
 
@@ -22,6 +23,7 @@ function queries(overrides: Partial<PlanEditorQueryServices> = {}): PlanEditorQu
 	return {
 		getPlan: () => Promise.resolve(ok(FIXTURE_PLAN)),
 		getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
+		listPlans: () => Promise.resolve(ok([FIXTURE_PLAN])),
 		findZonesByPlan: () => Promise.resolve(ok({ zones: FIXTURE_ZONES, unreadable: 0 })),
 		getRequirementsForZone: () => Promise.resolve(ok([])),
 		listAssets: () => Promise.resolve(ok([])),
@@ -233,7 +235,56 @@ describe('ProjectStore hydration', () => {
 	});
 
 	/**
-	 * The same race a third time, gated on the ZONES read — the last of the three, whose own
+	 * The same race a third time, gated on the sibling-plans LISTING read — its own
+	 * `if (superseded()) return;`, right after `queries.listPlans`, needs its own proof too.
+	 * Unlike the project-read guard above, a stale answer here is still caught by the
+	 * `superseded()` check after the later `findZonesByPlan` await — the listing is written
+	 * to `refs.plans` only in the success block that guard protects — so what proves THIS
+	 * guard is that the slow hydration never reaches that later zones read at all once it is
+	 * superseded here.
+	 */
+	it('a SLOW earlier hydration does not go on to read zones when its plans-listing read supersedes', async () => {
+		const store = useProjectStore();
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+
+		let releaseSlow!: () => void;
+		const slowGate = new Promise<void>((resolve) => {
+			releaseSlow = resolve;
+		});
+		let plansReadStarted!: () => void;
+		const plansReadStartedPromise = new Promise<void>((resolve) => {
+			plansReadStarted = resolve;
+		});
+		const findZonesByPlan = vi.fn<PlanEditorQueryServices['findZonesByPlan']>(() =>
+			Promise.resolve(ok({ zones: FIXTURE_ZONES, unreadable: 0 })),
+		);
+		const slow = store.hydrate(
+			queries({
+				listPlans: () => {
+					plansReadStarted();
+					return slowGate.then(() => ok([FIXTURE_PLAN]));
+				},
+				findZonesByPlan,
+			}),
+			FIXTURE_PLAN.id,
+		);
+		await plansReadStartedPromise;
+
+		// A second hydration starts and finishes entirely inside the first one's listPlans await.
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+
+		releaseSlow();
+		await slow;
+
+		// The slow hydration's own `findZonesByPlan` — reached only past the guard under test —
+		// must never have run once that guard found it superseded.
+		expect(findZonesByPlan).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The same race a fourth time, gated on the ZONES read — the last of the four, whose own
 	 * `if (superseded()) return;` has no later guard behind it to catch a stale write on its
 	 * behalf. Unlike the project-read case above, a stale zones ANSWER (rather than a vanished
 	 * entity) is what proves the guard: a build that dropped it would let the slow hydration's
@@ -423,6 +474,26 @@ describe('ProjectStore hydration', () => {
 		expect(store.status).toBe('missing');
 		expect(store.plan).toBeNull();
 		expect(store.stale).toBe(false);
+	});
+
+	it('loads the project\'s sibling plans beside the plan on a successful hydrate, and blanks them on failure', async () => {
+		const sibling: PlanDto = { ...FIXTURE_PLAN, id: 'plan-first', name: 'First floor' };
+		const store = useProjectStore();
+		await store.hydrate({ ...fakeQueries(FIXTURE_PLAN), listPlans: () => Promise.resolve(ok([FIXTURE_PLAN, sibling])) }, FIXTURE_PLAN.id);
+
+		expect(store.plans.map((p) => p.id)).toEqual(['plan-ground', 'plan-first']);
+
+		await store.hydrate({ ...fakeQueries(FIXTURE_PLAN), getPlan: () => Promise.resolve(err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' })) }, FIXTURE_PLAN.id);
+
+		expect(store.plans).toEqual([]);
+	});
+
+	it('answers an empty sibling list, not a failure, when the plan listing itself refuses', async () => {
+		const store = useProjectStore();
+		await store.hydrate({ ...fakeQueries(FIXTURE_PLAN), listPlans: () => Promise.resolve(err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' })) }, FIXTURE_PLAN.id);
+
+		expect(store.status).toBe('ready');
+		expect(store.plans).toEqual([]);
 	});
 });
 

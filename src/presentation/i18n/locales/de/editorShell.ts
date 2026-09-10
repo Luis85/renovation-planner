@@ -1,11 +1,11 @@
 import type { editorShellEn } from '../en/editorShell';
 export const editorShellDe: Record<keyof typeof editorShellEn, string> = {
 	'editor.shell.property': 'Grundstück',
-	'editor.shell.elements': 'Elemente',
 	'editor.shell.reference-options': 'Referenzoptionen',
 	'editor.shell.locked': 'Gesperrt',
 	'editor.shell.unlocked': 'Entsperrt',
-	'editor.shell.planned-layer': 'Geplante Änderungen und Markierungen',
+	'editor.shell.planned-layer': 'Geplante Änderungen',
+	'editor.shell.notes-layer': 'Notizen und Fotos',
 	'editor.shell.legend': 'Änderungslegende',
 	'editor.shell.existing-wall': 'Bestehende Wand',
 	'editor.shell.removed-wall': 'Zu entfernende Wand',

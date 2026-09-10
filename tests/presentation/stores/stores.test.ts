@@ -257,6 +257,16 @@ describe('WorkspaceStore, the editor chrome', () => {
 		workspace.closeOverlay();
 		expect(workspace.overlay).toBe('none');
 	});
+
+	it('starts visible, toggles, and comes back on reset', () => {
+		const workspace = useWorkspaceStore();
+
+		expect(workspace.notesVisible).toBe(true);
+		workspace.toggleNotes();
+		expect(workspace.notesVisible).toBe(false);
+		workspace.reset();
+		expect(workspace.notesVisible).toBe(true);
+	});
 });
 
 describe('EditorStore camera actions added for canvas navigation', () => {

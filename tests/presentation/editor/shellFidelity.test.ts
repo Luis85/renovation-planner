@@ -36,11 +36,36 @@ it('switches perspectives with roving keyboard focus while preserving selection,
 
 it('keeps the accessible element list in a disclosure and layer visibility separate from saved data', async () => {
 	rig = await renovationEditor();
-	const disclosure = rig.wrapper.get('.rp-property-elements');
-	expect(disclosure.attributes('open')).toBeUndefined();
-	expect(disclosure.find(`[data-rp-id="${rig.room.id}"]`).exists()).toBe(true);
+	const walls = rig.wrapper.get('.rp-property-elements');
+	expect(walls.attributes('open')).toBeUndefined();
+	expect(rig.wrapper.get('.rp-property-rooms').find(`[data-rp-id="${rig.room.id}"]`).exists()).toBe(true);
 	const saved = [...rig.stack.vault.entries];
-	const visibility = rig.wrapper.get('.rp-property-layers > .rp-layer-toggle input');
+	const visibility = rig.wrapper.get('[data-rp-layer="planned"]');
+	await visibility.setValue(false);
+	expect(rig.session.visible).toBe(false);
+	expect([...rig.stack.vault.entries]).toEqual(saved);
+});
+
+/**
+ * Ruling R13: before this branch the Planned changes checkbox sat outside `LayerList` with
+ * no perspective gate at all, so it showed in Review — folding it into `LayerList` (Task 4)
+ * silently dropped both Review's Planned changes AND its Notes and photos control, since the
+ * whole list carried `v-if="session.perspective !== 'review'"`. Review withholds Set scale
+ * and Reference options (both write-adjacent, both need something to calibrate against), but
+ * these two rows write nothing to the vault — they are pure rendering toggles — and stay.
+ */
+it('keeps exactly the Planned changes and Notes and photos rows in Review, and lets Planned changes still toggle visibility', async () => {
+	rig = await renovationEditor();
+	const saved = [...rig.stack.vault.entries];
+	await rig.runtime.renovation.perspective('review');
+	await settle();
+
+	expect(rig.wrapper.find('.rp-reference-options').exists()).toBe(false);
+	const rows = rig.wrapper.findAll('.rp-layer-list__row input[type="checkbox"]');
+	expect(rows.map((row) => row.attributes('data-rp-layer'))).toEqual(['planned', 'notes']);
+
+	const visibility = rig.wrapper.get('[data-rp-layer="planned"]');
+	expect(rig.session.visible).toBe(true);
 	await visibility.setValue(false);
 	expect(rig.session.visible).toBe(false);
 	expect([...rig.stack.vault.entries]).toEqual(saved);

@@ -172,7 +172,7 @@ it('changes perspective and marker visibility through the context and layer cont
  for (const perspective of ['review', 'renovate', 'plan']) {
   await rig.wrapper.get(`[data-rp-perspective="${perspective}"]`).trigger('click'); await settle(); expect(rig.session.perspective).toBe(perspective);
  }
- const visibility = rig.wrapper.get<HTMLInputElement>('.rp-property-layers > .rp-layer-toggle input');
+ const visibility = rig.wrapper.get<HTMLInputElement>('[data-rp-layer="planned"]');
  expect(visibility.element.checked).toBe(true); await visibility.setValue(false); await settle(); expect(rig.session.visible).toBe(false); expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
 

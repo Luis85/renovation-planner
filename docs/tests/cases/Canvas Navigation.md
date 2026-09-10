@@ -17,11 +17,15 @@ the selection.
 
 Run [[Editor Walkthrough]] first, or at least its steps 1–2, so a plan is open with zones on
 it. Preconditions: `npm run test-build`, this folder open as a vault, the plugin enabled.
-**Panning is Space or the middle button, and nothing else** — the plan editor foundation
-increment retired the toolbar's Pan button (design spec §5.2) and made Select the tool a plan
-opens into, so there is no user-reachable door into camera mode (`activeToolId === null`) here
-any more; it remains the state a plan is in before it is ready, and the asset designer's own
-default.
+**Panning is Space, the middle button, or the persistent Pan button, and nothing else** — the
+plan editor foundation increment retired the toolbar's Pan button (design spec §5.2) and made
+Select the tool a plan opens into, so for a time there was no user-reachable door into camera
+mode (`activeToolId === null`) beyond the two transient gestures; the sidebar polish increment
+(2026-09-10, user testing) put a PERSISTENT Pan button back in the floating actions, reversing
+that acceptance line — see M01's amendment. Clicking it sets `activeToolId === 'pan'` rather
+than the toolless camera-mode state, so a plan still opens into Select and camera mode itself
+remains reachable only before a plan is ready and as the asset designer's own default; the
+steps below, driven through Space and middle-drag, are unaffected by the button's return.
 
 ## Why a human is the only instrument for four of these
 

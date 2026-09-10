@@ -217,21 +217,26 @@ describe('the five regions', () => {
 });
 
 /**
- * Task 14 replaced the seven-checkbox-per-Konva-layer panel with the truthful two-entry
- * catalogue (`layerCatalogue.ts`): a row for a layer with no records and no capability was a
- * fake, and four of the old seven were exactly that. `layerCatalogue.test.ts` and
- * `layerList.test.ts` own the catalogue's own rules; what belongs here is that the SHELL
+ * Task 14 replaced the seven-checkbox-per-Konva-layer panel with a truthful catalogue
+ * (`layerCatalogue.ts`): a row for a layer with no records and no capability was a fake, and
+ * four of the old seven were exactly that. Sidebar polish (2026-09-10) then reworded the
+ * survivors into the user's own vocabulary — Reference plan, Rooms, Walls and openings,
+ * Planned changes, Notes and photos — rather than a Konva layer's name. `layerCatalogue.test.ts`
+ * and `layerList.test.ts` own the catalogue's own rules; what belongs here is that the SHELL
  * mounts the new panel in the old one's place.
  */
 describe('the layers panel', () => {
-	it('offers one labelled checkbox per catalogue entry — Reference plan, then Rooms', async () => {
+	it('offers one labelled checkbox per catalogue entry — Reference plan, Rooms, Walls and openings, Notes and photos', async () => {
 		const harness = await mountCanvas();
 
 		const rows = harness.wrapper.findAll('.rp-layer-list__row');
 
-		expect(rows).toHaveLength(2);
+		// The fixture editor offers no renovation session, so no Planned changes row.
+		expect(rows).toHaveLength(4);
 		expect(rows[0].find('label').text()).toBe(t('en', 'editor.layer.reference-plan'));
 		expect(rows[1].find('label').text()).toBe(t('en', 'editor.layer.rooms'));
+		expect(rows[2].find('label').text()).toBe(t('en', 'editor.structure.list'));
+		expect(rows[3].find('label').text()).toBe(t('en', 'editor.shell.notes-layer'));
 		expect(rows.every((row) => row.find('input').attributes('type') === 'checkbox')).toBe(true);
 	});
 

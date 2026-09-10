@@ -173,6 +173,17 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 			:measurement="runtime.renderState.measurement"
 		/>
 		<VLine
+			v-if="hoverOutlineFlat !== null && hoverClosed"
+			:config="{
+				name: 'hover-fill',
+				points: hoverOutlineFlat,
+				closed: true,
+				fill: props.tokens.accent,
+				opacity: 0.06,
+				listening: false,
+			}"
+		/>
+		<VLine
 			v-if="hoverOutlineFlat !== null"
 			:config="{
 				name: 'hover-outline',

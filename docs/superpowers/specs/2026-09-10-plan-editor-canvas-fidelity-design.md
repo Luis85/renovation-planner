@@ -70,7 +70,9 @@ Files: `src/presentation/editor/layers/zone/ZoneShape.vue`,
 `src/presentation/editor/layers/zone/ZoneRenderModel.ts`.
 
 - `outlineConfig`: `dash` removed; `strokeWidth` 1, `strokeScaleEnabled: false` stays. A room
-  without walls draws a thin solid outline; a room with walls has it covered by pass 2.
+  without walls draws a thin solid outline. A room whose boundary walls still run along every
+  edge (`enclosedByBoundary`) keeps the node mounted with `visible: false`: the zone layer
+  paints ABOVE the walls (SDD §17), so pass 2 cannot cover it, and the walls are its edge.
 - `fillConfig`: `opacity: props.selected ? 0.12 : 0`. The fill node STAYS mounted at zero
   opacity, because `ZoneLayer`'s paint order and `scene.test.ts`'s `flatPoints` identity case
   both rest on the group's child list not changing shape.

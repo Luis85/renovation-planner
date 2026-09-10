@@ -176,19 +176,21 @@ export const HARNESS_ZONES: readonly ZoneDto[] = [
  *
  * Wall order follows the zone's vertex order (north, east, south, west), so the loop reads
  * the way `harness-kitchen`'s polygon does. Opening offsets run from each wall's `start`.
+ * Ids start `wall-` and `opening-` because `validateStructure` refuses any other and this fake
+ * does not validate; `zoneOutlineEnclosure.test.ts` writes it through the real sidecar.
  */
 export const HARNESS_STRUCTURE: Structure = {
 	walls: [
-		{ id: 'harness-wall-north', start: { x: 0, y: 0 }, end: { x: 4200, y: 0 }, thickness: 240, height: 2600 },
-		{ id: 'harness-wall-east', start: { x: 4200, y: 0 }, end: { x: 4200, y: 3000 }, thickness: 240, height: 2600 },
-		{ id: 'harness-wall-south', start: { x: 4200, y: 3000 }, end: { x: 0, y: 3000 }, thickness: 240, height: 2600 },
-		{ id: 'harness-wall-west', start: { x: 0, y: 3000 }, end: { x: 0, y: 0 }, thickness: 240, height: 2600 },
+		{ id: 'wall-harness-north', start: { x: 0, y: 0 }, end: { x: 4200, y: 0 }, thickness: 240, height: 2600 },
+		{ id: 'wall-harness-east', start: { x: 4200, y: 0 }, end: { x: 4200, y: 3000 }, thickness: 240, height: 2600 },
+		{ id: 'wall-harness-south', start: { x: 4200, y: 3000 }, end: { x: 0, y: 3000 }, thickness: 240, height: 2600 },
+		{ id: 'wall-harness-west', start: { x: 0, y: 3000 }, end: { x: 0, y: 0 }, thickness: 240, height: 2600 },
 	],
 	openings: [
-		{ id: 'harness-door', kind: 'door', hostId: 'harness-wall-south', offset: 1500, width: 900, height: 2100, sill: 0, swing: { hinge: 'start', side: 'left', angle: 90 } },
-		{ id: 'harness-window', kind: 'window', hostId: 'harness-wall-north', offset: 1500, width: 1200, height: 1200, sill: 900 },
+		{ id: 'opening-harness-door', kind: 'door', hostId: 'wall-harness-south', offset: 1500, width: 900, height: 2100, sill: 0, swing: { hinge: 'start', side: 'left', angle: 90 } },
+		{ id: 'opening-harness-window', kind: 'window', hostId: 'wall-harness-north', offset: 1500, width: 1200, height: 1200, sill: 900 },
 	],
-	boundaries: [{ roomId: 'harness-kitchen', wallIds: ['harness-wall-north', 'harness-wall-east', 'harness-wall-south', 'harness-wall-west'] }],
+	boundaries: [{ roomId: 'harness-kitchen', wallIds: ['wall-harness-north', 'wall-harness-east', 'wall-harness-south', 'wall-harness-west'] }],
 };
 
 /**

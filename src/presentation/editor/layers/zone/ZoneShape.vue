@@ -46,6 +46,8 @@ const props = defineProps<{
 	/** Stage pixels per world millimetre — what a screen-sized caption divides by. */
 	zoom: number;
 	selected: boolean;
+	/** Every edge still runs along a wall this room's boundary lists (`enclosedByBoundary`). */
+	enclosed: boolean;
 	pins: readonly NumberedPin[];
 	dimensionObstacles: readonly BoundingBox[];
 	captionViewport: BoundingBox | null;
@@ -100,8 +102,11 @@ const groupConfig = computed(() => ({ name: props.model.id, listening: false }))
 // `flatPoints` identity case both rest on this group's child list keeping its shape.
 const fillConfig = computed(() => ({ points: flatPoints.value, closed: true, fill: fill.value,
 	opacity: props.selected ? 0.12 : 0, listening: false, perfectDrawEnabled: false }));
+// Hidden while the room's walls enclose it: they are its edge, and this layer paints ABOVE
+// theirs (SDD §17), so a drawn outline would run down each wall body and across a door cut.
+// Hidden rather than unmounted, for the same child-list reason as the fill.
 const outlineConfig = computed(() => ({ points: flatPoints.value, closed: true, stroke: props.tokens.zoneStroke,
-	strokeWidth: 1, strokeScaleEnabled: false, listening: false, perfectDrawEnabled: false }));
+	strokeWidth: 1, strokeScaleEnabled: false, visible: !props.enclosed, listening: false, perfectDrawEnabled: false }));
 const nameConfig = computed(() => ({ ...captionLayout.value, offsetY: CAPTION_PX * 1.6,
 	text: props.model.label, fontSize: CAPTION_PX + 2, fontStyle: 'bold', height: CAPTION_PX + 5, fill: props.tokens.zoneLabel }));
 const areaConfig = computed(() => ({ ...captionLayout.value, offsetY: 0,

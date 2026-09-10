@@ -14,6 +14,7 @@ import { useProjectStore } from '../../../stores/ProjectStore';
 import type { ThemeTokens } from '../../theme/themeTokens';
 import type { NodeTransform } from '../../viewport/Viewport';
 import { toZoneRenderModel } from './ZoneRenderModel';
+import { enclosedByBoundary } from '../../../../domain/spatial/encloseRoom';
 import ZoneShape from './ZoneShape.vue';
 import { useSelectionStore } from '../../selection/selection-store';
 import type { EvidencePin } from '../../planning/evidencePins';
@@ -33,7 +34,7 @@ const props = defineProps<{
 	zoom: number;
 }>();
 
-const { zones } = storeToRefs(useProjectStore());
+const { zones, structure } = storeToRefs(useProjectStore());
 const selection = useSelectionStore();
 const session = useRenovationSession(), workspace = useWorkspaceStore();
 const captionObstacles = computed(() => session.visible && workspace.layerVisibility.annotation ? props.pins : []);
@@ -43,6 +44,7 @@ const models = computed(() => {
 	const preview = new Map(props.preview?.map(object => [object.id, object]));
 	return [...zones.value.values()].map(zone => toZoneRenderModel({ ...zone, ...preview.get(zone.id) }));
 });
+const enclosed = computed(() => new Set(models.value.filter(model => enclosedByBoundary(model, structure.value)).map(model => model.id)));
 </script>
 
 <template>
@@ -61,6 +63,7 @@ const models = computed(() => {
 			:tokens="props.tokens"
 			:zoom="props.zoom"
 			:selected="selected.has(model.id)"
+			:enclosed="enclosed.has(model.id)"
 			:pins="captionObstacles"
 			:dimension-obstacles="dimensionObstacles"
 			:caption-viewport="captionViewport"

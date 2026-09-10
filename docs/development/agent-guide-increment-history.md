@@ -5607,3 +5607,57 @@ Lesson: the Konva seven-layer stack was never the problem — it is a paint orde
 correct. What was wrong was the PANEL borrowing its vocabulary, which made "Planned changes",
 a visibility cutting across three layers, impossible to offer as a row. Keying a row by a
 predicate rather than by a scene id is what made the fifth row cost one `ref`.
+
+## The canvas fidelity pass, 2026-09-10
+
+Spec: `docs/superpowers/specs/2026-09-10-plan-editor-canvas-fidelity-design.md`.
+
+Why: a drawn wall loop in a vault, set beside M01's mockup, read as a diagram rather than a
+floor plan, and no gate had said so because **the harness fixture carried no walls** — no
+`plan-editor-*` capture had ever drawn a wall, a joint or an opening. `HARNESS_STRUCTURE`
+(`tests/harness/planEditor.ts`) walls the Kitchen now, with a door and a window, and the other
+rooms stay open, so one frame shows both kinds. Its ids had to become `wall-…` and
+`opening-…`: `validateStructure` refuses any other, the harness fake validates nothing, and the
+first version was a fixture no vault could hold — a fake kinder than the real thing, caught
+because `zoneOutlineEnclosure.test.ts` writes it through the real sidecar.
+
+**Walls.** The single stroke at `opacity: 0.65` doubled its alpha wherever two walls overlapped,
+so every corner carried a dark square that read as a joint symbol. `StructureLayer.vue` draws
+two opaque passes over ALL walls now — every `wall-edge` (`zoneStroke`, `--text-normal`, at
+`thickness + 2 / zoom`), then every `wall-body` (`wallFill`, `--background-secondary`, at
+`thickness`) — and the pass ORDER closes a joint's inner corner. It did not close the outer one:
+both passes are butt-capped, so each wall stopped at the shared centreline point and left a
+notch at every outer corner, **found only by reading the capture**. `wallPasses.ts` carries each
+end past a shared joint by the largest half thickness among the OTHER walls there (the edge
+`1 / zoom` further), and a free end by `1 / zoom` on the edge alone, its 1 px cap. The wall's own
+half is excluded on purpose: counting it poked a thick wall past a thin one's face. Refused:
+`lineCap: 'square'` (every free end `thickness / 2` too long, in a planner that prints
+dimensions), and a polygon union or mitred chaining (exact at any angle, and far more code). The
+ceiling is the template's `ponytail:` line: exact where two walls meet at a right angle,
+whatever their thicknesses; a non-right joint, or unequal walls through a T, leaves a small
+wedge or nub. `structureLayerPasses.test.ts` pins the order and the 2 px difference,
+`wallPasses.test.ts` the extensions, a 100 mm + 240 mm L included.
+
+**Rooms.** The status dash, the resting tint and the status caption left the canvas: a room draws
+as name and area, filled at 0.12 only while selected. The capture then showed the room outline
+painting OVER the walls — SDD §17 keeps the architecture layer below the zone layer — as a grey
+line down each wall body and across the door. The fix stays inside §17's order: `ZoneShape.vue`
+keeps the outline node mounted with `visible: false` only while every polygon edge coincides with
+a wall the room's boundary lists (`enclosedByBoundary`, over the `wallOnEdge` rule `encloseRoom`
+already used). "Has a boundary entry" was refused: enclosure is never resynchronised, walls and
+outlines diverge after ordinary edits, and a shown outline is then how the divergence becomes
+visible. Enclosure is asked of the structure being DRAWN — `useDrawnStructure`, shared by
+`StructureLayer` and `ZoneLayer` — so a group move or a wall drag never hides or shows the
+outline against walls other than the ones on screen.
+
+**Status is shown nowhere in the editor now.** The spec assumed the Inspector's room list showed
+it; nothing in `src/` reads `statusAppearance`'s `captionKey`, and the room list draws no status.
+M01 records the gap; showing it is a follow-up. **Hover:** `InteractionLayer.vue` adds a
+`hover-fill` at 0.06 under the hover outline, for a closed shape only (`hoverClosed`).
+
+Parked: the selection and hover fill still tint the inner half of a walled room's walls (a clip
+to the wall's inner face would be the fix), and a wall-less outline renders as 2 px of 50% grey at
+integer camera positions (predates this pass). Capture gaps: the Garden is out of frame in all
+five `plan-editor-*` shots read for this pass, and the door sits under the Edit-shape popover in
+`plan-editor-selected`. Out of scope, as the spec said: the mockup's furniture and sanitary
+symbols, wall hatching, the navy label colour, and a second fixture mirroring M01's floor.

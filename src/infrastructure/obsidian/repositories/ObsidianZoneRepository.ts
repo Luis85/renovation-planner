@@ -117,6 +117,14 @@ function sidecarUnreadable(planId: unknown, cause: unknown): PersistenceError {
 	return persistenceError('zone.sidecar-unreadable', `The geometry sidecar for plan ${String(planId)} could not be read.`, cause);
 }
 
+/**
+ * Which frontmatter keys an update must retire explicitly (ADR-0027): `writeOwnedFrontmatter`
+ * merges, so omission cannot remove a key, and `locked` is written only while true.
+ */
+function retiredZoneKeys(zone: Zone): string[] {
+	return zone.locked ? [] : ['locked'];
+}
+
 // Zone-version calculation is shared with grouped sidecar writes in zoneVersion.ts.
 export class ObsidianZoneRepository implements ZoneRepository {
 	private readonly queues = new KeyedQueues();
@@ -262,8 +270,7 @@ export class ObsidianZoneRepository implements ZoneRepository {
 		try {
 			if (existing) {
 				notePath = existing.path;
-				// A merge, so omission cannot remove a key: an unlock has to retire `locked` explicitly.
-				await writeOwnedFrontmatter(this.deps.fileManager, existing, dto, zone.locked ? [] : ['locked']);
+				await writeOwnedFrontmatter(this.deps.fileManager, existing, dto, retiredZoneKeys(zone));
 			} else {
 				// The derived folder, for the INSERT alone. `undefined` is a refusal rather
 				// than a fallback: writing to a defaulted path when the real one is unknown

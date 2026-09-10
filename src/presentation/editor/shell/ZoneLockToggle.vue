@@ -22,6 +22,17 @@ const runtime = useEditorRuntime();
 const busy = ref(false);
 const label = computed(() => tr(props.locked ? 'editor.input.unlock' : 'editor.input.lock', { name: props.name }));
 
+/**
+ * Design spec §2.9's pause pairing, same shape as `RoomInspector.vue`'s `pausedAttrs` and the
+ * `runtime.writesBlocked.value ? runtime.pausedReasonId : undefined` ternary `AddMenu.vue`,
+ * `NewRoomInspector.vue` and `TemporaryToolBanner.vue` already use: `aria-disabled="true"`
+ * never travels without `aria-describedby` naming why. `busy` (this toggle's own in-flight
+ * guard, not a reason a screen reader can be told) disables the button without describedby —
+ * only `paused` pairs the two, which is the one case this finding asks for.
+ */
+const paused = computed(() => runtime.writesBlocked.value);
+const disabled = computed(() => paused.value || busy.value);
+
 async function toggle(): Promise<void> {
 	if (busy.value || runtime.writesBlocked.value) return;
 	busy.value = true;
@@ -52,7 +63,8 @@ async function toggle(): Promise<void> {
 		:data-rp-lock="zoneId"
 		:aria-pressed="locked"
 		:aria-label="label"
-		:aria-disabled="runtime.writesBlocked.value || busy || undefined"
+		:aria-disabled="disabled || undefined"
+		:aria-describedby="paused ? runtime.pausedReasonId : undefined"
 		@click="toggle"
 	>
 		<HostIcon :name="locked ? 'lock' : 'lock-open'" />

@@ -34,14 +34,27 @@ const KITCHEN_VERSION = { revision: 3 };
 /** Matches the pattern `requirementStaleness.test.ts` uses for the same port. */
 type LogLine = (event: string, context?: Record<string, unknown>) => void;
 
-function mountList(selectAndFrame = vi.fn<(id: string) => void>()) {
+/**
+ * `writesBlocked` and `getById` are overridable per case, for the two guard tests below: one
+ * drives the toggle while paused, the other holds the zone read open to catch a second click
+ * arriving before the first one's `busy` guard is set back down.
+ */
+function mountList(
+	selectAndFrame = vi.fn<(id: string) => void>(),
+	options: { writesBlocked?: boolean; getById?: () => Promise<ReturnType<typeof ok<{ entity: { name: string; zoneType: string; locked: boolean }; version: typeof KITCHEN_VERSION }>>> } = {},
+) {
 	setActivePinia(createPinia());
 	const commitEdit = vi.fn<(edit: unknown) => Promise<boolean>>(() => Promise.resolve(true));
-	const runtime = { selectAndFrame, commitEdit, writesBlocked: ref(false) } as unknown as EditorRuntime;
+	const runtime = {
+		selectAndFrame,
+		commitEdit,
+		writesBlocked: ref(options.writesBlocked ?? false),
+		pausedReasonId: 'stub-paused-reason',
+	} as unknown as EditorRuntime;
 	const context = {
 		commands: {
 			logger: { debug: vi.fn<LogLine>(), info: vi.fn<LogLine>(), warn: vi.fn<LogLine>(), error: vi.fn<LogLine>() },
-			zones: { getById: () => Promise.resolve(ok({ entity: { name: 'Kitchen', zoneType: 'Room', locked: false }, version: KITCHEN_VERSION })) },
+			zones: { getById: options.getById ?? (() => Promise.resolve(ok({ entity: { name: 'Kitchen', zoneType: 'Room', locked: false }, version: KITCHEN_VERSION }))) },
 		},
 	};
 	const wrapper = mount(RoomSummaryList, {
@@ -102,5 +115,34 @@ describe('RoomSummaryList', () => {
 			inverse: { name: 'Kitchen', zoneType: 'Room', locked: false },
 		});
 		expect(selectAndFrame).not.toHaveBeenCalled();
+	});
+
+	it('a paused toggle dispatches nothing and carries aria-disabled paired with aria-describedby', async () => {
+		const { wrapper, commitEdit } = mountList(vi.fn(), { writesBlocked: true });
+		const toggle = wrapper.get('[data-rp-lock="zone-kitchen"]');
+		expect(toggle.attributes('aria-disabled')).toBe('true');
+		expect(toggle.attributes('aria-describedby')).toBe('stub-paused-reason');
+
+		await toggle.trigger('click');
+		await flushPromises();
+		expect(commitEdit).not.toHaveBeenCalled();
+	});
+
+	it('drops a second click while the first zone read is still pending, and commits once', async () => {
+		const zoneRead = ok({ entity: { name: 'Kitchen', zoneType: 'Room', locked: false }, version: KITCHEN_VERSION });
+		let resolveZone!: () => void;
+		const getById = vi.fn<() => Promise<typeof zoneRead>>(() => new Promise((resolve) => {
+			resolveZone = () => resolve(zoneRead);
+		}));
+		const { wrapper, commitEdit } = mountList(vi.fn(), { getById });
+
+		const toggle = wrapper.get('[data-rp-lock="zone-kitchen"]');
+		void toggle.trigger('click');
+		void toggle.trigger('click');
+		resolveZone();
+		await flushPromises();
+
+		expect(getById).toHaveBeenCalledTimes(1);
+		expect(commitEdit).toHaveBeenCalledTimes(1);
 	});
 });

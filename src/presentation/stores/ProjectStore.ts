@@ -60,6 +60,7 @@ interface HydrationMissingRefs {
 	readonly groups: Ref<readonly SpatialGroup[]>;
 	readonly project: Ref<ProjectSummaryDto | null>;
 	readonly plan: Ref<PlanDto | null>;
+	readonly plans: Ref<readonly PlanDto[]>;
 	readonly zones: Ref<ReadonlyMap<string, ZoneDto>>;
 	readonly unreadableZones: Ref<number>;
 	readonly status: Ref<ProjectStoreStatus>;
@@ -79,6 +80,7 @@ interface HydrationRefs {
 	readonly groups: Ref<readonly SpatialGroup[]>;
 	readonly project: Ref<ProjectSummaryDto | null>;
 	readonly plan: Ref<PlanDto | null>;
+	readonly plans: Ref<readonly PlanDto[]>;
 	readonly zones: Ref<ReadonlyMap<string, ZoneDto>>;
 	readonly unreadableZones: Ref<number>;
 	readonly status: Ref<ProjectStoreStatus>;
@@ -114,6 +116,7 @@ function markMissing(refs: HydrationMissingRefs): void {
 	refs.groups.value = [];
 	refs.project.value = null;
 	refs.plan.value = null;
+	refs.plans.value = [];
 	refs.zones.value = new Map();
 	refs.unreadableZones.value = 0;
 	refs.status.value = 'missing';
@@ -161,6 +164,12 @@ async function runHydrationReads(
 		return;
 	}
 
+	// Siblings are decoration on the tree, never a reason to fail the canvas: a refused
+	// listing leaves an empty tree beside a drawn floor.
+	const foundPlans = await queries.listPlans(foundPlan.value.projectId);
+	if (ticket.superseded()) return;
+	const siblings = isErr(foundPlans) ? [] : foundPlans.value;
+
 	const foundZones = await queries.findZonesByPlan(planId);
 	if (ticket.superseded()) return;
 	if (isErr(foundZones)) {
@@ -172,6 +181,7 @@ async function runHydrationReads(
 	ticket.done();
 	refs.project.value = foundProject.value;
 	refs.plan.value = foundPlan.value;
+	refs.plans.value = siblings;
 	refs.zones.value = new Map(foundZones.value.zones.map((zone) => [zone.id, zone]));
 	refs.structure.value = foundZones.value.structure ?? EMPTY_STRUCTURE;
 	refs.intended.value = foundZones.value.intended;
@@ -201,6 +211,8 @@ export const useProjectStore = defineStore('project', () => {
 	const groups = ref<readonly SpatialGroup[]>([]);
 	const project = ref<ProjectSummaryDto | null>(null);
 	const plan = ref<PlanDto | null>(null);
+	/** This plan's sibling floors, for the Property tree (sidebar polish, 2026-09-10). */
+	const plans = ref<readonly PlanDto[]>([]);
 	const zones = ref<ReadonlyMap<string, ZoneDto>>(new Map());
 	/**
 	 * How many of this plan's zone notes could not be read.
@@ -274,6 +286,7 @@ export const useProjectStore = defineStore('project', () => {
 	groups.value = [];
 		project.value = null;
 		plan.value = null;
+		plans.value = [];
 		zones.value = new Map();
 		unreadableZones.value = 0;
 		error.value = cause;
@@ -329,7 +342,7 @@ export const useProjectStore = defineStore('project', () => {
 			refreshing.value = false;
 		};
 		const ticket: HydrationTicket = { keepOnFailure: options?.keepPreviousOnFailure === true, superseded, done };
-		const refs: HydrationRefs = { structure, intended, groups, project, plan, zones, unreadableZones, status, error, stale, retriesFailed };
+		const refs: HydrationRefs = { structure, intended, groups, project, plan, plans, zones, unreadableZones, status, error, stale, retriesFailed };
 		// A RE-hydration does not blank the editor. The root mounts its canvas on `ready`, so
 		// dropping to `loading` here would unmount the Konva stage and build a fresh one on
 		// every committed command — the whole canvas flashing because one background
@@ -405,6 +418,7 @@ export const useProjectStore = defineStore('project', () => {
 		latestHydration += 1;
 		project.value = null;
 		plan.value = null;
+		plans.value = [];
 		zones.value = new Map();
 		unreadableZones.value = 0;
 		error.value = null;
@@ -426,6 +440,7 @@ export const useProjectStore = defineStore('project', () => {
 		structure, intended, groups,
 		project,
 		plan,
+		plans,
 		zones,
 		unreadableZones,
 		status,

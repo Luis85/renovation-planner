@@ -545,6 +545,7 @@ export function createCompositionRoot(
 				geometry: new ObsidianPlanGeometrySidecar(geometryStore),
 				...guarded.queries,
 				...guarded.requirementQueries,
+				listPlansByProject: guarded.listPlansByProject,
 			}),
 			subscriptions: slice10.subscriptions,
 			markers,

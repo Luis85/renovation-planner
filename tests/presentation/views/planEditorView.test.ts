@@ -41,6 +41,7 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 		queries: {
 			getPlan: () => Promise.resolve(ok(plan)),
 			getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
+			listPlans: () => Promise.resolve(ok([])),
 			getRequirementsForZone: () => Promise.resolve(ok([])),
 			listAssets: () => Promise.resolve(ok([])),
 			// The two the contract requires and this fixture omitted until `tests/**` was

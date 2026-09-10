@@ -81,6 +81,7 @@ function reopenDeps(): PlanEditorDeps {
 		queries: {
 			getPlan: () => Promise.resolve(ok(null)),
 			getProject: () => Promise.resolve(ok(null)),
+			listPlans: () => Promise.resolve(ok([])),
 			getRequirementsForZone: () => Promise.resolve(ok([])),
 			listAssets: () => Promise.resolve(ok([])),
 			listRequirementsReferencing: () => Promise.resolve(ok([])),

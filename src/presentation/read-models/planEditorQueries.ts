@@ -1,5 +1,6 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { ListPlansByProjectInput, PlanListResult } from '../../application/queries/ListPlansByProject';
+import { readPlanHierarchy, type PlanHierarchyDto } from './planHierarchy';
 import type { Structure } from '../../domain/spatial/Structure';
 import type { SpatialGroup } from '../../domain/spatial/SpatialGroup';
 import type { PlanGeometrySidecar } from '../../application/ports/PlanGeometrySidecar';
@@ -112,6 +113,12 @@ export interface PlanEditorQueryServices {
 	listReassignmentTargets(
 		zoneId: string,
 	): Promise<Result<readonly ReassignmentTargetDto[], RepositoryError>>;
+	/**
+	 * Ancestry, detail plans and the parent zone outline (ADR-0028). OPTIONAL: a composition
+	 * that supplies no plan listing simply draws no hierarchy, which is what every editor test
+	 * double that predates it already means.
+	 */
+	hierarchy?(planId: string): Promise<Result<PlanHierarchyDto, RepositoryError>>;
 }
 
 /**
@@ -184,7 +191,17 @@ export function createPlanEditorQueries(queries: {
 	readonly listRequirementsReferencing?: Query<ReferencedTarget, Result<readonly ReferencingGroup[], RepositoryError>>;
 	readonly listReassignmentTargets?: Query<ReferencedTarget, Result<readonly ReassignmentTargetDto[], RepositoryError>>;
 }): PlanEditorQueryServices {
+	const listPlansByProject = queries.listPlansByProject;
 	return {
+		...(listPlansByProject === undefined
+			? {}
+			: {
+					hierarchy: (planId: string) =>
+						readPlanHierarchy(
+							{ getPlan: queries.getPlan, listPlans: listPlansByProject, findZonesByPlan: queries.findZonesByPlan },
+							planId,
+						),
+				}),
 		async getPlan(planId) {
 			const found = await queries.getPlan.execute({ planId: planId as PlanId });
 			if (isErr(found)) return found;

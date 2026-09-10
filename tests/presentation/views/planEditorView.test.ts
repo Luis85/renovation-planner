@@ -205,12 +205,14 @@ describe('what the view tells Obsidian about itself', () => {
 	 * Renaming the type without the sheet leaves a rule matching nothing, which no other
 	 * check here can see — jsdom applies no stylesheet and the harness draws one view.
 	 */
-	it('is the view type styles/chrome.css keys its rule on', () => {
-		// Relative to the working directory, like every other path in this suite: under jsdom
-		// `import.meta.url` is an http URL and `new URL(…)` resolves to a scheme node:fs refuses.
+	it('is the view type styles/chrome.css keys its rules on, and one of them hides the view header', () => {
 		const chrome = readFileSync('styles/chrome.css', 'utf8');
+		const selector = `.workspace-leaf-content[data-type="${PLAN_EDITOR_VIEW}"]`;
 
-		expect(chrome).toContain(`.workspace-leaf-content[data-type="${PLAN_EDITOR_VIEW}"]`);
+		expect(chrome).toContain(`${selector} .view-content`);
+		// The pane title bar is hidden for this view since 2026-09-10 (sidebar polish): the
+		// context bar carries the plan name and the tab strip still names the leaf.
+		expect(chrome).toMatch(new RegExp(`${selector.replace(/[.[\]"]/g, '\\$&')} \\.view-header\\s*\\{\\s*display:\\s*none;`));
 	});
 });
 

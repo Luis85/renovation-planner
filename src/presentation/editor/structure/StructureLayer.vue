@@ -16,6 +16,7 @@ import { draftStructure, isStructureTool } from './structureDraft';
 import ElementShapes from '../elements/ElementShapes.vue';
 import { isElementTool } from '../elements/elementDraft';
 import WallDraftOverlay from './WallDraftOverlay.vue';
+import { wallPasses } from './wallPasses';
 import { useEditorStore } from '../../stores/EditorStore';
 const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visible: boolean; zoom: number }>();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
@@ -32,6 +33,7 @@ const draftPreview = computed(() => {
 const structure = computed(() => runtime.curveTask.preview.value?.structure ?? runtime.groupActions?.preview.value?.structure ?? runtime.structureActions.preview.value ?? draftPreview.value ?? project.structure);
 const points = (value: readonly Point[]): number[] => value.flatMap(p => [p.x, p.y]);
 const wallPoints = (wall: Wall): number[] => points(arcPolyline({ ...wall, bulge: wall.bulge ?? 0 }, 0.25 / props.zoom));
+const passes = computed(() => structure.value.walls.map(wall => wallPasses(wall, structure.value.walls, props.zoom)));
 const selected = (id: string): boolean => selection.selectedIds.some(candidate => candidate === id);
 const previewPoints = computed(() => task.draft.points.length && task.draft.cursor ? points([task.draft.points[task.draft.points.length - 1], task.draft.cursor]) : []);
 const noDraftPoints: readonly Point[] = [];
@@ -62,27 +64,29 @@ const elementDraft = computed(() => {
 			:zoom="zoom"
 		/>
 		<!--
-			A wall is drawn TWICE, and the two passes run over ALL walls rather than per wall.
-			Pass 1 is every wall as a `zoneStroke` stroke at `thickness + 2 / zoom`; pass 2 is
-			every wall as a `wallFill` stroke at `thickness`, painted over it. What is left
-			visible of pass 1 is a 1 px dark line along each side, which is the double-line
-			wall M01 draws — and inside a joint, wall B's body covers wall A's edge, so a mitred
-			corner falls out with no union, no offset polygons and no T-joint cases. The
-			previous single stroke at `opacity: 0.65` doubled its alpha wherever two walls
-			overlapped, which drew a dark square at every corner. A free wall end keeps a 1 px
-			dark cap from pass 1: the architectural convention for a wall end, intended.
-			`OpeningSymbols` below cuts through both passes with a `canvasBackground` stroke
-			at `thickness + 2 / zoom`, the same width as pass 1.
+			A wall is drawn TWICE, and the two passes run over ALL walls rather than per wall:
+			every `wall-edge` (`zoneStroke`, `thickness + 2 / zoom`), then every `wall-body`
+			(`wallFill`, `thickness`) over them, all opaque, so no joint doubles an alpha. What
+			is left of the edge pass is a 1 px dark line along each side, M01's double-line wall.
+			The pass ORDER closes a joint's inner corner: wall B's body covers wall A's edge.
+			Both passes are butt-capped, so `wallPasses` carries each past a SHARED endpoint
+			(body `thickness / 2`, edge `1 / zoom` further), which closes the OUTER corner; a
+			free end gets only the edge's extra `1 / zoom`, its 1 px dark cap.
+			Refused: `lineCap: 'square'` draws every free end `thickness / 2` too long.
+			Refused: chaining walls into mitred polylines is exact at any angle, but more code.
+			ponytail: exact at right-angle joints; a non-right joint leaves a small wedge or nub.
+			Chain the walls if that shows. The selection dash and handles keep the unextended
+			centreline. `OpeningSymbols` cuts both passes at the edge pass's width.
 		-->
 		<VLine
-			v-for="wall in structure.walls"
+			v-for="(wall, index) in structure.walls"
 			:key="'edge-' + wall.id"
-			:config="{ name: 'wall-edge', points: wallPoints(wall), stroke: tokens.zoneStroke, strokeWidth: wall.thickness + 2 / zoom, lineCap: 'butt', lineJoin: 'miter' }"
+			:config="{ name: 'wall-edge', points: passes[index].edge, stroke: tokens.zoneStroke, strokeWidth: wall.thickness + 2 / zoom, lineCap: 'butt', lineJoin: 'miter' }"
 		/>
 		<VLine
-			v-for="wall in structure.walls"
+			v-for="(wall, index) in structure.walls"
 			:key="'body-' + wall.id"
-			:config="{ name: 'wall-body', points: wallPoints(wall), stroke: tokens.wallFill, strokeWidth: wall.thickness, lineCap: 'butt', lineJoin: 'miter' }"
+			:config="{ name: 'wall-body', points: passes[index].body, stroke: tokens.wallFill, strokeWidth: wall.thickness, lineCap: 'butt', lineJoin: 'miter' }"
 		/>
 		<VGroup
 			v-for="wall in structure.walls"

@@ -52,6 +52,12 @@ it('draws every wall edge before any wall body, all opaque', async () => {
 	for (const node of [...edges, ...bodies]) expect(node.opacity()).toBe(1);
 });
 
+it('carries a corner wall body half its thickness past the corner, so the outer quadrant closes', async () => {
+	const { bodies } = await loop();
+	const [first] = WALL_LOOP.walls;
+	expect(bodies[0].points().slice(0, 2)).toEqual([first.start.x - first.thickness / 2, first.start.y]);
+});
+
 it('gives the edge pass two screen pixels more than the body pass, at any zoom', async () => {
 	const { rig, edges, bodies } = await loop();
 	const editor = useEditorStore(rig.pinia);

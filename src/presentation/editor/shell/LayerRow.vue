@@ -45,6 +45,7 @@ function actionReasonId(entry: LayerEntry): string | undefined {
 			:id="ids.checkbox"
 			type="checkbox"
 			class="rp-visually-hidden"
+			:data-rp-layer="entry.id"
 			:checked="entry.visible()"
 			:disabled="entry.state === 'supported-empty'"
 			:aria-describedby="entry.reasonKey !== null ? ids.reason : undefined"

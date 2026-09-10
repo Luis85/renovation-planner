@@ -40,8 +40,32 @@ it('keeps the accessible element list in a disclosure and layer visibility separ
 	expect(walls.attributes('open')).toBeUndefined();
 	expect(rig.wrapper.get('.rp-property-rooms').find(`[data-rp-id="${rig.room.id}"]`).exists()).toBe(true);
 	const saved = [...rig.stack.vault.entries];
-	// Planned changes is the fourth row (reference, rooms, walls, planned, notes)
-	const visibility = rig.wrapper.findAll('.rp-layer-list input[type="checkbox"]')[3];
+	const visibility = rig.wrapper.get('[data-rp-layer="planned"]');
+	await visibility.setValue(false);
+	expect(rig.session.visible).toBe(false);
+	expect([...rig.stack.vault.entries]).toEqual(saved);
+});
+
+/**
+ * Ruling R13: before this branch the Planned changes checkbox sat outside `LayerList` with
+ * no perspective gate at all, so it showed in Review — folding it into `LayerList` (Task 4)
+ * silently dropped both Review's Planned changes AND its Notes and photos control, since the
+ * whole list carried `v-if="session.perspective !== 'review'"`. Review withholds Set scale
+ * and Reference options (both write-adjacent, both need something to calibrate against), but
+ * these two rows write nothing to the vault — they are pure rendering toggles — and stay.
+ */
+it('keeps exactly the Planned changes and Notes and photos rows in Review, and lets Planned changes still toggle visibility', async () => {
+	rig = await renovationEditor();
+	const saved = [...rig.stack.vault.entries];
+	await rig.runtime.renovation.perspective('review');
+	await settle();
+
+	expect(rig.wrapper.find('.rp-reference-options').exists()).toBe(false);
+	const rows = rig.wrapper.findAll('.rp-layer-list__row input[type="checkbox"]');
+	expect(rows.map((row) => row.attributes('data-rp-layer'))).toEqual(['planned', 'notes']);
+
+	const visibility = rig.wrapper.get('[data-rp-layer="planned"]');
+	expect(rig.session.visible).toBe(true);
 	await visibility.setValue(false);
 	expect(rig.session.visible).toBe(false);
 	expect([...rig.stack.vault.entries]).toEqual(saved);

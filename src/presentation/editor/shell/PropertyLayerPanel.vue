@@ -39,7 +39,17 @@ const toggles = computed<LayerToggles>(() => ({
 	planned: runtime.renovation.available ? { visible: () => session.visible, toggle: () => { session.visible = !session.visible; } } : null,
 	notes: { visible: () => workspace.notesVisible, toggle: workspace.toggleNotes },
 }));
-const entries = computed(() => layerCatalogue(props.plan, toggles.value, stale.value));
+/**
+ * Review withholds Set scale and Reference options (nothing there is reachable while
+ * perspectives are read-only), but the two rows that write NOTHING to the vault — Planned
+ * changes and Notes and photos, both pure rendering toggles on `WorkspaceStore`/the session —
+ * stay reachable: before the sidebar fold (Task 4) Planned changes sat outside `LayerList`
+ * with no perspective gate at all, so Review already showed it (Ruling R13).
+ */
+const entries = computed(() => {
+	const all = layerCatalogue(props.plan, toggles.value, stale.value);
+	return session.perspective === 'review' ? all.filter((entry) => entry.id === 'planned' || entry.id === 'notes') : all;
+});
 </script>
 
 <template>
@@ -66,7 +76,6 @@ const entries = computed(() => layerCatalogue(props.plan, toggles.value, stale.v
 				{{ tr('editor.rail.layers') }}
 			</summary>
 			<LayerList
-				v-if="session.perspective !== 'review'"
 				:entries="entries"
 				:plan="plan"
 				@activate-tool="runtime.setTool"

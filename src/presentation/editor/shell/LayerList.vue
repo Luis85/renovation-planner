@@ -9,8 +9,10 @@ const emit = defineEmits<{ activateTool: [toolId: 'calibrate'] }>();
 /**
  * A TOTAL record over `LayerEntry['id']`, every id called unconditionally — never derived
  * from `entries` at call time, because `entries` starts as an empty array before the plan
- * has hydrated and grows to five once it has: a length-dependent `useId()` call would answer
- * a different count on the render that adds the rows it needs one for. Three ids per entry
+ * has hydrated and grows to four or five once it has (five only with a renovation session,
+ * for the Planned changes row; Review narrows that back down to two — Planned changes and
+ * Notes and photos): a length-dependent `useId()` call would answer a different count on the
+ * render that adds the rows it needs one for. Three ids per entry
  * rather than two: the checkbox and ITS reason are two elements the checkbox's own
  * `aria-describedby` can target, and `actionReason` is a THIRD, reserved for the one case
  * `LayerRow.actionReasonId` actually needs a SEPARATE span for — design spec §2.9 gave Set scale

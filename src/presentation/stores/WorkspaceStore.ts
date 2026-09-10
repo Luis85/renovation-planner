@@ -35,10 +35,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	}
 
 	/**
-	 * Internal: `toggleLayer` is the whole public surface, because a Layers panel offers a
-	 * checkbox and nothing else. An exported setter with no caller is dead code by this
-	 * project own gate; slice 6 exports one in the change that needs to set a layer without
-	 * knowing its current state.
+	 * Internal: `toggleLayer` is the whole public surface for a Konva layer's own visibility
+	 * — `toggleNotes` is the separate, public surface for the notes gate below, which is not
+	 * a Konva layer at all. A Layers panel offers a checkbox and nothing else for either. An
+	 * exported setter with no caller is dead code by this project's own gate; slice 6 exports
+	 * one in the change that needs to set a layer without knowing its current state.
 	 */
 	function setLayerVisible(layer: KonvaLayerId, visible: boolean): void {
 		// A NEW record rather than an in-place field write: the value is what a `v-layer`'s

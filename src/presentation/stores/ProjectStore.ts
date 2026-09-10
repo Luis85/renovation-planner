@@ -73,19 +73,13 @@ interface HydrationMissingRefs {
  * bundle to either satisfies them structurally with nothing narrowed away. One bundle rather
  * than two, because `hydrate` used to build both separately and that construction was itself
  * two of the lines pushing the setup arrow over its own budget.
+ *
+ * `extends HydrationMissingRefs` rather than restating its ten fields: the two interfaces
+ * were byte-identical past that point, which fallow's clone detector caught, and an `extends`
+ * is what keeps them from drifting back apart the next time one grows a field the other needs.
  */
-interface HydrationRefs {
-	readonly structure: Ref<Structure>;
-	readonly intended: Ref<Structure | undefined>;
-	readonly groups: Ref<readonly SpatialGroup[]>;
-	readonly project: Ref<ProjectSummaryDto | null>;
-	readonly plan: Ref<PlanDto | null>;
-	readonly plans: Ref<readonly PlanDto[]>;
-	readonly zones: Ref<ReadonlyMap<string, ZoneDto>>;
-	readonly unreadableZones: Ref<number>;
-	readonly status: Ref<ProjectStoreStatus>;
+interface HydrationRefs extends HydrationMissingRefs {
 	readonly error: Ref<RepositoryError | null>;
-	readonly stale: Ref<boolean>;
 	readonly retriesFailed: Ref<number>;
 }
 

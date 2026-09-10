@@ -14,7 +14,7 @@ import {
 	usePlanEditorContext,
 	type PlanEditorContext,
 } from '../../src/presentation/editor/PlanEditorContext';
-import { HARNESS_PLAN, HARNESS_ZONES, harnessDeps } from './planEditor';
+import { HARNESS_PLAN, HARNESS_STRUCTURE, HARNESS_ZONES, harnessDeps } from './planEditor';
 import { createInspectorStoreDefinition } from '../../src/presentation/editor/inspector/inspector-store';
 import { isErr, ok } from '../../src/core/result/Result';
 import type { ZoneId } from '../../src/domain/zone/ZoneId';
@@ -135,6 +135,7 @@ describe('the harness fixture', () => {
 		const read = await harnessDeps().queries.findZonesByPlan(HARNESS_PLAN.id);
 		if (!read.ok) throw new Error('fixture zones refused');
 		const structure = read.value.structure;
+		expect(structure).toEqual(HARNESS_STRUCTURE);
 		expect(structure?.walls).toHaveLength(4);
 		expect(structure?.openings.map(opening => opening.kind).toSorted()).toEqual(['door', 'window']);
 		expect(structure?.boundaries).toEqual([{ roomId: 'harness-kitchen', wallIds: structure?.walls.map(wall => wall.id) }]);

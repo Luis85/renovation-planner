@@ -92,3 +92,41 @@ it('edits and deletes an Object through typed context actions and restores its l
 	await settleUntil(() => !rig.project.structure.elements?.length, 'Object deletion');
 	await rig.runtime.undo(); expect(rig.project.structure.elements?.[0]).toMatchObject({ id: original.id, points: original.points }); expect(rig.project.plan?.spatialElements?.[0].name).toBe('Work desk');
 });
+
+it('offers Select while panning and Pan while selecting, in every branch, and switches the tool on click', async () => {
+	const rig = await setup();
+	rig.selection.clear(); await menu(rig);
+	expect(rig.wrapper.find('[data-rp-context-action="pan"]').exists()).toBe(true); expect(rig.wrapper.find('[data-rp-context-action="select"]').exists()).toBe(false);
+	await rig.wrapper.get('[data-rp-context-action="pan"]').trigger('click'); await settle(); expect(rig.runtime.activeToolId.value).toBe('pan');
+	rig.selection.select([rig.room.id]); await menu(rig);
+	expect(rig.wrapper.find('[data-rp-context-action="pan"]').exists()).toBe(false);
+	await rig.wrapper.get('[data-rp-context-action="select"]').trigger('click'); await settle(); expect(rig.runtime.activeToolId.value).toBe('select');
+	await menu(rig); expect(rig.wrapper.find('[data-rp-context-action="pan"]').exists()).toBe(true);
+	await rig.wrapper.get('[data-rp-context-action="pan"]').trigger('keydown', { key: 'Escape' });
+});
+
+it('groups the menu with separators, names the single object it acts on, and keeps Delete last', async () => {
+	const rig = await setup();
+	rig.selection.select([rig.room.id]); await menu(rig);
+	const menuEl = rig.wrapper.get('.rp-canvas-context-menu');
+	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(rig.room.name);
+	expect(menuEl.findAll('[role="separator"]').length).toBeGreaterThanOrEqual(2);
+	const ids = menuEl.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'));
+	expect(ids[0]).toBe('fit'); expect(ids.at(-1)).toBe('delete');
+	await menuEl.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
+	rig.selection.select(['wall-a' as never]); await menu(rig);
+	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe('Wall 1');
+	await rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
+	rig.selection.clear(); await menu(rig);
+	expect(rig.wrapper.find('.rp-canvas-context-menu-title').exists()).toBe(false);
+});
+
+it('tells why a greyed action is unavailable', async () => {
+	const rig = await setup();
+	rig.selection.select([rig.room.id]); rig.project.stale = true; await menu(rig);
+	expect(rig.wrapper.get('[data-rp-context-action="delete"]').attributes('title')).toBe('Editing is paused until the floor is re-read.');
+	await rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
+	rig.project.stale = false; await rig.runtime.setTool('pan'); rig.selection.select([rig.room.id]); await menu(rig);
+	expect(rig.wrapper.get('[data-rp-context-action="fit"]').attributes('title')).toBeUndefined();
+	expect(rig.wrapper.get('[data-rp-context-action="rotate"]').attributes('title')).toBe('Not available while another tool or edit is active.');
+});

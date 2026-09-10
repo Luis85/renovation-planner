@@ -33,9 +33,8 @@
  * would be needed here the day any of them takes pointer events.
  */
 import { computed } from 'vue';
-import { tr } from '../../../i18n/strings';
 import type { ThemeTokens } from '../../theme/themeTokens';
-import { labelAnchor, statusAppearance, zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
+import { labelAnchor, zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
 import { formatArea } from '../../shell/formatArea';
 import { captionOffsetY, type NumberedPin } from './captionPlacement';
 import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
@@ -69,7 +68,6 @@ const flatPoints = computed(() => {
 	return points.flatMap((point) => [point.x, point.y]);
 });
 
-const appearance = computed(() => statusAppearance(props.model.status));
 const fill = computed(() => props.tokens[zoneFillToken(props.model.zoneType)]);
 const anchor = computed(() => labelAnchor(props.model.points, props.model.bulges));
 
@@ -96,35 +94,35 @@ const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y + c
 	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true,
 	stroke: props.tokens.canvasBackground, strokeWidth: 2, fillAfterStrokeEnabled: true }));
 
-const statusCaption = computed(() => tr(appearance.value.captionKey));
 const groupConfig = computed(() => ({ name: props.model.id, listening: false }));
+// Invisible at rest and translucent when selected: M01 draws no resting fill, and the node
+// stays MOUNTED at zero opacity because `ZoneLayer`'s paint order and `scene.test.ts`'s
+// `flatPoints` identity case both rest on this group's child list keeping its shape.
 const fillConfig = computed(() => ({ points: flatPoints.value, closed: true, fill: fill.value,
-	opacity: props.selected ? 0.12 : 0.025, listening: false, perfectDrawEnabled: false }));
+	opacity: props.selected ? 0.12 : 0, listening: false, perfectDrawEnabled: false }));
 const outlineConfig = computed(() => ({ points: flatPoints.value, closed: true, stroke: props.tokens.zoneStroke,
-	strokeWidth: 1.5, dash: appearance.value.dash, strokeScaleEnabled: false, listening: false, perfectDrawEnabled: false }));
+	strokeWidth: 1, strokeScaleEnabled: false, listening: false, perfectDrawEnabled: false }));
 const nameConfig = computed(() => ({ ...captionLayout.value, offsetY: CAPTION_PX * 1.6,
 	text: props.model.label, fontSize: CAPTION_PX + 2, fontStyle: 'bold', height: CAPTION_PX + 5, fill: props.tokens.zoneLabel }));
 const areaConfig = computed(() => ({ ...captionLayout.value, offsetY: 0,
 	text: formatArea(props.model.areaMm2), fontSize: CAPTION_PX, fill: props.tokens.zoneLabel }));
-const statusConfig = computed(() => ({ ...captionLayout.value, offsetY: -CAPTION_PX * 1.3,
-	text: statusCaption.value, fontSize: CAPTION_PX * 0.85, fill: props.tokens.zoneCaption }));
 </script>
 
 <template>
 	<VGroup
-		v-memo="[groupConfig, fillConfig, outlineConfig, nameConfig, areaConfig, statusConfig]"
+		v-memo="[groupConfig, fillConfig, outlineConfig, nameConfig, areaConfig]"
 		:config="groupConfig"
 	>
 		<!--
 			Two line nodes over one point array, rather than one node with both a fill and a
 			stroke. Konva's `opacity` is per NODE, so a translucent fill on a single node would
-			take the outline down with it — and the fill has to be translucent, because a zone
-			sits over an imported plan the user still needs to see through it.
+			take the outline down with it — and the fill is translucent when selected and
+			invisible otherwise, since a zone sits over an imported plan the user still needs
+			to see through it and M01 draws no resting fill at all.
 		-->
 		<VLine :config="fillConfig" />
 		<VLine :config="outlineConfig" />
 		<VText :config="nameConfig" />
 		<VText :config="areaConfig" />
-		<VText :config="statusConfig" />
 	</VGroup>
 </template>

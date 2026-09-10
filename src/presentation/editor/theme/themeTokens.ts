@@ -42,9 +42,10 @@ export type ThemeTokens = Readonly<Record<ThemeTokenName, string>>;
  * than an invented blue or a Konva default black.
  *
  * The honest cost, stated rather than hidden: under such a theme the zone-type fills stop
- * being distinguishable FROM EACH OTHER by colour. That is survivable precisely because
- * §85 already forbids colour as the only channel — the type and status captions
- * `ZoneShape` draws are what still tell them apart.
+ * being distinguishable FROM EACH OTHER by colour. `ZoneShape` draws no type caption and
+ * no status caption at all (dropped 2026-09-10, canvas fidelity spec), and its zone-type
+ * fill shows only on a selected room — so under a theme this fallback fires for, an
+ * unselected room carries nothing but its name and area text to tell one type from another.
  */
 function fallbackColor(styles: CSSStyleDeclaration): string {
 	return styles.color;

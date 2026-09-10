@@ -68,19 +68,8 @@ describe('how a zone looks', () => {
 		expect(statusAppearance(status).captionKey).toMatch(/^zone\.status\./);
 	});
 
-	/**
-	 * §85: status must be distinguishable without colour. The dash pattern is one of the two
-	 * non-colour channels, so no two statuses may share one — a duplicate would silently
-	 * merge two states on a grayscale print.
-	 */
-	it('gives every status a distinct dash pattern', () => {
-		const patterns = ZONE_STATUSES.map((status) => statusAppearance(status).dash.join(','));
-
-		expect(new Set(patterns).size).toBe(ZONE_STATUSES.length);
-	});
-
 	it('answers for an unknown status too, with its own caption', () => {
-		expect(statusAppearance('Demolished')).toEqual({ dash: [2, 2], captionKey: 'zone.status.unknown' });
+		expect(statusAppearance('Demolished')).toEqual({ captionKey: 'zone.status.unknown' });
 	});
 });
 

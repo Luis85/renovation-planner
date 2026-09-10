@@ -61,3 +61,35 @@ Performance budgets and Phase 12 in the
 [editor implementation plan](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md);
 WP2 and WP8 in the
 [editor vertical-slice plan](../user-experience/renovation-planner-editor-specs/Renovation%20Planner%20—%20First%20Vertical%20Slice%20Plan%20and%20Data-Model%20Specification.md).
+
+## Amendments
+
+**2026-09-10** — the merged editor stack, `main` at `5dcc1f20`. **No measurement on record
+describes it.** In `docs/user-experience/renovation-planner-editor-specs/implementation/`,
+`RESUME.md` holds one earlier German recovery measurement — 80 rooms, 240 materials, 24 assets and
+40 photos; usable in 506.9 ms, selection 65.4 ms, Inspector 75.4 ms, pan median 16.6 ms and p95
+17.1 ms — with three close/reopen cycles, and says that not every time or frame-rate budget is
+asserted automatically. `completion-matrix.md`'s G18 row reads "Prior measurements do not describe
+integrated tree". `remaining-plan.md`'s row *P2 – Leistungs- und Aufräumprüfung* asks for the large
+fixtures, the latency and frame budgets and twelve close/reopen cycles against unchanged budgets,
+and names no driver. On `main`, `scripts/editor-recovery-check.mjs` is the one script found that
+asserts zero stages, listeners, images and object URLs after a close, and it loops three times.
+
+So the three Tasks beneath this PBI owe their run against `5dcc1f20` or later, and that run owes
+these added criteria:
+
+- The driver and fixtures that carry each budget are named by file. A budget with no driver is
+  recorded as unmeasured, never as passed.
+- Raw values are recorded per budget beside the fixture and environment. No pass is inferred from
+  an exit code.
+- The camera delta is shown to be a real change.
+- Twelve close/reopen cycles leave zero tracked stages, listeners, DOM images and object URLs —
+  twelve, against the three the existing driver runs.
+- Budgets not asserted automatically are compared by hand and listed.
+- The evaluation lands before the H4 row of
+  [[Run native Obsidian acceptance H1 to H6 in the repository vault]].
+
+Ownership does not move: [[Instrument the proposed editor response budgets]] keeps the protocol,
+[[Benchmark representative floors and interactions]] the budgets and any failed budget's defect or
+revision decision, and [[Prove editor resources end with the leaf]] the counters. This amendment is
+written here rather than on one of them because the evaluation spans all three.

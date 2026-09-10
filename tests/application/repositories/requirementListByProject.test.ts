@@ -140,8 +140,10 @@ async function openDiskRow(): Promise<RequirementRow> {
 // rows it marks, in their own table below. They used to be declared on every row behind
 // `it.runIf(hasVault)`, which reported the in-memory row's four as permanent skips on every
 // run; an `if (hasVault)` around them is refused by oxlint's `vitest/no-conditional-tests`.
-// A row missing the column drops out of those four SILENTLY — a case never declared is not
-// even reported as skipped.
+// A row MISSING the column is refused by the type check, measured: a two-column row makes
+// both `describe.each` callbacks below fail `vue-tsc` with TS2345, so `npm run build` goes red.
+// What stays silent is a WRONG value: a vault-backed row marked `false` drops out of the four
+// cases without being reported, where `it.runIf` would at least have counted them as skipped.
 const ROWS = [
 	['in-memory', openInMemoryRequirements, false],
 	['obsidian/fake-vault', openFakeVaultRow, true],

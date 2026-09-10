@@ -6,11 +6,18 @@ import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
 import { renovationSummary } from './renovationSummary';
 import { tr } from '../../i18n/strings';
+import TransformationStage from './TransformationStage.vue';
 import HostIcon from '../../components/HostIcon.vue';
 
 const props = defineProps<{ roomId: string; targetId?: string; continuationOnly?: boolean; compact?: boolean }>();
 const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession();
 const summary = computed(() => renovationSummary(project.plan?.renovation ?? EMPTY_RENOVATION, props.roomId, props.targetId));
+function stages() { return [
+	{ kind: 'existing' as const, items: summary.value.existing.slice(0, 3).map(item => ({ id: item.id, text: item.existing.description })) },
+	{ kind: 'work' as const, items: summary.value.work.slice(0, 4).map(item => ({ id: item.id, text: item.title })) },
+	{ kind: 'planned' as const, items: summary.value.planned.slice(0, 3).map(item => ({ id: item.id, change: tr(`renovation.change.${item.planned.change}`), text: item.planned.description || item.existing?.description })) },
+]; }
+function compactProgress(): string { return tr('renovation.summary.compact-progress', { done: String(summary.value.complete), total: String(summary.value.work.length) }); }
 function continuePlanning(): void {
 	const { next, nextMode } = summary.value;
 	runtime.renovation.focus(props.roomId, nextMode, next?.recordId);
@@ -24,24 +31,14 @@ function continuePlanning(): void {
 		:aria-label="tr('renovation.overview')"
 	>
 		<div class="rp-transformation-summary__stages">
-			<div>
-				<h4>{{ tr('renovation.summary.existing') }}</h4>
-				<p>{{ summary.existing.slice(0, 3).map(item => item.existing!.description).join(', ') || tr('renovation.summary.unrecorded') }}</p>
-			</div>
-			<div>
-				<h4>
-					{{ tr('renovation.summary.work') }}
-					<span
-						v-if="compact"
-						class="rp-transformation-progress"
-					>{{ tr('renovation.summary.compact-progress', { done: String(summary.complete), total: String(summary.work.length) }) }}</span>
-				</h4>
-				<p>{{ summary.work.slice(0, 3).map(item => item.title).join(', ') || tr('renovation.summary.unrecorded') }}</p>
-			</div>
-			<div>
-				<h4>{{ tr('renovation.summary.planned') }}</h4>
-				<p>{{ summary.planned.slice(0, 3).map(item => `${tr(`renovation.change.${item.planned!.change}`)}: ${item.planned!.description || item.existing?.description}`).join(', ') || tr('renovation.summary.unrecorded') }}</p>
-			</div>
+			<TransformationStage
+				v-for="stage in stages()"
+				:key="stage.kind"
+				:kind="stage.kind"
+				:items="stage.items"
+				:compact="compact"
+				:progress="compactProgress()"
+			/>
 		</div>
 		<p v-if="!compact">
 			{{ tr('renovation.summary.change-count', { count: String(summary.changes) }) }} · {{ tr('renovation.summary.progress', { done: String(summary.complete), total: String(summary.work.length) }) }}

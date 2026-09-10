@@ -1,0 +1,62 @@
+{
+  "source": "22772267dfb85456ed69c389ff844297182072a0",
+  "started": 1789023209765,
+  "completed": 1789023250729,
+  "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
+  "files": [
+    {
+      "name": "light-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023220184.042,
+      "sha256": "f62a1172374fdf645e64f7aa27d9f17b1eb3cc4cb75262e047a7b6183c020f41"
+    },
+    {
+      "name": "light-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023223032.8691,
+      "sha256": "12aaa1a620e36a70486fad0ebba2aa01b8c5b95ebc6d496a25b1eb4184452deb"
+    },
+    {
+      "name": "dark-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023229305.1477,
+      "sha256": "b02a8164a54d35501909a8965d00d9f245bee434cdce2c7f7a8106eabfce4eba"
+    },
+    {
+      "name": "dark-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023232334.9072,
+      "sha256": "7741209c2a34ae0c6e4ec4386ab6fc976697e017adbb5ebb76a73f52aa181898"
+    },
+    {
+      "name": "custom-accent-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023238704.5464,
+      "sha256": "1b6570ae2ddccdfc7157d04d3cd6349c5ea3636ab669eae9501fe09841922700"
+    },
+    {
+      "name": "custom-accent-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023241576.464,
+      "sha256": "97daad3490441b941efc05628ac76763115b1a020f33b5458a770875c8a39ddc"
+    },
+    {
+      "name": "german-constrained-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023247137.2434,
+      "sha256": "e39d2555dbc1b1a42035ba88a64298fa5ceaefebcaee8ba3b31d937fb9769ca5"
+    },
+    {
+      "name": "german-constrained-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023249503.245,
+      "sha256": "239ce57591ab9c58aa3b68f938a0437e3490ce685b7e73db79cf40bcb99fb5d1"
+    },
+    {
+      "name": "report.json",
+      "kind": "data",
+      "modifiedAt": 1789023250640.5464,
+      "sha256": "794c4a029fb0623e6f28637899c028be789df47e59384e2328a2fa4661769924"
+    }
+  ]
+}

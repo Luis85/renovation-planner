@@ -1,4 +1,11 @@
 export const renovationEn = {
+	"renovation.add.existing": "Add existing detail",
+	"renovation.add.planned": "Add planned detail",
+	"renovation.add.work": "Add work item",
+	"renovation.title.existing": "Existing {name}",
+	"renovation.title.planned": "Planned {name}",
+	"renovation.title.work": "Work in {name}",
+	"renovation.record.actions": "Edit and related actions",
 	"renovation.review.limited-scope": "Limited review scope",
 	"renovation.summary.compact-progress": "{done}/{total} complete",
 	"renovation.review.room-count": "{count} rooms",

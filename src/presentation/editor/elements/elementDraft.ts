@@ -6,28 +6,31 @@ import type { SpatialElementKind, NamedSpatialElement } from '../../../domain/sp
 import { validSpatialElement } from '../../../domain/spatial/SpatialElement';
 import { areaOutline } from '../add/areaOutline';
 import type { ToolId } from '../tools/editor-tool';
+import { DEFAULT_STAIR, type StairOptions } from '../../../domain/spatial/stairGeometry';
 
-export type ElementToolId = 'place-object' | 'draw-path' | 'draw-fence' | 'measure';
+export type ElementToolId = 'place-object' | 'draw-path' | 'draw-fence' | 'measure' | 'place-stair' | 'draw-arrow';
 export const ELEMENT_TOOLS: Readonly<Record<ElementToolId, SpatialElementKind>> = {
 	'place-object': 'object', 'draw-path': 'path', 'draw-fence': 'fence', measure: 'measurement',
+	'place-stair': 'stair', 'draw-arrow': 'arrow',
 };
 export function isElementTool(id: ToolId | null): id is ElementToolId { return id !== null && id in ELEMENT_TOOLS; }
 export interface ElementDraft {
 	kind: SpatialElementKind; name: string; points: Point[]; cursor: Point | null;
 	text: { x: string; y: string };
 	rectangle: ObjectRectangleText;
+	stair: StairOptions;
 	pendingInput: boolean;
 	loading: boolean; busy: boolean; conflict: boolean; error: AppError | null;
 }
 export function createElementDraft(): ElementDraft {
-	return reactive({ kind: 'object', name: '', points: [], cursor: null, text: { x: '', y: '' }, rectangle: emptyObjectRectangle(), pendingInput: false, loading: false, busy: false, conflict: false, error: null });
+	return reactive({ kind: 'object', name: '', points: [], cursor: null, text: { x: '', y: '' }, rectangle: emptyObjectRectangle(), stair: { ...DEFAULT_STAIR }, pendingInput: false, loading: false, busy: false, conflict: false, error: null });
 }
 export function discardElementGeometry(draft: ElementDraft): void {
 	const { kind, name, loading, busy, conflict } = draft, error = conflict ? draft.error : null;
 	Object.assign(draft, createElementDraft(), { kind, name, loading, busy, conflict, error });
 }
 export function draftElement(draft: ElementDraft, id = 'element-draft'): NamedSpatialElement | null {
-	const element = { id, kind: draft.kind, name: draft.name.trim(), points: draft.points.map(point => ({ ...point })) };
+	const element = { id, kind: draft.kind, name: draft.name.trim(), points: draft.points.map(point => ({ ...point })), ...(draft.kind === 'stair' ? { stair: { ...draft.stair } } : {}) };
 	if (!element.name || !validSpatialElement(element)) return null;
 	return draft.kind === 'object' && !areaOutline(element.points).ok ? null : element;
 }

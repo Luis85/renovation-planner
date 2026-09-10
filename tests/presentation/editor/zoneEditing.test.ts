@@ -12,6 +12,7 @@
  * has the screen footprint (198,198)-(488,388), inside the 800×600 stage.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
+import { zoneEditingHandles } from '../../helpers/zoneEditingHandles';
 import type Konva from 'konva';
 import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent } from 'vue';
@@ -174,9 +175,8 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		await settle();
 
 		// DoD 5's second half: the selection SHOWS — one handle circle per vertex, in the
-		// interaction layer.
-		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
-		expect(interaction?.find('Circle').length).toBe(ZONE_A_DTO.points.length);
+		// interaction layer, separate from the nested rotation affordance.
+		await zoneEditingHandles(harness, ZONE_A_DTO.points.length, { x: 2920, y: 1720 });
 
 		// The panel shows the pre-drag area: 2900 × 1900 mm. Waited for, not assumed — the
 		// selection query crosses an awaited repository read before the DTO lands.
@@ -226,12 +226,13 @@ describe('the wired Plan Editor (design slice 8)', () => {
 			'the delete to land in the repository',
 		);
 
-		// Both the note-side repo state and the panel agree it is gone (DoD 3/8). The delete
-		// clears the selection, so the Inspector falls back to its floor state (Task 15) —
-		// "Nothing selected." was `RoomInspector`'s own text through Task 14; the frame's
-		// floor state has no rooms left to list instead.
+		// Both repository state and M00 agree: deletion clears selection and exposes the
+		// initial floor setup and starting action when neither Room nor reference remains.
 		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(0);
-		expect(harness.wrapper.text()).toContain('This floor has no rooms yet.');
+		expect(useSelectionStore(harness.pinia).selectedIds).toEqual([]);
+		expect(harness.wrapper.find('.rp-room-inspector').exists()).toBe(false);
+		expect(harness.wrapper.get('.rp-floor-inspector .rp-floor-setup').text()).toContain('Nothing has been added yet.');
+		expect(harness.wrapper.get('[data-rp-empty="floor-start"] .rp-empty-state__action').element).toHaveProperty('disabled', false);
 
 		actionButton(harness, 'Undo').click();
 		await until(
@@ -523,7 +524,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
 		// The handles were already asserted elsewhere; this is the shape drawn BESIDE them,
 		// and an outline that stopped being drawn would leave that count untouched.
-		const outlines = interaction?.find<Konva.Line>('Line') ?? [];
+		const outlines = interaction?.find<Konva.Line>('.selection-outline') ?? [];
 		expect(outlines).toHaveLength(1);
 		expect(outlines[0]?.closed()).toBe(true);
 		// The fixture rect (1500..4400)² through the default camera: world = 10 × screen − 480.
@@ -549,9 +550,8 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		click(canvas, 200, 200);
 		await settle();
 
-		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
-		expect(interaction?.find('Circle')).toHaveLength(ZONE_A_DTO.points.length);
-		expect(interaction?.find('Line')).toHaveLength(1);
+		const interaction = await zoneEditingHandles(harness, ZONE_A_DTO.points.length, { x: 2920, y: 1720 });
+		expect(interaction?.find('.selection-outline')).toHaveLength(1);
 
 		// (700,500) is world (6520,4520) — outside the fixture rect, so this is empty canvas.
 		click(canvas, 700, 500);
@@ -562,6 +562,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		// would satisfy both and go on being drawn over a zone the user no longer has selected.
 		expect(interaction?.find('Circle')).toHaveLength(0);
 		expect(interaction?.find('Line')).toHaveLength(0);
+		expect(interaction?.findOne('.object-rotation-handle')).toBeUndefined();
 
 		harness.unmount();
 	});

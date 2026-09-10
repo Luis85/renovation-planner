@@ -34,9 +34,20 @@ import type { ToolId } from '../tools/editor-tool';
  * than reasoned separately per mounter.
  */
 const PRECISE_TOOLS: readonly ToolId[] = [
+	'move-opening',
 	'draw-polygon',
 	'draw-room',
 	'draw-area',
+	'draw-wall',
+	'draw-path',
+	'draw-fence',
+	'measure',
+	'place-object',
+	'place-door',
+	'place-window',
+	'place-opening',
+	'place-stair',
+	'draw-arrow',
 	'calibrate',
 	'trace-footprint',
 	'trace-clearance',
@@ -49,7 +60,8 @@ export interface CursorInputs {
 	readonly panPhase: PanPhase;
 	readonly activeToolId: ToolId | null;
 	readonly hoveredObjectId: string | null;
-	readonly hoveredTargetKind: 'body' | 'handle' | null;
+	readonly hoveredTargetKind: 'body' | 'handle' | 'rotation' | null;
+	readonly rotationActive?: boolean;
 }
 
 /**
@@ -75,8 +87,9 @@ export interface CursorInputs {
  */
 export function cursorClassFor(inputs: CursorInputs): string | null {
 	if (inputs.panPhase !== 'idle') return `rp-plan-canvas-${inputs.panPhase}`;
+	if (inputs.activeToolId === 'select' && inputs.rotationActive) return 'rp-plan-canvas-grabbing';
 	if (inputs.activeToolId === 'select' && inputs.hoveredObjectId !== null) {
-		return inputs.hoveredTargetKind === 'handle' ? 'rp-plan-canvas-grab' : 'rp-plan-canvas-target';
+		return inputs.hoveredTargetKind === 'handle' || inputs.hoveredTargetKind === 'rotation' ? 'rp-plan-canvas-grab' : 'rp-plan-canvas-target';
 	}
 	const tool = inputs.activeToolId;
 	return tool !== null && PRECISE_TOOLS.includes(tool) ? 'rp-plan-canvas-precise' : null;

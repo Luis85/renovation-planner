@@ -1,5 +1,23 @@
 # M03 — Add Room
 
+## All-edge measurements and free-form discovery — 2026-09-08
+
+The user's new requirement keeps actual edge lengths visible for rotated and irregular Rooms,
+including rotation, point editing and creation previews. The rectangular width/depth editing
+boundary below still applies; it no longer limits read-only measurement visibility. Add Room
+also exposes **Draw a free-form room** in the canvas task banner, so the route remains visible
+with Details closed. The same action in the Inspector preserves the current name and rectangle
+corners when switching to the existing free-form drawing task. See the
+[implementation and pending acceptance](../implementation/room-edge-measurements.md).
+
+## Exact retyped dimensions — 2026-09-08
+
+Both the selected rectangular Room's modal dimensions and inline width/depth control treat
+an explicit input event as exact input even when its text matches the initial rounded display.
+Retyping `1.234` for a stored 1234.4 mm width therefore requests 1234 mm. Untouched axes preserve
+their full stored coordinates. An explicit input whose resulting geometry is already identical
+remains a no-op with no history. Preview and commit use the same edited-axis proposal.
+
 ![M03 — Add Room](../images/M03-add-room.png)
 
 ## Screen description
@@ -181,3 +199,17 @@ This provides a non-canvas editing route for irregular outlines without replacin
 Rectangle dragging uses the existing SnapService against saved Zone corners/edges, wall segments and hosted-opening endpoints. Its eight-screen-pixel tolerance scales with the camera. The press, preview and release share this projection; a visible marker and localized status identify alignment. A stationary click near an anchor still creates no rectangle. Exact numeric edits clear former alignment guides. Cancel, tool exit and completed creation clear the transient guides without changing saved geometry.
 
 `roomSnapping.test.ts` and `drawRoomTool.test.ts` passed 24 tool cases; `roomSnapping.e2e.test.ts` passed two production-component cases covering visible feedback, persisted geometry, numeric override, cancellation and Undo/Redo. These results precede UI/recovery integration; combined visual, keyboard and live-host acceptance remain open.
+
+## Curved boundary continuation (user requirement, 2026-09-09)
+
+Every Room edge retains its actual length while rotating, editing corners or bending a curve.
+The earlier restriction to straight or axis-aligned dimension displays is superseded. A selected
+Room or Wall exposes **Edit curves**: numbered midpoint handles bend individual edges, and native
+depth/radius fields provide a precise keyboard route. Ordinary selection keeps its existing
+corner and hovered rotation affordances. Curves are circular arcs no larger than a semicircle
+per edge; longer arcs use multiple edges. Untouched numeric text preserves exact geometry.
+Cancel writes nothing; Apply is one guarded undoable geometry operation. Existing free-form
+Room creation remains available directly from the Add Room task banner.
+
+See [curve implementation and verification](../implementation/curved-boundaries.md) for schema7,
+Room/Wall/opening integration, tested boundaries and the still-pending rendered/native acceptance.

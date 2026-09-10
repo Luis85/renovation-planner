@@ -1,5 +1,10 @@
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
+import type { StairOptions } from '../../../domain/spatial/stairGeometry';
+import { MarqueeSelection } from '../selection/MarqueeSelection';
+import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { translate } from '../../../core/geometry/operations';
+import { ElementRotation, type RotationGestureDeps } from '../elements/ElementRotation';
+import { rotationControlApproachContains, rotationControlContains, type RotationControlGeometry } from '../elements/rotationControl';
 import { ElementMove, type ElementMoveDeps } from '../elements/ElementMove';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
@@ -24,6 +29,10 @@ export interface SpatialObjectCandidate {
 	readonly width?: number;
 	readonly id: string;
 	readonly points: readonly Point[];
+	readonly bulges?: readonly number[];
+	/** A derived hit/framing projection; gestures always retain the canonical points. */
+	readonly hitPoints?: readonly Point[];
+	readonly stair?: StairOptions;
 }
 
 /**
@@ -31,7 +40,7 @@ export interface SpatialObjectCandidate {
  * like every adapter in this slice, one instance carries one transaction's forward/inverse
  * pair.
  */
-export interface SelectToolDeps extends ElementMoveDeps {
+export interface SelectToolDeps extends ElementMoveDeps, RotationGestureDeps, SelectionInteractions {
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly spatialObjects: () => readonly SpatialObjectCandidate[];
@@ -104,6 +113,7 @@ type Gesture =
  * "what you see" and "what you can grab" in a stated relationship.
  */
 export class SelectTool implements EditorTool {
+	private readonly marquee = new MarqueeSelection();
 	private wallGesture: { id: string; start: Point } | null = null;
 	readonly id: ToolId = 'select';
 
@@ -111,7 +121,8 @@ export class SelectTool implements EditorTool {
 	private gesture: Gesture | null = null;
 
 	private readonly elementMove: ElementMove;
-	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); }
+	private readonly elementRotation: ElementRotation;
+	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); this.elementRotation = new ElementRotation(deps); }
 
 	activate(context: EditorContext): void {
 		this.context = context;
@@ -119,18 +130,17 @@ export class SelectTool implements EditorTool {
 		context.renderState.previewPolygon = null;
 		context.renderState.hoveredObjectId = null;
 		context.renderState.hoveredTargetKind = null;
+		context.renderState.rotationHoverId = null;
+		context.renderState.rotationHoverSuppressed = false;
 	}
 
 	deactivate(): void {
-		this.elementMove.cancel();
-		this.wallGesture = null;
-		this.deps.previewWall?.(null);
-		const context = this.context;
-		this.gesture = null;
+		const context = this.discardGesture();
 		if (context !== null) {
-			context.renderState.previewPolygon = null;
 			context.renderState.hoveredObjectId = null;
 			context.renderState.hoveredTargetKind = null;
+			context.renderState.rotationHoverId = null;
+			context.renderState.rotationHoverSuppressed = false;
 		}
 		this.context = null;
 	}
@@ -138,8 +148,9 @@ export class SelectTool implements EditorTool {
 	pointerDown(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null || event.button !== 'primary') return;
+		context.renderState.rotationHoverSuppressed = event.modifiers.alt;
 
-		const { candidates, target } = this.targetAt(context, event);
+		const { candidates, target, rotationControl } = this.targetAt(context, event);
 		// A press is exactly when the predicted hover stops meaning anything, on every path
 		// out of this method — a body hit, a handle hit, a miss that clears the selection, and
 		// a target the candidate list no longer has: the pointer is about to act rather than
@@ -147,12 +158,16 @@ export class SelectTool implements EditorTool {
 		// goes with the id: they are one fact in two fields (see `RenderState`).
 		context.renderState.hoveredObjectId = null;
 		context.renderState.hoveredTargetKind = null;
+		context.renderState.rotationHoverId = null;
 		if (target === null) {
-			context.selection.clear();
+			this.marquee.start(context, event);
 			return;
 		}
+		if (target.kind === 'rotation') { this.startRotation(context, event, target.id, rotationControl); return; }
 		const hit = candidates.find((candidate) => candidate.id === target.id);
 		if (hit === undefined) return;
+		if (this.focusSelectedMember(context, event, hit.id)) return;
+		if (target.kind === 'body' && this.selectGroup(context, event, hit.id)) return;
 		if (hit.kind) { this.selectStructure(context, event, hit, target); return; }
 		if (target.kind === 'handle') {
 			// While the canvas is stale the gate would refuse the commit anyway; a ghost the
@@ -167,10 +182,6 @@ export class SelectTool implements EditorTool {
 				index: target.vertexIndex,
 				startWorld: event.worldPoint,
 			};
-			return;
-		}
-		if (!event.modifiers.shift && !event.modifiers.alt && context.selection.selectedIds.length > 1 && context.selection.isSelected(hit.id as EntityId<string>)) {
-			context.selection.focus(hit.id as EntityId<string>);
 			return;
 		}
 		selectSpatial(context.selection, hit.id, event.modifiers.shift);
@@ -189,26 +200,38 @@ export class SelectTool implements EditorTool {
 		context.renderState.previewPolygon = null;
 	}
 
+	private focusSelectedMember(context: EditorContext, event: EditorPointerEvent, id: string): boolean {
+		if (event.modifiers.shift || event.modifiers.alt || context.selection.selectedIds.length < 2 || !context.selection.isSelected(id as EntityId<string>)) return false;
+		if (!context.writesBlocked()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
+		context.selection.focus(id as EntityId<string>); return true;
+	}
+	private selectGroup(context: EditorContext, event: EditorPointerEvent, id: string): boolean {
+		const ids = this.deps.expandSelection?.(id, event.modifiers.alt);
+		if (!ids || ids.length < 2) return false;
+		const selected = context.selection.selectedIds;
+		const result = event.modifiers.shift
+			? ids.every(member => selected.some(value => value === member)) ? selected.filter(value => !ids.includes(value)) : [...selected, ...ids]
+			: ids;
+		context.selection.select(result.map(value => value as EntityId<string>));
+		if (!event.modifiers.shift && !event.modifiers.alt && !context.writesBlocked()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
+		return true;
+	}
 	private selectStructure(context: EditorContext, event: EditorPointerEvent, hit: SpatialObjectCandidate, target: Exclude<SelectionTarget, null>): void {
 		selectSpatial(context.selection, hit.id, event.modifiers.shift);
-		if (hit.kind !== 'wall' && hit.kind !== 'opening') this.elementMove.start(context, event, hit);
+		if (hit.kind !== 'wall' && hit.kind !== 'opening') this.elementMove.start(context, event, hit, target.kind === 'handle' ? target.vertexIndex : undefined);
 		if (hit.kind === 'wall' && target.kind === 'handle' && target.vertexIndex === 1 && !context.writesBlocked()) this.wallGesture = { id: hit.id, start: event.worldPoint };
 	}
 
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null) return;
+		if (this.deps.selectionMove?.active) { this.deps.selectionMove.move(event); return; }
+		if (this.marquee.active) { this.marquee.move(context, event); return; }
+		if (this.elementRotation.active) { this.elementRotation.move(context, event); return; }
 		if (this.elementMove.active) { this.elementMove.move(event); return; }
 		if (this.wallGesture) { this.deps.previewWall?.(this.wallGesture.id, event.worldPoint); return; }
 		if (this.gesture === null) {
-			// No drag in flight: this move is a HOVER, so it predicts rather than acts —
-			// `resolveSelectionTarget` is the same question `pointerDown` asks, which is what
-			// keeps the cursor's promise and the click's outcome unable to disagree. Both halves
-			// of the resolver's answer are kept: WHICH record, and WHAT of it — a body or one of
-			// its vertex handles — because §6.2 asks the cursor to distinguish the two.
-			const { target } = this.targetAt(context, event);
-			context.renderState.hoveredObjectId = target === null ? null : target.id;
-			context.renderState.hoveredTargetKind = target === null ? null : target.kind;
+			this.updateHover(context, event);
 			return;
 		}
 		if (this.gesture.kind === 'body') {
@@ -223,8 +246,26 @@ export class SelectTool implements EditorTool {
 		preview[this.gesture.index] = event.worldPoint;
 		context.renderState.previewPolygon = preview;
 	}
+	private updateHover(context: EditorContext, event: EditorPointerEvent): void {
+		// Ordinary hover predicts the same body/handle as a click; affordance approach stays separate.
+		context.renderState.rotationHoverSuppressed = event.modifiers.alt;
+		const { target } = this.targetAt(context, event);
+		context.renderState.rotationHoverId = target?.kind === 'rotation' ? target.id : this.approachingRotation(context, event) ?? target?.id ?? null;
+		context.renderState.hoveredObjectId = target === null ? null : target.id;
+		context.renderState.hoveredTargetKind = target === null ? null : target.kind;
+	}
 
+	private finishSelectionGesture(event: EditorPointerEvent): boolean {
+		if (this.deps.selectionMove?.active) { if (event.button === 'primary') this.deps.selectionMove.finish(event); return true; }
+		if (this.marquee.active && this.context) {
+			this.marquee.finish(this.context, event, this.deps.spatialObjects(), this.deps.expandSelection ? (id, deep) => this.deps.expandSelection?.(id, deep) ?? [] : undefined);
+			return true;
+		}
+		return false;
+	}
 	pointerUp(event: EditorPointerEvent): void {
+		if (this.finishSelectionGesture(event)) return;
+		if (this.elementRotation.active && this.context) { this.elementRotation.finish(this.context, event); return; }
 		if (this.elementMove.active && this.context) { this.elementMove.finish(this.context, event); return; }
 		if (this.wallGesture && event.button === 'primary') {
 			const gesture = this.wallGesture; this.wallGesture = null;
@@ -281,13 +322,19 @@ export class SelectTool implements EditorTool {
 		void this.commit(context, gesture.zoneId, gesture.original, forwardPoints);
 	}
 
-	cancel(): void {
-		this.elementMove.cancel();
+	private discardGesture(): EditorContext | null {
+		this.deps.selectionMove?.cancel();
+		this.elementMove.cancel(); this.elementRotation.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
 		this.gesture = null;
-		if (context !== null) context.renderState.previewPolygon = null;
+		if (context !== null) { this.marquee.cancel(context); context.renderState.previewPolygon = null; }
+		return context;
+	}
+
+	cancel(): void {
+		this.discardGesture();
 		// Deliberately clears neither hover field, unlike `activate`/`deactivate`/`pointerDown`
 		// above: a cancelled drag leaves the pointer still resting over its target, so the
 		// prediction (`hoveredObjectId`/`hoveredTargetKind`) is still true. R8's "cleared
@@ -306,7 +353,7 @@ export class SelectTool implements EditorTool {
 
 	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
 	hasDraft(): boolean {
-		return this.gesture !== null || this.wallGesture !== null || this.elementMove.active;
+		return this.deps.selectionMove?.active === true || this.marquee.active || this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active;
 	}
 
 	/**
@@ -317,20 +364,48 @@ export class SelectTool implements EditorTool {
 	 * `.find` afterwards, and re-calling `spatialObjects()` there would be the two-calls-per-
 	 * gesture cost this method already exists to avoid.
 	 */
+	private approachingRotation(context: EditorContext, event: EditorPointerEvent): string | null {
+		if (event.modifiers.alt || !this.deps.rotationControls) return null;
+		const target = this.deps.rotationDisplayTarget?.();
+		return target && this.deps.rotationControls().some(control => rotationControlApproachContains(control, event.worldPoint, context.viewport.worldPerScreenPixel())) ? target.id : null;
+	}
+	private selectRotationTarget(context: EditorContext, id: string): boolean {
+		const current = this.deps.rotationTarget?.();
+		const member = context.selection.selectedIds.some(selectedId => selectedId === id);
+		if (member) return context.selection.selectedIds.length < 2 || current?.id === id;
+		if (current?.id === id) return true;
+		const ids = this.deps.expandSelection?.(id, false) ?? [id];
+		if (!ids.length) return false;
+		context.selection.select(ids.map(value => value as EntityId<string>));
+		return true;
+	}
+	private startRotation(context: EditorContext, event: EditorPointerEvent, id: string, control: RotationControlGeometry | null | undefined): void {
+		if (!control || context.writesBlocked() || !this.selectRotationTarget(context, id)) return;
+		const shape = this.deps.rotationTarget?.();
+		if (shape?.id === id) this.elementRotation.start(context, event, shape, control);
+	}
+	private rotationAt(context: EditorContext, event: EditorPointerEvent) {
+		const selected = this.deps.rotationDisplayTarget ? this.deps.rotationDisplayTarget() : this.deps.rotationTarget?.();
+		const control = this.deps.rotationControls ? this.deps.rotationControls().find(candidate => rotationControlContains(candidate.bounds, event.worldPoint)) : this.deps.rotationControl?.();
+		const decoration = control && selected && this.deps.canRotateShape?.(selected.id) !== false && !context.writesBlocked() ? { id: selected.id, bounds: control.bounds } : undefined;
+		return { decoration, control, hit: decoration !== undefined && !event.modifiers.alt && rotationControlContains(decoration.bounds, event.worldPoint) };
+	}
 	private targetAt(
 		context: EditorContext,
 		event: EditorPointerEvent,
-	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget } {
+	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget; readonly rotationControl: RotationControlGeometry | null | undefined } {
 		const candidates = this.deps.spatialObjects();
+		const rotation = this.rotationAt(context, event);
 		const target = resolveSelectionTarget({
+			rotationHandle: rotation.decoration,
 			candidates,
-			selectedIds: event.modifiers.shift ? [] : context.selection.selectedIds.map(String),
+			selectedIds: event.modifiers.shift && !rotation.hit ? [] : context.selection.selectedIds.map(String),
 			worldPoint: event.worldPoint,
 			handleToleranceWorld: VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
 			cycle: event.modifiers.alt,
 			badgeToleranceWorld: SELECTION_BADGE_RADIUS_PX * context.viewport.worldPerScreenPixel(),
 		});
-		return { candidates, target };
+		return { candidates, target, rotationControl: rotation.control };
 	}
 
 	private async commit(

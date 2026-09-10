@@ -45,7 +45,7 @@
 import { onBeforeUpdate, onUpdated, ref } from 'vue';
 import { tr } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
-import type { EditorWarning, WarningSeverity } from './warnings';
+import type { EditorWarning, WarningSeverity, WarningAction } from './warnings';
 import HostIcon from '../../components/HostIcon.vue';
 
 defineProps<{ warnings: readonly EditorWarning[] }>();
@@ -54,6 +54,11 @@ const SEVERITY_LABEL: Record<WarningSeverity, StringKey> = {
 	warning: 'editor.warning.severity.warning',
 	error: 'editor.warning.severity.error',
 };
+
+function warningBusy(warning: EditorWarning): 'true' | undefined { return warning.actions?.some(action => action.busy) ? 'true' : undefined; }
+function severityIcon(severity: WarningSeverity): string { return severity === 'warning' ? 'triangle-alert' : 'circle-alert'; }
+function actionDisabled(action: WarningAction): 'true' | undefined { return action.busy ? 'true' : undefined; }
+function runAction(action: WarningAction): void { if (!action.busy) action.run(); }
 
 const strip = ref<HTMLElement | null>(null);
 
@@ -95,11 +100,15 @@ onUpdated(() => {
 			:class="`rp-warning-strip__item--${w.severity}`"
 			:data-rp-warning="w.id"
 			:data-rp-severity="w.severity"
-			:aria-busy="w.actions?.some((a) => a.busy) ? 'true' : undefined"
+			:aria-busy="warningBusy(w)"
 		>
-			<HostIcon :name="w.severity === 'warning' ? 'triangle-alert' : 'circle-alert'" />
+			<HostIcon :name="severityIcon(w.severity)" />
 			<span class="rp-warning-strip__content">
-				<span class="rp-warning-strip__severity">{{ tr(SEVERITY_LABEL[w.severity]) + ' ' }}</span>
+				<span
+					class="rp-warning-strip__severity"
+					:class="{ 'rp-visually-hidden': w.id === 'stale' }"
+				>{{ tr(SEVERITY_LABEL[w.severity]) + ' ' }}</span>
+				<strong v-if="w.id === 'stale'">{{ tr('editor.shell.stale-heading') }}</strong>
 				<span>{{ tr(w.messageKey, w.params) }}</span>
 			</span>
 			<span
@@ -112,8 +121,8 @@ onUpdated(() => {
 					type="button"
 					class="rp-warning-strip__action"
 					:data-rp-action="a.id"
-					:aria-disabled="a.busy ? 'true' : undefined"
-					@click="a.busy ? undefined : a.run()"
+					:aria-disabled="actionDisabled(a)"
+					@click="runAction(a)"
 				>{{ tr(a.labelKey) }}</button>
 			</span>
 		</p>

@@ -1,4 +1,5 @@
 import { coincident } from '../../../core/geometry/operations';
+import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
@@ -310,10 +311,7 @@ export class DrawPolygonTool implements EditorTool {
 	 */
 	private landingPoint(context: EditorContext, event: EditorPointerEvent): Point {
 		const anchor = this.buffer.at(-1);
-		const constrained = event.modifiers.shift && anchor !== undefined
-			? context.snapService.snapDirection(anchor, event.worldPoint)
-			: event.worldPoint;
-		return context.snapService.snapPoint(constrained, {});
+		return context.snapService.snapPoint(constrainDrawingPoint(anchor, event.worldPoint, event.modifiers.shift, context.snapService), {});
 	}
 
 	/**

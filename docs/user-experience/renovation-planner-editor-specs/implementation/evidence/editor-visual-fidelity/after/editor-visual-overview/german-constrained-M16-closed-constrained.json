@@ -1,0 +1,23 @@
+{
+  "viewport": {
+    "width": 460,
+    "height": 1000
+  },
+  "camera": {
+    "x": 48.00000000000002,
+    "y": 245.60975609756102,
+    "zoom": 0.03560975609756097
+  },
+  "sample": {
+    "roomId": "zone-01M251BBH2790714M20WEW4Y97",
+    "role": "selected-room"
+  },
+  "selection": {
+    "ids": [
+      "zone-01M251BBH2790714M20WEW4Y97"
+    ],
+    "focusedId": "zone-01M251BBH2790714M20WEW4Y97"
+  },
+  "input": "Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change",
+  "vaultAndSelectionUnchanged": true
+}

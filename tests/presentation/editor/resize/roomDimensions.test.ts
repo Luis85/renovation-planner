@@ -34,6 +34,22 @@ describe('bounded rectangular room dimensions', () => {
 		const result = dimensionProposal(original, bounds, { ...dimensionTexts(bounds), depth: '1,2346' });
 		expect(result.polygon?.points[2]).toEqual({ x: 3000.625, y: 1235.5 });
 	});
+	it.each(['width', 'depth'] as const)('rounds explicitly retyped %s even when its text matches the display', axis => {
+		const original = [{ x: 0.25, y: 0.5 }, { x: 1234.65, y: 0.5 }, { x: 1234.65, y: 1234.9 }, { x: 0.25, y: 1234.9 }];
+		const bounds = expectDefined(roomDimensions(original), 'rectangle');
+		const text = dimensionTexts(bounds);
+		expect(text).toEqual({ width: '1.234', depth: '1.234' });
+		const result = dimensionProposal(original, bounds, text, { [axis]: true });
+		expect(result.polygon?.points).toEqual(original.map(point => ({
+			x: axis === 'width' && point.x !== bounds.min.x ? 1234.25 : point.x,
+			y: axis === 'depth' && point.y !== bounds.min.y ? 1234.5 : point.y,
+		})));
+	});
+	it('preserves exact corner bytes for explicitly retyped dimensions already equal to the stored extent', () => {
+		const original = [{ x: 0.1, y: 0.2 }, { x: 1234.1, y: 0.2 }, { x: 1234.1, y: 2000.2 }, { x: 0.1, y: 2000.2 }];
+		const bounds = expectDefined(roomDimensions(original), 'rectangle');
+		expect(dimensionProposal(original, bounds, { width: '1.234', depth: '2.000' }, { width: true, depth: true }).polygon?.points).toEqual(original);
+	});
 	it('refuses dimensions collapsed by coordinate precision', () => {
 		const original = [{ x: 1e20, y: 0 }, { x: 1e20 + 1e6, y: 0 }, { x: 1e20 + 1e6, y: 1e6 }, { x: 1e20, y: 1e6 }];
 		expect(dimensionProposal(original, expectDefined(roomDimensions(original), 'rectangle'), { width: '0.001', depth: '1' }).polygon).toBeNull();

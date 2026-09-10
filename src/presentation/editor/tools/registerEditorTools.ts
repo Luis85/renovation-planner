@@ -13,6 +13,8 @@ import { DrawPolygonTool } from './draw-polygon-tool';
 import { areaOutline } from '../add/areaOutline';
 import { DrawRoomTool } from './draw-room-tool';
 import { SelectTool } from './select-tool';
+import { PanTool } from './pan-tool';
+import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { ReversibleMoveZoneCommand } from './reversible-move-zone-command';
 import type { UndoableCommand } from './undoable-command';
 import type { RoomDraftStore } from '../add/room-draft-store';
@@ -21,8 +23,10 @@ import { tr } from '../../i18n/strings';
 import { notifyOperationFailure } from '../../notices/notify';
 import { reportDispatchFailure } from '../report-failure';
 import type { PlanEditorContext } from '../PlanEditorContext';
-import { structureCandidates } from '../structure/structureCandidates';
+import { canvasCandidates } from '../selection/canvasCandidates';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { Point } from '../../../core/geometry/Point';
+import type { RotationGestureDeps } from '../elements/ElementRotation';
 import type { ElementMoveDeps } from '../elements/ElementMove';
 
 /**
@@ -48,7 +52,7 @@ export function moveGesture(
  * so the one cast that turns Obsidian's opaque per-leaf string into a branded id stays a
  * single site — see `subject` below, which is built from the same value.
  */
-export interface EditorToolDeps extends ElementMoveDeps {
+export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps, SelectionInteractions {
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly canFinishArea: () => boolean;
@@ -72,15 +76,18 @@ export interface EditorToolDeps extends ElementMoveDeps {
 
 /** The concrete tools of this slice, registered against one shared context factory. */
 export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
+	const workspace = useWorkspaceStore();
+	toolManager.register(new PanTool());
 	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
 	toolManager.register(
 		new SelectTool({
+			expandSelection: deps.expandSelection, selectionMove: deps.selectionMove,
+			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationControl: deps.rotationControl, rotationDisplayTarget: deps.rotationDisplayTarget, rotationControls: deps.rotationControls, requestRotation: deps.requestRotation, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
 			previewElement: deps.previewElement,
 			moveElement: deps.moveElement,
 			previewWall: deps.previewWall,
 			editWall: deps.editWall,
-			spatialObjects: () =>
-				[...[...projectStore.zones.values()].map((zone) => ({ id: zone.id, points: zone.points })), ...structureCandidates(projectStore.structure)],
+			spatialObjects: () => canvasCandidates(projectStore.zones.values(), projectStore.structure, workspace.layerVisibility),
 			// Body drags AND vertex drags produce the same command: a vertex drag is a
 			// whole-geometry replacement in which one point differs, so there is one adapter
 			// and only forward/inverse change.

@@ -11,7 +11,8 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
 import { EMPTY_RENOVATION, orderedWork } from '../../../domain/renovation/Renovation';
-import { openingPoints } from '../../../domain/spatial/Structure';
+import { structureCandidates } from '../structure/structureCandidates';
+import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
 import { tr } from '../../i18n/strings';
 import ReviewRoomMarkers from './ReviewRoomMarkers.vue';
 const props = defineProps<{ pins: readonly EvidencePin[]; tokens: ThemeTokens; transform: NodeTransform; zoom: number; visible: boolean }>();
@@ -20,7 +21,7 @@ const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
 const markers = computed(() => {
 	if (session.perspective === 'review' || !['existing', 'planned', 'work'].includes(session.mode)) return [];
 	const records = session.mode === 'work' ? orderedWork(value.value).filter(item => inRenovationScope(item, session.roomId, session.targetId)).map(item => ({ ...item, label: item.title }))
-			: value.value.subjects.filter(item => inRenovationScope(item, session.roomId, session.targetId) && item[session.mode === 'existing' ? 'existing' : 'planned']).map(item => ({ ...item, label: session.mode === 'existing' ? item.existing?.description : `${item.planned ? tr(`renovation.change.${item.planned.change}`) : ''} ${item.planned?.description || item.existing?.description}` }));
+			: value.value.subjects.filter(item => inRenovationScope(item, session.roomId, session.targetId) && item[session.mode === 'existing' ? 'existing' : 'planned']).map(item => ({ ...item, label: `${tr(`renovation.kind.${item.kind}`)} · ${session.mode === 'existing' ? item.existing?.description : `${item.planned ? tr(`renovation.change.${item.planned.change}`) : ''} ${item.planned?.description || item.existing?.description}`}` }));
 	// Existing/Planned/Work records retain their per-room stacks; Review uses Room markers.
 	const rows = new Map<string, number>();
 	return records.flatMap(item => {
@@ -35,10 +36,10 @@ const markers = computed(() => {
 const comparisons = computed(() => value.value.subjects.flatMap(item => {
 	if (!item.planned) return [];
 	const structure = item.planned.change === 'remove' ? project.structure : project.intended ?? project.structure;
-	const wall = structure.walls.find(candidate => candidate.id === item.targetId), opening = structure.openings.find(candidate => candidate.id === item.targetId);
 	const element = structure.elements?.find(candidate => candidate.id === item.targetId);
-	const points = wall ? [wall.start, wall.end] : opening ? openingPoints(opening, structure.walls) : element?.points ?? [];
-	return points.length ? [{ id: item.id, closed: element?.kind === 'object', points: points.flatMap(point => [point.x, point.y]), x: points[0].x, y: points[0].y, label: tr(`renovation.change.${item.planned.change}`), remove: item.planned.change === 'remove' }] : [];
+	const candidate = structureCandidates(structure).find(shape => shape.id === item.targetId);
+	const points = candidate ? spatialOutlinePoints(candidate, 0.25 / props.zoom) : [];
+	return points.length ? [{ id: item.id, closed: element?.kind === 'object' || element?.kind === 'stair', points: points.flatMap(point => [point.x, point.y]), x: points[0].x, y: points[0].y, label: tr(`renovation.change.${item.planned.change}`), remove: item.planned.change === 'remove' }] : [];
 }));
 function focus(roomId: string, id: string): void {
 	runtime.renovation.focus(roomId, session.mode, id);

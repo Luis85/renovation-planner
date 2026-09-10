@@ -1,3 +1,4 @@
+import { groupGeometryServices } from '../../src/application/commands/spatial/GroupGeometryCommand';
 import { renovationServices } from '../../src/application/commands/renovation/RenovationCommand';
 import { createPlanChangeSource } from '../../src/application/events/planChangeSource';
 import { createVaultFileChangeSource } from '../../src/infrastructure/obsidian/vault/vaultFileChanges';
@@ -37,6 +38,14 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 		Object.assign(sources, evidenceGalleryFixtures());
 		for (const path of Object.keys(sources).filter(candidate => candidate.startsWith('gallery-'))) stack.vault.entries.set(path, '1600x1200 synthetic PNG fixture');
 	}
+	// Opt-in supplemental acceptance data. Existing journeys retain their original fixture catalogue.
+	if (new URLSearchParams(location.search).has('modal-placement-fixtures')) {
+		for (let index = 0; index < 256; index++) stack.vault.entries.set(`photo-modal-${String(index).padStart(3, '0')}.md`, '# Synthetic non-image search candidate');
+		for (let index = 0; index < 64; index++) {
+			const path = `photo-modal-${String(index).padStart(2, '0')}.png`;
+			sources[path] = sources['scan.png']; stack.vault.entries.set(path, 'Synthetic PNG alias for bounded image-search acceptance');
+		}
+	}
 	const previousResourcePath = stack.deps.vault.getResourcePath.bind(stack.deps.vault);
 	stack.deps.vault.getResourcePath = file => sources[file.path as keyof typeof sources] ?? previousResourcePath(file);
 	const services = referencePlanServices(stack.plans, geometry, stack.events, { fileExists: path => path in sources });
@@ -46,9 +55,9 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
         onVaultFileChanged: createVaultFileChangeSource(stack.deps.vault),
 		queries: { ...base.queries,
 			getPlan: async () => { await ready; const result = await stack.plans.getById(plan.id); return result.ok ? ok(result.value ? toPlanDto(result.value.entity) : null) : result; },
-			findZonesByPlan: async () => { await ready; const snapshot = await geometry.read(plan.id); if (!snapshot.ok) return snapshot; const result = await stack.zones.listByPlan(plan.id); return result.ok ? ok({ zones: result.value.loaded.map(z => toZoneDto(z.entity)), unreadable: result.value.refused, structure: snapshot.value.document.structure, intended: snapshot.value.document.intended }) : result; },
+			findZonesByPlan: async () => { await ready; const snapshot = await geometry.read(plan.id); if (!snapshot.ok) return snapshot; const result = await stack.zones.listByPlan(plan.id); return result.ok ? ok({ zones: result.value.loaded.map(z => toZoneDto(z.entity)), unreadable: result.value.refused, structure: snapshot.value.document.structure, intended: snapshot.value.document.intended, groups: snapshot.value.document.groups }) : result; },
 		},
-		commands: { ...base.commands, referencePlan: services, zones: stack.zones, events: stack.events,
+		commands: { ...base.commands, groups: groupGeometryServices(geometry, stack.zones, stack.events), referencePlan: services, zones: stack.zones, events: stack.events,
 			...(planning ? planningWorkspace(stack, geometry) : { renovation: renovationServices(stack.plans, geometry, stack.events) }),
 			reviewNote: async (id, body) => { const result = await reviewNotes.generate(id, body); return result.ok ? ok(undefined) : result; },
 			structure: structureServices(geometry, stack.events), deleteZone: makeDeleteZoneCommand(stack.zones, stack.events, stack.requirements), requirementEdits: { ...base.commands.requirementEdits, requirements: stack.requirements },

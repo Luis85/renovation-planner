@@ -11,6 +11,8 @@ import { markUncompensated, type DispatchResult } from '../DispatchOutcome';
 import { persistenceError } from '../../errors';
 import { sameGeometryDocument } from './sameGeometryDocument';
 import { RoomBoundaryHistory } from './RoomBoundaryHistory';
+import { groupsAfterStructureChange } from '../../../domain/spatial/groupMembership';
+import { runSpatialCommand, type SpatialCommandState } from './runSpatialCommand';
 
 export interface SpatialRoomCommand {
 	execute(): Promise<DispatchResult>;
@@ -27,9 +29,7 @@ type CommandInput = Parameters<StructureServices['command']>[0];
 
 /** One conditional sidecar operation, optionally composed with existing Zone creation. */
 class StructureCommand {
-	private applied = false;
-	private busy = false;
-	private retired = false;
+	private readonly state: SpatialCommandState = { applied: false, busy: false, retired: false };
 	private current: PlanGeometrySnapshot;
 	private generation: number | null = null;
 	constructor(private readonly deps: { geometry: PlanGeometrySidecar; events: EventBus }, private readonly input: CommandInput) {
@@ -38,21 +38,19 @@ class StructureCommand {
 
 	execute(): Promise<DispatchResult> { return this.run(true); }
 	undo(): Promise<DispatchResult> { return this.run(false); }
-	private async run(forward: boolean): Promise<DispatchResult> {
-		if (this.retired) return err(markUncompensated(persistenceError('spatial.recovery-required', 'Reopen the floor before editing.')));
-		if (this.busy || this.applied === forward) return ok('no-write');
-		this.busy = true;
-		try {
+	private run(forward: boolean): Promise<DispatchResult> {
+		return runSpatialCommand(this.state, forward, async () => {
 			const checked = await this.check();
 			if (!checked.ok) return checked;
 			const result = forward ? await this.apply() : await this.revert();
 			if (!result.ok) return result;
-			this.applied = forward;
+			this.state.applied = forward;
 			await this.deps.events.publish({ type: 'PlanStructureChanged', payload: { planId: this.input.planId } });
 			return result;
-		} catch (cause) {
-			return err(persistenceError('spatial.write-failed', 'The spatial operation failed.', cause));
-		} finally { this.busy = false; }
+		}, {
+			recovery: () => persistenceError('spatial.recovery-required', 'Reopen the floor before editing.'),
+			unexpected: cause => persistenceError('spatial.write-failed', 'The spatial operation failed.', cause),
+		});
 	}
 
 	private async check(): Promise<DispatchResult> {
@@ -101,7 +99,7 @@ class StructureCommand {
 		catch (cause) { return err(persistenceError('spatial.write-failed', 'The spatial operation failed.', cause)); }
 	}
 	private recovery(): DispatchResult {
-		this.retired = true;
+		this.state.retired = true;
 		return err(markUncompensated(persistenceError('spatial.compensation-failed', 'Spatial recovery failed. Reopen the floor before editing.')));
 	}
 	private async restoreRoom(before: PlanGeometryDocument, room: SpatialRoomCommand): Promise<boolean> {
@@ -127,7 +125,8 @@ class StructureCommand {
 			}
 		}
 		const structure = this.withRoomBoundary(before);
-		const result = await this.safe(() => this.write({ ...this.current.document, structure }));
+		const groups = groupsAfterStructureChange(this.current.document.groups, before.structure, structure);
+		const result = await this.safe(() => this.write({ ...this.current.document, structure, ...(groups ? { groups } : {}) }));
 		if (!result.ok && room) {
 			if (!(await this.restoreRoom(before, room))) return this.recovery();
 		}
@@ -136,7 +135,7 @@ class StructureCommand {
 
 	private async revert(): Promise<DispatchResult> {
 		const before = this.current.document;
-		const document = { ...before, structure: this.input.baseline.document.structure };
+		const document = { ...before, structure: this.input.baseline.document.structure, groups: this.input.baseline.document.groups };
 		const result = await this.safe(() => this.write(document));
 		if (!result.ok || !this.input.room) return result;
 		const room = this.input.room;

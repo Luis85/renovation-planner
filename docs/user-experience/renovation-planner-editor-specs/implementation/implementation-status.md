@@ -1,5 +1,16 @@
 # Editor implementation status — 2026-09-07
 
+## Maßgeblicher nächster Arbeitsstand — 2026-09-09
+
+Der [oberste Stack-Plan](remaining-plan.md) nennt die veröffentlichten Fach-PRs, den bestandenen vollständigen Check auf `15e4b0d7`, die noch offenen visuellen und nativen Abnahmen und die verbleibende Implementierungsreihenfolge. Ältere laufende oder fehlgeschlagene Checkpoints unten bleiben historische Nachweise und sind nicht der aktuelle Abschlussstatus.
+
+
+Current reconstruction: [acceptance delivery](delivery/acceptance.md). Frozen `b10c3b24` passes all 730 files / 8,624 tests but remains below the unchanged coverage gate. Later coverage additions are separate; final image and native acceptance remain pending. Dated evidence below is retained historically.
+
+## Active continuation — 2026-09-08
+
+Updated 2026-09-09: main is clean at `ec342370`, after PR #93 was merged externally. The current topic integration includes the expanded user requirements, including saved groups, curves, stairs/arrows, hover rotation controls, image-only photo search and the enlarged reference viewport with pan/zoom. Follow [the combined gate record](integrated-gate-2026-09-09.md) and [release ledger](release-2026-09-08.md) for outstanding verification. The full combined gate and final visual/native acceptance are not yet passed. The dated measurements below are historical evidence, not the current repository state.
+
 Operational continuation: [RESUME.md](RESUME.md) is the central handoff for a later session or usage-limit interruption. It distinguishes pushed code, unverified WIPs, current processes and remaining acceptance.
 
 Full CI07bc094a passes **663files/8121tests on every Linux22/24/26 and Windows22 leg**,69skipped. Build/lint pass; unchanged branch coverage97.89%(12543/12813) leaves14arms. The five repository lifecycle gains are now confirmed in the complete run. **Fresh matched Health on07 also passes:0findings,748/748file paths mapped.** [Run34160382401](https://github.com/Luis85/renovation-planner/actions/runs/34160382401), [CI/Health receipt](evidence/ci-07bc094a-quality.json). UI9f7e882d is now integrated as Root6569a9e7, including the verified4-scenario overview and hardened capture provenance. The following commit adds Coverage256a9384:5verified cases,+6branches/+2statements on matched source/maps. Root checked98UI artifact hashes. Count-copy/idle-guidance,M13pilot,final combined9/18/newCI/Health and nativeH1–H6remain. [Joined receipt](joined-overview-snapshot-evidence.md).

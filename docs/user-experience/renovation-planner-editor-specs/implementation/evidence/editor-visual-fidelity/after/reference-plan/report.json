@@ -1,18 +1,18 @@
 [
   {
     "scenario": "light",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "prepare": {
-      "width": 894,
-      "scroll": 894
+      "width": 1342,
+      "scroll": 1342
     },
     "measurement": {
-      "width": 894,
-      "scroll": 894
+      "width": 1342,
+      "scroll": 1342
     },
     "review": {
-      "width": 894,
-      "scroll": 894
+      "width": 1342,
+      "scroll": 1342
     },
     "accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
     "replacement": "PNG retained after PDF replacement cancellation",
@@ -24,18 +24,18 @@
   },
   {
     "scenario": "dark",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "prepare": {
-      "width": 894,
-      "scroll": 894
+      "width": 1342,
+      "scroll": 1342
     },
     "measurement": {
-      "width": 894,
-      "scroll": 894
+      "width": 1342,
+      "scroll": 1342
     },
     "review": {
-      "width": 894,
-      "scroll": 894
+      "width": 1342,
+      "scroll": 1342
     },
     "accent": "hsl(258, 88%, 66%)",
     "replacement": "PNG retained after PDF replacement cancellation",
@@ -47,18 +47,18 @@
   },
   {
     "scenario": "custom-accent",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "prepare": {
-      "width": 894,
-      "scroll": 894
+      "width": 966,
+      "scroll": 966
     },
     "measurement": {
-      "width": 894,
-      "scroll": 894
+      "width": 966,
+      "scroll": 966
     },
     "review": {
-      "width": 894,
-      "scroll": 894
+      "width": 966,
+      "scroll": 966
     },
     "accent": "#7c246b",
     "replacement": "PNG retained after PDF replacement cancellation",
@@ -70,7 +70,7 @@
   },
   {
     "scenario": "german-constrained",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "prepare": {
       "width": 426,
       "scroll": 426

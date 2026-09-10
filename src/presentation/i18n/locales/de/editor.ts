@@ -1,4 +1,13 @@
+import { openingMoveDe } from './openingMove';
+import { openingDe } from './opening';
+import { curvesDe } from './curves';
+import { referenceViewportDe } from './referenceViewport';
+import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
+import { stairsArrowsDe } from './stairsArrows';
+import { inputDe } from './input';
+import { groupsDe } from './groups';
+import { creationDe } from './creation';
 import type {
  editorEn } from '../en/editor';
 
@@ -14,6 +23,11 @@ import type {
  */
 import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
+	...curvesDe,
+	...groupsDe,
+	...stairsArrowsDe,
+	...inputDe,
+	...creationDe,
 	'editor.direct.edit-shape': 'Form bearbeiten',
 	'editor.direct.edit-length': 'Länge bearbeiten',
 	'editor.direct.mark-change': 'Änderung markieren',
@@ -25,6 +39,10 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.dimension.task': 'Raummaß bearbeiten',
 	'editor.dimension.instruction': 'Länge in Metern eingeben. Anwenden oder Eingabe speichert; Escape bricht ab.',
 	...objectDe,
+	...openingDe,
+	...openingMoveDe,
+	...referenceViewportDe,
+	...editorShellDe,
 	"editor.element.name-required": "Geben Sie einen Namen ein.",
 	"editor.element.edit": "{name} bearbeiten",
 	"editor.element.edit-action": "Name und Koordinaten bearbeiten",
@@ -41,7 +59,9 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.room.snapped': "An nahegelegener Geometrie eingerastet.",
 	'editor.add.note.context-required': "Wählen Sie einen Raum aus und warten Sie, bis seine Notizen geladen sind.",
 	'zone.category-change': "Die Identität als Raum oder Fläche kann hier nicht geändert werden.",
-	"editor.room.free-shape": "Zu einem Raum mit freiem Umriss wechseln",
+	"editor.room.free-shape": "Raum mit freiem Umriss zeichnen",
+	"editor.room.free-shape-hint": "Für L-förmige oder unregelmäßige Räume: Ecken im Plan setzen oder ihre Koordinaten eingeben.",
+	"editor.room.edge-length": "Kante {edge}: {length} m",
 	"editor.outline.action": "Umrisskoordinaten bearbeiten",
 	"editor.outline.title": "Umriss von {name} bearbeiten",
 	"editor.outline.hint": "Eckpunktkoordinaten in Metern eingeben. Anwenden ändert diesen Umriss in einem Schritt. Verbundene Wände behalten ihre eigene Geometrie.",

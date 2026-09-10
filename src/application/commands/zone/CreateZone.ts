@@ -3,7 +3,7 @@ import type {
 	GeometryError,
 	ReferenceError,
 } from '../../../core/errors/AppError';
-import type { Polygon } from '../../../core/geometry/Polygon';
+import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import type { EventBus } from '../../../core/events/EventBus';
 import { Zone } from '../../../domain/zone/Zone';
 import { createZoneId } from '../../../domain/zone/ZoneId';
@@ -30,7 +30,7 @@ export interface CreateZoneInput {
 	 * 8's; stating one at creation is this command's.
 	 */
 	readonly status?: ZoneStatus;
-	readonly geometry: Polygon;
+	readonly geometry: CurvedPolygon;
 	readonly domainNoteLink?: string | null;
 }
 

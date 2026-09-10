@@ -21,7 +21,6 @@ export const SpatialObjectGeometrySchemaV1 = z.object({
 	points: z.array(z.tuple([z.number(), z.number()])),
 });
 
-export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV1>;
 
 /** Declared now so the sidecar has one schema, versioned once; slice 7 writes it. */
 export const CalibrationSchemaV1 = z.object({
@@ -57,6 +56,24 @@ const StructureSchemaV4 = StructureSchema.extend({ elements: z.array(z.object({
 	id: z.string().startsWith('element-'), kind: z.enum(['object', 'path', 'fence', 'measurement']), points: z.array(SpatialPointSchema),
 })).optional() });
 export const PlanGeometrySchemaV4 = PlanGeometrySchemaV3.extend({ schemaVersion: z.literal(4), structure: StructureSchemaV4.optional(), intended: StructureSchemaV4.optional() });
+const OpeningSwingSchema = z.object({ hinge: z.enum(['start', 'end']), side: z.enum(['left', 'right']), angle: z.number().min(0).max(180) });
+const StructureSchemaV5 = StructureSchemaV4.extend({ openings: z.array(StructureSchema.shape.openings.element.extend({ swing: OpeningSwingSchema.optional() })) });
+const PlanGeometrySchemaV5 = PlanGeometrySchemaV4.extend({ schemaVersion: z.literal(5), structure: StructureSchemaV5.optional(), intended: StructureSchemaV5.optional() });
 /** Any persisted version, for a reader that asks only what the file DECLARES (no migration). */
-export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4]);
-export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV4>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 };
+const PlanGeometrySchemaV6 = PlanGeometrySchemaV5.extend({ schemaVersion: z.literal(6), groups: z.array(z.object({
+	id: z.string().startsWith('group-'), name: z.string().trim().min(1).max(100), memberIds: z.array(z.string().min(1)).min(1),
+})).optional() });
+const BulgeSchema = z.number().min(-1).max(1);
+export const SpatialObjectGeometrySchemaV7 = SpatialObjectGeometrySchemaV1.extend({ bulges: z.array(BulgeSchema).optional() })
+	.refine(value => value.bulges === undefined || value.bulges.length === value.points.length, { message: 'A closed boundary needs one bulge per edge.' });
+export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV7>;
+const StructureSchemaV7 = StructureSchemaV5.extend({ walls: z.array(StructureSchema.shape.walls.element.extend({ bulge: BulgeSchema.optional() })) });
+const PlanGeometrySchemaV7 = PlanGeometrySchemaV6.extend({ schemaVersion: z.literal(7), objects: z.array(SpatialObjectGeometrySchemaV7), structure: StructureSchemaV7.optional(), intended: StructureSchemaV7.optional() });
+const StairOptionsSchema = z.object({ width: z.number().min(1).max(1e6), treads: z.number().int().min(1).max(200), direction: z.enum(['up', 'down']) });
+const StructureSchemaV8 = StructureSchemaV7.extend({ elements: z.array(z.object({
+	id: z.string().startsWith('element-'), kind: z.enum(['object', 'path', 'fence', 'measurement', 'stair', 'arrow']),
+	points: z.array(SpatialPointSchema), stair: StairOptionsSchema.optional(),
+}).refine(element => element.kind === 'stair' ? element.stair !== undefined : element.stair === undefined)).optional() });
+export const PlanGeometrySchemaV8 = PlanGeometrySchemaV7.extend({ schemaVersion: z.literal(8), structure: StructureSchemaV8.optional(), intended: StructureSchemaV8.optional() });
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8]);
+export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV8>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 };

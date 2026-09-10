@@ -1,0 +1,44 @@
+{
+  "viewport": {
+    "width": 1000,
+    "height": 1000
+  },
+  "bounds": {
+    ".rp-structure-inspector > h3": {
+      "x": 713,
+      "y": 102.59375,
+      "width": 256,
+      "height": 25
+    },
+    ".rp-structure-inspector > .rp-editor-inspector-fields": {
+      "x": 713,
+      "y": 135.59375,
+      "width": 256,
+      "height": 87.375
+    },
+    "[data-rp-action=\"edit-structure\"]": {
+      "x": 713,
+      "y": 270.96875,
+      "width": 133.421875,
+      "height": 32
+    }
+  },
+  "sample": {
+    "roomId": "zone-01M20MQ7WCH7ZVMSW1WQRFVYQW",
+    "role": "floor/element viewport sample; selected entity IDs are recorded separately"
+  },
+  "selection": {
+    "ids": [
+      "wall-01M20MQ70XRQB61MB3Y6G8XJNX"
+    ],
+    "focusedId": "wall-01M20MQ70XRQB61MB3Y6G8XJNX"
+  },
+  "input": "Native Tab to [data-rp-action=\"edit-structure\"], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
+  "camera": {
+    "x": 47.99999999999997,
+    "y": 250.2560975609756,
+    "zoom": 0.04975609756097561
+  },
+  "constrained": false,
+  "vaultAndSelectionUnchanged": true
+}

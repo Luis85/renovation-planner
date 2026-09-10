@@ -11,7 +11,7 @@ release: "[[MVP]]"
 
 ## Evidence
 
-The [implementation plan Phase 2](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md) locks priority as handle → opening → wall → object → room → background and requires overlap cycling.
+The [implementation plan Phase 2](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md) locks priority as handle → object → opening → wall → room → background and requires overlap cycling.
 
 ## Why it matters
 
@@ -38,6 +38,15 @@ Future entity types can bypass the rule if hit testing is distributed among shap
 Users can predict and recover which overlapping part will be selected.
 
 ## Amendments
+
+**2026-09-08 (release reconfirmation)** — after reviewing the closeout amendment below, the
+user explicitly retained Object → Opening → Wall → Room, with handles first and Alt cycling.
+This supersedes the earlier same-day rank decision for the new release, without rewriting
+PR #93's history. `resolveSelectionTarget.test.ts` now tests Object footprints across paint
+orders and preserves within-kind stacking, handles and badges. `structureSelection.test.ts`
+also covers hover/click agreement and mixed selected-member focus. The closeout's Measurement
+fixture remains valid for linear elements; it is not an Object-footprint test. See the
+[release verification](../user-experience/renovation-planner-editor-specs/implementation/release-selection-persistence.md).
 
 **2026-09-08 (closed)** — the user decided the plan is amended to the order the code has
 (handle → opening → wall → object → room → background) rather than the code being changed to

@@ -1,0 +1,2804 @@
+{
+  "source": "22772267dfb85456ed69c389ff844297182072a0",
+  "started": 1789023301515,
+  "completed": 1789023339619,
+  "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
+  "files": [
+    {
+      "name": "materials-costs-evidence/light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789022848166.4487,
+      "sha256": "5f4b300a09e494109ef9a1f2393ff60d9ed521c9168f52dcf4bc8751a8980273"
+    },
+    {
+      "name": "materials-costs-evidence/light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789022848342.6143,
+      "sha256": "ef9333b1db844234e66a630e92d786d4a1c7258251ba56d6f7d827c95a7919e8"
+    },
+    {
+      "name": "materials-costs-evidence/light-material-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789022850185.7566,
+      "sha256": "55a661b4d14667b177f6176186db948fa3f5d4c1592b07f493c875fecc239f71"
+    },
+    {
+      "name": "materials-costs-evidence/light-materials.png",
+      "kind": "image",
+      "modifiedAt": 1789022850807.1963,
+      "sha256": "96a82e669d88c798b9c27a1f57324cf1c9e3aefdf28e8d0ce477416a80c3a074"
+    },
+    {
+      "name": "materials-costs-evidence/light-partial-payment.png",
+      "kind": "image",
+      "modifiedAt": 1789022853872.1753,
+      "sha256": "c956b74fd556f75274dd785dbd6b0846ee57d4c255e792895d8673232b5f8985"
+    },
+    {
+      "name": "materials-costs-evidence/light-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789022854205.935,
+      "sha256": "82a67e0a86d03ad5accf63ad4ba81821a7169f14fc8547ab6f4a695f86ea834d"
+    },
+    {
+      "name": "materials-costs-evidence/light-documents.png",
+      "kind": "image",
+      "modifiedAt": 1789022854951.9746,
+      "sha256": "82656e6584295ca6b79016e8f5c01081eb3e30f9f71e9fc08cd79604fef66d9e"
+    },
+    {
+      "name": "materials-costs-evidence/light-notes.png",
+      "kind": "image",
+      "modifiedAt": 1789022855639.6565,
+      "sha256": "2b9386799ec7db75ab20bc997dd3500b55a5c8c434709d6a297300e728396a44"
+    },
+    {
+      "name": "materials-costs-evidence/light-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789022856448.2588,
+      "sha256": "e0d9a150819e1b630fe86b7505c1ea353b8b6a5134c5e46ce36d550fde676cfa"
+    },
+    {
+      "name": "materials-costs-evidence/light-photos-gallery.png",
+      "kind": "image",
+      "modifiedAt": 1789022860780.932,
+      "sha256": "2d492caef420b4910c90822ee3b5b2105c658d65e67ffd0f0e5cf8c50f01e526"
+    },
+    {
+      "name": "materials-costs-evidence/light-caption-inline.png",
+      "kind": "image",
+      "modifiedAt": 1789022861794.4688,
+      "sha256": "a0b27dc4d4fd6772d257ae57b1ccaf0f06b353c59c11473175cbee98fcc3fd0e"
+    },
+    {
+      "name": "materials-costs-evidence/light-caption-inline-clamped.png",
+      "kind": "image",
+      "modifiedAt": 1789022862096.7554,
+      "sha256": "c8388e86a064c40265a82c69770112d677e0f69ddf0b2c9b61eb5b764f441f34"
+    },
+    {
+      "name": "materials-costs-evidence/light-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022862661.7961,
+      "sha256": "93bd9a83ff889e55164ce6142ba6da71ae6ad7712499a4ccc026910e6bf37c9e"
+    },
+    {
+      "name": "materials-costs-evidence/light-review-design.png",
+      "kind": "image",
+      "modifiedAt": 1789022862778.652,
+      "sha256": "5c3dc6ac550a002c25763788977b2950d22a50fddb168a23bae8b5b4689d8211"
+    },
+    {
+      "name": "materials-costs-evidence/light-review-issues-design.png",
+      "kind": "image",
+      "modifiedAt": 1789022863998.5923,
+      "sha256": "1063ac588d1c2c8e29b1d853716f55e6b0893d745a6a5244caaf717f0bc5d68f"
+    },
+    {
+      "name": "materials-costs-evidence/dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789022869662.9429,
+      "sha256": "bcc33a23aa23e95469a2df0804aa08e789685d9adae86d0c047d2d1da8cabb19"
+    },
+    {
+      "name": "materials-costs-evidence/dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789022869806.812,
+      "sha256": "55c6255d290aa5c7e95009934e4ce9d52f704e6b7deb5d4b19b480025a491758"
+    },
+    {
+      "name": "materials-costs-evidence/dark-material-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789022871349.7412,
+      "sha256": "99a356580d75de3b45cb07a66064b53343029b34cc0e2fb4784cd7755110b937"
+    },
+    {
+      "name": "materials-costs-evidence/dark-materials.png",
+      "kind": "image",
+      "modifiedAt": 1789022871932.813,
+      "sha256": "355f80b76da406f2de9e7b6b91a9d9e018a4ef43ba62664e9f949d7aad784a77"
+    },
+    {
+      "name": "materials-costs-evidence/dark-partial-payment.png",
+      "kind": "image",
+      "modifiedAt": 1789022873216.8616,
+      "sha256": "0cf6e1313656a195666bc007b0b86eee9fb813baa86c07c402e9f7d493bc7144"
+    },
+    {
+      "name": "materials-costs-evidence/dark-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789022873528.2356,
+      "sha256": "1fd4a918cdce460e9fd3aa6b71fd7ae63b7f00ba67ce2d3da1d7ca02d303a435"
+    },
+    {
+      "name": "materials-costs-evidence/dark-documents.png",
+      "kind": "image",
+      "modifiedAt": 1789022874301.0671,
+      "sha256": "d46dd4727b3702f70e2db905476055e9a366f9992d465db2a704d444ee51bf78"
+    },
+    {
+      "name": "materials-costs-evidence/dark-notes.png",
+      "kind": "image",
+      "modifiedAt": 1789022875000.9663,
+      "sha256": "f4f8efd8d78b75c305ea0768bd46c17ed4813f432e8bf09e59781bf503b6abed"
+    },
+    {
+      "name": "materials-costs-evidence/dark-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789022875789.0742,
+      "sha256": "564c0340a0fc95d01846967036bf717a95868ab7f7a0605b8964b50a1f611b18"
+    },
+    {
+      "name": "materials-costs-evidence/dark-photos-gallery.png",
+      "kind": "image",
+      "modifiedAt": 1789022880009.7856,
+      "sha256": "ea7281f768750e8adeed31a35f2e0497f64b753c108a83771f59d712334ddb6c"
+    },
+    {
+      "name": "materials-costs-evidence/dark-caption-inline.png",
+      "kind": "image",
+      "modifiedAt": 1789022880957.9128,
+      "sha256": "3ffc507c433ee984daed1811c5fbfef10c888a0c10a761c711c77cafec05d1f7"
+    },
+    {
+      "name": "materials-costs-evidence/dark-caption-inline-clamped.png",
+      "kind": "image",
+      "modifiedAt": 1789022881212.6719,
+      "sha256": "b62d62e620493d3a24f9c1528cc72184d830a0426954d742b0fdf43e01b9cfb3"
+    },
+    {
+      "name": "materials-costs-evidence/dark-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022881755.3315,
+      "sha256": "f010f0482a9cfaff9e0efc9f5f90d052bef43c81948348ed71acfca95c9ffcdd"
+    },
+    {
+      "name": "materials-costs-evidence/dark-review-design.png",
+      "kind": "image",
+      "modifiedAt": 1789022881855.0059,
+      "sha256": "576481de8d74dd3aeff9ceddc3aae41424b4599ec9b50a4542cd4f5b791bb56c"
+    },
+    {
+      "name": "materials-costs-evidence/dark-review-issues-design.png",
+      "kind": "image",
+      "modifiedAt": 1789022883117.259,
+      "sha256": "48ce206958015a1ee3b4aea573416733db1ad2832bb7a096f44d5bfaae556bd5"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789022888933.3586,
+      "sha256": "88d9a603e0a44e1b962b5da3862a9f8cfc7feee9dd5744f5007089f933f679bd"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789022889083.7283,
+      "sha256": "07eeda0ea52ff47a0eef53c5121d992268dafa5beff18d93702a6128070a77b4"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-material-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789022890859.1255,
+      "sha256": "6ae2ce56dbfd5bd2167333b5dedc447919106e3564c624c9e4d65a87c372bc5d"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-materials.png",
+      "kind": "image",
+      "modifiedAt": 1789022891450.6858,
+      "sha256": "1f0cbe82613cd1f0fd46c9ba82d096375ac4fd40272a67ad7539f6ded66e81fc"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-partial-payment.png",
+      "kind": "image",
+      "modifiedAt": 1789022892958.3962,
+      "sha256": "41c07b3def34646c5d90c5497b6fd3c81180825ebb9af25f0cbeb31f46838dea"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789022893265.8943,
+      "sha256": "7604b048dc75daba68040101064543a5be87b19ad852a8dc1a5b6d3675160e27"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-documents.png",
+      "kind": "image",
+      "modifiedAt": 1789022893956.798,
+      "sha256": "48d87c0b49361f3145842d38fe79b35b1a3160ed9bbecc32dfb721a75b69c7f9"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-notes.png",
+      "kind": "image",
+      "modifiedAt": 1789022894633.1587,
+      "sha256": "2e728a5ad4bde2555604e0bbf513e48086c7e9b8e85b85db3a9f04be2bef1c49"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789022895402.2842,
+      "sha256": "31fe629c2f1ed6bb18b0df050627b61e0d7b95a09262154123dacd6b19207d86"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-photos-gallery.png",
+      "kind": "image",
+      "modifiedAt": 1789022900586.38,
+      "sha256": "767e6d150818cf9f3b4ded137326d93fdfe8ce6154d0abd2cd1e24f5be3ff08e"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-caption-inline.png",
+      "kind": "image",
+      "modifiedAt": 1789022901564.8257,
+      "sha256": "dbca5cd699c975962f201c2922bfd6da9e012210d077df66069e85362775de2b"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-caption-inline-clamped.png",
+      "kind": "image",
+      "modifiedAt": 1789022901875.7776,
+      "sha256": "e15e3e2b9bfada4306510154b52cc00a1ee71ceb09547e3de0b4fd5e5bafbe99"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022902405.2947,
+      "sha256": "f7685ada358e35d9211188ad2e8c8cca03e6c617ad24c926ad29f8f5eef48cd5"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-review-design.png",
+      "kind": "image",
+      "modifiedAt": 1789022902491.6907,
+      "sha256": "89e6ac35f2b070880fb49029a746b3fa2616837a979b836dcc4f2f00165b675f"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-review-issues-design.png",
+      "kind": "image",
+      "modifiedAt": 1789022903766.348,
+      "sha256": "70614558208a6a961654070c2d893c17812fbde741c40ec7475233d80081e5e5"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789022909684.8672,
+      "sha256": "67413938aa0f23b332ba5e89232bf08b3fa15fc52f7148b44c2374f4564e07bb"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789022909852.564,
+      "sha256": "88959d2bb78354b5e4068de4e2f210cbe49d5bc595cb2154524836f658dddf2f"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-material-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789022911269.5432,
+      "sha256": "bf98d040cb7a61fa1b2d25f420cbe0326aa1f5ff58bbf2682d3613cde92c3b1e"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-materials.png",
+      "kind": "image",
+      "modifiedAt": 1789022911719.0312,
+      "sha256": "f7f76f233e422d87d4c5fad05cad350770da45bcbca125f97d9ee11368618417"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-partial-payment.png",
+      "kind": "image",
+      "modifiedAt": 1789022912900.869,
+      "sha256": "9a7076944bed6d6effd8677af90ce474336d318a8cf7ec917a9dcf9345501298"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789022913135.0066,
+      "sha256": "0bc9c42c8479d0b1252e8b49dc9286fa835f38ba32838158757ca47af3c29b2f"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-documents.png",
+      "kind": "image",
+      "modifiedAt": 1789022913784.5637,
+      "sha256": "1ea5da02b72a4749f09c6a04802af4e7e54c851a785c9378b2cc8bca41f33012"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-notes.png",
+      "kind": "image",
+      "modifiedAt": 1789022914368.5256,
+      "sha256": "62ec7c7c047cb47cee8dc44631145e8359adc96de048110ffda812ae33e43f11"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789022915000.1807,
+      "sha256": "14b9ed964dd2701e2627c61052e23355604204564478c36b6ebbc7ab2f91d37a"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-photos-gallery.png",
+      "kind": "image",
+      "modifiedAt": 1789022918773.976,
+      "sha256": "9631972ab75f39f4766fbd3f2bfe63252a4e3a07a0b0e046699130641f0f933e"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-caption-inline.png",
+      "kind": "image",
+      "modifiedAt": 1789022919485.383,
+      "sha256": "ed72081b7300acdf35d2f7de1e16a3b181634048b30de51630e4a5e6edd0afe1"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-caption-inline-clamped.png",
+      "kind": "image",
+      "modifiedAt": 1789022919792.067,
+      "sha256": "b11b6d1c7f962b0a08feb6a5bb1baa620455e7c0d0f618d0003c7db2afaa9852"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022920337.255,
+      "sha256": "b09d9bd9656a80876d8cf4b0da14692c10411fe76dbca3a2361032b4d2668581"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-review-design.png",
+      "kind": "image",
+      "modifiedAt": 1789022920402.7092,
+      "sha256": "9a5197fc4f80d4d907b6ab904ea539411f6f38ce141318a781b2fbc17699626b"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-review-issues-design.png",
+      "kind": "image",
+      "modifiedAt": 1789022921598.757,
+      "sha256": "5372f3e48eb9bc678e94a222ce90247f76c10579e9f61d9968bfc0b1606b7c9c"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022893654.0166,
+      "sha256": "28bef41233ca0e5a746eef54c8c5585551e9b2689c1f1b46de8e6239236de5a0"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-materials-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022892053.5728,
+      "sha256": "6c6091184a3db1a0e0e65e74f572c90f9a781dbd0254ffcbb0870b952cfeea4b"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-photos-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022896653.131,
+      "sha256": "28bef41233ca0e5a746eef54c8c5585551e9b2689c1f1b46de8e6239236de5a0"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-photos-gallery-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022901092.3767,
+      "sha256": "3f887d235af00e92d653c46b2744d5aa6f8f35acf31042b4e3ec9981451ecd68"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-review-design-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022902935.7205,
+      "sha256": "3c257773b30699de152e712ddf2f2420dd2e6d44fd984a251cab096db7227fc8"
+    },
+    {
+      "name": "materials-costs-evidence/custom-accent-review-issues-design-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022904263.3552,
+      "sha256": "deac16847c773a4c22f25e371c3b7450324f28ae9897a89e7422add4ed0e2332"
+    },
+    {
+      "name": "materials-costs-evidence/dark-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022873955.3938,
+      "sha256": "baf01966c40cfb792559abf606b3318b43a12e4043dfbf09f0397d260a4c8b47"
+    },
+    {
+      "name": "materials-costs-evidence/dark-materials-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022872413.7515,
+      "sha256": "9138aff43a2dd6d00090f3688a183436a110edd784934d67ab4043b556713de9"
+    },
+    {
+      "name": "materials-costs-evidence/dark-photos-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022876168.1863,
+      "sha256": "baf01966c40cfb792559abf606b3318b43a12e4043dfbf09f0397d260a4c8b47"
+    },
+    {
+      "name": "materials-costs-evidence/dark-photos-gallery-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022880466.6191,
+      "sha256": "8f237fd4e6162c120b7af5d37e999e3cd17d5fc89af3855608611f77525f397f"
+    },
+    {
+      "name": "materials-costs-evidence/dark-review-design-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022882263.6487,
+      "sha256": "c4a7d749989025ac32888e37eaf0dfae6d28ace4155911495259f1c5f5277f6c"
+    },
+    {
+      "name": "materials-costs-evidence/dark-review-issues-design-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022883568.585,
+      "sha256": "a939c9c4d8f78fecbd49f4d78a043eb8a8fd9f5b86cb0d3c4022e23944de9892"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022913499.9893,
+      "sha256": "07d010b1904aaec3ee483cb87c965d3d8cf70530132eb862ad9dc54e559b6e5d"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-materials-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022912198.3694,
+      "sha256": "d137e449e27eef4708d751a3533547eb621e564f20e16155e8505f7996086a02"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-photos-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022915352.2996,
+      "sha256": "07d010b1904aaec3ee483cb87c965d3d8cf70530132eb862ad9dc54e559b6e5d"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-photos-gallery-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022919148.916,
+      "sha256": "d4666642ac82ac2ab9c456f81bed5d77e22e0b97762f6e3cbedfe480767e7eef"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-review-design-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022920820.682,
+      "sha256": "a4821cbae653fb535f38763a998f827204df4aa260daf1f000edecdb55d6ce40"
+    },
+    {
+      "name": "materials-costs-evidence/german-constrained-review-issues-design-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022921982.1526,
+      "sha256": "b33a87302deee1a8d5d8ea689c606e5486b0dc7148e0ac66e3ba47409ac3bd35"
+    },
+    {
+      "name": "materials-costs-evidence/light-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022854629.6785,
+      "sha256": "baf01966c40cfb792559abf606b3318b43a12e4043dfbf09f0397d260a4c8b47"
+    },
+    {
+      "name": "materials-costs-evidence/light-materials-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022852478.8413,
+      "sha256": "9138aff43a2dd6d00090f3688a183436a110edd784934d67ab4043b556713de9"
+    },
+    {
+      "name": "materials-costs-evidence/light-photos-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022856843.8237,
+      "sha256": "baf01966c40cfb792559abf606b3318b43a12e4043dfbf09f0397d260a4c8b47"
+    },
+    {
+      "name": "materials-costs-evidence/light-photos-gallery-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022861243.9524,
+      "sha256": "8f237fd4e6162c120b7af5d37e999e3cd17d5fc89af3855608611f77525f397f"
+    },
+    {
+      "name": "materials-costs-evidence/light-review-design-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022863172.5188,
+      "sha256": "2f6e99ca9ef667afe51b0805042c3c0f527fecf045141de70af18783d3b4928e"
+    },
+    {
+      "name": "materials-costs-evidence/light-review-issues-design-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789022864417.7236,
+      "sha256": "67299c03d719dd88b2e59eba4dc1e681b1fe4446a3d92d34179529fda6772924"
+    },
+    {
+      "name": "materials-costs-evidence/report.json",
+      "kind": "data",
+      "modifiedAt": 1789022923126.6733,
+      "sha256": "3db6dbb41fecd7a2d09eb8d5d63f9120c1a642ace24a1f485a5811260d973feb"
+    },
+    {
+      "name": "materials-costs-evidence/capture-files.json",
+      "kind": "data",
+      "modifiedAt": 1789022923236.492,
+      "sha256": "230806dcb5cd8baa1c69c3b2c4eab4e84a850fcb8dc90a1a163b7da3b623d8c0"
+    },
+    {
+      "name": "renovation-workflow/light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789022939014.623,
+      "sha256": "5f4b300a09e494109ef9a1f2393ff60d9ed521c9168f52dcf4bc8751a8980273"
+    },
+    {
+      "name": "renovation-workflow/light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789022939201.0117,
+      "sha256": "ef9333b1db844234e66a630e92d786d4a1c7258251ba56d6f7d827c95a7919e8"
+    },
+    {
+      "name": "renovation-workflow/light-existing.png",
+      "kind": "image",
+      "modifiedAt": 1789022939841.526,
+      "sha256": "e891d1352b0828f1ba073096169f8744a90987d1ce35d3a020ebd58f066bd048"
+    },
+    {
+      "name": "renovation-workflow/light-planned.png",
+      "kind": "image",
+      "modifiedAt": 1789022940698.8813,
+      "sha256": "73f65c714664d96f78438d738243061159eee6fe03657c30c139855f260e0b86"
+    },
+    {
+      "name": "renovation-workflow/light-work.png",
+      "kind": "image",
+      "modifiedAt": 1789022940999.0605,
+      "sha256": "a0bbb82fbb56321fb3baffb912479bfdd922734d85df2d55ae6732f2676fdcfc"
+    },
+    {
+      "name": "renovation-workflow/light-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022941164.4624,
+      "sha256": "3b5fc70d141b15839db341fffb00e3a26d4ccceeba1375253c13394fe7d0c6e2"
+    },
+    {
+      "name": "renovation-workflow/light-resolved.png",
+      "kind": "image",
+      "modifiedAt": 1789022941564.5718,
+      "sha256": "984b206082baec3297c08e4cfc330bffff426ea11a73e8b215f57a347a67b78a"
+    },
+    {
+      "name": "renovation-workflow/dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789022945380.8955,
+      "sha256": "bcc33a23aa23e95469a2df0804aa08e789685d9adae86d0c047d2d1da8cabb19"
+    },
+    {
+      "name": "renovation-workflow/dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789022945547.535,
+      "sha256": "55c6255d290aa5c7e95009934e4ce9d52f704e6b7deb5d4b19b480025a491758"
+    },
+    {
+      "name": "renovation-workflow/dark-existing.png",
+      "kind": "image",
+      "modifiedAt": 1789022946114.4915,
+      "sha256": "af4e39d04e771f78cca05587e8e878f7b5855ccf611df994305dc0fd81530e6a"
+    },
+    {
+      "name": "renovation-workflow/dark-planned.png",
+      "kind": "image",
+      "modifiedAt": 1789022946948.5127,
+      "sha256": "e10f29c325bc34bee0cca237bbeb9809ffb8bd78ef97187f74f29060d253b5ec"
+    },
+    {
+      "name": "renovation-workflow/dark-work.png",
+      "kind": "image",
+      "modifiedAt": 1789022947180.7708,
+      "sha256": "216bf329236490333feda94bf7d717f9f1b8f94ffd099339b84cbec482146a13"
+    },
+    {
+      "name": "renovation-workflow/dark-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022947358.3386,
+      "sha256": "af40e5171f6378d8aeddabc6e437a1b53001185b8338a1e18c354f33b7fbfbf3"
+    },
+    {
+      "name": "renovation-workflow/dark-resolved.png",
+      "kind": "image",
+      "modifiedAt": 1789022947730.8108,
+      "sha256": "7c396a7649004f6abd68ff0de15d23443ad1650df16f6a4ee0e413fea7f76836"
+    },
+    {
+      "name": "renovation-workflow/custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789022951499.8528,
+      "sha256": "b352724390841ddc195a272443938a38b88467a56f21afdbdda4dc6e4be63a44"
+    },
+    {
+      "name": "renovation-workflow/custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789022951667.4187,
+      "sha256": "07eeda0ea52ff47a0eef53c5121d992268dafa5beff18d93702a6128070a77b4"
+    },
+    {
+      "name": "renovation-workflow/custom-accent-existing.png",
+      "kind": "image",
+      "modifiedAt": 1789022952252.147,
+      "sha256": "3ee9cbaefa04e68c5507f9a42255e089ec3efa2baf88f6b647fae4eb554f2ee1"
+    },
+    {
+      "name": "renovation-workflow/custom-accent-planned.png",
+      "kind": "image",
+      "modifiedAt": 1789022953072.708,
+      "sha256": "0f58bfaf6cf19bc883dbe33f84a07acf080be180eecf0530a71e6f6c2e5118e4"
+    },
+    {
+      "name": "renovation-workflow/custom-accent-work.png",
+      "kind": "image",
+      "modifiedAt": 1789022953314.7788,
+      "sha256": "889994441ecbc6e73278ecf36ba852593cb5e53a68cb8ddbcbbca2a1a7daf525"
+    },
+    {
+      "name": "renovation-workflow/custom-accent-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022953465.345,
+      "sha256": "fe9281992a62652bb4bbda104c13e4ca42d40a9d41705aa6c313782b8136ce72"
+    },
+    {
+      "name": "renovation-workflow/custom-accent-resolved.png",
+      "kind": "image",
+      "modifiedAt": 1789022953848.361,
+      "sha256": "7955b6c50d9c6486854724e1e29152007d3ad693e10a9d420c00e8cb1a38feeb"
+    },
+    {
+      "name": "renovation-workflow/german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789022957499.7896,
+      "sha256": "67413938aa0f23b332ba5e89232bf08b3fa15fc52f7148b44c2374f4564e07bb"
+    },
+    {
+      "name": "renovation-workflow/german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789022957681.261,
+      "sha256": "88959d2bb78354b5e4068de4e2f210cbe49d5bc595cb2154524836f658dddf2f"
+    },
+    {
+      "name": "renovation-workflow/german-constrained-existing.png",
+      "kind": "image",
+      "modifiedAt": 1789022958237.2908,
+      "sha256": "e9fada41ac27cb090a31d7081b088312f134a3863f91d8768e6e40defd01e69a"
+    },
+    {
+      "name": "renovation-workflow/german-constrained-planned.png",
+      "kind": "image",
+      "modifiedAt": 1789022958899.9106,
+      "sha256": "2a9893b698ca2157cd803210c0117172078c208e9babcc620d0073803fbdc70c"
+    },
+    {
+      "name": "renovation-workflow/german-constrained-work.png",
+      "kind": "image",
+      "modifiedAt": 1789022959081.2605,
+      "sha256": "62ea020e2f0ea2d0fe97f7cec46aa6c022919a6ba1830b368f3f656c5c1b637f"
+    },
+    {
+      "name": "renovation-workflow/german-constrained-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022959247.303,
+      "sha256": "4d0d33508f586ec8c06cf305702da314e07503c6b5d1703fafce3da3487eaeb1"
+    },
+    {
+      "name": "renovation-workflow/german-constrained-resolved.png",
+      "kind": "image",
+      "modifiedAt": 1789022959547.7444,
+      "sha256": "0d633ca97c55bacd37e3505c380b136bd63ae002d64f8da7961dd893760c0636"
+    },
+    {
+      "name": "renovation-workflow/report.json",
+      "kind": "data",
+      "modifiedAt": 1789022959563.5828,
+      "sha256": "f159707716f3c375dd766155bd3d7c564f50055a40f53aa90e6e7976343c42aa"
+    },
+    {
+      "name": "renovation-workflow/capture-files.json",
+      "kind": "data",
+      "modifiedAt": 1789022959648.6663,
+      "sha256": "e636a2bd1797b578bcb3b2b20602c1e36932037c0e059341f9e87186ffb3626c"
+    },
+    {
+      "name": "reference-plan/light-prepare.png",
+      "kind": "image",
+      "modifiedAt": 1789022969511.6274,
+      "sha256": "70d3fbcef074b3be09b57ef53e285544af9855d929b8fcd5b05e84a105dc795f"
+    },
+    {
+      "name": "reference-plan/light-measurement.png",
+      "kind": "image",
+      "modifiedAt": 1789022969879.7336,
+      "sha256": "f9ff61c3fc799a1812f524a100808817bc6105032ff38a0ea1a1d8aacadb5fa4"
+    },
+    {
+      "name": "reference-plan/light-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022970070.3474,
+      "sha256": "00417a32b2f00986ae2921e1488336321db9c496594e3789fa8e344f59590de6"
+    },
+    {
+      "name": "reference-plan/light-committed.png",
+      "kind": "image",
+      "modifiedAt": 1789022970311.714,
+      "sha256": "1e1e13e0877aa3357632f5fce2985764c757f9193779cf81afff3de18340d4b8"
+    },
+    {
+      "name": "reference-plan/dark-prepare.png",
+      "kind": "image",
+      "modifiedAt": 1789022980119.5796,
+      "sha256": "5e694654c23859dbdafe1bd3d44b63e94abe8b1accdfa8aeb5212eed8cff24d2"
+    },
+    {
+      "name": "reference-plan/dark-measurement.png",
+      "kind": "image",
+      "modifiedAt": 1789022980487.2568,
+      "sha256": "4a6d643e9b81ecd4a7bdf2f10db9ac5868c1cbc7ba6f1061af22048cb5146e3c"
+    },
+    {
+      "name": "reference-plan/dark-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022980674.4883,
+      "sha256": "5ee25a3fd690893ad558988224a6a2e5101a6963e011259a7d538eb2c6731a57"
+    },
+    {
+      "name": "reference-plan/dark-committed.png",
+      "kind": "image",
+      "modifiedAt": 1789022980912.5232,
+      "sha256": "ed1b8fef9dafee532a54169dcda0c545bb7a44cd9ecd9a4faf8b5369599d0273"
+    },
+    {
+      "name": "reference-plan/custom-accent-prepare.png",
+      "kind": "image",
+      "modifiedAt": 1789022989362.0842,
+      "sha256": "c8ef60520f24db6a8e44569967dfadc33c76ad7b0d2868f142951e0b3d8b04ca"
+    },
+    {
+      "name": "reference-plan/custom-accent-measurement.png",
+      "kind": "image",
+      "modifiedAt": 1789022989728.8933,
+      "sha256": "81c84440967849e4366838089471deec152a0af35e4bce5e071ecd7f2dd7f87b"
+    },
+    {
+      "name": "reference-plan/custom-accent-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022989898.5535,
+      "sha256": "e38654d7f793c6a34c53a28d18401d409bb18513b0111c4005df75f357a0ae2a"
+    },
+    {
+      "name": "reference-plan/custom-accent-committed.png",
+      "kind": "image",
+      "modifiedAt": 1789022990125.478,
+      "sha256": "4da97769660bcb986d4ccca13766143a76f081121d8cf1398c8ff2cd8873080f"
+    },
+    {
+      "name": "reference-plan/german-constrained-prepare.png",
+      "kind": "image",
+      "modifiedAt": 1789022998595.044,
+      "sha256": "cf22c72adc3fb240a81c9e02a1fc4f314d7f9337eda87244ef056961d2ceae9d"
+    },
+    {
+      "name": "reference-plan/german-constrained-measurement.png",
+      "kind": "image",
+      "modifiedAt": 1789022999082.0066,
+      "sha256": "c7c5a1cf61b49ebe92223c51ba9d27aa579aadce754a4c2ef29a5e37bbb51093"
+    },
+    {
+      "name": "reference-plan/german-constrained-review.png",
+      "kind": "image",
+      "modifiedAt": 1789022999230.2498,
+      "sha256": "2086e8b7f765883f332d47e4543f841bb3f1a3a59eb2cc76b7bfae6d8ff0e088"
+    },
+    {
+      "name": "reference-plan/german-constrained-committed.png",
+      "kind": "image",
+      "modifiedAt": 1789022999466.1555,
+      "sha256": "235fc21789ee58d766d65fb097dcb166478e8de6c6e92021ee8d0912b6e2d954"
+    },
+    {
+      "name": "reference-plan/report.json",
+      "kind": "data",
+      "modifiedAt": 1789023004438.7903,
+      "sha256": "9ab4495c20ccfa3daa6ad33db5356da1d075ba9f93d2abbe14c44a0530275417"
+    },
+    {
+      "name": "reference-plan/capture-files.json",
+      "kind": "data",
+      "modifiedAt": 1789023004534.746,
+      "sha256": "6bb017599337c379e385bd1497782c0831c32e9f5396a509df8125ab92a585ac"
+    },
+    {
+      "name": "editor-visual-resilience/light-reflow-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023014424.6692,
+      "sha256": "34b3195c1650776804f99e8b382af8baf4496f1820a2b8e11a848f9477bfd91c"
+    },
+    {
+      "name": "editor-visual-resilience/light-reflow-saved.png",
+      "kind": "image",
+      "modifiedAt": 1789023014547.8691,
+      "sha256": "00bbcb345212ac9261d4c709218e7c6ba0f9863ebf3e64214761ca7b446a1663"
+    },
+    {
+      "name": "editor-visual-resilience/light-long-name.png",
+      "kind": "image",
+      "modifiedAt": 1789023014673.5427,
+      "sha256": "9181ab779306a8f347f3a20669ce11ee177086667618c1c94eb99c3e76a94026"
+    },
+    {
+      "name": "editor-visual-resilience/dark-reflow-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023016696.031,
+      "sha256": "3dc794c8b0a2f082f0613b5e547f3ec66051d5f4f9fc482aeda3dfb34d92a96e"
+    },
+    {
+      "name": "editor-visual-resilience/dark-reflow-saved.png",
+      "kind": "image",
+      "modifiedAt": 1789023016809.259,
+      "sha256": "89d4d14b6f64541034d4072f01b3ca908a1b6f46aeab6c45b10f3d2903ac7d2d"
+    },
+    {
+      "name": "editor-visual-resilience/dark-long-name.png",
+      "kind": "image",
+      "modifiedAt": 1789023016918.663,
+      "sha256": "9e197a64e3b316f9b22618ddb875e16c55f92ae208a0b218fb39f056669f4da8"
+    },
+    {
+      "name": "editor-visual-resilience/custom-accent-reflow-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023019011.8152,
+      "sha256": "9babda7d9d153aafa4dc24880f3c02321e95e061908d011cc832fb2c401b1885"
+    },
+    {
+      "name": "editor-visual-resilience/custom-accent-reflow-saved.png",
+      "kind": "image",
+      "modifiedAt": 1789023019111.837,
+      "sha256": "559870b71992193ccc4850c0212c50104d0e35ff85778b2ac2a899417610f280"
+    },
+    {
+      "name": "editor-visual-resilience/custom-accent-long-name.png",
+      "kind": "image",
+      "modifiedAt": 1789023019201.0117,
+      "sha256": "2a0aef8bdb2bbf4a474c9b691c9986c4a9d31f85e126d1a7b7e10bf7fe7bd827"
+    },
+    {
+      "name": "editor-visual-resilience/german-constrained-reflow-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023021128.8977,
+      "sha256": "e59936f2556a5500171e8aceae71d6ea176fe2837f5fc68f72bc541dcf488aa2"
+    },
+    {
+      "name": "editor-visual-resilience/german-constrained-reflow-saved.png",
+      "kind": "image",
+      "modifiedAt": 1789023021230.027,
+      "sha256": "c56bfe92c273afa4c10248df3a56223ec0162b6169e9beb7ab559ef044aea12b"
+    },
+    {
+      "name": "editor-visual-resilience/german-constrained-long-name.png",
+      "kind": "image",
+      "modifiedAt": 1789023021298.98,
+      "sha256": "190c73f7f730de3aa9f3d718d405aa797176721b5936c02f44c07d53c110ae35"
+    },
+    {
+      "name": "editor-visual-resilience/report.json",
+      "kind": "data",
+      "modifiedAt": 1789023021320.598,
+      "sha256": "efc99f52823c9c1ab7097970f824298d4ede685a4851d8c8875d2b9b02544f4a"
+    },
+    {
+      "name": "editor-visual-resilience/capture-files.json",
+      "kind": "data",
+      "modifiedAt": 1789023021410.7341,
+      "sha256": "bf0976bc4395030b001f4a16a42c48845c59f44db2eae0198a1940304f0090b3"
+    },
+    {
+      "name": "editor-visual-overview/light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023032776.241,
+      "sha256": "d489859de78f076206db57f11c14f1c138781f381fdaa94f81020b919a820e7b"
+    },
+    {
+      "name": "editor-visual-overview/light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023032943.196,
+      "sha256": "ef9333b1db844234e66a630e92d786d4a1c7258251ba56d6f7d827c95a7919e8"
+    },
+    {
+      "name": "editor-visual-overview/light-M00-inline-dimension-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023034022.29,
+      "sha256": "144f5ba32594faf3cc66b2da2b588e6d03b16852db885627b72356d071658a1a"
+    },
+    {
+      "name": "editor-visual-overview/light-view-controls.png",
+      "kind": "image",
+      "modifiedAt": 1789023035398.89,
+      "sha256": "313a6ddd46f5f8630c4980f547e1bf2208e6881d229f44c46ea90f3e74774199"
+    },
+    {
+      "name": "editor-visual-overview/light-M02-connected-add.png",
+      "kind": "image",
+      "modifiedAt": 1789023036851.5188,
+      "sha256": "b1bb24c683161bb0865e3217a8619cc85ebff8fa4ea4ae810c87c67ef0016a45"
+    },
+    {
+      "name": "editor-visual-overview/light-M00-connected-room.png",
+      "kind": "image",
+      "modifiedAt": 1789023038283.4712,
+      "sha256": "bf6f17baa1788d0529813d964263ae51d026f5dbaacf9886dba600a747b616ab"
+    },
+    {
+      "name": "editor-visual-overview/light-M00-room-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023038441.4175,
+      "sha256": "87f9bc22770afcf878b895c153a79cbc38196d179bc8aaca246980b702a5420a"
+    },
+    {
+      "name": "editor-visual-overview/light-M16-closed-constrained.png",
+      "kind": "image",
+      "modifiedAt": 1789023038783.9104,
+      "sha256": "fb49852872c8fdf771bdc3ade971fa7211fc3d7ae3df5d5db3410ee1fff5f2c1"
+    },
+    {
+      "name": "editor-visual-overview/light-M01-connected-floor.png",
+      "kind": "image",
+      "modifiedAt": 1789023039500.5134,
+      "sha256": "67f0ef31a22e4e08760f1be20b23aabdf41be665ddeb9dae117dd4a908373985"
+    },
+    {
+      "name": "editor-visual-overview/light-M01-floor-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023039662.3767,
+      "sha256": "fdf256db3ee2ebb5180d00a0453b85438885d5c85c8ee51ae00b6bb9b6806f5d"
+    },
+    {
+      "name": "editor-visual-overview/light-M02-floor-add.png",
+      "kind": "image",
+      "modifiedAt": 1789023039911.3333,
+      "sha256": "26d78fef3fbcf785a5fc0e9e27ea430022c564ed43902b220ed63bcad221ed6a"
+    },
+    {
+      "name": "editor-visual-overview/light-M07-connected-wall.png",
+      "kind": "image",
+      "modifiedAt": 1789023041562.4119,
+      "sha256": "78bb2f9c44fcbdfbd9c8c2ac4330e736aee3e86179d1e9548d796674188e75c6"
+    },
+    {
+      "name": "editor-visual-overview/light-M07-wall-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023041947.2878,
+      "sha256": "8dc3120fa57c90862513c04ff993c3df100b24cfbcd976932a6cd0eb7b027592"
+    },
+    {
+      "name": "editor-visual-overview/light-M11-connected-selection.png",
+      "kind": "image",
+      "modifiedAt": 1789023042225.356,
+      "sha256": "983d537b35323912c30cd98ed3b3b68311d725be3b817a7e9275bb40e217dc75"
+    },
+    {
+      "name": "editor-visual-overview/light-M11-shared-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023042476.153,
+      "sha256": "416e338ee42eef46b5065a25e39f74faeae5fb6faeccb7cd6093a065f3d5824c"
+    },
+    {
+      "name": "editor-visual-overview/dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023046211.2468,
+      "sha256": "bcc33a23aa23e95469a2df0804aa08e789685d9adae86d0c047d2d1da8cabb19"
+    },
+    {
+      "name": "editor-visual-overview/dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023046362.1375,
+      "sha256": "55c6255d290aa5c7e95009934e4ce9d52f704e6b7deb5d4b19b480025a491758"
+    },
+    {
+      "name": "editor-visual-overview/dark-M00-inline-dimension-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023047354.341,
+      "sha256": "49136bee1dfc931ee23981a314b0c689b18c78d40a8c3791925407924aa0b9bb"
+    },
+    {
+      "name": "editor-visual-overview/dark-view-controls.png",
+      "kind": "image",
+      "modifiedAt": 1789023048711.3762,
+      "sha256": "46de469d2ae77d6b2340ed37869075bc1a241db92fd715b0e60ea9e4cb2e2a3a"
+    },
+    {
+      "name": "editor-visual-overview/dark-M02-connected-add.png",
+      "kind": "image",
+      "modifiedAt": 1789023049884.307,
+      "sha256": "b49d58b99a5d6559f1636940566fe64af6fe89c4d0417fc7c602e7763e369360"
+    },
+    {
+      "name": "editor-visual-overview/dark-M00-connected-room.png",
+      "kind": "image",
+      "modifiedAt": 1789023051154.5366,
+      "sha256": "04ceef91e7ae920aea8064446fa801fe99bc3836adc9d6ec7f6eb68d02369678"
+    },
+    {
+      "name": "editor-visual-overview/dark-M00-room-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023051312.9639,
+      "sha256": "955108b19948cbf9eb78d89f94a6fbe558d2ee294e9ea37feaa4bbad8d59aaf6"
+    },
+    {
+      "name": "editor-visual-overview/dark-M16-closed-constrained.png",
+      "kind": "image",
+      "modifiedAt": 1789023051640.6963,
+      "sha256": "d7b34562132bb37a367e953ff3ab74c499bbf27c90ecdbe4896c605e38d3fddb"
+    },
+    {
+      "name": "editor-visual-overview/dark-M01-connected-floor.png",
+      "kind": "image",
+      "modifiedAt": 1789023052311.5745,
+      "sha256": "c86c185c7f2a87b1ded5d495bd6963e79f6e9df62b9e20f067ae5f22e3ae60bf"
+    },
+    {
+      "name": "editor-visual-overview/dark-M01-floor-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023052466.1375,
+      "sha256": "4b8b04c61c2ed78552ab072b271a79fee56a5de67d8b2e47b820e42f2ca5f2fd"
+    },
+    {
+      "name": "editor-visual-overview/dark-M02-floor-add.png",
+      "kind": "image",
+      "modifiedAt": 1789023052727.681,
+      "sha256": "2e867f5b7c42ad4d172b62d957b5c9403c47145b3e1d2b0db1af22e6bf2ab17d"
+    },
+    {
+      "name": "editor-visual-overview/dark-M07-connected-wall.png",
+      "kind": "image",
+      "modifiedAt": 1789023054378.1577,
+      "sha256": "543cb2d6eb9a16a39a56b272d7baab55cbe91265cfa5d62ee40819f794750240"
+    },
+    {
+      "name": "editor-visual-overview/dark-M07-wall-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023054750.7017,
+      "sha256": "28e8ffffc50d182b9e91cfeac1125e5d54d0e77406429da663cb795926b5f580"
+    },
+    {
+      "name": "editor-visual-overview/dark-M11-connected-selection.png",
+      "kind": "image",
+      "modifiedAt": 1789023055011.1145,
+      "sha256": "c4d4e035d4a2eac53fe86bd3d5ec4b8337cfa00ad2d3dd8c90d1892463a60718"
+    },
+    {
+      "name": "editor-visual-overview/dark-M11-shared-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023055260.6628,
+      "sha256": "8340d189bc5cca450d8cfb843546f9d2be85505e0c9872af292a60608fa71358"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023058994.2017,
+      "sha256": "88d9a603e0a44e1b962b5da3862a9f8cfc7feee9dd5744f5007089f933f679bd"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023059133.0457,
+      "sha256": "07eeda0ea52ff47a0eef53c5121d992268dafa5beff18d93702a6128070a77b4"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M00-inline-dimension-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023060101.0776,
+      "sha256": "052ec8bf19df0cad0b5a8e7bc27d95cfa12183f6a4c0c3661f82075bf868c48a"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-view-controls.png",
+      "kind": "image",
+      "modifiedAt": 1789023061428.1462,
+      "sha256": "fc2e42671a37d7245be215a7ea0c682f539785acf4302a5a3c89504534926a25"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M02-connected-add.png",
+      "kind": "image",
+      "modifiedAt": 1789023062620.53,
+      "sha256": "3ff984535c78b7ac4cf2d4b7fc9de9d24be5d22307f96eed81eb8426c09a83e9"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M00-connected-room.png",
+      "kind": "image",
+      "modifiedAt": 1789023063964.9358,
+      "sha256": "f9954a660b8abe173202271074fbcc1e914a5ab6ed4d08dde21be116c48fa0d1"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M00-room-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023064114.4978,
+      "sha256": "add80a6c7aea2f3f610dd967b46cdf9fc584368486c064424146450fe104c4b7"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M16-closed-constrained.png",
+      "kind": "image",
+      "modifiedAt": 1789023064485.1252,
+      "sha256": "3ab6653e487098950257cc3e775ee132e2717e569369db513f98b99cdaa4ce88"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M01-connected-floor.png",
+      "kind": "image",
+      "modifiedAt": 1789023065161.6653,
+      "sha256": "de9c4e58e152ab57683b9cba2234e4cd2cbcef0da534dfceb81ec5f8f60f186f"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M01-floor-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023065291.8462,
+      "sha256": "cea7af684c8bae74432ef3251afac54da7d163557929e3866fd7948db7bfff6b"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M02-floor-add.png",
+      "kind": "image",
+      "modifiedAt": 1789023065541.816,
+      "sha256": "2a5a6b869883993fe7eeeda6b35af2b7f70da53a07ce606b900fb41cf47f2903"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M07-connected-wall.png",
+      "kind": "image",
+      "modifiedAt": 1789023067158.3457,
+      "sha256": "438d50cf3af23b55fdbb7f5b786d69e2d3d2057e3b6544c78c199a6f3b4f001f"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M07-wall-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023067530.3813,
+      "sha256": "10541a44df895ccc4684588acbafec35b72dc535da1b0bb1b18a6fc9723c880f"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M11-connected-selection.png",
+      "kind": "image",
+      "modifiedAt": 1789023067791.681,
+      "sha256": "4e932eb8161a39c33b6d6877d34d4bc3f2767f3787a1dd9b68da118dcc800f4a"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M11-shared-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023068029.3474,
+      "sha256": "3141f4ae65634bc67bc77cb9e5ad22127864c5f162ab46796858b54fe560abd4"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023071754.081,
+      "sha256": "67413938aa0f23b332ba5e89232bf08b3fa15fc52f7148b44c2374f4564e07bb"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023071881.946,
+      "sha256": "88959d2bb78354b5e4068de4e2f210cbe49d5bc595cb2154524836f658dddf2f"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M00-inline-dimension-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023072793.0713,
+      "sha256": "6eb4439a040199243eac96fea9a2ace40d2ddab10a76298668599070a437453c"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-view-controls.png",
+      "kind": "image",
+      "modifiedAt": 1789023073566.2622,
+      "sha256": "2590026401f59bc8145e55986efcb9407828b7b12739128ee9ddd88219ab2c00"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M02-connected-add.png",
+      "kind": "image",
+      "modifiedAt": 1789023074144.7554,
+      "sha256": "3f21d823ff05fddb6adf2dffb49ce4101cc6b2e3b5551d153ad544ee70699b5d"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M00-connected-room.png",
+      "kind": "image",
+      "modifiedAt": 1789023075094.748,
+      "sha256": "d93db7487f939eb8f54efc86587663da9abc0797955d144feec600406fe24cfd"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M00-room-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023075202.8823,
+      "sha256": "c5b78a340ca601d45f59bcc9bd92969a2029621f70dea2d857a0731a493a293e"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M16-closed-constrained.png",
+      "kind": "image",
+      "modifiedAt": 1789023075513.4036,
+      "sha256": "965b0e7724a3172897f549f5927149d782dddd394525294b8f92b1f44eb17fc9"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M01-connected-floor.png",
+      "kind": "image",
+      "modifiedAt": 1789023076210.2397,
+      "sha256": "4d6d951ed8325e8bbfb305b51676777c863f308ef5d801251aa686fb89cb2b74"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M01-floor-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023076330.0383,
+      "sha256": "80cd4798d5c61f4162f8482411646fd520a30df79d286f4a3952d71c7d62622d"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M02-floor-add.png",
+      "kind": "image",
+      "modifiedAt": 1789023076495.7915,
+      "sha256": "fc7f31e8811318e5f882ab2439a5b10c34ea7c14b91b666187aafcc91b1aac61"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M07-connected-wall.png",
+      "kind": "image",
+      "modifiedAt": 1789023077746.007,
+      "sha256": "61fec118caa4dbd8dba6ee372dc662d4e2e3dd4497e30b27ac92c1abcf4ef8b1"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M07-wall-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023077953.0913,
+      "sha256": "fe7663f86ebede0ed515ae7a8852481454f5146eeb4ea7ecbdaa2b57974a60d2"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M11-connected-selection.png",
+      "kind": "image",
+      "modifiedAt": 1789023078212.2693,
+      "sha256": "290235bed71d8ee1e7c6886a5e524bd4cc63e9d563c6e9c674318ab56ba854f5"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M11-shared-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023078380.5015,
+      "sha256": "3b369b3f45f26e41bd5d81d75f4c135a09cbbb87fd362fe200d13484124d69cb"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-direct-actions-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023064969.338,
+      "sha256": "360cc30ccecbba429087be4b1ba9dd3a5857249f2b9e827bb2d116fcfcf02e7e"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-floor-add-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023066033.8315,
+      "sha256": "e222aae03f4ea46411ff308f6d0eaa20fe1b5d2bc5d8a19fa6ef7ca5dc311cf1"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-inline-invalid-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023059960.7898,
+      "sha256": "f7fdaafd10d1c3762d2f7b6d82a0a53bc696b7731cff5e0ff786477541cb95b0"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-inline-pending-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023060786.1687,
+      "sha256": "ea4a1a01634043890e7113cbec9bfb0c7c06e3db5fd248e1e2452bc2cb1629ab"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M00-room-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023064162.234,
+      "sha256": "30389854401ccb65d1f8db2ed12ce24e29a35e7723df6efebec015f9adab0df3"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M01-floor-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023065348.588,
+      "sha256": "7b794e8546462cb5ad9bc590d35b961889be9b3c1e5e489d9ae663b7a0ef8417"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M07-wall-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023067586.1877,
+      "sha256": "c737fdebf275f72c21ef46d0e794671206a3b454bda88da045d602db77bd70d4"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-M16-closed-constrained.json",
+      "kind": "data",
+      "modifiedAt": 1789023064565.438,
+      "sha256": "f6ef752c26c7d89109360d3c5a2eec724c968979f14f8dabff163810f1fb3341"
+    },
+    {
+      "name": "editor-visual-overview/custom-accent-view-controls-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023061861.8972,
+      "sha256": "4274c5dd75ac706cc91f65db552c9e6c46034ecfd6e6cc0b985d887a6f73cfc3"
+    },
+    {
+      "name": "editor-visual-overview/dark-direct-actions-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023052112.2817,
+      "sha256": "3f887d235af00e92d653c46b2744d5aa6f8f35acf31042b4e3ec9981451ecd68"
+    },
+    {
+      "name": "editor-visual-overview/dark-floor-add-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023053194.562,
+      "sha256": "684f6b5a8a01d119bf3dae7f1028a48ed52d61a89610e2a6912ceb3db677845e"
+    },
+    {
+      "name": "editor-visual-overview/dark-inline-invalid-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023047228.4358,
+      "sha256": "23c0babf4e15ae6117dec9edbc06ae172b4fa1d9a8698084a9562882c0680276"
+    },
+    {
+      "name": "editor-visual-overview/dark-inline-pending-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023048048.603,
+      "sha256": "f9289ebb39ba4ed43784916fefa9c2d7a20372e28bc2e48d4c4658f43bdb5df4"
+    },
+    {
+      "name": "editor-visual-overview/dark-M00-room-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023051351.8843,
+      "sha256": "fa845770cabba166ff6330bded0e1fd0d58d2ebe391253021525554d155a8865"
+    },
+    {
+      "name": "editor-visual-overview/dark-M01-floor-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023052514.6445,
+      "sha256": "4ea2dd1fdc3982c4aa441e7ff7b0aebbb0e19bcf2e388e4f9d999e1ec8174715"
+    },
+    {
+      "name": "editor-visual-overview/dark-M07-wall-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023054798.3137,
+      "sha256": "560acd3904e932b0fdd169d32173772ebeeeebc01d799710daebbf258dc49d1b"
+    },
+    {
+      "name": "editor-visual-overview/dark-M16-closed-constrained.json",
+      "kind": "data",
+      "modifiedAt": 1789023051713.7346,
+      "sha256": "cf1aaf1d8ac50ba9de93bd7db081f826859152f227615d388922e31c4059ce05"
+    },
+    {
+      "name": "editor-visual-overview/dark-view-controls-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023049145.0518,
+      "sha256": "a2909be1a6842ddeea0f8b43e6053dbda7e6944bb5a2fb8f2a3e580a0f3bb97f"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-direct-actions-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023075994.266,
+      "sha256": "d4666642ac82ac2ab9c456f81bed5d77e22e0b97762f6e3cbedfe480767e7eef"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-floor-add-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023076867.9854,
+      "sha256": "0aaab8021c943b09bf8435c9cd7eac7121188893eedcbf29f070c6b2a2351e46"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-inline-invalid-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023072677.8354,
+      "sha256": "5f42b035e8d72f9a0c730a7c31b378d2de2871c49f1964155e2098cd21eb05ff"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-inline-pending-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023073185.6565,
+      "sha256": "e1b9ae5021dd656e7de0a4cfc3d7a6aead19a3c33a95dc4c08e91fba14652e80"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M00-room-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023075243.446,
+      "sha256": "9bb9ae65617a6b95ee933f5e83d5a058d36b0e2756a5923ce310ecd395f02532"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M01-floor-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023076363.0254,
+      "sha256": "cd31c0eec94ebb78ce2580b9767c7de55e74759d310ebaf717aabb0ae57d5000"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M07-wall-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023077996.2566,
+      "sha256": "70c1035db6a57bf4e0de6f8a84cb9d3cff6dd98531fadf7d45cbd39c7940147c"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-M16-closed-constrained.json",
+      "kind": "data",
+      "modifiedAt": 1789023075662.4497,
+      "sha256": "dbb684b2e8116815bfed5f91e4182f7eebaae98212eb0e88600ebef224287f29"
+    },
+    {
+      "name": "editor-visual-overview/german-constrained-view-controls-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023073851.5388,
+      "sha256": "9881c2410408e47e833a4223b514fb0bcee965e84bcd9d6b4bbdf3f3c651606d"
+    },
+    {
+      "name": "editor-visual-overview/light-direct-actions-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023039300.73,
+      "sha256": "3f887d235af00e92d653c46b2744d5aa6f8f35acf31042b4e3ec9981451ecd68"
+    },
+    {
+      "name": "editor-visual-overview/light-floor-add-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023040393.012,
+      "sha256": "86428eb1d4020259896e5283c833af6de7fe4be6e0c4a3d7cb0eae17fa4c9913"
+    },
+    {
+      "name": "editor-visual-overview/light-inline-invalid-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023033891.7732,
+      "sha256": "23c0babf4e15ae6117dec9edbc06ae172b4fa1d9a8698084a9562882c0680276"
+    },
+    {
+      "name": "editor-visual-overview/light-inline-pending-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023034730.0735,
+      "sha256": "f9289ebb39ba4ed43784916fefa9c2d7a20372e28bc2e48d4c4658f43bdb5df4"
+    },
+    {
+      "name": "editor-visual-overview/light-M00-room-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023038484.4978,
+      "sha256": "73e6dbd908abb692ab4d5ab5437407edb08c7cec2d3b333bc0dacb05ea8e9149"
+    },
+    {
+      "name": "editor-visual-overview/light-M01-floor-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023039700.3477,
+      "sha256": "59a5fab2c964e3a647da4ffd42f7cfe7ec508a22de04aef06efeb21a59c22d97"
+    },
+    {
+      "name": "editor-visual-overview/light-M07-wall-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023041983.7493,
+      "sha256": "be1a52d800c19e9a53ed9b356b06026585c07546e66dd359ed6ec83cca68f0d6"
+    },
+    {
+      "name": "editor-visual-overview/light-M16-closed-constrained.json",
+      "kind": "data",
+      "modifiedAt": 1789023038866.1277,
+      "sha256": "ae2a24286262fa03bce4a93050b4ed1a88bd13b68d4f86c346da808b21b749ad"
+    },
+    {
+      "name": "editor-visual-overview/light-view-controls-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023035892.3303,
+      "sha256": "a2909be1a6842ddeea0f8b43e6053dbda7e6944bb5a2fb8f2a3e580a0f3bb97f"
+    },
+    {
+      "name": "editor-visual-overview/report.json",
+      "kind": "data",
+      "modifiedAt": 1789023078428.8618,
+      "sha256": "e2d2d4aabfd42966bd08bf06600ba120015a8c465283d2e83c48451dcd54f2da"
+    },
+    {
+      "name": "editor-visual-overview/capture-files.json",
+      "kind": "data",
+      "modifiedAt": 1789023078540.579,
+      "sha256": "53d3857aabfae4c3593e8e94897a5033dfcbfdfce653a755e0c09683d4f21f73"
+    },
+    {
+      "name": "editor-object/light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023088607.2876,
+      "sha256": "cdf1e549a2f2f657bad6097132b2f64afc63dfffb1bd05fe1efb157ddd02ea0b"
+    },
+    {
+      "name": "editor-object/light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023088757.2437,
+      "sha256": "2b65c94befe90c881fb8788f49e53c1c6226179fd6bb78c90bc556efafda8ead"
+    },
+    {
+      "name": "editor-object/light-invalid-rectangle.png",
+      "kind": "image",
+      "modifiedAt": 1789023089716.3108,
+      "sha256": "75fa18d62a1fed8b25ccd232a2548450db2eba00ffd5d3a69057d85bf4ef7ee2"
+    },
+    {
+      "name": "editor-object/light-rectangle-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023090307.1284,
+      "sha256": "5260e10a007474bd13e5895a9b4a0e3ecc2651b0b7dfacfa8394ae80fafe1118"
+    },
+    {
+      "name": "editor-object/light-saved-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023090470.7246,
+      "sha256": "6b4e71d0755625093f32c3b3ab9ba1c17e2910e30a80cfc4b73bd8a8e138b437"
+    },
+    {
+      "name": "editor-object/light-restored-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023091499.5825,
+      "sha256": "9a4aecc3b774224b75352fa3b37fdcfffe9878613b85b43cd31a234041695c97"
+    },
+    {
+      "name": "editor-object/dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023095190.7285,
+      "sha256": "84f4e39b78b1b3d29f84459fe6f9a0dcb66b0ea487b3ccb5bc21479b224a5095"
+    },
+    {
+      "name": "editor-object/dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023095346.0337,
+      "sha256": "5a30cb1e021ba132a97479e72455ebb5f13bc05b80dca2f48dca3744f44fdd00"
+    },
+    {
+      "name": "editor-object/dark-invalid-rectangle.png",
+      "kind": "image",
+      "modifiedAt": 1789023096283.409,
+      "sha256": "68bd0eddff1dba2f611f630fbbd968ec5bd6c693775bf66fdf8b0155eb466567"
+    },
+    {
+      "name": "editor-object/dark-rectangle-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023096872.1292,
+      "sha256": "9b508c81c849194463bae839f9c29b5ff9d8d1dda6a10f44b5cee13d9f535dda"
+    },
+    {
+      "name": "editor-object/dark-saved-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023097037.4104,
+      "sha256": "dd4ff25905f7b2e7c517f81f2bc5c48f6ab004f736ed30f591203bdd004e79a7"
+    },
+    {
+      "name": "editor-object/dark-restored-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023098044.021,
+      "sha256": "aac3a14eb4173eab234f1779a436188c65c159ee7a0a813ae949c6337b7cd832"
+    },
+    {
+      "name": "editor-object/custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023101732.9705,
+      "sha256": "4aab9ed9fb9e7339a76c9ebf94e5e74e2f689582b5f528311096f58fb98c88fd"
+    },
+    {
+      "name": "editor-object/custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023101870.7466,
+      "sha256": "033ff00aae8a4cd21dc215f17991a0fccf6d4b51487fd8b5f849014aa0545a1f"
+    },
+    {
+      "name": "editor-object/custom-accent-invalid-rectangle.png",
+      "kind": "image",
+      "modifiedAt": 1789023102790.864,
+      "sha256": "5dabc08b59d275c37f44336b3f63b4f3a06ba5008bd248b6256012bdfff6e461"
+    },
+    {
+      "name": "editor-object/custom-accent-rectangle-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023103339.9539,
+      "sha256": "a82be0760db1af736abb65650c87688316a43d5162c0de4220259657c5579b8f"
+    },
+    {
+      "name": "editor-object/custom-accent-saved-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023103493.7925,
+      "sha256": "9a6968fe0abef983ca915db14b2ecf57efac7cb2868ac9ae0dcda4a3e383617d"
+    },
+    {
+      "name": "editor-object/custom-accent-restored-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023104493.501,
+      "sha256": "f2253b3ff44bb7a9c460a5626d7f6f846acc79321adba98ee1c7974ca68a5d0c"
+    },
+    {
+      "name": "editor-object/german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023108671.202,
+      "sha256": "f7c6bd45be26fde14209b29f78509dfb44efbc3c2d9fc320bb9e622ec1aa387c"
+    },
+    {
+      "name": "editor-object/german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023108796.9954,
+      "sha256": "05bf19ed45e68f80c03524c0f63175cac085cf9f1a3a3d892a20c74f65db0c70"
+    },
+    {
+      "name": "editor-object/german-constrained-invalid-rectangle.png",
+      "kind": "image",
+      "modifiedAt": 1789023109755.483,
+      "sha256": "22b407914b9e3f7bc5b66485ff8468537344d4d84b41ec944c55fcce6329f7ca"
+    },
+    {
+      "name": "editor-object/german-constrained-rectangle-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023110277.985,
+      "sha256": "3a977a28e8197e649f03dfe4e3a9db07b64ca3cbc47113db28683dc4bcac77dd"
+    },
+    {
+      "name": "editor-object/german-constrained-saved-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023110425.066,
+      "sha256": "d9b0c0ef65f8337d932ef80cd6836b86952a1c16ad5917bb48a55bc244e76109"
+    },
+    {
+      "name": "editor-object/german-constrained-restored-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023111460.5796,
+      "sha256": "d31fa45d9f923fac61d3f0223746180f4dc91f2c4c82dd9459afc115846dce23"
+    },
+    {
+      "name": "editor-object/custom-accent-invalid-rectangle-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023103241.7847,
+      "sha256": "4c75fb86fb35c898bcab5cea5e9f57b259cc8582373a581eb632a06c40092082"
+    },
+    {
+      "name": "editor-object/custom-accent-saved-item-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023103789.4346,
+      "sha256": "e23f0d469fe666012ce47622808d7a861441fd743b6758d17211158ff648e132"
+    },
+    {
+      "name": "editor-object/dark-invalid-rectangle-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023096757.3242,
+      "sha256": "07dce3539e9d40855b7f04fb676cb7108ae0e794ed12087b3ff3f03464d657db"
+    },
+    {
+      "name": "editor-object/dark-saved-item-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023097328.5725,
+      "sha256": "da42dea6ca6267c1d737584646f56b22af7c69f295ebea135f48d9df9225795a"
+    },
+    {
+      "name": "editor-object/german-constrained-invalid-rectangle-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023110175.824,
+      "sha256": "3d128c68582fdd2b5caa4ef0d83b2db68f41a6819b41d8658529504e3769a054"
+    },
+    {
+      "name": "editor-object/german-constrained-saved-item-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023110689.5007,
+      "sha256": "dcc106e2c5c0083a78ed5dbf524ba7a1c9050783c73c528e7fe1542ab61ef05e"
+    },
+    {
+      "name": "editor-object/light-invalid-rectangle-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023090176.3254,
+      "sha256": "07dce3539e9d40855b7f04fb676cb7108ae0e794ed12087b3ff3f03464d657db"
+    },
+    {
+      "name": "editor-object/light-saved-item-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023090786.9915,
+      "sha256": "da42dea6ca6267c1d737584646f56b22af7c69f295ebea135f48d9df9225795a"
+    },
+    {
+      "name": "editor-object/report.json",
+      "kind": "data",
+      "modifiedAt": 1789023111474.8916,
+      "sha256": "ec90c4ee00b73eb749c04bebe6ed925ad86c22e3b9d4b42d5a91517208e70c37"
+    },
+    {
+      "name": "editor-object/capture-files.json",
+      "kind": "data",
+      "modifiedAt": 1789023111573.7732,
+      "sha256": "d746041775996f5a3e3f8a997690c00dbdae726164f0e1f638ef15181a2e1cef"
+    },
+    {
+      "name": "planning-recovery/light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023121936.4304,
+      "sha256": "cdf1e549a2f2f657bad6097132b2f64afc63dfffb1bd05fe1efb157ddd02ea0b"
+    },
+    {
+      "name": "planning-recovery/light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023122099.2883,
+      "sha256": "2b65c94befe90c881fb8788f49e53c1c6226179fd6bb78c90bc556efafda8ead"
+    },
+    {
+      "name": "planning-recovery/light-material-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023123789.8643,
+      "sha256": "5ee8dc8559f11b42452b7f3381a95222b5fef899ab776bc10aecf333de37d22e"
+    },
+    {
+      "name": "planning-recovery/light-materials.png",
+      "kind": "image",
+      "modifiedAt": 1789023124387.951,
+      "sha256": "54abcccccd4b71d9e2447232fdef6d5c6d92545b900eb984931396d42188e41c"
+    },
+    {
+      "name": "planning-recovery/light-partial-payment.png",
+      "kind": "image",
+      "modifiedAt": 1789023125722.1775,
+      "sha256": "cbb9152490866f810e1d4cb6f6772a2f8213e2964c6e1dc5c633742cce0daec6"
+    },
+    {
+      "name": "planning-recovery/light-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789023126021.145,
+      "sha256": "5cf6826ef75795ec3d5edd13addb1eb3b6228741dc43fe3eb47c2883f65e863f"
+    },
+    {
+      "name": "planning-recovery/light-documents.png",
+      "kind": "image",
+      "modifiedAt": 1789023126733.2212,
+      "sha256": "da970aeadee1895bae158c9fff2a804b1e5259112bf88cf99db2c1d730df694a"
+    },
+    {
+      "name": "planning-recovery/light-notes.png",
+      "kind": "image",
+      "modifiedAt": 1789023127446.245,
+      "sha256": "5e5fbe68275a146023592a43121045233f45cccb441329c009848bb23eb5547d"
+    },
+    {
+      "name": "planning-recovery/light-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789023128250.6736,
+      "sha256": "9176f62d93d4d7ef1777ed196a4496a0c3a338a8db8bc2334e3bd4ae4c363303"
+    },
+    {
+      "name": "planning-recovery/light-review.png",
+      "kind": "image",
+      "modifiedAt": 1789023128874.3455,
+      "sha256": "69100fd3eb6143de114025b964e9845fe4d7352c990ab1bceffb8c4064b80b90"
+    },
+    {
+      "name": "planning-recovery/light-saved-refresh-needed.png",
+      "kind": "image",
+      "modifiedAt": 1789023129318.838,
+      "sha256": "ef41244dd577696ddee81cd022dbe629991a3437796232e496270526ca3645e0"
+    },
+    {
+      "name": "planning-recovery/light-saved-overview.png",
+      "kind": "image",
+      "modifiedAt": 1789023129534.6235,
+      "sha256": "2813797ba43b147b69af1af1840b574ab3601bb70e67c97f2eab6f3eb50afc69"
+    },
+    {
+      "name": "planning-recovery/light-retained-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023130402.314,
+      "sha256": "2f25ea8a85b36abd350ab65208a684d00da218e873076d349e0fd609b9e95253"
+    },
+    {
+      "name": "planning-recovery/light-changed-source.png",
+      "kind": "image",
+      "modifiedAt": 1789023131239.0808,
+      "sha256": "9512b81628c88c7039ccdd37c1d514882ecac3b0d0dd7fdc43bbb8e6f28856fd"
+    },
+    {
+      "name": "planning-recovery/light-zoom-reflow.png",
+      "kind": "image",
+      "modifiedAt": 1789023131983.6218,
+      "sha256": "a04df19c014788aff85075100bf59f0c12692dcd940011b44688346cada7786d"
+    },
+    {
+      "name": "planning-recovery/light-large-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789023139232.2512,
+      "sha256": "531ccc65ae9b4dbebb9eeb16dbe863c1f468568544668d17ff3a813976a6c815"
+    },
+    {
+      "name": "planning-recovery/dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023145008.453,
+      "sha256": "5b08ec9090801edf1b4e5d1cb76d1d4b8a98142028dbe106540cd562fc6747a4"
+    },
+    {
+      "name": "planning-recovery/dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023145178.4697,
+      "sha256": "5a30cb1e021ba132a97479e72455ebb5f13bc05b80dca2f48dca3744f44fdd00"
+    },
+    {
+      "name": "planning-recovery/dark-material-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023146871.1504,
+      "sha256": "1dc444d5c950f48b809c3059cbddb44fd86a3879a8a80462a7dee3b64bd9d279"
+    },
+    {
+      "name": "planning-recovery/dark-materials.png",
+      "kind": "image",
+      "modifiedAt": 1789023147486.3274,
+      "sha256": "e95dbd71d1daa95ba20130f2a9d59703cdf7a11ac2ba3f9c1cf73219a8fb02e3"
+    },
+    {
+      "name": "planning-recovery/dark-partial-payment.png",
+      "kind": "image",
+      "modifiedAt": 1789023148872.0588,
+      "sha256": "6e2ebb426da1d650f2244a42c0bd35c5b3ffebc801f2ae5a9c2faa51cde0c50d"
+    },
+    {
+      "name": "planning-recovery/dark-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789023149191.8093,
+      "sha256": "2f59e9e37156fd5e0fc160abdca45d418b674b493ce61ec35628365f0f708129"
+    },
+    {
+      "name": "planning-recovery/dark-documents.png",
+      "kind": "image",
+      "modifiedAt": 1789023149972.0476,
+      "sha256": "265d0da20b6b3e7a949b989ff0210edcd37e0a195ce11d155a67f9d79d6b1fbf"
+    },
+    {
+      "name": "planning-recovery/dark-notes.png",
+      "kind": "image",
+      "modifiedAt": 1789023150737.4978,
+      "sha256": "6925a78381f4b02535e90cc3b64058041a33ec07298b77763050c624cefcf39b"
+    },
+    {
+      "name": "planning-recovery/dark-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789023151578.223,
+      "sha256": "62ff1752b2aaa89ca1cca35f6cc0a54b589b2fe25920a6faa60bb6710463a819"
+    },
+    {
+      "name": "planning-recovery/dark-review.png",
+      "kind": "image",
+      "modifiedAt": 1789023152219.153,
+      "sha256": "85d98719ea9e69830986dd07bd5635a4d404c49545aac66288e1a2020e94d08b"
+    },
+    {
+      "name": "planning-recovery/dark-saved-refresh-needed.png",
+      "kind": "image",
+      "modifiedAt": 1789023152655.8962,
+      "sha256": "70b4236d7c7fc9e4f365640215c9eed835db1ad26328315ecf0e27e9017083c7"
+    },
+    {
+      "name": "planning-recovery/dark-saved-overview.png",
+      "kind": "image",
+      "modifiedAt": 1789023152873.291,
+      "sha256": "df72a84f1437e36754d67d3b663bee6f1b7f6c1eee4a4120fa5e7880b4610ac0"
+    },
+    {
+      "name": "planning-recovery/dark-retained-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023153714.8152,
+      "sha256": "9f2b2b1acc8d497893d5e721eae07e42b33bd51000526c2395e47df4323baaa8"
+    },
+    {
+      "name": "planning-recovery/dark-changed-source.png",
+      "kind": "image",
+      "modifiedAt": 1789023154543.6592,
+      "sha256": "879397826306f73968241c70a173cc4da1880596855d5691edb0b2b22f32a207"
+    },
+    {
+      "name": "planning-recovery/dark-zoom-reflow.png",
+      "kind": "image",
+      "modifiedAt": 1789023155307.1958,
+      "sha256": "0789bb4e26e4988be6af097d3b093c6c7e498ed56eb22af1b76d655f7daa2b5e"
+    },
+    {
+      "name": "planning-recovery/dark-large-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789023162278.961,
+      "sha256": "e924e4e60c888d8c6fb69eaacfae0ef075e870cc512b7c5eaf70c8f55e310aa8"
+    },
+    {
+      "name": "planning-recovery/custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023168024.1997,
+      "sha256": "87c0adffcc932aa52ec4a6a250b7bc77ecdb09eafdf4ee1ed7e2be528cb2ef0a"
+    },
+    {
+      "name": "planning-recovery/custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023168160.053,
+      "sha256": "033ff00aae8a4cd21dc215f17991a0fccf6d4b51487fd8b5f849014aa0545a1f"
+    },
+    {
+      "name": "planning-recovery/custom-accent-material-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023169839.2168,
+      "sha256": "7d90f3b292f8913e82cfd1175763042285d3e7cf9b7365354d4044753db0bb51"
+    },
+    {
+      "name": "planning-recovery/custom-accent-materials.png",
+      "kind": "image",
+      "modifiedAt": 1789023170458.0398,
+      "sha256": "4fe3719de7d316f67ca971fd3fb5106cd6b51557e73c9c44a093685b8e4a4390"
+    },
+    {
+      "name": "planning-recovery/custom-accent-partial-payment.png",
+      "kind": "image",
+      "modifiedAt": 1789023171951.434,
+      "sha256": "7162b9269c33b0a66414975a118f76456dc2b57eb541ee3b3597db341d88269e"
+    },
+    {
+      "name": "planning-recovery/custom-accent-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789023172386.6013,
+      "sha256": "fe06dfdff87ce8aaa82e335f24a73dc2b25b7048300d0256073814346bd6044d"
+    },
+    {
+      "name": "planning-recovery/custom-accent-documents.png",
+      "kind": "image",
+      "modifiedAt": 1789023173125.1494,
+      "sha256": "5ee7c7a344780ba7a9543806349aef9e2ab7cd75233d69060403fdc0855b40e7"
+    },
+    {
+      "name": "planning-recovery/custom-accent-notes.png",
+      "kind": "image",
+      "modifiedAt": 1789023173832.1465,
+      "sha256": "988190a0c26ff735cd49ba3a6d32d669c8b6e53aaa54cd81deec8157c26fc4fd"
+    },
+    {
+      "name": "planning-recovery/custom-accent-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789023174600.1265,
+      "sha256": "efe38e5289309fc8743e8dfd7d83b344fb0217b6904fd27b1ee1d1c93e5f135b"
+    },
+    {
+      "name": "planning-recovery/custom-accent-review.png",
+      "kind": "image",
+      "modifiedAt": 1789023175217.0823,
+      "sha256": "89253a40c8126702b4d901092eda167b84c0165ade02708af81180ecead0aec7"
+    },
+    {
+      "name": "planning-recovery/custom-accent-saved-refresh-needed.png",
+      "kind": "image",
+      "modifiedAt": 1789023175695.1697,
+      "sha256": "137887073556d6f60d2360c6d4ee8f43fd2a203f3ec6e9d14aa59931e6e708d6"
+    },
+    {
+      "name": "planning-recovery/custom-accent-saved-overview.png",
+      "kind": "image",
+      "modifiedAt": 1789023175903.0078,
+      "sha256": "2d4b4e18bc78526d544df1f7d7304410d63aa0ac50236b77c1125704eca91b62"
+    },
+    {
+      "name": "planning-recovery/custom-accent-retained-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023176703.5344,
+      "sha256": "092fcd1bdf9556f032f852281fd8f541243ab9b7ee3bb55baae12ce5591cf903"
+    },
+    {
+      "name": "planning-recovery/custom-accent-changed-source.png",
+      "kind": "image",
+      "modifiedAt": 1789023177507.9875,
+      "sha256": "ccdbbb6808306eb3dda9d9f769754ff2cb2754bd5eeeebd5cc14454bb960bbbb"
+    },
+    {
+      "name": "planning-recovery/custom-accent-zoom-reflow.png",
+      "kind": "image",
+      "modifiedAt": 1789023178219.27,
+      "sha256": "d1521737e2e84296a1d879002e2fd7e227121ab41e577b1914aaf8546f97b965"
+    },
+    {
+      "name": "planning-recovery/custom-accent-large-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789023185155.2297,
+      "sha256": "e3343cdda295aa4513b9e2af1f549059c82aa96fcdf5ac4c7624c94c40e8df11"
+    },
+    {
+      "name": "planning-recovery/german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023190992.4714,
+      "sha256": "f7c6bd45be26fde14209b29f78509dfb44efbc3c2d9fc320bb9e622ec1aa387c"
+    },
+    {
+      "name": "planning-recovery/german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023191128.2769,
+      "sha256": "05bf19ed45e68f80c03524c0f63175cac085cf9f1a3a3d892a20c74f65db0c70"
+    },
+    {
+      "name": "planning-recovery/german-constrained-material-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023192927.7104,
+      "sha256": "b9d5da62fc001948bdfb562a9d2be458bfd4ecc3e0fa1078a99b827957252973"
+    },
+    {
+      "name": "planning-recovery/german-constrained-materials.png",
+      "kind": "image",
+      "modifiedAt": 1789023193423.46,
+      "sha256": "f7f76f233e422d87d4c5fad05cad350770da45bcbca125f97d9ee11368618417"
+    },
+    {
+      "name": "planning-recovery/german-constrained-partial-payment.png",
+      "kind": "image",
+      "modifiedAt": 1789023194603.9392,
+      "sha256": "9a7076944bed6d6effd8677af90ce474336d318a8cf7ec917a9dcf9345501298"
+    },
+    {
+      "name": "planning-recovery/german-constrained-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789023194839.0225,
+      "sha256": "0bc9c42c8479d0b1252e8b49dc9286fa835f38ba32838158757ca47af3c29b2f"
+    },
+    {
+      "name": "planning-recovery/german-constrained-documents.png",
+      "kind": "image",
+      "modifiedAt": 1789023195463.103,
+      "sha256": "1ea5da02b72a4749f09c6a04802af4e7e54c851a785c9378b2cc8bca41f33012"
+    },
+    {
+      "name": "planning-recovery/german-constrained-notes.png",
+      "kind": "image",
+      "modifiedAt": 1789023196088.7747,
+      "sha256": "4df797adfb25c20cb1376176fa47a8e60c5aabcad503af5bd763b81092b3dc87"
+    },
+    {
+      "name": "planning-recovery/german-constrained-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789023196828.0513,
+      "sha256": "e9cd12c0ba26f584252b3ae50b98318a4a8aab80889252576b79a77599fc18cb"
+    },
+    {
+      "name": "planning-recovery/german-constrained-review.png",
+      "kind": "image",
+      "modifiedAt": 1789023197406.8635,
+      "sha256": "e4349e3c64b391503ab2126f170450510546f2b50f2dbb6777f9c3f2af02ab6a"
+    },
+    {
+      "name": "planning-recovery/german-constrained-saved-refresh-needed.png",
+      "kind": "image",
+      "modifiedAt": 1789023197779.0085,
+      "sha256": "e593ff5fcae176d111cff267f92ad967047a176c33ee1dfd3e7ee63a1c69569c"
+    },
+    {
+      "name": "planning-recovery/german-constrained-saved-overview.png",
+      "kind": "image",
+      "modifiedAt": 1789023197939.6074,
+      "sha256": "5d3833efe640574374f23b5dc59a3504a8c5bc9a5b59a1b40e9d5368ece4a9c5"
+    },
+    {
+      "name": "planning-recovery/german-constrained-retained-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023198639.7207,
+      "sha256": "420225da62f9b6869fcb79c6f03f256b93963561fb62ad1597c21ffbe848aeb8"
+    },
+    {
+      "name": "planning-recovery/german-constrained-changed-source.png",
+      "kind": "image",
+      "modifiedAt": 1789023199395.216,
+      "sha256": "4664c0c7e11930308180b48d0fe8ee056dcaf6aa221e9d7ad9fe304763be7e4b"
+    },
+    {
+      "name": "planning-recovery/german-constrained-zoom-reflow.png",
+      "kind": "image",
+      "modifiedAt": 1789023200120.6853,
+      "sha256": "062434df85bdce5e05e05f5b19ac24b2bd894bcff1e9e6532216ccc7c2bceaf2"
+    },
+    {
+      "name": "planning-recovery/german-constrained-large-photos.png",
+      "kind": "image",
+      "modifiedAt": 1789023206653.7893,
+      "sha256": "d6801d9b7535e6d2c124d4496bad5dc9be9d5112f21dc087e17277f9f4504e1e"
+    },
+    {
+      "name": "planning-recovery/custom-accent-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023177922.2898,
+      "sha256": "446579d044f529fbf6e0ae3a2c9fb2052fdeecb62168821908d2ecd799719a07"
+    },
+    {
+      "name": "planning-recovery/custom-accent-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023172785.8936,
+      "sha256": "28bef41233ca0e5a746eef54c8c5585551e9b2689c1f1b46de8e6239236de5a0"
+    },
+    {
+      "name": "planning-recovery/custom-accent-draft-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023176986.2725,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "planning-recovery/custom-accent-materials-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023170939.6992,
+      "sha256": "6c6091184a3db1a0e0e65e74f572c90f9a781dbd0254ffcbb0870b952cfeea4b"
+    },
+    {
+      "name": "planning-recovery/custom-accent-photos-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023174957.3186,
+      "sha256": "28bef41233ca0e5a746eef54c8c5585551e9b2689c1f1b46de8e6239236de5a0"
+    },
+    {
+      "name": "planning-recovery/custom-accent-warning-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023176369.707,
+      "sha256": "af547bccbaf295cc67193417ea333966bcbca3609ec9c0f9ac84b77cc5dfcf0c"
+    },
+    {
+      "name": "planning-recovery/dark-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023154950.5464,
+      "sha256": "07621205e8ee3de05c7458a845694035d82312f46109a9a3d4866d6997dc5531"
+    },
+    {
+      "name": "planning-recovery/dark-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023149627.8894,
+      "sha256": "baf01966c40cfb792559abf606b3318b43a12e4043dfbf09f0397d260a4c8b47"
+    },
+    {
+      "name": "planning-recovery/dark-draft-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023153991.6724,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "planning-recovery/dark-materials-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023147979.6592,
+      "sha256": "9138aff43a2dd6d00090f3688a183436a110edd784934d67ab4043b556713de9"
+    },
+    {
+      "name": "planning-recovery/dark-photos-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023151955.709,
+      "sha256": "baf01966c40cfb792559abf606b3318b43a12e4043dfbf09f0397d260a4c8b47"
+    },
+    {
+      "name": "planning-recovery/dark-warning-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023153346.0232,
+      "sha256": "76c26cac7ededadf3699c201c01447fe7882a16dcc6e8a901a5dad2656956813"
+    },
+    {
+      "name": "planning-recovery/german-constrained-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023199768.5623,
+      "sha256": "9514e84cd24dd7a21952b73d8d449939e688ebe6afb3be628e6c18037b15e47c"
+    },
+    {
+      "name": "planning-recovery/german-constrained-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023195194.1238,
+      "sha256": "07d010b1904aaec3ee483cb87c965d3d8cf70530132eb862ad9dc54e559b6e5d"
+    },
+    {
+      "name": "planning-recovery/german-constrained-draft-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023198938.4966,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "planning-recovery/german-constrained-materials-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023193852.1008,
+      "sha256": "d137e449e27eef4708d751a3533547eb621e564f20e16155e8505f7996086a02"
+    },
+    {
+      "name": "planning-recovery/german-constrained-photos-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023197171.1946,
+      "sha256": "07d010b1904aaec3ee483cb87c965d3d8cf70530132eb862ad9dc54e559b6e5d"
+    },
+    {
+      "name": "planning-recovery/german-constrained-warning-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023198353.667,
+      "sha256": "5321f8b5401b3eac18409cf975b3859e0f68383e669271262628183e02cc853b"
+    },
+    {
+      "name": "planning-recovery/light-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023131679.2368,
+      "sha256": "07621205e8ee3de05c7458a845694035d82312f46109a9a3d4866d6997dc5531"
+    },
+    {
+      "name": "planning-recovery/light-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023126408.4946,
+      "sha256": "baf01966c40cfb792559abf606b3318b43a12e4043dfbf09f0397d260a4c8b47"
+    },
+    {
+      "name": "planning-recovery/light-draft-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023130689.4844,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "planning-recovery/light-materials-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023124856.2507,
+      "sha256": "9138aff43a2dd6d00090f3688a183436a110edd784934d67ab4043b556713de9"
+    },
+    {
+      "name": "planning-recovery/light-photos-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023128625.2307,
+      "sha256": "baf01966c40cfb792559abf606b3318b43a12e4043dfbf09f0397d260a4c8b47"
+    },
+    {
+      "name": "planning-recovery/light-warning-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023130050.6199,
+      "sha256": "76c26cac7ededadf3699c201c01447fe7882a16dcc6e8a901a5dad2656956813"
+    },
+    {
+      "name": "planning-recovery/report.json",
+      "kind": "data",
+      "modifiedAt": 1789023208409.677,
+      "sha256": "900b0bbc677032591c2a130955cba94ab1ab21cb7b3a268d489236c5864e759e"
+    },
+    {
+      "name": "planning-recovery/capture-files.json",
+      "kind": "data",
+      "modifiedAt": 1789023208537.2998,
+      "sha256": "880e7764446cd40ee4562b910b68a544af27338af26ef608ed67da682fb35ea3"
+    },
+    {
+      "name": "modal-busy-focus/light-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023220184.042,
+      "sha256": "f62a1172374fdf645e64f7aa27d9f17b1eb3cc4cb75262e047a7b6183c020f41"
+    },
+    {
+      "name": "modal-busy-focus/light-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023223032.8691,
+      "sha256": "12aaa1a620e36a70486fad0ebba2aa01b8c5b95ebc6d496a25b1eb4184452deb"
+    },
+    {
+      "name": "modal-busy-focus/dark-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023229305.1477,
+      "sha256": "b02a8164a54d35501909a8965d00d9f245bee434cdce2c7f7a8106eabfce4eba"
+    },
+    {
+      "name": "modal-busy-focus/dark-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023232334.9072,
+      "sha256": "7741209c2a34ae0c6e4ec4386ab6fc976697e017adbb5ebb76a73f52aa181898"
+    },
+    {
+      "name": "modal-busy-focus/custom-accent-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023238704.5464,
+      "sha256": "1b6570ae2ddccdfc7157d04d3cd6349c5ea3636ab669eae9501fe09841922700"
+    },
+    {
+      "name": "modal-busy-focus/custom-accent-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023241576.464,
+      "sha256": "97daad3490441b941efc05628ac76763115b1a020f33b5458a770875c8a39ddc"
+    },
+    {
+      "name": "modal-busy-focus/german-constrained-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023247137.2434,
+      "sha256": "e39d2555dbc1b1a42035ba88a64298fa5ceaefebcaee8ba3b31d937fb9769ca5"
+    },
+    {
+      "name": "modal-busy-focus/german-constrained-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1789023249503.245,
+      "sha256": "239ce57591ab9c58aa3b68f938a0437e3490ce685b7e73db79cf40bcb99fb5d1"
+    },
+    {
+      "name": "modal-busy-focus/report.json",
+      "kind": "data",
+      "modifiedAt": 1789023250640.5464,
+      "sha256": "794c4a029fb0623e6f28637899c028be789df47e59384e2328a2fa4661769924"
+    },
+    {
+      "name": "modal-busy-focus/capture-files.json",
+      "kind": "data",
+      "modifiedAt": 1789023250729.8284,
+      "sha256": "2e5d3e33aef682e943736b077d18ec73436c7a469f971141f45b9d3859cbf13c"
+    },
+    {
+      "name": "editor-downstream/light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023261132.0967,
+      "sha256": "fbdf1347080c3477b1910823da594e921a814ea550f03f3601a0e64fc79e4c1b"
+    },
+    {
+      "name": "editor-downstream/light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023261288.9429,
+      "sha256": "f26ac8c382a360fae21e729b3c2c9d103d3c4c3f5600fc205c8c859174ea8621"
+    },
+    {
+      "name": "editor-downstream/light-schedule-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023263071.5398,
+      "sha256": "a87b2a8a1f4571aa485f184deaf46ceeb62e4f25391d4182c87a68da85402ef1"
+    },
+    {
+      "name": "editor-downstream/light-project-schedule.png",
+      "kind": "image",
+      "modifiedAt": 1789023263601.4868,
+      "sha256": "62f7f60b0002ad9c2e1f12288487ebbc1b9e156729695c8550fd8edbd33c46fb"
+    },
+    {
+      "name": "editor-downstream/light-room-work.png",
+      "kind": "image",
+      "modifiedAt": 1789023264172.4539,
+      "sha256": "7f591b3574cd8846d607179c7d0b271a777267a97a832bdeb216d775dd176918"
+    },
+    {
+      "name": "editor-downstream/light-room-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789023265315.2527,
+      "sha256": "e1ce47bdaae30842a60deadb750eacd046dd06967cc2e6777244ab846f4def5c"
+    },
+    {
+      "name": "editor-downstream/light-room-costs-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023265704.6995,
+      "sha256": "f5476ebd32b42fa9430e1f07d0d5cf3a4213b6b4ed04e5165246d3d645c7fd29"
+    },
+    {
+      "name": "editor-downstream/light-quote-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023266767.9724,
+      "sha256": "bd19488ae19dac57da9956e2d798715eef72c8f67dd915d65a9339c457d89bb4"
+    },
+    {
+      "name": "editor-downstream/light-quote-comparison.png",
+      "kind": "image",
+      "modifiedAt": 1789023267584.5022,
+      "sha256": "30ba5c9193c37bd79fe8f89c426ad2b00e167b9d956a26b6ada09c95049952c0"
+    },
+    {
+      "name": "editor-downstream/dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023272198.2295,
+      "sha256": "8f6a3230f70378650f53292a96cf61a4554e4d91b055fc149caf73cad58f8b12"
+    },
+    {
+      "name": "editor-downstream/dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023272374.9187,
+      "sha256": "88af73c852c12ddf9ca2480e8050086eaef50964724e2e181a25cecd17c0b356"
+    },
+    {
+      "name": "editor-downstream/dark-schedule-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023274187.1235,
+      "sha256": "c4b02358b28160af49a67f6faa70a0c8d04bb25e62adfe75fc0b420a8a6423d7"
+    },
+    {
+      "name": "editor-downstream/dark-project-schedule.png",
+      "kind": "image",
+      "modifiedAt": 1789023274676.3008,
+      "sha256": "b08073f5a880b046300dfd18b0cd115e18aa8d4058445df623cfb0167031663c"
+    },
+    {
+      "name": "editor-downstream/dark-room-work.png",
+      "kind": "image",
+      "modifiedAt": 1789023275169.6675,
+      "sha256": "36e235361b0f4811b434d5e0b83803d17535945c53d8911dbb9926935b2b912e"
+    },
+    {
+      "name": "editor-downstream/dark-room-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789023276294.1233,
+      "sha256": "914aadd832d08e24b24016779152a540c641dd4125b32d81c234e5986b8ad2cc"
+    },
+    {
+      "name": "editor-downstream/dark-room-costs-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023276667.5923,
+      "sha256": "8b8d57785a6bad1a8ec776bfc3e3c4ae806bfd18449618cfc285fd0b7bdf3c9e"
+    },
+    {
+      "name": "editor-downstream/dark-quote-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023277715.3103,
+      "sha256": "98a2a1b9509f08be8555d15381ecd978055fe8c8e11dfe0f926c07af3b25d506"
+    },
+    {
+      "name": "editor-downstream/dark-quote-comparison.png",
+      "kind": "image",
+      "modifiedAt": 1789023278498.3896,
+      "sha256": "29c4815a17be85f6dec356a69a32fbf4a87d597c31db64fda050a62ab5ccee65"
+    },
+    {
+      "name": "editor-downstream/custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023282977.0298,
+      "sha256": "45e8db48b908af07129e8bf15499a3416e61133aa15aa0ec6c5b2c4f0eb332e2"
+    },
+    {
+      "name": "editor-downstream/custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023283149.4158,
+      "sha256": "a0ffa216898752721501a581774e568e10d3dea9920f117bd0b08165868d0af6"
+    },
+    {
+      "name": "editor-downstream/custom-accent-schedule-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023284903.3774,
+      "sha256": "624ad47704fc9bef4225fd65f68547e7ff16a2344dd460f540e05c039cafb05c"
+    },
+    {
+      "name": "editor-downstream/custom-accent-project-schedule.png",
+      "kind": "image",
+      "modifiedAt": 1789023285392.7466,
+      "sha256": "cfa70b8179f0b0317f5db3fc7a8bd8f023b534787a706ee16d882a7e2cfb8838"
+    },
+    {
+      "name": "editor-downstream/custom-accent-room-work.png",
+      "kind": "image",
+      "modifiedAt": 1789023285899.5784,
+      "sha256": "81224e69743739826446fdd63e395fb7b0dd1a96f557f1c2e3dc345047f10b08"
+    },
+    {
+      "name": "editor-downstream/custom-accent-room-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789023287016.7625,
+      "sha256": "2b38396f96a3ecc76e945fe0230829bb09543f6af82d5ff3fe9c44b87c8e50a6"
+    },
+    {
+      "name": "editor-downstream/custom-accent-room-costs-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023287368.4954,
+      "sha256": "4c2850a988ca7047ec33b9a46609a6203827473e1fc42209bcfbe3ba1822dd7c"
+    },
+    {
+      "name": "editor-downstream/custom-accent-quote-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023288415.1494,
+      "sha256": "1588252d3e8a125269a808d1b15de680b5ea663a78e670a2faded725bcc76031"
+    },
+    {
+      "name": "editor-downstream/custom-accent-quote-comparison.png",
+      "kind": "image",
+      "modifiedAt": 1789023289209.9368,
+      "sha256": "50889c13db90d038e77b74c7f101b0d9ce454e29fe698cf4e9dc2b5942b5f569"
+    },
+    {
+      "name": "editor-downstream/german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023293739.854,
+      "sha256": "4dc88f90ffc7f2edcc9b61461f16f60df4d17cebad6344b94786bc864f934b95"
+    },
+    {
+      "name": "editor-downstream/german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023293870.1982,
+      "sha256": "73a51884767a1ac3e1968b98717ca1ea8f8de76ab7844d5e3e775504d1b5d8f3"
+    },
+    {
+      "name": "editor-downstream/german-constrained-schedule-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023295537.5925,
+      "sha256": "cb9a02519caac1773816f12bef858b734721755d99911b9ac2845f6a7e184089"
+    },
+    {
+      "name": "editor-downstream/german-constrained-project-schedule.png",
+      "kind": "image",
+      "modifiedAt": 1789023296017.1516,
+      "sha256": "380497b381546126a16077660e790352046ba9faa8743b0944f0891c65feb204"
+    },
+    {
+      "name": "editor-downstream/german-constrained-room-work.png",
+      "kind": "image",
+      "modifiedAt": 1789023296424.2017,
+      "sha256": "a47bda874c38a9726eb25d76b6a0aa8e627f5f52c61f4e3780481b620cb4e3f1"
+    },
+    {
+      "name": "editor-downstream/german-constrained-room-costs.png",
+      "kind": "image",
+      "modifiedAt": 1789023297460.5522,
+      "sha256": "0a403c86046743eed013b9018933848e3dbb7ddff328c26603db48b79ed17143"
+    },
+    {
+      "name": "editor-downstream/german-constrained-room-costs-design.png",
+      "kind": "image",
+      "modifiedAt": 1789023297749.3394,
+      "sha256": "42f78f67f99df18d992403870b4dcdf963e9bb2a5d24841f7f800e0f6a911258"
+    },
+    {
+      "name": "editor-downstream/german-constrained-quote-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023298750.8484,
+      "sha256": "4fc29e40deb73bdb62afc7072229cd8b2cc805890f395a1113644cc9fce71e67"
+    },
+    {
+      "name": "editor-downstream/german-constrained-quote-comparison.png",
+      "kind": "image",
+      "modifiedAt": 1789023299528.6377,
+      "sha256": "9fc4c6b4ad5ef3c10c6e15209969eeed54f5c8e9e32526b768cb25267523eab6"
+    },
+    {
+      "name": "editor-downstream/custom-accent-project-schedule-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023285547.6565,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/custom-accent-quote-comparison-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023289384.0466,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/custom-accent-quote-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023288616.1606,
+      "sha256": "52d5e021a1054f64f0501527196ad26bdfd4d2a5909657e6721935f5f9efffa2"
+    },
+    {
+      "name": "editor-downstream/custom-accent-room-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023287816.6145,
+      "sha256": "a1122dfc18371e0eeb31037d3a4fbb0ddd041cf3d2f13979fc5bea6e38b34af7"
+    },
+    {
+      "name": "editor-downstream/custom-accent-room-costs-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023287421.5696,
+      "sha256": "9fc5d3c40ee91fe6d1d14d8c54e5f2ba4b1cccff17c58325a77dacff2dabcd67"
+    },
+    {
+      "name": "editor-downstream/custom-accent-room-work-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023286295.4358,
+      "sha256": "a0c6c2bc581732534604a4b9674af9efc9194c8dd2df8569936ae5b308968b37"
+    },
+    {
+      "name": "editor-downstream/custom-accent-schedule-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023285202.1758,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/dark-project-schedule-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023274829.337,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/dark-quote-comparison-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023278670.4353,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/dark-quote-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023277921.6636,
+      "sha256": "52d5e021a1054f64f0501527196ad26bdfd4d2a5909657e6721935f5f9efffa2"
+    },
+    {
+      "name": "editor-downstream/dark-room-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023277134.7263,
+      "sha256": "258fd4caae29de63b7066b07c0d3d4d53d9c7f8ba627b8bf341c3f367685db22"
+    },
+    {
+      "name": "editor-downstream/dark-room-costs-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023276705.604,
+      "sha256": "45fb0778ee5188fd14c27ce030dad5336ca5cc18ce0f96f2d5b3799516b58d08"
+    },
+    {
+      "name": "editor-downstream/dark-room-work-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023275550.4802,
+      "sha256": "a1122dfc18371e0eeb31037d3a4fbb0ddd041cf3d2f13979fc5bea6e38b34af7"
+    },
+    {
+      "name": "editor-downstream/dark-schedule-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023274481.4912,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/german-constrained-project-schedule-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023296168.273,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/german-constrained-quote-comparison-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023299708.462,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/german-constrained-quote-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023298951.988,
+      "sha256": "b00533729f13958b59f112668b908eaa4afad7bfbebe27b3a55459a8814f2ac6"
+    },
+    {
+      "name": "editor-downstream/german-constrained-room-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023298183.868,
+      "sha256": "a0fea2e0e910e9df5d43c22864f9aeea2dc287a3e9a629555b7b26d2482eb299"
+    },
+    {
+      "name": "editor-downstream/german-constrained-room-costs-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023297783.2993,
+      "sha256": "14428f0434024b246d190bb6ef34b8f3f30a3aaf01cfaa8e39bb870758e33fd1"
+    },
+    {
+      "name": "editor-downstream/german-constrained-room-work-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023296766.3835,
+      "sha256": "a0fea2e0e910e9df5d43c22864f9aeea2dc287a3e9a629555b7b26d2482eb299"
+    },
+    {
+      "name": "editor-downstream/german-constrained-schedule-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023295819.967,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/light-project-schedule-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023263759.8723,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/light-quote-comparison-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023267758.9768,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/light-quote-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023266982.412,
+      "sha256": "52d5e021a1054f64f0501527196ad26bdfd4d2a5909657e6721935f5f9efffa2"
+    },
+    {
+      "name": "editor-downstream/light-room-costs-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023266173.6382,
+      "sha256": "258fd4caae29de63b7066b07c0d3d4d53d9c7f8ba627b8bf341c3f367685db22"
+    },
+    {
+      "name": "editor-downstream/light-room-costs-design.json",
+      "kind": "data",
+      "modifiedAt": 1789023265755.6267,
+      "sha256": "aa90d39109f527a66177f7723a08596e7f11e226992c4b323bb9aae7d4570802"
+    },
+    {
+      "name": "editor-downstream/light-room-work-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023264555.8562,
+      "sha256": "a1122dfc18371e0eeb31037d3a4fbb0ddd041cf3d2f13979fc5bea6e38b34af7"
+    },
+    {
+      "name": "editor-downstream/light-schedule-preview-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023263382.0862,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "editor-downstream/report.json",
+      "kind": "data",
+      "modifiedAt": 1789023300141.3389,
+      "sha256": "d38290fe0bce8adea359cbf935e05db1176c53a9add2233e6e24701e672ad9c5"
+    },
+    {
+      "name": "editor-downstream/capture-files.json",
+      "kind": "data",
+      "modifiedAt": 1789023300249.6418,
+      "sha256": "69bcb081f5eacf2937c5d1481ba648a4f0e431c1d3391de6fdfec15680ea5b8e"
+    },
+    {
+      "name": "light-M01-floor.png",
+      "kind": "image",
+      "modifiedAt": 1789023312232.075,
+      "sha256": "90f54743316914e8bbda5b3f8e5c19bf2864d6e2aee7cf53f5f630e23039e812"
+    },
+    {
+      "name": "light-M00-room.png",
+      "kind": "image",
+      "modifiedAt": 1789023314117.4287,
+      "sha256": "83b9e7f14448f4c6bc1d55d3c0b83549c7001288e923da1a8d52eed9896b8e27"
+    },
+    {
+      "name": "light-M02-add.png",
+      "kind": "image",
+      "modifiedAt": 1789023315932.4478,
+      "sha256": "88b25d618dcdba65bd0d4665c1be8c8476fca291e4a7423dd559acca8994ee22"
+    },
+    {
+      "name": "light-M03-room-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023317640.1963,
+      "sha256": "d39a968ffdc77af45b98560e8ee26d0b7dc3d27df18e65620f7cd16b8dad6c20"
+    },
+    {
+      "name": "light-M05-start.png",
+      "kind": "image",
+      "modifiedAt": 1789023319355.9917,
+      "sha256": "e744529a1c7d07de47f1d822ec4f7535e06ebd64f1c6a61c29d296e8e13552cb"
+    },
+    {
+      "name": "light-M06-measurement.png",
+      "kind": "image",
+      "modifiedAt": 1789023321505.5413,
+      "sha256": "8f1affb1ca35dbfd6f5d6c6f006f734d8c06ddbdd67abcbafed9749abeb7fc43"
+    },
+    {
+      "name": "light-M11-multiple.png",
+      "kind": "image",
+      "modifiedAt": 1789023323221.588,
+      "sha256": "d7d963427be43964ebc0128d43b2842d20cb55c7bb192bdd4a5aff5d074f3839"
+    },
+    {
+      "name": "light-M15-stale.png",
+      "kind": "image",
+      "modifiedAt": 1789023325067.7722,
+      "sha256": "e943e69bee06b0817138ffa815a4a5fba708033f34edba9296ce6c1fe733114f"
+    },
+    {
+      "name": "dark-M01-floor.png",
+      "kind": "image",
+      "modifiedAt": 1789023326800.718,
+      "sha256": "593bcc26edba28d25fd1f86c2e59439ae2d9d461debf2c10308d4aa3d3db512c"
+    },
+    {
+      "name": "dark-M00-room.png",
+      "kind": "image",
+      "modifiedAt": 1789023328574.433,
+      "sha256": "d4f7a63dba5f5e67c8e0a490465c2e255603eaf368e0daafc6b06ff3fcd83588"
+    },
+    {
+      "name": "dark-M02-add.png",
+      "kind": "image",
+      "modifiedAt": 1789023330296.4915,
+      "sha256": "3e842b25ac851c3d6376757adb5a18e2f75dcb01cc3ac8ab9320d209415b27a7"
+    },
+    {
+      "name": "dark-M03-room-draft.png",
+      "kind": "image",
+      "modifiedAt": 1789023332049.6726,
+      "sha256": "464f8b5863a85e1e0d9b21767475ac16132f0243eafa8f26b4f51815a001ac16"
+    },
+    {
+      "name": "dark-M05-start.png",
+      "kind": "image",
+      "modifiedAt": 1789023333691.1455,
+      "sha256": "fbaa351d0d3beaf55471aacda6495079bafeac6d632696a6ec545d2db5f9e270"
+    },
+    {
+      "name": "dark-M06-measurement.png",
+      "kind": "image",
+      "modifiedAt": 1789023335822.2812,
+      "sha256": "6b1d9776c6cb29b277fc620aeed5af73500ed2c8e733a8de7c81c3aff8ff9403"
+    },
+    {
+      "name": "dark-M11-multiple.png",
+      "kind": "image",
+      "modifiedAt": 1789023337567.7754,
+      "sha256": "328bb76b3974d396fa702b9f6b2f3a2f0a9281c444bc0f3371186a4930b463c3"
+    },
+    {
+      "name": "dark-M15-stale.png",
+      "kind": "image",
+      "modifiedAt": 1789023339419.2805,
+      "sha256": "96b911071afe3115d3e752dd3b7e457ab3e2d6a6d19167430983a687d017db40"
+    },
+    {
+      "name": "shell-report.json",
+      "kind": "data",
+      "modifiedAt": 1789023339533.964,
+      "sha256": "348aec570e58ad3380bcf334bb69e9552c8c07df41f1baa211ecbd4105476afa"
+    }
+  ],
+  "staticImages": [
+    "light-M01-floor.png",
+    "light-M00-room.png",
+    "light-M02-add.png",
+    "light-M03-room-draft.png",
+    "light-M05-start.png",
+    "light-M06-measurement.png",
+    "light-M11-multiple.png",
+    "light-M15-stale.png",
+    "dark-M01-floor.png",
+    "dark-M00-room.png",
+    "dark-M02-add.png",
+    "dark-M03-room-draft.png",
+    "dark-M05-start.png",
+    "dark-M06-measurement.png",
+    "dark-M11-multiple.png",
+    "dark-M15-stale.png"
+  ]
+}

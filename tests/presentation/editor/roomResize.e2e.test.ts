@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { rig, click, ZONE_A_DTO } from '../../helpers/planEditorRig';
 import { runtimeOf, settle, settleUntil } from '../../helpers/editor';
 import { makeAsset, makeZone } from '../../helpers/entities';
@@ -31,6 +31,25 @@ async function apply(r: Rig): Promise<void> { await r.harness.wrapper.get('.rp-r
 async function cancel(r: Rig): Promise<void> { await r.harness.wrapper.get('.rp-dialog [data-rp-action="cancel"]').trigger('click'); await settle(); }
 
 describe('existing Room dimensions through the real editor', () => {
+	it('applies explicitly retyped rounded width exactly while preserving untouched pointer depth', async () => {
+		const original = [{ x: 1500.25, y: 1500.5 }, { x: 2734.65, y: 1500.5 }, { x: 2734.65, y: 3400.75 }, { x: 1500.25, y: 3400.75 }];
+		const r = await rig(async ({ zones }) => {
+			const before = expectFound(await zones.getById('zone-a' as never));
+			expectOk(await zones.save(expectOk(before.entity.withGeometry({ points: original })), before.version));
+		});
+		onTestFinished(() => r.harness.unmount());
+		const runtime = runtimeOf(r.harness);
+		await open(r);
+		expect(r.harness.wrapper.get('input[name="width"]').element).toHaveProperty('value', '1.234');
+		await apply(r); expect(runtime.canUndo.value).toBe(false);
+		await r.harness.wrapper.get('input[name="width"]').setValue('1.234');
+		expect(runtime.renderState.previewPolygon?.[2]).toEqual({ x: 2734.25, y: 3400.75 });
+		await apply(r);
+		expect((await read(r)).entity.geometry.points[2]).toEqual({ x: 2734.25, y: 3400.75 });
+		await runtime.undo(); expect((await read(r)).entity.geometry.points).toEqual(original);
+		expect(runtime.canUndo.value).toBe(false);
+		await runtime.redo(); expect((await read(r)).entity.geometry.points[2]).toEqual({ x: 2734.25, y: 3400.75 });
+	});
 	it.each([false, true])('selects through list action/canvas (%s), previews without writing, applies once and reverses', async canvas => {
 		const r = await rig(); const runtime = runtimeOf(r.harness); const before = await read(r);
 		await open(r, canvas);

@@ -97,3 +97,13 @@ export const POLYGON_CLOSE_GRAB_RADIUS_PX = 12;
 export const CLICK_EPSILON_PX = 4;
 /** Constant screen size shared by M11 badge drawing and hit testing. */
 export const SELECTION_BADGE_RADIUS_PX = 12;
+
+/** Small edge arrows retain generous invisible rectangular pointer targets. */
+export const ROTATION_HANDLE_RADIUS_PX = 8;
+export const ROTATION_CONTROL_WIDTH_PX = 44;
+export const ROTATION_CONTROL_TOP_PX = 22;
+export const ROTATION_CONTROL_BOTTOM_PX = 22;
+export const ROTATION_HANDLE_OFFSET_PX = 18;
+export const ROTATION_VIEW_MARGIN_PX = 4;
+export const ROTATION_HANDLE_CLEARANCE_PX = 4;
+export const ROTATION_PIVOT_DEADZONE_PX = 8;

@@ -1,8 +1,9 @@
+import { removeGroupMembers } from '../../../domain/spatial/groupMembership';
 import { TFile } from 'obsidian';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
-import type { ZoneListing } from '../../../application/ports/ZoneRepository';
+import type { ZoneListing, ZoneRepository } from '../../../application/ports/ZoneRepository';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { Zone } from '../../../domain/zone/Zone';
@@ -19,7 +20,7 @@ import {
 	zoneToPersistence,
 } from '../../persistence/mappers/zoneMapper';
 import { ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFrontmatter';
-import { SpatialObjectGeometrySchemaV1 } from '../../persistence/dto/planGeometry';
+import { SpatialObjectGeometrySchemaV7 } from '../../persistence/dto/planGeometry';
 import { parsePersisted } from '../../persistence/mappers/parse';
 import {
 	ensureFolder,
@@ -33,9 +34,9 @@ import {
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
 } from './noteIo';
-import { observeZone } from './digest';
-import { versionOfFrontmatter } from './versionCheck';
-import type { SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
+import { zoneVersion } from './zoneVersion';
+import { prepareZoneGeometryVersions } from './zoneGeometryVersions';
+import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import { checkExpectedVersion, revisionConflict } from '../../../application/ports/versioning';
 import { freshNotePath, projectFolderOf, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
@@ -116,17 +117,8 @@ function sidecarUnreadable(planId: unknown, cause: unknown): PersistenceError {
 	return persistenceError('zone.sidecar-unreadable', `The geometry sidecar for plan ${String(planId)} could not be read.`, cause);
 }
 
-/**
- * A zone's version spans its two files: the note's stored revision, and a token over the
- * note's owned keys AND the sidecar entry (`observeZone`). Minted at every read and at the
- * write's own return through this one function, so the two cannot disagree about what a
- * "reading" is — a save's returned version has to satisfy the next conditional write.
- */
-function zoneVersion(frontmatter: Record<string, unknown>, entry: SpatialObjectGeometryDTO | undefined): EntityVersion {
-	return { revision: versionOfFrontmatter(frontmatter).revision, observed: observeZone(frontmatter, entry) };
-}
-
-export class ObsidianZoneRepository {
+// Zone-version calculation is shared with grouped sidecar writes in zoneVersion.ts.
+export class ObsidianZoneRepository implements ZoneRepository {
 	private readonly queues = new KeyedQueues();
 
 	constructor(
@@ -136,6 +128,9 @@ export class ObsidianZoneRepository {
 
 	getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, RepositoryError>> {
 		return this.loadOne(id, (planId) => this.geometry.read(planId));
+	}
+	prepareGeometryVersions(id: ZoneId, geometry: CurvedPolygon) {
+		return Promise.resolve(prepareZoneGeometryVersions(this.deps, id, geometry));
 	}
 
 	/**
@@ -257,7 +252,7 @@ export class ObsidianZoneRepository {
 		const dto: Record<string, unknown> = { ...zoneToPersistence(zone, nextRevision) };
 		const geometryEntry = zoneToGeometryEntry(zone);
 		const frontmatterOk = ZoneFrontmatterSchemaV1.safeParse(dto).success;
-		const geometryOk = SpatialObjectGeometrySchemaV1.safeParse(geometryEntry).success;
+		const geometryOk = SpatialObjectGeometrySchemaV7.safeParse(geometryEntry).success;
 		if (!frontmatterOk || !geometryOk) {
 			return err(validationFailure('The zone failed pre-write validation.'));
 		}
@@ -422,6 +417,7 @@ export class ObsidianZoneRepository {
 				await this.geometry.mutate(cachedPlan, (sidecarDto) => ({
 					...sidecarDto,
 					objects: sidecarDto.objects.filter((object) => object.id !== id),
+					...(sidecarDto.groups ? { groups: removeGroupMembers(sidecarDto.groups, new Set([id])).map(group => ({ ...group, memberIds: [...group.memberIds] })) } : {}),
 					...(sidecarDto.structure ? { structure: { ...sidecarDto.structure, boundaries: sidecarDto.structure.boundaries.filter(boundary => boundary.roomId !== id) } } : {}),
 				}));
 

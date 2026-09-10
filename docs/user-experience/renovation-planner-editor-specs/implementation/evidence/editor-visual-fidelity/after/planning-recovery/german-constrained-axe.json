@@ -6,9 +6,21 @@
       "nodes": [
         {
           "target": [
-            "button[data-rp-rail=\"details\"]"
+            "button[data-rp-rail=\"details\"] > span:nth-child(2)"
           ],
           "summary": "Fix any of the following:\n  Could not parse color string oklch(0.999994 0.0000497986 none / 0.067)"
+        },
+        {
+          "target": [
+            "span[data-rp-room-edge=\"1\"] > span[aria-hidden=\"true\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
+            "span[data-rp-room-edge=\"2\"] > span[aria-hidden=\"true\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
         {
           "target": [
@@ -42,19 +54,25 @@
         },
         {
           "target": [
+            "button[data-rp-action=\"pan\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
             "button[data-rp-action=\"add\"]"
           ],
           "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
         {
           "target": [
-            ".rp-planning-group:nth-child(6) > table > tbody > tr:nth-child(1) > th[scope=\"row\"] > .rp-material-identity > .rp-material-disclosure[data-rp-material-details=\"\"] > span[aria-hidden=\"true\"]"
+            ".rp-planning-group:nth-child(7) > table > tbody > tr:nth-child(1) > th[scope=\"row\"] > .rp-material-identity > .rp-material-disclosure[data-rp-material-details=\"\"] > span[aria-hidden=\"true\"]"
           ],
           "summary": "Fix any of the following:\n  Element content contains only non-text characters"
         },
         {
           "target": [
-            ".rp-planning-group:nth-child(7) > table > tbody > tr:nth-child(1) > th[scope=\"row\"] > .rp-material-identity > .rp-material-disclosure[data-rp-material-details=\"\"] > span[aria-hidden=\"true\"]"
+            ".rp-planning-group:nth-child(8) > table > tbody > tr:nth-child(1) > th[scope=\"row\"] > .rp-material-identity > .rp-material-disclosure[data-rp-material-details=\"\"] > span[aria-hidden=\"true\"]"
           ],
           "summary": "Fix any of the following:\n  Element content contains only non-text characters"
         }

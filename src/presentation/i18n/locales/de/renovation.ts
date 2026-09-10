@@ -1,4 +1,11 @@
 export const renovationDe = {
+	"renovation.add.existing": "Bestandsdetail hinzufügen",
+	"renovation.add.planned": "Geplantes Detail hinzufügen",
+	"renovation.add.work": "Arbeit hinzufügen",
+	"renovation.title.existing": "Bestand: {name}",
+	"renovation.title.planned": "Planung: {name}",
+	"renovation.title.work": "Arbeiten in {name}",
+	"renovation.record.actions": "Bearbeiten und verknüpfte Aktionen",
 	"renovation.review.limited-scope": "Begrenzter Prüfumfang",
 	"renovation.summary.compact-progress": "{done}/{total} erledigt",
 	"renovation.review.room-count": "{count} Räume",

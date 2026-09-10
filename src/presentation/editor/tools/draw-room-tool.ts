@@ -15,6 +15,16 @@ function normalised(a: Point, b: Point): RoomRect {
 	return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), depth: Math.abs(b.y - a.y) };
 }
 
+/** Dragging a draft corner keeps its opposite corner fixed; the draft remains one rectangle. */
+function oppositeCorner(snapshot: RoomRectSnapshot, point: Point, tolerance: number): Point | null {
+	const { origin, widthMm, depthMm } = snapshot;
+	if (!origin || widthMm === null || depthMm === null || widthMm <= 0 || depthMm <= 0) return null;
+	const corners = [{ x: origin.x, y: origin.y }, { x: origin.x + widthMm, y: origin.y },
+		{ x: origin.x + widthMm, y: origin.y + depthMm }, { x: origin.x, y: origin.y + depthMm }];
+	const index = corners.findIndex(corner => Math.hypot(corner.x - point.x, corner.y - point.y) <= tolerance);
+	return index < 0 ? null : corners[(index + 2) % 4];
+}
+
 /**
  * The rectangular room tool (design spec §4): a primary drag writes one axis-aligned rectangle
  * into the draft store; a click changes nothing; Escape discards the draft and stays; a tool
@@ -73,7 +83,8 @@ export class DrawRoomTool implements EditorTool {
 		if (event.button !== 'primary' || context === null) return;
 		context.renderState.snapGuides = [];
 		this.rawAnchor = event.worldPoint;
-		this.anchor = this.snapped(event.worldPoint, context);
+		this.anchor = oppositeCorner(this.deps.draft.snapshotRect(), event.worldPoint, 8 * context.viewport.worldPerScreenPixel())
+			?? this.snapped(event.worldPoint, context);
 		this.pressUndo = null;
 	}
 	pointerMove(event: EditorPointerEvent): void {

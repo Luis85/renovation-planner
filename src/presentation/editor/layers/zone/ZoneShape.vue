@@ -39,6 +39,7 @@ import { labelAnchor, statusAppearance, zoneFillToken, type ZoneRenderModel } fr
 import { formatArea } from '../../shell/formatArea';
 import { captionOffsetY, type NumberedPin } from './captionPlacement';
 import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
+import { polygonPolyline } from '../../../../core/geometry/curvePolyline';
 
 const props = defineProps<{
 	model: ZoneRenderModel;
@@ -63,11 +64,14 @@ const props = defineProps<{
  * pan must not rebuild this array. `props.model.points` does not change when the camera
  * moves, so the cache holds and `<VLine>` receives the same array it had before.
  */
-const flatPoints = computed(() => props.model.points.flatMap((point) => [point.x, point.y]));
+const flatPoints = computed(() => {
+	const points = props.model.bulges?.some(value => value !== 0) ? polygonPolyline(props.model, 0.25 / props.zoom) : props.model.points;
+	return points.flatMap((point) => [point.x, point.y]);
+});
 
 const appearance = computed(() => statusAppearance(props.model.status));
 const fill = computed(() => props.tokens[zoneFillToken(props.model.zoneType)]);
-const anchor = computed(() => labelAnchor(props.model.points));
+const anchor = computed(() => labelAnchor(props.model.points, props.model.bulges));
 
 /**
  * Captions are sized in SCREEN pixels but positioned in world millimetres, so their font

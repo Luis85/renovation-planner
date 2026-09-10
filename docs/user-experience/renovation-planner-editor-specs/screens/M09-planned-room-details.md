@@ -1,5 +1,11 @@
 # M09 — Planned Room Details
 
+Release fidelity continuation (2026-09-08): Planned rows and canvas markers retain the saved
+surface/element kind alongside the intended description and existing change classification.
+Identical descriptions therefore keep their Floor/Wall context visible. This does not change
+Existing/Planned ownership, IDs or history. Current evidence is tracked in
+[release screen fidelity](../implementation/release-screen-fidelity.md).
+
 ![M09 — Planned Room Details](../images/M09-planned-room-details.png)
 
 ## Screen description

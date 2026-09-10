@@ -166,3 +166,8 @@
 	text-align: left;
 	justify-content: flex-start;
 }
+
+.renovation-plan-editor .rp-transformation-summary__stages h4 { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.renovation-plan-editor .rp-transformation-summary__stages h4 > .rp-host-icon { --icon-size: 13px; flex: 0 0 auto; }
+.renovation-plan-editor .rp-transformation-summary__stages ul { margin: 6px 0 0; padding-inline-start: 12px; line-height: 1.45; }
+.renovation-plan-editor .rp-transformation-summary__stages li + li { margin-top: 3px; }

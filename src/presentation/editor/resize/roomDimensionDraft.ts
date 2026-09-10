@@ -14,10 +14,11 @@ import { dimensionProposal, dimensionTexts, type DimensionsText } from './roomDi
 export function createRoomDimensionDraft(baseline: Loaded<Zone>, controls: RoomEditControls,
 	options: { axis: keyof DimensionsText; box: BoundingBox; logger: Logger; finish(): void; preview(polygon: Polygon | null): void }) {
 	const { entity, version } = baseline, attempted = ref(false);
+	const edited = ref({ width: false, depth: false });
 	const form = useFormCommit({ initial: dimensionTexts(options.box), logger: options.logger, errorMap: {}, toUserMessage: trError,
 		dispatch: (text: DimensionsText) => controls.commit({ kind: 'geometry', zoneId: entity.id,
-			forward: dimensionProposal(entity.geometry.points, options.box, text).polygon as Polygon, inverse: entity.geometry, expected: version }) });
-	const proposal = computed(() => dimensionProposal(entity.geometry.points, options.box, form.values.value));
+			forward: dimensionProposal(entity.geometry.points, options.box, text, edited.value).polygon as Polygon, inverse: entity.geometry, expected: version }) });
+	const proposal = computed(() => dimensionProposal(entity.geometry.points, options.box, form.values.value, edited.value));
 	const blocked = computed(() => controls.blocked.value || form.submitting.value || !controls.current.value || controls.latest.value !== null);
 	const error = computed(() => {
 		if (!attempted.value || proposal.value.polygon !== null) return null;
@@ -27,6 +28,7 @@ export function createRoomDimensionDraft(baseline: Loaded<Zone>, controls: RoomE
 	});
 	function input(value: string): void {
 		if (blocked.value) return;
+		edited.value[options.axis] = true;
 		form.setField(options.axis, value);
 		options.preview(proposal.value.polygon);
 	}

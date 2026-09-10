@@ -6,24 +6,29 @@ import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { inRenovationScope } from '../renovation/renovationSummary';
 import { structureRecords } from '../structure/structureRecords';
+import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
+import { boundsOfZones } from '../viewport/zoneExtent';
 const props = defineProps<{ tokens: ThemeTokens; zoom: number }>();
 const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession();
 const markers = computed(() => {
  if (session.perspective !== 'renovate' || session.mode !== 'materials') return [];
  const materials = runtime.planning.baseline.value?.materials ?? [];
  const current = structureRecords(project.structure, project.plan?.id ?? ''), intended = structureRecords(project.intended ?? project.structure, project.plan?.id ?? '');
- const geometry = (records: typeof current) => new Map([...project.zones.values(), ...records].map(item => [item.id, item.points]));
+ const geometry = (records: typeof current) => new Map([...project.zones.values(), ...records].map(item => [item.id, item]));
  const currentPoints = geometry(current), intendedPoints = geometry(intended);
  const rows = materials.filter(({ entity }) => inRenovationScope({ roomId: entity.origin.zoneId, targetId: entity.source?.targetId ?? entity.origin.zoneId }, session.roomId, session.targetId));
  const offsets = new Map<string, number>();
  return rows.flatMap(({ entity }, index) => {
-  const targetId = entity.source?.targetId ?? entity.origin.zoneId, points = (entity.source?.state === 'intended' ? intendedPoints : currentPoints).get(targetId);
-  if (!points?.length) return [];
+  const targetId = entity.source?.targetId ?? entity.origin.zoneId, target = (entity.source?.state === 'intended' ? intendedPoints : currentPoints).get(targetId);
+  if (!target?.points.length) return [];
+  const shape = { ...target, kind: 'kind' in target ? target.kind === 'room' || target.kind === 'area' ? undefined : target.kind : undefined };
+  const points = spatialOutlinePoints(shape, 0.25 / props.zoom), box = boundsOfZones([target]);
+  if (!box) return [];
   const offset = offsets.get(targetId) ?? 0; offsets.set(targetId, offset + 1);
   return [{ id: entity.id, roomId: entity.origin.zoneId, number: index + 1,
-   x: Math.min(...points.map(point => point.x)) + (22 + offset * 34) / props.zoom,
-   y: Math.min(...points.map(point => point.y)) + 22 / props.zoom,
-   points: points.flatMap(point => [point.x, point.y]), closed: project.zones.has(targetId) || (entity.source?.state === 'intended' ? intended : current).some(item => item.id === targetId && item.kind === 'object') }];
+   x: box.min.x + (22 + offset * 34) / props.zoom,
+   y: box.min.y + 22 / props.zoom,
+   points: points.flatMap(point => [point.x, point.y]), closed: project.zones.has(targetId) || (entity.source?.state === 'intended' ? intended : current).some(item => item.id === targetId && ['object', 'stair'].includes(item.kind)) }];
  });
 });
 </script>

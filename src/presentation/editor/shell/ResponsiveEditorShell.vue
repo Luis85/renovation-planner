@@ -89,6 +89,7 @@ onBeforeUnmount(() => observer.disconnect());
 		:data-layout="layoutMode"
 	>
 		<slot name="context-bar" />
+		<slot name="warnings" />
 		<div class="rp-editor-body">
 			<OverlayPanel
 				v-show="layoutMode === 'full' || (layoutMode === 'constrained' && overlay === 'layers')"
@@ -115,7 +116,6 @@ onBeforeUnmount(() => observer.disconnect());
 			</InspectorDrawer>
 			<UnsupportedWidthNotice v-if="layoutMode === 'unsupported'" />
 		</div>
-		<slot name="warnings" />
 		<slot name="status" />
 	</div>
 </template>

@@ -28,7 +28,7 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 	const blocked = computed(() => loading.value || runtime.writesBlocked.value || runtime.renovation.blocked.value);
 	function matches(read: PlanningBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation) && sameGeometryDocument(
-			{ calibration: project.plan?.calibration ?? null, structure: project.structure, intended: project.intended, objects: [...project.zones.values()].map(item => ({ id: item.id, points: item.points })) },
+			{ calibration: project.plan?.calibration ?? null, groups: project.groups, structure: project.structure, intended: project.intended, objects: [...project.zones.values()].map(item => ({ id: item.id, points: item.points, bulges: item.bulges })) },
 			{ ...read.geometry.document, structure: read.geometry.document.structure ?? EMPTY_STRUCTURE });
 	}
 	async function edit(kind: PlanningKind, id = ''): Promise<void> {
@@ -39,7 +39,7 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 		const draft = planningDraft(kind, shown, session.roomId, id, { focusedId: session.focusedId, targetId: session.targetId || session.roomId });
         if (kind === 'evidence' && !id) draft.type = session.mode === 'photos' ? 'photo' : session.mode === 'notes' ? 'note' : 'document';
 		const busy = ref(false);
-		await dialogs.openDialog({ kind: 'form', title: tr(`planning.edit.${kind}`), component: markRaw(PlanningForm), busy,
+		await dialogs.openDialog({ kind: 'form', title: tr(kind === 'evidence' && draft.type === 'photo' && !id ? 'planning.add.photo' : `planning.edit.${kind}`), component: markRaw(PlanningForm), busy,
 			props: { draft, baseline: shown, busy, paused: runtime.writesBlocked, retry: refresh, openSource: runtime.openPlanNote, files: context.commands.evidenceFiles,
 				dispatch: (input: Parameters<NonNullable<typeof context.commands.planning>['material']>[1] | RenovationInput) => {
 					if (!alive) return Promise.resolve(err(undoSuperseded(context.planId as PlanId)));

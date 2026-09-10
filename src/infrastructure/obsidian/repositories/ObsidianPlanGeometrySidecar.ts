@@ -52,11 +52,13 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 		const dto = snapshot.value.dto;
 		return ok({
 			document: {
+				...(dto.groups?.length ? { groups: dto.groups } : {}),
 				...(dto.intended ? { intended: dto.intended } : {}),
 				...(dto.structure ? { structure: dto.structure } : {}),
 				calibration: dto.calibration ? calibrationFromPersistence(dto.calibration) : null,
 				objects: dto.objects.map((object) => ({
 					id: object.id,
+					...(object.bulges ? { bulges: [...object.bulges] } : {}),
 					points: object.points.map(([x, y]) => ({ x, y })),
 				})),
 			},
@@ -73,6 +75,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 			planId,
 			(dto) => ({
 				...dto,
+				groups: document.groups?.length ? document.groups.map(group => ({ ...group, memberIds: [...group.memberIds] })) : undefined,
 				intended: toStructure(document.intended),
 				structure: toStructure(document.structure),
 				calibration: document.calibration ? calibrationToPersistence(document.calibration) : null,
@@ -81,6 +84,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 				// literal becomes a rewrite of every entry and must move into the port.
 				objects: document.objects.map((object): PlanGeometryDTO['objects'][number] => ({
 					id: object.id,
+					...(object.bulges ? { bulges: [...object.bulges] } : {}),
 					type: 'polygon',
 					points: toTuples(object.points),
 				})),

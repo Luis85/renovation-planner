@@ -32,14 +32,14 @@
 	text-decoration: none;
 }
 
-.renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button[aria-pressed='true'] {
+.renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button[aria-checked='true'] {
 	background: var(--background-primary);
 	border-color: var(--background-modifier-border);
 	box-shadow: var(--shadow-s);
 }
 
 .renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button:focus-visible,
-.renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button[aria-pressed='true']:focus-visible,
+.renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button[aria-checked='true']:focus-visible,
 .renovation-plan-editor .rp-room-navigation .rp-room-navigation__button:focus-visible,
 .renovation-plan-editor .rp-renovation-list .rp-record-title:focus-visible {
 	outline: 2px solid var(--interactive-accent);

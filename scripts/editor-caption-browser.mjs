@@ -9,7 +9,14 @@ function separate(a, b) {
 async function inspect(page, roomId) {
 	await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); }));
 	const scene = await page.evaluate(id => window.editorFidelity.captions(id), roomId);
-	assert.equal(scene.captions.length, 3); assert.equal(scene.pins.length, 6); assert.equal(scene.controls.length, 2);
+	// `controls` is every `.rp-dimension-anchor` in the overlay, which is the SAME set
+	// `useDimensionObstacles` hands the caption placer — so the count tracks whatever the
+	// editor actually draws rather than the two axis controls this line was written for.
+	// Four here: the width and depth axis controls, plus the two edge-length labels
+	// `RoomEdgeMeasurements` draws for the edges `omitAxisControls` does not already
+	// represent. `tests/presentation/editor/roomEdgeMeasurements.e2e.test.ts` pins that
+	// 2 + 2 split for this exact state.
+	assert.equal(scene.captions.length, 3); assert.equal(scene.pins.length, 6); assert.equal(scene.controls.length, 4);
 	for (const caption of scene.captions) {
 		const box = caption.bounds;
 		assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= scene.size.width && box.y + box.height <= scene.size.height,
@@ -21,8 +28,18 @@ async function inspect(page, roomId) {
 }
 async function pan(page, dx, dy) {
 	const box = await page.locator('.rp-plan-canvas').boundingBox(); assert.ok(box);
-	const x = box.x + box.width * 0.85, y = box.y + (dy > 0 ? 30 : box.height - 30);
-	assert.equal(await page.evaluate(point => !!document.elementFromPoint(point.x, point.y)?.closest('button, input, textarea, select, summary, .rp-primary-actions'), { x, y }), false, 'pan begins on canvas content rather than a floating control');
+	const x = box.x + box.width * 0.85;
+	const blocked = value => page.evaluate(point => !!document.elementFromPoint(point.x, point.y)?.closest('button, input, textarea, select, summary, .rp-primary-actions'), { x, y: value });
+	// The 30px inset this line was written for has no clearance at the constrained width: the
+	// primary-actions pill floats over the canvas bottom by design (`styles/editor-visual-shell.css`
+	// pins it 24px up, `.rp-primary-actions__button` makes it 48px tall, `styles/editor-shell.css`
+	// centres it), so it owns the band 24-72px above the canvas bottom at EVERY width, and at 460
+	// it is 329px of a 388px canvas - measured - which puts 85% of the width inside it. Step further
+	// from the edge the drag moves away from until the origin is real canvas; the assertion below
+	// is unchanged and still refuses a pan that never finds one.
+	let y = box.y + (dy > 0 ? 30 : box.height - 30);
+	for (let inset = 50; inset <= 210 && await blocked(y); inset += 20) y = box.y + (dy > 0 ? inset : box.height - inset);
+	assert.equal(await blocked(y), false, 'pan begins on canvas content rather than a floating control');
 	await page.mouse.move(x, y); await page.mouse.down({ button: 'middle' });
 	await page.mouse.move(x + dx, y + dy, { steps: 3 }); await page.mouse.up({ button: 'middle' });
 }

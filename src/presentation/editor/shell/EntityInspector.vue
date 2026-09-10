@@ -54,6 +54,10 @@ import { structureRecords } from '../structure/structureRecords';
 import ElementInspector from '../elements/ElementInspector.vue';
 import ElementTaskForm from '../elements/ElementTaskForm.vue';
 import { isElementTool } from '../elements/elementDraft';
+import StructureTaskForm from '../structure/StructureTaskForm.vue';
+import CurveTaskForm from '../curves/CurveTaskForm.vue';
+import { isStructureTool } from '../structure/structureDraft';
+import GroupControls from '../groups/GroupControls.vue';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
@@ -71,20 +75,27 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 		data-rp-region="inspector"
 		:aria-label="tr('editor.inspector')"
 	>
-		<h2 class="rp-editor-panel-title">
+		<h2 class="rp-editor-panel-title rp-visually-hidden">
 			{{ tr('editor.inspector') }}
 		</h2>
 		<RenovationInspector v-if="renovationSession.perspective === 'review'" />
 		<NewRoomInspector v-else-if="activeToolId === 'draw-room'" />
+		<CurveTaskForm v-else-if="activeToolId === 'edit-curves'" />
+		<StructureTaskForm v-else-if="isStructureTool(activeToolId)" />
 		<ElementTaskForm v-else-if="isElementTool(activeToolId)" />
 		<MultiSelectionInspector
 			v-else-if="selection.kind === 'multiple'"
 			:selection="selection"
-		/>
+		>
+			<template #actions>
+				<GroupControls />
+			</template>
+		</MultiSelectionInspector>
 		<RenovationInspector v-else-if="renovationSession.perspective === 'renovate'" />
 		<FloorInspector v-else-if="selectedIds.length === 0" />
 		<StructureInspector v-else-if="project.structure.walls.some(wall => wall.id === selectedIds[0]) || project.structure.openings.some(opening => opening.id === selectedIds[0])" />
 		<ElementInspector v-else-if="project.structure.elements?.some(element => element.id === selectedIds[0])" />
 		<RoomInspector v-else />
+		<GroupControls v-if="selection.kind !== 'multiple' && activeToolId === 'select' && renovationSession.perspective !== 'review'" />
 	</aside>
 </template>

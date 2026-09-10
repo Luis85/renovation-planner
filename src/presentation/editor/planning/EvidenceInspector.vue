@@ -70,15 +70,6 @@ function unlink(id: string): void {
 			{{ tr(`planning.${phase}`) }}
 		</button>
 	</div>
-	<button
-		type="button"
-		:disabled="planning.blocked.value"
-		data-rp-new-evidence
-		class="mod-cta"
-		@click="planning.edit('evidence')"
-	>
-		{{ tr(`planning.add.${type}`) }}
-	</button>
 	<p v-if="!rows.length">
 		{{ tr('renovation.empty') }}
 	</p>
@@ -145,6 +136,15 @@ function unlink(id: string): void {
 			</p>
 		</li>
 	</ol>
+	<button
+		type="button"
+		:disabled="planning.blocked.value"
+		data-rp-new-evidence
+		class="mod-cta"
+		@click="planning.edit('evidence')"
+	>
+		{{ tr(`planning.add.${type}`) }}
+	</button>
 	<p
 		v-if="error"
 		role="alert"

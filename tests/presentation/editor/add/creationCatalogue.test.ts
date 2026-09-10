@@ -18,14 +18,14 @@ function entryById(id: CreationEntryId): CreationEntry {
 }
 
 /**
- * The homeowner creation catalogue (design spec §7.1) as DATA: which of the ten entries is
+ * The homeowner creation catalogue (design spec §7.1) as DATA: which entries are
  * reachable today, what each one says in both locales, and the search predicate the menu
  * filters through. No Vue, no Pinia, no Konva — pure logic, asked of the function.
  */
 describe('the creation catalogue', () => {
 	it('offers Room and Area, each activating its own geometry path', () => {
 		const available = CREATION_CATALOGUE.filter((e) => e.availability.kind === 'available');
-		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'area', 'path', 'fence', 'item', 'measurement', 'note']);
+		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'stair', 'area', 'path', 'fence', 'item', 'measurement', 'arrow', 'note']);
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		available[0].activate({ setTool });
 		expect(setTool).toHaveBeenCalledWith('draw-room');
@@ -44,7 +44,7 @@ describe('the creation catalogue', () => {
 		expect(createNote).toHaveBeenCalledOnce(); expect(setTool).not.toHaveBeenCalled();
 	});
 
-	it.each([['path', 'draw-path'], ['fence', 'draw-fence'], ['item', 'place-object'], ['measurement', 'measure']] as const)('starts the implemented %s task exactly once', (id, tool) => {
+	it.each([['path', 'draw-path'], ['fence', 'draw-fence'], ['item', 'place-object'], ['measurement', 'measure'], ['stair', 'place-stair'], ['arrow', 'draw-arrow']] as const)('starts the implemented %s task exactly once', (id, tool) => {
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		expect(entryById(id).availability.kind).toBe('available');
 		activateCreationEntry(id, { setTool }); expect(setTool).toHaveBeenCalledExactlyOnceWith(tool);
@@ -102,11 +102,13 @@ describe('the creation catalogue', () => {
 			'door',
 			'window',
 			'opening',
+			'stair',
 			'area',
 			'path',
 			'fence',
 			'item',
 			'measurement',
+			'arrow',
 			'note',
 		]);
 	});

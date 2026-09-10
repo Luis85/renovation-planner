@@ -1,0 +1,590 @@
+{
+  "source": "2f1b32b07a30aaafcc680ee74a8383cf792b54b8",
+  "started": 1788875478899,
+  "completed": 1788875673849,
+  "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
+  "files": [
+    {
+      "name": "light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788875508000,
+      "sha256": "186b0e0dcd75567befcf29090e24201d29e89cc878d844fbd489ea300fc2c0c2"
+    },
+    {
+      "name": "light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788875510000,
+      "sha256": "177f1ae3ac9aac1364776ccae542d9ec224b0de1528d2c555993253fe33fb05f"
+    },
+    {
+      "name": "light-M00-inline-dimension-draft.png",
+      "kind": "image",
+      "modifiedAt": 1788875514000,
+      "sha256": "7186aa80479f133327421a74f500383d9856d99986ce29ad18b9182afae2b597"
+    },
+    {
+      "name": "light-view-controls.png",
+      "kind": "image",
+      "modifiedAt": 1788875518000,
+      "sha256": "3530eccef9b8de0260a2f9ee3d0922f5625abe881e7b81a979d5cf53bdaf64c4"
+    },
+    {
+      "name": "light-M02-connected-add.png",
+      "kind": "image",
+      "modifiedAt": 1788875520000,
+      "sha256": "10e72b8d03e4e39edb923f860ce136f98566924eb5476cb24cf5bd21741fe125"
+    },
+    {
+      "name": "light-M00-connected-room.png",
+      "kind": "image",
+      "modifiedAt": 1788875524000,
+      "sha256": "a8594e2cd5ec4538ba9e0a0b7095ce3d74e945c090ef063d82a44f557f30a6ad"
+    },
+    {
+      "name": "light-M00-room-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875526000,
+      "sha256": "d67b36ebce4af71b44b8295bb019d049b7fb223bdc32e210b9f5614b1a6793a0"
+    },
+    {
+      "name": "light-M16-closed-constrained.png",
+      "kind": "image",
+      "modifiedAt": 1788875526000,
+      "sha256": "07b20a4613c1791274be7e03a219a38c4eb4f2602a935f12ee7cd1a823394200"
+    },
+    {
+      "name": "light-M01-connected-floor.png",
+      "kind": "image",
+      "modifiedAt": 1788875530000,
+      "sha256": "5cb261dd02c9326c12e915f3e3e87acd086aeb3661c0600e12370829d8240abc"
+    },
+    {
+      "name": "light-M01-floor-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875530000,
+      "sha256": "92492d002082fa9b5bf7afc148c45dd649c18ee587dc8ed8a70bcf59a35dabfc"
+    },
+    {
+      "name": "light-M02-floor-add.png",
+      "kind": "image",
+      "modifiedAt": 1788875532000,
+      "sha256": "52210e2d141a5399ea22a01fbf97ece28200a02c185c2bc8614b3c170613d871"
+    },
+    {
+      "name": "light-M07-connected-wall.png",
+      "kind": "image",
+      "modifiedAt": 1788875542000,
+      "sha256": "59531bb2377f3a40d9bf0d0aa5a849b185e7ed75421949da598967990accfb4c"
+    },
+    {
+      "name": "light-M07-wall-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875542000,
+      "sha256": "6cc39a57efe2b45909db3860be3ce631e920a76209e221d7adb376425b67fd74"
+    },
+    {
+      "name": "light-M11-connected-selection.png",
+      "kind": "image",
+      "modifiedAt": 1788875544000,
+      "sha256": "37e84e0086e1ad10088d2012b35c09f4a055b3af02645ae80cc86bcdf3fbb25e"
+    },
+    {
+      "name": "light-M11-shared-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788875544000,
+      "sha256": "5888ebd4724bb2d6b4380569db7e9e5bbd9360109c0067dadaa31873f5c4259d"
+    },
+    {
+      "name": "dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788875562000,
+      "sha256": "2f71a4af034fc5c432bc3f71f494590a45786080939d187e1f9dc3daefd41620"
+    },
+    {
+      "name": "dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788875564000,
+      "sha256": "02af7cbf07443de214b74dbada48f329f225d25e1459e507bfa4347a7589fd14"
+    },
+    {
+      "name": "dark-M00-inline-dimension-draft.png",
+      "kind": "image",
+      "modifiedAt": 1788875568000,
+      "sha256": "51da989c57fa41ae3d96ae3eff39127ccf38f71da4e752eeb330614368d0a6ab"
+    },
+    {
+      "name": "dark-view-controls.png",
+      "kind": "image",
+      "modifiedAt": 1788875574000,
+      "sha256": "af068f6d3ee91b4ace823e3004531b7c86f19cfaf1deb651f041bce85451afe8"
+    },
+    {
+      "name": "dark-M02-connected-add.png",
+      "kind": "image",
+      "modifiedAt": 1788875580000,
+      "sha256": "a6adddfd057a43bac2a496931b40a33458d6dee9b3b30ab2b345749949e98d90"
+    },
+    {
+      "name": "dark-M00-connected-room.png",
+      "kind": "image",
+      "modifiedAt": 1788875584000,
+      "sha256": "a73510eb6e07a03dd51cee7869b315d9656aab439a4056fa51b0997ab18b053a"
+    },
+    {
+      "name": "dark-M00-room-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875584000,
+      "sha256": "08cc0534bbda9e9755e32c2187788f23ec3c3f2d2059018edb1c38a6309039ac"
+    },
+    {
+      "name": "dark-M16-closed-constrained.png",
+      "kind": "image",
+      "modifiedAt": 1788875586000,
+      "sha256": "d98ba459593bb201dd764509adb41415260a24c6a7fba623e07b36f0ec4e849a"
+    },
+    {
+      "name": "dark-M01-connected-floor.png",
+      "kind": "image",
+      "modifiedAt": 1788875588000,
+      "sha256": "1ddb18131e87cb41cc80fa4f552545c52660fb5a58de8c2a0de7129f1993323f"
+    },
+    {
+      "name": "dark-M01-floor-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875590000,
+      "sha256": "8c0f4437a4f44ddc28407582fc5c7ab79be2096e380f33c44c303b8472dcf331"
+    },
+    {
+      "name": "dark-M02-floor-add.png",
+      "kind": "image",
+      "modifiedAt": 1788875590000,
+      "sha256": "7a191badc16661eb8f620aeb764e247346c505f53142165829f8a9d68e5fcb33"
+    },
+    {
+      "name": "dark-M07-connected-wall.png",
+      "kind": "image",
+      "modifiedAt": 1788875596000,
+      "sha256": "b6b733cca7bc416cc98602e55d6c6c7ca0a66c9d3f35a3bb160eaa5d06eddd0e"
+    },
+    {
+      "name": "dark-M07-wall-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875596000,
+      "sha256": "b019d2c90e5ae4e9fa948b1e2b4031be9f4c1a9a6c11e06e1300aadc9c6987c7"
+    },
+    {
+      "name": "dark-M11-connected-selection.png",
+      "kind": "image",
+      "modifiedAt": 1788875598000,
+      "sha256": "b68e97bf2957ef251580a06e18190d86a34be3d32cd4fd8b3ee9cdaeefdd68ce"
+    },
+    {
+      "name": "dark-M11-shared-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788875598000,
+      "sha256": "94305adca3a793da164a67d0b0de815fb1d0c33be8b619001ab4ed92626189c4"
+    },
+    {
+      "name": "custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788875612000,
+      "sha256": "efc3589c42ab328c7638860fedaf1290039b33aab9973d3f21408f2014e4c213"
+    },
+    {
+      "name": "custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788875612000,
+      "sha256": "a94522a1edf7eac26dcde1d124ae8f80845354fd6cdaf7495d701149700853dd"
+    },
+    {
+      "name": "custom-accent-M00-inline-dimension-draft.png",
+      "kind": "image",
+      "modifiedAt": 1788875616000,
+      "sha256": "9c336d13d60c548fe28a0a9db29595b3477c60ca9d50b9c2f2260132f1098a9f"
+    },
+    {
+      "name": "custom-accent-view-controls.png",
+      "kind": "image",
+      "modifiedAt": 1788875620000,
+      "sha256": "5bf1894524dd77377de579bf0f42a576fc9606a33dc4c7d1b6a96d99321778fe"
+    },
+    {
+      "name": "custom-accent-M02-connected-add.png",
+      "kind": "image",
+      "modifiedAt": 1788875624000,
+      "sha256": "bc96aabfab10addf809a3899c93d673f379f8b6d5c0211e36170ee06243cf1e1"
+    },
+    {
+      "name": "custom-accent-M00-connected-room.png",
+      "kind": "image",
+      "modifiedAt": 1788875628000,
+      "sha256": "81a8c9bcfceb172db7c59405bb401ac702440ab123d2bdcb940642b833018a2d"
+    },
+    {
+      "name": "custom-accent-M00-room-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875628000,
+      "sha256": "7f7cf33fede09caea9c5cb454e7d9490347b9b39c1f878590ac14991892251f3"
+    },
+    {
+      "name": "custom-accent-M16-closed-constrained.png",
+      "kind": "image",
+      "modifiedAt": 1788875630000,
+      "sha256": "9ee54b05f88f5405453495c9b7da4d1c745eb170cb1b4ec25ce8e985c41c09fd"
+    },
+    {
+      "name": "custom-accent-M01-connected-floor.png",
+      "kind": "image",
+      "modifiedAt": 1788875630000,
+      "sha256": "117170103fae4a1a132858d7d0d2c43735aaddff7481725cba826ba05fbe155d"
+    },
+    {
+      "name": "custom-accent-M01-floor-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875632000,
+      "sha256": "85323609788d6602fcd7c93d003dc60b85930a5fa9493df343aa8637ca9c5906"
+    },
+    {
+      "name": "custom-accent-M02-floor-add.png",
+      "kind": "image",
+      "modifiedAt": 1788875632000,
+      "sha256": "df66c48b3c24991c49ec5a15f5acd8cf7f055f6925819f412c68b2f261bbbd51"
+    },
+    {
+      "name": "custom-accent-M07-connected-wall.png",
+      "kind": "image",
+      "modifiedAt": 1788875640000,
+      "sha256": "fd1de21bded5235767290111c0d5017a21149804cbfe4f3d6fe08f46a34e6df0"
+    },
+    {
+      "name": "custom-accent-M07-wall-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875640000,
+      "sha256": "f820bd8f0410984f30fc1e3fd67252cdb00f3fb1344e1747f1c068760a041b14"
+    },
+    {
+      "name": "custom-accent-M11-connected-selection.png",
+      "kind": "image",
+      "modifiedAt": 1788875640000,
+      "sha256": "debee5f79e61f84523d95a1aa5064e6f490dc8a08da1294ea34ceb9d12d21b2d"
+    },
+    {
+      "name": "custom-accent-M11-shared-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788875642000,
+      "sha256": "9f37a1c7bf2108c78fee785d5a28d20856a98ebb536a3dca8d78aa2c2db3f461"
+    },
+    {
+      "name": "german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788875654000,
+      "sha256": "f6605a37310dc5b5dec8cfac12c331df61478bf77344d17345744b3a4cd4fbb2"
+    },
+    {
+      "name": "german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788875654000,
+      "sha256": "6df9a907081f8cc57258069d2ce54fa1a40120aee06421b287d4064c40e622f1"
+    },
+    {
+      "name": "german-constrained-M00-inline-dimension-draft.png",
+      "kind": "image",
+      "modifiedAt": 1788875658000,
+      "sha256": "c96d9c6cd8998f947c2e63a20530cbbf16ad7b3d406fe4be5e2207205f5d306b"
+    },
+    {
+      "name": "german-constrained-view-controls.png",
+      "kind": "image",
+      "modifiedAt": 1788875660000,
+      "sha256": "76628625108fc49c95b954be06c0cfbe4619cedd0dc918b4d6620c29db8528ab"
+    },
+    {
+      "name": "german-constrained-M02-connected-add.png",
+      "kind": "image",
+      "modifiedAt": 1788875662000,
+      "sha256": "26ed359c4761c9dd0b991c3be18895bc7c121133dc8f55082017d22edf574add"
+    },
+    {
+      "name": "german-constrained-M00-connected-room.png",
+      "kind": "image",
+      "modifiedAt": 1788875666000,
+      "sha256": "53b022826e0fc8562d85712c146ee375eae749b88880926980e1817eec0e0401"
+    },
+    {
+      "name": "german-constrained-M00-room-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875666000,
+      "sha256": "63bd96493d0385ba1ac29d1f45cc6ea95de20a4ce7352232a5c2402e0d6ae003"
+    },
+    {
+      "name": "german-constrained-M16-closed-constrained.png",
+      "kind": "image",
+      "modifiedAt": 1788875666000,
+      "sha256": "7a9f0ac84f868394dea257cb871284b14503f38ab995ee2a9ce84645bb338130"
+    },
+    {
+      "name": "german-constrained-M01-connected-floor.png",
+      "kind": "image",
+      "modifiedAt": 1788875668000,
+      "sha256": "29735250b971e71ec25e4ea03245b36ad70d038c12540298306e5c18da1f6b6c"
+    },
+    {
+      "name": "german-constrained-M01-floor-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875668000,
+      "sha256": "df61a5a67e4bc7a1f861707a6676d9be77aa24a735258e807671d67b225aa5ed"
+    },
+    {
+      "name": "german-constrained-M02-floor-add.png",
+      "kind": "image",
+      "modifiedAt": 1788875668000,
+      "sha256": "5c18301c8eae4bec5dac9636b48ad22e19e19a344dab4cbac3f9ba7aa3de3353"
+    },
+    {
+      "name": "german-constrained-M07-connected-wall.png",
+      "kind": "image",
+      "modifiedAt": 1788875672000,
+      "sha256": "080ad7225814c7efdd0307daddfd6f9e69348ddcb6c0be331e8450ccf43d95d5"
+    },
+    {
+      "name": "german-constrained-M07-wall-design.png",
+      "kind": "image",
+      "modifiedAt": 1788875674000,
+      "sha256": "f57cff43bbb422aa33dc78b2929a67cfbdabab7992c5680a5e1765bf4e237af5"
+    },
+    {
+      "name": "german-constrained-M11-connected-selection.png",
+      "kind": "image",
+      "modifiedAt": 1788875674000,
+      "sha256": "d1ee72cef92374ddad7252046b2e9d3e9d92af3b0500d53f14c9ece32325fe71"
+    },
+    {
+      "name": "german-constrained-M11-shared-preview.png",
+      "kind": "image",
+      "modifiedAt": 1788875674000,
+      "sha256": "f39afc7eab5875129b634121729f899d085b094d62dee1f60bb6d3caab41d8c8"
+    },
+    {
+      "name": "light-inline-invalid-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875514000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "light-inline-pending-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875516000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "light-view-controls-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875518000,
+      "sha256": "55299a2f5dbc652d0deaa8addde179da33ecb14df88179fcb7e62fbefa095f02"
+    },
+    {
+      "name": "light-M00-room-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875526000,
+      "sha256": "8e0acf3f52cc94183ea606b3769a745353957d5726c9de34fa9eec335d49074f"
+    },
+    {
+      "name": "light-M16-closed-constrained.json",
+      "kind": "data",
+      "modifiedAt": 1788875526000,
+      "sha256": "a5fd7444211a703b18e63abc85bfd49047b41cccea0367a2607eb1d8e42f90d7"
+    },
+    {
+      "name": "light-direct-actions-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875528000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "light-M01-floor-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875530000,
+      "sha256": "cd5ff926961a5337c9696a623efdd6893522f7175cb48d37e3d5508a70bc71b2"
+    },
+    {
+      "name": "light-floor-add-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875534000,
+      "sha256": "2a2178f3c9e8973854a345d87aa91f1ba8281f03f06b978a724a8027577fdfc8"
+    },
+    {
+      "name": "light-M07-wall-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875542000,
+      "sha256": "26dc527feb6e8474b4ba2b840426ad3bac33ee1f62e452175cb751d8a393c378"
+    },
+    {
+      "name": "dark-inline-invalid-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875568000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "dark-inline-pending-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875572000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "dark-view-controls-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875576000,
+      "sha256": "55299a2f5dbc652d0deaa8addde179da33ecb14df88179fcb7e62fbefa095f02"
+    },
+    {
+      "name": "dark-M00-room-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875586000,
+      "sha256": "c76d2081a63b8b6a615d987088ac34670b9b7796539f11a7c5a70a36dcf2b173"
+    },
+    {
+      "name": "dark-M16-closed-constrained.json",
+      "kind": "data",
+      "modifiedAt": 1788875586000,
+      "sha256": "65501ddd886ce482cc4e8ad8e09512bcd3678265cdd3eb073d71580862df86b5"
+    },
+    {
+      "name": "dark-direct-actions-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875588000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "dark-M01-floor-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875590000,
+      "sha256": "ff4883ba65f0c0cfd21d51c5b91c600863fb869d447a12971070b9bce34f77d5"
+    },
+    {
+      "name": "dark-floor-add-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875592000,
+      "sha256": "1c9439f57ebd46a19526f05f7e88d403e9c848f2a5dadb40f1c69e44946db129"
+    },
+    {
+      "name": "dark-M07-wall-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875596000,
+      "sha256": "c58c73653d432e5547b1f95b894ffd59461fb378fb4f4694e130b4f26b30733f"
+    },
+    {
+      "name": "custom-accent-inline-invalid-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875614000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "custom-accent-inline-pending-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875618000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "custom-accent-view-controls-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875622000,
+      "sha256": "c2da5384fc36a876e1f0335655e15fca8beb2587e2b628b350d2ace35250157b"
+    },
+    {
+      "name": "custom-accent-M00-room-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875628000,
+      "sha256": "4681ad5497f2d23513229a2a892260191636687f507eecf571874c3a630aa021"
+    },
+    {
+      "name": "custom-accent-M16-closed-constrained.json",
+      "kind": "data",
+      "modifiedAt": 1788875630000,
+      "sha256": "20a5a210e24282ec06e7bb250494740e94f13143bf1bf2e0dfff1cfc48d96d1e"
+    },
+    {
+      "name": "custom-accent-direct-actions-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875630000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "custom-accent-M01-floor-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875632000,
+      "sha256": "e1f63f17e6550d4abbf6b6df432b6f8870e8c9d4f1109afd0e343bde70373c6a"
+    },
+    {
+      "name": "custom-accent-floor-add-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875634000,
+      "sha256": "2a2178f3c9e8973854a345d87aa91f1ba8281f03f06b978a724a8027577fdfc8"
+    },
+    {
+      "name": "custom-accent-M07-wall-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875640000,
+      "sha256": "3ac3d3a589acb62b9892832ec369bd9fb2d42ce3ce01fed078622ba229a2c8a0"
+    },
+    {
+      "name": "german-constrained-inline-invalid-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875658000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "german-constrained-inline-pending-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875658000,
+      "sha256": "c9062adb6dd8206f866ab7af94f0ca38524b7f2478f9d3d0ade0b62405b121a5"
+    },
+    {
+      "name": "german-constrained-view-controls-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875662000,
+      "sha256": "92e63842abb37151453cee18ffa979eaacef543c3f21c5e5ec02edc9d4765bc8"
+    },
+    {
+      "name": "german-constrained-M00-room-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875666000,
+      "sha256": "c8ccea12bfbcbc5fad0f584c0af5e7064a7079771bca6cf019582aca2f5b07d7"
+    },
+    {
+      "name": "german-constrained-M16-closed-constrained.json",
+      "kind": "data",
+      "modifiedAt": 1788875666000,
+      "sha256": "75a26233420e41c121af5c27b69cf6d2acc2b9180b680843f829bc58b4326927"
+    },
+    {
+      "name": "german-constrained-direct-actions-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875668000,
+      "sha256": "da3a1674fe646b51e6568b23c98f96a2d4a73c2968f1402fe5a6caa7cb508df6"
+    },
+    {
+      "name": "german-constrained-M01-floor-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875668000,
+      "sha256": "861992e2b1cc2c703697d9fad675a8a6140c87981df3e8d9b085a3206da5a205"
+    },
+    {
+      "name": "german-constrained-floor-add-axe.json",
+      "kind": "data",
+      "modifiedAt": 1788875670000,
+      "sha256": "27265db7366a957bb859c55e011be2b85411e0cf38c890cbcde7efd8e9ab9d8a"
+    },
+    {
+      "name": "german-constrained-M07-wall-design.json",
+      "kind": "data",
+      "modifiedAt": 1788875674000,
+      "sha256": "ff37f671d942700323bfab58e65cadec7281c745d827e407fcb34c0d06a68684"
+    },
+    {
+      "name": "report.json",
+      "kind": "data",
+      "modifiedAt": 1788875674000,
+      "sha256": "433113232c3395304a3f279742390bcd460c9bea50f5c0cd940c3a6098907d44"
+    }
+  ]
+}

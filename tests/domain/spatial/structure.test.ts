@@ -72,4 +72,20 @@ describe('ADR-0020 spatial geometry', () => {
 		expect(validSpatialPoint({ x: -1e9, y: 1e9 })).toBe(true);
 		expect(validSpatialPoint({ x: 0, y: Infinity })).toBe(false);
 	});
+
+	it('compares a straight wall against a curved one without inventing a bulge for it', () => {
+		// The straight wall carries no `bulge` at all, so the curved comparison reads it as zero.
+		const straight = line(3400, -1000, 3400, 4000);
+		const arc = { ...line(4000, 0, 4000, 3000), bulge: -0.5 };
+		expect(wallsConflict(straight, arc)).toBe(true);
+		// The same arc bowing the other way clears the line entirely.
+		expect(wallsConflict(straight, { ...arc, bulge: 0.5 })).toBe(false);
+	});
+
+	it('refuses a wall bowed beyond a semicircle before any intersection test runs', () => {
+		const bowed = { ...wall, bulge: 2 };
+		expect(validateStructure({ ...EMPTY_STRUCTURE, walls: [bowed] }, []).ok).toBe(false);
+		// A bulge inside the supported range is accepted, so the refusal is about the limit.
+		expect(validateStructure({ ...EMPTY_STRUCTURE, walls: [{ ...wall, bulge: 0.5 }] }, []).ok).toBe(true);
+	});
 });

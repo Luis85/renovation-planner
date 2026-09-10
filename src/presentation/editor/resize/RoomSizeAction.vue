@@ -5,15 +5,17 @@ import type { Point } from '../../../core/geometry/Point';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 import { roomDimensions } from './roomDimensions';
+import { useProjectStore } from '../../stores/ProjectStore';
 
 defineProps<{ zoneId: ZoneId; points: readonly Point[] }>();
 const runtime = useEditorRuntime();
+const project = useProjectStore();
 
 </script>
 
 <template>
 	<button
-		v-if="roomDimensions(points) !== null"
+		v-if="roomDimensions(points, project.zones.get(zoneId)?.bulges) !== null"
 		type="button"
 		data-rp-action="resize-room"
 		:aria-disabled="runtime.resizeRoomBlocked.value"

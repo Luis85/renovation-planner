@@ -10,6 +10,7 @@ import ReviewInspector from './ReviewInspector.vue';
 import FloorInspector from '../shell/FloorInspector.vue';
 import StructureInspector from '../structure/StructureInspector.vue';
 import ElementInspector from '../elements/ElementInspector.vue';
+import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
 
 const project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession();
 const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
@@ -25,8 +26,12 @@ watch(() => selection.selectedIds, ids => {
 	}
 }, { immediate: true });
 const room = computed(() => project.zones.get(session.roomId));
+const selectedZone = computed(() => project.zones.get(selection.selectedIds[0]));
 const element = computed(() => project.structure.walls.some(item => item.id === session.targetId) || project.structure.openings.some(item => item.id === session.targetId));
 const generic = computed(() => project.structure.elements?.some(item => item.id === session.targetId));
+const headingVisible = computed(() => session.mode === 'overview' || !room.value);
+function heading(): string { return selectedZone.value?.name || room.value?.name || tr('renovation.select-room'); }
+const standaloneZone = computed(() => !room.value ? selectedZone.value : undefined);
 const root = ref<HTMLElement | null>(null);
 watch(() => [session.focusedId, session.mode], async () => {
 	if (!session.focusedId) return;
@@ -50,9 +55,16 @@ watch(() => [session.focusedId, session.mode], async () => {
 	>
 		<ElementInspector v-if="generic" />
 		<StructureInspector v-else-if="element" />
-		<h3 v-else>
-			{{ room?.name || tr('renovation.select-room') }}
+		<h3 v-else-if="headingVisible">
+			{{ heading() }}
 		</h3>
+		<details
+			v-if="standaloneZone"
+			class="rp-room-more-actions"
+		>
+			<summary>{{ tr('editor.structure.more') }}</summary>
+			<ObjectRotationControls :id="standaloneZone.id" />
+		</details>
 		<RoomRenovationDetails
 			v-if="room"
 			:room="room"

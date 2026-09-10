@@ -5,6 +5,7 @@ import { renovationEditor } from '../../helpers/renovationEditor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { pointerAt } from '../../helpers/tool-context';
+import { zoneEditingHandles } from '../../helpers/zoneEditingHandles';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -15,7 +16,7 @@ async function setup() {
 it('edits a Room corner in Renovate through one reversible geometry command', async () => {
  const rig = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id));
  const points = expectDefined(rig.project.zones.get(rig.room.id), 'Room').points;
- expect(rig.stage.findOne<Konva.Layer>('.interaction')?.find('Circle')).toHaveLength(points.length);
+ await zoneEditingHandles(rig, points.length, { x: (points[0].x + points[2].x) / 2, y: (points[0].y + points[2].y) / 2 });
  const tool = rig.runtime.toolManager;
  tool.pointerDown(pointerAt(points[0].x, points[0].y)); tool.pointerMove(pointerAt(-200, -200)); await settle();
  expect(rig.runtime.renderState.previewPolygon?.[0]).toEqual({ x: -200, y: -200 });
@@ -40,6 +41,7 @@ it('keeps Renovate primary Add keyboard reachable and closes it without clearing
  await rig.runtime.renovation.perspective('review'); await settle();
  expect(rig.wrapper.find('[data-rp-action="add"]').exists()).toBe(false);
  expect(rig.stage.findOne<Konva.Layer>('.interaction')?.find('Circle')).toHaveLength(0);
+ expect(rig.stage.findOne<Konva.Layer>('.interaction')?.findOne('.object-rotation-handle')).toBeUndefined();
 });
 it('refuses Room drag previews while stale and after switching to Review', async () => {
  const rig = await setup(), bytes = [...rig.stack.vault.entries], tool = rig.runtime.toolManager;

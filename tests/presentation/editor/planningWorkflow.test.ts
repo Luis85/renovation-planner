@@ -49,6 +49,7 @@ describe('connected planning editor', () => {
  const groups = rig.wrapper.findAll<HTMLDetailsElement>('.rp-cost-group'); expect(groups).toHaveLength(2);
  const workGroup = expectDefined(groups.find(group => group.get('summary').text().includes(work.title)), 'Work group');
  expect(workGroup.get('summary').text()).toContain('75.00 EUR'); expect(workGroup.findAll('.rp-cost-row')).toHaveLength(2);
+ expect(workGroup.element.querySelectorAll(':scope > .rp-cost-totals')).toHaveLength(1);
  const editor = useEditorStore(rig.pinia), selection = [...rig.selection.selectedIds], viewport = { ...editor.viewport }, totals = rig.wrapper.get('.rp-cost-totals').text();
  expect(rig.session.focusedId).toBe(''); expect(rig.stage?.find('.cost-work-source')).toHaveLength(0);
  workGroup.element.open = true; await workGroup.trigger('toggle'); expect(rig.session.focusedId).toBe('');
@@ -64,6 +65,7 @@ describe('connected planning editor', () => {
  expect(workGroup.element.open).toBe(true); expect(rig.wrapper.get('[data-rp-record="labor-second"]').element.contains(document.activeElement)).toBe(true);
  expect(rig.stage?.find('.cost-work-source')).toHaveLength(0);
  const unassigned = expectDefined(groups.find(group => group !== workGroup && group.get('summary').text().includes('Unassigned')), 'Unassigned group');
+ expect(unassigned.findAll('.rp-cost-row')).toHaveLength(1); expect(unassigned.element.querySelectorAll(':scope > .rp-cost-totals')).toHaveLength(0);
  unassigned.element.open = false; await unassigned.get('summary').trigger('click'); expect(rig.session.focusedId).toBe('labor-second');
  rig.runtime.renovation.focus(roomId, 'costs', requirement.id); await settle();
  expect(rig.wrapper.get(`[data-rp-record="estimate:${requirement.id}"]`).element.contains(document.activeElement)).toBe(true);

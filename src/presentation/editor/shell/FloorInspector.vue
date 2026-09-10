@@ -18,7 +18,7 @@ import { tr } from '../../i18n/strings';
 import { type Aggregate } from '../../read-models/spatialRecords';
 import { formatArea } from './formatArea';
 import { useFloorSummary } from './useFloorSummary';
-import RoomSummaryList from './RoomSummaryList.vue';
+import FloorSpatialLists from './FloorSpatialLists.vue';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import RenovationLinkedSummary from '../renovation/RenovationLinkedSummary.vue';
 import { computed } from 'vue';
@@ -26,9 +26,7 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { renovationSummary } from '../renovation/renovationSummary';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import HostIcon from '../../components/HostIcon.vue';
-import { useEditorRuntime } from '../runtime';
 const context = usePlanEditorContext();
-const runtime = useEditorRuntime();
 
 /**
  * `null` before the first successful hydrate — and this component may well be mounted
@@ -45,6 +43,7 @@ const runtime = useEditorRuntime();
  */
 const summary = useFloorSummary();
 const project = useProjectStore();
+const starting = computed(() => project.emptyStateKey === 'noBackground' && project.zones.size === 0 && project.unreadableZones === 0);
 const roomAnnotations = computed(() => new Map(summary.value?.rooms.map(room => [room.id,
 	project.stale || project.unreadableZones > 0
 		? tr('editor.selection.unknown')
@@ -81,7 +80,22 @@ const count = (value: number): string => String(value);
 	>
 		<h3>{{ summary.floor.name }}</h3>
 		<ReferenceAction />
-		<dl class="rp-editor-inspector-fields">
+		<section
+			v-if="starting"
+			class="rp-floor-setup"
+		>
+			<p>{{ tr('editor.creation.nothing-added') }}</p>
+			<h4>{{ tr('editor.creation.get-started') }}</h4>
+			<ul>
+				<li><HostIcon name="square-dashed" />{{ tr('editor.creation.reference') }}</li>
+				<li><HostIcon name="square-dashed" />{{ tr('editor.inspector.floor.rooms') }}</li>
+				<li><HostIcon name="square-dashed" />{{ tr('editor.creation.scale') }}</li>
+			</ul>
+		</section>
+		<dl
+			v-if="!starting"
+			class="rp-editor-inspector-fields"
+		>
 			<dt>{{ tr('editor.inspector.floor.rooms') }}</dt>
 			<dd
 				data-rp-stat="rooms"
@@ -109,7 +123,10 @@ const count = (value: number): string => String(value);
 				{{ textFor(summary.totalAreaMm2, formatArea) }}
 			</dd>
 		</dl>
-		<div class="rp-floor-planning-summary">
+		<div
+			v-if="!starting"
+			class="rp-floor-planning-summary"
+		>
 			<dl class="rp-floor-planning-metric">
 				<dt>{{ tr('editor.inspector.floor.planned-changes') }}</dt>
 				<dd
@@ -135,30 +152,10 @@ const count = (value: number): string => String(value);
 				</dd>
 			</dl>
 		</div>
-		<p
-			v-if="summary.rooms.length > 0 && runtime.activeToolId.value === 'select'"
-			class="rp-floor-inspector__guidance"
-		>
-			<HostIcon name="info" /><span>{{ tr('editor.inspector.floor.guidance') }}</span>
-		</p>
-
-		<RoomSummaryList
-			v-if="summary.rooms.length > 0"
-			:records="summary.rooms"
-			:heading="tr('editor.inspector.floor.rooms')"
-			:annotations="roomAnnotations"
-		/>
-		<p
-			v-else
-			class="rp-editor-inspector-empty"
-		>
-			{{ tr('editor.inspector.floor.no-rooms') }}
-		</p>
-
-		<RoomSummaryList
-			v-if="summary.areas.length > 0"
-			:records="summary.areas"
-			:heading="tr('editor.inspector.floor.areas')"
+		<FloorSpatialLists
+			:summary="summary"
+			:starting="starting"
+			:room-annotations="roomAnnotations"
 		/>
 	</div>
 </template>

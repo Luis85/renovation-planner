@@ -1,0 +1,66 @@
+[
+  {
+    "scenario": "light",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 344,
+      "scrollWidth": 344,
+      "documentWidth": 1440,
+      "viewport": 1440
+    },
+    "name": "Kitchen and dining room — garden extension with utility storage",
+    "reflow": "720 × 450 CSS viewport represents the layout space of a 1440 × 900 leaf at 200%; actual browser zoom is not simulated",
+    "storage": "production rename command over ephemeral repositories",
+    "focus": "same native input retains draft and focus through reflow; submission persists title",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "dark",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 344,
+      "scrollWidth": 344,
+      "documentWidth": 1440,
+      "viewport": 1440
+    },
+    "name": "Kitchen and dining room — garden extension with utility storage",
+    "reflow": "720 × 450 CSS viewport represents the layout space of a 1440 × 900 leaf at 200%; actual browser zoom is not simulated",
+    "storage": "production rename command over ephemeral repositories",
+    "focus": "same native input retains draft and focus through reflow; submission persists title",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "custom-accent",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 288,
+      "scrollWidth": 288,
+      "documentWidth": 1000,
+      "viewport": 1000
+    },
+    "name": "Kitchen and dining room — garden extension with utility storage",
+    "reflow": "720 × 450 CSS viewport represents the layout space of a 1440 × 900 leaf at 200%; actual browser zoom is not simulated",
+    "storage": "production rename command over ephemeral repositories",
+    "focus": "same native input retains draft and focus through reflow; submission persists title",
+    "keyboard": "passed",
+    "pageErrors": []
+  },
+  {
+    "scenario": "german-constrained",
+    "browser": "152.0.4191.62",
+    "metrics": {
+      "width": 367,
+      "scrollWidth": 367,
+      "documentWidth": 460,
+      "viewport": 460
+    },
+    "name": "Kitchen and dining room — garden extension with utility storage",
+    "reflow": "720 × 450 CSS viewport represents the layout space of a 1440 × 900 leaf at 200%; actual browser zoom is not simulated",
+    "storage": "production rename command over ephemeral repositories",
+    "focus": "same native input retains draft and focus through reflow; submission persists title",
+    "keyboard": "passed",
+    "pageErrors": []
+  }
+]

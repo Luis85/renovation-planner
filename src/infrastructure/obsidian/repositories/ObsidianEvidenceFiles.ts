@@ -1,5 +1,5 @@
 import { normalizePath, parseLinktext, TFile, type Vault, type Workspace, type MetadataCache } from 'obsidian';
-import type { EvidenceFiles } from '../../../application/ports/EvidenceFiles';
+import { isEvidenceImage, type EvidenceFiles, type EvidenceFileQuery } from '../../../application/ports/EvidenceFiles';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import { err, ok } from '../../../core/result/Result';
 import { ensureFolder, persistenceError } from './noteIo';
@@ -9,14 +9,26 @@ import { KeyedQueues } from './KeyedQueues';
 export class ObsidianEvidenceFiles implements EvidenceFiles {
 	private readonly queues = new KeyedQueues();
 	constructor(private readonly deps: { vault: Vault; workspace: Pick<Workspace, 'openLinkText'>; cache: Pick<MetadataCache, 'getFirstLinkpathDest'>; index: ProjectIndex }) {}
-	list(): readonly string[] { return this.deps.vault.getFiles().filter(file => /\.(md|pdf|png|jpe?g|gif|webp)$/i.test(file.path)).map(file => file.path).toSorted(); }
+	list(options: EvidenceFileQuery = {}): readonly string[] {
+		const requested = options.limit ?? 20;
+		const limit = Math.max(0, Math.min(50, Number.isFinite(requested) ? Math.trunc(requested) : 20));
+		if (!limit) return [];
+		const query = options.query?.trim().toLowerCase() ?? '', results: string[] = [];
+		for (const file of this.deps.vault.getFiles()) {
+			const path = file.path;
+			if (!(options.imagesOnly ? isEvidenceImage(path) : /\.(md|pdf|png|jpe?g|gif|webp)$/i.test(path)) || !path.toLowerCase().includes(query)) continue;
+			results.push(path);
+			if (results.length === limit) break;
+		}
+		return results.toSorted();
+	}
 	resolve: EvidenceFiles['resolve'] = (input, planId) => {
 		const text = input.trim().replace(/^\[\[|\]\]$/g, '').split('|')[0];
 		const link = parseLinktext(text);
 		const direct = this.deps.vault.getAbstractFileByPath(normalizePath(link.path));
 		const file = direct instanceof TFile ? direct : this.deps.cache.getFirstLinkpathDest(link.path, this.deps.index.getPath(planId) ?? '');
 		if (!file || !/\.(md|pdf|png|jpe?g|gif|webp)$/i.test(file.path)) return err(persistenceError('evidence.file-missing', 'The linked vault file is unavailable.'));
-		return ok({ path: file.path, subpath: link.subpath, image: /\.(png|jpe?g|gif|webp)$/i.test(file.path) ? this.deps.vault.getResourcePath(file) : null });
+		return ok({ path: file.path, subpath: link.subpath, image: isEvidenceImage(file.path) ? this.deps.vault.getResourcePath(file) : null });
 	};
 	open: EvidenceFiles['open'] = async (path, subpath) => {
 		if (!(this.deps.vault.getAbstractFileByPath(path) instanceof TFile)) return err(persistenceError('evidence.file-missing', 'The linked vault file is unavailable.'));

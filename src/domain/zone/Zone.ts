@@ -1,6 +1,5 @@
 import type { GeometryError, ValidationError } from '../../core/errors/AppError';
-import type { Polygon } from '../../core/geometry/Polygon';
-import { createPolygon } from '../../core/geometry/Polygon';
+import { createCurvedPolygon, type CurvedPolygon } from '../../core/geometry/CurvedPolygon';
 import { area as polygonArea, perimeter as polygonPerimeter } from '../../core/geometry/operations';
 import { err, ok, type Result } from '../../core/result/Result';
 import { isZoneStatus, type ZoneStatus } from './ZoneStatus';
@@ -19,7 +18,7 @@ export interface CreateZoneProps {
 	readonly name: string;
 	readonly zoneType: ZoneType;
 	readonly status?: ZoneStatus;
-	readonly geometry: Polygon;
+	readonly geometry: CurvedPolygon;
 	readonly domainNoteLink?: string | null;
 }
 
@@ -30,7 +29,7 @@ interface ZoneFields {
 	readonly name: string;
 	readonly zoneType: ZoneType;
 	readonly status: ZoneStatus;
-	readonly geometry: Polygon;
+	readonly geometry: CurvedPolygon;
 	readonly domainNoteLink: string | null;
 }
 
@@ -47,7 +46,7 @@ export class Zone {
 	readonly name: string;
 	readonly zoneType: ZoneType;
 	readonly status: ZoneStatus;
-	readonly geometry: Polygon;
+	readonly geometry: CurvedPolygon;
 	readonly domainNoteLink: string | null;
 
 	private constructor(fields: ZoneFields) {
@@ -70,10 +69,8 @@ export class Zone {
 		if (!isZoneStatus(props.status ?? 'Planned')) {
 			return err(zoneError('unknown-status', `"${String(props.status)}" is not a zone status.`));
 		}
-		// `createPolygon`, not `validatePolygonPoints` alone: it also COPIES the vertex set,
-		// so a caller that keeps its (mutable) buffer mid-gesture cannot break the geometry
-		// just validated by writing through it afterward (C7).
-		const geometry = createPolygon(props.geometry.points);
+		// Copy both points and curve parameters so a caller cannot mutate the validated boundary.
+		const geometry = createCurvedPolygon(props.geometry);
 		if (geometry.ok) {
 			return ok(
 				new Zone({
@@ -105,8 +102,8 @@ export class Zone {
 		return ok(new Zone({ ...this.fields(), name: name.value, zoneType }));
 	}
 
-	withGeometry(geometry: Polygon): Result<Zone, GeometryError> {
-		const checked = createPolygon(geometry.points);
+	withGeometry(geometry: CurvedPolygon): Result<Zone, GeometryError> {
+		const checked = createCurvedPolygon(geometry);
 		if (checked.ok) {
 			return ok(new Zone({ ...this.fields(), geometry: checked.value }));
 		}

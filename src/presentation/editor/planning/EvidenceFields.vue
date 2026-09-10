@@ -1,122 +1,126 @@
 <script setup lang="ts">
 import { refuseInoperativeEvent, restoreInoperativeChoice } from '../forms/inoperativeControl';
-import { recordChoices } from './recordChoices';
-import { onBeforeUnmount, ref, useId } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import type { PlanningDraft } from './planningDraft';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
-import type { EvidenceFiles } from '../../../application/ports/EvidenceFiles';
-import { EVIDENCE_PHASES, EVIDENCE_TYPES } from '../../../domain/renovation/PlanningDepth';
+import { isEvidenceImage, type EvidenceFiles } from '../../../application/ports/EvidenceFiles';
 import { tr } from '../../i18n/strings';
+import EvidenceFileSearch from './EvidenceFileSearch.vue';
+import EvidenceMetadataFields from './EvidenceMetadataFields.vue';
 const draft = defineModel<PlanningDraft>('draft', { required: true });
 const props = defineProps<{ baseline: PlanningBaseline; paused: boolean; writeBlocked?: boolean; files?: EvidenceFiles }>();
-const filesId = useId();
-const error = ref(false), working = ref(false);
+const emit = defineEmits<{ busy: [value: boolean] }>();
+const detailsOpen = ref(false);
+const photo = computed(() => draft.value.type === 'photo');
+const error = ref<'file' | 'image' | null>(null), working = ref(false);
+const fileActionBlocked = computed(() => props.paused || props.writeBlocked || working.value);
+const fieldsPaused = computed(() => props.paused || working.value);
+const photoImportAvailable = computed(() => photo.value && props.files);
+const importingPhoto = computed(() => working.value && photo.value);
+const noteCreationBlocked = computed(() => fileActionBlocked.value || !!draft.value.path);
+function errorLabel(): string { return tr(error.value === 'image' ? 'planning.photo.image-required' : 'planning.file-failed'); }
+watch(working, value => emit('busy', value), { flush: 'sync' });
 let alive = true;
-onBeforeUnmount(() => { alive = false; });
+onBeforeUnmount(() => { alive = false; emit('busy', false); });
 async function create(file?: File): Promise<void> {
-	if (!props.files || props.paused || props.writeBlocked || working.value) return;
-	working.value = true; error.value = false;
+	if (!props.files || fileActionBlocked.value) return;
+	if (file && photo.value && !isEvidenceImage(file.name)) { error.value = 'image'; return; }
+	working.value = true; error.value = null;
 	try {
 		const result = file ? await props.files.importFile(props.baseline.plan.entity.id, file.name, await file.arrayBuffer())
 			: await props.files.createNote(props.baseline.plan.entity.id, draft.value.id, `# ${draft.value.title || tr('planning.note')}\n\n${tr('planning.context-note', { room: draft.value.roomId })}\n`);
 		if (!alive) return;
-		if (result.ok) { draft.value.path = result.value; if (!file) draft.value.type = 'note'; } else error.value = true;
-	} catch { if (alive) error.value = true; }
+		if (result.ok) { draft.value.path = result.value; if (!file) draft.value.type = 'note'; } else error.value = 'file';
+	} catch { if (alive) error.value = 'file'; }
 	finally { working.value = false; }
+}
+async function keepTypeFocus(event: Event): Promise<void> {
+	const control = event.target as HTMLElement;
+	if (control.ownerDocument.activeElement !== control) return;
+	const form = control.closest('.rp-dialog-form');
+	detailsOpen.value = photo.value;
+	await nextTick();
+	if (form?.isConnected && (control.ownerDocument.activeElement === control || control.ownerDocument.activeElement === control.ownerDocument.body)) {
+		form.querySelector<HTMLElement>('[name="type"]')?.focus();
+	}
 }
 function importFile(event: Event): void { const file = (event.target as HTMLInputElement).files?.[0]; if (file) void create(file); }
 </script>
 <template>
-	<label>{{ tr('planning.path') }}<input
+	<EvidenceFileSearch
 		v-model="draft.path"
-		:readonly="paused || working"
-		name="path"
-		:list="filesId"
+		:files="files"
+		:images-only="photo"
+		:paused="fieldsPaused"
+	/>
+	<label v-if="photoImportAvailable">{{ tr('planning.photo.import') }}<input
+		type="file"
+		accept=".png,.jpg,.jpeg,.gif,.webp"
+		:aria-disabled="fileActionBlocked"
+		@click.capture="refuseInoperativeEvent"
+		@change.capture="restoreInoperativeChoice($event, '')"
+		@change="importFile"
 	></label>
-	<datalist :id="filesId">
-		<option
-			v-for="path in files?.list()"
-			:key="path"
-			:value="path"
-		/>
-	</datalist>
-	<label>{{ tr('planning.type') }}<select
-		v-model="draft.type"
-		:aria-disabled="paused"
-		name="type"
-		@change.capture="restoreInoperativeChoice($event, draft.type)"
-	><option
-		v-for="type in EVIDENCE_TYPES"
-		:key="type"
-		:value="type"
-	>{{ tr(`planning.${type}`) }}</option></select></label>
-	<label>{{ tr('planning.evidence-date') }}<input
-		v-model="draft.date"
+	<label v-if="photo">{{ tr('planning.photo.caption') }}<input
+		v-model="draft.title"
+		name="title"
 		:readonly="paused"
-		name="evidence-date"
-		:placeholder="tr('planning.evidence-date-format')"
 	></label>
-	<p>{{ tr('planning.evidence-date-help') }}</p>
-	<label>{{ tr('planning.phase') }}<select
-		v-model="draft.phase"
-		:aria-disabled="paused"
-		name="phase"
-		@change.capture="restoreInoperativeChoice($event, draft.phase)"
-	><option
-		v-for="phase in EVIDENCE_PHASES"
-		:key="phase"
-		:value="phase"
-	>{{ tr(`planning.${phase}`) }}</option></select></label>
-	<label>{{ tr('planning.linked-record') }}<select
-		v-model="draft.recordId"
-		:aria-disabled="paused"
-		name="record"
-		@change.capture="restoreInoperativeChoice($event, draft.recordId)"
-	><option value="">{{ tr('planning.unassigned') }}</option><option
-		v-for="record in recordChoices(baseline, draft.roomId)"
-		:key="record.id"
-		:value="record.id"
-	>{{ record.label }}</option></select></label>
-	<label><input
-		v-model="draft.pin"
-		:aria-disabled="paused"
-		type="checkbox"
-		@change.capture="restoreInoperativeChoice($event, draft.pin)"
-	>{{ tr('planning.pin') }}</label>
-	<template v-if="draft.pin">
-		<label>{{ tr('planning.pin-x') }}<input
-			v-model="draft.pinX"
-			:readonly="paused"
-			inputmode="decimal"
-		></label><label>{{ tr('planning.pin-y') }}<input
-			v-model="draft.pinY"
-			:readonly="paused"
-			inputmode="decimal"
-		></label>
+	<details
+		v-if="photo"
+		class="rp-photo-details"
+		:open="detailsOpen"
+		@toggle="detailsOpen = ($event.target as HTMLDetailsElement).open"
+	>
+		<summary>{{ tr('planning.photo.details') }}</summary>
+		<div class="rp-photo-details__content">
+			<slot name="context" />
+			<EvidenceMetadataFields
+				:draft="draft"
+				:baseline="baseline"
+				:paused="fieldsPaused"
+				@type-changed="keepTypeFocus"
+			/>
+			<p>{{ tr('planning.file-policy') }}</p>
+		</div>
+	</details>
+	<template v-else>
+		<EvidenceMetadataFields
+			:draft="draft"
+			:baseline="baseline"
+			:paused="fieldsPaused"
+			@type-changed="keepTypeFocus"
+		/>
+		<template v-if="files">
+			<button
+				type="button"
+				:aria-disabled="noteCreationBlocked"
+				@click.capture="refuseInoperativeEvent"
+				@click="create()"
+			>
+				{{ tr('planning.create-note') }}
+			</button>
+			<label>{{ tr('planning.import') }}<input
+				type="file"
+				accept=".md,.pdf,.png,.jpg,.jpeg,.gif,.webp"
+				:aria-disabled="fileActionBlocked"
+				@click.capture="refuseInoperativeEvent"
+				@change.capture="restoreInoperativeChoice($event, '')"
+				@change="importFile"
+			></label>
+		</template>
+		<p>{{ tr('planning.file-policy') }}</p>
 	</template>
-	<template v-if="files">
-		<button
-			type="button"
-			:aria-disabled="paused || writeBlocked || working || !!draft.path"
-			@click.capture="refuseInoperativeEvent"
-			@click="create()"
-		>
-			{{ tr('planning.create-note') }}
-		</button>
-		<label>{{ tr('planning.import') }}<input
-			type="file"
-			accept=".md,.pdf,.png,.jpg,.jpeg,.gif,.webp"
-			:aria-disabled="paused || writeBlocked || working"
-			@click.capture="refuseInoperativeEvent"
-			@change.capture="restoreInoperativeChoice($event, '')"
-			@change="importFile"
-		></label>
-	</template>
+	<p
+		v-if="importingPhoto"
+		role="status"
+	>
+		{{ tr('planning.photo.importing') }}
+	</p>
 	<p
 		v-if="error"
 		role="alert"
 	>
-		{{ tr('planning.file-failed') }}
+		{{ errorLabel() }}
 	</p>
-	<p>{{ tr('planning.file-policy') }}</p>
 </template>

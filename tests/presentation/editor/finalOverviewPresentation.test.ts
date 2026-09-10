@@ -42,9 +42,9 @@ it('shows actual per-Room change cues and preserves partial/stale summary behavi
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 	rig.project.unreadableZones = 0;
 	rig.runtime.setTool('draw-wall'); await settleUntil(() => !rig.runtime.structureTask.draft.loading, 'wall baseline');
-	expect(floor.find('.rp-floor-inspector__guidance').exists()).toBe(false);
+	expect(rig.wrapper.find('.rp-floor-inspector__guidance').exists()).toBe(false);
 	rig.runtime.returnToSelect(); await settle();
-	expect(floor.find('.rp-floor-inspector__guidance').exists()).toBe(true);
+	expect(rig.wrapper.find('.rp-floor-inspector__guidance').exists()).toBe(true);
 });
 
 it('keeps the closed wall draft visibly distinct, screen-sized and uncommitted until Finish', async () => {
@@ -52,7 +52,7 @@ it('keeps the closed wall draft visibly distinct, screen-sized and uncommitted u
 	const rig = await structureEditor(); cleanups.push(rig.unmount);
 	const task = rig.runtime.structureTask, stage = expectDefined(rig.stage, 'stage');
 	expect(rig.wrapper.find('.rp-floor-inspector__guidance').exists()).toBe(false);
-	expect(rig.wrapper.get('.rp-floor-inspector .rp-editor-inspector-empty').text()).toBe(tr('editor.inspector.floor.no-rooms'));
+	expect(rig.wrapper.get('.rp-floor-setup').text()).toContain(tr('editor.creation.nothing-added'));
 	const bytes = [...rig.stack.vault.entries];
 	rig.runtime.setTool('draw-wall'); await settleUntil(() => !task.draft.loading, 'wall baseline');
 	expect(rig.wrapper.find('.rp-floor-inspector__guidance').exists()).toBe(false);
@@ -64,13 +64,21 @@ it('keeps the closed wall draft visibly distinct, screen-sized and uncommitted u
 	const outline = expectDefined(stage.findOne<Konva.Line>('.wall-draft-outline'), 'draft outline');
 	const architecture = expectDefined(stage.findOne<Konva.Layer>('.architecture'), 'architecture layer');
 	const wall = expectDefined(architecture.find<Konva.Line>('Line').find(node => node !== outline), 'wall body');
-	expect(outline.stroke()).not.toBe(wall.stroke()); expect(outline.dash().length).toBeGreaterThan(0);
+	expect(outline.stroke()).not.toBe(wall.stroke());
 	expect(outline.points()).toEqual(task.draft.points.flatMap(point => [point.x, point.y]));
 	expect(stage.find('.wall-draft-corner')).toHaveLength(4);
 	const editor = useEditorStore(rig.pinia);
+	editor.viewport = { pan: { x: -100, y: -400 }, zoom: 0.1 }; await settle();
+	for (const label of stage.find<Konva.Text>('.wall-draft-length')) {
+		const box = expectDefined(label.getParent(), 'caption group').getClientRect();
+		expect(box.x).toBeGreaterThanOrEqual(0);
+		expect(box.x + box.width).toBeLessThanOrEqual(editor.stageSize.width);
+		expect(box.y).toBeGreaterThanOrEqual(0);
+		expect(box.y + box.height).toBeLessThanOrEqual(editor.stageSize.height);
+	}
 	editor.viewport = { ...editor.viewport, zoom: editor.viewport.zoom * 2 }; await settle();
 	expect(outline.strokeWidth() * editor.viewport.zoom).toBeCloseTo(2);
-	for (const corner of stage.find<Konva.Circle>('.wall-draft-corner')) expect(corner.radius() * editor.viewport.zoom).toBeCloseTo(4);
+	for (const corner of stage.find<Konva.Rect>('.wall-draft-corner')) expect(corner.width() * corner.getAbsoluteScale().x).toBeCloseTo(10);
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 	rig.runtime.returnToSelect(); await settle();
 	expect(stage.find('.wall-draft-outline')).toHaveLength(0); expect(stage.find('.wall-draft-corner')).toHaveLength(0);

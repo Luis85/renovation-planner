@@ -89,7 +89,7 @@ describe('persistence composition', () => {
 			trade: 1,
 			supplier: 1,
 			quote: 1,
-			zone: 1,
+			zone: 2,
 			asset: 1,
 			requirement: 3,
 			'asset-price': 1,

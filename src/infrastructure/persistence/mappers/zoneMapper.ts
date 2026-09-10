@@ -3,7 +3,7 @@ import type { Result } from '../../../core/result/Result';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import { Zone } from '../../../domain/zone/Zone';
 import {
-	ZoneFrontmatterSchemaV1,
+	ZoneFrontmatterSchema,
 	ZONE_TYPE,
 } from '../dto/zoneFrontmatter';
 import {
@@ -22,7 +22,8 @@ import { parsePersisted } from './parse';
 export function zoneToPersistence(zone: Zone, revision: number): Record<string, unknown> {
 	return {
 		type: ZONE_TYPE,
-		'schema-version': 1,
+		// V2 only while locked: see `ZoneFrontmatterSchemaV2`.
+		'schema-version': zone.locked ? 2 : 1,
 		id: zone.id,
 		revision,
 		project: zone.projectId,
@@ -30,6 +31,7 @@ export function zoneToPersistence(zone: Zone, revision: number): Record<string, 
 		name: zone.name,
 		'zone-type': toKebab(zone.zoneType),
 		status: toKebab(zone.status),
+		...(zone.locked ? { locked: true } : {}),
 	};
 }
 
@@ -48,7 +50,7 @@ export function zoneFromPersistence(
 	rawGeometry: unknown,
 ): Result<Zone, ValidationError | GeometryError> {
 	const frontmatter = parsePersisted(
-		ZoneFrontmatterSchemaV1,
+		ZoneFrontmatterSchema,
 		rawFrontmatter,
 		'zone.frontmatter-invalid',
 		'Zone note',
@@ -71,6 +73,7 @@ export function zoneFromPersistence(
 		name: dto.name,
 		zoneType: dto['zone-type'],
 		status: dto.status,
+		locked: 'locked' in dto && dto.locked === true,
 		geometry: { points: entry.points.map(([x, y]) => ({ x, y })), ...(entry.bulges ? { bulges: entry.bulges } : {}) } satisfies CurvedPolygon,
 	});
 }

@@ -20,6 +20,8 @@ export interface CreateZoneProps {
 	readonly status?: ZoneStatus;
 	readonly geometry: CurvedPolygon;
 	readonly domainNoteLink?: string | null;
+	/** Canvas click-through (ADR-0027). Absent means unlocked. */
+	readonly locked?: boolean;
 }
 
 interface ZoneFields {
@@ -31,6 +33,7 @@ interface ZoneFields {
 	readonly status: ZoneStatus;
 	readonly geometry: CurvedPolygon;
 	readonly domainNoteLink: string | null;
+	readonly locked: boolean;
 }
 
 /**
@@ -48,6 +51,7 @@ export class Zone {
 	readonly status: ZoneStatus;
 	readonly geometry: CurvedPolygon;
 	readonly domainNoteLink: string | null;
+	readonly locked: boolean;
 
 	private constructor(fields: ZoneFields) {
 		this.id = fields.id;
@@ -58,6 +62,7 @@ export class Zone {
 		this.status = fields.status;
 		this.geometry = fields.geometry;
 		this.domainNoteLink = fields.domainNoteLink;
+		this.locked = fields.locked;
 	}
 
 	static create(props: CreateZoneProps): Result<Zone, ValidationError | GeometryError> {
@@ -82,6 +87,7 @@ export class Zone {
 					status: props.status ?? 'Planned',
 					geometry: geometry.value,
 					domainNoteLink: props.domainNoteLink ?? null,
+					locked: props.locked ?? false,
 				}),
 			);
 		}
@@ -110,6 +116,14 @@ export class Zone {
 		return checked;
 	}
 
+	// Unconsumed by src/ until a later task wires `EditZoneDetailsCommand` to it (this
+	// plan's Task 3). Suppressed here rather than deleted, the same as `perimeter()` below.
+	/** Lock or unlock; nothing about a lock can be invalid, so this answers a Zone rather than a Result. */
+	// fallow-ignore-next-line unused-class-member
+	withLocked(locked: boolean): Zone {
+		return new Zone({ ...this.fields(), locked });
+	}
+
 	private fields(): ZoneFields {
 		return {
 			id: this.id,
@@ -120,6 +134,7 @@ export class Zone {
 			status: this.status,
 			geometry: this.geometry,
 			domainNoteLink: this.domainNoteLink,
+			locked: this.locked,
 		};
 	}
 

@@ -140,3 +140,15 @@ describe('derived measures', () => {
 		expect(expectErr(broken.perimeter()).code).toBe('polygon-non-finite-coordinate');
 	});
 });
+
+describe('Zone lock', () => {
+	it('starts unlocked, and withLocked changes the lock and nothing else', () => {
+		const zone = expectOk(Zone.create(base()));
+		expect(zone.locked).toBe(false);
+		const locked = zone.withLocked(true);
+		expect(locked.locked).toBe(true);
+		expect({ ...locked, locked: false }).toEqual({ ...zone });
+		expect(expectOk(locked.withName('Hall')).locked).toBe(true);
+		expect(expectOk(Zone.create({ ...base(), locked: true })).locked).toBe(true);
+	});
+});

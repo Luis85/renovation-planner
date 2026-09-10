@@ -21,3 +21,16 @@ export const ZoneFrontmatterSchemaV1 = z.object({
 	'zone-type': kebabEnum(ZONE_TYPES),
 	status: kebabEnum(ZONE_STATUSES),
 });
+
+/**
+ * Schema version 2 (ADR-0027): a locked zone. Written ONLY while `locked` is true, so an older
+ * build — which parses V1 alone — refuses a locked note instead of saving the lock away, and
+ * unlocking returns the note to V1. `locked` is optional because the discriminator migration
+ * lifts every V1 note to 2 in memory without inventing the key.
+ */
+export const ZoneFrontmatterSchemaV2 = ZoneFrontmatterSchemaV1.extend({
+	'schema-version': z.literal(2),
+	locked: z.boolean().optional(),
+});
+
+export const ZoneFrontmatterSchema = z.union([ZoneFrontmatterSchemaV1, ZoneFrontmatterSchemaV2]);

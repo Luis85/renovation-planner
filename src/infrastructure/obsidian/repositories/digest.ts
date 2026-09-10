@@ -7,7 +7,7 @@ import { PLAN_TYPE, PlanFrontmatterSchemaV8 } from '../../persistence/dto/planFr
 import { SpatialObjectGeometrySchemaV7, type SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../persistence/dto/projectFrontmatter';
 import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV3 } from '../../persistence/dto/requirementFrontmatter';
-import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFrontmatter';
+import { ZONE_TYPE, ZoneFrontmatterSchemaV2 } from '../../persistence/dto/zoneFrontmatter';
 
 /**
  * How an observation token is minted, and therefore what "external modification" MEANS
@@ -53,7 +53,7 @@ import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFr
 const SCHEMAS: readonly (readonly [string, { readonly shape: Readonly<Record<string, unknown>> }])[] = [
 	[PROJECT_TYPE, ProjectFrontmatterSchemaV1],
 	[PLAN_TYPE, PlanFrontmatterSchemaV8],
-	[ZONE_TYPE, ZoneFrontmatterSchemaV1],
+	[ZONE_TYPE, ZoneFrontmatterSchemaV2],
 	[ASSET_TYPE, AssetFrontmatterSchemaV1],
 	[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV3],
 	[ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1],

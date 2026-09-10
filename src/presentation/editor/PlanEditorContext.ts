@@ -9,6 +9,8 @@ export interface EditorNavigation {
 	project(projectId: string): Promise<void>;
 	downstream?(projectId: string, route: ProjectRoute): Promise<void>;
 	library(): void;
+	/** Open (or reveal) another plan's editor leaf — the Property tree's sibling floors. */
+	plan?(planId: string): Promise<void>;
 }
 
 /**

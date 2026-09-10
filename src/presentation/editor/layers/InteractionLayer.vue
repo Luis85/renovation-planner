@@ -100,7 +100,10 @@ const hoverOutlineFlat = computed(() => {
 	});
 });
 const hoverClosed = computed(() => {
-	const kind = candidates.value.get(runtime.renderState.hoveredObjectId ?? '')?.kind;
+	// The one reader is the hover outline's `:config`, inside `v-if="hoverOutlineFlat !== null"`,
+	// and `hoverOutlineFlat` answers null for a null `hoveredObjectId`: the id is set whenever the
+	// template evaluates this.
+	const kind = candidates.value.get(runtime.renderState.hoveredObjectId as string)?.kind;
 	return kind === undefined || kind === 'object' || kind === 'stair';
 });
 

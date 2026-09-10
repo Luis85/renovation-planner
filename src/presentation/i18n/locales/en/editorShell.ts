@@ -1,10 +1,10 @@
 export const editorShellEn = {
 	'editor.shell.property': 'Property',
-	'editor.shell.elements': 'Elements',
 	'editor.shell.reference-options': 'Reference options',
 	'editor.shell.locked': 'Locked',
 	'editor.shell.unlocked': 'Unlocked',
-	'editor.shell.planned-layer': 'Planned changes and markers',
+	'editor.shell.planned-layer': 'Planned changes',
+	'editor.shell.notes-layer': 'Notes and photos',
 	'editor.shell.legend': 'Change legend',
 	'editor.shell.existing-wall': 'Existing wall',
 	'editor.shell.removed-wall': 'Wall to remove',

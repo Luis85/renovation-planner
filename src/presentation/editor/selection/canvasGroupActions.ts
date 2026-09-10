@@ -4,6 +4,7 @@ import type { StringKey } from '../../i18n/locales/en';
 export interface CanvasGroupAction {
 	readonly id: 'group' | 'ungroup' | 'enclose' | 'inspect' | 'select-group';
 	readonly label: StringKey;
+	readonly icon: string;
 	readonly disabled?: boolean;
 	run(): void | Promise<void>;
 }

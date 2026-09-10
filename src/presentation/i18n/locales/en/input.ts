@@ -8,4 +8,5 @@ export const inputEn = {
 	'editor.input.lock': 'Lock {name}',
 	'editor.input.unlock': 'Unlock {name}',
 	'editor.input.locked': 'Locked',
+	'editor.input.unavailable': 'Not available while another tool or edit is active.',
 } as const;

@@ -160,6 +160,7 @@ export function fakeQueries(
 		// a `hydrate` that asks for the right field (a plan's `projectId`) from one that asks
 		// for the wrong one. See [[Project-hydration fakes ignore the requested project ID]].
 		getProject: (id) => Promise.resolve(ok(id === FIXTURE_PROJECT.id ? FIXTURE_PROJECT : null)),
+		listPlans: () => Promise.resolve(ok(plan ? [plan] : [])),
 		findZonesByPlan: () => Promise.resolve(ok({ zones, unreadable })),
 		...emptyRequirementReads(),
 	};

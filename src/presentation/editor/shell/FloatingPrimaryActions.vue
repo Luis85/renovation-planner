@@ -46,7 +46,7 @@ const emit = defineEmits<{ openAdd: [] }>();
 			:aria-disabled="!canSwitch"
 			@click="runtime.setTool('pan')"
 		>
-			{{ tr('editor.input.pan') }}
+			<HostIcon name="hand" />{{ tr('editor.input.pan') }}
 		</button>
 		<button
 			type="button"

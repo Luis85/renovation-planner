@@ -213,4 +213,23 @@ describe('connected planning read-back recovery', () => {
   const reading = rig.runtime.refreshProjection(); await settle(); rig.unmount(); await reading;
   pending.resolve(result); await settle(); expect(refresh).not.toHaveBeenCalled();
  });
+ it('falls back to the focused Room as the new-material target when the session names none', async () => {
+  const rig = await setup();
+  rig.session.targetId = '';
+  await rig.wrapper.get('[data-rp-new-material]').trigger('click'); await settle();
+  expect(rig.wrapper.get<HTMLSelectElement>('select[name="target"]').element.value).toBe(rig.room.id);
+ });
+ it('refuses a Cost write when the renovation command service disappears between opening the draft and Apply', async () => {
+  const rig = await setup(); rig.runtime.renovation.focus(rig.room.id, 'costs'); await settle();
+  await rig.wrapper.get('[data-rp-new-cost]').trigger('click'); await settle();
+  await rig.wrapper.get('input[name="title"]').setValue('Countertop');
+  await rig.wrapper.get('select[name="category"]').setValue('labor');
+  await rig.wrapper.get('input[name="planned"]').setValue('100');
+  Object.assign(rig.deps.commands, { renovation: undefined });
+  const bytes = [...rig.stack.vault.entries];
+  await rig.wrapper.get('[data-rp-form="planning"]').trigger('submit'); await settle();
+  expect(rig.wrapper.get('[role="alert"]').text()).toContain('changed since this draft opened');
+  expect([...rig.stack.vault.entries]).toEqual(bytes);
+  expect(rig.wrapper.find('[data-rp-form="planning"]').exists()).toBe(true);
+ });
 });

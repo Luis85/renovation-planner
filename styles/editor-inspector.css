@@ -15,9 +15,9 @@
  *
  * **`.rp-inspector-guidance` moved out (R15, 2026-09-04)**: the `role="status"` return-to-floor
  * region now lives at shell level, in `SelectionGuidance.vue`, mounted in every layout mode
- * rather than only while this file's own `.rp-editor-inspector` aside is. Its rule moved with
- * it, renamed `.rp-selection-guidance`, into `editor.css` — the partial that already lays out
- * the warnings region `SelectionGuidance` is mounted beside.
+ * rather than only while this file's own `.rp-editor-inspector` aside is. It is
+ * `.rp-selection-guidance rp-visually-hidden` now and has no rule of its own: a drawn line took
+ * layout for one tick on every deselect and pushed the canvas down.
  */
 
 .rp-editor-inspector-empty {

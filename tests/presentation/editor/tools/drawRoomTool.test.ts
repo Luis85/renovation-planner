@@ -322,4 +322,21 @@ describe('DrawRoomTool', () => {
 		tool.abandonGesture();
 		expect(draft.rect).toBeNull();
 	});
+
+	// ToolManager only ever calls cancel()/abandonGesture()/deactivate() on the tool it has
+	// already activated, so every case above reaches these through `armed()`. Called directly
+	// on a fresh, never-activated instance — a legitimate call through this class's own public
+	// surface — each still does its unconditional work rather than throwing on the null context
+	// its render-state guard exists to skip.
+	it('cancel, abandonGesture and deactivate are safe on a tool that was never activated', () => {
+		const draft = useRoomDraftStore();
+		const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1', snapCandidates: () => ({}) });
+		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
+		expect(() => tool.cancel()).not.toThrow();
+		expect(draft.rect).toBeNull();
+		expect(() => tool.abandonGesture()).not.toThrow();
+		draft.setName('Kitchen');
+		expect(() => tool.deactivate()).not.toThrow();
+		expect(draft.name).toBe('');
+	});
 });

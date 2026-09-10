@@ -25,3 +25,8 @@ The adapter removes the explicit `lucide-` family prefix for fixture lookup and 
 attribute, and retains the complete requested name in `data-icon-request`. This reproduces the
 production component's explicit Lucide choice without silently accepting the unsupported
 `grid-2x2` host key. These attributes describe the harness, not native-host acceptance.
+
+The context-menu fixtures were taken from the same pinned revision, where two names differ
+from the ones older Lucide releases used: `trash.svg` (once `trash-2`) and
+`square-dashed-mouse-pointer.svg` (once `box-select`). The production component requests those
+pinned names; whether the installed host catalogue answers them is not verified here.

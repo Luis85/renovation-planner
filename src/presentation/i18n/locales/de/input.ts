@@ -9,4 +9,5 @@ export const inputDe: Record<keyof typeof inputEn, string> = {
 	'editor.input.lock': '{name} sperren',
 	'editor.input.unlock': '{name} entsperren',
 	'editor.input.locked': 'Gesperrt',
+	'editor.input.unavailable': 'Nicht verfügbar, solange ein anderes Werkzeug oder eine Bearbeitung aktiv ist.',
 };

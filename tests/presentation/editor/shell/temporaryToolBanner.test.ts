@@ -9,9 +9,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
+import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { mountPlanEditorCanvas, runtimeOf, settle, settleUntil as until } from '../../../helpers/editor';
 import { activateTool, click, PLAN_DTO, rig } from '../../../helpers/planEditorRig';
 import { expectOk } from '../../../helpers/domain';
+import { structureEditor } from '../../../helpers/structureEditor';
 
 describe('TemporaryToolBanner', () => {
 	it('is absent under Select and names the task under a creation tool', async () => {
@@ -160,5 +162,48 @@ describe('TemporaryToolBanner', () => {
 		expect(createRoom).not.toHaveBeenCalled();
 		expect(expectOk(await zonesRepo.listByPlan(PLAN_DTO.id as never)).loaded).toHaveLength(1);
 		expect(runtime.activeToolId.value).toBe('draw-room');
+	});
+
+	/**
+	 * `freeRoomName`'s ELSE arm: while the area corners are not editable (here, paused by
+	 * `writesBlocked`), typing into the free-room-name field must not write the draft — the
+	 * handler resets the control's own DOM value instead. Dispatched natively rather than
+	 * through `setValue` (which awaits a tick) so the assertion actually discriminates the
+	 * handler's own synchronous reset from Vue's `:value` binding forcing the same value on
+	 * its next patch regardless.
+	 */
+	it('typing into the free-room-name field while it is not editable is reset rather than written', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		useProjectStore(harness.pinia).stale = true;
+		runtime.setTool('draw-polygon');
+		await settle();
+		expect(runtime.areaCorners.editable.value).toBe(false);
+		const before = runtime.roomDraft.name;
+		const input = harness.wrapper.get('input[name="free-room-name"]').element as HTMLInputElement;
+		input.value = 'Nope';
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		expect(input.value).toBe(before);
+		expect(runtime.roomDraft.name).toBe(before);
+	});
+
+	/**
+	 * The wall tool's own Undo point button, reachable only under `draw-wall` and carrying no
+	 * class of its own — found by its localized text, the same way the suggestion buttons in
+	 * `newRoomInspector.test.ts` are. Asserts the real effect (`draft.points` shrinks by one)
+	 * rather than only that the click ran.
+	 */
+	it('the wall tool\'s Undo point button removes the last placed point', async () => {
+		const value = await structureEditor();
+		const { runtime } = value;
+		runtime.setTool('draw-wall');
+		await until(() => !runtime.structureTask.draft.loading, 'wall baseline');
+		runtime.structureTask.draft.points.push({ x: 0, y: 0 }, { x: 1000, y: 0 });
+		await settle();
+		const undo = value.wrapper.findAll('.rp-task-banner button').find((b) => b.text() === t('en', 'editor.structure.undo-point'));
+		if (undo === undefined) throw new Error('no Undo point button');
+		await undo.trigger('click');
+		expect(runtime.structureTask.draft.points).toHaveLength(1);
+		value.unmount();
 	});
 });

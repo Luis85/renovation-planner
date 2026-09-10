@@ -9,7 +9,6 @@ dependsOn:
   - "[[Manually accept the eighteen editor reference comparisons]]"
   - "[[Run the six additional editor interaction drivers]]"
   - "[[Verify reference plan scaling and photo search]]"
-  - "[[Meet editor performance and cleanup budgets]]"
 ---
 
 # Run native Obsidian acceptance H1 to H6 in the repository vault
@@ -54,12 +53,13 @@ fixture run that writes over a note rewrites the product's own register.
 Name the fixture folder and take the backup first, install and reload the merged build, then walk
 H1 to H6 once each, re-observing window and focus before every action. Each row's result is also
 the live-host record its owner note asks for; this note does not restate their criteria.
-[[Execute the manual release evidence matrix]] is the general form of this run.
+[[Execute the manual release evidence matrix]] is the general form of this run. Only the H4 row
+waits on [[Meet editor performance and cleanup budgets]]; H1 to H3, H5 and H6 do not.
 
 ## Acceptance criteria
 
 1. The run uses `C:\Projects\renovation-planner` with a dedicated fixture folder, named before the
-   run, and nothing outside that folder is written.
+   run, and no note outside that folder is written.
 2. Before any run, the existing notes under every path the run touches and the installed plugin's
    file hashes are backed up, and no fixture overwrites an existing note.
 3. The merged build is installed and reloaded, with SHA-256 recorded for source, bundle, styles and

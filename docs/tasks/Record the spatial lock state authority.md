@@ -44,3 +44,10 @@ accepted and become an accidental compatibility contract.
 
 An accepted ADR defines one authority and one explicit history and persistence contract for every
 spatial lock.
+
+## Amendments
+
+**2026-09-10** — superseded in scope by
+[ADR-0027](../development/adrs/0027-zone-lock-is-canonical-click-through.md): zones only, and a
+lock is canvas click-through rather than edit refusal. See the parent PBI's amendment for which
+acceptance criteria stand.

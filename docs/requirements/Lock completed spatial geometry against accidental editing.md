@@ -102,3 +102,15 @@ undo and persistence behavior come only from the accepted ADR.
 - [[Consolidate the current and target editor data models]] and
   [[Record remaining editor model and routing ADRs]], existing model and routing decision work
   against which spatial lock authority must be recorded without duplication.
+
+## Amendments
+
+**2026-09-10** — narrowed and redirected by
+[ADR-0027](../development/adrs/0027-zone-lock-is-canonical-click-through.md), at the user's
+request. Scope is zones (Rooms and Areas) only; Walls and completed groups are out. A lock is
+CANVAS CLICK-THROUGH: the locked zone is not a pointer target on the canvas but stays visible,
+listed, selectable from the sidebar and editable through Inspector forms. That reverses this
+PBI's "Out of scope: making it unselectable" for the canvas and withdraws acceptance criterion 4
+(refusing edits). Criteria 2, 3, 5, 6 and 7 hold under the canonical-state arm of criterion 6:
+each lock change is one reversible `EditZoneDetailsCommand` and survives reload. Delivered on
+branch `feat/zone-lock-and-detail-plans` by `docs/superpowers/plans/2026-09-10-zone-lock.md`.

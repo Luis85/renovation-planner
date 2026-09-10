@@ -43,3 +43,10 @@ reload; render from the authoritative projection.
 
 The renovator can see, inspect and deliberately change spatial lock state without relying on the
 canvas.
+
+## Amendments
+
+**2026-09-10** — superseded in scope by
+[ADR-0027](../development/adrs/0027-zone-lock-is-canonical-click-through.md): zones only, and a
+lock is canvas click-through rather than edit refusal. See the parent PBI's amendment for which
+acceptance criteria stand.

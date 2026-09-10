@@ -64,11 +64,12 @@ the value is a boolean.
 
 ### 3.4 Command
 
-`SetZoneLockedCommand` in `src/application/commands/zone/`, shaped like
-`EditZoneDetailsCommand`: input `{ zoneId, locked, expectedVersion }`, loads the zone,
-refuses a version conflict, no-ops (no write, no event, no history entry) when the value is
-unchanged, saves, publishes `zoneDetailsChanged`. A reversible adapter in the editor's existing
-history (`ReversibleRenameZoneCommand` is the nearest sibling) makes each toggle one undo step.
+No new command. `EditZoneDetailsCommand`'s `ZoneDetails` gains an optional `locked`; the toggle
+dispatches a `details` edit whose forward and inverse restate the zone's current name and type
+with the new and old lock. Absent `locked` leaves the lock untouched, so the area-details form is
+unchanged. The originally planned `SetZoneLockedCommand` would have been a line-for-line clone of
+that command (implementation plan, 2026-09-10). History, versioning, no-write and
+`ZoneDetailsChanged` behave exactly as first described.
 
 ### 3.5 Read model
 
